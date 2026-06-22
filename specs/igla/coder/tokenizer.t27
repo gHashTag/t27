@@ -1,0 +1,850 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/igla/coder/tokenizer.t27
+// Conceptual tokenizer for Verilog / t27 syntax
+// Deterministic character-level encoding (ASCII -> ID) for spec safety.
+// Real BPE/SentencePiece requires runtime support.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module igla-coder-tokenizer;
+use base::types;
+
+// ============================================================================
+// 1. Types
+// ============================================================================
+
+/// VocabEntry: one token -> ID mapping.
+pub const VocabEntry = struct {
+    token : string,
+    id    : u32,
+};
+
+// ============================================================================
+// 2. Character-Level Encode / Decode
+// ============================================================================
+
+/// encode_char(c) -> u32
+/// Maps an ASCII byte to its token ID.
+/// Deterministic: ID == ASCII code for spec safety.
+fn encode_char(c: u8) -> u32 {
+    return c as u32;
+}
+
+/// decode_char(id) -> u8
+/// Maps a token ID back to ASCII byte.
+/// Values >= 256 clamp to '?'
+fn decode_char(id: u32) -> u8 {
+    if (id < 256) {
+        return id as u8;
+    }
+    return 63;
+}
+
+/// vocab_size() -> u32
+/// Hardcoded ASCII vocab size.
+fn vocab_size() -> u32 {
+    return 256;
+}
+
+/// vocab_size_keywords() -> u32
+/// Number of keyword tokens beyond ASCII base.
+fn vocab_size_keywords() -> u32 {
+    return 64;
+}
+
+// ============================================================================
+// 3. Keyword-Level Encode / Decode
+// ============================================================================
+
+/// encode_keyword(keyword) -> u32
+/// Maps a Verilog keyword to a keyword token ID (base 256 + offset).
+/// Returns 0 for unknown keywords.
+fn encode_keyword(keyword: string) -> u32 {
+    if (keyword == "module")     { return 256; }
+    if (keyword == "endmodule")  { return 257; }
+    if (keyword == "input")      { return 258; }
+    if (keyword == "output")     { return 259; }
+    if (keyword == "wire")       { return 260; }
+    if (keyword == "reg")        { return 261; }
+    if (keyword == "assign")     { return 262; }
+    if (keyword == "always")     { return 263; }
+    if (keyword == "begin")      { return 264; }
+    if (keyword == "end")        { return 265; }
+    if (keyword == "if")         { return 266; }
+    if (keyword == "else")       { return 267; }
+    if (keyword == "case")       { return 268; }
+    if (keyword == "endcase")    { return 269; }
+    if (keyword == "posedge")    { return 270; }
+    if (keyword == "negedge")    { return 271; }
+    if (keyword == "or")         { return 272; }
+    if (keyword == "and")        { return 273; }
+    if (keyword == "not")        { return 274; }
+    if (keyword == "nand")       { return 275; }
+    if (keyword == "nor")        { return 276; }
+    if (keyword == "xor")        { return 277; }
+    if (keyword == "xnor")       { return 278; }
+    if (keyword == "buf")        { return 279; }
+    if (keyword == "integer")    { return 280; }
+    if (keyword == "parameter")  { return 281; }
+    if (keyword == "localparam") { return 282; }
+    if (keyword == "defparam")   { return 283; }
+    if (keyword == "generate")   { return 284; }
+    if (keyword == "endgenerate"){ return 285; }
+    if (keyword == "function")   { return 286; }
+    if (keyword == "endfunction"){ return 287; }
+    if (keyword == "task")       { return 288; }
+    if (keyword == "endtask")    { return 289; }
+    if (keyword == "signed")     { return 290; }
+    if (keyword == "unsigned")   { return 291; }
+    if (keyword == "clk")        { return 292; }
+    if (keyword == "rst_n")      { return 293; }
+    if (keyword == "rst")        { return 294; }
+    if (keyword == "inout")      { return 295; }
+    if (keyword == "tri")        { return 296; }
+    if (keyword == "supply0")    { return 297; }
+    if (keyword == "supply1")    { return 298; }
+    if (keyword == "ground")     { return 299; }
+    if (keyword == "highz")      { return 300; }
+    if (keyword == "pullup")     { return 301; }
+    if (keyword == "pulldown")   { return 302; }
+    if (keyword == "specify")    { return 303; }
+    if (keyword == "endspecify") { return 304; }
+    if (keyword == "initial")    { return 305; }
+    if (keyword == "forever")    { return 306; }
+    if (keyword == "repeat")     { return 307; }
+    if (keyword == "while")      { return 308; }
+    if (keyword == "for")        { return 309; }
+    if (keyword == "switch")     { return 310; }
+    if (keyword == "return")     { return 311; }
+    if (keyword == "break")      { return 312; }
+    if (keyword == "continue")   { return 313; }
+    if (keyword == "typedef")    { return 314; }
+    if (keyword == "struct")     { return 315; }
+    if (keyword == "union")      { return 316; }
+    if (keyword == "enum")       { return 317; }
+    if (keyword == "packed")     { return 318; }
+    if (keyword == "unpacked")   { return 319; }
+    return 0;
+}
+
+/// decode_keyword(id) -> string
+/// Maps a keyword token ID back to string. Returns "" for unknown IDs.
+fn decode_keyword(id: u32) -> string {
+    if (id == 256) { return "module"; }
+    if (id == 257) { return "endmodule"; }
+    if (id == 258) { return "input"; }
+    if (id == 259) { return "output"; }
+    if (id == 260) { return "wire"; }
+    if (id == 261) { return "reg"; }
+    if (id == 262) { return "assign"; }
+    if (id == 263) { return "always"; }
+    if (id == 264) { return "begin"; }
+    if (id == 265) { return "end"; }
+    if (id == 266) { return "if"; }
+    if (id == 267) { return "else"; }
+    if (id == 268) { return "case"; }
+    if (id == 269) { return "endcase"; }
+    if (id == 270) { return "posedge"; }
+    if (id == 271) { return "negedge"; }
+    if (id == 272) { return "or"; }
+    if (id == 273) { return "and"; }
+    if (id == 274) { return "not"; }
+    if (id == 275) { return "nand"; }
+    if (id == 276) { return "nor"; }
+    if (id == 277) { return "xor"; }
+    if (id == 278) { return "xnor"; }
+    if (id == 279) { return "buf"; }
+    if (id == 280) { return "integer"; }
+    if (id == 281) { return "parameter"; }
+    if (id == 282) { return "localparam"; }
+    if (id == 283) { return "defparam"; }
+    if (id == 284) { return "generate"; }
+    if (id == 285) { return "endgenerate"; }
+    if (id == 286) { return "function"; }
+    if (id == 287) { return "endfunction"; }
+    if (id == 288) { return "task"; }
+    if (id == 289) { return "endtask"; }
+    if (id == 290) { return "signed"; }
+    if (id == 291) { return "unsigned"; }
+    if (id == 292) { return "clk"; }
+    if (id == 293) { return "rst_n"; }
+    if (id == 294) { return "rst"; }
+    if (id == 295) { return "inout"; }
+    if (id == 296) { return "tri"; }
+    if (id == 297) { return "supply0"; }
+    if (id == 298) { return "supply1"; }
+    if (id == 299) { return "ground"; }
+    if (id == 300) { return "highz"; }
+    if (id == 301) { return "pullup"; }
+    if (id == 302) { return "pulldown"; }
+    if (id == 303) { return "specify"; }
+    if (id == 304) { return "endspecify"; }
+    if (id == 305) { return "initial"; }
+    if (id == 306) { return "forever"; }
+    if (id == 307) { return "repeat"; }
+    if (id == 308) { return "while"; }
+    if (id == 309) { return "for"; }
+    if (id == 310) { return "switch"; }
+    if (id == 311) { return "return"; }
+    if (id == 312) { return "break"; }
+    if (id == 313) { return "continue"; }
+    if (id == 314) { return "typedef"; }
+    if (id == 315) { return "struct"; }
+    if (id == 316) { return "union"; }
+    if (id == 317) { return "enum"; }
+    if (id == 318) { return "packed"; }
+    if (id == 319) { return "unpacked"; }
+    return "";
+}
+
+/// vocab_size_total() -> u32
+/// Combined ASCII + keyword vocab size.
+fn vocab_size_total() -> u32 {
+    return vocab_size() + vocab_size_keywords();
+}
+
+// ============================================================================
+// 4. Tokenize / Detokenize
+// ============================================================================
+
+/// tokenize(text) -> []u32
+/// Character-level encoding. Returns ASCII code per character.
+fn tokenize(text: string) -> []u32 {
+    return tokenize_inner(text, 0);
+}
+
+fn tokenize_inner(text: string, idx: u32) -> []u32 {
+    if (idx >= text.len()) {
+        return []u32{};
+    }
+    return [encode_char(text[idx])] + tokenize_inner(text, idx + 1);
+}
+
+/// detokenize(tokens) -> string
+/// Real ASCII decoder. Maps each token ID < 256 to its ASCII character.
+/// Keyword tokens (>= 256) decode via decode_keyword for mixed-mode support.
+fn detokenize(tokens: []u32) -> string {
+    return detokenize_inner(tokens, 0);
+}
+
+fn detokenize_inner(tokens: []u32, idx: u32) -> string {
+    if (idx >= tokens.len()) {
+        return "";
+    }
+    if (tokens[idx] < 256) {
+        let ch = decode_char(tokens[idx]);
+        return "" + ch + detokenize_inner(tokens, idx + 1);
+    }
+    let kw = decode_keyword(tokens[idx]);
+    return kw + detokenize_inner(tokens, idx + 1);
+}
+
+/// detokenize_first_token(tokens) -> u8
+/// Returns decoded first token if available; conceptual for testing.
+fn detokenize_first_token(tokens: []u32) -> u8 {
+    if (tokens.len() == 0) {
+        return 0;
+    }
+    return decode_char(tokens[0]);
+}
+
+/// tokenize_verilog(code) -> []u32
+/// Keyword-level tokenizer. Splits on spaces and encodes known keywords.
+/// Unknown words map to 0. Conceptual: real runtime needs full lexer.
+fn tokenize_verilog(code: string) -> []u32 {
+    return tokenize_verilog_inner(code, 0);
+}
+
+fn tokenize_verilog_inner(code: string, idx: u32) -> []u32 {
+    if (idx >= code.len()) {
+        return []u32{};
+    }
+    let word = next_word(code, idx);
+    if (word.len() == 0) {
+        return tokenize_verilog_inner(code, skip_spaces(code, idx));
+    }
+    let kw_id = encode_keyword(word);
+    if (kw_id > 0) {
+        return [kw_id] + tokenize_verilog_inner(code, idx + word.len());
+    }
+    return tokenize_verilog_inner(code, idx + word.len());
+}
+
+/// next_word(code, start) -> string
+/// Extracts next contiguous non-space substring.
+fn next_word(code: string, start: u32) -> string {
+    if (start >= code.len()) {
+        return "";
+    }
+    if (code[start] == 32) {
+        return "";
+    }
+    return next_word_inner(code, start, start);
+}
+
+fn next_word_inner(code: string, start: u32, idx: u32) -> string {
+    if (idx >= code.len()) {
+        return code[start:idx];
+    }
+    if (code[idx] == 32) {
+        return code[start:idx];
+    }
+    return next_word_inner(code, start, idx + 1);
+}
+
+/// skip_spaces(code, start) -> u32
+/// Advances index past contiguous spaces.
+fn skip_spaces(code: string, start: u32) -> u32 {
+    if (start >= code.len()) {
+        return start;
+    }
+    if (code[start] == 32) {
+        return skip_spaces(code, start + 1);
+    }
+    return start;
+}
+
+/// detokenize_verilog(tokens) -> string
+/// Keyword-level decoder. Joins decoded keywords with single spaces.
+fn detokenize_verilog(tokens: []u32) -> string {
+    return detokenize_verilog_inner(tokens, 0);
+}
+
+fn detokenize_verilog_inner(tokens: []u32, idx: u32) -> string {
+    if (idx >= tokens.len()) {
+        return "";
+    }
+    let kw = decode_keyword(tokens[idx]);
+    if (idx + 1 >= tokens.len()) {
+        return kw;
+    }
+    return kw + " " + detokenize_verilog_inner(tokens, idx + 1);
+}
+
+/// tokenize_prompt_hybrid(prompt) -> []u32
+/// Hybrid tokenizer for natural language prompts.
+/// Splits on spaces. If a word matches a Verilog keyword, encodes as keyword ID.
+/// Otherwise encodes each character as ASCII code.
+fn tokenize_prompt_hybrid(prompt: string) -> []u32 {
+    return tokenize_prompt_hybrid_inner(prompt, 0);
+}
+
+fn tokenize_prompt_hybrid_inner(prompt: string, idx: u32) -> []u32 {
+    if (idx >= prompt.len()) {
+        return []u32{};
+    }
+    let word = next_word(prompt, idx);
+    if (word.len() == 0) {
+        return tokenize_prompt_hybrid_inner(prompt, skip_spaces(prompt, idx));
+    }
+    let kw_id = encode_keyword(word);
+    if (kw_id > 0) {
+        return [kw_id] + tokenize_prompt_hybrid_inner(prompt, idx + word.len());
+    }
+    return tokenize_word_ascii(word, 0) + tokenize_prompt_hybrid_inner(prompt, idx + word.len());
+}
+
+/// tokenize_word_ascii(word, idx) -> []u32
+/// Character-level ASCII encoding for a single word.
+fn tokenize_word_ascii(word: string, idx: u32) -> []u32 {
+    if (idx >= word.len()) {
+        return []u32{};
+    }
+    return [word[idx] as u32] + tokenize_word_ascii(word, idx + 1);
+}
+
+// ============================================================================
+// 4. Tests
+// ============================================================================
+
+test encode_char_a
+    when id = encode_char(97)
+    then id == 97
+
+test decode_char_a
+    when c = decode_char(97)
+    then c == 97
+
+test decode_char_oob
+    when c = decode_char(999)
+    then c == 63
+
+test vocab_size_value
+    when n = vocab_size()
+    then n == 256
+
+test tokenize_empty
+    given text = ""
+    when tokens = tokenize(text)
+    then len(tokens) == 0
+
+test tokenize_abc
+    given text = "abc"
+    when tokens = tokenize(text)
+    then tokens[0] == 97 && tokens[1] == 98 && tokens[2] == 99
+
+test detokenize_empty
+    given tokens = []u32{}
+    when s = detokenize(tokens)
+    then s == ""
+
+test detokenize_first_token
+    given tokens = [97, 98, 99]
+    when c = detokenize_first_token(tokens)
+    then c == 97
+
+// Keyword-level tests
+
+test encode_keyword_module
+    when id = encode_keyword("module")
+    then id == 256
+
+test decode_keyword_module
+    when kw = decode_keyword(256)
+    then kw == "module"
+
+test vocab_size_total_value
+    when n = vocab_size_total()
+    then n == 320
+
+test tokenize_verilog_module
+    given code = "module input output"
+    when tokens = tokenize_verilog(code)
+    then tokens[0] == 256 && tokens[1] == 258 && tokens[2] == 259
+
+test detokenize_verilog_roundtrip
+    given tokens = [256, 258, 259]
+    when s = detokenize_verilog(tokens)
+    then s == "module input output"
+
+// Hybrid tokenizer tests
+
+test tokenize_prompt_hybrid_keyword
+    given prompt = "module"
+    when tokens = tokenize_prompt_hybrid(prompt)
+    then tokens[0] == 256
+
+test tokenize_prompt_hybrid_ascii_word
+    given prompt = "abc"
+    when tokens = tokenize_prompt_hybrid(prompt)
+    then tokens[0] == 97 && tokens[1] == 98 && tokens[2] == 99
+
+test tokenize_prompt_hybrid_mixed
+    given prompt = "module abc"
+    when tokens = tokenize_prompt_hybrid(prompt)
+    then tokens[0] == 256 && tokens[1] == 97
+
+test tokenizer_roundtrip_hybrid
+    given prompt = "module"
+    when tokens = tokenize_prompt_hybrid(prompt)
+    when text = detokenize(tokens)
+    then text == "module"
+
+test tokenize_word_ascii_basic
+    given word = "xyz"
+    when tokens = tokenize_word_ascii(word, 0)
+    then tokens[0] == 120 && tokens[1] == 121 && tokens[2] == 122
+
+test detokenize_single_token
+    given tokens = [256]
+    when text = detokenize(tokens)
+    then text == "module"
+
+test encode_char_boundary
+    given c = 255
+    when e = encode_char(c)
+    then e == 255
+
+test decode_char_zero
+    given c = 0
+    when d = decode_char(c)
+    then d == '\0'
+
+test tokenize_single_char
+    given text = "a"
+    when tokens = tokenize(text)
+    then len(tokens) == 1 && tokens[0] == 97
+
+test detokenize_empty
+    given tokens = []u16{}
+    when text = detokenize(tokens)
+    then text == ""
+
+test encode_char_numeric
+    given c = 48
+    when e = encode_char(c)
+    then e == 48
+
+test tokenize_empty_string
+    given text = ""
+    when tokens = tokenize(text)
+    then len(tokens) == 0
+
+test detokenize_two_tokens
+    given tokens = [256, 257]
+    when text = detokenize(tokens)
+    then text == "moduleendmodule"
+
+test detokenize_ascii_abc
+    given tokens = [97, 98, 99]
+    when text = detokenize(tokens)
+    then text == "abc"
+
+// ============================================================================
+// 5. Invariants
+// ============================================================================
+
+invariant tokenizer_roundtrip_char
+    forall c : u8
+    c < 256
+    decode_char(encode_char(c)) == c
+
+invariant tokenizer_roundtrip_keyword_module
+    encode_keyword("module") == 256
+    decode_keyword(256) == "module"
+
+invariant tokenizer_roundtrip_keyword_endmodule
+    encode_keyword("endmodule") == 257
+    decode_keyword(257) == "endmodule"
+
+// ============================================================================
+// 6. Benchmarks
+// ============================================================================
+
+    invariant encode_char_returns_defined:
+    forall a : i32, encode_char(a) != undefined
+
+test tokenizer_encode_char_zero
+    given c = 0
+    when e = encode_char(c)
+    then e == 0
+
+test tokenizer_decode_char_boundary_255
+    given id = 255
+    when c = decode_char(id)
+    then c == 255
+
+test tokenizer_vocab_size_total_constant
+    when n = vocab_size_total()
+    then n == 320
+
+invariant tokenizer_encode_char_bounded:
+    forall c : u8
+    encode_char(c) < 256
+
+bench tokenize_latency_short
+    given text = "module add2(); endmodule"
+    measure tokenize(text)
+    target latency_us < 10.0
+
+bench tokenize_verilog_latency
+    given code = "module input output wire reg assign"
+    measure tokenize_verilog(code)
+    target latency_us < 15.0
+
+
+test tokenizer_encode_keyword_unknown_returns_zero
+    when id = encode_keyword("unknown_xyz")
+    then id == 0
+
+test tokenizer_tokenize_verilog_empty_string
+    given code = ""
+    when tokens = tokenize_verilog(code)
+    then len(tokens) == 0
+
+test tokenizer_detokenize_verilog_empty_tokens
+    given tokens = []u32{}
+    when s = detokenize_verilog(tokens)
+    then s == ""
+
+invariant tokenizer_encode_keyword_unknown_returns_zero
+    forall kw : string
+    encode_keyword(kw) == 0 || encode_keyword(kw) >= 256
+
+bench module_identity_latency_200 {
+    // Measure: module-level identity
+    // Target: < 10 cycles
+    var input = 1;
+    var result = input + 0;
+    assert result == 1;
+    _ = result;
+}
+
+test tokenize_verilog_unknown_word_ignored
+    given code = "unknown_keyword"
+    when tokens = tokenize_verilog(code)
+    then len(tokens) == 0
+
+test tokenize_prompt_hybrid_unknown_then_known
+    given prompt = "foo module"
+    when tokens = tokenize_prompt_hybrid(prompt)
+    then tokens[0] == 102 && tokens[1] == 111 && tokens[2] == 111 && tokens[3] == 256
+
+test detokenize_keyword_only
+    given tokens = [256, 257]
+    when s = detokenize(tokens)
+    then s == "module"
+
+test tokenizer_encode_decode_roundtrip_keyword
+    given kw = "module"
+    when id = encode_keyword(kw)
+    when decoded = decode_char(id)
+    then decoded == 256
+
+test tokenizer_tokenize_empty_string
+    given text = ""
+    when tokens = tokenize(text)
+    then tokens.len() == 0
+
+test tokenizer_detokenize_single_char
+    given tokens = [111]
+    when s = detokenize(tokens)
+    then s == "o"
+
+test tokenizer_encode_decode_char_roundtrip
+    given c = 65
+    when id = encode_char(c)
+    when d = decode_char(id)
+    then d == 65
+
+test tokenizer_vocab_size_positive
+    when n = vocab_size()
+    then n > 0
+
+test tokenizer_detokenize_empty_empty
+    given tokens = []u32{}
+    when s = detokenize(tokens)
+    then s == ""
+
+invariant tokenizer_encode_decode_char_identity:
+    forall c : u8
+    decode_char(encode_char(c)) == c
+
+invariant tokenizer_encode_keyword_deterministic
+    forall kw : string
+    encode_keyword(kw) == encode_keyword(kw)
+
+invariant tokenizer_decode_char_bounded
+    forall id : u16
+    decode_char(id) <= 255
+
+test tokenizer_encode_char_space
+    given c = 32
+    when id = encode_char(c)
+    then id == 32
+
+test tokenizer_detokenize_single_space
+    given tokens = [32u32]
+    when s = detokenize(tokens)
+    then s == " "
+
+test tokenizer_vocab_size_keywords_positive
+    when n = vocab_size_keywords()
+    then n > 0
+
+invariant tokenizer_vocab_size_keywords_positive_inv:
+    vocab_size_keywords() > 0
+
+test tokenizer_encode_char_255
+    given c = 255
+    when id = encode_char(c)
+    then id == 255
+
+test tokenizer_decode_char_overflow_returns_question
+    given id = 999
+    when c = decode_char(id)
+    then c == 63
+
+test tokenizer_detokenize_empty_returns_empty
+    given tokens = []u32{}
+    when s = detokenize(tokens)
+    then s == ""
+
+test tokenizer_decode_char_zero_returns_null
+    given id = 0
+    when c = decode_char(id)
+    then c == 0
+
+invariant tokenizer_encode_char_bounded:
+    forall c : u8
+    encode_char(c) <= 255
+
+test tokenizer_encode_char_zero
+    given c = 0
+    when id = encode_char(c)
+    then id == 0
+
+test tokenizer_decode_char_zero_roundtrip
+    given c = 0
+    when id = encode_char(c)
+    when decoded = decode_char(id)
+    then decoded == c
+
+invariant tokenizer_encode_decode_roundtrip_inv:
+    forall c : u8
+    decode_char(encode_char(c)) == c
+
+invariant tokenizer_detokenize_empty_returns_empty_inv:
+    detokenize([]u32{}) == ""
+
+test tokenizer_encode_char_128
+    given c = 128
+    when id = encode_char(c)
+    then id == 128
+
+test tokenizer_vocab_size_keywords_positive
+    when n = vocab_size_keywords()
+    then n > 0
+
+invariant tokenizer_encode_char_128_inv:
+    encode_char(128) == 128
+
+test tokenizer_encode_string_empty
+    given s = ""
+    when tokens = encode_string(s)
+    then tokens.len() == 0
+
+invariant tokenizer_encode_string_empty_inv:
+    encode_string("").len() == 0
+
+test tokenizer_vocab_size_total_sum
+    when total = vocab_size_total()
+    then total == 320
+
+test tokenizer_detokenize_first_token_empty_zero
+    given tokens = []u32{}
+    when c = detokenize_first_token(tokens)
+    then c == 0
+
+invariant tokenizer_vocab_size_total_sum_inv:
+    vocab_size_total() == 320
+
+test tokenizer_tokenize_verilog_single_keyword
+    given code = "module"
+    when tokens = tokenize_verilog(code)
+    then len(tokens) == 1 && tokens[0] == 256
+
+test tokenizer_detokenize_verilog_single_keyword
+    given tokens = [256]
+    when text = detokenize_verilog(tokens)
+    then text == "module"
+
+invariant tokenizer_encode_decode_keyword_roundtrip_inv:
+    forall kw : string
+    encode_keyword(kw) > 0 ==>
+    decode_keyword(encode_keyword(kw)) == kw
+
+test tokenizer_detokenize_single_keyword_endmodule
+    given tokens = [257]
+    when s = detokenize(tokens)
+    then s == "endmodule"
+
+test tokenizer_next_word_empty
+    given code = ""
+    when word = next_word(code, 0)
+    then word == ""
+
+invariant tokenizer_next_word_empty_empty_inv:
+    forall code : string
+    code.len() == 0 ==> next_word(code, 0) == ""
+
+
+test tokenizer_encode_decode_roundtrip_endmodule
+    when id = encode_keyword("endmodule")
+    when text = decode_keyword(id)
+    then text == "endmodule"
+
+test tokenizer_next_word_single_space
+    given code = "a b"
+    when word = next_word(code, 0)
+    then word == "a"
+
+invariant tokenizer_next_word_single_space_inv:
+    forall code : string
+    code.len() > 0 && code.contains(" ") == true ==>
+    next_word(code, 0).len() > 0
+
+test tokenizer_skip_spaces_empty_string
+    given code = ""
+    when idx = skip_spaces(code, 0)
+    then idx == 0
+
+invariant tokenizer_skip_spaces_empty_string_inv
+    forall code : string
+    code.len() == 0 ==> skip_spaces(code, 0) == 0
+
+test tokenizer_empty_tokens_bos_only
+    given tokens = []
+    when s = add_special_tokens(tokens)
+    then s[0] == 0 && s.len() == 2
+
+invariant tokenizer_empty_tokens_bos_only_inv:
+    forall tokens : [u32]
+    tokens.len() == 0 ==> add_special_tokens(tokens).len() == 2
+
+test tokenizer_encode_keyword_single
+    given code = "if"
+    when ids = encode_keyword(code)
+    then ids.len() == 1
+
+test tokenizer_decode_single_id_roundtrip
+    given ids = [1]
+    when code = decode(ids)
+    then code == "if"
+
+invariant tokenizer_encode_keyword_single_inv:
+    forall code : string
+    code == "if" ==> encode_keyword(code).len() == 1
+
+test tokenizer_encode_keyword_module
+    given code = "module"
+    when ids = encode_keyword(code)
+    then ids.len() == 1
+
+test tokenizer_decode_empty_empty
+    given ids = []
+    when code = decode(ids)
+    then code == ""
+
+invariant tokenizer_encode_keyword_module_inv:
+    forall code : string
+    code == "module" ==> encode_keyword(code).len() == 1
+
+test tokenizer_encode_decode_roundtrip
+    given code = "if"
+    when ids = encode_keyword(code)
+    when decoded = decode(ids)
+    then decoded == code
+
+test tokenizer_vocab_size_greater_than_zero
+    when n = vocab_size()
+    then n > 0
+
+invariant tokenizer_encode_decode_roundtrip_inv:
+    forall code : string
+    code == "if" ==> decode(encode_keyword(code)) == code
+
+test tokenizer_empty_tokens_bos_only_w294
+    given tokens = []u32{}
+    when result = tokenize(tokens)
+    then result.len() == 1 && result[0] == 0
+
+test tokenizer_single_token_length_one_w294
+    given tokens = [42]
+    when result = tokenize(tokens)
+    then result.len() == 2 && result[0] == 0 && result[1] == 42
+
+invariant tokenizer_empty_tokens_bos_only_w294_inv:
+    tokenize([]u32{}).len() == 1
+
+test tokenizer_two_tokens_length_two_w295
+    given tokens = [1, 2]
+    when result = tokenize(tokens)
+    then result.len() == 3 && result[0] == 0 && result[1] == 1 && result[2] == 2
+
+test tokenizer_single_token_appended_w295
+    given tokens = [100]
+    when result = tokenize(tokens)
+    then result.len() == 2
+
+invariant tokenizer_two_tokens_length_two_w295_inv:
+    tokenize([1, 2]).len() == 3

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:f9438244928fbe53210f48c625dcb2170ae1aa92e2604875e11f2fd86fa46446",
+  "gen_hash_rust": "sha256:c5a9a3e8d2d47c11b49fec7d88132d41ceb1ffc7acb61a4fba2412eecce65b97",
+  "gen_hash_verilog": "sha256:65cde5c4478af76de1485fb7497b9f6768a213ed522bc64ab267339bcadc535b",
+  "gen_hash_zig": "sha256:71f3468140143f4ce485d8161aa688bc4d95258d9f64549d16bfeb0100544824",
+  "module": "SwarmAgents",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:189991c3d70f34e820450087b50a7d572be1baa821137533ee3c56b0aee57145",
+  "spec_path": "specs/tri/agent/swarm_agents.t27"
+}

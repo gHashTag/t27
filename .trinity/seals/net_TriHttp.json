@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:302e661a07b6a5526ef97a639e2dce25ff50ccba940834d9d6a63c8ae5bf0f09",
+  "gen_hash_rust": "sha256:a805332226b5fff174e0390184de25483bb4d664593fb54904259c9525746f84",
+  "gen_hash_verilog": "sha256:6d92c31cd3651a457d63d85c0375171210c9f187fc5c4c5add74b08380dc0359",
+  "gen_hash_zig": "sha256:436c06e7870b93600dc55faf7eadf9f04810a722ae1b8aee888cb4b40be7181d",
+  "module": "TriHttp",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:1bbbca39d68d5200103468c2cfc0c6dbe1c4fcbb8c4f5c8234145d1d494bdd85",
+  "spec_path": "specs/tri/net/http.t27"
+}

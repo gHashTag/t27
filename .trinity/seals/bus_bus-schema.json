@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e34daf36a7f724645a8f049732902e1226c4fb27cc3a6a63191e55cec46b1c49",
+  "gen_hash_rust": "sha256:f08bf0bf5af001e36120b3447a15941907c6d9cba6803042723c411e0258025b",
+  "gen_hash_verilog": "sha256:b897be84140648d4b046edfc61fe5844f06e045efda77f2acf4299d54d33cf12",
+  "gen_hash_zig": "sha256:00d8e70acb01f3255a328eaaaa0926b762c1e74b1e6f9c85cfacb41ca73ea9e3",
+  "module": "bus-schema",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:48Z",
+  "spec_hash": "sha256:76f4b79cfecc890ab7a7f7bcbe9564aa9d6ecde995aedb1de20315716844ca22",
+  "spec_path": "specs/bus/schema.t27"
+}

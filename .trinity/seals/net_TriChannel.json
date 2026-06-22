@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:9cd3ab547db40a4900677e7e6a85df4d25e4eb3845e962ba2a4b2216fd341900",
+  "gen_hash_rust": "sha256:ab35e640400a5210bf7897741a45fcc28f15fbddbb31eb16b99b25b3756eeb22",
+  "gen_hash_verilog": "sha256:3a7bea36becd95ed3cae4464f4395ef617006c4107feb99429256c1a088be2ec",
+  "gen_hash_zig": "sha256:9bb9eae9bb37b1659839d8db46ca3b87c12deb34e7ffa0b7b67b2d27349c6bab",
+  "module": "TriChannel",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:8b6fe7a680efb096f89b4f3166bdc6724a7bd3e48fa841b90ac94c4e1f66df01",
+  "spec_path": "specs/tri/net/channel.t27"
+}

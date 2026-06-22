@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:a6a86b9b2a509fa09fc045d6f71fa863c55c7adc2ab91dafd686ae5c2ecd3e60",
+  "gen_hash_rust": "sha256:348e52281cf69df08c890975ea4c398968e0ae79e54df76adc528004e290688e",
+  "gen_hash_verilog": "sha256:7aaee555ef6eeefdfaf132c3745c4108a3db5219e8144f3dac348137ad48e5a5",
+  "gen_hash_zig": "sha256:c7fc910c69de899c89432ab5bf036841a5acbc05fa024368e33360e1a401c238",
+  "module": "Softmax",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:50Z",
+  "spec_hash": "sha256:4ea7242baa7a03eeadf68af61c6d58551b24783880fa3319a2d0c34550ecdb44",
+  "spec_path": "specs/ml/activation/softmax.t27"
+}

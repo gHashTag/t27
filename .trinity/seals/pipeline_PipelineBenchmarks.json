@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:604af069782337ab9ee83719d98c02ca3e40d8681718a443bda4250bc0b85c1b",
+  "gen_hash_rust": "sha256:5abf3b1119f60252339273261e2edd15b632db979f98b6cd98aa5d7a236328d2",
+  "gen_hash_verilog": "sha256:03dd6d79a80aaedd6b153a4418f9fe1f89cba7b6822fa2eac8fb8647d47cc175",
+  "gen_hash_zig": "sha256:8e78e0d7e24ff625d15297c7bde93bceafb482ba2d480df9404efd626fa8d291",
+  "module": "PipelineBenchmarks",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:47Z",
+  "spec_hash": "sha256:6926ef2f5ef68b7a540eae2c7bffc4efd4928bcf00686806f549664b92b8afd7",
+  "spec_path": "specs/pipeline/benchmarks.t27"
+}

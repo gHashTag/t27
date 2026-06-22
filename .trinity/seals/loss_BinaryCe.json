@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:89d5e6563c956df8d58c0a3ba610b1a6aa963c143c5fdb5042e7c2e6a137f367",
+  "gen_hash_rust": "sha256:198cfbd3457e0798e6efa2d6b54a8ca1e33f219aeb404b65fca6b4bfa10eb6ab",
+  "gen_hash_verilog": "sha256:ed47fbc6f1793fcfe71179c9eeddd06b3abf3634795c12b768249c1ca6899e18",
+  "gen_hash_zig": "sha256:8c137222ebdd532eb64c4d4f044167db6656857d99d8ba3369702e50b9a6e14d",
+  "module": "BinaryCe",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:7ef7acd6dea18076e9b87ed6b1cc6fa16ef8c0de91a59ce03bb66cb5f4d01e48",
+  "spec_path": "specs/ml/loss/binary_crossentropy_loss.t27"
+}

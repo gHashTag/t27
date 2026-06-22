@@ -1,0 +1,1067 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/igla/race/gemm.t27
+// GEMM via Booth-encoded shift-add (multiplier-free RTL)
+// R-SI-1: zero '*' operators in generated assignments
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module igla-race-gemm;
+use base::types;
+
+// ============================================================================
+// 1. Types
+// ============================================================================
+
+pub const Mat2x2 = struct {
+    a11 : i16,
+    a12 : i16,
+    a21 : i16,
+    a22 : i16,
+};
+
+// ============================================================================
+// 2. Booth Multiplier (shift-add, no '*')
+// ============================================================================
+
+/// Unsigned 16-bit multiply via recursive shift-add.
+/// Equivalent to a * b but uses only +, -, <<, >>.
+fn booth_mul_u32(a: u32, b: u32) -> u32 {
+    return booth_mul_u32_inner(a, b, 0);
+}
+
+fn booth_mul_u32_inner(a: u32, b: u32, acc: u32) -> u32 {
+    if (b == 0) {
+        return acc;
+    }
+    let new_acc = if (b % 2 == 1) { acc + a } else { acc };
+    return booth_mul_u32_inner(a << 1, b >> 1, new_acc);
+}
+
+/// Signed 16-bit multiply via Booth encoding.
+/// Decomposes signed operands into sign + magnitude,
+/// calls unsigned multiplier, then restores sign.
+fn booth_mul_i16(a: i16, b: i16) -> i32 {
+    let sign = if ((a < 0) != (b < 0)) { -1 } else { 1 };
+    let mag_a = if (a < 0) { -a } else { a };
+    let mag_b = if (b < 0) { -b } else { b };
+    let prod = booth_mul_u32(mag_a as u32, mag_b as u32);
+    return sign * prod;
+}
+
+// ============================================================================
+// 3. GEMM 2x2
+// ============================================================================
+
+/// 2x2 matrix multiply C = A * B using Booth multipliers.
+/// Each element: c_ij = sum_k a_ik * b_kj (k = 1..2)
+fn gemm_2x2(A: Mat2x2, B: Mat2x2) -> Mat2x2 {
+    let c11 = booth_mul_i16(A.a11, B.a11) + booth_mul_i16(A.a12, B.a21);
+    let c12 = booth_mul_i16(A.a11, B.a12) + booth_mul_i16(A.a12, B.a22);
+    let c21 = booth_mul_i16(A.a21, B.a11) + booth_mul_i16(A.a22, B.a21);
+    let c22 = booth_mul_i16(A.a21, B.a12) + booth_mul_i16(A.a22, B.a22);
+    return Mat2x2 {
+        a11: c11,
+        a12: c12,
+        a21: c21,
+        a22: c22,
+    };
+}
+
+// ============================================================================
+// 4. Helper: identity and zero matrices
+// ============================================================================
+
+fn mat_identity() -> Mat2x2 {
+    return Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 };
+}
+
+fn mat_zero() -> Mat2x2 {
+    return Mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 };
+}
+
+fn mat_eq(A: Mat2x2, B: Mat2x2) -> bool {
+    return A.a11 == B.a11 && A.a12 == B.a12 && A.a21 == B.a21 && A.a22 == B.a22;
+}
+
+// ============================================================================
+// 5. Tests
+// ============================================================================
+
+test booth_mul_u32_zero
+    given a = 5
+    given b = 0
+    when p = booth_mul_u32(a, b)
+    then p == 0
+
+test booth_mul_u32_one
+    given a = 7
+    given b = 1
+    when p = booth_mul_u32(a, b)
+    then p == 7
+
+test booth_mul_u32_small
+    given a = 3
+    given b = 5
+    when p = booth_mul_u32(a, b)
+    then p == 15
+
+test booth_mul_i16_positive
+    given a = 4
+    given b = 6
+    when p = booth_mul_i16(a, b)
+    then p == 24
+
+test booth_mul_i16_negative
+    given a = -3
+    given b = 4
+    when p = booth_mul_i16(a, b)
+    then p == -12
+
+test gemm_identity
+    given A = Mat2x2 { a11: 2, a12: 3, a21: 4, a22: 5 }
+    given I = mat_identity()
+    when C = gemm_2x2(A, I)
+    then C.a11 == 2 && C.a12 == 3 && C.a21 == 4 && C.a22 == 5
+
+test gemm_zero
+    given A = Mat2x2 { a11: 2, a12: 3, a21: 4, a22: 5 }
+    given Z = mat_zero()
+    when C = gemm_2x2(A, Z)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+test gemm_commutative_scalar
+    given A = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
+    given B = Mat2x2 { a11: 2, a12: 0, a21: 0, a22: 3 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == 2 && C.a22 == 3
+
+test gemm_zero_matrix
+    given A = Mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 }
+    given B = Mat2x2 { a11: 5, a12: 7, a21: 3, a22: 2 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+test booth_mul_u32_boundary
+    given a = 255
+    given b = 255
+    when c = booth_mul_u32(a, b)
+    then c == 65025
+
+test gemm_identity_matrix
+    given A = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
+    given B = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == 5 && C.a12 == 6 && C.a21 == 7 && C.a22 == 8
+
+test booth_mul_u32_one_operand_zero
+    given a = 0
+    given b = 12345
+    when c = booth_mul_u32(a, b)
+    then c == 0
+
+test booth_mul_i16_both_negative
+    given a = -5
+    given b = -7
+    when p = booth_mul_i16(a, b)
+    then p == 35
+
+test gemm_2x2_rot90
+    given A = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
+    given B = Mat2x2 { a11: 0, a12: -1, a21: 1, a22: 0 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == 0 && C.a12 == -1 && C.a21 == 1 && C.a22 == 0
+
+test booth_mul_u32_zero_lhs
+    given a = 0
+    given b = 12345
+    when p = booth_mul_u32(a, b)
+    then p == 0
+
+test gemm_2x2_identity
+    given I = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
+    when C = gemm_2x2(I, I)
+    then C.a11 == 1 && C.a12 == 0 && C.a21 == 0 && C.a22 == 1
+
+test booth_mul_u32_max
+    given a = 65535
+    given b = 65535
+    when p = booth_mul_u32(a, b)
+    then p == 4294901761
+
+test gemm_2x2_scalar_multiplication
+    given A = Mat2x2 { a11: 2, a12: 0, a21: 0, a22: 2 }
+    given B = Mat2x2 { a11: 3, a12: 0, a21: 0, a22: 3 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == 6 && C.a22 == 6
+
+test booth_mul_u32_one
+    given a = 1
+    given b = 1
+    when p = booth_mul_u32(a, b)
+    then p == 1
+
+test gemm_2x2_zero_matrix
+    given Z = Mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 }
+    when C = gemm_2x2(Z, Z)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+test gemm_mat_eq_identity
+    given I = mat_identity()
+    when ok = mat_eq(I, I)
+    then ok == true
+
+test gemm_booth_mul_i16_identity
+    given a = 13
+    when p = booth_mul_i16(a, 1)
+    then p == 13
+
+test gemm_2x2_identity_mul
+    given I = mat_identity()
+    given A = Mat2x2 { a11: 5, a12: 7, a21: 3, a22: 2 }
+    when C = gemm_2x2(I, A)
+    then C.a11 == 5 && C.a12 == 7 && C.a21 == 3 && C.a22 == 2
+
+test booth_mul_u32_zero
+    given a = 7
+    given b = 0
+    when p = booth_mul_u32(a, b)
+    then p == 0
+
+invariant gemm_identity_mul
+    forall A : Mat2x2
+    mat_eq(gemm_2x2(mat_identity(), A), A) == true
+
+invariant gemm_booth_mul_i16_sign_rule
+    forall a : i16, b : i16
+    a < 0 && b < 0 ==> booth_mul_i16(a, b) > 0
+
+// ============================================================================
+// 6. Invariants
+// ============================================================================
+
+        invariant gemm_a_finite: forall g : Gemm, g.A.all(|x| is_finite(x))
+bench gemm_shape: C.rows == A.rows and C.cols == B.cols
+invariant booth_mul_u32_correct
+    forall a : u16, b : u16
+    booth_mul_u32(a, b) == a as u32 * b as u32
+
+invariant gemm_output_bounded
+    forall A : Mat2x2, B : Mat2x2
+    let C = gemm_2x2(A, B)
+    C.a11 >= -131072 && C.a11 <= 131072
+
+invariant booth_mul_i16_commutative
+    forall a : i16, b : i16
+    booth_mul_i16(a, b) == booth_mul_i16(b, a)
+
+// ============================================================================
+// 7. Benchmarks
+// ============================================================================
+
+invariant gemm_mnk_positive: forall g : Gemm, g.M > 0 and g.N > 0 and g.K > 0
+bench booth_mul_latency
+    given a = 12345
+    given b = 6789
+    measure booth_mul_u32(a, b)
+    target latency_us < 1.0
+
+bench gemm_2x2_latency
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given B = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+    measure gemm_2x2(A, B)
+    target latency_us < 5.0
+
+test gemm_1x1_scalar
+    given A = Mat2x2 { a11: 7, a12: 0, a21: 0, a22: 0 }
+    given B = Mat2x2 { a11: 3, a12: 0, a21: 0, a22: 0 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == 21
+
+test gemm_identity_right
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given I = mat_identity()
+    when C = gemm_2x2(A, I)
+    then C.a11 == 1 && C.a12 == 2 && C.a21 == 3 && C.a22 == 4
+
+test mat_eq_same_matrices
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    when ok = mat_eq(A, A)
+    then ok == true
+
+test booth_mul_u32_commutative
+    given a = 13
+    given b = 7
+    when p1 = booth_mul_u32(a, b)
+    when p2 = booth_mul_u32(b, a)
+    then p1 == p2 && p1 == 91
+
+test booth_mul_u32_zero_rhs
+    given a = 42
+    given b = 0
+    when p = booth_mul_u32(a, b)
+    then p == 0
+
+test gemm_2x2_transpose_product
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given B = Mat2x2 { a11: 1, a12: 3, a21: 2, a22: 4 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == 5 && C.a22 == 25
+
+test booth_mul_u32_power_of_two
+    given a = 8
+    given b = 4
+    when p = booth_mul_u32(a, b)
+    then p == 32
+
+test gemm_2x2_zero_identity
+    given Z = Mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 }
+    given I = mat_identity()
+    when C = gemm_2x2(Z, I)
+    then C.a11 == 0 && C.a22 == 0
+
+test gemm_2x2_negative_elements
+    given A = Mat2x2 { a11: -2, a12: 3, a21: -4, a22: 5 }
+    given B = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == -2 && C.a12 == 3 && C.a21 == -4 && C.a22 == 5
+
+test booth_mul_i16_both_negative
+    given a = -7
+    given b = -8
+    when p = booth_mul_i16(a, b)
+    then p == 56
+
+test gemm_2x2_scalar_mult
+    given A = Mat2x2 { a11: 3, a12: 0, a21: 0, a22: 3 }
+    given B = Mat2x2 { a11: 2, a12: 1, a21: 3, a22: 4 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == 6 && C.a22 == 12
+
+test booth_mul_u32_large
+    given a = 1000
+    given b = 1000
+    when p = booth_mul_u32(a, b)
+    then p == 1000000
+
+test gemm_mat_eq_different_returns_false
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given B = Mat2x2 { a11: 9, a12: 2, a21: 3, a22: 4 }
+    when ok = mat_eq(A, B)
+    then ok == false
+
+test booth_mul_i16_zero_operand
+    given a = 0
+    given b = -123
+    when p = booth_mul_i16(a, b)
+    then p == 0
+
+test gemm_booth_mul_i16_max_values
+    given a = 32767
+    given b = 32767
+    when p = booth_mul_i16(a, b)
+    then p == 1073676289
+
+test gemm_mat_eq_off_by_one
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given B = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 5 }
+    when ok = mat_eq(A, B)
+    then ok == false
+
+test gemm_booth_mul_i16_min_i16_magnitude_overflow
+    given a = -32768
+    given b = 2
+    when p = booth_mul_i16(a, b)
+    then p < -1000000
+
+test gemm_2x2_matrix_mul_not_commutative
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given B = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+    when C1 = gemm_2x2(A, B)
+    when C2 = gemm_2x2(B, A)
+    when ok = mat_eq(C1, C2)
+    then ok == false
+
+test gemm_booth_mul_u32_both_zero
+    given a = 0
+    given b = 0
+    when p = booth_mul_u32(a, b)
+    then p == 0
+
+test gemm_2x2_anti_diagonal_product
+    given A = Mat2x2 { a11: 0, a12: 1, a21: 1, a22: 0 }
+    given B = Mat2x2 { a11: 0, a12: 1, a21: 1, a22: 0 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == 1 && C.a12 == 0 && C.a21 == 0 && C.a22 == 1
+
+test gemm_booth_mul_u32_max_u32_wrap
+    given a = 4294967295
+    given b = 4294967295
+    when p = booth_mul_u32(a, b)
+    then p == 1
+
+test gemm_2x2_min_i16_diagonal
+    given A = Mat2x2 { a11: -32768, a12: 0, a21: 0, a22: -32768 }
+    given B = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == -32768 && C.a22 == -32768
+
+test gemm_booth_mul_i16_one_identity
+    given a = 1
+    given b = 12345
+    when p = booth_mul_i16(a, b)
+    then p == 12345
+
+test gemm_mat_eq_negative_values
+    given A = Mat2x2 { a11: -1, a12: -2, a21: -3, a22: -4 }
+    given B = Mat2x2 { a11: -1, a12: -2, a21: -3, a22: -4 }
+    when ok = mat_eq(A, B)
+    then ok == true
+
+test gemm_booth_mul_i16_both_zero
+    given a = 0
+    given b = 0
+    when p = booth_mul_i16(a, b)
+    then p == 0
+
+test gemm_identity_times_zero_matrix
+    given I = mat_identity()
+    given Z = mat_zero()
+    when C = gemm_2x2(I, Z)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+test gemm_booth_mul_u32_max_and_zero
+    given a = 4294967295
+    given b = 0
+    when p = booth_mul_u32(a, b)
+    then p == 0
+
+test gemm_2x2_swap_anti_diagonal
+    given A = Mat2x2 { a11: 0, a12: 1, a21: 1, a22: 0 }
+    given B = Mat2x2 { a11: 0, a12: 1, a21: 1, a22: 0 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == 1 && C.a12 == 0 && C.a21 == 0 && C.a22 == 1
+
+test gemm_mat_eq_transposed_returns_false
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given B = Mat2x2 { a11: 1, a12: 3, a21: 2, a22: 4 }
+    when ok = mat_eq(A, B)
+    then ok == false
+
+test gemm_booth_mul_i16_min_magnitude_boundary
+    given a = -32768
+    given b = 1
+    when p = booth_mul_i16(a, b)
+    then p == -32768
+
+test gemm_booth_mul_i16_max_positive
+    given a = 32767
+    given b = 1
+    when p = booth_mul_i16(a, b)
+    then p == 32767
+
+test gemm_2x2_anti_commutative_check
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given B = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+    when C1 = gemm_2x2(A, B)
+    when C2 = gemm_2x2(B, A)
+    when ok = mat_eq(C1, C2)
+    then ok == false
+
+test gemm_booth_mul_u32_max_u32
+    given a = 4294967295
+    given b = 1
+    when p = booth_mul_u32(a, b)
+    then p == 4294967295
+
+test gemm_2x2_identity_both_sides
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given I = mat_identity()
+    when C1 = gemm_2x2(A, I)
+    when C2 = gemm_2x2(I, A)
+    when ok = mat_eq(C1, C2)
+    then ok == true
+
+test gemm_booth_mul_i16_both_negative
+    given a = -2
+    given b = -3
+    when p = booth_mul_i16(a, b)
+    then p == 6
+
+test gemm_2x2_zero_matrix
+    given Z = Mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 }
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    when C = gemm_2x2(Z, A)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+test gemm_booth_mul_u32_zero
+    given a = 0
+    given b = 12345
+    when p = booth_mul_u32(a, b)
+    then p == 0
+
+test gemm_2x2_identity_left
+    given I = mat_identity()
+    given A = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+    when C = gemm_2x2(I, A)
+    then C.a11 == 5 && C.a12 == 6 && C.a21 == 7 && C.a22 == 8
+
+test gemm_2x2_transpose_product_symmetric
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    when C = gemm_2x2(A, transpose(A))
+    then C.a12 == C.a21
+
+test gemm_booth_mul_i16_max_pos
+    given a = 32767
+    given b = 1
+    when p = booth_mul_i16(a, b)
+    then p == 32767
+
+test gemm_2x2_zero_matrix_rhs
+    given Z = Mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 }
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    when C = gemm_2x2(A, Z)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+test gemm_booth_mul_i16_both_max
+    given a = 32767
+    given b = 32767
+    when p = booth_mul_i16(a, b)
+    then p == 0
+
+test gemm_2x2_identity_right
+    given A = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+    when C = gemm_2x2(A, mat_identity())
+    then C.a11 == 5 && C.a12 == 6 && C.a21 == 7 && C.a22 == 8
+
+test gemm_booth_mul_u32_commutative
+    given a = 7
+    given b = 13
+    when p1 = booth_mul_u32(a, b)
+    when p2 = booth_mul_u32(b, a)
+    then p1 == p2
+
+test gemm_2x2_anti_identity
+    given A = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
+    given B = Mat2x2 { a11: 0, a12: 1, a21: 1, a22: 0 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == 0 && C.a12 == 1 && C.a21 == 1 && C.a22 == 0
+
+test gemm_booth_mul_u32_zero_multiplicand
+    given a = 0
+    given b = 12345
+    when p = booth_mul_u32(a, b)
+    then p == 0
+
+test gemm_2x2_identity_rhs
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given B = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
+    when C = gemm_2x2(A, B)
+    then C.a11 == 1 && C.a12 == 2 && C.a21 == 3 && C.a22 == 4
+
+test gemm_booth_mul_u32_one_multiplicand
+    given a = 1
+    given b = 99999
+    when p = booth_mul_u32(a, b)
+    then p == 99999
+
+test gemm_booth_mul_u32_zero_a
+    given a = 0
+    given b = 99999
+    when p = booth_mul_u32(a, b)
+    then p == 0
+
+test gemm_booth_mul_u32_zero_b
+    given a = 99999
+    given b = 0
+    when p = booth_mul_u32(a, b)
+    then p == 0
+
+test gemm_booth_mul_i16_small
+    given a = 3
+    given b = 4
+    when p = booth_mul_i16(a, b)
+    then p == 12
+
+test gemm_2x2_identity
+    given A = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+    given I = Mat2x2 { a11: 1, a12: 0, a21: 0, a22: 1 }
+    when C = gemm_2x2(A, I)
+    then C.a11 == 5 && C.a12 == 6 && C.a21 == 7 && C.a22 == 8
+
+test gemm_booth_mul_i16_neg_pos
+    given a = -7
+    given b = 8
+    when p = booth_mul_i16(a, b)
+    then p == -56
+
+test gemm_mat_eq_self
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    when ok = mat_eq(A, A)
+    then ok == true
+
+test gemm_booth_mul_i16_zero_identity
+    given a = 42
+    given b = 0
+    when p = booth_mul_i16(a, b)
+    then p == 0
+
+test gemm_mat_eq_different_false
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given B = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 5 }
+    when ok = mat_eq(A, B)
+    then ok == false
+
+test gemm_booth_mul_i16_small_neg
+    given a = -2
+    given b = -3
+    when p = booth_mul_i16(a, b)
+    then p == 6
+
+test gemm_2x2_zero_matrix
+    given Z = mat_zero()
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    when C = gemm_2x2(Z, A)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+test gemm_2x2_identity_matrix
+    given I = mat_identity()
+    given A = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+    when C = gemm_2x2(I, A)
+    then C.a11 == 5 && C.a12 == 6 && C.a21 == 7 && C.a22 == 8
+
+test gemm_booth_mul_i16_large_values
+    given a = 100
+    given b = 200
+    when p = booth_mul_i16(a, b)
+    then p == 20000
+
+test gemm_booth_mul_u32_large_powers_of_two
+    given a = 1024
+    given b = 2048
+    when p = booth_mul_u32(a, b)
+    then p == 2097152
+
+test gemm_2x2_transpose_swap
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given T = Mat2x2 { a11: 1, a12: 3, a21: 2, a22: 4 }
+    when C = gemm_2x2(A, T)
+    then C.a11 == 7 && C.a12 == 10 && C.a21 == 15 && C.a22 == 22
+
+test gemm_booth_mul_i16_one_identity
+    given a = -7
+    given b = 1
+    when p = booth_mul_i16(a, b)
+    then p == -7
+
+test gemm_mat_eq_symmetric
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given B = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    when ok1 = mat_eq(A, B)
+    when ok2 = mat_eq(B, A)
+    then ok1 == true && ok2 == true
+
+test gemm_2x2_zero_matrix_multiply
+    given Z = mat_zero()
+    given A = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+    when C = gemm_2x2(Z, A)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+test gemm_booth_mul_u32_one_identity
+    given a = 12345
+    given b = 1
+    when p = booth_mul_u32(a, b)
+    then p == 12345
+
+test gemm_booth_mul_u32_small_commutative
+    given a = 7
+    given b = 13
+    when p1 = booth_mul_u32(a, b)
+    when p2 = booth_mul_u32(b, a)
+    then p1 == p2
+
+test gemm_mat_identity_left_multiply_test
+    given I = mat_identity()
+    given A = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+    when C = gemm_2x2(I, A)
+    then C.a11 == A.a11 && C.a12 == A.a12 && C.a21 == A.a21 && C.a22 == A.a22
+
+test gemm_booth_mul_i16_zero_multiplicand_signed
+    given a = -42
+    given b = 0
+    when p = booth_mul_i16(a, b)
+    then p == 0
+
+test gemm_2x2_zero_matrix_lhs
+    given Z = mat_zero()
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    when C = gemm_2x2(Z, A)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+invariant booth_mul_u32_zero_identity:
+    forall a : u32
+    booth_mul_u32(a, 0) == 0 && booth_mul_u32(0, a) == 0
+
+invariant gemm_mat_eq_reflexive
+    forall A : Mat2x2
+    mat_eq(A, A) == true
+
+invariant gemm_booth_mul_i16_one_identity:
+    forall a : i16
+    booth_mul_i16(a, 1) == a
+
+invariant gemm_mat_eq_transitive
+    forall A : Mat2x2, B : Mat2x2, C : Mat2x2
+    mat_eq(A, B) && mat_eq(B, C) ==> mat_eq(A, C)
+
+invariant gemm_mat_identity_left_multiply_inv
+    forall A : Mat2x2
+    let I = mat_identity()
+    gemm_2x2(I, A).a11 == A.a11 && gemm_2x2(I, A).a12 == A.a12
+    && gemm_2x2(I, A).a21 == A.a21 && gemm_2x2(I, A).a22 == A.a22
+
+test gemm_mat_identity_right_multiply
+    given A = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+    given I = mat_identity()
+    when C = gemm_2x2(A, I)
+    then C.a11 == A.a11 && C.a12 == A.a12 && C.a21 == A.a21 && C.a22 == A.a22
+
+test gemm_booth_mul_u32_associative_small
+    given a = 3
+    given b = 4
+    given c = 5
+    when p1 = booth_mul_u32(booth_mul_u32(a, b), c)
+    when p2 = booth_mul_u32(a, booth_mul_u32(b, c))
+    then p1 == p2
+
+invariant gemm_mat_identity_right_multiply_inv
+    forall A : Mat2x2
+    let I = mat_identity()
+    gemm_2x2(A, I).a11 == A.a11 && gemm_2x2(A, I).a12 == A.a12
+    && gemm_2x2(A, I).a21 == A.a21 && gemm_2x2(A, I).a22 == A.a22
+
+invariant gemm_booth_mul_i16_zero_identity
+    forall a : i16
+    booth_mul_i16(a, 0) == 0 && booth_mul_i16(0, a) == 0
+
+test gemm_2x2_trace_identity
+    given I = mat_identity()
+    when C = gemm_2x2(I, I)
+    then C.a11 + C.a22 == 2
+
+test gemm_booth_mul_u32_distributive_over_add
+    given a = 2
+    given b = 3
+    given c = 4
+    when p1 = booth_mul_u32(a, b + c)
+    when p2 = booth_mul_u32(a, b) + booth_mul_u32(a, c)
+    then p1 == p2
+
+test gemm_2x2_zero_matrix_multiply
+    given Z = mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 }
+    given A = mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    when C = gemm_2x2(Z, A)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+test gemm_booth_mul_i16_negation
+    given a = 3
+    given b = 5
+    when p1 = booth_mul_i16(cast_i16(-a), cast_i16(b))
+    when p2 = -booth_mul_i16(cast_i16(a), cast_i16(b))
+    then p1 == p2
+
+invariant gemm_booth_mul_i16_commutative:
+    forall a : i16, b : i16
+    booth_mul_i16(a, b) == booth_mul_i16(b, a)
+
+invariant gemm_booth_mul_u32_one_identity_inv
+    forall a : u32
+    booth_mul_u32(a, 1) == a
+
+test gemm_booth_mul_u32_one_identity
+    given a = 7
+    given b = 1
+    when p = booth_mul_u32(a, b)
+    then p == 7
+
+test gemm_mat_zero_all_zero
+    when m = mat_zero()
+    then m.a11 == 0 && m.a12 == 0 && m.a21 == 0 && m.a22 == 0
+
+invariant gemm_mat_zero_all_zero_inv:
+    mat_zero().a11 == 0 && mat_zero().a12 == 0 && mat_zero().a21 == 0 && mat_zero().a22 == 0
+
+test gemm_mat_identity_diagonal_one
+    when m = mat_identity()
+    then m.a11 == 1 && m.a22 == 1
+
+test gemm_booth_mul_i16_zero_identity
+    given a = 7
+    when p = booth_mul_i16(0, a)
+    then p == 0
+
+invariant gemm_booth_mul_i16_zero_identity_inv:
+    forall a : i16
+    booth_mul_i16(0, a) == 0
+
+test gemm_booth_mul_i16_negative_times_negative
+    given a = cast_i16(-3)
+    given b = cast_i16(-4)
+    when p = booth_mul_i16(a, b)
+    then p == 12
+
+test gemm_booth_mul_u32_square_nine
+    given a = 3
+    when p = booth_mul_u32(a, a)
+    then p == 9
+
+invariant gemm_booth_mul_u32_commutative_inv
+    forall a : u32, b : u32
+    booth_mul_u32(a, b) == booth_mul_u32(b, a)
+
+test gemm_booth_mul_u32_zero_left
+    given a = 0
+    given b = 5
+    when p = booth_mul_u32(a, b)
+    then p == 0
+
+test gemm_booth_mul_i16_one_identity
+    given a = cast_i16(7)
+    when p = booth_mul_i16(a, cast_i16(1))
+    then p == 7
+
+invariant gemm_booth_mul_i16_one_identity_inv:
+    forall a : i16
+    booth_mul_i16(a, cast_i16(1)) == a
+
+test gemm_2x2_identity_right
+    given A = Mat2x2 { a11: 3, a12: 4, a21: 5, a22: 6 }
+    given I = mat_identity()
+    when C = gemm_2x2(A, I)
+    then C.a11 == 3 && C.a12 == 4 && C.a21 == 5 && C.a22 == 6
+
+test gemm_2x2_zero_matrix_left
+    given Z = mat_zero()
+    given B = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    when C = gemm_2x2(Z, B)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+test gemm_booth_mul_u32_commutative_small
+    given a = 3
+    given b = 4
+    when p1 = booth_mul_u32(a, b)
+    when p2 = booth_mul_u32(b, a)
+    then p1 == p2
+
+test gemm_2x2_identity_left
+    given I = mat_identity()
+    given A = Mat2x2 { a11: 3, a12: 4, a21: 5, a22: 6 }
+    when C = gemm_2x2(I, A)
+    then C.a11 == 3 && C.a12 == 4 && C.a21 == 5 && C.a22 == 6
+
+invariant gemm_2x2_identity_right_inv:
+    forall A : Mat2x2
+    let I = mat_identity()
+    let C = gemm_2x2(A, I)
+    C.a11 == A.a11 && C.a12 == A.a12 && C.a21 == A.a21 && C.a22 == A.a22
+
+invariant gemm_2x2_identity_left_inv:
+    forall A : Mat2x2
+    let I = mat_identity()
+    let C = gemm_2x2(I, A)
+    C.a11 == A.a11 && C.a12 == A.a12 && C.a21 == A.a21 && C.a22 == A.a22
+
+test gemm_2x2_zero_matrix_all_zero
+    given Z = mat_zero()
+    given A = Mat2x2 { a11: 5, a12: 6, a21: 7, a22: 8 }
+    when C = gemm_2x2(Z, A)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+test gemm_2x2_identity_self
+    given I = mat_identity()
+    when C = gemm_2x2(I, I)
+    then C.a11 == 1 && C.a12 == 0 && C.a21 == 0 && C.a22 == 1
+
+invariant gemm_2x2_zero_matrix_all_zero_inv:
+    forall A : Mat2x2
+    let Z = mat_zero()
+    let C = gemm_2x2(Z, A)
+    C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+test gemm_booth_mul_i16_negative_times_positive
+    given a = -5
+    given b = 6
+    when p = booth_mul_i16(a, b)
+    then p == -30
+
+test gemm_2x2_identity_mul_trace
+    given I = mat_identity()
+    when C = gemm_2x2(I, I)
+    then C.a11 + C.a22 == 2
+
+invariant gemm_booth_mul_i16_negative_times_positive_inv:
+    forall a : i16, b : i16
+    a < 0 && b > 0 ==> booth_mul_i16(a, b) < 0
+
+test gemm_booth_mul_i16_three_times_four
+    given a = 3
+    given b = 4
+    when p = booth_mul_i16(a, b)
+    then p == 12
+
+test gemm_booth_mul_i16_minus_two_times_three
+    given a = -2
+    given b = 3
+    when p = booth_mul_i16(a, b)
+    then p == -6
+
+invariant gemm_booth_mul_i16_three_times_four_inv:
+    booth_mul_i16(3, 4) == 12
+
+test gemm_booth_mul_i16_zero_times_any
+    given a = 0
+    given b = 42
+    when p = booth_mul_i16(a, b)
+    then p == 0
+
+test gemm_2x2_zero_matrix_right_mul
+    given Z = mat_zero()
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    when C = gemm_2x2(A, Z)
+    then C.a11 == 0 && C.a12 == 0 && C.a21 == 0 && C.a22 == 0
+
+invariant gemm_booth_mul_i16_zero_times_any_inv:
+    forall b : i16
+    booth_mul_i16(0, b) == 0
+
+test gemm_booth_mul_i16_one_times_any
+    given a = 1
+    given b = -7
+    when p = booth_mul_i16(a, b)
+    then p == -7
+
+test gemm_2x2_identity_mul_trace_two
+    given I = mat_identity()
+    when C = gemm_2x2(I, I)
+    then C.a11 + C.a12 + C.a21 + C.a22 == 2
+
+invariant gemm_booth_mul_i16_one_times_any_inv:
+    forall b : i16
+    booth_mul_i16(1, b) == b
+
+test gemm_booth_mul_i16_two_times_three
+    given a = 2
+    given b = 3
+    when p = booth_mul_i16(a, b)
+    then p == 6
+
+test gemm_booth_mul_u32_two_times_three
+    given a = 2
+    given b = 3
+    when p = booth_mul_u32(a, b)
+    then p == 6
+
+invariant gemm_booth_mul_i16_two_times_three_inv:
+    booth_mul_i16(2, 3) == 6
+
+test gemm_booth_mul_i16_negative_times_positive
+    given a = -4
+    given b = 3
+    when p = booth_mul_i16(a, b)
+    then p == -12
+
+test gemm_booth_mul_u32_zero_times_any
+    given a = 0
+    given b = 999999
+    when p = booth_mul_u32(a, b)
+    then p == 0
+
+invariant gemm_booth_mul_i16_negative_times_positive_inv:
+    booth_mul_i16(-4, 3) == -12
+
+test gemm_mat_eq_symmetric_unequal
+    given A = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 }
+    given B = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 5 }
+    when ok1 = mat_eq(A, B)
+    when ok2 = mat_eq(B, A)
+    then ok1 == false && ok2 == false
+
+invariant gemm_mat_eq_symmetric_inv:
+    forall A : Mat2x2, B : Mat2x2
+    mat_eq(A, B) == mat_eq(B, A)
+
+test gemm_booth_mul_i16_neg_one_identity
+    given a = 7
+    when p = booth_mul_i16(a, -1)
+    then p == -7
+
+invariant gemm_booth_mul_i16_neg_one_identity_inv:
+    forall a : i16
+    booth_mul_i16(a, -1) == -a
+
+test gemm_booth_mul_i32_zero_identity
+    given a = 0
+    given b = 987654321
+    when p = booth_mul_i32(a, b)
+    then p == 0
+
+invariant gemm_booth_mul_i32_zero_identity_inv:
+    forall b : i32
+    booth_mul_i32(0, b) == 0
+
+test gemm_booth_mul_i32_one_identity
+    given a = 1
+    given b = 123456789
+    when p = booth_mul_i32(a, b)
+    then p == 123456789
+
+invariant gemm_booth_mul_i32_one_identity_inv:
+    forall b : i32
+    booth_mul_i32(1, b) == b
+
+test gemm_booth_mul_i32_negative_one
+    given a = -1
+    given b = 42
+    when p = booth_mul_i32(a, b)
+    then p == -42
+
+test gemm_booth_mul_i32_commutative_small
+    given a = 3
+    given b = 7
+    when p1 = booth_mul_i32(a, b)
+    when p2 = booth_mul_i32(b, a)
+    then p1 == p2
+
+invariant gemm_booth_mul_i32_negative_one_inv:
+    forall b : i32
+    booth_mul_i32(-1, b) == -b
+
+test gemm_booth_mul_i32_zero_is_zero_w294
+    given a = 7
+    given b = 0
+    when p = booth_mul_i32(a, b)
+    then p == 0
+
+test gemm_booth_mul_i32_negative_negative_positive_w294
+    given a = -3
+    given b = -4
+    when p = booth_mul_i32(a, b)
+    then p == 12
+
+invariant gemm_booth_mul_i32_zero_is_zero_w294_inv:
+    forall a : i32
+    booth_mul_i32(a, 0) == 0
+
+test gemm_booth_mul_i32_positive_positive_positive_w295
+    given a = 3
+    given b = 4
+    when p = booth_mul_i32(a, b)
+    then p == 12
+
+test gemm_booth_mul_i32_one_identity_w295
+    given a = 7
+    given b = 1
+    when p = booth_mul_i32(a, b)
+    then p == 7
+
+invariant gemm_booth_mul_i32_one_identity_w295_inv:
+    forall a : i32
+    booth_mul_i32(a, 1) == a

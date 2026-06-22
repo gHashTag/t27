@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:8c66e61daf2739b915167e01d16d31103e4d90820c46ff01f39d54117f5c820b",
+  "gen_hash_rust": "sha256:b4dead49432d4bb09434d3b9c70b471162979ada27e9ec4f347f8c67710d2a99",
+  "gen_hash_verilog": "sha256:fb3f4c50301e90d57fe925d987f1489e40fa40ce2d0ca1c9da829c407905b523",
+  "gen_hash_zig": "sha256:080b35dde4c831f6c7d405533d12d1d6840707cfd3efa8f6dae67ed40a833ab9",
+  "module": "HuberLoss",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:dc6abda2d082a9007b050ad51b10ae119790ceecbe26b23107a08d024bf0ea29",
+  "spec_path": "specs/ml/loss/huber_loss.t27"
+}

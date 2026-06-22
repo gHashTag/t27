@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:b9a4928ebb8e4dee11d8062bc9d29d3d2bad052e31db7ddde90293244f2c8d1c",
+  "gen_hash_rust": "sha256:611efb6ed37e9b52a0ac89fc7dd67734d654cb546218ca89c78e68f4e237bc35",
+  "gen_hash_verilog": "sha256:ad647d91a0ff79fbf69f67c524f45297b1a2870112de743580fb757f430caff7",
+  "gen_hash_zig": "sha256:ac395003e5b6f6041fe99d02518453d0aa2e453d79dd46a8f2352c7ed76f4b4f",
+  "module": "sync-index",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:47Z",
+  "spec_hash": "sha256:ce88e96540e925752640868cee20c7e9ad63d0044bae71b0a3ab175474ca2df8",
+  "spec_path": "specs/sync/index.t27"
+}

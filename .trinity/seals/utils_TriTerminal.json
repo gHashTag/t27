@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:69069a041ec3dd313b0e11138f6250293fe2d619b88f1b9f8da4b402d43becf2",
+  "gen_hash_rust": "sha256:de62857cbe6b1fd14b14c55ca2182a6f4194cfd015b041415107076377b37cf1",
+  "gen_hash_verilog": "sha256:afbbe67dc1af780a43a9de37b271703d5a29fbd4db4e4726bd87e52019461d6c",
+  "gen_hash_zig": "sha256:1f0720db542c6a4973da4267f42408952b5d2f1ad69419b112fecde405c086da",
+  "module": "TriTerminal",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:a015c6ca01d82d5d3065dc789181b38e18e2287d95b7e63641fdaeb564ed9cb6",
+  "spec_path": "specs/tri/utils/terminal.t27"
+}

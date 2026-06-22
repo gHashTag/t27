@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:a4239bbb6352dc1086d4d36c06c8d944fcf1353684d1bdd441668633caa41c3f",
+  "gen_hash_rust": "sha256:8e966e3e634f8bd6f447eef0daee4bb94a35cc5b76913e56637e2222136676ac",
+  "gen_hash_verilog": "sha256:dfffc001c47ac960d01a23a60ff2b3826e74f16568a33eaa13bf45b11cb5b602",
+  "gen_hash_zig": "sha256:73ad9a220ab4ac080e01f2330f002328e28fe34cd98390d5c4ecbf616d07dffd",
+  "module": "TriEither",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:e67d13adcf989dad50feda8d7c5a53a0fa8f96486804feb26b22a582ebb7582d",
+  "spec_path": "specs/tri/collections/either.t27"
+}

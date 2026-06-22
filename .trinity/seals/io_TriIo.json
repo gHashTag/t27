@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:c67a1acdf17d70bc900599a8df8af04836c50c17a054b4ae26524c8c4af925ba",
+  "gen_hash_rust": "sha256:c31fa9a99a881f8a9999f0b5d44c9f82d0de3813bce1dc8da1e668407c39c5f3",
+  "gen_hash_verilog": "sha256:e4aca1fa688d11aceb8b9d31efb39a7de9cf876bb2e292b7a5012835f0d7ea33",
+  "gen_hash_zig": "sha256:87f75fd5e0d37b3e3d2f14c86ed03b7edb6212ad7b656e6779b6936988a7c1ae",
+  "module": "TriIo",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:9aa3f120d7149de57f33abba748180cf7cfa0876bbee28cb4a4fb6459b1cad31",
+  "spec_path": "specs/tri/io/io.t27"
+}

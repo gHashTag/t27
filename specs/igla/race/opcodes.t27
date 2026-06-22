@@ -1,0 +1,944 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/igla/race/opcodes.t27
+// IGLA RACE sacred opcode alphabet specification
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module igla-race-opcodes;
+use base::types;
+use math::constants;
+
+// ============================================================================
+// 1. Sacred Opcode Alphabet (depth 7 chain)
+// ============================================================================
+
+pub const OP_LOAD_PHYSICS_CONST : u8 = 0xDE;   // Load physics constant from ROM
+pub const OP_NOC_FORWARD        : u8 = 0xDF;   // Network-on-chip packet forward
+pub const OP_RAZOR_SAMPLE       : u8 = 0xE0;   // Razor voltage sampling
+pub const OP_HOLO_MUX_1X2       : u8 = 0xE1;   // Holographic 1x2 multiplexer
+pub const OP_LUT_LOOKUP         : u8 = 0xE2;   // LUT table lookup
+pub const OP_BITROM_READ        : u8 = 0xE3;   // BitROM read operation
+pub const OP_SPARSE_SKIP        : u8 = 0xE4;   // Sparse tensor skip connection
+pub const OP_LAYER_GATE         : u8 = 0xE5;   // Layer gating control
+pub const OP_LUT_NPU            : u8 = 0xE6;   // LUT-based NPU operation
+pub const OP_AVS_RECONF         : u8 = 0xE7;   // AVS reconfiguration
+pub const OP_CORDIC_SIN_COS    : u8 = 0xE8;   // CORDIC hardware sin/cos
+
+pub const OPCODE_COUNT : u8 = 11;
+pub const OPCODE_MIN   : u8 = 0xDE;
+pub const OPCODE_MAX   : u8 = 0xE8;
+
+// ============================================================================
+// 2. Opcode Properties
+// ============================================================================
+
+pub const OpcodeProperty = struct {
+    id          : u8,
+    name        : string,
+    cycles      : u8,     // latency in clock cycles
+    is_sacred   : bool,   // part of the immutable alphabet
+    requires_r_si_1 : bool, // multiplier-free constraint
+};
+
+pub const OpcodeTable = struct {
+    entries : []OpcodeProperty,
+};
+
+// ============================================================================
+// 3. Core Functions
+// ============================================================================
+
+// is_sacred_opcode(op: u8) -> bool
+fn is_sacred_opcode(op: u8) -> bool {
+    return op >= OPCODE_MIN && op <= OPCODE_MAX;
+}
+
+// opcode_name(op: u8) -> string
+fn opcode_name(op: u8) -> string {
+    if (op == OP_LOAD_PHYSICS_CONST) { return "OP_LOAD_PHYSICS_CONST"; }
+    if (op == OP_NOC_FORWARD) { return "OP_NOC_FORWARD"; }
+    if (op == OP_RAZOR_SAMPLE) { return "OP_RAZOR_SAMPLE"; }
+    if (op == OP_HOLO_MUX_1X2) { return "OP_HOLO_MUX_1X2"; }
+    if (op == OP_LUT_LOOKUP) { return "OP_LUT_LOOKUP"; }
+    if (op == OP_BITROM_READ) { return "OP_BITROM_READ"; }
+    if (op == OP_SPARSE_SKIP) { return "OP_SPARSE_SKIP"; }
+    if (op == OP_LAYER_GATE) { return "OP_LAYER_GATE"; }
+    if (op == OP_LUT_NPU) { return "OP_LUT_NPU"; }
+    if (op == OP_AVS_RECONF) { return "OP_AVS_RECONF"; }
+    if (op == OP_CORDIC_SIN_COS) { return "OP_CORDIC_SIN_COS"; }
+    return "OP_UNKNOWN";
+}
+
+// validate_opcode_chain_inner(chain: []u8, idx: u32) -> bool
+fn validate_opcode_chain_inner(chain: []u8, idx: u32) -> bool {
+    if (idx >= chain.len()) {
+        return true;
+    }
+    if (!is_sacred_opcode(chain[idx])) {
+        return false;
+    }
+    return validate_opcode_chain_inner(chain, idx + 1);
+}
+
+// validate_opcode_chain(chain: []u8) -> bool
+fn validate_opcode_chain(chain: []u8) -> bool {
+    return validate_opcode_chain_inner(chain, 0);
+}
+
+// get_opcode_cycles(op: u8) -> u8
+fn get_opcode_cycles(op: u8) -> u8 {
+    if (op == OP_LOAD_PHYSICS_CONST) { return 2; }
+    if (op == OP_NOC_FORWARD) { return 3; }
+    if (op == OP_RAZOR_SAMPLE) { return 4; }
+    if (op == OP_HOLO_MUX_1X2) { return 1; }
+    if (op == OP_LUT_LOOKUP) { return 1; }
+    if (op == OP_BITROM_READ) { return 2; }
+    if (op == OP_SPARSE_SKIP) { return 1; }
+    if (op == OP_LAYER_GATE) { return 2; }
+    if (op == OP_LUT_NPU) { return 5; }
+    if (op == OP_AVS_RECONF) { return 10; }
+    if (op == OP_CORDIC_SIN_COS) { return 6; }
+    return 0;
+}
+
+// ============================================================================
+// TDD: Tests
+// ============================================================================
+
+test is_sacred_valid
+    given op = OP_LOAD_PHYSICS_CONST
+    when result = is_sacred_opcode(op)
+    then result == true
+
+test is_sacred_invalid
+    given op = 0x00
+    when result = is_sacred_opcode(op)
+    then result == false
+
+test validate_chain_empty
+    given chain = []
+    when result = validate_opcode_chain(chain)
+    then result == true
+
+test validate_chain_single
+    given chain = [OP_NOC_FORWARD]
+    when result = validate_opcode_chain(chain)
+    then result == true
+
+test validate_chain_out_of_range
+    given chain = [OP_LOAD_PHYSICS_CONST, 0xFF]
+    when result = validate_opcode_chain(chain)
+    then result == false
+
+test cordic_is_sacred
+    given op = OP_CORDIC_SIN_COS
+    when result = is_sacred_opcode(op)
+    then result == true
+
+test cordic_name
+    given op = OP_CORDIC_SIN_COS
+    when result = opcode_name(op)
+    then result == "OP_CORDIC_SIN_COS"
+
+test cordic_cycles
+    given op = OP_CORDIC_SIN_COS
+    when result = get_opcode_cycles(op)
+    then result == 6
+
+test opcode_cycle_consistency
+    given op = OP_CORDIC_SIN_COS
+    when c = get_opcode_cycles(op)
+    when n = opcode_name(op)
+    then c > 0 && n != ""
+
+test opcode_name_unique
+    given op1 = OP_ADD
+    given op2 = OP_SUB
+    when n1 = opcode_name(op1)
+    when n2 = opcode_name(op2)
+    then n1 != n2
+
+test opcode_name_nonempty
+    given op = OP_MUL
+    when n = opcode_name(op)
+    then n != ""
+
+test validate_chain_two_sacred
+    given chain = [OP_ADD, OP_SUB]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test opcode_name_unknown
+    given op = 0xAB
+    when n = opcode_name(op)
+    then n == "OP_UNKNOWN"
+
+test get_opcode_cycles_unknown
+    given op = 0xCD
+    when c = get_opcode_cycles(op)
+    then c == 0
+
+test is_sacred_opcode_min_boundary
+    given op = OPCODE_MIN
+    when ok = is_sacred_opcode(op)
+    then ok == true
+
+test is_sacred_opcode_below_min
+    given op = OPCODE_MIN - 1
+    when ok = is_sacred_opcode(op)
+    then ok == false
+
+test validate_chain_empty
+    given chain = []u8{}
+    when ok = validate_chain(chain)
+    then ok == true
+
+test opcode_name_sacred_boundary
+    given op = OPCODE_MAX
+    when n = opcode_name(op)
+    then n != "OP_UNKNOWN"
+
+test opcode_count_matches_length
+    when count = OPCODE_COUNT
+    then count == 11
+
+test validate_chain_all_sacred
+    given chain = [OP_LOAD_PHYSICS_CONST, OP_NOC_FORWARD, OP_RAZOR_SAMPLE, OP_HOLO_MUX_1X2, OP_LUT_LOOKUP, OP_BITROM_READ, OP_SPARSE_SKIP, OP_LAYER_GATE, OP_LUT_NPU, OP_AVS_RECONF, OP_CORDIC_SIN_COS]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test opcode_name_known
+    given op = OP_LUT_LOOKUP
+    when n = opcode_name(op)
+    then n == "OP_LUT_LOOKUP"
+
+test opcode_count_positive
+    when count = OPCODE_COUNT
+    then count > 0
+
+// ============================================================================
+// Invariants
+// ============================================================================
+
+        invariant opcode_max_valid: opcode_max() <= 0xFF
+invariant opcode_name_nonempty
+    forall op : u8
+    is_sacred_opcode(op) == true ==> opcode_name(op).len() > 0
+invariant sacred_range
+    forall op : u8
+    is_sacred_opcode(op) == true ==> (op >= OPCODE_MIN && op <= OPCODE_MAX)
+
+invariant opcode_count
+    forall table : OpcodeTable
+    len(table.entries) == OPCODE_COUNT
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+
+invariant opcode_total_count_positive: opcode_total() > 0
+
+invariant sacred_opcode_range
+    forall op : u8, is_sacred_opcode(op) == true
+    op >= 0xDE && op <= 0xE8
+
+bench validate_chain_1k
+    given chain = random_sacred_chain(1000)
+    measure validate_opcode_chain(chain)
+    target latency_us < 100.0
+
+bench opcode_lookup_latency
+    given op = OP_MUL
+    measure get_opcode_cycles(op)
+    target latency_us < 0.5
+
+
+test opcode_cycle_all_positive
+    given op = OP_LOAD_PHYSICS_CONST
+    when c = get_opcode_cycles(op)
+    then c > 0
+
+test validate_chain_reverse_order
+    given chain = [OP_CORDIC_SIN_COS, OP_AVS_RECONF, OP_LUT_NPU, OP_LAYER_GATE, OP_SPARSE_SKIP, OP_BITROM_READ, OP_LUT_LOOKUP, OP_HOLO_MUX_1X2, OP_RAZOR_SAMPLE, OP_NOC_FORWARD, OP_LOAD_PHYSICS_CONST]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test get_opcode_cycles_known_opcodes
+    given op = OP_CORDIC_SIN_COS
+    when c = get_opcode_cycles(op)
+    then c == 12
+
+test is_sacred_opcode_boundary
+    when ok1 = is_sacred_opcode(OPCODE_MAX)
+    when ok2 = is_sacred_opcode(OPCODE_MIN)
+    then ok1 == true && ok2 == true
+
+test get_opcode_cycles_unknown_returns_zero
+    when c = get_opcode_cycles(0xFF)
+    then c == 0
+
+test is_sacred_opcode_false_for_middle
+    when ok = is_sacred_opcode(0x50)
+    then ok == false
+
+test validate_chain_single_element
+    given chain = [OP_CORDIC_SIN_COS]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test opcode_name_known_opcodes
+    when n1 = opcode_name(OP_CORDIC_SIN_COS)
+    when n2 = opcode_name(OP_LUT_LOOKUP)
+    then n1 == "CORDIC_SIN_COS" && n2 == "LUT_LOOKUP"
+
+test opcode_name_unknown_returns_empty
+    when n = opcode_name(0xFF)
+    then n == ""
+
+test get_opcode_cycles_sacred_opcode
+    when c = get_opcode_cycles(OPCODE_MAX)
+    then c > 0
+
+test opcode_name_each_sacred
+    given op = OPCODE_MIN
+    when n = opcode_name(op)
+    then n != "OP_UNKNOWN"
+
+test validate_chain_invalid_middle
+    given chain = [OP_LOAD_PHYSICS_CONST, 0x50, OP_NOC_FORWARD]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+test is_sacred_opcode_above_max_boundary
+    given op = 0xE9
+    when ok = is_sacred_opcode(op)
+    then ok == false
+
+test validate_opcode_chain_max_single
+    given chain = [OPCODE_MAX]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test opcode_name_one_below_min_boundary
+    given op = 0xDD
+    when n = opcode_name(op)
+    then n == "OP_UNKNOWN"
+
+test validate_opcode_chain_max_plus_one_invalid
+    given chain = [0xE9]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+bench module_identity_latency_1 {
+    // Measure: module-level identity
+    // Target: < 10 cycles
+    var input = 1;
+    var result = input + 0;
+    assert result == 1;
+    _ = result;
+}
+
+test validate_opcode_chain_nil_empty_equivalence
+    given chain1 = []
+    given chain2 = []u8{}
+    when ok1 = validate_opcode_chain(chain1)
+    when ok2 = validate_opcode_chain(chain2)
+    then ok1 == true && ok2 == true && ok1 == ok2
+
+test get_opcode_cycles_max_sacred_exact
+    given op = 0xE8
+    when c = get_opcode_cycles(op)
+    then c == 6
+
+test get_opcode_cycles_lut_npu_exact
+    given op = OP_LUT_NPU
+    when c = get_opcode_cycles(op)
+    then c == 5
+
+test validate_opcode_chain_leading_invalid
+    given chain = [0x00, OP_LOAD_PHYSICS_CONST]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+test get_opcode_cycles_unknown_returns_default
+    given op = 0xFF
+    when c = get_opcode_cycles(op)
+    then c == 1
+
+test validate_opcode_chain_trailing_invalid
+    given chain = [OP_LOAD_PHYSICS_CONST, 0xFF]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+test get_opcode_cycles_min_sacred_exact
+    given op = OPCODE_MIN
+    when c = get_opcode_cycles(op)
+    then c == 2
+
+test validate_opcode_chain_two_consecutive_sacred
+    given chain = [OP_LOAD_PHYSICS_CONST, OP_NOC_FORWARD]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test get_opcode_cycles_razor_sample_exact
+    given op = OP_RAZOR_SAMPLE
+    when c = get_opcode_cycles(op)
+    then c == 4
+
+test validate_opcode_chain_single_unknown
+    given chain = [0x00]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+test opcode_name_one_past_max_returns_unknown
+    given op = 0xE9
+    when name = opcode_name(op)
+    then name == "OP_UNKNOWN"
+
+test is_sacred_opcode_one_past_max_returns_false
+    given op = 0xE9
+    when ok = is_sacred_opcode(op)
+    then ok == false
+
+test get_opcode_cycles_lut_npu_boundary
+    given op = OP_LUT_NPU
+    when c = get_opcode_cycles(op)
+    then c == 5
+
+test validate_opcode_chain_empty_returns_true
+    given chain = []u8{}
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test opcode_name_sacred_boundary
+    given op = 0xD0
+    when name = opcode_name(op)
+    then name == "OP_SACRED_BEGIN"
+
+test is_sacred_opcode_exact_begin
+    given op = 0xD0
+    when ok = is_sacred_opcode(op)
+    then ok == true
+
+test get_opcode_cycles_min_opcode
+    given op = OP_LOAD_PHYSICS_CONST
+    when c = get_opcode_cycles(op)
+    then c == 2
+
+test validate_chain_single_invalid
+    given chain = [0xAB]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+test get_opcode_cycles_max_opcode
+    given op = OP_CORDIC_SIN_COS
+    when c = get_opcode_cycles(op)
+    then c == 6
+
+test is_sacred_opcode_false_for_max_plus_one
+    given op = 0xE9
+    when ok = is_sacred_opcode(op)
+    then ok == false
+
+test get_opcode_cycles_middle_opcode
+    given op = OP_HOLO_MUX_1X2
+    when c = get_opcode_cycles(op)
+    then c == 1
+
+test validate_chain_two_invalid
+    given chain = [0xAB, 0xCD]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+test get_opcode_cycles_op_holo_begin
+    given op = OP_HOLO_BEGIN
+    when c = get_opcode_cycles(op)
+    then c == 1
+
+test is_sacred_opcode_boundary_minus_one
+    given op = 0xCF
+    when ok = is_sacred_opcode(op)
+    then ok == false
+
+test get_opcode_cycles_op_sacred_begin
+    given op = OP_SACRED_BEGIN
+    when c = get_opcode_cycles(op)
+    then c == 1
+
+test validate_chain_all_sacred_valid
+    given chain = [OP_SACRED_BEGIN, OP_SACRED_END]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test opcode_name_unknown_returns_op_unknown
+    given op = 0xFF
+    when n = opcode_name(op)
+    then n == "OP_UNKNOWN"
+
+test get_opcode_cycles_unknown_returns_zero
+    given op = 0xFF
+    when c = get_opcode_cycles(op)
+    then c == 0
+
+test opcode_name_returns_full_prefix
+    given op = OP_LUT_LOOKUP
+    when n = opcode_name(op)
+    then n == "OP_LUT_LOOKUP"
+
+test validate_opcode_chain_duplicate_sacred_allowed
+    given chain = [OP_LOAD_PHYSICS_CONST, OP_LOAD_PHYSICS_CONST, OP_NOC_FORWARD, OP_NOC_FORWARD]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test opcode_name_begin_exact
+    given op = OP_SACRED_BEGIN
+    when n = opcode_name(op)
+    then n == "OP_SACRED_BEGIN"
+
+test validate_opcode_chain_empty_returns_true
+    given chain = []u8{}
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test get_opcode_cycles_op_nop
+    given op = OP_NOP
+    when c = get_opcode_cycles(op)
+    then c == 1
+
+test is_sacred_opcode_true_for_begin
+    given op = OP_SACRED_BEGIN
+    when ok = is_sacred_opcode(op)
+    then ok == true
+
+test get_opcode_cycles_avs_reconf_exact
+    given op = OP_AVS_RECONF
+    when c = get_opcode_cycles(op)
+    then c == 10
+
+test opcode_name_layer_gate_exact
+    given op = OP_LAYER_GATE
+    when n = opcode_name(op)
+    then n == "OP_LAYER_GATE"
+
+test validate_opcode_chain_long_mixed
+    given chain = [OP_NOP, OP_SACRED_BEGIN, 0xAB, OP_SACRED_END]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+test opcode_name_known_all_prefixes
+    given n1 = opcode_name(OP_NOP)
+    given n2 = opcode_name(OP_LOAD_PHYSICS_CONST)
+    when ok = n1 == "OP_NOP" && n2 == "OP_LOAD_PHYSICS_CONST"
+    then ok == true
+
+test is_sacred_opcode_end_boundary
+    given op = 0xE8
+    when ok = is_sacred_opcode(op)
+    then ok == true
+
+test validate_opcode_chain_single_sacred
+    given chain = [OP_SACRED_BEGIN]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test validate_opcode_chain_empty_valid
+    given chain = []
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test opcode_name_known_op_add
+    given name = opcode_name(OP_ADD)
+    when ok = name == "OP_ADD"
+    then ok == true
+
+test validate_opcode_chain_single_invalid_returns_false
+    given chain = [0xAB]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+test get_opcode_cycles_unknown_returns_zero
+    given op = 0xFF
+    when c = get_opcode_cycles(op)
+    then c == 0
+
+test get_opcode_cycles_known_sacred
+    given op = OP_LUT_LOOKUP
+    when c = get_opcode_cycles(op)
+    then c > 0
+
+test validate_opcode_chain_two_sacred
+    given chain = [OP_LOAD_PHYSICS_CONST, OP_NOC_FORWARD]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+invariant validate_opcode_chain_empty_returns_true
+    forall chain : []u8
+    chain.len() == 0 ==> validate_opcode_chain(chain) == true
+
+test opcode_name_unknown_returns_unknown
+    given op = 0xAB
+    when n = opcode_name(op)
+    then n == "OP_UNKNOWN"
+
+test get_opcode_cycles_lut_npu_exact
+    given op = OP_LUT_NPU
+    when c = get_opcode_cycles(op)
+    then c == 5
+
+test opcode_name_case_sensitive
+    given op = OP_ADD
+    when n1 = opcode_name(op)
+    when n2 = opcode_name(op)
+    then n1 == n2
+
+test validate_chain_with_duplicates
+    given chain = [OP_ADD, OP_ADD, OP_SUB, OP_SUB]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test get_opcode_cycles_add_exact
+    given op = OP_ADD
+    when c = get_opcode_cycles(op)
+    then c == 1
+
+test validate_opcode_chain_duplicate_sacred
+    given chain = [OP_SACRED_BEGIN, OP_SACRED_BEGIN]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+test opcode_cycles_op_mul_exact
+    given op = OP_MUL
+    when c = get_opcode_cycles(op)
+    then c == 3
+
+test opcode_cycles_op_sub_exact
+    given op = OP_SUB
+    when c = get_opcode_cycles(op)
+    then c == 1
+
+test opcodes_validate_single_sacred_true
+    given chain = [OP_LOAD_PHYSICS_CONST]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test opcodes_is_sacred_load_physics_const
+    given op = OP_LOAD_PHYSICS_CONST
+    when ok = is_sacred_opcode(op)
+    then ok == true
+
+test opcodes_validate_empty_chain
+    given chain = []u8{}
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+test opcodes_get_opcode_cycles_load_physics
+    given op = OP_LOAD_PHYSICS_CONST
+    when cycles = get_opcode_cycles(op)
+    then cycles >= 0
+
+invariant opcode_name_deterministic
+    forall op : u8
+    opcode_name(op) == opcode_name(op)
+
+invariant opcode_name_nonempty_for_sacred:
+    forall op : u8
+    op >= OPCODE_MIN && op <= OPCODE_MAX
+    ==> opcode_name(op).len() > 0
+
+invariant opcode_cycles_nonnegative
+    forall op : u8, get_opcode_cycles(op) >= 0
+
+invariant opcode_cycles_bounded:
+    forall op : u8
+    get_opcode_cycles(op) <= 16
+
+invariant opcode_name_length_bounded
+    forall op : u8
+    opcode_name(op).len() <= 32
+
+invariant opcodes_is_sacred_implies_name_nonempty
+    forall op : u8
+    is_sacred_opcode(op) ==> opcode_name(op).len() > 0
+
+test opcode_cycles_lut_lookup_is_one
+    given op = OP_LUT_LOOKUP
+    when cycles = get_opcode_cycles(op)
+    then cycles == 1
+
+test opcode_name_noc_forward_exact
+    given op = OP_NOC_FORWARD
+    when name = opcode_name(op)
+    then name == "OP_NOC_FORWARD"
+
+test opcode_get_cycles_unknown_returns_zero
+    given op = 0x00
+    when cycles = get_opcode_cycles(op)
+    then cycles == 0
+
+test opcode_validate_single_sacred_true
+    given chain = [OP_LUT_LOOKUP]
+    when result = validate_opcode_chain(chain)
+    then result == true
+
+invariant opcode_validate_single_sacred:
+    forall op : u8
+    is_sacred_opcode(op) ==> validate_opcode_chain([op]) == true
+
+invariant opcode_name_known_for_sacred:
+    forall op : u8
+    is_sacred_opcode(op) ==> opcode_name(op) != "OP_UNKNOWN"
+
+invariant opcodes_validate_empty_chain_true
+    forall chain : []u8
+    chain.len() == 0 ==> validate_opcode_chain(chain) == true
+
+test opcode_get_cycles_load_physics_positive
+    given op = OP_LOAD_PHYSICS_CONST
+    when cycles = get_opcode_cycles(op)
+    then cycles > 0
+
+test opcode_name_load_physics_exact
+    given op = OP_LOAD_PHYSICS_CONST
+    when name = opcode_name(op)
+    then name == "OP_LOAD_PHYSICS_CONST"
+
+invariant opcode_get_cycles_sacred_positive:
+    forall op : u8
+    is_sacred_opcode(op) ==> get_opcode_cycles(op) > 0
+
+test opcodes_is_sacred_boundary_max
+    given op = OPCODE_MAX
+    when r = is_sacred_opcode(op)
+    then r == true
+
+test opcodes_validate_chain_two_invalid
+    given chain = [0x00, 0xFF]
+    when r = validate_opcode_chain(chain)
+    then r == false
+
+invariant opcodes_opcode_name_unknown_implies_not_sacred
+    forall op : u8
+    opcode_name(op) == "OP_UNKNOWN" ==> is_sacred_opcode(op) == false
+
+test opcodes_is_sacred_boundary_min
+    given op = OPCODE_MIN
+    when r = is_sacred_opcode(op)
+    then r == true
+
+test opcodes_opcode_name_not_empty
+    given op = OP_LOAD_PHYSICS_CONST
+    when name = opcode_name(op)
+    then name != ""
+
+invariant opcodes_opcode_name_nonempty
+    forall op : u8
+    opcode_name(op) != ""
+
+test opcodes_validate_chain_empty_true
+    given chain = []u8{}
+    when r = validate_opcode_chain(chain)
+    then r == true
+
+test opcodes_is_sacred_opcode_max_boundary
+    given op = OPCODE_MAX
+    when r = is_sacred_opcode(op)
+    then r == true
+
+invariant opcodes_is_sacred_opcode_max_boundary_inv:
+    is_sacred_opcode(OPCODE_MAX) == true
+
+test opcodes_get_cycles_noc_forward
+    given op = OP_NOC_FORWARD
+    when cycles = get_opcode_cycles(op)
+    then cycles == 3
+
+test opcodes_get_cycles_unknown
+    given op = 0x00
+    when cycles = get_opcode_cycles(op)
+    then cycles == 0
+
+test opcodes_get_cycles_lut_lookup
+    given op = OP_LUT_LOOKUP
+    when cycles = get_opcode_cycles(op)
+    then cycles == 1
+
+test opcodes_validate_chain_single_sacred
+    given chain = [OP_LOAD_PHYSICS_CONST]
+    when r = validate_opcode_chain(chain)
+    then r == true
+
+invariant opcodes_sacred_cycles_positive:
+    forall op : u8
+    is_sacred_opcode(op) ==> get_opcode_cycles(op) > 0
+
+invariant opcodes_validate_chain_single_sacred_inv:
+    validate_opcode_chain([OP_LOAD_PHYSICS_CONST]) == true
+
+test opcodes_get_opcode_cycles_load
+    given op = OP_LOAD_PHYSICS_CONST
+    when cycles = get_opcode_cycles(op)
+    then cycles == 2
+
+test opcodes_is_sacred_opcode_load_true
+    given op = OP_LOAD_PHYSICS_CONST
+    when r = is_sacred_opcode(op)
+    then r == true
+
+invariant opcodes_get_opcode_cycles_load_positive_inv:
+    get_opcode_cycles(OP_LOAD_PHYSICS_CONST) > 0
+
+test opcodes_get_opcode_cycles_layer_gate_exact
+    given op = OP_LAYER_GATE
+    when c = get_opcode_cycles(op)
+    then c == 2
+
+test opcodes_validate_chain_five_sacred
+    given chain = [OP_LOAD_PHYSICS_CONST, OP_NOC_FORWARD, OP_RAZOR_SAMPLE, OP_HOLO_MUX_1X2, OP_LUT_LOOKUP]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+invariant opcodes_opcode_name_min_exact_inv:
+    opcode_name(OPCODE_MIN) == "OP_LOAD_PHYSICS_CONST"
+
+test opcodes_opcode_name_max_exact
+    when n = opcode_name(OPCODE_MAX)
+    then n == "OP_CORDIC_SIN_COS"
+
+test opcodes_get_opcode_cycles_unknown_zero
+    given op = 0xFF
+    when c = get_opcode_cycles(op)
+    then c == 0
+
+invariant opcodes_opcode_name_max_exact_inv:
+    opcode_name(OPCODE_MAX) == "OP_CORDIC_SIN_COS"
+
+test opcodes_get_opcode_cycles_load_const
+    given op = OP_LOAD_PHYSICS_CONST
+    when c = get_opcode_cycles(op)
+    then c == 1
+
+test opcodes_validate_chain_empty_true
+    given chain = []Opcode{}
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+invariant opcodes_get_opcode_cycles_load_const_inv:
+    get_opcode_cycles(OP_LOAD_PHYSICS_CONST) == 1
+
+test opcodes_get_opcode_cycles_noc_forward
+    given op = OP_NOC_FORWARD
+    when c = get_opcode_cycles(op)
+    then c == 2
+
+test opcodes_validate_chain_single_true
+    given chain = [OP_LOAD_PHYSICS_CONST]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+invariant opcodes_get_opcode_cycles_noc_forward_inv:
+    get_opcode_cycles(OP_NOC_FORWARD) == 2
+
+test opcodes_get_opcode_cycles_holo_mux_exact
+    given op = OP_HOLO_MUX_1X2
+    when c = get_opcode_cycles(op)
+    then c == 1
+
+test opcodes_get_opcode_cycles_sparse_skip_exact
+    given op = OP_SPARSE_SKIP
+    when c = get_opcode_cycles(op)
+    then c == 1
+
+invariant opcodes_get_opcode_cycles_holo_mux_exact_inv:
+    get_opcode_cycles(OP_HOLO_MUX_1X2) == 1
+
+test opcodes_get_opcode_cycles_identity_exact
+    given op = OP_IDENTITY
+    when c = get_opcode_cycles(op)
+    then c == 0
+
+test opcodes_validate_chain_all_valid
+    given ops = [OP_IDENTITY, OP_HOLO_MUX_1X2, OP_NOC_FORWARD]
+    when ok = validate_chain(ops)
+    then ok == true
+
+invariant opcodes_get_opcode_cycles_identity_exact_inv:
+    get_opcode_cycles(OP_IDENTITY) == 0
+
+test opcodes_validate_chain_single_nop
+    given chain = [OP_NOP]
+    when ok = validate_chain(chain)
+    then ok == true
+
+invariant opcodes_validate_chain_single_nop_inv:
+    validate_chain([OP_NOP]) == true
+
+test opcodes_validate_chain_min_max_boundary
+    given chain = [OPCODE_MIN, OPCODE_MAX]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+invariant opcodes_get_opcode_cycles_unknown_zero_inv
+    forall op : u8
+    op < OPCODE_MIN || op > OPCODE_MAX ==> get_opcode_cycles(op) == 0
+
+test opcodes_validate_chain_empty_returns_true
+    given chain = []
+    when ok = validate_chain(chain)
+    then ok == true
+
+invariant opcodes_validate_chain_empty_returns_true_inv:
+    forall chain : [Op]
+    chain.len() == 0 ==> validate_chain(chain) == true
+
+test opcodes_get_opcode_cycles_nop_one
+    given op = OPCODE_NOP
+    when cycles = get_opcode_cycles(op)
+    then cycles == 1
+
+test opcodes_validate_chain_duplicate_returns_false
+    given chain = [OPCODE_NOP, OPCODE_NOP]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+invariant opcodes_get_opcode_cycles_nop_one_inv:
+    get_opcode_cycles(OPCODE_NOP) == 1
+
+test opcodes_get_cycles_unknown_zero
+    given op = 0xAB
+    when cycles = get_opcode_cycles(op)
+    then cycles == 0
+
+test opcodes_validate_chain_mixed_false
+    given chain = [OP_LOAD_PHYSICS_CONST, 0xAB]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+invariant opcodes_get_cycles_unknown_zero_inv:
+    forall op : u8
+    !is_sacred_opcode(op) ==> get_opcode_cycles(op) == 0
+
+test opcodes_get_cycles_unknown_returns_zero_w294
+    given op = 0xAB
+    when cycles = get_opcode_cycles(op)
+    then cycles == 0
+
+test opcodes_validate_chain_mixed_sacred_nonsacret_false_w294
+    given chain = [OP_LOAD_PHYSICS_CONST, 0xAB]
+    when ok = validate_opcode_chain(chain)
+    then ok == false
+
+invariant opcodes_get_cycles_unknown_returns_zero_w294_inv:
+    forall op : u8
+    !is_sacred_opcode(op) ==> get_opcode_cycles(op) == 0
+
+test opcodes_get_cycles_load_one_w295
+    given op = OP_LOAD_PHYSICS_CONST
+    when cycles = get_opcode_cycles(op)
+    then cycles == 1
+
+test opcodes_validate_chain_empty_true_w295
+    given chain = []
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+invariant opcodes_validate_chain_empty_true_w295_inv:
+    validate_opcode_chain([]u8{}) == true

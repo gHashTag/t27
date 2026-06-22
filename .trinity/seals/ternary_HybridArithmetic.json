@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:aa9091e9cbed6112d2a8239140a1b320ce523acca08eedde90cd5fded91e76a9",
-  "gen_hash_rust": "sha256:d76ba6a19e040ed6729bc838eaba058d0cd6667d3c74a033cedc5649bd0d0aae",
-  "gen_hash_verilog": "sha256:4c635a9193e9b27496fa373338bdfdffe19364834832464588788e9eaba1bc19",
-  "gen_hash_zig": "sha256:8b6901b2c1882a1864a4018278c0df6d15c548d22fe1af7c309f9a3fdde2a3f4",
+  "gen_hash_c": "sha256:c4b37c53435597467993b52c0576a470d36145427cf8acc2d59668f73a53bd58",
+  "gen_hash_rust": "sha256:ab7ab3a4f059c02f90ed4b77f55438624ceff0c5ab1cd5654a73d2f23a7f45b2",
+  "gen_hash_verilog": "sha256:181c5371df675c8684507fbecd6126c4edae2146ae403ecc9310fdb5b181e683",
+  "gen_hash_zig": "sha256:3e277ba597b9f59486c43bfa3358765c3f2773fdb8b5036ea761d0b4b31b0fe1",
   "module": "HybridArithmetic",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
+  "sealed_at": "2026-06-22T23:49:47Z",
   "spec_hash": "sha256:d649c30b959f4c59c65b2c99b91aed9d8d4469b11889a347dc77f875550cbe4c",
   "spec_path": "specs/ternary/hybrid_arithmetic.t27"
 }

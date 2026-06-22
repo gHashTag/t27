@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:cf19363cfaf6c6359c135ac9a9b0e1264d97f40b43d646a64b320c59255b4985",
+  "gen_hash_rust": "sha256:ee1a5841e859f462a522dc08ba67f6655ead83f5fb85d2ab0b9b8dbb8c040d92",
+  "gen_hash_verilog": "sha256:ad0456d77eda13e5a8d0175873d142406d7bc3bf0322c90bb5416c41a4a7cfcc",
+  "gen_hash_zig": "sha256:aa14ce1fa0163824127587a5f261f1ab52ac54f97ae690e6f8feddba102fe003",
+  "module": "TriLinkedList",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:5171edf6089a238976e6fad2ba577ed72cff191cf634ee94c28645f3551f9ffc",
+  "spec_path": "specs/tri/collections/linked_list.t27"
+}

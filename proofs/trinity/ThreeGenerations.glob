@@ -1,0 +1,72 @@
+DIGEST 1f57c3443c2c7719a642dedf49b39cc9
+FTrinity.ThreeGenerations
+R1237:1241 Coq.Reals.Reals <> <> lib
+R1259:1261 Coq.micromega.Lra <> <> lib
+R1300:1306 Trinity.CorePhi <> <> lib
+R1324:1336 Trinity.H4Derivations <> <> lib
+R1354:1369 Trinity.H4GaugeEmbedding <> <> lib
+ind 1518:1533 <> DerivationStatus
+constr 1548:1553 <> PROVEN
+constr 1559:1568 <> POSTULATED
+constr 1574:1585 <> EXPERIMENTAL
+constr 1591:1597 <> MISSING
+scheme 1518:1533 <> DerivationStatus_rect
+scheme 1518:1533 <> DerivationStatus_ind
+scheme 1518:1533 <> DerivationStatus_rec
+scheme 1518:1533 <> DerivationStatus_sind
+def 1920:1938 <> generation_count_SM
+R1942:1944 Coq.Init.Datatypes <> nat ind
+def 2408:2434 <> generation_count_hypothesis
+R2467:2469 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2448:2466 Trinity.ThreeGenerations <> generation_count_SM def
+R2470:2481 Trinity.H4GaugeEmbedding <> h30_factor_3 def
+def 3875:3895 <> coxeter_factorization
+R3931:3933 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3926:3928 Coq.Arith.PeanoNat <> ::nat_scope:x_'/'_x not
+prf 3948:3974 <> coxeter_factorization_holds
+R3978:3998 Trinity.ThreeGenerations <> coxeter_factorization def
+R4014:4020 Coq.Init.Logic <> eq_refl constr
+R4014:4020 Coq.Init.Logic <> eq_refl constr
+def 5341:5361 <> e8_h4_dimension_ratio
+R5399:5401 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5393:5395 Coq.Arith.PeanoNat <> ::nat_scope:x_'/'_x not
+prf 5416:5442 <> e8_h4_dimension_ratio_holds
+R5446:5466 Trinity.ThreeGenerations <> e8_h4_dimension_ratio def
+R5482:5488 Coq.Init.Logic <> eq_refl constr
+R5482:5488 Coq.Init.Logic <> eq_refl constr
+def 6805:6828 <> exceptional_groups_count
+R6832:6834 Coq.Init.Datatypes <> nat ind
+prf 8074:8100 <> three_from_trinity_identity
+R8118:8120 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R8109:8111 Coq.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R8107:8107 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R8104:8106 Trinity.H4GaugeEmbedding <> phi def
+R8112:8112 Coq.Reals.Rdefinitions <> ::R_scope:'/'_x not
+R8116:8116 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R8113:8115 Trinity.H4GaugeEmbedding <> phi def
+R8139:8154 Trinity.CorePhi <> trinity_identity thm
+R8139:8154 Trinity.CorePhi <> trinity_identity thm
+def 9148:9164 <> generation_status
+R9168:9183 Trinity.ThreeGenerations <> DerivationStatus ind
+R9188:9197 Trinity.ThreeGenerations <> POSTULATED constr
+def 9374:9397 <> generation_status_strict
+R9401:9416 Trinity.ThreeGenerations <> DerivationStatus ind
+R9421:9427 Trinity.ThreeGenerations <> MISSING constr
+prf 9764:9788 <> three_generations_summary
+R9815:9820 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R9794:9814 Trinity.ThreeGenerations <> coxeter_factorization def
+R9842:9847 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R9821:9841 Trinity.ThreeGenerations <> e8_h4_dimension_ratio def
+R9862:9864 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R9853:9855 Coq.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R9851:9851 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R9848:9850 Trinity.H4GaugeEmbedding <> phi def
+R9856:9856 Coq.Reals.Rdefinitions <> ::R_scope:'/'_x not
+R9860:9860 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R9857:9859 Trinity.H4GaugeEmbedding <> phi def
+R9890:9916 Trinity.ThreeGenerations <> coxeter_factorization_holds thm
+R9890:9916 Trinity.ThreeGenerations <> coxeter_factorization_holds thm
+R9934:9960 Trinity.ThreeGenerations <> e8_h4_dimension_ratio_holds thm
+R9934:9960 Trinity.ThreeGenerations <> e8_h4_dimension_ratio_holds thm
+R9971:9997 Trinity.ThreeGenerations <> three_from_trinity_identity thm
+R9971:9997 Trinity.ThreeGenerations <> three_from_trinity_identity thm

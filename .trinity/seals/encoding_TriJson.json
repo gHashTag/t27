@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:ac605826d9f8b611022eab06c5023835a9fb88e75f599d23bbe1e7072b00a930",
+  "gen_hash_rust": "sha256:d06cdab54944cce0bf4b547f4afaf23956af52739da5eb24c98ad76ea55854eb",
+  "gen_hash_verilog": "sha256:93687a914d5b834103505549db1bab4fd9884b095e635f77f5aa0181ec147dc6",
+  "gen_hash_zig": "sha256:cca72947be0542d7f2fa106cf5f290a05738296bb80d2c080e858f60a13a4d17",
+  "module": "TriJson",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:4d0a9fa0e6ec79369479b8add40308d46b32a438d2f255858abe8687ecb51574",
+  "spec_path": "specs/tri/encoding/json.t27"
+}

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e4451aa4db012a02849e203582ceccce515fd25d4a3de475c665fbc49386bcc4",
-  "gen_hash_rust": "sha256:6db19fc34e8c3335bc40e506b8cdd2b9416a356ed7f08ec9ce29a8252297f479",
-  "gen_hash_verilog": "sha256:f88c81f9aaa196fc3904a5c0c2414b3cb008cda8f690289c9dacbabe95549a6a",
-  "gen_hash_zig": "sha256:ec8def540725562fb5ab6876542c954c79375a74a8220d2b84e5dc507d61ff41",
+  "gen_hash_c": "sha256:9aa453cf9497b5ab3401ee66d2d62eb8000a3be2c8398de569251cec8a9ad1ec",
+  "gen_hash_rust": "sha256:de7587d7ff93cf01cc4808f3a69e7071ab368f856da2eb28ff208c44a30870c6",
+  "gen_hash_verilog": "sha256:2e59d89f8d98a1a6279408e682fe8857586833021182c01549e3f47ea59cfb2b",
+  "gen_hash_zig": "sha256:c5fee22ea094f9fa5dee83c8db14b6119cdee5e38067a4021a92bb1f730aaf82",
   "module": "RaceConfig",
   "ring": 12,
-  "sealed_at": "2026-05-31T06:43:26Z",
+  "sealed_at": "2026-06-22T23:49:49Z",
   "spec_hash": "sha256:8300963eb4317faad525961661a38a190b274dd3cc6956105938cff153ba5fce",
   "spec_path": "specs/ml/optimizer/race_config.t27"
 }

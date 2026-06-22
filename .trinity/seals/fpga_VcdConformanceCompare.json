@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:468d80f69f80881469e2216c1c81048ec7f49e074473f4cc05408399d3e03c3e",
+  "gen_hash_rust": "sha256:6d3fe5581265079f310a8afbde1efc0723587411c75e237bfeef148bef57cf2b",
+  "gen_hash_verilog": "sha256:478166f3591a013748a2cab69d5e7b50a2a77f6e79b974edbe0f09f7206cd202",
+  "gen_hash_zig": "sha256:9ecadfa7b13103c91356d2e1fbfd9cae4905b040609f8e3fad1249bc6cc27649",
+  "module": "VcdConformanceCompare",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:48Z",
+  "spec_hash": "sha256:f4725c1e5baf34cd48150fccccaf061f585340ffd5963986293fb3262ce8e6e3",
+  "spec_path": "specs/fpga/vcd_conformance_compare.t27"
+}

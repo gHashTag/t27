@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:62484b2cd2477a6326c66127387d5516bbe963ca6d8b62e5c0f4befd9d902ca3",
+  "gen_hash_rust": "sha256:e9e3118bab24414bbbb95ab57cfd94997b8fac99259dc02753b2a7946ab61b2b",
+  "gen_hash_verilog": "sha256:4dd58caed98688b08468ecb84879ef3933ff512e61c8d2b5f05c8a3c1146704a",
+  "gen_hash_zig": "sha256:6c6d0f2fbdc628f5079b67cebbfc74607210ce2e34891ef47754aba0ecd051d7",
+  "module": "GfCalculator",
+  "ring": 12,
+  "sealed_at": "2026-06-17T01:12:38Z",
+  "spec_hash": "sha256:71d1016d73bab98b5aceab5f129024c758a1cc5e6424b057b29131419f7ecea2",
+  "spec_path": "examples/webassembly/gf-calculator.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:f8bb50e72cd2897015de6306972dfee5a167c428f7386cea748e8e18dcd4c34c",
+  "gen_hash_rust": "sha256:e4ee43299bd757bc611b8d708ddbab55653f32473f017f5faca301122446f68d",
+  "gen_hash_verilog": "sha256:f94ac106e4f8818fa10efd9169730417734a0b29529f19951cced3781b47f5e3",
+  "gen_hash_zig": "sha256:98d2ab481ef0f88a9aa3ea27aa810b12c8dd4b7c51fcccb8f0ad4dfb96322003",
+  "module": "TriNet",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:249105154a42777f5e4f32a1e565d18565c1268a054515e331a1f83fee04fdbe",
+  "spec_path": "specs/tri/net/net.t27"
+}

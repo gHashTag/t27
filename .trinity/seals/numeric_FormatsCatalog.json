@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:99669798bd28c562427234900342e18321fb03364d37e3ff00304da6df51dc12",
+  "gen_hash_rust": "sha256:fb09595f483f5b7fd22da80c01c47c4e952d48422749b28c99736b393d323b61",
+  "gen_hash_verilog": "sha256:cd33f4a0cf26af9614cc024f29a71968c184b955fcc320f3635d313f8f1e5b54",
+  "gen_hash_zig": "sha256:703294fbfd0349e6b3eca083b43ab41cc1d63b9054f3c8016ad6bba9f056ede5",
+  "module": "FormatsCatalog",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:48Z",
+  "spec_hash": "sha256:084edabbb38076ed8e10baaa5c39caea5bfadd6e3cda3186362d66cd2db065dc",
+  "spec_path": "specs/numeric/formats_catalog.t27"
+}

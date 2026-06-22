@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:507e4fb9fdd56376c4f08d31174d43e6692e429f0e78f0722504d857e254579a",
+  "gen_hash_rust": "sha256:33bb058874d2e814ffa093c94747eba8d6584605d6b9059cc5d984d57af0c8dd",
+  "gen_hash_verilog": "sha256:d889b512f5e80d166306118cf872467bc624cd78ceeaf393a8d5097bcde6f353",
+  "gen_hash_zig": "sha256:042d4688c906aaa548b6aa33fc71b2cbedebec47c22e328bae7ffbd5b4d17c86",
+  "module": "BatchRunner",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:8d379f63dde398e22375d6ab17f133e701bca3acb3d707b3208feba3fc7882c5",
+  "spec_path": "specs/tri/pipeline/batch_runner.t27"
+}

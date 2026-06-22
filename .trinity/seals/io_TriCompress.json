@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:5d949432622638d37976f3639ba580e678db3feff115888c4a1a331626aa4c8e",
+  "gen_hash_rust": "sha256:6335b730862a2e4ee85a76617598fb3f85badcd21685a4327ac18fdef5320442",
+  "gen_hash_verilog": "sha256:6c864c605b0fd4fce12398c45f1834f9d0d228edfe466c5c232cbd0669d96e43",
+  "gen_hash_zig": "sha256:85987b8d36ad79bb3496a00e3218069097057c21786ee8bdca1729a010926a6c",
+  "module": "TriCompress",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:9b0ebfbac8cbf32eb4c63fa1d8744577ec72d6f46fbfb0cd9dd369f4e44a1fd9",
+  "spec_path": "specs/tri/io/compress.t27"
+}

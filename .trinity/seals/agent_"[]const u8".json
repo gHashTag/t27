@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:490cf21b9c3e290070eb835cec2c72f8b50df9f19a9b9c510945c882840c88b0",
+  "gen_hash_rust": "sha256:6b2107fe4a75b9cd2dbbc0a34c4785370c0c80981955115cfd0f84e49c1d9d8d",
+  "gen_hash_verilog": "sha256:89d0c679868e6cddb153f4586b2a37904089ca12d3f7d9e1e16317ecc10c6a7e",
+  "gen_hash_zig": "sha256:53cc3e28891865a7d09a0dcc6abab31c1fdd2ff2926776d94b82f0f5d35d50cd",
+  "module": "\"[]const u8\"",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:54:08Z",
+  "spec_hash": "sha256:aa12b6315cb91ac8d307a5caaeb223561f2b4233f03ca9d0deb47b38d1836a90",
+  "spec_path": "specs/tri/agent/faculty_board.t27"
+}

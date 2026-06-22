@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:328df1752c68e832efdebdb24cd279e3967c1aac89d445e885e0c43eedd7802d",
+  "gen_hash_rust": "sha256:dca25712e2f49a810b2c34fc224638225ec9e6172d7239ae39bf957fa05147c2",
+  "gen_hash_verilog": "sha256:d67df4001727865b7294013fed4fc9233edc23e5671e6a8726036908523db409",
+  "gen_hash_zig": "sha256:28428d9fd9870ec96b80b7f0340c6e146254031af63e39386c9df353bca69d40",
+  "module": "TriInsertionSort",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:634ede05a35cbcb717679f041f06b2f1dcc762090d29ade3e798650637f9bbe8",
+  "spec_path": "specs/tri/sort/insertion_sort.t27"
+}

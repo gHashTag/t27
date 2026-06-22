@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:55fda8cbf8baa016c9c2b3353744e5e05341594b40a4b6e655adb87bbcbddf9a",
+  "gen_hash_rust": "sha256:6335b730862a2e4ee85a76617598fb3f85badcd21685a4327ac18fdef5320442",
+  "gen_hash_verilog": "sha256:fa22dbb2d9b65e5e39038386b338cde00b66e1140eca29077197a6751531a004",
+  "gen_hash_zig": "sha256:1f0a0f41164b2e48c546901b2c6857a21228d5386615457d5629d25e4723abf6",
+  "module": "TriMime",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:c273019708b1d133a70c19e70461253c641fc756ab623112a7071d6bf030be87",
+  "spec_path": "specs/tri/encoding/mime.t27"
+}

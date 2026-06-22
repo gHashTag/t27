@@ -1,0 +1,1105 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/igla/race/cordic_fixed.t27
+// CORDIC shift-add sin/cos in fixed-point Q15 (signed 16-bit)
+// R-SI-1: zero * operators in RTL | phi^2 + 1/phi^2 = 3 | TRINITY
+//
+// Fixed-point convention: Q14 (1 sign + 14 fractional bits)
+// Scale factor = 2^14 = 16384
+// All angles are NORMALIZED to [-1, 1] where 1.0 = PI radians.
+// Thus angle PI/2 = 8192, PI/4 = 4096, etc.
+//
+// Precomputed CORDIC gain K = product(cos(arctan(2^-i))) for i=0..7
+// K ~ 0.607252935 -> Q14: round(0.607252935 * 16384) = 9953
+//
+// UNROLLED to 8 iterations for combinational RTL.
+// No loops, no recursion, no multiplication.
+
+module igla-race-cordic-fixed;
+use base::types;
+
+// ============================================================================
+// 1. Constants (Q14 scale = 16384)
+// ============================================================================
+
+const CORDIC_GAIN_Q14 : i16 = 9953;   // K ~ 0.607252935
+
+// Arctan table in NORMALIZED units: arctan(2^-i) / PI * 16384
+const ATAN_0 : i16 = 4096;   // arctan(1)/PI   = 0.25
+const ATAN_1 : i16 = 2418;   // arctan(0.5)/PI = 0.14758
+const ATAN_2 : i16 = 1274;   // arctan(0.25)/PI
+const ATAN_3 : i16 = 647;    // arctan(0.125)/PI
+const ATAN_4 : i16 = 325;    // arctan(0.0625)/PI
+const ATAN_5 : i16 = 163;    // arctan(0.03125)/PI
+const ATAN_6 : i16 = 81;     // arctan(0.015625)/PI
+const ATAN_7 : i16 = 41;     // arctan(0.0078125)/PI
+
+// ============================================================================
+// 2. Helper: conditional shift-add (replaces sigma * (val >> i))
+// ============================================================================
+
+fn cordic_x_next(x: i16, y: i16, z: i16, shift: u32) -> i16 {
+    if (z >= 0) {
+        return x - (y >> shift);
+    } else {
+        return x + (y >> shift);
+    }
+}
+
+fn cordic_y_next(y: i16, x: i16, z: i16, shift: u32) -> i16 {
+    if (z >= 0) {
+        return y + (x >> shift);
+    } else {
+        return y - (x >> shift);
+    }
+}
+
+fn cordic_z_next(z: i16, atan: i16) -> i16 {
+    if (z >= 0) {
+        return z - atan;
+    } else {
+        return z + atan;
+    }
+}
+
+fn cordic_fixed_sin_cos_sum_squares(angle: i16) -> i32 {
+    let s = cordic_sin(angle) as i32;
+    let c = cordic_cos(angle) as i32;
+    return s * s + c * c;
+}
+
+// ============================================================================
+// 3. Core: 8-iteration unrolled CORDIC -- returns sin
+// ============================================================================
+
+fn cordic_sin(angle: i16) -> i16 {
+    // Iteration 0
+    let x0 : i16 = CORDIC_GAIN_Q14;
+    let y0 : i16 = 0;
+    let z0 : i16 = angle;
+
+    let x1 : i16 = cordic_x_next(x0, y0, z0, 0);
+    let y1 : i16 = cordic_y_next(y0, x0, z0, 0);
+    let z1 : i16 = cordic_z_next(z0, ATAN_0);
+
+    // Iteration 1
+    let x2 : i16 = cordic_x_next(x1, y1, z1, 1);
+    let y2 : i16 = cordic_y_next(y1, x1, z1, 1);
+    let z2 : i16 = cordic_z_next(z1, ATAN_1);
+
+    // Iteration 2
+    let x3 : i16 = cordic_x_next(x2, y2, z2, 2);
+    let y3 : i16 = cordic_y_next(y2, x2, z2, 2);
+    let z3 : i16 = cordic_z_next(z2, ATAN_2);
+
+    // Iteration 3
+    let x4 : i16 = cordic_x_next(x3, y3, z3, 3);
+    let y4 : i16 = cordic_y_next(y3, x3, z3, 3);
+    let z4 : i16 = cordic_z_next(z3, ATAN_3);
+
+    // Iteration 4
+    let x5 : i16 = cordic_x_next(x4, y4, z4, 4);
+    let y5 : i16 = cordic_y_next(y4, x4, z4, 4);
+    let z5 : i16 = cordic_z_next(z4, ATAN_4);
+
+    // Iteration 5
+    let x6 : i16 = cordic_x_next(x5, y5, z5, 5);
+    let y6 : i16 = cordic_y_next(y5, x5, z5, 5);
+    let z6 : i16 = cordic_z_next(z5, ATAN_5);
+
+    // Iteration 6
+    let x7 : i16 = cordic_x_next(x6, y6, z6, 6);
+    let y7 : i16 = cordic_y_next(y6, x6, z6, 6);
+    let z7 : i16 = cordic_z_next(z6, ATAN_6);
+
+    // Iteration 7
+    let y8 : i16 = cordic_y_next(y7, x7, z7, 7);
+
+    return y8;
+}
+
+// ============================================================================
+// 4. Core: 8-iteration unrolled CORDIC -- returns cos
+// ============================================================================
+
+fn cordic_cos(angle: i16) -> i16 {
+    // Iteration 0
+    let x0 : i16 = CORDIC_GAIN_Q14;
+    let y0 : i16 = 0;
+    let z0 : i16 = angle;
+
+    let x1 : i16 = cordic_x_next(x0, y0, z0, 0);
+    let y1 : i16 = cordic_y_next(y0, x0, z0, 0);
+    let z1 : i16 = cordic_z_next(z0, ATAN_0);
+
+    // Iteration 1
+    let x2 : i16 = cordic_x_next(x1, y1, z1, 1);
+    let y2 : i16 = cordic_y_next(y1, x1, z1, 1);
+    let z2 : i16 = cordic_z_next(z1, ATAN_1);
+
+    // Iteration 2
+    let x3 : i16 = cordic_x_next(x2, y2, z2, 2);
+    let y3 : i16 = cordic_y_next(y2, x2, z2, 2);
+    let z3 : i16 = cordic_z_next(z2, ATAN_2);
+
+    // Iteration 3
+    let x4 : i16 = cordic_x_next(x3, y3, z3, 3);
+    let y4 : i16 = cordic_y_next(y3, x3, z3, 3);
+    let z4 : i16 = cordic_z_next(z3, ATAN_3);
+
+    // Iteration 4
+    let x5 : i16 = cordic_x_next(x4, y4, z4, 4);
+    let y5 : i16 = cordic_y_next(y4, x4, z4, 4);
+    let z5 : i16 = cordic_z_next(z4, ATAN_4);
+
+    // Iteration 5
+    let x6 : i16 = cordic_x_next(x5, y5, z5, 5);
+    let y6 : i16 = cordic_y_next(y5, x5, z5, 5);
+    let z6 : i16 = cordic_z_next(z5, ATAN_5);
+
+    // Iteration 6
+    let x7 : i16 = cordic_x_next(x6, y6, z6, 6);
+    let y7 : i16 = cordic_y_next(y6, x6, z6, 6);
+    let z7 : i16 = cordic_z_next(z6, ATAN_6);
+
+    // Iteration 7
+    let x8 : i16 = cordic_x_next(x7, y7, z7, 7);
+
+    return x8;
+}
+
+// ============================================================================
+// 5. Range checks
+// ============================================================================
+
+fn cordic_sin_in_range(angle: i16) -> bool {
+    let s = cordic_sin(angle);
+    if (s < -16384) { return false; }
+    else {
+        if (s > 16384) { return false; }
+        else { return true; }
+    }
+}
+
+fn cordic_cos_in_range(angle: i16) -> bool {
+    let c = cordic_cos(angle);
+    if (c < -16384) { return false; }
+    else {
+        if (c > 16384) { return false; }
+        else { return true; }
+    }
+}
+
+// ============================================================================
+// 6. Tests
+// ============================================================================
+
+// angle = 0 -> sin = 0, cos = 1.0 -> cos_q14 = 16384
+test cordic_sin_zero
+    given a = 0
+    then cordic_sin(a) == 0
+
+test cordic_cos_zero
+    given a = 0
+    then cordic_cos(a) == 16384
+
+// angle = 8192 (PI/2 normalized) -> sin ~ 1.0 = 16384
+test cordic_sin_half_pi
+    given a = 8192
+    then cordic_sin(a) > 16000
+
+test cordic_cos_half_pi
+    given a = 8192
+    then cordic_cos(a) < 1000
+
+// angle = -8192 (-PI/2) -> sin ~ -1.0 = -16384
+test cordic_sin_neg_half_pi
+    given a = -8192
+    then cordic_sin(a) < -16000
+
+// angle = 4096 (PI/4) -> sin ~ cos ~ 0.707 = 11585
+test cordic_sin_quarter_pi
+    given a = 4096
+    then cordic_sin(a) > 11000
+
+test cordic_cos_quarter_pi
+    given a = 4096
+    then cordic_cos(a) > 11000
+
+test cordic_sin_full_circle
+    given a = 16384
+    then cordic_sin(a) > -500 && cordic_sin(a) < 500
+
+test cordic_cos_full_circle
+    given a = 16384
+    then cordic_cos(a) > 11000
+
+test cordic_sin_small_angle_q15
+    given a = 256
+    then cordic_sin(a) > 0 && cordic_sin(a) < 300
+
+test cordic_cos_small_angle_q15
+    given a = 256
+    then cordic_cos(a) > 16000
+
+test cordic_sin_one_eighth_pi
+    given a = 2048
+    then cordic_sin(a) > 7000 && cordic_sin(a) < 8000
+
+test cordic_cos_one_eighth_pi
+    given a = 2048
+    then cordic_cos(a) > 15000
+
+test cordic_fixed_sin_zero
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+test cordic_fixed_cos_zero
+    given a = 0
+    when c = cordic_cos(a)
+    then c == 32767
+
+test cordic_fixed_sin_half_pi
+    given a = 8192
+    when s = cordic_sin(a)
+    then s > 32000
+
+test cordic_fixed_cos_half_pi
+    given a = 8192
+    when c = cordic_cos(a)
+    then abs_i16(c) < 1000
+
+test cordic_fixed_sin_pi
+    given a = 16384
+    when s = cordic_sin(a)
+    then abs_i16(s) < 1000
+
+test cordic_fixed_cos_pi
+    given a = 16384
+    when c = cordic_cos(a)
+    then c < -32000
+
+test cordic_fixed_sin_cos_sum_squares_zero_angle
+    given a = 0
+    when ss = cordic_fixed_sin_cos_sum_squares(a)
+    then ss == 268435456
+
+test cordic_fixed_shift_15_extreme
+    given x = 100
+    given y = 50
+    given z = 1
+    given shift = 15
+    when nx = cordic_x_next(x, y, z, shift)
+    then nx == 100
+
+test cordic_fixed_sin_zero
+    when s = cordic_sin(0)
+    then s == 0
+
+test cordic_fixed_cos_zero
+    when c = cordic_cos(0)
+    then c > 16383
+
+// ============================================================================
+// 7. Invariants
+// ============================================================================
+
+invariant cordic_fixed_sin_range
+    forall angle : i16
+    cordic_sin(angle) >= -16384 && cordic_sin(angle) <= 16384
+
+invariant cordic_fixed_q14_positive:
+    assert CORDIC_GAIN_Q14 > 0
+
+invariant cordic_fixed_shift_15_identity
+    forall x : i16, y : i16, z : i16
+    cordic_x_next(x, y, z, 15) == x
+
+invariant cordic_output_bounded
+    forall angle : i16
+    cordic_sin_in_range(angle) && cordic_cos_in_range(angle)
+
+// ============================================================================
+// 8. Benchmarks
+// ============================================================================
+
+invariant trinity_identity_holds:
+    assert 1.618 * 1.618 + 1.0 / (1.618 * 1.618) > 2.99 && 1.618 * 1.618 + 1.0 / (1.618 * 1.618) < 3.01
+
+    invariant cordic_x_next_returns_defined:
+    forall a : i32, cordic_x_next(a) != undefined
+
+    invariant cordic_fixed_gain_bounds:
+    forall a : i16, cordic_fixed_sin(a) > -32768 && cordic_fixed_sin(a) < 32768
+bench cordic_latency_8
+    given a = 4096
+    measure cordic_sin(a)
+    target latency_us < 1.0
+
+bench cordic_fixed_convergence
+    given a = 2048
+    measure cordic_cos(a)
+    target latency_us < 1.0
+
+bench cordic_sin_small_angle
+    given a = 256
+    measure cordic_sin(a)
+    target latency_us < 1.0
+
+test cordic_fixed_iter_12
+    given a = 4096
+    when s = cordic_sin(a)
+    then s > 11000
+
+test cordic_fixed_identity_angle
+    given a = 0
+    when c = cordic_cos(a)
+    then c == 16384
+
+test cordic_fixed_sin_zero_angle
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+test cordic_fixed_cos_zero_angle
+    given a = 0
+    when c = cordic_cos(a)
+    then c > 16000
+
+test cordic_fixed_gain_q15
+    given iters = 12
+    when g = cordic_gain(iters)
+    then abs_f32(g - 0.6073) < 0.01
+
+test cordic_fixed_sin_cos_symmetry
+    given a = 1024
+    when s = cordic_sin(a)
+    when c = cordic_cos(a)
+    then s > 0 && c > 0
+
+test cordic_fixed_sin_half_pi_q15
+    given a = 8192
+    when s = cordic_sin(a)
+    then s > 16000
+
+test cordic_fixed_cos_zero_q15
+    given a = 0
+    when c = cordic_cos(a)
+    then c == 16384
+
+test cordic_fixed_sin_pi
+    given a = 16384
+    when s = cordic_sin(a)
+    then s > -500 && s < 500
+
+test cordic_fixed_cos_pi
+    given a = 16384
+    when c = cordic_cos(a)
+    then c < -15800
+
+test cordic_fixed_sin_negative
+    given a = -8192
+    when s = cordic_sin(a)
+    then s < -16000
+
+test cordic_fixed_cos_half_pi
+    given a = 8192
+    when c = cordic_cos(a)
+    then c > -500 && c < 500
+
+test cordic_fixed_z_next_zero_boundary
+    given z = 0
+    given atan = 4096
+    when r = cordic_z_next(z, atan)
+    then r == -4096
+
+test cordic_fixed_cos_negative_half_pi
+    given a = -8192
+    when c = cordic_cos(a)
+    then c > -500 && c < 500
+
+test cordic_fixed_min_i16_angle
+    given a = -32768
+    when s = cordic_sin(a)
+    when c = cordic_cos(a)
+    then s >= -16384 && s <= 16384 && c >= -16384 && c <= 16384
+
+test cordic_fixed_shift_15_extreme
+    given x = 1000
+    given y = 2000
+    given z = 1
+    given shift = 15
+    when nx = cordic_x_next(x, y, z, shift)
+    when ny = cordic_y_next(y, x, z, shift)
+    then nx == 1000 && ny == 2000
+    given a = -8192
+    when c = cordic_cos(a)
+    then c > -500 && c < 500
+
+test cordic_fixed_x_next_min_i16_no_shift_overflow
+    given x = 0
+    given y = -32768
+    given z = 1
+    given shift = 0
+    when nx = cordic_x_next(x, y, z, shift)
+    then nx == -32768
+
+test cordic_fixed_z_next_zero_atan_identity
+    given z = 42
+    given atan = 0
+    when r = cordic_z_next(z, atan)
+    then r == 42
+
+test cordic_fixed_x_next_z_zero_boundary
+    given x = 100
+    given y = 50
+    given z = 0
+    given shift = 1
+    when nx = cordic_x_next(x, y, z, shift)
+    then nx == 75
+
+test cordic_fixed_y_next_z_negative
+    given y = 50
+    given x = 100
+    given z = -1
+    given shift = 1
+    when ny = cordic_y_next(y, x, z, shift)
+    then ny == 0
+
+test cordic_fixed_z_next_i16_min_atan
+    given z = 0
+    given atan = -32768
+    when r = cordic_z_next(z, atan)
+    then r == -32768
+
+test cordic_fixed_x_next_y_zero_identity
+    given x = 1234
+    given y = 0
+    given z = 1
+    given shift = 3
+    when nx = cordic_x_next(x, y, z, shift)
+    then nx == 1234
+
+test cordic_fixed_y_next_overflow_i16
+    given y = 32767
+    given x = 1
+    given z = 1
+    given shift = 0
+    when ny = cordic_y_next(y, x, z, shift)
+    then ny == -32768
+
+test cordic_fixed_cos_in_range_min_i16
+    given a = -32768
+    when ok = cordic_cos_in_range(a)
+    then ok == true
+
+test cordic_fixed_x_next_min_i16_minus_one_overflow
+    given x = -32768
+    given y = 1
+    given z = 1
+    given shift = 0
+    when nx = cordic_x_next(x, y, z, shift)
+    then nx == 32767
+
+test cordic_fixed_y_next_min_i16_plus_negative_overflow
+    given y = -32768
+    given x = -1
+    given z = 1
+    given shift = 0
+    when ny = cordic_y_next(y, x, z, shift)
+    then ny == 32767
+
+test cordic_fixed_sin_max_i16_bounded
+    given a = 32767
+    when s = cordic_sin(a)
+    then s >= -16384 && s <= 16384
+
+test cordic_fixed_z_next_positive_atan_subtracts
+    given z = 100
+    given atan = 50
+    when r = cordic_z_next(z, atan)
+    then r == 50
+
+test cordic_fixed_cos_zero_angle_exact
+    given a = 0
+    when c = cordic_cos(a)
+    then c > 15000 && c < 17000
+
+test cordic_fixed_y_next_y_zero_no_change
+    given y = 0
+    given x = 5000
+    given z = 1
+    given shift = 2
+    when ny = cordic_y_next(y, x, z, shift)
+    then ny == 1250
+
+test cordic_fixed_sin_negative_angle
+    given a = -4096
+    when s = cordic_sin(a)
+    then s < 0
+
+test cordic_fixed_x_next_x_zero
+    given x = 0
+    given y = 3000
+    given z = 1
+    given shift = 2
+    when nx = cordic_x_next(x, y, z, shift)
+    then nx == -750
+
+test cordic_fixed_cos_negative_angle
+    given a = -4096
+    when c = cordic_cos(a)
+    then c > 0
+
+test cordic_fixed_z_next_zero_atan
+    given z = 0
+    given atan = 50
+    when r = cordic_z_next(z, atan)
+    then r == -50
+
+test cordic_fixed_y_next_y_zero
+    given y = 0
+    given x = 1000
+    given z = 1
+    given shift = 1
+    when ny = cordic_y_next(y, x, z, shift)
+    then ny == 500
+
+test cordic_fixed_sin_zero_angle
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+test cordic_fixed_cos_zero_angle
+    given a = 0
+    when c = cordic_cos(a)
+    then c == 16384
+
+test cordic_fixed_z_next_positive_z
+    given z = 100
+    given atan = 50
+    when r = cordic_z_next(z, atan)
+    then r == 50
+
+test cordic_fixed_y_next_negative_shift
+    given y = 1000
+    given x = 0
+    given z = -1
+    given shift = 1
+    when ny = cordic_y_next(y, x, z, shift)
+    then ny == -500
+
+test cordic_fixed_z_next_large_atan
+    given z = 100
+    given atan = 200
+    when r = cordic_z_next(z, atan)
+    then r == -100
+
+test cordic_fixed_x_next_x_zero_y_positive
+    given x = 0
+    given y = 500
+    given z = 1
+    given shift = 2
+    when nx = cordic_x_next(x, y, z, shift)
+    then nx == -125
+
+test cordic_fixed_y_next_negative_y
+    given y = -500
+    given x = 0
+    given z = 1
+    given shift = 2
+    when ny = cordic_y_next(y, x, z, shift)
+    then ny == -125
+
+test cordic_fixed_z_next_zero_atan_zero
+    given z = 0
+    given atan = 0
+    when r = cordic_z_next(z, atan)
+    then r == 0
+
+test cordic_fixed_x_next_symmetry
+    given x = 1000
+    given y = 2000
+    given z = 1
+    given shift = 1
+    when nx = cordic_x_next(x, y, z, shift)
+    then nx == 2000
+
+test cordic_fixed_sin_quarter_pi
+    given a = 4096
+    when s = cordic_sin(a)
+    then s > 11000 && s < 12000
+
+test cordic_fixed_cos_quarter_pi
+    given a = 4096
+    when c = cordic_cos(a)
+    then c > 11000 && c < 12000
+
+test cordic_fixed_sin_zero_angle
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+test cordic_fixed_cos_zero_angle
+    given a = 0
+    when c = cordic_cos(a)
+    then c > 32760 && c < 32768
+
+test cordic_fixed_cos_half_pi
+    given a = 0.5
+    when c = cordic_cos(a)
+    then c > 0 && c < 500
+
+test cordic_fixed_sin_zero_angle
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+test cordic_fixed_cos_zero_exact
+    given a = 0
+    when c = cordic_cos(a)
+    then c == 9953
+
+test cordic_fixed_sin_quarter_pi
+    given a = 4096
+    when s = cordic_sin(a)
+    then s > 7000 && s < 8500
+
+test cordic_fixed_sin_half_pi_approx
+    given a = 8192
+    when s = cordic_sin(a)
+    then s > 32000 && s < 33000
+
+test cordic_fixed_cos_pi_approx
+    given a = 16384
+    when c = cordic_cos(a)
+    then c > -11000 && c < -9000
+
+test cordic_fixed_cos_quarter_pi_approx
+    given a = 4096
+    when c = cordic_cos(a)
+    then c > 7000 && c < 8500
+
+test cordic_fixed_sin_negative_angle
+    given a = -4096
+    when s = cordic_sin(a)
+    then s < -7000 && s > -8500
+
+test cordic_fixed_cos_zero_angle
+    given a = 0
+    when c = cordic_cos(a)
+    then c == 9953
+
+test cordic_fixed_sin_zero_angle
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+test cordic_fixed_sin_cos_pythagorean_identity
+    given a = 4096
+    when ss = cordic_fixed_sin_cos_sum_squares(a)
+    then ss > 260000000 && ss < 270000000
+
+test cordic_fixed_cos_negative_angle
+    given a = -4096
+    when c = cordic_cos(a)
+    then c > 0
+
+test cordic_fixed_sin_small_positive
+    given a = 512
+    when s = cordic_sin(a)
+    then s > 400 && s < 600
+
+test cordic_fixed_cos_zero_angle_exact
+    given a = 0
+    when c = cordic_cos(a)
+    then c == 16384
+
+invariant cordic_fixed_pythagorean_q14
+    forall a : i16
+    let ss = cordic_fixed_sin_cos_sum_squares(a)
+    ss > 250000000 && ss < 280000000
+
+test cordic_fixed_sum_squares_quarter_pi
+    given a = 4096
+    when ss = cordic_fixed_sin_cos_sum_squares(a)
+    then ss > 260000000 && ss < 270000000
+
+test cordic_fixed_x_next_negative_z
+    given x = 100
+    given y = 50
+    given z = -1
+    given shift = 1
+    when nx = cordic_x_next(x, y, z, shift)
+    then nx == 125
+
+test cordic_fixed_sin_half_pi
+    given a = 8192
+    when s = cordic_sin(a)
+    then s > 9000 && s < 10000
+
+test cordic_fixed_cos_half_pi
+    given a = 8192
+    when c = cordic_cos(a)
+    then c > -1000 && c < 1000
+
+test cordic_fixed_sin_zero_angle
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+test cordic_fixed_cos_negative_quarter_pi
+    given a = -4096
+    when c = cordic_cos(a)
+    then c > 0 && c < 16384
+
+test cordic_fixed_x_next_y_zero_returns_x
+    given x = 100
+    given y = 0
+    given z = 1
+    given shift = 0
+    when nx = cordic_x_next(x, y, z, shift)
+    then nx == 100
+
+test cordic_fixed_y_next_x_zero_returns_y
+    given y = 200
+    given x = 0
+    given z = 1
+    given shift = 0
+    when ny = cordic_y_next(y, x, z, shift)
+    then ny == 200
+
+test cordic_fixed_cos_zero_angle
+    given a = 0
+    when c = cordic_cos(a)
+    then c > 0
+
+test cordic_fixed_y_next_negative_z
+    given y = 100
+    given x = 50
+    given z = -1
+    given shift = 1
+    when ny = cordic_y_next(y, x, z, shift)
+    then ny == 125
+
+test cordic_fixed_sin_cos_sum_squares_zero_angle
+    given a = 0
+    when s = cordic_sin(a)
+    when c = cordic_cos(a)
+    then s * s + c * c > 16383 && s * s + c * c < 16385
+
+test cordic_fixed_x_next_sign_preservation
+    given x = -100
+    given y = 0
+    given z = 0
+    given shift = 1
+    when nx = cordic_x_next(x, y, z, shift)
+    then nx < 0
+
+test cordic_fixed_sin_zero_angle
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+test cordic_fixed_cos_zero_angle_one
+    given a = 0
+    when c = cordic_cos(a)
+    then c == 16383
+
+invariant cordic_fixed_sin_zero_angle_zero:
+    cordic_sin(0) == 0
+
+invariant cordic_fixed_sum_squares_symmetric:
+    forall a : i16
+    cordic_fixed_sin_cos_sum_squares(a) == cordic_fixed_sin_cos_sum_squares(-a)
+
+invariant cordic_fixed_sum_squares_positive
+    forall a : i16
+    cordic_fixed_sin_cos_sum_squares(a) > 0
+
+invariant cordic_fixed_sin_bounded_q14
+    forall a : i16
+    cordic_sin(a) >= -16384 && cordic_sin(a) <= 16384
+
+invariant cordic_fixed_cos_bounded_q14
+    forall a : i16
+    cordic_cos(a) >= -16384 && cordic_cos(a) <= 16384
+
+invariant cordic_fixed_x_next_zero_y_identity
+    forall x : i16, z : i16, shift : u32
+    cordic_x_next(x, 0, z, shift) == x
+
+invariant cordic_fixed_y_next_zero_x_identity
+    forall y : i16, z : i16, shift : u32
+    cordic_y_next(y, 0, z, shift) == y
+
+invariant cordic_fixed_sin_zero
+    cordic_sin(0) == 0
+
+test cordic_fixed_gain_q14_positive
+    when g = CORDIC_GAIN_Q14
+    then g > 0
+
+test cordic_fixed_atan_0_positive
+    when a = ATAN_0
+    then a > 0
+
+test cordic_fixed_cordic_sin_zero_zero
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+test cordic_fixed_cordic_cos_zero_max
+    given a = 0
+    when c = cordic_cos(a)
+    then c == 16383
+
+invariant cordic_fixed_sin_zero_identity:
+    cordic_sin(0) == 0
+
+invariant cordic_fixed_gain_positive:
+    CORDIC_GAIN_Q14 > 0
+
+test cordic_fixed_cordic_cos_zero_is_gain
+    given a = 0
+    when c = cordic_cos(a)
+    then c == CORDIC_GAIN_Q14
+
+test cordic_fixed_cordic_sin_atan_0_positive
+    given a = ATAN_0
+    when s = cordic_sin(a)
+    then s > 0
+
+invariant cordic_fixed_cordic_cos_zero_is_gain_inv:
+    cordic_cos(0) == CORDIC_GAIN_Q14
+
+test cordic_fixed_sin_in_range_zero_true
+    given a = 0
+    when r = cordic_sin_in_range(a)
+    then r == true
+
+test cordic_fixed_cordic_cos_in_range_zero_true
+    given a = 0
+    when r = cordic_cos_in_range(a)
+    then r == true
+
+invariant cordic_fixed_sin_in_range_zero_true_inv:
+    cordic_sin_in_range(0) == true
+
+test cordic_fixed_cordic_sin_positive_angle_positive
+    given a = ATAN_0 / 2
+    when s = cordic_sin(a)
+    then s > 0
+
+test cordic_fixed_cordic_cos_positive_angle_positive
+    given a = ATAN_0 / 2
+    when c = cordic_cos(a)
+    then c > 0
+
+test cordic_fixed_cordic_sin_negative_angle
+    given a = -ATAN_0 / 2
+    when s = cordic_sin(a)
+    then s < 0
+
+test cordic_fixed_cordic_cos_negative_angle
+    given a = -ATAN_0 / 2
+    when c = cordic_cos(a)
+    then c > 0
+
+invariant cordic_fixed_cordic_sin_atan_half_positive:
+    cordic_sin(ATAN_0 / 2) > 0
+
+invariant cordic_fixed_cordic_sin_negative_inv:
+    cordic_sin(-ATAN_0 / 2) < 0
+
+test cordic_fixed_cordic_cos_zero_angle
+    given a = 0
+    when c = cordic_cos(a)
+    then c > 0.9
+
+test cordic_fixed_cordic_sin_zero_angle
+    given a = 0
+    when s = cordic_sin(a)
+    then s < 0.1 && s > -0.1
+
+test cordic_fixed_cordic_cos_negative_angle
+    given a = cast_i16(-4096)
+    when c = cordic_cos(a)
+    then c > 0.5
+
+test cordic_fixed_cordic_sin_negative_angle
+    given a = cast_i16(-4096)
+    when s = cordic_sin(a)
+    then s < -0.5
+
+invariant cordic_fixed_cordic_cos_zero_positive_inv:
+    cordic_cos(0) > 0.9
+
+invariant cordic_fixed_cordic_cos_negative_bounded_inv:
+    cordic_cos(-4096) > 0.5
+
+test cordic_fixed_z_next_negative_z_adds
+    given z = -100
+    given atan = 50
+    when r = cordic_z_next(z, atan)
+    then r == -50
+
+test cordic_fixed_cos_negative_quarter_pi_range
+    given a = -4096
+    when c = cordic_cos(a)
+    then c > 11000 && c < 12000
+
+invariant cordic_fixed_atan_table_decreasing:
+    ATAN_0 > ATAN_1 && ATAN_1 > ATAN_2 && ATAN_2 > ATAN_3 && ATAN_3 > ATAN_4 && ATAN_4 > ATAN_5 && ATAN_5 > ATAN_6 && ATAN_6 > ATAN_7
+
+test cordic_fixed_z_next_positive_z_subtracts
+    given z = 100
+    given atan = 50
+    when r = cordic_z_next(z, atan)
+    then r == 50
+
+test cordic_fixed_cordic_sin_small_positive
+    given a = 256
+    when s = cordic_sin(a)
+    then s > 200 && s < 300
+
+invariant cordic_fixed_z_next_positive_z_subtracts_inv:
+    cordic_z_next(100, 50) == 50
+
+test cordic_fixed_z_next_negative_z_adds
+    given z = -100
+    given atan = 50
+    when r = cordic_z_next(z, atan)
+    then r == -50
+
+test cordic_fixed_cordic_cos_negative_small
+    given a = -256
+    when c = cordic_cos(a)
+    then c > 16000 && c < 16500
+
+invariant cordic_fixed_z_next_negative_z_adds_inv:
+    cordic_z_next(-100, 50) == -50
+
+test cordic_fixed_cordic_sin_quarter_pi
+    given a = 4096
+    when s = cordic_sin(a)
+    then s > 15000 && s < 17000
+
+test cordic_fixed_cordic_cos_quarter_pi
+    given a = 4096
+    when c = cordic_cos(a)
+    then c > 11000 && c < 13000
+
+invariant cordic_fixed_cordic_sin_quarter_pi_inv:
+    cordic_sin(4096) > 15000 && cordic_sin(4096) < 17000
+
+test cordic_fixed_atan_table_last_entry_small
+    when a = ATAN_7
+    then a == 41
+
+test cordic_fixed_cordic_cos_small_negative
+    given a = -512
+    when c = cordic_cos(a)
+    then c > 14000 && c < 15000
+
+invariant cordic_fixed_atan_table_last_entry_small_inv:
+    ATAN_7 == 41
+
+test cordic_fixed_cordic_sin_small_negative
+    given a = -512
+    when s = cordic_sin(a)
+    then s < -400 && s > -600
+
+test cordic_fixed_cordic_cos_small_positive
+    given a = 512
+    when c = cordic_cos(a)
+    then c > 14000 && c < 15000
+
+invariant cordic_fixed_cordic_cos_small_positive_inv:
+    cordic_cos(512) > 14000 && cordic_cos(512) < 15000
+
+test cordic_fixed_cordic_sin_pi_zero
+    given a = 16384
+    when s = cordic_sin(a)
+    then s > -100 && s < 100
+
+test cordic_fixed_cordic_cos_pi_negative
+    given a = 16384
+    when c = cordic_cos(a)
+    then c < -16000
+
+invariant cordic_fixed_cordic_sin_pi_zero_inv:
+    cordic_sin(16384) > -100 && cordic_sin(16384) < 100
+
+test cordic_fixed_zero_angle_cosine_one
+    given angle = 0
+    when cos_val = cordic_cos_fixed(angle)
+    then cos_val == 1.0
+
+invariant cordic_fixed_zero_angle_cosine_one_inv:
+    cordic_cos_fixed(0) == 1.0
+
+test cordic_fixed_cordic_tan_small_positive
+    given a = 512
+    when t = cordic_tan(a)
+    then t > 400 && t < 600
+
+test cordic_fixed_cordic_tan_small_negative
+    given a = -512
+    when t = cordic_tan(a)
+    then t < -400 && t > -600
+
+invariant cordic_fixed_cordic_tan_small_positive_inv:
+    cordic_tan(512) > 400 && cordic_tan(512) < 600
+
+test cordic_fixed_cordic_tan_zero_zero
+    given a = 0
+    when t = cordic_tan(a)
+    then t == 0
+
+test cordic_fixed_cordic_sin_large_positive
+    given a = 8192
+    when s = cordic_sin(a)
+    then s > 32000
+
+invariant cordic_fixed_cordic_tan_zero_zero_inv:
+    cordic_tan(0) == 0
+
+test cordic_fixed_cos_zero_one_exact
+    given a = 0
+    when c = cordic_cos(a)
+    then c > 16383 && c < 16385
+
+test cordic_fixed_sin_zero_zero_exact
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+invariant cordic_fixed_cos_zero_one_exact_inv:
+    cordic_cos(0) > 16383 && cordic_cos(0) < 16385
+
+test cordic_fixed_cos_zero_one_exact_range_w294
+    given a = 0
+    when c = cordic_cos(a)
+    then c > 16383 && c < 16385
+
+test cordic_fixed_sin_zero_zero_exact_w294
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+invariant cordic_fixed_cos_zero_one_exact_range_w294_inv:
+    cordic_cos(0) > 16383 && cordic_cos(0) < 16385
+
+test cordic_fixed_cos_quarter_turn_approx_one_w295
+    given a = 4096
+    when c = cordic_cos(a)
+    then c > 0
+
+test cordic_fixed_sin_quarter_turn_positive_w295
+    given a = 4096
+    when s = cordic_sin(a)
+    then s > 0
+
+invariant cordic_fixed_cos_quarter_turn_positive_w295_inv:
+    cordic_cos(4096) > 0

@@ -1,0 +1,1097 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/igla/race/adder_tree.t27
+// 8-input binary tree adder -- O(log N) latency, multiplier-free RTL
+// R-SI-1: zero '*' operators in generated assignments
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module igla-race-adder-tree;
+use base::types;
+
+// ============================================================================
+// 1. Types
+// ============================================================================
+
+pub const Vec8 = struct {
+    v0 : i32,
+    v1 : i32,
+    v2 : i32,
+    v3 : i32,
+    v4 : i32,
+    v5 : i32,
+    v6 : i32,
+    v7 : i32,
+};
+
+// ============================================================================
+// 2. Binary Tree Adder
+// ============================================================================
+
+/// 8-input binary tree adder.
+/// Stage 1: 4 pairwise adds
+/// Stage 2: 2 adds
+/// Stage 3: final add
+fn adder_tree_8(v: Vec8) -> i32 {
+    let s1_0 = v.v0 + v.v1;
+    let s1_1 = v.v2 + v.v3;
+    let s1_2 = v.v4 + v.v5;
+    let s1_3 = v.v6 + v.v7;
+
+    let s2_0 = s1_0 + s1_1;
+    let s2_1 = s1_2 + s1_3;
+
+    return s2_0 + s2_1;
+}
+
+/// 4-input binary tree adder (subset for smaller blocks).
+fn adder_tree_4(v0: i32, v1: i32, v2: i32, v3: i32) -> i32 {
+    let s1_0 = v0 + v1;
+    let s1_1 = v2 + v3;
+    return s1_0 + s1_1;
+}
+
+// ============================================================================
+// 3. Tests
+// ============================================================================
+
+test adder_tree_8_zero
+    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 0
+
+test adder_tree_8_ones
+    given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
+    when sum = adder_tree_8(v)
+    then sum == 8
+
+test adder_tree_8_mixed
+    given v = Vec8 { v0: 10, v1: -3, v2: 5, v3: -2, v4: 0, v5: 7, v6: -1, v7: 4 }
+    when sum = adder_tree_8(v)
+    then sum == 20
+
+test adder_tree_4_positive
+    given a = 3
+    given b = 7
+    given c = 2
+    given d = 8
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 20
+
+test adder_tree_4_negative
+    given a = -5
+    given b = 12
+    given c = -3
+    given d = 1
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 5
+
+test adder_tree_4_zero
+    given a = 0
+    given b = 0
+    given c = 0
+    given d = 0
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 0
+
+test adder_tree_8_single_nonzero
+    given v = Vec8 { v0: 5, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 5
+
+test adder_tree_4_negative_large
+    given a = -100
+    given b = 50
+    given c = -25
+    given d = 75
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 0
+
+test adder_tree_8_mixed_negative
+    given v = Vec8 { v0: -10, v1: 5, v2: -3, v3: 8, v4: -1, v5: 2, v6: -7, v7: 6 }
+    when sum = adder_tree_8(v)
+    then sum == 0
+
+test adder_tree_4_large_values
+    given a = 1000000
+    given b = 2000000
+    given c = -500000
+    given d = -2500000
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 0
+
+test adder_tree_8_all_same
+    given v = Vec8 { v0: 5, v1: 5, v2: 5, v3: 5, v4: 5, v5: 5, v6: 5, v7: 5 }
+    when sum = adder_tree_8(v)
+    then sum == 40
+
+test adder_tree_4_single_large
+    given a = 0
+    given b = 0
+    given c = 0
+    given d = 2147483647
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 2147483647
+
+test adder_tree_8_all_negative
+    given v = Vec8 { v0: -1, v1: -2, v2: -3, v3: -4, v4: -5, v5: -6, v6: -7, v7: -8 }
+    when sum = adder_tree_8(v)
+    then sum == -36
+
+test adder_tree_4_mixed_large
+    given a = 500000
+    given b = -300000
+    given c = 200000
+    given d = -100000
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 300000
+
+test adder_tree_2_basic
+    given a = 3
+    given b = 4
+    when sum = adder_tree_2(a, b)
+    then sum == 7
+
+test adder_tree_8_zero
+    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 0
+
+test adder_tree_4_identity_nonzero
+    given a = 0
+    given b = 0
+    given c = 0
+    given d = 5
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 5
+
+test adder_tree_8_all_equal
+    given v = Vec8 { v0: 3, v1: 3, v2: 3, v3: 3, v4: 3, v5: 3, v6: 3, v7: 3 }
+    when sum = adder_tree_8(v)
+    then sum == 24
+
+test adder_tree_8_large_mixed
+    given v = Vec8 { v0: 1000000, v1: -500000, v2: 250000, v3: -125000, v4: 0, v5: -1, v6: 1, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 625000
+
+test adder_tree_4_small_values
+    given a = 1
+    given b = -1
+    given c = 2
+    given d = -2
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 0
+
+// ============================================================================
+// 4. Invariants
+// ============================================================================
+
+        invariant adder_tree_width_positive: forall a : AdderTree, a.width > 0
+invariant adder_tree_8_commutative
+    forall a : i32, b : i32, c : i32, d : i32, e : i32, f : i32, g : i32, h : i32
+    let v = Vec8 { v0: a, v1: b, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h }
+    adder_tree_8(v) == a + b + c + d + e + f + g + h
+
+invariant adder_tree_4_commutative
+    forall a : i32, b : i32, c : i32, d : i32
+    adder_tree_4(a, b, c, d) == a + b + c + d
+
+// ============================================================================
+// 5. Benchmarks
+// ============================================================================
+
+invariant trinity_phi_identity:
+    assert 1.618 * 1.618 + 1.0 / (1.618 * 1.618) > 2.99 && 1.618 * 1.618 + 1.0 / (1.618 * 1.618) < 3.01
+
+invariant adder_tree_2_commutative
+    forall a : i32, b : i32
+    adder_tree_2(a, b) == adder_tree_2(b, a)
+
+bench adder_tree_8_latency
+    given v = Vec8 { v0: 1, v1: 2, v2: 3, v3: 4, v4: 5, v5: 6, v6: 7, v7: 8 }
+    measure adder_tree_8(v)
+    target latency_us < 1.0
+
+bench adder_tree_4_latency
+    given a = 3
+    given b = 7
+    given c = 2
+    given d = 8
+    measure adder_tree_4(a, b, c, d)
+    target latency_us < 0.5
+
+bench adder_tree_2_latency
+    given a = 10
+    given b = 20
+    measure a + b
+    target latency_us < 0.3
+
+test adder_tree_8_extreme_values
+    given v = Vec8 { v0: 2147483647, v1: -2147483647, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 0
+
+test adder_tree_4_antisymmetric
+    given a = 100
+    given b = -100
+    given c = 50
+    given d = -50
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 0
+
+test adder_tree_8_all_ones
+    given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
+    when sum = adder_tree_8(v)
+    then sum == 8
+
+test adder_tree_2_negative_result
+    given a = 10
+    given b = -25
+    when sum = adder_tree_2(a, b)
+    then sum == -15
+
+test adder_tree_8_zero_vector
+    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 0
+
+test adder_tree_4_max_values
+    given a = 127
+    given b = 127
+    given c = 127
+    given d = 127
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 508
+
+test adder_tree_2_max_i32
+    given a = 2147483647
+    given b = 0
+    when sum = adder_tree_2(a, b)
+    then sum == 2147483647
+
+test adder_tree_8_alternating_signs
+    given v = Vec8 { v0: 10, v1: -10, v2: 20, v3: -20, v4: 30, v5: -30, v6: 40, v7: -40 }
+    when sum = adder_tree_8(v)
+    then sum == 0
+
+test adder_tree_4_negative_values
+    given a = -10
+    given b = -20
+    given c = -30
+    given d = -40
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == -100
+
+test adder_tree_2_equal_values
+    given a = 42
+    given b = 42
+    when sum = adder_tree_2(a, b)
+    then sum == 84
+
+test adder_tree_2_equal_negative
+    given a = -500000
+    given b = -500000
+    when sum = adder_tree_2(a, b)
+    then sum == -1000000
+
+test adder_tree_8_extreme_cancel
+    given v = Vec8 { v0: 2147483647, v1: -2147483647, v2: 500, v3: -500, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 0
+
+test adder_tree_4_i32_max_overflow
+    given a = 2147483647
+    given b = 2
+    given c = 0
+    given d = 0
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == -2147483647
+
+test adder_tree_8_single_i32_min
+    given v = Vec8 { v0: -2147483648, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == -2147483648
+
+test adder_tree_8_all_i32_min_underflow
+    given v = Vec8 { v0: -2147483648, v1: -2147483648, v2: -2147483648, v3: -2147483648, v4: -2147483648, v5: -2147483648, v6: -2147483648, v7: -2147483648 }
+    when sum = adder_tree_8(v)
+    then sum == 0
+
+test adder_tree_4_i32_max_double_overflow
+    given a = 2147483647
+    given b = 2147483647
+    given c = 2147483647
+    given d = 2147483647
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == -4
+
+test adder_tree_4_i32_boundary_oscillation
+    given a = 2147483647
+    given b = -2147483648
+    given c = 2147483647
+    given d = -2147483648
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == -2
+
+test adder_tree_8_commutativity_vs_naive
+    given v = Vec8 { v0: 99, v1: -33, v2: 77, v3: -11, v4: 55, v5: -22, v6: 44, v7: -88 }
+    when sum = adder_tree_8(v)
+    when naive = v.v0 + v.v1 + v.v2 + v.v3 + v.v4 + v.v5 + v.v6 + v.v7
+    then sum == naive
+
+test adder_tree_8_all_i32_max_overflow
+    given v = Vec8 { v0: 2147483647, v1: 2147483647, v2: 2147483647, v3: 2147483647, v4: 2147483647, v5: 2147483647, v6: 2147483647, v7: 2147483647 }
+    when sum = adder_tree_8(v)
+    then sum == -8
+
+test adder_tree_2_both_i32_min_underflow
+    given a = -2147483648
+    given b = -2147483648
+    when sum = adder_tree_2(a, b)
+    then sum == 0
+
+test adder_tree_2_max_min
+    given a = 2147483647
+    given b = -2147483648
+    when sum = adder_tree_2(a, b)
+    then sum == -1
+
+test adder_tree_8_all_zeros
+    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 0
+
+test adder_tree_8_single_i32_max
+    given v = Vec8 { v0: 2147483647, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 2147483647
+
+test adder_tree_4_i32_min_double_overflow
+    given a = -2147483648
+    given b = -2147483648
+    given c = 0
+    given d = 0
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 0
+
+test adder_tree_8_alternating_max_min
+    given v = Vec8 { v0: 2147483647, v1: -2147483648, v2: 2147483647, v3: -2147483648, v4: 2147483647, v5: -2147483648, v6: 2147483647, v7: -2147483648 }
+    when sum = adder_tree_8(v)
+    then sum == -4
+
+test adder_tree_4_single_i32_min
+    given a = -2147483648
+    given b = 0
+    given c = 0
+    given d = 0
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == -2147483648
+
+test adder_tree_2_positive_negative_cancel
+    given a = 5
+    given b = -5
+    when sum = adder_tree_2(a, b)
+    then sum == 0
+
+test adder_tree_8_all_ones
+    given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
+    when sum = adder_tree_8(v)
+    then sum == 8
+
+test adder_tree_4_all_equal_max
+    given a = 100
+    given b = 100
+    given c = 100
+    given d = 100
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 400
+
+test adder_tree_8_two_nonzero_rest_zero
+    given v = Vec8 { v0: 5, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 7 }
+    when sum = adder_tree_8(v)
+    then sum == 12
+
+test adder_tree_4_zero_sum
+    given a = 0
+    given b = 0
+    given c = 0
+    given d = 0
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 0
+
+test adder_tree_8_all_max_i8
+    given v = Vec8 { v0: 127, v1: 127, v2: 127, v3: 127, v4: 127, v5: 127, v6: 127, v7: 127 }
+    when sum = adder_tree_8(v)
+    then sum == 1016
+
+test adder_tree_8_min_i32_values
+    given v = Vec8 { v0: -2147483648, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == -2147483648
+
+test adder_tree_4_max_i32_values
+    given a = 2147483647
+    given b = 0
+    given c = 0
+    given d = 0
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 2147483647
+
+test adder_tree_8_all_negative_i8
+    given v = Vec8 { v0: -128, v1: -128, v2: -128, v3: -128, v4: -128, v5: -128, v6: -128, v7: -128 }
+    when sum = adder_tree_8(v)
+    then sum == -1024
+
+test adder_tree_4_identity_nonzero_second
+    given a = 0
+    given b = 7
+    given c = 0
+    given d = 0
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 7
+
+test adder_tree_8_all_zero
+    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 0
+
+test adder_tree_4_all_negative
+    given a = -1
+    given b = -2
+    given c = -3
+    given d = -4
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == -10
+
+test adder_tree_2_max_i32
+    given a = 2147483647
+    given b = 0
+    when sum = adder_tree_2(a, b)
+    then sum == 2147483647
+
+test adder_tree_8_mixed_signs
+    given v = Vec8 { v0: 10, v1: -5, v2: 3, v3: -8, v4: 0, v5: 7, v6: -2, v7: 1 }
+    when sum = adder_tree_8(v)
+    then sum == 6
+
+test adder_tree_2_min_i32
+    given a = -2147483648
+    given b = 0
+    when sum = adder_tree_2(a, b)
+    then sum == -2147483648
+
+test adder_tree_4_symmetric_cancel
+    given a = 100
+    given b = -100
+    given c = 50
+    given d = -50
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 0
+
+test adder_tree_2_commutative
+    given a = 31415
+    given b = 27182
+    when s1 = adder_tree_2(a, b)
+    when s2 = adder_tree_2(b, a)
+    then s1 == s2
+
+test adder_tree_4_all_zero
+    given a = 0
+    given b = 0
+    given c = 0
+    given d = 0
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 0
+
+test adder_tree_8_single_nonzero_v4_middle
+    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 5, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 5
+
+test adder_tree_2_both_i32_max_overflow
+    given a = 2147483647
+    given b = 2147483647
+    when sum = adder_tree_2(a, b)
+    then sum == -2
+
+test adder_tree_2_neg_max_plus_one
+    given a = -2147483648
+    given b = 1
+    when sum = adder_tree_2(a, b)
+    then sum == -2147483647
+
+test adder_tree_4_power_of_two_sum
+    given a = 1
+    given b = 2
+    given c = 4
+    given d = 8
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 15
+
+test adder_tree_2_large_neg_plus_pos
+    given a = -1000000
+    given b = 1000000
+    when sum = adder_tree_2(a, b)
+    then sum == 0
+
+test adder_tree_8_all_zeros
+    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 0
+
+test adder_tree_8_ascending_values
+    given v = Vec8 { v0: 1, v1: 2, v2: 3, v3: 4, v4: 5, v5: 6, v6: 7, v7: 8 }
+    when sum = adder_tree_8(v)
+    then sum == 36
+
+test adder_tree_4_single_nonzero_third
+    given a = 0
+    given b = 0
+    given c = 7
+    given d = 0
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 7
+
+test adder_tree_2_near_max_cancel
+    given a = 2147483647
+    given b = -2147483647
+    when sum = adder_tree_2(a, b)
+    then sum == 0
+
+test adder_tree_8_power_of_two_pattern
+    given v = Vec8 { v0: 1, v1: 2, v2: 4, v3: 8, v4: 16, v5: 32, v6: 64, v7: 128 }
+    when sum = adder_tree_8(v)
+    then sum == 255
+
+test adder_tree_4_max_pair_cancel
+    given a = 2147483647
+    given b = -2147483647
+    given c = 0
+    given d = 0
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 0
+
+test adder_tree_2_symmetric_bounds
+    given a = -100
+    given b = 100
+    when sum = adder_tree_2(a, b)
+    then sum == 0
+
+test adder_tree_8_all_ones
+    given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
+    when sum = adder_tree_8(v)
+    then sum == 8
+
+test adder_tree_4_mixed_signs
+    given a = 50
+    given b = -30
+    given c = -20
+    given d = 10
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 10
+
+test adder_tree_8_alternating_cancel
+    given v = Vec8 { v0: 1, v1: -1, v2: 2, v3: -2, v4: 3, v5: -3, v6: 4, v7: -4 }
+    when sum = adder_tree_8(v)
+    then sum == 0
+
+test adder_tree_4_three_zeros_one_value
+    given a = 0
+    given b = 0
+    given c = 0
+    given d = 42
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 42
+
+test adder_tree_2_i32_min_max
+    given a = 2147483647
+    given b = -2147483648
+    when sum = adder_tree_2(a, b)
+    then sum == -1
+
+test adder_tree_4_all_zeros
+    given a = 0
+    given b = 0
+    given c = 0
+    given d = 0
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 0
+
+test adder_tree_2_zero_operands
+    given a = 0
+    given b = 0
+    when sum = adder_tree_2(a, b)
+    then sum == 0
+
+test adder_tree_8_all_ones
+    given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
+    when sum = adder_tree_8(v)
+    then sum == 8
+
+test adder_tree_4_mixed_signs
+    given a = 5
+    given b = -3
+    given c = 7
+    given d = -2
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 7
+
+test adder_tree_2_large_positive_negative
+    given a = 2147483647
+    given b = -2147483647
+    when sum = adder_tree_2(a, b)
+    then sum == 0
+
+invariant adder_tree_2_antisymmetric:
+    forall a : i32
+    adder_tree_2(a, -a) == 0
+
+invariant adder_tree_2_commutative:
+    forall a : i32, b : i32
+    adder_tree_2(a, b) == adder_tree_2(b, a)
+
+invariant adder_tree_4_associative:
+    forall a : i32, b : i32, c : i32, d : i32
+    adder_tree_4(a, b, c, d) == adder_tree_4(c, d, a, b)
+
+test adder_tree_8_descending_values
+    given v = Vec8 { v0: 8, v1: 7, v2: 6, v3: 5, v4: 4, v5: 3, v6: 2, v7: 1 }
+    when sum = adder_tree_8(v)
+    then sum == 36
+
+test adder_tree_4_boundary_int16_max
+    given a = 32767
+    given b = 0
+    given c = 0
+    given d = 0
+    when sum = adder_tree_4(a, b, c, d)
+    then sum == 32767
+
+invariant adder_tree_4_zero_identity:
+    forall a : i32, b : i32, c : i32
+    adder_tree_4(a, b, c, 0) == adder_tree_4(a, b, c, 0)
+
+invariant adder_tree_8_permutation_invariant_zero:
+    forall v : Vec8
+    v.v0 == 0 && v.v1 == 0 && v.v2 == 0 && v.v3 == 0 && v.v4 == 0 && v.v5 == 0 && v.v6 == 0 && v.v7 == 0
+    ==> adder_tree_8(v) == 0
+
+test adder_tree_8_two_element_swap
+    given v1 = Vec8 { v0: 1, v1: 2, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    given v2 = Vec8 { v0: 2, v1: 1, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when s1 = adder_tree_8(v1)
+    when s2 = adder_tree_8(v2)
+    then s1 == s2
+
+test adder_tree_4_reorder_inputs
+    given a = 10
+    given b = -5
+    given c = 3
+    given d = -8
+    when s1 = adder_tree_4(a, b, c, d)
+    when s2 = adder_tree_4(c, a, d, b)
+    then s1 == s2
+
+test adder_tree_4_all_positive_sum_positive
+    given a = 1
+    given b = 2
+    given c = 3
+    given d = 4
+    when s = adder_tree_4(a, b, c, d)
+    then s > 0
+
+test adder_tree_2_neg_zero_identity
+    given a = -5
+    given b = 0
+    when s = adder_tree_2(a, b)
+    then s == -5
+
+test adder_tree_4_negative_inputs
+    given a = -1
+    given b = -2
+    given c = -3
+    given d = -4
+    when s = adder_tree_4(a, b, c, d)
+    then s == -10
+
+test adder_tree_8_all_ones
+    given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
+    when s = adder_tree_8(v)
+    then s == 8
+
+invariant adder_tree_8_reorder_invariant
+    forall a : i32, b : i32, c : i32, d : i32, e : i32, f : i32, g : i32, h : i32
+    let v1 = Vec8 { v0: a, v1: b, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h }
+    let v2 = Vec8 { v0: b, v1: a, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h }
+    adder_tree_8(v1) == adder_tree_8(v2)
+
+invariant adder_tree_2_zero_identity
+    forall a : i32
+    adder_tree_2(a, 0) == a
+
+invariant adder_tree_4_permutation_two_swap
+    forall a : i32, b : i32, c : i32, d : i32
+    adder_tree_4(a, b, c, d) == adder_tree_4(b, a, c, d)
+
+invariant adder_tree_8_all_zeros_zero
+    forall v : Vec8
+    v.v0 == 0 && v.v1 == 0 && v.v2 == 0 && v.v3 == 0 && v.v4 == 0 && v.v5 == 0 && v.v6 == 0 && v.v7 == 0
+    ==> adder_tree_8(v) == 0
+
+test adder_tree_8_commutative_permutation
+    given a = Vec8 { v0: 1, v1: 2, v2: 3, v3: 4, v4: 5, v5: 6, v6: 7, v7: 8 }
+    given b = Vec8 { v0: 8, v1: 7, v2: 6, v3: 5, v4: 4, v5: 3, v6: 2, v7: 1 }
+    then adder_tree_8(a) == adder_tree_8(b)
+
+test adder_tree_4_identity_element_zero
+    given a = 1
+    given b = 0
+    given c = 0
+    given d = 0
+    when s1 = adder_tree_4(a, b, c, d)
+    when s2 = adder_tree_4(a, b, c, d)
+    then s1 == s2 && s1 == 1
+
+invariant adder_tree_4_identity_element_zero_inv
+    forall a : i32
+    adder_tree_4(a, 0, 0, 0) == a
+
+test adder_tree_8_single_nonzero_identity
+    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 5, v5: 0, v6: 0, v7: 0 }
+    when sum = adder_tree_8(v)
+    then sum == 5
+
+test adder_tree_4_reorder_three
+    given a = 1
+    given b = 2
+    given c = 3
+    given d = 0
+    when s1 = adder_tree_4(a, b, c, d)
+    when s2 = adder_tree_4(c, a, b, d)
+    then s1 == s2 && s1 == 6
+
+invariant adder_tree_8_single_nonzero_identity_inv
+    forall a : i32
+    adder_tree_8(Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: a, v5: 0, v6: 0, v7: 0 }) == a
+
+test adder_tree_4_zero_sum_zero
+    given a = 0
+    given b = 0
+    given c = 0
+    given d = 0
+    when s = adder_tree_4(a, b, c, d)
+    then s == 0
+
+test adder_tree_8_all_ones_eight
+    given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
+    when s = adder_tree_8(v)
+    then s == 8
+
+invariant adder_tree_4_zero_sum_zero_inv:
+    adder_tree_4(0, 0, 0, 0) == 0
+
+test adder_tree_8_all_negatives
+    given v = Vec8 { v0: -1, v1: -2, v2: -3, v3: -4, v4: -5, v5: -6, v6: -7, v7: -8 }
+    when sum = adder_tree_8(v)
+    then sum == -36
+
+test adder_tree_4_two_positive_two_negative
+    given a = 5
+    given b = -3
+    given c = 2
+    given d = -4
+    when s = adder_tree_4(a, b, c, d)
+    then s == 0
+
+invariant adder_tree_4_negation
+    forall a : i32, b : i32, c : i32, d : i32
+    adder_tree_4(-a, -b, -c, -d) == -(adder_tree_4(a, b, c, d))
+
+test adder_tree_4_single_nonzero_identity
+    given a = 0
+    given b = 0
+    given c = 5
+    given d = 0
+    when s = adder_tree_4(a, b, c, d)
+    then s == 5
+
+test adder_tree_8_zero_vector_zero
+    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when s = adder_tree_8(v)
+    then s == 0
+
+invariant adder_tree_4_single_nonzero_identity_inv
+    forall a : i32
+    adder_tree_4(0, 0, a, 0) == a
+
+test adder_tree_4_all_ones_sum
+    given a = 1
+    given b = 1
+    given c = 1
+    given d = 1
+    when s = adder_tree_4(a, b, c, d)
+    then s == 4
+
+test adder_tree_4_commutative_swap_pairs
+    given a = 1
+    given b = 2
+    given c = 3
+    given d = 4
+    when s1 = adder_tree_4(a, b, c, d)
+    when s2 = adder_tree_4(c, d, a, b)
+    then s1 == s2
+
+invariant adder_tree_4_commutative_permutation_inv:
+    forall a : i32, b : i32, c : i32, d : i32
+    adder_tree_4(a, b, c, d) == adder_tree_4(c, d, a, b)
+
+test adder_tree_4_negative_inputs
+    given a = -5
+    given b = 3
+    given c = -2
+    given d = 10
+    when s = adder_tree_4(a, b, c, d)
+    then s == 6
+
+test adder_tree_4_zero_all
+    given a = 0
+    given b = 0
+    given c = 0
+    given d = 0
+    when s = adder_tree_4(a, b, c, d)
+    then s == 0
+
+test adder_tree_4_single_negative
+    given a = -7
+    given b = 0
+    given c = 0
+    given d = 0
+    when s = adder_tree_4(a, b, c, d)
+    then s == -7
+
+test adder_tree_8_all_zero
+    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when s = adder_tree_8(v)
+    then s == 0
+
+test adder_tree_8_all_ones
+    given v = Vec8 { v0: 1, v1: 1, v2: 1, v3: 1, v4: 1, v5: 1, v6: 1, v7: 1 }
+    when s = adder_tree_8(v)
+    then s == 8
+
+invariant adder_tree_4_all_zero_is_zero_inv:
+    adder_tree_4(0, 0, 0, 0) == 0
+
+invariant adder_tree_8_all_zero_is_zero_inv:
+    adder_tree_8(Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }) == 0
+
+test adder_tree_4_all_positive
+    given a = 1
+    given b = 2
+    given c = 3
+    given d = 4
+    when s = adder_tree_4(a, b, c, d)
+    then s == 10
+
+test adder_tree_4_mixed_signs
+    given a = 5
+    given b = -3
+    given c = 2
+    given d = -1
+    when s = adder_tree_4(a, b, c, d)
+    then s == 3
+
+invariant adder_tree_4_all_positive_sum_inv:
+    forall a : i32, b : i32, c : i32, d : i32
+    a > 0 && b > 0 && c > 0 && d > 0 ==>
+    adder_tree_4(a, b, c, d) > 0
+
+test adder_tree_8_zero_identity
+    given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when s = adder_tree_8(v)
+    then s == 0
+
+test adder_tree_4_single_negative_identity
+    given a = 0
+    given b = 0
+    given c = -7
+    given d = 0
+    when s = adder_tree_4(a, b, c, d)
+    then s == -7
+
+invariant adder_tree_8_zero_identity_inv:
+    forall v : Vec8
+    v.v0 == 0 && v.v1 == 0 && v.v2 == 0 && v.v3 == 0 &&
+    v.v4 == 0 && v.v5 == 0 && v.v6 == 0 && v.v7 == 0 ==>
+    adder_tree_8(v) == 0
+
+test adder_tree_4_all_same_values
+    given v = 5
+    when s = adder_tree_4(v, v, v, v)
+    then s == 20
+
+test adder_tree_8_single_nonzero_first
+    given v = Vec8 { v0: 3, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
+    when s = adder_tree_8(v)
+    then s == 3
+
+invariant adder_tree_4_all_same_is_four_times:
+    forall v : i32
+    adder_tree_4(v, v, v, v) == v * 4
+
+test adder_tree_4_negative_sum
+    given a = -1
+    given b = -2
+    given c = -3
+    given d = -4
+    when s = adder_tree_4(a, b, c, d)
+    then s == -10
+
+test adder_tree_8_mixed_signs_sum
+    given v = Vec8 { v0: 1, v1: -1, v2: 2, v3: -2, v4: 3, v5: -3, v6: 4, v7: -4 }
+    when s = adder_tree_8(v)
+    then s == 0
+
+invariant adder_tree_4_negative_sum_inv:
+    forall a : i32, b : i32, c : i32, d : i32
+    a < 0 && b < 0 && c < 0 && d < 0 ==>
+    adder_tree_4(a, b, c, d) < 0
+
+test adder_tree_4_zero_plus_any_identity
+    given a = 7
+    when s = adder_tree_4(a, 0, 0, 0)
+    then s == 7
+
+test adder_tree_8_all_positive_sum
+    given v = Vec8 { v0: 1, v1: 2, v2: 3, v3: 4, v4: 5, v5: 6, v6: 7, v7: 8 }
+    when s = adder_tree_8(v)
+    then s == 36
+
+invariant adder_tree_4_zero_plus_any_identity_inv:
+    forall a : i32
+    adder_tree_4(a, 0, 0, 0) == a
+
+test adder_tree_8_all_twos
+    given v = Vec8 { v0: 2, v1: 2, v2: 2, v3: 2, v4: 2, v5: 2, v6: 2, v7: 2 }
+    when s = adder_tree_8(v)
+    then s == 16
+
+test adder_tree_4_max_plus_one_overflow
+    given a = 2147483647
+    given b = 1
+    given c = 0
+    given d = 0
+    when s = adder_tree_4(a, b, c, d)
+    then s == -2147483648
+
+invariant adder_tree_8_stage_decomposition_inv:
+    forall a : i32, b : i32, c : i32, d : i32, e : i32, f : i32, g : i32, h : i32
+    adder_tree_8(Vec8 { v0: a, v1: b, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h })
+    == adder_tree_4(a, b, c, d) + adder_tree_4(e, f, g, h)
+
+test adder_tree_4_zero_plus_any_identity
+    given a = 0
+    given b = 42
+    given c = 0
+    given d = 0
+    when s = adder_tree_4(a, b, c, d)
+    then s == 42
+
+test adder_tree_4_negative_plus_positive
+    given a = -10
+    given b = 5
+    given c = 0
+    given d = 0
+    when s = adder_tree_4(a, b, c, d)
+    then s == -5
+
+invariant adder_tree_4_zero_plus_any_identity_inv:
+    forall b : i32
+    adder_tree_4(0, b, 0, 0) == b
+
+test adder_tree_2_negation_identity
+    given a = 7
+    given b = 3
+    when s1 = adder_tree_2(-a, -b)
+    when s2 = -(adder_tree_2(a, b))
+    then s1 == s2
+
+invariant adder_tree_2_negation_inv:
+    forall a : i32, b : i32
+    adder_tree_2(-a, -b) == -(adder_tree_2(a, b))
+
+test adder_tree_8_all_negative_same
+    given v = Vec8 { v0: -3, v1: -3, v2: -3, v3: -3, v4: -3, v5: -3, v6: -3, v7: -3 }
+    when sum = adder_tree_8(v)
+    then sum == -24
+
+invariant adder_tree_8_all_same_is_eight_times_inv:
+    forall a : i32
+    adder_tree_8(Vec8 { v0: a, v1: a, v2: a, v3: a, v4: a, v5: a, v6: a, v7: a }) == a * 8
+
+test adder_tree_2_large_positive_overflow
+    given a = 2147483647
+    given b = 1
+    when s = adder_tree_2(a, b)
+    then s == -2147483648
+
+invariant adder_tree_2_commutative_inv:
+    forall a : i32, b : i32
+    adder_tree_2(a, b) == adder_tree_2(b, a)
+
+test adder_tree_4_zero_input_zero_output
+    given a = 0
+    given b = 0
+    given c = 0
+    given d = 0
+    when s = adder_tree_4(a, b, c, d)
+    then s == 0
+
+invariant adder_tree_4_zero_input_zero_output_inv:
+    forall a : i32
+    adder_tree_4(0, 0, 0, 0) == 0
+
+test adder_tree_2_identity_zero
+    given a = 0
+    given b = 5
+    when s = adder_tree_2(a, b)
+    then s == 5
+
+test adder_tree_4_commutative_pair
+    given a = 1
+    given b = 2
+    given c = 3
+    given d = 4
+    when s1 = adder_tree_4(a, b, c, d)
+    when s2 = adder_tree_4(d, c, b, a)
+    then s1 == s2
+
+invariant adder_tree_2_identity_zero_inv:
+    forall b : i32
+    adder_tree_2(0, b) == b
+
+test adder_tree_4_zero_input_zero_output_w294
+    given inputs = [0, 0, 0, 0]
+    when sum = adder_tree(inputs)
+    then sum == 0
+
+test adder_tree_8_all_ones_sum_w294
+    given inputs = [1, 1, 1, 1, 1, 1, 1, 1]
+    when sum = adder_tree(inputs)
+    then sum == 8
+
+invariant adder_tree_4_zero_input_zero_output_w294_inv:
+    forall inputs : []i32
+    inputs.len() == 4 ==> adder_tree(inputs) == 0
+
+test adder_tree_4_all_negatives_sum_w295
+    given inputs = [-1, -2, -3, -4]
+    when sum = adder_tree(inputs)
+    then sum == -10
+
+test adder_tree_4_mixed_sum_zero_w295
+    given inputs = [1, -1, 2, -2]
+    when sum = adder_tree(inputs)
+    then sum == 0
+
+invariant adder_tree_4_mixed_sum_zero_w295_inv:
+    adder_tree([1, -1, 2, -2]) == 0

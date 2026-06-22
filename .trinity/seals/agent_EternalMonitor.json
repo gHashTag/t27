@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:67a248357cc3f24f9a7793c92dd132e43c2cb8c4537a37716e36310edfd6a5ad",
+  "gen_hash_rust": "sha256:4681a88093a279910563d55a2a794210305647dec6b47552c82d30e4fbf64206",
+  "gen_hash_verilog": "sha256:f74e4c1ae560df9db16ab2d96f93fcf91793083d09802528d9fef6c57d702d60",
+  "gen_hash_zig": "sha256:39888b0309a008e8f5988ca0c332c84b28d948ee8db363bcad564cbfbc0fa99c",
+  "module": "EternalMonitor",
+  "ring": 12,
+  "sealed_at": "2026-06-22T03:01:24Z",
+  "spec_hash": "sha256:a68bdbb825391fc9aeffac499dc69c8ba7da8658dc5ca810edccd095418c6660",
+  "spec_path": "specs/tri/agent/eternal_monitor.t27"
+}

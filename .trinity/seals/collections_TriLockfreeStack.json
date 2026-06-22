@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e336f4bc21f8f41bacfd7a0097bdf72b98ef37df45f1a06901498078103aff8c",
+  "gen_hash_rust": "sha256:5014eecd2b51e1fbb0c30b4d2cd9a663cee37daaef7659fdaae65e22ef6942c9",
+  "gen_hash_verilog": "sha256:aa58aeef83a76e11bddd91f2a417c8a94de520c5a1b2f4b6519fb6572ce956ff",
+  "gen_hash_zig": "sha256:2e19f24d9feaf1b6f37f67aac9a708cc1bcbf3a5194f044186d0aa675628c818",
+  "module": "TriLockfreeStack",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:05f3fec4bc98246246aa5cfa04b845862c7f71326f9892120aad67a1dfc8e670",
+  "spec_path": "specs/tri/collections/lockfree_stack.t27"
+}

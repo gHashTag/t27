@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:93b6216b80c4bb660c3fcdd4e0a89c6ebb9bfa4a039b585327be71ac8ac5c125",
+  "gen_hash_rust": "sha256:eddc5f9213b609adc5a7ed02f8d28d15dc818a3d3c2ad0c7984d364a3290fe29",
+  "gen_hash_verilog": "sha256:59d3b6514db3a99d44a06573691709bb203f4e926233cdae599a6794c33a40d0",
+  "gen_hash_zig": "sha256:2fb241a78f251d220ccf2e07037042e9204f16981f0aa41d7d412a080da5d339",
+  "module": "TriWriter",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:1cc396e757d83efa5e3b66b65cd7b238e77a5b39e8d5f277e8deceb643f566ad",
+  "spec_path": "specs/tri/io/writer.t27"
+}

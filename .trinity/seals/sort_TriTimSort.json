@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:eeffa6828f338e9e0a5eddd9a5cef64fb38c9d5bf503f6ae6a5897017b6d8803",
+  "gen_hash_rust": "sha256:f94c02b80b326648e6904de233770a11281ae1c6752bce587de744b8511ec1ce",
+  "gen_hash_verilog": "sha256:78501b005762440f556ebfda69997a1059f1738b16961e59643fa056f15ec1e7",
+  "gen_hash_zig": "sha256:3602a672a77ed6419959d933ee6876ed00020bbe652178ecfb8f00cb13e9abba",
+  "module": "TriTimSort",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:779f1d78e8b08cab0bfe87c75ae9ab5d3d0982566c6c85c50427e044ebc89710",
+  "spec_path": "specs/tri/sort/tim_sort.t27"
+}

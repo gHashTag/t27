@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4f862daa84e7b2a2e4953c46d1c496c8e9ca16395672f06e346afa8d445f9c3a",
+  "gen_hash_rust": "sha256:f349d856b60ed7db56170f3aa0f7a93cefab1421df31ff2825e9cb6ca0ccb724",
+  "gen_hash_verilog": "sha256:0eb509c14a099a0ebca6358dd86730f7506fbde3eb29b59a28c30dd427bd1c0a",
+  "gen_hash_zig": "sha256:650ef320032c450574f82d0ec6dd3adab8647ea80c75e1eb4995874fabd73623",
+  "module": "provider-stream",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:48Z",
+  "spec_hash": "sha256:45784e977fde6e94fc06398b713494335150a946f08c4332505038a063523222",
+  "spec_path": "specs/provider/stream.t27"
+}

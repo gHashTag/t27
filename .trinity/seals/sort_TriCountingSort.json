@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:458eee6d907e7afdb584822642f7183f4f1fc2df9f1c192afc6a5fdad5a9764f",
+  "gen_hash_rust": "sha256:f94c02b80b326648e6904de233770a11281ae1c6752bce587de744b8511ec1ce",
+  "gen_hash_verilog": "sha256:2dcfc0e6206c282971569aa29a8355724568081cbf077c5e2a3c608d3067fb87",
+  "gen_hash_zig": "sha256:a98ebfa3a79c77558702ff4f7f7d47f8bdd72ee93fe5e5254bec31127eba0ddc",
+  "module": "TriCountingSort",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:62e6774bc24fab424ef39fbd6ca274ef382086eb52f7c1ae50ae7869e7783bb1",
+  "spec_path": "specs/tri/sort/counting_sort.t27"
+}

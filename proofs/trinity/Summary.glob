@@ -1,0 +1,5 @@
+DIGEST c9ff7d1249c22d9d1427e960e651a902
+FTrinity.Summary
+R207:211 Coq.Reals.Reals <> <> lib
+R213:218 Coq.Strings.String <> <> lib
+R236:250 Interval.Tactic <> <> lib

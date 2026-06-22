@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:079eefa6dff75ce25b678507fd6fc8e2e002bfec0ee8e9c19645892220e3eff6",
+  "gen_hash_rust": "sha256:51912534dcc12894c798f35b50335c6556b31cf54a634830c68414193140dbf1",
+  "gen_hash_verilog": "sha256:24151fd7d4a3529b219fa9d2d5cb3017fa280fc4d611315453809df6eea69ac0",
+  "gen_hash_zig": "sha256:f7786deeaeba55b46642282751215b3023d8e664e205a9e6a0de489ac404beab",
+  "module": "TriFilesystem",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:a3fda1b27268b6f153abc92a5337cb06dc0a9b216e71812d9559b30ed8d70b91",
+  "spec_path": "specs/tri/io/filesystem.t27"
+}

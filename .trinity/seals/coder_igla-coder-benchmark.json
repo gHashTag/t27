@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:c8c26bcccaef30961de1662e0180ead10b117fbaf988626a151c5350c518f7ee",
+  "gen_hash_rust": "sha256:7ef5ba93665e6aa84518eb196bc89971e3dfc74567180b819a7a4f22d905fdd8",
+  "gen_hash_verilog": "sha256:bb36d28ef83a4be42a40a2e1482be93def610689c500ccae801fdd0a36003788",
+  "gen_hash_zig": "sha256:8d515ede80bf6fb7e430d29ec28357af5249b83a20bd61624d559cf337d9e209",
+  "module": "igla-coder-benchmark",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:52:57Z",
+  "spec_hash": "sha256:c9ac0097201348ce57b54af8a9597a2cb1aef3f144693191ae482b138b7e5e27",
+  "spec_path": "specs/igla/coder/benchmark.t27"
+}

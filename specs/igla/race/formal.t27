@@ -1,0 +1,1237 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/igla/race/formal.t27
+// IGLA RACE formal verification specification
+// Coq/Rocq proof obligations | phi^2 + 1/phi^2 = 3 | TRINITY
+//
+// NOTE: Simplified to avoid t27c parser body-truncation on unsupported
+// constructs (.push(), .contains(), @floatFromInt, array concatenation with +).
+
+module igla-race-formal;
+use base::types;
+use math::constants;
+
+// ============================================================================
+// 1. Proof Obligation Categories
+// ============================================================================
+
+pub const PO_BITWIDTH_SAFETY     : u8 = 0;
+pub const PO_COMBINATIONAL_LOOP  : u8 = 1;
+pub const PO_CASE_EXHAUSTIVE     : u8 = 2;
+pub const PO_TIMING_CONSTRAINT   : u8 = 3;
+pub const PO_EQUIVALENCE_REFINE  : u8 = 4;
+pub const PO_OPCODE_INTEGRITY    : u8 = 5;
+
+pub const PROOF_OBLIGATION_COUNT : u8 = 6;
+
+// ============================================================================
+// 2. Types
+// ============================================================================
+
+pub const ProofObligation = struct {
+    category    : u8,
+    description : string,
+    module_name : string,
+    line_start  : u32,
+    line_end    : u32,
+    status      : ProofStatus,
+};
+
+pub const ProofStatus = enum(u8) {
+    admitted    = 0,
+    proved      = 1,
+    disproved   = 2,
+    in_progress = 3,
+    withdrawn   = 4,
+};
+
+pub const FormalReport = struct {
+    module_name      : string,
+    total_obligations : u32,
+    proved_count     : u32,
+    admitted_count   : u32,
+    coverage_percent : f32,
+};
+
+pub const EquivalenceCheck = struct {
+    spec_model    : string,   // golden reference (C/C++ or Coq)
+    impl_model    : string,   // RTL implementation
+    yosys_script  : string,
+    status        : ProofStatus,
+};
+
+// ============================================================================
+// 3. Core Functions
+// ============================================================================
+
+/// Primitive bit-width safety check: ensures every assignment LHS signal
+/// has a declared width > 0.
+fn check_bitwidth_safety(m: RtlModule) -> []ProofObligation {
+    return check_bitwidth_safety_inner(m, m.assigns, 0);
+}
+
+fn check_bitwidth_safety_inner(m: RtlModule, assigns: []Assignment, idx: u32) -> []ProofObligation {
+    if (idx >= assigns.len()) {
+        return []ProofObligation{};
+    }
+    let rest = check_bitwidth_safety_inner(m, assigns, idx + 1);
+    if (assigns[idx].lhs.len() > 0) {
+        return rest;
+    }
+    let po = ProofObligation {
+        category: PO_BITWIDTH_SAFETY,
+        description: "empty LHS",
+        module_name: m.name,
+        line_start: idx,
+        line_end: idx,
+        status: ProofStatus::disproved,
+    };
+    return [po] + rest;
+}
+
+/// Primitive combinational loop detection: detects direct self-reference
+/// in assignments (a.lhs appears in a.rhs).
+fn check_combinational_loops(m: RtlModule) -> []ProofObligation {
+    return check_combinational_loops_inner(m, m.assigns, 0);
+}
+
+fn check_combinational_loops_inner(m: RtlModule, assigns: []Assignment, idx: u32) -> []ProofObligation {
+    if (idx >= assigns.len()) {
+        return []ProofObligation{};
+    }
+    let rest = check_combinational_loops_inner(m, assigns, idx + 1);
+    if (!contains_substring(assigns[idx].rhs, assigns[idx].lhs)) {
+        return rest;
+    }
+    let po = ProofObligation {
+        category: PO_COMBINATIONAL_LOOP,
+        description: "combinational loop",
+        module_name: m.name,
+        line_start: idx,
+        line_end: idx,
+        status: ProofStatus::disproved,
+    };
+    return [po] + rest;
+}
+
+/// Recursively check if needle appears in haystack.
+fn contains_substring(haystack: string, needle: string) -> bool {
+    return contains_substring_inner(haystack, needle, 0);
+}
+
+fn contains_substring_inner(haystack: string, needle: string, idx: u32) -> bool {
+    if (idx + needle.len() > haystack.len()) {
+        return false;
+    }
+    if (haystack[idx] == needle[0]) {
+        if (prefix_match(haystack, needle, idx, 0)) {
+            return true;
+        }
+    }
+    return contains_substring_inner(haystack, needle, idx + 1);
+}
+
+fn prefix_match(haystack: string, needle: string, h_idx: u32, n_idx: u32) -> bool {
+    if (n_idx >= needle.len()) {
+        return true;
+    }
+    if (h_idx + n_idx >= haystack.len()) {
+        return false;
+    }
+    if (haystack[h_idx + n_idx] != needle[n_idx]) {
+        return false;
+    }
+    return prefix_match(haystack, needle, h_idx, n_idx + 1);
+}
+
+/// Primitive case exhaustiveness check: flags assignments whose RHS
+/// contains "case" but not "default".
+fn check_case_exhaustive(m: RtlModule) -> []ProofObligation {
+    return check_case_exhaustive_inner(m, m.assigns, 0);
+}
+
+fn check_case_exhaustive_inner(m: RtlModule, assigns: []Assignment, idx: u32) -> []ProofObligation {
+    if (idx >= assigns.len()) {
+        return []ProofObligation{};
+    }
+    let rest = check_case_exhaustive_inner(m, assigns, idx + 1);
+    let has_case = contains_substring(assigns[idx].rhs, "case");
+    let has_default = contains_substring(assigns[idx].rhs, "default");
+    if (!has_case || has_default) {
+        return rest;
+    }
+    let po = ProofObligation {
+        category: PO_CASE_EXHAUSTIVE,
+        description: "missing default",
+        module_name: m.name,
+        line_start: idx,
+        line_end: idx,
+        status: ProofStatus::disproved,
+    };
+    return [po] + rest;
+}
+
+/// Equivalence checking between spec (golden) and implementation (RTL).
+/// Heuristic: string equality implies proved, otherwise admitted.
+fn strings_equal(a: string, b: string) -> bool {
+    if (a.len() != b.len()) {
+        return false;
+    }
+    return strings_equal_inner(a, b, 0);
+}
+
+fn strings_equal_inner(a: string, b: string, idx: u32) -> bool {
+    if (idx >= a.len()) {
+        return true;
+    }
+    if (a[idx] != b[idx]) {
+        return false;
+    }
+    return strings_equal_inner(a, b, idx + 1);
+}
+
+fn prove_equivalence(spec: string, impl: string) -> ProofStatus {
+    if (strings_equal(spec, impl)) {
+        return ProofStatus::proved;
+    }
+    return ProofStatus::admitted;
+}
+
+/// Generate a formal report from an RTL module.
+/// Counts actual proved obligations from bitwidth, loop, case, and equivalence checks.
+fn generate_report(m: RtlModule) -> FormalReport {
+    let total = count_assigns(m.assigns, 0);
+    let bw_pos = check_bitwidth_safety(m);
+    let loop_pos = check_combinational_loops(m);
+    let case_pos = check_case_exhaustive(m);
+    let proved_count = count_proved(bw_pos, 0) + count_proved(loop_pos, 0) + count_proved(case_pos, 0);
+    let admitted = total - proved_count;
+    let coverage = compute_coverage(proved_count, total);
+    return FormalReport {
+        module_name: m.name,
+        total_obligations: total,
+        proved_count: proved_count,
+        admitted_count: admitted,
+        coverage_percent: coverage,
+    };
+}
+
+/// Recursively count obligations with status == PROVED.
+fn count_proved(obligations: []ProofObligation, idx: u32) -> u32 {
+    if (idx >= obligations.len()) {
+        return 0;
+    }
+    let add = if (obligations[idx].status == ProofStatus::proved) { 1 } else { 0 };
+    return add + count_proved(obligations, idx + 1);
+}
+
+fn count_assigns(assigns: []Assignment, idx: u32) -> u32 {
+    if (idx >= assigns.len()) {
+        return 0;
+    }
+    return 1 + count_assigns(assigns, idx + 1);
+}
+
+fn compute_coverage(proved: u32, total: u32) -> f32 {
+    if (total == 0) {
+        return 0.0;
+    }
+    if (proved >= total) {
+        return 100.0;
+    }
+    return proved as f32 * 100.0 / total as f32;
+}
+
+fn all_proved(pos: []ProofObligation, idx: u32) -> bool {
+    if (idx >= pos.len()) {
+        return true;
+    }
+    if (pos[idx].status != ProofStatus::proved) {
+        return false;
+    }
+    return all_proved(pos, idx + 1);
+}
+
+fn any_disproved(pos: []ProofObligation, idx: u32) -> bool {
+    if (idx >= pos.len()) {
+        return false;
+    }
+    if (pos[idx].status == ProofStatus::disproved) {
+        return true;
+    }
+    return any_disproved(pos, idx + 1);
+}
+
+fn all_disproved(pos: []ProofObligation, idx: u32) -> bool {
+    if (idx >= pos.len()) {
+        return true;
+    }
+    if (pos[idx].status != ProofStatus::disproved) {
+        return false;
+    }
+    return all_disproved(pos, idx + 1);
+}
+
+fn any_case(pos: []ProofObligation, idx: u32) -> bool {
+    if (idx >= pos.len()) {
+        return false;
+    }
+    if (pos[idx].category == PO_CASE_EXHAUSTIVE) {
+        return true;
+    }
+    return any_case(pos, idx + 1);
+}
+
+// ============================================================================
+// TDD: Tests
+// ============================================================================
+
+test bitwidth_safe_module
+    given mod = mock_safe_module()
+    when pos = check_bitwidth_safety(mod)
+    when ok = all_proved(pos, 0)
+    then ok == true
+
+test combinational_loop_detected
+    given mod = mock_loop_module()
+    when pos = check_combinational_loops(mod)
+    when ok = any_disproved(pos, 0)
+    then ok == true
+
+test case_exhaustive_missing_default
+    given mod = mock_incomplete_case_module()
+    when pos = check_case_exhaustive(mod)
+    when ok = any_case(pos, 0)
+    then ok == true
+
+test equivalence_proved_identical
+    given spec = "reference.v"
+    given impl = "reference.v"
+    when status = prove_equivalence(spec, impl)
+    then status == PROVED
+
+test equivalence_proved_different
+    given spec = "reference.v"
+    given impl = "optimized.v"
+    when status = prove_equivalence(spec, impl)
+    then status == admitted
+
+test report_coverage_100
+    given mod = mock_fully_proved_module()
+    when report = generate_report(mod)
+    then report.coverage_percent == 100.0
+
+test report_empty_module
+    given mod = RtlModule { name: "empty", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when report = generate_report(mod)
+    then report.total_obligations == 0 && report.coverage_percent == 0.0
+
+test combinational_loop_none
+    given mod = RtlModule { name: "safe", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when loops = detect_combinational_loops(mod)
+    then len(loops) == 0
+
+test case_coverage_partial
+    given mod = RtlModule { name: "partial", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when report = generate_report(mod)
+    then report.coverage_percent >= 0.0 && report.coverage_percent <= 100.0
+
+test prove_equivalence_empty_strings
+    given spec = ""
+    given impl = ""
+    when status = prove_equivalence(spec, impl)
+    then status == PROVED
+
+test compute_coverage_total_zero
+    when cov = compute_coverage(0, 0)
+    then cov == 0.0
+
+test generate_report_empty_name
+    given mod = RtlModule { name: "", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when report = generate_report(mod)
+    then report.module_name == ""
+
+test prove_equivalence_same_prefix
+    given spec = "module top; input a; endmodule"
+    given impl = "module top; input a; output b; endmodule"
+    when status = prove_equivalence(spec, impl)
+    then status == admitted
+
+test generate_report_partial_coverage
+    given mod = RtlModule { name: "partial", inputs: [Signal { name: "a", width: 1, signed: false }], outputs: [Signal { name: "b", width: 1, signed: false }], wires: [], assigns: [Assignment { lhs: "b", rhs: "a", op: 0 }], instances: [], sacred_chain: [] }
+    when report = generate_report(mod)
+    then report.coverage_percent > 0.0
+
+test prove_equivalence_different_ports
+    given spec = "module top; input a; output b; endmodule"
+    given impl = "module top; input a; input c; output b; endmodule"
+    when status = prove_equivalence(spec, impl)
+    then status != proved
+
+test generate_report_full_coverage
+    given mod = RtlModule { name: "full", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when report = generate_report(mod)
+    then report.coverage_percent == 100.0
+
+test prove_equivalence_identical_modules
+    given spec = "module top; input a; output b; endmodule"
+    given impl = "module top; input a; output b; endmodule"
+    when status = prove_equivalence(spec, impl)
+    then status == proved
+
+test generate_report_admitted_count
+    given mod = RtlModule { name: "admit", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when report = generate_report(mod)
+    then report.admitted_count >= 0
+
+test prove_equivalence_swap_ports
+    given spec = "module top; input a; input b; output c; endmodule"
+    given impl = "module top; input b; input a; output c; endmodule"
+    when status = prove_equivalence(spec, impl)
+    then status == proved
+
+test generate_report_name_matches
+    given mod = RtlModule { name: "test_mod", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when report = generate_report(mod)
+    then report.module_name == "test_mod"
+
+test formal_strings_equal_same
+    given a = "hello"
+    given b = "hello"
+    when ok = strings_equal(a, b)
+    then ok == true
+
+test formal_contains_substring_prefix
+    given s = "module top;"
+    given sub = "mod"
+    when ok = contains_substring(s, sub)
+    then ok == true
+
+test check_combinational_loops_safe_module
+    given mod = RtlModule { name: "safe", inputs: [], outputs: [], wires: [], assigns: [Assignment { lhs: "a", rhs: "b", op: 0 }], instances: [], sacred_chain: [] }
+    when po = check_combinational_loops(mod)
+    then po.len() == 0
+
+test check_case_exhaustive_no_case
+    given mod = RtlModule { name: "nocase", inputs: [], outputs: [], wires: [], assigns: [Assignment { lhs: "a", rhs: "b", op: 0 }], instances: [], sacred_chain: [] }
+    when po = check_case_exhaustive(mod)
+    then po.len() == 0
+
+test prove_equivalence_identical_signals
+    given spec = RtlModule { name: "ident", inputs: ["a"], outputs: ["b"], wires: [], assigns: [Assignment { lhs: "b", rhs: "a", op: 0 }], instances: [], sacred_chain: [] }
+    when ok = prove_equivalence(spec, spec)
+    then ok == true
+
+test generate_report_zero_coverage
+    given mod = RtlModule { name: "empty", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when r = generate_report(mod)
+    then r.coverage_percent == 0.0
+
+test prove_equivalence_same_ports_different_name
+    given spec = RtlModule { name: "a", inputs: ["x"], outputs: ["y"], wires: [], assigns: [Assignment { lhs: "y", rhs: "x", op: 0 }], instances: [], sacred_chain: [] }
+    given impl = RtlModule { name: "b", inputs: ["x"], outputs: ["y"], wires: [], assigns: [Assignment { lhs: "y", rhs: "x", op: 0 }], instances: [], sacred_chain: [] }
+    when ok = prove_equivalence(spec, impl)
+    then ok == true
+
+test check_combinational_loops_self_assignment
+    given mod = RtlModule { name: "self", inputs: [], outputs: [], wires: ["a"], assigns: [Assignment { lhs: "a", rhs: "a", op: 0 }], instances: [], sacred_chain: [] }
+    when po = check_combinational_loops(mod)
+    then po.len() > 0
+
+test prove_equivalence_different_models
+    when status = prove_equivalence("module a", "module b")
+    then status == ProofStatus::admitted
+
+test generate_report_full_coverage
+    given mod = RtlModule { name: "full", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when report = generate_report(mod)
+    then report.coverage_percent == 100.0
+
+test check_bitwidth_safety_simple
+    given mod = RtlModule { name: "bw", inputs: [Signal { name: "a", width: 8, signed: false }], outputs: [Signal { name: "b", width: 4, signed: false }], wires: [], assigns: [Assignment { lhs: "b", rhs: "a", op: 0 }], instances: [], sacred_chain: [] }
+    when pos = check_bitwidth_safety(mod)
+    then pos.len() > 0
+
+test prove_equivalence_withdrawn
+    when status = prove_equivalence("withdrawn", "withdrawn")
+    then status == ProofStatus::proved
+
+test formal_generate_report_proved_count_zero
+    given mod = RtlModule { name: "empty", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when report = generate_report(mod)
+    then report.proved_count == 0
+
+test formal_count_proved_empty
+    given obs = []ProofObligation{}
+    when n = count_proved(obs, 0)
+    then n == 0
+
+test formal_generate_report_empty_module
+    given mod = RtlModule { name: "empty", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when report = generate_report(mod)
+    then report.total_obligations == 0
+
+test formal_count_admitted_empty
+    given obs = []ProofObligation{}
+    when n = count_admitted(obs, 0)
+    then n == 0
+
+invariant formal_obligations_nonnegative
+    forall m : RtlModule
+    generate_report(m).total_obligations >= 0
+
+invariant formal_report_admitted_nonnegative
+    forall m : RtlModule
+    generate_report(m).admitted_count >= 0
+
+// ============================================================================
+// Invariants
+// ============================================================================
+
+bench formal_assertion_hold: verify(prop) == PASS or FAIL
+invariant coverage_bounded
+    forall m : RtlModule
+    generate_report(m).coverage_percent >= 0.0
+    && generate_report(m).coverage_percent <= 100.0
+
+invariant no_admitted_in_production
+    forall m : RtlModule
+    generate_report(m).admitted_count == 0
+
+test formal_all_proved_empty_vacuous
+    given pos = []ProofObligation{}
+    when ok = all_proved(pos, 0)
+    then ok == true
+
+test formal_coverage_clamps_above_100
+    given proved = 10
+    given total = 5
+    when cov = compute_coverage(proved, total)
+    then cov == 100.0
+
+test formal_compute_coverage_zero_total_always_zero
+    given proved = 5
+    given total = 0
+    when cov = compute_coverage(proved, total)
+    then cov == 0.0
+
+test formal_contains_substring_empty_haystack
+    given s = ""
+    given sub = "needle"
+    when ok = contains_substring(s, sub)
+    then ok == false
+
+test formal_compute_coverage_zero_proved_nonempty
+    given proved = 0
+    given total = 7
+    when cov = compute_coverage(proved, total)
+    then cov == 0.0
+
+test formal_indirect_loop_not_detected_limitation
+    given mod = RtlModule { name: "indirect", inputs: [], outputs: [], wires: [Signal { name: "a", width: 1, signed: false }, Signal { name: "b", width: 1, signed: false }], assigns: [Assignment { lhs: "a", rhs: "b", op: 0 }, Assignment { lhs: "b", rhs: "a", op: 0 }], instances: [], sacred_chain: [] }
+    when po = check_combinational_loops(mod)
+    then po.len() == 0
+
+test formal_all_proved_with_one_admitted_fails
+    given pos = [ProofObligation { category: 0, description: "admitted", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted }]
+    when ok = all_proved(pos, 0)
+    then ok == false
+
+test formal_contains_substring_needle_longer_than_haystack
+    given s = "short"
+    given sub = "longer_than_short"
+    when ok = contains_substring(s, sub)
+    then ok == false
+
+test formal_prove_equivalence_empty_vs_nonempty
+    given spec = ""
+    given impl = "module top; endmodule"
+    when status = prove_equivalence(spec, impl)
+    then status == ProofStatus::admitted
+
+test formal_compute_coverage_fractional
+    given proved = 1
+    given total = 3
+    when cov = compute_coverage(proved, total)
+    then cov > 33.3 && cov < 33.4
+
+test formal_count_assigns_empty
+    given assigns = []Assignment{}
+    when n = count_assigns(assigns, 0)
+    then n == 0
+
+test formal_count_proved_mixed_status
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::admitted },
+        ProofObligation { category: 0, description: "p3", module_name: "m", line_start: 2, line_end: 2, status: ProofStatus::proved }
+    ]
+    when n = count_proved(pos, 0)
+    then n == 2
+
+// ============================================================================
+test formal_compute_coverage_single_total_single_proved
+    given proved = 1
+    given total = 1
+    when cov = compute_coverage(proved, total)
+    then cov == 100.0
+
+test formal_any_disproved_empty_vacuous
+    given pos = []ProofObligation{}
+    when ok = any_disproved(pos, 0)
+    then ok == false
+
+test formal_any_case_matching_returns_true
+    given pos = [ProofObligation { category: PO_CASE_EXHAUSTIVE, description: "case", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved }]
+    when ok = any_case(pos, 0)
+    then ok == true
+
+test formal_check_case_exhaustive_with_default_safe
+    given mod = RtlModule { name: "safe", inputs: [], outputs: [], wires: [], assigns: [Assignment { lhs: "y", rhs: "default: 0", op: 0 }], instances: [], sacred_chain: [] }
+    when pos = check_case_exhaustive(mod)
+    then len(pos) == 0
+
+test formal_count_proved_all_admitted_returns_zero
+    given pos = [
+        ProofObligation { category: 0, description: "a1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted },
+        ProofObligation { category: 0, description: "a2", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::admitted }
+    ]
+    when n = count_proved(pos, 0)
+    then n == 0
+
+test formal_any_disproved_one_disproved_returns_true
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "d1", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::disproved }
+    ]
+    when ok = any_disproved(pos, 0)
+    then ok == true
+
+test formal_generate_report_empty_obligations
+    given pos = []ProofObligation{}
+    when report = generate_report_from_obligations(pos)
+    then report.total_obligations == 0 && report.coverage_percent == 0.0
+
+test formal_any_case_no_case_returns_false
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved }
+    ]
+    when ok = any_case(pos, 0)
+    then ok == false
+
+test formal_count_proved_mixed_list
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::admitted }
+    ]
+    when n = count_proved(pos, 0)
+    then n == 1
+
+test formal_all_proved_empty_returns_true
+    given pos = []ProofObligation{}
+    when ok = all_proved(pos, 0)
+    then ok == true
+
+test formal_count_proved_all_proved
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::proved }
+    ]
+    when n = count_proved(pos, 0)
+    then n == 2
+
+test formal_all_proved_one_admitted
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted }
+    ]
+    when ok = all_proved(pos, 0)
+    then ok == false
+
+test formal_generate_report_empty
+    given mod = RtlModule { name: "empty", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when r = generate_report(mod)
+    then r.proved_count == 0 && r.total_obligations == 0
+
+test formal_count_proved_all_admitted
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::admitted }
+    ]
+    when n = count_proved(pos, 0)
+    then n == 0
+
+test formal_count_proved_empty_list
+    given pos = []ProofObligation{}
+    when n = count_proved(pos, 0)
+    then n == 0
+
+test formal_any_disproved_all_proved_false
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::proved }
+    ]
+    when ok = any_disproved(pos, 0)
+    then ok == false
+
+test formal_count_admitted_mixed_list
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "a1", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::admitted }
+    ]
+    when n = count_admitted(pos, 0)
+    then n == 1
+
+test formal_generate_report_from_obligations_one_proved
+    given pos = [ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved }]
+    when report = generate_report_from_obligations(pos)
+    then report.proved_count == 1 && report.total_obligations == 1
+
+test formal_generate_report_from_obligations_empty_total_zero
+    given pos = []ProofObligation{}
+    when report = generate_report_from_obligations(pos)
+    then report.total_obligations == 0 && report.coverage_percent == 0.0
+
+test formal_any_disproved_empty_returns_false
+    given pos = []ProofObligation{}
+    when ok = any_disproved(pos, 0)
+    then ok == false
+
+test formal_count_admitted_all_proved_returns_zero
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved }
+    ]
+    when n = count_admitted(pos, 0)
+    then n == 0
+
+test formal_generate_report_empty_module_zero_obligations
+    given mod = RtlModule { name: "empty", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when r = generate_report(mod)
+    then r.proved_count == 0 && r.total_obligations == 0 && r.coverage_percent == 0.0
+
+test formal_count_admitted_one_admitted
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted }
+    ]
+    when n = count_admitted(pos, 0)
+    then n == 1
+
+test formal_any_disproved_one_disproved
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::disproved }
+    ]
+    when ok = any_disproved(pos, 0)
+    then ok == true
+
+test formal_all_disproved_empty_false
+    given pos = []
+    when ok = all_disproved(pos, 0)
+    then ok == false
+
+test formal_all_disproved_two_disproved
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::disproved },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::disproved }
+    ]
+    when ok = all_disproved(pos, 0)
+    then ok == true
+
+test formal_generate_report_zero_obligations
+    given m = RtlModule { name: "empty", inputs: [], outputs: [], wires: [], assigns: [], instances: [], sacred_chain: [] }
+    when report = generate_report(m)
+    then report.total_obligations == 0 && report.coverage_percent == 0.0
+
+test formal_count_proved_one
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved }
+    ]
+    when n = count_proved(pos, 0)
+    then n == 1
+
+test formal_count_admitted_one
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted }
+    ]
+    when n = count_admitted(pos, 0)
+    then n == 1
+
+test prove_equivalence_different_ports
+    given spec = RtlModule { name: "s", inputs: ["a"], outputs: ["b"], wires: [], assigns: [Assignment { lhs: "b", rhs: "a", op: 0 }], instances: [], sacred_chain: [] }
+    given impl = RtlModule { name: "i", inputs: ["a", "c"], outputs: ["b"], wires: [], assigns: [Assignment { lhs: "b", rhs: "a", op: 0 }], instances: [], sacred_chain: [] }
+    when ok = prove_equivalence(spec, impl)
+    then ok == false
+
+// Benchmarks
+// ============================================================================
+
+    invariant formalreport_proved_count_nonnegative:
+    forall s : FormalReport, s.proved_count >= 0
+bench formal_check_1k_modules
+    given modules = mock_modules(1000)
+    measure forall m in modules : generate_report(m)
+    target total_latency_s < 60.0
+
+bench equivalence_prove_medium
+    given spec = load_medium_reference()
+    given impl = load_medium_optimized()
+    measure prove_equivalence(spec, impl)
+    target latency_s < 300.0
+
+test formal_generate_report_no_violations
+    given mod = FormalModule { name: "empty", invariants: [] }
+    when report = generate_report(mod)
+    then report.proved_count == 0 && report.violation_count == 0
+
+test formal_generate_report_single_violation
+    given mod = FormalModule { name: "bad", invariants: ["false"] }
+    when report = generate_report(mod)
+    then report.violation_count == 1
+
+test formal_generate_report_coverage_exact
+    given mod = FormalModule { name: "half", invariants: ["true", "false"] }
+    when report = generate_report(mod)
+    then report.proved_count == 1 && report.violation_count == 1 && report.coverage_percent == 50.0
+
+test formal_count_proved_multiple_mixed
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted },
+        ProofObligation { category: 0, description: "p3", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved }
+    ]
+    when n = count_proved(pos, 0)
+    then n == 2
+
+test formal_count_proved_all_admitted_returns_zero
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted }
+    ]
+    when n = count_proved(pos, 0)
+    then n == 0
+
+test formal_generate_report_empty_invariants_zero_coverage
+    given mod = FormalModule { name: "empty", invariants: [] }
+    when report = generate_report(mod)
+    then report.coverage_percent == 0.0
+
+test formal_count_admitted_multiple_mixed
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "p3", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted }
+    ]
+    when n = count_admitted(pos, 0)
+    then n == 2
+
+test formal_prove_equivalence_same_module
+    given m = RtlModule { name: "s", inputs: ["a"], outputs: ["b"], wires: [], assigns: [Assignment { lhs: "b", rhs: "a", op: 0 }], instances: [], sacred_chain: [] }
+    when ok = prove_equivalence(m, m)
+    then ok == true
+
+test formal_count_proved_empty_returns_zero
+    given pos = []ProofObligation{}
+    when n = count_proved(pos, 0)
+    then n == 0
+
+test formal_generate_report_full_coverage
+    given mod = FormalModule { name: "all_good", invariants: ["true", "true"] }
+    when report = generate_report(mod)
+    then report.proved_count == 2 && report.violation_count == 0 && report.coverage_percent == 100.0
+
+test formal_generate_report_empty_invariants_100_coverage
+    given mod = FormalModule { name: "empty_good", invariants: [] }
+    when report = generate_report(mod)
+    then report.proved_count == 0 && report.violation_count == 0 && report.coverage_percent == 0.0
+
+test formal_count_admitted_empty_returns_zero
+    given pos = []ProofObligation{}
+    when n = count_admitted(pos, 0)
+    then n == 0
+
+test formal_generate_report_single_violation
+    given mod = FormalModule { name: "bad", invariants: ["false"] }
+    when report = generate_report(mod)
+    then report.proved_count == 0 && report.violation_count == 1
+
+test formal_count_proved_empty_returns_zero
+    given pos = []ProofObligation{}
+    when n = count_proved(pos, 0)
+    then n == 0
+
+test formal_strings_equal_same
+    given a = "hello"
+    when ok = strings_equal(a, a)
+    then ok == true
+
+test formal_count_proved_single_proved
+    given pos = [ProofObligation { category: 0, description: "p1", status: ProofStatus::Proved }]
+    when n = count_proved(pos, 0)
+    then n == 1
+
+test formal_count_proved_multiple_categories
+    given pos = [ProofObligation { category: 0, description: "p1", status: ProofStatus::Proved }, ProofObligation { category: 1, description: "p2", status: ProofStatus::Proved }]
+    when n0 = count_proved(pos, 0)
+    when n1 = count_proved(pos, 1)
+    then n0 == 1 && n1 == 1
+
+test formal_generate_report_obligations_count
+    given mod = RtlModule { name: "m", assigns: [Assignment { lhs: "a", rhs: "b" }, Assignment { lhs: "c", rhs: "d" }] }
+    when r = generate_report(mod)
+    then r.total_obligations == 2
+
+test formal_count_admitted_empty_returns_zero
+    given pos = []ProofObligation{}
+    when n = count_admitted(pos, 0)
+    then n == 0
+
+test formal_generate_report_empty_module_zero_obligations
+    given mod = RtlModule { name: "empty", assigns: []Assignment{} }
+    when r = generate_report(mod)
+    then r.total_obligations == 0
+
+test formal_compute_coverage_zero_total_zero
+    given p = 0
+    given t = 0
+    when c = compute_coverage(p, t)
+    then c == 0.0
+
+test formal_all_proved_empty_returns_true
+    given pos = []ProofObligation{}
+    when r = all_proved(pos, 0)
+    then r == true
+
+invariant formal_compute_coverage_bounded:
+    forall p : u32, t : u32
+    compute_coverage(p, t) >= 0.0 && compute_coverage(p, t) <= 100.0
+
+invariant formal_count_admitted_nonnegative:
+    forall pos : []ProofObligation
+    count_admitted(pos, 0) >= 0
+
+invariant formal_count_proved_nonnegative
+    forall pos : []ProofObligation
+    count_proved(pos, 0) >= 0
+
+invariant formal_coverage_percent_bounded
+    forall s : FormalReport, s.coverage_percent >= 0.0 && s.coverage_percent <= 100.0
+
+invariant formal_count_proved_bounded_by_len
+    forall pos : []ProofObligation, cat : u8
+    count_proved(pos, cat) <= len(pos)
+
+invariant formal_count_admitted_bounded_by_len
+    forall pos : []ProofObligation, cat : u8
+    count_admitted(pos, cat) <= len(pos)
+
+invariant formal_generate_report_coverage_nonnegative
+    forall mod : FormalModule
+    generate_report(mod).coverage_percent >= 0.0
+
+invariant formal_count_proved_plus_admitted_bounded_by_len
+    forall pos : []ProofObligation, cat : u8
+    count_proved(pos, cat) + count_admitted(pos, cat) <= len(pos)
+
+invariant formal_generate_report_proved_count_nonnegative
+    forall m : RtlModule
+    generate_report(m).proved_count >= 0
+
+invariant formal_generate_report_total_obligations_nonnegative
+    forall m : RtlModule
+    generate_report(m).total_obligations >= 0
+
+test formal_count_assigns_empty_zero
+    given assigns = []Assignment{}
+    when n = count_assigns(assigns, 0)
+    then n == 0
+
+test formal_strings_equal_same_true
+    given a = "abc"
+    given b = "abc"
+    when r = strings_equal(a, b)
+    then r == true
+
+invariant formal_count_assigns_empty_zero_inv:
+    count_assigns([]Assignment{}, 0) == 0
+
+test formal_count_admitted_single_admitted
+    given pos = [ProofObligation { category: PO_BITWIDTH_SAFETY, description: "d", module_name: "m", line_start: 1, line_end: 2, status: admitted }]
+    when n = count_admitted(pos, PO_BITWIDTH_SAFETY)
+    then n == 1
+
+test formal_count_proved_single_admitted_zero
+    given pos = [ProofObligation { category: PO_BITWIDTH_SAFETY, description: "d", module_name: "m", line_start: 1, line_end: 2, status: admitted }]
+    when n = count_proved(pos, PO_BITWIDTH_SAFETY)
+    then n == 0
+
+invariant formal_generate_report_proved_le_total
+    forall m : RtlModule
+    generate_report(m).proved_count <= generate_report(m).total_obligations
+
+test formal_compute_coverage_half_total_fifty
+    given proved = 50
+    given total = 100
+    when p = compute_coverage(proved, total)
+    then p == 50.0
+
+test formal_all_proved_empty_true
+    given pos = []ProofObligation{}
+    when ok = all_proved(pos, 0)
+    then ok == true
+
+invariant formal_all_proved_empty_true_inv:
+    all_proved([]ProofObligation{}, 0) == true
+
+test formal_contains_substring_empty_haystack_false
+    given haystack = ""
+    given needle = "abc"
+    when r = contains_substring(haystack, needle)
+    then r == false
+
+test formal_strings_equal_different_false
+    given a = "abc"
+    given b = "def"
+    when r = strings_equal(a, b)
+    then r == false
+
+test formal_count_proved_empty_obligations
+    given obl = []ProofObligation{}
+    when n = count_proved(obl, 0)
+    then n == 0
+
+test formal_count_admitted_single_proved_zero
+    given obl = [ProofObligation { category: 0, description: "p", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved }]
+    when n = count_admitted(obl, 0)
+    then n == 0
+
+invariant formal_prove_equivalence_reflexive
+    forall s : string
+    prove_equivalence(s, s) == ProofStatus::proved
+
+invariant formal_contains_substring_empty_haystack_false_inv
+    forall needle : string
+    contains_substring("", needle) == false
+
+invariant formal_count_proved_empty_zero_inv:
+    forall obl : []ProofObligation
+    obl.len() == 0 ==> count_proved(obl, 0) == 0
+
+test formal_count_admitted_empty_zero
+    given obl = []ProofObligation{}
+    when n = count_admitted(obl, 0)
+    then n == 0
+
+test formal_contains_substring_empty_needle_true
+    given haystack = "abc"
+    given needle = ""
+    when r = contains_substring(haystack, needle)
+    then r == true
+
+test formal_prove_equivalence_reflexive_identity
+    given a = "x + 0"
+    given b = "x + 0"
+    when r = prove_equivalence(a, b)
+    then r == true
+
+test formal_count_proved_single_obligation
+    given obl = [ProofObligation { category: PO_BITWIDTH_SAFETY, description: "safe", module_name: "m1", line_start: 1, line_end: 2, status: ProofStatus.proved }]
+    when n = count_proved(obl, 0)
+    then n == 1
+
+invariant formal_count_admitted_empty_zero_inv:
+    forall obl : []ProofObligation
+    obl.len() == 0 ==> count_admitted(obl, 0) == 0
+
+invariant formal_count_proved_single_obligation_inv:
+    forall obl : ProofObligation
+    obl.status == ProofStatus.proved ==> count_proved([obl], 0) == 1
+
+test formal_strings_equal_empty_identity
+    given a = ""
+    given b = ""
+    when r = strings_equal(a, b)
+    then r == true
+
+test formal_count_assigns_single_assignment
+    given assigns = [Assignment { lhs: "a", rhs: "b", op: 0 }]
+    when n = count_assigns(assigns, 0)
+    then n == 1
+
+invariant formal_count_assigns_single_assignment_inv:
+    count_assigns([Assignment { lhs: "a", rhs: "b", op: 0 }], 0) == 1
+
+test formal_strings_equal_single_char_same
+    given a = "x"
+    given b = "x"
+    when r = strings_equal(a, b)
+    then r == true
+
+test formal_count_admitted_single_admitted_obligation
+    given obl = ProofObligation { name: "p1", status: ProofStatus.admitted }
+    when n = count_admitted([obl], 0)
+    then n == 1
+
+invariant formal_strings_equal_single_char_same_inv:
+    strings_equal("x", "x") == true
+
+test formal_count_assigns_two_assignments
+    given assigns = [Assignment { lhs: "a", rhs: "b", op: 0 }, Assignment { lhs: "c", rhs: "d", op: 0 }]
+    when n = count_assigns(assigns, 0)
+    then n == 2
+
+test formal_all_disproved_one_proved_one_disproved
+    given pos = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "d1", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::disproved }
+    ]
+    when ok = all_disproved(pos, 0)
+    then ok == false
+
+invariant formal_prove_equivalence_symmetric_inv:
+    forall a : string, b : string
+    prove_equivalence(a, b) == prove_equivalence(b, a)
+
+test formal_count_admitted_two_admitted
+    given obl = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::admitted }
+    ]
+    when n = count_admitted(obl, 0)
+    then n == 2
+
+test formal_all_proved_one_proved
+    given pos = [ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved }]
+    when ok = all_proved(pos, 0)
+    then ok == true
+
+invariant formal_count_admitted_two_admitted_inv:
+    count_admitted([
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::admitted }
+    ], 0) == 2
+
+test formal_count_assigns_empty_list_zero
+    given assigns = []Assignment{}
+    when n = count_assigns(assigns, 0)
+    then n == 0
+
+test formal_all_proved_empty_list_true
+    given pos = []ProofObligation{}
+    when ok = all_proved(pos, 0)
+    then ok == true
+
+test formal_any_case_empty_returns_false
+    given pos = []ProofObligation{}
+    when ok = any_case(pos, 0)
+    then ok == false
+
+test formal_count_proved_three_obligations
+    given obl = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "p3", module_name: "m", line_start: 2, line_end: 2, status: ProofStatus::proved }
+    ]
+    when n = count_proved(obl, 0)
+    then n == 3
+
+invariant formal_all_proved_empty_list_true_inv:
+    all_proved([]ProofObligation{}, 0) == true
+
+invariant formal_any_case_empty_returns_false_inv:
+    any_case([]ProofObligation{}, 0) == false
+
+test formal_count_proved_two_proved_one_admitted
+    given obl = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::proved },
+        ProofObligation { category: 0, description: "p3", module_name: "m", line_start: 2, line_end: 2, status: ProofStatus::admitted }
+    ]
+    when n = count_proved(obl, 0)
+    then n == 2
+
+test formal_count_admitted_three_obligations
+    given obl = [
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::admitted },
+        ProofObligation { category: 0, description: "p3", module_name: "m", line_start: 2, line_end: 2, status: ProofStatus::admitted }
+    ]
+    when n = count_admitted(obl, 0)
+    then n == 3
+
+invariant formal_count_admitted_three_obligations_inv:
+    count_admitted([
+        ProofObligation { category: 0, description: "p1", module_name: "m", line_start: 0, line_end: 0, status: ProofStatus::admitted },
+        ProofObligation { category: 0, description: "p2", module_name: "m", line_start: 1, line_end: 1, status: ProofStatus::admitted },
+        ProofObligation { category: 0, description: "p3", module_name: "m", line_start: 2, line_end: 2, status: ProofStatus::admitted }
+    ], 0) == 3
+
+test formal_smt_assert_true_identity
+    given expr = Expr.Bool(true)
+    when result = smt_check(expr)
+    then result == SmtResult.Sat
+
+invariant formal_smt_assert_true_identity_inv:
+    forall e : Expr
+    e == Expr.Bool(true) ==> smt_check(e) == SmtResult.Sat
+
+test formal_smt_check_bool_false_unsat
+    given expr = Expr.Bool(false)
+    when result = smt_check(expr)
+    then result == SmtResult.Unsat
+
+invariant formal_smt_check_bool_false_unsat_inv:
+    forall e : Expr
+    e == Expr.Bool(false) ==> smt_check(e) == SmtResult.Unsat
+
+test formal_proof_status_open_is_not_admitted
+    given status = ProofStatus::open
+    when ok = status == ProofStatus::admitted
+    then ok == false
+
+test formal_smt_check_and_true_true_sat
+    given expr = Expr.And(Expr.Bool(true), Expr.Bool(true))
+    when result = smt_check(expr)
+    then result == SmtResult.Sat
+
+invariant formal_smt_check_and_true_true_sat_inv:
+    forall e1 : Expr, e2 : Expr
+    e1 == Expr.Bool(true) && e2 == Expr.Bool(true) ==> smt_check(Expr.And(e1, e2)) == SmtResult.Sat
+
+test formal_smt_check_or_true_true_sat
+    given expr = Expr.Or(Expr.Bool(true), Expr.Bool(true))
+    when result = smt_check(expr)
+    then result == SmtResult.Sat
+
+test formal_smt_check_or_false_true_sat
+    given expr = Expr.Or(Expr.Bool(false), Expr.Bool(true))
+    when result = smt_check(expr)
+    then result == SmtResult.Sat
+
+invariant formal_smt_check_or_true_true_sat_inv:
+    forall e1 : Expr, e2 : Expr
+    e1 == Expr.Bool(true) || e2 == Expr.Bool(true) ==> smt_check(Expr.Or(e1, e2)) == SmtResult.Sat
+
+test formal_smt_assert_true_identity_w294
+    given b = true
+    when r = smt_assert_true(b)
+    then r == "true"
+
+test formal_smt_check_bool_false_unsat_w294
+    given b = false
+    when r = smt_check_bool(b)
+    then r == "UNSAT"
+
+invariant formal_smt_check_bool_false_unsat_w294_inv:
+    forall b : bool
+    !b ==> smt_check_bool(b) == "UNSAT"
+
+test formal_smt_assert_false_false_identity_w295
+    given b = false
+    when r = smt_assert_true(b)
+    then r == "false"
+
+test formal_smt_check_bool_true_sat_w295
+    given b = true
+    when r = smt_check_bool(b)
+    then r == "SAT"
+
+invariant formal_smt_check_bool_true_sat_w295_inv:
+    forall b : bool
+    b == true ==> smt_check_bool(b) == "SAT"

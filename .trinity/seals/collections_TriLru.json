@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1b18357f5c0e74d9b82a9ca62d6f864952693023add0a1a32134297458cd09a0",
+  "gen_hash_rust": "sha256:62ff4db09ea27bb54fbe51e8c59acb2874b71d66ca0928587bd82452aa8b4455",
+  "gen_hash_verilog": "sha256:517b7374a5ce8c49fa2d0e4ed0cea9b12de6730fed82a91092d0431ca25d02d8",
+  "gen_hash_zig": "sha256:b7fbc9c183051746bebf1410b1c1ffe290b8f02dbc3e403acac10feb33557299",
+  "module": "TriLru",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:00755caba914623ad212f422ad2225f2de28144d0bb190788580e14ee87959ab",
+  "spec_path": "specs/tri/collections/lru.t27"
+}

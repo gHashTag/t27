@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:618ec12a576c61e4b1c13fb4f8f57eec54f05ef8a519f8af53b08d553cef1347",
+  "gen_hash_rust": "sha256:bb62aa20bef48d1f22882b15ff933715494b8b0a7a5d818d00362575a6d81cbd",
+  "gen_hash_verilog": "sha256:637d2199595e350a756e9cf2bbeed4058659a043d4f3929dd20c8a388058d28e",
+  "gen_hash_zig": "sha256:b29bd9dcfff4293533f2bc964ed070441f3fe5a99356e28930e5e74ed0954c08",
+  "module": "TriXml",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:1243df7ee550f3e946c9a36ddd98d797c479de0b7f15b10c1aa4aeb2902cb4b1",
+  "spec_path": "specs/tri/encoding/xml.t27"
+}

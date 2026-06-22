@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:5911fc138d4ffa5aebf8260c3795a20eee4a621ffe67785f8caa78f9ed5d35c0",
+  "gen_hash_rust": "sha256:0e3701d676b561ac707a44dea6d7236e1f84832776645077a8cb409793e77ebb",
+  "gen_hash_verilog": "sha256:77fcb691dbc59be5b013e6205ccf0d8adccb61456514b1e1dd1de553e3a7800c",
+  "gen_hash_zig": "sha256:74a7fe74a67da6c86310cdefacbc5e57babacbf23f55fdbe3527d6bb7f889779",
+  "module": "Dropout",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:3d62664b21a7e9bd7b6d63879764780b5c5af3cf661f04eee7b90a8adbaa5d1d",
+  "spec_path": "specs/ml/layers/dropout_layer.t27"
+}

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:d3e7ca84b9e0943bc069739a28cba33e2807284da700461a489e1c2335ddf19f",
-  "gen_hash_rust": "sha256:1ddc188d6d7d6595468fab7c6f730cdf88efe6b46641bbd40a3954914fefb7c4",
-  "gen_hash_verilog": "sha256:cd72f5e7bd32ffee0c1bafd00be61a43f80539675eecdeac483bddc7f884b2a7",
-  "gen_hash_zig": "sha256:5745fbfef75c5c94b4db3b4b47cc620cbd592397ebb22239e19e51e86ac84c09",
+  "gen_hash_c": "sha256:5e923f0993a7024b64e00bee8e12bccd75c58d5dd2068db37b32dfe89bd36f2c",
+  "gen_hash_rust": "sha256:caae4031b3484aeea03ce1a2d4315f300e639a731484282d1cc32dda1620bda6",
+  "gen_hash_verilog": "sha256:f3bb9c578f6c9bcc2ed8d95c4809b846ca283223ece81cd08b982593ba491e6a",
+  "gen_hash_zig": "sha256:51135cfd752e3657a96bd50b55a451b2c3cb7bb7eeaa6e3dec265d7629a6631d",
   "module": "FileWatcher",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:d1a87c87ff24072492c3d539a72af402b46a4acda477954b2485311592d7ddc1",
+  "sealed_at": "2026-06-22T23:49:47Z",
+  "spec_hash": "sha256:23c3f38b7df6c22a0915123453dde5cd142578418638f6c54451cfc0a2cfef4e",
   "spec_path": "specs/file/watcher.t27"
 }

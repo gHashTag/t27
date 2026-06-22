@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:c4887e3e0f70a1191ff9ef34a8a4a7e1e85b8db410caca64622df52e3885c788",
+  "gen_hash_rust": "sha256:f6a1f23ecb54d113a90197ca7b7818710bdab2b01b460e74d4404e9285d59fd2",
+  "gen_hash_verilog": "sha256:b2aed5565cdec7fa9788d160c0697e378ab82a69f9b367ca2fb1baebe075e100",
+  "gen_hash_zig": "sha256:86acf03ff3b3bca0a151debf2d27ee082d5151f2405f4e192ca5419a7ec7ffb2",
+  "module": "Lamb",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:d8bd6eba31a437f911eec4ea0d056b1cd4a3b34039e40e207aa2aaa852e11f21",
+  "spec_path": "specs/ml/optimizer/lamb.t27"
+}

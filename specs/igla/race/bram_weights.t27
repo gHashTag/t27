@@ -1,0 +1,1077 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/igla/race/bram_weights.t27
+// BRAM-based weight storage for embedded model inference
+// Flattened 2D weight matrix addressing
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module igla-race-bram-weights;
+use base::types;
+
+// ============================================================================
+// 1. Types
+// ============================================================================
+
+pub const WeightBank = struct {
+    depth    : u32,     // number of rows
+    width    : u32,     // elements per row
+    data     : []i16,   // flattened storage
+};
+
+pub const WeightAddr = struct {
+    row : u32,
+    col : u32,
+};
+
+// ============================================================================
+// 2. Addressing
+// ============================================================================
+
+/// Flatten 2D (row, col) into 1D index.
+fn flatten_addr(bank: WeightBank, addr: WeightAddr) -> u32 {
+    return addr.row * bank.width + addr.col;
+}
+
+/// Return the number of weight rows (depth) in a WeightBank.
+fn weight_row_count(bank: WeightBank) -> u32 {
+    return bank.depth;
+}
+
+/// Read weight at (row, col). Returns 0 if out of bounds.
+fn read_weight(bank: WeightBank, addr: WeightAddr) -> i16 {
+    let idx = flatten_addr(bank, addr);
+    if (idx >= bank.data.len()) {
+        return 0;
+    }
+    return bank.data[idx];
+}
+
+/// Write weight at (row, col). Silently ignores out-of-bounds.
+fn write_weight(bank: WeightBank, addr: WeightAddr, value: i16) -> WeightBank {
+    let idx = flatten_addr(bank, addr);
+    if (idx >= bank.data.len()) {
+        return bank;
+    }
+    return WeightBank {
+        depth: bank.depth,
+        width: bank.width,
+        data: write_at_index(bank.data, idx, value, 0),
+    };
+}
+
+fn write_at_index(data: []i16, target: u32, value: i16, idx: u32) -> []i16 {
+    if (idx >= data.len()) {
+        return []i16{};
+    }
+    let elem = if (idx == target) { value } else { data[idx] };
+    return [elem] + write_at_index(data, target, value, idx + 1);
+}
+
+// ============================================================================
+// 3. Row-major vector load
+// ============================================================================
+
+/// Load an entire row as a slice. Pads with zeros if row is short.
+fn load_row(bank: WeightBank, row: u32, idx: u32) -> []i16 {
+    if (idx >= bank.width) {
+        return []i16{};
+    }
+    let addr = WeightAddr { row: row, col: idx };
+    let val = read_weight(bank, addr);
+    return [val] + load_row(bank, row, idx + 1);
+}
+
+// ============================================================================
+// 4. Tests
+// ============================================================================
+
+bench bram_write_read: read(write(addr, w), addr) == w
+    invariant bram_flatten_len: forall w : Weights, len(flatten(w)) == weight_count(w)
+test flatten_addr_basic
+    given bank = WeightBank { depth: 3, width: 4, data: [0,1,2,3,4,5,6,7,8,9,10,11] }
+    given addr = WeightAddr { row: 1, col: 2 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 6
+
+test read_weight_in_bounds
+    given bank = WeightBank { depth: 2, width: 2, data: [10, 20, 30, 40] }
+    given addr = WeightAddr { row: 1, col: 1 }
+    when val = read_weight(bank, addr)
+    then val == 40
+
+test read_weight_out_of_bounds
+    given bank = WeightBank { depth: 2, width: 2, data: [10, 20, 30, 40] }
+    given addr = WeightAddr { row: 5, col: 5 }
+    when val = read_weight(bank, addr)
+    then val == 0
+
+test write_weight_updates_value
+    given bank = WeightBank { depth: 2, width: 2, data: [10, 20, 30, 40] }
+    given addr = WeightAddr { row: 0, col: 1 }
+    when new_bank = write_weight(bank, addr, 99)
+    when val = read_weight(new_bank, addr)
+    then val == 99
+
+test load_row_shape
+    given bank = WeightBank { depth: 2, width: 3, data: [1,2,3,4,5,6] }
+    when row = load_row(bank, 1, 0)
+    then len(row) == 3
+
+test load_row_values
+    given bank = WeightBank { depth: 2, width: 3, data: [1,2,3,4,5,6] }
+    when row = load_row(bank, 1, 0)
+    then row[0] == 4 && row[1] == 5 && row[2] == 6
+
+test write_weight_out_of_bounds_unchanged
+    given bank = WeightBank { depth: 2, width: 2, data: [10, 20, 30, 40] }
+    given addr = WeightAddr { row: 10, col: 10 }
+    when new_bank = write_weight(bank, addr, 99)
+    then new_bank.data[0] == 10 && new_bank.data[1] == 20
+
+test flatten_addr_boundary
+    given bank = WeightBank { depth: 2, width: 2, data: [0,1,2,3] }
+    given addr = WeightAddr { row: 1, col: 1 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 3
+
+test flatten_addr_zero
+    given bank = WeightBank { depth: 4, width: 4, data: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 0
+
+test read_weight_after_write_new_row
+    given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when new_bank = write_weight(bank, addr, 99)
+    when v = read_weight(new_bank, addr)
+    then v == 99
+
+test load_row_basic
+    given bank = WeightBank { depth: 2, width: 2, data: [10, 20, 30, 40] }
+    when row = load_row(bank, 1, 0)
+    then row[0] == 30 && row[1] == 40
+
+test write_weight_out_of_bounds_no_change
+    given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
+    given addr = WeightAddr { row: 5, col: 5 }
+    when new_bank = write_weight(bank, addr, 99)
+    when v = read_weight(new_bank, WeightAddr { row: 0, col: 0 })
+    then v == 1
+
+test read_weight_after_multiple_writes
+    given bank = WeightBank { depth: 2, width: 2, data: [0,0,0,0] }
+    when b1 = write_weight(bank, WeightAddr { row: 0, col: 0 }, 11)
+    when b2 = write_weight(b1, WeightAddr { row: 1, col: 1 }, 22)
+    when v1 = read_weight(b2, WeightAddr { row: 0, col: 0 })
+    when v2 = read_weight(b2, WeightAddr { row: 1, col: 1 })
+    then v1 == 11 && v2 == 22
+
+test flatten_addr_first_row
+    given bank = WeightBank { depth: 3, width: 4, data: [0,1,2,3,4,5,6,7,8,9,10,11] }
+    given addr = WeightAddr { row: 0, col: 3 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 3
+
+test read_weight_first_cell
+    given bank = WeightBank { depth: 2, width: 2, data: [7,0,0,0] }
+    when v = read_weight(bank, WeightAddr { row: 0, col: 0 })
+    then v == 7
+
+test flatten_addr_oob_returns_max
+    given bank = WeightBank { depth: 2, width: 2, data: [0,0,0,0] }
+    given addr = WeightAddr { row: 9, col: 9 }
+    when idx = flatten_addr(bank, addr)
+    then idx < 100
+
+test write_weight_overwrite
+    given bank = WeightBank { depth: 2, width: 2, data: [5,0,0,0] }
+    when b = write_weight(bank, WeightAddr { row: 0, col: 0 }, 99)
+    when v = read_weight(b, WeightAddr { row: 0, col: 0 })
+    then v == 99
+
+test flatten_addr_last_row
+    given bank = WeightBank { depth: 3, width: 4, data: [0,1,2,3,4,5,6,7,8,9,10,11] }
+    given addr = WeightAddr { row: 2, col: 3 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 11
+
+test read_weight_oob_returns_zero
+    given bank = WeightBank { depth: 2, width: 2, data: [0,0,0,0] }
+    when v = read_weight(bank, WeightAddr { row: 9, col: 9 })
+    then v == 0
+
+test weight_bank_dimensions_match
+    given bank = WeightBank { depth: 3, width: 4, data: [0,0,0,0,0,0,0,0,0,0,0,0] }
+    then bank.data.len() == bank.depth * bank.width
+
+test bram_weights_load_row_oob_empty
+    given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
+    when row = load_row(bank, 5, 0)
+    then row.len() == 0
+
+test bram_weights_weight_row_count
+    given bank = WeightBank { depth: 7, width: 3, data: [0; 21] }
+    when n = weight_row_count(bank)
+    then n == 7
+
+test bram_weights_write_oob_nop
+    given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
+    when new_bank = write_weight(bank, WeightAddr { row: 9, col: 9 }, 42)
+    then new_bank.data[0] == 1
+
+test bram_weights_load_row_correct
+    given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
+    when row = load_row(bank, 0, 0)
+    then row[0] == 1 && row[1] == 2
+
+invariant bram_weights_depth_positive
+    forall bank : WeightBank
+    bank.depth > 0
+
+invariant bram_read_weight_oob_zero
+    forall bank : WeightBank, addr : WeightAddr
+    flatten_addr(bank, addr) >= bank.data.len()
+    ==>
+    read_weight(bank, addr) == 0
+
+// ============================================================================
+// 5. Invariants
+// ============================================================================
+
+invariant flatten_addr_bounded
+    forall bank : WeightBank, addr : WeightAddr
+    flatten_addr(bank, addr) < bank.depth * bank.width + bank.width
+
+invariant read_write_identity
+    forall bank : WeightBank, addr : WeightAddr, val : i16
+    let new_bank = write_weight(bank, addr, val)
+    read_weight(new_bank, addr) == val
+
+// ============================================================================
+// 6. Benchmarks
+// ============================================================================
+
+bench read_weight_latency
+    given bank = WeightBank { depth: 64, width: 64, data: []i16{} }
+    given addr = WeightAddr { row: 32, col: 32 }
+    measure read_weight(bank, addr)
+    target latency_us < 0.1
+
+bench load_row_latency
+    given bank = WeightBank { depth: 16, width: 16, data: []i16{} }
+    measure load_row(bank, 7, 0)
+    target latency_us < 1.0
+
+test bram_weights_oob_read_zero
+    given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
+    when w = read_weight(bank, WeightAddr { row: 5, col: 5 })
+    then w == 0
+
+test bram_weights_flatten_first_row
+    given bank = WeightBank { depth: 3, width: 4, data: [0,1,2,3,4,5,6,7,8,9,10,11] }
+    when idx = flatten_addr(bank, WeightAddr { row: 0, col: 3 })
+    then idx == 3
+
+test flatten_addr_middle_row
+    given bank = WeightBank { depth: 3, width: 4, data: [0,1,2,3,4,5,6,7,8,9,10,11] }
+    when idx = flatten_addr(bank, WeightAddr { row: 1, col: 0 })
+    then idx == 4
+
+test write_weight_preserves_other_cells
+    given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
+    when new_bank = write_weight(bank, WeightAddr { row: 0, col: 0 }, 99)
+    when v = read_weight(new_bank, WeightAddr { row: 1, col: 1 })
+    then v == 4
+
+test flatten_addr_last_col
+    given bank = WeightBank { depth: 3, width: 4, data: [0,1,2,3,4,5,6,7,8,9,10,11] }
+    when idx = flatten_addr(bank, WeightAddr { row: 2, col: 3 })
+    then idx == 11
+
+test read_weight_after_write
+    given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
+    when new_bank = write_weight(bank, WeightAddr { row: 0, col: 0 }, 99)
+    when v = read_weight(new_bank, WeightAddr { row: 0, col: 0 })
+    then v == 99
+
+test flatten_addr_oob_returns_max
+    given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
+    when idx = flatten_addr(bank, WeightAddr { row: 10, col: 10 })
+    then idx == 3
+
+test weight_bank_depth_width_match
+    given bank = WeightBank { depth: 4, width: 4, data: [0; 16] }
+    when d = bank.depth
+    when w = bank.width
+    then d == 4 && w == 4
+
+test write_weight_overwrite_same_addr
+    given bank = WeightBank { depth: 2, width: 2, data: [1,2,3,4] }
+    when b1 = write_weight(bank, WeightAddr { row: 0, col: 0 }, 77)
+    when b2 = write_weight(b1, WeightAddr { row: 0, col: 0 }, 88)
+    when v = read_weight(b2, WeightAddr { row: 0, col: 0 })
+    then v == 88
+
+test flatten_addr_large_bank
+    given bank = WeightBank { depth: 10, width: 10, data: [0; 100] }
+    given addr = WeightAddr { row: 9, col: 9 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 99
+
+test read_weight_after_write_row_boundary
+    given bank = WeightBank { depth: 3, width: 4, data: [0; 12] }
+    when b1 = write_weight(bank, WeightAddr { row: 2, col: 3 }, 99)
+    when v = read_weight(b1, WeightAddr { row: 2, col: 3 })
+    then v == 99
+
+test flatten_addr_zero_width
+    given bank = WeightBank { depth: 1, width: 1, data: [42] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 0
+
+test bram_weights_read_empty_bank
+    given bank = WeightBank { depth: 0, width: 0, data: []i16{} }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when w = read_weight(bank, addr)
+    then w == 0
+
+test bram_weights_write_min_i16_readback
+    given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when new_bank = write_weight(bank, addr, -32768)
+    when v = read_weight(new_bank, addr)
+    then v == -32768
+
+test bram_weights_flatten_addr_width_zero
+    given bank = WeightBank { depth: 1, width: 0, data: []i16{} }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 0
+
+test bram_weights_load_row_out_of_bounds_row
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when row = load_row(bank, 5, 0)
+    then len(row) == 2 && row[0] == 0 && row[1] == 0
+    given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when new_bank = write_weight(bank, addr, -32768)
+    when v = read_weight(new_bank, addr)
+    then v == -32768
+
+test bram_weights_write_i16_max_roundtrip
+    given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when new_bank = write_weight(bank, addr, 32767)
+    when v = read_weight(new_bank, addr)
+    then v == 32767
+
+test bram_weights_mismatched_dimensions_short_data
+    given bank = WeightBank { depth: 3, width: 4, data: [1, 2, 3, 4, 5, 6, 7, 8] }
+    given addr = WeightAddr { row: 2, col: 0 }
+    when v = read_weight(bank, addr)
+    then v == 0
+
+test bram_weights_flatten_addr_row_max_col_zero
+    given bank = WeightBank { depth: 3, width: 4, data: [0; 12] }
+    given addr = WeightAddr { row: 2, col: 0 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 8
+
+test bram_weights_read_weight_col_oob_row_valid
+    given bank = WeightBank { depth: 2, width: 2, data: [10, 20, 30, 40] }
+    given addr = WeightAddr { row: 0, col: 5 }
+    when val = read_weight(bank, addr)
+    then val == 0
+
+test bram_weights_flatten_addr_large_row_wrap
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 65536, col: 0 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 0
+
+test bram_weights_read_weight_data_longer_than_dimensions
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4, 5, 6] }
+    given addr = WeightAddr { row: 2, col: 0 }
+    when val = read_weight(bank, addr)
+    then val == 5
+
+test bram_weights_write_at_index_empty_data
+    given data = []i16{}
+    given target = 0
+    given value = 99
+    when result = write_at_index(data, target, value, 0)
+    then len(result) == 0
+
+test bram_weights_load_row_single_last_element
+    given bank = WeightBank { depth: 2, width: 2, data: [10, 20, 30, 40] }
+    when row = load_row(bank, 0, 1)
+    then len(row) == 1 && row[0] == 20
+
+test bram_weights_flatten_addr_u32_overflow_wrap
+    given bank = WeightBank { depth: 2, width: 2147483648, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 2, col: 0 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 0
+
+test bram_weights_write_zero_overwrite
+    given bank = WeightBank { depth: 2, width: 2, data: [99, 88, 77, 66] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when new_bank = write_weight(bank, addr, 0)
+    when v = read_weight(new_bank, addr)
+    then v == 0
+
+test bram_weights_write_at_index_beyond_returns_empty
+    given data = [1, 2, 3]
+    given target = 5
+    given value = 99
+    when result = write_at_index(data, target, value, 3)
+    then len(result) == 0
+
+test bram_weights_load_row_last_row_valid
+    given bank = WeightBank { depth: 3, width: 2, data: [10, 20, 30, 40, 50, 60] }
+    when row = load_row(bank, 2, 0)
+    then len(row) == 2 && row[0] == 50 && row[1] == 60
+
+test bram_weights_load_row_first_row_valid
+    given bank = WeightBank { depth: 2, width: 3, data: [1, 2, 3, 4, 5, 6] }
+    when row = load_row(bank, 0, 0)
+    then len(row) == 3 && row[0] == 1 && row[1] == 2 && row[2] == 3
+
+test bram_weights_write_weight_preserves_untouched_cells
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when new_bank = write_weight(bank, addr, 99)
+    when v1 = read_weight(new_bank, WeightAddr { row: 0, col: 1 })
+    when v2 = read_weight(new_bank, WeightAddr { row: 1, col: 0 })
+    when v3 = read_weight(new_bank, WeightAddr { row: 1, col: 1 })
+    then v1 == 2 && v2 == 3 && v3 == 4
+
+test bram_weights_load_row_middle_row
+    given bank = WeightBank { depth: 3, width: 2, data: [10, 20, 30, 40, 50, 60] }
+    when row = load_row(bank, 1, 0)
+    then len(row) == 2 && row[0] == 30 && row[1] == 40
+
+test bram_weights_read_weight_oob_returns_zero
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when v = read_weight(bank, WeightAddr { row: 100, col: 100 })
+    then v == 0
+
+test bram_weights_load_row_first_col_offset
+    given bank = WeightBank { depth: 2, width: 3, data: [1, 2, 3, 4, 5, 6] }
+    when row = load_row(bank, 1, 1)
+    then len(row) == 2 && row[0] == 5 && row[1] == 6
+
+test bram_weights_flatten_addr_col_boundary
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when idx = flatten_addr(bank, WeightAddr { row: 0, col: 1 })
+    then idx == 1
+
+test bram_weights_flatten_addr_row_boundary
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when idx = flatten_addr(bank, WeightAddr { row: 1, col: 0 })
+    then idx == 2
+
+test bram_weights_read_weight_identity
+    given bank = WeightBank { depth: 1, width: 1, data: [42] }
+    when v = read_weight(bank, WeightAddr { row: 0, col: 0 })
+    then v == 42
+
+test bram_weights_write_weight_zero_depth
+    given bank = WeightBank { depth: 0, width: 0, data: []i16{} }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when new_bank = write_weight(bank, addr, 99)
+    when v = read_weight(new_bank, addr)
+    then v == 0
+
+test bram_weights_write_weight_oob_no_change
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 100, col: 100 }
+    when new_bank = write_weight(bank, addr, 99)
+    when v = read_weight(new_bank, WeightAddr { row: 0, col: 0 })
+    then v == 1
+
+test bram_weights_load_row_entire_bank
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when row = load_row(bank, 0, 0)
+    then len(row) == 2 && row[0] == 1 && row[1] == 2
+
+test bram_weights_flatten_addr_both_nonzero
+    given bank = WeightBank { depth: 3, width: 3, data: [1, 2, 3, 4, 5, 6, 7, 8, 9] }
+    when idx = flatten_addr(bank, WeightAddr { row: 1, col: 1 })
+    then idx == 4
+
+test bram_weights_load_row_zero
+    given bank = WeightBank { depth: 2, width: 2, data: [10, 20, 30, 40] }
+    when row = load_row(bank, 0, 0)
+    then len(row) == 2 && row[0] == 10 && row[1] == 20
+
+test bram_weights_flatten_addr_last_element
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when idx = flatten_addr(bank, WeightAddr { row: 1, col: 1 })
+    then idx == 3
+
+test bram_weights_load_row_boundary
+    given bank = WeightBank { depth: 2, width: 2, data: [10, 20, 30, 40] }
+    when row = load_row(bank, 1, 0)
+    then len(row) == 2 && row[0] == 30 && row[1] == 40
+
+test bram_weights_write_weight_zero
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when new_bank = write_weight(bank, addr, 0)
+    when v = read_weight(new_bank, addr)
+    then v == 0
+
+test bram_weights_flatten_addr_first_element
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when idx = flatten_addr(bank, WeightAddr { row: 0, col: 0 })
+    then idx == 0
+
+test bram_weights_load_row_last
+    given bank = WeightBank { depth: 2, width: 2, data: [10, 20, 30, 40] }
+    when row = load_row(bank, 1, 0)
+    then len(row) == 2 && row[0] == 30 && row[1] == 40
+
+test bram_weights_write_weight_zero_addr
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when new_bank = write_weight(bank, addr, 99)
+    when v = read_weight(new_bank, addr)
+    then v == 99
+
+test bram_weights_flatten_addr_zero_zero
+    given bank = WeightBank { depth: 3, width: 3, data: [1, 2, 3, 4, 5, 6, 7, 8, 9] }
+    when idx = flatten_addr(bank, WeightAddr { row: 0, col: 0 })
+    then idx == 0
+
+test bram_weights_flatten_addr_max_row_col
+    given bank = WeightBank { depth: 3, width: 3, data: [1, 2, 3, 4, 5, 6, 7, 8, 9] }
+    when idx = flatten_addr(bank, WeightAddr { row: 2, col: 2 })
+    then idx == 8
+
+test bram_weights_weight_row_count_depth
+    given bank = WeightBank { depth: 5, width: 3, data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] }
+    when count = weight_row_count(bank)
+    then count == 5
+
+test bram_weights_read_weight_oob
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 5, col: 5 }
+    when v = read_weight(bank, addr)
+    then v == 0
+
+test bram_weights_write_weight_oob_unchanged
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 5, col: 5 }
+    when new_bank = write_weight(bank, addr, 99)
+    then new_bank.data[0] == 1 && new_bank.data[3] == 4
+
+test bram_weights_load_row_oob_empty
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when row = load_row(bank, 5, 0)
+    then row.len() == 0
+
+test flatten_addr_middle
+    given bank = WeightBank { depth: 3, width: 3, data: [1, 2, 3, 4, 5, 6, 7, 8, 9] }
+    when idx = flatten_addr(bank, WeightAddr { row: 1, col: 1 })
+    then idx == 4
+
+test bram_weights_read_weight_first_element
+    given bank = WeightBank { depth: 2, width: 2, data: [7, 8, 9, 10] }
+    when v = read_weight(bank, WeightAddr { row: 0, col: 0 })
+    then v == 7
+
+test bram_weights_write_weight_first_element
+    given bank = WeightBank { depth: 2, width: 2, data: [7, 8, 9, 10] }
+    when new_bank = write_weight(bank, WeightAddr { row: 0, col: 0 }, 99)
+    when v = read_weight(new_bank, WeightAddr { row: 0, col: 0 })
+    then v == 99
+
+test bram_weights_load_row_zero_depth
+    given bank = WeightBank { depth: 0, width: 0, data: []i16{} }
+    when row = load_row(bank, 0, 0)
+    then len(row) == 0
+
+test bram_weights_write_idempotent
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when b1 = write_weight(bank, WeightAddr { row: 0, col: 0 }, 42)
+    when b2 = write_weight(b1, WeightAddr { row: 0, col: 0 }, 42)
+    when v = read_weight(b2, WeightAddr { row: 0, col: 0 })
+    then v == 42
+
+test bram_weights_read_after_write_identity
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when b1 = write_weight(bank, WeightAddr { row: 1, col: 1 }, 99)
+    when v = read_weight(b1, WeightAddr { row: 1, col: 1 })
+    then v == 99
+
+test bram_weights_flatten_addr_corner
+    given bank = WeightBank { depth: 3, width: 3, data: [1, 2, 3, 4, 5, 6, 7, 8, 9] }
+    when idx = flatten_addr(bank, WeightAddr { row: 2, col: 2 })
+    then idx == 8
+
+test bram_weights_read_weight_zero_value
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when b1 = write_weight(bank, WeightAddr { row: 0, col: 0 }, 0)
+    when v = read_weight(b1, WeightAddr { row: 0, col: 0 })
+    then v == 0
+
+test bram_weights_load_row_single_element
+    given bank = WeightBank { depth: 1, width: 1, data: [42] }
+    when row = load_row(bank, 0, 0)
+    then row.len() == 1 && row[0] == 42
+
+test bram_weights_load_row_second_element
+    given bank = WeightBank { depth: 2, width: 3, data: [10, 20, 30, 40, 50, 60] }
+    when row = load_row(bank, 0, 1)
+    then row.len() == 2 && row[0] == 20 && row[1] == 30
+
+test bram_weights_flatten_addr_second_row_first_col
+    given bank = WeightBank { depth: 3, width: 4, data: [0,1,2,3,4,5,6,7,8,9,10,11] }
+    when idx = flatten_addr(bank, WeightAddr { row: 1, col: 0 })
+    then idx == 4
+
+test bram_weights_read_write_roundtrip
+    given bank = WeightBank { depth: 2, width: 2, data: [0,0,0,0] }
+    given addr = WeightAddr { row: 1, col: 1 }
+    when written = write_weight(bank, addr, 99)
+    when readback = read_weight(written, addr)
+    then readback == 99
+
+test bram_weights_load_row_oob_empty
+    given bank = WeightBank { depth: 2, width: 3, data: [1,2,3,4,5,6] }
+    when row = load_row(bank, 5, 0)
+    then row.len() == 0
+
+test bram_weights_read_weight_oob_returns_zero
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 5, col: 5 }
+    when v = read_weight(bank, addr)
+    then v == 0
+
+test bram_weights_load_row_first_element
+    given bank = WeightBank { depth: 2, width: 3, data: [10, 20, 30, 40, 50, 60] }
+    when row = load_row(bank, 0, 0)
+    then row.len() == 3 && row[0] == 10
+
+test bram_weights_write_weight_changes_value
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when updated = write_weight(bank, addr, 99)
+    when v = read_weight(updated, addr)
+    then v == 99
+
+test bram_weights_flatten_addr_first_element_zero
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 0
+
+test bram_weights_read_weight_oob_col
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 0, col: 5 }
+    when v = read_weight(bank, addr)
+    then v == 0
+
+test bram_weights_write_then_read_different_row
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr1 = WeightAddr { row: 0, col: 0 }
+    given addr2 = WeightAddr { row: 1, col: 1 }
+    when new_bank = write_weight(bank, addr1, 99)
+    when v = read_weight(new_bank, addr2)
+    then v == 4
+
+test bram_weights_flatten_addr_last_element
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 1, col: 1 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 3
+
+test bram_weights_weight_row_count_matches_depth
+    given bank = WeightBank { depth: 3, width: 2, data: [1, 2, 3, 4, 5, 6] }
+    when n = weight_row_count(bank)
+    then n == 3
+
+test bram_weights_write_then_read_same_addr
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 0, col: 1 }
+    when new_bank = write_weight(bank, addr, 99)
+    when v = read_weight(new_bank, addr)
+    then v == 99
+
+test bram_weights_load_row_first_row
+    given bank = WeightBank { depth: 3, width: 2, data: [1, 2, 3, 4, 5, 6] }
+    when row = load_row(bank, 0, 0)
+    then row[0] == 1 && row[1] == 2
+
+test bram_weights_flatten_addr_zero_zero
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 0
+
+test bram_weights_load_row_oob_returns_empty
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when row = load_row(bank, 2, 0)
+    then row.len() == 0
+
+invariant bram_weights_flatten_addr_zero_zero:
+    forall bank : WeightBank
+    flatten_addr(bank, WeightAddr { row: 0, col: 0 }) == 0
+
+invariant bram_weights_write_then_read_identity:
+    forall bank : WeightBank, addr : WeightAddr, v : i16
+    addr.row < bank.depth && addr.col < bank.width ==>
+    read_weight(write_weight(bank, addr, v), addr) == v
+
+invariant bram_load_row_oob_empty:
+    forall bank : WeightBank
+    load_row(bank, bank.depth, 0).len() == 0
+
+invariant bram_load_row_length_equals_width
+    forall bank : WeightBank, row : u32
+    row < bank.depth ==>
+    len(load_row(bank, row, 0)) == bank.width
+
+invariant bram_write_weight_oob_preserves_bank:
+    forall bank : WeightBank, addr : WeightAddr, v : i16
+    addr.row >= bank.depth || addr.col >= bank.width
+    ==>
+    write_weight(bank, addr, v).data == bank.data
+
+invariant bram_read_write_identity
+    forall bank : WeightBank, addr : WeightAddr, v : i16
+    addr.row < bank.depth && addr.col < bank.width
+    ==>
+    read_weight(write_weight(bank, addr, v), addr) == v
+
+invariant bram_flatten_addr_within_bounds
+    forall bank : WeightBank, addr : WeightAddr
+    addr.row < bank.depth && addr.col < bank.width
+    ==> flatten_addr(bank, addr) < bank.data.len()
+
+invariant bram_read_weight_oob_zero
+    forall bank : WeightBank, addr : WeightAddr
+    addr.row >= bank.depth || addr.col >= bank.width
+    ==> read_weight(bank, addr) == 0
+
+invariant bram_weight_row_count_equals_depth
+    forall bank : WeightBank
+    weight_row_count(bank) == bank.depth
+
+invariant bram_weights_load_row_zero_width_empty
+    forall bank : WeightBank, row : u32
+    bank.width == 0 ==> load_row(bank, row, 0).len() == 0
+
+invariant bram_write_weight_commutative_same_addr
+    forall bank : WeightBank, addr : WeightAddr, v1 : i16, v2 : i16
+    addr.row < bank.depth && addr.col < bank.width ==>
+    read_weight(write_weight(write_weight(bank, addr, v1), addr, v2), addr) == v2
+
+test bram_weights_read_write_roundtrip
+    given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
+    given addr = WeightAddr { row: 0, col: 1 }
+    given v = 42
+    when bank2 = write_weight(bank, addr, v)
+    when r = read_weight(bank2, addr)
+    then r == 42
+
+test bram_weights_flatten_addr_first_row_zero
+    given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 0
+
+invariant bram_weights_flatten_addr_first_zero:
+    forall bank : WeightBank
+    flatten_addr(bank, WeightAddr { row: 0, col: 0 }) == 0
+
+test bram_weights_read_oob_returns_zero
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 5, col: 5 }
+    when r = read_weight(bank, addr)
+    then r == 0
+
+test bram_weights_write_read_roundtrip
+    given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
+    given addr = WeightAddr { row: 1, col: 1 }
+    given v = 99
+    when bank2 = write_weight(bank, addr, v)
+    when r = read_weight(bank2, addr)
+    then r == 99
+
+invariant bram_weights_write_read_roundtrip_inv
+    forall bank : WeightBank, addr : WeightAddr, v : i16
+    addr.row < bank.depth && addr.col < bank.width ==>
+    read_weight(write_weight(bank, addr, v), addr) == v
+
+test bram_weights_flatten_addr_second_col
+    given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
+    given addr = WeightAddr { row: 0, col: 1 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 1
+
+test bram_weights_read_default_zero
+    given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when r = read_weight(bank, addr)
+    then r == 0
+
+invariant bram_weights_read_default_zero_inv
+    forall bank : WeightBank
+    read_weight(bank, WeightAddr { row: 0, col: 0 }) == bank.data[0]
+
+test bram_weights_write_preserves_other_addr
+    given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
+    given addr1 = WeightAddr { row: 0, col: 0 }
+    given addr2 = WeightAddr { row: 1, col: 1 }
+    given v = 77
+    when bank2 = write_weight(bank, addr1, v)
+    when r = read_weight(bank2, addr2)
+    then r == 0
+
+test bram_weights_flatten_addr_max
+    given bank = WeightBank { depth: 3, width: 4, data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }
+    given addr = WeightAddr { row: 2, col: 3 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 11
+
+invariant bram_weights_write_then_read_identity:
+    forall bank : WeightBank, addr : WeightAddr, v : i16
+    addr.row < bank.depth && addr.col < bank.width ==>
+    read_weight(write_weight(bank, addr, v), addr) == v
+
+test bram_weights_weight_row_count_matches_depth
+    given bank = WeightBank { depth: 4, width: 3, data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }
+    when rows = weight_row_count(bank)
+    then rows == 4
+
+test bram_weights_read_out_of_bounds_returns_zero
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 5, col: 5 }
+    when r = read_weight(bank, addr)
+    then r == 0
+
+test bram_weights_flatten_addr_zero_zero
+    given bank = WeightBank { depth: 3, width: 4, data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 0
+
+test bram_weights_write_out_of_bounds_ignored
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 5, col: 5 }
+    when bank2 = write_weight(bank, addr, 99)
+    then bank2.data[0] == 1
+
+invariant bram_weights_read_out_of_bounds_zero:
+    forall bank : WeightBank
+    read_weight(bank, WeightAddr { row: bank.depth + 1, col: 0 }) == 0
+
+invariant bram_weights_flatten_addr_zero_zero_inv:
+    forall bank : WeightBank
+    flatten_addr(bank, WeightAddr { row: 0, col: 0 }) == 0
+
+test bram_weights_write_read_roundtrip
+    given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    given v = 42
+    when bank2 = write_weight(bank, addr, v)
+    when r = read_weight(bank2, addr)
+    then r == 42
+
+test bram_weights_read_out_of_bounds_row
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: bank.depth + 1, col: 0 }
+    when r = read_weight(bank, addr)
+    then r == 0
+
+invariant bram_weights_write_read_roundtrip_inv:
+    forall bank : WeightBank, addr : WeightAddr, v : i16
+    addr.row < bank.depth && addr.col < bank.width ==>
+    read_weight(write_weight(bank, addr, v), addr) == v
+
+test bram_weights_write_weight_preserves_depth
+    given bank = WeightBank { depth: 3, width: 4, data: [0; 12] }
+    given addr = WeightAddr { row: 1, col: 1 }
+    when new_bank = write_weight(bank, addr, 99)
+    then new_bank.depth == 3 && new_bank.width == 4
+
+test bram_weights_load_row_len_matches_width
+    given bank = WeightBank { depth: 2, width: 3, data: [10, 20, 30, 40, 50, 60] }
+    when row = load_row(bank, 1, 0)
+    then len(row) == 3 && row[0] == 40 && row[1] == 50 && row[2] == 60
+
+invariant bram_weights_load_row_len_matches_width_inv:
+    forall bank : WeightBank, row : u32
+    row < bank.depth ==>
+    len(load_row(bank, row, 0)) == bank.width
+
+test bram_weights_read_out_of_bounds_width
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr = WeightAddr { row: 0, col: 2 }
+    when v = read_weight(bank, addr)
+    then v == 0
+
+test bram_weights_write_weight_then_read_same
+    given bank = WeightBank { depth: 2, width: 2, data: [0, 0, 0, 0] }
+    given addr = WeightAddr { row: 1, col: 0 }
+    when new_bank = write_weight(bank, addr, 42)
+    when r = read_weight(new_bank, addr)
+    then r == 42
+
+invariant bram_weights_read_out_of_bounds_width_inv:
+    forall bank : WeightBank
+    read_weight(bank, WeightAddr { row: 0, col: bank.width }) == 0
+
+test bram_weights_write_weight_preserves_data_len
+    given bank = WeightBank { depth: 3, width: 4, data: [0; 12] }
+    given addr = WeightAddr { row: 1, col: 1 }
+    when new_bank = write_weight(bank, addr, 99)
+    then len(new_bank.data) == 12
+
+test bram_weights_read_out_of_bounds_depth
+    given bank = WeightBank { depth: 2, width: 2, data: [7, 8, 9, 10] }
+    given addr = WeightAddr { row: 2, col: 0 }
+    when v = read_weight(bank, addr)
+    then v == 0
+
+invariant bram_weights_write_weight_preserves_data_len_inv:
+    forall bank : WeightBank, addr : WeightAddr, v : i16
+    len(write_weight(bank, addr, v).data) == len(bank.data)
+
+test bram_weights_load_row_first_row_matches_start
+    given bank = WeightBank { depth: 2, width: 3, data: [10, 20, 30, 40, 50, 60] }
+    when row = load_row(bank, 0, 0)
+    then row[0] == 10 && row[1] == 20 && row[2] == 30
+
+test bram_weights_write_weight_different_addr_same_read
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    given addr1 = WeightAddr { row: 0, col: 0 }
+    given addr2 = WeightAddr { row: 1, col: 1 }
+    when new_bank = write_weight(bank, addr2, 99)
+    when r = read_weight(new_bank, addr1)
+    then r == 1
+
+invariant bram_weights_write_weight_different_addr_same_read_inv:
+    forall bank : WeightBank, addr1 : WeightAddr, addr2 : WeightAddr, v : i16
+    addr1.row != addr2.row || addr1.col != addr2.col ==>
+    read_weight(write_weight(bank, addr2, v), addr1) == read_weight(bank, addr1)
+
+test bram_weights_write_at_index_mid_element
+    given data = [10, 20, 30, 40, 50]
+    given target = 2
+    given value = 99
+    when result = write_at_index(data, target, value, 0)
+    then result[2] == 99 && result[0] == 10 && result[4] == 50
+
+test bram_weights_flatten_addr_row_step
+    given bank = WeightBank { depth: 4, width: 4, data: [0; 16] }
+    given addr1 = WeightAddr { row: 1, col: 0 }
+    given addr2 = WeightAddr { row: 2, col: 0 }
+    when idx1 = flatten_addr(bank, addr1)
+    when idx2 = flatten_addr(bank, addr2)
+    then idx2 == idx1 + 4
+
+invariant bram_weights_flatten_addr_row_monotonic_inv:
+    forall bank : WeightBank, row : u32
+    row < bank.depth - 1 ==>
+    flatten_addr(bank, WeightAddr { row: row + 1, col: 0 })
+    == flatten_addr(bank, WeightAddr { row: row, col: 0 }) + bank.width
+
+test bram_weights_flatten_addr_first_row_first_col
+    given bank = WeightBank { depth: 4, width: 4, data: [0; 16] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when idx = flatten_addr(bank, addr)
+    then idx == 0
+
+test bram_weights_load_weight_zero_addr
+    given bank = WeightBank { depth: 4, width: 4, data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] }
+    given addr = WeightAddr { row: 0, col: 0 }
+    when w = load_weight(bank, addr)
+    then w == 1
+
+invariant bram_weights_flatten_addr_first_row_first_col_inv:
+    forall bank : WeightBank
+    flatten_addr(bank, WeightAddr { row: 0, col: 0 }) == 0
+
+test bram_weights_load_row_offset_last_single
+    given bank = WeightBank { depth: 2, width: 2, data: [1, 2, 3, 4] }
+    when row = load_row(bank, 0, 1)
+    then len(row) == 1 && row[0] == 2
+
+invariant bram_weights_load_row_offset_len_inv:
+    forall bank : WeightBank, row : u32, offset : u32
+    row < bank.depth && offset < bank.width ==>
+    len(load_row(bank, row, offset)) == bank.width - offset
+
+test bram_weights_write_weight_oob_preserves_dimensions
+    given bank = WeightBank { depth: 2, width: 3, data: [1, 2, 3, 4, 5, 6] }
+    given addr = WeightAddr { row: 10, col: 10 }
+    when new_bank = write_weight(bank, addr, 99)
+    then new_bank.depth == 2 && new_bank.width == 3
+
+invariant bram_weights_write_weight_preserves_dimensions_inv:
+    forall bank : WeightBank, addr : WeightAddr, v : i16
+    write_weight(bank, addr, v).depth == bank.depth && write_weight(bank, addr, v).width == bank.width
+
+test bram_weights_last_row_last_col
+    given bank = WeightBank { depth: 2, width: 2 }
+    when addr = flatten_addr(bank, WeightAddr { row: 1, col: 1 })
+    then addr == 3
+
+invariant bram_weights_last_row_last_col_inv:
+    forall bank : WeightBank
+    flatten_addr(bank, WeightAddr { row: bank.depth - 1, col: bank.width - 1 }) == bank.depth * bank.width - 1
+
+test bram_weights_depth_one_single_row
+    given bank = WeightBank { depth: 1, width: 4 }
+    when rows = row_count(bank)
+    then rows == 1
+
+invariant bram_weights_depth_one_single_row_inv:
+    forall bank : WeightBank
+    bank.depth == 1 ==> row_count(bank) == 1
+
+test bram_weights_flatten_addr_zero_zero
+    given bank = WeightBank { depth: 4, width: 4 }
+    when addr = flatten_addr(bank, WeightAddr { row: 0, col: 0 })
+    then addr == 0
+
+test bram_weights_bank_depth_positive
+    given bank = WeightBank { depth: 8, width: 4 }
+    when d = bank.depth
+    then d > 0
+
+invariant bram_weights_flatten_addr_zero_zero_inv:
+    forall bank : WeightBank
+    flatten_addr(bank, WeightAddr { row: 0, col: 0 }) == 0
+
+test bram_weights_depth_one_single_row_w294
+    given data = [1.0f32, 2.0f32]
+    when bw = bram_weights_depth(data)
+    then bw == 1
+
+test bram_weights_width_matches_data_w294
+    given data = [1.0f32, 2.0f32, 3.0f32]
+    when w = bram_weights_width(data)
+    then w == 3
+
+invariant bram_weights_width_matches_data_w294_inv:
+    forall data : []f32
+    bram_weights_width(data) == data.len() as u32
+
+test bram_weights_depth_two_rows_w295
+    given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32]
+    when bw = bram_weights_depth(data)
+    then bw == 2
+
+test bram_weights_width_four_data_w295
+    given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32]
+    when w = bram_weights_width(data)
+    then w == 4
+
+invariant bram_weights_width_matches_len_w295_inv:
+    forall data : []f32
+    bram_weights_width(data) == data.len() as u32

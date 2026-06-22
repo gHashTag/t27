@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4886e3244e43c3a3bbf3650a48add802e95c425e7b97acd051600bdb1c925afe",
+  "gen_hash_rust": "sha256:8a43e750c0e12a2a4e5a261aa99af73fa53f497e69718d06991311aa87830ddb",
+  "gen_hash_verilog": "sha256:581801f90ebd028440cf62b96a791c3556e1b8908ae4447c86e520172e397736",
+  "gen_hash_zig": "sha256:0d5b79978f35a0c6919cb9d2f0ecb6720df44c91443b87cb063e7a0385740ad5",
+  "module": "TriFs",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:c3a47ae15cf04f1ca3fb372da482d3fff460b1e2b6b544ede2d15f87c0ac6402",
+  "spec_path": "specs/tri/io/fs.t27"
+}

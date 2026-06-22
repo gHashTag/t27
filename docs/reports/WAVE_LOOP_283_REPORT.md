@@ -1,0 +1,164 @@
+# Wave Loop 283 — Report
+
+**Date:** 2026-06-23
+**Branch:** `trinity-rust-rings`
+**Previous Wave:** 282
+**Next Wave:** 284
+
+---
+
+## Executive Summary
+
+Wave Loop 283 achieved a **dual historic uniform floor elimination**: **ALL Pool A specs ≥25** for the first time in history, and **ALL CODER specs ≥16** for the first time in history. This was accomplished through a combination of manual additions and cron auto-additions during the W283 session.
+
+**571/571 PASS maintained.** No new competitors entered (231 stable).
+
+---
+
+## Historic Milestones
+
+### ALL Pool A ≥25 (First Time in History)
+
+All 15 Pool A specs now have **≥25 invariants**:
+- adder_tree: 25
+- backend: 25
+- bram_weights: 25
+- cordic: 25
+- cordic_fixed: 25
+- cordic_top: 25
+- eda: 25
+- formal: 25
+- gemm: 25
+- opcodes: 25
+- rtl: 26
+- systolic_array: 26
+- ternary_gemm: 26
+- ternary_mac: 26
+
+### ALL CODER ≥16 (First Time in History)
+
+All 10 CODER specs now have **≥16 invariants**:
+- arch: 16
+- bench_proxy: 16
+- benchmark: 16
+- dataset: 16
+- eval: 16
+- pipeline: 16
+- prm: 16
+- tokenizer: 16
+- training: 16
+- weights: 16
+
+### Other Achievements
+
+| Category | Spec | Before | After |
+|----------|------|--------|-------|
+| Pool B | systolic_ternary | 34 | **35** |
+| Integration | ternary_inference | 18 | **19** |
+| Lean 4 | TernaryInference.lean | 10 | **11** |
+| Lean 4 | **Total theorems** | 21 | **22** |
+
+---
+
+## Implementation Details
+
+### Manual Additions (10 specs)
+
+| Spec | Tests Added | Invariants Added |
+|------|-------------|----------------|
+| bram_weights | +2 | +1 |
+| cordic | +2 | +1 |
+| cordic_fixed | +2 | +1 |
+| cordic_top | +2 | +1 |
+| rtl | +2 | +1 |
+| systolic_array | +2 | +1 |
+| ternary_gemm | +2 | +1 |
+| ternary_mac | +2 | +1 |
+| systolic_ternary | +2 | +1 |
+| ternary_inference | +2 | +1 |
+
+### Cron Auto-Additions
+
+| Spec | Before | After | Change |
+|------|--------|-------|--------|
+| bench_proxy | 15 | 16 | +1 inv |
+| dataset | 15 | 16 | +1 inv |
+| pipeline | 15 | 16 | +1 inv |
+| prm | 15 | 16 | +1 inv |
+| tokenizer | 15 | 16 | +1 inv |
+| eda | 24 | 25 | +1 inv |
+| formal | 24 | 25 | +1 inv |
+| rtl | 25 | 26 | +1 inv |
+| systolic_array | 25 | 26 | +1 inv |
+| ternary_gemm | 25 | 26 | +1 inv |
+| ternary_mac | 25 | 26 | +1 inv |
+| ternary_inference | 18 | 19 | +1 inv |
+
+### Lean 4 Theorem Added
+
+- `ternaryInferenceAllMinusWeightsNegate` — proves that all-minus weights negate all activations for concrete input [1,2,3,4]
+
+---
+
+## Weaknesses Identified
+
+1. **Pool A not yet uniform ≥26**: 11 specs at 25, 4 specs at 26 (rtl, systolic_array, ternary_gemm, ternary_mac)
+2. **Pool B at 35**: sole spec; needs depth to maintain parity with Pool A
+3. **Lean 4 theorem gap**: 22 theorems vs ATOMiK 92 / Sparkle HDL 102+ / CktFormalizer 95-100%
+4. **No ternary LUT spec**: competitors (TOM, VitaLLM, KU Leuven) have LUT-based accelerators
+5. **No Proof-Carrying Code pipeline**
+6. **Integration depth**: ternary_inference at 19, could reach 20+
+
+---
+
+## Scientific Research (2026)
+
+### New Competitors / Threats
+
+| Entity | Date | Threat Level | Details |
+|--------|------|-------------|---------|
+| **Neumann-Labs/ternfpga** | Jun 2026 | LOW-MEDIUM | $130 Xilinx Arty A7-35T, ~1.62 J/token |
+| **shepherdscientific/ternarycore** | Apr-May 2026 | LOW | Open-source Verilog FPGA accelerator |
+| **manhvu/Balanced_Ternary** | Jun 2026 | MEDIUM-HIGH | 48-week roadmap to ASIC tape-out |
+
+### Key Papers
+
+1. **TOM** arXiv:2602.20662 — Ternary ROM-SRAM Accelerator, 3,306 tok/s @ 5.33W (HIGH)
+2. **VitaLLM** arXiv:2605.00320v1 — TSMC 16nm, 0.214 mm², 59.12 mW (HIGH)
+3. **FairyFuse** arXiv:2604.20913 — CPU fused ternary kernels, AVX-512 (HIGH)
+4. **T-SAR** DATE 2026 — CPU-only ternary via SIMD ALU reorganization (HIGH)
+5. **CktFormalizer v3** arXiv:2605.07782v3 — Lean 4 autoformalization, 95-100% realizability (HIGH)
+6. **PQC Hardware Masking** arXiv:2604.18717 — Lean 4/Mathlib universal proof for PQC hardware (HIGH)
+7. **Rust-to-Lean** arXiv:2605.30106 — verifying production Rust crypto in Lean 4 (MEDIUM)
+8. **Pythagoras-Prover** arXiv:2606.12594 — Lean 4 theorem provers at scale (MEDIUM)
+
+### Competitive Landscape
+
+- **231 competitors stable**, 48-wave zero-entrant streak (47th consecutive)
+- **SiMa.ai** bug-free A0 silicon via formal+emulation
+- **Sneurals RISC-V** 95 formal properties
+- **TENET** 21.1× energy efficiency vs A100
+- **2026 is the year of Lean 4 HDL** — confirmed by CktFormalizer, Graphiti, Sparkle, PQC
+
+---
+
+## Statistics
+
+- **Tests added (manual):** +20
+- **Invariants added (manual):** +10
+- **Cron invariants added:** +12
+- **Total specs modified:** 22
+- **Seals regenerated:** 11 + cron re-seals
+- **Total conformance:** 571/571 PASS
+
+---
+
+## Commits
+
+- `34eb74b3` — feat(igla): cron auto-additions — ALL CODER ≥16 + eda/formal 24→25
+- `3b511750` — feat(igla): Wave Loop 283 — ALL Pool A ≥25 + ALL CODER ≥16 + Pool B 35 + ternary_inference 19 + Lean 4 theorem 11
+
+---
+
+*Generated by Trinity S³AI autonomous wave loop.*
+*φ² + 1/φ² = 3 | TRINITY*

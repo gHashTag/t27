@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:bdc378a02291f037bbe7b844781d957cc239b3933744ba73dffbe98eb998f10a",
+  "gen_hash_rust": "sha256:e38d7efaff3ce40d5439dddfef0526c8d616ceaae1ca8d256d6a80bb864ca004",
+  "gen_hash_verilog": "sha256:f6513df5b7ceb76848b2057db03d74072864545a96c0b82d9472613e1493720d",
+  "gen_hash_zig": "sha256:650ad6d026145954127f2b23f03a38d54694984e6c1c191372c5ae7e0f1dcfc6",
+  "module": "enrichment::youtube_transcript",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:47Z",
+  "spec_hash": "sha256:40135abe16b0c52525aea008d3168e85920797f3d2a16df2e4d2d16ccb8e94a0",
+  "spec_path": "specs/enrichment/youtube_transcript.t27"
+}

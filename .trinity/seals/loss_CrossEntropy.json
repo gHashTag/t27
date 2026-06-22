@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:c50a96a7d095d12b9eb3b86b56b9707b7084b8b3ad02e4975abc72c9b6a56877",
+  "gen_hash_rust": "sha256:45bf4f99e6eff1961fd4457358fd032942241e7a7d8c337d74a1af0df958a548",
+  "gen_hash_verilog": "sha256:bc05bd814cd2831ba6b4637eeec1f2a29430f791aa304861cd45b99017904707",
+  "gen_hash_zig": "sha256:09d7be9ff94e3c03c07f69d83947a57b2857469410a2e9bfa87ebaa16dfce675",
+  "module": "CrossEntropy",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:60f5f9fd2a85ea4dbfd20c2e42356184ec9e8d78ed586cafc3ec3fecf801ec44",
+  "spec_path": "specs/ml/loss/cross_entropy_loss.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1021226d3b27b1b0a35601fbac68d86f70889ba840284ff6977d4781d84637fa",
+  "gen_hash_rust": "sha256:6335b730862a2e4ee85a76617598fb3f85badcd21685a4327ac18fdef5320442",
+  "gen_hash_verilog": "sha256:9cd99bb35aa502a956c9c66e1c5b9fbb77b5b119655126f629ebf9241a28bde9",
+  "gen_hash_zig": "sha256:b58c2512da3c4276dfd1680c6b86efd4565b996d75c5d2ecdd45c8f2d325592c",
+  "module": "DarkMatter",
+  "ring": 12,
+  "sealed_at": "2026-06-18T14:19:45Z",
+  "spec_hash": "sha256:120b98a573bb4e6c0c311baced72db900606f3248cc70060f93e23d00be06ea6",
+  "spec_path": "specs/sacred/dark_matter.t27"
+}

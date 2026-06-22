@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:266c4b1eb62a71ed0836021f88ebdbcdf147132f5538b1d41aa84f920d37410a",
+  "gen_hash_rust": "sha256:78e15308708fc63822c0e00d996dc8d6c2a863e2eed2a301bd6b4a90bce4521b",
+  "gen_hash_verilog": "sha256:bf3a2b974b59dab8219afab9c0a43c9f6aac6f60094e216d3bf79ef837b9cc40",
+  "gen_hash_zig": "sha256:e0c541e6ef03fedbee0903fe677a57494a60ec4d05db6e10c366c9c25fdc02c4",
+  "module": "formula_registry",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:47Z",
+  "spec_hash": "sha256:c6c888eead59d10c6030023702fa4faf2457e75a595c1dafe65a00f70626f17c",
+  "spec_path": "specs/physics/formula_registry.t27"
+}

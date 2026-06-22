@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:404d6dfc3c0ca688e9fd30a629a0115355e9b8708ac21f34f7b3fdf97ef3c446",
+  "gen_hash_rust": "sha256:0393111366991cc603005a23bef523c9f929754c0600ca8cab67a7a4755e29b5",
+  "gen_hash_verilog": "sha256:56b25fd13c4d3dd5a0ed0f9113ef7efcb06f18f44da5a57df1ff80705219b153",
+  "gen_hash_zig": "sha256:1ac733f767153556064fc004c1a2385bd58488bc94cc643dd7d28ffb3316e682",
+  "module": "verilog_codegen",
+  "ring": 12,
+  "sealed_at": "2026-06-17T01:12:38Z",
+  "spec_hash": "sha256:4c2adfd3a8ba133e1f23dcb19b4553f5845a919bf7915555dbe27655b1598d8c",
+  "spec_path": "compiler/codegen/verilog/codegen.t27"
+}

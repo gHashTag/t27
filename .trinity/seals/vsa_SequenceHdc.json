@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:ed28b05ee17806f8b19eef79e642ce093d11e53e68fb20d2ae97ead6bb48be36",
-  "gen_hash_rust": "sha256:a015b7bc7fb045c51c55d0fc72e4b6ba8a02fc9462a68e980f39f7d35000caee",
-  "gen_hash_verilog": "sha256:fa3e5622db586f94b7d24742340f71c27cb13baf88f272bb925cd559eead79ba",
-  "gen_hash_zig": "sha256:3ba9798458a4619c32b427526bede88d02efa2efcc12555e2d77bdb216c27cfb",
+  "gen_hash_c": "sha256:f5efa3dc3ba4bfd377eb64486b32dce7a8c0c61b7d039ab3ac1aacf34150c173",
+  "gen_hash_rust": "sha256:6f5e706c41fc727f3a09104b8a308e3a7e7452055c1f8513e8fdc889a8e3fa68",
+  "gen_hash_verilog": "sha256:324e9f108f8b94c80904e36998545031404e8962dc7527ae914f229a7a9cb66d",
+  "gen_hash_zig": "sha256:331fcfc8616b7ca83d0f778809aae851dc947c915bcd4a791c079ff5de93669f",
   "module": "SequenceHdc",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:a8c995c80a03ce5ce33026ece6e71cc0b1a04c00fe99f2118d3a6b251787f8bb",
+  "sealed_at": "2026-06-22T23:49:48Z",
+  "spec_hash": "sha256:00ae02f2d888ab8a6c53c22c26f558c5eb0f6f1a45954a46d391495b6bd4008f",
   "spec_path": "specs/vsa/sequence_hdc.t27"
 }

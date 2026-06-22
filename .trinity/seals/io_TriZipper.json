@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:81d1708933c4faf929aa9e045cfe7f36a6d0ce583144a6d60e1a2a33d7a974f3",
+  "gen_hash_rust": "sha256:02e9c63e54bb68d79a34a9f398944200741332e21889cb96a7118a8e75d97622",
+  "gen_hash_verilog": "sha256:6f0e90223db8a3a8cd7b7b8ac76ef7f731335e1fe4a19bb92346512f7042028c",
+  "gen_hash_zig": "sha256:d5e80d65e44154c54644fbc10f1e528984748d5aa8a3299610acab01023aa294",
+  "module": "TriZipper",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:767f91d7c7ff22bcf8464595a5e3a9d32d24af8157cb882dfa4958e61aec6e0f",
+  "spec_path": "specs/tri/io/zip.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:fb7d20ad32a147ae724029e1ea4c8b4df90578ed0b8513410c11098d89d47216",
+  "gen_hash_rust": "sha256:4ba8c423a117a0cdba7f834fbc41b236a1040924e8a31c93e570cf31e4b871c9",
+  "gen_hash_verilog": "sha256:e9697c33fea8e60fde7e949e7725c9ce283588a1b43b5224a9d2b5ce8ef1527b",
+  "gen_hash_zig": "sha256:5edb6272e3077a3d5da6f6ba6f5ae029583273652986c6766fa2b54f2ccf9125",
+  "module": "Flatten",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:05a1e633c80c5eb5e8f7f6f24a57c741492f5cc920591b8e5db7b48d51bcf0ed",
+  "spec_path": "specs/ml/layers/flatten_layer.t27"
+}

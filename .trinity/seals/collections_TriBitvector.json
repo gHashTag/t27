@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:eb369bd7c131b7730caf086b13a0384bd8b9d490162e1348dfa945c7a2a57292",
+  "gen_hash_rust": "sha256:6335b730862a2e4ee85a76617598fb3f85badcd21685a4327ac18fdef5320442",
+  "gen_hash_verilog": "sha256:05e436989ff6bbdceab2b0e5387db4fcb8f2e7bda5cc059b955951493ed5d38b",
+  "gen_hash_zig": "sha256:33dec755fd1779ed6fd44e53eb6b03174ff125e8a9b576dc8d150d17daa7db57",
+  "module": "TriBitvector",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:435342ddd91e9a68767defaeab6d9b67279c50dd763056187d89210081b4026e",
+  "spec_path": "specs/tri/collections/bitvector.t27"
+}

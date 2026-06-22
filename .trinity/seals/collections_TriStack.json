@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:ebae71537198b97f2526783c18fa1eea19e5e0509c3d5a899364c4c63429a7c8",
+  "gen_hash_rust": "sha256:88c62cef8635976e2ac296051289b2576ea234d87c0b5b97b6080514eec228a6",
+  "gen_hash_verilog": "sha256:3ee3fcc53d636f4b9991a2acb16aa10a630d4a80fd06a395bbd81fd005d48acf",
+  "gen_hash_zig": "sha256:720f13e8f0427222e79e70a6a41473a33da465606998c220836cc18db2dc5f31",
+  "module": "TriStack",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:49:49Z",
+  "spec_hash": "sha256:d9c36841edfb5e75ee74a6e948fccf724656ad0d6bebc169bddd6dc3fbdc7f65",
+  "spec_path": "specs/tri/collections/stack.t27"
+}

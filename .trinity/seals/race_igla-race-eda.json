@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:9982472fccc0829d37ee1f634d804dc1f314a41a019ba6b222dc10915cb47d52",
+  "gen_hash_rust": "sha256:2ee18a4508693ae88ea177b0df06cdc75c1ceb4ce80111ec92cddddc786c402e",
+  "gen_hash_verilog": "sha256:584c8d5e481e5e6c8f6a4030f1b61c458759aea30e7e8f40a7a42a71413da0f4",
+  "gen_hash_zig": "sha256:d82ee890e912638e8a564b79752d604baa7cc6b2a65a3482657ff3df4aae17fd",
+  "module": "igla-race-eda",
+  "ring": 12,
+  "sealed_at": "2026-06-22T23:52:57Z",
+  "spec_hash": "sha256:735c96821d150f3103769235de98ae9a8bb7cae1ee94017a0c1731cd42e566d8",
+  "spec_path": "specs/igla/race/eda.t27"
+}
