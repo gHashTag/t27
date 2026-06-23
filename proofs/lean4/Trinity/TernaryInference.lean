@@ -434,3 +434,21 @@ theorem ternaryMacZeroPsumPlusWeightEqualsActivationGeneric (a : Int) :
 theorem ternaryMacZeroPsumMinusWeightEqualsNegationGeneric (a : Int) :
     ternaryMac 0 a (TernaryWeight.mk .minus) = -a := by
   simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+/-- Generic theorem: for any activation a, a zero-weight ternary MAC with zero partial
+    sum always returns zero. This is the degenerate case of mac(0, a, .zero) where both
+    the accumulator and the weight are neutral, proving the algebraic consistency of
+    the ternary MAC zero-path.
+    Responds to TernaryCore zero-skip and TOM ROM-SRAM zero-weight gating insights. -/
+theorem ternaryMacZeroPsumZeroWeightEqualsZeroGeneric (a : Int) :
+    ternaryMac 0 a (TernaryWeight.mk .zero) = 0 := by
+  simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+/-- Concrete theorem: identity weights preserve a large-magnitude concrete activation
+    vector [100, -50, 25, -75]. Extends the identity proof to values outside typical
+    small test ranges, verifying 2-s complement signed accumulation correctness.
+    Responds to Hesper GPU signed-arithmetic verification and ternfpga BitNet datapath. -/
+theorem ternaryInferenceIdentityWeightsConcreteLarge :
+    let input := InferenceInput.mk #[100, -50, 25, -75]
+    let identityWeights := #[TernaryWeight.mk .plus, TernaryWeight.mk .zero, TernaryWeight.mk .zero, TernaryWeight.mk .plus]
+    let model := loadTernaryWeights identityWeights
+    (ternaryInference2x2 input model).outputs = #[100, -50, 25, -75] := by
+  simp [ternaryInference2x2, ternaryGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, identityWeights, loadTernaryWeights] <;> try native_decide

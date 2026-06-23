@@ -1469,3 +1469,18 @@ test eda_route_wire_length_large_positive_w307
 
 invariant eda_route_wire_length_large_positive_w307_inv:
     route_wire_length(Point { x: 0, y: 0 }, Point { x: 100, y: 100 }) == 200
+
+test eda_route_wire_length_negative_diagonal_w308
+    given p1 = Point { x: -5, y: -5 }
+    given p2 = Point { x: 0, y: 0 }
+    when len = route_wire_length(p1, p2)
+    then len == 10
+
+test eda_route_wire_length_horizontal_w308
+    given p1 = Point { x: 0, y: 5 }
+    given p2 = Point { x: 10, y: 5 }
+    when len = route_wire_length(p1, p2)
+    then len == 10
+
+invariant eda_route_wire_length_horizontal_w308_inv:
+    route_wire_length(Point { x: 0, y: 5 }, Point { x: 10, y: 5 }) == 10

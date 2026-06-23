@@ -1367,3 +1367,18 @@ test ternary_gemm_all_zero_weights_zero_w307
 
 invariant ternary_gemm_alternating_plus_minus_zero_w307_inv:
     ternary_gemm_2x2([1, 2, 3, 4], [TernaryWeight::plus(), TernaryWeight::minus(), TernaryWeight::plus(), TernaryWeight::minus()]) == [1, -2, 3, -4]
+
+test ternary_gemm_identity_passthrough_w308
+    given activations = [5, 6, 7, 8]
+    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
+    when result = ternary_gemm_2x2(activations, weights)
+    then result == [5, 6, 7, 8]
+
+test ternary_gemm_minus_weights_negate_w308
+    given activations = [1, 2, 3, 4]
+    given weights = [TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus()]
+    when result = ternary_gemm_2x2(activations, weights)
+    then result == [-1, -2, -3, -4]
+
+invariant ternary_gemm_identity_passthrough_w308_inv:
+    ternary_gemm_2x2([5, 6, 7, 8], [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]) == [5, 6, 7, 8]

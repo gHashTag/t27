@@ -1167,3 +1167,20 @@ test training_sgd_fractional_lr_w307
 
 invariant training_sgd_fractional_lr_w307_inv:
     sgd_update(8.0, 2.0, 0.25) == 7.5
+
+test training_sgd_small_grad_small_lr_w308
+    given w = 10.0
+    given grad = 0.1
+    given lr = 0.1
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == 9.99
+
+test training_sgd_negative_weight_positive_grad_w308
+    given w = -5.0
+    given grad = 1.0
+    given lr = 0.5
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == -5.5
+
+invariant training_sgd_small_grad_small_lr_w308_inv:
+    sgd_update(10.0, 0.1, 0.1) == 9.99

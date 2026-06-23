@@ -1199,3 +1199,18 @@ test prm_select_top_reverse_descending_w307
 
 invariant prm_select_top_reverse_descending_w307_inv:
     select_top([0.9f32, 0.7f32, 0.5f32, 0.3f32], 4) == [0, 1, 2, 3]
+
+test prm_select_top_three_equal_w308
+    given scores = [0.5f32, 0.5f32, 0.5f32]
+    given k = 3
+    when indices = select_top(scores, k)
+    then indices == [0, 1, 2]
+
+test prm_select_top_descending_w308
+    given scores = [0.9f32, 0.7f32, 0.5f32, 0.3f32, 0.1f32]
+    given k = 5
+    when indices = select_top(scores, k)
+    then indices == [0, 1, 2, 3, 4]
+
+invariant prm_select_top_descending_w308_inv:
+    select_top([0.9f32, 0.7f32, 0.5f32, 0.3f32, 0.1f32], 5) == [0, 1, 2, 3, 4]

@@ -1955,3 +1955,18 @@ test arch_generate_next_token_tie_break_first_w307
 
 invariant arch_add_slices_three_elements_w307_inv:
     add_slices([1, 2, 3], [4, 5, 6], 0) == [5, 7, 9]
+
+test arch_add_slices_empty_left_w308
+    given a = []
+    given b = [1, 2, 3]
+    when c = add_slices(a, b, 0)
+    then c == [1, 2, 3]
+
+test arch_add_slices_empty_right_w308
+    given a = [1, 2, 3]
+    given b = []
+    when c = add_slices(a, b, 0)
+    then c == [1, 2, 3]
+
+invariant arch_add_slices_empty_left_w308_inv:
+    add_slices([], [1, 2, 3], 0) == [1, 2, 3]

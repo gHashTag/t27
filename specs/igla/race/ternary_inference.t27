@@ -770,3 +770,18 @@ test ternary_inference_all_minus_weights_negate_w307
 
 invariant ternary_inference_all_plus_weights_double_w307_inv:
     ternary_inference_2x2(InferenceInput { activations: [3, 3, 3, 3] }, [TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus()]).outputs == [6, 6, 6, 6]
+
+test ternary_inference_identity_passthrough_w308
+    given input = InferenceInput { activations: [5, 6, 7, 8] }
+    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
+    when result = ternary_inference_2x2(input, weights)
+    then result.outputs == [5, 6, 7, 8]
+
+test ternary_inference_zero_weights_all_zero_w308
+    given input = InferenceInput { activations: [99, -88, 77, -66] }
+    given weights = [TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero()]
+    when result = ternary_inference_2x2(input, weights)
+    then result.outputs == [0, 0, 0, 0]
+
+invariant ternary_inference_identity_passthrough_w308_inv:
+    ternary_inference_2x2(InferenceInput { activations: [5, 6, 7, 8] }, [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]).outputs == [5, 6, 7, 8]

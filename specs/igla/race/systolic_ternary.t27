@@ -1584,3 +1584,20 @@ test systolic_ternary_pe_large_activation_minus_weight_negate_w307
 
 invariant systolic_ternary_pe_large_activation_plus_weight_add_w307_inv:
     systolic_ternary_pe(100, TernaryWeight { code: 1 }, 0).1 == 100
+
+test systolic_ternary_pe_large_activation_zero_weight_nop_w308
+    given acc = 100
+    given a = 0
+    given w = TernaryWeight { code: 0 }
+    when (_, psum_out) = systolic_ternary_pe(a, w, acc)
+    then psum_out == 100
+
+test systolic_ternary_pe_large_activation_plus_weight_add_w308
+    given acc = 0
+    given a = 100
+    given w = TernaryWeight { code: 1 }
+    when (_, psum_out) = systolic_ternary_pe(a, w, acc)
+    then psum_out == 100
+
+invariant systolic_ternary_pe_large_activation_plus_weight_add_w308_inv:
+    systolic_ternary_pe(100, TernaryWeight { code: 1 }, 0).1 == 100

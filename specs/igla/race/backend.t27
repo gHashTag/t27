@@ -1578,3 +1578,16 @@ test backend_log2_const_eighth_neg_three_w307
 
 invariant backend_log2_const_sixtyfour_six_w307_inv:
     log2_const(64.0) == 6.0
+
+test backend_log2_const_onetwentyeight_seven_w308
+    given x = 128.0
+    when y = log2_const(x)
+    then y == 7.0
+
+test backend_log2_const_sixteenth_neg_four_w308
+    given x = 0.0625
+    when y = log2_const(x)
+    then y == -4.0
+
+invariant backend_log2_const_onetwentyeight_seven_w308_inv:
+    log2_const(128.0) == 7.0

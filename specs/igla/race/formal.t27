@@ -1394,3 +1394,16 @@ test formal_smt_check_not_false_sat_w307
 
 invariant formal_smt_check_not_true_unsat_w307_inv:
     smt_check(!true) == "unsat"
+
+test formal_smt_check_xor_true_true_unsat_w308
+    given expr = true ^ true
+    when result = smt_check(expr)
+    then result == "unsat"
+
+test formal_smt_check_xor_true_false_sat_w308
+    given expr = true ^ false
+    when result = smt_check(expr)
+    then result == "sat"
+
+invariant formal_smt_check_xor_true_true_unsat_w308_inv:
+    smt_check(true ^ true) == "unsat"

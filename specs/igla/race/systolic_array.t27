@@ -1367,3 +1367,18 @@ test systolic_array_booth_mul_i16_large_negative_w307
 
 invariant systolic_array_booth_mul_i16_zero_left_w307_inv:
     booth_mul_i16(0, 42) == 0
+
+test systolic_array_booth_mul_i16_zero_both_w308
+    given a = 0
+    given b = 0
+    when p = booth_mul_i16(a, b)
+    then p == 0
+
+test systolic_array_booth_mul_i16_small_negative_w308
+    given a = -3
+    given b = 4
+    when p = booth_mul_i16(a, b)
+    then p == -12
+
+invariant systolic_array_booth_mul_i16_zero_both_w308_inv:
+    booth_mul_i16(0, 0) == 0

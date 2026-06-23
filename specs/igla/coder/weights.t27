@@ -1104,3 +1104,16 @@ test weights_quantize_symmetric_minus_one_w307
 
 invariant weights_quantize_symmetric_one_w307_inv:
     quantize_symmetric(1.0) == 127
+
+test weights_quantize_symmetric_half_w308
+    given x = 0.5
+    when q = quantize_symmetric(x)
+    then q == 63
+
+test weights_quantize_symmetric_minus_half_w308
+    given x = -0.5
+    when q = quantize_symmetric(x)
+    then q == -63
+
+invariant weights_quantize_symmetric_half_w308_inv:
+    quantize_symmetric(0.5) == 63

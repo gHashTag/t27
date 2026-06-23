@@ -1284,3 +1284,16 @@ test cordic_top_batch_pi_neg_one_w307
 
 invariant cordic_top_batch_two_cosines_w307_inv:
     cordic_top_batch([[0.0], [1.570796]]).len() == 2
+
+test cordic_top_batch_three_angles_w308
+    given batch = [[0.0], [1.570796], [3.141592]]
+    when result = cordic_top_batch(batch)
+    then result.len() == 3
+
+test cordic_top_batch_empty_batch_w308
+    given batch = []
+    when result = cordic_top_batch(batch)
+    then result.len() == 0
+
+invariant cordic_top_batch_empty_batch_w308_inv:
+    cordic_top_batch([]).len() == 0

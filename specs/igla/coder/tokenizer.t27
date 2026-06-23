@@ -1009,3 +1009,17 @@ test tokenizer_encode_long_text_w307
 
 invariant tokenizer_encode_decode_unicode_w307_inv:
     decode(encode("αβγ")) == "αβγ"
+
+test tokenizer_encode_single_token_roundtrip_w308
+    given text = "A"
+    when tokens = encode(text)
+    when text2 = decode(tokens)
+    then text2 == "A"
+
+test tokenizer_decode_multiple_tokens_w308
+    given tokens = [65, 66, 67]
+    when text = decode(tokens)
+    then text == "ABC"
+
+invariant tokenizer_decode_multiple_tokens_w308_inv:
+    decode([65, 66, 67]) == "ABC"

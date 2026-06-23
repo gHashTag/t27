@@ -843,3 +843,18 @@ test bench_proxy_throughput_large_ops_w307
 
 invariant bench_proxy_throughput_large_ops_w307_inv:
     throughput(1000000, 1000) == 1000000.0
+
+test bench_proxy_throughput_one_op_w308
+    given ops = 1
+    given ns = 1000
+    when t = throughput(ops, ns)
+    then t == 1.0
+
+test bench_proxy_throughput_two_ops_w308
+    given ops = 2
+    given ns = 1000
+    when t = throughput(ops, ns)
+    then t == 2.0
+
+invariant bench_proxy_throughput_one_op_w308_inv:
+    throughput(1, 1000) == 1.0

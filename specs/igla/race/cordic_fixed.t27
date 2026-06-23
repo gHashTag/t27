@@ -1259,3 +1259,16 @@ test cordic_fixed_sin_quarter_pi_sqrt2_w307
 
 invariant cordic_fixed_cos_quarter_pi_sqrt2_w307_inv:
     cordic_fixed_cos(0.785398) >= 0.6
+
+test cordic_fixed_cos_three_pi_half_zero_w308
+    given x = 4.71238898
+    when result = cordic_fixed_cos(x)
+    then result >= -0.1 && result <= 0.1
+
+test cordic_fixed_sin_three_pi_half_neg_one_w308
+    given x = 4.71238898
+    when result = cordic_fixed_sin(x)
+    then result >= -1.1 && result <= -0.9
+
+invariant cordic_fixed_cos_three_pi_half_zero_w308_inv:
+    cordic_fixed_cos(4.71238898) >= -0.1

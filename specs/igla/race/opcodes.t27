@@ -1100,3 +1100,16 @@ test opcodes_get_cycles_or_one_w307
 
 invariant opcodes_get_cycles_and_one_w307_inv:
     get_cycles("and") == 1
+
+test opcodes_get_cycles_xor_one_w308
+    given opcode = "xor"
+    when cycles = get_cycles(opcode)
+    then cycles == 1
+
+test opcodes_get_cycles_not_one_w308
+    given opcode = "not"
+    when cycles = get_cycles(opcode)
+    then cycles == 1
+
+invariant opcodes_get_cycles_xor_one_w308_inv:
+    get_cycles("xor") == 1

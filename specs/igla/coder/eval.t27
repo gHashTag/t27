@@ -3257,3 +3257,18 @@ test eval_accuracy_one_wrong_w307
 
 invariant eval_accuracy_one_correct_w307_inv:
     accuracy([7], [7]) == 1.0
+
+test eval_accuracy_two_half_correct_w308
+    given preds = [1, 0]
+    given refs = [1, 2]
+    when acc = accuracy(preds, refs)
+    then acc == 0.5
+
+test eval_accuracy_four_all_correct_w308
+    given preds = [1, 2, 3, 4]
+    given refs = [1, 2, 3, 4]
+    when acc = accuracy(preds, refs)
+    then acc == 1.0
+
+invariant eval_accuracy_four_all_correct_w308_inv:
+    accuracy([1, 2, 3, 4], [1, 2, 3, 4]) == 1.0

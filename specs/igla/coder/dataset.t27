@@ -2034,3 +2034,18 @@ test dataset_batch_size_five_two_batches_w307
 
 invariant dataset_batch_size_five_two_batches_w307_inv:
     batch([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 5).len() == 2
+
+test dataset_shuffle_three_elements_w308
+    given data = [1, 2, 3]
+    given seed = 42
+    when result = shuffle(data, seed)
+    then result.len() == 3
+
+test dataset_batch_size_ten_one_batch_w308
+    given data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    given size = 10
+    when batches = batch(data, size)
+    then batches.len() == 1
+
+invariant dataset_batch_size_ten_one_batch_w308_inv:
+    batch([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 10).len() == 1
