@@ -313,3 +313,17 @@ theorem ternaryInferenceGemm2x2EqualsReferenceMixed :
 theorem ternaryMacZeroWeightIdentityGeneric (a psum : Int) :
     ternaryMac psum a (TernaryWeight.mk .zero) = psum := by
   simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+/-- Generic theorem: for any activation a and partial sum psum, a plus-weight ternary MAC
+    adds the activation to the accumulator. This is the second ∀ quantifier theorem,
+    completing the LUT DSE proof trinity along with W301's zero-weight theorem.
+    Responds to Sparkle HDL BitNet b1.58 formal depth milestone. -/
+theorem ternaryMacPlusWeightIdentityGeneric (a psum : Int) :
+    ternaryMac psum a (TernaryWeight.mk .plus) = psum + a := by
+  simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+/-- Generic theorem: for any activation a and partial sum psum, a minus-weight ternary MAC
+    subtracts the activation from the accumulator. This completes the generic LUT DSE proof
+    trinity (zero=wire, plus=add, minus=sub) started in W301-W302.
+    Responds to Sparkle HDL BitNet b1.58 formal depth milestone. -/
+theorem ternaryMacMinusWeightIdentityGeneric (a psum : Int) :
+    ternaryMac psum a (TernaryWeight.mk .minus) = psum - a := by
+  simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try { omega }
