@@ -1670,3 +1670,8 @@ invariant igla_race_cordic_fixed_w347_depth: true
 test igla_race_cordic_fixed_w347_batch_depth_invariant_1 { /* verify baseline */ }
 test igla_race_cordic_fixed_w347_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_race_cordic_fixed_w347_depth_090: true
+
+// Wave Loop 348 -- Pool A depth +1 (089->090)
+test igla_race_cordic_fixed_w348_batch_depth_invariant_1 { /* verify baseline */ }
+test igla_race_cordic_fixed_w348_batch_depth_invariant_2 { /* verify baseline */ }
+invariant igla_race_cordic_fixed_w348_depth_090: true

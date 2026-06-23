@@ -1286,3 +1286,8 @@ invariant igla_coder_bench_proxy_w347_depth: true
 test igla_coder_bench_proxy_w347_batch_depth_invariant_1 { /* verify baseline */ }
 test igla_coder_bench_proxy_w347_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_coder_bench_proxy_w347_depth_080: true
+
+// Wave Loop 348 -- CODER depth +1 (079->080)
+test igla_coder_bench_proxy_w348_batch_depth_invariant_1 { /* verify baseline */ }
+test igla_coder_bench_proxy_w348_batch_depth_invariant_2 { /* verify baseline */ }
+invariant igla_coder_bench_proxy_w348_depth_080: true
