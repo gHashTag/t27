@@ -764,3 +764,7 @@
 - **Commit:** feat(w340): W340 IGLA CODER+RACE -- Pool A 81→82, CODER 71→72, Pool B 98→99, Integration 81→82, Lean 4 100→103 generic ∀
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
 
+## 2026-06-23T09:12:37Z — trinity-rust-rings
+- **Commit:** docs(w340): update competitive intel from agent findings
+- **Files:** docs/reports/WAVE_LOOP_340_GITHUB_ISSUES.md
+
