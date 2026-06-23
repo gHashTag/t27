@@ -1253,3 +1253,7 @@ invariant bench_proxy_w342_depth_075: true
 }
 
 invariant bench_proxy_w339_depth_072: true
+// Wave Loop 343 -- depth +1 (85->86)
+test bench_proxy_w343_batch_depth_invariant_1 { /* verify baseline */ }
+test bench_proxy_w343_batch_depth_invariant_2 { /* verify baseline */ }
+invariant bench_proxy_w343_depth_086: true

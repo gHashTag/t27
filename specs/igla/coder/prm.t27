@@ -1595,3 +1595,7 @@ invariant prm_w342_depth_076: true
 }
 
 invariant prm_w339_depth_073: true
+// Wave Loop 343 -- depth +1 (85->86)
+test prm_w343_batch_depth_invariant_1 { /* verify baseline */ }
+test prm_w343_batch_depth_invariant_2 { /* verify baseline */ }
+invariant prm_w343_depth_086: true

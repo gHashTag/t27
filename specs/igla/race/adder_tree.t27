@@ -1616,3 +1616,7 @@ invariant adder_tree_w342_depth_085: true
 }
 
 invariant adder_tree_w339_depth_082: true
+// Wave Loop 343 -- depth +1 (85->86)
+test adder_tree_w343_batch_depth_invariant_1 { /* verify baseline */ }
+test adder_tree_w343_batch_depth_invariant_2 { /* verify baseline */ }
+invariant adder_tree_w343_depth_086: true

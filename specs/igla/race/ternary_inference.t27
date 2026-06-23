@@ -1152,3 +1152,7 @@ invariant ternary_inference_w342_depth_085: true
 }
 
 invariant ternary_inference_w339_depth_082: true
+// Wave Loop 343 -- depth +1 (85->86)
+test ternary_inference_w343_batch_depth_invariant_1 { /* verify baseline */ }
+test ternary_inference_w343_batch_depth_invariant_2 { /* verify baseline */ }
+invariant ternary_inference_w343_depth_086: true

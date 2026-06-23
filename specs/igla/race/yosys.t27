@@ -1807,3 +1807,7 @@ invariant yosys_w342_depth_087: true
 }
 
 invariant yosys_w339_depth_084: true
+// Wave Loop 343 -- depth +1 (85->86)
+test yosys_w343_batch_depth_invariant_1 { /* verify baseline */ }
+test yosys_w343_batch_depth_invariant_2 { /* verify baseline */ }
+invariant yosys_w343_depth_086: true

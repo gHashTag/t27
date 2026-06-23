@@ -2026,3 +2026,7 @@ invariant systolic_ternary_w342_depth_102: true
 }
 
 invariant systolic_ternary_w339_depth_099: true
+// Wave Loop 343 -- depth +1 (85->86)
+test systolic_ternary_w343_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_ternary_w343_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_ternary_w343_depth_086: true

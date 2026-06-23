@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:b5940ca0e21b13732cb4c0c6b89d06f9a6079d19eaf2a962c5fdeb4c17e61297",
-  "gen_hash_rust": "sha256:c5d347a13e3f22ee7a34176871ac074e452ee430612393f4c68164db34a4c659",
-  "gen_hash_verilog": "sha256:bfcfc1e09f6456d84e8227682429660a84c1afee0a73ef1b436802bf5b38ffce",
-  "gen_hash_zig": "sha256:eb806d13bf541dfd664324f3c27bf15cd0592507db1fb84db3c7e53466f498d2",
+  "gen_hash_c": "sha256:4bd0a013974b6a22aa0d23af55834557b0710701bcd25eee06a49e303437f8e7",
+  "gen_hash_rust": "sha256:3f0012eca2eea5c79e77e05d0679d8ad691a113d4460aa0e29c4ab83e23ae902",
+  "gen_hash_verilog": "sha256:d28d20d2a56788d85c590c8b75ce4620a918b8bb540f902eb4b411861ee8e103",
+  "gen_hash_zig": "sha256:09d752d91384b2a81daf17d399d06ce5be4cd4d3bde37bd52673747b195f7f24",
   "module": "FacultyBoard",
   "ring": 12,
-  "sealed_at": "2026-06-22T10:06:33Z",
-  "spec_hash": "sha256:679e730d87f3369427d342db8e18d3cd69f96eb5f3165ff51f85ed559cb8236d",
+  "sealed_at": "2026-06-23T09:45:08Z",
+  "spec_hash": "sha256:9e12c1f5268143af7f4026346e22ae9fcd63218aefbebbfe503316e9e295c32e",
   "spec_path": "specs/tri/agent/faculty_board.t27"
 }
