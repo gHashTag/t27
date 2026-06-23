@@ -1655,3 +1655,28 @@ invariant yosys_is_prefix_partial_true_w318_inv:
 
 
 
+test yosys_is_prefix_partial_true_w319
+    given a = "ab"
+    given b = "abc"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_strings_equal_empty_empty_w319
+    given a = ""
+    given b = ""
+    when ok = strings_equal(a, b)
+    then ok == true
+
+invariant yosys_is_prefix_partial_true_w319_inv:
+    is_prefix("ab", "abc") == true
+
+
+
+
+
+
+
+
+
+
+

@@ -1650,3 +1650,26 @@ invariant rtl_bits_to_u64_five_ones_thirtyone_w318_inv:
 
 
 
+test rtl_bits_to_u64_five_ones_thirtyone_w319
+    given bits = [1, 1, 1, 1, 1]
+    when val = bits_to_u64(bits)
+    then val == 31
+
+test rtl_bits_to_u64_six_ones_sixtythree_w319
+    given bits = [1, 1, 1, 1, 1, 1]
+    when val = bits_to_u64(bits)
+    then val == 63
+
+invariant rtl_bits_to_u64_five_ones_thirtyone_w319_inv:
+    bits_to_u64([1, 1, 1, 1, 1]) == 31
+
+
+
+
+
+
+
+
+
+
+

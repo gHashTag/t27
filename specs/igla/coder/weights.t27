@@ -1334,3 +1334,26 @@ invariant weights_load_all_zero_count_w318_inv:
 
 
 
+test weights_load_all_zero_count_w319
+    given n = 4
+    when w = load_all_zero(n)
+    then count_zero(w) == 4
+
+test weights_count_minus_three_minus_w319
+    given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
+    when c = count_minus(w)
+    then c == 3
+
+invariant weights_load_all_zero_count_w319_inv:
+    count_zero(load_all_zero(4)) == 4
+
+
+
+
+
+
+
+
+
+
+

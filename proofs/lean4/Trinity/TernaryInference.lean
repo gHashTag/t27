@@ -684,3 +684,47 @@ theorem ternaryMacPlusMinusMixedGeneric (a b : Int) :
     ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .minus) = a - b := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: minus-weight followed by plus-weight MAC computes reversed difference.
+    For any activations a, b: mac(mac(0, a, .minus), b, .plus) = b - a.
+    Completes the mixed-sign 2-variable lattice by proving the reverse alternation
+    (minus then plus) yields the additive inverse of the plus-then-minus case.
+    Together with PlusMinusMixedGeneric, this covers all sign-flip compositions
+    of two independent activations in ternary MAC algebra.
+    Responds to TENET bidirectional sign-select LUTs and TernaryCore reverse paths. -/
+theorem ternaryMacMinusPlusMixedGeneric (a b : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .plus) = b - a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating three independent activations with plus-weights is triple addition.
+    For any activations a, b, c: mac³(0, [a,b,c], .plus) = a + b + c.
+    First generic theorem with three independent activation variables,
+    proving that ternary MAC correctly composes three distinct contributions
+    into a single accumulation. Foundation for 3-input systolic-array
+    row-reduction and triple-dot-product proofs.
+    Responds to TENET 3-input LUT scheduling and TernaryCore 3-operand add paths. -/
+theorem ternaryMacAccumulateThreePlusGeneric (a b c : Int) :
+    ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus) = a + b + c := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: associativity base case for ternary MAC with plus-weights.
+    For any activations a, b: mac(mac(0, a, .plus), b, .plus) = mac(0, a+b, .plus).
+    Proves that chained plus-weight MAC is equivalent to a single MAC with summed activation.
+    Foundation for systolic-array depth reduction and accumulator-merging proofs.
+    Responds to TENET multi-stage LUT folding and TOM ROM-SRAM layer fusion insights. -/
+theorem ternaryMacAssociativityBaseGeneric (a b : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus) = ternaryMac 0 (a + b) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: commutativity of ternary MAC accumulation with plus-weights.
+    For any activations a, b: mac(mac(0, a, .plus), b, .plus) = mac(mac(0, b, .plus), a, .plus).
+    Proves that the order of independent contributions does not affect the result.
+    Foundation for out-of-order systolic scheduling and parallel tiled-GEMM proofs.
+    Responds to TENET row-reorder LUT scheduling and ternfpga parallel PE dispatch. -/
+theorem ternaryMacCommutativityGeneric (a b : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus) = ternaryMac (ternaryMac 0 b (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
