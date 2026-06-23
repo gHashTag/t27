@@ -1909,4 +1909,13 @@ invariant backend_w334_depth_080: true
 test backend_w335_batch_depth_invariant_1 { /* verify baseline */ }
 test backend_w335_batch_depth_invariant_2 { /* verify baseline */ }
 invariant backend_w335_depth_081: true
+// Wave Loop 336 — Pool A depth +1 (81→82)
+test backend_w336_batch_depth_invariant_1 { /* verify baseline */ }
+test backend_w336_batch_depth_invariant_2 { /* verify baseline */ }
+invariant backend_w336_depth_082: true
 }
+
+// Wave Loop 336 -- Pool A depth +1 (78->79)
+test backend_w336_batch_depth_invariant_1 { /* verify baseline */ }
+test backend_w336_batch_depth_invariant_2 { /* verify baseline */ }
+invariant backend_w336_depth_079: true

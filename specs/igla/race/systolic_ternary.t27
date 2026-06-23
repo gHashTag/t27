@@ -1979,4 +1979,13 @@ invariant systolic_ternary_w334_depth_094: true
 test systolic_ternary_w335_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_ternary_w335_batch_depth_invariant_2 { /* verify baseline */ }
 invariant systolic_ternary_w335_depth_095: true
+// Wave Loop 336 — Pool B depth +1 (95→96)
+test systolic_ternary_w336_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_ternary_w336_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_ternary_w336_depth_096: true
 }
+
+// Wave Loop 336 -- Pool A depth +1 (78->79)
+test systolic_ternary_w336_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_ternary_w336_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_ternary_w336_depth_079: true

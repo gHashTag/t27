@@ -1105,4 +1105,13 @@ invariant ternary_inference_w334_depth_077: true
 test ternary_inference_w335_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_inference_w335_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_inference_w335_depth_078: true
+// Wave Loop 336 — Integration depth +1 (78→79)
+test ternary_inference_w336_batch_depth_invariant_1 { /* verify baseline */ }
+test ternary_inference_w336_batch_depth_invariant_2 { /* verify baseline */ }
+invariant ternary_inference_w336_depth_079: true
 }
+
+// Wave Loop 336 -- Pool A depth +1 (78->79)
+test ternary_inference_w336_batch_depth_invariant_1 { /* verify baseline */ }
+test ternary_inference_w336_batch_depth_invariant_2 { /* verify baseline */ }
+invariant ternary_inference_w336_depth_079: true

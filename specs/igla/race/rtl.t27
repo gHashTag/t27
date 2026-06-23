@@ -1751,4 +1751,13 @@ invariant rtl_w334_depth_078: true
 test rtl_w335_batch_depth_invariant_1 { /* verify baseline */ }
 test rtl_w335_batch_depth_invariant_2 { /* verify baseline */ }
 invariant rtl_w335_depth_079: true
+// Wave Loop 336 — Pool A depth +1 (79→80)
+test rtl_w336_batch_depth_invariant_1 { /* verify baseline */ }
+test rtl_w336_batch_depth_invariant_2 { /* verify baseline */ }
+invariant rtl_w336_depth_080: true
 }
+
+// Wave Loop 336 -- Pool A depth +1 (78->79)
+test rtl_w336_batch_depth_invariant_1 { /* verify baseline */ }
+test rtl_w336_batch_depth_invariant_2 { /* verify baseline */ }
+invariant rtl_w336_depth_079: true

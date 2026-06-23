@@ -2425,4 +2425,13 @@ invariant dataset_w334_depth_067: true
 test dataset_w335_batch_depth_invariant_1 { /* verify baseline */ }
 test dataset_w335_batch_depth_invariant_2 { /* verify baseline */ }
 invariant dataset_w335_depth_068: true
+// Wave Loop 336 — CODER depth +1 (68→69)
+test dataset_w336_batch_depth_invariant_1 { /* verify baseline */ }
+test dataset_w336_batch_depth_invariant_2 { /* verify baseline */ }
+invariant dataset_w336_depth_069: true
 }
+
+// Wave Loop 336 -- CODER depth +1 (68->69)
+test dataset_w336_batch_depth_invariant_1 { /* verify baseline */ }
+test dataset_w336_batch_depth_invariant_2 { /* verify baseline */ }
+invariant dataset_w336_depth_069: true

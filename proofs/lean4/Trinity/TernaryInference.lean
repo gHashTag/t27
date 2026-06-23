@@ -1363,3 +1363,86 @@ theorem ternaryMacAccumulateElevenPlusGeneric (a b c d e f g h i j k : Int) :
     ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus)) k (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j + k := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: quadruple psum associativity with plus-weights.
+    For any psum, activations a, b, c, d: mac⁴(psum, [a,b,c,d], .plus) = mac(psum, a+b+c+d, .plus).
+    Extends PsumAssociativityThreePlusGeneric (W331) to depth 4.
+    Proves that four consecutive plus-weight MAC stages with live accumulator fold into a single
+    MAC with summed activation. Foundation for arbitrary-depth plus-weight systolic folding
+    and 4-stage LUT accumulator fusion.
+    Responds to TENET multi-stage LUT folding and TernaryCore fused accumulation paths. -/
+
+theorem ternaryMacPsumAssociativityFourPlusGeneric (psum a b c d : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac psum a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus) =
+    ternaryMac psum (a + b + c + d) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: quadruple psum associativity with minus-weights.
+    For any psum, activations a, b, c, d: mac⁴(psum, [a,b,c,d], .minus) = mac(psum, a+b+c+d, .minus).
+    Extends PsumAssociativityThreeMinusGeneric (W334) to depth 4.
+    Proves that four consecutive minus-weight MAC stages with live accumulator fold into a single
+    MAC with summed activation (subtracted from psum). Foundation for arbitrary-depth minus-weight
+    systolic folding and 4-stage signed LUT accumulator fusion.
+    Responds to TENET multi-stage signed LUT folding and TernaryCore fused subtraction paths. -/
+
+theorem ternaryMacPsumAssociativityFourMinusGeneric (psum a b c d : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac psum a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus) =
+    ternaryMac psum (a + b + c + d) (TernaryWeight.mk .minus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating twelve independent activations with plus-weights.
+    For any activations a, b, c, d, e, f, g, h, i, j, k, l:
+    mac¹²(0, [a..l], .plus) = a+b+c+d+e+f+g+h+i+j+k+l.
+    Ultimate stress-test for the omega automation boundary beyond the 11-variable proven depth (W335).
+    If successful, establishes that simp+omega scales to 12 variables — an unprecedented result
+    for formal hardware verification. If it fails, empirically documents the omega saturation point.
+    Foundation for next-generation 12×12 systolic tiles and ultra-wide accumulation pipelines.
+    Responds to DATE 2026 SCA-based MAC verification limits. -/
+
+theorem ternaryMacAccumulateTwelvePlusGeneric (a b c d e f g h i j k l : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus)) k (TernaryWeight.mk .plus)) l (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j + k + l := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating twelve independent activations with minus-weights.
+    For any activations a, b, c, d, e, f, g, h, i, j, k, l:
+    mac^12(0, [a..l], .minus) = -(a+b+c+d+e+f+g+h+i+j+k+l).
+    Complements AccumulateTwelvePlusGeneric (W335) to complete the 12-variable accumulation lattice
+    for both signs. Ultimate stress-test for the omega automation boundary with negation.
+    Foundation for next-generation 12x12 signed systolic tiles and ultra-wide subtraction pipelines.
+    Responds to TernaryCore multi-stage signed accumulation and DATE 2026 SCA-based verification limits. -/
+
+theorem ternaryMacAccumulateTwelveMinusGeneric (a b c d e f g h i j k l : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus)) g (TernaryWeight.mk .minus)) h (TernaryWeight.mk .minus)) i (TernaryWeight.mk .minus)) j (TernaryWeight.mk .minus)) k (TernaryWeight.mk .minus)) l (TernaryWeight.mk .minus) = -(a + b + c + d + e + f + g + h + i + j + k + l) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: psum double activation with plus-weights.
+    For any psum, activation a: mac(mac(psum, a, .plus), a, .plus) = mac(psum, 2*a, .plus).
+    Proves that two consecutive plus-weight MAC stages with the same activation are equivalent to
+    a single MAC with doubled activation. Foundation for power-of-two systolic folding and
+    activation-reuse optimizations in ternary inference pipelines.
+    Complements PsumAssociativityGeneric (W322) and ScalarAssociativityPlusGeneric (W334).
+    Responds to TernaryCore fused accumulation paths and TENET LUT-based power-of-two folding. -/
+
+theorem ternaryMacPsumDoubleActivationPlusGeneric (psum a : Int) :
+    ternaryMac (ternaryMac psum a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) =
+    ternaryMac psum (2 * a) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: psum double activation with minus-weights.
+    For any psum, activation a: mac(mac(psum, a, .minus), a, .minus) = mac(psum, 2*a, .minus).
+    Proves that two consecutive minus-weight MAC stages with the same activation are equivalent to
+    a single MAC with doubled activation (subtracted from psum). Foundation for signed
+    power-of-two systolic folding and activation-reuse optimizations.
+    Completes the psum double-activation lattice alongside PsumDoubleActivationPlusGeneric.
+    Responds to TernaryCore multi-stage signed subtraction and TENET LUT-based folding. -/
+
+theorem ternaryMacPsumDoubleActivationMinusGeneric (psum a : Int) :
+    ternaryMac (ternaryMac psum a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus) =
+    ternaryMac psum (2 * a) (TernaryWeight.mk .minus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
