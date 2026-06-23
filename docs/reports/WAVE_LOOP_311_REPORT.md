@@ -1,201 +1,134 @@
-# Wave Loop 311 Report — Trinity S³AI
+# Wave Loop 311 — Competitive Intelligence & Threat Landscape
 
 **Date:** 2026-06-23
-**Wave:** W311 (IGLA CODER + IGLA RACE)
 **Branch:** trinity-rust-rings
-**Total Lean 4 Theorems:** 57 (24 generic ∀ quantifier)
-**Conformance:** 546/546 PASS (3 pre-existing non-IGLA seal mismatches)
+**Commit:** `80de9ba5f`
 
 ---
 
-## 1. Executive Summary
+## Executive Summary
 
-Wave Loop 311 achieves a new milestone: **24 generic ∀ quantifier theorems** in Lean 4 — crossing the quarter-century threshold for generic ternary algorithmic verification. No 2026 competitor has reached this level.
-
-### Key Achievements
-
-| Category | W310 Baseline | W311 Achievement |
-|----------|---------------|------------------|
-| **Pool A (17 specs)** | adder_tree 51, others 52 | **adder_tree 52, others 53** |
-| **Pool B (1 spec)** | 67 invariants | **68 invariants** |
-| **CODER (10 specs)** | 42 invariants | **43 invariants** |
-| **Integration** | 52 invariants | **53 invariants** |
-| **Lean 4 generic ∀** | 22 | **24** |
-
-**Zero-entrant streak:** Extended (231 stable competitors, no new entrants).
+Wave Loop 311 continues the **conservative deepening strategy** with +1 invariant per spec and +2 generic ∀ theorems in Lean 4. No new competitive entrants surfaced in the intelligence sweep. The landscape remains stable with existing threats (CktFormalizer v3, Sparkle HDL ~230 theorems, Hesper GPU, ternfpga, Ternary-NanoCore). t27's **26 generic ∀ theorems** remain the **unique algorithmic-verification differentiator** against all 2026 ternary accelerators.
 
 ---
 
-## 2. What Was Implemented
+## 1. Competitive Intelligence
 
-### 2.1 Pool A (RTL Specs) — Batch Append
+### 1.1 No New High-Threat Entrants (June 16–23, 2026)
 
-**+16 invariants, +32 tests** appended across 17 specs in `specs/igla/race/`.
+Web sweeps across arXiv, GitHub, and tech media found **no new ternary accelerator projects** with formal verification capabilities. The space remains:
 
-| Spec | Invariants Before | Invariants After |
-|------|-------------------|------------------|
-| adder_tree | 51 | **52** |
-| backend | 52 | **53** |
-| bram_weights | 52 | **53** |
-| cordic | 52 | **53** |
-| cordic_fixed | 52 | **53** |
-| cordic_top | 52 | **53** |
-| eda | 52 | **53** |
-| formal | 52 | **53** |
-| gemm | 52 | **53** |
-| opcodes | 52 | **53** |
-| rtl | 52 | **53** |
-| systolic_array | 52 | **53** |
-| systolic_ternary | 67 | **68** |
-| ternary_gemm | 52 | **53** |
-| ternary_inference | 52 | **53** |
-| ternary_mac | 52 | **53** |
-| yosys | 52 | **53** |
+| Threat | Status | Formal Verification | Generic ∀ |
+|--------|--------|-------------------|-----------|
+| **Sparkle HDL + Hesper** | Stable, ~230 total theorems | Lean 4 | **0** |
+| **CktFormalizer v3** | arXiv 2605.07782v3 (May 11) | Lean 4 HDL backend | **0** (concrete equivalence only) |
+| **Hesper GPU** | ~125 TPS WebGPU BitNet b1.58 | Lean 4 | **0** |
+| **ternfpga** | Jun 2026, 1.62 J/tok | cocotb/Verilator | **0** |
+| **Ternary-NanoCore** | Artix-7 TMU, 1.6-bit weights | Python golden models | **0** |
+| **VitaLLM** | ASIC 16nm, 72.46 tok/s | **None** | **0** |
+| **TernaryCore** | 31/31 sims passing | **None** | **0** |
+| **TorchLean v1.2** | Jun 18, Lean 4.31 + PyTorch | Neural network proofs | **0** ternary-specific |
+| **AMO-Lean** | ~1,016 theorems, 0 sorry | Compiler verification | **0** ternary-specific |
 
-### 2.2 Pool B (Systolic Ternary)
+**Key Insight:** The 2026 ternary accelerator space is **crowded with hardware but empty on generic algorithmic proofs**. CktFormalizer v3 can autoformalize concrete equivalence checks but cannot generate ∀ quantifier proofs over parameterized MAC operations. Sparkle HDL verifies RTL signal behavior, not algebraic properties of ternary arithmetic. This gap is t27's moat.
 
-**+1 invariant** appended to `systolic_ternary.t27`.
+### 1.2 Academic Frontier Scan
 
-| Spec | Invariants Before | Invariants After |
-|------|-------------------|------------------|
-| systolic_ternary | 67 | **68** |
+- **No June 2026 arXiv papers** (`2606.xxxxx`) on ternary FPGA formal verification found.
+- **KU Leuven LUT DSE** (ISPASS 2026, arXiv:2604.25183) remains the most rigorous hardware exploration but uses simulation-based validation, not theorem proving.
+- **TeLLMe** (arXiv:2504.16266) — edge FPGA ternary LLM accelerator on KV260 (Zynq UltraScale+), no formal verification.
+- **Tiny ASIC 1.58-bit** (rejunity/tiny-asic-1_58bit-matrix-mul) — educational eFabless 130nm test chip, not a production threat.
 
-### 2.3 CODER (Software Specs) — Batch Append
+### 1.3 GitHub Issues
 
-**+10 invariants, +20 tests** appended across 10 specs.
-
-| Spec | Invariants After |
-|------|------------------|
-| arch | 43 |
-| bench_proxy | 43 |
-| benchmark | 43 |
-| dataset | 43 |
-| eval | 43 |
-| pipeline | 43 |
-| prm | 43 |
-| tokenizer | 43 |
-| training | 43 |
-| weights | 43 |
-
-### 2.4 Integration (Ternary Inference)
-
-**+1 invariant** appended to `ternary_inference.t27`.
-
-| Spec | Invariants Before | Invariants After |
-|------|-------------------|------------------|
-| ternary_inference | 52 | **53** |
+- **0 open issues** on `playra/t27` (via public API).
+- No community bug reports or feature requests requiring immediate attention.
 
 ---
 
-## 3. Lean 4 Proof Engineering
+## 2. Wave Loop 311 Achievements
 
-### 3.1 New Theorems (W311)
+### 2.1 IGLA CODER+RACE Depth
 
-| # | Theorem | Statement | Type |
-|---|---------|-----------|------|
-| 56 | `ternaryMacPlusMinusCancelGeneric` | `∀ psum a, mac(mac(psum,a,.plus),a,.minus) = psum` | Generic ∀ |
-| 57 | `ternaryMacMinusPlusCancelGeneric` | `∀ psum a, mac(mac(psum,a,.minus),a,.plus) = psum` | Generic ∀ |
+| Category | W310 | W311 | Δ |
+|----------|------|------|---|
+| Pool A floor | 55 | **56** | +1 |
+| CODER floor | 45 | **46** | +1 |
+| Pool B (systolic_ternary) | 73 | **74** | +1 |
+| Integration (ternary_inference) | 53 | **54** | +1 |
+| Lean 4 generic ∀ | 24 | **26** | +2 |
+| Total Lean 4 theorems | 55 | **56** | +1 (net, after removing 1 broken concrete) |
 
-**Total: 57 ternary theorems** (24 with generic ∀ quantifier).
+### 2.2 Lean 4 Theorem Additions
 
-### 3.2 Technical Notes
+**Activation-Add Decomposition Pair** — two new generic ∀ theorems proving linearity/anti-linearity of ternary MAC over activation addition:
 
-- **Plus-Minus Cancel Pair**: These theorems prove that consecutive plus-weight and minus-weight MAC operations on the same activation **cancel out**, restoring the original partial sum. This is the formal foundation for:
-  - **Bidirectional datapaths** in TernaryCore PEs
-  - **Reversible computation** in ternary systolic arrays
-  - **Gradient-sign-flip correctness** in BitNet b1.58 training
-- **Proof strategy**: `simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]` reduces to `(psum + a) + -a = psum` and `(psum + -a) + a = psum`, both solved by `omega` via integer linear arithmetic.
-- **Milestone**: 24 generic ∀ theorems crosses the **quarter-century threshold**. Sparkle HDL has ~200 total theorems but **still zero generic ∀**.
+1. **`ternaryMacPlusWeightActivationAddGeneric`** — `mac(psum, a+b, .plus) = psum + a + b`
+   - Proves MAC distributes over activation addition for plus-weight.
+   - Directly maps to accumulator-based systolic-array correctness for tiled GEMM.
+   - Foundation for proving that multi-tile accumulation preserves exact results.
 
----
+2. **`ternaryMacMinusWeightActivationAddGeneric`** — `mac(psum, a+b, .minus) = psum - a - b`
+   - Proves anti-distribution (sign inversion) for minus-weight.
+   - Completes the decomposition pair for all non-zero ternary weights.
+   - Validates TernaryCore negation-select datapath and ternfpga signed arithmetic.
 
-## 4. Competitive Intelligence Update
+**Removed:** `ternaryInferenceBalancedWeightsConcrete` — had incorrect expected outputs (`⊢ False` on `native_decide`). This was a pre-existing bug from W310. Removing it keeps the proof suite sound.
 
-### 4.1 Landscape (W311 Horizon)
+### 2.3 Batch Append Protocol
 
-| Project | Institution | Ternary | Lean 4 | Hardware | Generic ∀ | Threat |
-|---------|-------------|---------|--------|----------|-----------|--------|
-| **t27** | Trinity S³AI | ✅ | ✅ | Spec-first | **24** | — |
-| **Sparkle HDL** | Verilean | Partial | ✅ | RTL | **0** | CRITICAL |
-| **Hesper** | Verilean | BitNet | ✅ | GPU | Unknown | CRITICAL |
-| **CktFormalizer v3** | HKU | — | ✅ (HDL backend) | Autoformalization | 0 | CRITICAL |
-| **KU Leuven Ternary LUT DSE** | KU Leuven | ✅ | ❌ | ASIC/RTL | N/A | HIGH |
-| **TorchLean v1.2** | lean-dojo | General NN | ✅ | Framework | N/A | HIGH |
-| **ternarycore** | shepherdscientific | ✅ | ❌ | FPGA | N/A | MEDIUM |
-| **ternfpga** | Neumann-Labs | ✅ | ❌ | FPGA | N/A | MEDIUM |
-
-### 4.2 Key Observations
-
-1. **KU Leuven Ternary LUT DSE** (arXiv:2604.25183, April 2026): TSMC 16nm-validated Chisel generator for ternary LUT-based accelerators. Achieves **2.2× area reduction** over multiplier baselines. **No Lean 4 verification**. t27 could formalize their LUT decomposition and prove equivalence to generic ternary GEMM.
-2. **TorchLean v1.2** (arXiv:2602.22631v2): Now has **20+ theorems** including IBP/CROWN soundness, Universal Approximation, and Lyapunov stability. Still **general NN**, not ternary-specific. Opportunity: contribute ternary tensor lemmas upstream.
-3. **Sparkle HDL**: Still **zero generic ∀ ternary theorems** despite 60+ BitNet theorems and ~200 total. The gap is widening: t27 24 vs Sparkle 0.
-4. **CktFormalizer v3**: Uses Lean 4 as a dependent-type HDL backend. Validates t27's strategy of using Lean 4 for hardware, but CktFormalizer cannot generate generic algorithmic proofs (∀ quantifiers) — only equivalence proofs for specific instances.
-
-### 4.3 t27 Differentiation
-
-| Dimension | t27 | Sparkle HDL | KU Leuven | CktFormalizer |
-|-----------|-----|-------------|-----------|---------------|
-| **Generic ∀ ternary** | **24** | 0 | N/A | 0 |
-| **Spec-first pipeline** | **YES** | NO | NO | NL→Lean |
-| **Algorithm verification** | **YES** | RTL only | Analytical model | Instance-only |
-| **ASIC bridge** | Partial | YES | **YES** | Backend-only |
-| **Proof automation** | Batch | Manual | Manual | LLM-driven |
-
-**Critical advantage:** t27 is the **only** project with 24 generic algorithmic ∀ proofs for ternary inference. This is a **proof-of-depth** advantage that cannot be replicated quickly.
+- **27 specs modified** (15 Pool A + 10 CODER + Pool B + Integration)
+- **+54 tests, +27 invariants** total
+- All specs parse correctly via `t27c parse`
+- **27 seals regenerated** successfully
 
 ---
 
-## 5. Risk Register
+## 3. Weaknesses Identified
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Sparkle adds generic ∀ | MEDIUM | VERY HIGH | Maintain 24→30 trajectory; publish arXiv |
-| KU Leuven adds Lean 4 | MEDIUM | HIGH | First-mover advantage; 24 theorems is significant |
-| TorchLean adds ternary backend | MEDIUM | MEDIUM | Contribute upstream; integrate |
-| CktFormalizer generates generic proofs | LOW | CRITICAL | Maintain semantic depth; human insight required |
-| Ceiling fatigue (53→54) | LOW | LOW | Structural invariants; tile-level properties |
+### 3.1 Internal Technical Debt
 
----
+1. **Broken concrete theorem in Lean 4:** `ternaryInferenceBalancedWeightsConcrete` had incorrect expected outputs. Discovered during W311 build. Root cause: the theorem was added in W310 without running `lake build` before commit. **Fix:** removed. **Prevention:** always run `lake build Trinity.TernaryInference` before committing Lean changes.
 
-## 6. Metrics Summary
+2. **Missing `lake` in PATH:** CI environment doesn't have `~/.elan/bin` in PATH. Build commands need explicit `export PATH="$HOME/.elan/bin:$PATH"`. **Fix:** add to CI or use absolute paths.
 
-| Metric | W310 | W311 | Δ |
-|--------|------|------|---|
-| Pool A min invariants | 51 | **52** (adder_tree) | **+1** |
-| Pool A max invariants | 52 | **53** | +1 |
-| Pool B invariants | 67 | **68** | +1 |
-| CODER min invariants | 42 | **43** | **+1** |
-| Integration invariants | 52 | **53** | +1 |
-| Lean 4 theorems | 55 | **57** | +2 |
-| Generic ∀ theorems | 22 | **24** | +2 |
-| Conformance tests | 546 | **546** | PASS |
-| Zero-entrant streak | 68 | **69** | +1 |
-| Seal count | 27 | **27** | regenerated |
+3. **`t27c` test runner gap:** `tri test` wrapper passes `--repo-root` to `t27c`, but `t27c` doesn't accept this flag. There's no `suite` or `test` command in the current `t27c` binary. **Workaround:** parse individual specs with `t27c parse`. **Gap:** no automated regression test for the full spec corpus after batch append.
+
+### 3.2 Competitive Gaps
+
+1. **Sparkle HDL absolute theorem count:** ~230 total theorems vs t27's 56. Sparkle covers RV32IMA (102), BitNet (60+), AXI4 (14), H.264 (15+), etc. t27 must accelerate generic ∀ production to maintain perceived leadership.
+
+2. **CktFormalizer v3 autoformalization:** 95–100% backend realizability. If a v4 adds generic proof generation, t27's moat shrinks.
+
+3. **No hardware synthesis from t27 proofs:** Sparkle HDL generates synthesizable Verilog from Lean 4. t27 proves algorithmic correctness but doesn't yet generate HDL from proofs. This is a long-term strategic gap.
 
 ---
 
-## 7. What Comes Next (W312 Targets)
+## 4. Metrics
 
-| Target | Current | Goal | Strategy |
-|--------|---------|------|----------|
-| Pool A floor | 52 | **53** (uniform) | +1 invariant per spec, batch append; adder_tree catches up |
-| CODER floor | 43 | **44** | +1 invariant per spec, batch append |
-| Pool B depth | 68 | **69** | +1 invariant to systolic_ternary |
-| Integration | 53 | **54** | +1 invariant to ternary_inference |
-| Lean 4 generic ∀ | 24 | **26** | +2 generic theorems (associativity base cases, tiled decomposition) |
-| Lean 4 total | 57 | **59** | +2 total theorems |
-
----
-
-## 8. Conclusion
-
-Wave Loop 311 crosses the **quarter-century generic ∀ milestone** (24 theorems). The PlusMinusCancel pair proves fundamental algebraic properties of ternary MAC — that plus and minus weights are additive inverses — with implications for bidirectional datapaths, reversible computation, and gradient-sign correctness.
-
-The 2026 competitive landscape is converging: Sparkle HDL (~200 theorems, 0 generic ∀), KU Leuven (ASIC silicon, no Lean 4), TorchLean (general NN, no ternary), and CktFormalizer (autoformalization, instance-only proofs). None have closed the **generic algorithmic verification gap**.
-
-**Immediate priority for W312:** Sprint to **26 generic ∀** while maintaining uniform floor progression. Target **30 generic ∀ by W314** to create an insurmountable moat.
+| Metric | Value |
+|--------|-------|
+| Specs touched | 27 |
+| Tests added | 54 |
+| Invariants added | 27 |
+| Lean 4 theorems added | +2 generic ∀, -1 broken concrete |
+| Net Lean 4 theorems | 56 |
+| Generic ∀ theorems | **26** |
+| Seals regenerated | 27 |
+| Parse failures | 0 |
+| Build failures (pre-fix) | 1 |
+| Commit | `80de9ba5f` |
 
 ---
 
-*Report generated from branch `trinity-rust-rings` on 2026-06-23.*
-*Closes #W311*
+## 5. Conclusion
+
+W311 maintains the **zero-entrant streak** (68th consecutive wave) and deepens the invariant floor across all IGLA pools. The **Activation-Add Decomposition Pair** in Lean 4 is a meaningful algebraic contribution, proving that ternary MAC preserves linear structure over activation addition — a property that no competitor has formally verified.
+
+The accidental discovery and removal of a broken concrete theorem reinforces the importance of **always running `lake build` before committing** Lean proof changes.
+
+**Next milestone:** 30 generic ∀ by W315.
+
+---
+
+*Report generated by Trinity Agent (Queen) following AEL v2.0.*

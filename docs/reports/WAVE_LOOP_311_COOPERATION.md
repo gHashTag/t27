@@ -2,148 +2,99 @@
 
 **Date:** 2026-06-23
 **Prepared for:** Next loop (W312) and external collaboration
-**Competitive baseline:** Sparkle HDL (~200 theorems, 0 generic ∀), KU Leuven Ternary LUT DSE (TSMC 16nm, no Lean 4), TorchLean (20+ general NN theorems), CktFormalizer v3 (autoformalization, instance-only proofs)
+**Competitive baseline:** CktFormalizer v3, Sparkle HDL (~230 theorems), Hesper GPU, ternfpga, Ternary-NanoCore
 
 ---
 
-## Variant A: Sprint to 30 Generic ∀ Theorems (RECOMMENDED)
+## Variant A: Steady-State Deepening (RECOMMENDED)
 
 ### Thesis
-With 24 generic ∀ theorems, t27 is 6 theorems away from **30** — a round-number milestone that creates a **perception of dominance**. Sparkle HDL has ~200 total theorems but zero generic ∀. Reaching 30 generic ∀ makes the gap mathematically obvious and journalistically irresistible.
+Continue the proven +1 invariant/+2 generic ∀ rhythm. Reach **28 generic ∀ by W312** and **Pool A ≥57**, **CODER ≥47**. Low risk, compounding depth.
 
 ### W312 Targets
 
-| Objective | Current | W312 Target | W314 Stretch |
-|-----------|---------|-------------|--------------|
-| Generic ∀ theorems | 24 | **26** | **30** |
-| Total Lean 4 theorems | 57 | **59** | **63** |
-| Pool A floor | 52 | **53** (uniform) | **54** |
-| CODER floor | 43 | **44** | **45** |
+| Objective | Current | W312 Target |
+|-----------|---------|-------------|
+| Generic ∀ theorems | 26 | **28** |
+| Total Lean 4 theorems | 56 | **58** |
+| Pool A floor | 56 | **57** |
+| CODER floor | 46 | **47** |
+| Pool B | 74 | **75** |
+| Integration | 54 | **55** |
 
 ### Tactics
-1. **Associativity Base Cases**: Prove `ternaryMacPlusWeightAssociativityGeneric` for zero-psum cases: `mac(mac(0, a, .plus), b, .plus) = mac(0, a+b, .plus)`. This avoids Int.add_assoc for open terms by fixing psum=0.
-2. **Tiled GEMM Decomposition**: Prove that 2×2 ternary GEMM tile preserves result under row/column partitioning for generic inputs. Maps directly to KU Leuven LUT DSE and BNRV SIMD.
-3. **Proof automation tactic**: Create `by_ternary` macro that auto-selects between `native_decide` (closed terms) and `omega` (open linear equalities) based on goal shape.
-4. **arXiv v3 preprint**: "24 Generic Ternary MAC Theorems in Lean 4" — showcase the quarter-century milestone as standalone contribution.
+1. **MAC Associativity Base Case:** Prove `ternaryMacAssociativityGeneric` for zero-psum cases where `native_decide` handles open terms.
+2. **Tiled GEMM 2×2 Generic:** Extend existing concrete GEMM proofs to generic input vectors.
+3. **Batch append:** Continue +2 tests, +1 invariant per spec.
 
 ### Resource Needs
-- 1 senior Lean 4 proof engineer (30% time)
+- 1 proof engineer (15% time)
 - CI compute unchanged
-- arXiv v3 update (~3 hours)
 
-### Risk: LOW | Reward: VERY HIGH
-Proven path. 26→30 generic ∀ by W314 is the most defensible trajectory.
+### Risk: VERY LOW | Reward: HIGH
 
 ---
 
-## Variant B: KU Leuven Ternary LUT DSE Formalization Bridge
+## Variant B: Generic Proof Sprint to 30
 
 ### Thesis
-**KU Leuven** (arXiv:2604.25183) is the **first ternary ASIC with published synthesis results** (TSMC 16nm, 500 MHz, 2.2× area reduction). But they have **zero formal verification** — only synthesis validation against an analytical model. t27 can bridge this gap.
+Skip steady-state and sprint to **30 generic ∀ by W312** (the half-century milestone is 50, but 30 is a strong psychological barrier). Requires proving 4 theorems in one wave.
 
 ### W312 Targets
 
-| Objective | Deliverable |
-|-----------|-------------|
-| LUT decomposition spec | `specs/igla/race/kul_lut_dse.t27` with LUT-based PE invariants |
-| Equivalence proof | Lean 4 theorem: `ternaryGemmEqualsKULLUTGeneric` (for generic inputs) |
-| Area model verification | Prove that t27's multiplier-free GEMM ≤ KU Leuven's analytical area model |
-| Joint publication | arXiv/DAC submission with KU Leuven authors |
+| Objective | Current | W312 Target |
+|-----------|---------|-------------|
+| Generic ∀ theorems | 26 | **30** |
+| Total Lean 4 theorems | 56 | **60** |
 
 ### Tactics
-1. **LUT PE formalization**: Model KU Leuven's conditional-addition LUT PE as a `.t27` function `kul_lut_pe(activation, weight) -> Int` and prove equivalence to `ternaryMul`.
-2. **Analytical model proof**: Show that t27's `ternary_gemm_2x2` (generic algorithm) produces identical outputs to KU Leuven's tile decomposition (hardware) for all generic inputs.
-3. **Area bound**: Add invariants that bound LUT count and DSP usage for ternary GEMM, proving t27's spec achieves the same 2.2× reduction as KU Leuven.
-4. ** Outreach**: Email KU Leuven MICAS group (Marian Verhelst, Joren Dumoulin) proposing joint verification of their open-source Chisel generator against t27's Lean 4 spec.
+1. **Commutativity-Symmetry Quadruple:**
+   - `ternaryMacCommutativityActivationPsumGeneric`
+   - `ternaryMacAssociativityGeneric`
+   - `ternaryMacDistributivityOverPsumAddGeneric`
+   - `ternaryMulCommutativityGeneric`
+2. **Proof automation:** Create `by_ternary_simp` tactic macro to reduce boilerplate.
+3. **Reduce concrete theorem overhead:** Convert 2–3 existing concrete theorems to generic equivalents.
 
 ### Resource Needs
-- 1 RTL engineer for LUT PE spec (40% time)
-- 1 proof engineer for equivalence theorem (40% time)
-- Academic outreach (~5 hours)
+- 1 senior Lean 4 proof engineer (40% time)
+- arXiv v2 update (~2 hours)
 
 ### Risk: MEDIUM | Reward: VERY HIGH
-If successful, t27 becomes the **formal reference model** for the first published ternary ASIC. Citations from top-tier VLSI conferences (DAC, ISSCC, ISPASS).
+30 generic ∀ is a headline number that Sparkle HDL cannot match quickly.
 
 ---
 
-## Variant C: TorchLean Integration — Ternary Tensor Lemmas Upstream
+## Variant C: Hardware Synthesis Bridge
 
 ### Thesis
-**TorchLean** (arXiv:2602.22631v2) is the **most mature Lean 4 NN verification framework**. It has 20+ theorems for general neural networks but **no ternary-specific lemmas**. t27 can contribute its 24 generic ∀ theorems as upstream lemmas, gaining:
-1. **Credibility** via association with TorchLean's established reputation
-2. **Adoption** by TorchLean users working on quantized/efficient NN inference
-3. **Citations** from the broader Lean 4 NN verification community
+**Sparkle HDL's greatest strength** is generating synthesizable Verilog from Lean 4. t27's greatest strength is generic algorithmic proofs. Bridge the gap by adding a Verilog generation backend to t27's Lean 4 proofs.
 
 ### W312 Targets
 
 | Objective | Deliverable |
 |-----------|-------------|
-| Ternary tensor module | `Trinity/TernaryTensor.lean` extending TorchLean's tensor API |
-| Upstream lemmas | 5–10 generic ∀ theorems contributed to TorchLean mathlib fork |
-| Integration demo | Show t27 `ternary_inference_2x2` running inside TorchLean's execution engine |
-| Joint benchmark | Compare TorchLean-verified ternary inference vs PyTorch reference on BitNet b1.58 weights |
+| Verilog generation from ternary MAC proof | `gen/ternary_mac.v` emitted from Lean 4 metaprogram |
+| Formal equivalence | Lean 4 theorem: `verilogMacEqualsTernaryMacGeneric` |
+| Publication | arXiv note: "From Generic Proof to Silicon: Ternary MAC in Lean 4 + Verilog" |
 
 ### Tactics
-1. **Ternary tensor type**: Define `TernaryTensor` as a TorchLean-compatible tensor type with `{Int8, TernaryWeight}` elements and prove `map_ternary(activation, weight)` correctness.
-2. **Lemma extraction**: Extract the 5 most general theorems (ZeroWeightIdentity, PlusWeightIdentity, Distributivity, PlusMinusCancel, NegateActivation) as standalone lemmas with minimal dependencies.
-3. **Pull request**: Submit PR to TorchLean repository with ternary lemmas and demo. Target acceptance by W314.
-4. **Benchmark**: Use real BitNet b1.58 weights from Microsoft's open-source release. Compare:
-   - PyTorch reference output (float32)
-   - TorchLean verified ternary inference (int8, ternary weights)
-   - t27 generated Zig/C output
+1. **Lean 4 metaprogram:** Use `#synthesizeVerilog` pattern from Sparkle HDL to generate Verilog AST from `ternaryMac` definition.
+2. **Equivalence proof:** Show generated Verilog semantics match `ternaryMac` Lean definition for all inputs.
+3. **FPGA target:** Generate `ternary_mac.v` compatible with Artix-7 (no DSP, pure adder/mux).
 
 ### Resource Needs
-- 1 Lean 4 proof engineer familiar with TorchLean (50% time)
-- 1 ML engineer for PyTorch bridge (30% time)
-- BitNet b1.58 model weights (public)
+- 1 RTL engineer (50% time)
+- 1 Lean 4 metaprogramming expert (50% time)
+- Vivado-in-Docker or OpenXC7 for synthesis check
 
-### Risk: MEDIUM-HIGH | Reward: VERY HIGH
-TorchLean is actively maintained (v1.2 released June 2026). Integration validates t27 in the broader NN verification community. Risk: PR review delays or rejection if lemmas don't fit TorchLean's API.
-
----
-
-## Comparative Matrix
-
-| Dimension | Variant A (Sprint to 30) | Variant B (KU Leuven Bridge) | Variant C (TorchLean Integration) |
-|-----------|--------------------------|------------------------------|---------------------------------|
-| **Time to impact** | 1–2 waves | 2–4 waves | 3–4 waves |
-| **Resource intensity** | LOW | HIGH | VERY HIGH |
-| **Technical risk** | LOW | MEDIUM | HIGH |
-| **Strategic risk** | LOW | MEDIUM | MEDIUM-HIGH |
-| **Differentiation** | Sustains lead | Opens ASIC frontier | Expands ecosystem |
-| **Publication value** | MEDIUM | VERY HIGH | VERY HIGH |
-| **Competitive response** | Sparkle may match in 12–18 mo | KU Leuven may adopt specs | TorchLean may absorb t27 lemmas |
+### Risk: HIGH | Reward: TRANSFORMATIVE
+If successful, t27 becomes the **only project** with both generic algorithmic proofs AND synthesizable hardware from the same formal artifact. This is unmatchable by Sparkle, CktFormalizer, or any competitor.
 
 ---
 
 ## Recommendation
 
-**Primary: Variant A** — Continue generic ∀ sprint. 24→26→30 is the most defensible trajectory. Each new theorem raises the barrier and creates content for future publications.
+Execute **Variant A** for W312 (steady-state deepening). Initiate **Variant C** as a background research thread (1–2 hours/week) to explore Sparkle HDL's `#synthesizeVerilog` approach. Prepare for **Variant B** (sprint to 30) in W313–W314 if Variant C shows early promise.
 
-**Secondary: Variant B** — Allocate 25% bandwidth to KU Leuven LUT DSE formalization. The ASIC gap is real: KU Leuven has silicon but no proofs. t27 can "formally verify the competition" and publish equivalence results.
-
-**Tertiary/Experimental: Variant C** — Start TorchLean integration in W312 background track. Extract 3–5 lemmas and test compatibility. Scale in W313–W314 if PR receives positive feedback.
-
----
-
-## Cooperation Mechanisms
-
-### For Academic Partners (KU Leuven, Stanford, MIT)
-- **Co-authorship** on equivalence proofs between algorithm specs and ASIC implementations
-- **Benchmark sharing** — t27 provides verified algorithm baseline, partner provides silicon data
-- **Student thesis projects** — MSc/PhD on "From Spec to Silicon: Formalizing Ternary ASICs"
-
-### For Open Source Communities (TorchLean, Sparkle HDL, RISC-V)
-- **Upstream contributions** of ternary lemmas to TorchLean mathlib
-- **Integration workshops** at Lean Together or CHDL
-- **RISC-V ternary ISA standardization** using t27 specs as golden reference
-
-### For Industry Partners (AI Chip Vendors, Cloud Providers)
-- **Reference implementation** — t27 specs as golden model for silicon verification
-- **Joint publications** at DAC/ICCAD showing formally verified ternary inference pipelines
-- **IP licensing** of generated Verilog/Rust/C under t27 license
-
----
-
-*Prepared on 2026-06-23 for Wave Loop 312 planning.*
-*Branch: trinity-rust-rings*
+*Cooperation variants generated by Trinity Agent (Queen) following AEL v2.0.*
