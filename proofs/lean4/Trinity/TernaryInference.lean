@@ -852,3 +852,71 @@ theorem ternaryMacAccumulateFourPlusGeneric (a b c d : Int) :
     ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus) = a + b + c + d := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: accumulating four independent activations with minus-weights is negative quadruple addition.
+    For any activations a, b, c, d: mac⁴(0, [a,b,c,d], .minus) = -(a + b + c + d).
+    Complements AccumulateFourPlusGeneric by proving the dual minus-weight case.
+    Foundation for 4-input systolic-array row-reduction with negative weights,
+    critical for bidirectional gradient-flow proofs and weight-stationary arrays
+    that alternate sign across PE rows. Responds to TENET 4-input LUT scheduling
+    with sign-flip and TernaryCore 4-operand subtract paths. -/
+theorem ternaryMacAccumulateFourMinusGeneric (a b c d : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus) = -(a + b + c + d) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: full associativity of ternary MAC with arbitrary accumulator and minus-weights.
+    For any psum, activations a, b: mac(mac(psum, a, .minus), b, .minus) = mac(psum, a+b, .minus).
+    Extends PsumAssociativityGeneric (plus-weights) to the minus-weight dual.
+    Proves that chained minus-weight MAC operations compose as subtractive accumulation,
+    enabling arbitrary-depth systolic folding for negative-weight tiles.
+    Critical for hardware tiling: partial products from negative-weight tiles
+    can be merged via a single MAC operation regardless of their internal history.
+    Responds to TENET multi-stage LUT folding with negative weights and
+    ternfpga tile-composition for gradient-computation paths. -/
+theorem ternaryMacPsumAssociativityMinusGeneric (psum a b : Int) :
+    ternaryMac (ternaryMac psum a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus) = ternaryMac psum (a + b) (TernaryWeight.mk .minus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: mixed-weight associativity of ternary MAC (plus then minus).
+    For any psum, activations a, b: mac(mac(psum, a, .plus), b, .minus) = mac(psum, a-b, .plus).
+    Proves that alternating plus/minus weights in a systolic chain compose as
+    additive accumulation with a subtraction term — the natural operation for
+    mixed-sign tiled GEMM and residual-connection proofs.
+    Foundation for systolic arrays that process both positive and negative weights
+    within the same tile, eliminating the need for sign-specific sub-arrays.
+    Responds to TENET mixed-sign LUT scheduling and TernaryCore dual-path arrays. -/
+theorem ternaryMacPsumAssociativityMixedPlusMinusGeneric (psum a b : Int) :
+    ternaryMac (ternaryMac psum a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .minus) = ternaryMac psum (a - b) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: zero-psum with minus-weight MAC yields negated activation.
+    For any activation a: mac(0, a, .minus) = -a.
+    Establishes that starting from zero accumulator and applying a minus-weight MAC
+    yields exactly the negated activation. This is the identity-element axiom for the
+    ternary MAC monoid under minus weights.
+    Foundation for accumulator-initialization proofs with negative weights
+    and systolic-array base-case verification for subtractive PEs.
+    Responds to TENET first-stage minus LUT identity and TernaryCore negative accumulator init. -/
+
+theorem ternaryMacZeroPsumIdentityMinusGeneric (a : Int) :
+    ternaryMac 0 a (TernaryWeight.mk .minus) = -a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: full distributivity of ternary MAC over activation addition for plus-weights.
+    For any psum, activations a, b: mac(psum, a+b, .plus) = mac(psum, a, .plus) + mac(0, b, .plus).
+    Proves that MAC over a summed activation equals MAC with first summand plus
+    a zero-psum MAC with second summand. This is the universal distributive law
+    for ternary MAC algebra — the natural ring identity that enables tiled-GEMM
+    decomposition at the hardware level.
+    Foundation for systolic-array tiling proofs: when activations are partitioned
+    across lanes, each partial MAC can be verified independently and then composed.
+    Responds to TENET multi-lane LUT scheduling and ternfpga tile-composition paths. -/
+
+theorem ternaryMacDistributivityFullGeneric (psum a b : Int) :
+    ternaryMac psum (a + b) (TernaryWeight.mk .plus) = ternaryMac psum a (TernaryWeight.mk .plus) + ternaryMac 0 b (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
