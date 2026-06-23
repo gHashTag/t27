@@ -1503,3 +1503,89 @@ theorem ternaryMacAccumulateThirteenMinusGeneric (a b c d e f g h i j k l m : In
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
 
+/-- Generic theorem: quadruple psum activation with plus-weights.
+    For any psum, activation a: mac⁴(psum, a, .plus) = mac(psum, 4*a, .plus).
+    Proves that four consecutive plus-weight MAC stages with the same activation are equivalent to
+    a single MAC with quadrupled activation. Foundation for power-of-four systolic folding and
+    activation-reuse optimizations at depth 4.
+    Extends PsumTripleActivationPlusGeneric (W337) from depth 3 to depth 4.
+    Responds to TernaryCore fused accumulation paths and TENET LUT-based power-of-four folding. -/
+
+theorem ternaryMacPsumQuadrupleActivationPlusGeneric (psum a : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac psum a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) =
+    ternaryMac psum (4 * a) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: quadruple psum activation with minus-weights.
+    For any psum, activation a: mac⁴(psum, a, .minus) = mac(psum, 4*a, .minus).
+    Proves that four consecutive minus-weight MAC stages with the same activation are equivalent to
+    a single MAC with quadrupled activation (subtracted from psum). Foundation for signed
+    power-of-four systolic folding and activation-reuse optimizations at depth 4.
+    Completes the quadruple-activation lattice alongside PsumQuadrupleActivationPlusGeneric.
+    Responds to TernaryCore multi-stage signed subtraction and TENET LUT-based folding. -/
+
+theorem ternaryMacPsumQuadrupleActivationMinusGeneric (psum a : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac psum a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus) =
+    ternaryMac psum (4 * a) (TernaryWeight.mk .minus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating fourteen independent activations with plus-weights.
+    For any activations a, b, c, d, e, f, g, h, i, j, k, l, m, n:
+    mac¹⁴(0, [a..n], .plus) = a+b+c+d+e+f+g+h+i+j+k+l+m+n.
+    Ultimate stress-test for the omega automation boundary beyond the 13-variable proven depth (W337).
+    If successful, establishes that simp+omega scales to 14 variables — an unprecedented result
+    for formal hardware verification. If it fails, empirically documents the omega saturation point.
+    Foundation for next-generation 14x14 systolic tiles and ultra-wide accumulation pipelines.
+    Responds to DATE 2026 SCA-based MAC verification limits. -/
+
+theorem ternaryMacAccumulateFourteenPlusGeneric (a b c d e f g h i j k l m n : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus)) k (TernaryWeight.mk .plus)) l (TernaryWeight.mk .plus)) m (TernaryWeight.mk .plus)) n (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j + k + l + m + n := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: quintuple psum activation with plus-weights.
+    For any psum, activation a: mac^5(psum, a, .plus) = mac(psum, 5*a, .plus).
+    Proves that five consecutive plus-weight MAC stages with the same activation are equivalent to
+    a single MAC with quintupled activation. Foundation for power-of-five systolic folding and
+    activation-reuse optimizations at depth 5.
+    Extends PsumQuadrupleActivationPlusGeneric (W338) from depth 4 to depth 5.
+    CENTURY MILESTONE theorem -- part of the 100 generic ∀ landmark.
+    Responds to TernaryCore fused accumulation paths and TENET LUT-based power-of-five folding. -/
+
+theorem ternaryMacPsumQuintupleActivationPlusGeneric (psum a : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac psum a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) =
+    ternaryMac psum (5 * a) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: quintuple psum activation with minus-weights.
+    For any psum, activation a: mac^5(psum, a, .minus) = mac(psum, 5*a, .minus).
+    Proves that five consecutive minus-weight MAC stages with the same activation are equivalent to
+    a single MAC with quintupled activation (subtracted from psum). Foundation for signed
+    power-of-five systolic folding and activation-reuse optimizations at depth 5.
+    Completes the quintuple-activation lattice alongside PsumQuintupleActivationPlusGeneric.
+    CENTURY MILESTONE theorem -- part of the 100 generic ∀ landmark.
+    Responds to TernaryCore multi-stage signed subtraction and TENET LUT-based folding. -/
+
+theorem ternaryMacPsumQuintupleActivationMinusGeneric (psum a : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac psum a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus) =
+    ternaryMac psum (5 * a) (TernaryWeight.mk .minus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating fifteen independent activations with plus-weights.
+    For any activations a, b, c, d, e, f, g, h, i, j, k, l, m, n, o:
+    mac^15(0, [a..o], .plus) = a+b+c+d+e+f+g+h+i+j+k+l+m+n+o.
+    Ultimate stress-test for the omega automation boundary beyond the 14-variable proven depth (W338).
+    If successful, establishes that simp+omega scales to 15 variables -- an unprecedented result
+    for formal hardware verification and the CENTURY MILESTONE capstone.
+    If it fails, empirically documents the omega saturation point at 14.
+    Foundation for next-generation 15x15 systolic tiles and ultra-wide accumulation pipelines.
+    Responds to DATE 2026 SCA-based MAC verification limits. -/
+
+theorem ternaryMacAccumulateFifteenPlusGeneric (a b c d e f g h i j k l m n o : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus)) k (TernaryWeight.mk .plus)) l (TernaryWeight.mk .plus)) m (TernaryWeight.mk .plus)) n (TernaryWeight.mk .plus)) o (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
