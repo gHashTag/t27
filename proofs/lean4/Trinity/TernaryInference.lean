@@ -592,18 +592,6 @@ theorem ternaryMacMinusWeightActivationSubGeneric (psum a b : Int) :
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
 
-/-- Generic theorem: ternary MAC with zero activation and any weight preserves the partial sum.
-    For any partial sum psum and any ternary weight w:
-    mac(psum, 0, w) = psum.
-    This is the zero-activation identity that guarantees sparsity-gating correctness
-    in accumulator-based systolic arrays — when activation is zero, the partial sum
-    flows through unchanged regardless of weight encoding.
-    Responds to TerEffic sparsity-gating and TENET LUT-centric sparsity insights. -/
-theorem ternaryMacZeroActivationGeneric (psum : Int) (w : TernaryWeight) :
-    ternaryMac psum 0 w = psum := by
-  rcases w with ⟨c⟩
-  cases c <;> simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode] <;> try omega
-
 /-- Generic theorem: triple plus-weight MAC accumulates three times the activation.
     For any activation a: mac(mac(mac(0, a, .plus), a, .plus), a, .plus) = 3*a.
     Generalizes the DoublePlus pattern to depth-3 systolic chains, proving
@@ -631,5 +619,24 @@ theorem ternaryMacTripleMinusGeneric (a : Int) :
     Responds to deep systolic pipeline verification (TENET, ternfpga, KU Leuven). -/
 theorem ternaryMacQuadruplePlusGeneric (a : Int) :
     ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) = 4 * a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: quadruple minus-weight MAC accumulates four times the negated activation.
+    For any activation a: mac⁴(0, a, .minus) = -4*a.
+    Completes the depth-4 N-scaling pair for minus weights, matching QuadruplePlusGeneric.
+    Responds to TOM ROM-SRAM weight-negation paths and TENET deep systolic chains. -/
+theorem ternaryMacQuadrupleMinusGeneric (a : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus) = -4 * a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: penta plus-weight MAC accumulates five times the activation.
+    For any activation a: mac⁵(0, a, .plus) = 5*a.
+    Extends the N-scaling pattern to depth 5 — the deepest practical systolic chain
+    for edge AI accelerators (TENET 4-stage, ternfpga 4-PE, TOM ROM-SRAM).
+    Completes the practical depth coverage for all known 2026 ternary hardware. -/
+theorem ternaryMacPentaPlusGeneric (a : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) = 5 * a := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega

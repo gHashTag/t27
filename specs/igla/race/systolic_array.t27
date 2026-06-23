@@ -1556,3 +1556,25 @@ invariant systolic_array_booth_mul_i16_small_positive_w315_inv:
 
 
 
+test systolic_array_booth_mul_i16_small_positive_w316
+    given a = 2
+    given b = 3
+    when p = booth_mul_i16(a, b)
+    then p == 6
+
+test systolic_array_booth_mul_i16_small_negative_w316
+    given a = -2
+    given b = 3
+    when p = booth_mul_i16(a, b)
+    then p == -6
+
+invariant systolic_array_booth_mul_i16_small_positive_w316_inv:
+    booth_mul_i16(2, 3) == 6
+
+
+
+
+
+
+
+
