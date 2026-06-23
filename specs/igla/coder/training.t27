@@ -1047,3 +1047,21 @@ test training_large_lr_large_change_w300
 
 invariant training_large_lr_large_change_w300_inv:
     sgd_update(0.0, 1.0, 1.0) == -1.0
+
+test training_zero_lr_no_change_w301
+    given w = 5.0
+    given lr = 0.0
+    given grad = 10.0
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == 5.0
+
+test training_negative_lr_negative_change_w301
+    given w = 0.0
+    given lr = -0.1
+    given grad = 10.0
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == 1.0
+
+invariant training_zero_lr_no_change_w301_inv:
+    forall w : f32, grad : f32
+    sgd_update(w, grad, 0.0) == w

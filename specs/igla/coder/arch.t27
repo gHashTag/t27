@@ -1850,3 +1850,18 @@ test arch_add_slices_shortest_truncates_w300
 
 invariant arch_add_slices_offset_zero_passthrough_w300_inv:
     add_slices([1.0f32, 2.0f32, 3.0f32], [4.0f32, 5.0f32, 6.0f32], 0).len() == 3
+
+test arch_add_slices_offset_one_skips_first_w301
+    given a = [1.0f32, 2.0f32, 3.0f32, 4.0f32]
+    given b = [10.0f32, 20.0f32]
+    when c = add_slices(a, b, 1)
+    then c.len() == 2 && c[0] == 12.0
+
+test arch_generate_next_token_topk_three_middle_w301
+    given logits = [0.1f32, 0.5f32, 0.9f32, 0.3f32]
+    given k = 2
+    when token = generate_next_token(logits, k)
+    then token == 2
+
+invariant arch_add_slices_offset_one_skips_first_w301_inv:
+    add_slices([1.0f32, 2.0f32, 3.0f32, 4.0f32], [10.0f32, 20.0f32], 1).len() == 2

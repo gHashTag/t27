@@ -3152,3 +3152,18 @@ test eval_accuracy_two_wrong_zero_w300
 
 invariant eval_accuracy_three_correct_one_w300_inv:
     accuracy([1, 2, 3], [1, 2, 3]) == 1.0
+
+test eval_accuracy_half_correct_half_w301
+    given preds = [1, 2, 3]
+    given refs = [1, 5, 3]
+    when acc = accuracy(preds, refs)
+    then acc == 0.6666666666666666
+
+test eval_accuracy_one_wrong_zero_w301
+    given preds = [1]
+    given refs = [2]
+    when acc = accuracy(preds, refs)
+    then acc == 0.0
+
+invariant eval_accuracy_one_wrong_zero_w301_inv:
+    accuracy([1], [2]) == 0.0

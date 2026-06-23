@@ -1487,3 +1487,16 @@ test backend_log2_const_sixteen_four_w300
 
 invariant backend_log2_const_sixteen_four_w300_inv:
     log2_const("16") == 4
+
+test backend_parse_const_negative_hundred_w301
+    given s = "-100"
+    when v = parse_const(s)
+    then v == -100
+
+test backend_log2_const_thirtytwo_five_w301
+    given s = "32"
+    when v = log2_const(s)
+    then v == 5
+
+invariant backend_log2_const_thirtytwo_five_w301_inv:
+    log2_const("32") == 5

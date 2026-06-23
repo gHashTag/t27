@@ -1932,3 +1932,16 @@ test dataset_diversity_score_two_unique_two_w300
 
 invariant dataset_diversity_score_two_unique_two_w300_inv:
     dataset_diversity_score([DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "b", template: "b", quality_score: 1.0 }]) == 1.0
+
+test dataset_diversity_score_four_same_quarter_w301
+    given dataset = [DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "a", template: "a", quality_score: 1.0 }]
+    when score = dataset_diversity_score(dataset)
+    then score == 0.25
+
+test dataset_diversity_score_five_unique_one_w301
+    given dataset = [DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "b", template: "b", quality_score: 1.0 }, DataSample { rtl: "c", template: "c", quality_score: 1.0 }, DataSample { rtl: "d", template: "d", quality_score: 1.0 }, DataSample { rtl: "e", template: "e", quality_score: 1.0 }]
+    when score = dataset_diversity_score(dataset)
+    then score == 1.0
+
+invariant dataset_diversity_score_five_unique_one_w301_inv:
+    dataset_diversity_score([DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "b", template: "b", quality_score: 1.0 }, DataSample { rtl: "c", template: "c", quality_score: 1.0 }, DataSample { rtl: "d", template: "d", quality_score: 1.0 }, DataSample { rtl: "e", template: "e", quality_score: 1.0 }]) == 1.0

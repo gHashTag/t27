@@ -1101,3 +1101,16 @@ test prm_param_bounds_saturate_small_negative_clamp_w300
 
 invariant prm_param_bounds_saturate_mid_value_identity_w300_inv:
     param_bounds_saturate(0) == 0
+
+test prm_param_bounds_saturate_boundary_minus_one_w301
+    given val = -129
+    when result = param_bounds_saturate(val)
+    then result == -128
+
+test prm_param_bounds_saturate_boundary_plus_one_w301
+    given val = 128
+    when result = param_bounds_saturate(val)
+    then result == 127
+
+invariant prm_param_bounds_saturate_boundary_plus_one_w301_inv:
+    param_bounds_saturate(128) == 127

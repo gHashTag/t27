@@ -1329,3 +1329,16 @@ test rtl_bits_to_u64_three_bits_seven_w300
 
 invariant rtl_bits_to_u64_two_bits_three_w300_inv:
     bits_to_u64([1, 1]) == 3
+
+test rtl_bits_to_u64_four_bits_fifteen_w301
+    given bits = [1, 1, 1, 1]
+    when val = bits_to_u64(bits)
+    then val == 15
+
+test rtl_bits_to_u64_mixed_ten_w301
+    given bits = [0, 1, 0, 1]
+    when val = bits_to_u64(bits)
+    then val == 10
+
+invariant rtl_bits_to_u64_four_bits_fifteen_w301_inv:
+    bits_to_u64([1, 1, 1, 1]) == 15

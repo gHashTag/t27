@@ -1160,3 +1160,16 @@ test adder_tree_4_ones_four_w300
 
 invariant adder_tree_4_zeros_zero_w300_inv:
     adder_tree([0, 0, 0, 0]) == 0
+
+test adder_tree_4_large_negative_sum_w301
+    given inputs = [-1000, -2000, -3000, -4000]
+    when sum = adder_tree(inputs)
+    then sum == -10000
+
+test adder_tree_4_alternating_zero_w301
+    given inputs = [5, -5, 3, -3]
+    when sum = adder_tree(inputs)
+    then sum == 0
+
+invariant adder_tree_4_alternating_zero_w301_inv:
+    adder_tree([5, -5, 3, -3]) == 0

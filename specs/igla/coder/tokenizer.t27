@@ -914,3 +914,16 @@ test tokenizer_bos_appended_first_zero_w300
 
 invariant tokenizer_bos_appended_first_zero_w300_inv:
     tokenize([7, 8, 9])[0] == 0
+
+test tokenizer_single_token_length_two_w301
+    given tokens = [42]
+    when result = tokenize(tokens)
+    then result.len() == 2
+
+test tokenizer_four_tokens_length_five_w301
+    given tokens = [1, 2, 3, 4]
+    when result = tokenize(tokens)
+    then result.len() == 5
+
+invariant tokenizer_single_token_length_two_w301_inv:
+    tokenize([42]).len() == 2

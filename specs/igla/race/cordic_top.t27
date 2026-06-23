@@ -1193,3 +1193,16 @@ test cordic_top_batch_mixed_large_small_w300
 
 invariant cordic_top_batch_large_positive_sum_w300_inv:
     cordic_top_batch([10000, 10000]) == 20000
+
+test cordic_top_batch_three_equal_elements_w301
+    given angles = [5000, 5000, 5000]
+    when sum = cordic_top_batch(angles)
+    then sum == 15000
+
+test cordic_top_batch_opposites_cancel_w301
+    given angles = [1234, -1234]
+    when sum = cordic_top_batch(angles)
+    then sum == 0
+
+invariant cordic_top_batch_opposites_cancel_w301_inv:
+    cordic_top_batch([1234, -1234]) == 0

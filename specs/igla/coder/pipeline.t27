@@ -1819,3 +1819,16 @@ test pipeline_three_elements_len_three_w300
 
 invariant pipeline_two_elements_len_two_w300_inv:
     pipeline([1.0f32, 2.0f32]).len() == 2
+
+test pipeline_four_elements_len_four_w301
+    given input = [1.0f32, 2.0f32, 3.0f32, 4.0f32]
+    when output = pipeline(input)
+    then output.len() == 4
+
+test pipeline_ten_elements_len_ten_w301
+    given input = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32, 9.0f32, 10.0f32]
+    when output = pipeline(input)
+    then output.len() == 10
+
+invariant pipeline_four_elements_len_four_w301_inv:
+    pipeline([1.0f32, 2.0f32, 3.0f32, 4.0f32]).len() == 4

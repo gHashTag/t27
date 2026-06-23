@@ -1372,3 +1372,16 @@ test eda_route_wire_length_small_positive_true_w300
 
 invariant eda_route_wire_length_small_positive_true_w300_inv:
     route_wire_length_non_negative(1) == true
+
+test eda_placement_area_tiny_positive_true_w301
+    given area = 0.00001
+    when ok = placement_area_positive(area)
+    then ok == true
+
+test eda_route_wire_length_huge_positive_true_w301
+    given len = 100000000
+    when ok = route_wire_length_non_negative(len)
+    then ok == true
+
+invariant eda_route_wire_length_huge_positive_true_w301_inv:
+    route_wire_length_non_negative(100000000) == true

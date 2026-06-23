@@ -4166,3 +4166,17 @@ test benchmark_count_passed_at_5_mixed_one_w300
 
 invariant benchmark_compute_latency_one_op_same_cycles_w300_inv:
     compute_latency(1, 5) == 5.0
+
+test benchmark_compute_latency_large_ops_small_cycles_w301
+    given ops = 10000
+    given cycles = 1
+    when lat = compute_latency(ops, cycles)
+    then lat == 10000.0
+
+test benchmark_count_passed_at_5_none_passed_zero_w301
+    given results = []
+    when n = count_passed_at_5(results, 0, 0)
+    then n == 0
+
+invariant benchmark_count_passed_at_5_none_passed_zero_w301_inv:
+    count_passed_at_5([], 0, 0) == 0

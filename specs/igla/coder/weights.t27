@@ -1013,3 +1013,16 @@ test weights_count_minus_three_minus_w300
 
 invariant weights_load_all_plus_three_count_w300_inv:
     count_plus(load_all_plus(3)) == 3
+
+test weights_load_all_zero_three_count_w301
+    given n = 3
+    when w = load_all_zero(n)
+    then count_zero(w) == 3
+
+test weights_count_zero_three_zero_w301
+    given w = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
+    when c = count_zero(w)
+    then c == 3
+
+invariant weights_load_all_zero_three_count_w301_inv:
+    count_zero(load_all_zero(3)) == 3

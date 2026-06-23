@@ -1144,3 +1144,16 @@ test cordic_sqrt_approx_four_two_exact_w300
 
 invariant cordic_sqrt_approx_four_two_exact_w300_inv:
     sqrt_approx(4.0) == 2.0
+
+test cordic_sqrt_approx_nine_three_exact_w301
+    given x = 9.0
+    when r = sqrt_approx(x)
+    then r == 3.0
+
+test cordic_sqrt_approx_sixteen_four_exact_w301
+    given x = 16.0
+    when r = sqrt_approx(x)
+    then r == 4.0
+
+invariant cordic_sqrt_approx_nine_three_exact_w301_inv:
+    sqrt_approx(9.0) == 3.0

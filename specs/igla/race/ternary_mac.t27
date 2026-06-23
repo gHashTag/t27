@@ -1254,3 +1254,20 @@ test ternary_mac_large_acc_small_change_w300
 invariant ternary_mac_zero_activation_any_weight_zero_w300_inv:
     forall w : TernaryWeight, acc : i32
     ternary_mac(0, w, acc) == acc
+
+test ternary_mac_large_negative_activation_plus_weight_w301
+    given a = -50
+    given w = TernaryWeight { code: 1 }
+    given acc = 100
+    when result = ternary_mac(a, w, acc)
+    then result == 50
+
+test ternary_mac_large_negative_activation_minus_weight_w301
+    given a = -50
+    given w = TernaryWeight { code: 2 }
+    given acc = 100
+    when result = ternary_mac(a, w, acc)
+    then result == 150
+
+invariant ternary_mac_large_negative_activation_plus_weight_w301_inv:
+    ternary_mac(-50, TernaryWeight { code: 1 }, 100) == 50

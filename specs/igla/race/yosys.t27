@@ -1291,3 +1291,19 @@ test yosys_is_prefix_same_prefix_true_w300
 
 invariant yosys_strings_equal_empty_empty_true_w300_inv:
     strings_equal("", "") == true
+
+test yosys_is_prefix_empty_any_true_w301
+    given a = ""
+    given b = "xyz"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_strings_equal_different_lengths_false_w301
+    given a = "hi"
+    given b = "hello"
+    when ok = strings_equal(a, b)
+    then ok == false
+
+invariant yosys_is_prefix_empty_any_true_w301_inv:
+    forall s : string
+    is_prefix("", s) == true

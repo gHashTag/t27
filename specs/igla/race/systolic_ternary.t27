@@ -1463,3 +1463,21 @@ test systolic_ternary_pe_zero_acc_minus_weight_negates_w300
 invariant systolic_ternary_pe_zero_acc_plus_weight_adds_w300_inv:
     forall a : i32
     systolic_ternary_pe(a, TernaryWeight { code: 1 }, 0).1 == a
+
+test systolic_ternary_pe_large_activation_zero_weight_nop_w301
+    given a = 100
+    given w = TernaryWeight { code: 0 }
+    given psum = 42
+    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+    then psum_out == 42
+
+test systolic_ternary_pe_zero_acc_zero_activation_zero_w301
+    given a = 0
+    given w = TernaryWeight { code: 1 }
+    given psum = 0
+    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+    then psum_out == 0
+
+invariant systolic_ternary_pe_large_activation_zero_weight_nop_w301_inv:
+    forall a : i32, psum : i32
+    systolic_ternary_pe(a, TernaryWeight { code: 0 }, psum).1 == psum

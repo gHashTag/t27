@@ -1168,3 +1168,16 @@ test cordic_fixed_cos_half_turn_approx_zero_w300
 
 invariant cordic_fixed_cos_half_turn_approx_zero_w300_inv:
     cordic_cos(8192) > -1 && cordic_cos(8192) < 1
+
+test cordic_fixed_cos_small_positive_approx_one_w301
+    given a = 100
+    when c = cordic_cos(a)
+    then c > 16300 && c < 16400
+
+test cordic_fixed_sin_small_positive_approx_linear_w301
+    given a = 100
+    when s = cordic_sin(a)
+    then s > 99 && s < 101
+
+invariant cordic_fixed_sin_small_positive_approx_linear_w301_inv:
+    cordic_sin(100) > 99 && cordic_sin(100) < 101

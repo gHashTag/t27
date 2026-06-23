@@ -1146,3 +1146,19 @@ test gemm_booth_mul_i32_identity_left_w300
 invariant gemm_booth_mul_i32_identity_left_w300_inv:
     forall b : i32
     booth_mul_i32(1, b) == b
+
+test gemm_booth_mul_i32_large_negative_product_w301
+    given a = -100
+    given b = 50
+    when p = booth_mul_i32(a, b)
+    then p == -5000
+
+test gemm_booth_mul_i32_identity_right_w301
+    given a = -77
+    given b = 1
+    when p = booth_mul_i32(a, b)
+    then p == -77
+
+invariant gemm_booth_mul_i32_identity_right_w301_inv:
+    forall a : i32
+    booth_mul_i32(a, 1) == a

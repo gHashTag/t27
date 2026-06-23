@@ -1141,3 +1141,16 @@ test bram_weights_width_single_element_w300
 
 invariant bram_weights_width_single_element_w300_inv:
     bram_weights_width([42.0f32]) == 1
+
+test bram_weights_depth_five_elements_w301
+    given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32]
+    when bw = bram_weights_depth(data)
+    then bw == 5
+
+test bram_weights_width_ten_elements_w301
+    given data = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32, 9.0f32, 10.0f32]
+    when w = bram_weights_width(data)
+    then w == 10
+
+invariant bram_weights_depth_five_elements_w301_inv:
+    bram_weights_depth([1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32]) == 5
