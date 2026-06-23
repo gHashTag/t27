@@ -306,3 +306,10 @@ theorem ternaryInferenceGemm2x2EqualsReferenceMixed :
     let w := #[TernaryWeight.mk .plus, TernaryWeight.mk .minus, TernaryWeight.mk .zero, TernaryWeight.mk .plus]
     ternaryGemm2x2 a w = referenceGemm2x2 a w := by
   simp [ternaryGemm2x2, referenceGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, referenceMulAdd] <;> try native_decide
+/-- Generic theorem: for any activation a and partial sum psum, a zero-weight ternary MAC
+    leaves psum unchanged. This is the first ∀ quantifier theorem in the t27 proof suite,
+    responding to the W300 weak point that concrete theorems dominate.
+    Responds to Sparkle HDL BitNet b1.58 formal depth milestone. -/
+theorem ternaryMacZeroWeightIdentityGeneric (a psum : Int) :
+    ternaryMac psum a (TernaryWeight.mk .zero) = psum := by
+  simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
