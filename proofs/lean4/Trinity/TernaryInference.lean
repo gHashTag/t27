@@ -1289,3 +1289,38 @@ theorem ternaryMacRingInversePlusGeneric (a : Int) :
     ternaryMac 0 (-a) (TernaryWeight.mk .plus) = -(ternaryMac 0 a (TernaryWeight.mk .plus)) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: additive inverse for ternary MAC with minus-weights.
+    For any activation a: mac(0, -a, .minus) = -mac(0, a, .minus).
+    Proves that negating the activation before minus-weight MAC is equivalent to negating the result.
+    Complements RingInversePlusGeneric (W333) to complete the ring inverse lattice for both signs.
+    Foundation for full ring structure over Int for all ternary MAC weight codes. -/
+
+theorem ternaryMacRingInverseMinusGeneric (a : Int) :
+    ternaryMac 0 (-a) (TernaryWeight.mk .minus) = -(ternaryMac 0 a (TernaryWeight.mk .minus)) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: scalar associativity for plus-weight ternary MAC.
+    For any activations a, b: mac(mac(0, a, .plus), b, .plus) = mac(0, a+b, .plus).
+    Proves that two-stage plus-weight accumulation is equivalent to a single MAC with summed activation.
+    Foundation for systolic-array stage fusion and arbitrary-depth plus-weight pipeline folding.
+    Complements AccumulateTwoPlusGeneric (W317) with explicit associativity formulation. -/
+
+theorem ternaryMacScalarAssociativityPlusGeneric (a b : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus) = ternaryMac 0 (a + b) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: triple psum associativity with minus-weights.
+    For any psum, activations a, b, c: mac³(psum, [a,b,c], .minus) = mac(psum, -(a+b+c), .minus).
+    Extends PsumAssociativityThreePlusGeneric (W331) to minus weights.
+    Proves that three consecutive minus-weight MAC stages with live accumulator fold into a single
+    MAC with negated summed activation. Foundation for arbitrary-depth minus-weight systolic folding.
+    Responds to TENET multi-stage signed LUT folding and TernaryCore fused subtraction paths. -/
+
+theorem ternaryMacPsumAssociativityThreeMinusGeneric (psum a b c : Int) :
+    ternaryMac (ternaryMac (ternaryMac psum a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus) =
+    ternaryMac psum (a + b + c) (TernaryWeight.mk .minus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

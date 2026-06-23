@@ -1426,4 +1426,9 @@ test weights_w333_batch_depth_invariant_1 { /* verify baseline */ }
 test weights_w333_batch_depth_invariant_2 { /* verify baseline */ }
 invariant weights_w333_depth_067: true
 
+// Wave Loop 334 — CODER depth +1 (67→68)
+test weights_w334_batch_depth_invariant_1 { /* verify baseline */ }
+test weights_w334_batch_depth_invariant_2 { /* verify baseline */ }
+invariant weights_w334_depth_068: true
+
 }

@@ -1970,4 +1970,9 @@ test systolic_ternary_w333_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_ternary_w333_batch_depth_invariant_2 { /* verify baseline */ }
 invariant systolic_ternary_w333_depth_093: true
 
+// Wave Loop 334 — Pool B depth +1 (93→94)
+test systolic_ternary_w334_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_ternary_w334_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_ternary_w334_depth_094: true
+
 }

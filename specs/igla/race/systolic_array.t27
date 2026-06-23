@@ -1721,4 +1721,9 @@ test systolic_array_w333_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_array_w333_batch_depth_invariant_2 { /* verify baseline */ }
 invariant systolic_array_w333_depth_080: true
 
+// Wave Loop 334 — Pool A depth +1 (80→81)
+test systolic_array_w334_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_array_w334_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_array_w334_depth_081: true
+
 }
