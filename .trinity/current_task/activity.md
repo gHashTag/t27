@@ -532,3 +532,7 @@
 - **Commit:** feat(w321): W321 IGLA CODER+RACE — Pool A 62→63, CODER 53→54, Pool B 78→79, Integration 63→64, Lean 4 45→47 generic ∀
 - **Files:** docs/reports/WAVE_LOOP_321_COOPERATION.md,docs/reports/WAVE_LOOP_321_REPORT.md
 
+## 2026-06-23T05:19:35Z — trinity-rust-rings
+- **Commit:** docs(w321): Wave Loop 321 report + cooperation variants for W322
+- **Files:** docs/reports/WAVE_LOOP_321_COOPERATION.md,docs/reports/WAVE_LOOP_321_REPORT.md
+

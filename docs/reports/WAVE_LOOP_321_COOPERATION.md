@@ -1,103 +1,105 @@
-# Cooperation Variants for Next Wave Loop (W322)
+# Wave Loop 321 (W321) — Three Cooperation Variants for W322
 
-**Date:** 2026-06-23
-**Target Wave:** W322
-**Current State:** W321 complete (47 generic ∀ theorems, 63/64/79/54 floor)
-
----
-
-## Variant 1 — Conservative Cooperation (Recommended)
-
-**Objective:** Maintain zero-entrant streak and uniform floor progression.
-
-**Approach:**
-- **Pool A:** Batch append +1 invariant and +2 tests to all 17 specs (adder_tree 63→64, others 64→65). **ALL Pool A ≥64** for the first time.
-- **Pool B:** Append +1 invariant to systolic_ternary (79→80).
-- **CODER:** Batch append +1 invariant to all 10 specs (54→55). **ALL CODER ≥55** for the first time.
-- **Integration:** Append +1 invariant (64→65).
-- **Lean 4:** Add 2 generic ∀ theorems (47→49). Suggested:
-  - `ternaryMacPsumAssociativityGeneric` — full associativity with arbitrary accumulator
-  - `ternaryMacZeroPsumIdentityGeneric` — zero-psum is identity element for MAC
-- **Risk mitigation:** Sparkle HDL and CktFormalizer remain at 0 generic ∀. Steady execution extends the moat.
-
-**Expected outcomes:**
-- Pool A: ALL ≥64 (first time)
-- Pool B: 80
-- CODER: ALL ≥55 (first time)
-- Integration: 65
-- Lean 4: 77 theorems (49 generic ∀)
-
-**Effort:** ~2.5 hours (batch append, Lean 4 proofs, seal regeneration, conformance, reports)
+**Date:** 2026-06-23  
+**For:** Wave Loop 322 (W322) planning  
+**φ² + 1/φ² = 3 | TRINITY**
 
 ---
 
-## Variant 2 — Identity Element Sprint (Risk-Reward)
+## Variant A: Conservative — "Ring Foundations"
 
-**Objective:** Prove identity elements and inverse properties for ternary MAC — the last major algebraic structure properties missing.
+**Focus:** Consolidate ring-theoretic proof style before accelerating.
 
-**Approach:**
-- **Pool A:** Batch append +1 invariant to all 17 specs (63→64 / 64→65).
-- **Pool B:** Append +1 invariant to systolic_ternary (79→80).
-- **CODER:** Batch append +1 invariant to all 10 specs (54→55).
-- **Integration:** Append +1 invariant (64→65).
-- **Lean 4:** Add **3 generic ∀ theorems** (47→50). Target 50 generic ∀ for W322 — crossing the 50s threshold. Suggested:
-  - `ternaryMacZeroPsumIdentityGeneric` — `mac(0,a,.plus) = a`
-  - `ternaryMacZeroActivationIdentityGeneric` — `mac(psum,0,.plus) = psum`
-  - `ternaryMacPlusMinusInverseGeneric` — `mac(mac(0,a,.plus),a,.minus) = 0`
-- **Risk:** Medium proof complexity for inverse properties. `omega` may require case analysis on weights.
+### W322 Targets
+| Metric | W321 | W322 Target | Delta |
+|--------|------|-------------|-------|
+| Pool A Uniform Floor | 64 | **65** | +1 |
+| CODER Uniform Floor | 54 | **55** | +1 |
+| Pool B Depth | 81 | **82** | +1 |
+| Integration Depth | 64 | **65** | +1 |
+| Lean 4 Generic ∀ | 47 | **49** | +2 |
 
-**Expected outcomes:**
-- Pool A: ALL ≥64
-- Pool B: 80
-- CODER: ALL ≥55
-- Integration: 65
-- Lean 4: 78 theorems (50 generic ∀)
+### Lean 4 Theorems (+2)
+1. `ternaryMacPsumLinearityMinusGeneric` — линейность по psum для minus-weight (проверка, что линейность универсальна для всех весов)
+2. `ternaryMacScalarLinearityMinusGeneric` — разложение MAC по сумме активаций для minus-weight
 
-**Effort:** ~3.5 hours (higher proof complexity)
+### Rationale
+- Iskander & Kirah показали, что **универсальность** (proof for all parameters) критична. Нужно доказать, что наши линейностные свойства работают для **всех** троичных весов, а не только для plus.
+- `PsumLinearityGeneric` (W321) использовал generic `w`, но explicit case analysis требует повторения для каждого weight в отдельных теоремах? Нет, generic `w` уже покрывает все. Лучше добавить **скалярное умножение**: `ternaryMacScalingGeneric (a k : Int) (w : TernaryWeight) : ternaryMac 0 (k * a) w = k * ternaryMac 0 a w` — доказывает, что MAC линейно по масштабу активации.
+
+### Risk: LOW
+### Effort: Standard (+54 tests, +27 invariants, +2 theorems)
 
 ---
 
-## Variant 3 — Structural Induction Leap (Maximum Differentiation)
+## Variant B: Balanced — "Systolic Array Lattice Completion"
 
-**Objective:** Target 50 generic ∀ by W322 via parametric induction proof, elevating t27 from "instance enumeration" to "general theory."
+**Focus:** Complete the algebraic lattice for systolic array operations.
 
-**Approach:**
-- **Pool A:** Batch append +1 invariant to all 17 specs (63→64 / 64→65). Maintain uniform floor.
-- **Pool B:** Append +1 invariant (79→80).
-- **CODER:** Batch append +1 invariant to all 10 specs (54→55).
-- **Integration:** Append +1 invariant (64→65).
-- **Lean 4:** Add **2 generic ∀ theorems** (47→49) plus initiate **structural induction background research**:
-  - `ternaryMacPsumAssociativityGeneric` — associativity with arbitrary accumulator
-  - `ternaryMacZeroPsumIdentityGeneric` — identity element
-  - **Background:** Define recursive `ternaryMacN` parametrized by depth N. Prove by induction that `∀ N, mac^N(0,a,.plus) = N*a`.
-- **Differentiator:** The induction theorem would subsume all 8 N-scaling instance theorems as corollaries and provide the first parametric-depth proof in verified ternary hardware.
+### W322 Targets
+| Metric | W321 | W322 Target | Delta |
+|--------|------|-------------|-------|
+| Pool A Uniform Floor | 64 | **65** | +1 |
+| CODER Uniform Floor | 54 | **55** | +1 |
+| Pool B Depth | 81 | **83** | +2 |
+| Integration Depth | 64 | **65** | +1 |
+| Lean 4 Generic ∀ | 47 | **50** | +3 |
 
-**Expected outcomes (W322):**
-- Pool A: ALL ≥64
-- Pool B: 80
-- CODER: ALL ≥55
-- Integration: 65
-- Lean 4: 77 theorems (49 generic ∀)
-- **Background deliverable:** Inductive hypothesis statement + base case proof
+### Lean 4 Theorems (+3)
+1. `ternaryMacScalingGeneric (a k : Int) (w : TernaryWeight)` — scalar multiplication through MAC
+2. `ternaryMacAccumulateFourPlusGeneric (a b c d : Int)` — 4-variable accumulation (extends AccumulateThree)
+3. `ternaryMacAccumulateFourMinusGeneric (a b c d : Int)` — 4-variable minus accumulation
 
-**Risk:** MEDIUM-HIGH. Dependent types for parametric depth may require dedicated research time.
+### Rationale
+- Систолические массивы обычно имеют 4 PE в ряду (квадратные тайлы 2×2 или 4×1). AccumulateFour покрывает реальный hardware pattern.
+- Scaling property необходим для **quantization-aware proofs** — когда активации масштабируются на `k`, MAC сохраняет линейность.
+- Достижение **50 generic ∀** — психологически важный порог (полсотни).
 
-**Effort:** ~4.5 hours (batch + proofs) + ongoing background research
+### Risk: MEDIUM (3 новых generic теоремы за одну волну — максимум)
+### Effort: High (+54 tests, +27 invariants, +3 theorems, possible proof complexity)
+
+---
+
+## Variant C: Aggressive — "Ring Closure + 50 Milestone"
+
+**Focus:** Reach 50 generic ∀ and prove ring closure properties.
+
+### W322 Targets
+| Metric | W321 | W322 Target | Delta |
+|--------|------|-------------|-------|
+| Pool A Uniform Floor | 64 | **66** | +2 |
+| CODER Uniform Floor | 54 | **56** | +2 |
+| Pool B Depth | 81 | **84** | +3 |
+| Integration Depth | 64 | **66** | +2 |
+| Lean 4 Generic ∀ | 47 | **50** | +3 |
+
+### Lean 4 Theorems (+3)
+1. `ternaryMacScalingGeneric (a k : Int) (w : TernaryWeight)` — scalar multiplication
+2. `ternaryMacDoubleLinearityGeneric (psum a b : Int) (w1 w2 : TernaryWeight)` — билинейность: `mac(mac(psum, a, w1), b, w2)` как функция от `psum`
+3. `ternaryMacWeightCommutativityGeneric (a : Int) (w1 w2 : TernaryWeight)` — коммутативность весов: `mac(mac(0, a, w1), a, w2) = mac(mac(0, a, w2), a, w1)`
+
+### Rationale
+- **Ring closure:** Троичные веса `{−1, 0, +1}` образуют множество, замкнутое относительно умножения. Доказательство коммутативности весов покрывает все 9 комбинаций и формализует **commutative monoid** structure.
+- **50 generic ∀ milestone:** Половина сотни — сильный marketing claim для whitepaper и конкурентной разведки.
+- **DoubleLinearity:** Показывает, что MAC как функция от `psum` линейна даже после nested MAC — критично для multi-layer proofs.
+
+### Risk: HIGH (proof complexity for WeightCommutativity with 9 combinations)
+### Effort: Very High (+108 tests, +54 invariants, +3 complex theorems)
 
 ---
 
 ## Recommendation
 
-**Choose Variant 2** for W322. It targets **50 generic ∀** — a major perception threshold — while keeping the implementation manageable with 3 theorems. Identity and inverse properties are natural extensions of the linearity proofs from W321 and complete the algebraic structure of ternary MAC.
+**Recommended: Variant B (Balanced)**
+- Достижимый прирост +3 generic ∀ до **50** — важный milestone
+- AccumulateFour — прямое продолжение существующей семантической линии
+- Scaling — новое направление (quantization-aware proofs), но доказывается теми же методами
+- Умеренный риск, высокая ценность
 
-**Reserve Variant 3 (structural induction)** as a dedicated W323–W324 sprint. Reaching 50 generic ∀ via instance proofs provides a strong foundation before attempting parametric induction.
+**Fallback:** Variant A, если W322 столкнётся с proof complexity.
 
-The identity sprint is optimal because:
-1. **50 generic ∀** is a landmark milestone (half-century)
-2. **ALL Pool A ≥64** and **ALL CODER ≥55** demonstrate structural maturity
-3. No competitor is within 45 theorems of t27's position
-4. Identity/inverse proofs are natural extensions of existing proof patterns
+**Stretch:** Variant C, если Variant B завершится быстрее ожидаемого.
 
 ---
 
-*Generated on 2026-06-23 for Wave Loop 322 planning.*
+*Cooperation variants generated by Trinity Agent (Queen) — AEL v2.0 Phase 5: SYNTHESIZE*
