@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:53f5d352449527f7c92f2ae2a15d8f96e1d043722e4b7f7096b2a4e25c49cf87",
   "module": "igla-coder-tokenizer",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:38:35Z",
+  "sealed_at": "2026-06-23T00:44:38Z",
   "spec_hash": "sha256:1bcc19c299ee4ec5de67e5992d8f4cd5a19751a71310c846243c707d96c4ca83",
   "spec_path": "specs/igla/coder/tokenizer.t27"
 }
