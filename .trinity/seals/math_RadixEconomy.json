@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:aee45e6eab7a39d2eb9c8fc0b10159ca1f2b92b5c99963e71a965495fa463aa7",
   "module": "RadixEconomy",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:19:01Z",
+  "sealed_at": "2026-06-23T03:32:51Z",
   "spec_hash": "sha256:b580bb708977e0fb9e03cdc156551262ce5596f534e44d31e14d66d7ca9e83b5",
   "spec_path": "specs/math/radix_economy.t27"
 }

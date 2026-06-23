@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7996b7f670788e12ecaf865d62d28a2334705efd4f945e95db87f48a19325bac",
   "module": "LucasAccumulator",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:19:02Z",
+  "sealed_at": "2026-06-23T03:32:51Z",
   "spec_hash": "sha256:786f94b80c9cc8da149e371886d2c2a515bb29a289dd287d9d8c2986692e0b1e",
   "spec_path": "specs/numeric/lucas_accumulator.t27"
 }

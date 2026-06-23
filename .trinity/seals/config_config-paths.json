@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:52b94ecd4ac04a71e3a9a45fc2ff4ba41b27d4d1a2d980eaa1f38ec2bc6a1fd3",
   "module": "config-paths",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:19:01Z",
+  "sealed_at": "2026-06-23T03:32:50Z",
   "spec_hash": "sha256:b8f7c75f19267d15fbd1b8e15e1bb446357bdca35f783d8a58f012dadaa1e4cb",
   "spec_path": "specs/config/paths.t27"
 }

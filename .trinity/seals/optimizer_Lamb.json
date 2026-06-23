@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:fa4c3f97c1466dd516729e4a1715af30bf1689325b013a5d7942d786cf2ee14b",
   "module": "Lamb",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:19:03Z",
+  "sealed_at": "2026-06-23T03:32:52Z",
   "spec_hash": "sha256:d8bd6eba31a437f911eec4ea0d056b1cd4a3b34039e40e207aa2aaa852e11f21",
   "spec_path": "specs/ml/optimizer/lamb.t27"
 }

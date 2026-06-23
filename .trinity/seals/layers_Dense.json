@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:615a2cf2202fadcef16d6bd760db35cbca74b104f17882013186d061491c90c9",
   "module": "Dense",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:19:02Z",
+  "sealed_at": "2026-06-23T03:32:52Z",
   "spec_hash": "sha256:a3ba5541115a575b99fce7ab3b7cfb3742d11f6273c93a0050b05275a23033fc",
   "spec_path": "specs/ml/layers/dense_layer.t27"
 }

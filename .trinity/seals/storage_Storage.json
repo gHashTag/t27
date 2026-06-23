@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f59ff6a45e32e6a2c2bb089d7a418e4c579b8a8d53c8c23e568980242b34f8b1",
   "module": "Storage",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:19:02Z",
+  "sealed_at": "2026-06-23T03:32:51Z",
   "spec_hash": "sha256:bc0376617cd87b3e40006d71e6ea96593448eafb8942448c5bd8d5363bb37dcf",
   "spec_path": "specs/storage/schema.t27"
 }

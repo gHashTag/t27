@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:49204766fb43068940f21e1b4d3df5ad3e448cc97072aa4cf4002cfd5cc0fa6a",
   "module": "Gelu",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:19:03Z",
+  "sealed_at": "2026-06-23T03:32:53Z",
   "spec_hash": "sha256:3c34e36a16bc732572de54cd5a41ff1139c2f0d05b28cccb1fe8c1dc29c21e65",
   "spec_path": "specs/ml/activation/gelu_activation.t27"
 }

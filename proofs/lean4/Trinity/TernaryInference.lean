@@ -550,3 +550,22 @@ theorem ternaryMacMinusWeightActivationAddGeneric (psum a b : Int) :
     ternaryMac psum (a + b) (TernaryWeight.mk .minus) = psum - a - b := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: double plus-weight MAC accumulates twice the activation.
+    For any activation a: mac(mac(0, a, .plus), a, .plus) = 2*a.
+    This proves the scaling correctness of repeated plus-weight accumulation,
+    foundational for systolic arrays with multiple plus-weight PEs in series
+    and for verifying tiled GEMM accumulation chains. -/
+theorem ternaryMacDoublePlusGeneric (a : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) = 2 * a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: double minus-weight MAC accumulates twice the negated activation.
+    For any activation a: mac(mac(0, a, .minus), a, .minus) = -2*a.
+    This proves the scaling correctness of repeated minus-weight accumulation,
+    complementary to DoublePlusGeneric for bidirectional systolic arrays. -/
+theorem ternaryMacDoubleMinusGeneric (a : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus) = -2 * a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

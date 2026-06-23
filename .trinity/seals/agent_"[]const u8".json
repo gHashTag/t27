@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:eaaf28d390b63e5dc96d8792ac519b006552b05e1120e9a088bc5d7a2720b7b0",
   "module": "\"[]const u8\"",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:19:03Z",
+  "sealed_at": "2026-06-23T03:32:52Z",
   "spec_hash": "sha256:aa12b6315cb91ac8d307a5caaeb223561f2b4233f03ca9d0deb47b38d1836a90",
   "spec_path": "specs/tri/agent/faculty_board.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1c72719431659cae50df8a5470d6af93732fdcf587c926fd9002d499c92e2b83",
   "module": "Timing",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:19:02Z",
+  "sealed_at": "2026-06-23T03:32:51Z",
   "spec_hash": "sha256:a54d0047cea5a50fc70f0c4f93978243028d115b4578dcb5da59ca9d4bf117ed",
   "spec_path": "specs/fpga/timing.t27"
 }

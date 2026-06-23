@@ -1335,3 +1335,38 @@ invariant adder_tree_4_all_negative_sum_w311_inv:
 
 
 
+test adder_tree_4_all_negative_sum_w312
+    given inputs = [-1, -2, -3, -4]
+    when sum = adder_tree(inputs)
+    then sum == -10
+
+test adder_tree_4_mixed_large_sum_w312
+    given inputs = [100, -50, 25, -75]
+    when sum = adder_tree(inputs)
+    then sum == 0
+
+invariant adder_tree_4_all_negative_sum_w312_inv:
+    adder_tree([-1, -2, -3, -4]) == -10
+
+
+
+
+
+test adder_tree_4_all_negative_sum_w312
+    given inputs = [-1, -2, -3, -4]
+    when sum = adder_tree(inputs)
+    then sum == -10
+
+test adder_tree_4_mixed_large_sum_w312
+    given inputs = [100, -50, 25, -75]
+    when sum = adder_tree(inputs)
+    then sum == 0
+
+invariant adder_tree_4_all_negative_sum_w312_inv:
+    adder_tree([-1, -2, -3, -4]) == -10
+
+
+
+
+
+
