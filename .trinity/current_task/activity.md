@@ -572,3 +572,7 @@
 - **Commit:** docs(w324): W324 report + cooperation variants for W325
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/coder_igla-coder-arch.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-eval.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-prm.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json,.trinity/seals/coder_igla-coder-weights.json,.trinity/seals/race_igla-race-adder-tree.json,.trinity/seals/race_igla-race-backend.json,.trinity/seals/race_igla-race-bram-weights.json,.trinity/seals/race_igla-race-cordic-fixed.json,.trinity/seals/race_igla-race-cordic-top.json,.trinity/seals/race_igla-race-cordic.json,.trinity/seals/race_igla-race-eda.json,.trinity/seals/race_igla-race-formal.json
 
+## 2026-06-23T06:07:53Z — trinity-rust-rings
+- **Commit:** feat(w325): W325 IGLA CODER+RACE — Pool A 67→68, CODER 57→58, Pool B 84→85, Integration 67→68, Lean 4 57→60 generic ∀
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/reports/WAVE_LOOP_325_COOPERATION.md,docs/reports/WAVE_LOOP_325_REPORT.md
+
