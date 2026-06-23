@@ -1108,3 +1108,16 @@ test adder_tree_4_large_numbers_sum_w296
 
 invariant adder_tree_4_large_numbers_sum_w296_inv:
     adder_tree([100, 200, 300, 400]) == 1000
+
+test adder_tree_4_all_same_positive_w297
+    given inputs = [5, 5, 5, 5]
+    when sum = adder_tree(inputs)
+    then sum == 20
+
+test adder_tree_4_all_same_negative_w297
+    given inputs = [-3, -3, -3, -3]
+    when sum = adder_tree(inputs)
+    then sum == -12
+
+invariant adder_tree_4_all_same_positive_w297_inv:
+    adder_tree([5, 5, 5, 5]) == 20

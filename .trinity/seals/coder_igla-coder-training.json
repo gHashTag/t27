@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:241bc629d2fdbe9e23dad3beb26570fc4dc46db00cc9b2d7bfe22feb9318a917",
+  "gen_hash_c": "sha256:74e20f991e76255087baa697a03572bc92e2d03cb5d836dc5079f17bc6327053",
   "gen_hash_rust": "sha256:aa0c8c64ca38712665d633d23eddb1cdd331d0859dbe80cc16556b21632c1075",
-  "gen_hash_verilog": "sha256:3113b6c0b9393f5fecf0f222ae123920e0c2056a529141ffd79d55b8cfa4babc",
-  "gen_hash_zig": "sha256:9dda387c0a0f46bc247d61355d8b31a4d1f2f1e8797fb57393c0aec1ae949dda",
+  "gen_hash_verilog": "sha256:cc241a0d9f7585db483c4fe8122d8c1f7c5488482ea640cf0e007df7973863b3",
+  "gen_hash_zig": "sha256:550fc079d3c21462b7959f747f80615a9148ed90197f32e4750433fc07ecb7ef",
   "module": "igla-coder-training",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:07:29Z",
-  "spec_hash": "sha256:708be8168ecbe8f5871d8a918ec3b98a383fcf75f0d700842d8569acfdc5f655",
+  "sealed_at": "2026-06-23T00:13:32Z",
+  "spec_hash": "sha256:a8a591d94c55c3114abdfc5050c55c51c3da3426a0298687f515481252ba8b78",
   "spec_path": "specs/igla/coder/training.t27"
 }

@@ -956,3 +956,16 @@ test opcodes_validate_chain_single_sacred_true_w296
 invariant opcodes_validate_chain_single_sacred_true_w296_inv:
     forall op : u8
     is_sacred_opcode(op) ==> validate_opcode_chain([op]) == true
+
+test opcodes_is_sacred_opcode_load_true_w297
+    given op = OP_LOAD_PHYSICS_CONST
+    when ok = is_sacred_opcode(op)
+    then ok == true
+
+test opcodes_is_sacred_opcode_store_true_w297
+    given op = OP_STORE_RESULTS
+    when ok = is_sacred_opcode(op)
+    then ok == true
+
+invariant opcodes_is_sacred_opcode_load_true_w297_inv:
+    is_sacred_opcode(OP_LOAD_PHYSICS_CONST) == true

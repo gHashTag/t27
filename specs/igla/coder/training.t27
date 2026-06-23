@@ -976,3 +976,21 @@ test training_negative_grad_increases_w296
 invariant training_negative_grad_increases_w296_inv:
     forall w : f32, lr : f32
     lr > 0.0 ==> sgd_update(w, -1.0, lr) > w
+
+test training_small_lr_small_step_w297
+    given w = 1.0
+    given lr = 0.01
+    given grad = 1.0
+    when new_w = sgd_update(w, grad, lr)
+    then new_w < 1.0 && new_w > 0.99
+
+test training_negative_lr_increases_weight_w297
+    given w = 1.0
+    given lr = -0.1
+    given grad = 1.0
+    when new_w = sgd_update(w, grad, lr)
+    then new_w > 1.0
+
+invariant training_negative_lr_increases_weight_w297_inv:
+    forall w : f32, grad : f32
+    grad > 0.0 ==> sgd_update(w, grad, -0.1) > w

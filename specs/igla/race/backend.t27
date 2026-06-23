@@ -1435,3 +1435,16 @@ test backend_log2_const_two_one_w296
 
 invariant backend_log2_const_two_one_w296_inv:
     log2_const("2") == 1
+
+test backend_log2_const_four_two_w297
+    given s = "4"
+    when v = log2_const(s)
+    then v == 2
+
+test backend_parse_const_mixed_sign_positive_w297
+    given s = "+5"
+    when v = parse_const(s)
+    then v == 5
+
+invariant backend_log2_const_four_two_w297_inv:
+    log2_const("4") == 2

@@ -958,3 +958,17 @@ test weights_load_all_zero_count_zero_w296
 invariant weights_load_all_zero_count_zero_w296_inv:
     forall n : u32
     count_zero(load_all_zero(n)) == n
+
+test weights_load_all_plus_large_count_w297
+    given n = 100
+    when w = load_all_plus(n)
+    then count_plus(w) == 100
+
+test weights_load_all_zero_large_count_w297
+    given n = 50
+    when w = load_all_zero(n)
+    then count_zero(w) == 50
+
+invariant weights_load_all_plus_large_count_w297_inv:
+    forall n : u32
+    count_plus(load_all_plus(n)) == n

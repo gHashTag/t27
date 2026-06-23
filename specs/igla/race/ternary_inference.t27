@@ -611,3 +611,18 @@ invariant ternary_inference_identity_second_element_w296_inv:
     forall input : InferenceInput
     input.activations.len() == 4 ==>
     ternary_inference_identity(input).outputs[1] == input.activations[1]
+
+test ternary_inference_identity_third_element_w297
+    given input = InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(9), cast_i8(0)] }
+    when result = ternary_inference_identity(input)
+    then result.outputs[2] == 9
+
+test ternary_inference_2x2_all_minus_weights_neg_w297
+    given input = InferenceInput { activations: [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)] }
+    when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]))
+    then result.outputs[0] == -3 && result.outputs[1] == -3
+
+invariant ternary_inference_identity_third_element_w297_inv:
+    forall input : InferenceInput
+    input.activations.len() == 4 ==>
+    ternary_inference_identity(input).outputs[2] == input.activations[2]

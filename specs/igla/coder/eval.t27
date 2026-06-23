@@ -3089,3 +3089,19 @@ test eval_accuracy_two_wrong_zero_w296
 invariant eval_accuracy_two_wrong_zero_w296_inv:
     forall preds : []u32, refs : []u32
     preds != refs && preds.len() == 2 && refs.len() == 2 ==> accuracy(preds, refs) == 0.0
+
+test eval_accuracy_half_wrong_half_w297
+    given preds = [1, 2, 3, 4]
+    given refs = [1, 5, 3, 6]
+    when acc = accuracy(preds, refs)
+    then acc == 0.5
+
+test eval_accuracy_all_same_one_w297
+    given preds = [7, 7, 7]
+    given refs = [7, 7, 7]
+    when acc = accuracy(preds, refs)
+    then acc == 1.0
+
+invariant eval_accuracy_all_same_one_w297_inv:
+    forall refs : []u32
+    accuracy(refs, refs) == 1.0

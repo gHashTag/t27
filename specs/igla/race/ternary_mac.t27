@@ -1184,3 +1184,21 @@ test ternary_mac_zero_acc_plus_weight_identity_w296
 invariant ternary_mac_zero_acc_plus_weight_identity_w296_inv:
     forall a : i8
     ternary_mac(a, TernaryWeight { code: 1 }, 0) == a
+
+test ternary_mac_zero_activation_minus_weight_identity_w297
+    given a = 0
+    given w = TernaryWeight { code: 2 }
+    given acc = 10
+    when result = ternary_mac(a, w, acc)
+    then result == 10
+
+test ternary_mac_large_activation_plus_weight_w297
+    given a = 127
+    given w = TernaryWeight { code: 1 }
+    given acc = 0
+    when result = ternary_mac(a, w, acc)
+    then result == 127
+
+invariant ternary_mac_zero_activation_minus_weight_identity_w297_inv:
+    forall acc : i32
+    ternary_mac(0, TernaryWeight { code: 2 }, acc) == acc

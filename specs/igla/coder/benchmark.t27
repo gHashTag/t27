@@ -4109,3 +4109,17 @@ test benchmark_count_passed_at_5_all_passed_w296
 
 invariant benchmark_compute_latency_one_op_one_cycle_w296_inv:
     compute_latency(1, 1) == 1.0
+
+test benchmark_compute_latency_ten_ops_ten_cycles_w297
+    given ops = 10
+    given cycles = 10
+    when lat = compute_latency(ops, cycles)
+    then lat == 1.0
+
+test benchmark_count_passed_at_5_mixed_results_w297
+    given results = [BenchmarkResult { passed: true, passed_at_5: false, passed_at_10: true, module_name: "m1" }, BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m2" }]
+    when n = count_passed_at_5(results, 0, 0)
+    then n == 1
+
+invariant benchmark_compute_latency_ten_ops_ten_cycles_w297_inv:
+    compute_latency(10, 10) == 1.0

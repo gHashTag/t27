@@ -670,3 +670,19 @@ test bench_proxy_select_best_beam_two_returns_two_w296
 invariant bench_proxy_select_best_beam_two_returns_two_w296_inv:
     forall candidates : []BeamCandidate, beam_width : u32
     candidates.len() == 2 && beam_width >= 2 ==> select_best_beam(candidates, beam_width).len() == 2
+
+test bench_proxy_score_beam_high_prefix_len_reduces_w297
+    given candidate = BeamCandidate { token: 1, score: 1.0f32, prefix_len: 10 }
+    given length_penalty = 0.5
+    when result = score_beam_candidate(candidate, length_penalty)
+    then result.score < 1.0f32
+
+test bench_proxy_select_best_beam_three_returns_three_w297
+    given candidates = [BeamCandidate { token: 1, score: 0.9f32, prefix_len: 2 }, BeamCandidate { token: 2, score: 0.7f32, prefix_len: 2 }, BeamCandidate { token: 3, score: 0.5f32, prefix_len: 2 }]
+    given beam_width = 4
+    when result = select_best_beam(candidates, beam_width)
+    then result.len() == 3
+
+invariant bench_proxy_select_best_beam_three_returns_three_w297_inv:
+    forall candidates : []BeamCandidate, beam_width : u32
+    candidates.len() == 3 && beam_width >= 3 ==> select_best_beam(candidates, beam_width).len() == 3

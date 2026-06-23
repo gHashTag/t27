@@ -1141,3 +1141,16 @@ test cordic_top_batch_three_angles_sum_w296
 
 invariant cordic_top_batch_single_zero_zero_w296_inv:
     cordic_top_batch([0]) == 0
+
+test cordic_top_batch_large_positive_large_result_w297
+    given angles = [8192]
+    when sum = cordic_top_batch(angles)
+    then sum > 0
+
+test cordic_top_batch_negative_quarter_turn_negative_w297
+    given angles = [-4096]
+    when sum = cordic_top_batch(angles)
+    then sum < 0
+
+invariant cordic_top_batch_negative_quarter_turn_negative_w297_inv:
+    cordic_top_batch([-4096]) < 0

@@ -1229,3 +1229,18 @@ test yosys_strings_equal_same_content_true_w296
 invariant yosys_strings_equal_same_content_true_w296_inv:
     forall s : string
     strings_equal(s, s) == true
+
+test yosys_is_prefix_self_true_w297
+    given a = "hello"
+    given b = "hello"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_strings_equal_empty_both_true_w297
+    given a = ""
+    given b = ""
+    when ok = strings_equal(a, b)
+    then ok == true
+
+invariant yosys_strings_equal_empty_both_true_w297_inv:
+    strings_equal("", "") == true

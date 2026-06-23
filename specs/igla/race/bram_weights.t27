@@ -1089,3 +1089,16 @@ test bram_weights_width_single_element_w296
 invariant bram_weights_width_single_element_w296_inv:
     forall data : []f32
     data.len() == 1 ==> bram_weights_width(data) == 1
+
+test bram_weights_depth_empty_zero_w297
+    given data = []f32{}
+    when bw = bram_weights_depth(data)
+    then bw == 0
+
+test bram_weights_width_empty_zero_w297
+    given data = []f32{}
+    when w = bram_weights_width(data)
+    then w == 0
+
+invariant bram_weights_width_empty_zero_w297_inv:
+    bram_weights_width([]f32{}) == 0

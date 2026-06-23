@@ -1876,3 +1876,16 @@ test dataset_diversity_score_empty_zero_w296
 
 invariant dataset_diversity_score_empty_zero_w296_inv:
     dataset_diversity_score([]DataSample{}) == 0.0
+
+test dataset_diversity_score_two_identical_zero_w297
+    given dataset = [DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "a", template: "a", quality_score: 1.0 }]
+    when score = dataset_diversity_score(dataset)
+    then score == 0.0
+
+test dataset_diversity_score_three_unique_one_w297
+    given dataset = [DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "b", template: "b", quality_score: 1.0 }, DataSample { rtl: "c", template: "c", quality_score: 1.0 }]
+    when score = dataset_diversity_score(dataset)
+    then score == 1.0
+
+invariant dataset_diversity_score_three_unique_one_w297_inv:
+    dataset_diversity_score([DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "b", template: "b", quality_score: 1.0 }, DataSample { rtl: "c", template: "c", quality_score: 1.0 }]) == 1.0

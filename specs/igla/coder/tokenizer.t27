@@ -861,3 +861,16 @@ test tokenizer_zero_token_bos_only_w296
 
 invariant tokenizer_three_tokens_length_three_w296_inv:
     tokenize([1, 2, 3]).len() == 4
+
+test tokenizer_four_tokens_length_four_w297
+    given tokens = [1, 2, 3, 4]
+    when result = tokenize(tokens)
+    then result.len() == 5
+
+test tokenizer_negative_token_preserved_w297
+    given tokens = [0, 42]
+    when result = tokenize(tokens)
+    then result.len() == 3 && result[0] == 0 && result[1] == 0 && result[2] == 42
+
+invariant tokenizer_four_tokens_length_four_w297_inv:
+    tokenize([1, 2, 3, 4]).len() == 5
