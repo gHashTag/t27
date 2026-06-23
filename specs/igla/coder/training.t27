@@ -1312,24 +1312,22 @@ invariant training_sgd_zero_lr_no_change_w312_inv:
 
 
 
-
-test training_sgd_zero_lr_no_change_w312
+test training_sgd_zero_lr_no_change_w313
     given w = 5.0
     given grad = 1.0
     given lr = 0.0
     when new_w = sgd_update(w, grad, lr)
     then new_w == 5.0
 
-test training_sgd_negative_weight_positive_grad_w312
+test training_sgd_negative_weight_positive_grad_w313
     given w = -5.0
     given grad = 1.0
     given lr = 0.1
     when new_w = sgd_update(w, grad, lr)
     then new_w == -5.1
 
-invariant training_sgd_zero_lr_no_change_w312_inv:
+invariant training_sgd_zero_lr_no_change_w313_inv:
     sgd_update(5.0, 1.0, 0.0) == 5.0
-
 
 
 

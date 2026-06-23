@@ -569,3 +569,25 @@ theorem ternaryMacDoubleMinusGeneric (a : Int) :
     ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus) = -2 * a := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: MAC with plus-weight distributes over activation subtraction.
+    For any partial sum psum and activations a, b:
+    mac(psum, a - b, .plus) = psum + a - b.
+    This proves that ternary MAC preserves linearity under subtraction for plus-weight,
+    completing the plus-weight activation arithmetic (add, sub) decomposition pair.
+    Responds to Ternary-NanoCore signed-datapath and ternfpga activation-range insights. -/
+theorem ternaryMacPlusWeightActivationSubGeneric (psum a b : Int) :
+    ternaryMac psum (a - b) (TernaryWeight.mk .plus) = psum + a - b := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: MAC with minus-weight distributes over activation subtraction
+    with sign inversion. For any partial sum psum and activations a, b:
+    mac(psum, a - b, .minus) = psum - a + b.
+    This proves that ternary MAC preserves anti-linearity under subtraction for minus-weight,
+    completing the minus-weight activation arithmetic (add, sub) decomposition pair.
+    Responds to TernaryCore negation-select correctness and Sparkle HDL signed-arithmetic insights. -/
+theorem ternaryMacMinusWeightActivationSubGeneric (psum a b : Int) :
+    ternaryMac psum (a - b) (TernaryWeight.mk .minus) = psum - a + b := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

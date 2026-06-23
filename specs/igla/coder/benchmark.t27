@@ -4373,20 +4373,18 @@ invariant benchmark_mean_five_equal_w312_inv:
 
 
 
-
-test benchmark_mean_five_equal_w312
+test benchmark_mean_five_equal_w313
     given values = [7.0, 7.0, 7.0, 7.0, 7.0]
     when m = mean(values)
     then m == 7.0
 
-test benchmark_mean_negative_positive_w312
+test benchmark_mean_negative_positive_w313
     given values = [-5.0, 5.0]
     when m = mean(values)
     then m == 0.0
 
-invariant benchmark_mean_five_equal_w312_inv:
+invariant benchmark_mean_five_equal_w313_inv:
     mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0
-
 
 
 

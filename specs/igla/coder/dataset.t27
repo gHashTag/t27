@@ -2175,8 +2175,7 @@ invariant dataset_batch_size_one_same_len_w312_inv:
 
 
 
-
-test dataset_shuffle_different_seed_different_w312
+test dataset_shuffle_different_seed_different_w313
     given data = [1, 2, 3, 4]
     given seed1 = 1
     given seed2 = 2
@@ -2184,15 +2183,14 @@ test dataset_shuffle_different_seed_different_w312
     when r2 = shuffle(data, seed2)
     then r1 != r2
 
-test dataset_batch_size_one_same_len_w312
+test dataset_batch_size_one_same_len_w313
     given data = [1, 2, 3]
     given size = 1
     when batches = batch(data, size)
     then batches.len() == 3
 
-invariant dataset_batch_size_one_same_len_w312_inv:
+invariant dataset_batch_size_one_same_len_w313_inv:
     batch([1, 2, 3], 1).len() == 3
-
 
 
 

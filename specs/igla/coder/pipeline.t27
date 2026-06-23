@@ -2023,20 +2023,18 @@ invariant pipeline_compose_triple_double_w312_inv:
 
 
 
-
-test pipeline_compose_triple_double_w312
+test pipeline_compose_triple_double_w313
     given x = 2
     when result = compose(triple, double, x)
     then result == 12
 
-test pipeline_compose_double_identity_w312
+test pipeline_compose_double_identity_w313
     given x = 7
     when result = compose(double, identity, x)
     then result == 14
 
-invariant pipeline_compose_triple_double_w312_inv:
+invariant pipeline_compose_triple_double_w313_inv:
     compose(triple, double, 2) == 12
-
 
 
 
