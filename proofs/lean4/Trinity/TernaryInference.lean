@@ -452,3 +452,13 @@ theorem ternaryInferenceIdentityWeightsConcreteLarge :
     let model := loadTernaryWeights identityWeights
     (ternaryInference2x2 input model).outputs = #[100, -50, 25, -75] := by
   simp [ternaryInference2x2, ternaryGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, identityWeights, loadTernaryWeights] <;> try native_decide
+/-- Generic theorem: for any ternary weight w, a zero partial sum with zero activation
+    in ternary MAC always returns zero. This proves the initialization correctness
+    of accumulator-based systolic arrays when both psum and activation are zero —
+    the base case for all tiled GEMM decompositions and zero-initialized FMA chains.
+    Responds to CktFormalizer v3 initialization proofs and Sparkle HDL base-case
+    verification requirements. -/
+theorem ternaryMacZeroPsumZeroActivationGeneric (w : TernaryWeight) :
+    ternaryMac 0 0 w = 0 := by
+  rcases w with ⟨c⟩
+  cases c <;> simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide

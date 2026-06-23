@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7b6933adb1fe426ffe28c88ef546c9b3ac0ec44da057d664d5e94929d7327059",
   "module": "igla-coder-prm",
   "ring": 12,
-  "sealed_at": "2026-06-23T02:48:29Z",
+  "sealed_at": "2026-06-23T02:48:54Z",
   "spec_hash": "sha256:cccb9dafc7f50713cbea0e9f0c0ed79b34d6ca283d8e02339d5007a09b95e435",
   "spec_path": "specs/igla/coder/prm.t27"
 }
