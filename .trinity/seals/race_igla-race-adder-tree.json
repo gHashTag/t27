@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f7b5d0912e1b65102caa1599eafd00b79de96ef28c6df89f34004299c725877a",
   "module": "igla-race-adder-tree",
   "ring": 12,
-  "sealed_at": "2026-06-23T12:44:55Z",
-  "spec_hash": "sha256:121a976043dabcceff9b490b77f0b724f58de3dd3985940f9357664768f40f5b",
+  "sealed_at": "2026-06-23T13:08:24Z",
+  "spec_hash": "sha256:827bc832614b6ce05e0c9380711229eabe15a3c034fc491fa50f54423506fb7f",
   "spec_path": "specs/igla/race/adder_tree.t27"
 }
