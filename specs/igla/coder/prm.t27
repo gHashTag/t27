@@ -1140,3 +1140,18 @@ test prm_param_bounds_saturate_max_boundary_identity_w303
 
 invariant prm_param_bounds_saturate_min_boundary_identity_w303_inv:
     param_bounds_saturate(-128) == -128
+
+test prm_select_top_two_highest_w304
+    given scores = [0.1f32, 0.9f32, 0.5f32]
+    given k = 2
+    when indices = select_top(scores, k)
+    then indices == [1, 2]
+
+test prm_select_top_all_same_w304
+    given scores = [0.5f32, 0.5f32, 0.5f32]
+    given k = 1
+    when indices = select_top(scores, k)
+    then indices == [0]
+
+invariant prm_select_top_two_highest_w304_inv:
+    select_top([0.1f32, 0.9f32, 0.5f32], 2) == [1, 2]

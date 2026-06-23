@@ -1207,3 +1207,16 @@ test cordic_fixed_cos_zero_one_w303
 
 invariant cordic_fixed_sin_zero_zero_w303_inv:
     cordic_sin(0) == 0
+
+test cordic_fixed_cos_zero_one_w304
+    given x = 0.0
+    when result = cordic_fixed_cos(x)
+    then result == 1.0
+
+test cordic_fixed_sin_zero_zero_w304
+    given x = 0.0
+    when result = cordic_fixed_sin(x)
+    then result == 0.0
+
+invariant cordic_fixed_cos_zero_one_w304_inv:
+    cordic_fixed_cos(0.0) == 1.0

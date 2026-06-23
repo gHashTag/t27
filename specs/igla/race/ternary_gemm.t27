@@ -1307,3 +1307,18 @@ test ternary_gemm_minus_weight_single_element_negate_w303
 
 invariant ternary_gemm_identity_weights_single_element_w303_inv:
     ternary_gemm([cast_i8(7)], [TernaryWeight { code: 1 }]).len() == 1
+
+test ternary_gemm_identity_weights_passthrough_w304
+    given activations = [1, 0, 0, 1]
+    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
+    when result = ternary_gemm_2x2(activations, weights)
+    then result == [1, 0, 0, 1]
+
+test ternary_gemm_zero_weights_all_zero_w304
+    given activations = [5, 6, 7, 8]
+    given weights = [TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero()]
+    when result = ternary_gemm_2x2(activations, weights)
+    then result == [0, 0, 0, 0]
+
+invariant ternary_gemm_identity_weights_passthrough_w304_inv:
+    ternary_gemm_2x2([1, 0, 0, 1], [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]) == [1, 0, 0, 1]

@@ -712,3 +712,18 @@ test ternary_inference_identity_second_positive_passthrough_w303
 
 invariant ternary_inference_identity_min_negative_passthrough_w303_inv:
     ternary_inference_identity(InferenceInput { activations: [cast_i8(-128), cast_i8(0), cast_i8(0), cast_i8(0)] }).outputs[0] == -128
+
+test ternary_inference_identity_second_positive_passthrough_w304
+    given input = InferenceInput { activations: [2, 3, 4, 5] }
+    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
+    when result = ternary_inference_2x2(input, weights)
+    then result.outputs == [2, 3, 4, 5]
+
+test ternary_inference_minus_weights_negate_w304
+    given input = InferenceInput { activations: [1, 2, 3, 4] }
+    given weights = [TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus()]
+    when result = ternary_inference_2x2(input, weights)
+    then result.outputs == [-1, -2, -3, -4]
+
+invariant ternary_inference_identity_second_positive_passthrough_w304_inv:
+    ternary_inference_2x2(InferenceInput { activations: [2, 3, 4, 5] }, [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]).outputs == [2, 3, 4, 5]

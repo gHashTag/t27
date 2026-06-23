@@ -783,3 +783,18 @@ test bench_proxy_select_best_beam_one_returns_highest_w303
 invariant bench_proxy_select_best_beam_one_returns_highest_w303_inv:
     forall c1 : BeamCandidate, c2 : BeamCandidate, c3 : BeamCandidate, beam_width : u32
     c1.score > c2.score && c1.score > c3.score && beam_width == 1 ==> select_best_beam([c1, c2, c3], beam_width).len() == 1
+
+test bench_proxy_throughput_zero_duration_zero_w304
+    given ops = 0
+    given ns = 1000
+    when t = throughput(ops, ns)
+    then t == 0.0
+
+test bench_proxy_throughput_ten_ops_w304
+    given ops = 10
+    given ns = 1000
+    when t = throughput(ops, ns)
+    then t == 10.0
+
+invariant bench_proxy_throughput_zero_duration_zero_w304_inv:
+    throughput(0, 1000) == 0.0

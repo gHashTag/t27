@@ -953,3 +953,17 @@ test tokenizer_two_tokens_bos_first_w303
 
 invariant tokenizer_single_token_bos_first_w303_inv:
     tokenize([7])[0] == 0
+
+test tokenizer_encode_decode_roundtrip_w304
+    given text = "hello"
+    when tokens = encode(text)
+    when text2 = decode(tokens)
+    then text2 == "hello"
+
+test tokenizer_encode_empty_empty_w304
+    given text = ""
+    when tokens = encode(text)
+    then tokens == []
+
+invariant tokenizer_encode_decode_roundtrip_w304_inv:
+    decode(encode("hello")) == "hello"

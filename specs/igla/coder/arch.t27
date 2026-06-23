@@ -1895,3 +1895,18 @@ test arch_add_slices_offset_two_sum_w303
 
 invariant arch_add_slices_offset_two_sum_w303_inv:
     add_slices([1.0f32, 2.0f32, 3.0f32], [10.0f32, 20.0f32], 2).len() == 1
+
+test arch_add_slices_empty_empty_empty_w304
+    given a = []
+    given b = []
+    when c = add_slices(a, b, 0)
+    then c.len() == 0
+
+test arch_generate_next_token_topk_one_highest_w304
+    given logits = [0.1f32, 0.9f32, 0.3f32]
+    given k = 1
+    when token = generate_next_token(logits, k)
+    then token == 1
+
+invariant arch_add_slices_empty_empty_empty_w304_inv:
+    add_slices([], [], 0).len() == 0

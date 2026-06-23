@@ -347,3 +347,10 @@ theorem ternaryMulZeroWeightIdentityGeneric (a : Int) :
 theorem ternaryMulMinusWeightIdentityGeneric (a : Int) :
     ternaryMul a (TernaryWeight.mk .minus) = -a := by
   simp [ternaryMul, ternaryDecode] <;> try native_decide
+/-- Generic theorem: for any activation a and any ternary weight w, a ternary MAC with zero
+    partial sum equals ternary multiplication. This bridges the MAC and Mul primitives,
+    showing that the accumulator is the only distinguishing factor.
+    Responds to Sparkle HDL BitNet b1.58 and AMO-Lean verified compiler milestones. -/
+theorem ternaryMacPsumZeroEqualsMulGeneric (a : Int) (w : TernaryWeight) :
+    ternaryMac 0 a w = ternaryMul a w := by
+  simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide

@@ -1052,3 +1052,16 @@ test weights_count_minus_two_minus_w303
 
 invariant weights_load_all_zero_single_count_w303_inv:
     count_zero(load_all_zero(1)) == 1
+
+test weights_quantize_symmetric_zero_w304
+    given x = 0.0
+    when q = quantize_symmetric(x)
+    then q == 0
+
+test weights_quantize_symmetric_positive_one_w304
+    given x = 1.0
+    when q = quantize_symmetric(x)
+    then q == 127
+
+invariant weights_quantize_symmetric_zero_w304_inv:
+    quantize_symmetric(0.0) == 0

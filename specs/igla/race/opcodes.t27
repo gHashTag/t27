@@ -1048,3 +1048,16 @@ test opcodes_get_cycles_add_two_w303
 
 invariant opcodes_get_cycles_nop_one_w303_inv:
     get_opcode_cycles(0x00) == 1
+
+test opcodes_get_cycles_add_two_w304
+    given opcode = "add"
+    when cycles = get_cycles(opcode)
+    then cycles == 1
+
+test opcodes_get_cycles_nop_zero_w304
+    given opcode = "nop"
+    when cycles = get_cycles(opcode)
+    then cycles == 0
+
+invariant opcodes_get_cycles_add_two_w304_inv:
+    get_cycles("add") == 1

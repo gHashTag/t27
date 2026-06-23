@@ -1526,3 +1526,16 @@ test backend_log2_const_two_one_w303
 
 invariant backend_log2_const_two_one_w303_inv:
     log2_const("2") == 1
+
+test backend_log2_const_eight_three_w304
+    given x = 8.0
+    when y = log2_const(x)
+    then y == 3.0
+
+test backend_log2_const_one_zero_w304
+    given x = 1.0
+    when y = log2_const(x)
+    then y == 0.0
+
+invariant backend_log2_const_eight_three_w304_inv:
+    log2_const(8.0) == 3.0

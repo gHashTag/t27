@@ -1858,3 +1858,16 @@ test pipeline_five_elements_len_preserved_w303
 
 invariant pipeline_two_elements_len_preserved_w303_inv:
     pipeline([3.0f32, 4.0f32]).len() == 2
+
+test pipeline_compose_identity_first_w304
+    given x = 5
+    when result = compose(identity, double, x)
+    then result == 10
+
+test pipeline_compose_identity_second_w304
+    given x = 7
+    when result = compose(triple, identity, x)
+    then result == 21
+
+invariant pipeline_compose_identity_first_w304_inv:
+    compose(identity, double, 5) == 10

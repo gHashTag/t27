@@ -1368,3 +1368,16 @@ test rtl_bits_to_u64_single_one_w303
 
 invariant rtl_bits_to_u64_single_one_w303_inv:
     bits_to_u64([1]) == 1
+
+test rtl_bits_to_u64_single_one_w304
+    given bits = [true]
+    when val = bits_to_u64(bits)
+    then val == 1
+
+test rtl_bits_to_u64_two_ones_three_w304
+    given bits = [true, true]
+    when val = bits_to_u64(bits)
+    then val == 3
+
+invariant rtl_bits_to_u64_two_ones_three_w304_inv:
+    bits_to_u64([true, true]) == 3

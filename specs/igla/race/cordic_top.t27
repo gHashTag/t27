@@ -1232,3 +1232,16 @@ test cordic_top_batch_single_element_identity_w303
 
 invariant cordic_top_batch_empty_zero_w303_inv:
     cordic_top_batch([]) == 0
+
+test cordic_top_batch_single_element_identity_w304
+    given batch = [[0.0]]
+    when result = cordic_top_batch(batch)
+    then result == [[1.0, 0.0]]
+
+test cordic_top_batch_two_elements_w304
+    given batch = [[0.0, 0.785398]]
+    when result = cordic_top_batch(batch)
+    then result.len() == 2
+
+invariant cordic_top_batch_single_element_identity_w304_inv:
+    cordic_top_batch([[0.0]]) == [[1.0, 0.0]]

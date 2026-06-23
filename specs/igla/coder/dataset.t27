@@ -1972,3 +1972,18 @@ test dataset_count_by_template_two_match_two_w303
 
 invariant dataset_count_by_template_two_match_two_w303_inv:
     count_dataset_by_template([DataSample { rtl: "a", template: "add", quality_score: 1.0 }, DataSample { rtl: "b", template: "add", quality_score: 1.0 }], "add") == 2
+
+test dataset_shuffle_deterministic_seed_w304
+    given data = [1, 2, 3, 4, 5]
+    given seed = 42
+    when result = shuffle(data, seed)
+    then result.len() == 5
+
+test dataset_batch_size_two_three_batches_w304
+    given data = [1, 2, 3, 4, 5, 6]
+    given size = 2
+    when batches = batch(data, size)
+    then batches.len() == 3
+
+invariant dataset_batch_size_two_three_batches_w304_inv:
+    batch([1, 2, 3, 4, 5, 6], 2).len() == 3
