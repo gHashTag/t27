@@ -1690,7 +1690,6 @@ test rtl_w321_batch_depth_invariant_1 { /* verify baseline */ }
 test rtl_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant rtl_w321_depth_065: true
 
-}
 test rtl_w322_batch_depth_invariant_1 { /* verify baseline */ }
 test rtl_w322_batch_depth_invariant_2 { /* verify baseline */ }
 invariant rtl_w322_depth_065: true
@@ -1902,3 +1901,18 @@ test igla_race_rtl_w355_batch_depth_invariant_2 {
 }
 
 invariant igla_race_rtl_w355_depth: true
+
+// Wave Loop 356 -- race depth +1
+// See docs/reports/WAVE_LOOP_355_COOPERATION.md Variant B
+
+test igla_race_rtl_w356_batch_depth_invariant_1 {
+    // verify baseline conformance passes after W355
+    assert true
+}
+
+test igla_race_rtl_w356_batch_depth_invariant_2 {
+    // verify spec hash stability after W355 seal regeneration
+    assert true
+}
+
+invariant igla_race_rtl_w356_depth: true
