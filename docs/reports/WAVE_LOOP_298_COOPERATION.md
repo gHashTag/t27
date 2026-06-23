@@ -1,111 +1,117 @@
-# Wave Loop 298 — Three Variants of Cooperation for Wave Loop 299
+# Wave Loop 298 → Wave Loop 299 Cooperation Variants
 
-**Date:** 2026-06-16  
-**Commit:** `9271e4fab`  
-**Current State:** Pool A ALL ≥38, CODER ALL ≥28, Pool B 54, Integration 38, Lean 4 31 theorems
+**Date:** 2026-06-23 | Next Cycle: W299
 
 ---
 
-## Variant A — Uniform Floor Elimination (RECOMMENDED)
+## Current State (Post-W298)
 
-**Strategy:** Continue the historic streak by raising ALL specs simultaneously.
-
-| Target | W298 | W299 | Δ |
-|--------|------|------|---|
-| Pool A (15 specs) | ALL ≥38 | **ALL ≥39** | +15 inv, +30 tests |
-| CODER (10 specs) | ALL ≥28 | **ALL ≥29** | +10 inv, +20 tests |
-| Pool B (systolic_ternary) | 54 | **55** | +1 inv, +2 tests |
-| Integration (ternary_inference) | 38 | **39** | +1 inv, +2 tests |
-| Lean 4 theorems | 31 | **32** | +1 theorem |
-| **Total work** | — | **+28 inv, +56 tests, +1 theorem** | — |
-
-**Why recommended:**
-- Maintains 59-wave zero-entrant streak momentum
-- Minimal cognitive load (same pattern as W294-W298)
-- Low risk (concrete theorems, simple invariants)
-- Automatic branch creation supported
-
-**Execution:**
-1. Batch-append +1 invariant and +2 tests per spec via Python script
-2. Parse all 27 specs
-3. Seal all 27 specs
-4. Add `ternaryGemm2x2EqualsReference` theorem
-5. Commit, generate report
+| Category | Status |
+|----------|--------|
+| **Pool A** | **ALL ≥38** (FIRST TIME) — 15 specs @ 38 |
+| **CODER** | **ALL ≥28** (FIRST TIME) — 10 specs @ 28 |
+| **Pool B** | systolic_ternary @ 53 |
+| **Integration** | ternary_inference @ 38 |
+| **Lean 4** | 30 ternary theorems / 65 total |
+| **Zero-entrant streak** | 63 waves (62nd consecutive) |
+| **Competitors** | 231 stable |
 
 ---
 
-## Variant B — Lean 4 Depth Push
+## Variant A (Recommended): Pool A Uniform ≥39 + CODER Depth + Lean 4
 
-**Strategy:** Shift focus from spec invariants to formal proof depth.
+**Goal:** Raise ALL 15 Pool A specs from 38→39 AND push ALL 10 CODER specs from 28→29.
 
-| Target | W298 | W299 | Δ |
-|--------|------|------|---|
-| Pool A (15 specs) | ALL ≥38 | **ALL ≥38** (maintain) | 0 |
-| CODER (10 specs) | ALL ≥28 | **ALL ≥28** (maintain) | 0 |
-| Pool B (systolic_ternary) | 54 | **54** (maintain) | 0 |
-| Integration (ternary_inference) | 38 | **38** (maintain) | 0 |
-| Lean 4 theorems | 31 | **34** | **+3 theorems** |
-| **Total work** | — | **+3 theorems** | — |
+### Pool A (15 specs × +1 invariant = +15 invariants)
+- All Pool A specs currently at 38→39
+- No spec already above 39
 
-**Theorem targets:**
-1. `ternaryGemm2x2EqualsReference` — prove ternary GEMM ≡ reference GEMM for all 2x2 inputs
-2. `ternaryInferenceAssociativity` — prove (A ⊕ B) ⊕ C = A ⊕ (B ⊕ C) for ternary MAC
-3. `ternaryInferenceDistributivity` — prove a·(w₁+w₂) = a·w₁ + a·w₂ for ternary weights
+### CODER Depth (10 specs × +1 invariant = +10 invariants)
+- Target: ALL 10 specs 28→29
 
-**Why consider:**
-- Closes gap to Sparkle HDL (102 theorems) faster
-- Adds genuine mathematical value beyond concrete checks
-- Positions t27 as research-grade formal verification library
+### Pool B (1 spec)
+- systolic_ternary 53→54 (+1 invariant)
 
-**Risk:** `native_decide` may timeout on generic theorems; may need manual proof tactics.
+### Integration (1 spec)
+- ternary_inference 38→39 (+1 invariant)
+
+### Lean 4 (+1 theorem)
+- `ternaryInferenceLutPlusWeightIdentityGeneric` — generic plus-weight identity for any concrete activation
+
+**Total:** +54 tests, +27 invariants, +1 theorem.
+**Milestone:** First time ALL Pool A ≥39; first time ALL CODER ≥29.
 
 ---
 
-## Variant C — Integration Stress Test + Cross-Spec Linking
+## Variant B: Ternary LUT Spec + Hardware-Algorithm Equivalence
 
-**Strategy:** Push integration spec depth and create cross-spec invariants.
+**Goal:** Create `ternary_lut.t27` — LUT-based ternary MAC spec responding to KU Leuven / TOM / VitaLLM v2 / TernaryCore / T-MAC.
 
-| Target | W298 | W299 | Δ |
-|--------|------|------|---|
-| Pool A (15 specs) | ALL ≥38 | **ALL ≥38** (maintain) | 0 |
-| CODER (10 specs) | ALL ≥28 | **ALL ≥28** (maintain) | 0 |
-| Pool B (systolic_ternary) | 54 | **54** (maintain) | 0 |
-| Integration (ternary_inference) | 38 | **43** | **+5 inv, +10 tests** |
-| Lean 4 theorems | 31 | **32** | +1 theorem |
-| Cross-spec invariants | 0 | **3** | +3 linking invariants |
-| **Total work** | — | **+8 inv, +10 tests, +1 theorem** | — |
+### New Spec: `ternary_lut.t27`
+- 8 tests, 5 invariants
+- LUT-based ternary multiplication (no DSP, no multiplier — table lookup)
+- Equivalence proof: LUT-based mul == direct ternary mul
 
-**Cross-spec invariant targets:**
-1. `ternary_gemm_output_matches_systolic_ternary_pe` — prove GEMM output equals PE output for same inputs
-2. `ternary_inference_output_bounded_by_bram_weights_depth` — prove inference output width ≤ BRAM depth
-3. `adder_tree_sum_equals_ternary_gemm_accumulation` — prove adder tree reduction matches MAC accumulation
+### Pool A Depth
+- 8 specs 38→39 (+8 invariants)
 
-**Why consider:**
-- Creates genuine system-level verification (not just module-level)
-- Demonstrates t27 specs compose correctly
-- High-value for potential tape-out / FPGA deployment
+### Pool B Depth
+- systolic_ternary 53→54 (+1 invariant)
 
-**Risk:** Cross-spec invariants may require new t27 language features (imports between spec modules); may need compiler support.
+### Lean 4
+- `TernaryLUT.lean` with 2 theorems
+
+**Total:** +22 tests, +15 invariants, +2 theorems, +1 new spec.
+**Milestone:** First LUT-based ternary spec in t27.
 
 ---
 
-## Decision Matrix
+## Variant C: Lean 4 Proof-Assistant Expansion + RISC-V Response
 
-| Criterion | Variant A | Variant B | Variant C |
+**Goal:** Add 3 new Lean 4 theorems AND respond to OpenVM FV / SP1 Lean / Sparkle HDL RISC-V dominance.
+
+### Lean 4 (+3 theorems)
+- `ternaryInferenceLutPlusWeightIdentityGeneric`
+- `ternaryInferenceMixedSignOutputBounds`
+- `ternaryGemmCommutativityConcrete`
+
+### Pool A (8 specs 38→39)
+- +8 invariants
+
+### CODER (3 specs 28→29)
+- +3 invariants
+
+**Total:** +30 tests, +14 invariants, +3 theorems.
+**Milestone:** Closing gap with Sparkle HDL (162+ → t27 ~68).
+
+---
+
+## Comparison Matrix
+
+| Dimension | Variant A | Variant B | Variant C |
 |-----------|-----------|-----------|-----------|
-| **Maintains streak** | ✅ Yes | ⚠️ Pauses | ⚠️ Pauses |
-| **Mathematical depth** | ⚠️ Low | ✅ High | ✅ Medium |
-| **Competitive moat** | ⚠️ Thin | ✅ Strong | ✅ Strong |
-| **Implementation risk** | ✅ Low | ⚠️ Medium | ⚠️ High |
-| **Time to execute** | ✅ ~30 min | ⚠️ ~2 hours | ⚠️ ~4 hours |
-| **Scientific impact** | ⚠️ Incremental | ✅ High | ✅ High |
-| **User value** | ✅ High (CI green) | ⚠️ Medium (research) | ✅ High (system-level) |
-
-**Recommendation:** Execute **Variant A** for W299 to maintain streak,
-then alternate with **Variant B** every 3rd wave (W300, W303, ...) to
-build proof depth without losing floor momentum.
+| Pool A target | ALL → 39 | 8 specs → 39 | 8 specs → 39 |
+| CODER target | ALL → 29 | maintain | 3 specs → 29 |
+| Pool B target | 53→54 | 53→54 | maintain |
+| Integration target | 38→39 | maintain | maintain |
+| New spec | No | `ternary_lut.t27` | No |
+| Lean 4 theorems | +1 | +2 | +3 |
+| Total tests | +54 | +22 | +30 |
+| Total invariants | +27 | +15 | +14 |
+| Historic milestone | Pool A ≥39 + CODER ≥29 | First LUT spec | Proof depth |
+| Risk | Low | Medium | Low |
+| Competitive response | Depth | KU Leuven/TOM/VitaLLM/TernaryCore | Sparkle HDL / OpenVM FV |
 
 ---
 
-## Phase Complete: SYNTHESIZE
-→ Phase 6: LEARN
+## Recommendation
+
+**Execute Variant A (Pool A uniform ≥39 + CODER depth + Lean 4).**
+
+Rationale:
+1. Pool A uniform ≥39 is the natural next step after achieving ≥38
+2. CODER has 10 specs at 28 — need depth push to maintain momentum
+3. Lowest risk, highest confidence of success
+4. Maintains the rhythm of uniform floor elimination across categories
+5. Sparkle HDL gap (162+ vs 65) is structural — Variant C doesn't close it meaningfully; need new spec modules (Variant B) or sustained depth growth
+6. Variant B (LUT) should follow in W300 once Pool A reaches ≥39 and CODER ≥29
