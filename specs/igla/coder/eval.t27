@@ -3105,3 +3105,20 @@ test eval_accuracy_all_same_one_w297
 invariant eval_accuracy_all_same_one_w297_inv:
     forall refs : []u32
     accuracy(refs, refs) == 1.0
+
+test eval_accuracy_three_correct_two_thirds_w298
+    given preds = [1, 2, 3]
+    given refs = [1, 2, 4]
+    when acc = accuracy(preds, refs)
+    then acc == 0.6666666666666666
+
+test eval_accuracy_single_wrong_zero_w298
+    given preds = [1]
+    given refs = [2]
+    when acc = accuracy(preds, refs)
+    then acc == 0.0
+
+invariant eval_accuracy_single_wrong_zero_w298_inv:
+    forall preds : []u32, refs : []u32
+    preds.len() == 1 && refs.len() == 1 && preds[0] != refs[0] ==> accuracy(preds, refs) == 0.0
+

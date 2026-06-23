@@ -1121,3 +1121,16 @@ test adder_tree_4_all_same_negative_w297
 
 invariant adder_tree_4_all_same_positive_w297_inv:
     adder_tree([5, 5, 5, 5]) == 20
+
+test adder_tree_4_large_mixed_sum_w298
+    given inputs = [1000, -500, 200, -300]
+    when sum = adder_tree(inputs)
+    then sum == 400
+
+test adder_tree_4_max_int32_sum_w298
+    given inputs = [1000000, 2000000, 3000000, 4000000]
+    when sum = adder_tree(inputs)
+    then sum == 10000000
+
+invariant adder_tree_4_large_mixed_sum_w298_inv:
+    adder_tree([1000, -500, 200, -300]) == 400

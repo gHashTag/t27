@@ -1105,3 +1105,16 @@ test cordic_sqrt_approx_two_approx_sqrt2_w297
 
 invariant cordic_sqrt_approx_hundred_ten_w297_inv:
     sqrt_approx(100.0) > 9.9 && sqrt_approx(100.0) < 10.1
+
+test cordic_sqrt_approx_half_approx_sqrt_half_w298
+    given x = 0.5
+    when r = sqrt_approx(x)
+    then r > 0.6 && r < 0.8
+
+test cordic_sqrt_approx_zero_zero_exact_w298
+    given x = 0.0
+    when r = sqrt_approx(x)
+    then r == 0.0
+
+invariant cordic_sqrt_approx_zero_zero_exact_w298_inv:
+    sqrt_approx(0.0) == 0.0

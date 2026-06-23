@@ -1448,3 +1448,16 @@ test backend_parse_const_mixed_sign_positive_w297
 
 invariant backend_log2_const_four_two_w297_inv:
     log2_const("4") == 2
+
+test backend_log2_const_eight_three_w298
+    given s = "8"
+    when v = log2_const(s)
+    then v == 3
+
+test backend_parse_const_negative_value_w298
+    given s = "-42"
+    when v = parse_const(s)
+    then v == -42
+
+invariant backend_log2_const_eight_three_w298_inv:
+    log2_const("8") == 3

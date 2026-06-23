@@ -1154,3 +1154,16 @@ test cordic_top_batch_negative_quarter_turn_negative_w297
 
 invariant cordic_top_batch_negative_quarter_turn_negative_w297_inv:
     cordic_top_batch([-4096]) < 0
+
+test cordic_top_batch_two_opposite_cancel_w298
+    given angles = [4096, -4096]
+    when sum = cordic_top_batch(angles)
+    then sum == 0
+
+test cordic_top_batch_three_positive_large_w298
+    given angles = [4096, 4096, 4096]
+    when sum = cordic_top_batch(angles)
+    then sum == 12288
+
+invariant cordic_top_batch_two_opposite_cancel_w298_inv:
+    cordic_top_batch([4096, -4096]) == 0

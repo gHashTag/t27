@@ -1060,3 +1060,18 @@ test prm_param_bounds_saturate_above_max_clamps_w297
 invariant prm_param_bounds_saturate_above_max_clamps_w297_inv:
     forall val : i32
     val > 127 ==> param_bounds_saturate(val) == 127
+
+test prm_param_bounds_saturate_minus_one_identity_w298
+    given val = -1
+    when result = param_bounds_saturate(val)
+    then result == -1
+
+test prm_param_bounds_saturate_plus_one_identity_w298
+    given val = 1
+    when result = param_bounds_saturate(val)
+    then result == 1
+
+invariant prm_param_bounds_saturate_plus_one_identity_w298_inv:
+    forall val : i32
+    val == 1 ==> param_bounds_saturate(val) == 1
+

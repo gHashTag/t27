@@ -1778,3 +1778,18 @@ test pipeline_mixed_floats_preserved_w297
 invariant pipeline_four_elements_len_preserved_w297_inv:
     forall input : []f32
     input.len() == 4 ==> pipeline(input).len() == 4
+
+test pipeline_five_elements_len_preserved_w298
+    given input = [1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32]
+    when output = pipeline(input)
+    then output.len() == 5
+
+test pipeline_negative_single_preserved_w298
+    given input = [-3.14f32]
+    when output = pipeline(input)
+    then output.len() == 1
+
+invariant pipeline_five_elements_len_preserved_w298_inv:
+    forall input : []f32
+    input.len() == 5 ==> pipeline(input).len() == 5
+

@@ -4123,3 +4123,18 @@ test benchmark_count_passed_at_5_mixed_results_w297
 
 invariant benchmark_compute_latency_ten_ops_ten_cycles_w297_inv:
     compute_latency(10, 10) == 1.0
+
+test benchmark_compute_latency_5ops_10cycles_half_w298
+    given ops = 5
+    given cycles = 10
+    when lat = compute_latency(ops, cycles)
+    then lat == 0.5
+
+test benchmark_count_passed_at_10_all_passed_w298
+    given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }]
+    when n = count_passed_at_10(results, 0, 0)
+    then n == 1
+
+invariant benchmark_count_passed_at_10_all_passed_w298_inv:
+    count_passed_at_10([BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }], 0, 0) == 1
+

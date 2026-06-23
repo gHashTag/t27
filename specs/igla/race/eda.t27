@@ -1332,3 +1332,17 @@ test eda_route_wire_length_negative_false_w297
 invariant eda_placement_area_large_positive_true_w297_inv:
     forall area : f64
     area > 0.0 ==> placement_area_positive(area) == true
+
+test eda_placement_area_small_positive_true_w298
+    given area = 0.0001
+    when ok = placement_area_positive(area)
+    then ok == true
+
+test eda_route_wire_length_large_positive_true_w298
+    given len = 1000000
+    when ok = route_wire_length_non_negative(len)
+    then ok == true
+
+invariant eda_route_wire_length_large_positive_true_w298_inv:
+    forall len : u32
+    len > 0 ==> route_wire_length_non_negative(len) == true

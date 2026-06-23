@@ -1244,3 +1244,19 @@ test yosys_strings_equal_empty_both_true_w297
 
 invariant yosys_strings_equal_empty_both_true_w297_inv:
     strings_equal("", "") == true
+
+test yosys_is_prefix_longer_than_string_false_w298
+    given a = "hello world"
+    given b = "hello"
+    when ok = is_prefix(a, b)
+    then ok == false
+
+test yosys_strings_equal_case_sensitive_w298
+    given a = "Hello"
+    given b = "hello"
+    when ok = strings_equal(a, b)
+    then ok == false
+
+invariant yosys_strings_equal_case_sensitive_w298_inv:
+    forall s1 : string, s2 : string
+    s1 != s2 ==> strings_equal(s1, s2) == false

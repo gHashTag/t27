@@ -1211,3 +1211,19 @@ test systolic_array_systolic_step_negative_A_passthrough_w297
 invariant systolic_array_booth_mul_i16_commutative_small_w297_inv:
     forall a : i16, b : i16
     booth_mul_i16(a, b) == booth_mul_i16(b, a)
+
+test systolic_array_booth_mul_i16_large_positive_w298
+    given a = 100
+    given b = 50
+    when p = booth_mul_i16(a, b)
+    then p == 5000
+
+test systolic_array_systolic_step_mixed_A_passthrough_w298
+    given s0 = SystolicState { a1: 0, a2: 0, a3: 0, a4: 0, b11: 0, b12: 0, b21: 0, b22: 0, c1: 0, c2: 0, c3: 0, c4: 0 }
+    given A = [cast_i8(1), cast_i8(-2), cast_i8(3), cast_i8(-4)]
+    when s1 = systolic_step(s0, A)
+    then s1.a1 == 1 && s1.a2 == -2 && s1.a3 == 3 && s1.a4 == -4
+
+invariant systolic_array_booth_mul_i16_large_positive_w298_inv:
+    forall a : i16, b : i16
+    a == 100 && b == 50 ==> booth_mul_i16(a, b) == 5000

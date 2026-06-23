@@ -1097,3 +1097,20 @@ test gemm_booth_mul_i32_negative_times_positive_negative_w297
 invariant gemm_booth_mul_i32_large_positive_result_w297_inv:
     forall a : i32
     booth_mul_i32(a, a) == a * a
+
+test gemm_booth_mul_i32_commutative_large_w298
+    given a = 50
+    given b = 100
+    when p1 = booth_mul_i32(a, b)
+    when p2 = booth_mul_i32(b, a)
+    then p1 == p2
+
+test gemm_booth_mul_i32_negative_times_negative_positive_w298
+    given a = -7
+    given b = -8
+    when p = booth_mul_i32(a, b)
+    then p == 56
+
+invariant gemm_booth_mul_i32_commutative_large_w298_inv:
+    forall a : i32, b : i32
+    booth_mul_i32(a, b) == booth_mul_i32(b, a)

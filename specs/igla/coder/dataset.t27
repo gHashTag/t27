@@ -1889,3 +1889,20 @@ test dataset_diversity_score_three_unique_one_w297
 
 invariant dataset_diversity_score_three_unique_one_w297_inv:
     dataset_diversity_score([DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "b", template: "b", quality_score: 1.0 }, DataSample { rtl: "c", template: "c", quality_score: 1.0 }]) == 1.0
+
+test dataset_count_by_template_empty_zero_w298
+    given dataset = []DataSample{}
+    given template = "adder"
+    when n = count_dataset_by_template(dataset, template)
+    then n == 0
+
+test dataset_count_by_template_single_match_one_w298
+    given dataset = [DataSample { rtl: "module adder; endmodule", template: "adder", quality_score: 1.0 }]
+    given template = "adder"
+    when n = count_dataset_by_template(dataset, template)
+    then n == 1
+
+invariant dataset_count_by_template_empty_zero_w298_inv:
+    forall dataset : []DataSample, template : string
+    dataset.len() == 0 ==> count_dataset_by_template(dataset, template) == 0
+

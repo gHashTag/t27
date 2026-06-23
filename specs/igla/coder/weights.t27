@@ -972,3 +972,18 @@ test weights_load_all_zero_large_count_w297
 invariant weights_load_all_plus_large_count_w297_inv:
     forall n : u32
     count_plus(load_all_plus(n)) == n
+
+test weights_load_all_minus_small_count_w298
+    given n = 3
+    when w = load_all_minus(n)
+    then count_minus(w) == 3
+
+test weights_load_all_plus_small_count_w298
+    given n = 2
+    when w = load_all_plus(n)
+    then count_plus(w) == 2
+
+invariant weights_load_all_minus_small_count_w298_inv:
+    forall n : u32
+    count_minus(load_all_minus(n)) == n
+

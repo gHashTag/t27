@@ -268,3 +268,12 @@ theorem ternaryInferenceLutZeroWeightNopConcrete :
     let psum := 42
     ternaryMac psum a (TernaryWeight.mk .zero) = psum := by
   simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+/-- All-plus weights on uniform activations produce uniform outputs (concrete: [2,2,2,2] → [4,4,4,4]).
+    Demonstrates symmetry: equal inputs + equal weights → equal outputs.
+    Responds to TOM ROM-SRAM and TernaryCore FPGA uniform-weight loading insight. -/
+theorem ternaryInferenceUniformActivationsAllPlus :
+    let input := InferenceInput.mk #[2, 2, 2, 2]
+    let plusWeights := #[TernaryWeight.mk .plus, TernaryWeight.mk .plus, TernaryWeight.mk .plus, TernaryWeight.mk .plus]
+    let model := loadTernaryWeights plusWeights
+    (ternaryInference2x2 input model).outputs = #[4, 4, 4, 4] := by
+  simp [ternaryInference2x2, ternaryGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, loadTernaryWeights] <;> try native_decide

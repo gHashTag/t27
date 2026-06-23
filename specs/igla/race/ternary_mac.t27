@@ -1202,3 +1202,20 @@ test ternary_mac_large_activation_plus_weight_w297
 invariant ternary_mac_zero_activation_minus_weight_identity_w297_inv:
     forall acc : i32
     ternary_mac(0, TernaryWeight { code: 2 }, acc) == acc
+
+test ternary_mac_large_activation_minus_weight_neg_w298
+    given a = 127
+    given w = TernaryWeight { code: 2 }
+    given acc = 0
+    when result = ternary_mac(a, w, acc)
+    then result == -127
+
+test ternary_mac_zero_acc_zero_activation_zero_w298
+    given a = 0
+    given w = TernaryWeight { code: 1 }
+    given acc = 0
+    when result = ternary_mac(a, w, acc)
+    then result == 0
+
+invariant ternary_mac_zero_acc_zero_activation_zero_w298_inv:
+    ternary_mac(0, TernaryWeight { code: 1 }, 0) == 0
