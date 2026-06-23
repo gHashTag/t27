@@ -1145,78 +1145,8 @@ test bench_proxy_w321_batch_depth_invariant_1 { /* verify baseline */ }
 test bench_proxy_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant bench_proxy_w321_depth_054: true
 
-}
-test bench_proxy_w322_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w322_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w322_depth_054: true
-
-// Wave Loop 323 — CODER depth +1 (55→56)
-test bench_proxy_w323_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w323_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w323_depth_056: true
-// Wave Loop 324 — CODER depth +1 (56→57)
-test bench_proxy_w324_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w324_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w324_depth_057: true
-// Wave Loop 325 — CODER depth +1 (57→58)
-test bench_proxy_w325_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w325_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w325_depth_058: true
-// Wave Loop 326 — CODER depth +1 (58→59)
-test bench_proxy_w326_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w326_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w326_depth_059: true
-// Wave Loop 327 — CODER depth +1 (59→60)
-test bench_proxy_w327_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w327_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w327_depth_060: true
-// Wave Loop 328 — CODER depth +1 (60→61)
-test bench_proxy_w328_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w328_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w328_depth_061: true
-test bench_proxy_w329_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w329_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w329_depth_062: true
-// Wave Loop 330 — CODER depth +1 (62→63)
-test bench_proxy_w330_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w330_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w330_depth_063: true
-
-// Wave Loop 331 — CODER depth +1 (63→64)
-test bench_proxy_w331_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w331_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w331_depth_064: true
-
-// Wave Loop 332 — CODER depth +1 (64→65)
-test bench_proxy_w332_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w332_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w332_depth_065: true
-
-// Wave Loop 333 — CODER depth +1 (65→66)
-test bench_proxy_w333_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w333_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w333_depth_066: true
-
-// Wave Loop 334 — CODER depth +1 (66→67)
-test bench_proxy_w334_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w334_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w334_depth_067: true
-
-// Wave Loop 335 — CODER depth +1 (67→68)
-test bench_proxy_w335_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w335_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w335_depth_068: true
-// Wave Loop 336 — CODER depth +1 (68→69)
-test bench_proxy_w336_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w336_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w336_depth_069: true
-
 // Wave Loop 337 — CODER depth +1 (69→70)
 test bench_proxy_w337_batch_depth_invariant_1 { /* verify baseline */ }
 test bench_proxy_w337_batch_depth_invariant_2 { /* verify baseline */ }
 invariant bench_proxy_w337_depth_070: true
-
-// Wave Loop 338 — CODER depth +1 (70→71)
-test bench_proxy_w338_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w338_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w338_depth_071: true
+}

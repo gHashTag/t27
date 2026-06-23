@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:8c055462cc108d08b69788760e0b03694cf444c1ab927ae2a4683af67b83144c",
+  "gen_hash_c": "sha256:f9833a243f68176cb90eef60bc4962a8f2ac7a7dcc26638a2504c46fe5b7edd9",
   "gen_hash_rust": "sha256:6b6bb960826216cc31a2e666b392b29167097d7cf913c66b95542178b6f94b44",
-  "gen_hash_verilog": "sha256:c2603fffbba9441829053c91ada73722de206bbcf8cc9b28c214bc0e1889a7cb",
-  "gen_hash_zig": "sha256:d05a42a66061c7d68866594cb9edb8fdbba956d0a1d518ef13d8f96b71600829",
+  "gen_hash_verilog": "sha256:aff4e57e1d13130272492c93a328512830699ed5f7f7dcab3d6b9388eca787f3",
+  "gen_hash_zig": "sha256:3b0fc1834f8c246dca24cfb093fd38ba50412ed6a4757485dd1cdbbfb9b09618",
   "module": "igla-race-ternary-mac",
   "ring": 12,
-  "sealed_at": "2026-06-23T08:33:50Z",
-  "spec_hash": "sha256:872e6aefbce6a6ba0356c831931cd32b306ff2b16fc8862efeaf1e602c6d2ec6",
+  "sealed_at": "2026-06-23T08:39:12Z",
+  "spec_hash": "sha256:88c6226b097faabeea5816bddd557951318379514c3180c9b2785705dd7c209c",
   "spec_path": "specs/igla/race/ternary_mac.t27"
 }

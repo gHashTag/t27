@@ -1664,78 +1664,8 @@ test formal_w321_batch_depth_invariant_1 { /* verify baseline */ }
 test formal_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant formal_w321_depth_065: true
 
-}
-test formal_w322_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w322_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w322_depth_065: true
-
-// Wave Loop 323 — Pool A depth +1 (66→67)
-test formal_w323_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w323_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w323_depth_067: true
-// Wave Loop 324 — Pool A depth +1 (67→68)
-test formal_w324_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w324_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w324_depth_068: true
-// Wave Loop 325 — Pool A depth +1 (68→69)
-test formal_w325_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w325_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w325_depth_069: true
-// Wave Loop 326 — Pool A depth +1 (69→70)
-test formal_w326_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w326_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w326_depth_070: true
-// Wave Loop 327 — Pool A depth +1 (70→71)
-test formal_w327_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w327_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w327_depth_071: true
-// Wave Loop 328 — Pool A depth +1 (71→72)
-test formal_w328_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w328_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w328_depth_072: true
-test formal_w329_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w329_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w329_depth_073: true
-// Wave Loop 330 — Pool A depth +1 (73→74)
-test formal_w330_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w330_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w330_depth_074: true
-
-// Wave Loop 331 — Pool A depth +1 (74→75)
-test formal_w331_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w331_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w331_depth_075: true
-
-// Wave Loop 332 — Pool A depth +1 (75→76)
-test formal_w332_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w332_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w332_depth_076: true
-
-// Wave Loop 333 — Pool A depth +1 (76→77)
-test formal_w333_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w333_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w333_depth_077: true
-
-// Wave Loop 334 — Pool A depth +1 (77→78)
-test formal_w334_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w334_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w334_depth_078: true
-
-// Wave Loop 335 — Pool A depth +1 (78→79)
-test formal_w335_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w335_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w335_depth_079: true
-// Wave Loop 336 — Pool A depth +1 (79→80)
-test formal_w336_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w336_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w336_depth_080: true
-
-// Wave Loop 337 — Pool A depth +1 (79→80)
+// Wave Loop 337 — Pool A depth +1 (80→81)
 test formal_w337_batch_depth_invariant_1 { /* verify baseline */ }
 test formal_w337_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w337_depth_080: true
-
-// Wave Loop 338 — Pool A depth +1 (80→81)
-test formal_w338_batch_depth_invariant_1 { /* verify baseline */ }
-test formal_w338_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w338_depth_081: true
+invariant formal_w337_depth_081: true
+}

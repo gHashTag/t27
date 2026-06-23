@@ -1044,78 +1044,8 @@ test ternary_inference_w321_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_inference_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_inference_w321_depth_064: true
 
-}
-test ternary_inference_w322_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w322_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w322_depth_064: true
-
-// Wave Loop 323 — Integration depth +1 (65→66)
-test ternary_inference_w323_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w323_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w323_depth_066: true
-// Wave Loop 324 — Integration depth +1 (66→67)
-test ternary_inference_w324_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w324_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w324_depth_067: true
-// Wave Loop 325 — Integration depth +1 (67→68)
-test ternary_inference_w325_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w325_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w325_depth_068: true
-// Wave Loop 326 — Integration depth +1 (68→69)
-test ternary_inference_w326_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w326_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w326_depth_069: true
-// Wave Loop 327 — Integration depth +1 (69→70)
-test ternary_inference_w327_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w327_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w327_depth_070: true
-// Wave Loop 328 — Integration depth +1 (70→71)
-test ternary_inference_w328_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w328_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w328_depth_071: true
-test ternary_inference_w329_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w329_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w329_depth_072: true
-// Wave Loop 330 — Pool A depth +1 (72→73)
-test ternary_inference_w330_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w330_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w330_depth_073: true
-
-// Wave Loop 331 — Pool A depth +1 (73→74)
-test ternary_inference_w331_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w331_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w331_depth_074: true
-
-// Wave Loop 332 — Pool A depth +1 (74→75)
-test ternary_inference_w332_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w332_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w332_depth_075: true
-
-// Wave Loop 333 — Pool A depth +1 (75→76)
-test ternary_inference_w333_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w333_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w333_depth_076: true
-
-// Wave Loop 334 — Pool A depth +1 (76→77)
-test ternary_inference_w334_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w334_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w334_depth_077: true
-
-// Wave Loop 335 — Integration depth +1 (77→78)
-test ternary_inference_w335_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w335_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w335_depth_078: true
-// Wave Loop 336 — Integration depth +1 (78→79)
-test ternary_inference_w336_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w336_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w336_depth_079: true
-
-// Wave Loop 337 — Pool A depth +1 (79→80)
+// Wave Loop 337 — Integration depth +1 (79→80)
 test ternary_inference_w337_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_inference_w337_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_inference_w337_depth_080: true
-
-// Wave Loop 338 — Pool A depth +1 (80→81)
-test ternary_inference_w338_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_inference_w338_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_inference_w338_depth_081: true
+}
