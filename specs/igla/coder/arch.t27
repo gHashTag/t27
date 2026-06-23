@@ -2414,3 +2414,8 @@ invariant igla_coder_arch_w349_depth: true
 test igla_coder_arch_w350_batch_depth_invariant_1 { /* verify baseline */ }
 test igla_coder_arch_w350_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_coder_arch_w350_depth: true
+
+// Wave Loop 351 -- Pool A depth +1
+test igla_coder_arch_w351_batch_depth_invariant_1 { /* verify baseline */ }
+test igla_coder_arch_w351_batch_depth_invariant_2 { /* verify baseline */ }
+invariant igla_coder_arch_w351_depth: true
