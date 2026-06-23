@@ -2512,6 +2512,6 @@ test igla_coder_dataset_w348_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_coder_dataset_w348_depth_080: true
 
 // Wave Loop 349 -- CODER depth +1
-igla_coder_dataset_w349_batch_depth_invariant_1 { /* verify baseline */ }
-igla_coder_dataset_w349_batch_depth_invariant_2 { /* verify baseline */ }
+test igla_coder_dataset_w349_batch_depth_invariant_1 { /* verify baseline */ }
+test igla_coder_dataset_w349_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_coder_dataset_w349_depth: true

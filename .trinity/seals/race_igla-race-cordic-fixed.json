@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:993aa2c4dc995aac4ef8833908e333fad9f2af595ecd6fc4c3efd2d1de6dd32c",
   "module": "igla-race-cordic-fixed",
   "ring": 12,
-  "sealed_at": "2026-06-23T11:44:16Z",
-  "spec_hash": "sha256:d081f207e7f9ad7316a77d53bef9d47c067fca2b7ad26bafc5c4e14f14831db7",
+  "sealed_at": "2026-06-23T11:58:49Z",
+  "spec_hash": "sha256:a2e206d08807f9732bbe171802229de88e7882592d46dd762a4894d7f942715e",
   "spec_path": "specs/igla/race/cordic_fixed.t27"
 }
