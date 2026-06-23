@@ -1181,3 +1181,16 @@ test cordic_fixed_sin_small_positive_approx_linear_w301
 
 invariant cordic_fixed_sin_small_positive_approx_linear_w301_inv:
     cordic_sin(100) > 99 && cordic_sin(100) < 101
+
+test cordic_fixed_sin_three_quarter_approx_one_w302
+    given a = 12288
+    when s = cordic_sin(a)
+    then s > 16382 && s < 16386
+
+test cordic_fixed_cos_three_quarter_approx_zero_w302
+    given a = 12288
+    when c = cordic_cos(a)
+    then c > -1 && c < 1
+
+invariant cordic_fixed_cos_three_quarter_approx_zero_w302_inv:
+    cordic_cos(12288) > -1 && cordic_cos(12288) < 1

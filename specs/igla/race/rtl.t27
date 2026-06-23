@@ -1342,3 +1342,16 @@ test rtl_bits_to_u64_mixed_ten_w301
 
 invariant rtl_bits_to_u64_four_bits_fifteen_w301_inv:
     bits_to_u64([1, 1, 1, 1]) == 15
+
+test rtl_bits_to_u64_seven_bits_one_hundred_twenty_seven_w302
+    given bits = [1, 1, 1, 1, 1, 1, 1]
+    when val = bits_to_u64(bits)
+    then val == 127
+
+test rtl_bits_to_u64_eight_bits_two_fifty_five_w302
+    given bits = [1, 1, 1, 1, 1, 1, 1, 1]
+    when val = bits_to_u64(bits)
+    then val == 255
+
+invariant rtl_bits_to_u64_seven_bits_one_hundred_twenty_seven_w302_inv:
+    bits_to_u64([1, 1, 1, 1, 1, 1, 1]) == 127

@@ -4180,3 +4180,17 @@ test benchmark_count_passed_at_5_none_passed_zero_w301
 
 invariant benchmark_count_passed_at_5_none_passed_zero_w301_inv:
     count_passed_at_5([], 0, 0) == 0
+
+test benchmark_compute_latency_equal_ops_cycles_w302
+    given ops = 5
+    given cycles = 5
+    when lat = compute_latency(ops, cycles)
+    then lat == 5.0
+
+test benchmark_count_passed_at_5_one_passed_one_w302
+    given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: false, module_name: "m1" }]
+    when n = count_passed_at_5(results, 0, 0)
+    then n == 1
+
+invariant benchmark_compute_latency_equal_ops_cycles_w302_inv:
+    compute_latency(5, 5) == 5.0

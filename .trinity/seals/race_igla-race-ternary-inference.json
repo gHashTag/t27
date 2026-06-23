@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:64de00707e1da1bd867769e6a6686c9e75d070544be6a9b7acb4a0a034b554e2",
+  "gen_hash_c": "sha256:ac48d865bd511a89b2ebc3463b71f1a0b6360fc356ffc7ff8885fe3857ed112f",
   "gen_hash_rust": "sha256:f0d3db7980edd0af9d363d4329a8eacc4fc8d7fb9be8dfd458ef978704be9a58",
-  "gen_hash_verilog": "sha256:b7dd0da617ec6c8e46b54a08219376fdbd6544fd3cda88d1183ca002ec8e63e3",
-  "gen_hash_zig": "sha256:23bfcb8d1b955df0044dfb6f842e2e15ade30f93086be1f1f7f4237737f29af1",
+  "gen_hash_verilog": "sha256:be64cb2cea2e44624e12dd4afddc76acc60cb99f8a31ddcf70e7b260476cc69e",
+  "gen_hash_zig": "sha256:7bdde46481df30ae06b8c009d19de94609eea62f77da6994d14e32829534ed8b",
   "module": "igla-race-ternary-inference",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:51:48Z",
-  "spec_hash": "sha256:769632e91daf05861b1f6e287bb25bb3c18f001ec719806c134e3e9c877b839d",
+  "sealed_at": "2026-06-23T01:05:33Z",
+  "spec_hash": "sha256:5c29f2d56acda750a993bcbe24cd184bd0fde0f8867c87a62b57556f63ee05a0",
   "spec_path": "specs/igla/race/ternary_inference.t27"
 }

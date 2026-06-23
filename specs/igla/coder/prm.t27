@@ -1114,3 +1114,16 @@ test prm_param_bounds_saturate_boundary_plus_one_w301
 
 invariant prm_param_bounds_saturate_boundary_plus_one_w301_inv:
     param_bounds_saturate(128) == 127
+
+test prm_param_bounds_saturate_boundary_minus_one_clamp_w302
+    given val = -129
+    when result = param_bounds_saturate(val)
+    then result == -128
+
+test prm_param_bounds_saturate_boundary_plus_one_clamp_w302
+    given val = 128
+    when result = param_bounds_saturate(val)
+    then result == 127
+
+invariant prm_param_bounds_saturate_boundary_minus_one_clamp_w302_inv:
+    param_bounds_saturate(-129) == -128

@@ -1276,3 +1276,19 @@ test ternary_gemm_all_plus_weights_double_sum_w301
 
 invariant ternary_gemm_mixed_weights_concrete_sum_w301_inv:
     ternary_gemm([cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)], [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]).len() == 4
+
+test ternary_gemm_uniform_activations_identity_weights_passthrough_w302
+    given a = [cast_i8(5), cast_i8(5), cast_i8(5), cast_i8(5)]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 4 && out[0] == 5 && out[1] == 5
+
+test ternary_gemm_all_zero_activations_all_plus_weights_zero_w302
+    given a = [cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0)]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 4 && out[0] == 0 && out[1] == 0
+
+invariant ternary_gemm_all_zero_activations_all_plus_weights_zero_w302_inv:
+    forall a : []i8
+    a.len() == 4 ==> ternary_gemm(a, [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]).len() == 4

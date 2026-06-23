@@ -1307,3 +1307,18 @@ test yosys_strings_equal_different_lengths_false_w301
 invariant yosys_is_prefix_empty_any_true_w301_inv:
     forall s : string
     is_prefix("", s) == true
+
+test yosys_is_prefix_longer_string_false_w302
+    given a = "abc"
+    given b = "abcdef"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_strings_equal_empty_both_true_w302
+    given a = ""
+    given b = ""
+    when ok = strings_equal(a, b)
+    then ok == true
+
+invariant yosys_strings_equal_empty_both_true_w302_inv:
+    strings_equal("", "") == true

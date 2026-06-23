@@ -3167,3 +3167,18 @@ test eval_accuracy_one_wrong_zero_w301
 
 invariant eval_accuracy_one_wrong_zero_w301_inv:
     accuracy([1], [2]) == 0.0
+
+test eval_accuracy_all_wrong_zero_w302
+    given preds = [1, 2, 3, 4]
+    given refs = [5, 6, 7, 8]
+    when acc = accuracy(preds, refs)
+    then acc == 0.0
+
+test eval_accuracy_all_correct_one_w302
+    given preds = [9, 10, 11, 12]
+    given refs = [9, 10, 11, 12]
+    when acc = accuracy(preds, refs)
+    then acc == 1.0
+
+invariant eval_accuracy_all_correct_one_w302_inv:
+    accuracy([9, 10, 11, 12], [9, 10, 11, 12]) == 1.0

@@ -684,3 +684,18 @@ test ternary_inference_identity_negative_input_passthrough_w301
 
 invariant ternary_inference_identity_zero_input_zero_output_w301_inv:
     ternary_inference_identity(InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0)] }).outputs = #[0, 0, 0, 0]
+
+test ternary_inference_identity_mixed_input_passthrough_w302
+    given input = InferenceInput { activations: [cast_i8(-1), cast_i8(2), cast_i8(-3), cast_i8(4)] }
+    when result = ternary_inference_identity(input)
+    then result.outputs[0] == -1 && result.outputs[1] == 2 && result.outputs[2] == -3 && result.outputs[3] == 4
+
+test ternary_inference_identity_max_positive_passthrough_w302
+    given input = InferenceInput { activations: [cast_i8(127), cast_i8(0), cast_i8(0), cast_i8(0)] }
+    when result = ternary_inference_identity(input)
+    then result.outputs[0] == 127
+
+invariant ternary_inference_identity_mixed_input_passthrough_w302_inv:
+    forall input : InferenceInput
+    input.activations.len() == 4 ==>
+    ternary_inference_identity(input).outputs[0] == input.activations[0]

@@ -1500,3 +1500,16 @@ test backend_log2_const_thirtytwo_five_w301
 
 invariant backend_log2_const_thirtytwo_five_w301_inv:
     log2_const("32") == 5
+
+test backend_parse_const_thousand_w302
+    given s = "1000"
+    when v = parse_const(s)
+    then v == 1000
+
+test backend_log2_const_sixtyfour_six_w302
+    given s = "64"
+    when v = log2_const(s)
+    then v == 6
+
+invariant backend_log2_const_sixtyfour_six_w302_inv:
+    log2_const("64") == 6

@@ -927,3 +927,16 @@ test tokenizer_four_tokens_length_five_w301
 
 invariant tokenizer_single_token_length_two_w301_inv:
     tokenize([42]).len() == 2
+
+test tokenizer_empty_tokens_length_one_w302
+    given tokens = []
+    when result = tokenize(tokens)
+    then result.len() == 1
+
+test tokenizer_large_tokens_bos_first_w302
+    given tokens = [100, 200, 300]
+    when result = tokenize(tokens)
+    then result[0] == 0
+
+invariant tokenizer_empty_tokens_length_one_w302_inv:
+    tokenize([]).len() == 1
