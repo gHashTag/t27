@@ -2292,3 +2292,7 @@ invariant pipeline_w339_depth_073: true
 test pipeline_w343_batch_depth_invariant_1 { /* verify baseline */ }
 test pipeline_w343_batch_depth_invariant_2 { /* verify baseline */ }
 invariant pipeline_w343_depth_076: true
+// Wave Loop 344 -- depth +1 (86->87)
+test pipeline_w344_batch_depth_invariant_1 { /* verify baseline */ }
+test pipeline_w344_batch_depth_invariant_2 { /* verify baseline */ }
+invariant pipeline_w344_depth_087: true

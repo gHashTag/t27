@@ -1960,3 +1960,7 @@ invariant backend_w339_depth_085: true
 test backend_w343_batch_depth_invariant_1 { /* verify baseline */ }
 test backend_w343_batch_depth_invariant_2 { /* verify baseline */ }
 invariant backend_w343_depth_086: true
+// Wave Loop 344 -- depth +1 (86->87)
+test backend_w344_batch_depth_invariant_1 { /* verify baseline */ }
+test backend_w344_batch_depth_invariant_2 { /* verify baseline */ }
+invariant backend_w344_depth_087: true

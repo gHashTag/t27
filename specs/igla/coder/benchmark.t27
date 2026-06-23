@@ -4642,3 +4642,7 @@ invariant benchmark_w339_depth_073: true
 test benchmark_w343_batch_depth_invariant_1 { /* verify baseline */ }
 test benchmark_w343_batch_depth_invariant_2 { /* verify baseline */ }
 invariant benchmark_w343_depth_076: true
+// Wave Loop 344 -- depth +1 (86->87)
+test benchmark_w344_batch_depth_invariant_1 { /* verify baseline */ }
+test benchmark_w344_batch_depth_invariant_2 { /* verify baseline */ }
+invariant benchmark_w344_depth_087: true

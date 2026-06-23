@@ -1836,3 +1836,7 @@ invariant ternary_mac_w339_depth_082: true
 test ternary_mac_w343_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_mac_w343_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_mac_w343_depth_086: true
+// Wave Loop 344 -- depth +1 (86->87)
+test ternary_mac_w344_batch_depth_invariant_1 { /* verify baseline */ }
+test ternary_mac_w344_batch_depth_invariant_2 { /* verify baseline */ }
+invariant ternary_mac_w344_depth_087: true

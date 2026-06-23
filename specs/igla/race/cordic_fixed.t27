@@ -1641,3 +1641,7 @@ invariant cordic_fixed_w339_depth_084: true
 test cordic_fixed_w343_batch_depth_invariant_1 { /* verify baseline */ }
 test cordic_fixed_w343_batch_depth_invariant_2 { /* verify baseline */ }
 invariant cordic_fixed_w343_depth_086: true
+// Wave Loop 344 -- depth +1 (86->87)
+test cordic_fixed_w344_batch_depth_invariant_1 { /* verify baseline */ }
+test cordic_fixed_w344_batch_depth_invariant_2 { /* verify baseline */ }
+invariant cordic_fixed_w344_depth_087: true
