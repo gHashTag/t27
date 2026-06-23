@@ -983,3 +983,16 @@ test opcodes_get_cycles_unknown_zero_w298
 invariant opcodes_is_sacred_opcode_unknown_false_w298_inv:
     forall op : u8
     op > 0x0F ==> is_sacred_opcode(op) == false
+
+test opcodes_get_cycles_add_one_w299
+    given op = 0x01
+    when cycles = get_opcode_cycles(op)
+    then cycles == 1
+
+test opcodes_get_cycles_mul_three_w299
+    given op = 0x03
+    when cycles = get_opcode_cycles(op)
+    then cycles == 3
+
+invariant opcodes_get_cycles_add_one_w299_inv:
+    get_opcode_cycles(0x01) == 1

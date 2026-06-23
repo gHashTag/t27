@@ -1013,3 +1013,20 @@ invariant training_sgd_update_positive_grad_decreases_w298_inv:
     forall w : f32, grad : f32
     grad > 0.0 && lr > 0.0 ==> sgd_update(w, grad, lr) < w
 
+
+test training_negative_grad_increases_w299
+    given w = 1.0
+    given lr = 0.1
+    given grad = -5.0
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == 1.5
+
+test training_small_grad_small_change_w299
+    given w = 0.0
+    given lr = 0.01
+    given grad = 1.0
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == -0.01
+
+invariant training_negative_grad_increases_w299_inv:
+    sgd_update(1.0, -5.0, 0.1) == 1.5

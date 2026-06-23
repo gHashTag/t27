@@ -1227,3 +1227,20 @@ invariant ternary_gemm_alternating_weights_alternating_w298_inv:
     forall a : []i8
     a.len() == 4 ==>
     ternary_gemm(a, [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]).len() == 4
+
+test ternary_gemm_all_zero_weights_all_zero_w299
+    given a = [cast_i8(5), cast_i8(6), cast_i8(7), cast_i8(8)]
+    given w = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 4 && out[0] == 0 && out[1] == 0
+
+test ternary_gemm_uniform_activations_all_plus_w299
+    given a = [cast_i8(2), cast_i8(2), cast_i8(2), cast_i8(2)]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 4 && out[0] == 4 && out[1] == 4
+
+invariant ternary_gemm_all_zero_weights_all_zero_w299_inv:
+    forall a : []i8
+    a.len() == 4 ==>
+    ternary_gemm(a, [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]).len() == 4

@@ -1075,3 +1075,16 @@ invariant prm_param_bounds_saturate_plus_one_identity_w298_inv:
     forall val : i32
     val == 1 ==> param_bounds_saturate(val) == 1
 
+
+test prm_param_bounds_saturate_below_min_clamp_w299
+    given val = -200
+    when result = param_bounds_saturate(val)
+    then result == -128
+
+test prm_param_bounds_saturate_above_max_clamp_w299
+    given val = 200
+    when result = param_bounds_saturate(val)
+    then result == 127
+
+invariant prm_param_bounds_saturate_below_min_clamp_w299_inv:
+    param_bounds_saturate(-200) == -128

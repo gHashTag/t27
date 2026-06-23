@@ -1277,3 +1277,16 @@ test formal_smt_check_bool_mixed_unsat_w298
 invariant formal_smt_check_bool_mixed_unsat_w298_inv:
     forall b : bool
     b == false ==> smt_check_bool(b) == "UNSAT"
+
+test formal_smt_assert_true_true_true_w299
+    given b = true
+    when r = smt_assert_true(b)
+    then r == "true"
+
+test formal_smt_check_bool_true_sat_w299
+    given b = true
+    when r = smt_check_bool(b)
+    then r == "SAT"
+
+invariant formal_smt_check_bool_true_sat_w299_inv:
+    smt_check_bool(true) == "SAT"

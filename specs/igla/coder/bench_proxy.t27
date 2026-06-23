@@ -703,3 +703,19 @@ invariant bench_proxy_select_best_beam_width_one_w298_inv:
     forall candidates : []BeamCandidate, beam_width : u32
     candidates.len() >= 1 && beam_width == 1 ==> select_best_beam(candidates, beam_width).len() == 1
 
+
+test bench_proxy_score_beam_positive_penalty_gt_one_w299
+    given candidate = BeamCandidate { token: 1, score: 1.0f32, prefix_len: 1 }
+    given length_penalty = 0.5
+    when result = score_beam_candidate(candidate, length_penalty)
+    then result.score > 1.0f32
+
+test bench_proxy_select_best_beam_one_top_w299
+    given candidates = [BeamCandidate { token: 1, score: 0.9f32, prefix_len: 2 }, BeamCandidate { token: 2, score: 0.7f32, prefix_len: 2 }]
+    given beam_width = 1
+    when result = select_best_beam(candidates, beam_width)
+    then result.len() == 1 && result[0].token == 1
+
+invariant bench_proxy_select_best_beam_one_top_w299_inv:
+    forall c1 : BeamCandidate, c2 : BeamCandidate, beam_width : u32
+    c1.score > c2.score && beam_width == 1 ==> select_best_beam([c1, c2], beam_width).len() == 1

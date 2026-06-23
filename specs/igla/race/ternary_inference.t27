@@ -641,3 +641,18 @@ invariant ternary_inference_identity_fourth_element_w298_inv:
     forall input : InferenceInput
     input.activations.len() == 4 ==>
     ternary_inference_identity(input).outputs[3] == input.activations[3]
+
+test ternary_inference_identity_first_element_w299
+    given input = InferenceInput { activations: [cast_i8(11), cast_i8(0), cast_i8(0), cast_i8(0)] }
+    when result = ternary_inference_identity(input)
+    then result.outputs[0] == 11
+
+test ternary_inference_identity_last_element_w299
+    given input = InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(42)] }
+    when result = ternary_inference_identity(input)
+    then result.outputs[3] == 42
+
+invariant ternary_inference_identity_first_element_w299_inv:
+    forall input : InferenceInput
+    input.activations.len() == 4 ==>
+    ternary_inference_identity(input).outputs[0] == input.activations[0]

@@ -1260,3 +1260,19 @@ test yosys_strings_equal_case_sensitive_w298
 invariant yosys_strings_equal_case_sensitive_w298_inv:
     forall s1 : string, s2 : string
     s1 != s2 ==> strings_equal(s1, s2) == false
+
+test yosys_is_prefix_empty_string_any_true_w299
+    given a = ""
+    given b = "hello"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_strings_equal_same_string_true_w299
+    given a = "test"
+    given b = "test"
+    when ok = strings_equal(a, b)
+    then ok == true
+
+invariant yosys_strings_equal_same_string_true_w299_inv:
+    forall s : string
+    strings_equal(s, s) == true

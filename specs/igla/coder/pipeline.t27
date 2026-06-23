@@ -1793,3 +1793,16 @@ invariant pipeline_five_elements_len_preserved_w298_inv:
     forall input : []f32
     input.len() == 5 ==> pipeline(input).len() == 5
 
+
+test pipeline_empty_len_zero_w299
+    given input = []
+    when output = pipeline(input)
+    then output.len() == 0
+
+test pipeline_single_element_len_one_w299
+    given input = [42.0f32]
+    when output = pipeline(input)
+    then output.len() == 1
+
+invariant pipeline_empty_len_zero_w299_inv:
+    pipeline([]).len() == 0

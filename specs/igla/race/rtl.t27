@@ -1303,3 +1303,16 @@ test rtl_bits_to_u64_six_bits_sixtythree_w298
 invariant rtl_bits_to_u64_five_bits_thirtyone_w298_inv:
     forall b0 : u8, b1 : u8, b2 : u8, b3 : u8, b4 : u8
     b0 == 1 && b1 == 1 && b2 == 1 && b3 == 1 && b4 == 1 ==> bits_to_u64([b0, b1, b2, b3, b4]) == 31
+
+test rtl_bits_to_u64_empty_zero_w299
+    given bits = []
+    when val = bits_to_u64(bits)
+    then val == 0
+
+test rtl_bits_to_u64_single_one_w299
+    given bits = [1]
+    when val = bits_to_u64(bits)
+    then val == 1
+
+invariant rtl_bits_to_u64_single_one_w299_inv:
+    bits_to_u64([1]) == 1

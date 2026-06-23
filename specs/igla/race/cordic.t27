@@ -1118,3 +1118,16 @@ test cordic_sqrt_approx_zero_zero_exact_w298
 
 invariant cordic_sqrt_approx_zero_zero_exact_w298_inv:
     sqrt_approx(0.0) == 0.0
+
+test cordic_sqrt_approx_one_exact_w299
+    given x = 1.0
+    when r = sqrt_approx(x)
+    then r == 1.0
+
+test cordic_sqrt_approx_quarter_approx_half_w299
+    given x = 0.25
+    when r = sqrt_approx(x)
+    then r > 0.49 && r < 0.51
+
+invariant cordic_sqrt_approx_one_exact_w299_inv:
+    sqrt_approx(1.0) == 1.0

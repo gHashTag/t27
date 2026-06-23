@@ -1219,3 +1219,20 @@ test ternary_mac_zero_acc_zero_activation_zero_w298
 
 invariant ternary_mac_zero_acc_zero_activation_zero_w298_inv:
     ternary_mac(0, TernaryWeight { code: 1 }, 0) == 0
+
+test ternary_mac_small_activation_plus_weight_w299
+    given a = 3
+    given w = TernaryWeight { code: 1 }
+    given acc = 10
+    when result = ternary_mac(a, w, acc)
+    then result == 13
+
+test ternary_mac_negative_activation_plus_weight_w299
+    given a = -4
+    given w = TernaryWeight { code: 1 }
+    given acc = 5
+    when result = ternary_mac(a, w, acc)
+    then result == 1
+
+invariant ternary_mac_small_activation_plus_weight_w299_inv:
+    ternary_mac(3, TernaryWeight { code: 1 }, 10) == 13

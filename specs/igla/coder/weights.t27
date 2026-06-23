@@ -987,3 +987,16 @@ invariant weights_load_all_minus_small_count_w298_inv:
     forall n : u32
     count_minus(load_all_minus(n)) == n
 
+
+test weights_load_all_minus_single_count_w299
+    given n = 1
+    when w = load_all_minus(n)
+    then count_minus(w) == 1
+
+test weights_count_plus_three_plus_w299
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when c = count_plus(w)
+    then c == 3
+
+invariant weights_count_plus_three_plus_w299_inv:
+    count_plus([TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]) == 3

@@ -1115,3 +1115,16 @@ test bram_weights_width_two_elements_w298
 
 invariant bram_weights_width_two_elements_w298_inv:
     bram_weights_width([1.0f32, 2.0f32]) == 2
+
+test bram_weights_depth_empty_zero_w299
+    given data = []
+    when bw = bram_weights_depth(data)
+    then bw == 0
+
+test bram_weights_width_empty_zero_w299
+    given data = []
+    when w = bram_weights_width(data)
+    then w == 0
+
+invariant bram_weights_depth_empty_zero_w299_inv:
+    bram_weights_depth([]) == 0

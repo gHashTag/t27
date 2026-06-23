@@ -1461,3 +1461,16 @@ test backend_parse_const_negative_value_w298
 
 invariant backend_log2_const_eight_three_w298_inv:
     log2_const("8") == 3
+
+test backend_parse_const_zero_zero_w299
+    given s = "0"
+    when v = parse_const(s)
+    then v == 0
+
+test backend_log2_const_one_zero_w299
+    given s = "1"
+    when v = log2_const(s)
+    then v == 0
+
+invariant backend_log2_const_one_zero_w299_inv:
+    log2_const("1") == 0

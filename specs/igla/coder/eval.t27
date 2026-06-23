@@ -3122,3 +3122,18 @@ invariant eval_accuracy_single_wrong_zero_w298_inv:
     forall preds : []u32, refs : []u32
     preds.len() == 1 && refs.len() == 1 && preds[0] != refs[0] ==> accuracy(preds, refs) == 0.0
 
+
+test eval_accuracy_empty_zero_w299
+    given preds = []
+    given refs = []
+    when acc = accuracy(preds, refs)
+    then acc == 0.0
+
+test eval_accuracy_two_correct_one_w299
+    given preds = [1, 2]
+    given refs = [1, 2]
+    when acc = accuracy(preds, refs)
+    then acc == 1.0
+
+invariant eval_accuracy_two_correct_one_w299_inv:
+    accuracy([1, 2], [1, 2]) == 1.0

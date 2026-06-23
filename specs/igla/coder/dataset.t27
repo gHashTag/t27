@@ -1906,3 +1906,16 @@ invariant dataset_count_by_template_empty_zero_w298_inv:
     forall dataset : []DataSample, template : string
     dataset.len() == 0 ==> count_dataset_by_template(dataset, template) == 0
 
+
+test dataset_diversity_score_single_one_w299
+    given dataset = [DataSample { rtl: "a", template: "a", quality_score: 1.0 }]
+    when score = dataset_diversity_score(dataset)
+    then score == 1.0
+
+test dataset_diversity_score_three_unique_one_w299
+    given dataset = [DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "b", template: "b", quality_score: 1.0 }, DataSample { rtl: "c", template: "c", quality_score: 1.0 }]
+    when score = dataset_diversity_score(dataset)
+    then score == 1.0
+
+invariant dataset_diversity_score_single_one_w299_inv:
+    dataset_diversity_score([DataSample { rtl: "a", template: "a", quality_score: 1.0 }]) == 1.0

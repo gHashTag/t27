@@ -4138,3 +4138,17 @@ test benchmark_count_passed_at_10_all_passed_w298
 invariant benchmark_count_passed_at_10_all_passed_w298_inv:
     count_passed_at_10([BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }], 0, 0) == 1
 
+
+test benchmark_compute_latency_zero_ops_zero_w299
+    given ops = 0
+    given cycles = 10
+    when lat = compute_latency(ops, cycles)
+    then lat == 0.0
+
+test benchmark_count_passed_at_5_all_passed_len_w299
+    given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }, BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m2" }]
+    when n = count_passed_at_5(results, 0, 0)
+    then n == 2
+
+invariant benchmark_compute_latency_zero_ops_zero_w299_inv:
+    compute_latency(0, 10) == 0.0
