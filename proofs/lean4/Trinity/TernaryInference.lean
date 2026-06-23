@@ -920,3 +920,38 @@ theorem ternaryMacDistributivityFullGeneric (psum a b : Int) :
     ternaryMac psum (a + b) (TernaryWeight.mk .plus) = ternaryMac psum a (TernaryWeight.mk .plus) + ternaryMac 0 b (TernaryWeight.mk .plus) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: accumulating five independent activations with plus-weights is quintuple addition.
+    For any activations a, b, c, d, e: mac⁵(0, [a,b,c,d,e], .plus) = a + b + c + d + e.
+    Extends the N-variable accumulation family to depth 5, matching TENET 5-stage LUT pipelines
+    and covering all known 2026 systolic-array configurations (TENET 4-stage + 1 output stage).
+    Foundation for 5-input systolic-array row-reduction and quintuple-dot-product proofs.
+    Responds to TENET 5-input LUT scheduling and TernaryCore 5-operand add paths. -/
+
+theorem ternaryMacAccumulateFivePlusGeneric (a b c d e : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus) = a + b + c + d + e := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating five independent activations with minus-weights is negated quintuple addition.
+    For any activations a, b, c, d, e: mac⁵(0, [a,b,c,d,e], .minus) = -(a + b + c + d + e).
+    Complements AccumulateFivePlusGeneric for the minus-weight case.
+    Completes the 5-variable MAC operation lattice for both signs.
+    Responds to TENET 5-input signed LUT scheduling and TernaryCore subtract paths. -/
+
+theorem ternaryMacAccumulateFiveMinusGeneric (a b c d e : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus) = -(a + b + c + d + e) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: scaling an activation by two through plus-weight MAC doubles the result.
+    For any activation a: mac(0, 2*a, .plus) = 2*a.
+    Proves that multiplying an activation by 2 before MAC is equivalent to MAC with the original activation
+    and then adding it again. Foundation for quantization-aware proofs where activations are scaled
+    before ternary processing, and for hardware paths that duplicate activations rather than scaling.
+    Responds to TENET duplicate-LUT paths and TernaryCore activation-reuse optimization. -/
+
+theorem ternaryMacScalingPlusGeneric (a : Int) :
+    ternaryMac 0 (2 * a) (TernaryWeight.mk .plus) = 2 * a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

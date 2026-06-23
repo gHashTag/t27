@@ -1712,4 +1712,8 @@ invariant yosys_w323_depth_068: true
 test yosys_w324_batch_depth_invariant_1 { /* verify baseline */ }
 test yosys_w324_batch_depth_invariant_2 { /* verify baseline */ }
 invariant yosys_w324_depth_069: true
+// Wave Loop 325 — Pool A depth +1 (69→70)
+test yosys_w325_batch_depth_invariant_1 { /* verify baseline */ }
+test yosys_w325_batch_depth_invariant_2 { /* verify baseline */ }
+invariant yosys_w325_depth_070: true
 }
