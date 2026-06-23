@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:877f1ab3ba82a0c49b334675511e984601a34f99eeed14c607a404bc7bc6467e",
   "module": "igla-race-yosys",
   "ring": 12,
-  "sealed_at": "2026-06-23T06:53:32Z",
-  "spec_hash": "sha256:2399fe4a5daaf2a07c8bec8bc5719ff64bdf2e6e7a6d1c537518271c7286efc2",
+  "sealed_at": "2026-06-23T07:09:10Z",
+  "spec_hash": "sha256:7898f9540789bcbe71aa9f8cfa38169f274d3c084b9eab04fb7ce4a3c8aa5b34",
   "spec_path": "/Users/playra/t27/specs/igla/race/yosys.t27"
 }
