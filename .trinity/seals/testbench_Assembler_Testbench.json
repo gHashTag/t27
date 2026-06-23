@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:48b50aa4234f91005cfe0191075cf40c543174897cfc6c647a28c14b59505938",
   "module": "Assembler_Testbench",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:32:51Z",
+  "sealed_at": "2026-06-23T03:47:53Z",
   "spec_hash": "sha256:59977f6e1cbcafc304f2874fad21b31b6e698ba4341a7f9a4aa5a19335d22ad6",
   "spec_path": "specs/fpga/testbench/assembler_tb.t27"
 }

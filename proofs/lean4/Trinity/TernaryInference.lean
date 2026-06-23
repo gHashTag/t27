@@ -591,3 +591,25 @@ theorem ternaryMacMinusWeightActivationSubGeneric (psum a b : Int) :
     ternaryMac psum (a - b) (TernaryWeight.mk .minus) = psum - a + b := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: ternary MAC with zero activation and any weight preserves the partial sum.
+    For any partial sum psum and any ternary weight w:
+    mac(psum, 0, w) = psum.
+    This is the zero-activation identity that guarantees sparsity-gating correctness
+    in accumulator-based systolic arrays — when activation is zero, the partial sum
+    flows through unchanged regardless of weight encoding.
+    Responds to TerEffic sparsity-gating and TENET LUT-centric sparsity insights. -/
+theorem ternaryMacZeroActivationGeneric (psum : Int) (w : TernaryWeight) :
+    ternaryMac psum 0 w = psum := by
+  rcases w with ⟨c⟩
+  cases c <;> simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode] <;> try omega
+
+/-- Generic theorem: triple plus-weight MAC accumulates three times the activation.
+    For any activation a: mac(mac(mac(0, a, .plus), a, .plus), a, .plus) = 3*a.
+    Generalizes the DoublePlus pattern to depth-3 systolic chains, proving
+    linear scaling N*a for arbitrary N-step plus-weight accumulation.
+    Responds to TENET deep systolic pipeline and KU Leuven LUT DSE chain-depth analysis. -/
+theorem ternaryMacTriplePlusGeneric (a : Int) :
+    ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) = 3 * a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

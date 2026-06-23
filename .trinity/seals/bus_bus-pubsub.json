@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7cfe95b000ae3f09efaa443d59aa218ee311119201ae1b7eadd7b10effd29c50",
   "module": "bus-pubsub",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:32:50Z",
+  "sealed_at": "2026-06-23T03:47:52Z",
   "spec_hash": "sha256:c796df935c9b483af021d3805456b7c8370eb781a07159ec56f48a5c64e7919d",
   "spec_path": "specs/bus/pubsub.t27"
 }

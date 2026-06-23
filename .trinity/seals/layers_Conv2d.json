@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:60425e23c2400330ac8791120bf8c631938433a05f7f621968c907303a206415",
   "module": "Conv2d",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:32:52Z",
+  "sealed_at": "2026-06-23T03:47:53Z",
   "spec_hash": "sha256:bde6d67dbe20541b56e501032706f53025dd6ec72b76ca204a86379dc56f0d1f",
   "spec_path": "specs/ml/layers/conv2d_layer.t27"
 }
