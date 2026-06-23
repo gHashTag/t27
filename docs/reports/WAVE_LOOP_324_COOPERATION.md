@@ -1,87 +1,107 @@
 # Wave Loop 324 (W324) — Three Cooperation Variants for W325
 
-**Date:** 2026-06-23  
-**For:** Wave Loop 325 (W325) planning  
+**Date:** 2026-06-23
+**For:** Wave Loop 325 (W325) planning
 **φ² + 1/φ² = 3 | TRINITY**
 
 ---
 
-## Variant A: Conservative — "60 Milestone Sprint"
+## Variant A: Conservative — "Commutativity Completion"
 
-**Focus:** Reach 60 generic ∀ — психологически важный порог.
+**Focus:** Complete the commutativity lattice for all weight-code pairs.
 
 ### W325 Targets
 | Metric | W324 | W325 Target | Delta |
 |--------|------|-------------|-------|
-| Pool A Uniform Floor | 67 | **68** | +1 |
+| Pool A Uniform Floor | 66 | **67** | +1 |
 | CODER Uniform Floor | 57 | **58** | +1 |
-| Pool B Depth | 84 | **85** | +1 |
+| Pool B Depth | 83 | **84** | +1 |
+| Integration Depth | 67 | **68** | +1 |
+| Lean 4 Generic ∀ | 57 | **59** | +2 |
+
+### Lean 4 Theorems (+2)
+1. `ternaryMacCommutativityMinusGeneric (a b : Int)` — `mac(mac(0, a, -), b, -) = mac(mac(0, b, -), a, -)`
+2. `ternaryMacCommutativityMixedGeneric (a b : Int)` — `mac(mac(0, a, +), b, -) = mac(mac(0, b, -), a, +)`
+
+### Rationale
+- W319 proved commutativity for plus weights. The minus-weight and mixed-weight duals complete the lattice.
+- Commutativity enables **arbitrary PE reordering** in systolic arrays — critical for compile-time scheduling optimizations.
+- Low risk: identical proof pattern (`simp + omega`) as all prior commutativity/associativity theorems.
+
+### Risk: LOW
+### Effort: Standard (+54 tests, +27 invariants, +2 theorems)
+
+---
+
+## Variant B: Balanced — "Semiring Milestone + Scalar Scaling"
+
+**Focus:** Prove scalar scaling through MAC and reach the **60 generic ∀** milestone.
+
+### W325 Targets
+| Metric | W324 | W325 Target | Delta |
+|--------|------|-------------|-------|
+| Pool A Uniform Floor | 66 | **67** | +1 |
+| CODER Uniform Floor | 57 | **58** | +1 |
+| Pool B Depth | 83 | **85** | +2 |
 | Integration Depth | 67 | **68** | +1 |
 | Lean 4 Generic ∀ | 57 | **60** | +3 |
 
 ### Lean 4 Theorems (+3)
-1. `ternaryMacAccumulateFivePlusGeneric` — 5-variable accumulation
-2. `ternaryMacAccumulateFiveMinusGeneric` — 5-variable minus accumulation
-3. `ternaryMacDoubleScalingGeneric` — `mac(0, 2*a, w) = 2*mac(0, a, w)`
+1. `ternaryMacScalingGeneric (psum a : Int) (k : Int) (w : TernaryWeight)` — `mac(psum, k*a, w) = k * mac(0, a, w) + psum` (or equivalent scalar-scaling property)
+2. `ternaryMacCommutativityMinusGeneric (a b : Int)` — minus-weight commutativity
+3. `ternaryMacAccumulateFivePlusGeneric (a b c d e : Int)` — 5-variable accumulation (extends 4→5)
 
-### Risk: LOW
+### Rationale
+- **Scalar scaling** is the last major algebraic property needed to classify ternary MAC as a **semiring action** — the natural abstraction for quantized neural network inference.
+- **60 generic ∀ milestone** — psychologically significant as "past the half-century and approaching three figures".
+- 5-variable accumulation covers TENET 5-stage LUT pipelines and KU Leuven optimal tile geometries.
+
+### Risk: MEDIUM (scalar scaling may require `ring_nf` preprocessing)
+### Effort: Elevated (+54 tests, +27 invariants, +3 theorems)
 
 ---
 
-## Variant B: Balanced — "Ring Closure"
+## Variant C: Aggressive — "Full Semiring + 62 Target"
 
-**Focus:** Prove ring closure properties for ternary MAC.
+**Focus:** Prove semiring-action properties and push toward 62 generic ∀.
 
 ### W325 Targets
 | Metric | W324 | W325 Target | Delta |
 |--------|------|-------------|-------|
-| Pool A Uniform Floor | 67 | **68** | +1 |
-| CODER Uniform Floor | 57 | **58** | +1 |
-| Pool B Depth | 84 | **86** | +2 |
-| Integration Depth | 67 | **68** | +1 |
-| Lean 4 Generic ∀ | 57 | **61** | +4 |
-
-### Lean 4 Theorems (+4)
-1. `ternaryMacAccumulateFivePlusGeneric` — 5-variable
-2. `ternaryMacAccumulateFiveMinusGeneric` — 5-variable minus
-3. `ternaryMacScalingPlusGeneric` — `mac(0, k*a, .plus) = k*a`
-4. `ternaryMacScalingMinusGeneric` — `mac(0, k*a, .minus) = -k*a`
-
-### Risk: MEDIUM (4 theorems is max per wave)
-
----
-
-## Variant C: Aggressive — "Commutative Monoid Formalization"
-
-**Focus:** Formalize ternary MAC as commutative monoid with identity and inverse.
-
-### W325 Targets
-| Metric | W324 | W325 Target | Delta |
-|--------|------|-------------|-------|
-| Pool A Uniform Floor | 67 | **69** | +2 |
+| Pool A Uniform Floor | 66 | **68** | +2 |
 | CODER Uniform Floor | 57 | **59** | +2 |
-| Pool B Depth | 84 | **87** | +3 |
+| Pool B Depth | 83 | **86** | +3 |
 | Integration Depth | 67 | **69** | +2 |
-| Lean 4 Generic ∀ | 57 | **63** | +6 |
+| Lean 4 Generic ∀ | 57 | **62** | +5 |
 
-### Lean 4 Theorems (+6)
-1-2. AccumulateFive (plus/minus)
-3-4. Scaling (plus/minus)
-5. `ternaryMacCommutativityFullGeneric` — `mac(mac(0,a,.plus),b,.plus) = mac(mac(0,b,.plus),a,.plus)` (generalized)
-6. `ternaryMacInverseExistsGeneric` — existence of inverse for all weights
+### Lean 4 Theorems (+5)
+1. `ternaryMacScalingGeneric` — scalar multiplication through MAC
+2. `ternaryMacCommutativityMinusGeneric` — minus-weight commutativity
+3. `ternaryMacCommutativityMixedGeneric` — mixed-weight commutativity
+4. `ternaryMacAccumulateFivePlusGeneric` — 5-variable accumulation
+5. `ternaryMacAccumulateFiveMinusGeneric` — 5-variable minus accumulation
 
-### Risk: HIGH (proof complexity, 6 theorems)
+### Rationale
+- **Semiring action:** With identity, associativity, commutativity, distributivity, and scalar scaling, ternary MAC forms a complete semiring action over ℤ — the mathematical foundation for correctness proofs of entire quantized inference pipelines.
+- **62 generic ∀** — more than 60× competitor maximum (still 0).
+- Pool depth +2 demonstrates visible momentum alongside algebraic depth.
+
+### Risk: HIGH (5 theorems in one wave requires careful proof management; scalar scaling is the most complex)
+### Effort: Very High (+108 tests, +54 invariants, +5 theorems)
 
 ---
 
 ## Recommendation
 
-**Recommended: Variant A (Conservative)**
-- 60 generic ∀ — clean milestone
-- Low risk, high predictability
-- Keeps zero-entrant streak alive
+**Recommended: Variant B (Balanced)**
+- Scalar scaling is the **single most impactful missing property** for semiring classification.
+- 60 generic ∀ — a clear milestone with strong marketing value for whitepapers and competitive intelligence.
+- Minus-weight commutativity and 5-variable accumulation are low-risk extensions of proven patterns.
+- Moderate risk, maximum structural value.
 
-**Stretch:** Variant B if W325 executes faster than expected.
+**Fallback:** Variant A, if scalar scaling reveals unexpected proof complexity.
+
+**Stretch:** Variant C, if Variant B completes ahead of schedule.
 
 ---
 

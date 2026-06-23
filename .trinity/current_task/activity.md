@@ -564,3 +564,7 @@
 - **Commit:** feat(w324): W324 IGLA CODER+RACE — Pool A 66→67, CODER 56→57, Pool B 83→84, Integration 66→67, Lean 4 52→55 generic ∀
 - **Files:** docs/reports/WAVE_LOOP_324_COOPERATION.md,docs/reports/WAVE_LOOP_324_REPORT.md
 
+## 2026-06-23T05:55:04Z — trinity-rust-rings
+- **Commit:** docs(w324): Wave Loop 324 report + cooperation variants for W325
+- **Files:** docs/reports/WAVE_LOOP_324_COOPERATION.md,docs/reports/WAVE_LOOP_324_REPORT.md
+
