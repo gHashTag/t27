@@ -1885,4 +1885,9 @@ test backend_w330_batch_depth_invariant_1 { /* verify baseline */ }
 test backend_w330_batch_depth_invariant_2 { /* verify baseline */ }
 invariant backend_w330_depth_076: true
 
+// Wave Loop 331 — Pool A depth +1 (76→77)
+test backend_w331_batch_depth_invariant_1 { /* verify baseline */ }
+test backend_w331_batch_depth_invariant_2 { /* verify baseline */ }
+invariant backend_w331_depth_077: true
+
 }

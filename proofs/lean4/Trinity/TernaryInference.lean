@@ -1170,3 +1170,39 @@ theorem ternaryMacMixedWeightAssociativityPsumGeneric (psum a b : Int) :
     ternaryMac psum (a - b) (TernaryWeight.mk .plus) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: accumulating eight independent activations with plus-weights is octuple addition.
+    For any activations a, b, c, d, e, f, g, h: mac⁸(0, [a,b,c,d,e,f,g,h], .plus) = a + b + c + d + e + f + g + h.
+    Extends the N-variable accumulation family to depth 8, matching next-generation systolic-array
+    tile sizes and deep pipeline row-reduction paths.
+    Foundation for 8-input systolic-array row-reduction and octuple-dot-product proofs.
+    Responds to TENET 8-input LUT scheduling and TernaryCore 8-operand add paths. -/
+
+theorem ternaryMacAccumulateEightPlusGeneric (a b c d e f g h : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating eight independent activations with minus-weights is negated octuple addition.
+    For any activations a, b, c, d, e, f, g, h: mac⁸(0, [a,b,c,d,e,f,g,h], .minus) = -(a + b + c + d + e + f + g + h).
+    Complements AccumulateEightPlusGeneric for the minus-weight case.
+    Completes the 8-variable MAC operation lattice for both signs.
+    Responds to TENET 8-input signed LUT scheduling and TernaryCore subtract paths. -/
+
+theorem ternaryMacAccumulateEightMinusGeneric (a b c d e f g h : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus)) g (TernaryWeight.mk .minus)) h (TernaryWeight.mk .minus) = -(a + b + c + d + e + f + g + h) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: triple psum associativity with plus-weights.
+    For any psum, activations a, b, c: mac(mac(mac(psum, a, .plus), b, .plus), c, .plus) = mac(psum, a+b+c, .plus).
+    Extends PsumAssociativityGeneric (W324) from two activations to three.
+    Proves that arbitrary-depth plus-weight systolic chains fold into a single MAC with summed activation.
+    Foundation for systolic-array stage fusion with arbitrary-depth plus-weight pipelines.
+    Responds to TENET multi-stage LUT folding and TernaryCore fused accumulation paths. -/
+
+theorem ternaryMacPsumAssociativityThreePlusGeneric (psum a b c : Int) :
+    ternaryMac (ternaryMac (ternaryMac psum a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus) =
+    ternaryMac psum (a + b + c) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
