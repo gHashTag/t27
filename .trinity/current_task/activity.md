@@ -784,3 +784,7 @@
 - **Commit:** chore(memory): W341 skill table update
 - **Files:** docs/reports/WAVE_LOOP_341_GITHUB_ISSUES.md
 
+## 2026-06-23T09:29:32Z — trinity-rust-rings
+- **Commit:** docs(w341): W341 GitHub issues scan
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/reports/W341_COMPETITIVE_INTELLIGENCE.md,proofs/lean4/Trinity/TernaryInference.lean,specs/igla/coder/arch.t27,specs/igla/coder/bench_proxy.t27,specs/igla/coder/benchmark.t27,specs/igla/coder/dataset.t27,specs/igla/coder/eval.t27,specs/igla/coder/pipeline.t27,specs/igla/coder/prm.t27,specs/igla/coder/tokenizer.t27,specs/igla/coder/training.t27,specs/igla/coder/weights.t27,specs/igla/race/adder_tree.t27,specs/igla/race/backend.t27,specs/igla/race/bram_weights.t27,specs/igla/race/cordic.t27,specs/igla/race/cordic_fixed.t27,specs/igla/race/cordic_top.t27
+

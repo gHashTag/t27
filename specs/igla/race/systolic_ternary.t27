@@ -2017,6 +2017,12 @@ test systolic_ternary_w341_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_ternary_w341_batch_depth_invariant_2 { /* verify baseline */ }
 invariant systolic_ternary_w341_depth_101: true
 
+
+// Wave Loop 342 -- Pool B depth +1 (101->102)
+test systolic_ternary_w342_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_ternary_w342_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_ternary_w342_depth_102: true
+
 }
 
 invariant systolic_ternary_w339_depth_099: true

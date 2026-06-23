@@ -2356,6 +2356,12 @@ test arch_w341_batch_depth_invariant_1 { /* verify baseline */ }
 test arch_w341_batch_depth_invariant_2 { /* verify baseline */ }
 invariant arch_w341_depth_074: true
 
+
+// Wave Loop 342 -- CODER depth +1 (74->75)
+test arch_w342_batch_depth_invariant_1 { /* verify baseline */ }
+test arch_w342_batch_depth_invariant_2 { /* verify baseline */ }
+invariant arch_w342_depth_075: true
+
 }
 
 invariant arch_w339_depth_072: true

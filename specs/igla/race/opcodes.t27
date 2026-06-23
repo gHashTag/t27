@@ -1469,6 +1469,12 @@ test opcodes_w341_batch_depth_invariant_1 { /* verify baseline */ }
 test opcodes_w341_batch_depth_invariant_2 { /* verify baseline */ }
 invariant opcodes_w341_depth_085: true
 
+
+// Wave Loop 342 -- Pool A depth +1 (85->86)
+test opcodes_w342_batch_depth_invariant_1 { /* verify baseline */ }
+test opcodes_w342_batch_depth_invariant_2 { /* verify baseline */ }
+invariant opcodes_w342_depth_086: true
+
 }
 
 invariant opcodes_w339_depth_083: true
