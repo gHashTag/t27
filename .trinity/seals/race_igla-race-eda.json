@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d82ee890e912638e8a564b79752d604baa7cc6b2a65a3482657ff3df4aae17fd",
   "module": "igla-race-eda",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:22:29Z",
+  "sealed_at": "2026-06-23T00:26:43Z",
   "spec_hash": "sha256:9f47a6cd66e01351f4e7b6af0b2f0b81b5c289eef9f19507921569871fa2241c",
   "spec_path": "specs/igla/race/eda.t27"
 }
