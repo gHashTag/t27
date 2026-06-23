@@ -240,3 +240,7 @@
 - **Commit:** feat(lean4): add ternaryInferenceGemm2x2EqualsReference theorem
 - **Files:** .trinity/seals/race_igla-race-systolic-ternary.json,specs/igla/race/systolic_ternary.t27
 
+## 2026-06-23T00:34:22Z — trinity-rust-rings
+- **Commit:** fix(w299): add missing systolic_ternary invariant to reach 55
+- **Files:** docs/reports/WAVE_LOOP_299_COOPERATION.md,docs/reports/WAVE_LOOP_299_REPORT.md
+
