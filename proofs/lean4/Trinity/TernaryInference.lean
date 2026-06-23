@@ -333,3 +333,17 @@ theorem ternaryMacMinusWeightIdentityGeneric (a psum : Int) :
 theorem ternaryMulPlusWeightIdentityGeneric (a : Int) :
     ternaryMul a (TernaryWeight.mk .plus) = a := by
   simp [ternaryMul, ternaryDecode] <;> try native_decide
+/-- Generic theorem: ternary multiplication with a zero weight always returns zero.
+    Complement to MulPlusWeightIdentityGeneric; completes the generic ternary multiplication
+    proof trinity (zero=0, plus=a, minus=-a).
+    Responds to Sparkle HDL BitNet b1.58 formal depth milestone. -/
+theorem ternaryMulZeroWeightIdentityGeneric (a : Int) :
+    ternaryMul a (TernaryWeight.mk .zero) = 0 := by
+  simp [ternaryMul, ternaryDecode] <;> try native_decide
+/-- Generic theorem: ternary multiplication with a minus weight always returns the negated activation.
+    Complement to MulPlusWeightIdentityGeneric; completes the generic ternary multiplication
+    proof trinity (zero=0, plus=a, minus=-a).
+    Responds to Sparkle HDL BitNet b1.58 formal depth milestone. -/
+theorem ternaryMulMinusWeightIdentityGeneric (a : Int) :
+    ternaryMul a (TernaryWeight.mk .minus) = -a := by
+  simp [ternaryMul, ternaryDecode] <;> try native_decide
