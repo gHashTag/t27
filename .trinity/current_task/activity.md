@@ -488,3 +488,7 @@
 - **Commit:** feat(w317): W317 IGLA CODER+RACE — Pool A 59→60, CODER 49→50, Pool B 74→75, Integration 59→60, Lean 4 35→37 generic ∀
 - **Files:** docs/reports/WAVE_LOOP_317_COOPERATION.md,docs/reports/WAVE_LOOP_317_REPORT.md,scripts/gen_w317.py
 
+## 2026-06-23T04:37:17Z — trinity-rust-rings
+- **Commit:** docs(w317): Wave Loop 317 report + cooperation variants for W318
+- **Files:** docs/reports/WAVE_LOOP_317_COOPERATION.md,docs/reports/WAVE_LOOP_317_REPORT.md
+
