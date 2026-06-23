@@ -712,3 +712,7 @@
 - **Commit:** chore(memory): W337 memory index + skill table update
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/coder_igla-coder-arch.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-eval.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-prm.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json,.trinity/seals/coder_igla-coder-weights.json,.trinity/seals/race_igla-race-adder-tree.json,.trinity/seals/race_igla-race-backend.json,.trinity/seals/race_igla-race-bram-weights.json,.trinity/seals/race_igla-race-cordic-fixed.json,.trinity/seals/race_igla-race-cordic-top.json,.trinity/seals/race_igla-race-cordic.json,.trinity/seals/race_igla-race-eda.json,.trinity/seals/race_igla-race-formal.json
 
+## 2026-06-23T08:36:09Z — trinity-rust-rings
+- **Commit:** feat(w338): W338 IGLA CODER+RACE -- Pool A 79→80, CODER 69→70, Pool B 96→97, Integration 79→80, Lean 4 94→97 generic forall
+- **Files:** docs/reports/WAVE_LOOP_338_COOPERATION.md,docs/reports/WAVE_LOOP_338_REPORT.md
+
