@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:05d796e5b23ae29e2c8b046d1296b725a31ef9e9a537ed16fb240198ffac6ee5",
   "module": "igla-coder-weights",
   "ring": 12,
-  "sealed_at": "2026-06-23T04:47:23Z",
-  "spec_hash": "sha256:272edb781e2495bfe50f3789eb4d78439432b8d37cc383232d0ee268f5fd9162",
+  "sealed_at": "2026-06-23T05:03:41Z",
+  "spec_hash": "sha256:90dde6ab9a813ab0541ca9d0f9389c33ec4c14a2cc1ac1277b8f0d29c354d5cb",
   "spec_path": "specs/igla/coder/weights.t27"
 }

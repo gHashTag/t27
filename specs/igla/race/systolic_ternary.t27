@@ -1897,3 +1897,31 @@ invariant systolic_ternary_pe_plus_activation_plus_weight_adds_w319_inv:
 
 
 
+test systolic_ternary_pe_plus_activation_plus_weight_adds_w320
+    given a = 3
+    given w = TernaryWeight { code: 1 }
+    given psum = 10
+    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+    then psum_out == 13
+
+test systolic_ternary_pe_minus_activation_minus_weight_adds_w320
+    given a = -4
+    given w = TernaryWeight { code: 2 }
+    given psum = 10
+    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+    then psum_out == 14
+
+invariant systolic_ternary_pe_plus_activation_plus_weight_adds_w320_inv:
+    systolic_ternary_pe(3, TernaryWeight { code: 1 }, 10).1 == 13
+
+
+
+
+
+
+
+
+
+
+
+

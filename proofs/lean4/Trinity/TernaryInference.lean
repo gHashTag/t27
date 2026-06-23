@@ -728,3 +728,24 @@ theorem ternaryMacCommutativityGeneric (a b : Int) :
     ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus) = ternaryMac (ternaryMac 0 b (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: accumulating three independent activations with minus-weights is negated triple addition.
+    For any activations a, b, c: mac³(0, [a,b,c], .minus) = -(a + b + c).
+    Complements AccumulateThreePlusGeneric for the minus-weight case,
+    proving that chained minus-weight MAC composes as additive inverse of triple sum.
+    Completes the 3-variable MAC operation lattice for both signs.
+    Responds to TENET 3-input signed LUT scheduling and TernaryCore subtract paths. -/
+theorem ternaryMacAccumulateThreeMinusGeneric (a b c : Int) :
+    ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus) = -(a + b + c) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: ternary MAC distributes over activation subtraction for plus-weights.
+    For any psum, activation a, b: mac(psum, a - b, .plus) = mac(psum, a, .plus) - mac(0, b, .plus).
+    Proves that MAC with subtracted activation equals the difference of two MAC operations.
+    Foundation for systolic-array difference-computation and tiled-GEMM A-B decomposition.
+    Responds to TENET difference-LUT scheduling and TernaryCore subtract-then-add paths. -/
+theorem ternaryMacDistributivityOverActivationSubGeneric (psum a b : Int) :
+    ternaryMac psum (a - b) (TernaryWeight.mk .plus) = ternaryMac psum a (TernaryWeight.mk .plus) - ternaryMac 0 b (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
