@@ -1053,3 +1053,39 @@ theorem ternaryMacPsumCommutativityGeneric (psum a b : Int) :
     ternaryMac (ternaryMac psum b (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: accumulating seven independent activations with plus-weights is septuple addition.
+    For any activations a, b, c, d, e, f, g: mac⁷(0, [a,b,c,d,e,f,g], .plus) = a + b + c + d + e + f + g.
+    Extends the N-variable accumulation family to depth 7, matching next-generation systolic-array
+    tile sizes and deep pipeline row-reduction paths.
+    Foundation for 7-input systolic-array row-reduction and septuple-dot-product proofs.
+    Responds to TENET 7-input LUT scheduling and TernaryCore 7-operand add paths. -/
+
+theorem ternaryMacAccumulateSevenPlusGeneric (a b c d e f g : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus) = a + b + c + d + e + f + g := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating seven independent activations with minus-weights is negated septuple addition.
+    For any activations a, b, c, d, e, f, g: mac⁷(0, [a,b,c,d,e,f,g], .minus) = -(a + b + c + d + e + f + g).
+    Complements AccumulateSevenPlusGeneric for the minus-weight case.
+    Completes the 7-variable MAC operation lattice for both signs.
+    Responds to TENET 7-input signed LUT scheduling and TernaryCore subtract paths. -/
+
+theorem ternaryMacAccumulateSevenMinusGeneric (a b c d e f g : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus)) g (TernaryWeight.mk .minus) = -(a + b + c + d + e + f + g) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: commutativity of ternary MAC with mixed weights and arbitrary psum.
+    For any psum, activations a, b: mac(mac(psum, a, .plus), b, .minus) = mac(mac(psum, b, .minus), a, .plus).
+    Proves that plus-then-minus and minus-then-plus are commutative even with a non-zero accumulator.
+    Foundation for out-of-order systolic scheduling with mixed-sign weights and live accumulators.
+    Extends CommutativityMixedGeneric (W323) from zero-psum to arbitrary psum — stronger induction base.
+    Responds to TENET row-reorder LUT scheduling with mixed-sign accumulators and ternfpga parallel PE dispatch. -/
+
+theorem ternaryMacPsumCommutativityMixedGeneric (psum a b : Int) :
+    ternaryMac (ternaryMac psum a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .minus) =
+    ternaryMac (ternaryMac psum b (TernaryWeight.mk .minus)) a (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

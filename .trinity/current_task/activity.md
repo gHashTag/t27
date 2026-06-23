@@ -600,3 +600,7 @@
 - **Commit:** feat(w328): W328 IGLA CODER+RACE — Pool A 70→71, CODER 60→61, Pool B 87→88, Integration 70→71, Lean 4 65→68 generic ∀
 - **Files:** docs/reports/WAVE_LOOP_328_COOPERATION.md,docs/reports/WAVE_LOOP_328_REPORT.md
 
+## 2026-06-23T06:41:48Z — trinity-rust-rings
+- **Commit:** docs(w328): W328 report + cooperation variants for W329
+- **Files:** docs/reports/WAVE_LOOP_328_REPORT.md,proofs/lean4/Trinity/TernaryInference.lean
+
