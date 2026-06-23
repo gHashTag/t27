@@ -520,3 +520,7 @@
 - **Commit:** docs(w319): Corrected report — 72 total, 43 generic ∀ theorems
 - **Files:** .trinity/seals/coder_igla-coder-arch.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-eval.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-prm.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json,.trinity/seals/coder_igla-coder-weights.json,.trinity/seals/race_igla-race-adder-tree.json,.trinity/seals/race_igla-race-backend.json,.trinity/seals/race_igla-race-bram-weights.json,.trinity/seals/race_igla-race-cordic-fixed.json,.trinity/seals/race_igla-race-cordic-top.json,.trinity/seals/race_igla-race-cordic.json,.trinity/seals/race_igla-race-eda.json,.trinity/seals/race_igla-race-formal.json,.trinity/seals/race_igla-race-gemm.json,.trinity/seals/race_igla-race-opcodes.json
 
+## 2026-06-23T05:06:14Z — trinity-rust-rings
+- **Commit:** feat(w320): W320 IGLA CODER+RACE — Pool A 61→62, CODER 52→53, Pool B 77→78, Integration 62→63, Lean 4 43→45 generic ∀
+- **Files:** docs/reports/WAVE_LOOP_320_COOPERATION.md,docs/reports/WAVE_LOOP_320_REPORT.md
+
