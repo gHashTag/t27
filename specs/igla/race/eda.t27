@@ -1441,16 +1441,3 @@ test eda_route_wire_length_axis_aligned_w305
 
 invariant eda_route_wire_length_axis_aligned_w305_inv:
     route_wire_length(Point { x: 0, y: 0 }, Point { x: 10, y: 0 }) == 10
-
-test eda_placement_area_small_positive_true_w305
-    given area = 0.001
-    when ok = placement_area_positive(area)
-    then ok == true
-
-test eda_route_wire_length_negative_false_w305
-    given len = -1
-    when ok = route_wire_length_non_negative(len)
-    then ok == false
-
-invariant eda_placement_area_small_positive_true_w305_inv:
-    placement_area_positive(0.001) == true

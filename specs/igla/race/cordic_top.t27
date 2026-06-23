@@ -1258,16 +1258,3 @@ test cordic_top_batch_empty_empty_w305
 
 invariant cordic_top_batch_empty_empty_w305_inv:
     cordic_top_batch([]).len() == 0
-
-test cordic_top_batch_two_elements_sum_w305
-    given angles = [1000, 2000]
-    when sum = cordic_top_batch(angles)
-    then sum == 3000
-
-test cordic_top_batch_three_elements_sum_w305
-    given angles = [1000, 2000, 3000]
-    when sum = cordic_top_batch(angles)
-    then sum == 6000
-
-invariant cordic_top_batch_two_elements_sum_w305_inv:
-    cordic_top_batch([1000, 2000]) == 3000

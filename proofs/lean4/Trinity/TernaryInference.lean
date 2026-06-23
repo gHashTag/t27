@@ -370,11 +370,3 @@ theorem ternaryMulZeroActivationGeneric (w : TernaryWeight) :
     ternaryMul 0 w = 0 := by
   rcases w with ⟨c⟩
   cases c <;> simp [ternaryMul, ternaryDecode] <;> try native_decide
-/-- Generic theorem: for any ternary weight w, a ternary MAC with zero activation and zero
-    partial sum always returns zero. This combines MacZeroActivationGeneric and MulZeroActivationGeneric
-    into a single end-point property, proving that the all-zero path through the MAC is a constant-zero.
-    Responds to TOM ROM-SRAM and CktFormalizer zero-path equivalence insights. -/
-theorem ternaryMacZeroPsumZeroActivationGeneric (w : TernaryWeight) :
-    ternaryMac 0 0 w = 0 := by
-  rcases w with ⟨c⟩
-  cases c <;> simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide

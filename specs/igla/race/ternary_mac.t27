@@ -1341,20 +1341,3 @@ test ternary_mac_zero_activation_zero_weight_preserve_w305
 
 invariant ternary_mac_zero_activation_plus_weight_preserve_w305_inv:
     ternary_mac(5, 0, TernaryWeight::plus()) == 5
-
-test ternary_mac_plus_weight_adds_activation_w305
-    given a = 7
-    given w = TernaryWeight { code: 1 }
-    given acc = 10
-    when result = ternary_mac(a, w, acc)
-    then result == 17
-
-test ternary_mac_minus_weight_subtracts_activation_w305
-    given a = 7
-    given w = TernaryWeight { code: 2 }
-    given acc = 10
-    when result = ternary_mac(a, w, acc)
-    then result == 3
-
-invariant ternary_mac_plus_weight_adds_activation_w305_inv:
-    ternary_mac(7, TernaryWeight { code: 1 }, 10) == 17

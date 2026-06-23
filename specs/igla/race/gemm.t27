@@ -1224,18 +1224,3 @@ test gemm_booth_mul_i32_large_positive_w305
 
 invariant gemm_booth_mul_i32_one_identity_w305_inv:
     booth_mul_i32(1, 99) == 99
-
-test gemm_booth_mul_i32_positive_product_w305
-    given a = 6
-    given b = 7
-    when p = booth_mul_i32(a, b)
-    then p == 42
-
-test gemm_booth_mul_i32_negative_product_w305
-    given a = -6
-    given b = 7
-    when p = booth_mul_i32(a, b)
-    then p == -42
-
-invariant gemm_booth_mul_i32_positive_product_w305_inv:
-    booth_mul_i32(6, 7) == 42

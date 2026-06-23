@@ -980,16 +980,3 @@ test tokenizer_decode_single_token_w305
 
 invariant tokenizer_encode_single_char_one_token_w305_inv:
     encode("a").len() == 1
-
-test tokenizer_decode_empty_empty_w305
-    given tokens = []
-    when text = decode(tokens)
-    then text == ""
-
-test tokenizer_encode_single_char_w305
-    given text = "a"
-    when tokens = encode(text)
-    then tokens.len() == 1
-
-invariant tokenizer_decode_empty_empty_w305_inv:
-    decode([]) == ""

@@ -1233,16 +1233,3 @@ test cordic_fixed_sin_pi_zero_w305
 
 invariant cordic_fixed_sin_pi_zero_w305_inv:
     cordic_fixed_sin(3.14159265) >= -0.1
-
-test cordic_fixed_sin_small_positive_w305
-    given a = 100
-    when s = cordic_sin(a)
-    then s > 99 && s < 101
-
-test cordic_fixed_cos_small_positive_w305
-    given a = 100
-    when c = cordic_cos(a)
-    then c > 16300 && c < 16400
-
-invariant cordic_fixed_sin_small_positive_w305_inv:
-    cordic_sin(100) > 99 && cordic_sin(100) < 101

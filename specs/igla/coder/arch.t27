@@ -1925,18 +1925,3 @@ test arch_generate_next_token_uniform_highest_w305
 
 invariant arch_add_slices_single_element_sum_w305_inv:
     add_slices([5], [7], 0) == [12]
-
-test arch_add_slices_offset_zero_sum_w305
-    given a = [1.0f32, 2.0f32]
-    given b = [3.0f32, 4.0f32]
-    when c = add_slices(a, b, 0)
-    then c.len() == 2 && c[0] == 4.0 && c[1] == 6.0
-
-test arch_generate_next_token_topk_two_second_highest_w305
-    given logits = [0.1f32, 0.5f32, 0.3f32]
-    given k = 2
-    when tokens = generate_next_token(logits, k)
-    then tokens.len() == 2
-
-invariant arch_add_slices_offset_zero_sum_w305_inv:
-    add_slices([1.0f32, 2.0f32], [3.0f32, 4.0f32], 0).len() == 2

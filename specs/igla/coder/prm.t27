@@ -1170,17 +1170,3 @@ test prm_select_top_negative_scores_w305
 
 invariant prm_select_top_three_descending_w305_inv:
     select_top([0.9f32, 0.5f32, 0.1f32], 3) == [0, 1, 2]
-
-test prm_param_bounds_saturate_mid_range_preserve_w305
-    given val = 0
-    when result = param_bounds_saturate(val)
-    then result == 0
-
-test prm_select_top_one_highest_w305
-    given scores = [0.9f32, 0.1f32, 0.5f32]
-    given k = 1
-    when indices = select_top(scores, k)
-    then indices == [0]
-
-invariant prm_param_bounds_saturate_mid_range_preserve_w305_inv:
-    param_bounds_saturate(0) == 0

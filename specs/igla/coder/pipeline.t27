@@ -1884,16 +1884,3 @@ test pipeline_compose_double_triple_w305
 
 invariant pipeline_compose_double_triple_w305_inv:
     compose(double, triple, 2) == 12
-
-test pipeline_compose_double_triple_w305
-    given x = 2
-    when result = compose(double, triple, x)
-    then result == 12
-
-test pipeline_compose_identity_identity_w305
-    given x = 9
-    when result = compose(identity, identity, x)
-    then result == 9
-
-invariant pipeline_compose_double_triple_w305_inv:
-    compose(double, triple, 2) == 12
