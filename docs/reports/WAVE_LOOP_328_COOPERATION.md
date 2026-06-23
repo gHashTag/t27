@@ -10,7 +10,7 @@ potential academic/industrial partners.
 ## Context
 
 Wave Loop 328 advances Trinity t27's Lean 4 verified ternary-MAC algebra to
-**68 generic ∀ theorems**. The distributivity lattice is now complete for both
+**71 generic ∀ theorems**. The distributivity lattice is now complete for both
 plus and minus weights, and commutativity has been extended to arbitrary live
 accumulators. Competitive analysis (see `WAVE_LOOP_328_REPORT.md`) confirms
 that **no other 2026 ternary accelerator project** has demonstrated generic ∀
@@ -28,8 +28,8 @@ individuals who wish to engage with the Trinity S³AI framework during W329
 hardware theorem proving (Lean 4, Coq, Isabelle).
 
 **Offer:**
-- Joint publication on **generic ∀ ternary-MAC algebra** (target: ≥70 theorems
-  by W329, ≥75 by W330).
+- Joint publication on **generic ∀ ternary-MAC algebra** (target: ≥73 theorems
+  by W329, ≥77 by W330).
 - Access to Trinity's `.t27` spec language and `t27c` compiler infrastructure.
 - Co-authorship on a paper comparing **SCA-based MAC verification** (DATE 2026)
   vs. **dependent-type generic ∀ proofs** (t27's Lean 4 approach).
@@ -94,7 +94,7 @@ Lean 4 community members.
 
 **Expected outcome:** Distributed theorem-production network that accelerates
 Trinity's generic ∀ count toward **100 theorems by end of 2026** — a milestone
-no competitor can match.
+no competitor can match. Current trajectory: 71 at W328, projected 85+ by W334.
 
 ---
 
