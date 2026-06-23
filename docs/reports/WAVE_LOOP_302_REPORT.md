@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-23  
 **Branch:** `trinity-rust-rings`  
-**Commit:** `0cafedc09`  
+**Commit:** `bbc491ea0`  
 **Variant:** A (Uniform Floor Elimination) + Generic LUT DSE Proof Trinity Completion  
 **Status:** ✅ COMPLETE
 
@@ -54,13 +54,23 @@ completed the **LUT DSE proof trinity** (zero=wire, plus=add, minus=sub).
 - **Details:** Unified framework for specifying, executing, and verifying neural networks. Proved reverse-mode automatic differentiation and soundness for bound propagation.
 - **Gap:** NO ternary quantization, NO hardware accelerators
 
-### 2.4 TernaryCore — shepherdscientific/ternarycore (Apr 2026)
+### 2.4 CktFormalizer — arXiv:2605.07782v3 (NEW — HIGH)
+- **Status:** HIGH — Autoformalization of natural language into circuit representations via Lean 4 HDL
+- **Details:** LLM → dependent-typed Lean 4 HDL → verified silicon. 95–100% backend realizability. 35% area + 30% power reduction via OpenROAD PPA optimization with automated equivalence proofs.
+- **Threat:** Accelerates competitor theorem production; t27's spec-first language (.t27 → multi-backend) is the moat
+
+### 2.5 Hesper — Verilean/hesper (NEW — HIGH)
+- **Status:** HIGH — Verified GPU programming framework (sister to Sparkle)
+- **Details:** BitNet b1.58 (2B) on WebGPU at 125 TPS (Apple M4 Max). Verified automatic differentiation and op fusion.
+- **Threat:** Sparkle ecosystem expanding to GPU/ML verification
+
+### 2.6 TernaryCore — shepherdscientific/ternarycore (Apr 2026)
 - **Status:** MEDIUM — Open-source FPGA BitNet b1.58 accelerator
 - **Details:** Native `{-1, 0, +1}` arithmetic in Verilog, multiplier-free MAC. RTL simulations passing (31/31 tests).
 - **Gap:** NO formal verification in Lean 4
 
 ### 2.5 Key Research Finding
-**No public project combines BitNet b1.58 + FPGA accelerator + formal verification + Lean 4 + generic proofs.** t27's LUT DSE proof trinity is unique:
+**No public project combines BitNet b1.58 + FPGA accelerator + formal verification + Lean 4 + generic proofs + spec-first pipeline.** t27's LUT DSE proof trinity is unique. CktFormalizer autoformalizes into Lean 4 HDL but has no spec-first multi-backend generation. Sparkle verifies RTL gates; t27 verifies the algorithm:
 - `zero` → wire (NOP): `∀ a psum, ternaryMac psum a .zero = psum` ✅
 - `plus` → adder: `∀ a psum, ternaryMac psum a .plus = psum + a` ✅
 - `minus` → subtractor: `∀ a psum, ternaryMac psum a .minus = psum - a` ✅ (W302)
@@ -187,7 +197,8 @@ theorem ternaryMacMinusWeightIdentityGeneric (a psum : Int) :
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
-| Sparkle HDL overtakes t27 in ternary theorem count | Medium | High | Accelerate generic theorem production; focus on ∀ quantifiers |
+| CktFormalizer autoformalization closes proof gap | Medium | High | Maintain spec-first moat; accelerate generic theorem pace |
+| Sparkle/Hesper ecosystem expands to GPU+RTL | Medium | High | Accelerate generic theorem production; focus on ∀ quantifiers |
 | Origin/master diverges from igla seals | Medium | High | Re-seal all specs before merge |
 | Lean 4 `native_decide` timeout on large proofs | Low | Medium | Use `omega`/`ring` tactics for arithmetic goals |
 | Concurrent session overwrites | Medium | Medium | Fast commit cycle, small diffs |
