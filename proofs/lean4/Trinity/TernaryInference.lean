@@ -1744,7 +1744,7 @@ theorem ternaryMacZeroScalingZeroGeneric (k a : Int) :
     19-variable omega boundary probe. Extends deepest accumulation depth to 19.
     If simp+omega times out, this theorem documents the automation boundary.
     Foundation for next-generation systolic-array tiles with 19-operand width.
-    Responds to Balanced_Ternary 48-week ASIC roadmap and TernaryCore depth expansion. **/
+    Responds to Balanced_Ternary 48-week ASIC roadmap and TernaryCore depth expansion. -/
 
 theorem ternaryMacAccumulateNineteenPlusGeneric (a b c d e f g h i j k l m n o p q r s : Int) :
     ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus)) k (TernaryWeight.mk .plus)) l (TernaryWeight.mk .plus)) m (TernaryWeight.mk .plus)) n (TernaryWeight.mk .plus)) o (TernaryWeight.mk .plus)) p (TernaryWeight.mk .plus)) q (TernaryWeight.mk .plus)) r (TernaryWeight.mk .plus)) s (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s := by
@@ -1758,7 +1758,7 @@ theorem ternaryMacAccumulateNineteenPlusGeneric (a b c d e f g h i j k l m n o p
     Proves that scaling the second activation by k in a plus-weight MAC is equivalent to
     scaling the second term in the combined activation before MAC.
     Foundation for quantization-aware tiling proofs in systolic arrays with live accumulators.
-    Responds to TorchLean v1.2 PyTorch/ATen bridge and TernaryCore systolic PE arrays. **/
+    Responds to TorchLean v1.2 PyTorch/ATen bridge and TernaryCore systolic PE arrays. -/
 
 theorem ternaryMacPsumScalingPlusGeneric (a b k : Int) :
     ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) (k * b) (TernaryWeight.mk .plus) = ternaryMac 0 (a + k * b) (TernaryWeight.mk .plus) := by
@@ -1772,7 +1772,7 @@ theorem ternaryMacPsumScalingPlusGeneric (a b k : Int) :
     Together with PsumScalingPlusGeneric, proves that systolic tile quantization is
     invariant under scalar scaling across the dominant non-zero ternary weights.
     Foundation for complete quantization-aware proofs in ternary systolic arrays.
-    Responds to Balanced_Ternary dual-polarity ASIC and T-SAR x86 AVX2 paths. **/
+    Responds to Balanced_Ternary dual-polarity ASIC and T-SAR x86 AVX2 paths. -/
 
 theorem ternaryMacPsumScalingMinusGeneric (a b k : Int) :
     ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) (k * b) (TernaryWeight.mk .minus) = ternaryMac 0 (a + k * b) (TernaryWeight.mk .minus) := by

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:03d8a151b2c5f1365cf1a66d3e287ca3cfc6daf5fa3705a767dcad006bd34108",
   "module": "igla-coder-bench-proxy",
   "ring": 12,
-  "sealed_at": "2026-06-23T09:39:07Z",
-  "spec_hash": "sha256:84524e526642dd4707be589198825e37523f09ea24909b509ef3c812387ac583",
+  "sealed_at": "2026-06-23T09:51:57Z",
+  "spec_hash": "sha256:589d9d98295dc94f7992c33a0881daf8b98c4b8f218d959c4e198342df3af196",
   "spec_path": "specs/igla/coder/bench_proxy.t27"
 }
