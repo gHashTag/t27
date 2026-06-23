@@ -280,3 +280,7 @@
 - **Commit:** feat(wave-loop-301): +27 invariants +54 tests +1 Lean theorem
 - **Files:** proofs/lean4/Trinity/TernaryInference.lean
 
+## 2026-06-23T00:52:33Z — trinity-rust-rings
+- **Commit:** feat(lean4): add ternaryMacZeroWeightIdentityGeneric theorem
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/coder_igla-coder-arch.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-eval.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-prm.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json,.trinity/seals/coder_igla-coder-weights.json,.trinity/seals/race_igla-race-adder-tree.json,.trinity/seals/race_igla-race-backend.json,.trinity/seals/race_igla-race-bram-weights.json,.trinity/seals/race_igla-race-cordic-fixed.json,.trinity/seals/race_igla-race-cordic-top.json,.trinity/seals/race_igla-race-cordic.json,.trinity/seals/race_igla-race-eda.json,.trinity/seals/race_igla-race-formal.json
+

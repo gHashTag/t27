@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:309f54c3cf463be2bd19a43e5b05ffc5fce828cd7c2cf8e59148fb7ac8214fa7",
   "module": "igla-race-opcodes",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:49:19Z",
+  "sealed_at": "2026-06-23T00:51:48Z",
   "spec_hash": "sha256:a4a39ca8628913dece8a7c475e286ce2864f6a41be176a6f8f719076db797166",
   "spec_path": "specs/igla/race/opcodes.t27"
 }
