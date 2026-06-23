@@ -1499,3 +1499,20 @@ test systolic_ternary_pe_small_activation_minus_weight_negates_w302
 invariant systolic_ternary_pe_small_activation_plus_weight_adds_w302_inv:
     forall a : i32
     systolic_ternary_pe(a, TernaryWeight { code: 1 }, 0).1 == a
+
+test systolic_ternary_pe_zero_activation_plus_weight_zero_w303
+    given a = 0
+    given w = TernaryWeight { code: 1 }
+    given psum = 0
+    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+    then psum_out == 0
+
+test systolic_ternary_pe_zero_activation_minus_weight_zero_w303
+    given a = 0
+    given w = TernaryWeight { code: 2 }
+    given psum = 0
+    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+    then psum_out == 0
+
+invariant systolic_ternary_pe_zero_activation_plus_weight_zero_w303_inv:
+    systolic_ternary_pe(0, TernaryWeight { code: 1 }, 0).1 == 0

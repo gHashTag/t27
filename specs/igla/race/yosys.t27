@@ -1322,3 +1322,18 @@ test yosys_strings_equal_empty_both_true_w302
 
 invariant yosys_strings_equal_empty_both_true_w302_inv:
     strings_equal("", "") == true
+
+test yosys_is_prefix_empty_prefix_true_w303
+    given a = ""
+    given b = "abc"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_strings_equal_single_char_same_true_w303
+    given a = "x"
+    given b = "x"
+    when ok = strings_equal(a, b)
+    then ok == true
+
+invariant yosys_strings_equal_single_char_same_true_w303_inv:
+    strings_equal("x", "x") == true

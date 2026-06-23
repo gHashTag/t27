@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:28f3db55befe819c9bc2911cbe4c0f5f301c0d898bab07567f98fde5c3bc29e8",
+  "gen_hash_c": "sha256:74e1b539401ebeaa5b18a57af581ca7a39eaaef509ce6ed14144a872df3d068c",
   "gen_hash_rust": "sha256:bc658643af5e042be0c70deaef3b38952ed30c684b326e487711e3614a98396d",
-  "gen_hash_verilog": "sha256:088b9c2ef10399571edd96d2348746d82005913ae116bd9a8d759c9a39d9dd59",
-  "gen_hash_zig": "sha256:21535a3f06bf05e91652413b1f991fdf4cb189eeff481e30d460c955464c589b",
+  "gen_hash_verilog": "sha256:df29d7d9b20a9b04364767835cf1a882fb8fcc5162388bdc0dccdf848f2fa77f",
+  "gen_hash_zig": "sha256:f3281ef764425d6aa4fb36c5818a99336ab6ac4c10909222caec93b442bac0d1",
   "module": "igla-coder-dataset",
   "ring": 12,
-  "sealed_at": "2026-06-23T01:09:17Z",
-  "spec_hash": "sha256:99f97be0e5967ee773eed78109416c85c5be6a3c845b3ec6c2498c39cc7a29bf",
+  "sealed_at": "2026-06-23T01:22:27Z",
+  "spec_hash": "sha256:03bd97466a8250695b3140fb70d545fe29457dfaf308dd6d5be5050989a41f71",
   "spec_path": "specs/igla/coder/dataset.t27"
 }

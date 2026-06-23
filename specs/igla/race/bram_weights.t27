@@ -1167,3 +1167,16 @@ test bram_weights_width_five_elements_w302
 
 invariant bram_weights_depth_two_elements_w302_inv:
     bram_weights_depth([1.0f32, 2.0f32]) == 2
+
+test bram_weights_depth_one_element_w303
+    given data = [42.0f32]
+    when bw = bram_weights_depth(data)
+    then bw == 1
+
+test bram_weights_width_three_elements_w303
+    given data = [1.0f32, 2.0f32, 3.0f32]
+    when w = bram_weights_width(data)
+    then w == 3
+
+invariant bram_weights_depth_one_element_w303_inv:
+    bram_weights_depth([42.0f32]) == 1

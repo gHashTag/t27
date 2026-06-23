@@ -1219,3 +1219,16 @@ test cordic_top_batch_alternating_zero_w302
 
 invariant cordic_top_batch_alternating_zero_w302_inv:
     cordic_top_batch([5000, -5000, 3000, -3000]) == 0
+
+test cordic_top_batch_empty_zero_w303
+    given angles = []
+    when sum = cordic_top_batch(angles)
+    then sum == 0
+
+test cordic_top_batch_single_element_identity_w303
+    given angles = [7777]
+    when sum = cordic_top_batch(angles)
+    then sum == 7777
+
+invariant cordic_top_batch_empty_zero_w303_inv:
+    cordic_top_batch([]) == 0

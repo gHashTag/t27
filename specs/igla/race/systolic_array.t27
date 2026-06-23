@@ -1291,3 +1291,19 @@ test systolic_array_booth_mul_i16_identity_left_w302
 invariant systolic_array_booth_mul_i16_identity_left_w302_inv:
     forall b : i16
     booth_mul_i16(1, b) == b
+
+test systolic_array_booth_mul_i16_zero_left_w303
+    given a = 0
+    given b = 12345
+    when p = booth_mul_i16(a, b)
+    then p == 0
+
+test systolic_array_booth_mul_i16_zero_right_w303
+    given a = 999
+    given b = 0
+    when p = booth_mul_i16(a, b)
+    then p == 0
+
+invariant systolic_array_booth_mul_i16_zero_left_w303_inv:
+    forall b : i16
+    booth_mul_i16(0, b) == 0

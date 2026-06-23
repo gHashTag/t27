@@ -327,3 +327,9 @@ theorem ternaryMacPlusWeightIdentityGeneric (a psum : Int) :
 theorem ternaryMacMinusWeightIdentityGeneric (a psum : Int) :
     ternaryMac psum a (TernaryWeight.mk .minus) = psum - a := by
   simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try { omega }
+/-- Generic theorem: ternary multiplication with a plus weight always returns the activation unchanged.
+    This is a foundational property for the LUT DSE proof trinity, decomposing the MAC into mul + add.
+    Responds to AMO-Lean verified compiler milestone (0 sorry, 0 custom axioms). -/
+theorem ternaryMulPlusWeightIdentityGeneric (a : Int) :
+    ternaryMul a (TernaryWeight.mk .plus) = a := by
+  simp [ternaryMul, ternaryDecode] <;> try native_decide

@@ -1178,3 +1178,19 @@ test gemm_booth_mul_i32_zero_identity_w302
 invariant gemm_booth_mul_i32_zero_identity_w302_inv:
     forall b : i32
     booth_mul_i32(0, b) == 0
+
+test gemm_booth_mul_i32_one_identity_w303
+    given a = 1
+    given b = -55
+    when p = booth_mul_i32(a, b)
+    then p == -55
+
+test gemm_booth_mul_i32_negative_one_identity_w303
+    given a = -1
+    given b = 99
+    when p = booth_mul_i32(a, b)
+    then p == -99
+
+invariant gemm_booth_mul_i32_one_identity_w303_inv:
+    forall b : i32
+    booth_mul_i32(1, b) == b

@@ -1958,3 +1958,17 @@ test dataset_diversity_score_two_same_half_w302
 
 invariant dataset_diversity_score_two_same_half_w302_inv:
     dataset_diversity_score([DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "a", template: "a", quality_score: 1.0 }]) == 0.5
+
+test dataset_diversity_score_one_unique_one_w303
+    given dataset = [DataSample { rtl: "a", template: "a", quality_score: 1.0 }]
+    when score = dataset_diversity_score(dataset)
+    then score == 1.0
+
+test dataset_count_by_template_two_match_two_w303
+    given dataset = [DataSample { rtl: "a", template: "add", quality_score: 1.0 }, DataSample { rtl: "b", template: "add", quality_score: 1.0 }]
+    given template = "add"
+    when n = count_dataset_by_template(dataset, template)
+    then n == 2
+
+invariant dataset_count_by_template_two_match_two_w303_inv:
+    count_dataset_by_template([DataSample { rtl: "a", template: "add", quality_score: 1.0 }, DataSample { rtl: "b", template: "add", quality_score: 1.0 }], "add") == 2

@@ -940,3 +940,16 @@ test tokenizer_large_tokens_bos_first_w302
 
 invariant tokenizer_empty_tokens_length_one_w302_inv:
     tokenize([]).len() == 1
+
+test tokenizer_single_token_bos_first_w303
+    given tokens = [7]
+    when result = tokenize(tokens)
+    then result[0] == 0 && result.len() == 2
+
+test tokenizer_two_tokens_bos_first_w303
+    given tokens = [3, 4]
+    when result = tokenize(tokens)
+    then result[0] == 0 && result.len() == 3
+
+invariant tokenizer_single_token_bos_first_w303_inv:
+    tokenize([7])[0] == 0

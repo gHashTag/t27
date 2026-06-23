@@ -1292,3 +1292,18 @@ test ternary_gemm_all_zero_activations_all_plus_weights_zero_w302
 invariant ternary_gemm_all_zero_activations_all_plus_weights_zero_w302_inv:
     forall a : []i8
     a.len() == 4 ==> ternary_gemm(a, [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]).len() == 4
+
+test ternary_gemm_identity_weights_single_element_w303
+    given a = [cast_i8(7)]
+    given w = [TernaryWeight { code: 1 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 1 && out[0] == 7
+
+test ternary_gemm_minus_weight_single_element_negate_w303
+    given a = [cast_i8(7)]
+    given w = [TernaryWeight { code: 2 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 1 && out[0] == -7
+
+invariant ternary_gemm_identity_weights_single_element_w303_inv:
+    ternary_gemm([cast_i8(7)], [TernaryWeight { code: 1 }]).len() == 1

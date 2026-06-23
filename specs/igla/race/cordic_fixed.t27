@@ -1194,3 +1194,16 @@ test cordic_fixed_cos_three_quarter_approx_zero_w302
 
 invariant cordic_fixed_cos_three_quarter_approx_zero_w302_inv:
     cordic_cos(12288) > -1 && cordic_cos(12288) < 1
+
+test cordic_fixed_sin_zero_zero_w303
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+test cordic_fixed_cos_zero_one_w303
+    given a = 0
+    when c = cordic_cos(a)
+    then c == 16384
+
+invariant cordic_fixed_sin_zero_zero_w303_inv:
+    cordic_sin(0) == 0

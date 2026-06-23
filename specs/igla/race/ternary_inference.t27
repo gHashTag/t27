@@ -699,3 +699,16 @@ invariant ternary_inference_identity_mixed_input_passthrough_w302_inv:
     forall input : InferenceInput
     input.activations.len() == 4 ==>
     ternary_inference_identity(input).outputs[0] == input.activations[0]
+
+test ternary_inference_identity_min_negative_passthrough_w303
+    given input = InferenceInput { activations: [cast_i8(-128), cast_i8(0), cast_i8(0), cast_i8(0)] }
+    when result = ternary_inference_identity(input)
+    then result.outputs[0] == -128
+
+test ternary_inference_identity_second_positive_passthrough_w303
+    given input = InferenceInput { activations: [cast_i8(0), cast_i8(64), cast_i8(0), cast_i8(0)] }
+    when result = ternary_inference_identity(input)
+    then result.outputs[1] == 64
+
+invariant ternary_inference_identity_min_negative_passthrough_w303_inv:
+    ternary_inference_identity(InferenceInput { activations: [cast_i8(-128), cast_i8(0), cast_i8(0), cast_i8(0)] }).outputs[0] == -128

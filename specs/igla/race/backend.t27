@@ -1513,3 +1513,16 @@ test backend_log2_const_sixtyfour_six_w302
 
 invariant backend_log2_const_sixtyfour_six_w302_inv:
     log2_const("64") == 6
+
+test backend_parse_const_zero_zero_w303
+    given s = "0"
+    when v = parse_const(s)
+    then v == 0
+
+test backend_log2_const_two_one_w303
+    given s = "2"
+    when v = log2_const(s)
+    then v == 1
+
+invariant backend_log2_const_two_one_w303_inv:
+    log2_const("2") == 1

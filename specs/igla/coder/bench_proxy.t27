@@ -767,3 +767,19 @@ test bench_proxy_score_beam_negative_penalty_decreases_w302
 invariant bench_proxy_select_best_beam_three_returns_three_w302_inv:
     forall c1 : BeamCandidate, c2 : BeamCandidate, c3 : BeamCandidate, beam_width : u32
     beam_width == 3 ==> select_best_beam([c1, c2, c3], beam_width).len() == 3
+
+test bench_proxy_score_beam_large_penalty_decreases_w303
+    given candidate = BeamCandidate { token: 1, score: 2.0f32, prefix_len: 2 }
+    given length_penalty = 1.0
+    when result = score_beam_candidate(candidate, length_penalty)
+    then result.score < 2.0f32
+
+test bench_proxy_select_best_beam_one_returns_highest_w303
+    given candidates = [BeamCandidate { token: 1, score: 0.9f32, prefix_len: 2 }, BeamCandidate { token: 2, score: 0.5f32, prefix_len: 2 }, BeamCandidate { token: 3, score: 0.7f32, prefix_len: 2 }]
+    given beam_width = 1
+    when result = select_best_beam(candidates, beam_width)
+    then result.len() == 1 && result[0].token == 1
+
+invariant bench_proxy_select_best_beam_one_returns_highest_w303_inv:
+    forall c1 : BeamCandidate, c2 : BeamCandidate, c3 : BeamCandidate, beam_width : u32
+    c1.score > c2.score && c1.score > c3.score && beam_width == 1 ==> select_best_beam([c1, c2, c3], beam_width).len() == 1

@@ -1880,3 +1880,18 @@ test arch_add_slices_offset_three_shortest_w302
 
 invariant arch_add_slices_offset_three_shortest_w302_inv:
     add_slices([1.0f32, 2.0f32, 3.0f32, 4.0f32], [10.0f32], 3).len() == 1
+
+test arch_generate_next_token_topk_one_middle_w303
+    given logits = [0.1f32, 0.5f32, 0.3f32]
+    given k = 1
+    when token = generate_next_token(logits, k)
+    then token == 1
+
+test arch_add_slices_offset_two_sum_w303
+    given a = [1.0f32, 2.0f32, 3.0f32]
+    given b = [10.0f32, 20.0f32]
+    when c = add_slices(a, b, 2)
+    then c.len() == 1 && c[0] == 13.0
+
+invariant arch_add_slices_offset_two_sum_w303_inv:
+    add_slices([1.0f32, 2.0f32, 3.0f32], [10.0f32, 20.0f32], 2).len() == 1
