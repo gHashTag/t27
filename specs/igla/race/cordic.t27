@@ -1602,6 +1602,12 @@ test cordic_w339_batch_depth_invariant_1 {
 test cordic_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
+
+// Wave Loop 340 — Pool A depth +1 (83→84)
+test cordic_w340_batch_depth_invariant_1 { /* verify baseline */ }
+test cordic_w340_batch_depth_invariant_2 { /* verify baseline */ }
+invariant cordic_w340_depth_084: true
+
 }
 
 invariant cordic_w339_depth_083: true

@@ -1589,3 +1589,42 @@ theorem ternaryMacAccumulateFifteenPlusGeneric (a b c d e f g h i j k l m n o : 
     ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus)) k (TernaryWeight.mk .plus)) l (TernaryWeight.mk .plus)) m (TernaryWeight.mk .plus)) n (TernaryWeight.mk .plus)) o (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: accumulating fifteen independent activations with minus-weights.
+    For any activations a, b, c, d, e, f, g, h, i, j, k, l, m, n, o:
+    mac^15(0, [a..o], .minus) = -(a+b+c+d+e+f+g+h+i+j+k+l+m+n+o).
+    Completes the 15-variable accumulation lattice alongside AccumulateFifteenPlusGeneric (W339).
+    Foundation for next-generation signed 15x15 systolic tiles and ultra-wide subtraction pipelines.
+    Responds to TernaryCore multi-stage signed accumulation and DATE 2026 SCA-based verification limits. -/
+
+theorem ternaryMacAccumulateFifteenMinusGeneric (a b c d e f g h i j k l m n o : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus)) g (TernaryWeight.mk .minus)) h (TernaryWeight.mk .minus)) i (TernaryWeight.mk .minus)) j (TernaryWeight.mk .minus)) k (TernaryWeight.mk .minus)) l (TernaryWeight.mk .minus)) m (TernaryWeight.mk .minus)) n (TernaryWeight.mk .minus)) o (TernaryWeight.mk .minus) = -(a + b + c + d + e + f + g + h + i + j + k + l + m + n + o) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating sixteen independent activations with plus-weights.
+    For any activations a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p:
+    mac^16(0, [a..p], .plus) = a+b+c+d+e+f+g+h+i+j+k+l+m+n+o+p.
+    OMEGA SATURATION PROBE -- tests whether simp+omega scales beyond the 15-variable proven depth (W339).
+    If successful, establishes that simp+omega scales to 16 variables -- a historic result
+    for formal hardware verification. If it fails, empirically documents the omega saturation point at 15.
+    Foundation for next-generation 16x16 systolic tiles and ultra-wide accumulation pipelines.
+    Responds to DATE 2026 SCA-based MAC verification limits. -/
+
+theorem ternaryMacAccumulateSixteenPlusGeneric (a b c d e f g h i j k l m n o p : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus)) k (TernaryWeight.mk .plus)) l (TernaryWeight.mk .plus)) m (TernaryWeight.mk .plus)) n (TernaryWeight.mk .plus)) o (TernaryWeight.mk .plus)) p (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: scalar multiplicative scaling of a zero-accumulator MAC with plus-weights.
+    For any scalar k and activation a: mac(0, k*a, .plus) = k * mac(0, a, .plus).
+    Proves that scaling the activation by a scalar k is equivalent to scaling the entire MAC result by k
+    when the accumulator starts at zero. Foundation for scalar-broadcast systolic optimizations and
+    weight-scaling invariance proofs. First scalar-scaling theorem in the ternary MAC algebra lattice.
+    Opens a new algebraic dimension beyond accumulation and activation-reuse.
+    Responds to TernaryCore fused accumulation paths and TENET LUT-based scaling optimizations. -/
+
+theorem ternaryMacZeroScalingPlusGeneric (k a : Int) :
+    ternaryMac 0 (k * a) (TernaryWeight.mk .plus) = k * ternaryMac 0 a (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

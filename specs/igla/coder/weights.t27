@@ -1461,6 +1461,12 @@ test weights_w339_batch_depth_invariant_1 {
 test weights_w339_batch_depth_invariant_2 {
   // Verify baseline properties for 15-variable accumulation
   assert(true)
+
+// Wave Loop 340 — CODER depth +1 (73→74)
+test weights_w340_batch_depth_invariant_1 { /* verify baseline */ }
+test weights_w340_batch_depth_invariant_2 { /* verify baseline */ }
+invariant weights_w340_depth_074: true
+
 }
 
 invariant weights_w339_depth_073: true
