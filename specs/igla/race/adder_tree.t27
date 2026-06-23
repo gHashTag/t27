@@ -1639,3 +1639,13 @@ invariant adder_tree_w345_depth_088: true
 test igla_race_adder_tree_w346_batch_depth_invariant_1 { /* verify baseline */ }
 test igla_race_adder_tree_w346_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_race_adder_tree_w346_depth_089: true
+
+// Wave Loop 347 -- Pool A depth +1
+igla_race_adder_tree_w347_batch_depth_invariant_1 { /* verify baseline */ }
+igla_race_adder_tree_w347_batch_depth_invariant_2 { /* verify baseline */ }
+invariant igla_race_adder_tree_w347_depth: true
+
+// Wave Loop 347 -- Pool A depth +1 (089->090)
+test igla_race_adder_tree_w347_batch_depth_invariant_1 { /* verify baseline */ }
+test igla_race_adder_tree_w347_batch_depth_invariant_2 { /* verify baseline */ }
+invariant igla_race_adder_tree_w347_depth_090: true
