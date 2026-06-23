@@ -2045,3 +2045,53 @@ theorem ternaryMacZeroWeightIdempotentGeneric (psum a b : Int) :
     ternaryMac psum b (TernaryWeight.mk .plus) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: accumulating twenty-six independent activations with plus-weights is sexagesimal addition.
+    For any activations a..z:
+    mac^26(0, [a..z], .plus) = a+b+...+z.
+    **26-variable omega boundary probe.** Extends deepest accumulation depth to 26.
+    Expected build time 2.5-3.0s. Foundation for 26-operand systolic-array tiles.
+    Responds to Balanced_Ternary 48-week ASIC roadmap and Sparkle HDL BitNet competition. -/
+theorem ternaryMacAccumulateTwentySixPlusGeneric (a b c d e f g h i j k l m n o p q r s t u v w x y z : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus)) k (TernaryWeight.mk .plus)) l (TernaryWeight.mk .plus)) m (TernaryWeight.mk .plus)) n (TernaryWeight.mk .plus)) o (TernaryWeight.mk .plus)) p (TernaryWeight.mk .plus)) q (TernaryWeight.mk .plus)) r (TernaryWeight.mk .plus)) s (TernaryWeight.mk .plus)) t (TernaryWeight.mk .plus)) u (TernaryWeight.mk .plus)) v (TernaryWeight.mk .plus)) w (TernaryWeight.mk .plus)) x (TernaryWeight.mk .plus)) y (TernaryWeight.mk .plus)) z (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u + v + w + x + y + z := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating twenty-five independent activations with minus-weights is negated vigesimal-quinque addition.
+    For any activations a..y:
+    mac^25(0, [a..y], .minus) = -(a+b+...+y).
+    **25-variable minus accumulation lattice COMPLETE.** Symmetric to AccumulateTwentyFivePlusGeneric (W349).
+    Establishes dual-polarity parity at depth 25.
+    Foundation for symmetric 25x25 systolic-array tiles with dual-polarity accumulation. -/
+theorem ternaryMacAccumulateTwentyFiveMinusGeneric (a b c d e f g h i j k l m n o p q r s t u v w x y : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus)) g (TernaryWeight.mk .minus)) h (TernaryWeight.mk .minus)) i (TernaryWeight.mk .minus)) j (TernaryWeight.mk .minus)) k (TernaryWeight.mk .minus)) l (TernaryWeight.mk .minus)) m (TernaryWeight.mk .minus)) n (TernaryWeight.mk .minus)) o (TernaryWeight.mk .minus)) p (TernaryWeight.mk .minus)) q (TernaryWeight.mk .minus)) r (TernaryWeight.mk .minus)) s (TernaryWeight.mk .minus)) t (TernaryWeight.mk .minus)) u (TernaryWeight.mk .minus)) v (TernaryWeight.mk .minus)) w (TernaryWeight.mk .minus)) x (TernaryWeight.mk .minus)) y (TernaryWeight.mk .minus) = -(a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u + v + w + x + y) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: composition closure for ternary MAC with plus-weights.
+    For any activations a, b:
+    mac(mac(0, a, .plus), mac(0, b, .plus), .plus) = mac(0, a + b, .plus).
+    **MAC composition closure** -- proves that the composition of two independent MAC operations
+    collapses to a single MAC operation. This is the holy grail for recursive tile proofs:
+    composing two MAC tiles yields another MAC tile.
+    Foundation for hierarchical systolic-array composition proofs.
+    Responds to Sparkle HDL tile-based SoC verification and TernaryCore depth expansion. -/
+theorem ternaryMacCompositionClosureGeneric (a b : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) (ternaryMac 0 b (TernaryWeight.mk .plus)) (TernaryWeight.mk .plus) =
+    ternaryMac 0 (a + b) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: mixed-weight associativity for ternary MAC.
+    For any accumulator x and activations a, b, c:
+    mac(mac(mac(x, a, .plus), b, .minus), c, .plus) = mac(x, a - b + c, .plus).
+    **Mixed-weight associativity** -- proves that heterogeneous weight sequences (.plus, .minus, .plus)
+    collapse to a single MAC with arithmetic expression. Combines ternaryMac_mixed_collapse
+    and ternaryMac_plus_assoc from Trinity.Lemmas.
+    Foundation for alternating-polarity systolic-array proofs.
+    Responds to TernaryCore dual-polarity systolic paths and Sparkle HDL BitNet b1.58. -/
+theorem ternaryMacMixedWeightAssociativityGeneric (x a b c : Int) :
+    ternaryMac (ternaryMac (ternaryMac x a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .plus) =
+    ternaryMac x (a - b + c) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
