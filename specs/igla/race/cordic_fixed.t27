@@ -1407,3 +1407,22 @@ invariant cordic_fixed_sin_pi_over_two_w314_inv:
 
 
 
+test cordic_fixed_sin_pi_over_two_w315
+    given a = 16384
+    when s = cordic_sin(a)
+    then s > 16380 && s < 16388
+
+test cordic_fixed_cos_pi_over_two_w315
+    given a = 16384
+    when c = cordic_cos(a)
+    then c > -2 && c < 2
+
+invariant cordic_fixed_sin_pi_over_two_w315_inv:
+    cordic_sin(16384) > 16380 && cordic_sin(16384) < 16388
+
+
+
+
+
+
+

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:14d14e16f2530c5b14af4f806fa50f417f66870352c5b1d0442185d95646f5a1",
   "module": "ShellProcess",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:47:52Z",
+  "sealed_at": "2026-06-23T04:04:16Z",
   "spec_hash": "sha256:4416e318fedf168ba3d5eb43ac98a172d41a60596c6821ab8ee39027d5b50c70",
   "spec_path": "specs/shell/process.t27"
 }

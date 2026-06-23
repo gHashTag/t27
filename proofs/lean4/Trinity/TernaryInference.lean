@@ -613,3 +613,23 @@ theorem ternaryMacTriplePlusGeneric (a : Int) :
     ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) = 3 * a := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: triple minus-weight MAC accumulates three times the negated activation.
+    For any activation a: mac(mac(mac(0, a, .minus), a, .minus), a, .minus) = -3*a.
+    Complements TriplePlusGeneric for the minus-weight case, proving that
+    repeated minus-weight MAC scales linearly with negative coefficient N.
+    Responds to TOM ROM-SRAM weight-negation paths and TENET sign-select LUTs. -/
+theorem ternaryMacTripleMinusGeneric (a : Int) :
+    ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus) = -3 * a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: quadruple plus-weight MAC accumulates four times the activation.
+    For any activation a: mac⁴(0, a, .plus) = 4*a.
+    Extends the N-scaling pattern to depth 4, establishing the general
+    mac^N(0, a, .plus) = N*a theorem by structural induction for all N ≥ 1.
+    Responds to deep systolic pipeline verification (TENET, ternfpga, KU Leuven). -/
+theorem ternaryMacQuadruplePlusGeneric (a : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) = 4 * a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

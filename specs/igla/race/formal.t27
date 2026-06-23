@@ -1542,3 +1542,22 @@ invariant formal_smt_check_bool_true_sat_w314_inv:
 
 
 
+test formal_smt_check_bool_true_sat_w315
+    given b = true
+    when r = smt_check_bool(b)
+    then r == "SAT"
+
+test formal_smt_assert_true_false_string_w315
+    given b = false
+    when r = smt_assert_true(b)
+    then r == "false"
+
+invariant formal_smt_check_bool_true_sat_w315_inv:
+    smt_check_bool(true) == "SAT"
+
+
+
+
+
+
+

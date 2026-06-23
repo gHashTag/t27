@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:19e66c7fd6db3089815fea329e3c52a63cc7c5aa769ae698507f121adad932aa",
   "module": "PpoClipLoss",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:47:54Z",
+  "sealed_at": "2026-06-23T04:04:18Z",
   "spec_hash": "sha256:1916b5ef79c7a277691bd89e85161a6c6eeb4496115c875708303ec88cf39bbe",
   "spec_path": "specs/ml/rl/ppo_clip_loss.t27"
 }

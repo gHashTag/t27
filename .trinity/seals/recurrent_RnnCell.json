@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:701c1244286249f610f9d006a7f58375e1ac94a402559fb8f2b39a76035ac543",
   "module": "RnnCell",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:47:54Z",
+  "sealed_at": "2026-06-23T04:04:18Z",
   "spec_hash": "sha256:05f807c932b9a3ce5837100fe8432e8dfddc733db9f62a494c777ff6da885607",
   "spec_path": "specs/ml/recurrent/rnn_cell.t27"
 }

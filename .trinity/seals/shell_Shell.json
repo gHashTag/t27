@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7a56601ee9ed97d248f84e34ff34db33f15e2beff7065116977936185bd869b9",
   "module": "Shell",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:47:52Z",
+  "sealed_at": "2026-06-23T04:04:16Z",
   "spec_hash": "sha256:56b874c34544fb9ad47cd27602987b647db0860b631c1d937bbd4366803012c6",
   "spec_path": "specs/shell/schema.t27"
 }
