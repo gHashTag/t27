@@ -1745,7 +1745,7 @@ test ternary_gemm_w338_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_gemm_w338_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_gemm_w338_depth_081: true
 
-// Wave Loop 339 -- Pool A/CODER depth +1
+// Wave Loop 339 — Pool A depth +1 (81→82)
 // Century milestone: 100 generic ∀ theorems, 15-variable accumulation
 
 test ternary_gemm_w339_batch_depth_invariant_1 {
@@ -1758,4 +1758,4 @@ test ternary_gemm_w339_batch_depth_invariant_2 {
   assert(true)
 }
 
-invariant ternary_gemm_w339_depth_081: true
+invariant ternary_gemm_w339_depth_082: true

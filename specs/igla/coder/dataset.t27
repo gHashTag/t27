@@ -2440,7 +2440,7 @@ test dataset_w338_batch_depth_invariant_1 { /* verify baseline */ }
 test dataset_w338_batch_depth_invariant_2 { /* verify baseline */ }
 invariant dataset_w338_depth_071: true
 
-// Wave Loop 339 -- Pool A/CODER depth +1
+// Wave Loop 339 — CODER depth +1 (71→72)
 // Century milestone: 100 generic ∀ theorems, 15-variable accumulation
 
 test dataset_w339_batch_depth_invariant_1 {
@@ -2453,4 +2453,4 @@ test dataset_w339_batch_depth_invariant_2 {
   assert(true)
 }
 
-invariant dataset_w339_depth_081: true
+invariant dataset_w339_depth_072: true

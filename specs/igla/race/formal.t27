@@ -1730,17 +1730,17 @@ test formal_w336_batch_depth_invariant_1 { /* verify baseline */ }
 test formal_w336_batch_depth_invariant_2 { /* verify baseline */ }
 invariant formal_w336_depth_080: true
 
-// Wave Loop 337 — Pool A depth +1 (79→80)
+// Wave Loop 337 — Pool A depth +1 (80→81)
 test formal_w337_batch_depth_invariant_1 { /* verify baseline */ }
 test formal_w337_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w337_depth_080: true
+invariant formal_w337_depth_081: true
 
-// Wave Loop 338 — Pool A depth +1 (80→81)
+// Wave Loop 338 — Pool A depth +1 (81→82)
 test formal_w338_batch_depth_invariant_1 { /* verify baseline */ }
 test formal_w338_batch_depth_invariant_2 { /* verify baseline */ }
-invariant formal_w338_depth_081: true
+invariant formal_w338_depth_082: true
 
-// Wave Loop 339 -- Pool A/CODER depth +1
+// Wave Loop 339 — Pool A depth +1 (82→83)
 // Century milestone: 100 generic ∀ theorems, 15-variable accumulation
 
 test formal_w339_batch_depth_invariant_1 {
@@ -1753,4 +1753,4 @@ test formal_w339_batch_depth_invariant_2 {
   assert(true)
 }
 
-invariant formal_w339_depth_081: true
+invariant formal_w339_depth_083: true

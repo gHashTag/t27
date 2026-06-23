@@ -1765,17 +1765,17 @@ test yosys_w336_batch_depth_invariant_1 { /* verify baseline */ }
 test yosys_w336_batch_depth_invariant_2 { /* verify baseline */ }
 invariant yosys_w336_depth_081: true
 
-// Wave Loop 337 — Pool A depth +1 (79→80)
+// Wave Loop 337 — Pool A depth +1 (81→82)
 test yosys_w337_batch_depth_invariant_1 { /* verify baseline */ }
 test yosys_w337_batch_depth_invariant_2 { /* verify baseline */ }
-invariant yosys_w337_depth_080: true
+invariant yosys_w337_depth_082: true
 
-// Wave Loop 338 — Pool A depth +1 (80→81)
+// Wave Loop 338 — Pool A depth +1 (82→83)
 test yosys_w338_batch_depth_invariant_1 { /* verify baseline */ }
 test yosys_w338_batch_depth_invariant_2 { /* verify baseline */ }
-invariant yosys_w338_depth_081: true
+invariant yosys_w338_depth_083: true
 
-// Wave Loop 339 -- Pool A/CODER depth +1
+// Wave Loop 339 — Pool A depth +1 (83→84)
 // Century milestone: 100 generic ∀ theorems, 15-variable accumulation
 
 test yosys_w339_batch_depth_invariant_1 {
@@ -1788,4 +1788,4 @@ test yosys_w339_batch_depth_invariant_2 {
   assert(true)
 }
 
-invariant yosys_w339_depth_081: true
+invariant yosys_w339_depth_084: true

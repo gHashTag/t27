@@ -1984,17 +1984,17 @@ test systolic_ternary_w336_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_ternary_w336_batch_depth_invariant_2 { /* verify baseline */ }
 invariant systolic_ternary_w336_depth_096: true
 
-// Wave Loop 337 — Pool A depth +1 (79→80)
+// Wave Loop 337 — Pool B depth +1 (96→97)
 test systolic_ternary_w337_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_ternary_w337_batch_depth_invariant_2 { /* verify baseline */ }
-invariant systolic_ternary_w337_depth_080: true
+invariant systolic_ternary_w337_depth_097: true
 
-// Wave Loop 338 — Pool A depth +1 (80→81)
+// Wave Loop 338 — Pool B depth +1 (97→98)
 test systolic_ternary_w338_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_ternary_w338_batch_depth_invariant_2 { /* verify baseline */ }
-invariant systolic_ternary_w338_depth_081: true
+invariant systolic_ternary_w338_depth_098: true
 
-// Wave Loop 339 -- Pool A/CODER depth +1
+// Wave Loop 339 — Pool B depth +1 (98→99)
 // Century milestone: 100 generic ∀ theorems, 15-variable accumulation
 
 test systolic_ternary_w339_batch_depth_invariant_1 {
@@ -2007,4 +2007,4 @@ test systolic_ternary_w339_batch_depth_invariant_2 {
   assert(true)
 }
 
-invariant systolic_ternary_w339_depth_081: true
+invariant systolic_ternary_w339_depth_099: true

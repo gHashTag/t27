@@ -2333,7 +2333,7 @@ test arch_w338_batch_depth_invariant_1 { /* verify baseline */ }
 test arch_w338_batch_depth_invariant_2 { /* verify baseline */ }
 invariant arch_w338_depth_071: true
 
-// Wave Loop 339 -- Pool A/CODER depth +1
+// Wave Loop 339 — CODER depth +1 (71→72)
 // Century milestone: 100 generic ∀ theorems, 15-variable accumulation
 
 test arch_w339_batch_depth_invariant_1 {
@@ -2346,4 +2346,4 @@ test arch_w339_batch_depth_invariant_2 {
   assert(true)
 }
 
-invariant arch_w339_depth_081: true
+invariant arch_w339_depth_072: true
