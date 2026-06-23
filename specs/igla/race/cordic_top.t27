@@ -1471,3 +1471,24 @@ invariant cordic_top_batch_negative_sum_w316_inv:
 
 
 
+test cordic_top_batch_negative_sum_w317
+    given angles = [-1000, -2000, -3000]
+    when sum = cordic_top_batch(angles)
+    then sum == -6000
+
+test cordic_top_batch_mixed_sum_w317
+    given angles = [1000, -500, 2000, -1500]
+    when sum = cordic_top_batch(angles)
+    then sum == 1000
+
+invariant cordic_top_batch_negative_sum_w317_inv:
+    cordic_top_batch([-1000, -2000, -3000]) == -6000
+
+
+
+
+
+
+
+
+

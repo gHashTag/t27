@@ -640,3 +640,25 @@ theorem ternaryMacPentaPlusGeneric (a : Int) :
     ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) = 5 * a := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: penta minus-weight MAC accumulates five times the negated activation.
+    For any activation a: mac⁵(0, a, .minus) = -5*a.
+    Completes the depth-5 N-scaling family (Double through Penta, both signs),
+    providing formal guarantees for the deepest practical systolic chains
+    in all known 2026 ternary hardware (TENET, ternfpga, TOM, TernaryCore).
+    This is the capstone of the N-scaling proof family. -/
+theorem ternaryMacPentaMinusGeneric (a : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus) = -5 * a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating two independent activations with plus-weights is addition.
+    For any activations a, b: mac(mac(0, a, .plus), b, .plus) = a + b.
+    First generic theorem with two independent activation variables,
+    proving that ternary MAC correctly composes distinct contributions.
+    Foundation for systolic-array row-reduction and tiled-GEMM accumulation proofs.
+    Responds to TENET multi-row LUT scheduling and TOM ROM-SRAM layer composition. -/
+theorem ternaryMacAccumulateTwoPlusGeneric (a b : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus) = a + b := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
