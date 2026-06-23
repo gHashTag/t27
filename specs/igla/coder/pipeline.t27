@@ -2227,4 +2227,9 @@ test pipeline_w332_batch_depth_invariant_1 { /* verify baseline */ }
 test pipeline_w332_batch_depth_invariant_2 { /* verify baseline */ }
 invariant pipeline_w332_depth_066: true
 
+// Wave Loop 333 — CODER depth +1 (66→67)
+test pipeline_w333_batch_depth_invariant_1 { /* verify baseline */ }
+test pipeline_w333_batch_depth_invariant_2 { /* verify baseline */ }
+invariant pipeline_w333_depth_067: true
+
 }

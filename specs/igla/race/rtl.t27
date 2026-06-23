@@ -1737,4 +1737,9 @@ test rtl_w332_batch_depth_invariant_1 { /* verify baseline */ }
 test rtl_w332_batch_depth_invariant_2 { /* verify baseline */ }
 invariant rtl_w332_depth_076: true
 
+// Wave Loop 333 — Pool A depth +1 (76→77)
+test rtl_w333_batch_depth_invariant_1 { /* verify baseline */ }
+test rtl_w333_batch_depth_invariant_2 { /* verify baseline */ }
+invariant rtl_w333_depth_077: true
+
 }

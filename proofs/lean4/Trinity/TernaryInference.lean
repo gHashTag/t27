@@ -1252,3 +1252,40 @@ theorem ternaryMacSemiringActionGeneric (psum a b : Int) (w : TernaryWeight) :
   · -- minus
     simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
     <;> try omega
+
+/-- Generic theorem: accumulating ten independent activations with plus-weights is decuple addition.
+    For any activations a, b, c, d, e, f, g, h, i, j: mac¹⁰(0, [a,b,c,d,e,f,g,h,i,j], .plus) = a + b + c + d + e + f + g + h + i + j.
+    Extends the N-variable accumulation family to depth 10, testing the omega automation boundary.
+    If this proof succeeds, simp+omega scales to 10 variables; if it degrades, ring_nf preprocessing
+    is required for depth ≥10.
+    Foundation for 10-input systolic-array row-reduction and decuple-dot-product proofs.
+    Responds to next-generation 10×10 systolic tiles and TENET 10-input LUT scheduling. -/
+
+theorem ternaryMacAccumulateTenPlusGeneric (a b c d e f g h i j : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating ten independent activations with minus-weights is negated decuple addition.
+    For any activations a, b, c, d, e, f, g, h, i, j: mac¹⁰(0, [a,b,c,d,e,f,g,h,i,j], .minus) = -(a + b + c + d + e + f + g + h + i + j).
+    Complements AccumulateTenPlusGeneric for the minus-weight case.
+    Completes the 10-variable MAC operation lattice for both signs.
+    Responds to next-generation 10×10 signed systolic tiles and TernaryCore subtract paths. -/
+
+theorem ternaryMacAccumulateTenMinusGeneric (a b c d e f g h i j : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus)) g (TernaryWeight.mk .minus)) h (TernaryWeight.mk .minus)) i (TernaryWeight.mk .minus)) j (TernaryWeight.mk .minus) = -(a + b + c + d + e + f + g + h + i + j) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: additive inverse for ternary MAC with plus-weights.
+    For any activation a: mac(0, -a, .plus) = -mac(0, a, .plus).
+    Proves that negating the activation before plus-weight MAC is equivalent to negating the result.
+    Foundation for ring structure completion — additive inverses exist for all ternary MAC outputs.
+    Complements the semiring action (W332) to establish a full ring-like structure over Int.
+    Responds to Graphiti (ASPLOS 2026) formally verified dataflow circuits — t27 completes the
+    algebraic ring structure for ternary MAC, enabling category-theoretic proofs. -/
+
+theorem ternaryMacRingInversePlusGeneric (a : Int) :
+    ternaryMac 0 (-a) (TernaryWeight.mk .plus) = -(ternaryMac 0 a (TernaryWeight.mk .plus)) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
