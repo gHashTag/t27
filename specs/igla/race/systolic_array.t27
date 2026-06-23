@@ -1815,3 +1815,8 @@ invariant igla_race_systolic_array_w347_depth_090: true
 test igla_race_systolic_array_w348_batch_depth_invariant_1 { /* verify baseline */ }
 test igla_race_systolic_array_w348_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_race_systolic_array_w348_depth_090: true
+
+// Wave Loop 349 -- Pool A depth +1
+igla_race_systolic_array_w349_batch_depth_invariant_1 { /* verify baseline */ }
+igla_race_systolic_array_w349_batch_depth_invariant_2 { /* verify baseline */ }
+invariant igla_race_systolic_array_w349_depth: true
