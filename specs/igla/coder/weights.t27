@@ -1536,3 +1536,8 @@ invariant igla_coder_weights_w350_depth: true
 test igla_coder_weights_w351_batch_depth_invariant_1 { /* verify baseline */ }
 test igla_coder_weights_w351_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_coder_weights_w351_depth: true
+
+// Wave Loop 352 -- Pool A depth +1
+test igla_coder_weights_w352_batch_depth_invariant_1 { /* verify baseline */ }
+test igla_coder_weights_w352_batch_depth_invariant_2 { /* verify baseline */ }
+invariant igla_coder_weights_w352_depth: true
