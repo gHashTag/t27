@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-23  
 **Commit:** \`99a13a490\`  
-**Current State:** Pool A ALL ≥43, CODER ALL ≥33, Pool B 58, Integration 43, Lean 4 37 theorems (4 generic)
+**Current State:** Pool A ALL ≥43, CODER ALL ≥33, Pool B 58, Integration 43, Lean 4 39 theorems (6 generic)
 
 ---
 
@@ -16,7 +16,7 @@
 | CODER (10 specs) | ALL ≥33 | **ALL ≥34** | +10 inv, +20 tests |
 | Pool B (systolic_ternary) | 58 | **59** | +1 inv, +2 tests |
 | Integration (ternary_inference) | 43 | **44** | +1 inv, +2 tests |
-| Lean 4 theorems | 37 | **38** | +1 theorem |
+| Lean 4 theorems | 39 | **40** | +1 theorem |
 | **Total work** | — | **+27 inv, +54 tests, +1 theorem** | — |
 
 **Why recommended:**
@@ -43,7 +43,7 @@
 | CODER (10 specs) | ALL ≥33 | **ALL ≥33** (maintain) | 0 |
 | Pool B (systolic_ternary) | 58 | **58** (maintain) | 0 |
 | Integration (ternary_inference) | 43 | **43** (maintain) | 0 |
-| Lean 4 theorems | 37 | **38** | **+1 theorem** |
+| Lean 4 theorems | 39 | **40** | **+1 theorem** |
 | **Total work** | — | **+1 theorem** | — |
 
 **Theorem target:**
@@ -73,7 +73,7 @@ theorem ternaryGemm2x2EquivReferenceGeneric (a : Array Int) (w : Array TernaryWe
 | CODER (10 specs) | ALL ≥33 | **ALL ≥33** (maintain) | 0 |
 | Pool B (systolic_ternary) | 58 | **58** (maintain) | 0 |
 | Integration (ternary_inference) | 43 | **48** | **+5 inv, +10 tests** |
-| Lean 4 theorems | 37 | **38** | +1 theorem |
+| Lean 4 theorems | 39 | **40** | +1 theorem |
 | Cross-spec invariants | 0 | **3** | +3 linking invariants |
 | **Total work** | — | **+8 inv, +10 tests, +1 theorem** | — |
 

@@ -22,8 +22,8 @@ constituent multiply and add operations.
 | CODER invariants (min/max) | 32 / 32 | **33 / 33** | +10 |
 | Pool B (systolic_ternary) | 57 | **58** | +1 |
 | Integration (ternary_inference) | 42 | **43** | +1 |
-| Lean 4 theorems | 36 | **37** | +1 |
-| Generic ∀ theorems | 3 | **4** | +1 |
+| Lean 4 theorems | 36 | **39** | +3 |
+| Generic ∀ theorems | 3 | **6** | +3 |
 | Total invariants added | — | **+27** | — |
 | Total tests added | — | **+54** | — |
 | Zero-entrant wave streak | 63 | **64** | +1 |
@@ -33,7 +33,7 @@ constituent multiply and add operations.
 - **ALL Pool A specs now ≥43 invariants (FIRST TIME IN HISTORY)**
 - **ALL CODER specs now ≥33 invariants (FIRST TIME IN HISTORY)**
 - **64-wave zero-entrant streak** extended (absolute record)
-- **4 generic ∀ theorems** — MAC+mul decomposition foundation established
+- **6 generic ∀ theorems** — MAC+mul decomposition foundation established
 
 ---
 
@@ -118,8 +118,8 @@ t27's generic MAC decomposition (mul+add) is unique:
 - W300: 0 generic
 - W301: 1 generic (zero-weight MAC)
 - W302: 3 generic (+ plus, minus MAC)
-- W303: 4 generic (+ mul identity)
-- **Trend:** 4 generic theorems in 4 waves; pace accelerating
+- W303: 6 generic (+ mul zero, + mul minus)
+- **Trend:** 6 generic theorems in 4 waves; pace accelerating
 - **Remaining:** Need generic GEMM equivalence and distributivity
 
 ### 3.4 No Verified Compilation Pipeline
@@ -184,9 +184,9 @@ t27's generic MAC decomposition (mul+add) is unique:
 |------|-----|-----|---|
 | ternary_inference | 42 | **43** | +1 |
 
-### 4.5 Lean 4 Theorems — 36→37 (+1 theorem)
+### 4.5 Lean 4 Theorems — 36→39 (+3 theorems)
 
-New theorem added:
+New theorems added:
 
 \`\`\`lean
 /-- Generic theorem: ternary multiplication with a plus weight always returns the activation unchanged.
@@ -197,7 +197,27 @@ theorem ternaryMulPlusWeightIdentityGeneric (a : Int) :
   simp [ternaryMul, ternaryDecode] <;> try native_decide
 \`\`\`
 
-**Why this theorem matters:**
+**Theorem 2 (W303 follow-up):**
+```lean
+/-- Generic theorem: ternary multiplication with a zero weight always returns zero.
+    Complement to MulPlusWeightIdentityGeneric; completes the generic ternary multiplication
+    proof trinity (zero=0, plus=a, minus=-a). -/
+theorem ternaryMulZeroWeightIdentityGeneric (a : Int) :
+    ternaryMul a (TernaryWeight.mk .zero) = 0 := by
+  simp [ternaryMul, ternaryDecode] <;> try native_decide
+```
+
+**Theorem 3 (W303 follow-up):**
+```lean
+/-- Generic theorem: ternary multiplication with a minus weight always returns the negated activation.
+    Complement to MulPlusWeightIdentityGeneric; completes the generic ternary multiplication
+    proof trinity (zero=0, plus=a, minus=-a). -/
+theorem ternaryMulMinusWeightIdentityGeneric (a : Int) :
+    ternaryMul a (TernaryWeight.mk .minus) = -a := by
+  simp [ternaryMul, ternaryDecode] <;> try native_decide
+```
+
+**Why these theorems matter:**
 - Decomposes ternary MAC into multiply + add operations at the generic level
 - Complements W302's MAC theorems (zero, plus, minus) with the underlying mul identity
 - Responds to AMO-Lean milestone: verified compilers demand verified primitive operations
@@ -269,7 +289,7 @@ Wave Loop 303 achieves **dual historic uniform floor elimination for the FOURTEE
 - **ALL Pool A ≥43** (first time)
 - **ALL CODER ≥33** (first time)
 - **64-wave zero-entrant streak** extended (absolute record)
-- **37 Lean 4 theorems**, including 4 generic ∀ quantifier theorems
+- **39 Lean 4 theorems**, including 6 generic ∀ quantifier theorems
 
 The emergence of **CktFormalizer** (95–100% backend realizability via autoformalization)
 and **AMO-Lean** (0-sorry verified compiler) signals that the formal verification space

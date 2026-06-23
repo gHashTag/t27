@@ -324,3 +324,7 @@
 - **Commit:** docs(w303): WAVE_LOOP_303_REPORT.md + WAVE_LOOP_303_COOPERATION.md
 - **Files:** proofs/lean4/Trinity/TernaryInference.lean
 
+## 2026-06-23T01:29:51Z — trinity-rust-rings
+- **Commit:** feat(lean4): add ternaryMulZeroWeightIdentityGeneric + ternaryMulMinusWeightIdentityGeneric
+- **Files:** docs/reports/WAVE_LOOP_303_COOPERATION.md,docs/reports/WAVE_LOOP_303_REPORT.md
+
