@@ -1243,3 +1243,19 @@ test systolic_array_systolic_step_zero_A_all_zero_w299
 invariant systolic_array_booth_mul_i16_negative_positive_w299_inv:
     forall a : i16, b : i16
     a == -3 && b == 4 ==> booth_mul_i16(a, b) == -12
+
+test systolic_array_booth_mul_i16_zero_times_any_zero_w300
+    given a = 0
+    given b = -99
+    when p = booth_mul_i16(a, b)
+    then p == 0
+
+test systolic_array_booth_mul_i16_one_times_identity_w300
+    given a = 1
+    given b = -99
+    when p = booth_mul_i16(a, b)
+    then p == -99
+
+invariant systolic_array_booth_mul_i16_zero_times_any_zero_w300_inv:
+    forall b : i16
+    booth_mul_i16(0, b) == 0

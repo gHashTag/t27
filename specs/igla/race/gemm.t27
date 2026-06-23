@@ -1130,3 +1130,19 @@ test gemm_booth_mul_i32_one_times_any_identity_w299
 invariant gemm_booth_mul_i32_zero_times_any_zero_w299_inv:
     forall b : i32
     booth_mul_i32(0, b) == 0
+
+test gemm_booth_mul_i32_large_product_w300
+    given a = 100
+    given b = 100
+    when p = booth_mul_i32(a, b)
+    then p == 10000
+
+test gemm_booth_mul_i32_identity_left_w300
+    given a = 1
+    given b = -77
+    when p = booth_mul_i32(a, b)
+    then p == -77
+
+invariant gemm_booth_mul_i32_identity_left_w300_inv:
+    forall b : i32
+    booth_mul_i32(1, b) == b

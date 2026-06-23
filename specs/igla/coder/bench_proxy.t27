@@ -719,3 +719,19 @@ test bench_proxy_select_best_beam_one_top_w299
 invariant bench_proxy_select_best_beam_one_top_w299_inv:
     forall c1 : BeamCandidate, c2 : BeamCandidate, beam_width : u32
     c1.score > c2.score && beam_width == 1 ==> select_best_beam([c1, c2], beam_width).len() == 1
+
+test bench_proxy_score_beam_zero_len_penalty_one_w300
+    given candidate = BeamCandidate { token: 1, score: 1.0f32, prefix_len: 1 }
+    given length_penalty = 0.0
+    when result = score_beam_candidate(candidate, length_penalty)
+    then result.score == 1.0f32
+
+test bench_proxy_select_best_beam_two_returns_two_w300
+    given candidates = [BeamCandidate { token: 1, score: 0.9f32, prefix_len: 2 }, BeamCandidate { token: 2, score: 0.7f32, prefix_len: 2 }]
+    given beam_width = 2
+    when result = select_best_beam(candidates, beam_width)
+    then result.len() == 2
+
+invariant bench_proxy_select_best_beam_two_returns_two_w300_inv:
+    forall c1 : BeamCandidate, c2 : BeamCandidate, beam_width : u32
+    beam_width == 2 ==> select_best_beam([c1, c2], beam_width).len() == 2

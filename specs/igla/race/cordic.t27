@@ -1131,3 +1131,16 @@ test cordic_sqrt_approx_quarter_approx_half_w299
 
 invariant cordic_sqrt_approx_one_exact_w299_inv:
     sqrt_approx(1.0) == 1.0
+
+test cordic_sqrt_approx_two_approx_sqrt_two_w300
+    given x = 2.0
+    when r = sqrt_approx(x)
+    then r > 1.41 && r < 1.42
+
+test cordic_sqrt_approx_four_two_exact_w300
+    given x = 4.0
+    when r = sqrt_approx(x)
+    then r == 2.0
+
+invariant cordic_sqrt_approx_four_two_exact_w300_inv:
+    sqrt_approx(4.0) == 2.0

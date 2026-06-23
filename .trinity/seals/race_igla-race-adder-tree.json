@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:d50d6a76fe6b8582b32c4fbb094174449f32d2cc0611b16c2bc19de9a0af042f",
+  "gen_hash_c": "sha256:c13b0d94630a2618850614bbf5316423cdeb058735c508722e39440cf1d77f9f",
   "gen_hash_rust": "sha256:48f56c0d2c8d5e3ae2b2a645fd4f9a95295c5fcf3e92b4f3e2b3f64569494d63",
-  "gen_hash_verilog": "sha256:bfe1ae6946910deae4fa9e55e5d2179ec426fd2a4e433515f40e23b2af1eb3a2",
-  "gen_hash_zig": "sha256:68e6884f99cb5848093e1f7069f0f9be63a8c651e0ff12ea0b90f1adc277436a",
+  "gen_hash_verilog": "sha256:0fa3a679a90ae83368f642fd804c8ed513ce79f59ce63f39bd14416ad461feda",
+  "gen_hash_zig": "sha256:5f02293dbc4e06752556936d859e6da1a4063dbb6be392ea7030dd60efdec4f3",
   "module": "igla-race-adder-tree",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:33:56Z",
-  "spec_hash": "sha256:07f6ec3e42e3f57621c14bc32816ce9253663a5d66d400a8ba1c73466bd39812",
+  "sealed_at": "2026-06-23T00:38:35Z",
+  "spec_hash": "sha256:fb0069ec732440b5eb4ee3d8a09ffd0f74d505dec6f8e9d7b52195860c025b5b",
   "spec_path": "specs/igla/race/adder_tree.t27"
 }

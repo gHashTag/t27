@@ -1445,3 +1445,21 @@ test systolic_ternary_pe_negative_activation_minus_weight_w299
 invariant systolic_ternary_pe_positive_activation_plus_weight_w299_inv:
     forall psum : i32
     systolic_ternary_pe(5, TernaryWeight { code: 1 }, psum).1 == psum + 5
+
+test systolic_ternary_pe_zero_acc_plus_weight_adds_w300
+    given a = 3
+    given w = TernaryWeight { code: 1 }
+    given psum = 0
+    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+    then psum_out == 3
+
+test systolic_ternary_pe_zero_acc_minus_weight_negates_w300
+    given a = -2
+    given w = TernaryWeight { code: 2 }
+    given psum = 0
+    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
+    then psum_out == 2
+
+invariant systolic_ternary_pe_zero_acc_plus_weight_adds_w300_inv:
+    forall a : i32
+    systolic_ternary_pe(a, TernaryWeight { code: 1 }, 0).1 == a

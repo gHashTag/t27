@@ -1147,3 +1147,16 @@ test adder_tree_4_all_negative_sum_w299
 
 invariant adder_tree_4_all_positive_sum_w299_inv:
     adder_tree([1, 2, 3, 4]) == 10
+
+test adder_tree_4_zeros_zero_w300
+    given inputs = [0, 0, 0, 0]
+    when sum = adder_tree(inputs)
+    then sum == 0
+
+test adder_tree_4_ones_four_w300
+    given inputs = [1, 1, 1, 1]
+    when sum = adder_tree(inputs)
+    then sum == 4
+
+invariant adder_tree_4_zeros_zero_w300_inv:
+    adder_tree([0, 0, 0, 0]) == 0

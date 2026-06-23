@@ -1474,3 +1474,16 @@ test backend_log2_const_one_zero_w299
 
 invariant backend_log2_const_one_zero_w299_inv:
     log2_const("1") == 0
+
+test backend_parse_const_large_positive_w300
+    given s = "999"
+    when v = parse_const(s)
+    then v == 999
+
+test backend_log2_const_sixteen_four_w300
+    given s = "16"
+    when v = log2_const(s)
+    then v == 4
+
+invariant backend_log2_const_sixteen_four_w300_inv:
+    log2_const("16") == 4

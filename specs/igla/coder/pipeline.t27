@@ -1806,3 +1806,16 @@ test pipeline_single_element_len_one_w299
 
 invariant pipeline_empty_len_zero_w299_inv:
     pipeline([]).len() == 0
+
+test pipeline_two_elements_len_two_w300
+    given input = [1.0f32, 2.0f32]
+    when output = pipeline(input)
+    then output.len() == 2
+
+test pipeline_three_elements_len_three_w300
+    given input = [1.0f32, 2.0f32, 3.0f32]
+    when output = pipeline(input)
+    then output.len() == 3
+
+invariant pipeline_two_elements_len_two_w300_inv:
+    pipeline([1.0f32, 2.0f32]).len() == 2

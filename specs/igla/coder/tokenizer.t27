@@ -901,3 +901,16 @@ test tokenizer_empty_length_one_w299
 
 invariant tokenizer_empty_length_one_w299_inv:
     tokenize([]).len() == 1
+
+test tokenizer_three_tokens_length_four_w300
+    given tokens = [1, 2, 3]
+    when result = tokenize(tokens)
+    then result.len() == 4
+
+test tokenizer_bos_appended_first_zero_w300
+    given tokens = [7, 8, 9]
+    when result = tokenize(tokens)
+    then result[0] == 0
+
+invariant tokenizer_bos_appended_first_zero_w300_inv:
+    tokenize([7, 8, 9])[0] == 0

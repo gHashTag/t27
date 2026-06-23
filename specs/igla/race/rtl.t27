@@ -1316,3 +1316,16 @@ test rtl_bits_to_u64_single_one_w299
 
 invariant rtl_bits_to_u64_single_one_w299_inv:
     bits_to_u64([1]) == 1
+
+test rtl_bits_to_u64_two_bits_three_w300
+    given bits = [1, 1]
+    when val = bits_to_u64(bits)
+    then val == 3
+
+test rtl_bits_to_u64_three_bits_seven_w300
+    given bits = [1, 1, 1]
+    when val = bits_to_u64(bits)
+    then val == 7
+
+invariant rtl_bits_to_u64_two_bits_three_w300_inv:
+    bits_to_u64([1, 1]) == 3

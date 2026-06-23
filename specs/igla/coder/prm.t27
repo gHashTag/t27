@@ -1088,3 +1088,16 @@ test prm_param_bounds_saturate_above_max_clamp_w299
 
 invariant prm_param_bounds_saturate_below_min_clamp_w299_inv:
     param_bounds_saturate(-200) == -128
+
+test prm_param_bounds_saturate_mid_value_identity_w300
+    given val = 0
+    when result = param_bounds_saturate(val)
+    then result == 0
+
+test prm_param_bounds_saturate_small_negative_clamp_w300
+    given val = -129
+    when result = param_bounds_saturate(val)
+    then result == -128
+
+invariant prm_param_bounds_saturate_mid_value_identity_w300_inv:
+    param_bounds_saturate(0) == 0

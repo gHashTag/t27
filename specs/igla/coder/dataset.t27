@@ -1919,3 +1919,16 @@ test dataset_diversity_score_three_unique_one_w299
 
 invariant dataset_diversity_score_single_one_w299_inv:
     dataset_diversity_score([DataSample { rtl: "a", template: "a", quality_score: 1.0 }]) == 1.0
+
+test dataset_diversity_score_three_same_one_third_w300
+    given dataset = [DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "a", template: "a", quality_score: 1.0 }]
+    when score = dataset_diversity_score(dataset)
+    then score == 0.3333333333333333
+
+test dataset_diversity_score_two_unique_two_w300
+    given dataset = [DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "b", template: "b", quality_score: 1.0 }]
+    when score = dataset_diversity_score(dataset)
+    then score == 1.0
+
+invariant dataset_diversity_score_two_unique_two_w300_inv:
+    dataset_diversity_score([DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "b", template: "b", quality_score: 1.0 }]) == 1.0

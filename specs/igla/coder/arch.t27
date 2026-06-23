@@ -1835,3 +1835,18 @@ test arch_add_slices_equal_len_sum_w299
 
 invariant arch_add_slices_equal_len_sum_w299_inv:
     add_slices([1.0f32, 2.0f32, 3.0f32], [4.0f32, 5.0f32, 6.0f32], 0).len() == 3
+
+test arch_add_slices_offset_zero_passthrough_w300
+    given a = [1.0f32, 2.0f32, 3.0f32]
+    given b = [4.0f32, 5.0f32, 6.0f32]
+    when c = add_slices(a, b, 0)
+    then c.len() == 3 && c[0] == 5.0
+
+test arch_add_slices_shortest_truncates_w300
+    given a = [1.0f32, 2.0f32]
+    given b = [3.0f32, 4.0f32, 5.0f32]
+    when c = add_slices(a, b, 0)
+    then c.len() == 2 && c[1] == 6.0
+
+invariant arch_add_slices_offset_zero_passthrough_w300_inv:
+    add_slices([1.0f32, 2.0f32, 3.0f32], [4.0f32, 5.0f32, 6.0f32], 0).len() == 3

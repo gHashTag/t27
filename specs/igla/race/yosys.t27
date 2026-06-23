@@ -1276,3 +1276,18 @@ test yosys_strings_equal_same_string_true_w299
 invariant yosys_strings_equal_same_string_true_w299_inv:
     forall s : string
     strings_equal(s, s) == true
+
+test yosys_strings_equal_empty_empty_true_w300
+    given a = ""
+    given b = ""
+    when ok = strings_equal(a, b)
+    then ok == true
+
+test yosys_is_prefix_same_prefix_true_w300
+    given a = "hello world"
+    given b = "hello world"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+invariant yosys_strings_equal_empty_empty_true_w300_inv:
+    strings_equal("", "") == true
