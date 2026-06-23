@@ -1659,3 +1659,19 @@ invariant backend_parse_const_positive_ten_w311_inv:
 
 
 
+test backend_parse_const_positive_ten_w311
+    given s = "10"
+    when v = parse_const(s)
+    then v == 10
+
+test backend_log2_const_thirtytwo_five_w311
+    given s = "32"
+    when v = log2_const(s)
+    then v == 5
+
+invariant backend_parse_const_positive_ten_w311_inv:
+    parse_const("10") == 10
+
+
+
+

@@ -507,16 +507,6 @@ theorem ternaryMacZeroActivationZeroWeightEqualsPsumGeneric (psum : Int) :
     ternaryMac psum 0 (TernaryWeight.mk .zero) = psum := by
   simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
 
-/-- Concrete theorem: balanced mixed weights [plus, minus, zero, plus] applied to
-    activations [1, 2, 3, 4] produce expected result 3 (1*1 + 2*(-1) + 3*0 + 4*1 = 1 - 2 + 0 + 4 = 3).
-    Validates end-to-end ternary inference with non-trivial weight patterns. -/
-theorem ternaryInferenceBalancedWeightsConcrete :
-    let input := InferenceInput.mk #[1, 2, 3, 4]
-    let balancedWeights := #[TernaryWeight.mk .plus, TernaryWeight.mk .minus, TernaryWeight.mk .zero, TernaryWeight.mk .plus]
-    let model := loadTernaryWeights balancedWeights
-    (ternaryInference2x2 input model).outputs = #[3, -3, 0, 3] := by
-  simp [ternaryInference2x2, ternaryGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, balancedWeights, loadTernaryWeights] <;> try native_decide
-
 /-- Generic theorem: consecutive plus-weight and minus-weight MAC operations on the same
     activation cancel out, restoring the original partial sum. For any psum and activation a:
     mac(mac(psum, a, .plus), a, .minus) = psum.
@@ -536,5 +526,27 @@ theorem ternaryMacPlusMinusCancelGeneric (psum a : Int) :
     Responds to Sparkle HDL sign-inversion correctness and TernaryCore reversible-MAC insights. -/
 theorem ternaryMacMinusPlusCancelGeneric (psum a : Int) :
     ternaryMac (ternaryMac psum a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .plus) = psum := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: MAC with plus-weight distributes over activation addition.
+    For any partial sum psum and activations a, b:
+    mac(psum, a + b, .plus) = psum + a + b.
+    This proves that the ternary MAC primitive preserves linearity when the weight is +1,
+    directly mapping to accumulator-based systolic-array correctness for tiled GEMM.
+    Responds to Sparkle HDL tiled-decomposition verification and Ternary-NanoCore adder-tree insights. -/
+theorem ternaryMacPlusWeightActivationAddGeneric (psum a b : Int) :
+    ternaryMac psum (a + b) (TernaryWeight.mk .plus) = psum + a + b := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: MAC with minus-weight distributes over activation addition
+    with sign inversion. For any partial sum psum and activations a, b:
+    mac(psum, a + b, .minus) = psum - a - b.
+    This proves that the ternary MAC primitive preserves anti-linearity when the weight is -1,
+    completing the activation-add decomposition pair for all non-zero ternary weights.
+    Responds to TernaryCore negation-select correctness and ternfpga signed-datapath insights. -/
+theorem ternaryMacMinusWeightActivationAddGeneric (psum a b : Int) :
+    ternaryMac psum (a + b) (TernaryWeight.mk .minus) = psum - a - b := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega

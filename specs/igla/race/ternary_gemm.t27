@@ -1460,3 +1460,21 @@ invariant ternary_gemm_minus_weights_negate_activations_w311_inv:
 
 
 
+test ternary_gemm_minus_weights_negate_activations_w311
+    given a = [cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)]
+    given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 4 && out[0] == -2 && out[1] == -3
+
+test ternary_gemm_mixed_weights_selective_w311
+    given a = [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 4 && out[0] == 1 && out[1] == -1
+
+invariant ternary_gemm_minus_weights_negate_activations_w311_inv:
+    ternary_gemm([cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)], [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]).len() == 4
+
+
+
+
