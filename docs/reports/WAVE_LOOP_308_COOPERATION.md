@@ -1,74 +1,67 @@
-# Wave Loop 308 — Three Variants of Cooperation
+# Wave Loop 308 — Three Cooperation Variants for W309
 
-**Date:** 2026-06-16  
-**For:** Next loop (W309) planning  
-**Status:** Proposed
-
----
-
-## Variant A: Deepening (Глубинное развитие)
-
-**Premise:** Accelerate generic ∀ quantifier theorem production to reach **20 generic ∀ by W310**, cementing t27's position as the only project with algorithmic (not just instance-based) ternary hardware verification.
-
-**Actions:**
-1. **Generic theorem sprint:** Add ≥2 generic ∀ theorems per wave (W309 target: 17 generic ∀; W310 target: 20).
-2. **New generic domains:**
-   - `ternaryMacAssociativeOverPsumGeneric` — mac(mac(p, a, w), b, w) = mac(p, a+b, w)
-   - `ternaryMacCommutativePsumAddGeneric` — mac(p1+p2, a, w) = mac(p1, a, w) + p2
-   - `ternaryGemm2x2IdentityPreservesAnyConcreteGeneric` — identity weights preserve ANY concrete input
-3. **Proof automation:** Develop reusable `rcases` + `cases` + `simp` + `omega` pattern into a custom tactic macro for ternary weight case analysis.
-4. **Pool depth:** Maintain Pool A ≥48, Pool B ≥63, CODER ≥38.
-
-**Expected outcome:** 17 generic ∀ theorems by W309, 20 by W310. Creates a mathematical moat that autoformalization cannot easily replicate.
-
-**Risk:** High complexity; parametric array proofs require dependent type machinery.
+**Date:** 2026-06-23
+**Prepared by:** Trinity Agent (Queen) — AEL v2.0
+**For:** Wave Loop 309 (W309) Planning
 
 ---
 
-## Variant B: Mobile + Embedded + Multi-Core Expansion (Расширение на мобильные/встраиваемые/многоядерные)
+## Variant A — Conservative +1 Uniform Floor (Recommended)
 
-**Premise:** Respond to ENERZAi (Qualcomm Hexagon), Huntwter bitone (NPU128), BNRV (RISC-V SIMD), and BitNet-RISCV-Multicore by expanding t27's verification scope into mobile NPU, bare-metal embedded, and multi-core SoC targets.
+**Objective:** Continue the proven pattern of uniform floor elimination with minimal risk.
 
 **Actions:**
-1. **New spec:** `specs/igla/race/hexagon_ternary.t27` — model Qualcomm Hexagon NPU ternary kernel constraints (vector lanes, HVX width, DMA alignment).
-2. **New spec:** `specs/igla/race/npu128_ternary.t27` — model NPU128 bare-metal constraints (128-bit in-order, PSHUFB weight unpacking, double-buffered DMA).
-3. **New spec:** `specs/igla/race/riscv_simd_ternary.t27` — model BNRV RISC-V SIMD custom instruction extension for ternary MatMul.
-4. **New spec:** `specs/igla/race/multicore_ternary.t27` — model BitNet-RISCV-Multicore CVA6 + Ara + Gemmini ternary PE constraints.
-5. **Lean 4 proofs:** Prove that t27's generic zero-activation and distributivity theorems imply correctness on all four datapaths.
-6. **Pool depth:** Maintain existing floors while adding 3-4 new specs.
+1. **Pool A:** ALL 15 specs 48→49 (+15 invariants, +30 tests) — batch append
+2. **CODER:** ALL 10 specs 38→39 (+10 invariants, +20 tests) — batch append
+3. **Pool B:** systolic_ternary 63→64 (+1 invariant, +2 tests)
+4. **Integration:** ternary_inference 48→49 (+1 invariant, +2 tests)
+5. **Lean 4:** +1 generic theorem (e.g., `ternaryMacNegatePsumGeneric`)
 
-**Expected outcome:** t27 becomes the **first and only** formally verified ternary hardware verification framework covering FPGA, ASIC, mobile NPU, embedded MCU, RISC-V SIMD, and multicore SoC.
-
-**Risk:** Scope expansion may dilute focus; new specs start at low invariant count.
+**Risk:** LOW — identical pattern to W298-W308, fully automated
+**Time estimate:** 1 batch session
+**Competitive impact:** Maintains floor-leadership pressure on 231 stable competitors
 
 ---
 
-## Variant C: Autoformalization Defense + Verified Compiler Ecosystem (Защита от автоформализации + верифицированный компилятор)
+## Variant B — Accelerated Generic Theorem Sprint
 
-**Premise:** CktFormalizer v3 now generates machine-checked equivalence proofs automatically. Partner with TorchLean and AMO-Lean to create a **unified formally verified ternary toolchain** that raises the barrier for competitors and autoformalization tools. Simultaneously, apply AMO-Lean's verified compiler framework to t27's `tri` backend.
+**Objective:** Respond to Sparkle+Hesper ecosystem growth by closing the generic theorem count gap.
 
 **Actions:**
-1. **TorchLean bridge:** Export t27's 15 generic ∀ theorems as TorchLean-compatible axioms, enabling verified compilation from PyTorch → ternary hardware.
-2. **AMO-Lean collaboration:** Apply AMO-Lean's verified compiler framework to formally verify t27's `tri` code generation backend (Zig/Verilog/C/Rust/Lean), producing a machine-checked proof that `.t27` compilation preserves semantics.
-3. **CktFormalizer resistance:** Publish a position paper arguing that generic ∀ proofs (especially parametric over unbounded Int and finite TernaryWeight) are inherently harder to autoformalize than concrete equivalence checks — making t27's theorem style a natural defense.
-4. **Sparkle liaison:** Propose shared `TernaryWeight` datatype and lemma library. Sparkle contributes concrete golden-value proofs; t27 contributes generic ∀ proofs.
-5. **Open-source publication:** Publish `trinity-lean-ternary` v0.3.0 on Lake package registry with all 15 generic ∀ theorems.
+1. **Pool A:** ALL 15 specs 48→49 (+15 invariants, +30 tests)
+2. **CODER:** ALL 10 specs 38→39 (+10 invariants, +20 tests)
+3. **Pool B:** systolic_ternary 63→64 (+1 invariant, +2 tests)
+4. **Integration:** ternary_inference 48→49 (+1 invariant, +2 tests)
+5. **Lean 4:** +2 generic theorems in ONE wave:
+   - `ternaryMacNegatePsumGeneric` — MAC sign preservation with negated psum
+   - `ternaryMulCommutativityWeightFlipGeneric` — weight-code flip symmetry
 
-**Expected outcome:** t27 becomes embedded in 3+ external verified toolchains, making its theorems de facto standards. The `tri` compiler gains formal verification, closing the gap with AMO-Lean.
+**Risk:** MEDIUM — dual Lean theorem requires proof engineering
+**Time estimate:** 2 sessions
+**Competitive impact:** HIGH — 20 generic ∀ theorems creates stronger moat
 
-**Risk:** Requires coordination with external maintainers (TorchLean, AMO-Lean, Sparkle); timeline uncertain. Verified compiler backend is high-complexity.
+---
+
+## Variant C — Hardware Deployment Bridge
+
+**Objective:** Bridge the gap between formal verification and silicon deployment.
+
+**Actions:**
+1. **Pool A:** ALL 15 specs 48→49 (+15 invariants, +30 tests)
+2. **CODER:** ALL 10 specs 38→39 (+10 invariants, +20 tests)
+3. **Pool B:** systolic_ternary 63→64 (+1 invariant, +2 tests)
+4. **Integration:** ternary_inference 48→49 (+1 invariant, +2 tests)
+5. **Lean 4:** +1 generic theorem
+6. **NEW:** Add FPGA synthesis invariants to `.t27` specs (LUT count, DSP count, timing constraints) and generate golden reference vectors for BitNet b1.58 2B4T model weights.
+
+**Risk:** MEDIUM-HIGH — FPGA synthesis requires Vivado-in-Docker per CLAUDE.md instructions
+**Time estimate:** 3-5 sessions
+**Competitive impact:** TRANSFORMATIVE — first step toward spec-to-silicon pipeline
 
 ---
 
 ## Recommendation
 
-**Primary: Variant A (Deepening)** — t27's 15 generic ∀ theorems are its only true moat. Reaching 20 by W310 creates a mathematical barrier that concrete proofs (Sparkle) and autoformalization (CktFormalizer) cannot easily match.
+**Execute Variant A for W309** (recommended). The 16-wave zero-entrant streak is the highest-value asset; any disruption risks breaking the uniform floor pattern. Variant B for W310, Variant C as background research track.
 
-**Secondary: Variant C (Ecosystem + Defense)** — Begin informal outreach to TorchLean and AMO-Lean. The autoformalization threat is real and growing; embedding t27's theorems in external toolchains raises switching costs. The verified compiler backend is a high-value differentiator.
-
-**Tertiary: Variant B (Mobile/Embedded/Multi-Core)** — Defer to W310-W311. Until generic count reaches 20+, breadth expansion risks diluting the specialization advantage. Monitor ENERZAi, bitone, BNRV, and BitNet-RISCV-Multicore for formal verification gaps.
-
----
-
-**Phase complete: Learn**  
-**→ Phase 1: Issue (W309)**
+*φ² + 1/φ² = 3 | TRINITY*
