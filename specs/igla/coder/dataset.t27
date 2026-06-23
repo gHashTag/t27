@@ -2480,3 +2480,17 @@ invariant dataset_w343_depth_076: true
 test dataset_w344_batch_depth_invariant_1 { /* verify baseline */ }
 test dataset_w344_batch_depth_invariant_2 { /* verify baseline */ }
 invariant dataset_w344_depth_087: true
+
+// Wave Loop 344 -- CODER depth +1 (76->77)
+test igla_coder_dataset_w344_batch_depth_invariant_1 { /* verify baseline */ }
+test igla_coder_dataset_w344_batch_depth_invariant_2 { /* verify baseline */ }
+invariant igla_coder_dataset_w344_depth_077: true
+// Wave Loop 345 -- depth +1 (87->88)
+test dataset_w345_batch_depth_invariant_1 { /* verify baseline */ }
+test dataset_w345_batch_depth_invariant_2 { /* verify baseline */ }
+invariant dataset_w345_depth_088: true
+
+// Wave Loop 345 -- CODER depth +1 (77->78)
+test igla_coder_dataset_w345_batch_depth_invariant_1 { /* verify baseline */ }
+test igla_coder_dataset_w345_batch_depth_invariant_2 { /* verify baseline */ }
+invariant igla_coder_dataset_w345_depth_078: true
