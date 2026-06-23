@@ -648,3 +648,7 @@
 - **Commit:** docs(w332): W332 report + cooperation variants for W333
 - **Files:** proofs/lean4/Trinity/TernaryInference.lean,specs/igla/coder/arch.t27,specs/igla/coder/bench_proxy.t27,specs/igla/coder/benchmark.t27,specs/igla/coder/dataset.t27,specs/igla/coder/eval.t27,specs/igla/coder/pipeline.t27,specs/igla/coder/prm.t27,specs/igla/coder/tokenizer.t27,specs/igla/coder/training.t27,specs/igla/coder/weights.t27,specs/igla/race/adder_tree.t27,specs/igla/race/backend.t27,specs/igla/race/bram_weights.t27,specs/igla/race/cordic.t27,specs/igla/race/cordic_fixed.t27,specs/igla/race/cordic_top.t27,specs/igla/race/eda.t27,specs/igla/race/formal.t27,specs/igla/race/gemm.t27
 
+## 2026-06-23T07:19:57Z — trinity-rust-rings
+- **Commit:** feat(w333): W333 IGLA CODER+RACE — Pool A 74→75, CODER 64→65, Pool B 91→92, Integration 74→75, Lean 4 83→86 generic ∀
+- **Files:** docs/reports/WAVE_LOOP_333_COOPERATION.md,docs/reports/WAVE_LOOP_333_REPORT.md
+
