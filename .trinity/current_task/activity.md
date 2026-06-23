@@ -236,3 +236,7 @@
 - **Commit:** feat(wave-loop-299): +27 invariants +54 tests +1 Lean theorem
 - **Files:** proofs/lean4/Trinity/TernaryInference.lean
 
+## 2026-06-23T00:32:08Z — trinity-rust-rings
+- **Commit:** feat(lean4): add ternaryInferenceGemm2x2EqualsReference theorem
+- **Files:** .trinity/seals/race_igla-race-systolic-ternary.json,specs/igla/race/systolic_ternary.t27
+
