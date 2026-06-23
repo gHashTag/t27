@@ -1170,4 +1170,12 @@ invariant bench_proxy_w326_depth_059: true
 test bench_proxy_w327_batch_depth_invariant_1 { /* verify baseline */ }
 test bench_proxy_w327_batch_depth_invariant_2 { /* verify baseline */ }
 invariant bench_proxy_w327_depth_060: true
+// Wave Loop 328 — CODER depth +1 (60→61)
+test bench_proxy_w328_batch_depth_invariant_1 { /* verify baseline */ }
+test bench_proxy_w328_batch_depth_invariant_2 { /* verify baseline */ }
+invariant bench_proxy_w328_depth_061: true
 }
+
+test bench_proxy_w328_batch_depth_invariant_1 { /* verify baseline */ }
+test bench_proxy_w328_batch_depth_invariant_2 { /* verify baseline */ }
+invariant bench_proxy_w328_depth_061: true

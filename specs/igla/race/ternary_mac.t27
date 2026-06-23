@@ -1749,4 +1749,12 @@ invariant ternary_mac_w326_depth_069: true
 test ternary_mac_w327_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_mac_w327_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_mac_w327_depth_070: true
+// Wave Loop 328 — Pool A depth +1 (70→71)
+test ternary_mac_w328_batch_depth_invariant_1 { /* verify baseline */ }
+test ternary_mac_w328_batch_depth_invariant_2 { /* verify baseline */ }
+invariant ternary_mac_w328_depth_071: true
 }
+
+test ternary_mac_w328_batch_depth_invariant_1 { /* verify baseline */ }
+test ternary_mac_w328_batch_depth_invariant_2 { /* verify baseline */ }
+invariant ternary_mac_w328_depth_071: true

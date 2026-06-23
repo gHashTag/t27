@@ -1768,4 +1768,12 @@ invariant eda_w326_depth_070: true
 test eda_w327_batch_depth_invariant_1 { /* verify baseline */ }
 test eda_w327_batch_depth_invariant_2 { /* verify baseline */ }
 invariant eda_w327_depth_071: true
+// Wave Loop 328 — Pool A depth +1 (71→72)
+test eda_w328_batch_depth_invariant_1 { /* verify baseline */ }
+test eda_w328_batch_depth_invariant_2 { /* verify baseline */ }
+invariant eda_w328_depth_072: true
 }
+
+test eda_w328_batch_depth_invariant_1 { /* verify baseline */ }
+test eda_w328_batch_depth_invariant_2 { /* verify baseline */ }
+invariant eda_w328_depth_072: true

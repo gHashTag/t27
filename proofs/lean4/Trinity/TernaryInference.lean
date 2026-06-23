@@ -1016,3 +1016,40 @@ theorem ternaryMacAccumulateSixMinusGeneric (a b c d e f : Int) :
     ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus) = -(a + b + c + d + e + f) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: ternary MAC distributes over activation addition for minus-weights.
+    For any psum, activations a, b: mac(psum, a + b, .minus) = mac(psum, a, .minus) - mac(0, b, .plus).
+    Proves that minus-weight MAC with summed activation decomposes into a difference of MAC operations.
+    Foundation for systolic-array decomposition with negative weights and tiled-GEMM minus-path splitting.
+    Responds to DATE 2026 MAC verification (Kleinekathöfer et al.) — algebraic proof beats SCA for ternary.
+    Completes the full-distributivity lattice: plus-weight (W325) and minus-weight (W328). -/
+
+theorem ternaryMacDistributivityFullMinusGeneric (psum a b : Int) :
+    ternaryMac psum (a + b) (TernaryWeight.mk .minus) = ternaryMac psum a (TernaryWeight.mk .minus) - ternaryMac 0 b (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: ternary MAC distributes over activation subtraction for minus-weights.
+    For any psum, activations a, b: mac(psum, a - b, .minus) = mac(psum, a, .minus) + mac(0, b, .plus).
+    Proves that minus-weight MAC with subtracted activation decomposes into a sum of MAC operations.
+    Foundation for systolic-array difference-computation with negative weights and A-B decomposition.
+    Responds to TENET minus-weight difference-LUT scheduling and TernaryCore subtract-then-add paths.
+    Complements DistributivityOverActivationSubGeneric (plus-weight, W319) for the minus-weight case. -/
+
+theorem ternaryMacDistributivityOverActivationSubMinusGeneric (psum a b : Int) :
+    ternaryMac psum (a - b) (TernaryWeight.mk .minus) = ternaryMac psum a (TernaryWeight.mk .minus) + ternaryMac 0 b (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: commutativity of ternary MAC accumulation with arbitrary psum and plus-weights.
+    For any psum, activations a, b: mac(mac(psum, a, .plus), b, .plus) = mac(mac(psum, b, .plus), a, .plus).
+    Proves that independent contributions commute even with a non-zero accumulator.
+    Foundation for out-of-order systolic scheduling with live accumulators and parallel tiled-GEMM.
+    Extends CommutativityGeneric (W319) from zero-psum to arbitrary psum — stronger induction base.
+    Responds to TENET row-reorder LUT scheduling with accumulators and ternfpga parallel PE dispatch. -/
+
+theorem ternaryMacPsumCommutativityGeneric (psum a b : Int) :
+    ternaryMac (ternaryMac psum a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus) =
+    ternaryMac (ternaryMac psum b (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
