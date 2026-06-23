@@ -462,3 +462,23 @@ theorem ternaryMacZeroPsumZeroActivationGeneric (w : TernaryWeight) :
     ternaryMac 0 0 w = 0 := by
   rcases w with ⟨c⟩
   cases c <;> simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+/-- Generic theorem: negating both the partial sum and the activation preserves the
+    MAC result up to a global negation. For any psum, activation a, and ternary weight w:
+    mac(-psum, a, w) = -(mac(psum, -a, w)).
+    This proves sign-symmetry of the ternary MAC primitive, guaranteeing that
+    signed-arithmetic systolic arrays produce consistent results regardless of
+    input sign conventions — critical for 2-s complement hardware correctness.
+    Responds to Ternary-NanoCore Artix-7 and ternfpga signed-datapath insights. -/
+theorem ternaryMacNegatePsumActivationSymmetricGeneric (psum a : Int) (w : TernaryWeight) :
+    ternaryMac (-psum) a w = -(ternaryMac psum (-a) w) := by
+  rcases w with ⟨c⟩
+  cases c
+  · -- plus
+    simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul]
+    <;> try omega
+  · -- zero
+    simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul]
+    <;> try omega
+  · -- minus
+    simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul]
+    <;> try omega

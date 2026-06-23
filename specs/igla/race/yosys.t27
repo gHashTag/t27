@@ -1412,3 +1412,48 @@ test yosys_is_prefix_case_sensitive_w308
 
 invariant yosys_is_prefix_substring_true_w308_inv:
     is_prefix("hello", "hello world") == true
+test yosys_is_prefix_substring_true_w309
+    given a = "hello"
+    given b = "hello world"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_is_prefix_case_sensitive_w309
+    given a = "Hello"
+    given b = "hello world"
+    when ok = is_prefix(a, b)
+    then ok == false
+
+invariant yosys_is_prefix_substring_true_w309_inv:
+    is_prefix("hello", "hello world") == true
+
+
+test yosys_is_prefix_partial_true_w309
+    given a = "ab"
+    given b = "abc"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_strings_equal_empty_empty_w309
+    given a = ""
+    given b = ""
+    when ok = strings_equal(a, b)
+    then ok == true
+
+invariant yosys_is_prefix_partial_true_w309_inv:
+    is_prefix("ab", "abc") == true
+test yosys_is_prefix_partial_true_w309
+    given a = "ab"
+    given b = "abc"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_strings_equal_empty_empty_w309
+    given a = ""
+    given b = ""
+    when ok = strings_equal(a, b)
+    then ok == true
+
+invariant yosys_is_prefix_partial_true_w309_inv:
+    is_prefix("ab", "abc") == true
+

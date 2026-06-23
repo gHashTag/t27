@@ -1184,3 +1184,54 @@ test training_sgd_negative_weight_positive_grad_w308
 
 invariant training_sgd_small_grad_small_lr_w308_inv:
     sgd_update(10.0, 0.1, 0.1) == 9.99
+test training_sgd_small_grad_small_lr_w309
+    given w = 10.0
+    given grad = 0.1
+    given lr = 0.1
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == 9.99
+
+test training_sgd_negative_weight_positive_grad_w309
+    given w = -5.0
+    given grad = 1.0
+    given lr = 0.5
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == -5.5
+
+invariant training_sgd_small_grad_small_lr_w309_inv:
+    sgd_update(10.0, 0.1, 0.1) == 9.99
+
+
+test training_sgd_zero_lr_no_change_w309
+    given w = 5.0
+    given grad = 1.0
+    given lr = 0.0
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == 5.0
+
+test training_sgd_negative_weight_positive_grad_w309
+    given w = -5.0
+    given grad = 1.0
+    given lr = 0.1
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == -5.1
+
+invariant training_sgd_zero_lr_no_change_w309_inv:
+    sgd_update(5.0, 1.0, 0.0) == 5.0
+test training_sgd_zero_lr_no_change_w309
+    given w = 5.0
+    given grad = 1.0
+    given lr = 0.0
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == 5.0
+
+test training_sgd_negative_weight_positive_grad_w309
+    given w = -5.0
+    given grad = 1.0
+    given lr = 0.1
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == -5.1
+
+invariant training_sgd_zero_lr_no_change_w309_inv:
+    sgd_update(5.0, 1.0, 0.0) == 5.0
+

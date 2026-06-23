@@ -1297,3 +1297,42 @@ test cordic_top_batch_empty_batch_w308
 
 invariant cordic_top_batch_empty_batch_w308_inv:
     cordic_top_batch([]).len() == 0
+test cordic_top_batch_three_angles_w309
+    given batch = [[0.0], [2.570796], [4.141592]]
+    when result = cordic_top_batch(batch)
+    then result.len() == 3
+
+test cordic_top_batch_empty_batch_w309
+    given batch = []
+    when result = cordic_top_batch(batch)
+    then result.len() == 0
+
+invariant cordic_top_batch_empty_batch_w309_inv:
+    cordic_top_batch([]).len() == 0
+
+
+test cordic_top_batch_negative_sum_w309
+    given angles = [-1000, -2000, -3000]
+    when sum = cordic_top_batch(angles)
+    then sum == -6000
+
+test cordic_top_batch_mixed_sum_w309
+    given angles = [1000, -500, 2000, -1500]
+    when sum = cordic_top_batch(angles)
+    then sum == 1000
+
+invariant cordic_top_batch_negative_sum_w309_inv:
+    cordic_top_batch([-1000, -2000, -3000]) == -6000
+test cordic_top_batch_negative_sum_w309
+    given angles = [-1000, -2000, -3000]
+    when sum = cordic_top_batch(angles)
+    then sum == -6000
+
+test cordic_top_batch_mixed_sum_w309
+    given angles = [1000, -500, 2000, -1500]
+    when sum = cordic_top_batch(angles)
+    then sum == 1000
+
+invariant cordic_top_batch_negative_sum_w309_inv:
+    cordic_top_batch([-1000, -2000, -3000]) == -6000
+

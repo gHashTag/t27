@@ -1214,3 +1214,46 @@ test prm_select_top_descending_w308
 
 invariant prm_select_top_descending_w308_inv:
     select_top([0.9f32, 0.7f32, 0.5f32, 0.3f32, 0.1f32], 5) == [0, 1, 2, 3, 4]
+test prm_select_top_three_equal_w309
+    given scores = [0.5f32, 0.5f32, 0.5f32]
+    given k = 3
+    when indices = select_top(scores, k)
+    then indices == [1, 2, 3]
+
+test prm_select_top_descending_w309
+    given scores = [0.9f32, 0.7f32, 0.5f32, 0.3f32, 0.1f32]
+    given k = 5
+    when indices = select_top(scores, k)
+    then indices == [1, 2, 3, 4, 5]
+
+invariant prm_select_top_descending_w309_inv:
+    select_top([0.9f32, 0.7f32, 0.5f32, 0.3f32, 0.1f32], 5) == [1, 2, 3, 4, 5]
+
+
+test prm_param_bounds_saturate_max_boundary_identity_w309
+    given val = 127
+    when result = param_bounds_saturate(val)
+    then result == 127
+
+test prm_select_top_empty_empty_w309
+    given scores = []
+    given k = 0
+    when indices = select_top(scores, k)
+    then indices == []
+
+invariant prm_param_bounds_saturate_max_boundary_identity_w309_inv:
+    param_bounds_saturate(127) == 127
+test prm_param_bounds_saturate_max_boundary_identity_w309
+    given val = 127
+    when result = param_bounds_saturate(val)
+    then result == 127
+
+test prm_select_top_empty_empty_w309
+    given scores = []
+    given k = 0
+    when indices = select_top(scores, k)
+    then indices == []
+
+invariant prm_param_bounds_saturate_max_boundary_identity_w309_inv:
+    param_bounds_saturate(127) == 127
+

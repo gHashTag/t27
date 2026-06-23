@@ -2049,3 +2049,52 @@ test dataset_batch_size_ten_one_batch_w308
 
 invariant dataset_batch_size_ten_one_batch_w308_inv:
     batch([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 10).len() == 1
+test dataset_shuffle_three_elements_w309
+    given data = [2, 3, 4]
+    given seed = 42
+    when result = shuffle(data, seed)
+    then result.len() == 3
+
+test dataset_batch_size_ten_one_batch_w309
+    given data = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    given size = 10
+    when batches = batch(data, size)
+    then batches.len() == 1
+
+invariant dataset_batch_size_ten_one_batch_w309_inv:
+    batch([2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 10).len() == 1
+
+
+test dataset_shuffle_different_seed_different_w309
+    given data = [1, 2, 3, 4]
+    given seed1 = 1
+    given seed2 = 2
+    when r1 = shuffle(data, seed1)
+    when r2 = shuffle(data, seed2)
+    then r1 != r2
+
+test dataset_batch_size_one_same_len_w309
+    given data = [1, 2, 3]
+    given size = 1
+    when batches = batch(data, size)
+    then batches.len() == 3
+
+invariant dataset_batch_size_one_same_len_w309_inv:
+    batch([1, 2, 3], 1).len() == 3
+test dataset_shuffle_different_seed_different_w309
+    given data = [1, 2, 3, 4]
+    given seed1 = 1
+    given seed2 = 2
+    when r1 = shuffle(data, seed1)
+    when r2 = shuffle(data, seed2)
+    then r1 != r2
+
+test dataset_batch_size_one_same_len_w309
+    given data = [1, 2, 3]
+    given size = 1
+    when batches = batch(data, size)
+    then batches.len() == 3
+
+invariant dataset_batch_size_one_same_len_w309_inv:
+    batch([1, 2, 3], 1).len() == 3
+

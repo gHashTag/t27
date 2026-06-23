@@ -1382,3 +1382,48 @@ test ternary_gemm_minus_weights_negate_w308
 
 invariant ternary_gemm_identity_passthrough_w308_inv:
     ternary_gemm_2x2([5, 6, 7, 8], [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]) == [5, 6, 7, 8]
+test ternary_gemm_identity_passthrough_w309
+    given activations = [6, 7, 8, 9]
+    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
+    when result = ternary_gemm_2x2(activations, weights)
+    then result == [6, 7, 8, 9]
+
+test ternary_gemm_minus_weights_negate_w309
+    given activations = [2, 3, 4, 5]
+    given weights = [TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus()]
+    when result = ternary_gemm_2x2(activations, weights)
+    then result == [0, -1, -2, -3]
+
+invariant ternary_gemm_identity_passthrough_w309_inv:
+    ternary_gemm_2x2([6, 7, 8, 9], [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]) == [6, 7, 8, 9]
+
+
+test ternary_gemm_minus_weights_negate_activations_w309
+    given a = [cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)]
+    given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 4 && out[0] == -2 && out[1] == -3
+
+test ternary_gemm_mixed_weights_selective_w309
+    given a = [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 4 && out[0] == 1 && out[1] == -1
+
+invariant ternary_gemm_minus_weights_negate_activations_w309_inv:
+    ternary_gemm([cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)], [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]).len() == 4
+test ternary_gemm_minus_weights_negate_activations_w309
+    given a = [cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)]
+    given w = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 4 && out[0] == -2 && out[1] == -3
+
+test ternary_gemm_mixed_weights_selective_w309
+    given a = [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 4 && out[0] == 1 && out[1] == -1
+
+invariant ternary_gemm_minus_weights_negate_activations_w309_inv:
+    ternary_gemm([cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)], [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]).len() == 4
+

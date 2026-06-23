@@ -1272,3 +1272,42 @@ test cordic_fixed_sin_three_pi_half_neg_one_w308
 
 invariant cordic_fixed_cos_three_pi_half_zero_w308_inv:
     cordic_fixed_cos(4.71238898) >= -0.1
+test cordic_fixed_cos_three_pi_half_zero_w309
+    given x = 4.71238898
+    when result = cordic_fixed_cos(x)
+    then result >= -0.1 && result <= 0.1
+
+test cordic_fixed_sin_three_pi_half_neg_one_w309
+    given x = 4.71238898
+    when result = cordic_fixed_sin(x)
+    then result >= -1.1 && result <= -0.9
+
+invariant cordic_fixed_cos_three_pi_half_zero_w309_inv:
+    cordic_fixed_cos(4.71238898) >= -0.1
+
+
+test cordic_fixed_sin_pi_over_two_w309
+    given a = 16384
+    when s = cordic_sin(a)
+    then s > 16380 && s < 16388
+
+test cordic_fixed_cos_pi_over_two_w309
+    given a = 16384
+    when c = cordic_cos(a)
+    then c > -2 && c < 2
+
+invariant cordic_fixed_sin_pi_over_two_w309_inv:
+    cordic_sin(16384) > 16380 && cordic_sin(16384) < 16388
+test cordic_fixed_sin_pi_over_two_w309
+    given a = 16384
+    when s = cordic_sin(a)
+    then s > 16380 && s < 16388
+
+test cordic_fixed_cos_pi_over_two_w309
+    given a = 16384
+    when c = cordic_cos(a)
+    then c > -2 && c < 2
+
+invariant cordic_fixed_sin_pi_over_two_w309_inv:
+    cordic_sin(16384) > 16380 && cordic_sin(16384) < 16388
+

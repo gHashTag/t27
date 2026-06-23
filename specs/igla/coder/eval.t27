@@ -3272,3 +3272,48 @@ test eval_accuracy_four_all_correct_w308
 
 invariant eval_accuracy_four_all_correct_w308_inv:
     accuracy([1, 2, 3, 4], [1, 2, 3, 4]) == 1.0
+test eval_accuracy_two_half_correct_w309
+    given preds = [2, 1]
+    given refs = [2, 3]
+    when acc = accuracy(preds, refs)
+    then acc == 0.5
+
+test eval_accuracy_four_all_correct_w309
+    given preds = [2, 3, 4, 5]
+    given refs = [2, 3, 4, 5]
+    when acc = accuracy(preds, refs)
+    then acc == 1.0
+
+invariant eval_accuracy_four_all_correct_w309_inv:
+    accuracy([2, 3, 4, 5], [2, 3, 4, 5]) == 1.0
+
+
+test eval_accuracy_three_all_correct_w309
+    given preds = [1, 2, 3]
+    given refs = [1, 2, 3]
+    when acc = accuracy(preds, refs)
+    then acc == 1.0
+
+test eval_accuracy_three_all_wrong_w309
+    given preds = [0, 0, 0]
+    given refs = [1, 2, 3]
+    when acc = accuracy(preds, refs)
+    then acc == 0.0
+
+invariant eval_accuracy_three_all_correct_w309_inv:
+    accuracy([1, 2, 3], [1, 2, 3]) == 1.0
+test eval_accuracy_three_all_correct_w309
+    given preds = [1, 2, 3]
+    given refs = [1, 2, 3]
+    when acc = accuracy(preds, refs)
+    then acc == 1.0
+
+test eval_accuracy_three_all_wrong_w309
+    given preds = [0, 0, 0]
+    given refs = [1, 2, 3]
+    when acc = accuracy(preds, refs)
+    then acc == 0.0
+
+invariant eval_accuracy_three_all_correct_w309_inv:
+    accuracy([1, 2, 3], [1, 2, 3]) == 1.0
+

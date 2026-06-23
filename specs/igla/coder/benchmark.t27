@@ -4273,3 +4273,42 @@ test benchmark_mean_three_mixed_w308
 
 invariant benchmark_mean_two_mixed_w308_inv:
     mean([5.0, -3.0]) == 1.0
+test benchmark_mean_two_mixed_w309
+    given values = [6.0, -2.0]
+    when m = mean(values)
+    then m == 1.0
+
+test benchmark_mean_three_mixed_w309
+    given values = [11.0, -1.0, 5.0]
+    when m = mean(values)
+    then m == 4.0
+
+invariant benchmark_mean_two_mixed_w309_inv:
+    mean([6.0, -2.0]) == 1.0
+
+
+test benchmark_mean_five_equal_w309
+    given values = [7.0, 7.0, 7.0, 7.0, 7.0]
+    when m = mean(values)
+    then m == 7.0
+
+test benchmark_mean_negative_positive_w309
+    given values = [-5.0, 5.0]
+    when m = mean(values)
+    then m == 0.0
+
+invariant benchmark_mean_five_equal_w309_inv:
+    mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0
+test benchmark_mean_five_equal_w309
+    given values = [7.0, 7.0, 7.0, 7.0, 7.0]
+    when m = mean(values)
+    then m == 7.0
+
+test benchmark_mean_negative_positive_w309
+    given values = [-5.0, 5.0]
+    when m = mean(values)
+    then m == 0.0
+
+invariant benchmark_mean_five_equal_w309_inv:
+    mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0
+

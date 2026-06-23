@@ -1269,3 +1269,48 @@ test gemm_booth_mul_i32_small_positive_w308
 
 invariant gemm_booth_mul_i32_small_positive_w308_inv:
     booth_mul_i32(3, 7) == 21
+test gemm_booth_mul_i32_large_negative_positive_w309
+    given a = -1000
+    given b = 100
+    when p = booth_mul_i32(a, b)
+    then p == -100000
+
+test gemm_booth_mul_i32_small_positive_w309
+    given a = 3
+    given b = 7
+    when p = booth_mul_i32(a, b)
+    then p == 21
+
+invariant gemm_booth_mul_i32_small_positive_w309_inv:
+    booth_mul_i32(3, 7) == 21
+
+
+test gemm_booth_mul_i32_small_product_w309
+    given a = 3
+    given b = 4
+    when p = booth_mul_i32(a, b)
+    then p == 12
+
+test gemm_booth_mul_i32_negative_small_w309
+    given a = -3
+    given b = -4
+    when p = booth_mul_i32(a, b)
+    then p == 12
+
+invariant gemm_booth_mul_i32_small_product_w309_inv:
+    booth_mul_i32(3, 4) == 12
+test gemm_booth_mul_i32_small_product_w309
+    given a = 3
+    given b = 4
+    when p = booth_mul_i32(a, b)
+    then p == 12
+
+test gemm_booth_mul_i32_negative_small_w309
+    given a = -3
+    given b = -4
+    when p = booth_mul_i32(a, b)
+    then p == 12
+
+invariant gemm_booth_mul_i32_small_product_w309_inv:
+    booth_mul_i32(3, 4) == 12
+

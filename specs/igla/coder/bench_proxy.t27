@@ -858,3 +858,48 @@ test bench_proxy_throughput_two_ops_w308
 
 invariant bench_proxy_throughput_one_op_w308_inv:
     throughput(1, 1000) == 1.0
+test bench_proxy_throughput_one_op_w309
+    given ops = 1
+    given ns = 1000
+    when t = throughput(ops, ns)
+    then t == 1.0
+
+test bench_proxy_throughput_two_ops_w309
+    given ops = 2
+    given ns = 1000
+    when t = throughput(ops, ns)
+    then t == 2.0
+
+invariant bench_proxy_throughput_one_op_w309_inv:
+    throughput(1, 1000) == 1.0
+
+
+test bench_proxy_throughput_thousand_ops_w309
+    given ops = 1000
+    given ns = 500
+    when t = throughput(ops, ns)
+    then t == 2.0
+
+test bench_proxy_throughput_zero_ns_inf_w309
+    given ops = 100
+    given ns = 0
+    when t = throughput(ops, ns)
+    then t == 0.0
+
+invariant bench_proxy_throughput_thousand_ops_w309_inv:
+    throughput(1000, 500) == 2.0
+test bench_proxy_throughput_thousand_ops_w309
+    given ops = 1000
+    given ns = 500
+    when t = throughput(ops, ns)
+    then t == 2.0
+
+test bench_proxy_throughput_zero_ns_inf_w309
+    given ops = 100
+    given ns = 0
+    when t = throughput(ops, ns)
+    then t == 0.0
+
+invariant bench_proxy_throughput_thousand_ops_w309_inv:
+    throughput(1000, 500) == 2.0
+
