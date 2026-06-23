@@ -1446,3 +1446,59 @@ theorem ternaryMacPsumDoubleActivationMinusGeneric (psum a : Int) :
     ternaryMac psum (2 * a) (TernaryWeight.mk .minus) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: psum triple activation with plus-weights.
+    For any psum, activation a: mac³(psum, a, .plus) = mac(psum, 3*a, .plus).
+    Proves that three consecutive plus-weight MAC stages with the same activation are equivalent to
+    a single MAC with tripled activation. Foundation for power-of-three systolic folding and
+    activation-reuse optimizations in ternary inference pipelines.
+    Extends PsumDoubleActivationPlusGeneric (W336) to depth 3.
+    Responds to TernaryCore fused accumulation paths and TENET LUT-based power-of-three folding. -/
+
+theorem ternaryMacPsumTripleActivationPlusGeneric (psum a : Int) :
+    ternaryMac (ternaryMac (ternaryMac psum a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .plus) =
+    ternaryMac psum (3 * a) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: psum triple activation with minus-weights.
+    For any psum, activation a: mac³(psum, a, .minus) = mac(psum, 3*a, .minus).
+    Proves that three consecutive minus-weight MAC stages with the same activation are equivalent to
+    a single MAC with tripled activation (subtracted from psum). Foundation for signed
+    power-of-three systolic folding and activation-reuse optimizations.
+    Extends PsumDoubleActivationMinusGeneric (W336) to depth 3.
+    Completes the psum triple-activation lattice alongside PsumTripleActivationPlusGeneric.
+    Responds to TernaryCore multi-stage signed subtraction and TENET LUT-based folding. -/
+
+theorem ternaryMacPsumTripleActivationMinusGeneric (psum a : Int) :
+    ternaryMac (ternaryMac (ternaryMac psum a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus) =
+    ternaryMac psum (3 * a) (TernaryWeight.mk .minus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating thirteen independent activations with plus-weights.
+    For any activations a, b, c, d, e, f, g, h, i, j, k, l, m:
+    mac¹³(0, [a..m], .plus) = a+b+c+d+e+f+g+h+i+j+k+l+m.
+    Ultimate stress-test for the omega automation boundary beyond the 12-variable proven depth (W336).
+    If successful, establishes that simp+omega scales to 13 variables — an unprecedented result
+    for formal hardware verification. If it fails, empirically documents the omega saturation point.
+    Foundation for next-generation 13×13 systolic tiles and ultra-wide accumulation pipelines.
+    Responds to DATE 2026 SCA-based MAC verification limits. -/
+
+theorem ternaryMacAccumulateThirteenPlusGeneric (a b c d e f g h i j k l m : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus)) k (TernaryWeight.mk .plus)) l (TernaryWeight.mk .plus)) m (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j + k + l + m := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating thirteen independent activations with minus-weights.
+    For any activations a, b, c, d, e, f, g, h, i, j, k, l, m:
+    mac¹³(0, [a..m], .minus) = -(a+b+c+d+e+f+g+h+i+j+k+l+m).
+    Complements AccumulateThirteenPlusGeneric (W337) to complete the 13-variable accumulation lattice
+    for both signs. Ultimate stress-test for the omega automation boundary with negation.
+    Foundation for next-generation 13×13 signed systolic tiles and ultra-wide subtraction pipelines.
+    Responds to TernaryCore multi-stage signed accumulation and DATE 2026 SCA-based verification limits. -/
+
+theorem ternaryMacAccumulateThirteenMinusGeneric (a b c d e f g h i j k l m : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus)) g (TernaryWeight.mk .minus)) h (TernaryWeight.mk .minus)) i (TernaryWeight.mk .minus)) j (TernaryWeight.mk .minus)) k (TernaryWeight.mk .minus)) l (TernaryWeight.mk .minus)) m (TernaryWeight.mk .minus) = -(a + b + c + d + e + f + g + h + i + j + k + l + m) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

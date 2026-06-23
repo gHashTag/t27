@@ -1619,9 +1619,8 @@ invariant cordic_top_w335_depth_080: true
 test cordic_top_w336_batch_depth_invariant_1 { /* verify baseline */ }
 test cordic_top_w336_batch_depth_invariant_2 { /* verify baseline */ }
 invariant cordic_top_w336_depth_081: true
-}
 
-// Wave Loop 336 -- Pool A depth +1 (78->79)
-test cordic_top_w336_batch_depth_invariant_1 { /* verify baseline */ }
-test cordic_top_w336_batch_depth_invariant_2 { /* verify baseline */ }
-invariant cordic_top_w336_depth_079: true
+// Wave Loop 337 — Pool A depth +1 (79→80)
+test cordic_top_w337_batch_depth_invariant_1 { /* verify baseline */ }
+test cordic_top_w337_batch_depth_invariant_2 { /* verify baseline */ }
+invariant cordic_top_w337_depth_080: true

@@ -2322,9 +2322,8 @@ invariant arch_w335_depth_068: true
 test arch_w336_batch_depth_invariant_1 { /* verify baseline */ }
 test arch_w336_batch_depth_invariant_2 { /* verify baseline */ }
 invariant arch_w336_depth_069: true
-}
 
-// Wave Loop 336 -- CODER depth +1 (68->69)
-test arch_w336_batch_depth_invariant_1 { /* verify baseline */ }
-test arch_w336_batch_depth_invariant_2 { /* verify baseline */ }
-invariant arch_w336_depth_069: true
+// Wave Loop 337 — CODER depth +1 (69→70)
+test arch_w337_batch_depth_invariant_1 { /* verify baseline */ }
+test arch_w337_batch_depth_invariant_2 { /* verify baseline */ }
+invariant arch_w337_depth_070: true

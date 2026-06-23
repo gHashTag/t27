@@ -1566,9 +1566,8 @@ invariant training_w335_depth_069: true
 test training_w336_batch_depth_invariant_1 { /* verify baseline */ }
 test training_w336_batch_depth_invariant_2 { /* verify baseline */ }
 invariant training_w336_depth_070: true
-}
 
-// Wave Loop 336 -- CODER depth +1 (68->69)
-test training_w336_batch_depth_invariant_1 { /* verify baseline */ }
-test training_w336_batch_depth_invariant_2 { /* verify baseline */ }
-invariant training_w336_depth_069: true
+// Wave Loop 337 — CODER depth +1 (69→70)
+test training_w337_batch_depth_invariant_1 { /* verify baseline */ }
+test training_w337_batch_depth_invariant_2 { /* verify baseline */ }
+invariant training_w337_depth_070: true
