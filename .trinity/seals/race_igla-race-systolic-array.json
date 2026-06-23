@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6b03b571412e2922a3c7c3567f56e58a4f1d7a691f1107afbbeb38b0d1ad1d80",
   "module": "igla-race-systolic-array",
   "ring": 12,
-  "sealed_at": "2026-06-23T01:05:33Z",
+  "sealed_at": "2026-06-23T01:09:17Z",
   "spec_hash": "sha256:7a15a42ec77e8aae8dd92bf19e83755e18c7f7b4d7e23d994feaece94f7a9d0d",
   "spec_path": "specs/igla/race/systolic_array.t27"
 }

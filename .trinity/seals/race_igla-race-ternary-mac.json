@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:fbd5c410bdf8a0a22341fc83fa4630494619d450d7c23d4f1ac07d37b8da21d7",
   "module": "igla-race-ternary-mac",
   "ring": 12,
-  "sealed_at": "2026-06-23T01:05:33Z",
+  "sealed_at": "2026-06-23T01:09:17Z",
   "spec_hash": "sha256:a27fe796feecb5e9cdf7522881415c16bb26ea6ba567349706a641e4c061674b",
   "spec_path": "specs/igla/race/ternary_mac.t27"
 }
