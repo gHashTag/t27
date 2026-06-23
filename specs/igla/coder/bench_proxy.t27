@@ -828,3 +828,33 @@ test bench_proxy_throughput_zero_ns_inf_w306
 
 invariant bench_proxy_throughput_thousand_ops_w306_inv:
     throughput(1000, 500) == 2.0
+
+test bench_proxy_throughput_zero_ops_zero_w307
+    given ops = 0
+    given ns = 1000
+    when t = throughput(ops, ns)
+    then t == 0.0
+
+test bench_proxy_throughput_large_ops_w307
+    given ops = 1000000
+    given ns = 1000
+    when t = throughput(ops, ns)
+    then t == 1000000.0
+
+invariant bench_proxy_throughput_large_ops_w307_inv:
+    throughput(1000000, 1000) == 1000000.0
+
+test bench_proxy_latency_zero_ops_w307
+    given ops = 0
+    given ns = 1000
+    when l = latency(ops, ns)
+    then l == 0.0
+
+test bench_proxy_throughput_large_ops_w307
+    given ops = 10000
+    given ns = 100
+    when t = throughput(ops, ns)
+    then t == 100.0
+
+invariant bench_proxy_throughput_large_ops_w307_inv:
+    throughput(10000, 100) == 100.0

@@ -3242,3 +3242,33 @@ test eval_accuracy_three_all_wrong_w306
 
 invariant eval_accuracy_three_all_correct_w306_inv:
     accuracy([1, 2, 3], [1, 2, 3]) == 1.0
+
+test eval_accuracy_one_correct_w307
+    given preds = [7]
+    given refs = [7]
+    when acc = accuracy(preds, refs)
+    then acc == 1.0
+
+test eval_accuracy_one_wrong_w307
+    given preds = [0]
+    given refs = [1]
+    when acc = accuracy(preds, refs)
+    then acc == 0.0
+
+invariant eval_accuracy_one_correct_w307_inv:
+    accuracy([7], [7]) == 1.0
+
+test eval_accuracy_one_correct_w307
+    given preds = [1]
+    given refs = [1]
+    when acc = accuracy(preds, refs)
+    then acc == 1.0
+
+test eval_accuracy_one_wrong_w307
+    given preds = [0]
+    given refs = [1]
+    when acc = accuracy(preds, refs)
+    then acc == 0.0
+
+invariant eval_accuracy_one_correct_w307_inv:
+    accuracy([1], [1]) == 1.0

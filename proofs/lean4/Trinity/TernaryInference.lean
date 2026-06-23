@@ -400,3 +400,37 @@ theorem ternaryMulDistributiveOverActivationAddGeneric (a b : Int) (w : TernaryW
   · -- minus
     simp [ternaryMul, ternaryDecode]
     rw [Int.neg_add]
+/-- Generic theorem: negating the activation before ternary multiplication
+    negates the result. For any activation a and any ternary weight w:
+    mul(-a, w) = -mul(a, w).
+    This is the sign-preservation property that guarantees ternary GEMM
+    handles negative activations correctly, critical for signed arithmetic
+    in accumulator-based systolic arrays and FMA units.
+    Responds to Hesper GPU BitNet b1.58 and ternfpga sparsity-skipping insights. -/
+theorem ternaryMulNegateActivationGeneric (a : Int) (w : TernaryWeight) :
+    ternaryMul (-a) w = - (ternaryMul a w) := by
+  rcases w with ⟨c⟩
+  cases c
+  · -- plus
+    simp [ternaryMul, ternaryDecode]
+    <;> try native_decide
+  · -- zero
+    simp [ternaryMul, ternaryDecode]
+    <;> try native_decide
+  · -- minus
+    simp [ternaryMul, ternaryDecode]
+    <;> try native_decide
+/-- Generic theorem: for any activation a, a plus-weight ternary MAC with zero partial
+    sum equals the activation itself. This is the specialization of MacPlusWeightIdentityGeneric
+    to psum=0, proving that zero-psum plus-weight MAC is pure passthrough.
+    Responds to Sparkle HDL FMA correctness and BitNet b1.58 datapath verification. -/
+theorem ternaryMacZeroPsumPlusWeightEqualsActivationGeneric (a : Int) :
+    ternaryMac 0 a (TernaryWeight.mk .plus) = a := by
+  simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+/-- Generic theorem: for any activation a, a minus-weight ternary MAC with zero partial
+    sum equals the negated activation. This is the specialization of MacMinusWeightIdentityGeneric
+    to psum=0, proving the algebraic consistency of the ternary MAC sign-inversion path.
+    Responds to Sparkle HDL sign-correctness and TernaryCore sign-select verification. -/
+theorem ternaryMacZeroPsumMinusWeightEqualsNegationGeneric (a : Int) :
+    ternaryMac 0 a (TernaryWeight.mk .minus) = -a := by
+  simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide

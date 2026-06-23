@@ -1352,3 +1352,33 @@ test systolic_array_booth_mul_i16_small_negative_w306
 
 invariant systolic_array_booth_mul_i16_small_positive_w306_inv:
     booth_mul_i16(2, 3) == 6
+
+test systolic_array_booth_mul_i16_zero_left_w307
+    given a = 0
+    given b = 42
+    when p = booth_mul_i16(a, b)
+    then p == 0
+
+test systolic_array_booth_mul_i16_large_negative_w307
+    given a = -100
+    given b = 50
+    when p = booth_mul_i16(a, b)
+    then p == -5000
+
+invariant systolic_array_booth_mul_i16_zero_left_w307_inv:
+    booth_mul_i16(0, 42) == 0
+
+test systolic_array_booth_mul_i16_zero_zero_w307
+    given a = 0
+    given b = 7
+    when p = booth_mul_i16(a, b)
+    then p == 0
+
+test systolic_array_booth_mul_i16_identity_w307
+    given a = 1
+    given b = 100
+    when p = booth_mul_i16(a, b)
+    then p == 100
+
+invariant systolic_array_booth_mul_i16_zero_zero_w307_inv:
+    booth_mul_i16(0, 7) == 0

@@ -4247,3 +4247,29 @@ test benchmark_mean_negative_positive_w306
 
 invariant benchmark_mean_five_equal_w306_inv:
     mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0
+
+test benchmark_mean_empty_nan_w307
+    given values = []
+    when m = mean(values)
+    then m != m
+
+test benchmark_mean_five_incremental_w307
+    given values = [1.0, 2.0, 3.0, 4.0, 5.0]
+    when m = mean(values)
+    then m == 3.0
+
+invariant benchmark_mean_five_incremental_w307_inv:
+    mean([1.0, 2.0, 3.0, 4.0, 5.0]) == 3.0
+
+test benchmark_mean_single_element_identity_w307
+    given values = [42.0]
+    when m = mean(values)
+    then m == 42.0
+
+test benchmark_mean_symmetric_zero_w307
+    given values = [-10.0, 10.0]
+    when m = mean(values)
+    then m == 0.0
+
+invariant benchmark_mean_single_element_identity_w307_inv:
+    mean([42.0]) == 42.0

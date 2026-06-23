@@ -1940,3 +1940,33 @@ test arch_generate_next_token_topk_three_highest_w306
 
 invariant arch_add_slices_negative_offset_empty_w306_inv:
     add_slices([1.0f32, 2.0f32], [3.0f32], 5).len() == 0
+
+test arch_add_slices_three_elements_w307
+    given a = [1, 2, 3]
+    given b = [4, 5, 6]
+    when c = add_slices(a, b, 0)
+    then c == [5, 7, 9]
+
+test arch_generate_next_token_tie_break_first_w307
+    given logits = [0.5f32, 0.5f32]
+    given k = 1
+    when token = generate_next_token(logits, k)
+    then token == 0
+
+invariant arch_add_slices_three_elements_w307_inv:
+    add_slices([1, 2, 3], [4, 5, 6], 0) == [5, 7, 9]
+
+test arch_add_slices_identity_zero_w307
+    given a = [1.0f32, 2.0f32, 3.0f32]
+    given b = [0.0f32, 0.0f32, 0.0f32]
+    when c = add_slices(a, b, 0)
+    then c == [1.0f32, 2.0f32, 3.0f32]
+
+test arch_generate_next_token_topk_four_all_w307
+    given logits = [0.1f32, 0.2f32, 0.3f32, 0.4f32]
+    given k = 4
+    when tokens = generate_next_token(logits, k)
+    then tokens.len() == 4
+
+invariant arch_add_slices_identity_zero_w307_inv:
+    add_slices([1.0f32, 2.0f32, 3.0f32], [0.0f32, 0.0f32, 0.0f32], 0) == [1.0f32, 2.0f32, 3.0f32]

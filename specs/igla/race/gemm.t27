@@ -1239,3 +1239,33 @@ test gemm_booth_mul_i32_negative_small_w306
 
 invariant gemm_booth_mul_i32_small_product_w306_inv:
     booth_mul_i32(3, 4) == 12
+
+test gemm_booth_mul_i32_max_positive_w307
+    given a = 10000
+    given b = 10000
+    when p = booth_mul_i32(a, b)
+    then p == 100000000
+
+test gemm_booth_mul_i32_min_negative_w307
+    given a = -10000
+    given b = -10000
+    when p = booth_mul_i32(a, b)
+    then p == 100000000
+
+invariant gemm_booth_mul_i32_max_positive_w307_inv:
+    booth_mul_i32(10000, 10000) == 100000000
+
+test gemm_booth_mul_i32_one_identity_w307
+    given a = 1
+    given b = 42
+    when p = booth_mul_i32(a, b)
+    then p == 42
+
+test gemm_booth_mul_i32_zero_zero_w307
+    given a = 0
+    given b = 99
+    when p = booth_mul_i32(a, b)
+    then p == 0
+
+invariant gemm_booth_mul_i32_one_identity_w307_inv:
+    booth_mul_i32(1, 42) == 42

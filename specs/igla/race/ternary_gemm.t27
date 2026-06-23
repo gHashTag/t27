@@ -1352,3 +1352,33 @@ test ternary_gemm_mixed_weights_selective_w306
 
 invariant ternary_gemm_minus_weights_negate_activations_w306_inv:
     ternary_gemm([cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)], [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]).len() == 4
+
+test ternary_gemm_alternating_plus_minus_zero_w307
+    given activations = [1, 2, 3, 4]
+    given weights = [TernaryWeight::plus(), TernaryWeight::minus(), TernaryWeight::plus(), TernaryWeight::minus()]
+    when result = ternary_gemm_2x2(activations, weights)
+    then result == [1, -2, 3, -4]
+
+test ternary_gemm_all_zero_weights_zero_w307
+    given activations = [99, -88, 77, -66]
+    given weights = [TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero()]
+    when result = ternary_gemm_2x2(activations, weights)
+    then result == [0, 0, 0, 0]
+
+invariant ternary_gemm_alternating_plus_minus_zero_w307_inv:
+    ternary_gemm_2x2([1, 2, 3, 4], [TernaryWeight::plus(), TernaryWeight::minus(), TernaryWeight::plus(), TernaryWeight::minus()]) == [1, -2, 3, -4]
+
+test ternary_gemm_all_plus_weights_preserve_w307
+    given a = [cast_i8(3), cast_i8(4), cast_i8(5), cast_i8(6)]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 4 && out[0] == 3 && out[1] == 4
+
+test ternary_gemm_all_zero_weights_zero_w307
+    given a = [cast_i8(99), cast_i8(-50), cast_i8(25), cast_i8(-75)]
+    given w = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
+    when out = ternary_gemm(a, w)
+    then out.len() == 4 && out[0] == 0 && out[1] == 0 && out[2] == 0 && out[3] == 0
+
+invariant ternary_gemm_all_zero_weights_zero_w307_inv:
+    ternary_gemm([cast_i8(99), cast_i8(-50), cast_i8(25), cast_i8(-75)], [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]).len() == 4

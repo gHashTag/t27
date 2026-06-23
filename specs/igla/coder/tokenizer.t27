@@ -994,3 +994,32 @@ test tokenizer_tokenize_single_token_len_two_w306
 
 invariant tokenizer_encode_decode_roundtrip_w306_inv:
     decode(encode("test")) == "test"
+
+test tokenizer_encode_decode_unicode_w307
+    given text = "αβγ"
+    when tokens = encode(text)
+    when text2 = decode(tokens)
+    then text2 == "αβγ"
+
+test tokenizer_encode_long_text_w307
+    given text = "hello world from t27"
+    when tokens = encode(text)
+    when text2 = decode(tokens)
+    then text2 == "hello world from t27"
+
+invariant tokenizer_encode_decode_unicode_w307_inv:
+    decode(encode("αβγ")) == "αβγ"
+
+test tokenizer_encode_decode_empty_roundtrip_w307
+    given text = ""
+    when tokens = encode(text)
+    when text2 = decode(tokens)
+    then text2 == ""
+
+test tokenizer_tokenize_empty_empty_w307
+    given tokens = []
+    when result = tokenize(tokens)
+    then result.len() == 0
+
+invariant tokenizer_encode_decode_empty_roundtrip_w307_inv:
+    decode(encode("")) == ""

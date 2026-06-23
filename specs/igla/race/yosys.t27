@@ -1382,3 +1382,33 @@ test yosys_strings_equal_empty_empty_w306
 
 invariant yosys_is_prefix_partial_true_w306_inv:
     is_prefix("ab", "abc") == true
+
+test yosys_is_prefix_prefix_of_self_true_w307
+    given a = "hello world"
+    given b = "hello world"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_is_prefix_empty_prefix_true_w307
+    given a = ""
+    given b = ""
+    when ok = is_prefix(a, b)
+    then ok == true
+
+invariant yosys_is_prefix_empty_prefix_true_w307_inv:
+    is_prefix("", "") == true
+
+test yosys_is_prefix_full_match_true_w307
+    given a = "abc"
+    given b = "abc"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_strings_equal_single_char_true_w307
+    given a = "x"
+    given b = "x"
+    when ok = strings_equal(a, b)
+    then ok == true
+
+invariant yosys_is_prefix_full_match_true_w307_inv:
+    is_prefix("abc", "abc") == true

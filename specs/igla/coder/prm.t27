@@ -1184,3 +1184,32 @@ test prm_select_top_empty_empty_w306
 
 invariant prm_param_bounds_saturate_max_boundary_identity_w306_inv:
     param_bounds_saturate(127) == 127
+
+test prm_select_top_two_equal_w307
+    given scores = [0.5f32, 0.5f32, 0.5f32]
+    given k = 2
+    when indices = select_top(scores, k)
+    then indices == [0, 1]
+
+test prm_select_top_reverse_descending_w307
+    given scores = [0.9f32, 0.7f32, 0.5f32, 0.3f32]
+    given k = 4
+    when indices = select_top(scores, k)
+    then indices == [0, 1, 2, 3]
+
+invariant prm_select_top_reverse_descending_w307_inv:
+    select_top([0.9f32, 0.7f32, 0.5f32, 0.3f32], 4) == [0, 1, 2, 3]
+
+test prm_param_bounds_saturate_min_boundary_identity_w307
+    given val = -128
+    when result = param_bounds_saturate(val)
+    then result == -128
+
+test prm_select_top_single_element_w307
+    given scores = [0.9f32]
+    given k = 1
+    when indices = select_top(scores, k)
+    then indices == [0]
+
+invariant prm_param_bounds_saturate_min_boundary_identity_w307_inv:
+    param_bounds_saturate(-128) == -128

@@ -1238,3 +1238,29 @@ test adder_tree_4_mixed_large_sum_w306
 
 invariant adder_tree_4_all_negative_sum_w306_inv:
     adder_tree([-1, -2, -3, -4]) == -10
+
+test adder_tree_7_mixed_sum_w307
+    given inputs = [10, -3, 5, -2, 1, -1, 4]
+    when sum = adder_tree(inputs)
+    then sum == 14
+
+test adder_tree_7_zero_sum_w307
+    given inputs = [3, -3, 5, -5, 1, -1, 0]
+    when sum = adder_tree(inputs)
+    then sum == 0
+
+invariant adder_tree_7_zero_sum_w307_inv:
+    adder_tree([3, -3, 5, -5, 1, -1, 0]) == 0
+
+test adder_tree_4_all_positive_sum_w307
+    given inputs = [1, 2, 3, 4]
+    when sum = adder_tree(inputs)
+    then sum == 10
+
+test adder_tree_4_mixed_balance_zero_w307
+    given inputs = [5, -3, 2, -4]
+    when sum = adder_tree(inputs)
+    then sum == 0
+
+invariant adder_tree_4_all_positive_sum_w307_inv:
+    adder_tree([1, 2, 3, 4]) == 10

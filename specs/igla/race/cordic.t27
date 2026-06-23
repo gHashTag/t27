@@ -1226,3 +1226,31 @@ test cordic_sqrt_approx_two_five_approx_one_four_w306
 
 invariant cordic_sqrt_approx_sixteen_four_exact_w306_inv:
     sqrt_approx(16.0) == 4.0
+
+test cordic_sqrt_approx_sixtyfour_eight_w307
+    given x = 64.0
+    given iterations = 8
+    when result = cordic_sqrt_approx(x, iterations)
+    then result >= 7.9 && result <= 8.1
+
+test cordic_sqrt_approx_ten_approx_three_w307
+    given x = 10.0
+    given iterations = 8
+    when result = cordic_sqrt_approx(x, iterations)
+    then result >= 3.1 && result <= 3.3
+
+invariant cordic_sqrt_approx_sixtyfour_eight_w307_inv:
+    cordic_sqrt_approx(64.0, 8) >= 7.9
+
+test cordic_sqrt_approx_nine_three_exact_w307
+    given x = 9.0
+    when r = sqrt_approx(x)
+    then r == 3.0
+
+test cordic_sqrt_approx_one_zero_one_w307
+    given x = 1.0
+    when r = sqrt_approx(x)
+    then r == 1.0
+
+invariant cordic_sqrt_approx_nine_three_exact_w307_inv:
+    sqrt_approx(9.0) == 3.0

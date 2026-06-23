@@ -1897,3 +1897,29 @@ test pipeline_compose_double_identity_w306
 
 invariant pipeline_compose_triple_double_w306_inv:
     compose(triple, double, 2) == 12
+
+test pipeline_compose_quadruple_identity_w307
+    given x = 3
+    when result = compose(quadruple, identity, x)
+    then result == 12
+
+test pipeline_compose_identity_quadruple_w307
+    given x = 3
+    when result = compose(identity, quadruple, x)
+    then result == 12
+
+invariant pipeline_compose_identity_quadruple_w307_inv:
+    compose(identity, quadruple, 3) == 12
+
+test pipeline_compose_identity_identity_w307
+    given x = 5
+    when result = compose(identity, identity, x)
+    then result == 5
+
+test pipeline_compose_triple_identity_w307
+    given x = 3
+    when result = compose(triple, identity, x)
+    then result == 9
+
+invariant pipeline_compose_identity_identity_w307_inv:
+    compose(identity, identity, 5) == 5

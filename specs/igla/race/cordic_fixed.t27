@@ -1246,3 +1246,29 @@ test cordic_fixed_cos_pi_over_two_w306
 
 invariant cordic_fixed_sin_pi_over_two_w306_inv:
     cordic_sin(16384) > 16380 && cordic_sin(16384) < 16388
+
+test cordic_fixed_cos_quarter_pi_sqrt2_w307
+    given x = 0.785398
+    when result = cordic_fixed_cos(x)
+    then result >= 0.6 && result <= 0.8
+
+test cordic_fixed_sin_quarter_pi_sqrt2_w307
+    given x = 0.785398
+    when result = cordic_fixed_sin(x)
+    then result >= 0.6 && result <= 0.8
+
+invariant cordic_fixed_cos_quarter_pi_sqrt2_w307_inv:
+    cordic_fixed_cos(0.785398) >= 0.6
+
+test cordic_fixed_sin_zero_zero_w307
+    given a = 0
+    when s = cordic_sin(a)
+    then s == 0
+
+test cordic_fixed_cos_zero_max_w307
+    given a = 0
+    when c = cordic_cos(a)
+    then c == 32767
+
+invariant cordic_fixed_sin_zero_zero_w307_inv:
+    cordic_sin(0) == 0

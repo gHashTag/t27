@@ -1091,3 +1091,29 @@ test weights_count_minus_three_minus_w306
 
 invariant weights_load_all_zero_count_w306_inv:
     count_zero(load_all_zero(4)) == 4
+
+test weights_quantize_symmetric_one_w307
+    given x = 1.0
+    when q = quantize_symmetric(x)
+    then q == 127
+
+test weights_quantize_symmetric_minus_one_w307
+    given x = -1.0
+    when q = quantize_symmetric(x)
+    then q == -127
+
+invariant weights_quantize_symmetric_one_w307_inv:
+    quantize_symmetric(1.0) == 127
+
+test weights_load_all_plus_count_w307
+    given n = 3
+    when w = load_all_plus(n)
+    then count_plus(w) == 3
+
+test weights_count_zero_three_zeros_w307
+    given w = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
+    when c = count_zero(w)
+    then c == 3
+
+invariant weights_load_all_plus_count_w307_inv:
+    count_plus(load_all_plus(3)) == 3
