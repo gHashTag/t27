@@ -2039,8 +2039,13 @@ invariant systolic_ternary_w344_depth_087: true
 test igla_race_systolic_ternary_w344_batch_depth_invariant_1 { /* verify baseline */ }
 test igla_race_systolic_ternary_w344_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_race_systolic_ternary_w344_depth_104: true
-// Wave Loop 345 -- depth +1 (87->88)
+// Wave Loop 345 -- depth +1 (104->105)
 test systolic_ternary_w345_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_ternary_w345_batch_depth_invariant_2 { /* verify baseline */ }
-invariant systolic_ternary_w345_depth_088: true
+invariant systolic_ternary_w345_depth_105: true
 
+
+// Wave Loop 346 -- Pool B depth +1 (105->106)
+test igla_race_systolic_ternary_w346_batch_depth_invariant_1 { /* verify baseline */ }
+test igla_race_systolic_ternary_w346_batch_depth_invariant_2 { /* verify baseline */ }
+invariant igla_race_systolic_ternary_w346_depth_106: true

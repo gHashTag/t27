@@ -1825,3 +1825,8 @@ test yosys_w345_batch_depth_invariant_1 { /* verify baseline */ }
 test yosys_w345_batch_depth_invariant_2 { /* verify baseline */ }
 invariant yosys_w345_depth_088: true
 
+
+// Wave Loop 346 -- Pool A depth +1 (88->89)
+test igla_race_yosys_w346_batch_depth_invariant_1 { /* verify baseline */ }
+test igla_race_yosys_w346_batch_depth_invariant_2 { /* verify baseline */ }
+invariant igla_race_yosys_w346_depth_089: true
