@@ -248,3 +248,14 @@ theorem ternaryInferenceLutMinusWeightNegate :
     let psum := 42
     ternaryMac psum a w = psum - a := by
   simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+
+/-- LUT-like property: mixed-weight entry in ternary MAC selects between add, sub, and nop based on weight code.
+    Completes the LUT DSE full table: zero=wire (nop), plus=add, minus=sub.
+    Responds to KU Leuven Ternary LUT DSE and TernaryCore FPGA insight. -/
+theorem ternaryInferenceLutMixedWeightSelect :
+    let a := 7
+    let psum := 42
+    ternaryMac psum a (TernaryWeight.mk .plus) = psum + a &&
+    ternaryMac psum a (TernaryWeight.mk .minus) = psum - a &&
+    ternaryMac psum a (TernaryWeight.mk .zero) = psum := by
+  simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
