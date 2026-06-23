@@ -1871,8 +1871,8 @@ theorem ternaryMacPsumMixedScalingGeneric (a b k : Int) :
     Expected build time 2.0s. If simp+omega times out, documents the automation boundary.
     Foundation for next-generation 22-operand systolic-array tiles.
     Responds to Balanced_Ternary 48-week ASIC roadmap and TernaryCore depth expansion. -/
-theorem ternaryMacAccumulateTwentyTwoPlusGeneric (a : Int) b : Int) c : Int) d : Int) e : Int) f : Int) g : Int) h : Int) i : Int) j : Int) k : Int) l : Int) m : Int) n : Int) o : Int) p : Int) q : Int) r : Int) s : Int) t : Int) u : Int) v : Int) :
-    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus)) k (TernaryWeight.mk .plus)) l (TernaryWeight.mk .plus)) m (TernaryWeight.mk .plus)) n (TernaryWeight.mk .plus)) o (TernaryWeight.mk .plus)) p (TernaryWeight.mk .plus)) q (TernaryWeight.mk .plus)) r (TernaryWeight.mk .plus)) s (TernaryWeight.mk .plus)) t (TernaryWeight.mk .plus)) u (TernaryWeight.mk .plus)) v (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u + v := by
+theorem ternaryMacAccumulateTwentyTwoPlusGeneric (a b c d e f g h i j k l m n o p q r s t u v : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus)) k (TernaryWeight.mk .plus)) l (TernaryWeight.mk .plus)) m (TernaryWeight.mk .plus)) n (TernaryWeight.mk .plus)) o (TernaryWeight.mk .plus)) p (TernaryWeight.mk .plus)) q (TernaryWeight.mk .plus)) r (TernaryWeight.mk .plus)) s (TernaryWeight.mk .plus)) t (TernaryWeight.mk .plus)) u (TernaryWeight.mk .plus)) v (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u + v := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
 
@@ -1884,8 +1884,8 @@ theorem ternaryMacAccumulateTwentyTwoPlusGeneric (a : Int) b : Int) c : Int) d :
     at depth 21 -- the deepest verified accumulation depth in any formal hardware verification framework.
     Foundation for symmetric 21x21 systolic-array tiles with dual-polarity accumulation.
     Responds to TernaryCore dual-polarity accumulation and TENET symmetric-LUT paths. -/
-theorem ternaryMacAccumulateTwentyOneMinusGeneric (a : Int) b : Int) c : Int) d : Int) e : Int) f : Int) g : Int) h : Int) i : Int) j : Int) k : Int) l : Int) m : Int) n : Int) o : Int) p : Int) q : Int) r : Int) s : Int) t : Int) u : Int) :
-    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus)) g (TernaryWeight.mk .minus)) h (TernaryWeight.mk .minus)) i (TernaryWeight.mk .minus)) j (TernaryWeight.mk .minus)) k (TernaryWeight.mk .minus)) l (TernaryWeight.mk .minus)) m (TernaryWeight.mk .minus)) n (TernaryWeight.mk .minus)) o (TernaryWeight.mk .minus)) p (TernaryWeight.mk .minus)) q (TernaryWeight.mk .minus)) r (TernaryWeight.mk .minus)) s (TernaryWeight.mk .minus)) t (TernaryWeight.mk .minus)) u (TernaryWeight.mk .minus) = -(a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u) := by
+theorem ternaryMacAccumulateTwentyOneMinusGeneric (a b c d e f g h i j k l m n o p q r s t u : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus)) g (TernaryWeight.mk .minus)) h (TernaryWeight.mk .minus)) i (TernaryWeight.mk .minus)) j (TernaryWeight.mk .minus)) k (TernaryWeight.mk .minus)) l (TernaryWeight.mk .minus)) m (TernaryWeight.mk .minus)) n (TernaryWeight.mk .minus)) o (TernaryWeight.mk .minus)) p (TernaryWeight.mk .minus)) q (TernaryWeight.mk .minus)) r (TernaryWeight.mk .minus)) s (TernaryWeight.mk .minus)) t (TernaryWeight.mk .minus)) u (TernaryWeight.mk .minus) = -(a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
 
@@ -1902,5 +1902,18 @@ theorem ternaryMacAccumulateTwentyOneMinusGeneric (a : Int) b : Int) c : Int) d 
 theorem ternaryMacMixedWeightCommutativityGeneric (a b : Int) :
     ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .minus) =
     ternaryMac (ternaryMac 0 b (TernaryWeight.mk .minus)) a (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: dual-weight psum activation cancellation.
+    For any psum and activation a:
+    mac(mac(psum, a, .plus), a, .minus) = psum.
+    **Dual-weight psum activation cancellation** -- proves that a plus then minus activation
+    with the same operand cancels out, returning the original psum.
+    This is the fundamental cancellation law for systolic arrays with alternating weight polarities.
+    Opens the door to tile-level equivalence proofs for mixed-weight PE arrays.
+    Responds to TernaryCore dual-polarity PE arrays and TENET symmetric-LUT paths. -/
+theorem ternaryMacPsumDualActivationGeneric (psum a : Int) :
+    ternaryMac (ternaryMac psum a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .minus) = psum := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
