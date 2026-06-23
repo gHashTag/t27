@@ -4234,3 +4234,16 @@ test benchmark_mean_mixed_signs_w305
 
 invariant benchmark_mean_three_equal_w305_inv:
     mean([4.0, 4.0, 4.0]) == 4.0
+
+test benchmark_mean_three_elements_w305
+    given values = [1.0, 2.0, 3.0]
+    when m = mean(values)
+    then m == 2.0
+
+test benchmark_mean_zero_elements_zero_w305
+    given values = []
+    when m = mean(values)
+    then m == 0.0
+
+invariant benchmark_mean_three_elements_w305_inv:
+    mean([1.0, 2.0, 3.0]) == 2.0

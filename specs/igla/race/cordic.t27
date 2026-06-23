@@ -1213,3 +1213,16 @@ test cordic_sqrt_approx_one_one_w305
 
 invariant cordic_sqrt_approx_twentyfive_five_w305_inv:
     cordic_sqrt_approx(25.0, 8) >= 4.9
+
+test cordic_sqrt_approx_four_two_w305
+    given x = 4.0
+    when r = sqrt_approx(x)
+    then r == 2.0
+
+test cordic_sqrt_approx_twentyfive_five_w305
+    given x = 25.0
+    when r = sqrt_approx(x)
+    then r == 5.0
+
+invariant cordic_sqrt_approx_four_two_w305_inv:
+    sqrt_approx(4.0) == 2.0

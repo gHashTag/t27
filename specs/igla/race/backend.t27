@@ -1552,3 +1552,16 @@ test backend_log2_const_half_neg_one_w305
 
 invariant backend_log2_const_sixteen_four_w305_inv:
     log2_const(16.0) == 4.0
+
+test backend_parse_const_negative_five_w305
+    given s = "-5"
+    when v = parse_const(s)
+    then v == -5
+
+test backend_log2_const_sixteen_four_w305
+    given s = "16"
+    when v = log2_const(s)
+    then v == 4
+
+invariant backend_log2_const_sixteen_four_w305_inv:
+    log2_const("16") == 4

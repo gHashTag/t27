@@ -813,3 +813,18 @@ test bench_proxy_throughput_one_ns_w305
 
 invariant bench_proxy_throughput_one_ns_w305_inv:
     throughput(1, 1) == 1.0
+
+test bench_proxy_throughput_hundred_ops_w305
+    given ops = 100
+    given ns = 1000
+    when t = throughput(ops, ns)
+    then t == 100.0
+
+test bench_proxy_latency_zero_ops_zero_w305
+    given ops = 0
+    given cycles = 10
+    when l = compute_latency(ops, cycles)
+    then l == 0.0
+
+invariant bench_proxy_throughput_hundred_ops_w305_inv:
+    throughput(100, 1000) == 100.0

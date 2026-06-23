@@ -1367,3 +1367,18 @@ test yosys_is_prefix_longer_false_w305
 
 invariant yosys_is_prefix_empty_any_true_w305_inv:
     is_prefix("", "anything") == true
+
+test yosys_is_prefix_same_true_w305
+    given a = "abc"
+    given b = "abc"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_strings_equal_different_false_w305
+    given a = "abc"
+    given b = "def"
+    when ok = strings_equal(a, b)
+    then ok == false
+
+invariant yosys_is_prefix_same_true_w305_inv:
+    is_prefix("abc", "abc") == true

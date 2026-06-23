@@ -742,3 +742,16 @@ test ternary_inference_uniform_plus_weights_double_w305
 
 invariant ternary_inference_zero_activations_all_zero_w305_inv:
     ternary_inference_2x2(InferenceInput { activations: [0, 0, 0, 0] }, [TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus()]).outputs == [0, 0, 0, 0]
+
+test ternary_inference_identity_all_positive_passthrough_w305
+    given input = InferenceInput { activations: [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)] }
+    when result = ternary_inference_identity(input)
+    then result.outputs[0] == 1 && result.outputs[1] == 2 && result.outputs[2] == 3 && result.outputs[3] == 4
+
+test ternary_inference_zero_weights_all_zero_output_w305
+    given input = InferenceInput { activations: [cast_i8(5), cast_i8(6), cast_i8(7), cast_i8(8)] }
+    when result = ternary_inference_zero_weights(input)
+    then result.outputs[0] == 0 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
+
+invariant ternary_inference_identity_all_positive_passthrough_w305_inv:
+    ternary_inference_identity(InferenceInput { activations: [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)] }).outputs[0] == 1

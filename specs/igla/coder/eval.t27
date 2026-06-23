@@ -3227,3 +3227,18 @@ test eval_accuracy_empty_nan_w305
 
 invariant eval_accuracy_half_correct_w305_inv:
     accuracy([1, 0], [1, 1]) == 0.5
+
+test eval_accuracy_half_correct_w305
+    given preds = [1, 2, 3, 4]
+    given refs = [1, 0, 3, 0]
+    when acc = accuracy(preds, refs)
+    then acc == 0.5
+
+test eval_accuracy_one_element_correct_w305
+    given preds = [42]
+    given refs = [42]
+    when acc = accuracy(preds, refs)
+    then acc == 1.0
+
+invariant eval_accuracy_half_correct_w305_inv:
+    accuracy([1, 2, 3, 4], [1, 0, 3, 0]) == 0.5
