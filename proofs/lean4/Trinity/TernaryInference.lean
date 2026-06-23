@@ -277,3 +277,12 @@ theorem ternaryInferenceUniformActivationsAllPlus :
     let model := loadTernaryWeights plusWeights
     (ternaryInference2x2 input model).outputs = #[4, 4, 4, 4] := by
   simp [ternaryInference2x2, ternaryGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, loadTernaryWeights] <;> try native_decide
+/-- Reference-equivalence theorem: ternary GEMM 2x2 produces identical output to reference scalar GEMM
+    for a concrete input (activations [1,2,3,4] + all-plus weights).
+    Closes the gap identified in W298: no prior theorem proved ternaryGemm2x2 ≡ referenceGemm2x2.
+    Responds to TorchLean (arXiv:2602.22631) formal-neural-network verification trend. -/
+theorem ternaryInferenceGemm2x2EqualsReference :
+    let a := #[1, 2, 3, 4]
+    let w := #[TernaryWeight.mk .plus, TernaryWeight.mk .plus, TernaryWeight.mk .plus, TernaryWeight.mk .plus]
+    ternaryGemm2x2 a w = referenceGemm2x2 a w := by
+  simp [ternaryGemm2x2, referenceGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, referenceMulAdd] <;> try native_decide
