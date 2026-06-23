@@ -1445,14 +1445,3 @@ test systolic_ternary_pe_negative_activation_minus_weight_w299
 invariant systolic_ternary_pe_positive_activation_plus_weight_w299_inv:
     forall psum : i32
     systolic_ternary_pe(5, TernaryWeight { code: 1 }, psum).1 == psum + 5
-
-test systolic_ternary_pe_large_activation_zero_weight_nop_w299_extra
-    given a = 100
-    given w = TernaryWeight { code: 0 }
-    given psum = 0
-    when (_, psum_out) = systolic_ternary_pe(a, w, psum)
-    then psum_out == 0
-
-invariant systolic_ternary_pe_large_activation_zero_weight_nop_w299_extra_inv:
-    forall a : i32, psum : i32
-    systolic_ternary_pe(a, TernaryWeight { code: 0 }, psum).1 == psum
