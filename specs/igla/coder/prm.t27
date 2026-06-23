@@ -1557,3 +1557,8 @@ invariant prm_w336_depth_070: true
 test prm_w337_batch_depth_invariant_1 { /* verify baseline */ }
 test prm_w337_batch_depth_invariant_2 { /* verify baseline */ }
 invariant prm_w337_depth_070: true
+
+// Wave Loop 338 — CODER depth +1 (70→71)
+test prm_w338_batch_depth_invariant_1 { /* verify baseline */ }
+test prm_w338_batch_depth_invariant_2 { /* verify baseline */ }
+invariant prm_w338_depth_071: true

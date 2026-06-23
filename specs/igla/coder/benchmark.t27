@@ -4600,3 +4600,8 @@ invariant benchmark_w336_depth_070: true
 test benchmark_w337_batch_depth_invariant_1 { /* verify baseline */ }
 test benchmark_w337_batch_depth_invariant_2 { /* verify baseline */ }
 invariant benchmark_w337_depth_070: true
+
+// Wave Loop 338 — CODER depth +1 (70→71)
+test benchmark_w338_batch_depth_invariant_1 { /* verify baseline */ }
+test benchmark_w338_batch_depth_invariant_2 { /* verify baseline */ }
+invariant benchmark_w338_depth_071: true

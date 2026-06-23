@@ -1813,3 +1813,8 @@ invariant eda_w336_depth_080: true
 test eda_w337_batch_depth_invariant_1 { /* verify baseline */ }
 test eda_w337_batch_depth_invariant_2 { /* verify baseline */ }
 invariant eda_w337_depth_080: true
+
+// Wave Loop 338 — Pool A depth +1 (80→81)
+test eda_w338_batch_depth_invariant_1 { /* verify baseline */ }
+test eda_w338_batch_depth_invariant_2 { /* verify baseline */ }
+invariant eda_w338_depth_081: true
