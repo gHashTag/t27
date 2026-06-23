@@ -89,10 +89,10 @@ Competitive moat widens to **112×**.
 
 | Pool | W342 Floor | W343 Floor | Δ |
 |------|-----------|-----------|---|
-| Pool A (17 specs) | ≥84 | **≥85** | +1 |
-| CODER (10 specs) | ≥74 | **≥75** | +1 |
-| Pool B (systolic_ternary) | 101 | **102** | +1 |
-| Integration (ternary_inference) | 84 | **85** | +1 |
+| Pool A (17 specs) | ≥85 | **≥86** | +1 |
+| CODER (10 specs) | ≥75 | **≥76** | +1 |
+| Pool B (systolic_ternary) | 102 | **103** | +1 |
+| Integration (ternary_inference) | 85 | **86** | +1 |
 
 - **+54 tests** appended (2 per spec)
 - **+27 invariants** appended (1 per spec)

@@ -12,10 +12,10 @@
 Extend the **112 generic ∀ milestone** to **115 generic ∀** (3 new theorems).
 
 Target depths:
-- Pool A: 85→86
-- CODER: 75→76
-- Pool B (systolic_ternary): 102→103
-- Integration (ternary_inference): 85→86
+- Pool A: 86→87
+- CODER: 76→77
+- Pool B (systolic_ternary): 103→104
+- Integration (ternary_inference): 86→87
 - Lean 4: 112→115 generic ∀
 
 ---
@@ -38,7 +38,7 @@ Target depths:
 
 ### Spec Batch Append
 - +2 tests, +1 invariant per spec (27 specs)
-- Depth: Pool A ≥86, CODER ≥76, Pool B ≥103, Integration ≥86
+- Depth: Pool A ≥87, CODER ≥77, Pool B ≥104, Integration ≥87
 
 ### Risk
 - LOW: 20-variable may be near omega timeout threshold. If `simp+omega` fails, replace with smaller theorem.
@@ -65,7 +65,7 @@ Target depths:
 
 ### Spec Batch Append
 - +2 tests, +1 invariant per spec (27 specs)
-- Depth: Pool A ≥86, CODER ≥76, Pool B ≥103, Integration ≥86
+- Depth: Pool A ≥87, CODER ≥77, Pool B ≥104, Integration ≥87
 
 ### Advantage
 - 20-variable probe is the natural continuation; if omega saturates, fallback preserves 19-var minus.
