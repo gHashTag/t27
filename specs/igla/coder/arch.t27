@@ -2383,7 +2383,3 @@ test arch_w345_batch_depth_invariant_1 { /* verify baseline */ }
 test arch_w345_batch_depth_invariant_2 { /* verify baseline */ }
 invariant arch_w345_depth_088: true
 
-// Wave Loop 345 -- CODER depth +1 (77->78)
-test igla_coder_arch_w345_batch_depth_invariant_1 { /* verify baseline */ }
-test igla_coder_arch_w345_batch_depth_invariant_2 { /* verify baseline */ }
-invariant igla_coder_arch_w345_depth_078: true

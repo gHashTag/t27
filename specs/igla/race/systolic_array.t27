@@ -1795,7 +1795,3 @@ test systolic_array_w345_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_array_w345_batch_depth_invariant_2 { /* verify baseline */ }
 invariant systolic_array_w345_depth_088: true
 
-// Wave Loop 345 -- Pool A depth +1 (87->88)
-test igla_race_systolic_array_w345_batch_depth_invariant_1 { /* verify baseline */ }
-test igla_race_systolic_array_w345_batch_depth_invariant_2 { /* verify baseline */ }
-invariant igla_race_systolic_array_w345_depth_088: true
