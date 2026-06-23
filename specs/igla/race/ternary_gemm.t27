@@ -1698,8 +1698,7 @@ invariant ternary_gemm_w327_depth_070: true
 test ternary_gemm_w328_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_gemm_w328_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_gemm_w328_depth_071: true
+test ternary_gemm_w329_batch_depth_invariant_1 { /* verify baseline */ }
+test ternary_gemm_w329_batch_depth_invariant_2 { /* verify baseline */ }
+invariant ternary_gemm_w329_depth_072: true
 }
-
-test ternary_gemm_w328_batch_depth_invariant_1 { /* verify baseline */ }
-test ternary_gemm_w328_batch_depth_invariant_2 { /* verify baseline */ }
-invariant ternary_gemm_w328_depth_071: true

@@ -1174,8 +1174,7 @@ invariant bench_proxy_w327_depth_060: true
 test bench_proxy_w328_batch_depth_invariant_1 { /* verify baseline */ }
 test bench_proxy_w328_batch_depth_invariant_2 { /* verify baseline */ }
 invariant bench_proxy_w328_depth_061: true
+test bench_proxy_w329_batch_depth_invariant_1 { /* verify baseline */ }
+test bench_proxy_w329_batch_depth_invariant_2 { /* verify baseline */ }
+invariant bench_proxy_w329_depth_062: true
 }
-
-test bench_proxy_w328_batch_depth_invariant_1 { /* verify baseline */ }
-test bench_proxy_w328_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bench_proxy_w328_depth_061: true

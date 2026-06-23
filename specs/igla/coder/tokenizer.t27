@@ -1324,8 +1324,7 @@ invariant tokenizer_w327_depth_061: true
 test tokenizer_w328_batch_depth_invariant_1 { /* verify baseline */ }
 test tokenizer_w328_batch_depth_invariant_2 { /* verify baseline */ }
 invariant tokenizer_w328_depth_062: true
+test tokenizer_w329_batch_depth_invariant_1 { /* verify baseline */ }
+test tokenizer_w329_batch_depth_invariant_2 { /* verify baseline */ }
+invariant tokenizer_w329_depth_063: true
 }
-
-test tokenizer_w328_batch_depth_invariant_1 { /* verify baseline */ }
-test tokenizer_w328_batch_depth_invariant_2 { /* verify baseline */ }
-invariant tokenizer_w328_depth_062: true

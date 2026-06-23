@@ -1089,3 +1089,44 @@ theorem ternaryMacPsumCommutativityMixedGeneric (psum a b : Int) :
     ternaryMac (ternaryMac psum b (TernaryWeight.mk .minus)) a (TernaryWeight.mk .plus) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: mixed-weight associativity base case for ternary MAC.
+    For any activations a, b: mac(mac(0, a, .plus), b, .minus) = mac(0, a-b, .plus).
+    Proves that a plus-weight MAC followed by a minus-weight MAC is equivalent to
+    a single plus-weight MAC with subtracted activation.
+    Foundation for systolic-array stage fusion: two alternating-sign stages collapse to one.
+    Responds to TENET alternating-sign LUT folding and TernaryCore dual-path optimization. -/
+
+theorem ternaryMacMixedWeightAssociativityBaseGeneric (a b : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .minus) =
+    ternaryMac 0 (a - b) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: psum associativity with minus→plus weight transition.
+    For any psum, activations a, b: mac(mac(psum, a, .minus), b, .plus) = mac(psum, b-a, .plus).
+    Proves that minus-weight followed by plus-weight composes as a single plus-weight MAC
+    with activation difference (reversed order).
+    Foundation for systolic-array depth reduction with mixed-sign stages.
+    Complements PsumAssociativityMixedPlusMinusGeneric (plus→minus, W324).
+    Responds to TENET mixed-sign LUT depth reduction and TernaryCore stage collapsing. -/
+
+theorem ternaryMacPsumAssociativityMixedMinusPlusGeneric (psum a b : Int) :
+    ternaryMac (ternaryMac psum a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .plus) =
+    ternaryMac psum (b - a) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: psum linearity for minus-weight MAC.
+    For any psum, activations a, b: mac(psum+a, b, .minus) = mac(psum, b, .minus) - mac(0, a, .minus).
+    Proves that adding an activation to the accumulator before minus-weight MAC
+    is equivalent to subtracting the same activation's minus-weight MAC from the original.
+    Foundation for accumulator decomposition and tiled-GEMM scheduling with negative weights.
+    Complements PsumLinearityGeneric (plus-weight, W321).
+    Responds to DATE 2026 MAC verification — algebraic decomposition beats SCA for ternary. -/
+
+theorem ternaryMacPsumLinearityMinusGeneric (psum a b : Int) :
+    ternaryMac (psum + a) b (TernaryWeight.mk .minus) =
+    ternaryMac psum b (TernaryWeight.mk .minus) - ternaryMac 0 a (TernaryWeight.mk .minus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

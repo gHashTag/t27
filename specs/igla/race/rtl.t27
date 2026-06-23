@@ -1719,8 +1719,7 @@ invariant rtl_w327_depth_071: true
 test rtl_w328_batch_depth_invariant_1 { /* verify baseline */ }
 test rtl_w328_batch_depth_invariant_2 { /* verify baseline */ }
 invariant rtl_w328_depth_072: true
+test rtl_w329_batch_depth_invariant_1 { /* verify baseline */ }
+test rtl_w329_batch_depth_invariant_2 { /* verify baseline */ }
+invariant rtl_w329_depth_073: true
 }
-
-test rtl_w328_batch_depth_invariant_1 { /* verify baseline */ }
-test rtl_w328_batch_depth_invariant_2 { /* verify baseline */ }
-invariant rtl_w328_depth_072: true

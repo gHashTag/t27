@@ -1947,8 +1947,7 @@ invariant systolic_ternary_w327_depth_087: true
 test systolic_ternary_w328_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_ternary_w328_batch_depth_invariant_2 { /* verify baseline */ }
 invariant systolic_ternary_w328_depth_088: true
+test systolic_ternary_w329_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_ternary_w329_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_ternary_w329_depth_089: true
 }
-
-test systolic_ternary_w328_batch_depth_invariant_1 { /* verify baseline */ }
-test systolic_ternary_w328_batch_depth_invariant_2 { /* verify baseline */ }
-invariant systolic_ternary_w328_depth_088: true

@@ -1698,8 +1698,7 @@ invariant systolic_array_w327_depth_074: true
 test systolic_array_w328_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_array_w328_batch_depth_invariant_2 { /* verify baseline */ }
 invariant systolic_array_w328_depth_075: true
+test systolic_array_w329_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_array_w329_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_array_w329_depth_076: true
 }
-
-test systolic_array_w328_batch_depth_invariant_1 { /* verify baseline */ }
-test systolic_array_w328_batch_depth_invariant_2 { /* verify baseline */ }
-invariant systolic_array_w328_depth_075: true

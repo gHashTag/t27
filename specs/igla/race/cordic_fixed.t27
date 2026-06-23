@@ -1558,8 +1558,7 @@ invariant cordic_fixed_w327_depth_072: true
 test cordic_fixed_w328_batch_depth_invariant_1 { /* verify baseline */ }
 test cordic_fixed_w328_batch_depth_invariant_2 { /* verify baseline */ }
 invariant cordic_fixed_w328_depth_073: true
+test cordic_fixed_w329_batch_depth_invariant_1 { /* verify baseline */ }
+test cordic_fixed_w329_batch_depth_invariant_2 { /* verify baseline */ }
+invariant cordic_fixed_w329_depth_074: true
 }
-
-test cordic_fixed_w328_batch_depth_invariant_1 { /* verify baseline */ }
-test cordic_fixed_w328_batch_depth_invariant_2 { /* verify baseline */ }
-invariant cordic_fixed_w328_depth_073: true

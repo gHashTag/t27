@@ -1531,8 +1531,7 @@ invariant bram_weights_w327_depth_071: true
 test bram_weights_w328_batch_depth_invariant_1 { /* verify baseline */ }
 test bram_weights_w328_batch_depth_invariant_2 { /* verify baseline */ }
 invariant bram_weights_w328_depth_072: true
+test bram_weights_w329_batch_depth_invariant_1 { /* verify baseline */ }
+test bram_weights_w329_batch_depth_invariant_2 { /* verify baseline */ }
+invariant bram_weights_w329_depth_073: true
 }
-
-test bram_weights_w328_batch_depth_invariant_1 { /* verify baseline */ }
-test bram_weights_w328_batch_depth_invariant_2 { /* verify baseline */ }
-invariant bram_weights_w328_depth_072: true

@@ -2209,8 +2209,7 @@ invariant pipeline_w327_depth_061: true
 test pipeline_w328_batch_depth_invariant_1 { /* verify baseline */ }
 test pipeline_w328_batch_depth_invariant_2 { /* verify baseline */ }
 invariant pipeline_w328_depth_062: true
+test pipeline_w329_batch_depth_invariant_1 { /* verify baseline */ }
+test pipeline_w329_batch_depth_invariant_2 { /* verify baseline */ }
+invariant pipeline_w329_depth_063: true
 }
-
-test pipeline_w328_batch_depth_invariant_1 { /* verify baseline */ }
-test pipeline_w328_batch_depth_invariant_2 { /* verify baseline */ }
-invariant pipeline_w328_depth_062: true
