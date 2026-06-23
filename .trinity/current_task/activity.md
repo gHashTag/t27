@@ -188,3 +188,7 @@
 - **Commit:** feat(wave-loop-296): +15 Pool A invariants, +10 CODER, +1 Pool B, +1 Integration — ALL Pool A >=36, CODER >=26, Pool B 51, Integration 36
 - **Files:** proofs/lean4/Trinity/TernaryInference.lean
 
+## 2026-06-23T00:10:05Z — trinity-rust-rings
+- **Commit:** feat(lean4): add ternaryInferenceLutMixedWeightSelect theorem
+- **Files:** docs/reports/WAVE_LOOP_296_COOPERATION.md,docs/reports/WAVE_LOOP_296_REPORT.md
+
