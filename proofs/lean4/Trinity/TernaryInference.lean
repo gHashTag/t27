@@ -662,3 +662,25 @@ theorem ternaryMacAccumulateTwoPlusGeneric (a b : Int) :
     ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus) = a + b := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: accumulating two independent activations with minus-weights is negated addition.
+    For any activations a, b: mac(mac(0, a, .minus), b, .minus) = -(a + b).
+    Complements AccumulateTwoPlusGeneric for the minus-weight case,
+    proving that chained minus-weight MAC composes as additive inverse of sum.
+    Foundation for signed-systolic-array row-reduction and subtractive tiled-GEMM proofs.
+    Responds to TENET signed LUT scheduling and TOM ROM-SRAM negated-weight paths. -/
+theorem ternaryMacAccumulateTwoMinusGeneric (a b : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus) = -(a + b) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: plus-weight followed by minus-weight MAC computes difference.
+    For any activations a, b: mac(mac(0, a, .plus), b, .minus) = a - b.
+    First mixed-sign 2-variable theorem, proving that alternating plus/minus weights
+    correctly implement subtraction in ternary MAC algebra.
+    Directly maps to TENET sign-select LUTs and TernaryCore subtract paths.
+    Completes the 2-variable MAC operation lattice {add, sub, neg-add}. -/
+theorem ternaryMacPlusMinusMixedGeneric (a b : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .minus) = a - b := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

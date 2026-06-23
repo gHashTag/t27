@@ -4468,3 +4468,25 @@ invariant benchmark_mean_five_equal_w317_inv:
 
 
 
+test benchmark_mean_five_equal_w318
+    given values = [7.0, 7.0, 7.0, 7.0, 7.0]
+    when m = mean(values)
+    then m == 7.0
+
+test benchmark_mean_negative_positive_w318
+    given values = [-5.0, 5.0]
+    when m = mean(values)
+    then m == 0.0
+
+invariant benchmark_mean_five_equal_w318_inv:
+    mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0
+
+
+
+
+
+
+
+
+
+

@@ -2118,3 +2118,25 @@ invariant pipeline_compose_triple_double_w317_inv:
 
 
 
+test pipeline_compose_triple_double_w318
+    given x = 2
+    when result = compose(triple, double, x)
+    then result == 12
+
+test pipeline_compose_double_identity_w318
+    given x = 7
+    when result = compose(double, identity, x)
+    then result == 14
+
+invariant pipeline_compose_triple_double_w318_inv:
+    compose(triple, double, 2) == 12
+
+
+
+
+
+
+
+
+
+
