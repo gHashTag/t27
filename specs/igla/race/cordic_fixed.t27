@@ -1103,3 +1103,16 @@ test cordic_fixed_sin_quarter_turn_positive_w295
 
 invariant cordic_fixed_cos_quarter_turn_positive_w295_inv:
     cordic_cos(4096) > 0
+
+test cordic_fixed_cos_half_turn_negative_w296
+    given a = 8192
+    when c = cordic_cos(a)
+    then c < 0
+
+test cordic_fixed_sin_half_turn_zero_approx_w296
+    given a = 8192
+    when s = cordic_sin(a)
+    then s > -1 && s < 1
+
+invariant cordic_fixed_sin_half_turn_zero_approx_w296_inv:
+    cordic_sin(8192) > -1 && cordic_sin(8192) < 1

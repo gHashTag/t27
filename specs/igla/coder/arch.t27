@@ -1774,3 +1774,18 @@ test arch_add_slices_single_element_sum_w295
 
 invariant arch_add_slices_single_element_sum_w295_inv:
     add_slices([1.0f32], [2.0f32], 0).len() == 1
+
+test arch_generate_next_token_uniform_topk_w296
+    given logits = [0.5f32, 0.5f32, 0.5f32]
+    given k = 2
+    when token = generate_next_token(logits, k)
+    then token >= 0 && token < 3
+
+test arch_add_slices_different_lengths_shortest_w296
+    given a = [1.0f32, 2.0f32]
+    given b = [3.0f32]
+    when c = add_slices(a, b, 0)
+    then c.len() == 1 && c[0] == 4.0
+
+invariant arch_add_slices_different_lengths_shortest_w296_inv:
+    add_slices([1.0f32, 2.0f32], [3.0f32], 0).len() == 1

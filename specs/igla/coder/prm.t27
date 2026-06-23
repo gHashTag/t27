@@ -1032,3 +1032,17 @@ test prm_param_bounds_saturate_boundary_w295
 invariant prm_param_bounds_saturate_identity_inside_range_w295_inv:
     forall val : i32
     val >= -128 && val <= 127 ==> param_bounds_saturate(val) == val
+
+test prm_param_bounds_saturate_negative_boundary_w296
+    given val = -128
+    when result = param_bounds_saturate(val)
+    then result == -128
+
+test prm_param_bounds_saturate_positive_boundary_w296
+    given val = 127
+    when result = param_bounds_saturate(val)
+    then result == 127
+
+invariant prm_param_bounds_saturate_boundary_identity_w296_inv:
+    forall val : i32
+    (val == -128 || val == 127) ==> param_bounds_saturate(val) == val

@@ -942,3 +942,17 @@ test opcodes_validate_chain_empty_true_w295
 
 invariant opcodes_validate_chain_empty_true_w295_inv:
     validate_opcode_chain([]u8{}) == true
+
+test opcodes_get_cycles_store_one_w296
+    given op = OP_STORE_RESULTS
+    when cycles = get_opcode_cycles(op)
+    then cycles == 1
+
+test opcodes_validate_chain_single_sacred_true_w296
+    given chain = [OP_LOAD_PHYSICS_CONST]
+    when ok = validate_opcode_chain(chain)
+    then ok == true
+
+invariant opcodes_validate_chain_single_sacred_true_w296_inv:
+    forall op : u8
+    is_sacred_opcode(op) ==> validate_opcode_chain([op]) == true

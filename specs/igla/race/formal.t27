@@ -1235,3 +1235,17 @@ test formal_smt_check_bool_true_sat_w295
 invariant formal_smt_check_bool_true_sat_w295_inv:
     forall b : bool
     b == true ==> smt_check_bool(b) == "SAT"
+
+test formal_smt_assert_true_true_identity_w296
+    given b = true
+    when r = smt_assert_true(b)
+    then r == "true"
+
+test formal_smt_check_bool_identity_sat_unsat_w296
+    given b = true
+    when r = smt_check_bool(b)
+    then r == "SAT"
+
+invariant formal_smt_check_bool_identity_sat_unsat_w296_inv:
+    forall b : bool
+    b == true ==> smt_check_bool(b) == "SAT"

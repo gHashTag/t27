@@ -1178,3 +1178,19 @@ test systolic_array_systolic_step_A_passthrough_w295
 invariant systolic_array_booth_mul_i16_ones_identity_w295_inv:
     forall a : i16
     booth_mul_i16(a, 1) == a
+
+test systolic_array_booth_mul_i16_negative_one_identity_w296
+    given a = 5
+    given b = -1
+    when p = booth_mul_i16(a, b)
+    then p == -5
+
+test systolic_array_systolic_step_zero_A_nop_w296
+    given s0 = SystolicState { a1: 0, a2: 0, a3: 0, a4: 0, b11: 0, b12: 0, b21: 0, b22: 0, c1: 0, c2: 0, c3: 0, c4: 0 }
+    given A = [cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0)]
+    when s1 = systolic_step(s0, A)
+    then s1.c1 == 0 && s1.c2 == 0 && s1.c3 == 0 && s1.c4 == 0
+
+invariant systolic_array_booth_mul_i16_negative_one_identity_w296_inv:
+    forall a : i16
+    booth_mul_i16(a, -1) == -a

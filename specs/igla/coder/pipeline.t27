@@ -1750,3 +1750,17 @@ test pipeline_negative_elements_preserved_w295
 invariant pipeline_two_elements_len_preserved_w295_inv:
     forall input : []f32
     input.len() == 2 ==> pipeline(input).len() == 2
+
+test pipeline_three_elements_len_preserved_w296
+    given input = [1.0f32, 2.0f32, 3.0f32]
+    when output = pipeline(input)
+    then output.len() == 3
+
+test pipeline_mixed_sign_elements_preserved_w296
+    given input = [-1.0f32, 0.0f32, 1.0f32]
+    when output = pipeline(input)
+    then output.len() == 3
+
+invariant pipeline_three_elements_len_preserved_w296_inv:
+    forall input : []f32
+    input.len() == 3 ==> pipeline(input).len() == 3

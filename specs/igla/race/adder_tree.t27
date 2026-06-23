@@ -1095,3 +1095,16 @@ test adder_tree_4_mixed_sum_zero_w295
 
 invariant adder_tree_4_mixed_sum_zero_w295_inv:
     adder_tree([1, -1, 2, -2]) == 0
+
+test adder_tree_4_single_input_passthrough_w296
+    given inputs = [7, 0, 0, 0]
+    when sum = adder_tree(inputs)
+    then sum == 7
+
+test adder_tree_4_large_numbers_sum_w296
+    given inputs = [100, 200, 300, 400]
+    when sum = adder_tree(inputs)
+    then sum == 1000
+
+invariant adder_tree_4_large_numbers_sum_w296_inv:
+    adder_tree([100, 200, 300, 400]) == 1000

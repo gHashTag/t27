@@ -1128,3 +1128,16 @@ test cordic_top_batch_two_angles_sum_w295
 
 invariant cordic_top_batch_empty_zero_w295_inv:
     cordic_top_batch([]i16{}) == 0
+
+test cordic_top_batch_single_zero_zero_w296
+    given angles = [0]
+    when sum = cordic_top_batch(angles)
+    then sum == 0
+
+test cordic_top_batch_three_angles_sum_w296
+    given angles = [1024, 1024, 1024]
+    when sum = cordic_top_batch(angles)
+    then sum == 3072
+
+invariant cordic_top_batch_single_zero_zero_w296_inv:
+    cordic_top_batch([0]) == 0

@@ -1065,3 +1065,19 @@ test gemm_booth_mul_i32_one_identity_w295
 invariant gemm_booth_mul_i32_one_identity_w295_inv:
     forall a : i32
     booth_mul_i32(a, 1) == a
+
+test gemm_booth_mul_i32_zero_identity_w296
+    given a = 0
+    given b = 7
+    when p = booth_mul_i32(a, b)
+    then p == 0
+
+test gemm_booth_mul_i32_commutative_small_w296
+    given a = 3
+    given b = 5
+    when p = booth_mul_i32(a, b)
+    then p == 15
+
+invariant gemm_booth_mul_i32_zero_identity_w296_inv:
+    forall a : i32
+    booth_mul_i32(0, a) == 0

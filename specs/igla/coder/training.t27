@@ -958,3 +958,21 @@ test training_zero_grad_no_change_w295
 invariant training_zero_grad_no_change_w295_inv:
     forall w : f32, lr : f32
     sgd_update(w, 0.0, lr) == w
+
+test training_large_lr_big_step_w296
+    given w = 1.0
+    given lr = 1.0
+    given grad = 1.0
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == 0.0
+
+test training_negative_grad_increases_w296
+    given w = 1.0
+    given lr = 0.1
+    given grad = -1.0
+    when new_w = sgd_update(w, grad, lr)
+    then new_w > 1.0
+
+invariant training_negative_grad_increases_w296_inv:
+    forall w : f32, lr : f32
+    lr > 0.0 ==> sgd_update(w, -1.0, lr) > w

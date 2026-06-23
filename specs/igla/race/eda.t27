@@ -1304,3 +1304,17 @@ test eda_route_wire_length_zero_true_w295
 
 invariant eda_route_wire_length_zero_true_w295_inv:
     route_wire_length_non_negative(0) == true
+
+test eda_placement_area_negative_false_w296
+    given area = -1.0
+    when ok = placement_area_positive(area)
+    then ok == false
+
+test eda_route_wire_length_positive_true_w296
+    given len = 100
+    when ok = route_wire_length_non_negative(len)
+    then ok == true
+
+invariant eda_route_wire_length_positive_true_w296_inv:
+    forall len : u32
+    len > 0 ==> route_wire_length_non_negative(len) == true

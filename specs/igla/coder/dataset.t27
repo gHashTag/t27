@@ -1863,3 +1863,16 @@ test dataset_diversity_score_single_one_w295
 
 invariant dataset_diversity_score_single_one_w295_inv:
     dataset_diversity_score([DataSample { rtl: "m", template: "t", quality_score: 1.0 }]) == 1.0
+
+test dataset_diversity_score_three_unique_one_w296
+    given dataset = [DataSample { rtl: "a", template: "a", quality_score: 1.0 }, DataSample { rtl: "b", template: "b", quality_score: 1.0 }, DataSample { rtl: "c", template: "c", quality_score: 1.0 }]
+    when score = dataset_diversity_score(dataset)
+    then score == 1.0
+
+test dataset_diversity_score_empty_zero_w296
+    given dataset = []DataSample{}
+    when score = dataset_diversity_score(dataset)
+    then score == 0.0
+
+invariant dataset_diversity_score_empty_zero_w296_inv:
+    dataset_diversity_score([]DataSample{}) == 0.0

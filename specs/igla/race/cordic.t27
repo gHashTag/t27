@@ -1079,3 +1079,16 @@ test cordic_sqrt_approx_nine_three_w295
 
 invariant cordic_sqrt_approx_four_approx_two_w295_inv:
     sqrt_approx(4.0) > 1.9 && sqrt_approx(4.0) < 2.1
+
+test cordic_sqrt_approx_sixteen_four_w296
+    given x = 16.0
+    when r = sqrt_approx(x)
+    then r > 3.9 && r < 4.1
+
+test cordic_sqrt_approx_twentyfive_five_w296
+    given x = 25.0
+    when r = sqrt_approx(x)
+    then r > 4.9 && r < 5.1
+
+invariant cordic_sqrt_approx_sixteen_four_w296_inv:
+    sqrt_approx(16.0) > 3.9 && sqrt_approx(16.0) < 4.1

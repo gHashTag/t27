@@ -848,3 +848,16 @@ test tokenizer_single_token_appended_w295
 
 invariant tokenizer_two_tokens_length_two_w295_inv:
     tokenize([1, 2]).len() == 3
+
+test tokenizer_three_tokens_length_three_w296
+    given tokens = [1, 2, 3]
+    when result = tokenize(tokens)
+    then result.len() == 4
+
+test tokenizer_zero_token_bos_only_w296
+    given tokens = [0]
+    when result = tokenize(tokens)
+    then result.len() == 2 && result[0] == 0 && result[1] == 0
+
+invariant tokenizer_three_tokens_length_three_w296_inv:
+    tokenize([1, 2, 3]).len() == 4
