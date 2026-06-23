@@ -1540,4 +1540,9 @@ invariant adder_tree_w328_depth_071: true
 test adder_tree_w329_batch_depth_invariant_1 { /* verify baseline */ }
 test adder_tree_w329_batch_depth_invariant_2 { /* verify baseline */ }
 invariant adder_tree_w329_depth_072: true
+// Wave Loop 330 — Pool A depth +1 (72→73)
+test adder_tree_w330_batch_depth_invariant_1 { /* verify baseline */ }
+test adder_tree_w330_batch_depth_invariant_2 { /* verify baseline */ }
+invariant adder_tree_w330_depth_073: true
+
 }

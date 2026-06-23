@@ -1547,4 +1547,9 @@ invariant cordic_w328_depth_072: true
 test cordic_w329_batch_depth_invariant_1 { /* verify baseline */ }
 test cordic_w329_batch_depth_invariant_2 { /* verify baseline */ }
 invariant cordic_w329_depth_073: true
+// Wave Loop 330 — Pool A depth +1 (73→74)
+test cordic_w330_batch_depth_invariant_1 { /* verify baseline */ }
+test cordic_w330_batch_depth_invariant_2 { /* verify baseline */ }
+invariant cordic_w330_depth_074: true
+
 }

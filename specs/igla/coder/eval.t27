@@ -3591,4 +3591,9 @@ invariant eval_w328_depth_063: true
 test eval_w329_batch_depth_invariant_1 { /* verify baseline */ }
 test eval_w329_batch_depth_invariant_2 { /* verify baseline */ }
 invariant eval_w329_depth_064: true
+// Wave Loop 330 — CODER depth +1 (64→65)
+test eval_w330_batch_depth_invariant_1 { /* verify baseline */ }
+test eval_w330_batch_depth_invariant_2 { /* verify baseline */ }
+invariant eval_w330_depth_065: true
+
 }
