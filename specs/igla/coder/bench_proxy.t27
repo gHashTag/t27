@@ -798,3 +798,18 @@ test bench_proxy_throughput_ten_ops_w304
 
 invariant bench_proxy_throughput_zero_duration_zero_w304_inv:
     throughput(0, 1000) == 0.0
+
+test bench_proxy_throughput_hundred_ops_w305
+    given ops = 100
+    given ns = 1000
+    when t = throughput(ops, ns)
+    then t == 100.0
+
+test bench_proxy_throughput_one_ns_w305
+    given ops = 1
+    given ns = 1
+    when t = throughput(ops, ns)
+    then t == 1.0
+
+invariant bench_proxy_throughput_one_ns_w305_inv:
+    throughput(1, 1) == 1.0

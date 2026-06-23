@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1749b36e07e9bd033b9e15369295e8153ca0ed5a68e57fbf3f1019fc54c53333",
   "module": "igla-coder-dataset",
   "ring": 12,
-  "sealed_at": "2026-06-23T02:07:47Z",
-  "spec_hash": "sha256:2359ff7f30fa808ed1557c287e2194222b1fc872c41744909c695352708b5231",
+  "sealed_at": "2026-06-23T02:17:51Z",
+  "spec_hash": "sha256:2dd8c3f2e3e60e1cf6055ad4455632694a2b6b84b273ed7e2526f62bd8fe26a7",
   "spec_path": "specs/igla/coder/dataset.t27"
 }

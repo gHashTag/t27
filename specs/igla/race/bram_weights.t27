@@ -1193,3 +1193,16 @@ test bram_weights_width_four_elements_w304
 
 invariant bram_weights_depth_four_elements_w304_inv:
     bram_weights_depth([1, 2, 3, 4]) == 4
+
+test bram_weights_depth_empty_zero_w305
+    given weights = []
+    when d = bram_weights_depth(weights)
+    then d == 0
+
+test bram_weights_width_single_element_w305
+    given weights = [42]
+    when w = bram_weights_width(weights)
+    then w == 32
+
+invariant bram_weights_depth_empty_zero_w305_inv:
+    bram_weights_depth([]) == 0

@@ -1212,3 +1212,16 @@ test adder_tree_4_equal_pairs_sum_w304
 
 invariant adder_tree_4_mixed_signs_sum_w304_inv:
     adder_tree([7, -3, 5, -2]) == 7
+
+test adder_tree_5_mixed_sum_w305
+    given inputs = [10, -4, 3, -2, 1]
+    when sum = adder_tree(inputs)
+    then sum == 8
+
+test adder_tree_5_uniform_sum_w305
+    given inputs = [2, 2, 2, 2, 2]
+    when sum = adder_tree(inputs)
+    then sum == 10
+
+invariant adder_tree_5_mixed_sum_w305_inv:
+    adder_tree([10, -4, 3, -2, 1]) == 8

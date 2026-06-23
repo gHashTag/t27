@@ -1209,3 +1209,18 @@ test gemm_booth_mul_i32_negative_negative_w304
 
 invariant gemm_booth_mul_i32_zero_identity_w304_inv:
     booth_mul_i32(0, 42) == 0
+
+test gemm_booth_mul_i32_one_identity_w305
+    given a = 1
+    given b = 99
+    when p = booth_mul_i32(a, b)
+    then p == 99
+
+test gemm_booth_mul_i32_large_positive_w305
+    given a = 1000
+    given b = 1000
+    when p = booth_mul_i32(a, b)
+    then p == 1000000
+
+invariant gemm_booth_mul_i32_one_identity_w305_inv:
+    booth_mul_i32(1, 99) == 99

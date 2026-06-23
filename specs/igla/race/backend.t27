@@ -1539,3 +1539,16 @@ test backend_log2_const_one_zero_w304
 
 invariant backend_log2_const_eight_three_w304_inv:
     log2_const(8.0) == 3.0
+
+test backend_log2_const_sixteen_four_w305
+    given x = 16.0
+    when y = log2_const(x)
+    then y == 4.0
+
+test backend_log2_const_half_neg_one_w305
+    given x = 0.5
+    when y = log2_const(x)
+    then y == -1.0
+
+invariant backend_log2_const_sixteen_four_w305_inv:
+    log2_const(16.0) == 4.0

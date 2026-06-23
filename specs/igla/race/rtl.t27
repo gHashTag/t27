@@ -1381,3 +1381,16 @@ test rtl_bits_to_u64_two_ones_three_w304
 
 invariant rtl_bits_to_u64_two_ones_three_w304_inv:
     bits_to_u64([true, true]) == 3
+
+test rtl_bits_to_u64_three_ones_seven_w305
+    given bits = [true, true, true]
+    when val = bits_to_u64(bits)
+    then val == 7
+
+test rtl_bits_to_u64_empty_zero_w305
+    given bits = []
+    when val = bits_to_u64(bits)
+    then val == 0
+
+invariant rtl_bits_to_u64_empty_zero_w305_inv:
+    bits_to_u64([]) == 0

@@ -1910,3 +1910,18 @@ test arch_generate_next_token_topk_one_highest_w304
 
 invariant arch_add_slices_empty_empty_empty_w304_inv:
     add_slices([], [], 0).len() == 0
+
+test arch_add_slices_single_element_sum_w305
+    given a = [5]
+    given b = [7]
+    when c = add_slices(a, b, 0)
+    then c == [12]
+
+test arch_generate_next_token_uniform_highest_w305
+    given logits = [0.5f32, 0.5f32, 0.9f32]
+    given k = 1
+    when token = generate_next_token(logits, k)
+    then token == 2
+
+invariant arch_add_slices_single_element_sum_w305_inv:
+    add_slices([5], [7], 0) == [12]

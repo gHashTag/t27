@@ -3212,3 +3212,18 @@ test eval_accuracy_two_wrong_w304
 
 invariant eval_accuracy_two_correct_w304_inv:
     accuracy([1, 2], [1, 2]) == 1.0
+
+test eval_accuracy_half_correct_w305
+    given preds = [1, 0]
+    given refs = [1, 1]
+    when acc = accuracy(preds, refs)
+    then acc == 0.5
+
+test eval_accuracy_empty_nan_w305
+    given preds = []
+    given refs = []
+    when acc = accuracy(preds, refs)
+    then acc != acc
+
+invariant eval_accuracy_half_correct_w305_inv:
+    accuracy([1, 0], [1, 1]) == 0.5

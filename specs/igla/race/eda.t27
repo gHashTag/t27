@@ -1426,3 +1426,18 @@ test eda_route_wire_length_same_point_zero_w304
 
 invariant eda_route_wire_length_positive_true_w304_inv:
     route_wire_length(Point { x: 0, y: 0 }, Point { x: 3, y: 4 }) == 7
+
+test eda_route_wire_length_negative_coords_w305
+    given p1 = Point { x: -3, y: -4 }
+    given p2 = Point { x: 0, y: 0 }
+    when len = route_wire_length(p1, p2)
+    then len == 7
+
+test eda_route_wire_length_axis_aligned_w305
+    given p1 = Point { x: 0, y: 0 }
+    given p2 = Point { x: 10, y: 0 }
+    when len = route_wire_length(p1, p2)
+    then len == 10
+
+invariant eda_route_wire_length_axis_aligned_w305_inv:
+    route_wire_length(Point { x: 0, y: 0 }, Point { x: 10, y: 0 }) == 10

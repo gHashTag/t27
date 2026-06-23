@@ -1220,3 +1220,16 @@ test cordic_fixed_sin_zero_zero_w304
 
 invariant cordic_fixed_cos_zero_one_w304_inv:
     cordic_fixed_cos(0.0) == 1.0
+
+test cordic_fixed_cos_pi_neg_one_w305
+    given x = 3.14159265
+    when result = cordic_fixed_cos(x)
+    then result <= -0.9 && result >= -1.1
+
+test cordic_fixed_sin_pi_zero_w305
+    given x = 3.14159265
+    when result = cordic_fixed_sin(x)
+    then result >= -0.1 && result <= 0.1
+
+invariant cordic_fixed_sin_pi_zero_w305_inv:
+    cordic_fixed_sin(3.14159265) >= -0.1

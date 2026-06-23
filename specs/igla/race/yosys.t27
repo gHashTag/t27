@@ -1352,3 +1352,18 @@ test yosys_is_prefix_no_match_false_w304
 
 invariant yosys_is_prefix_full_match_true_w304_inv:
     is_prefix("hello", "hello") == true
+
+test yosys_is_prefix_empty_any_true_w305
+    given a = ""
+    given b = "anything"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_is_prefix_longer_false_w305
+    given a = "abcdef"
+    given b = "abc"
+    when ok = is_prefix(a, b)
+    then ok == false
+
+invariant yosys_is_prefix_empty_any_true_w305_inv:
+    is_prefix("", "anything") == true

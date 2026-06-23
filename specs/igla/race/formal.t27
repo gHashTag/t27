@@ -1355,3 +1355,16 @@ test formal_smt_check_bool_false_unsat_w304
 
 invariant formal_smt_check_bool_true_sat_w304_inv:
     smt_check(true) == "sat"
+
+test formal_smt_check_and_true_true_w305
+    given expr = true && true
+    when result = smt_check(expr)
+    then result == "sat"
+
+test formal_smt_check_and_true_false_w305
+    given expr = true && false
+    when result = smt_check(expr)
+    then result == "unsat"
+
+invariant formal_smt_check_and_true_true_w305_inv:
+    smt_check(true && true) == "sat"

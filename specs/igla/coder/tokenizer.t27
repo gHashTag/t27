@@ -967,3 +967,16 @@ test tokenizer_encode_empty_empty_w304
 
 invariant tokenizer_encode_decode_roundtrip_w304_inv:
     decode(encode("hello")) == "hello"
+
+test tokenizer_encode_single_char_one_token_w305
+    given text = "a"
+    when tokens = encode(text)
+    then tokens.len() == 1
+
+test tokenizer_decode_single_token_w305
+    given tokens = [65]
+    when text = decode(tokens)
+    then text == "A"
+
+invariant tokenizer_encode_single_char_one_token_w305_inv:
+    encode("a").len() == 1

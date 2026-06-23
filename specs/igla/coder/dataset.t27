@@ -1987,3 +1987,18 @@ test dataset_batch_size_two_three_batches_w304
 
 invariant dataset_batch_size_two_three_batches_w304_inv:
     batch([1, 2, 3, 4, 5, 6], 2).len() == 3
+
+test dataset_shuffle_empty_empty_w305
+    given data = []
+    given seed = 42
+    when result = shuffle(data, seed)
+    then result == []
+
+test dataset_batch_size_three_two_batches_w305
+    given data = [1, 2, 3, 4, 5, 6]
+    given size = 3
+    when batches = batch(data, size)
+    then batches.len() == 2
+
+invariant dataset_batch_size_three_two_batches_w305_inv:
+    batch([1, 2, 3, 4, 5, 6], 3).len() == 2

@@ -354,3 +354,19 @@ theorem ternaryMulMinusWeightIdentityGeneric (a : Int) :
 theorem ternaryMacPsumZeroEqualsMulGeneric (a : Int) (w : TernaryWeight) :
     ternaryMac 0 a w = ternaryMul a w := by
   simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+/-- Generic theorem: for any partial sum psum and any ternary weight w, a zero activation
+    in ternary MAC leaves psum unchanged. This proves that zero-activation paths are always NOPs
+    regardless of weight encoding — the hardware foundation for activation-sparsity skipping.
+    Responds to TOM ROM-SRAM and TernaryCore zero-activation gating insights. -/
+theorem ternaryMacZeroActivationGeneric (psum : Int) (w : TernaryWeight) :
+    ternaryMac psum 0 w = psum := by
+  rcases w with ⟨c⟩
+  cases c <;> simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+/-- Generic theorem: for any ternary weight w, ternary multiplication with zero activation
+    always returns zero. This is the dual of MacZeroActivationGeneric, proving that the
+    pure multiplication primitive also respects zero-activation sparsity.
+    Responds to ENERZAi Qualcomm Hexagon NPU and Huntwter bitone zero-skip kernel insights. -/
+theorem ternaryMulZeroActivationGeneric (w : TernaryWeight) :
+    ternaryMul 0 w = 0 := by
+  rcases w with ⟨c⟩
+  cases c <;> simp [ternaryMul, ternaryDecode] <;> try native_decide

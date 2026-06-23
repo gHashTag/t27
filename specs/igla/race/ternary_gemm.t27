@@ -1322,3 +1322,18 @@ test ternary_gemm_zero_weights_all_zero_w304
 
 invariant ternary_gemm_identity_weights_passthrough_w304_inv:
     ternary_gemm_2x2([1, 0, 0, 1], [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]) == [1, 0, 0, 1]
+
+test ternary_gemm_minus_weights_negate_all_w305
+    given activations = [2, 4, 6, 8]
+    given weights = [TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus()]
+    when result = ternary_gemm_2x2(activations, weights)
+    then result == [-2, -4, -6, -8]
+
+test ternary_gemm_plus_weights_identity_w305
+    given activations = [1, 0, 0, 1]
+    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
+    when result = ternary_gemm_2x2(activations, weights)
+    then result == [1, 0, 0, 1]
+
+invariant ternary_gemm_minus_weights_negate_all_w305_inv:
+    ternary_gemm_2x2([2, 4, 6, 8], [TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus()]) == [-2, -4, -6, -8]

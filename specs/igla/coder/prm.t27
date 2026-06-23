@@ -1155,3 +1155,18 @@ test prm_select_top_all_same_w304
 
 invariant prm_select_top_two_highest_w304_inv:
     select_top([0.1f32, 0.9f32, 0.5f32], 2) == [1, 2]
+
+test prm_select_top_three_descending_w305
+    given scores = [0.9f32, 0.5f32, 0.1f32]
+    given k = 3
+    when indices = select_top(scores, k)
+    then indices == [0, 1, 2]
+
+test prm_select_top_negative_scores_w305
+    given scores = [-0.5f32, -0.1f32, -0.9f32]
+    given k = 1
+    when indices = select_top(scores, k)
+    then indices == [1]
+
+invariant prm_select_top_three_descending_w305_inv:
+    select_top([0.9f32, 0.5f32, 0.1f32], 3) == [0, 1, 2]
