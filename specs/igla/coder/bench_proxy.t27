@@ -1146,3 +1146,9 @@ test bench_proxy_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant bench_proxy_w321_depth_054: true
 
 }
+test bench_proxy_w322_batch_depth_invariant_1 { /* verify baseline */ }
+test bench_proxy_w322_batch_depth_invariant_2 { /* verify baseline */ }
+invariant bench_proxy_w322_depth_054: true
+
+}
+

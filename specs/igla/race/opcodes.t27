@@ -1371,3 +1371,9 @@ test opcodes_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant opcodes_w321_depth_065: true
 
 }
+test opcodes_w322_batch_depth_invariant_1 { /* verify baseline */ }
+test opcodes_w322_batch_depth_invariant_2 { /* verify baseline */ }
+invariant opcodes_w322_depth_065: true
+
+}
+

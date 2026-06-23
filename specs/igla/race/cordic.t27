@@ -1516,3 +1516,9 @@ test cordic_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant cordic_w321_depth_065: true
 
 }
+test cordic_w322_batch_depth_invariant_1 { /* verify baseline */ }
+test cordic_w322_batch_depth_invariant_2 { /* verify baseline */ }
+invariant cordic_w322_depth_065: true
+
+}
+

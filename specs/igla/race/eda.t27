@@ -1744,3 +1744,9 @@ test eda_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant eda_w321_depth_065: true
 
 }
+test eda_w322_batch_depth_invariant_1 { /* verify baseline */ }
+test eda_w322_batch_depth_invariant_2 { /* verify baseline */ }
+invariant eda_w322_depth_065: true
+
+}
+

@@ -1670,3 +1670,9 @@ test ternary_gemm_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_gemm_w321_depth_064: true
 
 }
+test ternary_gemm_w322_batch_depth_invariant_1 { /* verify baseline */ }
+test ternary_gemm_w322_batch_depth_invariant_2 { /* verify baseline */ }
+invariant ternary_gemm_w322_depth_064: true
+
+}
+

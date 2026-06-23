@@ -2365,3 +2365,9 @@ test dataset_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant dataset_w321_depth_054: true
 
 }
+test dataset_w322_batch_depth_invariant_1 { /* verify baseline */ }
+test dataset_w322_batch_depth_invariant_2 { /* verify baseline */ }
+invariant dataset_w322_depth_054: true
+
+}
+

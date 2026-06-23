@@ -789,3 +789,41 @@ theorem ternaryMacScalarLinearityGeneric (psum a b : Int) (w : TernaryWeight) :
   · -- minus: mac(psum, a+b, .minus) = psum + -(a+b) = psum + (-a + -b) = (psum + -a) + -b = mac(psum, a, .minus) + mul(b, .minus)
     simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
     simp only [Int.neg_add, ← Int.add_assoc psum (-a) (-b)]
+
+/-- Generic theorem: zero-psum is the identity element for plus-weight ternary MAC.
+    For any activation a: mac(0, a, .plus) = a.
+    Establishes that starting from zero accumulator and applying a plus-weight MAC
+    yields exactly the activation. This is the identity-element axiom for the
+    ternary MAC monoid under plus weights.
+    Foundation for accumulator-initialization proofs and systolic-array base-case
+    verification (the first PE in a chain must output exactly its activation).
+    Responds to TENET first-stage LUT identity and TernaryCore accumulator init. -/
+theorem ternaryMacZeroPsumIdentityGeneric (a : Int) :
+    ternaryMac 0 a (TernaryWeight.mk .plus) = a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: full associativity of ternary MAC with arbitrary accumulator and plus-weights.
+    For any psum, activations a, b: mac(mac(psum, a, .plus), b, .plus) = mac(psum, a+b, .plus).
+    Extends AssociativityBaseGeneric (which fixed psum=0) to arbitrary accumulators.
+    Proves that chained MAC operations are associative regardless of initial state,
+    enabling arbitrary-depth systolic folding and accumulator-merging optimizations.
+    Critical for hardware tiling: partial products from different tiles can be
+    merged via a single MAC operation regardless of their internal accumulation history.
+    Responds to TENET multi-stage LUT folding and ternfpga tile-composition paths. -/
+theorem ternaryMacPsumAssociativityGeneric (psum a b : Int) :
+    ternaryMac (ternaryMac psum a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus) = ternaryMac psum (a + b) (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: plus-weight followed by minus-weight MAC with the same activation cancels to zero.
+    For any activation a: mac(mac(0, a, .plus), a, .minus) = 0.
+    Proves that identical activations with opposite-sign weights are additive inverses
+    in ternary MAC algebra. This is the inverse-element property for the ternary MAC groupoid.
+    Foundation for zero-skip optimization proofs: when plus/minus weights of same magnitude
+    appear in sequence, the hardware can elide both operations (no net accumulation).
+    Responds to TENET sign-cancel LUT optimization and TOM ROM-SRAM weight-negation paths. -/
+theorem ternaryMacPlusMinusInverseGeneric (a : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .minus) = 0 := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

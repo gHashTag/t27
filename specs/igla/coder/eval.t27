@@ -3560,3 +3560,9 @@ test eval_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant eval_w321_depth_056: true
 
 }
+test eval_w322_batch_depth_invariant_1 { /* verify baseline */ }
+test eval_w322_batch_depth_invariant_2 { /* verify baseline */ }
+invariant eval_w322_depth_056: true
+
+}
+

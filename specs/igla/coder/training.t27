@@ -1502,3 +1502,9 @@ test training_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant training_w321_depth_055: true
 
 }
+test training_w322_batch_depth_invariant_1 { /* verify baseline */ }
+test training_w322_batch_depth_invariant_2 { /* verify baseline */ }
+invariant training_w322_depth_055: true
+
+}
+

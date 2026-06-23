@@ -1665,3 +1665,9 @@ test formal_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant formal_w321_depth_065: true
 
 }
+test formal_w322_batch_depth_invariant_1 { /* verify baseline */ }
+test formal_w322_batch_depth_invariant_2 { /* verify baseline */ }
+invariant formal_w322_depth_065: true
+
+}
+

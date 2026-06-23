@@ -1691,3 +1691,9 @@ test rtl_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant rtl_w321_depth_065: true
 
 }
+test rtl_w322_batch_depth_invariant_1 { /* verify baseline */ }
+test rtl_w322_batch_depth_invariant_2 { /* verify baseline */ }
+invariant rtl_w322_depth_065: true
+
+}
+

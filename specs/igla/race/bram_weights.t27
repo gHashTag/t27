@@ -1503,3 +1503,9 @@ test bram_weights_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant bram_weights_w321_depth_065: true
 
 }
+test bram_weights_w322_batch_depth_invariant_1 { /* verify baseline */ }
+test bram_weights_w322_batch_depth_invariant_2 { /* verify baseline */ }
+invariant bram_weights_w322_depth_065: true
+
+}
+

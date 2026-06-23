@@ -4531,3 +4531,9 @@ test benchmark_w321_batch_depth_invariant_2 { /* verify baseline */ }
 invariant benchmark_w321_depth_055: true
 
 }
+test benchmark_w322_batch_depth_invariant_1 { /* verify baseline */ }
+test benchmark_w322_batch_depth_invariant_2 { /* verify baseline */ }
+invariant benchmark_w322_depth_055: true
+
+}
+
