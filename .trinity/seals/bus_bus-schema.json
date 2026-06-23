@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a53f6d8ca36e39d2ed8f0e09eeea268eda878b5ae7e24694e3b506ba8e184d5f",
   "module": "bus-schema",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:11:54Z",
+  "sealed_at": "2026-06-23T03:19:01Z",
   "spec_hash": "sha256:76f4b79cfecc890ab7a7f7bcbe9564aa9d6ecde995aedb1de20315716844ca22",
   "spec_path": "specs/bus/schema.t27"
 }

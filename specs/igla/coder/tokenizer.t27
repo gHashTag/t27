@@ -1080,3 +1080,19 @@ invariant tokenizer_encode_decode_roundtrip_w310_inv:
     decode(encode("test")) == "test"
 
 
+test tokenizer_encode_decode_roundtrip_w311
+    given text = "test"
+    when tokens = encode(text)
+    when text2 = decode(tokens)
+    then text2 == "test"
+
+test tokenizer_tokenize_single_token_len_two_w311
+    given tokens = [42]
+    when result = tokenize(tokens)
+    then result.len() == 2
+
+invariant tokenizer_encode_decode_roundtrip_w311_inv:
+    decode(encode("test")) == "test"
+
+
+

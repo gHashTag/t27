@@ -1330,3 +1330,20 @@ invariant gemm_booth_mul_i32_small_product_w310_inv:
     booth_mul_i32(3, 4) == 12
 
 
+test gemm_booth_mul_i32_small_product_w311
+    given a = 3
+    given b = 4
+    when p = booth_mul_i32(a, b)
+    then p == 12
+
+test gemm_booth_mul_i32_negative_small_w311
+    given a = -3
+    given b = -4
+    when p = booth_mul_i32(a, b)
+    then p == 12
+
+invariant gemm_booth_mul_i32_small_product_w311_inv:
+    booth_mul_i32(3, 4) == 12
+
+
+

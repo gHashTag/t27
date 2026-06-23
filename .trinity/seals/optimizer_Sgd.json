@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d73332c8c6cc3d1eb944a3ef7aad100ba0dcaafc32893dea4f465aa5c89f5cb9",
   "module": "Sgd",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:11:56Z",
+  "sealed_at": "2026-06-23T03:19:03Z",
   "spec_hash": "sha256:751431cc3b541194897283a0f63b82af55129c2166636be7e411fb1a73266e03",
   "spec_path": "specs/ml/optimizer/sgd.t27"
 }

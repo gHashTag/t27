@@ -516,3 +516,25 @@ theorem ternaryInferenceBalancedWeightsConcrete :
     let model := loadTernaryWeights balancedWeights
     (ternaryInference2x2 input model).outputs = #[3, -3, 0, 3] := by
   simp [ternaryInference2x2, ternaryGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, balancedWeights, loadTernaryWeights] <;> try native_decide
+
+/-- Generic theorem: consecutive plus-weight and minus-weight MAC operations on the same
+    activation cancel out, restoring the original partial sum. For any psum and activation a:
+    mac(mac(psum, a, .plus), a, .minus) = psum.
+    This proves that plus and minus are additive inverses in the ternary MAC algebra,
+    foundational for bidirectional datapaths and reversible computation in ternary accelerators.
+    Responds to TernaryCore bidirectional PE and Hesper reversible-kernel insights. -/
+theorem ternaryMacPlusMinusCancelGeneric (psum a : Int) :
+    ternaryMac (ternaryMac psum a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .minus) = psum := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: consecutive minus-weight and plus-weight MAC operations on the same
+    activation cancel out, restoring the original partial sum. For any psum and activation a:
+    mac(mac(psum, a, .minus), a, .plus) = psum.
+    This is the symmetric counterpart to PlusMinusCancelGeneric, completing the proof
+    that ternary MAC with opposite-sign weights forms an involutive pair around any activation.
+    Responds to Sparkle HDL sign-inversion correctness and TernaryCore reversible-MAC insights. -/
+theorem ternaryMacMinusPlusCancelGeneric (psum a : Int) :
+    ternaryMac (ternaryMac psum a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .plus) = psum := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

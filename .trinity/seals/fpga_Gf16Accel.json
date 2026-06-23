@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8e38d230ddbc840608cd75f0bea05b061218c1c5b03d93b1bf9725a2916a0707",
   "module": "Gf16Accel",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:11:55Z",
+  "sealed_at": "2026-06-23T03:19:02Z",
   "spec_hash": "sha256:5ff83b222f25bcc76c64b469ec36441be9d44750b4dc3e7d8e17a343450a9f8a",
   "spec_path": "specs/fpga/gf16_accel.t27"
 }

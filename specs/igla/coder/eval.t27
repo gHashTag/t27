@@ -3333,3 +3333,20 @@ invariant eval_accuracy_three_all_correct_w310_inv:
     accuracy([1, 2, 3], [1, 2, 3]) == 1.0
 
 
+test eval_accuracy_three_all_correct_w311
+    given preds = [1, 2, 3]
+    given refs = [1, 2, 3]
+    when acc = accuracy(preds, refs)
+    then acc == 1.0
+
+test eval_accuracy_three_all_wrong_w311
+    given preds = [0, 0, 0]
+    given refs = [1, 2, 3]
+    when acc = accuracy(preds, refs)
+    then acc == 0.0
+
+invariant eval_accuracy_three_all_correct_w311_inv:
+    accuracy([1, 2, 3], [1, 2, 3]) == 1.0
+
+
+

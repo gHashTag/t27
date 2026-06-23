@@ -1539,3 +1539,18 @@ invariant eda_placement_area_huge_positive_true_w310_inv:
     placement_area_positive(1000000.0) == true
 
 
+test eda_placement_area_huge_positive_true_w311
+    given area = 1000000.0
+    when ok = placement_area_positive(area)
+    then ok == true
+
+test eda_route_wire_length_small_positive_true_w311
+    given len = 1
+    when ok = route_wire_length_non_negative(len)
+    then ok == true
+
+invariant eda_placement_area_huge_positive_true_w311_inv:
+    placement_area_positive(1000000.0) == true
+
+
+

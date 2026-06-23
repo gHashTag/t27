@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d61e4a059ca5d42d10d6fcc81429f9ec91f1cb6f8f8e23eb4f361dc805a0c230",
   "module": "ExperienceSave",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:11:54Z",
+  "sealed_at": "2026-06-23T03:19:01Z",
   "spec_hash": "sha256:df15f1fbd549cad6bc01b0599d4765ea3d8be69eb2759ef112ca8c94c101168d",
   "spec_path": "specs/pipeline/experience_save.t27"
 }

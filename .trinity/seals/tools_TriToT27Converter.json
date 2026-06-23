@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e6c95fb7e7d5812066b42e0069e25335e35ec183e234ffa24988ee80a80f8d6c",
   "module": "TriToT27Converter",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:11:54Z",
+  "sealed_at": "2026-06-23T03:19:01Z",
   "spec_hash": "sha256:7abd3f624fa0938c88e2ca78016af141b213aa31840f7aab968b34ac534a91f0",
   "spec_path": "specs/tools/tri_to_t27_converter.t27"
 }

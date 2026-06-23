@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:877f1ab3ba82a0c49b334675511e984601a34f99eeed14c607a404bc7bc6467e",
   "module": "igla-race-yosys",
   "ring": 12,
-  "sealed_at": "2026-06-23T03:11:54Z",
-  "spec_hash": "sha256:c916aad2809d12a86aeeecf641d63bcf40819c32b998d3c6b468ed53bef0e1b4",
+  "sealed_at": "2026-06-23T03:19:00Z",
+  "spec_hash": "sha256:cc61c4fc912fedda2e0b610b8436ae6f24bcfb393829e84a9c6202a87959b025",
   "spec_path": "specs/igla/race/yosys.t27"
 }

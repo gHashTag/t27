@@ -919,3 +919,20 @@ invariant bench_proxy_throughput_thousand_ops_w310_inv:
     throughput(1000, 500) == 2.0
 
 
+test bench_proxy_throughput_thousand_ops_w311
+    given ops = 1000
+    given ns = 500
+    when t = throughput(ops, ns)
+    then t == 2.0
+
+test bench_proxy_throughput_zero_ns_inf_w311
+    given ops = 100
+    given ns = 0
+    when t = throughput(ops, ns)
+    then t == 0.0
+
+invariant bench_proxy_throughput_thousand_ops_w311_inv:
+    throughput(1000, 500) == 2.0
+
+
+
