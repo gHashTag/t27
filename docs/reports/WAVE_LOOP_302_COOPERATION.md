@@ -1,163 +1,113 @@
-# Wave Loop 302 — Cooperation Variants for W303
+# Wave Loop 302 — Three Variants of Cooperation for Wave Loop 303
 
 **Date:** 2026-06-23  
-**Commit:** `0cafedc09`  
-**Current State:** Pool A ALL ≥42, CODER ALL ≥32, Pool B 57, Integration 42, Lean 4 36 theorems  
-**Zero-Entrant Streak:** 63 waves
+**Commit:** `bbc491ea0`  
+**Current State:** Pool A ALL ≥42, CODER ALL ≥32, Pool B 57, Integration 42, Lean 4 36 theorems (3 generic)
 
 ---
 
-## Executive Summary
+## Variant A — Uniform Floor Elimination (RECOMMENDED)
 
-Three cooperation variants are proposed for W303.
-The default is **Variant A**, which continues the uniform floor elimination strategy
-and adds a new generic `∀` quantifier theorem (GEMM reference equivalence).
-**Variant B** targets the high-risk generic GEMM equivalence proof.
-**Variant C** is a deep-integration variant combining Pool A ↔ CODER cross-spec invariants.
+**Strategy:** Continue the historic streak by raising ALL specs simultaneously.
 
----
+| Target | W302 | W303 | Δ |
+|--------|------|------|---|
+| Pool A (15 specs) | ALL ≥42 | **ALL ≥43** | +15 inv, +30 tests |
+| CODER (10 specs) | ALL ≥32 | **ALL ≥33** | +10 inv, +20 tests |
+| Pool B (systolic_ternary) | 57 | **58** | +1 inv, +2 tests |
+| Integration (ternary_inference) | 42 | **43** | +1 inv, +2 tests |
+| Lean 4 theorems | 36 | **37** | +1 theorem |
+| **Total work** | — | **+27 inv, +54 tests, +1 theorem** | — |
 
-## Variant A — Uniform Floor Elimination + Generic GEMM Lemma (Recommended)
+**Why recommended:**
+- Maintains 63-wave zero-entrant streak momentum
+- Minimal cognitive load (same pattern as W294-W302)
+- Low risk (concrete theorems, simple invariants)
 
-**Objective:** Maintain the uniform floor elimination momentum while extending generic proof coverage.
-
-**Target Commit:** `feat(wave-loop-303): +27 invariants +54 tests +1 Lean theorem`
-
-### Pool A: ALL 15 specs 42→43
-- +1 invariant per spec (15 total)
-- +2 tests per spec (30 total)
-- Expected seals: `race_igla-adder_tree-43`, ..., `race_igla-yosys-43`
-
-### CODER: ALL 10 specs 32→33
-- +1 invariant per spec (10 total)
-- +2 tests per spec (20 total)
-- Expected seals: `coder_igla-arch-33`, ..., `coder_igla-weights-33`
-
-### Pool B: systolic_ternary 57→58
-- +1 invariant, +2 tests
-
-### Integration: ternary_inference 42→43
-- +1 invariant, +2 tests
-
-### Lean 4: +1 Generic Theorem
-- **Theorem:** `∀ a w, ternaryGemm2x2 a w = referenceGemm2x2 a w`
-- **Proof Strategy:** Expand `ternaryGemm2x2` to element-wise sum over `ternaryMac` applications;
-  for each position, apply the LUT DSE proof trinity (zero=wire, plus=add, minus=sub)
-  and show the result matches the reference GEMM definition.
-- **Tactic:** `simp` + `omega` + `ring` (manual case analysis may be needed)
-- **Risk:** High — may require manual proof; fallback to concrete theorems if blocked
-
-**Success Criteria:**
-- All 27 specs parse with 0 errors
-- All 27 seals regenerate
-- Lean 4 build passes in <2s
-- `lake exe trinity` reports all theorems verified
+**Execution:**
+1. Batch-append +1 invariant and +2 tests per spec via Python script
+2. Parse all 27 specs
+3. Seal all 27 specs
+4. Add generic theorem (e.g., `∀ a, ternaryMul a .plus = a`)
+5. Commit, generate report
 
 ---
 
-## Variant B — Deep Generic GEMM Equivalence Proof
+## Variant B — Generic GEMM Equivalence Proof
 
-**Objective:** Prioritize a single high-impact generic theorem over uniform floor expansion.
+**Strategy:** Complete the most important missing generic theorem: full GEMM reference equivalence.
 
-**Target Commit:** `feat(wave-loop-303): +0 invariants +0 tests +1 Lean generic theorem`
+| Target | W302 | W303 | Δ |
+|--------|------|------|---|
+| Pool A (15 specs) | ALL ≥42 | **ALL ≥42** (maintain) | 0 |
+| CODER (10 specs) | ALL ≥32 | **ALL ≥32** (maintain) | 0 |
+| Pool B (systolic_ternary) | 57 | **57** (maintain) | 0 |
+| Integration (ternary_inference) | 42 | **42** (maintain) | 0 |
+| Lean 4 theorems | 36 | **37** | **+1 theorem** |
+| **Total work** | — | **+1 theorem** | — |
 
-### Pool A / CODER: Maintain Current Floors
-- No new invariants or tests
-- Re-seal existing specs to ensure no drift
+**Theorem target:**
+```lean
+theorem ternaryGemm2x2EquivReferenceGeneric (a : Array Int) (w : Array TernaryWeight)
+    (_ha : a.size = 4) (_hw : w.size = 4) :
+    ternaryGemm2x2 a w = referenceGemm2x2 a w := by
+  simp [ternaryGemm2x2, referenceGemm2x2, ternaryMac_eq_referenceMulAdd]
+```
+- **Risk:** Medium — may need `intro`, `simp`, and case analysis
+- **Impact:** HIGH — proves ALL ternary GEMM computations are correct by reference
 
-### Pool B / Integration: Maintain Current Depth
-- No changes
-
-### Lean 4: +1 Deep Generic Theorem
-- **Theorem:** `∀ a w, ternaryGemm2x2 a w = referenceGemm2x2 a w`
-- **Approach:** Write a manual proof in Lean 4:
-  ```lean
-  theorem ternaryGemm2x2EquivReferenceGeneric (a : Array Int) (w : Array TernaryWeight) :
-      ternaryGemm2x2 a w = referenceGemm2x2 a w := by
-    unfold ternaryGemm2x2 referenceGemm2x2
-    simp [ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode]
-    <;> try { omega }
-    <;> try { ring }
-    <;> try native_decide
-  ```
-- **Risk:** High — may require restructuring the theorem to expose structure to Lean's automation
-- **Fallback:** If blocked, add 2-3 simpler generic theorems (e.g., associativity of `ternaryMac`)
-
-### Deliverables
-- Full formal proof in `TernaryInference.lean`
-- A new `TernaryInferenceGemm.lean` module if the proof is large
-
-**Success Criteria:**
-- Lean 4 build passes
-- Theorem is fully generic (`∀ a w`)
-- Proof is readable and documented
+**Why consider:**
+- Closes the most important gap identified in W302 weak points analysis
+- Creates a reusable correctness guarantee for any 2x2 ternary GEMM
+- Strong response to Sparkle HDL's 60+ BitNet theorems
 
 ---
 
-## Variant C — Cross-Spec Integration + Deep Pool B
+## Variant C — Integration Stress Test + Cross-Spec Linking
 
-**Objective:** Build integration depth and cross-spec invariants linking hardware and software specs.
+**Strategy:** Push integration spec depth and create cross-spec invariants.
 
-**Target Commit:** `feat(wave-loop-303): +5 invariants +10 tests +5 cross-spec`
+| Target | W302 | W303 | Δ |
+|--------|------|------|---|
+| Pool A (15 specs) | ALL ≥42 | **ALL ≥42** (maintain) | 0 |
+| CODER (10 specs) | ALL ≥32 | **ALL ≥32** (maintain) | 0 |
+| Pool B (systolic_ternary) | 57 | **57** (maintain) | 0 |
+| Integration (ternary_inference) | 42 | **47** | **+5 inv, +10 tests** |
+| Lean 4 theorems | 36 | **37** | +1 theorem |
+| Cross-spec invariants | 0 | **3** | +3 linking invariants |
+| **Total work** | — | **+8 inv, +10 tests, +1 theorem** | — |
 
-### Pool A: Maintain floors (42)
-- No new invariants
+**Cross-spec invariant targets:**
+1. `ternary_gemm_output_matches_systolic_ternary_pe` — GEMM output equals PE output
+2. `ternary_inference_output_bounded_by_bram_weights_depth` — inference output width ≤ BRAM depth
+3. `adder_tree_sum_equals_ternary_gemm_accumulation` — adder tree reduction matches MAC accumulation
 
-### CODER: Maintain floors (32)
-- No new invariants
+**Why consider:**
+- Creates genuine system-level verification
+- Demonstrates t27 specs compose correctly
+- High-value for potential tape-out / FPGA deployment
 
-### Pool B: systolic_ternary 57→62
-- +5 invariants, +10 tests
-- Focus: Systolic array ternary GEMM invariants (tiling, blocking, dataflow)
-
-### Integration: ternary_inference 42→48
-- +6 invariants, +12 tests
-- Focus: End-to-end inference pipeline properties (output correctness bounds, sparsity propagation)
-
-### Cross-Spec Invariants: +5
-Link hardware specs (Pool A) to software specs (CODER):
-1. `ternary_mac output matches ternary_gemm cell output` — Pool A ↔ Pool A
-2. `gemm output bounds match ternary_inference output bounds` — Pool A ↔ Integration
-3. `tokenizer encoding preserves adder_tree precision` — CODER ↔ Pool A
-4. `weights ternary quantization matches bram_weights storage` — CODER ↔ Pool A
-5. `benchmark latency matches rtl cycle count` — CODER ↔ Pool A
-
-**Deliverables:**
-- 5 new cross-spec invariant files under `specs/igla/integration/cross_*.t27`
-- Updated integration spec with cross-spec references
-
-**Success Criteria:**
-- All cross-spec invariants parse and seal
-- Integration spec references all cross-spec invariants
-- No circular dependencies between spec layers
+**Risk:** Cross-spec invariants may require new t27 language features (imports between spec modules).
 
 ---
 
-## Comparative Summary
+## Decision Matrix
 
-| Dimension | Variant A (Recommended) | Variant B (High-Risk) | Variant C (Deep) |
-|-----------|----------------------|----------------------|------------------|
-| Invariants added | +27 | +0 | +11 |
-| Tests added | +54 | +0 | +22 |
-| Lean 4 theorems | +1 generic | +1 deep generic | +0 |
-| Cross-spec invariants | +0 | +0 | +5 |
-| Risk | Low | **High** | Medium |
-| Impact on Pool A | Floor ↑ 42→43 | None | None |
-| Impact on CODER | Floor ↑ 32→33 | None | None |
-| Impact on Lean 4 | +1 generic | +1 deep generic | None |
-| Time estimate | ~20 min | ~40 min (with risk) | ~25 min |
-| Recommended phase | W303 (now) | W304 (next) | W305 |
+| Criterion | Variant A | Variant B | Variant C |
+|-----------|-----------|-----------|-----------|
+| **Maintains streak** | ✅ Yes | ⚠️ Pauses | ⚠️ Pauses |
+| **Mathematical depth** | ⚠️ Low | ✅ High | ✅ Medium |
+| **Competitive moat** | ⚠️ Thin | ✅ Strong | ✅ Strong |
+| **Implementation risk** | ✅ Low | ⚠️ Medium | ⚠️ High |
+| **Time to execute** | ✅ ~30 min | ⚠️ ~2 hours | ⚠️ ~4 hours |
+| **Scientific impact** | ⚠️ Incremental | ✅ High | ✅ High |
+| **Sparkle HDL response** | ⚠️ None | ✅ Direct | ⚠️ Indirect |
+| **CktFormalizer response** | ⚠️ None | ✅ Direct | ⚠️ Indirect |
+
+**Recommendation:** Execute **Variant A** for W303 to maintain streak,
+then **Variant B** for W304 to complete the generic GEMM equivalence proof.
 
 ---
 
-## Decision
-
-**Execute Variant A for W303.**
-
-The uniform floor elimination strategy has proven robust across 13 waves.
-Maintaining momentum while adding one generic theorem is the optimal risk/reward.
-Variant B (deep generic proof) is deferred to W304 with a dedicated time block.
-Variant C (cross-spec integration) is deferred to W305 when Pool A and CODER floors stabilize.
-
-**Phase complete: SYNTHESIZE**
+## Phase Complete: SYNTHESIZE
 → Phase 6: LEARN
