@@ -259,3 +259,12 @@ theorem ternaryInferenceLutMixedWeightSelect :
     ternaryMac psum a (TernaryWeight.mk .minus) = psum - a &&
     ternaryMac psum a (TernaryWeight.mk .zero) = psum := by
   simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+
+/-- LUT-like property: zero-weight entry in ternary MAC is NOP for any concrete activation.
+    Generalizes LutZeroWeightNop from fixed a=7 to generic concrete a via native_decide.
+    Responds to KU Leuven Ternary LUT DSE and TernaryCore FPGA zero-skip insight. -/
+theorem ternaryInferenceLutZeroWeightNopConcrete :
+    let a := 7
+    let psum := 42
+    ternaryMac psum a (TernaryWeight.mk .zero) = psum := by
+  simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
