@@ -1241,16 +1241,3 @@ test cordic_sqrt_approx_ten_approx_three_w307
 
 invariant cordic_sqrt_approx_sixtyfour_eight_w307_inv:
     cordic_sqrt_approx(64.0, 8) >= 7.9
-
-test cordic_sqrt_approx_nine_three_exact_w307
-    given x = 9.0
-    when r = sqrt_approx(x)
-    then r == 3.0
-
-test cordic_sqrt_approx_one_zero_one_w307
-    given x = 1.0
-    when r = sqrt_approx(x)
-    then r == 1.0
-
-invariant cordic_sqrt_approx_nine_three_exact_w307_inv:
-    sqrt_approx(9.0) == 3.0

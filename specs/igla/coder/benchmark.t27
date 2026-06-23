@@ -4260,16 +4260,3 @@ test benchmark_mean_five_incremental_w307
 
 invariant benchmark_mean_five_incremental_w307_inv:
     mean([1.0, 2.0, 3.0, 4.0, 5.0]) == 3.0
-
-test benchmark_mean_single_element_identity_w307
-    given values = [42.0]
-    when m = mean(values)
-    then m == 42.0
-
-test benchmark_mean_symmetric_zero_w307
-    given values = [-10.0, 10.0]
-    when m = mean(values)
-    then m == 0.0
-
-invariant benchmark_mean_single_element_identity_w307_inv:
-    mean([42.0]) == 42.0

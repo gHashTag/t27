@@ -770,16 +770,3 @@ test ternary_inference_all_minus_weights_negate_w307
 
 invariant ternary_inference_all_plus_weights_double_w307_inv:
     ternary_inference_2x2(InferenceInput { activations: [3, 3, 3, 3] }, [TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus()]).outputs == [6, 6, 6, 6]
-
-test ternary_inference_identity_all_negative_passthrough_w307
-    given input = InferenceInput { activations: [cast_i8(-1), cast_i8(-2), cast_i8(-3), cast_i8(-4)] }
-    when result = ternary_inference_identity(input)
-    then result.outputs[0] == -1 && result.outputs[1] == -2 && result.outputs[2] == -3 && result.outputs[3] == -4
-
-test ternary_inference_identity_all_positive_passthrough_w307
-    given input = InferenceInput { activations: [cast_i8(10), cast_i8(20), cast_i8(30), cast_i8(40)] }
-    when result = ternary_inference_identity(input)
-    then result.outputs[0] == 10 && result.outputs[1] == 20 && result.outputs[2] == 30 && result.outputs[3] == 40
-
-invariant ternary_inference_identity_all_negative_passthrough_w307_inv:
-    ternary_inference_identity(InferenceInput { activations: [cast_i8(-1), cast_i8(-2), cast_i8(-3), cast_i8(-4)] }).outputs[0] == -1

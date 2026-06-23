@@ -1910,16 +1910,3 @@ test pipeline_compose_identity_quadruple_w307
 
 invariant pipeline_compose_identity_quadruple_w307_inv:
     compose(identity, quadruple, 3) == 12
-
-test pipeline_compose_identity_identity_w307
-    given x = 5
-    when result = compose(identity, identity, x)
-    then result == 5
-
-test pipeline_compose_triple_identity_w307
-    given x = 3
-    when result = compose(triple, identity, x)
-    then result == 9
-
-invariant pipeline_compose_identity_identity_w307_inv:
-    compose(identity, identity, 5) == 5

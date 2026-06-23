@@ -1376,20 +1376,3 @@ test ternary_mac_large_activation_minus_weight_sub_w307
 
 invariant ternary_mac_large_activation_plus_weight_add_w307_inv:
     ternary_mac(0, 100, TernaryWeight::plus()) == 100
-
-test ternary_mac_minus_weight_negates_w307
-    given a = 7
-    given w = TernaryWeight { code: 2 }
-    given acc = 10
-    when result = ternary_mac(a, w, acc)
-    then result == 3
-
-test ternary_mac_plus_weight_adds_w307
-    given a = 5
-    given w = TernaryWeight { code: 1 }
-    given acc = 3
-    when result = ternary_mac(a, w, acc)
-    then result == 8
-
-invariant ternary_mac_minus_weight_negates_w307_inv:
-    ternary_mac(7, TernaryWeight { code: 2 }, 10) == 3

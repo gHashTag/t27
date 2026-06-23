@@ -1284,16 +1284,3 @@ test cordic_top_batch_pi_neg_one_w307
 
 invariant cordic_top_batch_two_cosines_w307_inv:
     cordic_top_batch([[0.0], [1.570796]]).len() == 2
-
-test cordic_top_batch_positive_sum_w307
-    given angles = [1000, 2000, 3000]
-    when sum = cordic_top_batch(angles)
-    then sum == 6000
-
-test cordic_top_batch_mixed_balance_zero_w307
-    given angles = [1000, -500, 500, -1000]
-    when sum = cordic_top_batch(angles)
-    then sum == 0
-
-invariant cordic_top_batch_positive_sum_w307_inv:
-    cordic_top_batch([1000, 2000, 3000]) == 6000

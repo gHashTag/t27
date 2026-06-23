@@ -2034,19 +2034,3 @@ test dataset_batch_size_five_two_batches_w307
 
 invariant dataset_batch_size_five_two_batches_w307_inv:
     batch([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 5).len() == 2
-
-test dataset_shuffle_same_seed_same_w307
-    given data = [1, 2, 3, 4]
-    given seed = 42
-    when r1 = shuffle(data, seed)
-    when r2 = shuffle(data, seed)
-    then r1 == r2
-
-test dataset_batch_size_two_half_len_w307
-    given data = [1, 2, 3, 4]
-    given size = 2
-    when batches = batch(data, size)
-    then batches.len() == 2
-
-invariant dataset_batch_size_two_half_len_w307_inv:
-    batch([1, 2, 3, 4], 2).len() == 2

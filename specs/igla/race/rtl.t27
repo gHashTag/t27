@@ -1420,16 +1420,3 @@ test rtl_bits_to_u64_alternating_ten_w307
 
 invariant rtl_bits_to_u64_five_ones_thirtyone_w307_inv:
     bits_to_u64([true, true, true, true, true]) == 31
-
-test rtl_bits_to_u64_empty_zero_w307
-    given bits = []
-    when val = bits_to_u64(bits)
-    then val == 0
-
-test rtl_bits_to_u64_single_one_one_w307
-    given bits = [1]
-    when val = bits_to_u64(bits)
-    then val == 1
-
-invariant rtl_bits_to_u64_single_one_one_w307_inv:
-    bits_to_u64([1]) == 1

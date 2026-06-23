@@ -3257,18 +3257,3 @@ test eval_accuracy_one_wrong_w307
 
 invariant eval_accuracy_one_correct_w307_inv:
     accuracy([7], [7]) == 1.0
-
-test eval_accuracy_one_correct_w307
-    given preds = [1]
-    given refs = [1]
-    when acc = accuracy(preds, refs)
-    then acc == 1.0
-
-test eval_accuracy_one_wrong_w307
-    given preds = [0]
-    given refs = [1]
-    when acc = accuracy(preds, refs)
-    then acc == 0.0
-
-invariant eval_accuracy_one_correct_w307_inv:
-    accuracy([1], [1]) == 1.0

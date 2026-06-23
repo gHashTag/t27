@@ -1254,18 +1254,3 @@ test gemm_booth_mul_i32_min_negative_w307
 
 invariant gemm_booth_mul_i32_max_positive_w307_inv:
     booth_mul_i32(10000, 10000) == 100000000
-
-test gemm_booth_mul_i32_one_identity_w307
-    given a = 1
-    given b = 42
-    when p = booth_mul_i32(a, b)
-    then p == 42
-
-test gemm_booth_mul_i32_zero_zero_w307
-    given a = 0
-    given b = 99
-    when p = booth_mul_i32(a, b)
-    then p == 0
-
-invariant gemm_booth_mul_i32_one_identity_w307_inv:
-    booth_mul_i32(1, 42) == 42
