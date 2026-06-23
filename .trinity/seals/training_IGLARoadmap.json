@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:42d2a58e5d72173257486e7d3e8872b3877e48bd298b3a6156d49fae68711dab",
   "module": "IGLARoadmap",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:54d9c2d81be0a306a311a4e50ec767e81459c14f482a243a10e873a7654fa3ff",
   "spec_path": "specs/igla/training/roadmap.t27"
 }

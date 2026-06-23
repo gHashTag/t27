@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:566b0c0a1956b3c9afbb4f6ea53088857e786223bab01944eb77915e90d1c487",
   "module": "Tanh",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:50Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:d14b698293100dd48dcbc0741dc4ad592c0a499b34d827515586e70551ff6747",
   "spec_path": "specs/ml/activation/tanh_activation.t27"
 }

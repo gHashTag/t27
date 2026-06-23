@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:24e054673cae011edfd03e478cc431e961fc2e27d3e6d03edaf1b83a5dffd1e5",
   "module": "AXI4_Testbench",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:50Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:1311f1b9f5b826d81f9ae077069f11252df3e04ac5c1c4e40b554b4783f75ad9",
   "spec_path": "specs/fpga/testbench/axi4_tb.t27"
 }

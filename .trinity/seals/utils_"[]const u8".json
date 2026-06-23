@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1623c4df1284f0951ead8917aeced09fc4d86e28a61a110a33c4c9cdab5e979b",
   "module": "\"[]const u8\"",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:58c449a8aac8f2fbae73fa7c67532d9f4cded68e794aa154862031f3e2893da1",
   "spec_path": "specs/tri/utils/logger.t27"
 }

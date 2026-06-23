@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:450f7a99d40fbd43d52e800c8dc8373920b6a839085db19b234222eb18534621",
   "module": "Simulator",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:77994ef12abe99523526c9731a3fb05116385ee25b471f3dbe771fb45c14969c",
   "spec_path": "specs/fpga/simulator.t27"
 }

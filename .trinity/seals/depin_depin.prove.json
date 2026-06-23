@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3b06d95955f10515b58efbc3319c5ccd2d0de31f23d833c7ff23ba2745cf2502",
   "module": "depin.prove",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:b705492899feafbf3edaeec380ca7c5f3fc252230d57b3450f792954d97eeff6",
   "spec_path": "specs/depin/prove.t27"
 }

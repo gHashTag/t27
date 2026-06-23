@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:402fe9007bed136c96644be0c21a9207ce54a13dc522b5146c2553f2e7232ede",
   "module": "String  # phi, trinity, gematria, evolution, safety",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:a759b1a80fc9740f0daa0cf6a1382298f9769e6a4b09d9ed09309c0c58fba775",
   "spec_path": "specs/tri/agent/governance_agent.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4ce723ca48b5b881bdce86237d28d1f99545f71c8a805e98ca80f2adce1c8800",
   "module": "SPI_Testbench",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:50Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:4eca929d7822c55feff4cbd456c88688c352fbec4ecfc7e4755983b08ae660a5",
   "spec_path": "specs/fpga/testbench/spi_tb.t27"
 }

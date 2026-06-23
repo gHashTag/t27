@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1920742fd6464481aecbf88555f703eaec8d27e71ec9bb0bc67125f48b3be40e",
   "module": "sandbox.health",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:240ee005d77e830f32a5e8bc7b49d4eb99b0ec4d6b15a24e40bcdf0e68159602",
   "spec_path": "specs/sandbox/health.t27"
 }

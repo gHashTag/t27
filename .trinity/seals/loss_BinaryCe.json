@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8c137222ebdd532eb64c4d4f044167db6656857d99d8ba3369702e50b9a6e14d",
   "module": "BinaryCe",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:7ef7acd6dea18076e9b87ed6b1cc6fa16ef8c0de91a59ce03bb66cb5f4d01e48",
   "spec_path": "specs/ml/loss/binary_crossentropy_loss.t27"
 }

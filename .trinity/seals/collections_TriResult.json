@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0d8e2b943e883a3da88dbc19a88e5275d03a1dff58c9f258d069ea564a9302d7",
   "module": "TriResult",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:979b29b19e25610e1bdaac20f03ff6c2f302cf6809ccdbdd6b6f900b91031202",
   "spec_path": "specs/tri/collections/result.t27"
 }

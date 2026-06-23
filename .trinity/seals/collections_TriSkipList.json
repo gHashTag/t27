@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c734ed430f2d22fa0b84310088af9e84b1ee4cfde57bd8f208c6457c17bb5886",
   "module": "TriSkipList",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:3cfdb7e154b5a0ec8d0a825f265b1f5e165af4ae3c19b5c499efc9f5a61a170b",
   "spec_path": "specs/tri/collections/skip_list.t27"
 }

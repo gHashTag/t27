@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3a001c5cbbcb6f55b71d602337bcbe71b1c4f837efdb1d8738a01e30f8420559",
   "module": "TriBson",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:7ed6aca7a17af29b1cae74b8e6bfddb1cef19c748ebc840b09a9ce2f6b3ecc54",
   "spec_path": "specs/tri/encoding/bson.t27"
 }

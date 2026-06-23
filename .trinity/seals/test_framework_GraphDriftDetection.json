@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1f3a1c613f0a81758a397ea273481900a87aa2e974f1b5a8eb80c676311dbf57",
   "module": "GraphDriftDetection",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:a49e6be25598157a01a6e9179cbee2685f5043978aa4db8c0beb5139c33064ff",
   "spec_path": "specs/test_framework/graph_drift_detection.t27"
 }

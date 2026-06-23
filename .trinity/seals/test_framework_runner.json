@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3098dc18a774159c08032c3cea770ea2a0dafd1b07332220e90f6ad2b65ada50",
   "module": "runner",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:5cfa56c009dd16e0297d7e1cec05ea6ab92be4ef6a59d5fdcc113cf5bd305e17",
   "spec_path": "specs/test_framework/runner.t27"
 }

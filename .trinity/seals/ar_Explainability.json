@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:945d0a015240151ffb1045fbd0d38882fd3c046196e5855a65fbc872f04cac16",
   "module": "explainability",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:80e970c2be2a313cfca43bc0bbb20397259952dd2d26af5b1359e1d26ea1a4b3",
   "spec_path": "specs/ar/explainability.t27"
 }

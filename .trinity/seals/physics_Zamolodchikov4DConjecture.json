@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b0da0d4f7362e59964758dd78d60871f1f6b461ece5833fa48d06718a4a3aeac",
   "module": "Zamolodchikov4DConjecture",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:505e0f2cf22eb60531880d61224bb27249c5d3d7322b7f2c08c6bde958710cd2",
   "spec_path": "specs/physics/zamolodchikov_4d_conjecture.t27"
 }

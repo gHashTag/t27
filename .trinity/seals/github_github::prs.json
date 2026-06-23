@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e4a2a1c28a85405462bee6e3a397c81d4357e7ea0e559fb2325bdcd5abfaee21",
   "module": "github::prs",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:4e466319eaaca9d8dded516b01c4e044793adcf2dc0fd6b21baf29244e53b5f9",
   "spec_path": "specs/github/prs.t27"
 }

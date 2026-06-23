@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a98ebfa3a79c77558702ff4f7f7d47f8bdd72ee93fe5e5254bec31127eba0ddc",
   "module": "TriCountingSort",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:62e6774bc24fab424ef39fbd6ca274ef382086eb52f7c1ae50ae7869e7783bb1",
   "spec_path": "specs/tri/sort/counting_sort.t27"
 }

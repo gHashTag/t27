@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0d3f9c430d4e328eb510899d9fe3c2e50c4fcdcab6292b0b2008e40b8d31cff5",
   "module": "TriQuantum",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:18ef09e675426f4fec4d5ac12678b1b5fe9670cd4cd366de0288d21ce46c9ae1",
   "spec_path": "specs/sacred/quantum.t27"
 }

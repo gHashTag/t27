@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:24f9bd69de5598d27f1f270a8eaf23ff47694bdfc16d58e479d6f4f83415e0c3",
   "module": "TriError",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:83fd64fdf3b8a0001d74c1769230ca11b7a0d7f3729c46881b92320b51708b7f",
   "spec_path": "specs/tri/utils/error.t27"
 }

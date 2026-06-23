@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:081920095141e72aa25c034b7af036f57f35d7868ea2f9a7a7f607d167b98420",
   "module": "SimpleTest",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:8538ad97f51494ef1c556e7c9f0a792710427c5f2fb7354ed840a8dd71e05af2",
   "spec_path": "specs/demos/simple_test.t27"
 }

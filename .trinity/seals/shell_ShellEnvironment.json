@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:89cf8cdbd3d7ef12a9848a023be6b4589c747dbbac4c0d216c30c79e26f832eb",
   "module": "ShellEnvironment",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:d58fc71d9e69156a0b572eb290f73c0bbd5ac953a9abb7a5e2405924ba48f3f6",
   "spec_path": "specs/shell/environment.t27"
 }

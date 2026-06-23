@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4ab19bd63f20e27e2435af0dc5e4294ff4ec6b9f39f1cb33a9db2e12bdcd5441",
   "module": "E2eDemo",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:69729efabc127aefce11e671dcb1abc5029ecd942d0670615a9ab41e73b76fb3",
   "spec_path": "specs/fpga/e2e_demo.t27"
 }

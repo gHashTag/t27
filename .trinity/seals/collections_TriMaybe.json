@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ba92295a95d15b9250cd49130a658e8a3e5d98dd608c99c9eafae7104f272ab5",
   "module": "TriMaybe",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:da83784231ce7b0004279a51913a711527f55d8b2150da9a39fb39b307fab17f",
   "spec_path": "specs/tri/collections/maybe.t27"
 }

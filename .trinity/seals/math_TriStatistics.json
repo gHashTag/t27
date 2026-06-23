@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a51e9f264be0d023f3566ddbe057cc53f54ff94cc428e98ae66a516c5f1c4703",
   "module": "TriStatistics",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:648c5e2ea4d4224657df7d419ea13e95386fe2dd9f447f53d7ecfb134c5c5d84",
   "spec_path": "specs/tri/math/statistics.t27"
 }

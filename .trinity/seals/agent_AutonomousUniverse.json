@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a8ec4b0f6de2640ea0501694e37a383d55f8c23d59c6e54a0810fc691ab882b4",
   "module": "AutonomousUniverse",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:bfbbc8dbd82391b975ea357722e3f95ffabb551f4ae40985354b4bcd0afac17b",
   "spec_path": "specs/tri/agent/autonomous_universe.t27"
 }

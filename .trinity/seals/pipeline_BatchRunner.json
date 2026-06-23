@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:042d4688c906aaa548b6aa33fc71b2cbedebec47c22e328bae7ffbd5b4d17c86",
   "module": "BatchRunner",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:8d379f63dde398e22375d6ab17f133e701bca3acb3d707b3208feba3fc7882c5",
   "spec_path": "specs/tri/pipeline/batch_runner.t27"
 }

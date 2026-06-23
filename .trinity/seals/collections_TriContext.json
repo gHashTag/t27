@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7d07910cc2df8478c820085315dfb70734a52519773049a19bd1b98ed5415be8",
   "module": "TriContext",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:0f0f989b64c459cd0e5fe437464dbfa1e1649b6eb7bd7a066ec6a352a35e24eb",
   "spec_path": "specs/tri/collections/context.t27"
 }

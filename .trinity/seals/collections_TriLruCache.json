@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:73e23e07c8299a6faa977c328d28c7c74dc6deea06579b5a405b8505f71ecc2f",
   "module": "TriLruCache",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:346a15f33a83f1587b8c61955907f492ac291d4c687970a47a655ceb52d9be35",
   "spec_path": "specs/tri/collections/lru_cache.t27"
 }

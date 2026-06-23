@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:07fb62b690b71ca1ec62085ef307069d4016bce050dd56b33ce18d3b4d9757fc",
   "module": "MultiHeadAttn",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:50Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:9a3ce1aa2579e2bd858efa611d2517e13380fcaa88450c4147b653908fd8df69",
   "spec_path": "specs/ml/transformer/multi_head_attention.t27"
 }

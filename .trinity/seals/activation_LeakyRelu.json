@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b8586ada70d44b8dfdecadc012e409cef9196e8ec0187ef26dc431775f465e33",
   "module": "LeakyRelu",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:50Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:c6cf3e0b7de5d05674b0dcf9c9f2dd1c7efe0a507a99644025f58261c5b15efe",
   "spec_path": "specs/ml/activation/leaky_relu_activation.t27"
 }

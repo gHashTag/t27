@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9c88c9b642c972647ea253b0373e952cd64c6720ace309b0921c598a22d8ce55",
   "module": "FormulaEmbed",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:cd00efe30f02866b622344a58fd1bc8f5904edbbb0d457d2081ee87ad273a94d",
   "spec_path": "specs/memory/formula_embed.t27"
 }

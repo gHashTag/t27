@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:debe79db450d2ad62b2ae99982cf3ee362a56805f4a1ae04b72bf65a92ccdbdb",
   "module": "quantum",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:5dd605ea7076664bd065d02e14f724b3b75ea46be1b70adf914de7c8d9459f9b",
   "spec_path": "specs/physics/quantum.t27"
 }

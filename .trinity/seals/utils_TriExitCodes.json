@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:985becf7a691716e46ab1d1a27f90863656c9f1d43b0c8d26031a0ee8f8d8c0f",
   "module": "TriExitCodes",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:c23121eda036b6ca75c36306d9a466cee8ad8d0a3d9a115f2d65681f98e0a030",
   "spec_path": "specs/tri/utils/exit_codes.t27"
 }

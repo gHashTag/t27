@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:98d2ab481ef0f88a9aa3ea27aa810b12c8dd4b7c51fcccb8f0ad4dfb96322003",
   "module": "TriNet",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:249105154a42777f5e4f32a1e565d18565c1268a054515e331a1f83fee04fdbe",
   "spec_path": "specs/tri/net/net.t27"
 }

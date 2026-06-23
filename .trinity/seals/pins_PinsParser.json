@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e80a33d9262f5529cf6723a1fc9a3ca72e19291e65adcf312f6cf88816ddd453",
   "module": "PinsParser",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:7ca2f4b3c1310d8c2c16d7038dbad2cfeedb019ce4d8a04cd0654fe6ccc4e6ab",
   "spec_path": "specs/pins/parser.t27"
 }

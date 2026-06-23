@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:63a4443263187667854d9e423dd8500c99f140025f8dddbe7809fdc299e9ce9b",
   "module": "Residual",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:c2cd77bcf1104c6158fcb0dc37e0533f063bf3836fedcbe3174681beae8f460b",
   "spec_path": "specs/ml/layers/residual_connection.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b3dfa235fd7a5abc66ef74ce2a84fd254ed2aad1fc027ca22441b474ebfdeb86",
   "module": "GitStatus",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:bc60ba8f4a09dd265c1d7fa6ec3576e58ae0165533f147585cd9a7faa04632ce",
   "spec_path": "specs/git/status.t27"
 }

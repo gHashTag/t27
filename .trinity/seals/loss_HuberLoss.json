@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:080b35dde4c831f6c7d405533d12d1d6840707cfd3efa8f6dae67ed40a833ab9",
   "module": "HuberLoss",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:dc6abda2d082a9007b050ad51b10ae119790ceecbe26b23107a08d024bf0ea29",
   "spec_path": "specs/ml/loss/huber_loss.t27"
 }

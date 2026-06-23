@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:047d4a594a40205105f91f987a841a1d01b811347ced61bff80b97a13fa16aae",
   "module": "TriColors",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:73bb97ab69e0b71c9e8f4f889a00cf720c6ffcdcefde4e2d1efcdbd8c7ef17b7",
   "spec_path": "specs/tri/utils/colors.t27"
 }

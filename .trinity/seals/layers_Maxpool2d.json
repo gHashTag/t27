@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:225e0fb1ea1fe02e3d39144a63a53ccecf4fe67e7d0e08d9314f10e7e3f5f0a4",
   "module": "Maxpool2d",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:85737878076cb079490db44c9772b4934fc0daae162b066db29d1685190a2c60",
   "spec_path": "specs/ml/layers/maxpool2d_layer.t27"
 }

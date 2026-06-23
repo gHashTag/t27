@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9ecadfa7b13103c91356d2e1fbfd9cae4905b040609f8e3fad1249bc6cc27649",
   "module": "VcdConformanceCompare",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:f4725c1e5baf34cd48150fccccaf061f585340ffd5963986293fb3262ce8e6e3",
   "spec_path": "specs/fpga/vcd_conformance_compare.t27"
 }

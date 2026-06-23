@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:afe29eb6d65bb0187600a4ef5780a9a1e956954842d2d95bc14333862b97c274",
   "module": "TriLogging",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:d0e54c542bbcc417fc319c2647389a20b7a0697d2f0987cbec47e5eeb9a3649a",
   "spec_path": "specs/tri/utils/logging.t27"
 }

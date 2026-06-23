@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d1041fd635929c8407b40d7062a0a5d40c4128289472a1aaea0382a2435fc1fe",
   "module": "Layernorm",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:0f726fb3c27cf8e9877344bd5e4e97a04a1c9f3a76e945222f7a7aa87e7eed96",
   "spec_path": "specs/ml/layers/layernorm_layer.t27"
 }

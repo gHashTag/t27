@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:fe2d37b7d8945c131b880312b9fe73a4379dbe435978831e172acd5258062b93",
   "module": "TriBezier",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:4f0ae1c180bc369bd06c7f4535ef6a201c37798184ff864bfef6ef436ee95562",
   "spec_path": "specs/tri/math/bezier.t27"
 }

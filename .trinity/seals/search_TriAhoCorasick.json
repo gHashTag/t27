@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7792c7bc8bb0a805c14b78aab21910699387a5c2ac33a91776169330f9970d0e",
   "module": "TriAhoCorasick",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:366ade2de4cb17215a51999e65e62e5799de582a4438b2aec2ebd2763747dd3f",
   "spec_path": "specs/tri/search/aho_corasick.t27"
 }

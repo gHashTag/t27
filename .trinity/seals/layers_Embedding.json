@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a5b93b287f521b133bc6f4dd454ebe74a2d2d78afa7c5c155e940a73b5b95e24",
   "module": "Embedding",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:90cb626e0465988603da5013588d2d56b237a09acccf0184d6050653ffef9407",
   "spec_path": "specs/ml/layers/embedding_layer.t27"
 }

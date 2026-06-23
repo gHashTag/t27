@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7232bb34d140f4f84234a8b147edf7e658cd69a2a8a708f891630cc71bbea9a9",
   "module": "HwTypes",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:40e271225fff7d99d8fe235c2347210c228f6c558af910e84bbbe85ef0312d94",
   "spec_path": "specs/fpga/hw_types.t27"
 }

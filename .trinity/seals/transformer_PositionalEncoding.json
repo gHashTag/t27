@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:62ab3d72472464467de674b715f62369fc73e80b5f0ab286a4d3dc973ea0cd7c",
   "module": "PositionalEncoding",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:50Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:22b7fd16cc3e23432ab550205a19de7e72f9f80efb73a000a1c9ce56b3c136b6",
   "spec_path": "specs/ml/transformer/positional_enc.t27"
 }

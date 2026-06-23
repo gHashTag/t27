@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3a026bf0e909eec917516e193ee7acb12ededfc3822cd5ff99b0f68d552a1c00",
   "module": "provider-adapters",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:1d2c8d2ce2773082a7e989f499de40c1dfd323677126d87853a231850ef6e25e",
   "spec_path": "specs/provider/adapters.t27"
 }

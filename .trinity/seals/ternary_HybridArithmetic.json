@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3e277ba597b9f59486c43bfa3358765c3f2773fdb8b5036ea761d0b4b31b0fe1",
   "module": "HybridArithmetic",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:d649c30b959f4c59c65b2c99b91aed9d8d4469b11889a347dc77f875550cbe4c",
   "spec_path": "specs/ternary/hybrid_arithmetic.t27"
 }

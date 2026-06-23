@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1f0a0f41164b2e48c546901b2c6857a21228d5386615457d5629d25e4723abf6",
   "module": "TriMime",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:c273019708b1d133a70c19e70461253c641fc756ab623112a7071d6bf030be87",
   "spec_path": "specs/tri/encoding/mime.t27"
 }

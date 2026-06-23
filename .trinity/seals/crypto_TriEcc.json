@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e8ee55c0fdf672de63b10fd4f33621c65f90eebdc89e6280b1da325eebec0d5d",
   "module": "TriEcc",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:e111bef882601ff39e589072facac4a3d4501cf3f8f3c0edbb089981db7379c4",
   "spec_path": "specs/tri/crypto/ecc.t27"
 }

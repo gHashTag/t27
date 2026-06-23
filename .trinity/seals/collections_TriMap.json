@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6753834d072c9b62cb7e5b1742cce7bfcfe6801ea3397c0858f17183846aa413",
   "module": "TriMap",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:7e0fdae860e6349fdb6e2951b1d7588b0861822f7675c669996d061899c95127",
   "spec_path": "specs/tri/collections/map.t27"
 }

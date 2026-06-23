@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:64456b79e83adf07f5d4bc533ce5758ccf23d5ad8366e62648dec8b9d7cbd2f1",
   "module": "ZeroDSP_TopLevel",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:f08cf49be7b929fa2eb1646c92c88b5bf0138a0ce4dc26e82ffa4157b7a24114",
   "spec_path": "specs/fpga/top_level.t27"
 }

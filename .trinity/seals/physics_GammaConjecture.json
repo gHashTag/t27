@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:83cad74d6bacbe517a7a56e47c399e88afea7135dc26ee0aa435b807b39aba31",
   "module": "GammaConjecture",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:154af0f79223c04a90d78d12228b6834de1bcccccb77c2c645762d4798325e2f",
   "spec_path": "specs/physics/gamma_conjecture.t27"
 }

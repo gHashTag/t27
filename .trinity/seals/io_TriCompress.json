@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:85987b8d36ad79bb3496a00e3218069097057c21786ee8bdca1729a010926a6c",
   "module": "TriCompress",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:9b0ebfbac8cbf32eb4c63fa1d8744577ec72d6f46fbfb0cd9dd369f4e44a1fd9",
   "spec_path": "specs/tri/io/compress.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d7e855d65b2354a2ec71df5dad3ab637374bfb4b9390003e3f1b3df2f4ff030d",
   "module": "TriCloud",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:888f09cac9289bcb34d7779dab42458bdcab259b85f0d8d3dca65e634e7cb0f5",
   "spec_path": "specs/tri/net/cloud.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0693a1d712f36991cceade6e0816d4d23029edf580871a5cd78dcaded794760b",
   "module": "Partition_Testbench",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:50Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:834488d6cb46174413023d6fd86396e212af114c9d30a8b0a18b54d1e5b9cd5a",
   "spec_path": "specs/fpga/testbench/partition_tb.t27"
 }

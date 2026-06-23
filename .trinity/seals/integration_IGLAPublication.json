@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:799397c54ec5e3c4c26464ebb313fdfb1ba34e41cddf8fd03baa98b322db1f38",
   "module": "IGLAPublication",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:3e203c4b90a1ef1483c84320fe17cee7a366467c3f49dfb90d785467cc48b5a1",
   "spec_path": "specs/igla/integration/publication.t27"
 }

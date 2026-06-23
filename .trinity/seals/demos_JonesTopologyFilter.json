@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9285bb876813b3dc2daec18bbff453d99391a7dcb8386ce8dbaf51c304aaf2a0",
   "module": "JonesTopologyFilter",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:851e803e01e643919c0fbe7e8e324f01638f30fc83f827412d5dab222660d1ad",
   "spec_path": "specs/demos/jones_topology_filter.t27"
 }

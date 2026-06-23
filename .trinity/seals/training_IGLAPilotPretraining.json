@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:980172dd35863a38f304ed91046aa230680d00db2e3d67bb81dbd38b8817bef7",
   "module": "IGLAPilotPretraining",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:051e8c6f568d660831950ec89c3148aa9219001db41877d1606d6ad5c019c53f",
   "spec_path": "specs/igla/training/pilot_pretraining.t27"
 }

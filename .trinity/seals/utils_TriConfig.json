@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:16f94cbca4916fb626cea564c975be9b97fbd961b9b210b6dcf9ec26ef4d3c51",
   "module": "TriConfig",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:dc150177756a134e07c6c39f8ba1bf44c2c594ba355268b8e146098180ab05a3",
   "spec_path": "specs/tri/utils/config.t27"
 }

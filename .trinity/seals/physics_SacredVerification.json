@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1db36ba4b0d59a2629285ad85c93c2f232224710928f2b1d197ec7669e5299f6",
   "module": "SacredVerification",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:cbbe563060c147cae81b8107e5c170dd55a5d0d63943651cd2ca097f63ed3a6a",
   "spec_path": "specs/physics/sacred_verification.t27"
 }

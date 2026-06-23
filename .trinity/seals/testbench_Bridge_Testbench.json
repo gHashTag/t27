@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:fc9fcb261caea543043049b6725fa88ecd2e22fe1117440aeff0f42b3a18b086",
   "module": "Bridge_Testbench",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:50Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:c1cbe82a00e3075ac9f1ecbc4f19cc905a6b90e80e437fd4780770301c9bfd68",
   "spec_path": "specs/fpga/testbench/bridge_tb.t27"
 }

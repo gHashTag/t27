@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4490c26ffd19fb4e413b811602cff168c261ca428581d1a0ddde685af4eef656",
   "module": "Diagnostics",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:4907c0a74ccaac2e6571cd2d00cd6f090d240cb1bbdc40eb1571e6944b209ec4",
   "spec_path": "specs/compiler/diagnostics.t27"
 }

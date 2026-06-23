@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:230b0114562022bc3451ffacccf80cea8867dc5d75c5ebc908cbb1acf1c1836f",
   "module": "Batchnorm",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:e33d06c87bbdb7128b94c03795ef3a4832b59758ca66412cd89fde649e7db5e0",
   "spec_path": "specs/ml/layers/batchnorm_layer.t27"
 }

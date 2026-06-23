@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:21c0b851a980ac8053b62926c894b944b2fa72da689b93b9edfd91d2d622b3d0",
   "module": "TriTree",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:85a7e9a6f0716d535f5a19f0e3e67da32b8bc956f9cd620f5099ba4961d75b55",
   "spec_path": "specs/tri/trees/tree.t27"
 }

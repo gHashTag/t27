@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d650bd071be3556ac668ced09aaf2587594e6832a224834961579eae8f369bae",
   "module": "TriBytes",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:53bbef23b5864bc8ac792977e15c4f55f1c4db021acdb360b2c3a5005bdd5a60",
   "spec_path": "specs/tri/utils/bytes.t27"
 }

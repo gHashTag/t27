@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:76555d00273fa5333faa57b9d114b1eef8a5fabdb6bd267d75b3bf62cf154b84",
   "module": "lsp-protocol",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:6c5b3b9d29d56db16497bed51d23246e0779428accbb1de280640f638162f48b",
   "spec_path": "specs/lsp/protocol.t27"
 }

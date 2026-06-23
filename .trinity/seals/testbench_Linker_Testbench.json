@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f312fb94f2c3deac7025c5b4b019e626b3b14c43f893068c09c0aa70bf2a7f0b",
   "module": "Linker_Testbench",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:50Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:ad278f2c5876f7f6c78a0fd9bd181c12fe7311b243653275b18fc045a8afcb37",
   "spec_path": "specs/fpga/testbench/linker_tb.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8b3f786f5d870de5cc9a8d0e9280c789d371e77627c2540f3edd6cf83334ef5b",
   "module": "server-sse",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:b17e79a559a18949041fd3ba3bce6f83b286b6b905fceddc6b1f497d41a8532a",
   "spec_path": "specs/server/sse.t27"
 }

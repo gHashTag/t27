@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5390e26469d4775006a9cae41e995a74cc0ebba1df8e9f367ef09eaf8c3574f4",
   "module": "e8_lqg_bridge",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:46fae880669b169f692fe7f833dbbb5438a038fc51295cd6202ffdfaef75e889",
   "spec_path": "specs/physics/e8_lqg_bridge.t27"
 }

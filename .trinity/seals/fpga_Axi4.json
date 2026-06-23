@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6c0fa37322b983bae6ca5d0ac9406d5a71e8ec9392d2dc931ae98a89c86a43c2",
   "module": "Axi4",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:6fb6c9bd19533d03aeedfa90cc66376ec7d766d39367b478e9448997d9670c02",
   "spec_path": "specs/fpga/axi4.t27"
 }

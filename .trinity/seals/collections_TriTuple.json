@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:de422c95c482837da50f61925a73588711ca2b25ee807ee862169b727c63b966",
   "module": "TriTuple",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:8fc1e6d391ef81cb63d49bc1d38dc95d6a20bc819fd8da94b111dac89e57990a",
   "spec_path": "specs/tri/collections/tuple.t27"
 }

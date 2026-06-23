@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:386708cddee88426a4bba23d7ecb921c97cd2c2590738827460663151716a813",
   "module": "TriRsa",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:90dd4518841232325365928a9d469f316a045dd6aafaf876c329db6b46fc02f5",
   "spec_path": "specs/tri/crypto/rsa.t27"
 }

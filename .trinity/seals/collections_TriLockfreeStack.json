@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2e19f24d9feaf1b6f37f67aac9a708cc1bcbf3a5194f044186d0aa675628c818",
   "module": "TriLockfreeStack",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:05f3fec4bc98246246aa5cfa04b845862c7f71326f9892120aad67a1dfc8e670",
   "spec_path": "specs/tri/collections/lockfree_stack.t27"
 }

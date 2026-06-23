@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a054625db668994e43317fdce43b3af7ee365c5b968bf4719b4a4e82f59b55e9",
   "module": "CrossOpt",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:febf87624d67aa679c451ceba324033bcca3e9bd351a150bdd57a3e38e79122f",
   "spec_path": "specs/fpga/crossopt.t27"
 }

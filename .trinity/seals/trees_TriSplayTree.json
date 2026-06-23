@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:612357af6a442c5958c5b01c62861ff0ca72828084c704cd66009dc0426e5080",
   "module": "TriSplayTree",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:a580e7e0ab08c1395f0a233f729efb3b8e2a0da6f1765afd5891fe4c1b456453",
   "spec_path": "specs/tri/trees/splay_tree.t27"
 }

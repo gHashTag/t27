@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c403854d32f4bff16f6e93b8d0c9a1a804239072afcffa957f5f7bd8c3158448",
   "module": "Adagrad",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:204c8939483e6bb18f55dce184335a73236072e718045cf2308a35b76525a390",
   "spec_path": "specs/ml/optimizer/adagrad.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b29bd9dcfff4293533f2bc964ed070441f3fe5a99356e28930e5e74ed0954c08",
   "module": "TriXml",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:1243df7ee550f3e946c9a36ddd98d797c479de0b7f15b10c1aa4aeb2902cb4b1",
   "spec_path": "specs/tri/encoding/xml.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:10b6d3f2b478bc7dec51b5511035e3ef40a2c4be76998bf7248f441d489a2034",
   "module": "Optimization",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:98ba1a67d94856b42f06d5db6c3c2a8499bcf955d74c5543c9cb630797815d4a",
   "spec_path": "specs/compiler/optimizer.t27"
 }

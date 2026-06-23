@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:23754d0573fe1cfcc5e148d12ccc479714042292a9f81b7015e497f0fb21b2c5",
   "module": "GitDiff",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:074ceffdcdbb20f87faac69aa7920aeb54effef4b4ce543dd215c0c51fd96270",
   "spec_path": "specs/git/diff.t27"
 }

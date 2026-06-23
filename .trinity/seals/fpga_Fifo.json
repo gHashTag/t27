@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:01860379c23de8f0fd258b7799176b7fc915126c55c7b0bbac0fbdde78f39f14",
   "module": "Fifo",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:dc1f5cc35b718263017c6e2b2ec619da0eb7c0665907963b93900d6b6b98dcfd",
   "spec_path": "specs/fpga/fifo.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:066268c31e908ffb3561b4ed8a13e364628e5022f71ff33f60d2e27a8a2fd11c",
   "module": "Formal",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:090f5fe32fbec3c6907143f4087ae455ec0f77ec0c8d2bde1c985cba52b6c29c",
   "spec_path": "specs/fpga/formal.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:945d0a015240151ffb1045fbd0d38882fd3c046196e5855a65fbc872f04cac16",
   "module": "restraint",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:3bb0ac54f93b9e634edcff94be2b49a1ed578791302ca8ecd3ad730a2b2713f0",
   "spec_path": "specs/ar/restraint.t27"
 }

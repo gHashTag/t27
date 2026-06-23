@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0b0b08060367779fa7e46d9bb4a0a3da133edb1ab2180243d1393cbbbedd85ec",
   "module": "TriQuickSort",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:486562f3726f65e2830e5e0deaf3019433d59081fd5ba1edca4cb38f5aa3b195",
   "spec_path": "specs/tri/sort/quick_sort.t27"
 }

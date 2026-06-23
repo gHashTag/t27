@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c7e89b90972ceca9b51ea42671043986f4dcbcf6a676923749f228bc035b2d1a",
   "module": "GitOperations",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:e0602a7ea441dbee1218830eb5d11e96b1f2b68fccf0d07c1d9e66f39196c78b",
   "spec_path": "specs/git/operations.t27"
 }

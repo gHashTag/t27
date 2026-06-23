@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6445ac3d02ef96e5b7f5a4b032a5c6559ab2b893833bbc138a9e8a24a41bcc33",
   "module": "base-ring-32",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:6bcf3942f1f175d1c3708484d4cb216a6e6ba7492a6ebf7e6320887c7d13a42b",
   "spec_path": "specs/base/ring_32.t27"
 }

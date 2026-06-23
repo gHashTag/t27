@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3363000eb1bb840bf64a41cd7bb43e8401b412ac828870fd4c5c743ee720f6f1",
   "module": "TriPipelineParallel",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:6abe8fe5b759fdcd2ddf4d172aab89a26064c793cc33b912369e9897d1c49a31",
   "spec_path": "specs/tri/pipeline/pipeline_parallel.t27"
 }

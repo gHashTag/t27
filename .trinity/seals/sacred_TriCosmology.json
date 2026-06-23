@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ac0295edc7fddfb7f1df8e62813207dbd90bda1272006574a312273034a47f07",
   "module": "TriCosmology",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:896ec37548b1099e2befe9e501eef19c0badedc03bf3e26a1e9c463d6e465842",
   "spec_path": "specs/sacred/cosmology.t27"
 }

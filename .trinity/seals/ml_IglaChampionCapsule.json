@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:aa03b8a94b95d45bc912ee1554ffa1322f8ad8aa7efd7f5cf343c449e1ac4661",
   "module": "IglaChampionCapsule",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:d8ca3cf6feb27648ea781750913aaef0f7c8288be4a6b1d3f8ed1e514db17fa4",
   "spec_path": "specs/ml/igla_champion_capsule.t27"
 }

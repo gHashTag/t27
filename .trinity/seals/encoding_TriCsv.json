@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4806bc2ad9624be8c1d9b82df6d2024fb56e604379679fba7c90161cf1eae5af",
   "module": "TriCsv",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:42da022525b9f341740cd36a50413176069c2afb5c31e63f4dcacf06fd6f400f",
   "spec_path": "specs/tri/encoding/csv.t27"
 }

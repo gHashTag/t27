@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2f9eb4311201bc58877a0e50f77a6e2f45f07b21d1d53c936f3b883c27ff03a2",
   "module": "Power_Testbench",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:50Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:fe149804c3b532069ac353681dea878cc30f032de18c74cd77fb24bfb79c0423",
   "spec_path": "specs/fpga/testbench/power_tb.t27"
 }

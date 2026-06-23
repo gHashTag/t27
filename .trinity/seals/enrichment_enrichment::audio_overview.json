@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8b3aa3b63ff413d9adb16761a81b4293c483e1481e70a62c10fb03e64aaf9087",
   "module": "enrichment::audio_overview",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:baae843a9ba5aa64a51752b5feab3e3cde36a085f31e63f6467d5590e9b64f7a",
   "spec_path": "specs/enrichment/audio_overview.t27"
 }

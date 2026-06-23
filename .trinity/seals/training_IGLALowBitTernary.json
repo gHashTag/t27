@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:18aae404cfcb6d5ca3c6e29fe7257d6eaa481f3004ee03862117d15e9a8285b7",
   "module": "IGLALowBitTernary",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:48Z",
+  "sealed_at": "2026-06-23T00:14:09Z",
   "spec_hash": "sha256:71a93868a8177593f4fdae670dce0714895a9ecaadd2d4a09e2c7d84c415e962",
   "spec_path": "specs/igla/training/low_bit_ternary.t27"
 }

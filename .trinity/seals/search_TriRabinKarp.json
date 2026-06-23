@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e48834bc37eb4cd2eca142daa075b8a4d8428a26b04edff922353803195f814c",
   "module": "TriRabinKarp",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:49Z",
+  "sealed_at": "2026-06-23T00:14:10Z",
   "spec_hash": "sha256:b8c4bb5052b100a6e9fd6fdd7e3c760a73fa72ea05dddbe0c51bb2541dea0dff",
   "spec_path": "specs/tri/search/rabin_karp.t27"
 }

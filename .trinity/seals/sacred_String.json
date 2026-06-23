@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:cecbacd3492969bae8bfafb3143219ea54a4d97b8537116f47a834ada40667c1",
   "module": "String",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:54:08Z",
+  "sealed_at": "2026-06-23T00:14:08Z",
   "spec_hash": "sha256:d52cdad185a5148272b37371ef1ffd0063199264cd8b87f706cf713aa86662e9",
   "spec_path": "specs/sacred/sacred_governance.t27"
 }

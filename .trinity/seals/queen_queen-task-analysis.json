@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4c52a5ef6d4226caf86a63f21eb4dd6475f8584dd54b3827779055890b6ed963",
   "module": "queen-task-analysis",
   "ring": 12,
-  "sealed_at": "2026-06-22T23:49:47Z",
+  "sealed_at": "2026-06-23T00:14:07Z",
   "spec_hash": "sha256:5755f819b57e64354992f86357f6b047ac61dd4d6c67afcfad005d4e28fdfbf2",
   "spec_path": "specs/queen/task_analysis.t27"
 }
