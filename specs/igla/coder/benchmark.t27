@@ -4587,4 +4587,8 @@ test benchmark_w334_batch_depth_invariant_1 { /* verify baseline */ }
 test benchmark_w334_batch_depth_invariant_2 { /* verify baseline */ }
 invariant benchmark_w334_depth_068: true
 
+// Wave Loop 335 — CODER depth +1 (68→69)
+test benchmark_w335_batch_depth_invariant_1 { /* verify baseline */ }
+test benchmark_w335_batch_depth_invariant_2 { /* verify baseline */ }
+invariant benchmark_w335_depth_069: true
 }

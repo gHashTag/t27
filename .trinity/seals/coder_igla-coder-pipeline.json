@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:038eebeb3f9607e5387693226838ae3b58168d6ed6ed882ca3af1d2d37233359",
   "module": "igla-coder-pipeline",
   "ring": 12,
-  "sealed_at": "2026-06-23T07:34:05Z",
-  "spec_hash": "sha256:df8eeb58a4866d76d9372221a73cbc7d52244e568601e04effe8ab8952d8df34",
+  "sealed_at": "2026-06-23T07:50:24Z",
+  "spec_hash": "sha256:ab5ba5f1092f7b1b02088fe2f998b7b38d65dfe363ce5f15c17f6b2c6cc51747",
   "spec_path": "specs/igla/coder/pipeline.t27"
 }
