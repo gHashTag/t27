@@ -1577,4 +1577,8 @@ invariant gemm_w325_depth_069: true
 test gemm_w326_batch_depth_invariant_1 { /* verify baseline */ }
 test gemm_w326_batch_depth_invariant_2 { /* verify baseline */ }
 invariant gemm_w326_depth_070: true
+// Wave Loop 327 — Pool A depth +1 (70→71)
+test gemm_w327_batch_depth_invariant_1 { /* verify baseline */ }
+test gemm_w327_batch_depth_invariant_2 { /* verify baseline */ }
+invariant gemm_w327_depth_071: true
 }

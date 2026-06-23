@@ -982,3 +982,37 @@ theorem ternaryMacCommutativityMixedGeneric (a b : Int) :
     ternaryMac (ternaryMac 0 b (TernaryWeight.mk .minus)) a (TernaryWeight.mk .plus) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: scaling an activation by two through minus-weight MAC doubles the negated result.
+    For any activation a: mac(0, 2*a, .minus) = -2*a.
+    Proves that multiplying an activation by 2 before minus-weight MAC is equivalent to
+    negating the doubled activation. Foundation for quantization-aware proofs with negative weights.
+    Responds to TENET negative duplicate-LUT paths and TernaryCore negative activation-reuse. -/
+
+theorem ternaryMacScalingMinusGeneric (a : Int) :
+    ternaryMac 0 (2 * a) (TernaryWeight.mk .minus) = -2 * a := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating six independent activations with plus-weights is sextuple addition.
+    For any activations a, b, c, d, e, f: mac⁶(0, [a,b,c,d,e,f], .plus) = a + b + c + d + e + f.
+    Extends the N-variable accumulation family to depth 6, matching deep systolic-array pipelines
+    and covering next-generation hardware tile sizes.
+    Foundation for 6-input systolic-array row-reduction and sextuple-dot-product proofs.
+    Responds to TENET 6-input LUT scheduling and TernaryCore 6-operand add paths. -/
+
+theorem ternaryMacAccumulateSixPlusGeneric (a b c d e f : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus) = a + b + c + d + e + f := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating six independent activations with minus-weights is negated sextuple addition.
+    For any activations a, b, c, d, e, f: mac⁶(0, [a,b,c,d,e,f], .minus) = -(a + b + c + d + e + f).
+    Complements AccumulateSixPlusGeneric for the minus-weight case.
+    Completes the 6-variable MAC operation lattice for both signs.
+    Responds to TENET 6-input signed LUT scheduling and TernaryCore subtract paths. -/
+
+theorem ternaryMacAccumulateSixMinusGeneric (a b c d e f : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus) = -(a + b + c + d + e + f) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

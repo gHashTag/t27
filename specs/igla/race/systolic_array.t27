@@ -1690,4 +1690,8 @@ invariant systolic_array_w325_depth_072: true
 test systolic_array_w326_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_array_w326_batch_depth_invariant_2 { /* verify baseline */ }
 invariant systolic_array_w326_depth_073: true
+// Wave Loop 327 — Pool A depth +1 (73→74)
+test systolic_array_w327_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_array_w327_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_array_w327_depth_074: true
 }

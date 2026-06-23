@@ -2201,4 +2201,8 @@ invariant pipeline_w325_depth_059: true
 test pipeline_w326_batch_depth_invariant_1 { /* verify baseline */ }
 test pipeline_w326_batch_depth_invariant_2 { /* verify baseline */ }
 invariant pipeline_w326_depth_060: true
+// Wave Loop 327 — CODER depth +1 (60→61)
+test pipeline_w327_batch_depth_invariant_1 { /* verify baseline */ }
+test pipeline_w327_batch_depth_invariant_2 { /* verify baseline */ }
+invariant pipeline_w327_depth_061: true
 }

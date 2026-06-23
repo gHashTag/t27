@@ -1690,4 +1690,8 @@ invariant ternary_gemm_w325_depth_068: true
 test ternary_gemm_w326_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_gemm_w326_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_gemm_w326_depth_069: true
+// Wave Loop 327 — Pool A depth +1 (69→70)
+test ternary_gemm_w327_batch_depth_invariant_1 { /* verify baseline */ }
+test ternary_gemm_w327_batch_depth_invariant_2 { /* verify baseline */ }
+invariant ternary_gemm_w327_depth_070: true
 }

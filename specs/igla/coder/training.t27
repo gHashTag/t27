@@ -1522,4 +1522,8 @@ invariant training_w325_depth_059: true
 test training_w326_batch_depth_invariant_1 { /* verify baseline */ }
 test training_w326_batch_depth_invariant_2 { /* verify baseline */ }
 invariant training_w326_depth_060: true
+// Wave Loop 327 — CODER depth +1 (60→61)
+test training_w327_batch_depth_invariant_1 { /* verify baseline */ }
+test training_w327_batch_depth_invariant_2 { /* verify baseline */ }
+invariant training_w327_depth_061: true
 }
