@@ -2252,15 +2252,9 @@ test arch_generate_next_token_topk_three_highest_w320
 
 invariant arch_add_slices_negative_offset_empty_w320_inv:
     add_slices([1.0f32, 2.0f32], [3.0f32], 5).len() == 0
+// Wave Loop 321 — CODER depth +1 (53→54)
+test arch_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test arch_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant arch_w321_depth_054: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

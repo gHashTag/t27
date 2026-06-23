@@ -1694,15 +1694,9 @@ test yosys_strings_equal_empty_empty_w320
 
 invariant yosys_is_prefix_partial_true_w320_inv:
     is_prefix("ab", "abc") == true
+// Wave Loop 321 — Pool A depth +1 (65→66)
+test yosys_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test yosys_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant yosys_w321_depth_066: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

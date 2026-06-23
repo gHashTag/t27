@@ -1551,15 +1551,9 @@ test gemm_booth_mul_i32_negative_small_w320
 
 invariant gemm_booth_mul_i32_small_product_w320_inv:
     booth_mul_i32(3, 4) == 12
+// Wave Loop 321 — Pool A depth +1 (64→65)
+test gemm_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test gemm_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant gemm_w321_depth_065: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

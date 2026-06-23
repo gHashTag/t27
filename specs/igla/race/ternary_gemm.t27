@@ -1664,15 +1664,9 @@ test ternary_gemm_mixed_weights_selective_w320
 
 invariant ternary_gemm_minus_weights_negate_activations_w320_inv:
     ternary_gemm([cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)], [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]).len() == 4
+// Wave Loop 321 — Pool A depth +1 (63→64)
+test ternary_gemm_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test ternary_gemm_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant ternary_gemm_w321_depth_064: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

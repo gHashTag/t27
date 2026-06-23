@@ -524,3 +524,7 @@
 - **Commit:** feat(w320): W320 IGLA CODER+RACE — Pool A 61→62, CODER 52→53, Pool B 77→78, Integration 62→63, Lean 4 43→45 generic ∀
 - **Files:** docs/reports/WAVE_LOOP_320_COOPERATION.md,docs/reports/WAVE_LOOP_320_REPORT.md
 
+## 2026-06-23T05:15:08Z — trinity-rust-rings
+- **Commit:** docs(w320): Wave Loop 320 report + cooperation variants for W321
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/reports/WAVE_LOOP_315_REPORT.md,proofs/lean4/.trinity/seals/coder_igla-coder-arch.json,proofs/lean4/.trinity/seals/coder_igla-coder-bench-proxy.json,proofs/lean4/.trinity/seals/coder_igla-coder-benchmark.json,proofs/lean4/.trinity/seals/coder_igla-coder-dataset.json,proofs/lean4/.trinity/seals/coder_igla-coder-eval.json,proofs/lean4/.trinity/seals/coder_igla-coder-pipeline.json,proofs/lean4/.trinity/seals/coder_igla-coder-prm.json,proofs/lean4/.trinity/seals/coder_igla-coder-tokenizer.json,proofs/lean4/.trinity/seals/coder_igla-coder-training.json,proofs/lean4/.trinity/seals/coder_igla-coder-weights.json,proofs/lean4/.trinity/seals/race_igla-race-adder-tree.json,proofs/lean4/.trinity/seals/race_igla-race-backend.json,proofs/lean4/.trinity/seals/race_igla-race-bram-weights.json,proofs/lean4/.trinity/seals/race_igla-race-cordic-fixed.json,proofs/lean4/.trinity/seals/race_igla-race-cordic-top.json,proofs/lean4/.trinity/seals/race_igla-race-cordic.json,proofs/lean4/.trinity/seals/race_igla-race-eda.json
+

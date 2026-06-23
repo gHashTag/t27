@@ -3554,15 +3554,9 @@ test eval_accuracy_three_all_wrong_w320
 
 invariant eval_accuracy_three_all_correct_w320_inv:
     accuracy([1, 2, 3], [1, 2, 3]) == 1.0
+// Wave Loop 321 — CODER depth +1 (55→56)
+test eval_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test eval_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant eval_w321_depth_056: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

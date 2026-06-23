@@ -749,3 +749,43 @@ theorem ternaryMacDistributivityOverActivationSubGeneric (psum a b : Int) :
     ternaryMac psum (a - b) (TernaryWeight.mk .plus) = ternaryMac psum a (TernaryWeight.mk .plus) - ternaryMac 0 b (TernaryWeight.mk .plus) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: ternary MAC is linear in its accumulator (psum) argument.
+    For any psum1, psum2, activation a, and weight w:
+    mac(psum1 + psum2, a, w) = mac(psum1, a, w) + psum2.
+    This is a universal proof of psum-linearity — the first structural property
+    of ternary MAC formalized as a linear operator over ℤ.
+    Directly maps to systolic-array partial-sum propagation: adding a
+    forwarded psum to an accumulating PE is equivalent to MAC-then-add.
+    Foundation for tiled-GEMM psum-accumulator composition and pipelined
+    row-reduction proofs in ring-theoretic style (cf. Iskander & Kirah 2026).
+    Responds to TENET psum-forward LUTs and TernaryCore accumulator chaining. -/
+
+theorem ternaryMacPsumLinearityGeneric (psum1 psum2 a : Int) (w : TernaryWeight) :
+    ternaryMac (psum1 + psum2) a w = ternaryMac psum1 a w + psum2 := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: ternary MAC decomposes over activation addition.
+    For any psum, activations a, b, and weight w:
+    mac(psum, a + b, w) = mac(psum, a, w) + mul(b, w).
+    This universal proof shows that MAC over a summed activation splits into
+    a MAC with the first summand plus a pure multiplication of the second.
+    Critical for hardware tiling: when an activation is split across lanes,
+    partial products can be accumulated independently and then composed.
+    Connects MAC distributivity (W306) to scalar decomposition in a single
+    ring identity — the natural abstraction layer for ternary GEMM partitioning.
+    Responds to TENET tiled-LUT scheduling and TernaryCore multi-lane MAC. -/
+
+theorem ternaryMacScalarLinearityGeneric (psum a b : Int) (w : TernaryWeight) :
+    ternaryMac psum (a + b) w = ternaryMac psum a w + ternaryMul b w := by
+  rcases w with ⟨c⟩
+  cases c
+  · -- zero: mac(psum, a+b, .zero) = psum = mac(psum, a, .zero) + mul(b, .zero) = psum + 0
+    simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  · -- plus: mac(psum, a+b, .plus) = psum + (a+b) = (psum + a) + b = mac(psum, a, .plus) + mul(b, .plus)
+    simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+    simp only [← Int.add_assoc psum a b]
+  · -- minus: mac(psum, a+b, .minus) = psum + -(a+b) = psum + (-a + -b) = (psum + -a) + -b = mac(psum, a, .minus) + mul(b, .minus)
+    simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+    simp only [Int.neg_add, ← Int.add_assoc psum (-a) (-b)]

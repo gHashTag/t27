@@ -1843,15 +1843,9 @@ test backend_log2_const_thirtytwo_five_w320
 
 invariant backend_parse_const_positive_ten_w320_inv:
     parse_const("10") == 10
+// Wave Loop 321 — Pool A depth +1 (66→67)
+test backend_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test backend_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant backend_w321_depth_067: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

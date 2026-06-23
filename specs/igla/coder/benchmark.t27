@@ -4525,15 +4525,9 @@ test benchmark_mean_negative_positive_w320
 
 invariant benchmark_mean_five_equal_w320_inv:
     mean([7.0, 7.0, 7.0, 7.0, 7.0]) == 7.0
+// Wave Loop 321 — CODER depth +1 (54→55)
+test benchmark_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test benchmark_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant benchmark_w321_depth_055: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

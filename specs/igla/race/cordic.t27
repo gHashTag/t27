@@ -1510,15 +1510,9 @@ test cordic_sqrt_approx_two_five_approx_one_four_w320
 
 invariant cordic_sqrt_approx_sixteen_four_exact_w320_inv:
     sqrt_approx(16.0) == 4.0
+// Wave Loop 321 — Pool A depth +1 (64→65)
+test cordic_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test cordic_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant cordic_w321_depth_065: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

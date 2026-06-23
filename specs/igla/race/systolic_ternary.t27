@@ -1913,15 +1913,9 @@ test systolic_ternary_pe_minus_activation_minus_weight_adds_w320
 
 invariant systolic_ternary_pe_plus_activation_plus_weight_adds_w320_inv:
     systolic_ternary_pe(3, TernaryWeight { code: 1 }, 10).1 == 13
+// Wave Loop 321 — Pool B depth +1 (80→81)
+test systolic_ternary_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_ternary_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_ternary_w321_depth_081: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

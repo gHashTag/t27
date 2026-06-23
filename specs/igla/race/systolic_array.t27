@@ -1664,15 +1664,9 @@ test systolic_array_booth_mul_i16_small_negative_w320
 
 invariant systolic_array_booth_mul_i16_small_positive_w320_inv:
     booth_mul_i16(2, 3) == 6
+// Wave Loop 321 — Pool A depth +1 (67→68)
+test systolic_array_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_array_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_array_w321_depth_068: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

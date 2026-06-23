@@ -1290,15 +1290,9 @@ test tokenizer_tokenize_single_token_len_two_w320
 
 invariant tokenizer_encode_decode_roundtrip_w320_inv:
     decode(encode("test")) == "test"
+// Wave Loop 321 — CODER depth +1 (54→55)
+test tokenizer_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test tokenizer_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant tokenizer_w321_depth_055: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

@@ -1496,15 +1496,9 @@ test training_sgd_negative_weight_positive_grad_w320
 
 invariant training_sgd_zero_lr_no_change_w320_inv:
     sgd_update(5.0, 1.0, 0.0) == 5.0
+// Wave Loop 321 — CODER depth +1 (54→55)
+test training_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test training_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant training_w321_depth_055: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

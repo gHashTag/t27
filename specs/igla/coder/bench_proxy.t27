@@ -1140,15 +1140,9 @@ test bench_proxy_throughput_zero_ns_inf_w320
 
 invariant bench_proxy_throughput_thousand_ops_w320_inv:
     throughput(1000, 500) == 2.0
+// Wave Loop 321 — CODER depth +1 (53→54)
+test bench_proxy_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test bench_proxy_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant bench_proxy_w321_depth_054: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

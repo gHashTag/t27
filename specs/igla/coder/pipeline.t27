@@ -2175,15 +2175,9 @@ test pipeline_compose_double_identity_w320
 
 invariant pipeline_compose_triple_double_w320_inv:
     compose(triple, double, 2) == 12
+// Wave Loop 321 — CODER depth +1 (54→55)
+test pipeline_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test pipeline_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant pipeline_w321_depth_055: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

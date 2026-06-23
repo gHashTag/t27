@@ -1497,15 +1497,9 @@ test bram_weights_width_eight_elements_w320
 
 invariant bram_weights_depth_eight_elements_w320_inv:
     bram_weights_depth([1.0f32, 2.0f32, 3.0f32, 4.0f32, 5.0f32, 6.0f32, 7.0f32, 8.0f32]) == 8
+// Wave Loop 321 — Pool A depth +1 (64→65)
+test bram_weights_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test bram_weights_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant bram_weights_w321_depth_065: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

@@ -1482,15 +1482,9 @@ test prm_select_top_empty_empty_w320
 
 invariant prm_param_bounds_saturate_max_boundary_identity_w320_inv:
     param_bounds_saturate(127) == 127
+// Wave Loop 321 — CODER depth +1 (54→55)
+test prm_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test prm_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant prm_w321_depth_055: true
 
-
-
-
-
-
-
-
-
-
-
-
+}

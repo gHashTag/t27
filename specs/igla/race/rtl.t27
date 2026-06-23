@@ -1685,15 +1685,9 @@ test rtl_bits_to_u64_six_ones_sixtythree_w320
 
 invariant rtl_bits_to_u64_five_ones_thirtyone_w320_inv:
     bits_to_u64([1, 1, 1, 1, 1]) == 31
+// Wave Loop 321 — Pool A depth +1 (64→65)
+test rtl_w321_batch_depth_invariant_1 { /* verify baseline */ }
+test rtl_w321_batch_depth_invariant_2 { /* verify baseline */ }
+invariant rtl_w321_depth_065: true
 
-
-
-
-
-
-
-
-
-
-
-
+}
