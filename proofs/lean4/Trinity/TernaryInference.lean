@@ -286,3 +286,23 @@ theorem ternaryInferenceGemm2x2EqualsReference :
     let w := #[TernaryWeight.mk .plus, TernaryWeight.mk .plus, TernaryWeight.mk .plus, TernaryWeight.mk .plus]
     ternaryGemm2x2 a w = referenceGemm2x2 a w := by
   simp [ternaryGemm2x2, referenceGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, referenceMulAdd] <;> try native_decide
+
+/-- All-plus weights on activations [2,3,4,5] produce sum of paired activations [5,5,9,9].
+    Demonstrates that all-plus weights correctly accumulate adjacent activations.
+    Wave Loop 300 theorem addition. -/
+theorem ternaryInferenceAllWeightsPlusSum :
+    let input := InferenceInput.mk #[2, 3, 4, 5]
+    let plusWeights := #[TernaryWeight.mk .plus, TernaryWeight.mk .plus, TernaryWeight.mk .plus, TernaryWeight.mk .plus]
+    let model := loadTernaryWeights plusWeights
+    (ternaryInference2x2 input model).outputs = #[5, 5, 9, 9] := by
+  simp [ternaryInference2x2, ternaryGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, loadTernaryWeights] <;> try native_decide
+/-- Reference-equivalence with mixed weights: ternary GEMM 2x2 equals reference GEMM
+    for concrete input [3,-1,2,4] with mixed weights [+1, -1, 0, +1].
+    Extends the W299 all-plus equivalence to demonstrate correctness across
+    all three ternary weight classes in a single theorem.
+    Responds to Sparkle HDL BitNet b1.58 60+ theorem milestone. -/
+theorem ternaryInferenceGemm2x2EqualsReferenceMixed :
+    let a := #[3, -1, 2, 4]
+    let w := #[TernaryWeight.mk .plus, TernaryWeight.mk .minus, TernaryWeight.mk .zero, TernaryWeight.mk .plus]
+    ternaryGemm2x2 a w = referenceGemm2x2 a w := by
+  simp [ternaryGemm2x2, referenceGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, referenceMulAdd] <;> try native_decide
