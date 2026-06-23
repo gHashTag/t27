@@ -1233,3 +1233,16 @@ test cordic_fixed_sin_pi_zero_w305
 
 invariant cordic_fixed_sin_pi_zero_w305_inv:
     cordic_fixed_sin(3.14159265) >= -0.1
+
+test cordic_fixed_sin_pi_over_two_w306
+    given a = 16384
+    when s = cordic_sin(a)
+    then s > 16380 && s < 16388
+
+test cordic_fixed_cos_pi_over_two_w306
+    given a = 16384
+    when c = cordic_cos(a)
+    then c > -2 && c < 2
+
+invariant cordic_fixed_sin_pi_over_two_w306_inv:
+    cordic_sin(16384) > 16380 && cordic_sin(16384) < 16388

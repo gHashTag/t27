@@ -1074,3 +1074,16 @@ test opcodes_get_cycles_sub_one_w305
 
 invariant opcodes_get_cycles_sub_one_w305_inv:
     get_cycles("sub") == 1
+
+test opcodes_get_cycles_mul_three_w306
+    given op = 0x03
+    when cycles = get_opcode_cycles(op)
+    then cycles == 3
+
+test opcodes_is_sacred_opcode_valid_true_w306
+    given op = 0x2A
+    when r = is_sacred_opcode(op)
+    then r == true
+
+invariant opcodes_get_cycles_mul_three_w306_inv:
+    get_opcode_cycles(0x03) == 3

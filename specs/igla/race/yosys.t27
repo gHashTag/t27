@@ -1367,3 +1367,18 @@ test yosys_is_prefix_longer_false_w305
 
 invariant yosys_is_prefix_empty_any_true_w305_inv:
     is_prefix("", "anything") == true
+
+test yosys_is_prefix_partial_true_w306
+    given a = "ab"
+    given b = "abc"
+    when ok = is_prefix(a, b)
+    then ok == true
+
+test yosys_strings_equal_empty_empty_w306
+    given a = ""
+    given b = ""
+    when ok = strings_equal(a, b)
+    then ok == true
+
+invariant yosys_is_prefix_partial_true_w306_inv:
+    is_prefix("ab", "abc") == true

@@ -1133,3 +1133,20 @@ test training_sgd_large_lr_w305
 
 invariant training_sgd_negative_grad_increases_w305_inv:
     sgd_update(5.0, -1.0, 0.5) == 5.5
+
+test training_sgd_zero_lr_no_change_w306
+    given w = 5.0
+    given grad = 1.0
+    given lr = 0.0
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == 5.0
+
+test training_sgd_negative_weight_positive_grad_w306
+    given w = -5.0
+    given grad = 1.0
+    given lr = 0.1
+    when new_w = sgd_update(w, grad, lr)
+    then new_w == -5.1
+
+invariant training_sgd_zero_lr_no_change_w306_inv:
+    sgd_update(5.0, 1.0, 0.0) == 5.0

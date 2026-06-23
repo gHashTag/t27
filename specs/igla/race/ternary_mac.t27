@@ -1341,3 +1341,21 @@ test ternary_mac_zero_activation_zero_weight_preserve_w305
 
 invariant ternary_mac_zero_activation_plus_weight_preserve_w305_inv:
     ternary_mac(5, 0, TernaryWeight::plus()) == 5
+
+test ternary_mac_zero_weight_nop_w306
+    given a = 99
+    given w = TernaryWeight { code: 0 }
+    given acc = 42
+    when result = ternary_mac(a, w, acc)
+    then result == 42
+
+test ternary_mac_plus_weight_adds_w306
+    given a = 10
+    given w = TernaryWeight { code: 1 }
+    given acc = 5
+    when result = ternary_mac(a, w, acc)
+    then result == 15
+
+invariant ternary_mac_zero_weight_nop_w306_inv:
+    forall acc : i32
+    ternary_mac(99, TernaryWeight { code: 0 }, acc) == acc

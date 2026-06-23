@@ -1170,3 +1170,17 @@ test prm_select_top_negative_scores_w305
 
 invariant prm_select_top_three_descending_w305_inv:
     select_top([0.9f32, 0.5f32, 0.1f32], 3) == [0, 1, 2]
+
+test prm_param_bounds_saturate_max_boundary_identity_w306
+    given val = 127
+    when result = param_bounds_saturate(val)
+    then result == 127
+
+test prm_select_top_empty_empty_w306
+    given scores = []
+    given k = 0
+    when indices = select_top(scores, k)
+    then indices == []
+
+invariant prm_param_bounds_saturate_max_boundary_identity_w306_inv:
+    param_bounds_saturate(127) == 127

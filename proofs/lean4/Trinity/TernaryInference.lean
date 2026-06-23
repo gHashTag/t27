@@ -370,3 +370,33 @@ theorem ternaryMulZeroActivationGeneric (w : TernaryWeight) :
     ternaryMul 0 w = 0 := by
   rcases w with ⟨c⟩
   cases c <;> simp [ternaryMul, ternaryDecode] <;> try native_decide
+
+/-- Generic theorem: for any partial sum psum, any activation a, and any ternary weight w,
+    ternary MAC equals partial sum plus ternary multiplication.
+    This proves distributivity of the MAC primitive and formally validates the identity
+    mac(psum, a, w) = psum + mul(a, w) — the algebraic foundation for all accumulator-based
+    systolic arrays and fused multiply-add correctness.
+    Responds to CktFormalizer v3 autoformalization depth milestone and Sparkle HDL FMA proofs. -/
+theorem ternaryMacDistributivityGeneric (psum : Int) (a : Int) (w : TernaryWeight) :
+    ternaryMac psum a w = psum + ternaryMul a w := by
+  rcases w with ⟨c⟩
+  cases c <;> simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+/-- Generic theorem: ternary multiplication distributes over addition of activations.
+    For any activations a, b and any ternary weight w:
+    mul(a+b, w) = mul(a, w) + mul(b, w).
+    This is the algebraic foundation for tiled/systolic ternary GEMM decomposition,
+    proving that partial sums can be accumulated independently before final summation.
+    Responds to BNRV RISC-V SIMD and BitNet-RISCV-Multicore tiled decomposition insights. -/
+theorem ternaryMulDistributiveOverActivationAddGeneric (a b : Int) (w : TernaryWeight) :
+    ternaryMul (a + b) w = ternaryMul a w + ternaryMul b w := by
+  rcases w with ⟨c⟩
+  cases c
+  · -- plus
+    simp [ternaryMul, ternaryDecode]
+    <;> try native_decide
+  · -- zero
+    simp [ternaryMul, ternaryDecode]
+    <;> try native_decide
+  · -- minus
+    simp [ternaryMul, ternaryDecode]
+    rw [Int.neg_add]
