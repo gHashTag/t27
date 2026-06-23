@@ -1061,4 +1061,8 @@ invariant ternary_inference_w324_depth_067: true
 test ternary_inference_w325_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_inference_w325_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_inference_w325_depth_068: true
+// Wave Loop 326 — Integration depth +1 (68→69)
+test ternary_inference_w326_batch_depth_invariant_1 { /* verify baseline */ }
+test ternary_inference_w326_batch_depth_invariant_2 { /* verify baseline */ }
+invariant ternary_inference_w326_depth_069: true
 }

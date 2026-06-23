@@ -1504,4 +1504,8 @@ invariant prm_w324_depth_058: true
 test prm_w325_batch_depth_invariant_1 { /* verify baseline */ }
 test prm_w325_batch_depth_invariant_2 { /* verify baseline */ }
 invariant prm_w325_depth_059: true
+// Wave Loop 326 — CODER depth +1 (59→60)
+test prm_w326_batch_depth_invariant_1 { /* verify baseline */ }
+test prm_w326_batch_depth_invariant_2 { /* verify baseline */ }
+invariant prm_w326_depth_060: true
 }

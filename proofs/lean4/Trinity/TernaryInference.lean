@@ -955,3 +955,30 @@ theorem ternaryMacScalingPlusGeneric (a : Int) :
     ternaryMac 0 (2 * a) (TernaryWeight.mk .plus) = 2 * a := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: commutativity of ternary MAC with minus-weights.
+    For any activations a, b: mac(mac(0, a, .minus), b, .minus) = mac(mac(0, b, .minus), a, .minus).
+    Proves that the order of activations does not matter when both weights are minus.
+    Foundation for minus-weight systolic-array PE reordering and compile-time scheduling
+    optimizations for negative-weight tiles. Complements CommutativityGeneric (plus-weights)
+    to complete the commutativity lattice for all non-zero weight codes.
+    Responds to TENET minus-weight LUT reordering and TernaryCore negative-path scheduling. -/
+theorem ternaryMacCommutativityMinusGeneric (a b : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus) =
+    ternaryMac (ternaryMac 0 b (TernaryWeight.mk .minus)) a (TernaryWeight.mk .minus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: mixed-weight commutativity of ternary MAC.
+    For any activations a, b: mac(mac(0, a, .plus), b, .minus) = mac(mac(0, b, .minus), a, .plus).
+    Proves that alternating plus/minus weights commute when activations are swapped.
+    Foundation for mixed-sign systolic-array PE reordering and for proofs that combine
+    positive and negative weights within the same tile without order restrictions.
+    Completes the commutativity lattice: plus→plus (W319), minus→minus (W326),
+    plus→minus (W326). No other non-trivial combinations exist for ternary MAC.
+    Responds to TENET mixed-sign LUT scheduling and TernaryCore dual-path optimization. -/
+theorem ternaryMacCommutativityMixedGeneric (a b : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .minus) =
+    ternaryMac (ternaryMac 0 b (TernaryWeight.mk .minus)) a (TernaryWeight.mk .plus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

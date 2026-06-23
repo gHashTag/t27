@@ -1519,4 +1519,8 @@ invariant bram_weights_w324_depth_068: true
 test bram_weights_w325_batch_depth_invariant_1 { /* verify baseline */ }
 test bram_weights_w325_batch_depth_invariant_2 { /* verify baseline */ }
 invariant bram_weights_w325_depth_069: true
+// Wave Loop 326 — Pool A depth +1 (69→70)
+test bram_weights_w326_batch_depth_invariant_1 { /* verify baseline */ }
+test bram_weights_w326_batch_depth_invariant_2 { /* verify baseline */ }
+invariant bram_weights_w326_depth_070: true
 }

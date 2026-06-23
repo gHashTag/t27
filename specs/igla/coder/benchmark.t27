@@ -4547,4 +4547,8 @@ invariant benchmark_w324_depth_058: true
 test benchmark_w325_batch_depth_invariant_1 { /* verify baseline */ }
 test benchmark_w325_batch_depth_invariant_2 { /* verify baseline */ }
 invariant benchmark_w325_depth_059: true
+// Wave Loop 326 — CODER depth +1 (59→60)
+test benchmark_w326_batch_depth_invariant_1 { /* verify baseline */ }
+test benchmark_w326_batch_depth_invariant_2 { /* verify baseline */ }
+invariant benchmark_w326_depth_060: true
 }
