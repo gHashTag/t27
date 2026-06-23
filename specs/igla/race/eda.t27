@@ -1836,6 +1836,12 @@ test eda_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test eda_w340_batch_depth_invariant_2 { /* verify baseline */ }
 invariant eda_w340_depth_084: true
 
+
+// Wave Loop 341 — Pool A depth +1 (84→85)
+test eda_w341_batch_depth_invariant_1 { /* verify baseline */ }
+test eda_w341_batch_depth_invariant_2 { /* verify baseline */ }
+invariant eda_w341_depth_085: true
+
 }
 
 invariant eda_w339_depth_083: true

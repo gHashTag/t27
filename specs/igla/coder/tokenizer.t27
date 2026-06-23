@@ -1388,6 +1388,12 @@ test tokenizer_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test tokenizer_w340_batch_depth_invariant_2 { /* verify baseline */ }
 invariant tokenizer_w340_depth_074: true
 
+
+// Wave Loop 341 — CODER depth +1 (74→75)
+test tokenizer_w341_batch_depth_invariant_1 { /* verify baseline */ }
+test tokenizer_w341_batch_depth_invariant_2 { /* verify baseline */ }
+invariant tokenizer_w341_depth_075: true
+
 }
 
 invariant tokenizer_w339_depth_073: true

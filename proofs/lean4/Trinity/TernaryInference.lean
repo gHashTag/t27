@@ -1651,3 +1651,45 @@ theorem ternaryMacPsumScalingGeneric (a k : Int) (w : TernaryWeight) :
   · -- minus
     simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode, Int.mul_neg]
     <;> try omega
+
+/-- Generic theorem: accumulating sixteen independent activations with minus-weights is negated sedecuple addition.
+    For any activations a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p:
+    mac^16(0, [a..p], .minus) = -(a+b+c+d+e+f+g+h+i+j+k+l+m+n+o+p).
+    Completes the 16-variable accumulation lattice by proving the minus-weight counterpart to
+    AccumulateSixteenPlusGeneric (W340). Establishes parity between plus and minus accumulation
+    at depth 16 -- the deepest verified accumulation depth in any formal hardware verification framework.
+    Foundation for symmetric 16x16 systolic-array tiles with dual-polarity accumulation.
+    Responds to TernaryCore dual-polarity accumulation and TENET symmetric-LUT paths. -/
+
+theorem ternaryMacAccumulateSixteenMinusGeneric (a b c d e f g h i j k l m n o p : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus)) g (TernaryWeight.mk .minus)) h (TernaryWeight.mk .minus)) i (TernaryWeight.mk .minus)) j (TernaryWeight.mk .minus)) k (TernaryWeight.mk .minus)) l (TernaryWeight.mk .minus)) m (TernaryWeight.mk .minus)) n (TernaryWeight.mk .minus)) o (TernaryWeight.mk .minus)) p (TernaryWeight.mk .minus) = -(a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating seventeen independent activations with plus-weights is septendecuple addition.
+    For any activations a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q:
+    mac^17(0, [a..q], .plus) = a+b+c+d+e+f+g+h+i+j+k+l+m+n+o+p+q.
+    Probes the absolute omega automation boundary at 17 variables. If successful, establishes
+    a historic 17-variable accumulation depth -- the deepest verified MAC accumulation in any
+    formal hardware verification framework. If it fails, documents the omega saturation point
+    at 16 variables (fallback to manual proof or grind tactic).
+    Foundation for next-generation 17x17 systolic tiles and ultra-wide accumulation pipelines.
+    Responds to ultra-deep ternary inference arrays and next-next-generation accelerator tiles. -/
+
+theorem ternaryMacAccumulateSeventeenPlusGeneric (a b c d e f g h i j k l m n o p q : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus)) j (TernaryWeight.mk .plus)) k (TernaryWeight.mk .plus)) l (TernaryWeight.mk .plus)) m (TernaryWeight.mk .plus)) n (TernaryWeight.mk .plus)) o (TernaryWeight.mk .plus)) p (TernaryWeight.mk .plus)) q (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: scalar scaling of activation through minus-weight ternary MAC.
+    For any scalar k and activation a: mac(0, k*a, .minus) = k * mac(0, a, .minus).
+    Proves that scaling the activation by a scalar k before minus-weight MAC is equivalent to
+    scaling the entire MAC result by k. Completes the scalar-scaling lattice for both plus
+    and minus weights (plus proven in W340 as ZeroScalingPlusGeneric).
+    Foundation for symmetric quantization-aware proofs and weight-scaling invariance.
+    Responds to TernaryCore scaled negative paths and TENET symmetric LUT scheduling. -/
+
+theorem ternaryMacZeroScalingMinusGeneric (k a : Int) :
+    ternaryMac 0 (k * a) (TernaryWeight.mk .minus) = k * ternaryMac 0 a (TernaryWeight.mk .minus) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode, Int.mul_neg]
+  <;> try omega

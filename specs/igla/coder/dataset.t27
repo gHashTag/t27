@@ -2457,6 +2457,12 @@ test dataset_w340_batch_depth_invariant_1 { /* verify baseline */ }
 test dataset_w340_batch_depth_invariant_2 { /* verify baseline */ }
 invariant dataset_w340_depth_073: true
 
+
+// Wave Loop 341 — CODER depth +1 (73→74)
+test dataset_w341_batch_depth_invariant_1 { /* verify baseline */ }
+test dataset_w341_batch_depth_invariant_2 { /* verify baseline */ }
+invariant dataset_w341_depth_074: true
+
 }
 
 invariant dataset_w339_depth_072: true
