@@ -780,3 +780,7 @@
 - **Commit:** docs(w341): W341 report + cooperation variants for W342
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-06-23T09:20:03Z — trinity-rust-rings
+- **Commit:** chore(memory): W341 skill table update
+- **Files:** docs/reports/WAVE_LOOP_341_GITHUB_ISSUES.md
+
