@@ -3564,5 +3564,8 @@ test eval_w322_batch_depth_invariant_1 { /* verify baseline */ }
 test eval_w322_batch_depth_invariant_2 { /* verify baseline */ }
 invariant eval_w322_depth_056: true
 
+// Wave Loop 323 — CODER depth +1 (57→58)
+test eval_w323_batch_depth_invariant_1 { /* verify baseline */ }
+test eval_w323_batch_depth_invariant_2 { /* verify baseline */ }
+invariant eval_w323_depth_058: true
 }
-

@@ -827,3 +827,28 @@ theorem ternaryMacPlusMinusInverseGeneric (a : Int) :
     ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .minus) = 0 := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: minus-weight followed by plus-weight MAC with the same activation cancels to zero.
+    For any activation a: mac(mac(0, a, .minus), a, .plus) = 0.
+    Complements PlusMinusInverseGeneric by proving the reverse alternation (minus then plus)
+    also yields zero. Together, these cover both sign-cancel orderings for identical activations.
+    Foundation for bidirectional zero-skip optimization: hardware can elide either plus→minus
+    or minus→plus pairs when the same activation is reused.
+    Responds to TENET bidirectional sign-cancel LUTs and TernaryCore dual-path optimization. -/
+
+theorem ternaryMacMinusPlusInverseGeneric (a : Int) :
+    ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .plus) = 0 := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating four independent activations with plus-weights is quadruple addition.
+    For any activations a, b, c, d: mac⁴(0, [a,b,c,d], .plus) = a + b + c + d.
+    Extends the N-variable accumulation family to depth 4, matching common systolic-array
+    tile sizes (4-PE rows) and TENET 4-stage LUT pipelines.
+    Foundation for 4-input systolic-array row-reduction and quad-dot-product proofs.
+    Responds to TENET 4-input LUT scheduling and TernaryCore 4-operand add paths. -/
+
+theorem ternaryMacAccumulateFourPlusGeneric (a b c d : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus) = a + b + c + d := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega

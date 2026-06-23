@@ -1674,5 +1674,8 @@ test systolic_array_w322_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_array_w322_batch_depth_invariant_2 { /* verify baseline */ }
 invariant systolic_array_w322_depth_068: true
 
+// Wave Loop 323 — Pool A depth +1 (69→70)
+test systolic_array_w323_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_array_w323_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_array_w323_depth_070: true
 }
-
