@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e8f7716b617efc82fcfc7aee8546c6afdfdf663b00a2965cdccd7842aece6a4f",
-  "gen_hash_rust": "sha256:e6978063cfa8f7ec9c14c603c7fc5b2f387a201131655f9e060869aadcac1e5d",
-  "gen_hash_verilog": "sha256:5b9c98ee6db120dd88002f821ff28685c1b14f005b6913881f1165d1a45cfe21",
-  "gen_hash_zig": "sha256:fcc325d0d0c72959ec3fb9d438b7035139b33cf269b128c48a13c6bdea277c65",
+  "gen_hash_c": "sha256:477c418ea22fb0d58166f0dfd04b8728c4fffe557a851f3d9b9ff39fdef8d6b1",
+  "gen_hash_rust": "sha256:73915dcf183f9010342c192ffe2d14cedd535ef1a276e890353f017c663ff307",
+  "gen_hash_verilog": "sha256:1482dbb3fb4f10e8691878ed9531fe99061fb3830f6128f67b6e4fe9e41e9478",
+  "gen_hash_zig": "sha256:d95412b6cde41bd5035ee0ec1d2b472e8bd16eda4d94a13e3b06e92cf6754734",
   "module": "Memory",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:09Z",
+  "sealed_at": "2026-06-23T03:11:55Z",
   "spec_hash": "sha256:5847d80ee4a4f2fc5b812078febf793a17aa56e2e4ad3bd6ea158c2d218f0b84",
   "spec_path": "specs/fpga/memory.t27"
 }

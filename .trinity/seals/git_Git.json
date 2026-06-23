@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:0b1c976c3df190a9c1b09942ab59bed3b44e80e1584893e2924f240d3beb870d",
-  "gen_hash_rust": "sha256:15705e5739a1259b43c782280463bddaf02ea32fade7b2e9ffd5cbfd3c96652b",
-  "gen_hash_verilog": "sha256:db3f394c25681b9929160c98a5a2850d0b214aad6f5ea7643ab17834c1b35b3d",
-  "gen_hash_zig": "sha256:63f3f27451ce901a4c879ffd0db1448db0f5d265eb55a3c6b40b73a86ddb52c8",
+  "gen_hash_c": "sha256:1acfbbf06f9d0f825e4cac9a7a67ebd06df9ee5cc135a2fd179aa59dcb70916e",
+  "gen_hash_rust": "sha256:7bb88b2c4cebd33a07ac0f71a056ac4ff24cd6e3087f055048e7d02e9f4e5075",
+  "gen_hash_verilog": "sha256:24b229ef89cc31014db1de94b9bfd7aaf1a34d94c84bcbb4eadad772fe8b5eb4",
+  "gen_hash_zig": "sha256:53988445de08265cc985615bfdcd6e6ec87f9ec392a5d95d000bbae61ffb9f50",
   "module": "Git",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:07Z",
+  "sealed_at": "2026-06-23T03:11:54Z",
   "spec_hash": "sha256:de59a550af2284126853dfff145260c5d70a8e8c5c380bd8f78e803b6a5502f6",
   "spec_path": "specs/git/schema.t27"
 }

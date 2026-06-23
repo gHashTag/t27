@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:4b0d026e5ede7c2df59ebf37e25c1530e90c1e303b6c9382548d163fdd341eb2",
-  "gen_hash_rust": "sha256:ab0ca5201322f4689792cdfbe4d6dcb07bac8ecfd2884bc268ec5688a9e6d916",
-  "gen_hash_verilog": "sha256:6d4262ee7234c5c8888ae3c7b745bdec80238afccd96cb6359dde84b3383e1c7",
-  "gen_hash_zig": "sha256:36a9dbe1181ee8cef3064c4ff39a3129a292e781e9184da71e7d61b3388cb722",
+  "gen_hash_c": "sha256:d4a9cb8e596aabb6da17d9f70c50572493e7fc56f10ee403086926cf12a17efa",
+  "gen_hash_rust": "sha256:bebd3d0931475b1d1978e499041814fa8082ab381d5159efdb8f7e20ab064930",
+  "gen_hash_verilog": "sha256:faeefbad909e1e9f43664509f8f94b4f646f09f03b7aebb1467d8e55896c7beb",
+  "gen_hash_zig": "sha256:ac793050a1d56ee4493a3db343329295a85abdc85f6b0a270d3cf96e4daaf32d",
   "module": "Sigmoid",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:10Z",
+  "sealed_at": "2026-06-23T03:11:56Z",
   "spec_hash": "sha256:57354f8525068440df541ffe1bd2e9d059248b1c35fcfc3b1cda4cd0beb8c08a",
   "spec_path": "specs/ml/activation/sigmoid_activation.t27"
 }

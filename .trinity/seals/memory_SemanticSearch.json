@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:0319b50804ae412ead486416f3eba4b95cdf6f0f0e29d1ac23c88abc4333ff2a",
-  "gen_hash_rust": "sha256:01ad5b804444f0b2174c960394b3311f34ed1f1cbb155cbafe8743ac66e1e3f2",
-  "gen_hash_verilog": "sha256:dc2e3421b83c036854bd4bd252dd60812179869aba62f4cd6c0d1f79c0d6b7e9",
-  "gen_hash_zig": "sha256:5282e0f3ca7584199a9a4c1ceabff439dfbc70f4af853719a3e3cba9adebee68",
+  "gen_hash_c": "sha256:aff48039d498296e5567cafea5f5d7466932c7eacd83256dda440af2949b3bf4",
+  "gen_hash_rust": "sha256:25a835926d7bfeac0fd2cb41365eb137f9f5e7677fefd9ee72afbe52dfac8632",
+  "gen_hash_verilog": "sha256:b6e279c2d5fe2319720dc359c321ab10ed86cd22623714265c812df78a4fb58f",
+  "gen_hash_zig": "sha256:e720bdc20f6891b563b2c3de8eea0f690d503e5284fd387a7ed22dd84fa19c05",
   "module": "SemanticSearch",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:08Z",
+  "sealed_at": "2026-06-23T03:11:54Z",
   "spec_hash": "sha256:513b6a22de6436f9269e7422c67954b6836990fa5ddeb147df0c992e698e56ee",
   "spec_path": "specs/memory/semantic_search.t27"
 }

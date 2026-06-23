@@ -482,3 +482,37 @@ theorem ternaryMacNegatePsumActivationSymmetricGeneric (psum a : Int) (w : Terna
   · -- minus
     simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul]
     <;> try omega
+
+/-- Generic theorem: for any partial sum psum, a zero-activation plus-weight ternary MAC
+    returns the partial sum unchanged. mac(psum, 0, .plus) = psum + mul(0, .plus) = psum + 0 = psum.
+    This proves the sparsity-skip correctness of accumulator-based systolic arrays:
+    when activation is zero, the MAC does not alter the partial sum.
+    Responds to TernaryCore zero-skip and ternfpga sparsity-gating insights. -/
+theorem ternaryMacZeroActivationPlusWeightEqualsPsumGeneric (psum : Int) :
+    ternaryMac psum 0 (TernaryWeight.mk .plus) = psum := by
+  simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+
+/-- Generic theorem: for any partial sum psum, a zero-activation minus-weight ternary MAC
+    returns the negated partial sum. mac(psum, 0, .minus) = psum + mul(0, .minus) = psum + 0 = psum.
+    Wait — actually mul(0, .minus) = 0, so mac(psum, 0, .minus) = psum.
+    This is the zero-activation identity for minus weight. -/
+theorem ternaryMacZeroActivationMinusWeightEqualsPsumGeneric (psum : Int) :
+    ternaryMac psum 0 (TernaryWeight.mk .minus) = psum := by
+  simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+
+/-- Generic theorem: for any partial sum psum, a zero-activation zero-weight ternary MAC
+    returns the partial sum unchanged. mac(psum, 0, .zero) = psum + 0 = psum.
+    This completes the zero-activation identity trinity (plus, minus, zero). -/
+theorem ternaryMacZeroActivationZeroWeightEqualsPsumGeneric (psum : Int) :
+    ternaryMac psum 0 (TernaryWeight.mk .zero) = psum := by
+  simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
+
+/-- Concrete theorem: balanced mixed weights [plus, minus, zero, plus] applied to
+    activations [1, 2, 3, 4] produce expected result 3 (1*1 + 2*(-1) + 3*0 + 4*1 = 1 - 2 + 0 + 4 = 3).
+    Validates end-to-end ternary inference with non-trivial weight patterns. -/
+theorem ternaryInferenceBalancedWeightsConcrete :
+    let input := InferenceInput.mk #[1, 2, 3, 4]
+    let balancedWeights := #[TernaryWeight.mk .plus, TernaryWeight.mk .minus, TernaryWeight.mk .zero, TernaryWeight.mk .plus]
+    let model := loadTernaryWeights balancedWeights
+    (ternaryInference2x2 input model).outputs = #[3, -3, 0, 3] := by
+  simp [ternaryInference2x2, ternaryGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, balancedWeights, loadTernaryWeights] <;> try native_decide

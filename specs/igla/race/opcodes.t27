@@ -1152,3 +1152,17 @@ test opcodes_is_sacred_opcode_valid_true_w309
 invariant opcodes_get_cycles_mul_three_w309_inv:
     get_opcode_cycles(0x03) == 3
 
+test opcodes_get_cycles_mul_three_w310
+    given op = 0x03
+    when cycles = get_opcode_cycles(op)
+    then cycles == 3
+
+test opcodes_is_sacred_opcode_valid_true_w310
+    given op = 0x2A
+    when r = is_sacred_opcode(op)
+    then r == true
+
+invariant opcodes_get_cycles_mul_three_w310_inv:
+    get_opcode_cycles(0x03) == 3
+
+

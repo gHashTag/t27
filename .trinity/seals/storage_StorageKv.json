@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:59f7e90a4b2fd536ba7c8f3b5c7fe9bf0d607c5ecaf0e46488f1964aae4ea611",
-  "gen_hash_rust": "sha256:a8d84174adbde5cc192caa813b6915f91d7f5d26b8a8d76979d04463cbd86beb",
-  "gen_hash_verilog": "sha256:1eb9f4063940bcc71c67c4a7a51fe8e333b1656d856ddb8440c49f7ebf6f7ede",
-  "gen_hash_zig": "sha256:1bfcc4b9cfeedc84bd75ea9b7ba52dca3522b0af70f4377c02b0a5415e323698",
+  "gen_hash_c": "sha256:f5cf8ad4a43b03526a3aa720ea24ff11bb252e77c774fe206e96201bb4f932be",
+  "gen_hash_rust": "sha256:c8c098c738258313e85785ed0dad22f2e50dc5550f724d98e7b684ebe5fb40cc",
+  "gen_hash_verilog": "sha256:dac25bd7b9fd36e393210137c4688200564acdb706eda8f126320d25a89f7a51",
+  "gen_hash_zig": "sha256:817f4d4640f99bc9d0a3ee613a364a3b41874b507966af25fd313f8ab92702bd",
   "module": "StorageKv",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:08Z",
+  "sealed_at": "2026-06-23T03:11:55Z",
   "spec_hash": "sha256:b642ac3ac608ff8b1f91f11ee34db4d0683115f0d648d3f7d8a3ef44a604dbdc",
   "spec_path": "specs/storage/kv.t27"
 }

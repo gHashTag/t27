@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:d186c557b5d3772ec475a98f4fa68ed6e95fee986336dec6875a8be6b57cac38",
-  "gen_hash_rust": "sha256:da0c55fdb9e70eac127e3841a5df3d454d847463821f81e7cb948ae0b48e41b9",
-  "gen_hash_verilog": "sha256:79e0332cb4500b9bc7ba9952309cb32048d7860d5b532a978394e4a785460adb",
-  "gen_hash_zig": "sha256:5a85e64c3395d8106d6f9353ed52642b617879eafadab1fd586a202645496ecc",
+  "gen_hash_c": "sha256:b2c38dd4829fa63da63ee98043cbb0f50340d75ae4f1da9b3ba1726ce5f04d92",
+  "gen_hash_rust": "sha256:f0234d62ecf95901584f9d63796839c05b690fd31df0fa6f33dbbe44cdea13c0",
+  "gen_hash_verilog": "sha256:e5f70ff20aa9d2973d7b3aae9c09cabaebe022b76e4af3a825b88e22262bacbf",
+  "gen_hash_zig": "sha256:97cc69c7292d665a94c5d3dd385fdd7fed15b90dc210acf114f3e7ea8a54c15a",
   "module": "BrainSummaries",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:07Z",
+  "sealed_at": "2026-06-23T03:11:54Z",
   "spec_hash": "sha256:9af9e59efd7f840d0124eb04f333b76fb5d971c1304eeecd52ef72fc4e90895d",
   "spec_path": "specs/queen/brain_summaries.t27"
 }

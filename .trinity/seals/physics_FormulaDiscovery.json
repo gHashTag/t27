@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:020fa07c33a69be2ad657612ba518735c90d9cdb74ece30d3f646c4ef6018e62",
-  "gen_hash_rust": "sha256:b01c107a80657d28e7776fd11c4ec28f3099806d9f20c6c18763d22eb4a6bb3f",
-  "gen_hash_verilog": "sha256:7cc85f97201b78d0c61c8c1dbc6132d97efae5a025bb6ff82f0149a707962518",
-  "gen_hash_zig": "sha256:fbdbc8803bbc66b8ef3c8038365f507507e5da83aea836051a6cf9ac891d1f75",
+  "gen_hash_c": "sha256:d800b00c26e1e7f6563bef6a6916bee3e1c0bffc5254c8f811713c6f546d9b39",
+  "gen_hash_rust": "sha256:2a1c8cad7cab6ad77f8f514bf563bf8cfda8a7e9f17df0b0b46a4ccb88372649",
+  "gen_hash_verilog": "sha256:57c424ee09f4028bf9cdde651d201b6d352cd5bd2a8525a88d71ced9c0d69417",
+  "gen_hash_zig": "sha256:08335b9c7cd854bee5db363ae9f5a9449193a3193d8d35e937afdba19ca0b3ae",
   "module": "FormulaDiscovery",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:07Z",
+  "sealed_at": "2026-06-23T03:11:53Z",
   "spec_hash": "sha256:5195f89bfc0b1f3ed434ef6371ba940a629ba01eee7a3746f6f14ec0cde9a141",
   "spec_path": "specs/physics/formula_discovery.t27"
 }

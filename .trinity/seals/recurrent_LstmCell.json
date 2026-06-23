@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:020eee87d5d0e629b582634d259bda567ca7ab431c536ef7c61796fef6b137b8",
-  "gen_hash_rust": "sha256:7fe3b731529e5e54564408e1bc52f455ede8ad79b90f0829d7fee5ded3e1fa42",
-  "gen_hash_verilog": "sha256:4ec58e00ce82acd1eb3e7b1521d668b2caa3fe1fe01b70f0b578f55092f08354",
-  "gen_hash_zig": "sha256:aa233c9fda195ee52f4740989123307b6a8c431d29ff97a94762352b3b133ba2",
+  "gen_hash_c": "sha256:2472a06fefd5d0372a55fda74af0c017ab4de6c062624efef11e07699d1fb24a",
+  "gen_hash_rust": "sha256:45aed182c5179ae8ce621bf6b603c788fe9055117b2b3c034d5be2c5f9a6b395",
+  "gen_hash_verilog": "sha256:66902419feacf2e7a49f8329b6f20dad507268809d359b60c27fa0306951296f",
+  "gen_hash_zig": "sha256:4ef4da428eb8cb661e9c82b4719ccdb90fc5e4814e29ee701d785e2fe65a6686",
   "module": "LstmCell",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:10Z",
+  "sealed_at": "2026-06-23T03:11:56Z",
   "spec_hash": "sha256:2b97b9758290cb2c035ad4d058a26f4c081f428c20230cd076c72129f5d17b6c",
   "spec_path": "specs/ml/recurrent/lstm_single.t27"
 }

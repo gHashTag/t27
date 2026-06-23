@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:ed96a56d63fd2da48aadb0a435d47278643b962f9896776e573f4fb30e7ceb5d",
-  "gen_hash_rust": "sha256:ef52aa042752ee148b68d0ddce1a41edfd6633165e1b08d41472fcb039d38236",
-  "gen_hash_verilog": "sha256:ec03ca7489e243cf43039e96a1dcdb49aa907023af15313cbc8226d9338e2b08",
-  "gen_hash_zig": "sha256:23a05bf2a1fa1b06214ba096f7fa6b90f7301d3f8238bffa21d9cbb0f1cdfcaa",
+  "gen_hash_c": "sha256:c57daddbdc94e5a4e63f1a4b5bfbc66cd9afc1431cec91b95022688d6f1e627d",
+  "gen_hash_rust": "sha256:9a6109821a9fc1c4759e7d54e5833960ba79993838ff0b5d66a3ba482350ca2c",
+  "gen_hash_verilog": "sha256:e999ccbe62c7102428b53ab2ea0a6c3edfacdbbf693ce292497024450f1c2790",
+  "gen_hash_zig": "sha256:1a4811e6e97da8f41c25da9f9a7bca353290ab6e51ad7e1f0d68fc8b39af6d5a",
   "module": "trinity-numeric-surface",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:08Z",
+  "sealed_at": "2026-06-23T03:11:55Z",
   "spec_hash": "sha256:bbbfde52b6adf3ed605dbb0f74c482e48c4868a0f919c68c5a5da614190aec10",
   "spec_path": "specs/numeric/trinity_numeric_surface.t27"
 }

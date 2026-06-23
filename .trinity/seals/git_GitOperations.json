@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:55fcbd5e6aa82c90964977170bcc3e5b5ba8841985171536adbc3266ae11f18e",
-  "gen_hash_rust": "sha256:378344d1cd8eb44aa575694d266c3d7aa5b0b5ae618c8fa44c6f4e1ef15321e2",
-  "gen_hash_verilog": "sha256:ed8dbfb70a00693facf73662ceffac2cdc3514a0b6a96e45f4e5a9a599acaf9a",
-  "gen_hash_zig": "sha256:c7e89b90972ceca9b51ea42671043986f4dcbcf6a676923749f228bc035b2d1a",
+  "gen_hash_c": "sha256:5dd9efa61fd7c187b774d23ebdc481e33e81a9631227c8ffd6270e2209cf1353",
+  "gen_hash_rust": "sha256:25920e130cec02fd0076fce28670647c4074c48a158876d64313286970e60933",
+  "gen_hash_verilog": "sha256:b85ad2186d3c4f18843f40be5e8cceda1f422af301fa7a4b136f240da00bfb09",
+  "gen_hash_zig": "sha256:3906e97605c0e0a436e96eda28f7b77a4e804b3910322077939da10da137ce95",
   "module": "GitOperations",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:07Z",
+  "sealed_at": "2026-06-23T03:11:54Z",
   "spec_hash": "sha256:e0602a7ea441dbee1218830eb5d11e96b1f2b68fccf0d07c1d9e66f39196c78b",
   "spec_path": "specs/git/operations.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:b820120e3b9aff5c490f3348f974ce01e760da995dc0d50bff4f8be93b22d821",
-  "gen_hash_rust": "sha256:6335b730862a2e4ee85a76617598fb3f85badcd21685a4327ac18fdef5320442",
-  "gen_hash_verilog": "sha256:36d9d29dbe6c27b14075e60a3e58b91b44f2aa08dbc635858eb3004eb290a1be",
-  "gen_hash_zig": "sha256:b5e94a8be816b0f2dc39f292e77a8bc7e012c7ff5498df925d4d4916aa594921",
+  "gen_hash_c": "sha256:af3bec87188216b24e1944c1cf880d1eb54dc4014504541442538b51b227f621",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:4b20171665e7b98177027fecb499bc2216cb4eb101192f179215587c28a9ed11",
+  "gen_hash_zig": "sha256:1b5dfe37471b021e6d5733744388df7abc73ee4f8deecf06e3e169bb3eb0e677",
   "module": "TriPrimsMst",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:09Z",
+  "sealed_at": "2026-06-23T03:11:56Z",
   "spec_hash": "sha256:642d11214c510192057a915200d03aa793e184955d215b1c8a0152b627e1f8da",
   "spec_path": "specs/tri/graph/prims_mst.t27"
 }

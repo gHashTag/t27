@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:489cc6f5f80bac11f60f08a4e143ea9bda7540cd093cf59bb6bfbab31b726954",
-  "gen_hash_rust": "sha256:bd744c00fe96c21398937a19d44482551e737a7e5a0175508c2ce1771d6630a1",
-  "gen_hash_verilog": "sha256:6d81754bd2531c3643f65b8d8063ce87dba7b9f1cd015ce78b9ab1a52e178382",
-  "gen_hash_zig": "sha256:2dbbe87e488b28d13889ae27098db19aab1c9637ad22ae199903701511dc7d01",
+  "gen_hash_c": "sha256:8891347ec11aa9832b69710dd9ad2fc5e79676ca6f2ad3e0a7f72b9598badb13",
+  "gen_hash_rust": "sha256:7ae77b026344ee06a757e70d37a8801fa4d4c4b66bccebaa88d4b2bbe924c46d",
+  "gen_hash_verilog": "sha256:af4499f3dbca5ce0a72604ab63c236b54fa79e9fa31679166d89563f91670d6a",
+  "gen_hash_zig": "sha256:ad5515dd917c1348d6d533d252bb8106e959f71feda4633f6bba77fe09b2beeb",
   "module": "TriRandom",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:09Z",
+  "sealed_at": "2026-06-23T03:11:56Z",
   "spec_hash": "sha256:1ac48181d58fe5733740c1cb738f315f5abfbd2d36b6c6cdfe2ff44bc5788573",
   "spec_path": "specs/tri/utils/random.t27"
 }

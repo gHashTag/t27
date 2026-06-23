@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:9c6500f66f612d206faa44be3f2919562512dee6ec9e30866be347336ab0cd14",
-  "gen_hash_rust": "sha256:6335b730862a2e4ee85a76617598fb3f85badcd21685a4327ac18fdef5320442",
-  "gen_hash_verilog": "sha256:d8742bd0b9db8896bdaeec66c813b056af6911292aab362c071237c0af82229e",
-  "gen_hash_zig": "sha256:f0fc44461bb211faa1e3c66fc94fe789d79e650cacfb155e75362aacdbbddbc7",
+  "gen_hash_c": "sha256:9a31398a18a94b101612575f3da02cc2d838bb73f3b57357f93184fbb2aace00",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:254d81664fe3c5f67324c3f3b72693b99e1001b753cc54145f35ca58c9cac0a1",
+  "gen_hash_zig": "sha256:b6ab0e544ca74f98f678e526a972161f78e7dc1e59e18f53238fc3bf9894f2c4",
   "module": "TriGravity",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:08Z",
+  "sealed_at": "2026-06-23T03:11:54Z",
   "spec_hash": "sha256:3fe14f0e675704ece025e11534de7629b8245942f3898cac1f00221227a8a6bf",
   "spec_path": "specs/sacred/gravity.t27"
 }

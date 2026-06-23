@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:fcdcc5d081b76db2bbec6e2d61691a2b97b3ac968dc89041fbe811f9beddb414",
-  "gen_hash_rust": "sha256:9c08283b2233b4e047a8f42ca3f1e237ddef3dd7a79296a1a8b483d2c9171d69",
-  "gen_hash_verilog": "sha256:4d1f4a3e6f97e94ec5668f186443c9ff7d2be00145a749bc40ae2b9a758d43ec",
-  "gen_hash_zig": "sha256:277567e9aa2ca0fa60129445b0955221048f3c0e5b44ef69e4068fb25c2fbefe",
+  "gen_hash_c": "sha256:2ad064f4b8e295b71937e211b98af94f612ad613e657b057cdf269ace4d427f7",
+  "gen_hash_rust": "sha256:ac7f38159233b6f7bac81c0296dd64de22e12cd035e884e90b4b65f03eaf8b67",
+  "gen_hash_verilog": "sha256:3e23e53bd76de29832dc890b4d77ee511f07773563e79fea911296b13963f92d",
+  "gen_hash_zig": "sha256:19e66c7fd6db3089815fea329e3c52a63cc7c5aa769ae698507f121adad932aa",
   "module": "PpoClipLoss",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:10Z",
+  "sealed_at": "2026-06-23T03:11:56Z",
   "spec_hash": "sha256:1916b5ef79c7a277691bd89e85161a6c6eeb4496115c875708303ec88cf39bbe",
   "spec_path": "specs/ml/rl/ppo_clip_loss.t27"
 }

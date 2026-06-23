@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:41a92b9499879a5ba8643f5cce1ff3270ddfab8367cade0f6cee64626a46f8f9",
-  "gen_hash_rust": "sha256:d11d7e85de299d110f7d6c29400bf13bf753a4a0e5097d75b3059f397b64d953",
-  "gen_hash_verilog": "sha256:7c0973f1e31efc5c6d0f618ae3d6a4014d7c340153bc748a4c65c9d4284accb4",
-  "gen_hash_zig": "sha256:005d277b57390e8d8bb4b66bd6e6e28ecfbb5b06b2873ea05d635206f0fdabf6",
+  "gen_hash_c": "sha256:7c864dbfa74f939f4b9a2968fb0de7caac32406bea4879320231cde9fb74438d",
+  "gen_hash_rust": "sha256:17fb481a8596b400f4d865bbeb12132eae6c5fa8a46388546e074b4b5fb85839",
+  "gen_hash_verilog": "sha256:cb2a3889799053dbd1eb10e127e0361613a65eb92c164c240a978eb1ad25789f",
+  "gen_hash_zig": "sha256:d73332c8c6cc3d1eb944a3ef7aad100ba0dcaafc32893dea4f465aa5c89f5cb9",
   "module": "Sgd",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:10Z",
+  "sealed_at": "2026-06-23T03:11:56Z",
   "spec_hash": "sha256:751431cc3b541194897283a0f63b82af55129c2166636be7e411fb1a73266e03",
   "spec_path": "specs/ml/optimizer/sgd.t27"
 }

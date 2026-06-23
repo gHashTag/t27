@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e6d9648aa2e0c2dda4166f9fdbef31424ebccaf222e06f5434f3e0d2327402f7",
-  "gen_hash_rust": "sha256:42ed855507d55cb5708b7947e2e7d697421bed9bdba2a2c2fe2e97cc0ab42a43",
-  "gen_hash_verilog": "sha256:43cdd40d51d64caa15ce2e5f2b20102810ebaf171a583ad8a74102a81bca5b31",
-  "gen_hash_zig": "sha256:a9b51a57e5aaf3bfa634ce8b83027b711770ae05fe9161a1c543c37332e8d1e8",
+  "gen_hash_c": "sha256:e2c468f37af1e794eae1bda586fb27d53e269a73b53e687c50d55373333cc709",
+  "gen_hash_rust": "sha256:7b4109e25f1248a85b43e77498583cacc4126dd47f4e8f76c600cd854ed31d0b",
+  "gen_hash_verilog": "sha256:79d592d91110dfcb470b54a8cd6c9f85792810add0858e4c836ddf7dff827dec",
+  "gen_hash_zig": "sha256:49204766fb43068940f21e1b4d3df5ad3e448cc97072aa4cf4002cfd5cc0fa6a",
   "module": "Gelu",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:10Z",
+  "sealed_at": "2026-06-23T03:11:56Z",
   "spec_hash": "sha256:3c34e36a16bc732572de54cd5a41ff1139c2f0d05b28cccb1fe8c1dc29c21e65",
   "spec_path": "specs/ml/activation/gelu_activation.t27"
 }

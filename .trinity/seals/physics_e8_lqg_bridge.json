@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:69f7a320204ca27726ec957c6da2c6f8ede21c599aa8f4a889e22da4dd99f8bc",
-  "gen_hash_rust": "sha256:6335b730862a2e4ee85a76617598fb3f85badcd21685a4327ac18fdef5320442",
-  "gen_hash_verilog": "sha256:0f8f62d0d5ead8da6403dcbc1325e3a37e2e8fb20c7c62caec900d083d41b181",
-  "gen_hash_zig": "sha256:5390e26469d4775006a9cae41e995a74cc0ebba1df8e9f367ef09eaf8c3574f4",
+  "gen_hash_c": "sha256:6a1f6b94b45ad128df2ddf4770fd4ff6caaf17d47625b1a61f226af356cfaeea",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:f74256841edc2f70035d87bbf76c6b8abf432580e1e375b2c5d8bb240ca4e1ed",
+  "gen_hash_zig": "sha256:c8a303173516186bae7aaf3be4394e720d5b685de699311e8c72976962ed2ed2",
   "module": "e8_lqg_bridge",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:07Z",
+  "sealed_at": "2026-06-23T03:11:53Z",
   "spec_hash": "sha256:46fae880669b169f692fe7f833dbbb5438a038fc51295cd6202ffdfaef75e889",
   "spec_path": "specs/physics/e8_lqg_bridge.t27"
 }

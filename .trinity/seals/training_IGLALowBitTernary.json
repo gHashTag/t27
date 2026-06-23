@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:76b2e0f3495a8e527eb4796867839927561f55962f8cfca4573bc5e96e7c84f4",
-  "gen_hash_rust": "sha256:d6b14692fb33ac603477f70e6c703c53dbcf560f59e594e11390e117d0d4c63d",
-  "gen_hash_verilog": "sha256:bffbd3121270d974e30f45e013ba01ffdfeb3227b85a0f265ec7412968f031fc",
-  "gen_hash_zig": "sha256:18aae404cfcb6d5ca3c6e29fe7257d6eaa481f3004ee03862117d15e9a8285b7",
+  "gen_hash_c": "sha256:55497169953150ad7cf99dbe32542f26ef1adc16339cec31ae8605822e00d447",
+  "gen_hash_rust": "sha256:1eef5cd73660a512fa1294659fabff711e0ac8390a811b1619abd896e778e647",
+  "gen_hash_verilog": "sha256:fef3be341d265cd9bda47484a4e3be4b61edaee13084e6e3897d7653c7d041ae",
+  "gen_hash_zig": "sha256:c29ec20025bc913404b83f0e0af9dee63be4f8e3b953d3a344519d25ff8138fd",
   "module": "IGLALowBitTernary",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:09Z",
+  "sealed_at": "2026-06-23T03:11:54Z",
   "spec_hash": "sha256:71a93868a8177593f4fdae670dce0714895a9ecaadd2d4a09e2c7d84c415e962",
   "spec_path": "specs/igla/training/low_bit_ternary.t27"
 }

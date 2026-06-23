@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:8f1d0b76ec247fcf1f7e43d77a4cab17086d3a460e0e5d8060ac0d0fc08d76a0",
-  "gen_hash_rust": "sha256:6335b730862a2e4ee85a76617598fb3f85badcd21685a4327ac18fdef5320442",
-  "gen_hash_verilog": "sha256:9bb85143196ea0d6d6706836917c5053194f4fe43b73c9d1d59d7565833a95f6",
-  "gen_hash_zig": "sha256:716d2e2a42b8867524120eb11543f26ac653643bed6cc6e2553b88b7feae0006",
+  "gen_hash_c": "sha256:a9171d4ef035e1e5505387b1f794c29cc306a5c003eab87bab04000380247814",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:e743721fb0669c2ac415041ca8d99fbcb9bd2f13eb8c588d3cd2f110280e572c",
+  "gen_hash_zig": "sha256:405233c1e1cf6408522df9674851376329b79c3bb974ea95e19081478d993d79",
   "module": "gamma-conflict",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:07Z",
+  "sealed_at": "2026-06-23T03:11:53Z",
   "spec_hash": "sha256:c59804dd48e5867ebaef3c9586440a7b9ca8fc05b8e03937d25c9ae2097b8ed6",
   "spec_path": "specs/physics/gamma-conflict.t27"
 }

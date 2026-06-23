@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:c69745d3f897ab2357195739abafb01bfd49aa7487b7777fabd3793b6f811070",
-  "gen_hash_rust": "sha256:2fe554baa20f42633051bae44100a4798709ae1d6ed343ad5998348c2d0955e6",
-  "gen_hash_verilog": "sha256:99ca67e1474991c7dd94838280ad3beddd6fc8eae499499575eb87a4d0cd30a1",
-  "gen_hash_zig": "sha256:478961a10eb797dc47dc11aa37429f96782d6b609deb5464e4d96c43a2c0973c",
+  "gen_hash_c": "sha256:c48c2e1723a21ad8cfadc82a6edd4d4a37fa404a752c7a342dc5853820b7e505",
+  "gen_hash_rust": "sha256:6f549931de09cc5470aad1abc9db097ad6b2f1cb7d7521529c63b45d38e3435b",
+  "gen_hash_verilog": "sha256:b14b1ad314bc8a9e45aa4db951c971131e9606e772924a2b76ed08b17fca0d9c",
+  "gen_hash_zig": "sha256:8ef5e7b711913c2db0356c29729c755964dac24618ec69b06a00dcc391197db5",
   "module": "BigInt",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:08Z",
+  "sealed_at": "2026-06-23T03:11:55Z",
   "spec_hash": "sha256:ae59cdae280e3f20d1ef6051827396b1d2b64a10185b39d9374a0bac9ba78d70",
   "spec_path": "specs/numeric/bigint.t27"
 }

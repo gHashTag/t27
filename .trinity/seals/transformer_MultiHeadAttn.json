@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:07f1608fba818f4f33d340e0fe1943fc7fc36d1f54a1966f37fa76ab8388e02b",
-  "gen_hash_rust": "sha256:bb6fe295d2870dce07440eea0ea77867e1384265563e71b475b77bfe38b665af",
-  "gen_hash_verilog": "sha256:0367a3555889de14392ef9495e9d680e741cfccccc518affbe316b4927959287",
-  "gen_hash_zig": "sha256:07fb62b690b71ca1ec62085ef307069d4016bce050dd56b33ce18d3b4d9757fc",
+  "gen_hash_c": "sha256:b4591393c082676ebafd2c5552cffc26ef0a52929356582d7ca4f60a4e8728ed",
+  "gen_hash_rust": "sha256:c36eab12bd935adf46616b0bf1f1fa85391fa8d13f4746780d057ceb9742fc25",
+  "gen_hash_verilog": "sha256:0406711b9577e8ed652e27b11b67ae502721894e3f35b7548827a74cc9fc55f2",
+  "gen_hash_zig": "sha256:190c69c6dad3f5e60e54d760fca2036cbb239d1df2cd17a23b86e49b5f369f9b",
   "module": "MultiHeadAttn",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:10Z",
+  "sealed_at": "2026-06-23T03:11:56Z",
   "spec_hash": "sha256:9a3ce1aa2579e2bd858efa611d2517e13380fcaa88450c4147b653908fd8df69",
   "spec_path": "specs/ml/transformer/multi_head_attention.t27"
 }

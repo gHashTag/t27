@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:0ac730f642036c500b371b4e8b411798d467368b01f73e180f68f81fb732a081",
-  "gen_hash_rust": "sha256:a3b0636a472488ae40af13c101c86487c179472f9877199a99a519ec6151f832",
-  "gen_hash_verilog": "sha256:312b77bc3336354ffdc5a006adf9153dd2c40bb32b91da8ed674317405193c40",
-  "gen_hash_zig": "sha256:c5ecf2820321bff9197dd88cfcb11e95f14016ee75092ef8d24dfc6b21b52a1a",
+  "gen_hash_c": "sha256:02afb947acce5e7521c89a9e33a5c36c05f4ef45849355e27bac4db30457be11",
+  "gen_hash_rust": "sha256:1e266da6d9f25b100a81dc8fb01bbbf56b99e63736939356fcbc63805344afd6",
+  "gen_hash_verilog": "sha256:91524d740642c9e845b97a27e013d0c6137192482d91ad515f6bbe89073fe74d",
+  "gen_hash_zig": "sha256:ba48f8d7ea6e2506d3670efdff838c75ae0fb4779ed1f7b537fd9b2498ad9e30",
   "module": "TriConstants",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:10Z",
+  "sealed_at": "2026-06-23T03:11:57Z",
   "spec_hash": "sha256:0d834a5f68bcffb08f9a5b97c8841fb39b9592f0d7d2ed156f01afb0b78da08b",
   "spec_path": "specs/tri/math/constants.t27"
 }

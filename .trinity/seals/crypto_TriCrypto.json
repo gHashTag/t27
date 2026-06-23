@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:819047272a38f312dc051bfc6e6c0d16292a6852c3c690983ee2978e575c0021",
-  "gen_hash_rust": "sha256:0fdb9d7d6eb9b353b11b7c516d74adfce769aaa547f8480a287f0c3fd644993b",
-  "gen_hash_verilog": "sha256:d02d826c4f0237c5cc5c9fd014e94c048f12d29e96d44b3da55f6764a74b6d03",
-  "gen_hash_zig": "sha256:cfdac37fa7cb5f9e854ceaf9c97bc84f142d1abc199aa8bf3f2b313bf42051ad",
+  "gen_hash_c": "sha256:6b64e1206fd01a30a54b46e7019065b95866bb83e8493ae6397a0767e0bdaf27",
+  "gen_hash_rust": "sha256:db29214776613a133e671d13692e2a54b01785e002bee3f4893f1096e9f2691d",
+  "gen_hash_verilog": "sha256:b384812cf0d85ad9aeb4b326ec808fc6fa78747d45c34dfb8681cf6551444190",
+  "gen_hash_zig": "sha256:bb66c4bd7db62f3931c0d3ff82ce44729cb0688106d4928e857f9a600077733f",
   "module": "TriCrypto",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:09Z",
+  "sealed_at": "2026-06-23T03:11:56Z",
   "spec_hash": "sha256:6b5d36b7cfc6f68858a34b7d78bfe043b0e9693f8ba3cf4ef4229781f2db521b",
   "spec_path": "specs/tri/crypto/crypto.t27"
 }

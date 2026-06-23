@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:9eea9d036ad37abbe9de8c3a61c1338d15c6ebaa8abc5475dffdc89da352ec4f",
-  "gen_hash_rust": "sha256:a343ad39457e8fa169f5e9936046d07da0d63d944e15294a1cdaa46a57d4804a",
-  "gen_hash_verilog": "sha256:cfe2d0be1e252e4846d3ca65f61f917e46fe5a5d80bdfe0431d89d4a022c4665",
-  "gen_hash_zig": "sha256:9eda1cabde93cf39d43f91513bf0d8ab9ae17e5efa439e3055c513fada30f398",
+  "gen_hash_c": "sha256:f71ad7fd52f00e5c391428172fa500b5e88749ccb5d1e2daee2873a7a8620ad5",
+  "gen_hash_rust": "sha256:ca9d6a3e345232dae666bd1a51db703b7ab185a3745f3e41847c04e4f9363437",
+  "gen_hash_verilog": "sha256:0ccea9f821ce61109cd9a1a073e0fbb6635a7185df35188ef847dc482e6123c0",
+  "gen_hash_zig": "sha256:faf9f649040b17f9000cd18ca60b6b9203485d740549765ddc681507288eb47b",
   "module": "provider-transform",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:08Z",
+  "sealed_at": "2026-06-23T03:11:54Z",
   "spec_hash": "sha256:060c2f1a0244b16ace9212d31c89b0a43ce2d804c7d105ba3c84ed319526b42a",
   "spec_path": "specs/provider/transform.t27"
 }

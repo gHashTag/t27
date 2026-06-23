@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:8b06eef86292d3a75c6d37bb1a15aba951abb3eea947790b4fa9cbea364f7e33",
-  "gen_hash_rust": "sha256:80987bf548adf39ee7e22a98c46ee96ce631b4f891e0742d90c91857ee75935a",
-  "gen_hash_verilog": "sha256:8b761ebf6fc01e163e74fd8baf8a12fb99458f396c9e75ccee025664730dda38",
-  "gen_hash_zig": "sha256:d5be6a6caa30ba3986f7b6130ee32992c05a76ba0da896251e3c880734474f50",
+  "gen_hash_c": "sha256:8530f721556231e9b110450182ea046365e6969bee1b6b96a6f676285453f278",
+  "gen_hash_rust": "sha256:46849e39e6c894dfa64317aa4c2e6d168275550fe1b541c1c381720284ed3f5c",
+  "gen_hash_verilog": "sha256:8dea9813f81b5caaf16451788d19c9812366702fdf2c73732dcec78b9c3e3c5f",
+  "gen_hash_zig": "sha256:501c35e2f90bb79ce6d287c785f5fcdfc68d6aadeedc41270bff00f991d085d0",
   "module": "TriHex",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:09Z",
+  "sealed_at": "2026-06-23T03:11:56Z",
   "spec_hash": "sha256:302708b4cdc56954ef9c733c9902e01174972651bb579f5e6ef4943919cd1229",
   "spec_path": "specs/tri/crypto/hex.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:91a67aef609c8aea2b4fe03915254b36f333ce03b5c9faccc78b899622cb4732",
-  "gen_hash_rust": "sha256:a62269a1fd8d922eab7c9fc9275d84d8ffd46c94efd62f85c978b66f7b3afbe3",
-  "gen_hash_verilog": "sha256:4a3272c43160352960403a1f2334887ebe908766757364ce14b288752b7296c9",
-  "gen_hash_zig": "sha256:94d350ce491573f06aafca960bd1c37574cb616d62bd0d0eba95685fdcd8632a",
+  "gen_hash_c": "sha256:3b2d95e0b72e3c63707a97dd8284fc55d9ffad3112056d859d801eea923f6c05",
+  "gen_hash_rust": "sha256:57078be8654e2d6862b034b8e6ceae303ace16580d6f3adbb351c440f0795b26",
+  "gen_hash_verilog": "sha256:507b762dfc1a0617bfb81570591c62f7bb2a400d8b32fd5e41a85c7f05e9d03e",
+  "gen_hash_zig": "sha256:9374e8b908e5bed40ddd670f35514677f91a55261774b1b5d7abdc65cc19bde6",
   "module": "TriRing",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:10Z",
+  "sealed_at": "2026-06-23T03:11:57Z",
   "spec_hash": "sha256:87c586fbef0a7b22b2f6e5f6741a345695bfd9ca5e36a7e510561632b37b7348",
   "spec_path": "specs/tri/collections/ring_buffer.t27"
 }

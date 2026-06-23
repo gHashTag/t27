@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:2102ef0ad2b988772342d48d8ce681887970f71f871e946cd81fdecc6722dab9",
+  "gen_hash_rust": "sha256:ce0c6808a60c020160d8a9ee833f0eeeb66683bb99496d25b0dd73380d5b192c",
+  "gen_hash_verilog": "sha256:d7e04c795472d872aa373af71b63871b8d8b97553972cabd985e576ccc1b3635",
+  "gen_hash_zig": "sha256:97febfeb03489e4509c1b656b59a39b08c27e70245733e73fc412141c5f41b20",
   "module": "GatedLinearAttention",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:08Z",
+  "sealed_at": "2026-06-23T03:11:54Z",
   "spec_hash": "sha256:004529e85abd9c48919785e32e065358c561574356ddff82ef9bdf5c387fa195",
   "spec_path": "specs/nn/gla.t27"
 }

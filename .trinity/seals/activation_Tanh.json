@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:a646f09c21c5181c0483c62689bae5af89e4c4630a5e3f7830a998ce58006b01",
-  "gen_hash_rust": "sha256:17582f3197bb12150b2002a0128d48537d1a8b7f9fe48418da9e918a3e2d4060",
-  "gen_hash_verilog": "sha256:680da1c5f561d46bb85e31c303968ef4eab634e1aab41d0a8c157b409eeca410",
-  "gen_hash_zig": "sha256:566b0c0a1956b3c9afbb4f6ea53088857e786223bab01944eb77915e90d1c487",
+  "gen_hash_c": "sha256:0787e6428dc36d664cca68752310420e710610a3fd40bc4902f30eff631cbe4e",
+  "gen_hash_rust": "sha256:85357ea9c5f384994927a6455d37629b7804cc0e2c3224c01ab5abf1db0e354a",
+  "gen_hash_verilog": "sha256:7b2a9a9164f843d846affa65cb40801147c6ba01fcc3fedd1fb0bb301e65bdc1",
+  "gen_hash_zig": "sha256:0e7d38959db47a7d4da67c7efa5351dd6b4aa5ffa2ef9aff030440b3cdb7bf93",
   "module": "Tanh",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:10Z",
+  "sealed_at": "2026-06-23T03:11:56Z",
   "spec_hash": "sha256:d14b698293100dd48dcbc0741dc4ad592c0a499b34d827515586e70551ff6747",
   "spec_path": "specs/ml/activation/tanh_activation.t27"
 }

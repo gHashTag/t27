@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:610eba14f973ea25811731de52babd96b88329d4a1c87dd7bd5041215c5ba362",
-  "gen_hash_rust": "sha256:6335b730862a2e4ee85a76617598fb3f85badcd21685a4327ac18fdef5320442",
-  "gen_hash_verilog": "sha256:c480b867537f34295f2201f186d72d26245c94eaf74f621881d7bc61be7cf441",
-  "gen_hash_zig": "sha256:e4a2a1c28a85405462bee6e3a397c81d4357e7ea0e559fb2325bdcd5abfaee21",
+  "gen_hash_c": "sha256:9b083214bda1c2244cb5ef061900194c06e6b043e5d20b7c65395fc1b817d872",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:bdbf6d35c8c333d9fdfebba33b9acc12db0ba6b75e226e4a9627df44e9f1e946",
+  "gen_hash_zig": "sha256:89a689f0af7392f41fa05a0876f2d4e25a1b1446b7f2621c6efc8f616334e0cb",
   "module": "github::issues",
   "ring": 12,
-  "sealed_at": "2026-06-23T00:14:08Z",
+  "sealed_at": "2026-06-23T03:11:55Z",
   "spec_hash": "sha256:64d4d76ec19c214697c0f859f52391ebdd6f12947954308e51f49390b46d1ec4",
   "spec_path": "specs/github/issues.t27"
 }
