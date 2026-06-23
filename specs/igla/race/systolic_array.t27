@@ -1711,4 +1711,9 @@ test systolic_array_w331_batch_depth_invariant_1 { /* verify baseline */ }
 test systolic_array_w331_batch_depth_invariant_2 { /* verify baseline */ }
 invariant systolic_array_w331_depth_078: true
 
+// Wave Loop 332 — Pool A depth +1 (78→79)
+test systolic_array_w332_batch_depth_invariant_1 { /* verify baseline */ }
+test systolic_array_w332_batch_depth_invariant_2 { /* verify baseline */ }
+invariant systolic_array_w332_depth_079: true
+
 }

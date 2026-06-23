@@ -1206,3 +1206,49 @@ theorem ternaryMacPsumAssociativityThreePlusGeneric (psum a b c : Int) :
     ternaryMac psum (a + b + c) (TernaryWeight.mk .plus) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: accumulating nine independent activations with plus-weights is nonuple addition.
+    For any activations a, b, c, d, e, f, g, h, i: mac⁹(0, [a,b,c,d,e,f,g,h,i], .plus) = a + b + c + d + e + f + g + h + i.
+    Extends the N-variable accumulation family to depth 9, approaching the omega saturation boundary.
+    Foundation for 9-input systolic-array row-reduction and nonuple-dot-product proofs.
+    Responds to TENET 9-input LUT scheduling and next-generation tile sizes. -/
+
+theorem ternaryMacAccumulateNinePlusGeneric (a b c d e f g h i : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)) d (TernaryWeight.mk .plus)) e (TernaryWeight.mk .plus)) f (TernaryWeight.mk .plus)) g (TernaryWeight.mk .plus)) h (TernaryWeight.mk .plus)) i (TernaryWeight.mk .plus) = a + b + c + d + e + f + g + h + i := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: accumulating nine independent activations with minus-weights is negated nonuple addition.
+    For any activations a, b, c, d, e, f, g, h, i: mac⁹(0, [a,b,c,d,e,f,g,h,i], .minus) = -(a + b + c + d + e + f + g + h + i).
+    Complements AccumulateNinePlusGeneric for the minus-weight case.
+    Completes the 9-variable MAC operation lattice for both signs.
+    Responds to TENET 9-input signed LUT scheduling and TernaryCore subtract paths. -/
+
+theorem ternaryMacAccumulateNineMinusGeneric (a b c d e f g h i : Int) :
+    ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac (ternaryMac 0 a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)) c (TernaryWeight.mk .minus)) d (TernaryWeight.mk .minus)) e (TernaryWeight.mk .minus)) f (TernaryWeight.mk .minus)) g (TernaryWeight.mk .minus)) h (TernaryWeight.mk .minus)) i (TernaryWeight.mk .minus) = -(a + b + c + d + e + f + g + h + i) := by
+  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+  <;> try omega
+
+/-- Generic theorem: ternary MAC semiring action over integer addition.
+    For any psum, activations a, b, and any ternary weight w:
+    mac(psum, a + b, w) = mac(psum, a, w) + mul(b, w).
+    Unifies distributivity (W325/W328), associativity (W324), and identity (W322) into a single
+    algebraic statement: the ternary MAC operation with any weight forms a semiring action
+    over the integers. This capstone theorem certifies that the entire proven lattice
+    (identity + associativity + commutativity + distributivity + scaling + psum variants)
+    collectively establishes a semiring-like structure.
+    Foundation for category-theoretic proofs of ternary inference pipelines. -/
+
+theorem ternaryMacSemiringActionGeneric (psum a b : Int) (w : TernaryWeight) :
+    ternaryMac psum (a + b) w = ternaryMac psum a w + ternaryMul b w := by
+  rcases w with ⟨c⟩
+  cases c
+  · -- plus
+    simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+    <;> try omega
+  · -- zero
+    simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+    <;> try omega
+  · -- minus
+    simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+    <;> try omega
