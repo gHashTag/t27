@@ -1628,3 +1628,26 @@ theorem ternaryMacZeroScalingPlusGeneric (k a : Int) :
     ternaryMac 0 (k * a) (TernaryWeight.mk .plus) = k * ternaryMac 0 a (TernaryWeight.mk .plus) := by
   simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
   <;> try omega
+
+/-- Generic theorem: scalar scaling of activation through ternary MAC with arbitrary weight.
+    For any activation a, scalar k, and weight w: mac(0, k*a, w) = k * mac(0, a, w).
+    Proves that scaling an activation by any integer factor before MAC is equivalent to
+    scaling the MAC result by the same factor, for all ternary weights (plus, zero, minus).
+    Foundation for quantization-aware proofs, weight-scaling systolic arrays, and
+    compile-time constant folding in ternary inference pipelines.
+    Opens a new algebraic dimension: multiplicative semigroup action on ternary MAC.
+    Responds to TernaryCore quantization paths and TENET scaled-LUT scheduling. -/
+
+theorem ternaryMacPsumScalingGeneric (a k : Int) (w : TernaryWeight) :
+    ternaryMac 0 (k * a) w = k * ternaryMac 0 a w := by
+  rcases w with ⟨c⟩
+  cases c
+  · -- plus
+    simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+    <;> try omega
+  · -- zero
+    simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]
+    <;> try omega
+  · -- minus
+    simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode, Int.mul_neg]
+    <;> try omega
