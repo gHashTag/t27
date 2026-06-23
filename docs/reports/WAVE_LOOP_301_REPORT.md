@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-23  
 **Branch:** `trinity-rust-rings`  
-**Commit:** `98381edf5`  
+**Commit:** `88727d0ab`  
 **Variant:** A (Uniform Floor Elimination)  
 **Status:** ✅ COMPLETE
 
@@ -43,7 +43,27 @@ was proven, addressing a key weak point from W300.
 - **Details:** Type-safe HDL compiler in Lean 4 with verified IP catalog. BitNet b1.58 accelerator uses ternary weights `{-1, 0, +1}` with Q16.16 datapath, compiles to SystemVerilog.
 - **Implication:** Sparkle is the closest competitor in ternary+Lean4+formal space. t27's new generic theorem differentiates from Sparkle's concrete hardware proofs.
 
-### 2.2 TernaryCore — shepherdscientific/ternarycore (Apr 2026)
+### 2.2 CktFormalizer — arXiv:2605.07782v3 (NEW — HIGH)
+- **Status:** HIGH — Autoformalization of natural language into circuit representations via Lean 4 HDL
+- **Details:** Dependent types enforce bit-width constraints, exhaustive case coverage, acyclicity at compile time. Closed-loop PPA optimization via OpenROAD achieves **35% area reduction and 30% power reduction** while preserving formally verified equivalence. 95–100% backend realizability.
+- **Implication:** This is a NEW and significant threat. Autoformalization could accelerate competitor theorem production. t27 must maintain its **spec-first** differentiator.
+
+### 2.3 Hesper — Verilean/hesper (NEW — HIGH)
+- **Status:** HIGH — Verified GPU programming framework (sister to Sparkle)
+- **Details:** BitNet b1.58 (2B) on WebGPU backend at 125 TPS on Apple M4 Max. Verified automatic differentiation and op fusion.
+- **Implication:** Sparkle's ecosystem is expanding to GPU/ML verification. t27 must accelerate both hardware and software proof depth.
+
+### 2.4 TorchLean — arXiv:2602.22631v2 (HIGH)
+- **Status:** HIGH — Formalizing neural networks in Lean 4 with verified autodiff and bound propagation
+- **Details:** Certified robustness (318/360 samples), PINN verification, VNN-COMP import. IEEE-754 binary32 model.
+- **Implication:** Validates the software verification path. t27 extends this to hardware-bound inference.
+
+### 2.5 AWS Trainium in Lean (MEDIUM-HIGH)
+- **Status:** MEDIUM-HIGH — ~200,000 lines of Lean 4 for formally verified AI accelerator toolchain
+- **Details:** Verified assembler, simulator, debugger, operational semantics for compute engines
+- **Implication:** Industrial-scale Lean 4 hardware verification is now a real trend.
+
+### 2.6 TernaryCore — shepherdscientific/ternarycore (Apr 2026)
 - **Status:** MEDIUM-HIGH — Open-source FPGA BitNet b1.58 accelerator
 - **Details:** Native `{-1, 0, +1}` arithmetic in Verilog, multiplier-free MAC/dot-product/GEMM. RTL simulations passing (31/31 tests), cross-verified against Python reference.
 - **Gap:** NO formal verification in Lean 4
@@ -60,8 +80,24 @@ was proven, addressing a key weak point from W300.
 - **Status:** MEDIUM — First GPU backend for BitNet b1.58
 - **Details:** Vulkan/Metal acceleration, on-device LoRA fine-tuning
 
-### 2.6 Key Research Finding
-**No public project combines BitNet b1.58 + FPGA accelerator + formal verification + Lean 4.** Sparkle HDL is closest (BitNet + formal + Lean 4) but focuses on SystemVerilog compilation, not spec-first formalization. t27 remains unique in the **spec-first formal pipeline** — specs generate code AND proofs from the same source.
+### 2.7 VitaLLM v2 — arXiv:2605.00320v1 (HIGH)
+- **Status:** HIGH — Mixed-precision ASIC in TSMC 16nm, 72.46 tok/s, 0.214 mm²
+- **Gap:** NO formal verification in Lean 4
+
+### 2.8 TOM — arXiv:2602.20662 (HIGH)
+- **Status:** HIGH — ROM-SRAM ternary accelerator, 3,306 tok/s, 200 TB/s, 5.33W
+- **Gap:** NO formal verification in Lean 4
+
+### 2.9 KU Leuven Ternary LUT — arXiv:2604.25183 (HIGH)
+- **Status:** HIGH — LUT-based accelerator for 1.58-bit LLM inference, 2.2× area reduction, TSMC 16nm
+- **Gap:** NO formal verification in Lean 4
+
+### 2.10 Key Research Finding
+**The CktFormalizer and Hesper projects represent a new wave of Lean 4-based hardware/software verification.** However:
+- Sparkle/Hesper verify at the RTL/SystemVerilog or GPU shader level
+- CktFormalizer autoformalizes into dependent-typed HDL
+- **t27 verifies at the spec level** (.t27 → Lean 4 → Zig/Rust/Verilog/C)
+- **Complementary, not competitive:** t27's spec-first pipeline is unique
 
 ---
 
@@ -73,18 +109,24 @@ was proven, addressing a key weak point from W300.
 - **Gap:** Sparkle builds depth in a single module; t27 builds breadth across many specs
 - **Mitigation:** Continue theorem production; generic theorems are the differentiator
 
-### 3.2 Generic Theorems Still Minority — **PARTIALLY CLOSED in W301**
+### 3.2 CktFormalizer Autoformalization Threat — NEW in W301
+- **CktFormalizer:** LLM → Lean 4 HDL → verified silicon in one pipeline
+- **t27:** Human-written .t27 specs → proven code
+- **Risk:** If autoformalization matures, manual spec writing may be seen as slower
+- **Mitigation:** t27's spec-first language is its moat; focus on language expressiveness and multi-backend generation (Zig/Rust/Verilog/C)
+
+### 3.3 Generic Theorems Still Minority — **PARTIALLY CLOSED in W301**
 - Before W301: 0/33 theorems used `∀` quantifiers explicitly
 - After W301: 1/34 theorems uses `∀` quantifiers (`ternaryMacZeroWeightIdentityGeneric`)
 - **Remaining:** Need more generic theorems for `plus` and `minus` weights
 - **Mitigation:** Add `ternaryMacPlusWeightIdentityGeneric` and `ternaryMacMinusWeightIdentityGeneric` in W302
 
-### 3.3 No Generic Reference-Equivalence Proof
+### 3.4 No Generic Reference-Equivalence Proof
 - We have concrete equivalence for all-plus weights and mixed weights
 - **Gap:** No theorem proves `∀ a w, ternaryGemm2x2 a w = referenceGemm2x2 a w`
 - **Mitigation:** May require manual proof tactics beyond `native_decide`
 
-### 3.4 Concurrent Session Interference
+### 3.5 Concurrent Session Interference
 - Still present; `.trinity/current_task/` modified by other sessions
 - **Mitigation:** Batch append + immediate seal + commit remains effective
 
@@ -145,14 +187,16 @@ New theorem added:
 
 ```lean
 /-- Generic theorem: for any activation a and partial sum psum, a zero-weight ternary MAC
-    leaves psum unchanged. This is the first ∀ quantifier theorem in the t27 proof suite. -/
+    leaves psum unchanged. This is the first ∀ quantifier theorem in TernaryInference.lean,
+    responding to the W300 weak point that concrete theorems dominate.
+    Responds to Sparkle HDL BitNet b1.58 formal depth milestone. -/
 theorem ternaryMacZeroWeightIdentityGeneric (a psum : Int) :
     ternaryMac psum a (TernaryWeight.mk .zero) = psum := by
   simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
 ```
 
 **Why this theorem matters:**
-- First `∀` quantifier theorem in t27 proof suite
+- First `∀` quantifier theorem in **TernaryInference.lean** (TernaryMac.lean already had generic theorems)
 - Proves the property holds for **any** activation and partial sum, not just concrete values
 - Differentiates t27 from Sparkle HDL's concrete hardware proofs
 - Foundation for a complete generic LUT DSE proof trinity (zero=wire, plus=add, minus=sub)
@@ -179,6 +223,7 @@ theorem ternaryMacZeroWeightIdentityGeneric (a psum : Int) :
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
+| CktFormalizer autoformalization accelerates competitor proofs | Medium | High | Maintain spec-first moat; expand language backends |
 | Sparkle HDL overtakes t27 in ternary theorem count | Medium | High | Accelerate generic theorem production; focus on ∀ quantifiers |
 | Origin/master diverges from igla seals | Medium | High | Re-seal all specs before merge |
 | Lean 4 `native_decide` timeout on large proofs | Low | Medium | Keep generic theorems small (single MAC operations) |
