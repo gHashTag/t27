@@ -1,6 +1,13 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-22
+Last updated: 2026-06-28
+
+## conformance-promote-6-structural-bitexact -- promote 6 structural formats to strict SW-bitexact (Closes #1224)
+
+- **WHERE**: conformance/vectors/gen_all_formats.py, conformance/vectors/INDEX_all_formats.json, conformance/vectors/README.md, regenerated packs for gf10/decimal32/decimal64/decimal128/double_double/quad_double.
+- **WHAT**: gf10, decimal32/64/128 (IEEE 754-2008 BID), double_double/quad_double (Bailey/Hida multi-double) move from structural to strict SW-bitexact. Each gets a dedicated, independently-verified reference decoder + encoder: gf10 reuses the proven GF radix-2 law; decimal* cross-checked vs an exact-rational (fractions.Fraction) oracle; double/quad_double use the fixed 128/256-bit explicit-limb layout. abs_error=0 on every recorded vector; anchor 3.0 ieee754_exact=true. INDEX: bitexact 55->61, structural 22->16, selfconsistent 6 (unchanged).
+- **Why**: these six had a fully-defined decode law and an independent second witness, so they qualify for strict SW-bitexact (not selfconsistent). The remaining 16 structural entries (takum8/16/32/64, afp, per_channel_scale, gf256, and 9 zero-width parametric) stay honestly structural. No quality/silicon claim; encoding-conformance only. Conformance gate CLEAN, self-test gates PASS, deterministic regeneration. catalog stays 83. Closes #1224.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## wp18-gate-third-kind -- Check B tri-state bitexact_selfconsistent (Closes #1182)
 

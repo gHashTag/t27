@@ -27,6 +27,7 @@ Anchor identity (ASCII): phi^2 + 1/phi^2 = 3.
 All output ASCII-only. Apache-2.0.
 """
 import json, struct, math, hashlib, os, re
+from fractions import Fraction
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = HERE  # write packs next to the existing ones
@@ -324,6 +325,143 @@ def make_nf4_decoder():
     return decode
 
 # ---------------------------------------------------------------------------
+# IEEE 754-2008 decimal (BID encoding -- Binary Integer Decimal, Intel form).
+#   Storage is a plain unsigned integer (u32/u64/u128). Layout:
+#     S(1) : combination(ncomb) : trailing-significand(t)
+#   The significand is a PLAIN BINARY INTEGER: implied high bits (from the 5-bit
+#   combination head) concatenated above the t-bit trailing field. The exponent
+#   continuation bits sit in the low (ncomb-5) bits of the combination field.
+#   value = (-1)^S * coeff * 10^(exp - bias).
+#   Decode returns a float (f64); curated_codes keeps only the named values that
+#   are f64-exact (abs_error == 0 by construction). 3.0 is f64-exact.
+# Cross-checked vs an exact-rational (fractions.Fraction) oracle (probe_decoders.py).
+# ---------------------------------------------------------------------------
+DECIMAL_PARAMS = {
+    # id -> (ncomb combination bits, t trailing bits, bias, pmax decimal digits)
+    "decimal32":  (11, 20,  101,  7),
+    "decimal64":  (13, 50,  398,  16),
+    "decimal128": (17, 110, 6176, 34),
+}
+DECIMAL_TOTAL = {"decimal32": 32, "decimal64": 64, "decimal128": 128}
+
+def make_decimal_bid_decoder(name):
+    ncomb, t, bias, pmax = DECIMAL_PARAMS[name]
+    total = DECIMAL_TOTAL[name]
+    ec = ncomb - 5  # exponent-continuation bits in the combination field
+    def decode(bits, total_bits):
+        x = bits
+        sign = (x >> (total - 1)) & 1
+        combo = (x >> t) & ((1 << ncomb) - 1)
+        trailing = x & ((1 << t) - 1)
+        g = combo >> ec  # 5-bit combination head
+        if (g >> 3) == 0b11:  # 11xxx -> special or 'large' significand form
+            if (g >> 1) == 0b1111:  # 11110 -> inf, 11111 -> nan
+                if (g & 1) == 0:
+                    return (math.inf if sign == 0 else -math.inf, "inf")
+                return (math.nan, "nan")
+            exp_msb = (g >> 1) & 0b11
+            sig_hi = 0b100 | (g & 1)         # implied 8 or 9 as the leading group
+            exp_low = combo & ((1 << ec) - 1)
+            exp = (exp_msb << ec) | exp_low
+            coeff = (sig_hi << t) | trailing
+        else:  # normal form
+            exp_msb = g >> 3
+            sig_hi = g & 0b111
+            exp_low = combo & ((1 << ec) - 1)
+            exp = (exp_msb << ec) | exp_low
+            coeff = (sig_hi << t) | trailing
+        e = exp - bias
+        if coeff == 0:
+            return (-0.0 if sign else 0.0, "zero")
+        val = Fraction(coeff) * (Fraction(10) ** e if e >= 0 else Fraction(1, 10 ** (-e)))
+        f = float(-val if sign else val)
+        return (f, "normal")
+    return decode
+
+def make_decimal_bid_encoder(name):
+    """Encode an f64 target into a canonical BID code (normal form). Returns None
+    if the target is not exactly an integer*10^exp within pmax digits and normal
+    form, so curated_codes filters non-exact values."""
+    ncomb, t, bias, pmax = DECIMAL_PARAMS[name]
+    total = DECIMAL_TOTAL[name]
+    ec = ncomb - 5
+    def encode(target):
+        if not isinstance(target, (int, float)):
+            return None
+        if isinstance(target, float) and (math.isnan(target) or math.isinf(target)):
+            return None
+        fr = Fraction(target)
+        sign = 1 if fr < 0 else 0
+        a = -fr if fr < 0 else fr
+        if a == 0:
+            biased = bias
+            return (sign << (total - 1)) | (biased << t)
+        for exp in range(0, -pmax - 1, -1):
+            scaled = a * (Fraction(10) ** (-exp))
+            if scaled.denominator == 1:
+                coeff = scaled.numerator
+                if coeff < 10 ** pmax:
+                    biased = exp + bias
+                    if biased < 0 or biased >= (1 << (ec + 2)):
+                        return None
+                    sig_hi = coeff >> t
+                    if sig_hi > 7:
+                        continue
+                    trailing = coeff & ((1 << t) - 1)
+                    exp_msb = biased >> ec
+                    exp_low = biased & ((1 << ec) - 1)
+                    gh = (exp_msb << 3) | sig_hi
+                    combo = (gh << ec) | exp_low
+                    return (sign << (total - 1)) | (combo << t) | trailing
+        return None
+    return encode
+
+# ---------------------------------------------------------------------------
+# double-double / quad-double (Bailey/Hida): the value is the EXACT SUM of
+# 2 (resp. 4) IEEE-754 binary64 limbs stored most-significant first. Fixed
+# 128-bit (resp. 256-bit) layout; the decode law (sum of limbs) is unambiguous
+# -- analogous to x87's explicit-integer-bit promotion. Decode returns the f64
+# of the exact sum; for named integer/dyadic targets the low limbs are 0 and the
+# value is f64-exact (abs_error == 0).
+# ---------------------------------------------------------------------------
+def make_multidouble_decoder(n_limbs):
+    def decode(bits, total_bits):
+        limbs = []
+        for i in range(n_limbs):
+            shift = (n_limbs - 1 - i) * 64
+            u = (bits >> shift) & ((1 << 64) - 1)
+            limbs.append(struct.unpack(">d", u.to_bytes(8, "big"))[0])
+        hi = limbs[0]
+        if math.isnan(hi):
+            return (math.nan, "nan")
+        if math.isinf(hi):
+            return (hi, "inf")
+        total_fr = Fraction(0)
+        for v in limbs:
+            if math.isnan(v) or math.isinf(v):
+                return (math.nan, "nan")
+            total_fr += Fraction(v)
+        if total_fr == 0:
+            return (0.0, "zero")
+        return (float(total_fr), "normal")
+    return decode
+
+def make_multidouble_encoder(n_limbs):
+    def encode(target):
+        if not isinstance(target, (int, float)):
+            return None
+        if isinstance(target, float) and (math.isnan(target) or math.isinf(target)):
+            return None
+        hi = float(target)
+        if hi != target:
+            return None
+        u_hi = int.from_bytes(struct.pack(">d", hi), "big")
+        bits = u_hi << ((n_limbs - 1) * 64)  # low limbs = +0.0
+        return bits
+    return encode
+
+
+# ---------------------------------------------------------------------------
 # GFTernary: 2-bit discrete set {-phi, 0, +phi}. Four 2-bit codes; one is a
 # spare (we map it to the same +phi for completeness / documented as reserved).
 # Anchor 3.0 is NOT a single code (it arises as phi^2 + 1/phi^2 = 3 over the
@@ -531,6 +669,28 @@ def build_decodable(rec):
     e, m, bias, bits = rec["e"], rec["m"], rec["bias"], rec["bits"]
     storage = rec["storage"]
 
+    # IEEE 754-2008 decimal (BID): fixed bit layout, exact decimal decode.
+    if cluster == "Ieee754Decimal" and cid in DECIMAL_PARAMS:
+        return (make_decimal_bid_decoder(cid),
+                f"IEEE 754-2008 {cid} (BID / Binary Integer Decimal): "
+                f"S1 : combination : trailing significand; significand is a plain "
+                f"binary integer, value = coeff * 10^(exp-bias)",
+                "inf at combo head 11110; nan at 11111; named decimal values f64-exact")
+
+    # Extended-precision multi-double (Bailey/Hida): exact sum of binary64 limbs.
+    if cluster == "ExtendedFloat" and cid == "double_double":
+        return (make_multidouble_decoder(2),
+                "double-double (Bailey/Hida): two IEEE-754 binary64 limbs, "
+                "most-significant first; value = exact sum of the limbs",
+                "no separate inf/nan field; hi-limb specials propagate; "
+                "named integer/dyadic values are f64-exact (low limb 0)")
+    if cluster == "ExtendedFloat" and cid == "quad_double":
+        return (make_multidouble_decoder(4),
+                "quad-double (Bailey/Hida): four IEEE-754 binary64 limbs, "
+                "most-significant first; value = exact sum of the limbs",
+                "no separate inf/nan field; hi-limb specials propagate; "
+                "named integer/dyadic values are f64-exact (low limbs 0)")
+
     # Integer / fixed two's complement
     if cluster == "IntegerFixed" and cid.startswith("int") and bits > 0:
         return (make_int_decoder(m, signed=True),
@@ -553,7 +713,7 @@ def build_decodable(rec):
                     "GFTernary 2-bit discrete set {-phi, 0, +phi}; codes 00=0, "
                     "01=+phi, 10=-phi, 11=reserved (duplicate +phi)",
                     "no inf/nan; discrete ternary levels")
-        if e > 0 and m > 0 and bits in (4, 6, 8, 12, 16, 20, 24, 32, 64):
+        if e > 0 and m > 0 and bits in (4, 6, 8, 10, 12, 16, 20, 24, 32, 64):
             dec = make_ieee_decoder(e, m, bias, has_inf=True, has_nan=True)
             return (dec, f"GoldenFloat phi-aligned radix-2 float S{1}E{e}M{m}, bias {bias}",
                     "IEEE-style specials at top exponent")
@@ -621,7 +781,7 @@ def build_decodable(rec):
                     f"bit as MSB of the {m}-bit significand), bias {bias}: "
                     f"value = (SIG/2^{m-1}) * 2^(E-{bias})",
                     "inf at max exp (int=1, frac=0); nan otherwise at max exp")
-        return None  # double_double / quad_double -> structural
+        # double_double / quad_double handled above (multi-double limb-sum decode)
 
     # QuantTuned: NF4 is a fixed 16-entry quantile table -> bit-exact lookup.
     if cluster == "QuantTuned" and cid == "nf4":
@@ -767,6 +927,12 @@ def build_bitexact_pack(rec, decode, notes, specials_desc):
         encoder = make_posit_encoder(bits, es=2)
     elif cluster == "Lns":
         encoder = make_lns_encoder(bits)
+    elif cluster == "Ieee754Decimal" and cid in DECIMAL_PARAMS:
+        encoder = make_decimal_bid_encoder(cid)
+    elif cluster == "ExtendedFloat" and cid == "double_double":
+        encoder = make_multidouble_encoder(2)
+    elif cluster == "ExtendedFloat" and cid == "quad_double":
+        encoder = make_multidouble_encoder(4)
     vectors, mode = curated_codes(bits, decode, fmt_key, encoder=encoder)
     # anchor
     if bits <= 16:
