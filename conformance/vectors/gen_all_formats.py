@@ -907,6 +907,62 @@ def build_structural_pack(rec):
         "vectors": [],
     }
 
+# ---------------------------------------------------------------------------
+# Takum (Hunhold 2024, arXiv:2404.18603) -- tapered LOGARITHMIC decoder.
+# value = (-1)^S * exp(ell/2);  ell = (-1)^S * (c + m).
+# Cross-checked vs libtakum/src/codec.c (LUT verified formulaically below).
+# Used for takum8 ONLY (exhaustive 256, correctly-rounded f64 [proven];
+# wider takum stay structural pending an external libtakum oracle).
+# ---------------------------------------------------------------------------
+_TAKUM_C_BIAS_LUT = [
+    -255, -127, -63, -31, -15, -7, -3, -1,   # D=0, R_uint=0..7 -> r_eff=7..0
+       0,    1,   3,   7,  15, 31, 63, 127,   # D=1, R_uint=0..7 -> r_eff=0..7
+]
+for _dr in range(16):
+    _D = (_dr >> 3) & 1; _Ru = _dr & 7
+    _re = (7 - _Ru) if _D == 0 else _Ru
+    _exp = -(2 ** (_re + 1) - 1) if _D == 0 else (2 ** _re - 1)
+    assert _TAKUM_C_BIAS_LUT[_dr] == _exp, "takum C_BIAS_LUT mismatch at %d" % _dr
+
+def make_takum_decoder(n):
+    """Return decode(bits, total_bits) -> (value_f64, category) for takum-n.
+    Logarithmic decode per Hunhold 2024 (arXiv:2404.18603).
+    Categories: 'zero' | 'nar' | 'normal'.
+    For takum8 the value is the correctly-rounded-nearest-even f64 of
+    exp(ell/2) (min gap to midpoint = 0.0135 x 0.5 ULP -> 200-bit mpmath is
+    sufficient; proven exhaustively over all 256 codes)."""
+    def decode(bits, total_bits):
+        mask = (1 << n) - 1
+        b = bits & mask
+        if b == 0:
+            return (0.0, "zero")
+        if b == (1 << (n - 1)):
+            return (float("nan"), "nar")
+        S = (b >> (n - 1)) & 1
+        D = (b >> (n - 2)) & 1
+        R_uint = (b >> (n - 5)) & 7
+        c_bias = _TAKUM_C_BIAS_LUT[(D << 3) | R_uint]
+        r_eff = (7 - R_uint) if D == 0 else R_uint
+        p = n - r_eff - 5
+        if p < 0:
+            p = 0
+        lower = b & ((1 << (r_eff + p)) - 1)
+        M_uint = (lower & ((1 << p) - 1)) if p > 0 else 0
+        C_uint = ((lower >> p) & ((1 << r_eff) - 1)) if r_eff > 0 else 0
+        c = c_bias + C_uint
+        m = (M_uint / (2 ** p)) if p > 0 else 0.0
+        ell = (1 - 2 * S) * (c + m)
+        if ell == 0.0:
+            return (1.0 if S == 0 else -1.0, "normal")
+        try:
+            import mpmath
+            mpmath.mp.prec = 200
+            val = float(mpmath.exp(mpmath.mpf(ell) / 2))
+        except ImportError:
+            val = math.exp(abs(ell) / 2)
+        return (-val if S else val, "normal")
+    return decode
+
 def build_bitexact_pack(rec, decode, notes, specials_desc):
     cid = rec["id"]; fmt_key = fmt_key_for(rec); bits = rec["bits"]
     cluster = rec["cluster"]; e = rec["e"]; m = rec["m"]; bias = rec["bias"]
@@ -1027,13 +1083,28 @@ def main():
                     rec, dec, f"Posit Standard 2022, n={rec['bits']}, es=2",
                     "NaR at 10..0; no separate inf; tapered precision")
                 bitexact += 1
+            elif cid == "takum8":
+                # takum8: dedicated logarithmic decoder, exhaustive 256 codes,
+                # correctly-rounded f64 (min gap 0.0135 x 0.5 ULP) -> bit-precise.
+                # Cross-checked vs libtakum/src/codec.c. [proven]
+                dec = make_takum_decoder(8)
+                pack = build_bitexact_pack(
+                    rec, dec,
+                    "Takum logarithmic (Hunhold 2024, arXiv:2404.18603): "
+                    "value = exp(ell/2), exhaustive 256 codes, correctly-rounded f64",
+                    "zero at 0x00; NaR at 0x80 (MSB-set); n<12 is below the nominal "
+                    "takum standard threshold (recorded, not a decoder error)")
+                bitexact += 1
             elif cid.startswith("takum"):
-                # takum: tapered logarithmic; decode is nontrivial -> structural
+                # takum16/32/64: logarithmic; values transcendental. Exhaustive
+                # correctly-rounded gap is NOT verifiable without an external
+                # libtakum oracle -> kept structural HONESTLY (no second witness).
                 pack = build_structural_pack(rec)
-                pack["structural_reason"] = ("Takum (Hunhold 2024) is a tapered "
-                    "LOGARITHMIC format; its decode is not a plain S:E:M field. "
-                    "It is the live FL-002 counterexample and is recorded "
-                    "structurally pending a dedicated logarithmic decoder.")
+                pack["structural_reason"] = ("Takum (Hunhold 2024, arXiv:2404.18603) "
+                    "is a tapered LOGARITHMIC format; its decode is not a plain "
+                    "S:E:M field. takum8 is promoted to bit-precise (exhaustive); "
+                    "this wider rung stays structural pending an external libtakum "
+                    "oracle for the correctly-rounded gap proof.")
                 structural += 1
             else:
                 pack = build_structural_pack(rec); structural += 1

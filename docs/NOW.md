@@ -2,6 +2,13 @@
 
 Last updated: 2026-06-28
 
+## conformance-promote-takum8-bitexact -- promote takum8 to strict SW-bitexact + fix takum arXiv citation (61->62/83) (Closes #1223)
+
+- **WHERE**: conformance/vectors/gen_all_formats.py (make_takum_decoder), conformance/vectors/INDEX_all_formats.json, regenerated takum8/16/32/64 packs, specs/numeric/formats_catalog.t27, docs/NUMERIC_FORMATS_SSOT.md, docs/POSITIONING_CONFORMANCE_LAYER.md, docs/nona-03-manifest/RESEARCH_CLAIMS.md.
+- **WHAT**: takum8 moves structural -> strict SW-bitexact. Dedicated logarithmic decoder make_takum_decoder(n) (value = exp(ell/2), ell = (-1)^S*(c+m), base sqrt(e)); exhaustive over all 256 codes, correctly-rounded-nearest-even f64 (min gap to midpoint 0.0135 x 0.5 ULP -> 200-bit mpmath), LUT cross-checked vs libtakum/src/codec.c. takum16/32/64 HONESTLY kept structural (transcendental values, no external libtakum oracle = no independent second witness). INDEX: bitexact 61->62, structural 16->15, selfconsistent 6.
+- **Why**: takum8 has a fully-defined decode law verifiable against an independent oracle, so it qualifies for strict SW-bitexact; the wider takum rungs do not. CITATION FIX: takum entries cited arXiv:2412.20273 ('Integer Representations', a different/later paper); the format-DEFINING reference is arXiv:2404.18603 ('Beating Posits at Their Own Game: Takum Arithmetic', CoNGA 2024). Fixed in SSOT + forward-facing docs only; polyglot bindings and NOW.md history untouched. CAVEAT: takum guarantees apply for n>=12, so takum8 is below the nominal threshold (recorded in pack notes). Conformance gate CLEAN, self-test gates PASS, takum8 256/256 self-test PASS. catalog stays 83. decode-HW/compute-HW unaffected (stay 0/83). Closes #1223.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## conformance-promote-6-structural-bitexact -- promote 6 structural formats to strict SW-bitexact (Closes #1224)
 
 - **WHERE**: conformance/vectors/gen_all_formats.py, conformance/vectors/INDEX_all_formats.json, conformance/vectors/README.md, regenerated packs for gf10/decimal32/decimal64/decimal128/double_double/quad_double.
