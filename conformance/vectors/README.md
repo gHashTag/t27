@@ -17,8 +17,9 @@ ships **83 conformance packs — one per format**, with no gaps:
 
 | Class | Packs | Meaning |
 |---|---|---|
-| **Bit-precise** | **55** | Native bits decode to f64 exactly; `abs_error = 0` by construction for every representable value. Values not exactly representable in a format report a nonzero `abs_error` **honestly** (e.g. 0.1 in bf16) — nothing is hidden. |
-| **Structural** | **28** | The format has no single fixed radix-2 S:E:M round-trip (parametric / lookup / open-R&D / multi-double composite). These packs carry full catalog metadata plus an explicit `structural_reason` and are marked `bitexact: false`. They are honest placeholders, **not** bit-exact claims. |
+| **Bit-precise** | **61** | Native bits decode to f64 exactly; `abs_error = 0` by construction for every representable value. Values not exactly representable in a format report a nonzero `abs_error` **honestly** (e.g. 0.1 in bf16) — nothing is hidden. |
+| **Self-consistent** | **6** | Wide GoldenFloat rungs (`gf14/48/96/128/512/1024`) that re-derive under a single dyadic-exact decode law but have **no independent second witness**, so they are deliberately **not** promoted to the stronger bit-precise label. |
+| **Structural** | **16** | The format has no single fixed radix-2 S:E:M round-trip (parametric / lookup / open-R&D / multi-double composite). These packs carry full catalog metadata plus an explicit `structural_reason` and are marked `bitexact: false`. They are honest placeholders, **not** bit-exact claims. |
 | **Total** | **83** | One pack per catalog format. |
 
 Coverage policy (deterministic, reproducible):
@@ -36,7 +37,7 @@ floats (`ibm_hfp32/64/128`), Intel `x87_fp80` (explicit integer bit), the NF4
 explicit decoder + reference encoder and `abs_error = 0` for every recorded
 vector.
 
-Of the 55 bit-precise packs, the IBM HFP and x87 packs hit the 3.0 anchor
+Of the 61 bit-precise packs, the IBM HFP and x87 packs hit the 3.0 anchor
 **exactly** (3.0 = 0.1875 x 16^1 in HFP; 3.0 = 1.5 x 2^1 in x87). The packs
 that do **not** place 3.0 on a grid point — `lns8/16/32/64`, `gf4`, `mxgf4`,
 and now `gfternary` and `nf4` — are honest about it: log2(3) is not exactly
@@ -46,10 +47,16 @@ phi^2 + phi^-2 = 3, not as a single code), and the NF4 table spans [-1, 1].
 Each such pack records the nearest representable value (or a null anchor with a
 note) and its true `abs_error`.
 
-## Index — bit-precise packs (55)
+## Index — bit-precise packs (61)
 
 | Pack | Format | Vectors | Round-trip |
 |---|---|---|---|
+| `gf10_conformance_v0.json` | GF10 | 8 | ✔ (GoldenFloat phi-aligned S1E3M6, bias 3 (rule e=round(9/phi^2)=3)) |
+| `decimal32_conformance_v0.json` | DECIMAL32 | 7 | ✔ (IEEE 754-2008 BID decode (coeff*10^exp); 3.0 exact) |
+| `decimal64_conformance_v0.json` | DECIMAL64 | 7 | ✔ (IEEE 754-2008 BID decode (coeff*10^exp); 3.0 exact) |
+| `decimal128_conformance_v0.json` | DECIMAL128 | 8 | ✔ (IEEE 754-2008 BID decode (coeff*10^exp); 3.0 exact) |
+| `double_double_conformance_v0.json` | DOUBLE_DOUBLE | 8 | ✔ (Bailey/Hida limb-sum decode (2x binary64); 3.0 exact) |
+| `quad_double_conformance_v0.json` | QUAD_DOUBLE | 8 | ✔ (Bailey/Hida limb-sum decode (4x binary64); 3.0 exact) |
 | `bf16_golden_conformance_v0.json` | BFLOAT16 | 8+golden | ✔ (предсуществующий) |
 | `gfternary_conformance_v0.json` | GFTERNARY | 4 | ✔ (2-bit {-phi,0,+phi}, exhaustive) |
 | `ibm_hfp128_conformance_v0.json` | IBM_HFP128 | 8 | ✔ (base-16, named small values) |
@@ -109,29 +116,32 @@ note) and its true `abs_error`.
 `+golden` denotes an attached `golden_accumulation` section (bf16 reduction
 reference for tt-mlir #6252).
 
-## Index — structural packs (28)
+
+## Index — self-consistent packs (6)
+
+Wide GoldenFloat rungs: single dyadic-exact decode law, no independent
+second witness (kind=`bitexact_selfconsistent` in the index).
+
+| Pack | Format | n_vec | Note |
+|---|---|---|---|
+| `gf14_conformance_v0.json` | GF14 | 14 | wide-rung GoldenFloat oracle (dyadic-exact, single decode law) |
+| `gf48_conformance_v0.json` | GF48 | 15 | wide-rung GoldenFloat oracle (dyadic-exact, single decode law) |
+| `gf96_conformance_v0.json` | GF96 | 15 | wide-rung GoldenFloat oracle (dyadic-exact, single decode law) |
+| `gf128_conformance_v0.json` | GF128 | 15 | wide-rung GoldenFloat oracle (dyadic-exact, single decode law) |
+| `gf512_conformance_v0.json` | GF512 | 15 | wide-rung GoldenFloat oracle (dyadic-exact, single decode law) |
+| `gf1024_conformance_v0.json` | GF1024 | 15 | wide-rung GoldenFloat oracle (dyadic-exact, single decode law) |
+
+## Index — structural packs (16)
 
 | Pack | Format | Why structural (not bit-exact) |
 |---|---|---|
 | `afp_conformance_v0.json` | AFP | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
 | `bcd_conformance_v0.json` | BCD | This format has no single fixed bit layout (parametric / technique / variable-width). |
 | `block_fp_conformance_v0.json` | BLOCK_FP | This format has no single fixed bit layout (parametric / technique / variable-width). |
-| `decimal128_conformance_v0.json` | DECIMAL128 | IEEE 754 decimal (DPD/BID) encodes coefficients in a packed decimal field; round-trip is exact for decimal values but the bit layout is not a plain radix-2 S:E:M. |
-| `decimal32_conformance_v0.json` | DECIMAL32 | IEEE 754 decimal (DPD/BID) encodes coefficients in a packed decimal field; round-trip is exact for decimal values but the bit layout is not a plain radix-2 S:E:M. |
-| `decimal64_conformance_v0.json` | DECIMAL64 | IEEE 754 decimal (DPD/BID) encodes coefficients in a packed decimal field; round-trip is exact for decimal values but the bit layout is not a plain radix-2 S:E:M. |
-| `double_double_conformance_v0.json` | DOUBLE_DOUBLE | Extended-precision layout (explicit integer bit / multi-double components) is not a single S:E:M field; recorded structurally. |
-| `gf1024_conformance_v0.json` | GF1024 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
-| `gf10_conformance_v0.json` | GF10 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
-| `gf128_conformance_v0.json` | GF128 | Bias is an OPEN R&D parameter for this width (see catalog status Experimental); a bit-precise pack is deferred until the bias is fixed. |
-| `gf14_conformance_v0.json` | GF14 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
 | `gf256_conformance_v0.json` | GF256 | Bias is an OPEN R&D parameter for this width (see catalog status Experimental); a bit-precise pack is deferred until the bias is fixed. |
-| `gf48_conformance_v0.json` | GF48 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
-| `gf512_conformance_v0.json` | GF512 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
-| `gf96_conformance_v0.json` | GF96 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
 | `minifloat_conformance_v0.json` | MINIFLOAT | This format has no single fixed bit layout (parametric / technique / variable-width). |
 | `per_channel_scale_conformance_v0.json` | PER_CHANNEL_SCALE | INT8 payload with an external per-channel fp32 scale; the decoded value depends on the scale tensor, so a standalone round-trip table is not defined. |
 | `q_format_conformance_v0.json` | Q_FORMAT | This format has no single fixed bit layout (parametric / technique / variable-width). |
-| `quad_double_conformance_v0.json` | QUAD_DOUBLE | Extended-precision layout (explicit integer bit / multi-double components) is not a single S:E:M field; recorded structurally. |
 | `shared_exp_conformance_v0.json` | SHARED_EXP | This format has no single fixed bit layout (parametric / technique / variable-width). |
 | `stochastic_rounding_conformance_v0.json` | STOCHASTIC_ROUNDING | This format has no single fixed bit layout (parametric / technique / variable-width). |
 | `takum16_conformance_v0.json` | TAKUM16 | Takum (Hunhold 2024) is a tapered LOGARITHMIC format; its decode is not a plain S:E:M field. |
@@ -173,8 +183,8 @@ round-trips.
 ## Machine-readable index
 
 `INDEX_all_formats.json` lists all 83 packs with totals
-(`total_formats: 83`, `total_packs: 83`, `bitexact_packs: 55`,
-`structural_packs: 28`), the anchor identity, the SSOT path, and the preprint.
+(`total_formats: 83`, `total_packs: 83`, `bitexact_packs: 61`,
+`selfconsistent_packs: 6`, `structural_packs: 16`), the anchor identity, the SSOT path, and the preprint.
 
 ## SHA-256
 
@@ -189,33 +199,33 @@ round-trips.
 1d3e3d6daee576ae3b2b4dca6f26560390535fb7441a54b389f98a4238e58bec  binary64_conformance_v0.json
 3129fa92145096e55527c2fc22d9e6bed23db1a6d88148e8b711a3b6641a43c1  block_fp_conformance_v0.json
 b1a8f6652112be3f49949bafe9f6cd7f46f0271e8f4e19cadb55c2a0e972f503  cray_float_conformance_v0.json
-0e3ab9f3bd6bc3525457c9cbbab1d99ecc801a5019dd92cc87f2c5468b0d471a  decimal128_conformance_v0.json
-cd43863397f911142eed1e8e5f2a8ef41ba97d344aa6b64f8f550b5b390bbcad  decimal32_conformance_v0.json
-c42aabb5cf847a521698d9451f490ceb17c29ff1169e9c1147609ae737635a5b  decimal64_conformance_v0.json
-6bc6d15ba3258a125c591dedc63b4125b7ecc0d502bc1c3a2ecf65a76714c526  double_double_conformance_v0.json
+84dbc594340717415385b3bd86eb20432f5430aba047557579f2e2a96de0dc2d  decimal128_conformance_v0.json
+e13bc9cd6bc33545ab55f575e23d2343418ded5eddf1395b61f31321dc7d272e  decimal32_conformance_v0.json
+fedef68cfe1b910e737574bbe331dc19fbe1724edbd35ec8beac89b1595bea0d  decimal64_conformance_v0.json
+f8dc9608093afada65df94852a9b78c3a4a5466415389c5ec359afd19d3b208c  double_double_conformance_v0.json
 8ded6625c4644139320dd89b2b7815d6ba27177c35b7d645b2d93b8cfdc63fd9  fp4_e2m1_conformance_v0.json
 de70d6aacf0ac2d47decae0866d14f126058176428315d4c767e460c0a9ae5e5  fp6_e2m3_conformance_v0.json
 17a80f0a3b5b2495dbcd6de6062d8c1f8ce19b9746d1e370e6d16897ef5f9c02  fp6_e3m2_conformance_v0.json
 7193ccd0d330d3e05154432abcec5da4a4c170e11004d4ffa44ff5cbbff9cba9  fp8_e4m3fn_conformance_v0.json
 9c31fbd03923bd6555304848a092504dfbc02f72d2be82d2b80f49243e925a18  fp8_e5m2_conformance_v0.json
-652fe39cee0023880091c79bb4b6def96950947da920fdf6f059a33ea1b7c405  gf1024_conformance_v0.json
-e7043494280dd9716f7e47ed2ef1b149872823514a9267cca5190599fc6b2102  gf10_conformance_v0.json
-322bfc28e4182878b476ae4e869b5a697ea2224895550ada1dd953fad0b110cc  gf128_conformance_v0.json
+6ef1c5cbe76828bf0e587fa5c0bb0f40989a7d1056cb54ad45eed192e98b4f4e  gf1024_conformance_v0.json
+af62499491faf340d7940b0b10ab0208745e57faa97bbe19588fe1d879db485b  gf10_conformance_v0.json
+23a82862b0302585031b46ca75928c793f30297351ca84f806ee6497bc659264  gf128_conformance_v0.json
 ea00efde4825931a421ec9feb5910f3ad9ab7ab5d38a77d2c364ea9fa49a7f96  gf12_conformance_v0.json
-0ed0eb17a72fb959746fd86892a257a53a7191edb7889e26d59fd630922f54a9  gf14_conformance_v0.json
-7aea5b9e86ea71a54ae0c1601cea13e2d90d95fecaf2ae969eac1349cf7a2b42  gf16_conformance_v0.json
+e4e25a0cd32c4539e152569304b1ae6204b63de65fa4fa3d824b3d74d6d875c8  gf14_conformance_v0.json
+d1c0eb5bd66247b3c5db9a00a95e29cf4359653aec56f2f9e6827f96898d1509  gf16_conformance_v0.json
 76c7814558901d5633cb16ffead7468583de5577c4ccf0378c296c73ae08acc5  gf20_conformance_v0.json
 983642c7aea54b7e6c5b6e41edcf20828bfc3a1f2707307eaa713ca5a45e612c  gf24_conformance_v0.json
 49875dcac61b316151064ce2f462fe732f37ce07c18e9024240cba4d707e2f9d  gf256_conformance_v0.json
 f7222e2442f2c106e7f3590e5dbe8ed177603fc2324560987af138ae9abeceb4  gf32_conformance_v0.json
-85550904fc58172e11862a11be4cdad7a769064b39f7f2b457224208e4018d16  gf48_conformance_v0.json
+bf88f55076175dffe1fa108e0e6a526829e274f049c839e26a002a6ea6dd534e  gf48_conformance_v0.json
 25471b7a0e3dc3633118191e722ced2f450a3ed8a6228ad2492f92084f556f96  gf4_conformance_v0.json
-f03fa45ee9e640c8d1fba1b176c7951de1409696bf0f4395380ba6f029944087  gf512_conformance_v0.json
+87bd4d7cbf7fc0d653b7c3b5e5399154c7cb746a0fe668a983f767ad69b15b07  gf512_conformance_v0.json
 887223d0bc8b00d76b70238ddbc8933e3a773ed6a9fbc10264d9fdbebca76cd3  gf64_conformance_v0.json
 9c9fc955db5f6c9b185bdd5d88bd92f3f21a71ad4d784b944330d5cba85fb724  gf6_conformance_v0.json
 fe600234cab0e589b69d84e673d74729cff153f9e4e63e871e285fa82ad2cc70  gf8_bfp_conformance_v0.json
 6dccbc6628cbc051e06a006a0731499970c1d99e65fc0d42d9007d8f0ed1402d  gf8_conformance_v0.json
-786f9d144243db2e6c4dba2ddbef4ae2975d045f1ad370cd462eb61cc70dd3d5  gf96_conformance_v0.json
+2566ac9f2b9fb1950e4c52e09715c148f6d29d681aa37c70f0a7e6c0457a3dba  gf96_conformance_v0.json
 eb7c946281fb6ed6fadd9c63c7e7fa186412480910c9fedcb25fbc056c1bd34a  gf_lns_hybrid_conformance_v0.json
 9f246d24511fbff6fb9e83e60e1bedfce401052537f7c8929fe205d0f6e57b81  gfternary_conformance_v0.json
 2f02899d621a8a7aebfdf2a69a2484d7616c61ac7cebdc483f643e8109c4e31f  ibm_hfp128_conformance_v0.json
@@ -246,7 +256,7 @@ aee6cc72691a0ae211e39bf6315ac68a5fe74e87190e0c27088871c6ccc87f52  posit32_confor
 66b14056938549c1aaa522097ee8744246581cf6d3bb6002cef3b2f3f6ea0ff6  posit64_conformance_v0.json
 0c638ef95b6537e4dc0e256dc1ca2d9363152b3d5a800501472230ce98a84b76  posit8_conformance_v0.json
 2bc0c114aecd1d0dbfa7925efe298cea80efd510022ee0734cf9450af8027b63  q_format_conformance_v0.json
-d0d7b15d7d8d6c590437a1e9f2d215d63115448f4eb26fe479cc5999f7b21c03  quad_double_conformance_v0.json
+62ef8067fd1d70ef0abac77d4b0252a3686b9cd698ee4806e0bc1e01bcfe7cfa  quad_double_conformance_v0.json
 ca139ebd7bc5c139357c533bb0a6509e4edd05044d7869fcea57cf34d052c3c7  shared_exp_conformance_v0.json
 fc2a0a6dcce7bbb0eccc1e23ebdacb9abbd81cd54111796be6dc7e6a87a2071a  stochastic_rounding_conformance_v0.json
 631c574d46f1b2288ffddeab0b157c12a4f904b5bf7371128267f96db0b19c5c  takum16_conformance_v0.json
@@ -292,6 +302,28 @@ python3 gen_all_formats.py
 All packs are ASCII-only. Apache-2.0, consistent with the t27 repository.
 
 ## Changelog
+
+- **2026-06-28** — promoted 6 packs from structural to **bit-precise** by adding
+  dedicated reference codecs to `gen_all_formats.py`
+  (bit-precise 55 -> 61, structural 22 -> 16; the self-consistent GF wide-rung
+  tier (6) is unchanged):
+  - `gf10` — GoldenFloat phi-aligned radix-2 `S1E3M6`, bias 3 (rule
+    e=round(9/phi^2)=3, bridge GF8-GF12). Decode reuses the proven GF radix-2
+    law; 3.0 is exact at code 0x120.
+  - `decimal32/64/128` — IEEE 754-2008 **BID** (Binary Integer Decimal): the
+    significand is a plain binary integer built from the combination-field head
+    plus the trailing field; `value = coeff * 10^(exp-bias)`. Cross-checked vs
+    an exact-rational (`fractions.Fraction`) oracle; 3.0 is f64-exact.
+  - `double_double` / `quad_double` — Bailey/Hida multi-double: value = the
+    **exact sum** of 2 (resp. 4) IEEE-754 binary64 limbs (most-significant
+    first). This is a fixed 128/256-bit layout with an unambiguous decode law,
+    directly analogous to the earlier `x87_fp80` explicit-integer-bit promotion.
+    Named integer/dyadic values are f64-exact (low limbs 0).
+  Each promoted pack carries an explicit decoder + reference encoder and
+  `abs_error = 0` for every recorded vector (decode side). `takum8/16/32/64`,
+  `afp`, `per_channel_scale`, `gf256` (open bias) and the 9 zero-width
+  parametric entries (`minifloat`, `q_format`, `bcd`, `block_fp`, `shared_exp`,
+  `stochastic_rounding`, `tapered_fp`, `unum_i`, `unum_ii`) remain structural.
 
 - **2026-06-14** — promoted 6 packs from structural to **bit-precise** by adding
   dedicated reference codecs to `gen_all_formats.py`
