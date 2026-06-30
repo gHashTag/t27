@@ -1,6 +1,13 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-28
+Last updated: 2026-07-01
+
+## conformance-promote-gf14-bitexact -- promote gf14 selfconsistent -> strict SW-bitexact (62->63/83) (Closes #1230)
+
+- **WHERE**: conformance/vectors/INDEX_all_formats.json, conformance/vectors/gf14_conformance_v0.json (metadata only), conformance/gf14_independent_witness.py (new).
+- **WHAT**: gf14 moves from bitexact_selfconsistent to strict SW-bitexact. Adds an INDEPENDENT second decoder (gf14_independent_witness.py) written from scratch against the SSOT catalog params (s=1 e=5 m=8 bias=15, storage u16), using exact fractions.Fraction arithmetic (abs_error=0, not float). All 14 recorded vectors: generator value == independent witness, 0 mismatches; edge cases (largest_finite=65408, smallest_subnormal, five=5, 1.5) hand-verified; anchor phi^2+phi^-2=3 confirmed. The 14 vectors themselves are UNCHANGED (only kind/source/reason metadata + the witness script). INDEX: bitexact 62->63, selfconsistent 6->5, structural 15 (unchanged).
+- **Why**: when gf14 entered the INDEX in #1146 it was honestly recorded as bitexact_selfconsistent because it had a single decode law and NO independent second witness. This PR supplies that second witness, so gf14 now qualifies for strict SW-bitexact under the same standard used for takum8 (#1223) and the six formats in #1224. wp18_conformance_gate: Check C sha freshness OK (drift 0), gf14 not in failures, verdict/failure-set IDENTICAL to master (the sole Check-E fail is a pre-existing gf16 allowlist entry, unrelated). wp18_gate_selfconsistent_selftest: 13 PASS / 0 FAIL. catalog stays 83. decode-HW/compute-HW unaffected. No quality/silicon claim; encoding-conformance only. Closes #1230.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## conformance-promote-takum8-bitexact -- promote takum8 to strict SW-bitexact + fix takum arXiv citation (61->62/83) (Closes #1223)
 
