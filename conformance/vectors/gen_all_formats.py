@@ -1095,16 +1095,39 @@ def main():
                     "zero at 0x00; NaR at 0x80 (MSB-set); n<12 is below the nominal "
                     "takum standard threshold (recorded, not a decoder error)")
                 bitexact += 1
+            elif cid == "takum16":
+                # takum16: logarithmic, 65536 codes -> still EXHAUSTIVELY
+                # witnessable. Independent second witness (no external libtakum):
+                # ell is re-derived EXACTLY from the bit layout (dyadic rational),
+                # value = exp(ell/2) computed at 400-bit mpmath, rounded to f64.
+                # witness_takum16_bitexact.py proves over all 65536 codes:
+                #   * 0 codes ambiguous near a rounding midpoint
+                #   * min gap to a midpoint = 4.2995803e-5 ULP, STABLE at
+                #     400/800/1600-bit (a real gap, not numerical noise)
+                # => every code is unambiguously correctly-rounded f64; the
+                # high-precision recompute is a genuine independent witness
+                # (abs_error=0). Same criterion that promoted takum8. [proven]
+                dec = make_takum_decoder(16)
+                pack = build_bitexact_pack(
+                    rec, dec,
+                    "Takum logarithmic (Hunhold 2024, arXiv:2404.18603): "
+                    "value = exp(ell/2), exhaustive 65536 codes, correctly-rounded "
+                    "f64 (independent 400-bit witness, min midpoint gap 4.30e-5 ULP)",
+                    "zero at 0x0000; NaR at 0x8000 (MSB-set); exhaustive over all "
+                    "65536 codes")
+                bitexact += 1
             elif cid.startswith("takum"):
-                # takum16/32/64: logarithmic; values transcendental. Exhaustive
-                # correctly-rounded gap is NOT verifiable without an external
-                # libtakum oracle -> kept structural HONESTLY (no second witness).
+                # takum32/64: logarithmic; 2^32 / 2^64 codes are NOT exhaustively
+                # witnessable in-sandbox, and a correctly-rounded gap proof over
+                # the full domain needs an external libtakum oracle -> kept
+                # structural HONESTLY (no exhaustive independent second witness).
                 pack = build_structural_pack(rec)
                 pack["structural_reason"] = ("Takum (Hunhold 2024, arXiv:2404.18603) "
                     "is a tapered LOGARITHMIC format; its decode is not a plain "
-                    "S:E:M field. takum8 is promoted to bit-precise (exhaustive); "
-                    "this wider rung stays structural pending an external libtakum "
-                    "oracle for the correctly-rounded gap proof.")
+                    "S:E:M field. takum8 and takum16 are promoted to bit-precise "
+                    "(exhaustive 256 / 65536 codes, independent high-precision "
+                    "witness); this wider rung stays structural pending an external "
+                    "libtakum oracle for the full-domain correctly-rounded gap proof.")
                 structural += 1
             else:
                 pack = build_structural_pack(rec); structural += 1

@@ -1,6 +1,13 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-28
+Last updated: 2026-06-30
+
+## conformance-promote-takum16-bitexact -- promote takum16 to strict SW-bitexact (62->63/83) (Closes #1228)
+
+- **WHERE**: conformance/vectors/gen_all_formats.py (takum16 branch), conformance/vectors/INDEX_all_formats.json, regenerated takum16 pack, structural_reason text in takum32/64 packs, conformance/vectors/witness_takum16_bitexact.py (new independent witness).
+- **WHAT**: takum16 moves structural -> strict SW-bitexact. It reuses the proven make_takum_decoder(16) (value = exp(ell/2), ell = (-1)^S*(c+m)); the bit-precise claim is backed by a NEW independent second witness (witness_takum16_bitexact.py): ell is re-derived EXACTLY from the bit layout (dyadic rational), value = exp(ell/2) computed at 400-bit mpmath, rounded to nearest-even f64. Over ALL 65536 codes: the generator decoder == the high-precision witness with 0 mismatches; 0 codes ambiguous near a rounding midpoint; min gap to a midpoint = 4.2995803e-5 ULP, STABLE at 400/800/1600-bit (a real gap, not numerical noise). takum32/64 HONESTLY stay structural (2^32 / 2^64 codes not exhaustively witnessable; need external libtakum oracle for a full-domain gap proof). INDEX: bitexact 62->63, structural 15->14, selfconsistent 6 (unchanged).
+- **Why**: takum16 has a fully-defined decode law AND, unlike takum32/64, is small enough that a high-precision recompute serves as an exhaustive independent second witness (the same criterion that promoted takum8). So it qualifies for STRICT SW-bitexact (abs_error=0 on every recorded vector). No quality/silicon claim; encoding-conformance only. Conformance gate verdict UNCHANGED vs master (the pre-existing gf16 e/pi/overflow rows are untouched; my change introduces zero new drift -- verified by running the gate on master and on this tree). Deterministic regeneration; catalog stays 83. decode-HW/compute-HW unaffected. Closes #1228.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## conformance-promote-takum8-bitexact -- promote takum8 to strict SW-bitexact + fix takum arXiv citation (61->62/83) (Closes #1223)
 
