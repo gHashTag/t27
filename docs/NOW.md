@@ -1,6 +1,13 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-28
+Last updated: 2026-07-01
+
+## fix-now-freshness-gate-utc-window -- widen NOW freshness window to accept east-of-UTC local dates (Closes #1234)
+
+- **WHERE**: .github/workflows/now-sync-gate.yml (job check-now-freshness, step "Validate NOW.md date is today or recent").
+- **WHAT**: the freshness gate validated the NOW.md "Last updated" date against the UTC window [YESTERDAY_UTC .. TODAY_UTC] (two days). Widened it to [YESTERDAY_UTC .. TOMORROW_UTC] so a contributor in an east-of-UTC timezone (maintainer is UTC+07) who stamps NOW.md with their LOCAL calendar date is not rejected while UTC is still on the previous day. Older-than-yesterday still FAILS (stale-NOW protection kept); newer-than-tomorrow still FAILS (typo-in-future protection); a missing "Last updated:" line now fails with a clear message. ISO-8601 zero-padded dates compare correctly as strings, so no date parsing is added.
+- **Why**: the gate produced a systematic false-negative -- any PR opened after ~17:00 UTC (= 00:00 UTC+07) failed with a misleading "too old" error even though the date was in the (UTC) future. Observed on PR #1231 (NOW.md=2026-07-01, UTC=2026-06-30) which BLOCKED the stacked conformance-promote chain #1231 -> #1233. CI/workflow-only change; no spec, no conformance vector, no catalog count touched (stays 83). Logic self-tested locally against six boundary dates (PASS for yesterday/today/tomorrow UTC, FAIL for older, FAIL for far-future, FAIL for missing). Closes #1234.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## conformance-promote-takum8-bitexact -- promote takum8 to strict SW-bitexact + fix takum arXiv citation (61->62/83) (Closes #1223)
 
