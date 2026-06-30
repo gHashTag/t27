@@ -2,6 +2,13 @@
 
 Last updated: 2026-07-01
 
+## conformance-promote-wide-rungs-bitexact -- promote gf48/gf96/gf128/gf512/gf1024 selfconsistent -> strict SW-bitexact (63->68/83) (Closes #1232)
+
+- **WHERE**: conformance/vectors/INDEX_all_formats.json, conformance/vectors/{gf48,gf96,gf128,gf512,gf1024}_conformance_v0.json (metadata only: format_notes + structural_reason), conformance/gf_wide_independent_witness.py (new).
+- **WHAT**: the five wide GoldenFloat rungs move from bitexact_selfconsistent to strict SW-bitexact. Adds ONE parametric INDEPENDENT second decoder (gf_wide_independent_witness.py) written from scratch against the SSOT catalog params (s/e/m/bias per rung), decoding into canonical dyadic form odd_num*2^shift and comparing EXACTLY (abs_error=0) WITHOUT ever materializing the giant 2^bias integers (bias up to ~2.5e120 for gf1024, a 391-bit exponent field). All 15 recorded vectors per rung: generator value == independent witness, 0 mismatches across all 75 vectors; edge cases (smallest_subnormal, largest_normal, anchor_three=3, 1.5) hand-decoded by a second independent path. The vectors themselves are UNCHANGED (only kind/source/notes/reason metadata + the witness script). INDEX: bitexact 63->68, selfconsistent 5->0, structural 15 (unchanged).
+- **Why**: when these rungs entered the INDEX in #1146 they were honestly recorded as bitexact_selfconsistent -- single decode law, dyadic-exact, but NO independent second witness (only gf16 had the Corona silicon ROM oracle). The strict SW-bitexact criterion is an independent second decoder with abs_error=0, NOT silicon; this PR supplies that witness, qualifying all five under the same standard used for gf14 (#1230), takum8 (#1223), and the six formats in #1224. wp18_conformance_gate: Check A 83==83, Check B recount [83,68,0,15] OK, Check C sha freshness OK (drift 0), Check D/D2 0 mismatches over 2448 finite rows, no rung in any failure list; verdict/failure-set IDENTICAL to master (the sole Check-E fails are pre-existing gf16/bfloat16 allowlist tolerance rows, unrelated). wp18_gate_selfconsistent_selftest: 13 PASS / 0 FAIL. catalog stays 83. decode-HW/compute-HW unaffected. No quality/silicon/energy claim; encoding-conformance only. Closes #1232.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## conformance-promote-gf14-bitexact -- promote gf14 selfconsistent -> strict SW-bitexact (62->63/83) (Closes #1230)
 
 - **WHERE**: conformance/vectors/INDEX_all_formats.json, conformance/vectors/gf14_conformance_v0.json (metadata only), conformance/gf14_independent_witness.py (new).

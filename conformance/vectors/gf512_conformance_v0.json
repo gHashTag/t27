@@ -20,7 +20,7 @@
   },
   "format": "gf512",
   "format_name": "GoldenFloat512",
-  "format_notes": "S1 E195 M316, BIAS=25108406941546723055343157692830665664409421777856138051583 (parsed from catalog string bias '2^194-1' via the safe regex parser (no eval); equals 2^(E-1)-1). Storage word: u512; vectors use the FORMAT bit-width 512, not the storage word. Decode law shared across all five rungs and validated 14/14 against committed GF14 vectors. PHI_BIAS is OPEN/RETRACTED per the spec and is NOT emitted; phi_distance is descriptive metadata only, never used in decode.",
+  "format_notes": "S1 E195 M316, BIAS=25108406941546723055343157692830665664409421777856138051583 (parsed from catalog string bias '2^194-1' via the safe regex parser (no eval); equals 2^(E-1)-1). Storage word: u512; vectors use the FORMAT bit-width 512, not the storage word. Decode law shared across all five rungs; promoted to strict SW-bitexact by an INDEPENDENT second decoder (gf_wide_independent_witness.py, dyadic-exact, abs_error=0). PHI_BIAS is OPEN/RETRACTED per the spec and is NOT emitted; phi_distance is descriptive metadata only, never used in decode.",
   "governing_sentence": "The GoldenFloat ladder earns its place through breadth and toolchain coherence, NOT through per-rung superiority over any competitor format. Takum (Hunhold 2024, arXiv:2412.20273) is the standing counterexample and is not suppressed.",
   "n_vectors": 15,
   "preprint": "arXiv:2606.05017 (GoldenFloat)",
@@ -159,5 +159,6 @@
       "value": "-266998379490113760299377713271194014325338065294581596243380200977777465722580068752870260867071p25108406941546723055343157692830665664409421777856138051267",
       "value_encoding": "dyadic"
     }
-  ]
+  ],
+  "structural_reason": "Bit-precise round-trip defined; vectors emitted by encoder and confirmed by an INDEPENDENT second decoder (gf_wide_independent_witness.py, dyadic A*2^B exact comparison, abs_error=0) -> strict bitexact, not selfconsistent."
 }

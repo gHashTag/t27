@@ -20,7 +20,7 @@
   },
   "format": "gf96",
   "format_name": "GoldenFloat96",
-  "format_notes": "S1 E36 M59, BIAS=34359738367 (=2^(E-1)-1, IEC 60559 interchange bias). Storage word: u128_padded; vectors use the FORMAT bit-width 96, not the storage word. Decode law shared across all five rungs and validated 14/14 against committed GF14 vectors. PHI_BIAS is OPEN/RETRACTED per the spec and is NOT emitted; phi_distance is descriptive metadata only, never used in decode.",
+  "format_notes": "S1 E36 M59, BIAS=34359738367 (=2^(E-1)-1, IEC 60559 interchange bias). Storage word: u128_padded; vectors use the FORMAT bit-width 96, not the storage word. Decode law shared across all five rungs; promoted to strict SW-bitexact by an INDEPENDENT second decoder (gf_wide_independent_witness.py, dyadic-exact, abs_error=0). PHI_BIAS is OPEN/RETRACTED per the spec and is NOT emitted; phi_distance is descriptive metadata only, never used in decode.",
   "governing_sentence": "The GoldenFloat ladder earns its place through breadth and toolchain coherence, NOT through per-rung superiority over any competitor format. Takum (Hunhold 2024, arXiv:2412.20273) is the standing counterexample and is not suppressed.",
   "n_vectors": 15,
   "preprint": "arXiv:2606.05017 (GoldenFloat)",
@@ -159,5 +159,6 @@
       "value": "-1152921504606846975p34359738308",
       "value_encoding": "dyadic"
     }
-  ]
+  ],
+  "structural_reason": "Bit-precise round-trip defined; vectors emitted by encoder and confirmed by an INDEPENDENT second decoder (gf_wide_independent_witness.py, dyadic A*2^B exact comparison, abs_error=0) -> strict bitexact, not selfconsistent."
 }

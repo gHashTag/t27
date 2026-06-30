@@ -5,8 +5,8 @@
   "preprint": "https://arxiv.org/abs/2606.05017",
   "total_formats": 83,
   "total_packs": 83,
-  "bitexact_packs": 63,
-  "selfconsistent_packs": 5,
+  "bitexact_packs": 68,
+  "selfconsistent_packs": 0,
   "structural_packs": 15,
   "packs": [
     {
@@ -382,23 +382,23 @@
     {
       "id": "gf48",
       "file": "gf48_conformance_v0.json",
-      "kind": "bitexact_selfconsistent",
-      "source": "wide-rung GoldenFloat oracle (single decode law, dyadic-exact, no independent second witness)",
-      "sha256": "bf88f55076175dffe1fa108e0e6a526829e274f049c839e26a002a6ea6dd534e"
+      "kind": "bitexact",
+      "source": "wide-rung GoldenFloat oracle + INDEPENDENT second decoder witness (gf_wide_independent_witness.py, dyadic-exact, abs_error=0)",
+      "sha256": "313dcab7d4eb5728895b5a0cd224b6368cbe39dde5583db76a5138f608928550"
     },
     {
       "id": "gf96",
       "file": "gf96_conformance_v0.json",
-      "kind": "bitexact_selfconsistent",
-      "source": "wide-rung GoldenFloat oracle (single decode law, dyadic-exact, no independent second witness)",
-      "sha256": "2566ac9f2b9fb1950e4c52e09715c148f6d29d681aa37c70f0a7e6c0457a3dba"
+      "kind": "bitexact",
+      "source": "wide-rung GoldenFloat oracle + INDEPENDENT second decoder witness (gf_wide_independent_witness.py, dyadic-exact, abs_error=0)",
+      "sha256": "5b2ddc76f1c7a8c0ce50b1e4a8bf8bfcc7d3419916fa3b36780fdd5da02eb0bf"
     },
     {
       "id": "gf128",
       "file": "gf128_conformance_v0.json",
-      "kind": "bitexact_selfconsistent",
-      "source": "wide-rung GoldenFloat oracle (single decode law, dyadic-exact, no independent second witness)",
-      "sha256": "23a82862b0302585031b46ca75928c793f30297351ca84f806ee6497bc659264"
+      "kind": "bitexact",
+      "source": "wide-rung GoldenFloat oracle + INDEPENDENT second decoder witness (gf_wide_independent_witness.py, dyadic-exact, abs_error=0)",
+      "sha256": "1ff5d68adba8634f644ad49ddecb97f587dd2ed6fc39997118f1e2cc390f6b27"
     },
     {
       "id": "gf256",
@@ -411,16 +411,16 @@
     {
       "id": "gf512",
       "file": "gf512_conformance_v0.json",
-      "kind": "bitexact_selfconsistent",
-      "source": "wide-rung GoldenFloat oracle (single decode law, dyadic-exact, no independent second witness)",
-      "sha256": "87bd4d7cbf7fc0d653b7c3b5e5399154c7cb746a0fe668a983f767ad69b15b07"
+      "kind": "bitexact",
+      "source": "wide-rung GoldenFloat oracle + INDEPENDENT second decoder witness (gf_wide_independent_witness.py, dyadic-exact, abs_error=0)",
+      "sha256": "7a9be0ebca1e129fbefeb23a5a9bc900beb8215eb856f70c1cc46717ba0189f2"
     },
     {
       "id": "gf1024",
       "file": "gf1024_conformance_v0.json",
-      "kind": "bitexact_selfconsistent",
-      "source": "wide-rung GoldenFloat oracle (single decode law, dyadic-exact, no independent second witness)",
-      "sha256": "6ef1c5cbe76828bf0e587fa5c0bb0f40989a7d1056cb54ad45eed192e98b4f4e"
+      "kind": "bitexact",
+      "source": "wide-rung GoldenFloat oracle + INDEPENDENT second decoder witness (gf_wide_independent_witness.py, dyadic-exact, abs_error=0)",
+      "sha256": "bb70cbc510d9ac07cb4228e918592734b8b7f658015c80537c8ab597c84d3e72"
     },
     {
       "id": "gf8_bfp",
