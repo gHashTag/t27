@@ -4272,8 +4272,11 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line("// TODO: implement");
         } else {
+            // Name the body block: Verilog-2001 forbids local declarations in an
+            // UNNAMED begin/end (a function that declares a local `reg` inside its
+            // body would need SystemVerilog otherwise).
             self.write_indent();
-            self.write_line("begin");
+            self.write_line(&format!("begin : {}_body", node.name));
             self.indent();
             self.gen_verilog_fn_body(&node.children);
             self.dedent();
