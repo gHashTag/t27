@@ -87,3 +87,26 @@
 - Do not claim "silicon verified" without an actual board load and `DONE=HIGH`/LED observation.
 - Do not leave the OpenXC7 toolchain only in `/tmp`; either persist it or document how to rebuild it.
 - Do not forget to set `PYTHONPATH` when invoking `fasm2frames.py`; otherwise `ModuleNotFoundError: No module named 'prjxray'`.
+
+## 2026-07-01 — Wave Loop 362 completion
+
+### What worked
+- Forward-appending W362 blocks to all 27 IGLA specs with `scripts/gen_w362.py` and regenerating all 27 seals from `/Users/playra/t27` returned **546/546 PASS** immediately after the Lean build.
+- A 38-variable `simp+omega` accumulation theorem (`ternaryMacAccumulateThirtyEightPlusGeneric`) built successfully in **3.5 s**, so the omega boundary is still linear at depth 38.
+- The quindecuple cancellation theorem (depth-15 residual `mac(x,a,.plus)`) and zero-weight quintuple closure theorem both built without new lemmas.
+- The `dlc10` driver was rebuilt quickly with `cargo build --release -p dlc10` and is ready for the board flash once the QMTech Wukong V1 / Xilinx Platform Cable USB II is connected.
+
+### What changed behavior
+- The generic ∀ count across Trinity Lean modules reached **192** (184 `ternaryMac...Generic` theorems in `TernaryInference.lean` plus 8 generic theorems in `TernaryMac.lean`).
+- The bitstream remains ready (`fpga/verilog/ternary_mac_demo_top.bit`, 3.6 MB), but the board flash is **blocked by missing hardware connectivity** (`DLC10 cable not found`).
+- The W362 deliverable is therefore "silicon-ready" rather than "silicon-verified".
+
+### Patterns to reuse
+- For W363, reuse the same generator pattern and Lean theorem script; only the binder count and cancellation depth change.
+- Always run `dlc10 idcode` before attempting `dlc10 sram`; idcode failure is a clear hardware-availability signal that should be documented, not hidden.
+- When a wave includes both formal extension and hardware validation, complete and verify the formal work first so the hardware attempt does not compromise the zero-IGLA-failure streak.
+
+### Anti-patterns to avoid
+- Do not claim "board flashed" when only the bitstream exists; distinguish "generated", "loaded", and "observed running".
+- Do not let a hardware blocker delay the spec/Lean/seal/report cadence; ship the formal deliverables and document the blocker.
+- Do not commit generator scripts that are still one-off prototypes as part of the main wave commit unless they have been reviewed as tooling.
