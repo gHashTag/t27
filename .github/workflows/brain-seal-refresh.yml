@@ -37,7 +37,7 @@ jobs:
           EOF
 
       - name: Upload brain seals
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: brain-seals
           path: .trinity/seals/brain_*.json

@@ -120,7 +120,7 @@ jobs:
           cat utilization_summary.txt
 
       - name: Upload bitstream
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: vivado-bitstream-${{ github.event.inputs.design || 'gf16' }}
@@ -131,7 +131,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload Vivado logs & utilization
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: vivado-log-${{ github.event.inputs.design || 'gf16' }}

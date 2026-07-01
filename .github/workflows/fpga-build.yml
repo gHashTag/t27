@@ -70,7 +70,7 @@ jobs:
 
       - name: Upload generated Verilog
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fpga-verilog
           path: build/fpga/generated/
@@ -237,7 +237,7 @@ jobs:
 
       - name: Upload synthesis output
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fpga-synthesis
           path: |
@@ -364,7 +364,7 @@ jobs:
           ls -la build/fpga/
       
       - name: Upload bitstream artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fpga-bitstream-${{ github.sha }}
           path: build/fpga/bitstream.bit
@@ -398,7 +398,7 @@ jobs:
           sed -i 's/^          //' build/fpga/FLASHING.md
 
       - name: Upload bitstream + flashing guide
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fpga-bitstream-${{ github.sha }}
           path: |
@@ -470,7 +470,7 @@ jobs:
 
       - name: Upload formal results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fpga-formal
           path: build/fpga/formal/
@@ -595,7 +595,7 @@ jobs:
 
       - name: Upload conformance results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fpga-conformance
           path: build/fpga/conformance/
