@@ -133,3 +133,27 @@
 - Do not modify a generator script with `sed` shortcuts without running it on a scratch copy first; the first `gen_w363.py` draft corrupted the expected-wave check.
 - Do not let a single hardware blocker block the full wave deliverable; finalize the formal path and ship the report.
 - Do not claim a theorem reaches identity unless the Lean statement literally ends in `= x` or matches the verified residual.
+
+## 2026-07-01 — Wave Loop 364 completion
+
+### What worked
+- Reused `scripts/gen_w364.py` and `scripts/gen_w364_lean.py` to append W364 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **3.8 s**.
+- `ternaryMacAccumulateFortyPlusGeneric` pushed the accumulation boundary to **40 variables**, still in the linear `simp+omega` regime.
+- `ternaryMacSeptendecupleCancellationGeneric` (depth-17) correctly collapsed to residual `mac(x, a, .plus)`; the Lean statement matched the odd-depth residual exactly.
+- A narrow, safe `gen_verilog` fix for binary literals (`0b...` → `N'b...`) landed in `bootstrap/src/compiler.rs` without regressions.
+
+### What changed behavior
+- Generic ∀ count reached **200** (192 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **98 waves** (twenty-fourth consecutive zero-failure wave).
+- The `gen-verilog` backend now emits sized Verilog for binary literals; four larger lowering defects from #1245 are catalogued in `docs/reports/WAVE_LOOP_364_REPORT.md`.
+- Board flash remains blocked by missing DLC10 cable/board; the failure is documented in `docs/reports/FPGA_EVIDENCE_W364.md`.
+
+### Patterns to reuse
+- For risky compiler changes, prefer narrow literal/formatting fixes over parser rewrites; parser changes can cause 100+ conformance regressions.
+- Probe project weak points (e.g. #1245, #1246) during each wave and either fix, document, or file a reproduction; do not let them age silently.
+- Keep the report/cooperation-variants cadence: `WAVE_LOOP_N_REPORT.md` + `WAVE_LOOP_N_COOPERATION.md` before the wave commit.
+
+### Anti-patterns to avoid
+- Do not attempt broad `parse_const_decl` / `skip_to_next_top_level` parser fixes without a staged branch and a full 546-spec conformance run.
+- Do not delete generator scripts after a single wave if they are parameterized by wave number; they can be copied and updated.
+- Do not claim identity cancellation at odd depths without first proving the residual equals the intended right-hand side.

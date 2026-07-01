@@ -4663,6 +4663,11 @@ impl VerilogCodegen {
                     let hex = &val[2..];
                     let bits = hex.len() * 4;
                     self.write(&format!("{}'h{}", bits, hex));
+                } else if val.starts_with("0b") || val.starts_with("0B") {
+                    // Convert binary literals: 0b1010 → 4'b1010
+                    let bin = &val[2..];
+                    let bits = bin.len();
+                    self.write(&format!("{}'b{}", bits, bin));
                 } else if val == "true" {
                     self.write("1'b1");
                 } else if val == "false" {

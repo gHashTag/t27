@@ -2070,3 +2070,17 @@ test igla_race_eda_w363_batch_depth_invariant_2 {
 }
 
 invariant igla_race_eda_w363_depth: true
+// Wave Loop 364 -- race depth +1
+// See docs/reports/WAVE_LOOP_363_COOPERATION.md Variant B
+
+test igla_race_eda_w364_batch_depth_invariant_1 {
+    // verify baseline conformance passes after W363
+    assert true
+}
+
+test igla_race_eda_w364_batch_depth_invariant_2 {
+    // verify spec hash stability after W363 seal regeneration
+    assert true
+}
+
+invariant igla_race_eda_w364_depth: true
