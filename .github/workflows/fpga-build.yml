@@ -107,7 +107,7 @@ jobs:
         run: ./target/release/t27c synth-readiness
 
       - name: Download generated Verilog
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fpga-verilog
           path: build/fpga/generated/
@@ -436,7 +436,7 @@ jobs:
         run: cargo build --release -p t27c
 
       - name: Download generated Verilog
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fpga-verilog
           path: build/fpga/generated/
@@ -504,7 +504,7 @@ jobs:
         run: cargo build --release -p t27c
 
       - name: Download generated Verilog
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fpga-verilog
           path: build/fpga/generated/
