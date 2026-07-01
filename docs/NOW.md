@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-07-01
+Last updated: 2026-07-02
+
+## gen-verilog-iverilog-clean -- fix backend lowering defects + BPSK modem spec (Closes #1245)
+
+- **WHERE** (compiler + fpga spec): `bootstrap/src/compiler.rs` gen-verilog/parser fixes so datapath specs emit iverilog-compilable RTL: (1) `parse_const_decl` consumes the trailing `;` so a run of consecutive const/var declarations is no longer dropped (uart went 1->8 localparams, 31->0 iverilog errors); (2) integer literals render as decimal (`0x`/`0b`/`_` -> valid Verilog); (3) a guarded early `return` in a function is rewritten to if/else (no last-write-wins clobber); (4) struct-field regs are declared under the holding `var` name (matching field access); (5) zero-argument functions get an unused dummy `input`; (6) function bodies use named `begin` blocks (Verilog-2001 forbids unnamed-block locals). The existing `ExprCast` cast handling is kept as-is. New `specs/fpga/bpsk.t27` (`ZeroDSP_BPSK`, the trios-mesh BPSK modem core) now **iverilog-compiles and simulates**: 13 embedded test assertions pass; hierarchical checks confirm correlate(Barker)=13, inversion=-13, sidelobes -5/+5, sync gate, frame=21. uart/mac now iverilog-clean too (fpga clean 1 -> 3 of 34).
+- **Why**: makes `.t27 -> Verilog RTL` synthesizable/simulatable for datapath specs instead of only structurally complete, on the path toward the Zynq/Artix FPGA carrying the trios-mesh radio. No numeric-format or L6 change. Committed seals for other specs whose Verilog changed will need a follow-up reseal sweep. Closes #1245.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## fix-now-freshness-gate-utc-window -- widen NOW freshness window to accept east-of-UTC local dates (Closes #1234)
 
