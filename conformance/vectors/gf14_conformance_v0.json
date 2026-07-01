@@ -3,7 +3,7 @@
   "format": "GF14",
   "format_name": "GF14 (rule-derived)",
   "bitexact": true,
-  "format_notes": "GF14 (rule-derived) -- this work; rule e=round(13/phi^2)=5; bridge GF12-GF16; lowest phi-dist below GF48 | bit-exact vectors emitted this work (Trinity S^3 AI)",
+  "format_notes": "GF14 (rule-derived) -- this work; rule e=round(13/phi^2)=5; bridge GF12-GF16; lowest phi-dist below GF48 | strict bit-exact: independent 2nd witness, abs_error=0 (Trinity)",
   "catalog": {
     "id": "gf14",
     "bits": 14,
@@ -23,7 +23,7 @@
   "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
   "preprint": "https://arxiv.org/abs/2606.05017",
   "anchor_identity": "phi^2 + 1/phi^2 = 3",
-  "structural_reason": "Bit-precise round-trip defined; vectors emitted by encoder, confirmed by independent decoder.",
+  "structural_reason": "Bit-precise round-trip defined; vectors emitted by encoder and confirmed by an INDEPENDENT second decoder (gf14_independent_witness.py, fractions.Fraction, abs_error=0) -> strict bitexact, not selfconsistent.",
   "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
   "n_vectors": 14,
   "vectors": [
