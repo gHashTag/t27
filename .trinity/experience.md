@@ -206,3 +206,28 @@
 - Do not land a broad `gen-verilog` fix in the same wave as a formal milestone unless it has a narrow, regression-free path; ship the reproduction document instead.
 - Do not report the previous wave's generic ∀ count from memory when the Lean file can be grepped directly; exact counts prevent inflated or deflated claims.
 - Do not skip `dlc10 idcode` just because earlier waves failed; retry each wave to keep the evidence trail current.
+
+## 2026-07-01 — Wave Loop 367 completion
+
+### What worked
+- Reused `scripts/gen_w367.py` and `scripts/gen_w367_lean.py` to append W367 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **4.4 s**.
+- `ternaryMacAccumulateFortyThreePlusGeneric` pushed the accumulation boundary to **43 variables**, still in the linear `simp+omega` regime.
+- `ternaryMacVigintupleCancellationGeneric` (depth-20) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
+- Landed a safe `gen-verilog` sub-fix: positive hex literals in scalar `const` declarations are now padded to the declared type width (e.g. `u16 = 0x1` emits `16'h1`). The fix passed the full 546-spec conformance suite without requiring seal regeneration.
+
+### What changed behavior
+- Generic ∀ count reached **212** (204 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **101 waves** (twenty-seventh consecutive zero-failure wave).
+- IGLA totals: **7,934 tests**, **2,977 invariants**.
+- The `dlc10` cable/board were still not detected; the failure is documented in `docs/reports/FPGA_EVIDENCE_W367.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: defect 2 (`0x` width) is fixed for scalar consts; defects 1/3/4/5 remain.
+
+### Patterns to reuse
+- For safe compiler sub-fixes, prefer narrow literal-emission changes over parser rewrites; they are the only kind that can land without mass seal regeneration.
+- When a `gen-verilog` fix changes no currently-emitting output, the full conformance suite will stay green without regenerating all seals — but verify this explicitly before claiming the fix is regression-free.
+- Keep the 4-theorem cadence: accumulation probe, minus-lattice parity, cancellation depth, zero-weight closure dimension.
+
+### Anti-patterns to avoid
+- Do not try to fix `gen-verilog` defect 1 (only first const emits) with a one-line parser change; it requires nested-block context tracking to avoid breaking error recovery.
+- Do not omit a scratch-spec test for a compiler fix just because the full suite is green; the suite may not exercise the changed code path.
+- Do not let a hardware blocker delay the formal + compiler sub-fix cadence; ship the deliverables and document the blocker.

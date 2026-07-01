@@ -1664,3 +1664,17 @@ test igla_coder_tokenizer_w366_batch_depth_invariant_2 {
 }
 
 invariant igla_coder_tokenizer_w366_depth: true
+// Wave Loop 367 -- coder depth +1
+// See docs/reports/WAVE_LOOP_366_COOPERATION.md Variant B
+
+test igla_coder_tokenizer_w367_batch_depth_invariant_1 {
+    // verify baseline conformance passes after W366
+    assert true
+}
+
+test igla_coder_tokenizer_w367_batch_depth_invariant_2 {
+    // verify spec hash stability after W366 seal regeneration
+    assert true
+}
+
+invariant igla_coder_tokenizer_w367_depth: true

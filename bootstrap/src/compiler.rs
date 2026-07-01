@@ -4117,6 +4117,20 @@ impl VerilogCodegen {
                         "0 /* TODO: {} initializer not yet lowered to Verilog */",
                         kind_label
                     ));
+                } else if child.kind == NodeKind::ExprLiteral
+                    && (child.value.starts_with("0x") || child.value.starts_with("0X"))
+                {
+                    // W367: pad positive hex literals to the declared const width.
+                    // Previously `const X : u16 = 0x1;` emitted `4'h1`; now it
+                    // emits `16'h1`, matching the localparam range declaration.
+                    let hex = &child.value[2..];
+                    let literal_bits = (hex.len() as u32) * 4;
+                    let declared_width = Self::type_to_width(&node.extra_type);
+                    if declared_width > literal_bits {
+                        self.write(&format!("{}'h{}", declared_width, hex));
+                    } else {
+                        self.gen_verilog_expr(child);
+                    }
                 } else {
                     self.gen_verilog_expr(child);
                 }

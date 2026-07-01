@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-01
 **Issue:** #1245
-**Status:** 1 of 5 defects fixed (binary literals); 4 remain open pending safe backend refactor.
+**Status:** 2 of 5 defects fixed (binary literals, hex literal width padding in scalar consts); 3 remain open pending safe backend refactor.
 
 ---
 
@@ -35,11 +35,12 @@ At least 9 `localparam` declarations (one per `const` in `uart.t27`).
 ```
 No raw `0b` literals should appear; binary constants now emit as `N'b...`.
 
-### `0x` — verify sizing
+### `0x` — FIXED in W367 for scalar const declarations
 ```sh
-./target/release/t27c gen-verilog specs/fpga/uart.t27 | grep "'h"
+./target/release/t27c gen-verilog /tmp/hex_pad_repro.t27
+# const SMALL : u16 = 0x1; now emits localparam [15:0] SMALL = 16'h1;
 ```
-`0xFF` as `u8` correctly emits `8'hFF`. The current emitter computes width as `hex.len()*4`, i.e. the *literal* width, not the *declared* type width. This is safe when the literal has the same width as the declared type, but a `u16` initialized with `0x1` will emit `4'h1` instead of `16'h1`. No known conformance failure yet.
+`0xFF` as `u8` correctly emits `8'hFF`. The W367 fix pads positive hex literals in scalar `const` declarations to the declared type width when the literal is narrower (e.g. `u16 = 0x1` now emits `16'h1` instead of `4'h1`). The fix is localized to `gen_verilog_const` and passed the full 546-spec conformance suite without requiring seal regeneration, because no currently-emitting spec had a narrower hex const. Literals in non-const contexts (assignments, expressions) still use literal-width sizing; extending the padding there is future work.
 
 ---
 
@@ -151,6 +152,15 @@ Struct fields emit as `<structtype_lower>_<field>`, but variable access uses `<v
 2. **Verify** `0x` sizing with a targeted test; pad to declared width if regression-free.
 3. **Defer** early-return and cast+bitwise fixes until a dedicated Verilog control-flow / expression lowering pass is designed.
 4. **Defer** struct-field name fix until the struct lowering naming convention is unified.
+
+---
+
+## W367 update
+
+- Defect 2 (`0x` literal width) is now fixed for scalar `const` declarations.
+- Defect 1 (only first `const` emits) remains the highest-impact issue; it blocks most of defects 2–5 from being visible in real specs.
+- A safe path for defect 1 requires tracking top-level vs. nested-block parser context before changing `is_top_level_start()`.
+- No parser refactor was landed; the 546-spec conformance gate remains green.
 
 ---
 

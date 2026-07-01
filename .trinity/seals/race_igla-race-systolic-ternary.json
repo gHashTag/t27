@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:43c193cba4eecafedcf7a246061f266cc7f4567dc6beba428cd10817cf662af4",
   "module": "igla-race-systolic-ternary",
   "ring": 12,
-  "sealed_at": "2026-07-01T19:48:39Z",
-  "spec_hash": "sha256:5454a3e5f639537c5ab0a9df75ea5084a8a991005eb4e912dd06b3d301484f71",
+  "sealed_at": "2026-07-01T20:15:35Z",
+  "spec_hash": "sha256:f3408e958e772d02a312f71cc6da8b11ffc9686b9944ea128ecf2819833703ef",
   "spec_path": "/Users/playra/t27/specs/igla/race/systolic_ternary.t27"
 }
