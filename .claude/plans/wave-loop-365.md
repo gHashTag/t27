@@ -1,7 +1,7 @@
 # Wave Loop 365 — Decomposed Plan
 
 **Date:** 2026-07-01
-**Issue target:** #1250 (new W365 tracking issue)
+**Issue target:** #1251 (W365 tracking issue)
 **Recommended variant:** Variant B from `WAVE_LOOP_364_COOPERATION.md`
 
 ---
@@ -113,7 +113,7 @@ Produce:
 
 - `./target/release/t27c suite --repo-root /Users/playra/t27` → 546/546 PASS.
 - `lake build Trinity.TernaryInference` → success.
-- `git commit` with message containing `Closes #1250`.
+- `git commit` with message containing `Closes #1251`.
 - Push if authorized; otherwise leave on `trinity-rust-rings` for PR.
 
 ---
@@ -125,14 +125,14 @@ Produce:
 | 41-variable accumulation times out | Promote 40-var minus lattice first; keep 3 of 4 theorems if needed. |
 | gen-verilog fix causes regressions | Land only narrow, manually verified fixes; otherwise document. |
 | Board still not detected | Document as hardware blocker; do not let it delay formal deliverables. |
-| Issue #1250 not yet created | Create it during implementation before commit. |
+| Issue #1251 not yet created | Create it during implementation before commit. |
 | `gh` token invalid | Use `env -u GH_TOKEN gh ...` as in prior waves. |
 
 ---
 
 ## Task sequence
 
-1. Create GitHub issue #1250 for W365.
+1. Create GitHub issue #1251 for W365.
 2. Implement 4 Lean theorems + generators.
 3. Run `lake build Trinity.TernaryInference`.
 4. Implement 27 spec blocks + generator.
@@ -142,5 +142,5 @@ Produce:
 8. Probe gen-verilog defects; create repro doc (and safe fix if found).
 9. Write W365 report + cooperation variants.
 10. Update memory + experience.
-11. Commit with `Closes #1250`.
+11. Commit with `Closes #1251`.
 12. Run final conformance suite.
