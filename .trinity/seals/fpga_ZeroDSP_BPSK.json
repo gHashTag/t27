@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4f36a07ff1b93efc3a046719dc20f28fcfc3118887b21ec615f508fe6354a8ee",
+  "gen_hash_rust": "sha256:44b3950421945b6d9b6287f60db8b20473260e08758f204bf221ecb0b22bf506",
+  "gen_hash_verilog": "sha256:ac4f956573394ce741330814ee0c8092677ca61de519d75f9a960af5d49b2286",
+  "gen_hash_zig": "sha256:4237851d19e29b2e997596fd94389a7031d0437b137688431dfab369b7776e1e",
+  "module": "ZeroDSP_BPSK",
+  "ring": 12,
+  "sealed_at": "2026-07-01T17:48:24Z",
+  "spec_hash": "sha256:c03511cef14c6a38652f65fdc0852cfc638dec039a96c9dc4cb6f04f49643228",
+  "spec_path": "specs/fpga/bpsk.t27"
+}

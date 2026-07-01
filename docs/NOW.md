@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-31
+Last updated: 2026-07-02
+
+## bpsk-modem-core -- port trios-mesh BPSK modem core to a .t27 FPGA spec (Closes #1243)
+
+- **WHERE** (fpga specs): new `specs/fpga/bpsk.t27` (`ZeroDSP_BPSK`) ports the synthesizable core of the TRI-NET 5.8 GHz drone-mesh BPSK modem (gHashTag/trios-mesh) into t27: a byte -> +/-1 BPSK serializer with a Barker-13 preamble, and an integer Barker-13 correlator + threshold for frame sync. The Barker chips are packed into one `u16` constant (bit k = chip k; 1=+1, 0=-1) so no array is declared (array consts do not lower); the correlator is an unrolled 13-tap sum of +/-1 chip contributions; TX state is held as flat scalar `var`s (struct fields mis-name in the Verilog backend). 12 tests / 4 invariants mirror the Rust modem's units: autocorrelation peak == 13, 180-degree channel inversion == -13, off-peak sidelobes -5/+5, LSB-first serialization, and the sync threshold gate. parse/typecheck clean; all functions lower to Verilog/C/Rust/Zig (no TODO); sealed.
+- **Why**: moves the modem's hardware-mappable datapath from host Rust into the canonical spec-first language, on the `.t27 -> Verilog RTL` path toward the Zynq/Artix FPGA that carries the mesh radio. Datapath functions + state record only; clocking/ports remain a backend concern. No numeric-format or L6 change. Closes #1243.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## goldenfloat-ladder-extend -- GF64+GF256 rungs + corrupted-comment repair (Closes #1022)
 
