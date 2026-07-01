@@ -996,3 +996,7 @@
 - **Commit:** feat(igla): Wave Loop 360 — 36-variable accumulation, tredecuple cancellation, zero-weight triple closure, OpenXC7-ready demo wrapper
 - **Files:** .claude/settings.json
 
+## 2026-07-01T18:02:11Z — trinity-rust-rings
+- **Commit:** fix(claude): settings.json hook schema for PreToolUse and Stop
+- **Files:** .trinity/experience.md,.trinity/seals/coder_igla-coder-arch.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-eval.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-prm.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json,.trinity/seals/coder_igla-coder-weights.json,.trinity/seals/race_igla-race-adder-tree.json,.trinity/seals/race_igla-race-backend.json,.trinity/seals/race_igla-race-bram-weights.json,.trinity/seals/race_igla-race-cordic-fixed.json,.trinity/seals/race_igla-race-cordic-top.json,.trinity/seals/race_igla-race-cordic.json,.trinity/seals/race_igla-race-eda.json,.trinity/seals/race_igla-race-formal.json,.trinity/seals/race_igla-race-gemm.json
+

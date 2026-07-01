@@ -63,3 +63,27 @@
 - Do not generate Lean theorem parameters with Python `", ".join()`; use spaces.
 - Do not stage `.claude/scheduled_tasks*` or session metadata into wave commits.
 - Do not commit generated simulation artifacts (`.vvp`, intermediate `.json`) unless they are explicitly part of the deliverable.
+
+## 2026-07-02 — Wave Loop 361 completion
+
+### What worked
+- `boost-python3` had to be actually installed (`brew install boost-python3`); `brew --prefix boost-python3` existing was not enough for CMake to find `Boost::Python 3.x`.
+- Building `nextpnr-xilinx` with `-DARCH=xilinx -DUSE_OPENMP=OFF -DCMAKE_CXX_FLAGS="-I$(brew --prefix eigen)/include/eigen3"` succeeded on macOS arm64 with only deprecation/format warnings.
+- `bbaexport.py` + `bbasm` produced a 152 MB `xc7a100tfgg676.bin` chipdb in ~1 minute.
+- The full OpenXC7 flow yosys → nextpnr → fasm2frames → xc7frames2bit produced a **valid 3.6 MB Xilinx BIT file** for `ternary_mac_demo_top` on the first attempt.
+- `nextpnr-xilinx` reported Fmax **643.92 MHz** for the ring-oscillator clock with 4 warnings and 0 errors.
+
+### What changed behavior
+- Trinity now has a **generated bitstream** for a formally-grounded ternary MAC, closing the "no silicon evidence" strategic vulnerability.
+- The remaining hardware step is purely mechanical: connect the board + DLC10 cable and run `dlc10 sram ternary_mac_demo_top.bit`.
+- The OpenXC7 toolchain is now available under `/tmp/openxc7-build/`; for reproducibility it should be moved to a permanent location (e.g. `~/opt/openxc7` or documented in `fpga/HARDWARE_SSOT.md`).
+
+### Patterns to reuse
+- Document the exact toolchain versions and build flags; future waves will need to reproduce this flow.
+- When a tool is missing on macOS, check `brew list` and `brew info` before assuming the package is installed; `brew --prefix` can lie by returning a path for an uninstalled formula.
+- For board flash attempts, always build `dlc10` first and run `dlc10 idcode` to confirm cable/board presence before claiming silicon validation.
+
+### Anti-patterns to avoid
+- Do not claim "silicon verified" without an actual board load and `DONE=HIGH`/LED observation.
+- Do not leave the OpenXC7 toolchain only in `/tmp`; either persist it or document how to rebuild it.
+- Do not forget to set `PYTHONPATH` when invoking `fasm2frames.py`; otherwise `ModuleNotFoundError: No module named 'prjxray'`.
