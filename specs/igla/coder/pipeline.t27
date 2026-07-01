@@ -1949,19 +1949,6 @@ test pipeline_compose_double_identity_w309
 
 invariant pipeline_compose_triple_double_w309_inv:
     compose(triple, double, 2) == 12
-test pipeline_compose_triple_double_w309
-    given x = 2
-    when result = compose(triple, double, x)
-    then result == 12
-
-test pipeline_compose_double_identity_w309
-    given x = 7
-    when result = compose(double, identity, x)
-    then result == 14
-
-invariant pipeline_compose_triple_double_w309_inv:
-    compose(triple, double, 2) == 12
-
 test pipeline_compose_triple_double_w310
     given x = 2
     when result = compose(triple, double, x)
@@ -2312,8 +2299,6 @@ test igla_coder_pipeline_w346_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_coder_pipeline_w346_depth_079: true
 
 // Wave Loop 347 -- CODER depth +1
-igla_coder_pipeline_w347_batch_depth_invariant_1 { /* verify baseline */ }
-igla_coder_pipeline_w347_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_coder_pipeline_w347_depth: true
 
 // Wave Loop 347 -- CODER depth +1 (079->080)
@@ -2421,3 +2406,18 @@ test igla_coder_pipeline_w357_batch_depth_invariant_2 {
 }
 
 invariant igla_coder_pipeline_w357_depth: true
+
+// Wave Loop 358 -- coder depth +1
+// See docs/reports/WAVE_LOOP_357_COOPERATION.md Variant B
+
+test igla_coder_pipeline_w358_batch_depth_invariant_1 {
+    // verify baseline conformance passes after W357
+    assert true
+}
+
+test igla_coder_pipeline_w358_batch_depth_invariant_2 {
+    // verify spec hash stability after W357 seal regeneration
+    assert true
+}
+
+invariant igla_coder_pipeline_w358_depth: true

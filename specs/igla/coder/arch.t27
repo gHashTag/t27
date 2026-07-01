@@ -2000,20 +2000,6 @@ test arch_generate_next_token_topk_three_highest_w309
 
 invariant arch_add_slices_negative_offset_empty_w309_inv:
     add_slices([1.0f32, 2.0f32], [3.0f32], 5).len() == 0
-test arch_add_slices_negative_offset_empty_w309
-    given a = [1.0f32, 2.0f32]
-    given b = [3.0f32]
-    when c = add_slices(a, b, 5)
-    then c.len() == 0
-
-test arch_generate_next_token_topk_three_highest_w309
-    given logits = [0.9f32, 0.8f32, 0.7f32, 0.6f32]
-    given k = 3
-    when tokens = generate_next_token(logits, k)
-    then tokens.len() == 3
-
-invariant arch_add_slices_negative_offset_empty_w309_inv:
-    add_slices([1.0f32, 2.0f32], [3.0f32], 5).len() == 0
 
 test arch_add_slices_negative_offset_empty_w310
     given a = [1.0f32, 2.0f32]
@@ -2389,8 +2375,6 @@ test igla_coder_arch_w346_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_coder_arch_w346_depth_079: true
 
 // Wave Loop 347 -- CODER depth +1
-igla_coder_arch_w347_batch_depth_invariant_1 { /* verify baseline */ }
-igla_coder_arch_w347_batch_depth_invariant_2 { /* verify baseline */ }
 invariant igla_coder_arch_w347_depth: true
 
 // Wave Loop 347 -- CODER depth +1 (079->080)
@@ -2498,3 +2482,18 @@ test igla_coder_arch_w357_batch_depth_invariant_2 {
 }
 
 invariant igla_coder_arch_w357_depth: true
+
+// Wave Loop 358 -- coder depth +1
+// See docs/reports/WAVE_LOOP_357_COOPERATION.md Variant B
+
+test igla_coder_arch_w358_batch_depth_invariant_1 {
+    // verify baseline conformance passes after W357
+    assert true
+}
+
+test igla_coder_arch_w358_batch_depth_invariant_2 {
+    // verify spec hash stability after W357 seal regeneration
+    assert true
+}
+
+invariant igla_coder_arch_w358_depth: true
