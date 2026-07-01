@@ -1263,6 +1263,12 @@ impl Parser {
             {
                 self.skip_to_semicolon()?;
             }
+            // Consume trailing semicolon so the module-body loop is not left
+            // pointing at a stray ';' (which would error and skip subsequent
+            // const/var declarations via skip_to_next_top_level).
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
             return Ok(decl);
         }
 
@@ -2208,7 +2214,19 @@ impl Parser {
                 ..Default::default()
             });
         }
-        self.parse_expr_postfix()
+        let mut expr = self.parse_expr_postfix()?;
+        // Cast: `expr as T` (e.g. `bit as u16`). `as` lexes as an Ident.
+        // Wrap in ExprCast; the backends lower it to the inner expression
+        // (Verilog is width-loose), so no type width is emitted.
+        while self.current.kind == TokenKind::Ident && self.current.lexeme == "as" {
+            self.advance(); // consume 'as'
+            let cast_ty = self.parse_type_annotation();
+            let mut cast = Node::new(NodeKind::ExprCast);
+            cast.extra_type = cast_ty;
+            cast.children.push(expr);
+            expr = cast;
+        }
+        Ok(expr)
     }
 
     /// Parse postfix expressions: field access (.field), deref (.*), indexing ([i]), call (f(args))
@@ -3764,8 +3782,26 @@ impl VerilogCodegen {
             self.write_line("// Registers (from struct declarations)");
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
+            // Declare struct field regs under the module-level `var` name that
+            // holds the struct (e.g. `uart_state_status`), matching exactly what
+            // gen_verilog_expr emits for field access. Falling back to the struct
+            // type name (`uartstate_status`) leaves every field reference an
+            // undeclared identifier and breaks iverilog compilation.
+            let mut struct_var: std::collections::HashMap<String, String> =
+                std::collections::HashMap::new();
+            for c in &consts {
+                if c.extra_mutable && !c.extra_type.is_empty() {
+                    struct_var
+                        .entry(c.extra_type.clone())
+                        .or_insert_with(|| c.name.clone());
+                }
+            }
             for s in &structs {
-                self.gen_verilog_struct(s);
+                let prefix = struct_var
+                    .get(&s.name)
+                    .cloned()
+                    .unwrap_or_else(|| s.name.to_lowercase());
+                self.gen_verilog_struct(s, &prefix);
             }
             self.write_line("");
         }
@@ -4124,7 +4160,7 @@ impl VerilogCodegen {
         }
     }
 
-    fn gen_verilog_struct(&mut self, node: &Node) {
+    fn gen_verilog_struct(&mut self, node: &Node, reg_prefix: &str) {
         self.write_indent();
         self.write_line(&format!("// struct {}", node.name));
         for field in &node.children {
@@ -4153,7 +4189,7 @@ impl VerilogCodegen {
                 "reg {}{}{}_{}; // {}.{}{}",
                 signed_str,
                 range_str,
-                node.name.to_lowercase(),
+                reg_prefix,
                 field.name,
                 node.name,
                 field.name,
@@ -4223,6 +4259,13 @@ impl VerilogCodegen {
             };
             self.write_line(&format!("input {}{}{};", ps_str, pr_str, pname));
         }
+        // Verilog requires a function to have at least one input port. A
+        // zero-argument function reads module state and returns a value; give it
+        // an unused dummy input so iverilog/Yosys accept the declaration.
+        if node.params.is_empty() && node.extra_return_type != "void" {
+            self.write_indent();
+            self.write_line("input _unused;");
+        }
 
         // Emit body
         if node.children.is_empty() {
@@ -4232,9 +4275,7 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line("begin");
             self.indent();
-            for stmt in &node.children {
-                self.gen_verilog_stmt(stmt);
-            }
+            self.gen_verilog_fn_body(&node.children);
             self.dedent();
             self.write_indent();
             self.write_line("end");
@@ -4250,6 +4291,45 @@ impl VerilogCodegen {
             self.write_line("endfunction");
         }
         self.current_fn_name.clear();
+    }
+
+    /// Emit a Verilog function body statement list, rewriting the
+    /// `if (c) { return A }  <rest>` shape (guarded early return with no
+    /// else) into `if (c) begin ... end else begin <rest> end`. Because a
+    /// Verilog `return` is lowered to a blocking assignment to the function
+    /// name, a bare fall-through would let the trailing statements clobber
+    /// the guarded assignment (last write wins). Wrapping the remainder in an
+    /// else preserves the early-return semantics.
+    fn gen_verilog_fn_body(&mut self, stmts: &[Node]) {
+        for (idx, stmt) in stmts.iter().enumerate() {
+            let is_guarded_return = stmt.kind == NodeKind::StmtIf
+                && stmt.children.len() == 2 // [cond, then]; no else block
+                && stmt.children[1]
+                    .children
+                    .last()
+                    .map_or(false, |s| s.kind == NodeKind::ExprReturn);
+            if is_guarded_return && idx + 1 < stmts.len() {
+                // Emit: if (cond) begin <then> end else begin <rest> end
+                self.write_indent();
+                self.write("if (");
+                self.gen_verilog_expr(&stmt.children[0]);
+                self.write_line(") begin");
+                self.indent();
+                for s in &stmt.children[1].children {
+                    self.gen_verilog_stmt(s);
+                }
+                self.dedent();
+                self.write_indent();
+                self.write_line("end else begin");
+                self.indent();
+                self.gen_verilog_fn_body(&stmts[idx + 1..]);
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+                return;
+            }
+            self.gen_verilog_stmt(stmt);
+        }
     }
 
     fn gen_verilog_test(&mut self, node: &Node) {
@@ -4568,15 +4648,27 @@ impl VerilogCodegen {
         match node.kind {
             NodeKind::ExprLiteral => {
                 let val = &node.value;
-                // Convert hex literals: 0xFF → 8'hFF
-                if val.starts_with("0x") || val.starts_with("0X") {
-                    let hex = &val[2..];
-                    let bits = hex.len() * 4;
-                    self.write(&format!("{}'h{}", bits, hex));
+                // Render integer literals as plain decimal (valid Verilog).
+                // Verilog rejects `0x..`/`0b..` and Rust-style `_` separators,
+                // so parse the numeric value and print it in base 10.
+                let clean: String = val.chars().filter(|&c| c != '_').collect();
+                if let Some(hex) = clean.strip_prefix("0x").or_else(|| clean.strip_prefix("0X")) {
+                    match u128::from_str_radix(hex, 16) {
+                        Ok(n) => self.write(&n.to_string()),
+                        Err(_) => self.write(val),
+                    }
+                } else if let Some(bin) = clean.strip_prefix("0b").or_else(|| clean.strip_prefix("0B")) {
+                    match u128::from_str_radix(bin, 2) {
+                        Ok(n) => self.write(&n.to_string()),
+                        Err(_) => self.write(val),
+                    }
                 } else if val == "true" {
                     self.write("1'b1");
                 } else if val == "false" {
                     self.write("1'b0");
+                } else if !clean.is_empty() && clean.chars().all(|c| c.is_ascii_digit()) {
+                    // Plain decimal, possibly with `_` separators — normalize.
+                    self.write(&clean);
                 } else {
                     self.write(val);
                 }

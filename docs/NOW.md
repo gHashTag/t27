@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-31
+Last updated: 2026-07-02
+
+## gen-verilog-iverilog-clean -- fix 6 backend lowering defects (Closes #1245)
+
+- **WHERE** (compiler + fpga spec): `bootstrap/src/compiler.rs` gen-verilog/parser fixes so non-trivial specs emit iverilog-compilable RTL: (1) parser consumes the trailing `;` after a const/var value so a run of consecutive const/var declarations is no longer dropped (uart went 1->8 localparams); (2) integer literals render as decimal (`0x1FFF`/`0b1010110011111`/`1_000` -> valid Verilog, not verbatim `0b..`); (3) a guarded early `return` inside a function is rewritten to `if/else` so the trailing statements no longer clobber the return (last-write-wins); (4) `expr as T` casts parse to `ExprCast` and lower to the inner expression (no more `// TODO`); (5) struct-field regs are declared under the holding `var` name (`uart_state_status`) matching field-access, not the type name; (6) zero-argument functions get an unused dummy `input` (Verilog forbids port-less functions). New `specs/fpga/bpsk.t27` (`ZeroDSP_BPSK`, the trios-mesh BPSK modem core, Closes #1243) now **compiles under iverilog and simulates**: its 13 embedded test assertions pass and hierarchical checks confirm correlate(Barker)=13, inversion=-13, sidelobes -5/+5, sync gate, frame=21.
+- **Why**: makes `.t27 -> Verilog RTL` actually synthesizable/simulatable for datapath specs instead of only structurally complete. uart/mac/bpsk now iverilog-clean; array-LUT specs (fifo/timing) still have separate aggregate-lowering gaps (out of scope). Regression: parse/typecheck/gen(Zig/Rust/Verilog/C) 504/504. Seals for specs whose Verilog changed will need re-sealing. Closes #1245.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## goldenfloat-ladder-extend -- GF64+GF256 rungs + corrupted-comment repair (Closes #1022)
 
