@@ -23,7 +23,7 @@
   "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
   "preprint": "https://arxiv.org/abs/2606.05017",
   "anchor_identity": "phi^2 + 1/phi^2 = 3",
-  "structural_reason": "Takum (Hunhold 2024, arXiv:2404.18603) is a tapered LOGARITHMIC format; its decode is not a plain S:E:M field. takum8 is promoted to bit-precise (exhaustive); this wider rung stays structural pending an external libtakum oracle for the correctly-rounded gap proof.",
+  "structural_reason": "Takum (Hunhold 2024, arXiv:2404.18603) is a tapered LOGARITHMIC format; its decode is not a plain S:E:M field. takum8 and takum16 are promoted to bit-precise (exhaustive 256 / 65536 codes, independent high-precision witness); this wider rung stays structural pending an external libtakum oracle for the full-domain correctly-rounded gap proof.",
   "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
   "n_vectors": 0,
   "vectors": []
