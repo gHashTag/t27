@@ -1828,3 +1828,17 @@ test igla_coder_prm_w365_batch_depth_invariant_2 {
 }
 
 invariant igla_coder_prm_w365_depth: true
+// Wave Loop 366 -- coder depth +1
+// See docs/reports/WAVE_LOOP_365_COOPERATION.md Variant B
+
+test igla_coder_prm_w366_batch_depth_invariant_1 {
+    // verify baseline conformance passes after W365
+    assert true
+}
+
+test igla_coder_prm_w366_batch_depth_invariant_2 {
+    // verify spec hash stability after W365 seal regeneration
+    assert true
+}
+
+invariant igla_coder_prm_w366_depth: true

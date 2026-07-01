@@ -1020,3 +1020,7 @@
 - **Commit:** feat(igla): Wave Loop 365 — 41-variable accumulation, 40-var minus lattice, octodecuple cancellation, zero-weight octuple closure, 204 generic ∀, gen-verilog repro docs, W366 cooperation variants
 - **Files:** .claude/plans/wave-loop-365.md
 
+## 2026-07-01T19:55:55Z — trinity-rust-rings
+- **Commit:** docs(plan): correct W365 issue reference #1250 -> #1251
+- **Files:** .claude/plans/wave-loop-366.md,.trinity/experience.md,.trinity/seals/coder_igla-coder-arch.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-eval.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-prm.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json,.trinity/seals/coder_igla-coder-weights.json,.trinity/seals/race_igla-race-adder-tree.json,.trinity/seals/race_igla-race-backend.json,.trinity/seals/race_igla-race-bram-weights.json,.trinity/seals/race_igla-race-cordic-fixed.json,.trinity/seals/race_igla-race-cordic-top.json,.trinity/seals/race_igla-race-cordic.json,.trinity/seals/race_igla-race-eda.json,.trinity/seals/race_igla-race-formal.json
+

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a3cd0dd2679a1bb66f75994af6b2e025bbe31a0c52629d609d68b7f5a1d916e4",
   "module": "igla-race-ternary-gemm",
   "ring": 12,
-  "sealed_at": "2026-07-01T19:10:56Z",
-  "spec_hash": "sha256:4e7b73b728aa8393208f4944f52e10789dd98e46c11557b1425b01f1717b4317",
+  "sealed_at": "2026-07-01T19:48:39Z",
+  "spec_hash": "sha256:5ff23d39fa587e5cfe73218c20bcc2244ad363d6ac9190cea4810d9f1c18eeee",
   "spec_path": "/Users/playra/t27/specs/igla/race/ternary_gemm.t27"
 }

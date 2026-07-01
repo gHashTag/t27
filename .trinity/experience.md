@@ -181,3 +181,28 @@
 - Do not attempt to fix `is_top_level_start()` by adding `KwConst`/`KwVar` without tracking nested-block context; it breaks error recovery inside `test`/`invariant`/`bench` blocks.
 - Do not leave `gen-verilog` defects without concrete repro commands; future waves will forget the exact failure mode.
 - Do not claim "silicon verified" without `dlc10 idcode` success and a loaded bitstream observation.
+
+## 2026-07-01 — Wave Loop 366 completion
+
+### What worked
+- Reused `scripts/gen_w366.py` and `scripts/gen_w366_lean.py` to append W366 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **4.1 s**.
+- `ternaryMacAccumulateFortyTwoPlusGeneric` pushed the accumulation boundary to **42 variables**, still in the linear `simp+omega` regime.
+- `ternaryMacNovemdecupleCancellationGeneric` (depth-19) correctly collapsed to residual `mac(x, a, .plus)`; the Lean statement matched the odd-depth residual exactly.
+- Regenerated all 27 IGLA seals with the hyphen-to-underscore mapping; no manual seal edits were needed.
+
+### What changed behavior
+- Generic ∀ count reached **208** (200 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **100 waves** (twenty-sixth consecutive zero-failure wave).
+- IGLA totals: **7,880 tests**, **2,950 invariants**.
+- The `dlc10` cable/board were still not detected; the failure is documented in `docs/reports/FPGA_EVIDENCE_W366.md`.
+- The `gen-verilog` backend remained unchanged; #1245 defects are still reproducible and documented.
+
+### Patterns to reuse
+- For 42-variable accumulations, the `simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode] <;> try omega` pattern remains sufficient.
+- For odd-depth cancellation theorems, keep the residual explicit in both the Lean theorem name and statement to avoid identity/residual confusion.
+- Re-run the full 546-spec conformance suite immediately after seal regeneration; seal mismatches are the only expected failure mode after a wave block append.
+
+### Anti-patterns to avoid
+- Do not land a broad `gen-verilog` fix in the same wave as a formal milestone unless it has a narrow, regression-free path; ship the reproduction document instead.
+- Do not report the previous wave's generic ∀ count from memory when the Lean file can be grepped directly; exact counts prevent inflated or deflated claims.
+- Do not skip `dlc10 idcode` just because earlier waves failed; retry each wave to keep the evidence trail current.
