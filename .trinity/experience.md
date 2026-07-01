@@ -41,3 +41,25 @@
 - Do not append bare wave blocks without `test`/`invariant`/`bench` keywords; the L4 TESTABILITY law rejects them and the conformance gate fails.
 - Do not attempt odd-depth identity cancellation theorems without first checking the expected residual weight; even depths are safer.
 - Do not rely on the generated Verilog backend for hardware evidence until it passes `yosys -p 'read_verilog'` cleanly.
+
+## 2026-07-02 — Wave Loop 360 completion
+
+### What worked
+- A 36-variable `simp+omega` accumulation theorem (`ternaryMacAccumulateThirtySixPlusGeneric`) built successfully in ~3.1 s, so the omega boundary is still linear at depth 36.
+- Forward-appending W360 blocks and regenerating all 27 seals from `/Users/playra/t27` returned **546/546 PASS** immediately after the Lean build.
+- Creating a board-ready wrapper (`ternary_mac_demo_top.v`) with a ring-oscillator clock and LED outputs produced a clean `yosys` synthesis result: 34 cells, 12 CARRY4 total, estimated 10 LCs.
+
+### What changed behavior
+- The Wukong V1 ternary MAC design is now **ready to route**: RTL, XDC constraints, and yosys JSON netlist are in `fpga/verilog/`.
+- `nextpnr-xilinx` is **not installed** on the build host; Homebrew only ships `nextpnr-ice40`. The OpenXC7 toolchain must be built from source per `fpga/HARDWARE_SSOT.md` §8.
+- Odd-depth cancellation theorems collapse to a single non-identity MAC (`mac(x,a,.plus)` for depth 13), so the statement must match the residual weight.
+
+### Patterns to reuse
+- For deep accumulation proofs, generate the Lean binder list with **space-separated variables**; Lean does not accept comma-separated binders.
+- For board-ready wrappers, reuse the `blinky.v` ring-oscillator pattern and the R23/T23 LED pins from existing QMTech designs; pass `--ignore-loops` to nextpnr.
+- When the bitstream toolchain is missing, commit the ready-to-route artifacts and the evidence document; do not let the missing tool block the formal wave.
+
+### Anti-patterns to avoid
+- Do not generate Lean theorem parameters with Python `", ".join()`; use spaces.
+- Do not stage `.claude/scheduled_tasks*` or session metadata into wave commits.
+- Do not commit generated simulation artifacts (`.vvp`, intermediate `.json`) unless they are explicitly part of the deliverable.
