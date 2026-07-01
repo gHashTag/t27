@@ -2,6 +2,12 @@
 
 Last updated: 2026-07-02
 
+## seal-sweep-and-dedup -- reseal all specs + disambiguate 3 duplicate module names (Closes #1245)
+
+- **WHERE** (seals + 3 fpga/misc specs): reseal every spec so `suite` seal-verify is green again after the gen-verilog backend change (#1250) shifted the Verilog/C/Rust/Zig hashes for most specs; also fixes pre-existing spec-hash drift and missing seals across the tree. Three pairs of specs shared a module name and collided on their `<dir>_<Module>.json` seal file, so they could never both verify: `feed_forward` / `feed_forward_network` (both `FeedForward`), `sacred_identity` / `sacred_governance` (both `String`), `eternal_monitor` / `faculty_board` (both malformed `"[]const u8"`). Rename the second of each pair (FeedForwardNetwork / SacredGovernance / FacultyBoard) and reseal. Suite now: parse / typecheck / gen(Zig/Rust/Verilog/C) / **seal-verify all 514/514**.
+- **Why**: keeps the seal ledger consistent with the current compiler so CI seal gates pass and every spec is reproducibly sealed. No spec logic changed beyond the three module-name renames. Closes #1245.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## gen-verilog-iverilog-clean -- fix backend lowering defects + BPSK modem spec (Closes #1245)
 
 - **WHERE** (compiler + fpga spec): `bootstrap/src/compiler.rs` gen-verilog/parser fixes so datapath specs emit iverilog-compilable RTL: (1) `parse_const_decl` consumes the trailing `;` so a run of consecutive const/var declarations is no longer dropped (uart went 1->8 localparams, 31->0 iverilog errors); (2) integer literals render as decimal (`0x`/`0b`/`_` -> valid Verilog); (3) a guarded early `return` in a function is rewritten to if/else (no last-write-wins clobber); (4) struct-field regs are declared under the holding `var` name (matching field access); (5) zero-argument functions get an unused dummy `input`; (6) function bodies use named `begin` blocks (Verilog-2001 forbids unnamed-block locals). The existing `ExprCast` cast handling is kept as-is. New `specs/fpga/bpsk.t27` (`ZeroDSP_BPSK`, the trios-mesh BPSK modem core) now **iverilog-compiles and simulates**: 13 embedded test assertions pass; hierarchical checks confirm correlate(Barker)=13, inversion=-13, sidelobes -5/+5, sync gate, frame=21. uart/mac now iverilog-clean too (fpga clean 1 -> 3 of 34).
