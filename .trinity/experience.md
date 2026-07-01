@@ -157,3 +157,27 @@
 - Do not attempt broad `parse_const_decl` / `skip_to_next_top_level` parser fixes without a staged branch and a full 546-spec conformance run.
 - Do not delete generator scripts after a single wave if they are parameterized by wave number; they can be copied and updated.
 - Do not claim identity cancellation at odd depths without first proving the residual equals the intended right-hand side.
+
+## 2026-07-01 — Wave Loop 365 completion
+
+### What worked
+- Reused `scripts/gen_w365.py` and `scripts/gen_w365_lean.py` to append W365 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **3.8 s**.
+- `ternaryMacAccumulateFortyOnePlusGeneric` pushed the accumulation boundary to **41 variables**, still in the linear `simp+omega` regime.
+- `ternaryMacOctodecupleCancellationGeneric` (depth-18) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
+- Created `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`, giving every remaining #1245 defect an exact reproduction command and a tentative root-cause note.
+
+### What changed behavior
+- Generic ∀ count reached **204** (196 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **99 waves** (twenty-fifth consecutive zero-failure wave).
+- IGLA totals: **7,618 tests**, **2,880 invariants**.
+- The `dlc10` cable/board were still not detected; the failure is documented in `docs/reports/FPGA_EVIDENCE_W365.md`.
+
+### Patterns to reuse
+- For IGLA seal regeneration, map seal file names (hyphenated) to spec file names (underscore) when scripting; `t27c seal --save` normalizes the output file name.
+- When a compiler fix is risky, ship a reproduction/roadmap document in the same wave; do not let the inability to fix silently erase the finding.
+- Keep even-depth cancellation theorems for identity collapse; use odd-depth theorems only when the residual is explicitly verified.
+
+### Anti-patterns to avoid
+- Do not attempt to fix `is_top_level_start()` by adding `KwConst`/`KwVar` without tracking nested-block context; it breaks error recovery inside `test`/`invariant`/`bench` blocks.
+- Do not leave `gen-verilog` defects without concrete repro commands; future waves will forget the exact failure mode.
+- Do not claim "silicon verified" without `dlc10 idcode` success and a loaded bitstream observation.
