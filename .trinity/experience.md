@@ -110,3 +110,26 @@
 - Do not claim "board flashed" when only the bitstream exists; distinguish "generated", "loaded", and "observed running".
 - Do not let a hardware blocker delay the spec/Lean/seal/report cadence; ship the formal deliverables and document the blocker.
 - Do not commit generator scripts that are still one-off prototypes as part of the main wave commit unless they have been reviewed as tooling.
+
+## 2026-07-01 — Wave Loop 363 completion
+
+### What worked
+- Reused `scripts/gen_w363.py` and `scripts/gen_w363_lean.py` to append W363 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **546/546 PASS** and `lake build Trinity.TernaryInference` succeeded in **3.6 s**.
+- `ternaryMacAccumulateThirtyNinePlusGeneric` (`a+b+...+am`) pushed the accumulation boundary to **39 variables**, still within the linear `simp+omega` regime.
+- `ternaryMacSexdecupleCancellationGeneric` (depth-16 alternating plus/minus) collapsed cleanly to identity, confirming even-depth cancellation remains the safe default.
+- `dlc10 idcode` was retried and the failure was documented as a hardware-availability blocker rather than a regression.
+
+### What changed behavior
+- Generic ∀ count reached **196** (188 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **97 waves** (twenty-third consecutive zero-failure wave).
+- The W363 report and cooperation variants explicitly distinguish "bitstream generated" from "silicon physically observed" to avoid false claims.
+
+### Patterns to reuse
+- For cancellation theorems, keep alternating plus/minus weights and even depth to guarantee `= x` collapse without residual-weight adjustments.
+- Continue the 4-theorem-per-wave cadence in `TernaryInference.lean`: accumulation probe, minus-lattice parity, cancellation depth, zero-weight closure.
+- Document hardware blockers in a dedicated evidence file (`docs/reports/FPGA_EVIDENCE_W<N>.md`) so the load procedure is ready when the cable/board is available.
+
+### Anti-patterns to avoid
+- Do not modify a generator script with `sed` shortcuts without running it on a scratch copy first; the first `gen_w363.py` draft corrupted the expected-wave check.
+- Do not let a single hardware blocker block the full wave deliverable; finalize the formal path and ship the report.
+- Do not claim a theorem reaches identity unless the Lean statement literally ends in `= x` or matches the verified residual.
