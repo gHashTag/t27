@@ -312,3 +312,31 @@
 - Do not try to fix defect 1 by adding `KwConst` to `is_top_level_start()`; that breaks error recovery inside `test`/`invariant`/`bench` blocks. The correct fix is inside `parse_const_decl` itself.
 - Do not commit a parser fix without a dedicated scratch spec that exercises the previously broken code path; the full suite may not contain a multi-const module.
 - Do not trust repository-wide test/invariant counts from prior-wave memory; run `t27c stats` to get current totals.
+
+## 2026-07-02 — Wave Loop 371 completion
+
+### What worked
+- Reused `scripts/gen_w371.py` and `scripts/gen_w371_lean.py` to append W371 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **551/551 PASS** and `lake build Trinity.TernaryInference` succeeded.
+- `ternaryMacAccumulateFortySevenPlusGeneric` pushed the accumulation boundary to **47 variables**; `simp+omega` remains in the linear regime.
+- `ternaryMacQuattuorvigintupleCancellationGeneric` (depth-24) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
+- `ternaryMacZeroWeightQuattuordecupleClosureGeneric` uses 7 zero-weight MACs before and 7 zero-weight MACs after a plus-weight MAC (14 closure size, 15 variables).
+- Fixed a real `gen-verilog` lowering defect: Verilog keyword identifier collision. Added `verilog_keywords()` and `verilog_safe_identifier()` helpers in `bootstrap/src/compiler.rs` so identifiers like `task` are escaped as `\task `. This made `specs/igla/coder/benchmark.t27` pass `yosys read_verilog` for the first time.
+- Verified the fix with scratch spec `specs/scratch/w371_verilog_keyword.t27` and `yosys read_verilog` before mass resealing.
+
+### What changed behavior
+- Generic ∀ count reached **228** (220 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **105 waves** (thirty-first consecutive zero-failure wave).
+- IGLA totals: **12,752 tests**, **5,576 invariants** across full repo.
+- Conformance suite now evaluates **551 specs** (546 canonical IGLA + 2 non-IGLA + 3 scratch regression specs).
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W371.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: keyword collision fixed; early return re-characterized as a semantic if-else chaining bug; `let` destructuring added as a new tracked defect.
+
+### Patterns to reuse
+- For gen-verilog fixes, run a yosys sweep across IGLA specs to find concrete failures before choosing which defect to fix; prior-wave repro descriptions can become stale.
+- Use Verilog escaped identifiers (`\name `) for keyword collisions rather than renaming, so the emitted source remains human-readable and the original t27 name is preserved.
+- After any change to identifier emission in `gen_verilog_expr` or `gen_verilog_fn`, expect mass seal regeneration across all specs.
+
+### Anti-patterns to avoid
+- Do not assume a documented gen-verilog defect still reproduces exactly as written; verify with a fresh generated output and `yosys read_verilog` before implementing.
+- Do not fix keyword collisions by appending a suffix to the t27 name; that would break cross-reference consistency. Escaped identifiers keep the name unchanged.
+- Do not leave a scratch regression spec unsealed; an unsealed spec will produce a suite failure.

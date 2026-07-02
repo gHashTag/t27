@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-02 (Wave Loop 370)  
+**Last updated:** 2026-07-02 (Wave Loop 371)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -46,11 +46,29 @@ endmodule
 
 **Verification:** `t27c gen-verilog specs/scratch/w369_bin_width.t27` produces `16'b1` and `16'b100`, which parse cleanly in `yosys`.
 
+### Defect 2c — Verilog keyword identifier collision (FIXED in W371)
+
+**Symptom:** User identifiers that collide with Verilog reserved keywords caused `yosys read_verilog` syntax errors. Example: a parameter named `task` in `specs/igla/coder/benchmark.t27` was emitted as `input [31:0] task;`, which Yosys rejected with `syntax error, unexpected TOK_TASK`.
+
+**Repro:**
+```t27
+module repro_verilog_keyword;
+fn evaluate_task_at_k(bank : u32, task : u32, k : u32) -> bool {
+    if (k == 0) { return false; }
+    return evaluate_task_at_k_inner(bank, task, k, 0);
+}
+endmodule
+```
+
+**Fix:** Added `verilog_keywords()` and `verilog_safe_identifier()` helpers in `bootstrap/src/compiler.rs`. Function names, parameter declarations, function-call names, and bare identifier expressions are now escaped as `\name ` when they collide with a Verilog keyword.
+
+**Verification:** `specs/scratch/w371_verilog_keyword.t27`; generated Verilog escapes `\task ` in both the parameter declaration and all references; `yosys read_verilog` passes. `specs/igla/coder/benchmark.t27` also now passes `yosys read_verilog`.
+
 ---
 
 ## Remaining Defects
 
-### Defect 3 — Early `return` inside bare `if` drops the rest of the function body
+### Defect 3 — Early `return` inside bare `if` lacks if-else chaining (semantic priority bug)
 
 **Repro:**
 ```t27
@@ -61,11 +79,17 @@ fn sign(x : i8) -> i8 {
 }
 ```
 
-**Observed Verilog:** only the first `return` is generated; subsequent statements are missing or commented out.
+**Observed Verilog:** all three assignments are emitted, but as sequential bare statements:
+```verilog
+if ((x < 0)) begin sign = -1; end
+if ((x > 0)) begin sign = 1; end
+sign = 0;
+```
+The final `sign = 0;` always executes last, so the function returns `0` for all inputs instead of `-1` / `1` / `0`.
 
-**Root cause:** the bare `if` (no `else`) path in `gen_verilog_if_stmt` does not preserve fall-through control flow.
+**Root cause:** `gen_verilog_if_stmt` emits each bare `if` independently. There is no control-flow analysis to convert a sequence of bare-if-early-return statements into an `if-else if-else` chain.
 
-**Wave-safe fix order:** medium priority; affects functions with multiple early exits.
+**Wave-safe fix order:** medium priority; affects functions with multiple early exits. Requires statement-level pattern matching, not a parser change.
 
 ---
 
@@ -78,11 +102,11 @@ fn cast_and_mask(x : u16) -> u8 {
 }
 ```
 
-**Observed Verilog:** the assignment omits the inner expression, producing a placeholder or truncated result.
+**Observed Verilog (W371):** the expression is now emitted as `((x & {8{1'b1}}) & 8'h0F)`. The bitwise body is no longer dropped; the remaining concern is whether the `as u8` truncation semantics match the intended width narrowing in all contexts.
 
-**Root cause:** operator-lowering for `as` and bitwise `&` / `|` / `^` / `~` is incomplete in `gen_verilog_expr`.
+**Root cause:** operator-lowering for `as` and bitwise `&` / `|` / `^` / `~` is incomplete in `gen_verilog_expr`; the W371 reproduces no syntax error but may produce incorrect width behavior for non-trivial casts.
 
-**Wave-safe fix order:** medium-high priority; blocks many numeric idioms.
+**Wave-safe fix order:** medium-high priority; needs a scratch spec with explicit simulation values to confirm correctness.
 
 ---
 
@@ -102,14 +126,32 @@ fn get_x(p : Pt) -> u8 {
 
 **Wave-safe fix order:** lower priority until specs actively use struct ports.
 
+### Defect 6 — `let` destructuring is emitted verbatim
+
+**Repro:**
+```t27
+fn cordic_top_batch_inner(angles : u32, idx : u32, acc : i32) -> i32 {
+    if (idx >= angles.len()) { return acc; }
+    let(s, _c, _r) = cordic_top(1, 1, angles[idx], 1);
+    return cordic_top_batch_inner(angles, idx + 1, acc + s);
+}
+```
+
+**Observed Verilog:** the `let(s, _c, _r) = ...` statement is emitted verbatim as `let(s, _c, _r) = cordic_top(...);`, which is not valid Verilog and causes `yosys read_verilog` to fail with a syntax error.
+
+**Root cause:** `gen_verilog_stmt` does not lower `StmtLocal` with tuple/destructuring patterns; it only emits scalar `reg` declarations.
+
+**Wave-safe fix order:** high priority for `cordic.t27` / `cordic_top.t27` yosys cleanliness; can be fixed by emitting individual scalar `reg` declarations for each bound name and assigning from the function call result (or by unrolling the destructuring in the AST).
+
 ---
 
 ## Recommended Triage Order
 
-1. **Defect 3** — early return fall-through; needed for control-flow-heavy specs. Small scope, but must not break existing if-statement emission.
-2. **Defect 4** — cast/bitwise operators; needed for numeric idioms. Larger lowering change; needs a scratch spec and `yosys` verification.
-3. **Defect 5** — struct fields; defer until struct usage grows.
-4. **CI smoke gate** — add `t27c gen-verilog` + `yosys read_verilog` regression tests once the remaining safe parser/lowering fixes are landed; L7 UNITY prohibits new shell scripts on the critical path.
+1. **Defect 6** — `let` destructuring; blocks two IGLA specs from passing `yosys read_verilog`. Needs a scratch spec and `yosys` verification.
+2. **Defect 3** — early return if-else chaining; needed for control-flow-heavy specs. Requires statement-level pattern matching.
+3. **Defect 4** — cast/bitwise width semantics; needs simulation values to confirm correctness.
+4. **Defect 5** — struct fields; defer until struct usage grows.
+5. **CI smoke gate** — add `t27c gen-verilog` + `yosys read_verilog` regression tests once the remaining safe parser/lowering fixes are landed; L7 UNITY prohibits new shell scripts on the critical path.
 
 ---
 
@@ -118,9 +160,11 @@ fn get_x(p : Pt) -> u8 {
 - [x] `0x` scalar width padding (`const`, `var`, `let`, `return`)
 - [x] `0b` scalar width padding (`const`, `var`, `let`, `return`)
 - [x] Multiple `const` declarations
-- [ ] Early `return` fall-through
-- [ ] `as` / bitwise operator body preservation
+- [x] Verilog keyword identifier collision
+- [ ] Early `return` if-else chaining
+- [ ] `as` / bitwise operator width correctness
 - [ ] Struct-field reg naming
+- [ ] `let` destructuring lowering
 
 ---
 

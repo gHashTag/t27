@@ -3661,6 +3661,42 @@ impl VerilogCodegen {
             .replace(|c: char| !c.is_alphanumeric() && c != '_', "_")
     }
 
+    /// Verilog-2001 reserved keywords. If a user identifier collides with one,
+    /// escape it with the \\identifier<space> form so it is treated as an
+    /// ordinary identifier and not parsed as a keyword.
+    fn verilog_keywords() -> &'static [&'static str] {
+        &[
+            "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
+            "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
+            "defparam", "design", "disable", "edge", "else", "end", "endcase", "endconfig",
+            "endfunction", "endgenerate", "endmodule", "endprimitive", "endspecify",
+            "endtable", "endtask", "event", "for", "force", "forever", "fork", "function",
+            "generate", "genvar", "highz0", "highz1", "if", "ifnone", "incdir", "include",
+            "initial", "inout", "input", "instance", "integer", "join", "large", "liblist",
+            "library", "localparam", "macromodule", "medium", "module", "nand", "negedge",
+            "nmos", "nor", "noshowcancelled", "not", "notif0", "notif1", "or", "output",
+            "parameter", "pmos", "posedge", "primitive", "pull0", "pull1", "pulldown",
+            "pullup", "pulsestyle_onevent", "pulsestyle_ondetect", "rcmos", "real", "realtime",
+            "reg", "release", "repeat", "rnmos", "rpmos", "rtran", "rtranif0", "rtranif1",
+            "scalared", "showcancelled", "signed", "small", "specify", "specparam", "strong0",
+            "strong1", "supply0", "supply1", "table", "task", "time", "tran", "tranif0",
+            "tranif1", "tri", "tri0", "tri1", "triand", "trior", "trireg", "unsigned", "use",
+            "vectored", "wait", "wand", "weak0", "weak1", "while", "wire", "wor", "xnor", "xor",
+        ]
+    }
+
+    /// Escape identifiers that collide with Verilog keywords. Returns the
+    /// escaped form \\name<space> when the name is a keyword, otherwise the
+    /// original name. The trailing space is part of the escaped identifier
+    /// syntax and must be preserved wherever the identifier is emitted.
+    fn verilog_safe_identifier(name: &str) -> String {
+        if Self::verilog_keywords().contains(&name) {
+            format!("\\{} ", name)
+        } else {
+            name.to_string()
+        }
+    }
+
     fn write(&mut self, s: &str) {
         self.output.push_str(s);
     }
@@ -4308,7 +4344,7 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_fn(&mut self, node: &Node) {
-        self.current_fn_name = node.name.clone();
+        self.current_fn_name = Self::verilog_safe_identifier(&node.name);
         self.current_fn_return_type = node.extra_return_type.clone();
         self.param_widths.clear();
         for (pname, ptype) in &node.params {
@@ -4339,17 +4375,19 @@ impl VerilogCodegen {
             format!("{} ", range)
         };
 
+        let fn_name = Self::verilog_safe_identifier(&node.name);
+
         // void functions → task; others → function
         if node.extra_return_type == "void" {
             self.write_indent();
-            self.write_line(&format!("task {};", node.name));
+            self.write_line(&format!("task {};", fn_name));
         } else {
             self.write_indent();
             self.write_line(&format!(
                 "function {}{}{}; // -> {}",
                 signed_str,
                 range_str,
-                node.name,
+                fn_name,
                 if node.extra_return_type.is_empty() {
                     "auto"
                 } else {
@@ -4372,7 +4410,8 @@ impl VerilogCodegen {
             } else {
                 format!("{} ", pr)
             };
-            self.write_line(&format!("input {}{}{};", ps_str, pr_str, pname));
+            let safe_pname = Self::verilog_safe_identifier(pname);
+            self.write_line(&format!("input {}{}{};", ps_str, pr_str, safe_pname));
         }
 
         // Emit body
@@ -4803,12 +4842,12 @@ impl VerilogCodegen {
                     self.write(val);
                 }
             }
-            NodeKind::ExprIdentifier => self.write(&node.name),
+            NodeKind::ExprIdentifier => self.write(&Self::verilog_safe_identifier(&node.name)),
             NodeKind::ExprEnumValue => {
                 self.write(&node.name);
             }
             NodeKind::ExprCall => {
-                self.write(&node.name);
+                self.write(&Self::verilog_safe_identifier(&node.name));
                 self.write("(");
                 for (i, arg) in node.children.iter().enumerate() {
                     if i > 0 {

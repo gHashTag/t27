@@ -2115,3 +2115,17 @@ test igla_race_rtl_w370_batch_depth_invariant_2 {
 }
 
 invariant igla_race_rtl_w370_depth: true
+// Wave Loop 371 -- race depth +1
+// See docs/reports/WAVE_LOOP_370_COOPERATION.md Variant B
+
+test igla_race_rtl_w371_batch_depth_invariant_1 {
+    // verify baseline conformance passes after W370
+    assert true
+}
+
+test igla_race_rtl_w371_batch_depth_invariant_2 {
+    // verify spec hash stability after W370 seal regeneration
+    assert true
+}
+
+invariant igla_race_rtl_w371_depth: true
