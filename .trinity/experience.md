@@ -340,3 +340,29 @@
 - Do not assume a documented gen-verilog defect still reproduces exactly as written; verify with a fresh generated output and `yosys read_verilog` before implementing.
 - Do not fix keyword collisions by appending a suffix to the t27 name; that would break cross-reference consistency. Escaped identifiers keep the name unchanged.
 - Do not leave a scratch regression spec unsealed; an unsealed spec will produce a suite failure.
+
+## 2026-07-02 — Wave Loop 372 completion
+
+### What worked
+- Reused the generator pattern (`scripts/gen_w372.py`, `scripts/gen_w372_lean.py`) to append W372 blocks and 4 new generic ∀ theorems; `t27c suite` returned **552/552 PASS** and `lake build Trinity.TernaryInference` succeeded in **~5.2 s**.
+- `ternaryMacAccumulateFortyEightPlusGeneric` pushed the plus-accumulation boundary to **48 variables** without timeout, confirming the `simp+omega` regime remains linear at this depth.
+- Extended W371 keyword-escape fix to local variable declarations and struct-field register names in `bootstrap/src/compiler.rs`. A scratch spec with local variables named `task` and `wire` now passes `yosys read_verilog -sv` and `synth_xilinx`.
+- Scripted mass seal regeneration: 177 non-IGLA seals (compiler change) + 27 IGLA seals (new W372 blocks) + 1 scratch seal, ending at 0 mismatches.
+
+### What changed behavior
+- Generic ∀ count reached **232** (224 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **106 waves** (thirty-second consecutive zero-failure wave).
+- IGLA totals: **12,804 tests**, **5,603 invariants** across full repo.
+- Conformance suite now evaluates **552 specs** (27 IGLA + non-IGLA + scratch regression specs).
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W372.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: keyword collision extended to underscore-delimited keyword components; local-variable and struct-field emission marked fixed; `let` destructuring remains the highest-priority open defect.
+
+### Patterns to reuse
+- When extending keyword escaping, detect keyword components at underscore boundaries, not just exact matches. Verilog treats `task_foo` as a keyword followed by an identifier, so it must be escaped as `\\task_foo `.
+- After a compiler change that affects identifier emission, reseal all specs in two passes: first non-IGLA, then IGLA after spec blocks land, to avoid redundant resealing.
+- Keep a scratch spec for each backend fix; `yosys read_verilog -sv` is a stronger verification than parse/typecheck alone.
+
+### Anti-patterns to avoid
+- Do not attempt a full `let` destructuring fix inside a single wave; it requires parser-level tuple-pattern support or a statement-level pattern-match pass. Document and defer.
+- Do not skip sealing a scratch spec before running the full suite.
+- Do not commit mass seal changes without a final `t27c suite` run; even a single stale seal fails the conformance gate.

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:18aabbfcbf1f39ac7f9d91e4bdd991bb222d3ef731f5af94c61d3155ba6ca7c9",
   "gen_hash_rust": "sha256:ccd9fdecd59154652dc6abc8cc66b1ba5c79f3f83dc1e939825f52776073e9b7",
-  "gen_hash_verilog": "sha256:a7b328ce83d4ee1c310b407b209c651a3a92f9ffa3de70a4a94dfd50907fb685",
+  "gen_hash_verilog": "sha256:40b0da4d60609041936e3bcf74f823f09c350759a6b44f7d9099e90e0716f6a3",
   "gen_hash_zig": "sha256:bd37aa5c6e60b87df74dd0a437aff824da626dfcce38c0afefd5839b8b15aed1",
   "module": "Tools",
   "ring": 12,
-  "sealed_at": "2026-07-02T13:28:59Z",
+  "sealed_at": "2026-07-02T14:15:14Z",
   "spec_hash": "sha256:9a016d200cbb04a73da28db8f29df9d84a72297da2349b26ac11ffee901e26a3",
   "spec_path": "specs/tools/schema.t27"
 }

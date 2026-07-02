@@ -3686,11 +3686,19 @@ impl VerilogCodegen {
     }
 
     /// Escape identifiers that collide with Verilog keywords. Returns the
-    /// escaped form \\name<space> when the name is a keyword, otherwise the
+    /// escaped form \\name<space> when the name is a keyword or contains a
+    /// keyword as a whole underscore-delimited component, otherwise the
     /// original name. The trailing space is part of the escaped identifier
     /// syntax and must be preserved wherever the identifier is emitted.
     fn verilog_safe_identifier(name: &str) -> String {
-        if Self::verilog_keywords().contains(&name) {
+        let keywords = Self::verilog_keywords();
+        let needs_escape = keywords.iter().any(|kw| {
+            name == *kw
+                || name.starts_with(&format!("{}_", kw))
+                || name.ends_with(&format!("_{}", kw))
+                || name.contains(&format!("_{}_", kw))
+        });
+        if needs_escape {
             format!("\\{} ", name)
         } else {
             name.to_string()
@@ -4330,12 +4338,13 @@ impl VerilogCodegen {
                 String::new()
             };
 
+            let reg_base = format!("{}_{}", node.name.to_lowercase(), field.name);
+            let safe_reg = Self::verilog_safe_identifier(&reg_base);
             self.write_line(&format!(
-                "reg {}{}{}_{}; // {}.{}{}",
+                "reg {}{}{}; // {}.{}{}",
                 signed_str,
                 range_str,
-                node.name.to_lowercase(),
-                field.name,
+                safe_reg,
                 node.name,
                 field.name,
                 array_suffix,
@@ -4574,11 +4583,12 @@ impl VerilogCodegen {
                     format!("{} ", range)
                 };
 
-                self.write(&format!("{} {}{}{};", kw, signed_str, range_str, node.name));
+                let safe_name = Self::verilog_safe_identifier(&node.name);
+                self.write(&format!("{} {}{}{};", kw, signed_str, range_str, safe_name));
                 if !node.children.is_empty() {
                     self.write_line("");
                     self.write_indent();
-                    self.write(&node.name);
+                    self.write(&safe_name);
                     self.write(" = ");
                     let child = &node.children[0];
                     if child.kind == NodeKind::ExprLiteral
