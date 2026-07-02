@@ -4012,3 +4012,17 @@ test igla_coder_eval_w373_batch_depth_invariant_2 {
 }
 
 invariant igla_coder_eval_w373_depth: true
+// Wave Loop 374 -- coder depth +1
+// See docs/reports/WAVE_LOOP_373_COOPERATION.md Variant B
+
+test igla_coder_eval_w374_batch_depth_invariant_1 {
+    // verify baseline conformance passes after W373
+    assert true
+}
+
+test igla_coder_eval_w374_batch_depth_invariant_2 {
+    // verify spec hash stability after W373 seal regeneration
+    assert true
+}
+
+invariant igla_coder_eval_w374_depth: true

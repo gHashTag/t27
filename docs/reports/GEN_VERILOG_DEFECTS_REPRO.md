@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-01 (Wave Loop 373)  
+**Last updated:** 2026-07-01 (Wave Loop 374)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -65,10 +65,14 @@ endmodule
 - W372: Extended `verilog_safe_identifier()` to escape identifiers that **contain** a keyword as an underscore-delimited component (e.g., `task_foo`, `foo_task`, `foo_task_bar`). Applied the safe identifier to `StmtLocal` declarations/assignments and struct-field register names.
 - W373: Corrected a tokenization bug in the W372 struct-field path. The W372 implementation escaped the field name in isolation (`\reg `) and then prepended the struct type name, producing `word_\reg `, which Verilog tokenizes as the separate identifiers `word_` and `\reg `. W373 now builds the full flattened name first (`word_reg`) and escapes the entire token as `\word_reg ` when needed. The same full-token escaping is applied to `ExprFieldAccess` in `gen_verilog_expr`.
 
+**Fix history:**
+- W374: Applied `verilog_safe_identifier()` to module-level `const` and `var` declarations. Top-level names like `wire` or `reg` are now emitted as escaped identifiers (`\wire ` / `\reg `) in `localparam`, `reg`, and initializer statements. Array var elements use the escaped base name (`\wire_0`, `\reg_0`).
+
 **Verification:**
 - `specs/scratch/w371_verilog_keyword.t27` — parameter `task` escaped; yosys clean.
 - `specs/scratch/w372_local_keyword.t27` — local variables named `task` and `wire` escaped; yosys `read_verilog -sv` + `synth_xilinx` pass.
 - `specs/scratch/w373_struct_field_keyword.t27` — struct fields named `reg` and `wire`; generated regs are `\word_reg ` / `\word_wire ` and parse cleanly through `yosys read_verilog -sv` + `synth_xilinx`.
+- `specs/scratch/w374_module_keyword.t27` — top-level const `wire` and var `reg` escaped; `t27c gen-verilog` + `yosys read_verilog -sv` + `synth_xilinx` pass.
 - `specs/igla/coder/benchmark.t27` now passes `yosys read_verilog`.
 
 ---
@@ -168,6 +172,7 @@ fn cordic_top_batch_inner(angles : u32, idx : u32, acc : i32) -> i32 {
 - [x] `0b` scalar width padding (`const`, `var`, `let`, `return`)
 - [x] Multiple `const` declarations
 - [x] Verilog keyword identifier collision (exact and underscore-delimited component matches)
+- [x] Module-level const/var keyword-safe emission
 - [ ] Early `return` if-else chaining
 - [ ] `as` / bitwise operator width correctness
 - [x] Struct-field reg naming (keyword-safe, full-token escape)

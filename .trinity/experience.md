@@ -395,3 +395,32 @@
 - Do not apply `verilog_safe_identifier()` to a component and then concatenate a prefix; always apply it to the complete identifier token.
 - Do not assume a W372-level fix is tokenization-correct just because it looks right in generated text; verify with `yosys read_verilog -sv`.
 - Do not leave the FPGA retry undocumented; even a missing-cable result is evidence and belongs in `docs/reports/FPGA_EVIDENCE_W*.md`.
+
+## 2026-07-01 — Wave Loop 374 completion
+
+### What worked
+- Reused the generator pattern (`scripts/gen_w374.py`, `scripts/gen_w374_lean.py`) to append W374 blocks and 4 new generic ∀ theorems; `t27c suite` returned **554/554 PASS** and `lake build Trinity.TernaryInference` succeeded.
+- `ternaryMacAccumulateFiftyPlusGeneric` pushed the plus-accumulation boundary to **50 variables** without timeout, confirming the `simp+omega` regime still holds at depth 50.
+- `ternaryMacSeptemvigintupleCancellationGeneric` (depth-27) correctly collapsed to residual `mac(x, a, .plus)`, confirming odd-depth cancellation statements are still safe.
+- `ternaryMacZeroWeightSeptendecupleClosureGeneric` uses 8 zero-weight MACs before and 8 zero-weight MACs after a plus-weight MAC (16 closure size, 17 variables).
+- Extended keyword-escape fix to module-level `const` and `var` declarations in `bootstrap/src/compiler.rs`. Top-level declarations named `wire` or `reg` now emit escaped identifiers and parse cleanly through `yosys read_verilog -sv` + `synth_xilinx`.
+- Added scratch spec `specs/scratch/w374_module_keyword.t27` with top-level const `wire` and var `reg`.
+- Scripted mass seal regeneration: 7 non-IGLA seals (compiler change) + 27 IGLA seals (new W374 blocks) + 1 scratch seal, ending at 0 mismatches.
+
+### What changed behavior
+- Generic ∀ count reached **240** (232 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **108 waves** (thirty-fourth consecutive zero-failure wave).
+- IGLA totals: **12,917 tests**, **5,660 invariants** across full repo.
+- Conformance suite now evaluates **554 specs** (27 IGLA + non-IGLA + scratch regression specs).
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W374.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: module-level const/var keyword collision fixed; `let` destructuring remains the highest-priority open defect.
+
+### Patterns to reuse
+- The `simp+omega` accumulation proof remains practical at depth 50; continue probing one additional variable per wave while build time stays under ~10 s.
+- For module-level keyword collisions, apply `verilog_safe_identifier()` directly where the `localparam` / `reg` identifier is emitted, including array-element indexed names.
+- Keep resealing in two passes (non-IGLA first, then IGLA) after any compiler change to minimize redundant work.
+
+### Anti-patterns to avoid
+- Do not emit a module-level identifier before checking it against `verilog_safe_identifier()`; `localparam wire = ...` is a Verilog syntax error.
+- Do not run the full suite only once after a compiler change; the first run reveals seal mismatches, the second run after resealing confirms zero failures.
+- Do not skip yosys verification for a new scratch spec; parse/typecheck success does not guarantee the generated Verilog is synthesizable.

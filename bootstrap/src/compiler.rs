@@ -4085,7 +4085,8 @@ impl VerilogCodegen {
                 if child.kind == NodeKind::ExprLiteral && child.value.contains(',') {
                     // Multiple values packed into a single literal — just comment
                     self.write_indent();
-                    self.write(&format!("// localparam {} = ", node.name));
+                    let safe_name = Self::verilog_safe_identifier(&node.name);
+                    self.write(&format!("// localparam {} = ", safe_name));
                     self.gen_verilog_expr(child);
                     self.write_line(";");
                 } else {
@@ -4105,7 +4106,8 @@ impl VerilogCodegen {
                     if !range.is_empty() {
                         self.write(&format!("{} ", range));
                     }
-                    self.write(&format!("{} = ", node.name));
+                    let safe_name = Self::verilog_safe_identifier(&node.name);
+                    self.write(&format!("{} = ", safe_name));
                     if is_unsupported_aggregate {
                         // R-CA-1 fix: emit a synthesizable scalar zero in place
                         // of the unsupported aggregate initializer.
@@ -4147,7 +4149,8 @@ impl VerilogCodegen {
                 self.write(&format!("{} ", range));
             }
 
-            self.write(&format!("{} = ", node.name));
+            let safe_name = Self::verilog_safe_identifier(&node.name);
+            self.write(&format!("{} = ", safe_name));
             if !node.children.is_empty() {
                 let child = &node.children[0];
                 // R-CA-1 (Wave 28): aggregate literals (ExprArrayLiteral /
@@ -4215,12 +4218,13 @@ impl VerilogCodegen {
         };
         let is_array = !node.extra_size.is_empty();
 
+        let safe_name = Self::verilog_safe_identifier(&node.name);
         if is_array {
-            self.write_line(&format!("// var: {} [{}]", node.name, node.extra_size));
+            self.write_line(&format!("// var: {} [{}]", safe_name, node.extra_size));
             let array_size: usize = node.extra_size.parse().unwrap_or(1);
             for i in 0..array_size {
                 self.write_indent();
-                self.write_line(&format!("reg {}{}{}_{};", signed_str, range_str, node.name, i));
+                self.write_line(&format!("reg {}{}{}_{};", signed_str, range_str, safe_name, i));
             }
             if !node.children.is_empty() {
                 self.write_indent();
@@ -4231,7 +4235,7 @@ impl VerilogCodegen {
                     for (i, elem) in child.children.iter().enumerate() {
                         if i < array_size {
                             self.write_indent();
-                            self.write(&format!("{}_{} = ", node.name, i));
+                            self.write(&format!("{}_{} = ", safe_name, i));
                             self.gen_verilog_expr(elem);
                             self.write_line(";");
                         }
@@ -4247,14 +4251,14 @@ impl VerilogCodegen {
                 self.write_line("end");
             }
         } else {
-            self.write(&format!("reg {}{}{};", signed_str, range_str, node.name));
+            self.write(&format!("reg {}{}{};", signed_str, range_str, safe_name));
             self.write_line("");
             if !node.children.is_empty() {
                 self.write_indent();
                 self.write_line("initial begin");
                 self.indent();
                 self.write_indent();
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", safe_name));
                 let child = &node.children[0];
                 if child.kind == NodeKind::ExprLiteral
                     && (child.value.starts_with("0x") || child.value.starts_with("0X"))
