@@ -231,3 +231,30 @@
 - Do not try to fix `gen-verilog` defect 1 (only first const emits) with a one-line parser change; it requires nested-block context tracking to avoid breaking error recovery.
 - Do not omit a scratch-spec test for a compiler fix just because the full suite is green; the suite may not exercise the changed code path.
 - Do not let a hardware blocker delay the formal + compiler sub-fix cadence; ship the deliverables and document the blocker.
+
+## 2026-07-01 — Wave Loop 368 completion
+
+### What worked
+- Reused the generator pattern (`scripts/gen_w368.py` and `scripts/gen_w368_lean.py`) to append W368 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **547/547 PASS** and `lake build Trinity.TernaryInference` succeeded in **4.5 s**.
+- `ternaryMacAccumulateFortyFourPlusGeneric` pushed the accumulation boundary to **44 variables**; build time stayed flat, confirming `simp+omega` still scales linearly.
+- `ternaryMacVigintiunupleCancellationGeneric` (depth-21) correctly collapsed to residual `mac(x, a, .plus)`, continuing the odd-depth residual pattern.
+- Corrected the `zero_weight_closure` helper: it now counts the plus-weight activation (`total = before + 1 + after`), so `ternaryMacZeroWeightUndecupleClosureGeneric` truly has 10 zero-weight MACs around 1 plus-weight MAC (11 variables).
+- Landed a second safe `gen-verilog` sub-fix: positive hex literals are now padded to the declared width in scalar `const`, `var`, `let` (StmtLocal), and `return` contexts. A scratch spec `specs/scratch/w368_hex_width.t27` and `yosys read_verilog` verify the emitted RTL.
+- Regenerated all affected seals (27 IGLA + 4 non-IGLA + 1 scratch) and reached 547/547 PASS.
+
+### What changed behavior
+- Generic ∀ count reached **216** (208 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **102 waves** (twenty-eighth consecutive zero-failure wave).
+- IGLA totals: **7,780 tests**, **2,991 invariants** (direct keyword counts across the 27 core specs).
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W368.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: defect 2 (`0x` width) now covers const/var/let/return on `trinity-rust-rings`; defects 1/3/4/5 remain. The full #1245 fix set already exists on `master` (commit `701d79b3b`) but was not merged into the wave-loop branch due to history divergence.
+
+### Patterns to reuse
+- When extending a literal-emission fix to new contexts, add the target-type context to the codegen state (e.g., `current_fn_return_type`) rather than changing the global expression emitter signature.
+- After any `gen-verilog` change, run `t27c seal --save` for every spec whose `gen_hash_verilog` mismatches; the suite will name them explicitly.
+- For zero-weight closure theorems, always verify the generated Lean expression by inspecting the plus-weight index; the helper's `total` must include the plus activation or the advertised depth is off by one.
+
+### Anti-patterns to avoid
+- Do not merge `master` into a long-lived wave-loop branch just to grab a backend fix unless you have bandwidth to resolve the diverged history and reseal everything.
+- Do not leave scratch regression specs unsealed; either seal them or remove them before the final conformance run.
+- Do not skip `dlc10 idcode` even when failure is expected; the evidence document needs the exact stderr each wave.

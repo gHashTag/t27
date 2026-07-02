@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:ed837d3b0873f7edfdb4de90f59ddefad3a4b9ec9105bcf530496af39d5b185e",
+  "gen_hash_c": "sha256:c3be4aef5d29310b8ee67eb93ad50350f2d4acb775dc298d1fa987f39e7bd67a",
   "gen_hash_rust": "sha256:73d9adebfb9273bfba2a327e6bbec26bd9d750f34e3bc240a278e9e0a3d50021",
-  "gen_hash_verilog": "sha256:053b0515242e5ebbacfbbbfda270603cdcad17f7aef7dab99aee0c0aab698494",
-  "gen_hash_zig": "sha256:0efee0f2b15e40dc72b9476b2a2684f8de8f4440ecbbfd92c98b8fead6f9e2a0",
+  "gen_hash_verilog": "sha256:a4cb77cb1e758003c9566979afb1d85350c468662ac5fae4f08ed669e39277f2",
+  "gen_hash_zig": "sha256:6f348a78e80d893669d393b4c8ab592f5045f4d49013b8f22fb495ed7108d2ed",
   "module": "igla-coder-bench-proxy",
   "ring": 12,
-  "sealed_at": "2026-07-01T20:15:35Z",
-  "spec_hash": "sha256:711874c3f1a9fde76e503a576462a45c0a91b30b77133448ea8b09e5348a359b",
-  "spec_path": "/Users/playra/t27/specs/igla/coder/bench_proxy.t27"
+  "sealed_at": "2026-07-02T12:31:09Z",
+  "spec_hash": "sha256:834da63533a7dd58672480c1027c78f41af7ed903948aae92a561304c8cff321",
+  "spec_path": "specs/igla/coder/bench_proxy.t27"
 }

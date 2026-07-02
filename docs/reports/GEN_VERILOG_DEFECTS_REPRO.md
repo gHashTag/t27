@@ -1,8 +1,8 @@
 # gen-verilog Lowering Defects — Reproduction Guide
 
 **Date:** 2026-07-01
-**Issue:** #1245
-**Status:** 2 of 5 defects fixed (binary literals, hex literal width padding in scalar consts); 3 remain open pending safe backend refactor.
+**Issue:** #1245 (closed on `master` via #1250; `trinity-rust-rings` carries a narrower, wave-local fix set)
+**Status:** 2 of 5 defects fixed on `trinity-rust-rings` as of W367; W368 extended the `0x` fix to `var`/`let`/`return` contexts. Defects 1/3/4/5 remain on `trinity-rust-rings` pending a safe backend refactor.
 
 ---
 
@@ -35,12 +35,16 @@ At least 9 `localparam` declarations (one per `const` in `uart.t27`).
 ```
 No raw `0b` literals should appear; binary constants now emit as `N'b...`.
 
-### `0x` — FIXED in W367 for scalar const declarations
+### `0x` — FIXED in W367 for scalar const declarations; extended in W368
 ```sh
 ./target/release/t27c gen-verilog /tmp/hex_pad_repro.t27
 # const SMALL : u16 = 0x1; now emits localparam [15:0] SMALL = 16'h1;
 ```
-`0xFF` as `u8` correctly emits `8'hFF`. The W367 fix pads positive hex literals in scalar `const` declarations to the declared type width when the literal is narrower (e.g. `u16 = 0x1` now emits `16'h1` instead of `4'h1`). The fix is localized to `gen_verilog_const` and passed the full 546-spec conformance suite without requiring seal regeneration, because no currently-emitting spec had a narrower hex const. Literals in non-const contexts (assignments, expressions) still use literal-width sizing; extending the padding there is future work.
+`0xFF` as `u8` correctly emits `8'hFF`. The W367 fix pads positive hex literals in scalar `const` declarations to the declared type width when the literal is narrower (e.g. `u16 = 0x1` now emits `16'h1` instead of `4'h1`).
+
+**W368 update:** the same width-padding logic was extended to scalar `var` initializers, `let` (StmtLocal) initializers inside functions, and `return` statements. This required adding `current_fn_return_type` to the Verilog codegen state and regenerating seals for four specs whose Verilog output shifted (`base/types`, `interop/gf_cross_language`, `numeric/gf16`, `numeric/tf3`). A regression scratch spec `specs/scratch/w368_hex_width.t27` verifies `const`, `return`, and (when the broader var/local emission path is fixed) `var`/`let` contexts.
+
+Remaining non-const contexts (general assignments, expressions without a known target width) still use literal-width sizing.
 
 ---
 
@@ -161,6 +165,12 @@ Struct fields emit as `<structtype_lower>_<field>`, but variable access uses `<v
 - Defect 1 (only first `const` emits) remains the highest-impact issue; it blocks most of defects 2–5 from being visible in real specs.
 - A safe path for defect 1 requires tracking top-level vs. nested-block parser context before changing `is_top_level_start()`.
 - No parser refactor was landed; the 546-spec conformance gate remains green.
+
+## W368 update
+
+- Defect 2 (`0x` literal width) extended to scalar `var`, `let` (StmtLocal), and `return` contexts on `trinity-rust-rings`.
+- Defects 1, 3, 4, 5 remain unaddressed on `trinity-rust-rings`. The full #1245 fix set already exists on `master` (commit `701d79b3b`) but was not merged into `trinity-rust-rings` because `master` has a diverged history; a future wave or dedicated backend-sync issue should port it cleanly.
+- Conformance after W368: **547/547 PASS** (546 canonical specs + 1 scratch regression spec).
 
 ---
 

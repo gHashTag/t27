@@ -3632,6 +3632,9 @@ pub struct VerilogCodegen {
     indent: u32,
     module_name: String,
     current_fn_name: String,
+    // Return type of the function currently being lowered. Used by return
+    // statement lowering to pad positive hex literals to the declared width.
+    current_fn_return_type: String,
     // Width of the parameters of the function currently being lowered, keyed by
     // parameter name. Populated in `gen_verilog_fn`. Used by `ExprCast` lowering
     // to skip a redundant truncation mask when the operand is a parameter that is
@@ -3646,6 +3649,7 @@ impl VerilogCodegen {
             indent: 0,
             module_name: String::new(),
             current_fn_name: String::new(),
+            current_fn_return_type: String::new(),
             param_widths: std::collections::HashMap::new(),
         }
     }
@@ -4193,7 +4197,23 @@ impl VerilogCodegen {
                 self.indent();
                 self.write_indent();
                 self.write(&format!("{} = ", node.name));
-                self.gen_verilog_expr(&node.children[0]);
+                let child = &node.children[0];
+                if child.kind == NodeKind::ExprLiteral
+                    && (child.value.starts_with("0x") || child.value.starts_with("0X"))
+                {
+                    // W368: pad positive hex literals in scalar var initializers
+                    // to the declared reg width, matching the const fix from W367.
+                    let hex = &child.value[2..];
+                    let literal_bits = (hex.len() as u32) * 4;
+                    let declared_width = Self::type_to_width(&node.extra_type);
+                    if declared_width > literal_bits {
+                        self.write(&format!("{}'h{}", declared_width, hex));
+                    } else {
+                        self.gen_verilog_expr(child);
+                    }
+                } else {
+                    self.gen_verilog_expr(child);
+                }
                 self.write_line(";");
                 self.dedent();
                 self.write_indent();
@@ -4262,6 +4282,7 @@ impl VerilogCodegen {
 
     fn gen_verilog_fn(&mut self, node: &Node) {
         self.current_fn_name = node.name.clone();
+        self.current_fn_return_type = node.extra_return_type.clone();
         self.param_widths.clear();
         for (pname, ptype) in &node.params {
             self.param_widths
@@ -4353,6 +4374,7 @@ impl VerilogCodegen {
             self.write_line("endfunction");
         }
         self.current_fn_name.clear();
+        self.current_fn_return_type.clear();
         self.param_widths.clear();
     }
 
@@ -4434,7 +4456,26 @@ impl VerilogCodegen {
                         self.current_fn_name.clone()
                     };
                     self.write(&format!("{} = ", fn_name));
-                    self.gen_verilog_expr(&node.children[0]);
+                    let child = &node.children[0];
+                    if child.kind == NodeKind::ExprLiteral
+                        && (child.value.starts_with("0x") || child.value.starts_with("0X"))
+                        && !self.current_fn_return_type.is_empty()
+                        && self.current_fn_return_type != "void"
+                    {
+                        // W368: pad positive hex literals in return statements to the
+                        // declared function return width, completing the scalar
+                        // hex-width padding family started in W367 for const.
+                        let hex = &child.value[2..];
+                        let literal_bits = (hex.len() as u32) * 4;
+                        let declared_width = Self::type_to_width(&self.current_fn_return_type);
+                        if declared_width > literal_bits {
+                            self.write(&format!("{}'h{}", declared_width, hex));
+                        } else {
+                            self.gen_verilog_expr(child);
+                        }
+                    } else {
+                        self.gen_verilog_expr(child);
+                    }
                     self.write_line(";");
                 }
             }
@@ -4457,7 +4498,23 @@ impl VerilogCodegen {
                     self.write_indent();
                     self.write(&node.name);
                     self.write(" = ");
-                    self.gen_verilog_expr(&node.children[0]);
+                    let child = &node.children[0];
+                    if child.kind == NodeKind::ExprLiteral
+                        && (child.value.starts_with("0x") || child.value.starts_with("0X"))
+                    {
+                        // W368: pad positive hex literals in local variable initializers
+                        // to the declared reg width, matching the const fix from W367.
+                        let hex = &child.value[2..];
+                        let literal_bits = (hex.len() as u32) * 4;
+                        let declared_width = width;
+                        if declared_width > literal_bits {
+                            self.write(&format!("{}'h{}", declared_width, hex));
+                        } else {
+                            self.gen_verilog_expr(child);
+                        }
+                    } else {
+                        self.gen_verilog_expr(child);
+                    }
                     self.write_line(";");
                 } else {
                     self.write_line("");
