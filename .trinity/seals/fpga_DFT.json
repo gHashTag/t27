@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:622753dfd0181c7257c43a456442170b1fe9eea045ab1e3ce0574ea00f3cefa1",
-  "gen_hash_rust": "sha256:fd379cf51bfff37e9688c7de577149c1ef3e37aff17afb9ca557e38e87e819ef",
-  "gen_hash_verilog": "sha256:f3a47ff1fe3f41947989a9a55ba379eb8d954a8cd30b6404792e527f234e0635",
-  "gen_hash_zig": "sha256:e0e61c967aac61731b443e4a62246511df2ae6377b22a64937c47a16480c9c2f",
+  "gen_hash_c": "sha256:f7f6d77ca1e84a4a6e764fceaa04680dcaf6210afb7f081956e7f65dbdac5926",
+  "gen_hash_rust": "sha256:e902dcdbe074974d1466480a9e274add336917a5e5d97fc9713cf685ecbbf17c",
+  "gen_hash_verilog": "sha256:c7a197c718da3b3e945eb69e34a046eb1ad42687f69f4c5a12ed34f6e6928745",
+  "gen_hash_zig": "sha256:793fe0b014c7105d0231e5b10fff265d14b248e840612ab1d0a2e068d00beb90",
   "module": "DFT",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
+  "sealed_at": "2026-07-01T20:00:16Z",
   "spec_hash": "sha256:52bfcb88b32809c2a79b368329ea005cbc3863734ec277278c15459c967acc4e",
   "spec_path": "specs/fpga/dft.t27"
 }
