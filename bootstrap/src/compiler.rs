@@ -4135,6 +4135,18 @@ impl VerilogCodegen {
                     } else {
                         self.gen_verilog_expr(child);
                     }
+                } else if child.kind == NodeKind::ExprLiteral
+                    && (child.value.starts_with("0b") || child.value.starts_with("0B"))
+                {
+                    // W369: pad positive binary literals to the declared const width.
+                    let bin = &child.value[2..];
+                    let literal_bits = bin.len() as u32;
+                    let declared_width = Self::type_to_width(&node.extra_type);
+                    if declared_width > literal_bits {
+                        self.write(&format!("{}'b{}", declared_width, bin));
+                    } else {
+                        self.gen_verilog_expr(child);
+                    }
                 } else {
                     self.gen_verilog_expr(child);
                 }
@@ -4208,6 +4220,19 @@ impl VerilogCodegen {
                     let declared_width = Self::type_to_width(&node.extra_type);
                     if declared_width > literal_bits {
                         self.write(&format!("{}'h{}", declared_width, hex));
+                    } else {
+                        self.gen_verilog_expr(child);
+                    }
+                } else if child.kind == NodeKind::ExprLiteral
+                    && (child.value.starts_with("0b") || child.value.starts_with("0B"))
+                {
+                    // W369: pad positive binary literals in scalar var initializers
+                    // to the declared reg width.
+                    let bin = &child.value[2..];
+                    let literal_bits = bin.len() as u32;
+                    let declared_width = Self::type_to_width(&node.extra_type);
+                    if declared_width > literal_bits {
+                        self.write(&format!("{}'b{}", declared_width, bin));
                     } else {
                         self.gen_verilog_expr(child);
                     }
@@ -4473,6 +4498,22 @@ impl VerilogCodegen {
                         } else {
                             self.gen_verilog_expr(child);
                         }
+                    } else if child.kind == NodeKind::ExprLiteral
+                        && (child.value.starts_with("0b") || child.value.starts_with("0B"))
+                        && !self.current_fn_return_type.is_empty()
+                        && self.current_fn_return_type != "void"
+                    {
+                        // W369: pad positive binary literals in return statements to the
+                        // declared function return width, completing the scalar binary
+                        // width-padding family for this wave.
+                        let bin = &child.value[2..];
+                        let literal_bits = bin.len() as u32;
+                        let declared_width = Self::type_to_width(&self.current_fn_return_type);
+                        if declared_width > literal_bits {
+                            self.write(&format!("{}'b{}", declared_width, bin));
+                        } else {
+                            self.gen_verilog_expr(child);
+                        }
                     } else {
                         self.gen_verilog_expr(child);
                     }
@@ -4509,6 +4550,19 @@ impl VerilogCodegen {
                         let declared_width = width;
                         if declared_width > literal_bits {
                             self.write(&format!("{}'h{}", declared_width, hex));
+                        } else {
+                            self.gen_verilog_expr(child);
+                        }
+                    } else if child.kind == NodeKind::ExprLiteral
+                        && (child.value.starts_with("0b") || child.value.starts_with("0B"))
+                    {
+                        // W369: pad positive binary literals in local variable initializers
+                        // to the declared reg width.
+                        let bin = &child.value[2..];
+                        let literal_bits = bin.len() as u32;
+                        let declared_width = width;
+                        if declared_width > literal_bits {
+                            self.write(&format!("{}'b{}", declared_width, bin));
                         } else {
                             self.gen_verilog_expr(child);
                         }

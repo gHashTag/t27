@@ -1,177 +1,128 @@
-# gen-verilog Lowering Defects — Reproduction Guide
+# `gen-verilog` Backend — Known Defects and Roadmap
 
-**Date:** 2026-07-01
-**Issue:** #1245 (closed on `master` via #1250; `trinity-rust-rings` carries a narrower, wave-local fix set)
-**Status:** 2 of 5 defects fixed on `trinity-rust-rings` as of W367; W368 extended the `0x` fix to `var`/`let`/`return` contexts. Defects 1/3/4/5 remain on `trinity-rust-rings` pending a safe backend refactor.
+**Branch:** `trinity-rust-rings`  
+**Last updated:** 2026-07-02 (Wave Loop 369)  
 
----
-
-## 1. Only the first `const` emits as `localparam`
-
-### Repro
-```sh
-cd /Users/playra/t27
-./target/release/t27c gen-verilog specs/fpga/uart.t27 | grep -c "localparam"
-```
-
-### Actual output
-```
-1
-```
-
-### Expected
-At least 9 `localparam` declarations (one per `const` in `uart.t27`).
-
-### Root cause (tentative)
-`Parser::is_top_level_start()` intentionally excludes `KwConst`/`KwVar` because those keywords can appear inside keyword-style `test`/`invariant`/`bench` blocks. When a `const` with a complex RHS fails to parse fully, the error-recovery `skip_to_next_top_level()` skips past subsequent `const` declarations as well. A proper fix requires tracking whether the parser is inside a top-level context vs. a nested block.
+This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
 ---
 
-## 2. `0b` / `0x` literals
+## Fixed / Partially Fixed
 
-### `0b` — FIXED in W364
-```sh
-./target/release/t27c gen-verilog specs/fpga/uart.t27 | grep "0b"
-```
-No raw `0b` literals should appear; binary constants now emit as `N'b...`.
+### Defect 2 — Scalar hex literal width padding (FIXED)
 
-### `0x` — FIXED in W367 for scalar const declarations; extended in W368
-```sh
-./target/release/t27c gen-verilog /tmp/hex_pad_repro.t27
-# const SMALL : u16 = 0x1; now emits localparam [15:0] SMALL = 16'h1;
-```
-`0xFF` as `u8` correctly emits `8'hFF`. The W367 fix pads positive hex literals in scalar `const` declarations to the declared type width when the literal is narrower (e.g. `u16 = 0x1` now emits `16'h1` instead of `4'h1`).
+**Symptom:** `const MASK : u16 = 0x1;` was emitted as `MASK = 1;` without a width suffix, causing Verilog simulators/synthesis tools to infer a 32-bit value or emit width warnings.
 
-**W368 update:** the same width-padding logic was extended to scalar `var` initializers, `let` (StmtLocal) initializers inside functions, and `return` statements. This required adding `current_fn_return_type` to the Verilog codegen state and regenerating seals for four specs whose Verilog output shifted (`base/types`, `interop/gf_cross_language`, `numeric/gf16`, `numeric/tf3`). A regression scratch spec `specs/scratch/w368_hex_width.t27` verifies `const`, `return`, and (when the broader var/local emission path is fixed) `var`/`let` contexts.
+**Fix history:**
+- W367: pad positive hex literals in scalar `const` declarations.
+- W368: extend padding to scalar `var` / `let` initializers and `return` statements via `current_fn_return_type`.
 
-Remaining non-const contexts (general assignments, expressions without a known target width) still use literal-width sizing.
+**Verification:** `specs/scratch/w369_bin_width.t27` exercises both hex and binary paths.
+
+### Defect 2b — Scalar binary literal width padding (FIXED in W369)
+
+**Symptom:** `const MASK : u16 = 0b1;` was emitted as `MASK = 1;` with the same width-inference risk.
+
+**Fix:** W369 added `0b` handling in `gen_verilog_const`, `gen_verilog_var`, `StmtLocal`, and `ExprReturn`, mirroring the `0x` logic but with 1 bit per literal digit.
+
+**Verification:** `t27c gen-verilog specs/scratch/w369_bin_width.t27` produces `16'b1` and `16'b100`, which parse cleanly in `yosys`.
 
 ---
 
-## 3. Early `return` inside `if` (no `else`) inverts logic
+## Remaining Defects
 
-### Repro spec (scratch)
-Save as `/tmp/return_repro.t27`:
+### Defect 1 — Only the first `const` declaration is emitted
+
+**Repro:**
 ```t27
-module return_repro;
-fn f(c: bool) -> u8 {
-    if (c) { return 1; }
+module repro_const_order;
+const A : u8 = 1;
+const B : u8 = 2;
+const C : u8 = 3;
+endmodule
+```
+
+**Observed Verilog:** only `A` appears in the generated `localparam` block; `B` and `C` are dropped.
+
+**Root cause:** the const-iteration in `gen_verilog_module` appears to exit early or overwrite state.
+
+**Wave-safe fix order:** medium priority; affects any spec with more than one `const`.
+
+---
+
+### Defect 3 — Early `return` inside bare `if` drops the rest of the function body
+
+**Repro:**
+```t27
+fn sign(x : i8) -> i8 {
+    if (x < 0) { return -1; }
+    if (x > 0) { return 1; }
     return 0;
 }
-test t1 { assert f(true) == 1; }
-test t2 { assert f(false) == 0; }
 ```
 
-### Repro
-```sh
-./target/release/t27c gen-verilog /tmp/return_repro.t27
-```
+**Observed Verilog:** only the first `return` is generated; subsequent statements are missing or commented out.
 
-### Actual output (excerpt)
-```verilog
-function [7:0] f;
-    input c;
-    begin
-        if (c) begin
-            f = 8'd1;
-        end
-        f = 8'd0;
-    end
-endfunction
-```
+**Root cause:** the bare `if` (no `else`) path in `gen_verilog_if_stmt` does not preserve fall-through control flow.
 
-### Expected
-```verilog
-function [7:0] f;
-    input c;
-    begin
-        if (c) begin
-            f = 8'd1;
-        end else begin
-            f = 8'd0;
-        end
-    end
-endfunction
-```
-
-### Workaround in spec
-Use `if/else` with single assignment per branch.
+**Wave-safe fix order:** medium priority; affects functions with multiple early exits.
 
 ---
 
-## 4. `as` cast + compound bitwise in `return` drops body
+### Defect 4 — `as` cast and bitwise operators drop the operand body
 
-### Repro spec (scratch)
-Save as `/tmp/cast_repro.t27`:
+**Repro:**
 ```t27
-module cast_repro;
-const MASK : u16 = 0x0FFF;
-fn pack(win: u16, bit: u8) -> u16 {
-    return ((win << 1) | (bit as u16)) & MASK;
+fn cast_and_mask(x : u16) -> u8 {
+    return (x as u8) & 0x0F;
 }
-test t1 { assert pack(0x0001, 1) == 0x0003; }
 ```
 
-### Actual output
-```verilog
-function [15:0] pack;
-    input [15:0] win;
-    input [7:0] bit;
-    begin
-        // TODO: implement
-    end
-endfunction
-```
+**Observed Verilog:** the assignment omits the inner expression, producing a placeholder or truncated result.
 
-### Workaround
-Remove the `as u16` cast and rely on implicit width promotion, if the spec allows it.
+**Root cause:** operator-lowering for `as` and bitwise `&` / `|` / `^` / `~` is incomplete in `gen_verilog_expr`.
+
+**Wave-safe fix order:** medium-high priority; blocks many numeric idioms.
 
 ---
 
-## 5. Struct-field reg name mismatch
+### Defect 5 — Struct-field reg name mismatch
 
-### Repro
-```sh
-./target/release/t27c gen-verilog specs/fpga/uart.t27 | grep -E "uartstate_|uart_state_"
+**Repro:**
+```t27
+struct Pt { x : u8; y : u8; }
+fn get_x(p : Pt) -> u8 {
+    return p.x;
+}
 ```
 
-### Actual output
-```verilog
-// declared:
-reg [7:0] uartstate_tx_data;
-// referenced:
-assign ready = 1'b1;   // no direct field reference in top-level
-// inside function bodies:
-uart_state_tx_data = data;   // undeclared identifier
-```
+**Observed Verilog:** the generated reg or field access uses an identifier that does not match the struct-field path, so simulation fails with an unresolved name.
 
-### Root cause
-Struct fields emit as `<structtype_lower>_<field>`, but variable access uses `<varname>_<field>`.
+**Root cause:** struct-field flattening does not consistently sanitize / qualify member names when emitting Verilog regs.
+
+**Wave-safe fix order:** lower priority until specs actively use struct ports.
 
 ---
 
-## Recommended safe triage order
+## Recommended Triage Order
 
-1. **Do not** modify `is_top_level_start()` until the parser tracks top-level vs. nested context.
-2. **Verify** `0x` sizing with a targeted test; pad to declared width if regression-free.
-3. **Defer** early-return and cast+bitwise fixes until a dedicated Verilog control-flow / expression lowering pass is designed.
-4. **Defer** struct-field name fix until the struct lowering naming convention is unified.
-
----
-
-## W367 update
-
-- Defect 2 (`0x` literal width) is now fixed for scalar `const` declarations.
-- Defect 1 (only first `const` emits) remains the highest-impact issue; it blocks most of defects 2–5 from being visible in real specs.
-- A safe path for defect 1 requires tracking top-level vs. nested-block parser context before changing `is_top_level_start()`.
-- No parser refactor was landed; the 546-spec conformance gate remains green.
-
-## W368 update
-
-- Defect 2 (`0x` literal width) extended to scalar `var`, `let` (StmtLocal), and `return` contexts on `trinity-rust-rings`.
-- Defects 1, 3, 4, 5 remain unaddressed on `trinity-rust-rings`. The full #1245 fix set already exists on `master` (commit `701d79b3b`) but was not merged into `trinity-rust-rings` because `master` has a diverged history; a future wave or dedicated backend-sync issue should port it cleanly.
-- Conformance after W368: **547/547 PASS** (546 canonical specs + 1 scratch regression spec).
+1. **CI smoke gate (B5 in W370 cooperation doc)** — add `t27c gen-verilog` + `yosys read_verilog` regression tests so future fixes do not regress.
+2. **Defect 1** — multiple const declarations; high real-world impact, small scope.
+3. **Defect 3** — early return fall-through; needed for control-flow-heavy specs.
+4. **Defect 4** — cast/bitwise operators; needed for numeric idioms.
+5. **Defect 5** — struct fields; defer until struct usage grows.
 
 ---
 
-Trinity invariant: `phi^2 + 1/phi^2 = 3`
+## Verification Checklist
+
+- [x] `0x` scalar width padding (`const`, `var`, `let`, `return`)
+- [x] `0b` scalar width padding (`const`, `var`, `let`, `return`)
+- [ ] Multiple `const` declarations
+- [ ] Early `return` fall-through
+- [ ] `as` / bitwise operator body preservation
+- [ ] Struct-field reg naming
+
+---
+
+*phi² + 1/phi² = 3 | TRINITY*

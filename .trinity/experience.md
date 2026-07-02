@@ -258,3 +258,29 @@
 - Do not merge `master` into a long-lived wave-loop branch just to grab a backend fix unless you have bandwidth to resolve the diverged history and reseal everything.
 - Do not leave scratch regression specs unsealed; either seal them or remove them before the final conformance run.
 - Do not skip `dlc10 idcode` even when failure is expected; the evidence document needs the exact stderr each wave.
+
+## 2026-07-02 — Wave Loop 369 completion
+
+### What worked
+- Reused `scripts/gen_w369.py` and `scripts/gen_w369_lean.py` to append W369 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **548/548 PASS** and `lake build Trinity.TernaryInference` succeeded in **~5.0 s**.
+- `ternaryMacAccumulateFortyFivePlusGeneric` pushed the accumulation boundary to **45 variables**; `simp+omega` remains in the linear regime.
+- `ternaryMacDuovigintupleCancellationGeneric` (depth-22) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
+- `ternaryMacZeroWeightDuodecupleClosureGeneric` uses 6 zero-weight MACs before and 6 zero-weight MACs after a plus-weight MAC (12 + 1 = 13 variables); the corrected `zero_weight_closure` helper from W368 was preserved.
+- Landed the third consecutive safe `gen-verilog` sub-fix: positive binary literals (`0b...`) are now padded to the declared width in scalar `const`, `var`, `let` (StmtLocal), and `return` contexts, mirroring the W368 `0x` fix. A scratch spec `specs/scratch/w369_bin_width.t27` and `yosys read_verilog` verify the emitted RTL.
+
+### What changed behavior
+- Generic ∀ count reached **220** (212 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **103 waves** (twenty-ninth consecutive zero-failure wave).
+- Conformance suite now evaluates **548 specs** (546 canonical IGLA + 1 non-IGLA + 1 scratch regression spec).
+- The `dlc10` cable/board were still not detected; the failure is documented in `docs/reports/FPGA_EVIDENCE_W369.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: defects 2/2b (`0x` and `0b` scalar width padding) are fixed; defects 1/3/4/5 remain.
+
+### Patterns to reuse
+- For literal-width guards, use the same shape for `0x` and `0b` with only the bit-scaling changed: `hex.len() * 4` vs `bin.len()`.
+- Add scratch regression specs for every `gen-verilog` sub-fix and run `yosys read_verilog` before regenerating all seals; this catches regressions without waiting for the full suite.
+- For W370, the recommended cooperation variant is B (formal + board retry + one safe backend sub-fix or CI smoke gate).
+
+### Anti-patterns to avoid
+- Do not add a scratch spec without either sealing it or removing it before the final suite run; an unsealed spec will produce a suite failure.
+- Do not claim the binary-width fix covers non-scalar contexts (arrays, struct fields) until a dedicated reproduction proves it.
+- Do not merge the full `master` #1245 fix set into `trinity-rust-rings` during a wave unless the diverged history and seal set are reconciled first.
