@@ -1,13 +1,32 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-02 (Wave Loop 369)  
+**Last updated:** 2026-07-02 (Wave Loop 370)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
 ---
 
 ## Fixed / Partially Fixed
+
+### Defect 1 — Only the first `const` declaration is emitted (FIXED in W370)
+
+**Symptom:** Multiple `const` declarations in a module caused only the first one to be emitted; subsequent ones were dropped.
+
+**Repro:**
+```t27
+module repro_const_order;
+const A : u8 = 1;
+const B : u8 = 2;
+const C : u8 = 3;
+endmodule
+```
+
+**Root cause:** `parse_const_decl` in `bootstrap/src/compiler.rs` returned before consuming the trailing semicolon of simple scalar constants, leaving the semicolon as an unexpected top-level token. Error recovery then swallowed the following `const` declaration.
+
+**Fix:** Removed the early `return Ok(decl)` in `parse_const_decl` so all scalar const paths fall through to the existing trailing semicolon consumption.
+
+**Verification:** `specs/scratch/w370_const_order.t27`; generated Verilog contains `localparam A`, `B`, and `C`; `yosys read_verilog` passes.
 
 ### Defect 2 — Scalar hex literal width padding (FIXED)
 
@@ -30,25 +49,6 @@ This document tracks the remaining lowering defects in the `t27c gen-verilog` ba
 ---
 
 ## Remaining Defects
-
-### Defect 1 — Only the first `const` declaration is emitted
-
-**Repro:**
-```t27
-module repro_const_order;
-const A : u8 = 1;
-const B : u8 = 2;
-const C : u8 = 3;
-endmodule
-```
-
-**Observed Verilog:** only `A` appears in the generated `localparam` block; `B` and `C` are dropped.
-
-**Root cause:** the const-iteration in `gen_verilog_module` appears to exit early or overwrite state.
-
-**Wave-safe fix order:** medium priority; affects any spec with more than one `const`.
-
----
 
 ### Defect 3 — Early `return` inside bare `if` drops the rest of the function body
 
@@ -106,11 +106,10 @@ fn get_x(p : Pt) -> u8 {
 
 ## Recommended Triage Order
 
-1. **CI smoke gate (B5 in W370 cooperation doc)** — add `t27c gen-verilog` + `yosys read_verilog` regression tests so future fixes do not regress.
-2. **Defect 1** — multiple const declarations; high real-world impact, small scope.
-3. **Defect 3** — early return fall-through; needed for control-flow-heavy specs.
-4. **Defect 4** — cast/bitwise operators; needed for numeric idioms.
-5. **Defect 5** — struct fields; defer until struct usage grows.
+1. **Defect 3** — early return fall-through; needed for control-flow-heavy specs. Small scope, but must not break existing if-statement emission.
+2. **Defect 4** — cast/bitwise operators; needed for numeric idioms. Larger lowering change; needs a scratch spec and `yosys` verification.
+3. **Defect 5** — struct fields; defer until struct usage grows.
+4. **CI smoke gate** — add `t27c gen-verilog` + `yosys read_verilog` regression tests once the remaining safe parser/lowering fixes are landed; L7 UNITY prohibits new shell scripts on the critical path.
 
 ---
 
@@ -118,7 +117,7 @@ fn get_x(p : Pt) -> u8 {
 
 - [x] `0x` scalar width padding (`const`, `var`, `let`, `return`)
 - [x] `0b` scalar width padding (`const`, `var`, `let`, `return`)
-- [ ] Multiple `const` declarations
+- [x] Multiple `const` declarations
 - [ ] Early `return` fall-through
 - [ ] `as` / bitwise operator body preservation
 - [ ] Struct-field reg naming

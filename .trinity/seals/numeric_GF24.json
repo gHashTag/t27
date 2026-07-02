@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:215512dfa8a5e15d6bb4150745ad9c20c09c29de3b338cb3415c61374d0d6418",
-  "gen_hash_rust": "sha256:e915b8d168b5d23b3ae1a0fb82b2383f8a3e9dc65ca088abbe7e1af4d97f8f43",
-  "gen_hash_verilog": "sha256:4c794871f96c703ed0692cad350c76722937c0de042043ac160a3ee77198cf14",
-  "gen_hash_zig": "sha256:0fe6e7ba6373e673d11966a007e647d1945c02bfed449f744fe38c35866d43f9",
+  "gen_hash_c": "sha256:25de8bd93cd6b0a435d6ff7c40854ad78d1684fc255ac660b6090c6971c15c27",
+  "gen_hash_rust": "sha256:3d7ac015187ba086526cd3e2f68c6bf2faf90ded69b203ba17cd4aef754755bb",
+  "gen_hash_verilog": "sha256:b92e4cce20948f6ca6bfeee7455798e4fb46e3688364b3858b1c2734c6e89511",
+  "gen_hash_zig": "sha256:88791bac72abdcea252c505a117996a58ff51e6213f9917c2d1941de00cbca4d",
   "module": "GF24",
   "ring": 12,
-  "sealed_at": "2026-06-23T04:04:17Z",
+  "sealed_at": "2026-07-02T13:28:59Z",
   "spec_hash": "sha256:8a493f0dc62ede898be9607f13ad8d7d4c7171c951301718736f75a3b4ec889b",
   "spec_path": "specs/numeric/gf24.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:a5157ac15108ed1675c6693341ed630d8f696fbf6ee2d9333a06198910413a00",
-  "gen_hash_rust": "sha256:4bd83477d356e95f189d1af3183df213fa6cce670bec62fbe8b7efadfb5bb26c",
-  "gen_hash_verilog": "sha256:c956b9009e695626a5558531b93f26d12feb10cd4c51aaee8a46e609de6fd046",
-  "gen_hash_zig": "sha256:3e6d433e1128491c519ccacbba2746227d496f0293b629a9677d64ce2a3a41bc",
+  "gen_hash_c": "sha256:3192f4b688dd4bc7c2795143d933664a0a2b97ea0b29ac65696098f0088fffa8",
+  "gen_hash_rust": "sha256:2a226ca724906c21485dd508100abd3fe993160023d603599a65d20b854acc53",
+  "gen_hash_verilog": "sha256:b6f902278c6cf29333592c9f61f3d7e9c4ccbb3a5e7564a63e5cc7f01dfd7fde",
+  "gen_hash_zig": "sha256:6d8a658f89142004a4924cd7724a9a1d35d5ab856ad12b984a54666722088814",
   "module": "GI1Analysis",
   "ring": 12,
-  "sealed_at": "2026-06-23T04:04:15Z",
+  "sealed_at": "2026-07-02T13:28:59Z",
   "spec_hash": "sha256:48793199ab1d93dd98ca70e4a7041b50c4f26a9ae24d5ccc0cb95f8a50f50d08",
   "spec_path": "specs/physics/gi1_analysis.t27"
 }

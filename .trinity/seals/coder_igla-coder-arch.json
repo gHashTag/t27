@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:75856f33b859ea42cc0bbe0285f887fc3ad4a449f1d89bed4b603f5a28ab6d48",
   "module": "igla-coder-arch",
   "ring": 12,
-  "sealed_at": "2026-07-02T13:09:52Z",
-  "spec_hash": "sha256:586a4afc88c4572c910f52b39069c39149a16d87bb9202d73577ddba5f464cc9",
+  "sealed_at": "2026-07-02T13:28:58Z",
+  "spec_hash": "sha256:2648f2f3b7ff32b2340f14b53483372c92eb620a7faf754ff6ce7a1ab55603c8",
   "spec_path": "specs/igla/coder/arch.t27"
 }

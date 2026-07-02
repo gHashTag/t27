@@ -1263,7 +1263,9 @@ impl Parser {
             {
                 self.skip_to_semicolon()?;
             }
-            return Ok(decl);
+            // Fall through to trailing semicolon consumption so simple consts
+            // like `const A : u8 = 1;` consume their terminator before the
+            // next top-level declaration.
         }
 
         // Consume trailing semicolon

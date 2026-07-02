@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:1a496518e7677c57b3c4f2f4508ea46ee426ffd2585fd129639230c2cb98c712",
-  "gen_hash_rust": "sha256:ca4f3912200c4683e3c39eb13ff908dac24455b0433558c369da69abe6924659",
-  "gen_hash_verilog": "sha256:7f141dc1bedbad525a42d9006c0692032af4a283271c345924ae5e3396292f97",
-  "gen_hash_zig": "sha256:e4fffdeb2662ff9fa5048391be0c6cdbe0568fe64079e4c2aad5fe8fccf5481a",
+  "gen_hash_c": "sha256:124adf83eeaa68053d62401325a42d35b57cf516d15f173703fdcb7d39801c11",
+  "gen_hash_rust": "sha256:4f27f16c44f5554bcf54a8eadc6e796e2786acab0e91611f5b28db41ec48621c",
+  "gen_hash_verilog": "sha256:d5c1281ae51d23c3b303374cec786ccd02aedb7762d6271c7e99275cbd17d8c7",
+  "gen_hash_zig": "sha256:95d03ea4263536fe3cdb1fed75995d3ff68d5c67f2674ad0aea2baac37b8ba03",
   "module": "Linking",
   "ring": 12,
-  "sealed_at": "2026-06-23T04:04:15Z",
+  "sealed_at": "2026-07-02T13:28:58Z",
   "spec_hash": "sha256:b636530a07cd52d3c26a184307aeaf56846fc9697b40d0bf38391253c6d68b16",
   "spec_path": "specs/compiler/linker.t27"
 }

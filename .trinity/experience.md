@@ -284,3 +284,31 @@
 - Do not add a scratch spec without either sealing it or removing it before the final suite run; an unsealed spec will produce a suite failure.
 - Do not claim the binary-width fix covers non-scalar contexts (arrays, struct fields) until a dedicated reproduction proves it.
 - Do not merge the full `master` #1245 fix set into `trinity-rust-rings` during a wave unless the diverged history and seal set are reconciled first.
+
+## 2026-07-02 — Wave Loop 370 completion
+
+### What worked
+- Reused `scripts/gen_w370.py` and `scripts/gen_w370_lean.py` to append W370 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **549/549 PASS** and `lake build Trinity.TernaryInference` succeeded in **4.8 s**.
+- `ternaryMacAccumulateFortySixPlusGeneric` pushed the accumulation boundary to **46 variables**; `simp+omega` remains in the linear regime.
+- `ternaryMacTresvigintupleCancellationGeneric` (depth-23) correctly collapsed to residual `mac(x, a, .plus)`, continuing the odd-depth residual pattern.
+- `ternaryMacZeroWeightTredecupleClosureGeneric` uses 6 zero-weight MACs before and 7 zero-weight MACs after a plus-weight MAC (13 closure size, 14 variables).
+- Fixed `gen-verilog` defect 1 (only first `const` emits) in `bootstrap/src/compiler.rs` by removing the early return in `parse_const_decl`. The fix required **mass seal regeneration (~156 seals)** because many specs now emit more `const` declarations than before.
+- Verified the B1 fix with scratch spec `specs/scratch/w370_const_order.t27` and `yosys read_verilog` before running the full suite.
+
+### What changed behavior
+- Generic ∀ count reached **224** (216 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **104 waves** (thirtieth consecutive zero-failure wave).
+- IGLA totals: **12,696 tests**, **5,549 invariants** (full repo keyword counts; note that earlier waves reported IGLA-only subsets while W370 reports all specs).
+- Conformance suite now evaluates **549 specs** (546 canonical IGLA + 2 non-IGLA + 1 scratch regression spec).
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W370.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: defect 1 (multiple `const` declarations) is fixed on `trinity-rust-rings`; defects 3/4/5 remain.
+
+### Patterns to reuse
+- For parser fixes that change how many top-level declarations are parsed, expect mass seal regeneration; script `t27c seal --save` over every mismatched seal and re-run the full suite before claiming green.
+- When generating Lean binder lists beyond 26 variables, skip Lean keywords (`at`, `by`, `do`, `if`, `in`, `or`, `to`) so the 46th+ variables do not produce `unexpected token` errors.
+- For W370-level cooperation variants, keep Variant B as the recommended path: formal + one safe backend sub-fix + board retry.
+
+### Anti-patterns to avoid
+- Do not try to fix defect 1 by adding `KwConst` to `is_top_level_start()`; that breaks error recovery inside `test`/`invariant`/`bench` blocks. The correct fix is inside `parse_const_decl` itself.
+- Do not commit a parser fix without a dedicated scratch spec that exercises the previously broken code path; the full suite may not contain a multi-const module.
+- Do not trust repository-wide test/invariant counts from prior-wave memory; run `t27c stats` to get current totals.
