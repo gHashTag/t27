@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-02 (Wave Loop 371)  
+**Last updated:** 2026-07-01 (Wave Loop 373)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -46,7 +46,7 @@ endmodule
 
 **Verification:** `t27c gen-verilog specs/scratch/w369_bin_width.t27` produces `16'b1` and `16'b100`, which parse cleanly in `yosys`.
 
-### Defect 2c — Verilog keyword identifier collision (FIXED in W371, EXTENDED in W372)
+### Defect 2c — Verilog keyword identifier collision (FIXED in W371, EXTENDED in W372, STRUCT-FIELD TOKENIZATION CORRECTED in W373)
 
 **Symptom:** User identifiers that collide with Verilog reserved keywords caused `yosys read_verilog` syntax errors. Example: a parameter named `task` in `specs/igla/coder/benchmark.t27` was emitted as `input [31:0] task;`, which Yosys rejected with `syntax error, unexpected TOK_TASK`.
 
@@ -63,10 +63,12 @@ endmodule
 **Fix history:**
 - W371: Added `verilog_keywords()` and `verilog_safe_identifier()` helpers in `bootstrap/src/compiler.rs`. Function names, parameter declarations, function-call names, and bare identifier expressions are escaped as `\name ` when they collide with a Verilog keyword.
 - W372: Extended `verilog_safe_identifier()` to escape identifiers that **contain** a keyword as an underscore-delimited component (e.g., `task_foo`, `foo_task`, `foo_task_bar`). Applied the safe identifier to `StmtLocal` declarations/assignments and struct-field register names.
+- W373: Corrected a tokenization bug in the W372 struct-field path. The W372 implementation escaped the field name in isolation (`\reg `) and then prepended the struct type name, producing `word_\reg `, which Verilog tokenizes as the separate identifiers `word_` and `\reg `. W373 now builds the full flattened name first (`word_reg`) and escapes the entire token as `\word_reg ` when needed. The same full-token escaping is applied to `ExprFieldAccess` in `gen_verilog_expr`.
 
 **Verification:**
 - `specs/scratch/w371_verilog_keyword.t27` — parameter `task` escaped; yosys clean.
 - `specs/scratch/w372_local_keyword.t27` — local variables named `task` and `wire` escaped; yosys `read_verilog -sv` + `synth_xilinx` pass.
+- `specs/scratch/w373_struct_field_keyword.t27` — struct fields named `reg` and `wire`; generated regs are `\word_reg ` / `\word_wire ` and parse cleanly through `yosys read_verilog -sv` + `synth_xilinx`.
 - `specs/igla/coder/benchmark.t27` now passes `yosys read_verilog`.
 
 ---
@@ -115,7 +117,7 @@ fn cast_and_mask(x : u16) -> u8 {
 
 ---
 
-### Defect 5 — Struct-field reg name mismatch
+### Defect 5 — Struct-field reg name mismatch (PARTIALLY ADDRESSED in W373)
 
 **Repro:**
 ```t27
@@ -125,9 +127,9 @@ fn get_x(p : Pt) -> u8 {
 }
 ```
 
-**Observed Verilog:** the generated reg or field access uses an identifier that does not match the struct-field path, so simulation fails with an unresolved name.
+**Observed Verilog:** the generated reg or field access uses an identifier that does not consistently match the struct-field path, so simulation may fail with an unresolved name.
 
-**Root cause:** struct-field flattening does not consistently sanitize / qualify member names when emitting Verilog regs.
+**Root cause:** struct-field flattening does not consistently qualify member names when emitting Verilog regs. The W373 fix made the emitted names keyword-safe, but the underlying mapping between struct-type registers (`pt_x`) and variable-based field access (`p_x`) is still not unified.
 
 **Wave-safe fix order:** lower priority until specs actively use struct ports.
 
@@ -168,7 +170,7 @@ fn cordic_top_batch_inner(angles : u32, idx : u32, acc : i32) -> i32 {
 - [x] Verilog keyword identifier collision (exact and underscore-delimited component matches)
 - [ ] Early `return` if-else chaining
 - [ ] `as` / bitwise operator width correctness
-- [x] Struct-field reg naming (keyword-safe)
+- [x] Struct-field reg naming (keyword-safe, full-token escape)
 - [x] Local variable keyword-safe emission
 - [ ] `let` destructuring lowering
 

@@ -4338,8 +4338,13 @@ impl VerilogCodegen {
                 String::new()
             };
 
-            let reg_base = format!("{}_{}", node.name.to_lowercase(), field.name);
-            let safe_reg = Self::verilog_safe_identifier(&reg_base);
+            // Build the flattened register name from the raw struct and field
+            // names, then escape the entire token if it collides with a
+            // Verilog keyword. Escaping the field in isolation and prepending
+            // the struct name would leave the backslash in the middle of the
+            // identifier, which Verilog tokenizes as two separate identifiers.
+            let flat_name = format!("{}_{}", node.name.to_lowercase(), field.name);
+            let safe_reg = Self::verilog_safe_identifier(&flat_name);
             self.write_line(&format!(
                 "reg {}{}{}; // {}.{}{}",
                 signed_str,
@@ -4929,15 +4934,16 @@ impl VerilogCodegen {
                             _ => String::new(),
                         };
                         let flat_name = format!("{}_{}", base_name, node.name);
-                        self.write(&flat_name);
+                        let safe_flat = Self::verilog_safe_identifier(&flat_name);
+                        self.write(&safe_flat);
                     } else if child.kind == NodeKind::ExprIdentifier {
-                        self.write(&child.name);
-                        self.write("_");
-                        self.write(&node.name);
+                        let flat_name = format!("{}_{}", child.name, node.name);
+                        let safe_flat = Self::verilog_safe_identifier(&flat_name);
+                        self.write(&safe_flat);
                     } else {
                         self.gen_verilog_expr(child);
                         self.write("_");
-                        self.write(&node.name);
+                        self.write(&Self::verilog_safe_identifier(&node.name));
                     }
                 } else {
                     self.write(&node.name);

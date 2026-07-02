@@ -366,3 +366,32 @@
 - Do not attempt a full `let` destructuring fix inside a single wave; it requires parser-level tuple-pattern support or a statement-level pattern-match pass. Document and defer.
 - Do not skip sealing a scratch spec before running the full suite.
 - Do not commit mass seal changes without a final `t27c suite` run; even a single stale seal fails the conformance gate.
+
+## 2026-07-01 — Wave Loop 373 completion
+
+### What worked
+- Reused the generator pattern (`scripts/gen_w373.py`, `scripts/gen_w373_lean.py`) to append W373 blocks and 4 new generic ∀ theorems; `t27c suite` returned **553/553 PASS** and `lake build Trinity.TernaryInference` succeeded.
+- `ternaryMacAccumulateFortyNinePlusGeneric` pushed the plus-accumulation boundary to **49 variables** without timeout, confirming the `simp+omega` regime still holds at depth 49.
+- `ternaryMacSesvigintupleCancellationGeneric` (depth-26) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
+- `ternaryMacZeroWeightSexdecupleClosureGeneric` uses 8 zero-weight MACs before and 8 zero-weight MACs after a plus-weight MAC (16 closure size, 17 variables).
+- Fixed a subtle tokenization bug in the W372 keyword-escape extension: struct-field register names are now built as the full flattened token (`word_reg`) before escaping, so `\word_reg ` is emitted instead of the invalid `word_\reg `. The same correction was applied to `ExprFieldAccess` in `gen_verilog_expr`.
+- Added scratch spec `specs/scratch/w373_struct_field_keyword.t27` with keyword fields `reg` and `wire`; it passes `yosys read_verilog -sv` + `synth_xilinx`.
+- Scripted mass seal regeneration: 23 non-IGLA seals (compiler change) + 27 IGLA seals (new W373 blocks) + 1 scratch seal, ending at 0 mismatches.
+
+### What changed behavior
+- Generic ∀ count reached **236** (228 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **107 waves** (thirty-third consecutive zero-failure wave).
+- IGLA totals: **12,862 tests**, **5,632 invariants** across full repo.
+- Conformance suite now evaluates **553 specs** (27 IGLA + non-IGLA + scratch regression specs).
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W373.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: struct-field keyword collision now fully tokenization-correct; `let` destructuring remains the highest-priority open defect.
+
+### Patterns to reuse
+- When concatenating an escaped identifier with a prefix, escape the **entire resulting token**, not the suffix in isolation. Verilog tokenization starts the escaped identifier at the backslash, so `prefix_\suffix` is parsed as two identifiers.
+- After any change to `gen_verilog_expr` identifier emission, run a targeted yosys sweep on the scratch spec before the full suite; it is much faster than resealing and then discovering a syntax error.
+- Keep the per-wave theorem budget at 4 generic ∀ theorems; depth-49 plus accumulation is still inside the practical elaboration budget.
+
+### Anti-patterns to avoid
+- Do not apply `verilog_safe_identifier()` to a component and then concatenate a prefix; always apply it to the complete identifier token.
+- Do not assume a W372-level fix is tokenization-correct just because it looks right in generated text; verify with `yosys read_verilog -sv`.
+- Do not leave the FPGA retry undocumented; even a missing-cable result is evidence and belongs in `docs/reports/FPGA_EVIDENCE_W*.md`.
