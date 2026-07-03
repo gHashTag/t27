@@ -1192,3 +1192,123 @@
 - **Commit:** feat(fpga): OpenXC7 toolchain bootstrap, GF16 matrix synthesis, SRAM load OK
 - **Files:** cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
 
+## 2026-07-03T22:03:09Z — wave-loop-393
+- **Commit:** feat(fpga): tri CLI integration for openXC7 GF16 flow - synth/load/stat
+- **Files:** cli/tri/src/fpga.rs
+
+## 2026-07-03T22:04:25Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:04:30Z — wave-loop-393
+- **Commit:** docs(fpga): update loop evidence and cooperation with flash boot analysis
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:04:48Z — wave-loop-393
+- **Commit:** docs(fpga): update loop evidence and cooperation with flash boot analysis
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:05:08Z — wave-loop-393
+- **Commit:** docs(fpga): update loop evidence and cooperation with flash boot analysis
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:05:25Z — wave-loop-393
+- **Commit:** docs(fpga): update loop evidence and cooperation with flash boot analysis
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:05:49Z — wave-loop-393
+- **Commit:** docs(fpga): update loop evidence and cooperation with flash boot analysis
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:05:57Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:06:14Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:06:34Z — wave-loop-393
+- **Commit:** docs(fpga): SPI flash write OK, boot-from-flash blocked by mode pins
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:06:44Z — wave-loop-393
+- **Commit:** docs(fpga): SPI flash write OK, boot-from-flash blocked by mode pins
+- **Files:** docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:07:28Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:08:07Z — wave-loop-393
+- **Commit:** chore(fpga): activity log for loop-3 flash integration
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:08:12Z — wave-loop-393
+- **Commit:** docs(fpga): SPI flash write OK, boot-from-flash blocked by mode pins
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:08:19Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:08:23Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:08:36Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:08:41Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:08:45Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/activity.md
+
+## 2026-07-03T22:08:49Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:08:53Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:09:10Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:09:18Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:09:27Z — wave-loop-393
+- **Commit:** docs(fpga): SPI flash write OK, boot-from-flash blocked by mode pins
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:09:33Z — wave-loop-393
+- **Commit:** docs(fpga): SPI flash write OK, boot-from-flash blocked by mode pins
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:10:35Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:10:56Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:11:01Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:11:37Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+
+## 2026-07-03T22:11:52Z — wave-loop-393
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+

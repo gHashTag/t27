@@ -88,6 +88,53 @@ pub enum FpgaCmd {
         #[arg(long, default_value = "xc7a200tfbg676-1")]
         part: String,
     },
+    /// Program the on-board SPI flash (non-volatile) using openFPGALoader's
+    /// JTAG-to-SPI bridge. Requires a matching `spiOverJtag` bitstream for the
+    /// exact FPGA package; the XC7A200T-FGG676 bridge is present in recent
+    /// openFPGALoader distributions but flash boot may still depend on board
+    /// mode pins (see docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md).
+    ProgramFlash {
+        bit: PathBuf,
+        /// openFPGALoader cable profile (default: digilent_hs2).
+        #[arg(long, default_value = "digilent_hs2")]
+        cable: String,
+        /// FPGA part/package for bridge selection (default: xc7a200tfgg676).
+        #[arg(long, default_value = "xc7a200tfgg676")]
+        part: String,
+        /// Optional explicit path to a JTAG-to-SPI bridge bitstream.
+        /// If omitted, openFPGALoader selects one from its installation.
+        #[arg(long)]
+        bridge: Option<PathBuf>,
+        /// JTAG frequency in Hz (default: 6 MHz).
+        #[arg(long, default_value = "6000000")]
+        freq: u32,
+        /// Bitstream file type: `bit` or `bin` (default: auto-detect).
+        #[arg(long)]
+        file_type: Option<String>,
+        /// Skip the post-write FPGA reset.
+        #[arg(long)]
+        skip_reset: bool,
+        /// Verify the flash contents after writing.
+        #[arg(long)]
+        verify: bool,
+        /// Bulk-erase the flash before writing.
+        #[arg(long)]
+        bulk_erase: bool,
+    },
+    /// Dump SPI flash contents to a file via openFPGALoader's JTAG-to-SPI bridge.
+    DumpFlash {
+        /// Output file path.
+        out: PathBuf,
+        /// openFPGALoader cable profile (default: digilent_hs2).
+        #[arg(long, default_value = "digilent_hs2")]
+        cable: String,
+        /// FPGA part/package for bridge selection (default: xc7a200tfgg676).
+        #[arg(long, default_value = "xc7a200tfgg676")]
+        part: String,
+        /// Size in bytes to dump (default: 16 MiB, the whole N25Q128).
+        #[arg(long, default_value_t = 16777216)]
+        size: usize,
+    },
     /// Diagnostic: load *only* the proxy bridge bitstream (or any other
     /// bitstream) into FPGA SRAM, report STAT, leave TAP in RTI. Does NOT
     /// touch SPI flash. Useful for verifying the bridge actually reaches
@@ -260,6 +307,33 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             chipdb,
             part,
         } => synth_gf16(build_dir.as_ref(), chipdb.as_ref(), part),
+        FpgaCmd::ProgramFlash {
+            bit,
+            cable,
+            part,
+            bridge,
+            freq,
+            file_type,
+            skip_reset,
+            verify,
+            bulk_erase,
+        } => program_flash(
+            bit,
+            cable,
+            part,
+            bridge.as_ref(),
+            *freq,
+            file_type.as_deref(),
+            *skip_reset,
+            *verify,
+            *bulk_erase,
+        ),
+        FpgaCmd::DumpFlash {
+            out,
+            cable,
+            part,
+            size,
+        } => dump_flash(out, cable, part, *size),
     }
 }
 
@@ -1214,6 +1288,74 @@ fn parse_stat_raw(text: &str) -> Result<u32> {
         }
     }
     bail!("openFPGALoader output did not contain 'Register raw value:'")
+}
+
+fn program_flash(
+    bit: &PathBuf,
+    cable: &str,
+    part: &str,
+    bridge: Option<&PathBuf>,
+    freq: u32,
+    file_type: Option<&str>,
+    skip_reset: bool,
+    verify: bool,
+    bulk_erase: bool,
+) -> Result<()> {
+    if !bit.is_file() {
+        bail!("bitstream not found: {}", bit.display());
+    }
+
+    let bit_str = bit.to_str().ok_or_else(|| anyhow!("bitstream path is not UTF-8"))?;
+    let mut args: Vec<String> = Vec::new();
+    args.push("-f".to_string());
+    args.push("--freq".to_string());
+    args.push(freq.to_string());
+    args.push("--fpga-part".to_string());
+    args.push(part.to_string());
+
+    if let Some(ty) = file_type {
+        args.push("--file-type".to_string());
+        args.push(ty.to_string());
+    }
+    if let Some(b) = bridge {
+        let b_str = b.to_str().ok_or_else(|| anyhow!("bridge path is not UTF-8"))?;
+        args.push("-B".to_string());
+        args.push(b_str.to_string());
+    }
+    if skip_reset {
+        args.push("--skip-reset".to_string());
+    }
+    if verify {
+        args.push("--verify".to_string());
+    }
+    if bulk_erase {
+        args.push("--bulk-erase".to_string());
+    }
+    args.push(bit_str.to_string());
+
+    let extra: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let (_status, _output) = run_openfpgaloader(cable, &extra, true)?;
+
+    eprintln!();
+    eprintln!("[program-flash] Write complete. Reset or power-cycle the board to load from flash.");
+    Ok(())
+}
+
+fn dump_flash(out: &PathBuf, cable: &str, part: &str, size: usize) -> Result<()> {
+    let out_str = out.to_str().ok_or_else(|| anyhow!("output path is not UTF-8"))?;
+    let size_str = size.to_string();
+    let extra: Vec<&str> = vec![
+        "--dump-flash",
+        "--fpga-part",
+        part,
+        "--file-size",
+        &size_str,
+        out_str,
+    ];
+    let (_status, _output) = run_openfpgaloader(cable, &extra, true)?;
+    eprintln!();
+    eprintln!("[dump-flash] Dump complete: {}", out.display());
+    Ok(())
 }
 
 fn synth_gf16(
