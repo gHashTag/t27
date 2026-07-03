@@ -153,6 +153,39 @@ fn yosys_available() -> bool {
         .unwrap_or(false)
 }
 
+/// IGLA specs known to be yosys-clean through `t27c gen-verilog`.
+/// `cordic.t27` and `cordic_top.t27` are excluded pending Defect 6
+/// (`let` destructuring lowering).
+fn igla_clean_specs() -> Vec<String> {
+    vec![
+        "specs/igla/coder/arch.t27".into(),
+        "specs/igla/coder/bench_proxy.t27".into(),
+        "specs/igla/coder/benchmark.t27".into(),
+        "specs/igla/coder/dataset.t27".into(),
+        "specs/igla/coder/eval.t27".into(),
+        "specs/igla/coder/pipeline.t27".into(),
+        "specs/igla/coder/prm.t27".into(),
+        "specs/igla/coder/tokenizer.t27".into(),
+        "specs/igla/coder/training.t27".into(),
+        "specs/igla/coder/weights.t27".into(),
+        "specs/igla/race/adder_tree.t27".into(),
+        "specs/igla/race/backend.t27".into(),
+        "specs/igla/race/bram_weights.t27".into(),
+        "specs/igla/race/cordic_fixed.t27".into(),
+        "specs/igla/race/eda.t27".into(),
+        "specs/igla/race/formal.t27".into(),
+        "specs/igla/race/gemm.t27".into(),
+        "specs/igla/race/opcodes.t27".into(),
+        "specs/igla/race/rtl.t27".into(),
+        "specs/igla/race/systolic_array.t27".into(),
+        "specs/igla/race/systolic_ternary.t27".into(),
+        "specs/igla/race/ternary_gemm.t27".into(),
+        "specs/igla/race/ternary_inference.t27".into(),
+        "specs/igla/race/ternary_mac.t27".into(),
+        "specs/igla/race/yosys.t27".into(),
+    ]
+}
+
 fn cmd_gen_verilog_yosys_smoke(repo: &Path, rel: &str) -> anyhow::Result<()> {
     let verilog = cmd_gen_verilog_stdout(repo, rel)?;
     let tmp = std::env::temp_dir().join(format!("t27c_yosys_smoke_{}.v", rel.replace('/', "_")));
@@ -248,11 +281,17 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
     println!("--- Phase 3b: Gen Verilog Yosys Smoke ---");
     let mut p3b_fail = 0usize;
     if yosys_available() {
+        let mut smoke_targets = specs_scratch.clone();
+        for rel in igla_clean_specs() {
+            smoke_targets.push(repo.join(&rel));
+        }
+        smoke_targets.sort();
+        smoke_targets.dedup();
         let (p3bp, p3bf) = run_phase(
             &repo,
             "gen-verilog-yosys-smoke",
             cmd_gen_verilog_yosys_smoke,
-            &specs_scratch,
+            &smoke_targets,
         )?;
         println!("Gen Verilog Yosys Smoke: {} passed, {} failed", p3bp, p3bf);
         p3b_fail = p3bf;

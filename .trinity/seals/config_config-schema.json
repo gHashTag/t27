@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:2ef8c51c248aa7ee64c49bca5195bca2905588161149dc3baf550e3b85c42901",
   "gen_hash_rust": "sha256:91f54c12c549aaeeebb0696ab3c3b565ec28025260f5c4dd09384b38c61b7dce",
-  "gen_hash_verilog": "sha256:0cff7fb3c60bbc4e1a779ea8c69c661e1873d3d4aa0683b6bdd4bcda6eb5f169",
+  "gen_hash_verilog": "sha256:b6b19e96684b80a163e07b46d20a8427e83b5d9bbb53564acbe73f1a87f8441c",
   "gen_hash_zig": "sha256:b3f1cd8ab7efbc4b11272e0a5e60df624c2fe64d0a0efc5238ce1460ed88fef7",
   "module": "config-schema",
   "ring": 12,
-  "sealed_at": "2026-07-03T04:18:02Z",
+  "sealed_at": "2026-07-03T06:45:25Z",
   "spec_hash": "sha256:be6457186936be3d51890416d5440ada3e39561297380e983ae709eca28d727a",
   "spec_path": "specs/config/schema.t27"
 }

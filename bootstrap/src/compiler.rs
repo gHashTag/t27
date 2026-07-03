@@ -3642,6 +3642,14 @@ pub struct VerilogCodegen {
     // to skip a redundant truncation mask when the operand is a parameter that is
     // no wider than the cast target (a widening or same-width cast).
     param_widths: std::collections::HashMap<String, usize>,
+    // Types of the parameters of the function currently being lowered, keyed by
+    // parameter name. Used by ExprFieldAccess to resolve struct-type register
+    // names for variable-based struct field access.
+    param_types: std::collections::HashMap<String, String>,
+    // Flattened struct-field register names emitted by gen_verilog_struct.
+    // Used by ExprFieldAccess to decide whether a field access on a struct-typed
+    // variable should resolve to the struct-type register name.
+    struct_field_regs: std::collections::HashSet<String>,
 }
 
 impl VerilogCodegen {
@@ -3653,6 +3661,8 @@ impl VerilogCodegen {
             current_fn_name: String::new(),
             current_fn_return_type: String::new(),
             param_widths: std::collections::HashMap::new(),
+            param_types: std::collections::HashMap::new(),
+            struct_field_regs: std::collections::HashSet::new(),
         }
     }
 
@@ -4348,6 +4358,7 @@ impl VerilogCodegen {
             // the struct name would leave the backslash in the middle of the
             // identifier, which Verilog tokenizes as two separate identifiers.
             let flat_name = format!("{}_{}", node.name.to_lowercase(), field.name);
+            self.struct_field_regs.insert(flat_name.clone());
             let safe_reg = Self::verilog_safe_identifier(&flat_name);
             self.write_line(&format!(
                 "reg {}{}{}; // {}.{}{}",
@@ -4365,9 +4376,11 @@ impl VerilogCodegen {
         self.current_fn_name = Self::verilog_safe_identifier(&node.name);
         self.current_fn_return_type = node.extra_return_type.clone();
         self.param_widths.clear();
+        self.param_types.clear();
         for (pname, ptype) in &node.params {
             self.param_widths
                 .insert(pname.clone(), Self::type_to_width(ptype) as usize);
+            self.param_types.insert(pname.clone(), ptype.clone());
         }
         self.write_line("");
         self.write_indent();
@@ -4458,6 +4471,7 @@ impl VerilogCodegen {
         self.current_fn_name.clear();
         self.current_fn_return_type.clear();
         self.param_widths.clear();
+        self.param_types.clear();
     }
 
     // W375: detect a bare `if (cond) { return expr; }` statement (no else branch)
@@ -5040,8 +5054,25 @@ impl VerilogCodegen {
                         let safe_flat = Self::verilog_safe_identifier(&flat_name);
                         self.write(&safe_flat);
                     } else if child.kind == NodeKind::ExprIdentifier {
-                        let flat_name = format!("{}_{}", child.name, node.name);
-                        let safe_flat = Self::verilog_safe_identifier(&flat_name);
+                        // W377: if the base identifier is a parameter whose declared type
+                        // is a struct, emit the struct-type register name instead of a
+                        // variable-qualified name. This unifies the field access with the
+                        // module-level registers emitted by gen_verilog_struct.
+                        let base_param_type = self.param_types.get(&child.name).cloned();
+                        let field_name = if let Some(ref ty) = base_param_type {
+                            let candidate = format!("{}_{}", ty.to_lowercase(), node.name);
+                            // Only use the struct-type name if the module actually emitted a
+                            // matching struct-field register; otherwise keep the old
+                            // variable-qualified fallback.
+                            if self.struct_field_regs.contains(&candidate) {
+                                candidate
+                            } else {
+                                format!("{}_{}", child.name, node.name)
+                            }
+                        } else {
+                            format!("{}_{}", child.name, node.name)
+                        };
+                        let safe_flat = Self::verilog_safe_identifier(&field_name);
                         self.write(&safe_flat);
                     } else {
                         self.gen_verilog_expr(child);

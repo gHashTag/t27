@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-01 (Wave Loop 376)  
+**Last updated:** 2026-07-03 (Wave Loop 377)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -129,7 +129,7 @@ fn cast_and_mask(x : u16) -> u8 {
 
 ---
 
-### Defect 5 — Struct-field reg name mismatch (PARTIALLY ADDRESSED in W373)
+### Defect 5 — Struct-field reg name mismatch (FIXED in W377)
 
 **Repro:**
 ```t27
@@ -139,11 +139,20 @@ fn get_x(p : Pt) -> u8 {
 }
 ```
 
-**Observed Verilog:** the generated reg or field access uses an identifier that does not consistently match the struct-field path, so simulation may fail with an unresolved name.
+**Observed Verilog (before W377):** field access on a struct-typed parameter was emitted using the parameter-variable name as a prefix, e.g. `p_x`, while the struct declaration emitted module-level registers named after the struct type, e.g. `pt_x`. This mismatch caused unresolved identifiers in simulation/synthesis.
 
-**Root cause:** struct-field flattening does not consistently qualify member names when emitting Verilog regs. The W373 fix made the emitted names keyword-safe, but the underlying mapping between struct-type registers (`pt_x`) and variable-based field access (`p_x`) is still not unified.
+**Observed Verilog (after W377):** the codegen now tracks parameter types and emitted struct-field register names. When a function parameter has a struct type, field access resolves to the struct-type register name (`pt_x`) instead of the variable-qualified name (`p_x`).
 
-**Wave-safe fix order:** lower priority until specs actively use struct ports.
+**Root cause:** `gen_verilog_expr` lowered `ExprFieldAccess` as `{base}_{field}` without knowing whether `base` was a struct-typed parameter and without a registry of the struct-type register names emitted by `gen_verilog_struct`.
+
+**Fix (W377):**
+- Added `param_types: HashMap<String, String>` to `VerilogCodegen` to record the declared type of each function parameter.
+- Added `struct_field_regs: HashSet<String>` to record the flattened register names emitted for each struct field (e.g. `word_data`).
+- In `gen_verilog_fn`, populate `param_types` from `node.params` before emitting the function body.
+- In `gen_verilog_struct`, insert each emitted register name into `struct_field_regs`.
+- In `ExprFieldAccess` lowering, if the base identifier's declared type is a struct, build the candidate struct-type register name (`{type}_{field}`). If it exists in `struct_field_regs`, use it; otherwise fall back to the original `{base}_{field}` behavior.
+
+**Verification:** `specs/scratch/w377_struct_field_mapping.t27` exercises field reads on a struct-typed parameter. `t27c gen-verilog` emits `word_data` / `word_tag` references, and `yosys read_verilog -sv` + `synth_xilinx` pass.
 
 ### Defect 6 — `let` destructuring is emitted verbatim
 
@@ -166,9 +175,8 @@ fn cordic_top_batch_inner(angles : u32, idx : u32, acc : i32) -> i32 {
 
 ## Recommended Triage Order
 
-1. **Defect 6** — `let` destructuring; blocked by the deeper absence of tuple-return function generation in the Verilog backend. A pure syntax-level workaround is possible but semantic correctness requires parser/codegen work for tuple return types and tuple literals.
-2. **Defect 5** — struct fields; defer until struct usage grows.
-3. **CI smoke gate expansion** — the W376 gate covers `specs/scratch/*.t27`; once Defects 5 and 6 are resolved, expand the gate to all synthesizable specs under `specs/igla/` while keeping the implementation inside `bootstrap/src/suite.rs` (no new shell scripts per L7 UNITY).
+1. **Defect 6** — `let` destructuring; blocked by the deeper absence of tuple-return function generation in the Verilog backend. A pure syntax-level workaround is possible but semantic correctness requires parser/codegen work for tuple return types and tuple literals. Once fixed, add `specs/igla/race/cordic.t27` and `specs/igla/race/cordic_top.t27` to the smoke gate.
+2. **CI smoke gate expansion** — with Defect 5 resolved, the W377 gate now covers all 25 yosys-clean IGLA specs plus all scratch specs. Remaining expansion is gated on Defect 6.
 
 ---
 
@@ -185,6 +193,8 @@ fn cordic_top_batch_inner(angles : u32, idx : u32, acc : i32) -> i32 {
 - [x] Local variable keyword-safe emission
 - [ ] `let` destructuring lowering (blocked by missing tuple-return function generation)
 - [x] CI smoke gate for `gen-verilog` + `yosys read_verilog` on scratch specs (W376)
+- [x] CI smoke gate expanded to 25 yosys-clean IGLA specs (W377)
+- [x] Struct-field reg mapping from struct-type registers (`pt_x`) instead of parameter-variable registers (`p_x`) (W377)
 
 ---
 

@@ -482,3 +482,33 @@
 - Do not rewrite working codegen without first proving the generated output is incorrect; a regression spec and smoke gate are often the right fix.
 - Do not make the smoke gate mandatory when its external dependency (`yosys`) may not be installed locally; skip gracefully and enforce in CI.
 - Do not leave warnings unlogged; the smoke gate prints yosys warnings so they can be triaged without failing the gate.
+
+## 2026-07-03 — Wave Loop 377 completion
+
+### What worked
+- Reused the generator pattern (`scripts/gen_w377.py`, `scripts/gen_w377_lean.py`) to append W377 blocks and 4 new generic ∀ theorems; `t27c suite` returned **557/557 PASS** and `lake build Trinity.TernaryInference` succeeded.
+- `ternaryMacAccumulateFiftyThreePlusGeneric` pushed the plus-accumulation boundary to **53 variables** without timeout (~6.5 s build).
+- `ternaryMacTrigintupleCancellationGeneric` (depth-30) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
+- `ternaryMacZeroWeightVigintupleClosureGeneric` uses 11 zero-weight MACs before and 11 zero-weight MACs after a plus-weight MAC (22 closure size, 23 variables).
+- Fixed `gen-verilog` Defect 5 (struct-field register-name mapping) in `bootstrap/src/compiler.rs`. Functions that take a struct parameter now resolve field reads to struct-type registers (`word_data`) rather than parameter-variable registers (`w_data`). Verified with scratch spec `specs/scratch/w377_struct_field_mapping.t27` and `yosys read_verilog -sv` + `synth_xilinx`.
+- Expanded the in-runner CI smoke gate in `bootstrap/src/suite.rs` to cover all 25 yosys-clean IGLA specs in addition to the 11 scratch specs; `cordic.t27` and `cordic_top.t27` remain excluded pending Defect 6 (`let` destructuring).
+- Mass seal regeneration after compiler/CI changes: 96 mismatched seals from the suite run were resealed and the second suite pass showed **0 mismatches**.
+
+### What changed behavior
+- Generic ∀ count reached **252** (244 `ternaryMac...Generic` theorems in `TernaryInference.lean` plus 8 other generic theorems across Trinity modules).
+- The zero-IGLA-failure streak extended to **111 waves** (thirty-seventh consecutive zero-failure wave).
+- IGLA totals: **13,083 tests**, **5,742 invariants** across full repo.
+- Conformance suite now evaluates **557 specs** (27 IGLA + non-IGLA + scratch regression specs).
+- Gen-verilog yosys smoke gate now evaluates **36 targets** (11 scratch + 25 clean IGLA).
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W377.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: Defect 5 fixed; Defect 6 remains blocked by tuple-return generation and is the only remaining open defect.
+
+### Patterns to reuse
+- For struct-field lowering, track both parameter types and emitted struct-field register names so field access can resolve to the canonical struct-type register name while preserving fallback behavior for non-struct parameters.
+- Maintain an explicit allow-list of yosys-clean IGLA specs in the smoke gate rather than auto-discovering all `specs/igla/*.t27`; this prevents known-broken specs from failing the gate while documenting why they are excluded.
+- When mass resealing, capture the list of specs whose seals actually changed (using `t27c suite` mismatch output) and reseal only those; this avoids timestamp-only diffs in hundreds of seal files.
+
+### Anti-patterns to avoid
+- Do not reseal every seal file blindly after a compiler change; most seals only need a timestamp update and create noisy diffs.
+- Do not expand the smoke gate to all IGLA specs without first testing each one individually; auto-inclusion would fail the gate on specs blocked by known defects.
+- Do not assume a codegen fix is correct because the generated Verilog looks right; always run it through `yosys read_verilog -sv` (and ideally `synth_xilinx`) to catch identifier-resolution and syntax issues.

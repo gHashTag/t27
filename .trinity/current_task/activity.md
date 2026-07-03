@@ -1084,3 +1084,7 @@
 - **Commit:** feat(igla): Wave Loop 376 — 248 generic ∀, 52-variable accumulation, novenvigintuple cancellation, zero-weight novemdecuple closure, gen-verilog cast/bitwise verification + yosys CI smoke gate
 - **Files:** scripts/tri
 
+## 2026-07-03T06:52:50Z — trinity-rust-rings
+- **Commit:** fix(tri): pass --repo-root after suite subcommand
+- **Files:** .claude/plans/wave-loop-377.md,.trinity/current_task/.commit_count,.trinity/experience.md,.trinity/seals/account_AccountAuth.json,.trinity/seals/boards_BoardMinimalXC7A100T.json,.trinity/seals/brain_brain-phi-timing.json,.trinity/seals/brain_brain-unified-state.json,.trinity/seals/bus_bus-pubsub.json,.trinity/seals/coder_igla-coder-arch.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-eval.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-prm.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json,.trinity/seals/coder_igla-coder-weights.json,.trinity/seals/compiler_Diagnostics.json,.trinity/seals/compiler_Lexing.json
+
