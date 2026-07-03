@@ -1,0 +1,21 @@
+module w387_2d_local_array_for;
+
+fn fill_and_sum_2d() -> u16 {
+    var m : [2][3]u16;
+    for r in 0..2 {
+        for c in 0..3 {
+            m[r][c] = ((r * 3) + c + 1) as u16 * 0x0100;
+        }
+    }
+    var sum : u16 = 0;
+    for r in 0..2 {
+        for c in 0..3 {
+            sum = sum + m[r][c];
+        }
+    }
+    return sum;
+}
+
+test fill_and_sum_2d { assert_eq(fill_and_sum_2d(), 0x0100 + 0x0200 + 0x0300 + 0x0400 + 0x0500 + 0x0600); }
+
+endmodule

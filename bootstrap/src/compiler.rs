@@ -3699,10 +3699,12 @@ pub struct VerilogCodegen {
     // function name. Used by let-destructuring to infer binding widths from a
     // callee's tuple return type.
     fn_return_types: std::collections::HashMap<String, String>,
-    // W384: function-local arrays declared in the current function, keyed by
-    // name. Stores (size, element_width, element_signed). Used by ExprIndex
-    // and StmtAssign to emit mux chains for variable-index access.
-    local_arrays: std::collections::HashMap<String, (usize, u32, bool)>,
+    // W384/W387: function-local arrays declared in the current function, keyed
+    // by name. Stores (dimensions, element_width, element_signed). For 1D
+    // arrays the dimensions vector has one element; for 2D/ND arrays it holds
+    // all dimensions in outer-to-inner order. Used by ExprIndex and StmtAssign
+    // to emit flattened per-element reg accesses and mux chains.
+    local_arrays: std::collections::HashMap<String, (Vec<usize>, u32, bool)>,
 }
 
 impl VerilogCodegen {
@@ -3874,6 +3876,114 @@ impl VerilogCodegen {
             return None;
         }
         Some((size, elem))
+    }
+
+    /// W387: parse a possibly multi-dimensional array type string such as
+    /// "[2][3]u16" into (dimensions, leaf_element_type). For "[4]u16" returns
+    /// ([4], "u16"). Returns None for non-array types.
+    fn parse_array_type_full(ty: &str) -> Option<(Vec<usize>, String)> {
+        let mut rest = ty.trim();
+        let mut dims = Vec::new();
+        while rest.starts_with('[') {
+            let close = rest.find(']')?;
+            let size_str = &rest[1..close];
+            let size = size_str.trim().parse::<usize>().ok()?;
+            if size == 0 {
+                return None;
+            }
+            dims.push(size);
+            rest = rest[close + 1..].trim();
+        }
+        if dims.is_empty() || rest.is_empty() {
+            return None;
+        }
+        Some((dims, rest.to_string()))
+    }
+
+    /// W387: total number of elements in a multi-dimensional shape.
+    fn array_total_size(dims: &[usize]) -> usize {
+        dims.iter().product()
+    }
+
+    /// W387: collect the root identifier and all index expressions from a
+    /// possibly nested ExprIndex chain such as `m[i][j]`. Indices are returned
+    /// in outer-to-inner order. Returns None if the chain does not resolve to a
+    /// plain identifier.
+    fn collect_index_chain(node: &Node) -> Option<(&Node, Vec<&Node>)> {
+        let mut indices = Vec::new();
+        let mut current = node;
+        while current.kind == NodeKind::ExprIndex && current.children.len() >= 2 {
+            indices.push(&current.children[1]);
+            current = &current.children[0];
+        }
+        if current.kind != NodeKind::ExprIdentifier {
+            return None;
+        }
+        indices.reverse();
+        Some((current, indices))
+    }
+
+    /// W387: collect constant usize indices from a vector of index nodes.
+    /// Returns None if any index is not a numeric literal.
+    fn const_indices(indices: &[&Node]) -> Option<Vec<usize>> {
+        indices
+            .iter()
+            .map(|idx| idx.value.parse::<usize>().ok())
+            .collect()
+    }
+
+    /// W387: flatten multi-dimensional indices into a linear offset.
+    /// `indices` must be in outer-to-inner order (e.g. [row, col]).
+    fn linear_index(dims: &[usize], indices: &[usize]) -> usize {
+        let mut offset = 0usize;
+        let mut stride = 1usize;
+        // Iterate inner-to-outer so stride accumulates correctly.
+        for (i, dim) in dims.iter().rev().enumerate() {
+            let idx = *indices.iter().rev().nth(i).unwrap_or(&0);
+            offset += idx * stride;
+            stride *= dim;
+        }
+        offset
+    }
+
+    /// W387: build a Verilog expression string that computes the linear offset
+    /// for variable multi-dimensional indices. `indices` are Node expressions in
+    /// outer-to-inner order. For unsupported shapes, falls back to the first
+    /// index expression.
+    fn gen_linear_index_expr(dims: &[usize], indices: &[&Node]) -> String {
+        if indices.is_empty() {
+            return "0".to_string();
+        }
+        if indices.len() != dims.len() {
+            // Degenerate / unsupported: return the outermost index as a best-effort.
+            let mut codegen = Self::new();
+            codegen.gen_verilog_expr(&indices[0]);
+            return codegen.into_string();
+        }
+        if dims.len() == 1 {
+            let mut codegen = Self::new();
+            codegen.gen_verilog_expr(&indices[0]);
+            return codegen.into_string();
+        }
+        // General formula: i0*D1*D2*...*Dn-1 + i1*D2*...*Dn-1 + ... + in-1.
+        // Build terms outer-to-inner, computing the stride for each term as the
+        // product of all inner dimensions.
+        let mut expr = String::new();
+        for (dim_idx, idx_node) in indices.iter().enumerate() {
+            let mut codegen = Self::new();
+            codegen.gen_verilog_expr(idx_node);
+            let idx_expr = codegen.into_string();
+            let stride: usize = dims.iter().skip(dim_idx + 1).product();
+            if dim_idx > 0 {
+                expr.push_str(" + ");
+            }
+            if stride == 1 {
+                expr.push_str(&idx_expr);
+            } else {
+                expr.push_str(&format!("({} * {})", idx_expr, stride));
+            }
+        }
+        expr
     }
 
     /// Format a Verilog range declaration like [31:0]
@@ -4986,10 +5096,11 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtLocal => {
-                // W383: support function-local array variables such as
-                // `var tmp : [2]u16;`. Emit per-element regs with index access when
-                // the type annotation is an array type.
-                if let Some((array_size, elem_type)) = Self::parse_array_type(&node.extra_type) {
+                // W383/W387: support function-local array variables such as
+                // `var tmp : [2]u16;` and multi-dimensional `var m : [2][3]u16;`.
+                // Emit flattened per-element regs with index access when the type
+                // annotation is an array type.
+                if let Some((dims, elem_type)) = Self::parse_array_type_full(&node.extra_type) {
                     let elem_width = Self::type_to_width(&elem_type);
                     let elem_signed = Self::type_is_signed(&elem_type);
                     let elem_signed_str = if elem_signed { "signed " } else { "" };
@@ -5000,15 +5111,18 @@ impl VerilogCodegen {
                         format!("{} ", elem_range)
                     };
                     let safe_name = Self::verilog_safe_identifier(&node.name);
-                    // W384: register this local array (keyed by original name) so
+                    let total_size = Self::array_total_size(&dims);
+                    // W384/W387: register this local array (keyed by original name) so
                     // ExprIndex and StmtAssign can emit mux chains for variable-index
                     // access. Element register names use the full flattened token
-                    // escaped as a unit to avoid Verilog keyword collisions.
+                    // escaped as a unit to avoid Verilog keyword collisions. For
+                    // multi-dimensional arrays the regs are flattened in row-major
+                    // order (outer-to-inner).
                     self.local_arrays.insert(
                         node.name.clone(),
-                        (array_size, elem_width, elem_signed),
+                        (dims, elem_width, elem_signed),
                     );
-                    for i in 0..array_size {
+                    for i in 0..total_size {
                         self.write_indent();
                         let reg_name =
                             Self::verilog_safe_identifier(&format!("{}_{}", node.name, i));
@@ -5024,7 +5138,7 @@ impl VerilogCodegen {
                             // literal initializer, with width padding for hex/binary
                             // literals so they match the declared element width.
                             for (i, elem) in init.children.iter().enumerate() {
-                                if i >= array_size {
+                                if i >= total_size {
                                     break;
                                 }
                                 self.write_indent();
@@ -5140,39 +5254,40 @@ impl VerilogCodegen {
                     self.gen_verilog_let_destructuring(&node.children[0], &node.children[1]);
                     return;
                 }
-                // W384: variable-index assignment on a function-local array.
+                // W384/W387: variable-index assignment on a function-local array.
                 // Emit an if-else chain selecting the matching per-element reg.
+                // Handles both 1D `m[i] = x` and multi-dimensional `m[r][c] = x` by
+                // flattening the index chain to a linear offset.
                 if node.children.len() >= 2
                     && node.children[0].kind == NodeKind::ExprIndex
-                    && node.children[0].children.len() >= 2
-                    && node.children[0].children[0].kind == NodeKind::ExprIdentifier
                 {
-                    let lhs = &node.children[0];
-                    let base = &lhs.children[0];
-                    let idx = &lhs.children[1];
-                    if let Some(array_info) = self.local_arrays.get(&base.name).copied() {
-                        let (array_size, _elem_width, _elem_signed) = array_info;
-                        if idx.value.parse::<usize>().is_err() {
-                            let rhs = &node.children[1];
-                            for i in 0..array_size {
-                                self.write_indent();
-                                if i == 0 {
-                                    self.write("if (");
-                                } else {
-                                    self.write("else if (");
+                    if let Some((base, indices)) = Self::collect_index_chain(&node.children[0]) {
+                        if let Some(array_info) = self.local_arrays.get(&base.name).cloned() {
+                            let (dims, _elem_width, _elem_signed) = array_info;
+                            let total_size = Self::array_total_size(&dims);
+                            if Self::const_indices(&indices).is_none() {
+                                let rhs = &node.children[1];
+                                let linear_expr = Self::gen_linear_index_expr(&dims, &indices);
+                                for i in 0..total_size {
+                                    self.write_indent();
+                                    if i == 0 {
+                                        self.write("if (");
+                                    } else {
+                                        self.write("else if (");
+                                    }
+                                    self.write(&linear_expr);
+                                    let reg_name = Self::verilog_safe_identifier(
+                                        &format!("{}_{}", base.name, i)
+                                    );
+                                    self.write(&format!(
+                                        " == {}) begin {} = ",
+                                        i, reg_name
+                                    ));
+                                    self.gen_verilog_expr(rhs);
+                                    self.write_line("; end");
                                 }
-                                self.gen_verilog_expr(idx);
-                                let reg_name = Self::verilog_safe_identifier(
-                                    &format!("{}_{}", base.name, i)
-                                );
-                                self.write(&format!(
-                                    " == {}) begin {} = ",
-                                    i, reg_name
-                                ));
-                                self.gen_verilog_expr(rhs);
-                                self.write_line("; end");
+                                return;
                             }
-                            return;
                         }
                     }
                 }
@@ -5512,46 +5627,39 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprIndex => {
-                if node.children.len() >= 2 {
-                    let base = &node.children[0];
-                    let idx = &node.children[1];
-                    // W383/W384: function-local arrays are emitted as per-element regs
-                    // (tmp_0, tmp_1, ...). If the index is a numeric literal, rewrite
-                    // the access to the flattened reg name. If the index is a variable,
-                    // emit a priority mux chain over the per-element regs so the
-                    // generated Verilog remains synthesizable inside a function.
-                    if base.kind == NodeKind::ExprIdentifier {
-                        if let Ok(idx_val) = idx.value.parse::<usize>() {
-                            if let Some(array_info) =
-                                self.local_arrays.get(&base.name).copied()
-                            {
-                                let (array_size, _elem_width, _elem_signed) = array_info;
-                                if idx_val < array_size {
-                                    let reg_name = Self::verilog_safe_identifier(
-                                        &format!("{}_{}", base.name, idx_val)
-                                    );
-                                    self.write(&reg_name);
-                                } else {
-                                    self.gen_verilog_expr(base);
+                // W383/W384/W387: function-local arrays are emitted as flattened
+                // per-element regs (tmp_0, tmp_1, ...). If the access is a constant
+                // numeric index chain, rewrite to the flattened reg name. If any
+                // index is a variable, emit a priority mux chain over the flattened
+                // regs using a linearized index expression.
+                if let Some((base, indices)) = Self::collect_index_chain(node) {
+                    if let Some(array_info) = self.local_arrays.get(&base.name).cloned() {
+                        let (dims, elem_width, _elem_signed) = array_info;
+                        let total_size = Self::array_total_size(&dims);
+                        if let Some(const_idx) = Self::const_indices(&indices) {
+                            let flat = Self::linear_index(&dims, &const_idx);
+                            if flat < total_size {
+                                let reg_name = Self::verilog_safe_identifier(
+                                    &format!("{}_{}", base.name, flat)
+                                );
+                                self.write(&reg_name);
+                            } else {
+                                self.gen_verilog_expr(base);
+                                for idx in &indices {
                                     self.write("[");
                                     self.gen_verilog_expr(idx);
                                     self.write("]");
                                 }
-                            } else {
-                                let safe_base = Self::verilog_safe_identifier(&base.name);
-                                self.write(&format!("{}_{}", safe_base, idx_val));
                             }
-                        } else if let Some(array_info) =
-                            self.local_arrays.get(&base.name).copied()
-                        {
-                            let (array_size, elem_width, _elem_signed) = array_info;
+                        } else {
+                            let linear_expr = Self::gen_linear_index_expr(&dims, &indices);
                             self.write("(");
-                            for i in 0..array_size {
+                            for i in 0..total_size {
                                 if i > 0 {
                                     self.write("(");
                                 }
                                 self.write("(");
-                                self.gen_verilog_expr(idx);
+                                self.write(&linear_expr);
                                 let reg_name = Self::verilog_safe_identifier(
                                     &format!("{}_{}", base.name, i)
                                 );
@@ -5561,16 +5669,27 @@ impl VerilogCodegen {
                                 ));
                             }
                             self.write(&format!("{}'d0", elem_width));
-                            for _ in 0..array_size {
+                            for _ in 0..total_size {
                                 self.write(")");
                             }
-                        } else {
-                            let safe_base = Self::verilog_safe_identifier(&base.name);
-                            self.gen_verilog_expr(base);
-                            self.write("[");
-                            self.gen_verilog_expr(idx);
-                            self.write("]");
                         }
+                        return;
+                    }
+                }
+                // Fall back to plain Verilog indexing for non-local-array bases.
+                // Preserve W383/W384 behavior: a constant numeric index on a bare
+                // identifier that is not a tracked local array is emitted as
+                // `base_idx` (used for slice/string parameter access). Variable
+                // indices and non-identifier bases fall back to `base[idx]`.
+                if node.children.len() >= 2 {
+                    let base = &node.children[0];
+                    let idx = &node.children[1];
+                    if base.kind == NodeKind::ExprIdentifier
+                        && idx.value.parse::<usize>().is_ok()
+                    {
+                        let idx_val = idx.value.parse::<usize>().unwrap();
+                        let safe_base = Self::verilog_safe_identifier(&base.name);
+                        self.write(&format!("{}_{}", safe_base, idx_val));
                     } else {
                         self.gen_verilog_expr(base);
                         self.write("[");

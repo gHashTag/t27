@@ -276,6 +276,7 @@ Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emit
 - [x] Function-local array signed element types (`[N]i8`, `[N]i16`, etc.) (W385)
 - [x] Function-local array literal initialization at declaration time (`var buf : [N]T = [N]T{...}`) (W385)
 - [x] Function-local arrays inside `for` loops, constant and parameter bounds (W386)
+- [x] Multi-dimensional function-local arrays with numeric/variable indices and signed elements (W387)
 
 ## Fixed in W384 — Function-local array variable-index access
 
@@ -316,10 +317,30 @@ Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emit
 - `specs/scratch/w386_for_local_array_param.t27` — parameter-bound loop with variable-index write/read on `[4]u16`.
 - All three pass `t27c gen-verilog` + `yosys read_verilog -sv` + `synth`.
 
-## Open work after W386
+## Fixed in W387 — Multi-dimensional function-local arrays
+
+**Symptom:** Declarations such as `var m : [2][3]u16` were parsed and typechecked, but the gen-verilog backend treated them as a 1D array of array-typed elements. It emitted per-row regs with the default 32-bit width and accessed elements via Verilog bit-selects (`m_0[0]`, `m_0[1]`), which silently corrupted data widths.
+
+**Fix:** `bootstrap/src/compiler.rs` now parses the full dimension list, flattens multi-dimensional arrays into per-element regs in row-major order, and lowers nested index chains (`m[r][c]`) to a linear offset.
+
+- Numeric constant indices (`m[1][2]`) resolve directly to the flattened reg (`m_5`).
+- Variable indices (`m[row][col]`) emit a priority mux chain over all flattened regs using the linearized expression `(row * 3) + col` as the select.
+- Signed leaf element types and nested `for` loops over 2D arrays work without additional changes.
+- Non-local-array constant index fallback (`base_idx`) is preserved so module-level arrays and slice parameters are unaffected.
+
+**Verification:**
+- `specs/scratch/w387_2d_local_array.t27` — numeric-index read/write.
+- `specs/scratch/w387_2d_local_array_varidx.t27` — variable-index read/write.
+- `specs/scratch/w387_2d_local_array_signed.t27` — signed `[2][3]i8` sum.
+- `specs/scratch/w387_2d_local_array_for.t27` — nested loops filling/summing a 2D array.
+- All four pass `t27c gen-verilog` + `yosys read_verilog -sv` + `synth`.
+
+**Limitation:** multi-dimensional array-literal initialization (`var m : [2][3]u16 = [2][3]u16{...}`) is not yet supported by the parser and is tracked as remaining work.
+
+## Open work after W387
 
 - **Array/RAM sub-gaps remaining:**
-  - Multi-dimensional arrays (`[[T; M]; N]`).
+  - Multi-dimensional array-literal initialization.
   - RAM style inference / block-vs-distributed pragma hints.
 - No other tracked gen-verilog syntax/semantic defects remain on `trinity-rust-rings`.
 

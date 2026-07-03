@@ -1,5 +1,27 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-01 — Wave Loop 387 completion
+
+### What worked
+- Forward-appending W387 blocks to all 27 IGLA specs and adding 4 new `ternaryMac` generic ∀ theorems (`AccumulateSixtyFivePlus`, `AccumulateSixtyFourMinus`, `QuadragintupleSeptemCancellation`, `ZeroWeightTwentyThreePairClosure`) returned **574/574 PASS**.
+- Implementing multi-dimensional function-local arrays required parser-aware codegen changes: parse the full dimension list, flatten to per-element regs, and linearize nested index chains for both constant and variable access.
+- Preserving the non-local-array constant-index fallback (`base_idx`) avoided regressions in module-level arrays and slice parameters; an initial miss caused 13 unexpected seal mismatches that were resolved before resealing.
+
+### What changed behavior
+- The `gen-verilog` backend now supports 2D function-local arrays (`var m : [2][3]u16`) with numeric, variable, signed-element, and nested-loop access.
+- The CI yosys smoke gate expanded from 51 to **55 targets** with the four new W387 scratch specs.
+- The `ternaryMac` generic ∀ count is now **292**.
+- The IGLA CODER+RACE zero-failure streak is now **121 waves**.
+
+### Patterns to reuse
+- When flattening multi-dimensional arrays, compute linear offsets outer-to-inner with stride equal to the product of inner dimensions.
+- For nested index chains, collect the chain once and reuse it for both read and write paths to keep the linearization consistent.
+- Always preserve existing fallbacks when generalizing an indexing path; otherwise non-array index patterns regress.
+
+### Anti-patterns to avoid
+- Do not replace a specialized index path with a general one without checking non-array identifiers that relied on the old behavior.
+- Do not regenerate seals until the full suite is green; unexpected mismatches are a signal of regressions, not just expected churn.
+
 ## 2026-07-01 — Wave Loop 386 completion
 
 ### What worked
