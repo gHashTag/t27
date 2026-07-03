@@ -1,5 +1,26 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-01 — Wave Loop 390 completion
+
+### What worked
+- Forward-appending W390 blocks to all 27 IGLA specs and adding 4 new `ternaryMac` generic ∀ theorems (`AccumulateSixtyEightPlus`, `AccumulateSixtySevenMinus`, `QuinquagintupleCancellation`, `ZeroWeightTwentyFivePairClosure`) returned **575/575 PASS**.
+- `t27c stats` now reports **13,831 tests**, **6,097 invariants**, and **1,010 benchmarks**.
+- The IGLA CODER+RACE zero-failure streak advanced to **123 waves**.
+- The W389 SPI flash workaround was verified to still function on this workstation (generic proxy copied to package-specific name), and the board's persistent bitstream remains valid.
+
+### What changed behavior
+- The `ternaryMac` generic ∀ count is now **304**.
+- Pool A floor, CODER minimum, Pool B depth, and Integration depth each advanced by +1.
+- SPI flash is operationally reproducible on this workstation but **not yet reproducible from a clean environment** because no package-specific `spiOverJtag_xc7a200tfgg676.bit.gz` proxy exists.
+
+### Patterns to reuse
+- When a multi-path task (build proxy) is blocked by missing toolchain artifacts, document each attempted path, the exact missing dependency, and the fallback workaround so the next wave can pick the cheapest unblocked entry point.
+- Keep the proof-lattice momentum with 4 generic theorems per wave; cancellation RHS follows depth parity (identity for even depths, residual `.plus` for odd depths).
+
+### Anti-patterns to avoid
+- Do not let a blocked hardware subtask delay closing the wave; record the blocker and land the completed proof/spec work.
+- Do not delete the working workaround file until a verified replacement exists.
+
 ## 2026-07-01 — Wave Loop 389 completion
 
 ### What worked
