@@ -3854,6 +3854,23 @@ impl VerilogCodegen {
         matches!(ty, "i8" | "i16" | "i32" | "i64")
     }
 
+    /// W382: parse an array type string such as "[4]u16" into (size, element_type).
+    /// Returns None for non-array types.
+    fn parse_array_type(ty: &str) -> Option<(usize, String)> {
+        let t = ty.trim();
+        if !t.starts_with('[') {
+            return None;
+        }
+        let close = t.find(']')?;
+        let size_str = &t[1..close];
+        let size = size_str.trim().parse::<usize>().ok()?;
+        let elem = t[close + 1..].trim().to_string();
+        if elem.is_empty() {
+            return None;
+        }
+        Some((size, elem))
+    }
+
     /// Format a Verilog range declaration like [31:0]
     fn range_decl(width: u32) -> String {
         if width == 1 {
@@ -4318,10 +4335,53 @@ impl VerilogCodegen {
         } else {
             format!("{} ", range)
         };
-        let is_array = !node.extra_size.is_empty();
+        // W382: array type may come from the type annotation (e.g. "[4]u16") in
+        // addition to the legacy extra_size path used by array literals.
+        let type_array = Self::parse_array_type(&node.extra_type);
+        let is_array = !node.extra_size.is_empty() || type_array.is_some();
 
         let safe_name = Self::verilog_safe_identifier(&node.name);
-        if is_array {
+        if let Some((array_size, elem_type)) = type_array {
+            // W382: emit a true synthesizable Verilog memory so that indexing
+            // expressions like mem[i] resolve to memory access, not bit-select.
+            let elem_width = Self::type_to_width(&elem_type);
+            let elem_signed = Self::type_is_signed(&elem_type);
+            let elem_signed_str = if elem_signed { "signed " } else { "" };
+            let elem_range = Self::range_decl(elem_width);
+            let elem_range_str = if elem_range.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", elem_range)
+            };
+            self.write_line(&format!(
+                "reg {}{} {} [0:{}];",
+                elem_signed_str, elem_range_str, safe_name, array_size - 1
+            ));
+            if !node.children.is_empty() {
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                let child = &node.children[0];
+                if child.kind == NodeKind::ExprArrayLiteral {
+                    for (i, elem) in child.children.iter().enumerate() {
+                        if i < array_size {
+                            self.write_indent();
+                            self.write(&format!("{}[{}] = ", safe_name, i));
+                            self.gen_verilog_expr(elem);
+                            self.write_line(";");
+                        }
+                    }
+                } else {
+                    self.write_indent();
+                    self.write("// initializer: ");
+                    self.gen_verilog_expr(child);
+                    self.write_line("");
+                }
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            }
+        } else if is_array {
             self.write_line(&format!("// var: {} [{}]", safe_name, node.extra_size));
             let array_size: usize = node.extra_size.parse().unwrap_or(1);
             for i in 0..array_size {

@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-01 (Wave Loop 381)  
+**Last updated:** 2026-07-01 (Wave Loop 382)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -230,10 +230,26 @@ reg [31:0] _y; _y = _let_tmp_0[31:0];
 1. **Tuple-return function generation** — the remaining semantic gap behind Defect 6. Implement multi-return function types, tuple literals, and slot-aware function-call lowering so `let(a, b, c) = f(...)` is correct for arbitrary multi-return calls, not only the current syntax-level workaround.
 2. **Incremental array/RAM lowering** — #1258 (datapath specs such as FIFOs and memories).
 
-## Open work after W381
+## Open work after W382
 
-- **Incremental array/RAM lowering** — #1258 for datapath specs (FIFOs, memories). This is now the largest remaining backend capability gap.
+- **Array/RAM sub-gaps remaining:**
+  - `const lut : [N]T = [N]T{...}` ROM-style array-literal lowering (currently degrades to per-element localparams or `0 /* TODO */`).
+  - Function-local array variables inside combinational functions.
+  - Multi-dimensional arrays (`[[T; M]; N]`).
+  - RAM style inference / block-vs-distributed pragma hints.
 - No other tracked gen-verilog syntax/semantic defects remain on `trinity-rust-rings`.
+
+## Fixed in W382 — Module-level array/RAM lowering
+
+**Symptom:** `var mem : [4]u16` at module scope emitted a scalar `reg [31:0] mem;`, so indexing expressions `mem[i]` were interpreted as scalar bit-selects instead of memory accesses.
+
+**Fix:** `gen_verilog_var` now detects array type annotations via `parse_array_type` and emits a true Verilog memory declaration:
+```verilog
+reg [15:0] mem [0:3];
+```
+Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emitted valid Verilog syntax and now resolve to memory accesses.
+
+**Verification:** `specs/scratch/w382_ram_lowering.t27` exercises write/read on a 4-entry `u16` memory; `yosys read_verilog -sv` + `synth -top w382_ram_lowering` pass with 0 problems.
 
 ---
 
@@ -254,6 +270,7 @@ reg [31:0] _y; _y = _let_tmp_0[31:0];
 - [x] CI smoke gate expanded to all 27 IGLA specs (W378)
 - [x] Struct-field reg mapping from struct-type registers (`pt_x`) instead of parameter-variable registers (`p_x`) (W377)
 - [x] Tuple-return function generation for full semantic multi-return support (W380/W381)
+- [x] Module-level array/RAM lowering — `var mem : [N]T`, read `mem[i]`, write `mem[i] = x` (W382)
 
 ---
 

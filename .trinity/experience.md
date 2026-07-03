@@ -626,3 +626,30 @@
 - Do not run a generator that appends multiple blocks twice without checking whether intermediate blocks are already present; it silently duplicates theorems and breaks the Lean build.
 - Do not change a milestone comment in a generated block without also updating the generator script; the next run will re-emit the stale comment.
 - Do not assume a theorem name is unique just because it uses a Latin prefix; cross-check against the previous 2–3 waves before appending.
+
+## 2026-07-01 — Wave Loop 382 completion
+
+### What worked
+- Reached the W382 target of **272 generic ∀** by appending 4 new theorems (`AccumulateSixtyPlusGeneric`, `AccumulateFiftyNineMinusGeneric`, `QuadragintupleCancellationGeneric`, `ZeroWeightSeventeenPairClosureGeneric`). `lake build Trinity.TernaryInference` completed successfully.
+- Extended the IGLA CODER+RACE zero-failure streak to **116 waves**; `t27c suite --repo-root /Users/playra/t27` returned **562/562 PASS**.
+- Landed the first incremental array/RAM lowering in `bootstrap/src/compiler.rs`: module-level `var mem : [N]T` now emits a true Verilog memory `reg [W-1:0] mem [0:N-1];`, so `mem[i]` reads and `mem[i] = x` writes resolve to memory accesses.
+- Added `specs/scratch/w382_ram_lowering.t27` exercising a 4-entry `u16` memory with write/read; generated Verilog passes `yosys read_verilog -sv`.
+- Batch-resealed the 27 IGLA specs plus the new scratch spec after appending W382 blocks and the compiler change, then reran the suite to 0 failures.
+
+### What changed behavior
+- Generic ∀ count reached **272** in `TernaryInference.lean`.
+- Full-repo totals: **13,362 tests**, **5,881 invariants**, **1,010 benchmarks** (from `t27c stats`).
+- Conformance suite evaluates **562 specs**.
+- Gen-verilog yosys smoke gate evaluates **43 targets** (16 scratch + 27 IGLA).
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: module-level array/RAM lowering added; remaining sub-gaps documented.
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W382.md`.
+
+### Patterns to reuse
+- For array type parsing, extract the size and element type from the type annotation string (e.g. `[4]u16`) rather than relying on the legacy `extra_size` field, which is only populated by array-literal syntax.
+- When changing module-level variable emission, expect seal mismatches in any spec that declares a module-level var (not only the IGLA specs); capture and reseal the mismatch list from the first suite run.
+- Cancellation theorem depths must be even to collapse to identity `= x`; odd depths leave a residual `±a` and break the Lean build.
+
+### Anti-patterns to avoid
+- Do not plan cancellation theorems at odd depths while claiming identity collapse; always use even depths or match the statement to the residual weight.
+- Do not rebuild the workspace root crate and assume `target/release/t27c` is fresh; if the binary timestamp is stale, rebuild the `bootstrap` crate explicitly.
+- Do not emit individual `reg name_0, name_1, ...` for array vars when a true Verilog memory `reg [W-1:0] name [0:N-1];` is what downstream indexing expects.
