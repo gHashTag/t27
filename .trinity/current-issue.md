@@ -1,33 +1,32 @@
-# Current Issue: Wave Loop 391
+# Current Issue: Wave Loop 392
 
-**Issue:** #1281  
-**Local branch:** `wave-loop-391` (branched from `wave-loop-385`)  
-**Basis:** W390 close-out report and W390 cooperation variants (`docs/reports/WAVE_LOOP_390_COOPERATION.md`)
-
-> **Note:** The previous chat used `Closes #1290` for W390, but issue #1290 does not exist in `gHashTag/t27`. This file will be updated with the actual issue number once `gh auth login` is available and a real W391 issue is created.
+**Issue:** #1282
+**Local branch:** `wave-loop-392` (branched from `wave-loop-391`)
+**Basis:** W391 close-out report and W391 cooperation variants (`docs/reports/WAVE_LOOP_391_COOPERATION.md`)
 
 ## Goal
 
-Extend the IGLA CODER+RACE zero-failure streak to **124 waves**, push the Lean 4 `ternaryMac` generic ∀ lattice to **308**, and **stabilize the repository state** while the SPI proxy reproducibility task remains blocked (documented in `docs/reports/FPGA_EVIDENCE_W390.md`).
+Extend the IGLA CODER+RACE zero-failure streak to **125 waves**, push the Lean 4 `ternaryMac` generic ∀ lattice from **308 to 312**, and formalize the branching policy in `docs/BRANCHING_MODEL.md`.
 
 ## Selected variant
 
-**Variant B (recommended)** from W390 cooperation variants:
+**Variant A (recommended)** from W391 cooperation variants:
 - Add 4 new `ternaryMac` generic ∀ theorems:
-  - `ternaryMacAccumulateSixtyNinePlusGeneric` (69-variable plus accumulation).
-  - `ternaryMacAccumulateSixtyEightMinusGeneric` (68-variable minus accumulation lattice).
-  - `ternaryMacQuinquagintupleUnoCancellationGeneric` (depth-51 residual cancellation).
-  - `ternaryMacZeroWeightTwentySixPairClosureGeneric` (26 zero-weight MACs before/after plus).
+  - `ternaryMacAccumulateSeventyPlusGeneric` (70-variable plus accumulation).
+  - `ternaryMacAccumulateSixtyNineMinusGeneric` (69-variable minus accumulation lattice).
+  - `ternaryMacQuinquagintupleDuoCancellationGeneric` (depth-52 residual cancellation).
+  - `ternaryMacZeroWeightTwentySevenPairClosureGeneric` (27 zero-weight MACs before/after plus).
 - No SPI flash work — blocked until Vivado installer/auth token or openXC7 toolchain is available.
-- Focus on clean conformance and seal stability.
+- No master-alignment work — deferred to separate epic issue.
 
 ## Acceptance criteria
 
-- `lake build Trinity.TernaryInference` succeeds with 308 generic ∀ theorems.
+- `lake build Trinity.TernaryInference` succeeds with 312 generic ∀ theorems.
 - `t27c suite --repo-root .` reports **575/575 PASS**, zero seal mismatches, zero yosys smoke failures.
-- Close-out report, cooperation doc for W392, experience log, and memory index are updated.
-- Once `gh` is authenticated, create the real W391 issue, update this file, and open the corresponding PR.
+- `docs/BRANCHING_MODEL.md` documents the three-tier branch model.
+- Real W392 issue created and referenced in commit/PR (`Closes #1282`).
+- Close-out report, cooperation doc for W393, experience log, and memory index are updated.
 
 ---
 
-*φ² + 1/φ² = 3 | TRINITY*
+*phi^2 + phi^-2 = 3 | TRINITY*

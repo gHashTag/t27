@@ -54,7 +54,7 @@ Before W392 starts, the following must be resolved once `gh` CLI is authenticate
 - Finish the remote cleanup that W391 could not complete due to `gh` auth:
   - Authenticate `gh`.
   - Inspect PRs #1271/1273/1275/1277/1278/1279.
-  - Either rebase-каскад on `trinity-rust-rings` or close them and open a consolidated PR to `master`.
+  - Either rebase-cascade on `trinity-rust-rings` or close them and open a consolidated PR to `master`.
   - Push/merge W391 branch and create real W392 issue.
 - If cleanup succeeds, the W391 PR can land together with W380–W390 history.
 
