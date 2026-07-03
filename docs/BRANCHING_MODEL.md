@@ -36,8 +36,8 @@ This document records the branch policy agreed in **Wave Loop 392**.
 ## Master-alignment epic
 
 - Replaying `trinity-rust-rings` onto `master` is **not part of the wave-loop workflow**.
-- Tracked as a separate epic issue with labels `epic`, `master-alignment`, `long-running`.
-- Requires explicit user approval and a dedicated time window. See the epic issue for the replay plan.
+- Tracked as a separate epic issue: **#1284** (`epic`, `master-alignment`, `long-running`).
+- Requires explicit user approval and a dedicated time window. See #1284 for the replay plan and `docs/reports/WAVE_LOOP_391_MASTER_ALIGNMENT.md`.
 
 ---
 
