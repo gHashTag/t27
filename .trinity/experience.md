@@ -1,5 +1,27 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-04 — Wave Loop 391 completion
+
+### What worked
+- Forward-appending W391 blocks to all 27 IGLA specs and adding 4 new `ternaryMac` generic ∀ theorems (`AccumulateSixtyNinePlus`, `AccumulateSixtyEightMinus`, `QuinquagintupleUnoCancellation`, `ZeroWeightTwentySixPairClosure`) returned **575/575 PASS**.
+- `t27c stats` now reports **13,885 tests**, **6,124 invariants**, and **1,010 benchmarks**.
+- The IGLA CODER+RACE zero-failure streak advanced to **124 waves**.
+- Completed W391 locally despite `gh` CLI being unauthenticated; documented the remote-cleanup debt in `docs/reports/WAVE_LOOP_391_SYNC_REPORT.md` instead of inventing issue numbers.
+
+### What changed behavior
+- The `ternaryMac` generic ∀ count is now **308**.
+- Pool A floor, CODER minimum, Pool B depth, and Integration depth each advanced by +1.
+- `.trinity/current-issue.md` now explicitly marks the W391 issue number as pending `gh` auth, replacing the incorrect #1290 reference.
+
+### Patterns to reuse
+- When GitHub API access is unavailable, continue the local wave work (proof/spec/seal/test/docs) but do **not** fabricate issue/PR numbers. Record the auth/cleanup debt for the next wave.
+- The generator script pattern (`scripts/gen_wNNN.py` + `scripts/gen_wNNN_lean.py`) remains the fastest way to add a wave block and theorem set.
+
+### Anti-patterns to avoid
+- Do not write `Closes #NNNN` without verifying the issue exists via `gh issue view`.
+- Do not stall an entire wave waiting for remote cleanup if the local proof/spec work can be completed and committed cleanly.
+- Do not start new SPI flash attempts without first resolving the toolchain blocker.
+
 ## 2026-07-01 — Wave Loop 390 completion
 
 ### What worked

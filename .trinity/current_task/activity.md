@@ -1152,3 +1152,19 @@
 - **Commit:** feat(igla): Wave Loop 389 — 300 generic ∀, SPI flash success, 575/575 PASS
 - **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/coder_igla-coder-arch.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-eval.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-prm.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json,.trinity/seals/coder_igla-coder-weights.json,.trinity/seals/race_igla-race-adder-tree.json,.trinity/seals/race_igla-race-backend.json,.trinity/seals/race_igla-race-bram-weights.json,.trinity/seals/race_igla-race-cordic-fixed.json,.trinity/seals/race_igla-race-cordic-top.json,.trinity/seals/race_igla-race-cordic.json
 
+## 2026-07-03T18:28:00Z — wave-loop-391
+- **Commit:** feat(igla): Wave Loop 390 — 304 generic ∀, SPI proxy reproducibility blocked, 575/575 PASS
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,.trinity/seals/coder_igla-coder-arch.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-eval.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-prm.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json,.trinity/seals/coder_igla-coder-weights.json,.trinity/seals/race_igla-race-adder-tree.json,.trinity/seals/race_igla-race-backend.json,.trinity/seals/race_igla-race-bram-weights.json,.trinity/seals/race_igla-race-cordic-fixed.json,.trinity/seals/race_igla-race-cordic-top.json,.trinity/seals/race_igla-race-cordic.json,.trinity/seals/race_igla-race-eda.json,.trinity/seals/race_igla-race-formal.json
+
+## 2026-07-03T18:49:48Z — wave-loop-391
+- **Commit:** feat(igla): Wave Loop 391 — 308 generic ∀, remote cleanup blocked by gh auth, 575/575 PASS
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-03T18:49:53Z — wave-loop-391
+- **Commit:** feat(igla): Wave Loop 391 — 308 generic ∀, remote cleanup blocked by gh auth, 575/575 PASS
+- **Files:** .trinity/current-issue.md,.trinity/current_task/activity.md
+
+## 2026-07-03T18:49:58Z — wave-loop-391
+- **Commit:** feat(igla): Wave Loop 391 — 308 generic ∀, remote cleanup blocked by gh auth, 575/575 PASS
+- **Files:** .trinity/current-issue.md,.trinity/current_task/activity.md
+
