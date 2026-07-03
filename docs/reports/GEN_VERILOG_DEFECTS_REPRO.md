@@ -273,6 +273,8 @@ Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emit
 - [x] Module-level ROM lowering — `const lut : [N]T = [N]T{...}` (W383)
 - [x] Function-local array variables with numeric-literal index access (W383)
 - [x] Function-local array variable-index access — read via priority mux, write via if-else chain, full-token keyword escape (W384)
+- [x] Function-local array signed element types (`[N]i8`, `[N]i16`, etc.) (W385)
+- [x] Function-local array literal initialization at declaration time (`var buf : [N]T = [N]T{...}`) (W385)
 
 ## Fixed in W384 — Function-local array variable-index access
 
@@ -285,12 +287,23 @@ Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emit
 
 **Verification:** `specs/scratch/w384_variable_index.t27` exercises variable-index read and write on `var buf : [4]u16` with keyword-named array `buf`. `t27c gen-verilog` + `yosys read_verilog -sv` + `synth -top w384_variable_index` pass.
 
-## Open work after W384
+## Fixed in W385 — Signed element types and array-literal initialization for function-local arrays
+
+**Symptom:** Function-local arrays only supported unsigned element types and could not be initialized at declaration with an array literal. `var temps : [4]i16` emitted signed regs but had no regression coverage, and `var buf : [4]u16 = [4]u16{...}` emitted a broken TODO placeholder instead of initializing the per-element regs.
+
+**Fix:** `bootstrap/src/compiler.rs` now detects an `ExprArrayLiteral` initializer on a function-local array and emits a scalar assignment for each element to the corresponding per-element reg. Width padding is applied to `0x` and `0b` element literals. Signed element types already worked via the existing `elem_signed` path; W385 added regression coverage and verified sign extension through `yosys`.
+
+**Verification:**
+- `specs/scratch/w385_signed_local_array.t27` — signed `i16` local array with variable-index read/write.
+- `specs/scratch/w385_local_array_init.t27` — `u16` local array initialized from `[4]u16{...}`.
+- `specs/scratch/w385_signed_local_array_init.t27` — combined signed `i16` array with initializer.
+- All three pass `t27c gen-verilog` + `yosys read_verilog -sv` + `synth`.
+
+## Open work after W385
 
 - **Array/RAM sub-gaps remaining:**
   - Multi-dimensional arrays (`[[T; M]; N]`).
-  - Signed-element local arrays.
-  - Array literal initialization at declaration (`var buf : [N]T = [N]T{...}` inside functions).
+  - Function-local arrays inside `for` / `while` loops.
   - RAM style inference / block-vs-distributed pragma hints.
 - No other tracked gen-verilog syntax/semantic defects remain on `trinity-rust-rings`.
 

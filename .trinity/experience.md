@@ -1,5 +1,26 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-01 — Wave Loop 385 completion
+
+### What worked
+- Generalizing function-local arrays to signed element types required no new codegen logic beyond regression specs; the existing `elem_signed` path in `bootstrap/src/compiler.rs` already emitted `signed [W-1:0]` regs.
+- Implementing array-literal initialization for function-local arrays only required replacing the W384 TODO placeholder in `StmtLocal` with a loop that emits per-element scalar assignments.
+- Forward-appending W385 blocks to all 27 IGLA specs, adding 4 new `ternaryMac` generic ∀ theorems (`AccumulateSixtyThreePlus`, `AccumulateSixtyTwoMinus`, `QuadragintupleQuinqueCancellation`, `ZeroWeightTwentyPairClosure`), returned **567/567 PASS**.
+
+### What changed behavior
+- The `gen-verilog` backend now supports signed-element function-local arrays (`var temps : [4]i16`) and array-literal initialization (`var buf : [4]u16 = [4]u16{...}`).
+- The CI yosys smoke gate expanded from 45 to **48 targets** with the three new W385 scratch specs.
+- The `ternaryMac` generic ∀ count is now **284**.
+
+### Patterns to reuse
+- When lowering aggregate literals, expand them into scalar assignments at the declaration site rather than emitting a single unsupported aggregate expression.
+- For cancellation theorems, match the RHS to the depth parity: even alternating depths collapse to `x`; odd depths leave a residual `ternaryMac x a (TernaryWeight.mk .plus)`.
+- Reuse the existing scalar literal width-padding logic inside element-wise loops to keep generated widths consistent.
+
+### Anti-patterns to avoid
+- Do not assume all cancellation depths collapse to identity; verify parity before generating the RHS.
+- Do not regenerate seals one-by-one in a hot loop if a batch reseal command becomes available; the per-file call overhead is acceptable but noisy.
+
 ## 2026-07-01 — Wave Loop 384 completion
 
 ### What worked

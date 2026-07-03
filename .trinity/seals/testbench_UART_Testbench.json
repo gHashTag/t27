@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:daea9350f8b5bd74f63d6ba5fa50f1fc1ffd8bbba56824770b06066f282903da",
   "module": "UART_Testbench",
   "ring": 12,
-  "sealed_at": "2026-07-03T08:31:56Z",
+  "sealed_at": "2026-07-03T15:03:20Z",
   "spec_hash": "sha256:379740eea2f1d1c60693f69cd89d57566017db7dcbe77484f8d2f54c97cb40b8",
   "spec_path": "specs/fpga/testbench/uart_tb.t27"
 }

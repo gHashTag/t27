@@ -5018,10 +5018,54 @@ impl VerilogCodegen {
                         ));
                     }
                     if !node.children.is_empty() {
-                        self.write_indent();
-                        self.write(&format!("// local array initializer for {}", safe_name));
-                        self.gen_verilog_expr(&node.children[0]);
-                        self.write_line("");
+                        let init = &node.children[0];
+                        if init.kind == NodeKind::ExprArrayLiteral {
+                            // W385: emit per-element scalar assignments from the array
+                            // literal initializer, with width padding for hex/binary
+                            // literals so they match the declared element width.
+                            for (i, elem) in init.children.iter().enumerate() {
+                                if i >= array_size {
+                                    break;
+                                }
+                                self.write_indent();
+                                let reg_name = Self::verilog_safe_identifier(
+                                    &format!("{}_{}", node.name, i)
+                                );
+                                self.write(&format!("{} = ", reg_name));
+                                if elem.kind == NodeKind::ExprLiteral
+                                    && (elem.value.starts_with("0x") || elem.value.starts_with("0X"))
+                                {
+                                    let hex = &elem.value[2..];
+                                    let literal_bits = (hex.len() as u32) * 4;
+                                    if elem_width > literal_bits {
+                                        self.write(&format!("{}'h{}", elem_width, hex));
+                                    } else {
+                                        self.gen_verilog_expr(elem);
+                                    }
+                                } else if elem.kind == NodeKind::ExprLiteral
+                                    && (elem.value.starts_with("0b") || elem.value.starts_with("0B"))
+                                {
+                                    let bin = &elem.value[2..];
+                                    let literal_bits = bin.len() as u32;
+                                    if elem_width > literal_bits {
+                                        self.write(&format!("{}'b{}", elem_width, bin));
+                                    } else {
+                                        self.gen_verilog_expr(elem);
+                                    }
+                                } else {
+                                    self.gen_verilog_expr(elem);
+                                }
+                                self.write_line(";");
+                            }
+                        } else {
+                            self.write_indent();
+                            self.write(&format!(
+                                "// local array initializer for {} (unsupported)",
+                                safe_name
+                            ));
+                            self.gen_verilog_expr(init);
+                            self.write_line("");
+                        }
                     }
                     return;
                 }

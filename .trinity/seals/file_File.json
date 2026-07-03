@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:420ca7ba1c383fec6eac1b82a64aeb6147d0d51c887876444d0de1d26fbf0060",
   "module": "File",
   "ring": 12,
-  "sealed_at": "2026-07-03T04:18:02Z",
+  "sealed_at": "2026-07-03T15:03:21Z",
   "spec_hash": "sha256:03552e91d86a0f144f4cf6f8e95f76944322e25d9f013308c9a7fc0e5a126afe",
   "spec_path": "specs/file/schema.t27"
 }

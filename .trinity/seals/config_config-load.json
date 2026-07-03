@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3f085b69af699219d779ccfb404124905d66cf6e7fbda0494caac6b967815929",
   "module": "config-load",
   "ring": 12,
-  "sealed_at": "2026-07-03T14:08:17Z",
+  "sealed_at": "2026-07-03T15:03:21Z",
   "spec_hash": "sha256:716d0a1fb27c56c2abdc658969c62ab43446eb52e1fb26b48001c81932868362",
   "spec_path": "specs/config/load.t27"
 }

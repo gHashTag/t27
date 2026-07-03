@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:24f9d45fb40a1bb5c64abf5c8b79ebe9bf88830c5facc81dbf9ce5e256ee105e",
   "module": "PhiUniversalAttractor",
   "ring": 12,
-  "sealed_at": "2026-07-03T08:31:56Z",
+  "sealed_at": "2026-07-03T15:03:22Z",
   "spec_hash": "sha256:d854f1347d75a91cc11f08514f93ed6e08ac199dff2033477acc39bedc305655",
   "spec_path": "specs/math/phi_universal_attractor.t27"
 }
