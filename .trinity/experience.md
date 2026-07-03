@@ -1,5 +1,29 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-04 — Wave Loop 392 completion
+
+### What worked
+- Forward-appending W392 blocks to all 27 IGLA specs and adding 4 new `ternaryMac` generic ∀ theorems (`AccumulateSeventyPlus`, `AccumulateSixtyNineMinus`, `QuinquagintupleDuoCancellation`, `ZeroWeightTwentySevenPairClosure`) returned **575/575 PASS**.
+- `t27c stats` now reports **13,939 tests**, **6,151 invariants**, and **1,010 benchmarks**.
+- The IGLA CODER+RACE zero-failure streak advanced to **125 waves**.
+- Created `docs/BRANCHING_MODEL.md` to document the three-tier branch model and opened master-alignment epic #1284 instead of starting a risky replay inside the wave-loop.
+- Opened the real W392 issue (#1282) **before** writing `Closes #1282` in any commit or PR, following the W391 lesson.
+- Squash-merged PR #1283 (`wave-loop-392` → `trinity-rust-rings`) without force-push; `origin/trinity-rust-rings` advanced cleanly to merge commit `66183ef23`.
+
+### What changed behavior
+- The `ternaryMac` generic ∀ count is now **312**.
+- Pool A floor, CODER minimum, Pool B depth, and Integration depth each advanced by +1.
+- `trinity-rust-rings` is now explicitly recognized as the long-lived IGLA integration branch; master-alignment is a separate epic requiring explicit approval.
+
+### Patterns to reuse
+- Create the GitHub issue first (`gh issue create`), capture the number, then write `Closes #NNNN`. This removes the risk of referencing a non-existent issue.
+- For long-lived integration branches with large divergence from `master`, document the alignment as a separate epic rather than forcing it inside a routine wave-loop.
+- Use squash-merge through GitHub UI/CLI as the normal update path for `trinity-rust-rings`; reserve force-push for emergency recovery only.
+
+### Anti-patterns to avoid
+- Do not start a `master`-alignment replay inside a wave-loop without explicit user approval, especially when hot `bootstrap` files have diverged.
+- Do not force-push `trinity-rust-rings` as a routine workflow step.
+
 ## 2026-07-04 — Wave Loop 391 completion
 
 ### What worked
