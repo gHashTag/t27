@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-01 (Wave Loop 382)  
+**Last updated:** 2026-07-01 (Wave Loop 386)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -275,6 +275,7 @@ Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emit
 - [x] Function-local array variable-index access — read via priority mux, write via if-else chain, full-token keyword escape (W384)
 - [x] Function-local array signed element types (`[N]i8`, `[N]i16`, etc.) (W385)
 - [x] Function-local array literal initialization at declaration time (`var buf : [N]T = [N]T{...}`) (W385)
+- [x] Function-local arrays inside `for` loops, constant and parameter bounds (W386)
 
 ## Fixed in W384 — Function-local array variable-index access
 
@@ -299,11 +300,26 @@ Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emit
 - `specs/scratch/w385_signed_local_array_init.t27` — combined signed `i16` array with initializer.
 - All three pass `t27c gen-verilog` + `yosys read_verilog -sv` + `synth`.
 
-## Open work after W385
+## Fixed in W386 — Function-local arrays inside `for` loops
+
+**Symptom:** No regression coverage existed for using function-local arrays inside `for` loops, even though the W384 variable-index lowering and W385 signed/init lowering made the pattern feasible. Without smoke-gate coverage the feature could regress silently.
+
+**Observation:** The existing backend already lowered the pattern correctly:
+- Constant-bound loops (`for i in 0..4`) are unrolled into scalar per-element assignments.
+- Parameter-bound loops (`for i in 0..n`) remain as Verilog `for` loops with variable-index reads via priority mux chains and writes via if-else chains.
+
+**Fix:** Added regression specs only; no compiler change was required.
+
+**Verification:**
+- `specs/scratch/w386_for_local_array.t27` — constant-bound fill-and-sum and copy-reverse on `[4]u16`.
+- `specs/scratch/w386_for_local_array_i8.t27` — constant-bound signed `[4]i8` sum and in-place negation.
+- `specs/scratch/w386_for_local_array_param.t27` — parameter-bound loop with variable-index write/read on `[4]u16`.
+- All three pass `t27c gen-verilog` + `yosys read_verilog -sv` + `synth`.
+
+## Open work after W386
 
 - **Array/RAM sub-gaps remaining:**
   - Multi-dimensional arrays (`[[T; M]; N]`).
-  - Function-local arrays inside `for` / `while` loops.
   - RAM style inference / block-vs-distributed pragma hints.
 - No other tracked gen-verilog syntax/semantic defects remain on `trinity-rust-rings`.
 

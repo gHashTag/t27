@@ -1128,3 +1128,11 @@
 - **Commit:** feat(igla): Wave Loop 385 — 284 generic ∀, signed/init local arrays, 567/567 PASS
 - **Files:** docs/reports/FPGA_EVIDENCE_W385.md,fpga/HARDWARE_SSOT.md,fpga/verilog/ternary_mac_demo_top_200t.bit
 
+## 2026-07-03T15:51:44Z — wave-loop-385
+- **Commit:** docs(fpga): update HARDWARE_SSOT for XC7A200T + Digilent FTDI cable; add W385 FPGA evidence and 200T bitstream
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,.trinity/seals/coder_igla-coder-arch.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-eval.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-prm.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json,.trinity/seals/coder_igla-coder-weights.json,.trinity/seals/race_igla-race-adder-tree.json,.trinity/seals/race_igla-race-backend.json,.trinity/seals/race_igla-race-bram-weights.json,.trinity/seals/race_igla-race-cordic-fixed.json,.trinity/seals/race_igla-race-cordic-top.json,.trinity/seals/race_igla-race-cordic.json,.trinity/seals/race_igla-race-eda.json,.trinity/seals/race_igla-race-formal.json
+
+## 2026-07-03T15:52:14Z — wave-loop-385
+- **Commit:** feat(igla): Wave Loop 386 — 288 generic ∀, for-loop local-array coverage, 570/570 PASS
+- **Files:** .trinity/current-issue.md,docs/reports/WAVE_LOOP_386_REPORT.md
+

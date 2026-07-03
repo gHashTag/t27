@@ -1,5 +1,25 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-01 — Wave Loop 386 completion
+
+### What worked
+- Forward-appending W386 blocks to all 27 IGLA specs and adding 4 new `ternaryMac` generic ∀ theorems (`AccumulateSixtyFourPlus`, `AccumulateSixtyThreeMinus`, `QuadragintupleSexCancellation`, `ZeroWeightTwentyOnePairClosure`) returned **570/570 PASS**.
+- The `for` loop over function-local arrays gap was closed with regression coverage only; the existing W384 variable-index lowering and W385 signed/init lowering already handled constant-bound (unrolled) and parameter-bound (Verilog `for`) cases correctly.
+- Adding scratch specs for unsigned, signed, and parameter-bound loops expanded the yosys smoke gate from 48 to **51 targets** without touching the compiler backend.
+
+### What changed behavior
+- The `gen-verilog` backend now has smoke-gate coverage for function-local arrays inside `for` loops.
+- The `ternaryMac` generic ∀ count is now **288**.
+- The IGLA CODER+RACE zero-failure streak is now **120 waves**.
+
+### Patterns to reuse
+- Before implementing a perceived backend gap, generate a minimal scratch spec and run it through the existing pipeline; the feature may already work and only need regression coverage.
+- For cancellation theorems, continue matching RHS to depth parity: even alternating depths collapse to `x`; odd depths leave a residual `ternaryMac x a (TernaryWeight.mk .plus)`.
+
+### Anti-patterns to avoid
+- Do not assume every cooperation-doc gap requires compiler changes; some gaps are purely coverage/test gaps.
+- Do not let untracked scratch specs accumulate without seals; run `t27c seal --save` for each new spec as part of the wave close-out.
+
 ## 2026-07-01 — Wave Loop 385 completion
 
 ### What worked

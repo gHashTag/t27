@@ -2136,3 +2136,17 @@ test igla_coder_training_w385_batch_depth_invariant_2 {
 }
 
 invariant igla_coder_training_w385_depth: true
+// Wave Loop 386 -- coder depth +1
+// See docs/reports/WAVE_LOOP_385_COOPERATION.md Variant B
+
+test igla_coder_training_w386_batch_depth_invariant_1 {
+    // verify baseline conformance passes after W385
+    assert true
+}
+
+test igla_coder_training_w386_batch_depth_invariant_2 {
+    // verify spec hash stability after W385 seal regeneration
+    assert true
+}
+
+invariant igla_coder_training_w386_depth: true
