@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-01 (Wave Loop 386)  
+**Last updated:** 2026-07-01 (Wave Loop 388)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -277,6 +277,7 @@ Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emit
 - [x] Function-local array literal initialization at declaration time (`var buf : [N]T = [N]T{...}`) (W385)
 - [x] Function-local arrays inside `for` loops, constant and parameter bounds (W386)
 - [x] Multi-dimensional function-local arrays with numeric/variable indices and signed elements (W387)
+- [x] Multi-dimensional function-local array-literal initialization (`var m : [2][3]u16 = [2][3]u16{...}`) (W388)
 
 ## Fixed in W384 — Function-local array variable-index access
 
@@ -337,10 +338,19 @@ Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emit
 
 **Limitation:** multi-dimensional array-literal initialization (`var m : [2][3]u16 = [2][3]u16{...}`) is not yet supported by the parser and is tracked as remaining work.
 
-## Open work after W387
+## Fixed in W388 — Multi-dimensional array-literal initialization
+
+**Symptom:** The parser did not recognize array-literal syntax for multi-dimensional function-local arrays. A declaration such as `var m : [2][3]u16 = [2][3]u16{1, 2, 3, 4, 5, 6}` parsed the right-hand side as an index operation with an empty literal, dropping the six initializer values.
+
+**Fix:** `bootstrap/src/compiler.rs` `parse_array_literal` now consumes the additional `[N]` dimensions and the base element type before the `{...}` block. The resulting `ExprArrayLiteral` carries the full dimension/type suffix in `extra_type`, and all initializer expressions are preserved as children.
+
+**Verification:**
+- `specs/scratch/w388_2d_local_array_init.t27` declares, reads, and writes a `[2][3]u16` initialized from a literal.
+- `t27c gen-verilog` + `yosys read_verilog -sv` + `synth` pass; the backend emits six per-element reg assignments in row-major order.
+
+## Open work after W388
 
 - **Array/RAM sub-gaps remaining:**
-  - Multi-dimensional array-literal initialization.
   - RAM style inference / block-vs-distributed pragma hints.
 - No other tracked gen-verilog syntax/semantic defects remain on `trinity-rust-rings`.
 

@@ -2644,9 +2644,29 @@ impl Parser {
             self.expect(TokenKind::RBracket)?;
         }
 
-        if self.current.kind == TokenKind::Ident {
-            node.extra_type = self.current.lexeme.clone();
+        // W388: consume additional array dimensions and the base element type for
+        // multi-dimensional array literals such as [2][3]u16{...}. The first
+        // bracket size stays in extra_size; the remaining [3]u16 suffix is captured
+        // in extra_type so the brace parser can collect all initializer values.
+        let mut elem_type = String::new();
+        while self.current.kind == TokenKind::LBracket {
+            elem_type.push('[');
             self.advance();
+            while self.current.kind != TokenKind::RBracket
+                && self.current.kind != TokenKind::Eof
+            {
+                elem_type.push_str(&self.current.lexeme);
+                self.advance();
+            }
+            elem_type.push(']');
+            self.expect(TokenKind::RBracket)?;
+        }
+        if self.current.kind == TokenKind::Ident {
+            elem_type.push_str(&self.current.lexeme);
+            self.advance();
+        }
+        if !elem_type.is_empty() {
+            node.extra_type = elem_type;
         }
 
         if self.current.kind == TokenKind::LBrace {

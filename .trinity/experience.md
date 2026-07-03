@@ -1,5 +1,27 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-01 — Wave Loop 388 completion
+
+### What worked
+- Correcting the W388 generator scripts *before* resealing: `scripts/gen_w388.py` was re-written to detect and remove duplicate W387 blocks and emit a single proper W388 block; `scripts/gen_w388_lean.py` was corrected to use 66/65/48/23-pair variable counts matching the theorem names.
+- Closing the multi-dimensional array feature with array-literal initialization required only a localized parser change in `bootstrap/src/compiler.rs` (`parse_array_literal`) because the existing W385 `StmtLocal` array-literal expansion and W387 flattening/index lowering already handled per-element register initialization and access.
+- Forward-appending the corrected W388 blocks to all 27 IGLA specs and adding 4 new `ternaryMac` generic ∀ theorems (`AccumulateSixtySixPlus`, `AccumulateSixtyFiveMinus`, `QuadragintupleOctoCancellation`, `ZeroWeightTwentyThreePairClosure`) returned **575/575 PASS**.
+
+### What changed behavior
+- The `gen-verilog` backend now supports multi-dimensional function-local array-literal initialization (`var m : [2][3]u16 = [2][3]u16{...}`) in addition to numeric/variable indices, signed elements, and nested loops.
+- The CI yosys smoke gate expanded from 55 to **56 targets** with the new `specs/scratch/w388_2d_local_array_init.t27` regression spec.
+- The `ternaryMac` generic ∀ count is now **296**.
+- The IGLA CODER+RACE zero-failure streak is now **122 waves**.
+
+### Patterns to reuse
+- When a generator copies the previous wave's block, always verify that every placeholder is bumped: wave number, internal identifiers (`wNNN_`), reference docs (`WAVE_LOOP_NNN_COOPERATION.md`), and comment references (`after WNNN`).
+- When generating new Lean theorems, match the variable-count helpers to the theorem name and doc string; off-by-one errors are easy to introduce when reusing prior-wave helper calls.
+- Reuse existing per-element lowering paths for aggregate initialization instead of adding a special-case emission path for higher-dimensional literals.
+
+### Anti-patterns to avoid
+- Do not run `t27c seal --save` before validating that generated test/invariant names are unique and wave-correct; duplicate identifiers can still pass the suite but leave misleading history.
+- Do not treat parser changes as automatically safe for all specs; a small change to `parse_array_literal` changed AST shape for every array literal, so non-IGLA seals also needed regeneration.
+
 ## 2026-07-01 — Wave Loop 387 completion
 
 ### What worked
