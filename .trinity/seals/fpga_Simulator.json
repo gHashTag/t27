@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:0a2ec22d068f5140e882804220e1f2c08ecafb3bffa3efa2aca26c925874dd01",
   "gen_hash_rust": "sha256:8966ae6bfe3d51a933b4953c6c9615f45cd069437c22f13a332e12756ffb9ee2",
-  "gen_hash_verilog": "sha256:ac4575462ef0b8b9d8a5c977dfa90c0fd4f012cc2104e9bdd2a034f2c250c11b",
+  "gen_hash_verilog": "sha256:481a15fd20ec611f9614b2fbb81ed930c1188ef4a886faf0bff2063f153366f8",
   "gen_hash_zig": "sha256:9e3222e53d41350fca7fbfd86a1f867226840e6aa979e63549c28d0a11acd3fb",
   "module": "Simulator",
   "ring": 12,
-  "sealed_at": "2026-07-02T14:15:13Z",
+  "sealed_at": "2026-07-03T04:04:57Z",
   "spec_hash": "sha256:77994ef12abe99523526c9731a3fb05116385ee25b471f3dbe771fb45c14969c",
   "spec_path": "specs/fpga/simulator.t27"
 }

@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-01 (Wave Loop 374)  
+**Last updated:** 2026-07-03 (Wave Loop 375)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -75,11 +75,7 @@ endmodule
 - `specs/scratch/w374_module_keyword.t27` — top-level const `wire` and var `reg` escaped; `t27c gen-verilog` + `yosys read_verilog -sv` + `synth_xilinx` pass.
 - `specs/igla/coder/benchmark.t27` now passes `yosys read_verilog`.
 
----
-
-## Remaining Defects
-
-### Defect 3 — Early `return` inside bare `if` lacks if-else chaining (semantic priority bug)
+### Defect 3 — Early `return` inside bare `if` lacks if-else chaining (FIXED in W375)
 
 **Repro:**
 ```t27
@@ -90,19 +86,26 @@ fn sign(x : i8) -> i8 {
 }
 ```
 
-**Observed Verilog:** all three assignments are emitted, but as sequential bare statements:
+**Observed Verilog (before W375):** all three assignments were emitted as sequential bare statements:
 ```verilog
 if ((x < 0)) begin sign = -1; end
 if ((x > 0)) begin sign = 1; end
 sign = 0;
 ```
-The final `sign = 0;` always executes last, so the function returns `0` for all inputs instead of `-1` / `1` / `0`.
+The final `sign = 0;` always executed last, so the function returned `0` for all inputs.
 
-**Root cause:** `gen_verilog_if_stmt` emits each bare `if` independently. There is no control-flow analysis to convert a sequence of bare-if-early-return statements into an `if-else if-else` chain.
+**Fix:** `bootstrap/src/compiler.rs` `gen_verilog_fn` now walks the function body and collapses contiguous bare-if early-return statements into a single Verilog `if ... else if ... else` chain, with each branch assigning to the function-name register. Statements that do not match the chain pattern remain on the original code path.
 
-**Wave-safe fix order:** medium priority; affects functions with multiple early exits. Requires statement-level pattern matching, not a parser change.
+**Verification:** `specs/scratch/w375_early_return.t27` passes `t27c gen-verilog` and `yosys read_verilog -sv`; generated `sign` function emits:
+```verilog
+if ((x < 0)) begin sign = -1; end
+else if ((x > 0)) begin sign = 1; end
+else begin sign = 0; end
+```
 
 ---
+
+## Remaining Defects
 
 ### Defect 4 — `as` cast and bitwise operators drop the operand body
 
@@ -158,11 +161,10 @@ fn cordic_top_batch_inner(angles : u32, idx : u32, acc : i32) -> i32 {
 
 ## Recommended Triage Order
 
-1. **Defect 6** — `let` destructuring; blocks two IGLA specs from passing `yosys read_verilog`. Needs a scratch spec and `yosys` verification.
-2. **Defect 3** — early return if-else chaining; needed for control-flow-heavy specs. Requires statement-level pattern matching.
-3. **Defect 4** — cast/bitwise width semantics; needs simulation values to confirm correctness.
-4. **Defect 5** — struct fields; defer until struct usage grows.
-5. **CI smoke gate** — add `t27c gen-verilog` + `yosys read_verilog` regression tests once the remaining safe parser/lowering fixes are landed; L7 UNITY prohibits new shell scripts on the critical path.
+1. **Defect 4** — cast/bitwise width semantics; needs simulation values to confirm correctness. Narrow, self-contained, and improves generated code quality across many specs.
+2. **Defect 6** — `let` destructuring; blocked by the deeper absence of tuple-return function generation in the Verilog backend. A pure syntax-level workaround is possible but semantic correctness requires parser/codegen work for tuple return types and tuple literals.
+3. **Defect 5** — struct fields; defer until struct usage grows.
+4. **CI smoke gate** — add `t27c gen-verilog` + `yosys read_verilog` regression tests once the remaining safe parser/lowering fixes are landed; L7 UNITY prohibits new shell scripts on the critical path.
 
 ---
 
@@ -173,11 +175,11 @@ fn cordic_top_batch_inner(angles : u32, idx : u32, acc : i32) -> i32 {
 - [x] Multiple `const` declarations
 - [x] Verilog keyword identifier collision (exact and underscore-delimited component matches)
 - [x] Module-level const/var keyword-safe emission
-- [ ] Early `return` if-else chaining
+- [x] Early `return` if-else chaining (FIXED in W375)
 - [ ] `as` / bitwise operator width correctness
 - [x] Struct-field reg naming (keyword-safe, full-token escape)
 - [x] Local variable keyword-safe emission
-- [ ] `let` destructuring lowering
+- [ ] `let` destructuring lowering (blocked by missing tuple-return function generation)
 
 ---
 

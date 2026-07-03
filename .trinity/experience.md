@@ -424,3 +424,32 @@
 - Do not emit a module-level identifier before checking it against `verilog_safe_identifier()`; `localparam wire = ...` is a Verilog syntax error.
 - Do not run the full suite only once after a compiler change; the first run reveals seal mismatches, the second run after resealing confirms zero failures.
 - Do not skip yosys verification for a new scratch spec; parse/typecheck success does not guarantee the generated Verilog is synthesizable.
+
+## 2026-07-03 — Wave Loop 375 completion
+
+### What worked
+- Reused the generator pattern (`scripts/gen_w375.py`, `scripts/gen_w375_lean.py`) to append W375 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **555/555 PASS** and `lake build Trinity.TernaryInference` succeeded.
+- `ternaryMacAccumulateFiftyOnePlusGeneric` pushed the plus-accumulation boundary to **51 variables** without timeout, confirming the `simp+omega` regime still holds at depth 51.
+- `ternaryMacOctovigintupleCancellationGeneric` (depth-28) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
+- `ternaryMacZeroWeightOctodecupleClosureGeneric` uses 9 zero-weight MACs before and 9 zero-weight MACs after a plus-weight MAC (18 closure size, 19 variables).
+- Fixed `gen-verilog` Defect 3 (early-return if-else chaining) in `bootstrap/src/compiler.rs`. Contiguous bare-if early-return statements are now emitted as a single Verilog `if ... else if ... else` chain, preventing later unconditional assignments from overwriting earlier return values. Verified with scratch spec `specs/scratch/w375_early_return.t27` and `yosys read_verilog -sv`.
+- Pivoted from the originally planned `let` destructuring fix after discovering it depends on missing tuple-return function generation; documented the blocker in `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`.
+- Scripted mass seal regeneration: 81 mismatched seals (compiler change + new W375 blocks + scratch) resealed and verified to 0 mismatches.
+
+### What changed behavior
+- Generic ∀ count reached **244** (236 in `TernaryInference.lean` + 8 in `TernaryMac.lean`).
+- The zero-IGLA-failure streak extended to **109 waves** (thirty-fifth consecutive zero-failure wave).
+- IGLA totals: **12,971 tests**, **5,687 invariants** across full repo.
+- Conformance suite now evaluates **555 specs** (27 IGLA + non-IGLA + scratch regression specs).
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W375.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: Defect 3 fixed; Defect 6 re-triaged as blocked by tuple-return generation; Defect 4 is now the highest-priority wave-safe open defect.
+
+### Patterns to reuse
+- For control-flow fixes, walk the function body statement list and collapse contiguous matching statements; leave non-matching statements on the original code path to keep the change regression-free.
+- When a planned backend fix turns out to depend on a larger missing feature (tuple-return functions), pivot to the next highest-priority self-contained defect and document the dependency clearly.
+- After a compiler change that affects generated Verilog, expect a broad seal mismatch wave; capture the list from `t27c suite` and batch `t27c seal --save` from the repo root.
+
+### Anti-patterns to avoid
+- Do not implement a partial backend fix that silently changes semantics without a clear path to correctness; either fully fix the feature or document the remaining dependency.
+- Do not keep the original plan unchanged after discovering a hard blocker; update the issue, plan, and report to reflect the pivot.
+- Do not skip a final `t27c suite` run after mass resealing; the second pass is the green gate.

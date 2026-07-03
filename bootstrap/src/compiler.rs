@@ -4440,9 +4440,7 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line("begin");
             self.indent();
-            for stmt in &node.children {
-                self.gen_verilog_stmt(stmt);
-            }
+            self.gen_verilog_fn_body(&node.children);
             self.dedent();
             self.write_indent();
             self.write_line("end");
@@ -4460,6 +4458,107 @@ impl VerilogCodegen {
         self.current_fn_name.clear();
         self.current_fn_return_type.clear();
         self.param_widths.clear();
+    }
+
+    // W375: detect a bare `if (cond) { return expr; }` statement (no else branch)
+    // that can participate in an early-return if-else chain.
+    fn as_early_return_if(node: &Node) -> Option<(&Node, &Node)> {
+        if node.kind != NodeKind::StmtIf {
+            return None;
+        }
+        if node.children.len() != 2 {
+            return None;
+        }
+        let then_block = &node.children[1];
+        if then_block.children.len() != 1 {
+            return None;
+        }
+        let then_stmt = &then_block.children[0];
+        if then_stmt.kind != NodeKind::ExprReturn {
+            return None;
+        }
+        let ret_expr = then_stmt.children.first()?;
+        Some((&node.children[0], ret_expr))
+    }
+
+    // W375: detect a terminal `return expr;` or assignment to the function name
+    // that can serve as the final `else` branch of an early-return chain.
+    fn as_terminal_assign_or_return<'a>(&self,
+        node: &'a Node,
+    ) -> Option<&'a Node> {
+        if node.kind == NodeKind::ExprReturn {
+            return node.children.first();
+        }
+        if node.kind == NodeKind::StmtAssign && node.children.len() >= 2 {
+            let lhs = &node.children[0];
+            if lhs.kind == NodeKind::ExprIdentifier && lhs.name == self.current_fn_name {
+                return node.children.get(1);
+            }
+        }
+        None
+    }
+
+    // W375: emit a function body, collapsing contiguous early-return if statements
+    // into a single if-else if-else chain so that later assignments do not
+    // overwrite the result of an earlier return.
+    fn gen_verilog_fn_body(&mut self,
+        stmts: &[Node],
+    ) {
+        let mut i = 0;
+        while i < stmts.len() {
+            if let Some((cond, ret)) = Self::as_early_return_if(&stmts[i]) {
+                let mut chain: Vec<(Option<&Node>, &Node)> = Vec::new();
+                chain.push((Some(cond), ret));
+                i += 1;
+
+                // Consume subsequent early-return ifs and the terminal else.
+                while i < stmts.len() {
+                    if let Some((c, r)) = Self::as_early_return_if(&stmts[i]) {
+                        chain.push((Some(c), r));
+                        i += 1;
+                    } else if let Some(r) =
+                        self.as_terminal_assign_or_return(&stmts[i])
+                    {
+                        chain.push((None, r));
+                        i += 1;
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+
+                // Emit if / else if / else chain.
+                for (idx, (cond, ret)) in chain.iter().enumerate() {
+                    self.write_indent();
+                    if idx == 0 {
+                        self.write("if (");
+                        self.gen_verilog_expr(cond.unwrap());
+                        self.write_line(") begin");
+                    } else if let Some(c) = cond {
+                        self.write("end else if (");
+                        self.gen_verilog_expr(c);
+                        self.write_line(") begin");
+                    } else {
+                        self.write_line("end else begin");
+                    }
+
+                    self.indent();
+                    self.write_indent();
+                    self.write(&format!("{} = ", self.current_fn_name));
+                    self.gen_verilog_expr(ret);
+                    self.write_line(";");
+                    self.dedent();
+
+                    if idx == chain.len() - 1 {
+                        self.write_indent();
+                        self.write_line("end");
+                    }
+                }
+            } else {
+                self.gen_verilog_stmt(&stmts[i]);
+                i += 1;
+            }
+        }
     }
 
     fn gen_verilog_test(&mut self, node: &Node) {

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3040bf66ce5b7dda6d1102ad9174042cd1ff3b0ae3daac278b46c2d2956eceb2",
   "gen_hash_rust": "sha256:93a39b8a3c4595b3a8d59668342d5306ac6ad44d07cf7bbed43dbc2266a1e113",
-  "gen_hash_verilog": "sha256:0756eab208adb6d2135374dfcdc648bda1e39d071f439f45b06499451d19577b",
+  "gen_hash_verilog": "sha256:a2955fd88739ddde68380530f2cb4a8b84f743c1eb1876406dd99e466b662006",
   "gen_hash_zig": "sha256:ae614153485fab56d3bdb76ef273c0a0df09dbfcb87068fc3a8ade4a67551cab",
   "module": "Optimization",
   "ring": 12,
-  "sealed_at": "2026-07-02T14:15:12Z",
+  "sealed_at": "2026-07-03T04:04:57Z",
   "spec_hash": "sha256:98ba1a67d94856b42f06d5db6c3c2a8499bcf955d74c5543c9cb630797815d4a",
   "spec_path": "specs/compiler/optimizer.t27"
 }

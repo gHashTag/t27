@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:ec1e934656d7ed34f1b34c3f6a7dda21365c7adc844a9dcad91d08952bf05716",
   "gen_hash_rust": "sha256:8a38f4f4ccb46e532aeb9fbba21293707a6ba01e5fc680a4ce4f5932ca21dc87",
-  "gen_hash_verilog": "sha256:0560744ec1672f8d0d70b059bf74d9dd3d8ac9108694ac7ca30ce7342fa56e9e",
+  "gen_hash_verilog": "sha256:e1b0f1be2a703bf087bf4782c0efb5505070c9cd06d538802f8310a4e6a50bf9",
   "gen_hash_zig": "sha256:b65ee4c8fbd5f1dff6100cfa357301acfc9dbc4a570736c0e2f87e0bf8e817b5",
   "module": "ClockDomain",
   "ring": 12,
-  "sealed_at": "2026-07-02T14:15:13Z",
+  "sealed_at": "2026-07-03T04:04:57Z",
   "spec_hash": "sha256:2b8c2d7f2d556e30e925e8412b70667b19ac8dd137bd696545d364bc3ef7aa60",
   "spec_path": "specs/fpga/clock_domain.t27"
 }
