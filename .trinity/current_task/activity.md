@@ -1188,3 +1188,7 @@
 - **Commit:** docs(w392): close-out report, cooperation, experience log, branch model epic link
 - **Files:** docs/reports/FPGA_EVIDENCE_W392.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md,fpga/tools/load_sram.sh,fpga/tools/synth_gf16_matrix.sh
 
+## 2026-07-03T20:57:47Z — wave-loop-392
+- **Commit:** feat(fpga): OpenXC7 toolchain bootstrap, GF16 matrix synthesis, SRAM load OK
+- **Files:** cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md
+

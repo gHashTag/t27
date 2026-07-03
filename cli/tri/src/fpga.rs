@@ -48,6 +48,46 @@ pub enum FpgaCmd {
         #[arg(long)]
         no_jstart: bool,
     },
+    /// Load a bitstream into FPGA SRAM using openFPGALoader with a Digilent
+    /// FTDI cable. This is the canonical path for the QMTech Wukong V1 /
+    /// XC7A200T board because the in-tree `dlc10` driver only supports Xilinx
+    /// DLC10 cables (VID=0x03FD), not the attached Digilent cable
+    /// (VID=0x0403:0x6014).
+    LoadSram {
+        bit: PathBuf,
+        /// openFPGALoader cable profile (default: digilent_hs2).
+        #[arg(long, default_value = "digilent_hs2")]
+        cable: String,
+        /// FPGA part/package for openFPGALoader (default: xc7a200tfgg676).
+        #[arg(long, default_value = "xc7a200tfgg676")]
+        part: String,
+        /// Reset the FPGA after loading.
+        #[arg(long)]
+        reset: bool,
+        /// Emit verbose openFPGALoader output.
+        #[arg(long)]
+        verbose: bool,
+    },
+    /// Read and decode the FPGA STAT register via openFPGALoader.
+    Stat {
+        /// openFPGALoader cable profile (default: digilent_hs2).
+        #[arg(long, default_value = "digilent_hs2")]
+        cable: String,
+    },
+    /// Synthesize the GF16 4x4 matrix design through the openXC7 toolchain.
+    /// Output is written to `<build_dir>/gf16_matmul4x4_top.bit`.
+    SynthGf16 {
+        /// Build output directory (default: <repo>/build/fpga/gf16).
+        #[arg(long)]
+        build_dir: Option<PathBuf>,
+        /// nextpnr-xilinx chipdb binary (default: <repo>/build/xc7a100tfgg676.bin).
+        #[arg(long)]
+        chipdb: Option<PathBuf>,
+        /// Target part for fasm2frames/xc7frames2bit (default: xc7a200tfbg676-1).
+        /// prjxray-db lacks xc7a200tfgg676-1; fbg676-1 shares the same idcode.
+        #[arg(long, default_value = "xc7a200tfbg676-1")]
+        part: String,
+    },
     /// Diagnostic: load *only* the proxy bridge bitstream (or any other
     /// bitstream) into FPGA SRAM, report STAT, leave TAP in RTI. Does NOT
     /// touch SPI flash. Useful for verifying the bridge actually reaches
@@ -207,6 +247,19 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             install,
             no_platform,
         } => build_proxy_docker(fork_dir.as_ref(), image.as_deref(), *install, *no_platform),
+        FpgaCmd::LoadSram {
+            bit,
+            cable,
+            part,
+            reset,
+            verbose,
+        } => load_sram(bit, cable, part, *reset, *verbose),
+        FpgaCmd::Stat { cable } => stat(cable),
+        FpgaCmd::SynthGf16 {
+            build_dir,
+            chipdb,
+            part,
+        } => synth_gf16(build_dir.as_ref(), chipdb.as_ref(), part),
     }
 }
 
@@ -467,7 +520,6 @@ fn debug(no_jstart: bool) -> Result<()> {
 // ---------------------------------------------------------------------------
 
 fn which(tool: &str) -> Result<PathBuf> {
-    use std::path::Path;
     let path_env = std::env::var_os("PATH")
         .ok_or_else(|| anyhow!("PATH not set"))?;
     for dir in std::env::split_paths(&path_env) {
@@ -1050,3 +1102,263 @@ fn build_proxy_docker(
     Ok(())
 }
 
+
+// ---------------------------------------------------------------------------
+// openFPGALoader-based helpers for Digilent FTDI cables (VID=0x0403:0x6014).
+// The in-tree dlc10 driver only supports Xilinx DLC10 (VID=0x03FD), so these
+// subcommands use the external openFPGALoader tool.
+// ---------------------------------------------------------------------------
+
+fn run_openfpgaloader(
+    cable: &str,
+    extra_args: &[&str],
+    capture: bool,
+) -> Result<(std::process::ExitStatus, Option<String>)> {
+    let bin = which("openFPGALoader")?;
+    let mut cmd = std::process::Command::new(&bin);
+    cmd.args(["-c", cable]);
+    cmd.args(extra_args);
+
+    eprintln!(
+        "[openfpgaloader] $ {} -c {} {}",
+        bin.display(),
+        cable,
+        extra_args.join(" ")
+    );
+
+    if capture {
+        let output = cmd
+            .output()
+            .with_context(|| format!("spawn openFPGALoader"))?;
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        if !stdout.is_empty() {
+            eprintln!("{}", stdout);
+        }
+        if !stderr.is_empty() {
+            eprintln!("{}", stderr);
+        }
+        if !output.status.success() {
+            bail!("openFPGALoader exited with {:?}", output.status);
+        }
+        Ok((output.status, Some(format!("{}\n{}", stdout, stderr))))
+    } else {
+        let status = cmd
+            .status()
+            .with_context(|| format!("spawn openFPGALoader"))?;
+        if !status.success() {
+            bail!("openFPGALoader exited with {:?}", status);
+        }
+        Ok((status, None))
+    }
+}
+
+fn load_sram(bit: &PathBuf, cable: &str, part: &str, reset: bool, verbose: bool) -> Result<()> {
+    if !bit.is_file() {
+        bail!("bitstream not found: {}", bit.display());
+    }
+
+    let bit_str = bit.to_str().ok_or_else(|| anyhow!("bitstream path is not UTF-8"))?;
+    let mut args: Vec<&str> = Vec::new();
+    if verbose {
+        args.push("-v");
+    }
+    if reset {
+        args.push("-r");
+    }
+    args.push("--fpga-part");
+    args.push(part);
+    args.push(bit_str);
+
+    let (_status, _output) = run_openfpgaloader(cable, &args, true)?;
+
+    eprintln!();
+    eprintln!("[load-sram] Load complete. Run `tri fpga stat` to verify DONE.");
+    Ok(())
+}
+
+fn stat(cable: &str) -> Result<()> {
+    let (_status, output) = run_openfpgaloader(cable, &["--read-register", "STAT"], true)?;
+    let text = output.unwrap_or_default();
+    let raw = parse_stat_raw(&text)?;
+    let bits = StatBits::from_raw(raw);
+
+    println!("== STAT register (openFPGALoader --read-register STAT) ==");
+    println!("  raw                 : 0x{:08X}", bits.raw);
+    println!("  DONE       [14]     : {}", bits.done as u8);
+    println!("  INIT_COMPL [11]     : {}", bits.init_complete as u8);
+    println!("  EOS        [4]      : {}", bits.eos as u8);
+    println!("  CRC_ERROR  [0]      : {}", bits.crc_error as u8);
+    println!("  ID_ERROR   [15]     : {}", bits.id_error as u8);
+    println!("  diagnosis           : {}", bits.diagnose());
+    println!();
+
+    if bits.done {
+        println!("=> FPGA is configured. DONE=HIGH.");
+        Ok(())
+    } else {
+        eprintln!("=> FPGA is NOT configured. {}", bits.diagnose());
+        bail!("DONE=LOW")
+    }
+}
+
+fn parse_stat_raw(text: &str) -> Result<u32> {
+    for line in text.lines() {
+        // openFPGALoader prints:
+        //   Register raw value: 0x5000890c
+        if let Some(idx) = line.find("Register raw value:") {
+            let rest = &line[idx + "Register raw value:".len()..];
+            let hex = rest.trim().trim_start_matches("0x").trim();
+            return u32::from_str_radix(hex, 16)
+                .with_context(|| format!("cannot parse STAT raw value '{}'", hex));
+        }
+    }
+    bail!("openFPGALoader output did not contain 'Register raw value:'")
+}
+
+fn synth_gf16(
+    build_dir: Option<&PathBuf>,
+    chipdb: Option<&PathBuf>,
+    part: &str,
+) -> Result<()> {
+    let root = repo_root()?;
+    let build = build_dir.cloned().unwrap_or_else(|| root.join("build").join("fpga").join("gf16"));
+    let chipdb_path = chipdb.cloned().unwrap_or_else(|| root.join("build").join("xc7a100tfgg676.bin"));
+    let rtl_dir = root.join("fpga").join("vivado");
+
+    if !chipdb_path.is_file() {
+        bail!(
+            "chipdb not found: {}. Build it first with the OpenXC7 flow.",
+            chipdb_path.display()
+        );
+    }
+
+    let nextpnr = root.join("build").join("nextpnr-xilinx");
+    let fasm2frames = root.join("target").join("prjxray").join("utils").join("fasm2frames.py");
+    let xc7frames2bit = root
+        .join("target")
+        .join("prjxray")
+        .join("build")
+        .join("tools")
+        .join("xc7frames2bit");
+    let prjxray_db = root.join("target").join("prjxray-db").join("artix7");
+
+    for tool in [&nextpnr, &fasm2frames, &xc7frames2bit] {
+        if !tool.is_file() {
+            bail!("required tool not found: {}", tool.display());
+        }
+    }
+
+    std::fs::create_dir_all(&build)
+        .with_context(|| format!("create {}", build.display()))?;
+
+    eprintln!("[synth-gf16] build dir : {}", build.display());
+    eprintln!("[synth-gf16] chipdb    : {}", chipdb_path.display());
+    eprintln!("[synth-gf16] part      : {}", part);
+
+    // Stage 1: yosys synthesis
+    let json_path = build.join("gf16_matmul4x4_top.json");
+    let yosys_script = format!(
+        "read_verilog {add} {mul} {dot4} {matmul} {top}\nsynth_xilinx -family xc7 -top gf16_matmul4x4_top -flatten\nwrite_json {json}\n",
+        add = rtl_dir.join("gf16_add.v").display(),
+        mul = rtl_dir.join("gf16_mul.v").display(),
+        dot4 = rtl_dir.join("gf16_dot4.v").display(),
+        matmul = rtl_dir.join("gf16_matmul4x4.v").display(),
+        top = rtl_dir.join("gf16_matmul4x4_top.v").display(),
+        json = json_path.display(),
+    );
+    let ys_path = build.join("synth.ys");
+    std::fs::write(&ys_path, yosys_script)?;
+    run_step("yosys", &["-q", "-s", ys_path.to_str().unwrap()], &build)?;
+
+    // Stage 2: nextpnr-xilinx place & route
+    let fasm_path = build.join("gf16_matmul4x4_top.fasm");
+    run_step(
+        nextpnr.to_str().unwrap(),
+        &[
+            "--chipdb",
+            chipdb_path.to_str().unwrap(),
+            "--xdc",
+            rtl_dir.join("gf16_matmul4x4_top.xdc").to_str().unwrap(),
+            "--json",
+            json_path.to_str().unwrap(),
+            "--fasm",
+            fasm_path.to_str().unwrap(),
+            "--ignore-loops",
+        ],
+        &build,
+    )?;
+
+    // Stage 3: fasm2frames
+    let frames_path = build.join("gf16_matmul4x4_top.frames");
+    let py_bin = root
+        .join("target")
+        .join("prjxray-venv")
+        .join("bin")
+        .join("python3");
+    if !py_bin.is_file() {
+        bail!(
+            "prjxray venv python not found: {}. Create it with:\n  python3 -m venv target/prjxray-venv\n  target/prjxray-venv/bin/pip install fasm pyyaml simplejson intervaltree numpy",
+            py_bin.display()
+        );
+    }
+    let prjxray_repo = root.join("target").join("prjxray");
+    let mut py_env = std::env::vars().collect::<Vec<_>>();
+    let pythonpath = format!(
+        "{}:{}",
+        prjxray_repo.display(),
+        prjxray_repo.join("utils").display()
+    );
+    py_env.push(("PYTHONPATH".to_string(), pythonpath));
+
+    eprintln!(
+        "[synth-gf16] $ {} {} --db-root {} --part {} {} > {}",
+        py_bin.display(),
+        fasm2frames.display(),
+        prjxray_db.display(),
+        part,
+        fasm_path.display(),
+        frames_path.display()
+    );
+    let frames_file = std::fs::File::create(&frames_path)
+        .with_context(|| format!("create {}", frames_path.display()))?;
+    let mut py_cmd = std::process::Command::new(&py_bin);
+    py_cmd
+        .arg(&fasm2frames)
+        .args(["--db-root", prjxray_db.to_str().unwrap(), "--part", part])
+        .arg(fasm_path.to_str().unwrap())
+        .stdout(frames_file)
+        .current_dir(&build)
+        .envs(py_env);
+    let py_status = py_cmd
+        .status()
+        .with_context(|| format!("spawn fasm2frames"))?;
+    if !py_status.success() {
+        bail!("fasm2frames exited with {:?}", py_status);
+    }
+
+    // Stage 4: xc7frames2bit
+    let bit_path = build.join("gf16_matmul4x4_top.bit");
+    run_step(
+        xc7frames2bit.to_str().unwrap(),
+        &[
+            "--frm_file",
+            frames_path.to_str().unwrap(),
+            "--output_file",
+            bit_path.to_str().unwrap(),
+            "--part_file",
+            prjxray_db.join(part).join("part.yaml").to_str().unwrap(),
+            "--part_name",
+            part,
+        ],
+        &build,
+    )?;
+
+    let size = std::fs::metadata(&bit_path)?.len();
+    println!(
+        "[synth-gf16] OK  {} ({:.1} MiB)",
+        bit_path.display(),
+        size as f64 / 1024.0 / 1024.0
+    );
+    Ok(())
+}
