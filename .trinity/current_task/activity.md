@@ -1124,3 +1124,7 @@
 - **Commit:** W385 temp commit
 - **Files:** .claude/plans/wave-loop-385.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json,.trinity/seals/agent_EternalMonitor.json,.trinity/seals/agent_FacultyBoard.json,.trinity/seals/agent_Handoff.json
 
+## 2026-07-03T15:42:34Z — wave-loop-385
+- **Commit:** feat(igla): Wave Loop 385 — 284 generic ∀, signed/init local arrays, 567/567 PASS
+- **Files:** docs/reports/FPGA_EVIDENCE_W385.md,fpga/HARDWARE_SSOT.md,fpga/verilog/ternary_mac_demo_top_200t.bit
+

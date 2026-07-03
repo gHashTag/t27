@@ -15,9 +15,11 @@
 | Field | Value |
 |-------|-------|
 | Board | **QMTech Wukong V1** |
-| FPGA | **XC7A100T-FGG676** |
-| Vivado part string | **`xc7a100tfgg676-1`** |
-| JTAG IDCODE | **`0x13631093`** (XC7A100T) |
+| FPGA | **XC7A200T-FGG676** |
+| Vivado part string | **`xc7a200tfgg676-1`** |
+| JTAG IDCODE | **`0x03636093`** (XC7A200T) |
+
+> **2026-07-03 update:** the physical chip on the connected QMTech Wukong V1 board is an **XC7A200T**, not the earlier assumed XC7A100T. `openFPGALoader` reads IDCODE `0x03636093` and identifies the family as Artix-7 200T. Bitstreams must target `xc7a200tfgg676-1`. The legacy `ternary_mac_demo_top.bit` (3.6 MB) was built for `xc7a100tfgg676-1`; a 200T-compatible bitstream is kept as `ternary_mac_demo_top_200t.bit`.
 
 `Arty A7-100` (`xc7a100t-csg324`, `specs/boards/arty_a7.t27`) is a **different**
 board — not the flash target. Do not mix its `csg324` package into build/flash
@@ -31,12 +33,14 @@ All Vivado TCL (`fpga/vivado/build*.tcl`) and SPI-flash helpers
 
 ---
 
-## 2. What is physically connected (via Terminus USB2.0 hub)
+## 2. What is physically connected
 
 | Device | USB VID:PID | Role |
 |--------|-------------|------|
-| Xilinx Platform Cable USB II (Digilent DLC10) | `0x03FD:0x0013` (pre-FW), `0x03FD:0x0008` (after firmware load) | JTAG programmer |
+| Digilent USB Device (FT2232H/FT232-based JTAG cable) | `0x0403:0x6014` | JTAG programmer |
 | DSLogic Plus (DreamSourceLab) | `0x2A0E:0x0035` | Logic analyzer (JTAG capture) |
+
+> **Note:** the connected cable is a **Digilent FTDI cable** (`0x0403:0x6014`), not the Xilinx `0x03FD` Platform Cable. The in-repo `dlc10` driver only supports `0x03FD` cables, so the bring-up flow now uses **openFPGALoader** with the `digilent_hs2` cable profile.
 
 There is **no `/dev/cu.usb*` / `/dev/tty.usb*` serial node**, and there should
 not be: both devices speak **libusb**, not UART/VCP. Absence of a serial port is
@@ -50,35 +54,47 @@ tooling/IDCODE sections are stale; see §6).
 
 ## 3. Program / flash path (CANONICAL, local, no Vivado)
 
-The cable is a **native Xilinx cable (`0x03FD`)**. Drive it with the in-repo
-pure-Rust driver:
-
-**`cli/dlc10`** — `rusb`/libusb driver for DLC10/DLC9, JTAG + SPI flash via a
-7-series proxy. No prebuilt binary; build it:
+The connected cable is an **FTDI-based Digilent cable (`0x0403:0x6014`)**.
+Use `openFPGALoader` (installed via Homebrew) to program the FPGA:
 
 ```bash
-cargo build --release -p dlc10        # from repo root
+# Detect the JTAG chain and confirm the device
+openFPGALoader --detect -c digilent_hs2
+
+# Program FPGA SRAM (volatile, fast iteration)
+openFPGALoader -c digilent_hs2 fpga/verilog/ternary_mac_demo_top_200t.bit
 ```
 
-Subcommands (`src/bin/dlc10.rs`):
+Expected detection output:
+```text
+idcode 0x3636093
+manufacturer xilinx
+family artix a7 200t
+model  xc7a200
+irlength 6
+```
 
-| Command | Purpose |
-|---------|---------|
-| `dlc10 idcode` | Read JTAG IDCODE → **must be `0x13631093`** (confirms XC7A100T alive) |
-| `dlc10 sram <file.bit>` | Program FPGA SRAM (volatile, fast iteration) |
-| `dlc10 flash <file.bit>` | Program on-board SPI flash (non-volatile) |
-| `dlc10 reload` | JPROGRAM + JSTART (reload FPGA from flash) |
-| `dlc10 read-id` | SPI flash JEDEC ID via JTAG→SPI bridge |
-| `dlc10 debug` | Decode 7-series config registers |
+Expected post-load status line:
+```text
+ir: 1 isc_done 1 isc_ena 0 init 1 done 1
+```
+`done 1` confirms the bitstream was accepted and the FPGA is running.
 
-Typical bring-up: `cargo build --release -p dlc10` → `dlc10 idcode` →
-`dlc10 flash <bitstream>` → `dlc10 reload`.
+### When a Xilinx `0x03FD` cable is available
+The in-repo **`cli/dlc10`** driver supports native Xilinx cables (`0x03FD`). Build
+and use it as a fallback:
 
-### Do NOT use openFPGALoader for this board
-`openFPGALoader` (v1.1.1, installed via brew) **cannot drive the `0x03FD` cable**.
-Its cable DB is FTDI (`0x0403:*`) / CMSIS-DAP / J-Link / XVC only — there is no
-`0x03FD` entry, so `--detect` fails with "device not found". Dead end; use
-`dlc10`.
+```bash
+cargo build --release -p dlc10
+target/release/dlc10 idcode        # expect 0x03636093 for XC7A200T
+target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top_200t.bit
+```
+
+### SPI flash proxy (non-volatile programming)
+OpenXC7 currently cannot build a working `bscan_spi` proxy for this board, so
+non-volatile flash programming requires **Vivado-in-Docker**
+(`docker/Dockerfile.vivado`) or a prebuilt proxy. That path remains broken
+pending a working proxy bitstream; use SRAM loading for day-to-day iteration.
 
 ---
 
