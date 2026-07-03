@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:7562bdf83f7f11e525a21f96d2f43435b513c607be746a6d5d513b33572ccabb",
+  "gen_hash_rust": "sha256:fe015cff0b4baa85bb5adf48bc75f243ba9a544eb4fca5c4b1a397d328f2c403",
+  "gen_hash_verilog": "sha256:8998e56143d784e7dfde36a2968fa54bad79329049d9ddf5bbf27bcf21877537",
+  "gen_hash_zig": "sha256:4990d43caa589516b0b722fb601f00e5d38b15ea83b4e4375298302b35dae5d6",
+  "module": "w378_let_destructuring",
+  "ring": 12,
+  "sealed_at": "2026-07-03T07:00:09Z",
+  "spec_hash": "sha256:e7b3ed233b548c98db11d957731068956a26a08a1468f291319518a3a529ccb2",
+  "spec_path": "specs/scratch/w378_let_destructuring.t27"
+}

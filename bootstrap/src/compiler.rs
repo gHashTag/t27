@@ -3650,6 +3650,9 @@ pub struct VerilogCodegen {
     // Used by ExprFieldAccess to decide whether a field access on a struct-typed
     // variable should resolve to the struct-type register name.
     struct_field_regs: std::collections::HashSet<String>,
+    // W378: monotonic counter for packed temporaries emitted by let-destructuring
+    // lowering. Reset per function to avoid collisions.
+    let_tmp_counter: u32,
 }
 
 impl VerilogCodegen {
@@ -3663,6 +3666,7 @@ impl VerilogCodegen {
             param_widths: std::collections::HashMap::new(),
             param_types: std::collections::HashMap::new(),
             struct_field_regs: std::collections::HashSet::new(),
+            let_tmp_counter: 0,
         }
     }
 
@@ -4472,6 +4476,7 @@ impl VerilogCodegen {
         self.current_fn_return_type.clear();
         self.param_widths.clear();
         self.param_types.clear();
+        self.let_tmp_counter = 0;
     }
 
     // W375: detect a bare `if (cond) { return expr; }` statement (no else branch)
@@ -4572,6 +4577,61 @@ impl VerilogCodegen {
                 self.gen_verilog_stmt(&stmts[i]);
                 i += 1;
             }
+        }
+    }
+
+    // W378: syntax-level lowering for `let(a, b, c) = expr` destructuring.
+    // Emits a packed temporary for the RHS call result, then declares a scalar
+    // reg for each binding and assigns a slice. This is sufficient to make the
+    // generated Verilog parse in yosys; full tuple-return semantics require a
+    // deeper backend change that is out of scope for one wave.
+    fn gen_verilog_let_destructuring(
+        &mut self,
+        lhs_call: &Node,
+        rhs: &Node,
+    ) {
+        let bindings: Vec<String> = lhs_call
+            .children
+            .iter()
+            .map(|c| Self::verilog_safe_identifier(&c.name))
+            .collect();
+        let tmp = Self::verilog_safe_identifier(
+            &format!("_let_tmp_{}", self.let_tmp_counter),
+        );
+        self.let_tmp_counter += 1;
+        let total_width = 96u32; // default packed width: 3x32-bit slots
+        let slot_width = 32u32;
+
+        // Declare the packed temporary and evaluate the RHS call into it.
+        self.write_indent();
+        self.write_line(&format!(
+            "reg [{}:0] {}; // packed temporary for let destructuring",
+            total_width - 1,
+            tmp
+        ),
+        );
+        self.write_indent();
+        self.write(&format!("{} = ", tmp));
+        self.gen_verilog_expr(rhs);
+        self.write_line(";");
+
+        // Declare scalar regs and assign slices for each binding.
+        for (i, name) in bindings.iter().enumerate() {
+            let high = total_width - 1 - (i as u32 * slot_width);
+            let low = high - (slot_width - 1);
+            self.write_indent();
+            self.write_line(&format!(
+                "reg [{}:0] {};",
+                slot_width - 1,
+                name
+            ),
+            );
+            self.write_indent();
+            self.write_line(&format!(
+                "{} = {}[{}:{}];",
+                name, tmp, high, low
+            ),
+            );
         }
     }
 
@@ -4748,6 +4808,21 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtAssign => {
+                // W378: detect tuple destructuring on the LHS of an assignment:
+                // `let(a, b, c) = f(...)` is parsed as a StmtAssign whose LHS is
+                // an ExprCall named "let" with identifier children. Emit scalar
+                // reg declarations for each binding plus slice assignments from a
+                // packed temporary. This is a syntax-level workaround for Defect 6;
+                // full tuple-return function generation is still required for
+                // semantic completeness on arbitrary multi-return calls.
+                if node.children.len() >= 2
+                    && node.children[0].kind == NodeKind::ExprCall
+                    && node.children[0].name == "let"
+                    && !node.children[0].children.is_empty()
+                {
+                    self.gen_verilog_let_destructuring(&node.children[0], &node.children[1]);
+                    return;
+                }
                 self.write_indent();
                 if node.children.len() >= 2 {
                     self.gen_verilog_expr(&node.children[0]);

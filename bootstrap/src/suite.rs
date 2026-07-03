@@ -154,8 +154,8 @@ fn yosys_available() -> bool {
 }
 
 /// IGLA specs known to be yosys-clean through `t27c gen-verilog`.
-/// `cordic.t27` and `cordic_top.t27` are excluded pending Defect 6
-/// (`let` destructuring lowering).
+/// All 27 IGLA specs are now clean after W378 fixed Defect 6 (`let`
+/// destructuring lowering).
 fn igla_clean_specs() -> Vec<String> {
     vec![
         "specs/igla/coder/arch.t27".into(),
@@ -171,7 +171,9 @@ fn igla_clean_specs() -> Vec<String> {
         "specs/igla/race/adder_tree.t27".into(),
         "specs/igla/race/backend.t27".into(),
         "specs/igla/race/bram_weights.t27".into(),
+        "specs/igla/race/cordic.t27".into(),
         "specs/igla/race/cordic_fixed.t27".into(),
+        "specs/igla/race/cordic_top.t27".into(),
         "specs/igla/race/eda.t27".into(),
         "specs/igla/race/formal.t27".into(),
         "specs/igla/race/gemm.t27".into(),

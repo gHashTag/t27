@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9a7d8b278e1d137ce477e4478f528669864abeef63c3fc55b9b9ad71ea00b688",
   "module": "igla-race-bram-weights",
   "ring": 12,
-  "sealed_at": "2026-07-03T06:45:25Z",
-  "spec_hash": "sha256:69f672c738f9ed0f3b6bb79af0549700d2159a1492753585bca793c81bcc0b51",
+  "sealed_at": "2026-07-03T07:00:09Z",
+  "spec_hash": "sha256:9af7957205ac72323ce88ee4ee8600cd63bdbb89f92e6f028c607e7359ccdcb9",
   "spec_path": "specs/igla/race/bram_weights.t27"
 }
