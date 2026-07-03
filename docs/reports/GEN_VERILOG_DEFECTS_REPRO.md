@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-03 (Wave Loop 380)  
+**Last updated:** 2026-07-01 (Wave Loop 381)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -213,7 +213,9 @@ reg [31:0] _y; _y = _let_tmp_0[31:0];
 - `gen_verilog_expr` for tuple literals emits packed concatenations.
 - `gen_verilog_let_destructuring` infers per-binding widths from the callee's tuple return type when LHS bindings are untyped.
 
-The remaining gap is **slot-aware function-call lowering for nested multi-return calls** (e.g., a tuple-returning caller that passes a tuple element forward). This is now a narrow follow-up rather than a missing first-class feature.
+**Update (W381):** Slot-aware nested tuple-return call lowering is now complete. `gen_verilog_expr` recognizes tuple-return function calls in expression position, emits a packed temporary sized to the callee's tuple width, and lets the consuming tuple literal slice the temporary by slot. The regression spec `specs/scratch/w381_tuple_call_chain.t27` exercises a two-level chain and passes `yosys read_verilog -sv`.
+
+**Status:** Closed as implemented and verified.
 
 **Verification:**
 - `specs/scratch/w378_let_destructuring.t27` — 3-binding `let (x, y, z)` and `let (x, _y)` pass `yosys read_verilog -sv`.
@@ -228,11 +230,10 @@ The remaining gap is **slot-aware function-call lowering for nested multi-return
 1. **Tuple-return function generation** — the remaining semantic gap behind Defect 6. Implement multi-return function types, tuple literals, and slot-aware function-call lowering so `let(a, b, c) = f(...)` is correct for arbitrary multi-return calls, not only the current syntax-level workaround.
 2. **Incremental array/RAM lowering** — #1258 (datapath specs such as FIFOs and memories).
 
-## Open work after W380
+## Open work after W381
 
-- **Slot-aware nested tuple-return call lowering** — finish the last sub-step of full multi-return support so tuple-returning callers can pass elements forward without manual destructuring.
-- **Incremental array/RAM lowering** — #1258 for datapath specs (FIFOs, memories).
-- No other tracked gen-verilog syntax defects remain on `trinity-rust-rings`.
+- **Incremental array/RAM lowering** — #1258 for datapath specs (FIFOs, memories). This is now the largest remaining backend capability gap.
+- No other tracked gen-verilog syntax/semantic defects remain on `trinity-rust-rings`.
 
 ---
 
@@ -247,12 +248,12 @@ The remaining gap is **slot-aware function-call lowering for nested multi-return
 - [x] `as` / bitwise operator width correctness (FIXED/VERIFIED in W376)
 - [x] Struct-field reg naming (keyword-safe, full-token escape)
 - [x] Local variable keyword-safe emission
-- [x] `let` destructuring lowering — semantically-aware syntax fix in W378/W379 (semantic tuple-return gap remains)
+- [x] `let` destructuring lowering — semantically-aware syntax fix in W378/W379; full semantic tuple-return support completed in W381
 - [x] CI smoke gate for `gen-verilog` + `yosys read_verilog` on scratch specs (W376)
 - [x] CI smoke gate expanded to 25 yosys-clean IGLA specs (W377)
 - [x] CI smoke gate expanded to all 27 IGLA specs (W378)
 - [x] Struct-field reg mapping from struct-type registers (`pt_x`) instead of parameter-variable registers (`p_x`) (W377)
-- [ ] Tuple-return function generation for full semantic multi-return support (open)
+- [x] Tuple-return function generation for full semantic multi-return support (W380/W381)
 
 ---
 

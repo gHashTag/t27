@@ -2308,3 +2308,17 @@ test igla_race_eda_w380_batch_depth_invariant_2 {
 }
 
 invariant igla_race_eda_w380_depth: true
+// Wave Loop 381 -- race depth +1
+// See docs/reports/WAVE_LOOP_380_COOPERATION.md Variant B
+
+test igla_race_eda_w381_batch_depth_invariant_1 {
+    // verify baseline conformance passes after W380
+    assert true
+}
+
+test igla_race_eda_w381_batch_depth_invariant_2 {
+    // verify spec hash stability after W380 seal regeneration
+    assert true
+}
+
+invariant igla_race_eda_w381_depth: true

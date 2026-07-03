@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a3cd0dd2679a1bb66f75994af6b2e025bbe31a0c52629d609d68b7f5a1d916e4",
   "module": "igla-race-ternary-gemm",
   "ring": 12,
-  "sealed_at": "2026-07-03T08:31:56Z",
-  "spec_hash": "sha256:df5dcb3db544903ef611722ca0ab5fa54b1a9ad11236c1bd907175d335616533",
+  "sealed_at": "2026-07-03T10:45:37Z",
+  "spec_hash": "sha256:4087ef0e75f8f209948e90dcfb2c2a8d68d3b600ee4405773cb5eee171c48a5c",
   "spec_path": "specs/igla/race/ternary_gemm.t27"
 }

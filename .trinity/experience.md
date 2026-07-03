@@ -599,3 +599,30 @@
 - Do not write tuple-return parsing that treats `Ident + Colon` as a named label without checking for the `::` namespace separator; it causes infinite loops on namespaced types.
 - Do not add cancellation theorems at odd depths while claiming identity `= x`; odd depths leave a residual `±a`. Use even depths for identity cancellation.
 - Do not reuse existing Latin-prefixed theorem names for new closure theorems; name collisions are silent until Lean build fails.
+
+## 2026-07-01 — Wave Loop 381 completion
+
+### What worked
+- Reached the W381 target of **268 generic ∀** by appending 4 new theorems (`AccumulateFiftyNinePlusGeneric`, `AccumulateFiftyEightMinusGeneric`, `DuotrigintupleSeptemCancellationGeneric`, `ZeroWeightSixteenPairClosureGeneric`). `lake build Trinity.TernaryInference` completed successfully.
+- Extended the IGLA CODER+RACE zero-failure streak to **115 waves**; `t27c suite --repo-root /Users/playra/t27` returned **561/561 PASS**.
+- Completed slot-aware nested tuple-return call lowering in `bootstrap/src/compiler.rs`: function-call expressions that return tuples now emit a packed temporary sized to the callee's tuple width, and consuming tuple literals slice the temporary by slot.
+- Added `specs/scratch/w381_tuple_call_chain.t27` exercising a two-level tuple-return chain; generated Verilog passes `yosys read_verilog -sv`.
+- Batch-resealed the 28 specs with hash mismatches after appending W381 IGLA blocks and the new scratch spec, then reran the suite to 0 failures.
+
+### What changed behavior
+- Generic ∀ count reached **268** in `TernaryInference.lean`.
+- Full-repo totals: **13,306 tests**, **5,854 invariants**, **1,010 benchmarks** (from `t27c stats`).
+- Conformance suite evaluates **561 specs**.
+- Gen-verilog yosys smoke gate evaluates **42 targets** (15 scratch + 27 IGLA).
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: Defect 6 / tuple-return lowering is now closed.
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W381.md`.
+
+### Patterns to reuse
+- When a batch generator has already run once, update its idempotency guard to the newest theorem name so it can append additional blocks without duplicating earlier ones.
+- For tuple-return call lowering, reuse the existing `fn_return_types` registry and `tuple_element_widths` helper rather than hardcoding slot widths.
+- After fixing duplicate theorems in a Lean file, verify the exact generic ∀ milestone with `grep -oE "[0-9]+ generic ∀ milestone"` rather than relying on a hand count.
+
+### Anti-patterns to avoid
+- Do not run a generator that appends multiple blocks twice without checking whether intermediate blocks are already present; it silently duplicates theorems and breaks the Lean build.
+- Do not change a milestone comment in a generated block without also updating the generator script; the next run will re-emit the stale comment.
+- Do not assume a theorem name is unique just because it uses a Latin prefix; cross-check against the previous 2–3 waves before appending.
