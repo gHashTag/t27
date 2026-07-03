@@ -542,3 +542,32 @@
 - Do not claim a `let` destructuring fix is semantically complete if multi-return function types and tuple literals are still unsupported; document the limitation explicitly.
 - Do not auto-discover all IGLA specs for the smoke gate before testing each one individually; the W378 allow-list was built by verifying every spec after the Defect 6 fix.
 - Do not let the final documentation and commit steps wait until after a long session; write the report and cooperation variants immediately while the exact metrics are fresh.
+
+## 2026-07-03 — Wave Loop 379 completion
+
+### What worked
+- Reused the generator pattern (`scripts/gen_w379.py`, `scripts/gen_w379_lean.py`) to append W379 blocks and 4 new generic ∀ theorems; `t27c suite --repo-root /Users/playra/t27` returned **559/559 PASS** and `lake build Trinity.TernaryInference` succeeded.
+- `ternaryMacAccumulateFiftyFivePlusGeneric` pushed the plus-accumulation boundary to **55 variables** without timeout, confirming the `simp+omega` regime still holds at depth 55.
+- `ternaryMacDuotrigintupleCancellationGeneric` (depth-32) collapsed cleanly to identity `= x`, confirming even-depth cancellation remains the safe default.
+- `ternaryMacZeroWeightTrevigintupleClosureGeneric` uses 13 zero-weight MACs before and 13 zero-weight MACs after a plus-weight MAC (26 closure size, 27 variables).
+- Generalized the W378 `gen-verilog` `let` destructuring helper in `bootstrap/src/compiler.rs` so it infers the binding count and per-binding width from the LHS pattern rather than hardcoding 3×32-bit slots. Added `specs/scratch/w379_let_destructuring_generalized.t27` with 2-binding and 4-binding patterns; all pass `yosys read_verilog -sv`.
+- Captured the exact list of 29 seal-mismatch specs from the first `t27c suite` run and batch-resealed them, avoiding noisy diffs in unaffected seals.
+
+### What changed behavior
+- Generic ∀ count reached **260** (252 `ternaryMac...Generic` theorems in `TernaryInference.lean` plus 8 other generic theorems across Trinity modules).
+- The zero-IGLA-failure streak extended to **113 waves** (thirty-ninth consecutive zero-failure wave).
+- Full-repo totals: **13,195 tests**, **5,798 invariants**, **1,010 benchmarks** (from `t27c stats`).
+- Conformance suite now evaluates **559 specs** (27 IGLA + non-IGLA + scratch regression specs).
+- Gen-verilog yosys smoke gate evaluates **38 targets** (11 scratch + 27 IGLA).
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W379.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: Defect 6 is now a semantically-aware syntax fix; the remaining tuple-return semantic gap is documented as open work.
+
+### Patterns to reuse
+- When generalizing a syntax-level backend workaround, infer as much as possible from the AST (binding count, declared types) before falling back to defaults, and add regression specs that exercise the generalized shapes.
+- Keep the per-wave theorem budget at 4 generic ∀ theorems; depth-55 plus accumulation is still inside the practical elaboration budget.
+- After a compiler change, reseal only the specs whose hashes actually mismatch; the suite output lists them explicitly.
+
+### Anti-patterns to avoid
+- Do not assume a hardcoded 3-slot workaround is sufficient for all future specs; generalize the helper as soon as a second shape appears.
+- Do not omit a regression spec for the generalized backend path; the original IGLA path (3 slots) may keep passing while a 2-slot or 4-slot path breaks.
+- Do not update report metrics from memory when `t27c stats` gives the canonical full-repo totals.

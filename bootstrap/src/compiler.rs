@@ -4590,23 +4590,35 @@ impl VerilogCodegen {
         lhs_call: &Node,
         rhs: &Node,
     ) {
-        let bindings: Vec<String> = lhs_call
+        // W379: infer binding count and per-binding width from the LHS pattern
+        // instead of hardcoding 3x32-bit slots. The parser exposes `let(a, b, c)`
+        // as an ExprCall named "let" whose children are the bound identifiers.
+        // Each identifier may carry a declared type in `extra_type` (e.g. "i32",
+        // "u16", "bool"); when missing we fall back to the default 32-bit slot.
+        let bindings: Vec<(String, u32)> = lhs_call
             .children
             .iter()
-            .map(|c| Self::verilog_safe_identifier(&c.name))
+            .map(|c| {
+                let name = Self::verilog_safe_identifier(&c.name);
+                let width = if c.extra_type.is_empty() {
+                    32u32
+                } else {
+                    Self::type_to_width(&c.extra_type)
+                };
+                (name, width)
+            })
             .collect();
         let tmp = Self::verilog_safe_identifier(
             &format!("_let_tmp_{}", self.let_tmp_counter),
         );
         self.let_tmp_counter += 1;
-        let total_width = 96u32; // default packed width: 3x32-bit slots
-        let slot_width = 32u32;
+        let total_width: u32 = bindings.iter().map(|(_, w)| w).sum();
 
         // Declare the packed temporary and evaluate the RHS call into it.
         self.write_indent();
         self.write_line(&format!(
             "reg [{}:0] {}; // packed temporary for let destructuring",
-            total_width - 1,
+            total_width.saturating_sub(1),
             tmp
         ),
         );
@@ -4616,13 +4628,14 @@ impl VerilogCodegen {
         self.write_line(";");
 
         // Declare scalar regs and assign slices for each binding.
-        for (i, name) in bindings.iter().enumerate() {
-            let high = total_width - 1 - (i as u32 * slot_width);
-            let low = high - (slot_width - 1);
+        let mut cursor = total_width;
+        for (name, width) in bindings.iter() {
+            let high = cursor.saturating_sub(1);
+            let low = cursor.saturating_sub(*width);
             self.write_indent();
             self.write_line(&format!(
                 "reg [{}:0] {};",
-                slot_width - 1,
+                width.saturating_sub(1),
                 name
             ),
             );
@@ -4632,6 +4645,7 @@ impl VerilogCodegen {
                 name, tmp, high, low
             ),
             );
+            cursor = low;
         }
     }
 

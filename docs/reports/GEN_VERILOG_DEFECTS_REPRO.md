@@ -154,7 +154,7 @@ fn get_x(p : Pt) -> u8 {
 
 **Verification:** `specs/scratch/w377_struct_field_mapping.t27` exercises field reads on a struct-typed parameter. `t27c gen-verilog` emits `word_data` / `word_tag` references, and `yosys read_verilog -sv` + `synth_xilinx` pass.
 
-### Defect 6 — `let` destructuring is emitted verbatim (SYNTAX-LEVEL FIX in W378)
+### Defect 6 — `let` destructuring is emitted verbatim (SEMANTICALLY-AWARE SYNTAX FIX in W378/W379)
 
 **Repro:**
 ```t27
@@ -167,32 +167,39 @@ fn cordic_top_batch_inner(angles : u32, idx : u32, acc : i32) -> i32 {
 
 **Observed Verilog (before W378):** the `let(s, _c, _r) = ...` statement was emitted verbatim as `let(s, _c, _r) = cordic_top(...);`, which is not valid Verilog and caused `yosys read_verilog` to fail with a syntax error.
 
-**Observed Verilog (after W378):** the codegen detects the `let(...)` pattern in `StmtAssign` and emits a packed temporary plus scalar `reg` declarations and slice assignments:
+**Observed Verilog (after W378/W379):** the codegen detects the `let(...)` pattern in `StmtAssign` and emits a packed temporary plus scalar `reg` declarations and slice assignments. After W379 the packed width and slice offsets are inferred from the LHS pattern rather than hardcoded:
 ```verilog
-reg [95:0] _let_tmp_0; // packed temporary for let destructuring
+// 3 bindings (W378 example)
+reg [95:0] _let_tmp_0;
 _let_tmp_0 = cordic_top(...);
-reg [31:0] s;
-s = _let_tmp_0[95:64];
-reg [31:0] _c;
-_c = _let_tmp_0[63:32];
-reg [31:0] _r;
-_r = _let_tmp_0[31:0];
+reg [31:0] s;  s = _let_tmp_0[95:64];
+reg [31:0] _c; _c = _let_tmp_0[63:32];
+reg [31:0] _r; _r = _let_tmp_0[31:0];
+
+// 2 bindings (W379 regression)
+reg [63:0] _let_tmp_0;
+_let_tmp_0 = make_pair(...);
+reg [31:0] x; x = _let_tmp_0[63:32];
+reg [31:0] _y; _y = _let_tmp_0[31:0];
 ```
 
 **Root cause (syntax level):** `gen_verilog_stmt` did not recognize the `let(...)` call pattern on the LHS of an assignment and emitted it verbatim.
 
-**Fix (W378):**
-- Added `let_tmp_counter` to `VerilogCodegen`.
-- Added `gen_verilog_let_destructuring` helper that declares a packed `reg` for the RHS result, then declares a scalar `reg [31:0]` for each binding and assigns it from the corresponding 32-bit slice.
-- The `StmtAssign` branch in `gen_verilog_stmt` now detects an `ExprCall` named `"let"` with identifier children and routes it to the helper.
-- `let_tmp_counter` is reset at the end of each generated function.
+**Fix (W378/W379):**
+- W378: Added `let_tmp_counter` to `VerilogCodegen`; added `gen_verilog_let_destructuring` helper; routed `let(...)` LHS patterns to it in `StmtAssign`; reset the counter per function.
+- W379: Generalized the helper so it infers:
+  - `N` from the number of identifier children in the `let(...)` LHS.
+  - Per-binding width from `child.extra_type` when present, falling back to 32 bits.
+  - Total packed width as the sum of per-binding widths.
+  - Slice offsets computed from the running cursor, not hardcoded 32-bit slots.
 
-**Remaining semantic gap:** the W378 fix assumes the RHS returns a 96-bit packed result and always uses 32-bit slots. Full semantic correctness requires tuple-return function generation in the Verilog backend (multi-return function types, tuple literals, and slot-aware function-call lowering), which is out of scope for one wave.
+**Remaining semantic gap:** the backend still does not implement first-class tuple-return function generation. The LHS pattern is used to size the packed temporary, but the RHS function call must already return a value of the matching shape. Full semantic correctness requires multi-return function types, tuple literals, and slot-aware function-call lowering, which is out of scope for one wave.
 
 **Verification:**
-- `specs/scratch/w378_let_destructuring.t27` — `let (x, y, z) = make_tuple(...)` and `let (x, _y) = ...` pass `yosys read_verilog -sv`.
+- `specs/scratch/w378_let_destructuring.t27` — 3-binding `let (x, y, z)` and `let (x, _y)` pass `yosys read_verilog -sv`.
+- `specs/scratch/w379_let_destructuring_generalized.t27` — 2-binding and 4-binding patterns pass `yosys read_verilog -sv`.
 - `specs/igla/race/cordic.t27` and `specs/igla/race/cordic_top.t27` now pass `yosys read_verilog -sv`.
-- `bootstrap/src/suite.rs` smoke gate now covers all 27 IGLA specs.
+- `bootstrap/src/suite.rs` smoke gate covers all 27 IGLA specs.
 
 ---
 
@@ -201,9 +208,10 @@ _r = _let_tmp_0[31:0];
 1. **Tuple-return function generation** — the remaining semantic gap behind Defect 6. Implement multi-return function types, tuple literals, and slot-aware function-call lowering so `let(a, b, c) = f(...)` is correct for arbitrary multi-return calls, not only the current syntax-level workaround.
 2. **Incremental array/RAM lowering** — #1258 (datapath specs such as FIFOs and memories).
 
-## Open work after W378
+## Open work after W379
 
-- Tuple-return semantics in the Verilog backend.
+- **Tuple-return function generation** — full semantic multi-return support in the Verilog backend.
+- **Incremental array/RAM lowering** — #1258 for datapath specs (FIFOs, memories).
 - No other tracked gen-verilog syntax defects remain on `trinity-rust-rings`.
 
 ---
@@ -219,7 +227,7 @@ _r = _let_tmp_0[31:0];
 - [x] `as` / bitwise operator width correctness (FIXED/VERIFIED in W376)
 - [x] Struct-field reg naming (keyword-safe, full-token escape)
 - [x] Local variable keyword-safe emission
-- [x] `let` destructuring lowering — syntax-level fix in W378 (semantic tuple-return gap remains)
+- [x] `let` destructuring lowering — semantically-aware syntax fix in W378/W379 (semantic tuple-return gap remains)
 - [x] CI smoke gate for `gen-verilog` + `yosys read_verilog` on scratch specs (W376)
 - [x] CI smoke gate expanded to 25 yosys-clean IGLA specs (W377)
 - [x] CI smoke gate expanded to all 27 IGLA specs (W378)
