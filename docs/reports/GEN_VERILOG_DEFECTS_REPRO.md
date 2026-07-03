@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-03 (Wave Loop 377)  
+**Last updated:** 2026-07-03 (Wave Loop 380)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -129,6 +129,18 @@ fn cast_and_mask(x : u16) -> u8 {
 
 ---
 
+### Defect 3b — Named tuple return types with `::` namespaces (FIXED in W380)
+
+**Symptom:** The new tuple return-type parser introduced in W380 entered an infinite loop on named/namespaced tuple elements such as `-> (gf16::GF16, gf16::GF16, gf16::GF16)` and `-> (added: u32, deleted: u32, modified: u32)`.
+
+**Root cause:** The initial tuple parser consumed `Ident` followed by a single `:` as a named-field label. For namespaced types like `gf16::GF16`, the first colon belongs to `::`, so the parser consumed the namespace identifier and half of the namespace separator, leaving a bare `:` that caused an infinite loop.
+
+**Fix (W380):** The tuple return-type loop now parses the element type first, then detects a named-field label only when the next token is a single colon whose successor is **not** another colon (i.e., not `::`).
+
+**Verification:** `specs/ml/optimizer/adamw.t27` and `specs/git/diff.t27` now parse cleanly; full `t27c suite` passes 560/560.
+
+---
+
 ### Defect 5 — Struct-field reg name mismatch (FIXED in W377)
 
 **Repro:**
@@ -193,7 +205,15 @@ reg [31:0] _y; _y = _let_tmp_0[31:0];
   - Total packed width as the sum of per-binding widths.
   - Slice offsets computed from the running cursor, not hardcoded 32-bit slots.
 
-**Remaining semantic gap:** the backend still does not implement first-class tuple-return function generation. The LHS pattern is used to size the packed temporary, but the RHS function call must already return a value of the matching shape. Full semantic correctness requires multi-return function types, tuple literals, and slot-aware function-call lowering, which is out of scope for one wave.
+**Remaining semantic gap (before W380):** the backend still does not implement first-class tuple-return function generation. The LHS pattern is used to size the packed temporary, but the RHS function call must already return a value of the matching shape. Full semantic correctness requires multi-return function types, tuple literals, and slot-aware function-call lowering.
+
+**Update (W380):** Tuple-return generation scaffolding is now in place:
+- Parser accepts tuple return types `-> (T1, T2, ...)` and tuple literals `(a, b, c)`.
+- `gen_verilog_fn` emits a packed function result register whose width equals the sum of element widths.
+- `gen_verilog_expr` for tuple literals emits packed concatenations.
+- `gen_verilog_let_destructuring` infers per-binding widths from the callee's tuple return type when LHS bindings are untyped.
+
+The remaining gap is **slot-aware function-call lowering for nested multi-return calls** (e.g., a tuple-returning caller that passes a tuple element forward). This is now a narrow follow-up rather than a missing first-class feature.
 
 **Verification:**
 - `specs/scratch/w378_let_destructuring.t27` — 3-binding `let (x, y, z)` and `let (x, _y)` pass `yosys read_verilog -sv`.
@@ -208,9 +228,9 @@ reg [31:0] _y; _y = _let_tmp_0[31:0];
 1. **Tuple-return function generation** — the remaining semantic gap behind Defect 6. Implement multi-return function types, tuple literals, and slot-aware function-call lowering so `let(a, b, c) = f(...)` is correct for arbitrary multi-return calls, not only the current syntax-level workaround.
 2. **Incremental array/RAM lowering** — #1258 (datapath specs such as FIFOs and memories).
 
-## Open work after W379
+## Open work after W380
 
-- **Tuple-return function generation** — full semantic multi-return support in the Verilog backend.
+- **Slot-aware nested tuple-return call lowering** — finish the last sub-step of full multi-return support so tuple-returning callers can pass elements forward without manual destructuring.
 - **Incremental array/RAM lowering** — #1258 for datapath specs (FIFOs, memories).
 - No other tracked gen-verilog syntax defects remain on `trinity-rust-rings`.
 

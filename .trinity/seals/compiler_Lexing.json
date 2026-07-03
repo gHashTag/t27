@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:44f870a76597e24ab23a59621505d440d7e7bb64f128717e38f4ab4ec1b12f69",
-  "gen_hash_rust": "sha256:b12419a845b0e747a06388b468545c21f2fca49d1a4b9bf4e1d2ee7481456c0a",
-  "gen_hash_verilog": "sha256:56efdc00da406aaffc8a675550618c289a20c129a7df0cbe04f55608102e5eae",
-  "gen_hash_zig": "sha256:d16e5ea08d05cff3fd01123572ab33757f56382e872532f85c6c3fc7dc7ed377",
+  "gen_hash_c": "sha256:376d7ca4f7a168f1bc74b540989d2d6867c60f6f99a1b21daf0786b1b78e9c38",
+  "gen_hash_rust": "sha256:1c273ca61600613c1d7b05c224599d3cc5761185cf1522613a644fa4fef3e7e1",
+  "gen_hash_verilog": "sha256:3cf0939507d44ef800cc699028b906293ee0ab5897ec5aed2afbef8578dd7f18",
+  "gen_hash_zig": "sha256:398b5bb4daa2a1ed6052e33def46e15a317629b71f6f9cb408adc36a59328d2f",
   "module": "Lexing",
   "ring": 12,
-  "sealed_at": "2026-07-03T06:45:24Z",
+  "sealed_at": "2026-07-03T08:31:56Z",
   "spec_hash": "sha256:4bc5143fba34174835090dd6b44f8b82feeb5462e3c52407d60d85efb3d6988a",
   "spec_path": "specs/compiler/lexer.t27"
 }

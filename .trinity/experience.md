@@ -571,3 +571,31 @@
 - Do not assume a hardcoded 3-slot workaround is sufficient for all future specs; generalize the helper as soon as a second shape appears.
 - Do not omit a regression spec for the generalized backend path; the original IGLA path (3 slots) may keep passing while a 2-slot or 4-slot path breaks.
 - Do not update report metrics from memory when `t27c stats` gives the canonical full-repo totals.
+
+## 2026-07-03 — Wave Loop 380 completion
+
+### What worked
+- Reached the W380 target of **264 generic ∀** by appending the original 4 W380 theorems plus 4 extra theorems (`AccumulateFiftySevenPlusGeneric`, `AccumulateFiftySixMinusGeneric`, `SextrigintupleCancellationGeneric`, `ZeroWeightFourteenPairClosureGeneric`). `lake build Trinity.TernaryInference` completed in ~12.5 s.
+- Extended the IGLA CODER+RACE zero-failure streak to **114 waves**; `t27c suite --repo-root /Users/playra/t27` returned **560/560 PASS**.
+- Began tuple-return generation scaffolding in `bootstrap/src/compiler.rs`: parser support for tuple return types and tuple literals, packed function result registers, and callee-type-aware `let` destructuring widths.
+- Added `specs/scratch/w380_tuple_return.t27` with mixed-width tuple returns `(u16, u32, u8)`; generated Verilog passes `yosys read_verilog -sv`.
+- Fixed a parser infinite loop on named/namespaced tuple return types (`(gf16::GF16, ...)` and `(added: u32, ...)`) introduced by the new tuple parser.
+- Batch-resealed the 41 specs with hash mismatches after the compiler changes, then reran the suite to 0 failures.
+
+### What changed behavior
+- Generic ∀ count reached **264** (264 `ternaryMac...Generic` theorems in `TernaryInference.lean`).
+- Full-repo totals: **13,251 tests**, **5,826 invariants**, **1,010 benchmarks** (from `t27c stats`).
+- Conformance suite evaluates **560 specs**.
+- Gen-verilog yosys smoke gate evaluates **41 targets** (14 scratch + 27 IGLA).
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W380.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: Defect 6 scaffolding is in place; remaining gap is slot-aware nested tuple-return call lowering.
+
+### Patterns to reuse
+- When adding parser support for a new type shape, immediately test it against existing specs that already use that shape (e.g., namespaced tuple return types in `adamw.t27`) to catch regressions.
+- Use packed concatenation `{c, b, a}` for tuple literals in Verilog so the first element occupies the most significant bits and slice assignments line up with destructuring.
+- Batch-reseal after a compiler change: capture the mismatch list from the first suite run, run `t27c seal --save` for each, then rerun the suite.
+
+### Anti-patterns to avoid
+- Do not write tuple-return parsing that treats `Ident + Colon` as a named label without checking for the `::` namespace separator; it causes infinite loops on namespaced types.
+- Do not add cancellation theorems at odd depths while claiming identity `= x`; odd depths leave a residual `±a`. Use even depths for identity cancellation.
+- Do not reuse existing Latin-prefixed theorem names for new closure theorems; name collisions are silent until Lean build fails.

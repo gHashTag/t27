@@ -37,6 +37,7 @@ pub enum NodeKind {
     ExprArrayLiteral,
     ExprCast,
     ExprRange, // start..end
+    ExprTuple, // (a, b, c) tuple literal
     // Statement nodes for fn bodies
     StmtLocal,  // const x = expr; or var x: T = expr;
     StmtAssign, // x = expr; or x.field = expr;
@@ -1539,8 +1540,36 @@ impl Parser {
             self.advance(); // consume !
         }
 
-        // Return type (identifier, or []T / [N]T / [][]const u8 slice/array types, or void)
-        if self.current.kind == TokenKind::Ident {
+        // Return type (identifier, tuple, or []T / [N]T / [][]const u8 slice/array types, or void)
+        if self.current.kind == TokenKind::LParen {
+            // W380: tuple return type: -> (T1, T2, ...) or -> (name1: T1, name2: T2, ...)
+            let mut rt = String::new();
+            rt.push('(');
+            self.advance(); // consume (
+            while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
+                // Parse the element type. This consumes a simple type like
+                // `u32` or a namespaced type like `gf16::GF16`. If the parsed
+                // "type" was actually a named-field label (label: Type), we
+                // will see a single colon next; the colon is part of the label
+                // only when it is not the first half of `::`.
+                let mut elem_ty = self.parse_type_annotation();
+                if self.current.kind == TokenKind::Colon
+                    && self.peek.kind != TokenKind::Colon
+                {
+                    // Named element: discard the label and parse the real type.
+                    self.advance(); // consume :
+                    elem_ty = self.parse_type_annotation();
+                }
+                rt.push_str(&elem_ty);
+                if self.current.kind == TokenKind::Comma {
+                    rt.push(',');
+                    self.advance();
+                }
+            }
+            rt.push(')');
+            self.expect(TokenKind::RParen)?;
+            decl.extra_return_type = rt;
+        } else if self.current.kind == TokenKind::Ident {
             decl.extra_return_type = self.current.lexeme.clone();
             self.advance();
             // Handle generic return types like Option<Foo>
@@ -2482,12 +2511,25 @@ impl Parser {
                 })
             }
 
-            // Parenthesized expression
+            // Parenthesized expression or tuple literal
             TokenKind::LParen => {
                 self.advance(); // consume (
                 let inner = self.parse_expr()?;
-                self.expect(TokenKind::RParen)?;
-                Ok(inner)
+                if self.current.kind == TokenKind::Comma {
+                    // Tuple literal: (a, b, c)
+                    let mut tuple = Node::new(NodeKind::ExprTuple);
+                    tuple.children.push(inner);
+                    while self.current.kind == TokenKind::Comma {
+                        self.advance(); // consume ,
+                        let elem = self.parse_expr()?;
+                        tuple.children.push(elem);
+                    }
+                    self.expect(TokenKind::RParen)?;
+                    Ok(tuple)
+                } else {
+                    self.expect(TokenKind::RParen)?;
+                    Ok(inner)
+                }
             }
 
             // if expression: if (cond) expr else expr
@@ -3653,6 +3695,10 @@ pub struct VerilogCodegen {
     // W378: monotonic counter for packed temporaries emitted by let-destructuring
     // lowering. Reset per function to avoid collisions.
     let_tmp_counter: u32,
+    // W380: return types of all functions declared in the module, keyed by
+    // function name. Used by let-destructuring to infer binding widths from a
+    // callee's tuple return type.
+    fn_return_types: std::collections::HashMap<String, String>,
 }
 
 impl VerilogCodegen {
@@ -3667,6 +3713,7 @@ impl VerilogCodegen {
             param_types: std::collections::HashMap::new(),
             struct_field_regs: std::collections::HashSet::new(),
             let_tmp_counter: 0,
+            fn_return_types: std::collections::HashMap::new(),
         }
     }
 
@@ -3758,6 +3805,47 @@ impl VerilogCodegen {
             "u64" | "i64" => 64,
             "usize" => 32,
             _ => 32, // default width
+        }
+    }
+
+    /// W380: total packed bit width of a tuple return type such as
+    /// "(u32,u32)" or "(u16,u32,u8)". Non-tuple types fall back to
+    /// type_to_width.
+    fn tuple_return_width(ty: &str) -> u32 {
+        if ty.starts_with('(') && ty.ends_with(')') {
+            let inner = &ty[1..ty.len() - 1];
+            if inner.is_empty() {
+                return 0;
+            }
+            inner.split(',').map(|t| Self::type_to_width(t.trim())).sum()
+        } else {
+            Self::type_to_width(ty)
+        }
+    }
+
+    /// W380: element widths of a tuple return type such as "(u16,u32,u8)".
+    /// Returns an empty vector for non-tuple types.
+    fn tuple_element_widths(ty: &str) -> Vec<u32> {
+        if ty.starts_with('(') && ty.ends_with(')') {
+            let inner = &ty[1..ty.len() - 1];
+            if inner.is_empty() {
+                return Vec::new();
+            }
+            inner
+                .split(',')
+                .map(|t| Self::type_to_width(t.trim()))
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// W380: a tuple return type is unsigned packed by default.
+    fn tuple_return_signed(ty: &str) -> bool {
+        if ty.starts_with('(') && ty.ends_with(')') {
+            false
+        } else {
+            Self::type_is_signed(ty)
         }
     }
 
@@ -4377,6 +4465,14 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_fn(&mut self, node: &Node) {
+        // W380: register function return type before lowering calls that may
+        // need it for let-destructuring width inference.
+        if !node.extra_return_type.is_empty() {
+            self.fn_return_types.insert(
+                node.name.clone(),
+                node.extra_return_type.clone(),
+            );
+        }
         self.current_fn_name = Self::verilog_safe_identifier(&node.name);
         self.current_fn_return_type = node.extra_return_type.clone();
         self.param_widths.clear();
@@ -4391,13 +4487,14 @@ impl VerilogCodegen {
         self.write_line(&format!("// function: {}", node.name));
 
         // Emit as a Verilog function declaration
+        // W380: tuple return types are packed; non-tuple types keep scalar width.
         let ret_width = if !node.extra_return_type.is_empty() {
-            Self::type_to_width(&node.extra_return_type)
+            Self::tuple_return_width(&node.extra_return_type)
         } else {
             32
         };
         let ret_signed = if !node.extra_return_type.is_empty() {
-            Self::type_is_signed(&node.extra_return_type)
+            Self::tuple_return_signed(&node.extra_return_type)
         } else {
             false
         };
@@ -4593,17 +4690,32 @@ impl VerilogCodegen {
         // W379: infer binding count and per-binding width from the LHS pattern
         // instead of hardcoding 3x32-bit slots. The parser exposes `let(a, b, c)`
         // as an ExprCall named "let" whose children are the bound identifiers.
-        // Each identifier may carry a declared type in `extra_type` (e.g. "i32",
-        // "u16", "bool"); when missing we fall back to the default 32-bit slot.
+        // W380: when a binding has no explicit type, try to infer its width from
+        // the callee's tuple return type so `let(p, q) = make_pair(1, 2)` gets
+        // two 32-bit slots instead of two default 32-bit slots (same result here,
+        // but essential for mixed-width tuples like (u16,u32,u8)).
+        let mut callee_return_type: Option<String> = None;
+        if rhs.kind == NodeKind::ExprCall && !rhs.name.is_empty() {
+            callee_return_type = self.fn_return_types.get(&rhs.name).cloned();
+        }
+        let tuple_widths: Vec<u32> = if let Some(ref rt) = callee_return_type {
+            Self::tuple_element_widths(rt)
+        } else {
+            Vec::new()
+        };
+
         let bindings: Vec<(String, u32)> = lhs_call
             .children
             .iter()
-            .map(|c| {
+            .enumerate()
+            .map(|(i, c)| {
                 let name = Self::verilog_safe_identifier(&c.name);
-                let width = if c.extra_type.is_empty() {
-                    32u32
-                } else {
+                let width = if !c.extra_type.is_empty() {
                     Self::type_to_width(&c.extra_type)
+                } else if let Some(w) = tuple_widths.get(i).copied() {
+                    w
+                } else {
+                    32u32
                 };
                 (name, width)
             })
@@ -5308,6 +5420,24 @@ impl VerilogCodegen {
                     self.write(&format!(" & {{{}{{1'b1}}}})", width));
                 } else {
                     self.gen_verilog_expr(operand);
+                }
+            }
+            NodeKind::ExprTuple => {
+                // W380: tuple literal in expression context. Emit as a packed
+                // concatenation {c, b, a} so it can be assigned to a packed
+                // multi-return result register or destructured by the W379 helper.
+                // The element order is reversed so the first element occupies
+                // the most significant bits, matching the slice assignments
+                // generated by gen_verilog_let_destructuring.
+                if !node.children.is_empty() {
+                    self.write("{");
+                    for (i, child) in node.children.iter().rev().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_verilog_expr(child);
+                    }
+                    self.write("}");
                 }
             }
             _ => {
