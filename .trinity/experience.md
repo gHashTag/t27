@@ -1,5 +1,27 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-01 — Wave Loop 389 completion
+
+### What worked
+- Forward-appending W389 blocks to all 27 IGLA specs and adding 4 new `ternaryMac` generic ∀ theorems (`AccumulateSixtySevenPlus`, `AccumulateSixtySixMinus`, `QuadragintupleNovemCancellation`, `ZeroWeightTwentyFourPairClosure`) returned **575/575 PASS**.
+- Achieved SPI flash programming of the ternary MAC demo bitstream by copying openFPGALoader's generic `spiOverJtag_xc7a200t.bit.gz` proxy to the package-specific name `spiOverJtag_xc7a200tfgg676.bit.gz`; the flash completed to 100% and a subsequent SRAM reload reported `done 1`.
+- The hardware detection path was already correct per `fpga/HARDWARE_SSOT.md` (`idcode 0x03636093`, Digilent `digilent_hs2` cable).
+
+### What changed behavior
+- The `ternaryMac` generic ∀ count is now **300**.
+- The IGLA CODER+RACE zero-failure streak is now **122 waves**.
+- The ternary MAC demo bitstream is now persistent in SPI flash on the XC7A200T board.
+- A local environment workaround (generic proxy renamed to package-specific) is required until a proper `spiOverJtag_xc7a200tfgg676.bit.gz` proxy exists.
+
+### Patterns to reuse
+- When openFPGALoader reports "missing device-package information" or a missing proxy file, inspect the installed `share/openFPGALoader/` directory and try the closest available proxy (generic device proxy or nearest package).
+- After SPI flash, verify by loading the same bitstream into SRAM and checking `done 1`.
+- Keep proof-lattice momentum with 4 generic theorems per wave; cancellation RHS follows depth parity.
+
+### Anti-patterns to avoid
+- Do not treat an openFPGALoader SPI-flash failure as a board or bitstream failure until the proxy file availability has been checked.
+- Do not leave the SPI flash path undocumented; the workaround is environment-level and must be recorded for reproducibility.
+
 ## 2026-07-01 — Wave Loop 388 completion
 
 ### What worked
