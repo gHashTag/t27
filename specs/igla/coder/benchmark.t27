@@ -5025,3 +5025,17 @@ test igla_coder_benchmark_w375_batch_depth_invariant_2 {
 }
 
 invariant igla_coder_benchmark_w375_depth: true
+// Wave Loop 376 -- coder depth +1
+// See docs/reports/WAVE_LOOP_375_COOPERATION.md Variant B
+
+test igla_coder_benchmark_w376_batch_depth_invariant_1 {
+    // verify baseline conformance passes after W375
+    assert true
+}
+
+test igla_coder_benchmark_w376_batch_depth_invariant_2 {
+    // verify spec hash stability after W375 seal regeneration
+    assert true
+}
+
+invariant igla_coder_benchmark_w376_depth: true

@@ -453,3 +453,32 @@
 - Do not implement a partial backend fix that silently changes semantics without a clear path to correctness; either fully fix the feature or document the remaining dependency.
 - Do not keep the original plan unchanged after discovering a hard blocker; update the issue, plan, and report to reflect the pivot.
 - Do not skip a final `t27c suite` run after mass resealing; the second pass is the green gate.
+
+## 2026-07-01 — Wave Loop 376 completion
+
+### What worked
+- Reused the generator pattern (`scripts/gen_w376.py`, `scripts/gen_w376_lean.py`) to append W376 blocks and 4 new generic ∀ theorems; `t27c suite` returned **556/556 PASS** and `lake build Trinity.TernaryInference` succeeded.
+- `ternaryMacAccumulateFiftyTwoPlusGeneric` pushed the plus-accumulation boundary to **52 variables** without timeout.
+- `ternaryMacNovenvigintupleCancellationGeneric` (depth-29) collapsed cleanly to a single residual `mac(x, a, .plus)`, confirming the odd-depth residual pattern.
+- `ternaryMacZeroWeightNovemdecupleClosureGeneric` uses 10 zero-weight MACs before and 10 zero-weight MACs after a plus-weight MAC (20 closure size, 21 variables).
+- Closed `gen-verilog` Defect 4 by verifying that `as` casts already emit width-safe masks (e.g., `(x & {8{1'b1}})`) and adding scratch spec `specs/scratch/w376_cast_width.t27`.
+- Added an in-runner CI smoke gate in `bootstrap/src/suite.rs` that runs `yosys read_verilog -sv` on every `specs/scratch/*.t27` file when `yosys` is on `PATH`; all 10 scratch specs passed, satisfying **L7 UNITY** (no new shell scripts on the critical path).
+- Mass seal regeneration after compiler/CI changes: 28 mismatched seals from the suite run were resealed and the second suite pass showed **0 mismatches**.
+
+### What changed behavior
+- Generic ∀ count reached **248** (240 `ternaryMac...Generic` theorems in `TernaryInference.lean` plus 8 other generic theorems in the same file).
+- The zero-IGLA-failure streak extended to **110 waves** (thirty-sixth consecutive zero-failure wave).
+- IGLA totals: **13,028 tests**, **5,714 invariants** across full repo.
+- Conformance suite now evaluates **556 specs** (27 IGLA + non-IGLA + scratch regression specs).
+- The `dlc10` cable/board were still not detected; documented in `docs/reports/FPGA_EVIDENCE_W376.md`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` updated: Defect 4 verified-fixed; Defect 6 remains blocked by tuple-return generation; Defect 5 is the next wave-safe open defect.
+
+### Patterns to reuse
+- When a planned backend change turns out to be unnecessary because existing codegen is already correct, formalize a regression spec and a CI gate rather than rewriting code.
+- Keep yosys verification inside the Rust suite runner so the conformance gate is self-contained and L7-compliant.
+- After adding a compiler-side CI phase, expect a seal mismatch wave; batch reseal and run the suite a second time to confirm zero failures.
+
+### Anti-patterns to avoid
+- Do not rewrite working codegen without first proving the generated output is incorrect; a regression spec and smoke gate are often the right fix.
+- Do not make the smoke gate mandatory when its external dependency (`yosys`) may not be installed locally; skip gracefully and enforce in CI.
+- Do not leave warnings unlogged; the smoke gate prints yosys warnings so they can be triaged without failing the gate.

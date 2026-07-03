@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-03 (Wave Loop 375)  
+**Last updated:** 2026-07-01 (Wave Loop 376)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -107,7 +107,7 @@ else begin sign = 0; end
 
 ## Remaining Defects
 
-### Defect 4 — `as` cast and bitwise operators drop the operand body
+### Defect 4 — `as` cast and bitwise operator width correctness (VERIFIED FIXED in W376)
 
 **Repro:**
 ```t27
@@ -116,11 +116,16 @@ fn cast_and_mask(x : u16) -> u8 {
 }
 ```
 
-**Observed Verilog (W371):** the expression is now emitted as `((x & {8{1'b1}}) & 8'h0F)`. The bitwise body is no longer dropped; the remaining concern is whether the `as u8` truncation semantics match the intended width narrowing in all contexts.
+**Observed Verilog (W376):** the expression is emitted as `((x & {8{1'b1}}) & 8'h0F)`. The `as u8` narrowing is implemented as a bitwise mask `{8{1'b1}}`, and the bitwise body is preserved. Generated Verilog for `or`/`xor` casts follows the same pattern.
 
-**Root cause:** operator-lowering for `as` and bitwise `&` / `|` / `^` / `~` is incomplete in `gen_verilog_expr`; the W371 reproduces no syntax error but may produce incorrect width behavior for non-trivial casts.
+**Root cause:** operator-lowering for `as` and bitwise `&` / `|` / `^` / `~` in `gen_verilog_expr` already masks the operand to the target width; the W376 work formalized the regression spec and added an in-runner yosys smoke gate so the behavior stays correct.
 
-**Wave-safe fix order:** medium-high priority; needs a scratch spec with explicit simulation values to confirm correctness.
+**Verification:**
+- `specs/scratch/w376_cast_width.t27` exercises narrowing `u16 -> u8` and `i16 -> i8` casts followed by `&`, `|`, and `^`, with `test` assertions covering both high-byte truncation and low-byte preservation.
+- `t27c gen-verilog specs/scratch/w376_cast_width.t27` + `yosys read_verilog -sv` pass.
+- The W376 CI smoke gate in `bootstrap/src/suite.rs` now runs `yosys read_verilog -sv` on every scratch spec automatically when `yosys` is on `PATH`.
+
+**Status:** Closed as verified-correct. No compiler change was required; the existing ExprCast lowering already emits width-safe masks.
 
 ---
 
@@ -161,10 +166,9 @@ fn cordic_top_batch_inner(angles : u32, idx : u32, acc : i32) -> i32 {
 
 ## Recommended Triage Order
 
-1. **Defect 4** — cast/bitwise width semantics; needs simulation values to confirm correctness. Narrow, self-contained, and improves generated code quality across many specs.
-2. **Defect 6** — `let` destructuring; blocked by the deeper absence of tuple-return function generation in the Verilog backend. A pure syntax-level workaround is possible but semantic correctness requires parser/codegen work for tuple return types and tuple literals.
-3. **Defect 5** — struct fields; defer until struct usage grows.
-4. **CI smoke gate** — add `t27c gen-verilog` + `yosys read_verilog` regression tests once the remaining safe parser/lowering fixes are landed; L7 UNITY prohibits new shell scripts on the critical path.
+1. **Defect 6** — `let` destructuring; blocked by the deeper absence of tuple-return function generation in the Verilog backend. A pure syntax-level workaround is possible but semantic correctness requires parser/codegen work for tuple return types and tuple literals.
+2. **Defect 5** — struct fields; defer until struct usage grows.
+3. **CI smoke gate expansion** — the W376 gate covers `specs/scratch/*.t27`; once Defects 5 and 6 are resolved, expand the gate to all synthesizable specs under `specs/igla/` while keeping the implementation inside `bootstrap/src/suite.rs` (no new shell scripts per L7 UNITY).
 
 ---
 
@@ -176,10 +180,11 @@ fn cordic_top_batch_inner(angles : u32, idx : u32, acc : i32) -> i32 {
 - [x] Verilog keyword identifier collision (exact and underscore-delimited component matches)
 - [x] Module-level const/var keyword-safe emission
 - [x] Early `return` if-else chaining (FIXED in W375)
-- [ ] `as` / bitwise operator width correctness
+- [x] `as` / bitwise operator width correctness (FIXED/VERIFIED in W376)
 - [x] Struct-field reg naming (keyword-safe, full-token escape)
 - [x] Local variable keyword-safe emission
 - [ ] `let` destructuring lowering (blocked by missing tuple-return function generation)
+- [x] CI smoke gate for `gen-verilog` + `yosys read_verilog` on scratch specs (W376)
 
 ---
 

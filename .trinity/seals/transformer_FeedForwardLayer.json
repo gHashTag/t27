@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:649eb74c812ee5bc9fc0e98647b99a2c856c826006fc5c884de305ae570530de",
   "module": "FeedForwardLayer",
   "ring": 12,
-  "sealed_at": "2026-07-02T14:15:13Z",
+  "sealed_at": "2026-07-03T04:18:05Z",
   "spec_hash": "sha256:0774668f000b9f30569b5640ba0a091dba5107d3b8f591bc69a6daf196915ae6",
   "spec_path": "specs/ml/transformer/feed_forward.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f5ac835be83731a89073920cd243eb0324a194662eb85ba51bc0ae3ac75c0c01",
   "module": "E8LieAlgebra",
   "ring": 12,
-  "sealed_at": "2026-07-02T13:28:59Z",
+  "sealed_at": "2026-07-03T04:18:03Z",
   "spec_hash": "sha256:5c27c6493f67591c01f263dc89641f0e9422c7737159230ce6d571f80d2ba2b3",
   "spec_path": "specs/math/e8_lie_algebra.t27"
 }

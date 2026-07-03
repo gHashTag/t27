@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:48f67bb48ea3964a1b5d55dc899e962f56e2e66efb5ee6de4aa08c7f1e4a2fd8",
   "module": "TernaryControlFlow",
   "ring": 12,
-  "sealed_at": "2026-07-02T15:01:34Z",
+  "sealed_at": "2026-07-03T04:18:02Z",
   "spec_hash": "sha256:8062834e4f6b4192d8fbcbb7b7ec89d975853b2a1ba1f1ae508c2717f472da15",
   "spec_path": "specs/isa/ternary_control_flow.t27"
 }

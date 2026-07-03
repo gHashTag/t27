@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2d4bc94bec2874160ab68866890605edfba75056949c2705b71e99b569474bbc",
   "module": "runtime-instance",
   "ring": 12,
-  "sealed_at": "2026-07-02T14:15:14Z",
+  "sealed_at": "2026-07-03T04:18:03Z",
   "spec_hash": "sha256:9153036f09697411b9d386df51e52bea48444e1035547b0c602a02efd7c35a2a",
   "spec_path": "specs/runtime/instance.t27"
 }

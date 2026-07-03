@@ -130,6 +130,51 @@ fn cmd_gen_stdout(repo: &Path, rel: &str) -> anyhow::Result<Vec<u8>> {
     Ok(st.stdout)
 }
 
+fn cmd_gen_verilog_stdout(repo: &Path, rel: &str) -> anyhow::Result<Vec<u8>> {
+    let exe = t27c_exe()?;
+    let st = Command::new(&exe)
+        .current_dir(repo)
+        .args(["gen-verilog", rel])
+        .output()?;
+    if !st.status.success() {
+        let err = String::from_utf8_lossy(&st.stderr);
+        anyhow::bail!("gen-verilog failed: {}", err.trim());
+    }
+    Ok(st.stdout)
+}
+
+fn yosys_available() -> bool {
+    Command::new("yosys")
+        .arg("-q")
+        .arg("-p")
+        .arg("echo on")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+fn cmd_gen_verilog_yosys_smoke(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let verilog = cmd_gen_verilog_stdout(repo, rel)?;
+    let tmp = std::env::temp_dir().join(format!("t27c_yosys_smoke_{}.v", rel.replace('/', "_")));
+    fs::write(&tmp, &verilog)
+        .with_context(|| format!("writing temporary Verilog for yosys smoke: {}", tmp.display()))?;
+    let st = Command::new("yosys")
+        .arg("-q")
+        .arg("-p")
+        .arg(format!("read_verilog -sv {}", tmp.display()))
+        .output()
+        .context("spawning yosys for gen-verilog smoke")?;
+    if !st.status.success() {
+        let err = String::from_utf8_lossy(&st.stderr);
+        anyhow::bail!("yosys rejected generated Verilog: {}", err.trim());
+    }
+    let err = String::from_utf8_lossy(&st.stderr);
+    if !err.trim().is_empty() {
+        eprintln!("WARN yosys warnings for {}: {}", rel, err.trim());
+    }
+    Ok(())
+}
+
 /// Phases 1–6: same coverage as legacy `tests/run_all.sh`.
 pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
     let repo = fs::canonicalize(repo_root)
@@ -148,6 +193,7 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
     };
 
     let specs_only = collect_t27(&repo.join("specs"))?;
+    let specs_scratch = collect_t27(&repo.join("specs/scratch"))?;
 
     println!("--- Phase 1: Parse ---");
     let (p1p, p1f) = run_phase(&repo, "parse", cmd_parse, &specs_compiler)?;
@@ -199,6 +245,21 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
     )?;
     println!("Gen Verilog: {} passed, {} failed", p3p, p3f);
 
+    println!("--- Phase 3b: Gen Verilog Yosys Smoke ---");
+    let mut p3b_fail = 0usize;
+    if yosys_available() {
+        let (p3bp, p3bf) = run_phase(
+            &repo,
+            "gen-verilog-yosys-smoke",
+            cmd_gen_verilog_yosys_smoke,
+            &specs_scratch,
+        )?;
+        println!("Gen Verilog Yosys Smoke: {} passed, {} failed", p3bp, p3bf);
+        p3b_fail = p3bf;
+    } else {
+        println!("Yosys not available; skipping gen-verilog yosys smoke gate");
+    }
+
     println!("--- Phase 4: Gen C ---");
     let (p4p, p4f) = run_phase(
         &repo,
@@ -232,16 +293,17 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
 
     println!();
     println!("=== SUMMARY ===");
-    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p4f + p5f + fp_diff;
-    println!("Parse failures:    {}", p1f);
-    println!("Typecheck fails:   {}", p1bf);
-    println!("GF16 conformance:  {}", gf16_fail);
-    println!("Gen Zig failures:  {}", p2f);
-    println!("Gen Rust failures: {}", p2bf);
-    println!("Gen Verilog fails: {}", p3f);
-    println!("Gen C failures:    {}", p4f);
-    println!("Seal mismatches:   {}", p5f);
-    println!("FP divergences:    {}", fp_diff);
+    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p4f + p5f + fp_diff;
+    println!("Parse failures:           {}", p1f);
+    println!("Typecheck fails:          {}", p1bf);
+    println!("GF16 conformance:         {}", gf16_fail);
+    println!("Gen Zig failures:         {}", p2f);
+    println!("Gen Rust failures:        {}", p2bf);
+    println!("Gen Verilog fails:        {}", p3f);
+    println!("Gen Verilog smoke fails:  {}", p3b_fail);
+    println!("Gen C failures:           {}", p4f);
+    println!("Seal mismatches:          {}", p5f);
+    println!("FP divergences:           {}", fp_diff);
     println!("TOTAL FAILURES:    {}", total_fail);
     println!();
     if total_fail == 0 {

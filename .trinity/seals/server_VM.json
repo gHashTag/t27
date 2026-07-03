@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f283fff1861ca1e4d3cfe00ade2cbb06bb58eb657da6cffd14dd102aa2e8427e",
   "module": "VM",
   "ring": 12,
-  "sealed_at": "2026-06-23T04:04:16Z",
+  "sealed_at": "2026-07-03T04:18:03Z",
   "spec_hash": "sha256:c0881e50f64cafa548394ab698a373f7c74c7626d021eb904e2a8e036bb6a091",
   "spec_path": "specs/server/vm.t27"
 }
