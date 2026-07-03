@@ -1,5 +1,24 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-01 — Wave Loop 383 completion
+
+### What worked
+- Forward-appending W383 blocks to all 27 IGLA specs, adding 4 new `ternaryMac` generic ∀ theorems (`AccumulateSixtyOnePlus`, `AccumulateSixtyMinus`, `QuadragintupleDuoCancellation`, `ZeroWeightEighteenPairClosure`), and regenerating all affected seals returned **563/563 PASS**.
+- Extending the W382 module-level array lowering to ROM literals (`const lut : [N]T = [N]T{...}`) and function-local arrays (`var tmp : [N]T`) required only localized changes in `gen_verilog_const`, `StmtLocal`, and `ExprIndex` in `bootstrap/src/compiler.rs`.
+- Using a numeric-literal index rewrite for function-local arrays (`tmp_0`, `tmp_1`) kept the generated Verilog synthesizable through `yosys read_verilog -sv` without needing function-local memory inference.
+
+### What changed behavior
+- The `gen-verilog` backend now supports three closed array patterns: module-level RAM (`var mem : [N]T`), module-level ROM (`const lut : [N]T = [N]T{...}`), and function-local arrays with numeric-literal indices.
+- The CI yosys smoke gate expanded from 43 to **44 targets** with the new `specs/scratch/w383_rom_array.t27` regression spec.
+
+### Patterns to reuse
+- When adding a new backend feature, pair it with a scratch regression spec that exercises both read and write paths; the in-runner smoke gate will then enforce the behavior automatically.
+- Regenerate seals from the repo root (`/Users/playra/t27`) after any compiler change that affects generated-code hashes; `t27c seal --save <spec>` works on individual files for targeted resealing.
+
+### Anti-patterns to avoid
+- Do not emit array-literal syntax directly in Verilog (`localparam lut = [4]u16{...};`); always lower to a synthesizable memory declaration plus an `initial` block.
+- Do not leave function-local array index expressions as scalar bit-selects; either rewrite numeric-literal indices to flattened regs or emit an explicit mux/case for variable indices.
+
 ## 2026-07-02 — Wave Loop 358 completion
 
 ### What worked

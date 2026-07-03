@@ -233,9 +233,8 @@ reg [31:0] _y; _y = _let_tmp_0[31:0];
 ## Open work after W382
 
 - **Array/RAM sub-gaps remaining:**
-  - `const lut : [N]T = [N]T{...}` ROM-style array-literal lowering (currently degrades to per-element localparams or `0 /* TODO */`).
-  - Function-local array variables inside combinational functions.
   - Multi-dimensional arrays (`[[T; M]; N]`).
+  - Non-literal (variable) index access on function-local arrays.
   - RAM style inference / block-vs-distributed pragma hints.
 - No other tracked gen-verilog syntax/semantic defects remain on `trinity-rust-rings`.
 
@@ -271,6 +270,8 @@ Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emit
 - [x] Struct-field reg mapping from struct-type registers (`pt_x`) instead of parameter-variable registers (`p_x`) (W377)
 - [x] Tuple-return function generation for full semantic multi-return support (W380/W381)
 - [x] Module-level array/RAM lowering — `var mem : [N]T`, read `mem[i]`, write `mem[i] = x` (W382)
+- [x] Module-level ROM lowering — `const lut : [N]T = [N]T{...}` (W383)
+- [x] Function-local array variables with numeric-literal index access (W383)
 
 ---
 

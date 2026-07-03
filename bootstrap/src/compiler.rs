@@ -4177,16 +4177,58 @@ impl VerilogCodegen {
             }
         }
 
-        // Determine if this is an array constant (LUT)
-        let is_array = !node.extra_size.is_empty();
+        // Determine if this is an array constant (LUT). W383: array type
+        // annotations such as "[4]u16" also indicate an array constant.
+        let is_array = !node.extra_size.is_empty() || Self::parse_array_type(&node.extra_type).is_some();
 
         if is_array {
-            // Emit as localparam array — use initial block or parameter
-            self.write(&format!("// LUT: {} [{}]", node.name, node.extra_size));
-            self.write_line("");
-            // For array constants, emit as individual localparams for each element
-            if !node.children.is_empty() {
-                // If children represent array elements, emit them
+            // W383: array-constant lowering. If the type annotation is an array
+            // type (e.g. "[4]u16") and the initializer is an array literal, emit a
+            // synthesizable Verilog memory initialized in an initial block.
+            let type_array = Self::parse_array_type(&node.extra_type);
+            let safe_name = Self::verilog_safe_identifier(&node.name);
+            let has_array_literal = !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprArrayLiteral;
+
+            if let Some((array_size, elem_type)) = type_array {
+                let elem_width = Self::type_to_width(&elem_type);
+                let elem_signed = Self::type_is_signed(&elem_type);
+                let elem_signed_str = if elem_signed { "signed " } else { "" };
+                let elem_range = Self::range_decl(elem_width);
+                let elem_range_str = if elem_range.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", elem_range)
+                };
+                self.write_line(&format!(
+                    "// LUT: {} [{}] {}",
+                    safe_name, array_size, elem_type
+                ));
+                self.write_indent();
+                self.write_line(&format!(
+                    "reg {}{} {} [0:{}];",
+                    elem_signed_str, elem_range_str, safe_name, array_size - 1
+                ));
+                if has_array_literal {
+                    self.write_indent();
+                    self.write_line("initial begin");
+                    self.indent();
+                    let child = &node.children[0];
+                    for (i, elem) in child.children.iter().enumerate() {
+                        if i >= array_size {
+                            break;
+                        }
+                        self.write_indent();
+                        self.write(&format!("{}[{}] = ", safe_name, i));
+                        self.gen_verilog_expr(elem);
+                        self.write_line(";");
+                    }
+                    self.dedent();
+                    self.write_indent();
+                    self.write_line("end");
+                }
+            } else if !node.children.is_empty() {
+                // Legacy extra_size path: emit as individual localparams for each element
                 let child = &node.children[0];
                 // R-CA-1 (Wave 28): array-of-struct / array-of-array initializers
                 // currently degrade into `/* array ... */` block-comments through
@@ -4204,7 +4246,6 @@ impl VerilogCodegen {
                 if child.kind == NodeKind::ExprLiteral && child.value.contains(',') {
                     // Multiple values packed into a single literal — just comment
                     self.write_indent();
-                    let safe_name = Self::verilog_safe_identifier(&node.name);
                     self.write(&format!("// localparam {} = ", safe_name));
                     self.gen_verilog_expr(child);
                     self.write_line(";");
@@ -4225,7 +4266,6 @@ impl VerilogCodegen {
                     if !range.is_empty() {
                         self.write(&format!("{} ", range));
                     }
-                    let safe_name = Self::verilog_safe_identifier(&node.name);
                     self.write(&format!("{} = ", safe_name));
                     if is_unsupported_aggregate {
                         // R-CA-1 fix: emit a synthesizable scalar zero in place
@@ -4939,6 +4979,36 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtLocal => {
+                // W383: support function-local array variables such as
+                // `var tmp : [2]u16;`. Emit per-element regs with index access when
+                // the type annotation is an array type.
+                if let Some((array_size, elem_type)) = Self::parse_array_type(&node.extra_type) {
+                    let elem_width = Self::type_to_width(&elem_type);
+                    let elem_signed = Self::type_is_signed(&elem_type);
+                    let elem_signed_str = if elem_signed { "signed " } else { "" };
+                    let elem_range = Self::range_decl(elem_width);
+                    let elem_range_str = if elem_range.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{} ", elem_range)
+                    };
+                    let safe_name = Self::verilog_safe_identifier(&node.name);
+                    for i in 0..array_size {
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "reg {}{} {}_{};",
+                            elem_signed_str, elem_range_str, safe_name, i
+                        ));
+                    }
+                    if !node.children.is_empty() {
+                        self.write_indent();
+                        self.write(&format!("// local array initializer for {}", safe_name));
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write_line("");
+                    }
+                    return;
+                }
+
                 self.write_indent();
                 let kw = "reg";
                 let width = Self::type_to_width(&node.extra_type);
@@ -5346,10 +5416,28 @@ impl VerilogCodegen {
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
-                    self.gen_verilog_expr(&node.children[0]);
-                    self.write("[");
-                    self.gen_verilog_expr(&node.children[1]);
-                    self.write("]");
+                    let base = &node.children[0];
+                    let idx = &node.children[1];
+                    // W383: function-local arrays are emitted as per-element regs
+                    // (tmp_0, tmp_1, ...). If the index is a numeric literal, rewrite
+                    // the access to the flattened reg name so it synthesizes inside a
+                    // Verilog function.
+                    if base.kind == NodeKind::ExprIdentifier {
+                        let safe_base = Self::verilog_safe_identifier(&base.name);
+                        if let Ok(idx_val) = idx.value.parse::<usize>() {
+                            self.write(&format!("{}_{}", safe_base, idx_val));
+                        } else {
+                            self.gen_verilog_expr(base);
+                            self.write("[");
+                            self.gen_verilog_expr(idx);
+                            self.write("]");
+                        }
+                    } else {
+                        self.gen_verilog_expr(base);
+                        self.write("[");
+                        self.gen_verilog_expr(idx);
+                        self.write("]");
+                    }
                 }
             }
             NodeKind::ExprArrayLiteral => {
