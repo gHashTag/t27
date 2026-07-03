@@ -1,5 +1,26 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-01 — Wave Loop 384 completion
+
+### What worked
+- Extending the function-local array lowering from numeric-literal-only indices to variable indices required only localized additions in `bootstrap/src/compiler.rs`: a per-function `local_arrays` registry, mux-chain emission in `ExprIndex`, and if-else-chain emission in `StmtAssign`.
+- Applying keyword escape to the **full flattened token** (`buf_0`, `\buf_0 `) prevented the token-splitting bug that occurred when appending `_0` to an already-escaped identifier (`\buf `).
+- Forward-appending W384 blocks to all 27 IGLA specs, adding 4 new `ternaryMac` generic ∀ theorems (`AccumulateSixtyTwoPlus`, `AccumulateSixtyOneMinus`, `QuadragintupleQuattuorCancellation`, `ZeroWeightNineteenPairClosure`), returned **564/564 PASS**.
+
+### What changed behavior
+- The `gen-verilog` backend now supports variable-index access on function-local arrays (`var buf : [4]u16; return buf[idx];` and `buf[idx] = value;`) via per-element registers + priority mux/if-else chains.
+- The CI yosys smoke gate expanded from 44 to **45 targets** with the new `specs/scratch/w384_variable_index.t27` regression spec.
+- The `ternaryMac` generic ∀ count is now **280**.
+
+### Patterns to reuse
+- When lowering a language feature to per-element registers, handle variable-index read/write explicitly: do not rely on Verilog to infer function-local memories from scalar reg bit-selects.
+- Always escape the complete flattened identifier token in the generated Verilog, not its components, to avoid whitespace/keyword tokenization issues.
+- For mux-chain emission, keep a strict open/close parenthesis count: emit `array_size` opens for the comparisons plus `array_size` closes after the default value.
+
+### Anti-patterns to avoid
+- Do not store keyword-escaped base names in codegen metadata and then append suffixes; store the original name and re-escape the full flattened token at emission time.
+- Do not hold a mutable borrow to a HashMap while recursively generating expression code inside the same struct; clone the needed metadata first.
+
 ## 2026-07-01 — Wave Loop 383 completion
 
 ### What worked

@@ -3699,6 +3699,10 @@ pub struct VerilogCodegen {
     // function name. Used by let-destructuring to infer binding widths from a
     // callee's tuple return type.
     fn_return_types: std::collections::HashMap<String, String>,
+    // W384: function-local arrays declared in the current function, keyed by
+    // name. Stores (size, element_width, element_signed). Used by ExprIndex
+    // and StmtAssign to emit mux chains for variable-index access.
+    local_arrays: std::collections::HashMap<String, (usize, u32, bool)>,
 }
 
 impl VerilogCodegen {
@@ -3714,6 +3718,7 @@ impl VerilogCodegen {
             struct_field_regs: std::collections::HashSet::new(),
             let_tmp_counter: 0,
             fn_return_types: std::collections::HashMap::new(),
+            local_arrays: std::collections::HashMap::new(),
         }
     }
 
@@ -4629,6 +4634,7 @@ impl VerilogCodegen {
         }
 
         self.indent();
+        self.local_arrays.clear();
 
         // Emit parameters as input declarations
         for (pname, ptype) in &node.params {
@@ -4674,6 +4680,7 @@ impl VerilogCodegen {
         self.param_widths.clear();
         self.param_types.clear();
         self.let_tmp_counter = 0;
+        self.local_arrays.clear();
     }
 
     // W375: detect a bare `if (cond) { return expr; }` statement (no else branch)
@@ -4993,11 +5000,21 @@ impl VerilogCodegen {
                         format!("{} ", elem_range)
                     };
                     let safe_name = Self::verilog_safe_identifier(&node.name);
+                    // W384: register this local array (keyed by original name) so
+                    // ExprIndex and StmtAssign can emit mux chains for variable-index
+                    // access. Element register names use the full flattened token
+                    // escaped as a unit to avoid Verilog keyword collisions.
+                    self.local_arrays.insert(
+                        node.name.clone(),
+                        (array_size, elem_width, elem_signed),
+                    );
                     for i in 0..array_size {
                         self.write_indent();
+                        let reg_name =
+                            Self::verilog_safe_identifier(&format!("{}_{}", node.name, i));
                         self.write_line(&format!(
-                            "reg {}{} {}_{};",
-                            elem_signed_str, elem_range_str, safe_name, i
+                            "reg {}{} {};",
+                            elem_signed_str, elem_range_str, reg_name
                         ));
                     }
                     if !node.children.is_empty() {
@@ -5078,6 +5095,42 @@ impl VerilogCodegen {
                 {
                     self.gen_verilog_let_destructuring(&node.children[0], &node.children[1]);
                     return;
+                }
+                // W384: variable-index assignment on a function-local array.
+                // Emit an if-else chain selecting the matching per-element reg.
+                if node.children.len() >= 2
+                    && node.children[0].kind == NodeKind::ExprIndex
+                    && node.children[0].children.len() >= 2
+                    && node.children[0].children[0].kind == NodeKind::ExprIdentifier
+                {
+                    let lhs = &node.children[0];
+                    let base = &lhs.children[0];
+                    let idx = &lhs.children[1];
+                    if let Some(array_info) = self.local_arrays.get(&base.name).copied() {
+                        let (array_size, _elem_width, _elem_signed) = array_info;
+                        if idx.value.parse::<usize>().is_err() {
+                            let rhs = &node.children[1];
+                            for i in 0..array_size {
+                                self.write_indent();
+                                if i == 0 {
+                                    self.write("if (");
+                                } else {
+                                    self.write("else if (");
+                                }
+                                self.gen_verilog_expr(idx);
+                                let reg_name = Self::verilog_safe_identifier(
+                                    &format!("{}_{}", base.name, i)
+                                );
+                                self.write(&format!(
+                                    " == {}) begin {} = ",
+                                    i, reg_name
+                                ));
+                                self.gen_verilog_expr(rhs);
+                                self.write_line("; end");
+                            }
+                            return;
+                        }
+                    }
                 }
                 self.write_indent();
                 if node.children.len() >= 2 {
@@ -5418,15 +5471,57 @@ impl VerilogCodegen {
                 if node.children.len() >= 2 {
                     let base = &node.children[0];
                     let idx = &node.children[1];
-                    // W383: function-local arrays are emitted as per-element regs
+                    // W383/W384: function-local arrays are emitted as per-element regs
                     // (tmp_0, tmp_1, ...). If the index is a numeric literal, rewrite
-                    // the access to the flattened reg name so it synthesizes inside a
-                    // Verilog function.
+                    // the access to the flattened reg name. If the index is a variable,
+                    // emit a priority mux chain over the per-element regs so the
+                    // generated Verilog remains synthesizable inside a function.
                     if base.kind == NodeKind::ExprIdentifier {
-                        let safe_base = Self::verilog_safe_identifier(&base.name);
                         if let Ok(idx_val) = idx.value.parse::<usize>() {
-                            self.write(&format!("{}_{}", safe_base, idx_val));
+                            if let Some(array_info) =
+                                self.local_arrays.get(&base.name).copied()
+                            {
+                                let (array_size, _elem_width, _elem_signed) = array_info;
+                                if idx_val < array_size {
+                                    let reg_name = Self::verilog_safe_identifier(
+                                        &format!("{}_{}", base.name, idx_val)
+                                    );
+                                    self.write(&reg_name);
+                                } else {
+                                    self.gen_verilog_expr(base);
+                                    self.write("[");
+                                    self.gen_verilog_expr(idx);
+                                    self.write("]");
+                                }
+                            } else {
+                                let safe_base = Self::verilog_safe_identifier(&base.name);
+                                self.write(&format!("{}_{}", safe_base, idx_val));
+                            }
+                        } else if let Some(array_info) =
+                            self.local_arrays.get(&base.name).copied()
+                        {
+                            let (array_size, elem_width, _elem_signed) = array_info;
+                            self.write("(");
+                            for i in 0..array_size {
+                                if i > 0 {
+                                    self.write("(");
+                                }
+                                self.write("(");
+                                self.gen_verilog_expr(idx);
+                                let reg_name = Self::verilog_safe_identifier(
+                                    &format!("{}_{}", base.name, i)
+                                );
+                                self.write(&format!(
+                                    " == {}) ? {} : ",
+                                    i, reg_name
+                                ));
+                            }
+                            self.write(&format!("{}'d0", elem_width));
+                            for _ in 0..array_size {
+                                self.write(")");
+                            }
                         } else {
+                            let safe_base = Self::verilog_safe_identifier(&base.name);
                             self.gen_verilog_expr(base);
                             self.write("[");
                             self.gen_verilog_expr(idx);

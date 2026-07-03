@@ -272,6 +272,27 @@ Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emit
 - [x] Module-level array/RAM lowering — `var mem : [N]T`, read `mem[i]`, write `mem[i] = x` (W382)
 - [x] Module-level ROM lowering — `const lut : [N]T = [N]T{...}` (W383)
 - [x] Function-local array variables with numeric-literal index access (W383)
+- [x] Function-local array variable-index access — read via priority mux, write via if-else chain, full-token keyword escape (W384)
+
+## Fixed in W384 — Function-local array variable-index access
+
+**Symptom:** Local array declarations inside a function, e.g. `var buf : [4]u16`, could only be accessed with numeric-literal indices (`buf[0]`). A variable index such as `buf[idx]` was emitted as `buf[idx]`, which is invalid Verilog because `buf` had already been lowered to per-element registers `buf_0`, `buf_1`, ... by W383.
+
+**Fix:** `bootstrap/src/compiler.rs` now tracks function-local arrays and emits synthesizable variable-index access:
+- Read: priority mux chain `((idx == 0) ? buf_0 : ((idx == 1) ? buf_1 : ...))`.
+- Write: if-else chain `if (idx == 0) begin buf_0 = val; end else if (idx == 1) begin buf_1 = val; end ...`.
+- Keyword escape is applied to the full flattened token (`\buf_0 `) rather than the base name alone, preventing tokenization bugs with keyword-named arrays such as `buf`.
+
+**Verification:** `specs/scratch/w384_variable_index.t27` exercises variable-index read and write on `var buf : [4]u16` with keyword-named array `buf`. `t27c gen-verilog` + `yosys read_verilog -sv` + `synth -top w384_variable_index` pass.
+
+## Open work after W384
+
+- **Array/RAM sub-gaps remaining:**
+  - Multi-dimensional arrays (`[[T; M]; N]`).
+  - Signed-element local arrays.
+  - Array literal initialization at declaration (`var buf : [N]T = [N]T{...}` inside functions).
+  - RAM style inference / block-vs-distributed pragma hints.
+- No other tracked gen-verilog syntax/semantic defects remain on `trinity-rust-rings`.
 
 ---
 
