@@ -908,6 +908,28 @@ While the bench remained blocked, W420 hardened the instrument-import pipeline:
   verifying that the half-period bound respects the `ff ≤ tt ≤ ss` ordering:
   a worse process corner never yields a smaller (less conservative) bound.
 
+#### 3.6.18 VCD `$timescale` exact terminator and combined PVT monotonicity (W421)
+
+W421 continued the Variant C fallback while the physical bench remained
+unreachable (`openFPGALoader --detect` reports 0 devices; the board is not
+powered/connected).
+
+- **VCD `$timescale` exact-token terminator.** The `$timescale` section now uses
+  the same exact-token terminator as `$date`, `$version`, and `$comment`. A
+  multi-line `$timescale` block that mentions `$end` in an inline comment is no
+  longer terminated early, and the parser correctly reads units such as `1 us`
+  or `1 ps`.
+
+- **Real-valued VCD with non-default timescale.** The auto-threshold path was
+  regression-tested with `$timescale 1 us $end`, confirming that the midpoint
+  threshold and the measured period are both computed in the declared unit.
+
+- **Combined PVT monotonicity.** Added the Lean 4 lemma
+  `pvt_half_ns_monotone_combined` and a matching Rust test: raising temperature,
+  lowering VCCINT, and moving to a worse process corner all increase (or keep)
+  the half-period bound. This is the shape property a worst-case operating-point
+  search relies on.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)

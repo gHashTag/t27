@@ -1,5 +1,54 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-06 — Wave Loop 421 (Variant C fallback: VCD `$timescale` exact terminator, combined PVT monotonicity, competitor snapshot)
+
+### What worked
+- Resetting `wave-loop-421` onto `wave-loop-420` before implementing prevented
+  building on a stale `master` base that lacked the W420 parser hardening. This
+  is the correct workflow when the previous wave's PR is pending merge.
+- Applying the exact-token terminator to `$timescale` closed the last VCD header
+  section that still used substring heuristics. A regression test with an embedded
+  `$end` in a multi-line `$timescale` block validates the fix.
+- Adding a **combined PVT monotonicity** lemma (`pvt_half_ns_monotone_combined`)
+  and Rust test gives the worst-case operating-point search the single shape fact
+  it actually needs: temp ↑, VCCINT ↓, corner worse → bound ↑.
+- Writing the competitor snapshot confirmed that **Sparkle/Verilean** is the
+  closest Lean-native HDL threat in 2026, with a broad IP catalog and active
+  formal verification work. t27's differentiation remains the ternary compute
+  + spec-first sealed pipeline + physical boot-evidence loop.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`: `$timescale` now uses `vcd_line_ends_with_token`;
+  added `test_parse_vcd_timescale_with_embedded_end_token`,
+  `test_parse_vcd_real_auto_threshold_us_timescale`, and
+  `test_pvt_half_ns_monotone_combined`.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added `pvt_half_ns_monotone_combined`.
+- `fpga/HARDWARE_SSOT.md`: added §3.6.18 documenting W421 instrument-import and
+  PVT improvements.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`: published competitor comparison.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_421_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W421_2026-07-06.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W422_2026-07-06.md`.
+
+### Patterns to reuse
+- When a previous wave's PR has not merged, base the next wave on that branch
+  rather than on `master`. Rebase onto `master` only after the parent PR lands.
+- After fixing one header-section terminator, audit **all** section terminators
+  in the same parser for the same class of bug; `$timescale` was the remaining
+  outlier after W420.
+- For placeholder models, prove both per-axis shape and combined shape. The
+  combined lemma is what callers (worst-case search, falsification) actually use.
+- Keep a living competitor snapshot. The formal-HDL landscape is moving fast in
+  2026; a quarterly update lets the project adjust differentiation strategy.
+
+### Anti-patterns to avoid
+- Do not start a wave-loop branch from `master` while the previous wave's PR is
+  still open; this creates duplicate/rebase work and risks stale assumptions.
+- Do not tolerate substring terminators for any VCD section once an exact-token
+  helper exists; inconsistency is itself a bug.
+- Do not let competitor research live only in a report; link it from the
+  experience log so future waves inherit the strategic context.
+
 ## 2026-07-06 — Wave Loop 420 (Variant C fallback: VCD exact-terminator + auto-threshold, PVT corner monotonicity)
 
 ### What worked
