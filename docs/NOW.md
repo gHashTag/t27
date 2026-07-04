@@ -1,20 +1,62 @@
-# NOW — Wave Loop 417 close-out / Wave Loop 418 setup (2026-07-04)
+# NOW — Wave Loop 418 close-out / Wave Loop 419 setup (2026-07-04)
 
 Last updated: 2026-07-04
 
-## Wave Loop 418 — FPGA physical capture, real relay gate, or further formal tooling (Issue #1353)
+## Wave Loop 419 — physical CCLK capture, real relay gate, or further formal tooling (Issue #1354)
 
-- Branch: `wave-loop-418`
-- Issue: #1353
+- Branch: `wave-loop-419`
+- Issue: #1354 (to create)
 - PR: to open after work
-- Report: `docs/reports/WAVE_LOOP_418_REPORT.md` (to create)
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W418_2026-07-04.md` (to create)
-- Cooperation W419: `docs/reports/FPGA_LOOP_COOPERATION_W419_2026-07-04.md` (to create)
+- Report: `docs/reports/WAVE_LOOP_419_REPORT.md` (to create)
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W419_2026-07-04.md` (to create)
+- Cooperation W420: `docs/reports/FPGA_LOOP_COOPERATION_W420_2026-07-04.md` (to create)
 
 ### Candidate variants
 - Variant A: capture real CCLK for `OSCFSEL=6/7` once P12 is wired and the analyzer / DLC10 cable is available.
 - Variant B: implement a real `--relay-port` backend once a relay board or USB power switch is available.
-- Variant C: PVT envelope regression test, VCD `$date`/`$version`/`$comment` headers, analog CSV voltage columns, standalone Lean integration test.
+- Variant C: further instrument-import parity, PVT envelope monotonicity tests, and standalone lake-package documentation.
+
+---
+
+## Wave Loop 418 — Variant C fallback: PVT regression, instrument import, and standalone Lean integration (Closes #1353)
+
+- Branch: `wave-loop-418`
+- Issue: #1353
+- PR: to open
+- Report: `docs/reports/WAVE_LOOP_418_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W418_2026-07-04.md`
+- Cooperation W419: `docs/reports/FPGA_LOOP_COOPERATION_W419_2026-07-04.md`
+
+### What landed (Variant C — bench still blocked)
+- `cli/tri/src/fpga.rs`
+  - Added PVT-envelope lower-bound regression test across the operating rectangle
+    (`test_pvt_half_ns_lower_bound_across_operating_rectangle`).
+  - Hardened VCD parser to skip multi-line `$date`/`$version`/`$comment` header
+    sections (`test_parse_vcd_multiline_header_sections_skipped`).
+  - Improved analog CSV voltage-column auto-detection by header name
+    (`voltage`, `v`, `analog`) for multi-channel exports
+    (`test_parse_cclk_csv_named_voltage_column`).
+  - Added standalone Lean integration test that builds the generated theorem in
+    a temporary `lake` package
+    (`test_measured_to_lean_standalone_lake_package_builds`).
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `n25q128_min_sck_half_ns_pvt` and the matching lower-bound lemma
+    `pvt_half_ns_at_least_nominal`.
+- `fpga/HARDWARE_SSOT.md`
+  - Added §3.6.14 "First real CCLK capture checklist".
+  - Added §3.6.15 "Replacing the placeholder PVT envelope coefficients" with
+    current coefficients and a replacement recipe.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired, DLC10 cable missing.
+- Real relay cold-POR gate — no relay board / USB power switch available.
+
+### Verification
+- `cargo test -p tri pvt`: **PASS** (3 tests).
+- `cargo test -p tri vcd`: **PASS** (11 tests).
+- `cargo test -p tri csv`: **PASS** (10 tests).
+- `cargo test -p tri test_measured_to_lean_standalone_lake_package_builds`: **PASS**.
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
 
 ---
 

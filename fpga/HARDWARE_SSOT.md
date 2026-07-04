@@ -744,6 +744,81 @@ hardened in W416 for three real-world quirks:
 logic-analyzer and simulator formats while still rejecting out-of-spec captures
 via `--validate`.
 
+#### 3.6.14 First real CCLK capture checklist
+
+When the bench is wired (P12 → logic-analyzer channel, ground connected, JTAG
+cable disconnected for cold-POR), follow this checklist for the first real
+CCLK capture and its formal proof:
+
+1. **Program the variant to flash** with the canonical x1 command:
+   ```bash
+   tri fpga program-flash build/fpga/cclk_variants/ternary_mac_demo_top_200t_oscfsel06.bit --spi-buswidth 1 --verify
+   ```
+2. **Disconnect the JTAG/programming cable** before power-cycle.
+3. **Power-cycle** the board (disconnect power, wait ≥10 s, reconnect).
+4. **Capture CCLK** immediately after POR. CCLK is active only during
+   configuration (first ~100 µs–1 ms). For a Digilent FTDI cable used as
+   `ftdi-la`:
+   ```bash
+   tri fpga measure-cclk --live --driver ftdi-la --channel ADBUS4 \
+       --samplerate 10000000 --samples 1000000 --validate
+   ```
+5. **Export the capture** to CSV or VCD:
+   ```bash
+   tri fpga measure-cclk --csv build/fpga/cclk_oscfsel06.csv --validate
+   ```
+6. **Record the operating context** (temperature, VCCINT, VCCAUX, process corner
+   if known). Typical conservative context:
+   ```bash
+   cat > build/fpga/wukong_ctx.json <<'EOF'
+   {"temp_c":25,"vccint_mv":1000,"vccaux_mv":2700,"process_corner":"tt"}
+   EOF
+   ```
+7. **Generate the raw-ns theorem** with PVT context:
+   ```bash
+   tri fpga measured-to-lean --csv build/fpga/cclk_oscfsel06.csv --raw-ns --validate \
+       --pvt-context build/fpga/wukong_ctx.json --standalone --out build/fpga/CclkOscfsel06.lean
+   ```
+8. **Typecheck the standalone theorem** by building it inside the local Trinity
+   tree or a temporary lake package:
+   ```bash
+   cp build/fpga/CclkOscfsel06.lean proofs/lean4/Trinity/
+   cd proofs/lean4 && lake build Trinity.CclkOscfsel06
+   ```
+9. **Commit the generated theorem** and update the OSCFSEL table in this file
+   with the measured frequency/duty and margin.
+
+#### 3.6.15 Replacing the placeholder PVT envelope coefficients
+
+The linear derating coefficients in `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+and `cli/tri/src/fpga.rs` are conservative placeholders until Micron
+N25Q128_3V PVT characterization data is available:
+
+| Source | Coefficient | Current value | Meaning |
+|--------|-------------|---------------|---------|
+| Temperature | `n25q128_pvt_temp_derating_ns` | 0.02 ns/°C above -40 °C | At +85 °C adds 2.5 ns (integer 2 ns) |
+| Voltage | `n25q128_pvt_voltage_derating_ns` | 0.005 ns/mV below 1100 mV | At 900 mV adds 1 ns |
+| Process | `n25q128_pvt_process_derating_ns` | 0/2/4 ns for ff/tt/ss | ss adds 4 ns |
+
+To replace them with real curves:
+
+1. Obtain the N25Q128_3V datasheet `t_CL`/`t_CH` vs temperature and VCC plots
+   (or equivalent corners from the manufacturer).
+2. Fit a conservative **upper envelope** over the operating rectangle
+   (-40 °C..+85 °C, 900 mV..1100 mV) for each process corner.
+3. Update both files simultaneously:
+   - `proofs/lean4/Trinity/TernaryFPGABoot.lean`: `n25q128_pvt_temp_derating_ns`,
+     `n25q128_pvt_voltage_derating_ns`, `n25q128_pvt_process_derating_ns`.
+   - `cli/tri/src/fpga.rs`: `n25q128_pvt_temp_derating_ns`,
+     `n25q128_pvt_voltage_derating_ns`, `n25q128_pvt_process_derating_ns`.
+4. Re-run the regression tests:
+   - `cargo test -p tri test_pvt_half_ns_lower_bound_across_operating_rectangle`
+   - `lake build Trinity.TernaryFPGABoot`
+   The Lean `pvt_half_ns_at_least_nominal` lemma and the Rust operating-rectangle
+   sweep will fail if any new coefficient drops below the nominal 6 ns bound.
+5. Update this section with the new coefficients, the datasheet reference, and
+   the date of characterization.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)
