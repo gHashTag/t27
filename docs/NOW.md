@@ -2,6 +2,25 @@
 
 Last updated: 2026-07-04
 
+## SW-conformance — gf48 promoted to strict SW-bitexact (70/5/8) (Closes #1358)
+
+- gf48 (GoldenFloat48: S1 E18 M29, BIAS=131071) promoted from
+  `bitexact_selfconsistent` to strict `bitexact` in
+  `conformance/vectors/INDEX_all_formats.json`.
+- INDEX totals: bitexact 69 -> 70, selfconsistent 6 -> 5, structural 8 (sum=83).
+- Status tag: [verified SW]. Three independent SW witnesses pass in-sandbox:
+  (1) dyadic independent decoder 15/15 (abs_error=0);
+  (2) golden Fraction oracle 15/15 exact vs pack;
+  (3) FP64 fixed-width RTL bit-model 224255/224255 bit-exact (fails=0).
+- Witness chain + local-agent iverilog run instructions:
+  `conformance/witness/gf48_fp64/README.md`. The iverilog independent second
+  decoder (`gf_decode_param_fp64.v` + `tb_gf_decode_fp64.v`) is PREPARED for the
+  local agent (no iverilog in sandbox) = stronger witness, not yet run.
+- NOT on-silicon Tier-E: HW-decode / HW-compute for gf48 remain [REQUIRES USER
+  ACTION] (4/4 chain on AX7203, trinity-fpga #199). encoding != compute != FPGA.
+- Remaining selfconsistent (5): gf96, gf128, gf256, gf512, gf1024.
+  gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
+
 ## Wave Loop 419 — physical CCLK capture, real relay gate, or further formal tooling (Issue #1354)
 
 - Branch: `wave-loop-419`

@@ -5,8 +5,8 @@
   "preprint": "https://arxiv.org/abs/2606.05017",
   "total_formats": 83,
   "total_packs": 83,
-  "bitexact_packs": 69,
-  "selfconsistent_packs": 6,
+  "bitexact_packs": 70,
+  "selfconsistent_packs": 5,
   "structural_packs": 8,
   "packs": [
     {
@@ -381,9 +381,9 @@
     {
       "id": "gf48",
       "file": "gf48_conformance_v0.json",
-      "kind": "bitexact_selfconsistent",
-      "source": "wide-rung GoldenFloat oracle (single decode law, dyadic-exact, no independent second witness)",
-      "sha256": "313dcab7d4eb5728895b5a0cd224b6368cbe39dde5583db76a5138f608928550"
+      "kind": "bitexact",
+      "source": "wide-rung GoldenFloat oracle promoted to strict bitexact by an independent second decoder (gf_wide_independent_witness.py, dyadic-exact, abs_error=0) + golden Fraction oracle + FP64 RTL bit-model (224255/224255)",
+      "sha256": "d9928025d21fa0e0f0c02904d9a3e20f5f12a7811b57fa474e8a325ded43e91a"
     },
     {
       "id": "gf96",
