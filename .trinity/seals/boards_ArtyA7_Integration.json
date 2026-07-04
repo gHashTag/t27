@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3f22b40af6d055425777d0fbb5c9704bb56c1bef2a0c213ed6a0521e55a0e141",
   "module": "ArtyA7_Integration",
   "ring": 12,
-  "sealed_at": "2026-07-04T13:20:45Z",
+  "sealed_at": "2026-07-04T15:43:06Z",
   "spec_hash": "sha256:008af9aea4cc3d4324c4c41b9418da42908be55e79790bf12301afb74c9328d7",
   "spec_path": "specs/fpga/boards/arty_a7_integration.t27"
 }

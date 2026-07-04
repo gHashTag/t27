@@ -1424,3 +1424,11 @@
 - **Commit:** docs(w414): W414 setup - issue #1342, branch wave-loop-414, update NOW/plan/cooperation/report
 - **Files:** .claude/plans/wave-loop-414.md,.claude/plans/wave-loop-415.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W415_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W414_2026-07-01.md,docs/reports/WAVE_LOOP_414_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-04T15:45:49Z — wave-loop-415
+- **Commit:** feat(igla/fpga): W414 Variant C — PVT envelope, multi-bit/real VCD, --validate
+- **Files:** .claude/plans/wave-loop-415.md,.trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json,.trinity/seals/agent_EternalMonitor.json,.trinity/seals/agent_FacultyBoard.json,.trinity/seals/agent_Handoff.json,".trinity/seals/agent_Str = \"\",.json"
+
+## 2026-07-04T16:25:31Z — wave-loop-415-reland
+- **Commit:** feat(fpga): Wave Loop 15 — PVT-aware CCLK validation, VCD robustness, OSCFSEL theorem library
+- **Files:** .claude/plans/wave-loop-415.md,.trinity/current_task/activity.md,.trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json,.trinity/seals/agent_EternalMonitor.json,.trinity/seals/agent_FacultyBoard.json,.trinity/seals/agent_Handoff.json
+
