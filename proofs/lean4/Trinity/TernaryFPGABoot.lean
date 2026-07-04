@@ -870,6 +870,94 @@ theorem pvt_low_ns_wc_ge_old_placeholder :
   ≥ N25Q128_MIN_SCK_LOW_NS_WC := by
   decide
 
+-- ============================================================================
+-- OSCFSEL 0..7 measured-CCLK theorem library (W415)
+-- ============================================================================
+
+/-- Shared worst-case PVT context used for every OSCFSEL worst-case theorem. -/
+def OSCFSEL_WORST_CASE_PVT_CONTEXT : PvtContext :=
+  { temp_c := (85 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := ProcessCorner.ss }
+
+/-- Nominal flash-spec theorem for OSCFSEL=0 (2.5 MHz). -/
+theorem oscfsel_0_nominal_measured_satisfies_flash_spec :
+  measured_cclk_satisfies_flash_spec (cclk_nominal_hz 0) 50 = true := by
+  decide
+
+/-- Worst-case PVT theorem for OSCFSEL=0 (2.5 MHz). -/
+theorem oscfsel_0_worstcase_pvt_measured_satisfies_flash_spec :
+  measured_cclk_with_pvt_satisfies_flash_spec (cclk_nominal_hz 0) 50 OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  decide
+
+/-- Nominal flash-spec theorem for OSCFSEL=1 (~4.2 MHz). -/
+theorem oscfsel_1_nominal_measured_satisfies_flash_spec :
+  measured_cclk_satisfies_flash_spec (cclk_nominal_hz 1) 50 = true := by
+  decide
+
+/-- Worst-case PVT theorem for OSCFSEL=1 (~4.2 MHz). -/
+theorem oscfsel_1_worstcase_pvt_measured_satisfies_flash_spec :
+  measured_cclk_with_pvt_satisfies_flash_spec (cclk_nominal_hz 1) 50 OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  decide
+
+/-- Nominal flash-spec theorem for OSCFSEL=2 (~6.6 MHz). -/
+theorem oscfsel_2_nominal_measured_satisfies_flash_spec :
+  measured_cclk_satisfies_flash_spec (cclk_nominal_hz 2) 50 = true := by
+  decide
+
+/-- Worst-case PVT theorem for OSCFSEL=2 (~6.6 MHz). -/
+theorem oscfsel_2_worstcase_pvt_measured_satisfies_flash_spec :
+  measured_cclk_with_pvt_satisfies_flash_spec (cclk_nominal_hz 2) 50 OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  decide
+
+/-- Nominal flash-spec theorem for OSCFSEL=3 (~10 MHz). -/
+theorem oscfsel_3_nominal_measured_satisfies_flash_spec :
+  measured_cclk_satisfies_flash_spec (cclk_nominal_hz 3) 50 = true := by
+  decide
+
+/-- Worst-case PVT theorem for OSCFSEL=3 (~10 MHz). -/
+theorem oscfsel_3_worstcase_pvt_measured_satisfies_flash_spec :
+  measured_cclk_with_pvt_satisfies_flash_spec (cclk_nominal_hz 3) 50 OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  decide
+
+/-- Nominal flash-spec theorem for OSCFSEL=4 (~12.5 MHz). -/
+theorem oscfsel_4_nominal_measured_satisfies_flash_spec :
+  measured_cclk_satisfies_flash_spec (cclk_nominal_hz 4) 50 = true := by
+  decide
+
+/-- Worst-case PVT theorem for OSCFSEL=4 (~12.5 MHz). -/
+theorem oscfsel_4_worstcase_pvt_measured_satisfies_flash_spec :
+  measured_cclk_with_pvt_satisfies_flash_spec (cclk_nominal_hz 4) 50 OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  decide
+
+/-- Nominal flash-spec theorem for OSCFSEL=5 (~16.7 MHz). -/
+theorem oscfsel_5_nominal_measured_satisfies_flash_spec :
+  measured_cclk_satisfies_flash_spec (cclk_nominal_hz 5) 50 = true := by
+  decide
+
+/-- Worst-case PVT theorem for OSCFSEL=5 (~16.7 MHz). -/
+theorem oscfsel_5_worstcase_pvt_measured_satisfies_flash_spec :
+  measured_cclk_with_pvt_satisfies_flash_spec (cclk_nominal_hz 5) 50 OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  decide
+
+/-- Nominal flash-spec theorem for OSCFSEL=6 (~25 MHz). -/
+theorem oscfsel_6_nominal_measured_satisfies_flash_spec :
+  measured_cclk_satisfies_flash_spec (cclk_nominal_hz 6) 50 = true := by
+  decide
+
+/-- Worst-case PVT theorem for OSCFSEL=6 (~25 MHz). -/
+theorem oscfsel_6_worstcase_pvt_measured_satisfies_flash_spec :
+  measured_cclk_with_pvt_satisfies_flash_spec (cclk_nominal_hz 6) 50 OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  decide
+
+/-- Nominal flash-spec theorem for OSCFSEL=7 (~33.3 MHz). -/
+theorem oscfsel_7_nominal_measured_satisfies_flash_spec :
+  measured_cclk_satisfies_flash_spec (cclk_nominal_hz 7) 50 = true := by
+  decide
+
+/-- Worst-case PVT theorem for OSCFSEL=7 (~33.3 MHz). -/
+theorem oscfsel_7_worstcase_pvt_measured_satisfies_flash_spec :
+  measured_cclk_with_pvt_satisfies_flash_spec (cclk_nominal_hz 7) 50 OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  decide
+
 end BitstreamConfig
 
 -- ============================================================================
