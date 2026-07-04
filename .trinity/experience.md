@@ -1,5 +1,229 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-04 — Wave Loop 409 (per-OSCFSEL transaction lookup + tighter duty bound)
+
+### What worked
+- Refactoring `artix7_boot_transaction` to call `artix7_boot_transaction_for_oscfsel`
+  made the per-OSCFSEL lookup table trivial to state and prove. The equality
+  theorem `artix7_boot_transaction_eq_for_oscfsel` preserves the link to the
+  config-level API.
+- Using `interval_cases` (from `Mathlib.Tactic`) on `oscfsel ≤ 7` let Lean
+  enumerate the eight documented OSCFSEL values and discharge each branch with
+  `simp` + the UG470 frequency table. This is a clean computational proof pattern
+  for small finite lookup tables.
+- Deriving the duty-cycle bound from the N25Q128 `t_CL` / `t_CH` limits and the
+  measured frequency replaces the arbitrary 25%–75% placeholder with a bound that
+  tightens automatically as frequency increases.
+- Re-running the live P12 capture immediately confirmed the wiring blocker is
+  unchanged, avoiding the temptation to claim Variant A succeeded.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added
+  `artix7_boot_transaction_for_oscfsel`,
+  `oscfsel_zero_to_seven_transaction_satisfies_flash_spec`, and
+  `artix7_boot_transaction_eq_for_oscfsel`; imported `Mathlib.Tactic`.
+- `cli/tri/src/fpga.rs`: added `N25Q128_MIN_SCK_LOW_S` / `N25Q128_MIN_SCK_HIGH_S`
+  and replaced the fixed 25%–75% duty guard with a frequency-derived bound
+  clamped to 10%–90%.
+- `fpga/HARDWARE_SSOT.md` §3.6.9: per-OSCFSEL transaction table and note that
+  OSCFSEL 6/7 are model-only.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_409_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W409_2026-07-04.md`, and
+  `docs/reports/FPGA_LOOP_COOPERATION_W410_2026-07-04.md`.
+
+### Patterns to reuse
+- For a finite lookup-table proof in Lean 4, import `Mathlib.Tactic` and use
+  `interval_cases` followed by `simp` with the lookup function and constants.
+- When replacing a placeholder constant with a computed bound, keep a small
+  sensible clamp so pathological low-frequency captures are still rejected.
+- Always re-run the physical gate that was blocked in the previous wave before
+  claiming it is unblocked.
+
+### Anti-patterns to avoid
+- Do not add a new tactic import without checking that the file builds with it;
+  `interval_cases` is not available in a bare Lean file.
+- Do not change a definition used by existing theorems without updating their
+  `simp` sets; `artix7_boot_transaction` now expands to
+  `artix7_boot_transaction_for_oscfsel`, so the latter must be in the simp list.
+
+## 2026-07-04 — Wave Loop 408 (SPI transaction model + real CCLK blocker)
+
+### What worked
+- Adding a `SPIReadTransaction` structure and `artix7_boot_transaction` function
+  turned the static `flash_spi_timing_ok` predicate into a transaction-level
+  model that captures CS# high time, SCK edges, SCK low/high times, and wake-up
+  delay. This is a harder claim for competitors to reproduce than a single
+  frequency bound.
+- Proving `canonical_implies_transaction_satisfies_flash_spec` required dealing
+  with `UInt8.toNat 0` carefully: compute the `cfg.oscfsel.toNat = 0` equality
+  as a separate `have` and then use `simp` with that equality, rather than
+  relying on `decide` with free variables.
+- Attempting the real P12 capture immediately surfaced the missing wiring
+  blocker. Recording the failed capture as evidence is better than pretending
+  Variant A happened.
+- Resealing all `.t27` specs with the freshly built `t27c` release binary
+  brought the seal files back into sync with the compiler output.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added `SPIReadTransaction`,
+  `artix7_boot_transaction`, `transaction_satisfies_flash_spec`, and the
+  theorems `canonical_oscfsel_transaction_satisfies_flash_spec`,
+  `canonical_implies_transaction_satisfies_flash_spec`, and
+  `cold_por_implies_transaction_satisfies_flash_spec`.
+- `fpga/HARDWARE_SSOT.md` §3.6.8 documents the transaction model and the
+  real-capture blocker.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_408_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W408_2026-07-04.md`, and
+  `docs/reports/FPGA_LOOP_COOPERATION_W409_2026-07-04.md`.
+- `docs/NOW.md` updated with W408 entry and `Last updated: 2026-07-04`.
+
+### Patterns to reuse
+- When a Lean proof involves a `UInt8` literal projected to `Nat`, compute the
+  equality as a standalone `have` and feed it to `simp` instead of calling
+  `decide` on a goal with free variables.
+- When a real hardware step is blocked, run the command anyway, capture the
+  output, and commit it as evidence. The blocker becomes a traceable
+  acceptance-criterion item instead of an invisible gap.
+- Before claiming `./scripts/tri test` passes, run it and reseal any stale
+  seal files so the verification gate is grounded in the current compiler.
+
+### Anti-patterns to avoid
+- Do not write Lean proofs that rely on `decide` with free variables in the
+  goal; use `intro` binders plus `exact rfl`, or compute the closed equality
+  first and then simplify.
+- Do not update only the report date; also update `docs/NOW.md` `Last updated:`
+  or the suite check will block the build.
+- Do not claim `./scripts/tri test` passes when a local phase (gen-verilog-yosys-smoke)
+  has pre-existing failures; report the exact phase and the tracked defect file
+  instead.
+- When `gh` operations fail with `HTTP 401: Bad credentials`, check for a stale
+  `GH_TOKEN` environment variable overriding the keyring credentials. Unset it
+  (`unset GH_TOKEN`) so `gh` uses the active keyring account.
+
+## 2026-07-13 — Wave Loop 407 close-out / Wave Loop 408 setup
+
+### What worked
+- Using `gh pr edit <n> --body-file /tmp/body.md` repaired a PR body that had
+  been mangled by shell interpretation of backticks and newlines in an inline
+  `--body` argument.
+- Creating the W408 issue (#1318) and branch (`wave-loop-408`) immediately
+  after the W407 commit keeps the loop boundary explicit and gives the next
+  wave a clean starting point.
+- Branching `wave-loop-408` from `wave-loop-407` carries the W407 timing-model
+  changes while PR #1317 is still open; it can be rebased onto `master` once
+  #1317 lands.
+
+### Anti-patterns to avoid
+- Never pass a `gh pr create --body` string that contains backticks or literal
+  newlines; always write the body to a file and use `--body-file`.
+- Do not assume the next PR/issue number matches the `Closes #N` reference;
+  GitHub assigns the next available number independently.
+
+## 2026-07-13 — Wave Loop 407 (Deeper SPI flash timing + synthetic CCLK fixture)
+
+### What worked
+- Extending the W406 formal model with additional N25Q128 timing constants
+  (`MIN_SCK_LOW_NS`, `MIN_SCK_HIGH_NS`, `WAKE_FROM_POWERDOWN_US`) and a
+  comprehensive `flash_spi_timing_ok` predicate made the CCLK bound a
+  *component* of a fuller timing-safety argument rather than a one-off claim.
+- Replacing `cclk_within_flash_spec` with `flash_spi_timing_ok` inside
+  `cold_por_spi_flash_pred` keeps the cold-POR precondition as strong as
+  possible while recovering the original frequency bound through a separate
+  lemma (`flash_spi_timing_ok_implies_cclk_within_flash_spec`).
+- Adding a `--synth` fixture to `tri fpga measure-cclk` gave the validation
+  pipeline a CI-runnable path with no bench hardware, which is exactly the
+  fallback needed when P12 is not wired.
+- Unit tests for `is_logic_csv`, `parse_logic_csv`, and `generate_synth_cclk_csv`
+  catch parser regressions before they reach the conformance suite.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added `N25Q128_MIN_SCK_LOW_NS`,
+  `N25Q128_MIN_SCK_HIGH_NS`, `N25Q128_WAKE_FROM_POWERDOWN_US`, `cclk_period_ns`,
+  `sck_duty_ok`, and `flash_spi_timing_ok`. Proved
+  `canonical_oscfsel_flash_spi_timing_ok`,
+  `canonical_implies_flash_spi_timing_ok`,
+  `cold_por_implies_flash_spi_timing_ok`, and
+  `flash_spi_timing_ok_implies_cclk_within_flash_spec`.
+  `cold_por_spi_flash_pred` now requires `flash_spi_timing_ok`.
+- `cli/tri/src/fpga.rs`: `FpgaCmd::MeasureCclk` gained `--synth`. Added
+  `generate_synth_cclk_csv`, duty-cycle constants, duty-cycle validation in
+  `--validate`, and four new unit tests.
+- `fpga/HARDWARE_SSOT.md` §3.6 expanded with N25Q128 SCK low/high / wake-up
+  constants, `flash_spi_timing_ok` traceability, synthetic fixture instructions,
+  and real-capture wiring checklist.
+- `docs/NOW.md` updated with the W407 entry.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_407_REPORT.md`,
+  `FPGA_LOOP_EVIDENCE_2026-07-13.md`, and
+  `FPGA_LOOP_COOPERATION_2026-07-13.md`.
+
+### Patterns to reuse
+- When a formal predicate can be strengthened without losing the old lemma,
+  replace the old predicate in the main definition and re-prove the old lemma
+  as a corollary. This keeps downstream proofs compact and the model auditable.
+- For bench commands that depend on physical wiring, add a synthetic fixture
+  path so CI can exercise the same parsing/validation code without the probe.
+
+### Anti-patterns to avoid
+- Do not conflate static config timing with dynamic STAT observations. The
+  new `flash_spi_timing_ok` is a function of `OSCFSEL` only; the cold-POR
+  predicate links it to the observed STAT outcome, not the other way around.
+
+## 2026-07-12 — Wave Loop 406 (CCLK measurement + OSCFSEL/CCLK timing safety in Lean 4)
+
+### What worked
+- Adding an axiomatic `cclk_nominal_hz` lookup and `N25Q128_MAX_SCK_HZ` flash spec to
+  `TernaryFPGABoot.lean` closed the quantitative gap in the cold-POR formal model.
+  `cclk_within_flash_spec` now links `OSCFSEL` to the Micron standard-read timing
+  bound (≤ 50 MHz) and is integrated into `cold_por_spi_flash_pred`.
+- Extending `tri fpga measure-cclk` with a `--live` path that drives `sigrok-cli`
+  and parses exported logic CSV gives a repeatable way to verify nominal CCLK
+  against the same flash bound, not just a manual spreadsheet.
+- Keeping the measurement command board-less (CSV) by default and opt-in (`--live`)
+  preserves CI while enabling bench evidence when the P12 wiring is ready.
+- The W405 `cclk_sweep` gate was already sufficient to prove cold-POR success; W406
+  adds the *formal reason* the CCLK rate itself is safe, which is the remaining
+  half of the boot-verification gap.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added `OSCFSEL_COUNT`,
+  `OSCFSEL_MAX`, `cclk_nominal_hz`, `N25Q128_MAX_SCK_HZ`,
+  `N25Q128_MIN_CS_HIGH_NS`, and `cclk_within_flash_spec`. Three theorems connect
+  the canonical config, any canonical config, and the cold-POR predicate to the
+  flash spec.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: `cold_por_spi_flash_pred` now
+  requires `BitstreamConfig.cclk_within_flash_spec p.cfg.oscfsel`.
+- `cli/tri/src/fpga.rs`: `FpgaCmd::MeasureCclk` now accepts `--live`, `--driver`,
+  `--channel`, `--samplerate`, `--samples`, and `--validate`. Added live capture
+  through `sigrok-cli`, logic CSV parsing, frequency/period estimation, and
+  flash-spec validation.
+- `fpga/HARDWARE_SSOT.md` §3.6 updated with nominal CCLK table, live-capture
+  protocol, CSV parsing rules, and formal traceability to
+  `BitstreamConfig.cclk_within_flash_spec`.
+- `docs/NOW.md` updated with the W406 entry.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_406_REPORT.md`,
+  `FPGA_LOOP_EVIDENCE_2026-07-12.md`, and
+  `FPGA_LOOP_COOPERATION_2026-07-12.md`.
+
+### Patterns to reuse
+- When a physical quantity is implicit in a formal model, expose it as a lookup
+  table + spec constant + predicate; then prove that the concrete/default case
+  satisfies the predicate. This makes the model auditable without over-fitting
+  to one board.
+- Bridge bench tooling and formal models through a single CLI subcommand that
+  accepts both recorded CSV (offline) and live logic-analyzer capture (online)
+  so the same validation predicate can be evaluated on either data source.
+- Document the *blocking hardware precondition* (P12 → logic analyzer channel)
+  explicitly in the report and cooperation variants rather than silently leaving
+  the measurement at zero.
+
+### Anti-patterns to avoid
+- Do not let a CLI live-capture helper swallow the underlying tool error. The
+  first implementation masked `sigrok-cli` failures; surfacing `stderr` in the
+  `anyhow` error made the "no transitions" case immediately interpretable.
+- Do not add new formal constants without a corresponding test/theorem; the
+  `canonical_oscfsel_within_flash_spec` `decide` theorem catches lookup-table
+  typos at build time.
+
 ## 2026-07-04 — Wave Loop 405 (Hardware smoke-gate `--flash-boot`)
 
 ### What worked
@@ -1281,3 +1505,51 @@
 - Do not plan cancellation theorems at odd depths while claiming identity collapse; always use even depths or match the statement to the residual weight.
 - Do not rebuild the workspace root crate and assume `target/release/t27c` is fresh; if the binary timestamp is stale, rebuild the `bootstrap` crate explicitly.
 - Do not emit individual `reg name_0, name_1, ...` for array vars when a true Verilog memory `reg [W-1:0] name [0:N-1];` is what downstream indexing expects.
+
+## 2026-07-04 — Wave Loop 410 (measured-duty formal link)
+
+### What worked
+- Delivered the formal-only half of Variant C after both physical paths (P12 capture and DLC10-based `OSCFSEL=6,7` boot) remained blocked.
+- Added `measured_cclk_satisfies_flash_spec` and the linking theorem `measured_cclk_satisfies_flash_spec_implies_transaction_ok` in `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+- Kept the measured low/high/period functions symbolic in the main theorem proof so that the `low + high = period` rewrite matched syntactically; then used `simp_all` to close the resulting decidable goals.
+- Added `MeasuredCclk` in `cli/tri/src/fpga.rs` with conservative `sck_low_ns` / `sck_high_ns` and a `--json` output that feeds the Lean predicate.
+- `lake build Trinity.TernaryFPGABoot` passed cleanly; `cargo test -p tri fpga::tests` passed 11/11; `./scripts/tri test` passed parse/typecheck/gen/seal-verify with 16 pre-existing yosys-smoke failures tracked separately.
+
+### What changed behavior
+- `tri fpga measure-cclk` has a new `--json` flag.
+- `fpga/HARDWARE_SSOT.md` has new §3.6.10 documenting the measured-duty formal link.
+- Close-out docs: `docs/reports/WAVE_LOOP_410_REPORT.md`, `docs/reports/FPGA_LOOP_EVIDENCE_W410_2026-07-04.md`, `docs/reports/FPGA_LOOP_COOPERATION_W411_2026-07-04.md`.
+
+### Patterns to reuse
+- When proving a generic theorem over a decidable predicate with arithmetic division, build explicit helper lemmas for period positivity and the `low + high = period` identity, then let `simp_all` discharge the Boolean/Prop conjunction.
+- Mirror conservative integer conversions between Rust and Lean exactly (floor period, floor low time, remainder high time) so that the JSON record is directly pasteable into the formal predicate.
+
+### Anti-patterns to avoid
+- Do not use `cases` on a `Prop` like `freq_hz > 0`; use `by_cases` instead.
+- Do not include constant definitions such as `N25Q128_MAX_SCK_HZ` in `simp` lists after they have already been expanded in the goal; it triggers unused-simp-arg warnings.
+- Do not try to `constructor` split a `Bool` equality goal; either convert to a Prop implication or let `simp` reduce the Boolean expression.
+
+## 2026-07-04 — Wave Loop 411 (measured-to-lean auto-proof + PVT margin)
+
+### What worked
+- Built a zero-copy-paste pipeline: `tri fpga measure-cclk --json` → `tri fpga measured-to-lean --file/--out/--name/--margin`.
+- Added conservative PVT-margin predicate `measured_cclk_with_margin_satisfies_flash_spec` with 2× derated SCK low/high limits (12 ns vs nominal 6 ns).
+- Proved the margin predicate implies the nominal predicate and therefore `transaction_satisfies_flash_spec`, using explicit `constructor` + `omega` after `simp` left Nat inequalities.
+- Emitted generated Lean theorem snippets that match the existing decidable proof style in `TernaryFPGABoot.lean`.
+- `lake build Trinity.TernaryFPGABoot` passed; `cargo test -p tri fpga::tests` passed 14/14; `./scripts/tri test` passed parse/typecheck/gen/seal-verify.
+
+### What changed behavior
+- New `tri fpga measured-to-lean` subcommand in `cli/tri/src/fpga.rs`.
+- Worst-case SCK constants and PVT-margin theorems in `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+- `fpga/HARDWARE_SSOT.md` §3.6.11 documents measured-to-lean and PVT margins.
+- Close-out docs: `docs/reports/WAVE_LOOP_411_REPORT.md`, `docs/reports/FPGA_LOOP_EVIDENCE_W411_2026-07-04.md`, `docs/reports/FPGA_LOOP_COOPERATION_W412_2026-07-04.md`.
+
+### Patterns to reuse
+- When a generated theorem snippet must be type-correct when pasted into an existing Lean namespace, emit the same predicate names and variable names already used by hand-written examples in that file.
+- Keep Rust↔Lean integer conversions conservative and identical in both codebases (floor period, floor low, remainder high); this lets the generated proof call the existing helper lemmas without adjustment.
+- For PVT margins, separate the placeholder constants (`*_WC`) from the real datasheet constants so the placeholder can be replaced later without touching the theorem statements.
+
+### Anti-patterns to avoid
+- Do not rely on `simp [h_low, h_high]` to close goals involving concrete Nat constants; follow with `constructor`/`omega` where needed.
+- Do not use `std::io::Stdin::read_to_string` directly; import `std::io::Read` first.
+- Do not try to typecheck a generated snippet via a shell heredoc named `import`; write it to a real `.lean` file and run `lake build` instead.

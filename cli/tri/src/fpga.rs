@@ -4,6 +4,7 @@
 //! All operations use pure-Rust paths through `rusb`; no external tools
 //! (Vivado / openFPGALoader) and no Python dependencies are required.
 
+use std::io::{BufRead, Read};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -351,11 +352,38 @@ pub enum FpgaCmd {
     },
     /// Print DSLogic / oscilloscope instructions for measuring the FPGA CCLK
     /// output during Master SPI configuration. Optionally parse a DSView CSV
-    /// export to estimate frequency and duty cycle.
+    /// export or run a live capture via `sigrok-cli` with a connected logic
+    /// analyzer (e.g., the Digilent FTDI cable as `ftdi-la`).
     MeasureCclk {
-        /// Path to a DSView CSV export of the CCLK trace.
+        /// Path to a DSView / PulseView / Saleae CSV export of the CCLK trace.
         #[arg(long)]
         csv: Option<PathBuf>,
+        /// Run a live capture using sigrok-cli instead of parsing a CSV.
+        #[arg(long)]
+        live: bool,
+        /// sigrok driver to use for live capture (default: ftdi-la).
+        #[arg(long, default_value = "ftdi-la")]
+        driver: String,
+        /// Logic-analyzer channel to capture (default: ADBUS4 for ftdi-la).
+        #[arg(long, default_value = "ADBUS4")]
+        channel: String,
+        /// Sample rate for live capture, e.g. 10 MHz (default: 10000000).
+        #[arg(long, default_value = "10000000")]
+        samplerate: u32,
+        /// Number of samples to capture (default: 1000000).
+        #[arg(long, default_value_t = 1000000)]
+        samples: u32,
+        /// Fail if the measured CCLK is outside the N25Q128 standard-read spec.
+        #[arg(long)]
+        validate: bool,
+        /// Generate a synthetic 2.5 MHz logic CSV fixture and validate it.
+        /// Useful for CI when P12 is not wired to a logic analyzer.
+        #[arg(long)]
+        synth: bool,
+        /// Emit a JSON object with the measured frequency, duty cycle, and the
+        /// conservative SCK low/high times used by the Lean formal link.
+        #[arg(long)]
+        json: bool,
     },
     /// Read the SPI flash status register via openFPGALoader's JTAG-to-SPI bridge.
     /// Decodes WIP, WEL, and QE bits to help diagnose boot-from-flash failures.
@@ -459,6 +487,27 @@ pub enum FpgaCmd {
         /// Git ref (branch / tag / SHA) of `openXC7/nextpnr-xilinx` to use.
         #[arg(long, default_value = "master")]
         git_ref: String,
+    },
+    /// Generate a Lean 4 theorem from a `tri fpga measure-cclk --json` output.
+    /// The theorem proves that the measured `(frequency, duty)` pair satisfies
+    /// `measured_cclk_satisfies_flash_spec` and links it to
+    /// `transaction_satisfies_flash_spec`. Useful for turning a real capture
+    /// into a machine-checked proof without manual copy-paste.
+    MeasuredToLean {
+        /// Path to the JSON file emitted by `tri fpga measure-cclk --json`.
+        /// Reads from stdin if omitted.
+        #[arg(long)]
+        file: Option<PathBuf>,
+        /// Output file for the generated Lean snippet. Prints to stdout if omitted.
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// Theorem name prefix (default: "measured_cclk").
+        #[arg(long, default_value = "measured_cclk")]
+        name: String,
+        /// Use the PVT-margin predicate (`measured_cclk_with_margin_satisfies_flash_spec`)
+        /// instead of the nominal predicate.
+        #[arg(long)]
+        margin: bool,
     },
     /// Build the QMTech XC7A100T-FGG676 proxy bitstream via a Docker
     /// container running Xilinx Vivado. Clones our `openFPGALoader` fork
@@ -612,7 +661,27 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
         FpgaCmd::SweepReport { log_dir, out } => {
             sweep_report(log_dir.as_ref(), out.as_ref())
         },
-        FpgaCmd::MeasureCclk { csv } => measure_cclk(csv.as_ref()),
+        FpgaCmd::MeasureCclk {
+            csv,
+            live,
+            driver,
+            channel,
+            samplerate,
+            samples,
+            validate,
+            synth,
+            json,
+        } => measure_cclk(
+            csv.as_ref(),
+            *live,
+            driver,
+            channel,
+            *samplerate,
+            *samples,
+            *validate,
+            *synth,
+            *json,
+        ),
         FpgaCmd::SynthGf16 {
             build_dir,
             chipdb,
@@ -652,6 +721,9 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             size,
         } => dump_flash(out, cable, part, *size),
         FpgaCmd::FlashStatus { cable, part } => flash_status(cable, part),
+        FpgaCmd::MeasuredToLean { file, out, name, margin } => {
+            measured_to_lean(file.as_ref(), out.as_ref(), name, *margin)
+        }
     }
 }
 
@@ -2108,6 +2180,38 @@ fn cclk_sweep(
     Ok(results)
 }
 
+/// A measured CCLK frequency/duty pair, ready for the Lean formal link.
+/// `sck_low_ns` and `sck_high_ns` are conservative integer nanoseconds derived
+/// from the floating-point instrument estimate; they mirror the definitions in
+/// `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+#[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+struct MeasuredCclk {
+    freq_hz: u64,
+    duty_pct: f64,
+    sck_low_ns: u64,
+    sck_high_ns: u64,
+    source: String,
+}
+
+impl MeasuredCclk {
+    /// Build a conservative measured-CCLK record from a frequency (Hz) and duty
+    /// cycle (% high). The period is rounded down and the low time is rounded
+    /// down; the high time is the remainder so that low + high exactly equals
+    /// the conservative period.
+    fn new(freq_hz: f64, duty_pct: f64, source: String) -> Self {
+        let period_ns = (1.0e9 / freq_hz).floor() as u64;
+        let low_ns = (period_ns as f64 * (100.0 - duty_pct) / 100.0).floor() as u64;
+        let high_ns = period_ns.saturating_sub(low_ns);
+        Self {
+            freq_hz: freq_hz.floor() as u64,
+            duty_pct,
+            sck_low_ns: low_ns,
+            sck_high_ns: high_ns,
+            source,
+        }
+    }
+}
+
 /// Structs used to persist and report a single cold-POR sweep attempt.
 #[derive(serde::Serialize, serde::Deserialize)]
 struct SweepLog {
@@ -2267,50 +2371,425 @@ fn sweep_report(log_dir: Option<&PathBuf>, out: Option<&PathBuf>) -> Result<()> 
     Ok(())
 }
 
-/// Print guidance for measuring the Master SPI CCLK output, and optionally parse
-/// a DSView CSV export to estimate frequency / duty cycle.
-fn measure_cclk(csv: Option<&PathBuf>) -> Result<()> {
+/// Maximum SCK frequency (Hz) the Micron N25Q128_3V supports for the
+/// standard SPI Read command used during 7-series Master SPI boot.
+const N25Q128_MAX_SCK_HZ: f64 = 50_000_000.0;
+
+/// Minimum sensible CCLK frequency (Hz). Below this the capture is likely noise
+/// or the FPGA never drove the pin. Roughly 100 kHz.
+const CCLK_MIN_SENSE_HZ: f64 = 100_000.0;
+
+/// Minimum SCK clock-low time (seconds) for the N25Q128_3V standard Read
+/// command. Datasheet value: 5.5 ns; rounded up to 6 ns to keep the model
+/// integral and conservative.
+const N25Q128_MIN_SCK_LOW_S: f64 = 6.0e-9;
+
+/// Minimum SCK clock-high time (seconds) for the N25Q128_3V standard Read
+/// command. Datasheet value: 5.5 ns; rounded up to 6 ns to keep the model
+/// integral and conservative.
+const N25Q128_MIN_SCK_HIGH_S: f64 = 6.0e-9;
+
+/// Sensible absolute duty-cycle range for a valid CCLK. This is a last-resort
+/// guard that rejects pathological captures (e.g., 1% pulses) when the
+/// frequency-derived N25Q128 bound becomes very loose at low CCLK rates.
+const CCLK_MIN_DUTY_PCT: f64 = 10.0;
+const CCLK_MAX_DUTY_PCT: f64 = 90.0;
+
+/// Print guidance for measuring the Master SPI CCLK output, run a live capture
+/// via sigrok-cli, parse a CSV export, or generate a synthetic fixture to
+/// estimate frequency / duty cycle.
+fn measure_cclk(
+    csv: Option<&PathBuf>,
+    live: bool,
+    driver: &str,
+    channel: &str,
+    samplerate: u32,
+    samples: u32,
+    validate: bool,
+    synth: bool,
+    json: bool,
+) -> Result<()> {
     println!("== CCLK measurement guide ==");
     println!();
     println!("Target board: QMTech Wukong V1 / XC7A200T-FGG676-1");
     println!("CCLK pin: P12 (CFGCLK / CCLK_0, bank 0, 3.3 V)");
     println!("Ground: any GND pin on the JTAG header or board");
     println!();
-    println!("DSLogic Plus setup:");
-    println!("  Channel: 0");
-    println!("  Sample rate: 100 MHz");
-    println!("  Duration: 1 ms");
-    println!("  Threshold: 1.65 V (3.3 V / 2)");
-    println!("  Trigger: rising edge on channel 0");
+    println!("Live capture setup (sigrok-cli):");
+    println!("  Driver: {} (use 'dreamsourcelab-dslogic' for DSLogic Plus)", driver);
+    println!("  Channel: {} (for ftdi-la use ADBUS4..7, not ADBUS0..3 which are JTAG)", channel);
+    println!("  Sample rate: {} Hz", samplerate);
+    println!("  Samples: {}", samples);
+    println!("  Expected CCLK: active only during FPGA configuration from flash.");
     println!();
-    println!("Expected signal:");
-    println!("  CCLK is active only during FPGA configuration from flash.");
-    println!("  After configuration CCLK is tri-stated or held by the internal oscillator.");
-    println!("  Capture the first 100 us after POR; the SPI read command (0x03) follows");
-    println!("  the 0xFF + 0xBB width auto-detection preamble.");
+    println!("CSV setup:");
+    println!("  DSView / PulseView / Saleae export: one analog or logic channel.");
+    println!();
+    println!("Synthetic fixture setup:");
+    println!("  --synth generates a 2.5 MHz square-wave logic CSV and validates it");
+    println!("  (no hardware required; useful for CI).");
     println!();
 
-    if let Some(path) = csv {
+    let (freq_hz, duty_pct, source) = if synth {
+        println!("[measure-cclk] generating synthetic 2.5 MHz CCLK fixture ...");
+        let tmp = std::env::temp_dir().join(format!("tri_cclk_synthetic_{}.csv", std::process::id()));
+        generate_synth_cclk_csv(2_500_000.0, samplerate, 1000, &tmp)?;
+        let (f, d) = parse_logic_csv(&tmp, samplerate)?;
+        println!("[measure-cclk] wrote synthetic fixture to {}", tmp.display());
+        (f, d, format!("synthetic ({} Hz samplerate)", samplerate))
+    } else if live {
+        println!("[measure-cclk] running live capture via sigrok-cli ...");
+        let tmp = std::env::temp_dir().join(format!("tri_cclk_capture_{}.csv", std::process::id()));
+        capture_cclk_live(driver, channel, samplerate, samples, &tmp)?;
+        let (f, d) = parse_logic_csv(&tmp, samplerate)?;
+        println!("[measure-cclk] captured {} samples to {}", samples, tmp.display());
+        (f, d, format!("live ({}, {})", driver, channel))
+    } else if let Some(path) = csv {
         if !path.is_file() {
             bail!("CSV not found: {}", path.display());
         }
-        println!("Parsing {} ...", path.display());
-        let (freq_hz, duty_pct) = parse_cclk_csv(path)?;
-        println!("  Estimated frequency: {:.3} MHz", freq_hz / 1e6);
-        println!("  Estimated duty cycle: {:.1}%", duty_pct);
+        println!("[measure-cclk] parsing {} ...", path.display());
+        // Auto-detect analog vs logic CSV by looking at the first non-comment row.
+        let (f, d) = if is_logic_csv(path)? {
+            let samplerate = detect_logic_csv_samplerate(path)?.unwrap_or(samplerate);
+            parse_logic_csv(path, samplerate)?
+        } else {
+            parse_cclk_csv(path)?
+        };
+        (f, d, format!("csv {}", path.display()))
     } else {
-        println!("Pass --csv <dsview-export.csv> to estimate frequency/duty cycle.");
+        println!("Pass --csv <export.csv> to parse a saved capture, or --live to capture now.");
+        return Ok(());
+    };
+
+    println!("  Source: {}", source);
+    println!("  Estimated frequency: {:.3} MHz", freq_hz / 1e6);
+    println!("  Estimated duty cycle: {:.1}%", duty_pct);
+
+    if validate {
+        if freq_hz > N25Q128_MAX_SCK_HZ {
+            bail!(
+                "measured CCLK {:.3} MHz exceeds N25Q128 standard-read limit {:.3} MHz",
+                freq_hz / 1e6,
+                N25Q128_MAX_SCK_HZ / 1e6
+            );
+        }
+        if freq_hz < CCLK_MIN_SENSE_HZ {
+            bail!(
+                "measured CCLK {:.3} MHz is below {:.3} MHz; capture looks like noise or no signal",
+                freq_hz / 1e6,
+                CCLK_MIN_SENSE_HZ / 1e6
+            );
+        }
+        // N25Q128 t_CL / t_CH bound: for a measured frequency f and period T,
+        // the high time must be ≥ t_CH and the low time must be ≥ t_CL.
+        // High time = duty * T, low time = (1 - duty) * T.
+        // => duty ∈ [t_CL / T, 1 - t_CH / T]
+        // => duty_pct ∈ [100 * t_CL * f, 100 - 100 * t_CH * f].
+        let period_s = 1.0 / freq_hz;
+        let min_duty_pct = 100.0 * N25Q128_MIN_SCK_LOW_S / period_s;
+        let max_duty_pct = 100.0 - 100.0 * N25Q128_MIN_SCK_HIGH_S / period_s;
+        let clamped_min_duty_pct = min_duty_pct.max(CCLK_MIN_DUTY_PCT);
+        let clamped_max_duty_pct = max_duty_pct.min(CCLK_MAX_DUTY_PCT);
+        if duty_pct < clamped_min_duty_pct || duty_pct > clamped_max_duty_pct {
+            bail!(
+                "measured duty cycle {:.1}% is outside N25Q128-derived range {:.1}%–{:.1}% (or sensible {:.1}%–{:.1}%)",
+                duty_pct,
+                min_duty_pct,
+                max_duty_pct,
+                CCLK_MIN_DUTY_PCT,
+                CCLK_MAX_DUTY_PCT
+            );
+        }
+        println!(
+            "  Validation: OK (CCLK within N25Q128 standard-read spec, {:.1}x below {:.3} MHz limit, duty {:.1}%, N25Q128-derived range {:.1}%–{:.1}%)",
+            N25Q128_MAX_SCK_HZ / freq_hz,
+            N25Q128_MAX_SCK_HZ / 1e6,
+            duty_pct,
+            min_duty_pct,
+            max_duty_pct
+        );
+    }
+
+    let measured = MeasuredCclk::new(freq_hz, duty_pct, source);
+    if json {
+        println!("{}", serde_json::to_string_pretty(&measured)?);
+    } else {
+        println!("  Formal link: freq_hz={} duty_pct={:.1} sck_low_ns={} sck_high_ns={}",
+            measured.freq_hz, measured.duty_pct, measured.sck_low_ns, measured.sck_high_ns);
     }
 
     Ok(())
 }
 
+/// Sanitize a string so it can be used as part of a Lean 4 identifier.
+/// Replaces non-alphanumeric characters with underscores and collapses runs.
+fn sanitize_lean_ident(s: &str) -> String {
+    let mut out = String::new();
+    let mut prev_underscore = false;
+    for c in s.chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c);
+            prev_underscore = false;
+        } else if !prev_underscore {
+            out.push('_');
+            prev_underscore = true;
+        }
+    }
+    out.trim_matches('_').to_string()
+}
+
+/// Read a `MeasuredCclk` JSON record (from `--file` or stdin) and emit a Lean 4
+/// theorem that proves the measured pair satisfies the flash spec and links it
+/// to `transaction_satisfies_flash_spec`.
+fn measured_to_lean(
+    file: Option<&PathBuf>,
+    out: Option<&PathBuf>,
+    name: &str,
+    margin: bool,
+) -> Result<()> {
+    let text = match file {
+        Some(path) => std::fs::read_to_string(path)
+            .with_context(|| format!("read {}", path.display()))?,
+        None => {
+            let mut buf = String::new();
+            std::io::stdin()
+                .read_to_string(&mut buf)
+                .context("read JSON from stdin")?;
+            buf
+        }
+    };
+    let m: MeasuredCclk = serde_json::from_str(&text)
+        .context("parse MeasuredCclk JSON")?;
+
+    // Round the duty cycle to one decimal place, matching the Rust/Lean
+    // conservative integer period conversion. The Lean predicate takes a Nat
+    // percentage, so we emit the integer-rounded value used by the formal model.
+    let duty_pct_int = m.duty_pct.round() as u64;
+    let source_suffix = sanitize_lean_ident(&m.source);
+    let theorem_base = if source_suffix.is_empty() {
+        format!("{}_{}_{}", name, m.freq_hz, duty_pct_int)
+    } else {
+        format!("{}_{}_{}_{}", name, source_suffix, m.freq_hz, duty_pct_int)
+    };
+
+    let predicate = if margin {
+        "measured_cclk_with_margin_satisfies_flash_spec"
+    } else {
+        "measured_cclk_satisfies_flash_spec"
+    };
+    let link_theorem = if margin {
+        "measured_cclk_with_margin_implies_transaction_ok"
+    } else {
+        "measured_cclk_satisfies_flash_spec_implies_transaction_ok"
+    };
+
+    let mut lean = String::new();
+    lean.push_str(&format!(
+        "/- Generated by `tri fpga measured-to-lean` from source: {} -/\n",
+        m.source
+    ));
+    lean.push_str(&format!(
+        "theorem {}_satisfies_flash_spec :\n",
+        theorem_base
+    ));
+    lean.push_str(&format!(
+        "  {} {} {} = true := by\n",
+        predicate, m.freq_hz, duty_pct_int
+    ));
+    lean.push_str("  decide\n");
+    lean.push('\n');
+    lean.push_str(&format!(
+        "theorem {}_transaction_ok (bits : Nat) :\n",
+        theorem_base
+    ));
+    lean.push_str(&format!(
+        "  transaction_satisfies_flash_spec (measured_boot_transaction {} {} bits) = true := by\n",
+        m.freq_hz, duty_pct_int
+    ));
+    lean.push_str(&format!("  apply {}\n", link_theorem));
+    lean.push_str(&format!(
+        "  exact {}_satisfies_flash_spec\n",
+        theorem_base
+    ));
+
+    match out {
+        Some(path) => {
+            std::fs::write(path, &lean)
+                .with_context(|| format!("write {}", path.display()))?;
+            println!("[measured-to-lean] wrote Lean snippet to {}", path.display());
+        }
+        None => print!("{}", lean),
+    }
+
+    Ok(())
+}
+
+/// Generate a synthetic logic CSV representing a perfect square wave at
+/// `freq_hz` with 50% duty cycle. `samples` is the number of logic samples to
+/// emit. The CSV uses the sigrok logic format (`logic` header, then one `0` or
+/// `1` per line) so `parse_logic_csv` can read it back.
+fn generate_synth_cclk_csv(
+    freq_hz: f64,
+    samplerate: u32,
+    samples: usize,
+    out: &PathBuf,
+) -> Result<()> {
+    if samplerate == 0 {
+        bail!("samplerate must be > 0");
+    }
+    if freq_hz <= 0.0 {
+        bail!("freq_hz must be > 0");
+    }
+    let period_samples = samplerate as f64 / freq_hz;
+    let mut buf = String::from("logic\n");
+    for i in 0..samples {
+        let phase = (i as f64 % period_samples) / period_samples;
+        let bit = if phase < 0.5 { '1' } else { '0' };
+        buf.push(bit);
+        buf.push('\n');
+    }
+    std::fs::write(out, buf)
+        .with_context(|| format!("write synthetic fixture {}", out.display()))?;
+    Ok(())
+}
+
+/// Run a live sigrok-cli capture and write the logic CSV to `out`.
+fn capture_cclk_live(
+    driver: &str,
+    channel: &str,
+    samplerate: u32,
+    samples: u32,
+    out: &PathBuf,
+) -> Result<()> {
+    let mut cmd = std::process::Command::new("sigrok-cli");
+    cmd.arg("--driver").arg(driver);
+    cmd.arg("--config")
+        .arg(format!("samplerate={}", samplerate));
+    cmd.arg("--channels").arg(channel);
+    cmd.arg("--samples").arg(samples.to_string());
+    cmd.arg("--output-format").arg("csv");
+    cmd.arg("--output-file").arg(out);
+    eprintln!("[sigrok-cli] $ sigrok-cli {}",
+        cmd.get_args()
+            .map(|a| a.to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .join(" "));
+    let status = cmd.status().with_context(|| "spawn sigrok-cli")?;
+    if !status.success() {
+        bail!("sigrok-cli failed (is the logic analyzer connected and the driver correct?)");
+    }
+    Ok(())
+}
+
+/// Return true if the CSV looks like a sigrok logic export (header row is
+/// "logic" followed by 0/1 samples).
+fn is_logic_csv(path: &PathBuf) -> Result<bool> {
+    let file = std::fs::File::open(path)
+        .with_context(|| format!("open {}", path.display()))?;
+    let reader = std::io::BufReader::new(file);
+    for line in reader.lines() {
+        let line = line?;
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with(';') || trimmed.starts_with('#') {
+            continue;
+        }
+        return Ok(trimmed.eq_ignore_ascii_case("logic"));
+    }
+    Ok(false)
+}
+
+/// Try to read the samplerate from a sigrok logic CSV comment line such as
+/// `; Samplerate: 10 MHz`.
+fn detect_logic_csv_samplerate(path: &PathBuf) -> Result<Option<u32>> {
+    let file = std::fs::File::open(path)
+        .with_context(|| format!("open {}", path.display()))?;
+    let reader = std::io::BufReader::new(file);
+    let re = regex::Regex::new(r"(?i)samplerate:\s*([0-9]+\.?[0-9]*)\s*(Hz|kHz|MHz|GHz)?")
+        .map_err(|e| anyhow::anyhow!("regex: {}", e))?;
+    for line in reader.lines() {
+        let line = line?;
+        if let Some(caps) = re.captures(&line) {
+            let value: f64 = caps[1].parse().map_err(|_| anyhow!("invalid samplerate"))?;
+            let mult: f64 = match caps.get(2).map(|m| m.as_str().to_lowercase()).as_deref() {
+                Some("khz") => 1_000.0,
+                Some("mhz") => 1_000_000.0,
+                Some("ghz") => 1_000_000_000.0,
+                _ => 1.0,
+            };
+            return Ok(Some((value * mult) as u32));
+        }
+    }
+    Ok(None)
+}
+
+/// Parse a sigrok logic CSV (one sample per line, 0 or 1) and estimate frequency
+/// and duty cycle given the sample rate in Hz.
+fn parse_logic_csv(path: &PathBuf, samplerate: u32) -> Result<(f64, f64)> {
+    if samplerate == 0 {
+        bail!("samplerate must be > 0");
+    }
+    let file = std::fs::File::open(path)
+        .with_context(|| format!("open {}", path.display()))?;
+    let reader = std::io::BufReader::new(file);
+    let mut samples: Vec<bool> = Vec::new();
+    let mut header_seen = false;
+    for line in reader.lines() {
+        let line = line?;
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with(';') || trimmed.starts_with('#') {
+            continue;
+        }
+        if !header_seen {
+            if trimmed.eq_ignore_ascii_case("logic") {
+                header_seen = true;
+            }
+            continue;
+        }
+        match trimmed {
+            "0" => samples.push(false),
+            "1" => samples.push(true),
+            _ => continue,
+        }
+    }
+    if samples.len() < 4 {
+        bail!("too few logic samples to estimate frequency");
+    }
+
+    let high_count = samples.iter().filter(|&&v| v).count();
+    let low_count = samples.len() - high_count;
+    let mut transitions = 0usize;
+    for window in samples.windows(2) {
+        if window[0] != window[1] {
+            transitions += 1;
+        }
+    }
+
+    let total_time = samples.len() as f64 / samplerate as f64;
+    let duty_pct = 100.0 * high_count as f64 / samples.len() as f64;
+
+    // A clean clock with N full periods has 2N transitions (rising + falling).
+    let freq_hz = if transitions >= 2 {
+        transitions as f64 / (2.0 * total_time)
+    } else {
+        0.0
+    };
+
+    println!(
+        "  Logic samples: {} (high {}, low {}, transitions {})",
+        samples.len(),
+        high_count,
+        low_count,
+        transitions
+    );
+    Ok((freq_hz, duty_pct))
+}
+
 /// Parse a logic-analyser CSV export and estimate CCLK frequency and duty cycle.
 ///
 /// Supported formats (auto-detected):
-/// - DSView: two columns `Time,Voltage`.
-/// - PulseView: header row with `Time,Channel 0,...` or `samplerate,...`.
-/// - Saleae: header row with `time, channel 0` or `time,channel 0`.
+/// - DSView analog: two columns `Time,Voltage`.
+/// - PulseView / Saleae: header row with time and voltage columns.
 ///
 /// The first numeric column is treated as time (seconds) and the next numeric
 /// column as the signal voltage (volts). Rows with non-numeric fields are
@@ -3325,5 +3804,104 @@ mod tests {
     fn test_parse_cclk_csv_too_few_samples() {
         let csv = "Time,Voltage\n0.0,0.0\n1.0,3.3\n";
         assert!(parse_cclk_csv_reader(std::io::Cursor::new(csv)).is_err());
+    }
+
+    #[test]
+    fn test_is_logic_csv_detects_sigrok() {
+        let csv = "; Samplerate: 10 MHz\nlogic\n0\n1\n0\n";
+        assert!(is_logic_csv(&std::env::temp_dir().join("tri_test_logic.csv")).is_err());
+        // is_logic_csv requires a real file; write one.
+        let tmp = std::env::temp_dir().join(format!("tri_test_logic_{}.csv", std::process::id()));
+        std::fs::write(&tmp, csv).unwrap();
+        assert!(is_logic_csv(&tmp).unwrap());
+        std::fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_is_logic_csv_rejects_analog() {
+        let tmp = std::env::temp_dir().join(format!("tri_test_analog_{}.csv", std::process::id()));
+        std::fs::write(&tmp, "Time,Voltage\n0.0,0.0\n1.0,3.3\n").unwrap();
+        assert!(!is_logic_csv(&tmp).unwrap());
+        std::fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_parse_logic_csv_2_5mhz() {
+        let samplerate = 100_000_000_u32;
+        let tmp = std::env::temp_dir().join(format!("tri_test_logic_25mhz_{}.csv", std::process::id()));
+        generate_synth_cclk_csv(2_500_000.0, samplerate, 1000, &tmp).unwrap();
+        let (freq, duty) = parse_logic_csv(&tmp, samplerate).unwrap();
+        assert!((freq - 2.5e6).abs() < 200_000.0, "freq {} should be ~2.5 MHz", freq);
+        assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
+        std::fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_generate_synth_cclk_csv_header() {
+        let tmp = std::env::temp_dir().join(format!("tri_test_synth_header_{}.csv", std::process::id()));
+        generate_synth_cclk_csv(1_000_000.0, 10_000_000, 20, &tmp).unwrap();
+        let content = std::fs::read_to_string(&tmp).unwrap();
+        assert!(content.starts_with("logic\n"));
+        let lines: Vec<_> = content.lines().collect();
+        assert_eq!(lines.len(), 21); // header + 20 samples
+        std::fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_measured_cclk_conservative_2_5mhz_50duty() {
+        let m = MeasuredCclk::new(2_500_000.0, 50.0, "synthetic".to_string());
+        assert_eq!(m.freq_hz, 2_500_000);
+        assert_eq!(m.sck_low_ns, 200);
+        assert_eq!(m.sck_high_ns, 200);
+        assert_eq!(m.sck_low_ns + m.sck_high_ns, 400);
+    }
+
+    #[test]
+    fn test_measured_cclk_25mhz_50duty() {
+        let m = MeasuredCclk::new(25_000_000.0, 50.0, "synthetic".to_string());
+        assert_eq!(m.freq_hz, 25_000_000);
+        assert_eq!(m.sck_low_ns, 20);
+        assert_eq!(m.sck_high_ns, 20);
+        assert!(m.sck_low_ns >= 6);
+        assert!(m.sck_high_ns >= 6);
+    }
+
+    #[test]
+    fn test_measured_cclk_json_roundtrip() {
+        let m = MeasuredCclk::new(33_300_000.0, 48.5, "live".to_string());
+        let json = serde_json::to_string(&m).unwrap();
+        let back: MeasuredCclk = serde_json::from_str(&json).unwrap();
+        assert_eq!(m, back);
+    }
+
+    #[test]
+    fn test_sanitize_lean_ident() {
+        assert_eq!(sanitize_lean_ident("synthetic (10000000 Hz samplerate)"), "synthetic_10000000_Hz_samplerate");
+        assert_eq!(sanitize_lean_ident("live (ftdi-la, ADBUS4)"), "live_ftdi_la_ADBUS4");
+        assert_eq!(sanitize_lean_ident("---__---abc---"), "abc");
+        assert_eq!(sanitize_lean_ident(""), "");
+    }
+
+    #[test]
+    fn test_measured_to_lean_output_nominal() {
+        let m = MeasuredCclk::new(2_500_000.0, 50.0, "synthetic (10000000 Hz samplerate)".to_string());
+        let json = serde_json::to_string(&m).unwrap();
+        let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_{}.json", std::process::id()));
+        std::fs::write(&tmp, json).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, "measured_cclk", false).unwrap();
+        assert_eq!(out, ());
+        // Clean up.
+        std::fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_measured_to_lean_output_margin() {
+        let m = MeasuredCclk::new(25_000_000.0, 50.0, "live".to_string());
+        let json = serde_json::to_string(&m).unwrap();
+        let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_margin_{}.json", std::process::id()));
+        std::fs::write(&tmp, json).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, "measured_cclk", true).unwrap();
+        assert_eq!(out, ());
+        std::fs::remove_file(&tmp).unwrap();
     }
 }
