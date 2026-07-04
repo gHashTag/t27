@@ -649,6 +649,42 @@ lemma n25q128_pvt_process_derating_ns_nonneg (corner : ProcessCorner) :
   n25q128_pvt_process_derating_ns corner ≥ 0 := by
   cases corner <;> simp [n25q128_pvt_process_derating_ns]
 
+/-- The temperature derating is monotone inside the operating envelope: a
+    higher temperature (above the minimum) does not decrease the derating. -/
+lemma n25q128_pvt_temp_derating_ns_monotone (t1 t2 : Int) :
+  (PVT_TEMP_MIN_C ≤ t1) → (t1 ≤ t2)
+  → n25q128_pvt_temp_derating_ns t1 ≤ n25q128_pvt_temp_derating_ns t2 := by
+  intro h_min h_le
+  simp [n25q128_pvt_temp_derating_ns, PVT_TEMP_MIN_C]
+  omega
+
+/-- The voltage derating is antitone inside the operating envelope: a higher
+    VCCINT (closer to the maximum) does not increase the derating. -/
+lemma n25q128_pvt_voltage_derating_ns_antitone (v1 v2 : Nat) :
+  (v1 ≤ v2) → (v2 ≤ PVT_VCCINT_MAX_MV)
+  → n25q128_pvt_voltage_derating_ns v2 ≤ n25q128_pvt_voltage_derating_ns v1 := by
+  intro h_le h_max
+  simp [n25q128_pvt_voltage_derating_ns, PVT_VCCINT_MAX_MV]
+  omega
+
+/-- Process-corner ordering: ff is the best (fast-fast, no derating), ss is the
+    worst (slow-slow, largest derating). -/
+def ProcessCorner.worse_than (c1 c2 : ProcessCorner) : Prop :=
+  n25q128_pvt_process_derating_ns c1 ≤ n25q128_pvt_process_derating_ns c2
+
+/-- The process-corner derating is monotone with the `worse_than` order. -/
+lemma n25q128_pvt_process_derating_ns_monotone (c1 c2 : ProcessCorner) :
+  c1.worse_than c2 → n25q128_pvt_process_derating_ns c1 ≤ n25q128_pvt_process_derating_ns c2 := by
+  intro h
+  exact h
+
+/-- The corner ordering facts used by the monotonicity proof. -/
+lemma ProcessCorner.ff_worse_than_tt : ProcessCorner.ff.worse_than ProcessCorner.tt := by
+  simp [worse_than, n25q128_pvt_process_derating_ns]
+
+lemma ProcessCorner.tt_worse_than_ss : ProcessCorner.tt.worse_than ProcessCorner.ss := by
+  simp [worse_than, n25q128_pvt_process_derating_ns]
+
 /-- The PVT-aware SCK low bound is at least the nominal N25Q128 bound. This is
     the only fact the implication proof needs; real PVT data must preserve it. -/
 lemma pvt_low_ns_at_least_nominal (ctx : PvtContext) :
@@ -957,6 +993,59 @@ theorem oscfsel_7_nominal_measured_satisfies_flash_spec :
 theorem oscfsel_7_worstcase_pvt_measured_satisfies_flash_spec :
   measured_cclk_with_pvt_satisfies_flash_spec (cclk_nominal_hz 7) 50 OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
   decide
+
+-- ============================================================================
+-- OSCFSEL transaction theorems (W416)
+-- ============================================================================
+
+/-- The nominal OSCFSEL=0 rate produces a flash-spec-compliant transaction for
+    any transaction size. -/
+theorem oscfsel_0_measured_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz 0) 50 bits) = true := by
+  apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  · exact oscfsel_0_nominal_measured_satisfies_flash_spec
+
+/-- The nominal OSCFSEL=1 rate produces a flash-spec-compliant transaction. -/
+theorem oscfsel_1_measured_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz 1) 50 bits) = true := by
+  apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  · exact oscfsel_1_nominal_measured_satisfies_flash_spec
+
+/-- The nominal OSCFSEL=2 rate produces a flash-spec-compliant transaction. -/
+theorem oscfsel_2_measured_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz 2) 50 bits) = true := by
+  apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  · exact oscfsel_2_nominal_measured_satisfies_flash_spec
+
+/-- The nominal OSCFSEL=3 rate produces a flash-spec-compliant transaction. -/
+theorem oscfsel_3_measured_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz 3) 50 bits) = true := by
+  apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  · exact oscfsel_3_nominal_measured_satisfies_flash_spec
+
+/-- The nominal OSCFSEL=4 rate produces a flash-spec-compliant transaction. -/
+theorem oscfsel_4_measured_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz 4) 50 bits) = true := by
+  apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  · exact oscfsel_4_nominal_measured_satisfies_flash_spec
+
+/-- The nominal OSCFSEL=5 rate produces a flash-spec-compliant transaction. -/
+theorem oscfsel_5_measured_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz 5) 50 bits) = true := by
+  apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  · exact oscfsel_5_nominal_measured_satisfies_flash_spec
+
+/-- The nominal OSCFSEL=6 rate produces a flash-spec-compliant transaction. -/
+theorem oscfsel_6_measured_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz 6) 50 bits) = true := by
+  apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  · exact oscfsel_6_nominal_measured_satisfies_flash_spec
+
+/-- The nominal OSCFSEL=7 rate produces a flash-spec-compliant transaction. -/
+theorem oscfsel_7_measured_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz 7) 50 bits) = true := by
+  apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  · exact oscfsel_7_nominal_measured_satisfies_flash_spec
 
 end BitstreamConfig
 

@@ -1,3 +1,42 @@
+# NOW — Wave Loop 416 close-out / Wave Loop 417 setup (2026-07-01)
+
+## Wave Loop 416 — PVT-envelope CLI, VCD parser coverage, OSCFSEL transaction theorems (Closes #1347)
+
+- Branch: `wave-loop-416`
+- Issue: #1347
+- PR: #1348 (to merge via direct-to-master policy)
+- Report: `docs/reports/WAVE_LOOP_416_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W416_2026-07-01.md`
+- Cooperation W417: `docs/reports/FPGA_LOOP_COOPERATION_W417_2026-07-01.md`
+
+### What landed (Variant C — bench still blocked)
+- `cli/tri/src/fpga.rs`
+  - New `tri fpga pvt-envelope --pvt-context <ctx.json>` command prints the
+    PVT-derated N25Q128_3V `t_CL`/`t_CH` bound, margin over the nominal 6 ns
+    bound, and an envelope-validity warning for out-of-range contexts.
+  - VCD parser hardened for escaped identifiers with embedded spaces,
+    scalar `x`/`z`/`X`/`Z` transitions, and hex bus literals (`hFF !`).
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - PVT derating monotonicity lemmas: temperature monotone, voltage antitone,
+    process-corner ordering `ff ≤ tt ≤ ss`.
+  - OSCFSEL 0..7 `measured_transaction_ok` theorems linking each nominal
+    measured-CCLK rate to `transaction_satisfies_flash_spec`.
+- `fpga/HARDWARE_SSOT.md`
+  - Documented `tri fpga pvt-envelope` and the W416 VCD parser coverage.
+  - Updated the per-OSCFSEL transaction section to reference the new
+    transaction theorems.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired, DLC10 cable missing.
+- Real relay cold-POR gate — no relay board / USB power switch available.
+
+### Verification
+- `cargo test -p tri fpga::tests`: 38/38 PASS.
+- `lake build Trinity.TernaryFPGABoot`: PASS (2967 jobs).
+- Full repo sweep (`/Users/playra/t27/scripts/tri test`): parse/typecheck/GF16/gen-Zig/gen-Rust/gen-Verilog/seal/C/fixed-point PASS; gen-Verilog yosys smoke has 16 pre-existing failures from weak point #1245 (not introduced by W416).
+
+---
+
 # NOW — Wave Loop 415 close-out / Wave Loop 416 setup (2026-07-01)
 
 ## Wave Loop 415 — PVT-aware CCLK validation + VCD robustness + OSCFSEL theorem library (Closes #1343)
@@ -44,15 +83,15 @@
 
 ---
 
-# NOW — Wave Loop 416 setup
+# NOW — Wave Loop 417 setup
 
-## Wave Loop 416 — choose next variant after W415 land (Issue #1346)
+## Wave Loop 417 — choose next variant after W416 land (Issue #1348)
 
-- Branch: `wave-loop-416` (to create after W415 merge)
-- Issue: #1346 (to create after W415 merge)
-- Plan: `.claude/plans/wave-loop-416.md` (to create)
-- Report: `docs/reports/WAVE_LOOP_416_REPORT.md` (to create)
-- Cooperation W417: `docs/reports/FPGA_LOOP_COOPERATION_W417_2026-07-01.md` (to create)
+- Branch: `wave-loop-417` (to create after W416 merge)
+- Issue: #1348 (to create after W416 merge)
+- Plan: `.claude/plans/wave-loop-417.md` (to create)
+- Report: `docs/reports/WAVE_LOOP_417_REPORT.md` (to create)
+- Cooperation W418: `docs/reports/FPGA_LOOP_COOPERATION_W418_2026-07-01.md` (to create)
 
 ### Candidate variants
 - Variant A: resume physical CCLK capture once P12 is wired and the analyzer / DLC10 cable is available.

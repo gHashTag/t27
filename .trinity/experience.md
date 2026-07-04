@@ -1,5 +1,49 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-01 — Wave Loop 416 (PVT-envelope CLI, VCD parser coverage, OSCFSEL transaction theorems)
+
+### What worked
+- Adding a standalone `tri fpga pvt-envelope` command separated the "inspect the
+  envelope" use case from the "validate a capture" use case, making the PVT
+  model discoverable without an instrument export.
+- Proving monotonicity of the temperature/voltage/process-corner derating
+  functions in Lean 4 lets downstream reasoning pick any context inside the
+  operating rectangle and know the bound moves in the expected direction
+  (warmer / slower corner = larger derating; higher voltage = smaller derating).
+- Linking each OSCFSEL 0..7 nominal measured-CCLK rate to
+  `transaction_satisfies_flash_spec` via the existing implication theorem reused
+  the W410/W414 infrastructure without duplicating arithmetic.
+- Extending the line-oriented VCD parser for escaped identifiers, scalar x/z
+  transitions, and hex bus literals was contained to the value/name extraction
+  step and was validated by targeted unit tests before the full suite ran.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`: added `FpgaCmd::PvtEnvelope` and `pvt_envelope()`;
+  hardened `parse_vcd_to_raw_ns` for escaped names, scalar x/z, and hex bus
+  literals; added 6 new unit tests.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added PVT derating monotonicity
+  lemmas and `oscfsel_<n>_measured_transaction_ok` for n = 0..7.
+- `fpga/HARDWARE_SSOT.md` §3.6.13: documented `tri fpga pvt-envelope` and W16
+  VCD parser coverage; updated §3.6.9 to reference the OSCFSEL transaction theorems.
+- `docs/NOW.md`: W416 close-out and W417 setup.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_416_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W416_2026-07-01.md`, and
+  `docs/reports/FPGA_LOOP_COOPERATION_W417_2026-07-01.md`.
+
+### Patterns to reuse
+- A small CLI helper that prints the formal model's parameters makes the model
+  reviewable by humans and by CI without needing a full instrument export.
+- When a `Prop`-valued ordering definition (like `ProcessCorner.worse_than`) is
+  only needed for concrete corner facts, prove those facts by unfolding the
+  definition with `simp` rather than relying on `decide` to synthesize a
+  `Decidable` instance.
+- When applying a single-implication theorem, check the actual number of
+  subgoals produced by `apply` before adding bullet proofs; extra bullets produce
+  "no goals to be solved" rather than a proof error.
+- Keep parser extensions behind unit tests that exercise the exact quirk
+  (escaped identifier with space, scalar `x`/`z`, hex bus literal) so that future
+  refactors do not silently drop the special case.
+
 ## 2026-07-01 — Wave Loop 414 (PVT envelope, multi-bit/real VCD, `--validate`)
 
 ### What worked

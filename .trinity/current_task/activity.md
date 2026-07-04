@@ -1432,3 +1432,7 @@
 - **Commit:** feat(fpga): Wave Loop 15 — PVT-aware CCLK validation, VCD robustness, OSCFSEL theorem library
 - **Files:** .claude/plans/wave-loop-415.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W416_2026-07-01.md
 
+## 2026-07-04T16:03:17Z — wave-loop-416
+- **Commit:** docs(w415): correct PR/issue numbers for W415 land and W416 setup
+- **Files:** .claude/plans/wave-loop-416.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W417_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W416_2026-07-01.md,docs/reports/WAVE_LOOP_416_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+

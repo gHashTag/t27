@@ -575,6 +575,16 @@ pub enum FpgaCmd {
         #[arg(long)]
         vcd_threshold_v: Option<f64>,
     },
+    /// Print the PVT-derated N25Q128_3V SCK low/high bound for a supplied
+    /// operating context. Also prints the margin over the nominal 6 ns bound
+    /// and warns if the context is outside the documented operating envelope.
+    PvtEnvelope {
+        /// PVT context JSON file: {"temp_c": ..., "vccint_mv": ...,
+        /// "vccaux_mv": ..., "process_corner": "ff" | "tt" | "ss"}.
+        /// If omitted, prints the operating envelope bounds and example contexts.
+        #[arg(long)]
+        pvt_context: Option<PathBuf>,
+    },
     /// Build the QMTech XC7A100T-FGG676 proxy bitstream via a Docker
     /// container running Xilinx Vivado. Clones our `openFPGALoader` fork
     /// (`feat/qmtech-xc7a100t-board`) into `target/openfpgaloader-fork/`
@@ -818,6 +828,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *raw_ns,
             *validate,
         ),
+        FpgaCmd::PvtEnvelope { pvt_context } => pvt_envelope(pvt_context.as_ref()),
         FpgaCmd::ColdPor {
             bit,
             relay_port,
@@ -2748,11 +2759,120 @@ fn n25q128_pvt_process_derating_ns(corner: &ProcessCorner) -> u64 {
     }
 }
 
+/// Convert a hexadecimal string (e.g. "FF", "0a") into an equivalent
+/// binary string with leading zeros so that bit-indexing matches the VCD
+/// LSB-first convention. Returns `None` for invalid hex digits or x/z.
+fn hex_to_binary_string(hex: &str) -> Option<String> {
+    let mut out = String::new();
+    for c in hex.chars() {
+        let nibble = match c.to_ascii_lowercase() {
+            '0' => "0000",
+            '1' => "0001",
+            '2' => "0010",
+            '3' => "0011",
+            '4' => "0100",
+            '5' => "0101",
+            '6' => "0110",
+            '7' => "0111",
+            '8' => "1000",
+            '9' => "1001",
+            'a' => "1010",
+            'b' => "1011",
+            'c' => "1100",
+            'd' => "1101",
+            'e' => "1110",
+            'f' => "1111",
+            _ => return None,
+        };
+        out.push_str(nibble);
+    }
+    Some(out)
+}
+
 /// PVT-aware minimum SCK low/high time in nanoseconds.
 fn n25q128_min_sck_half_ns_pvt(ctx: &PvtContext) -> u64 {
     6 + n25q128_pvt_temp_derating_ns(ctx.temp_c)
         + n25q128_pvt_voltage_derating_ns(ctx.vccint_mv)
         + n25q128_pvt_process_derating_ns(&ctx.process_corner)
+}
+
+/// Print the PVT-aware SCK low/high bound for a user-supplied context.
+fn pvt_envelope(pvt_context: Option<&PathBuf>) -> Result<()> {
+    const NOMINAL_HALF_NS: u64 = 6;
+
+    if let Some(path) = pvt_context {
+        let ctx = parse_pvt_context(path)?;
+        let half_ns = n25q128_min_sck_half_ns_pvt(&ctx);
+        let margin_ns = half_ns.saturating_sub(NOMINAL_HALF_NS);
+        let corner_str = format!("{:?}", ctx.process_corner).to_lowercase();
+
+        println!("PVT-aware N25Q128_3V SCK timing envelope");
+        println!(
+            "  context: temp = {} °C, vccint = {} mV, vccaux = {} mV, process corner = {}",
+            ctx.temp_c, ctx.vccint_mv, ctx.vccaux_mv, corner_str
+        );
+        println!("  min SCK low / high = {} ns", half_ns);
+        println!("  margin over nominal {} ns = {} ns", NOMINAL_HALF_NS, margin_ns);
+
+        let temp_ok = ctx.temp_c >= PVT_TEMP_MIN_C && ctx.temp_c <= PVT_TEMP_MAX_C;
+        let vccint_ok = ctx.vccint_mv >= PVT_VCCINT_MIN_MV && ctx.vccint_mv <= PVT_VCCINT_MAX_MV;
+        if !temp_ok || !vccint_ok {
+            eprintln!(
+                "  WARNING: context is outside the documented operating envelope (temp {}..{} °C, vccint {}..{} mV).",
+                PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV
+            );
+        }
+        return Ok(());
+    }
+
+    println!("N25Q128_3V SCK timing envelope");
+    println!(
+        "  operating envelope: temp = {}..{} °C, vccint = {}..{} mV",
+        PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV
+    );
+    println!("  nominal min SCK low / high = {} ns", NOMINAL_HALF_NS);
+
+    let example_ctxs = [
+        (
+            "best-case (ff corner, 1100 mV, -40 °C)",
+            PvtContext {
+                temp_c: PVT_TEMP_MIN_C,
+                vccint_mv: PVT_VCCINT_MAX_MV,
+                vccaux_mv: 2700,
+                process_corner: ProcessCorner::Ff,
+            },
+        ),
+        (
+            "typical (tt corner, 1000 mV, 25 °C)",
+            PvtContext {
+                temp_c: 25,
+                vccint_mv: 1000,
+                vccaux_mv: 2700,
+                process_corner: ProcessCorner::Tt,
+            },
+        ),
+        (
+            "worst-case (ss corner, 900 mV, +85 °C)",
+            PvtContext {
+                temp_c: PVT_TEMP_MAX_C,
+                vccint_mv: PVT_VCCINT_MIN_MV,
+                vccaux_mv: 2700,
+                process_corner: ProcessCorner::Ss,
+            },
+        ),
+    ];
+
+    for (label, ctx) in example_ctxs {
+        let half_ns = n25q128_min_sck_half_ns_pvt(&ctx);
+        println!(
+            "  {}: min SCK low / high = {} ns (margin {} ns)",
+            label,
+            half_ns,
+            half_ns.saturating_sub(NOMINAL_HALF_NS)
+        );
+    }
+    println!("\nUse --pvt-context <ctx.json> to compute the bound for a specific context.");
+    Ok(())
 }
 
 /// Validate a raw-ns triple against the PVT-aware N25Q128_3V timing bounds.
@@ -3563,13 +3683,29 @@ fn parse_vcd_to_raw_ns(
             }
             if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
                 in_var = false;
-                // Expected tokens: [type, size, id, name, optional $end]
+                // Expected tokens: [type, size, id, name, ...attrs..., $end]
+                // The name may be an escaped identifier split across tokens, e.g.
+                // `\my sig`. Strip the leading backslash used by VCD escaping.
                 if var_tokens.len() >= 4 {
                     let vtype = var_tokens[0].to_lowercase();
                     let is_real = vtype == "real" || vtype == "integer";
                     let size = var_tokens[1].parse::<usize>().unwrap_or(0);
-                    let id = var_tokens[2].clone();
-                    let name = var_tokens[3].clone();
+                    let mut id = var_tokens[2].clone();
+                    let name_end = if var_tokens.last()
+                        .map(|s| s.eq_ignore_ascii_case("$end"))
+                        .unwrap_or(false)
+                    {
+                        var_tokens.len().saturating_sub(1)
+                    } else {
+                        var_tokens.len()
+                    };
+                    let mut name = var_tokens[3..name_end].join(" ");
+                    if name.starts_with('\\') {
+                        name = name.trim_start_matches('\\').to_string();
+                    }
+                    if id.starts_with('\\') {
+                        id = id.trim_start_matches('\\').to_string();
+                    }
                     vars.push((id.clone(), name.clone(), size, is_real));
                     if selected_id.is_none() {
                         let matches = if let Some(target) = signal {
@@ -3624,9 +3760,13 @@ fn parse_vcd_to_raw_ns(
 
         if let Some(sel) = &selected_id {
             // Scalar value change: one token like "1!" or "0$".
+            // x/z/X/Z values are indeterminate and must be ignored.
             if tokens.len() == 1 && tokens[0].len() >= 2 && !selected_is_real {
                 let tok = tokens[0];
                 let value_char = tok.chars().next().unwrap();
+                if value_char != '0' && value_char != '1' {
+                    continue;
+                }
                 let id: String = tok.chars().skip(1).collect();
                 if id == *sel {
                     let high = value_char == '1';
@@ -3639,7 +3779,7 @@ fn parse_vcd_to_raw_ns(
             }
 
             // Bus value change: `b<value> <id>` (e.g. `b0 !`, `b1 !`, `b0001_ !`).
-            if tokens.len() == 2 && tokens[0].starts_with('b') && !selected_is_real {
+            if tokens.len() == 2 && (tokens[0].starts_with('b') || tokens[0].starts_with('B')) && !selected_is_real {
                 let value_str = &tokens[0][1..];
                 let id = tokens[1];
                 if id == *sel {
@@ -3651,6 +3791,26 @@ fn parse_vcd_to_raw_ns(
                         if last_high != Some(high) {
                             transitions.push((current_time_s, high));
                             last_high = Some(high);
+                        }
+                    }
+                }
+                continue;
+            }
+
+            // Hex bus value change: `h<value> <id>` (some tools emit hex).
+            if tokens.len() == 2 && (tokens[0].starts_with('h') || tokens[0].starts_with('H')) && !selected_is_real {
+                let value_str = &tokens[0][1..];
+                let id = tokens[1];
+                if id == *sel {
+                    if let Some(bin) = hex_to_binary_string(value_str) {
+                        let bit = vcd_bit.min(bin.len().saturating_sub(1));
+                        let bit_char = bin.chars().rev().nth(bit).unwrap_or('0');
+                        if bit_char == '0' || bit_char == '1' {
+                            let high = bit_char == '1';
+                            if last_high != Some(high) {
+                                transitions.push((current_time_s, high));
+                                last_high = Some(high);
+                            }
                         }
                     }
                 }
@@ -5073,6 +5233,101 @@ mod tests {
         std::fs::remove_file(&vcd_tmp).unwrap();
     }
 
+    /// VCD with an escaped identifier that contains a space in the name.
+    /// The parser must join name tokens and strip the leading backslash.
+    #[test]
+    fn test_parse_vcd_escaped_identifier_with_space() {
+        let mut vcd = String::new();
+        vcd.push_str("$timescale 100 ps $end\n");
+        vcd.push_str("$scope module top $end\n");
+        // Escaped identifier: id=!, name="\my sig"
+        vcd.push_str("$var wire 1 ! \\my sig $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("$end\n");
+        vcd.push_str(&generate_vcd_clock(25_000_000.0, 20));
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_escaped_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
+            &vcd_tmp, Some("my sig"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// VCD scalar net with x/z transitions inserted between real edges.
+    /// The parser must ignore x/z and still measure a clean 25 MHz clock.
+    #[test]
+    fn test_parse_vcd_scalar_xz_ignored() {
+        let mut vcd = String::new();
+        vcd.push_str("$timescale 100 ps $end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 1 ! cclk $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("$end\n");
+        let timescale_ps = 100;
+        let period_s = 1.0 / 25_000_000.0;
+        let half_s = period_s / 2.0;
+        let mut t = 0.0;
+        for i in 0..40 {
+            t += half_s;
+            let ts = (t / (timescale_ps as f64 * 1.0e-12)).round() as u64;
+            let cclk_val = if i % 2 == 0 { '1' } else { '0' };
+            vcd.push_str(&format!("#{}\n{}!\n", ts, cclk_val));
+            // Insert an indeterminate transition right after each edge.
+            let xz_ts = ts + 1;
+            let xz_val = if i % 4 == 0 { 'x' } else { 'z' };
+            vcd.push_str(&format!("#{}\n{}!\n", xz_ts, xz_val));
+        }
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_xz_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
+            &vcd_tmp, Some("cclk"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// VCD with a 4-bit hex bus. Bit 0 toggles at 25 MHz.
+    #[test]
+    fn test_parse_vcd_hex_bus_to_raw_ns_25mhz() {
+        let mut vcd = String::new();
+        vcd.push_str("$timescale 100 ps $end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 4 ! data $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("h0 !\n");
+        vcd.push_str("$end\n");
+        let timescale_ps = 100;
+        let period_s = 1.0 / 25_000_000.0;
+        let half_s = period_s / 2.0;
+        let mut t = 0.0;
+        for i in 0..40 {
+            t += half_s;
+            let ts = (t / (timescale_ps as f64 * 1.0e-12)).round() as u64;
+            // bit 0 toggles; upper bits stay 0 => h0 / h1 alternating.
+            let val = if i % 2 == 0 { "h1" } else { "h0" };
+            vcd.push_str(&format!("#{}\n{} !\n", ts, val));
+        }
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_hex_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
+            &vcd_tmp, Some("data"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
     #[test]
     fn test_validate_accepts_in_spec_raw_ns() {
         let m = MeasuredCclkRawNs {
@@ -5221,6 +5476,44 @@ mod tests {
         std::fs::remove_file(&tmp).unwrap();
         std::fs::remove_file(&pvt).unwrap();
         std::fs::remove_file(&out_path).unwrap();
+    }
+
+    #[test]
+    fn test_pvt_envelope_worstcase_context() {
+        let pvt = write_pvt_context_json(
+            "worstcase",
+            &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
+        );
+        let out = pvt_envelope(Some(&pvt));
+        assert!(out.is_ok(), "pvt_envelope should accept a valid worst-case context");
+        // Worst-case bound is 6 + 2.5 (temp) + 1.0 (voltage) + 4 (ss) = 13 ns
+        // (integer arithmetic: temp derating = (125*2)/100 = 2; voltage = (200*5)/1000 = 1).
+        assert_eq!(n25q128_min_sck_half_ns_pvt(
+            &parse_pvt_context(&pvt).unwrap()), 13,
+            "worst-case half-period bound should be 13 ns");
+        std::fs::remove_file(&pvt).unwrap();
+    }
+
+    #[test]
+    fn test_pvt_envelope_no_context_prints_examples() {
+        // Without a context file the command prints the operating envelope and
+        // best/typical/worst example bounds. It should not error.
+        let out = pvt_envelope(None);
+        assert!(out.is_ok());
+    }
+
+    #[test]
+    fn test_parse_pvt_context_roundtrip() {
+        let pvt = write_pvt_context_json(
+            "roundtrip",
+            &serde_json::json!({"temp_c":-40,"vccint_mv":1100,"vccaux_mv":2700,"process_corner":"ff"}),
+        );
+        let ctx = parse_pvt_context(&pvt).unwrap();
+        assert_eq!(ctx.temp_c, -40);
+        assert_eq!(ctx.vccint_mv, 1100);
+        assert_eq!(ctx.vccaux_mv, 2700);
+        assert_eq!(ctx.process_corner, ProcessCorner::Ff);
+        std::fs::remove_file(&pvt).unwrap();
     }
 
     #[test]
