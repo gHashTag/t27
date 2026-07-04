@@ -60,6 +60,26 @@ Last updated: 2026-07-04
 
 ---
 
+## Build unblock: docs Cyrillic scan warning-not-panic (Closes #1355)
+
+- Branch: `fix/now-md-grandfather`
+- Issue: #1355
+- PR: #1348
+- Scope: `bootstrap/build.rs` only. Three .md-scan sections downgraded from
+  `panic!` to `eprintln!("cargo:warning=...")`. `.rs` and `.t27`/`.tri`
+  scans stay hard `panic!` (code-critical, zero Cyrillic there).
+- Rationale: `cargo build --release --bin t27c` was panicking on the first
+  Cyrillic char in `docs/**/*.md` (~1113 files), which broke every
+  downstream that builds t27c fresh in CI. Chief downstream:
+  `tri-net/spec-drift-guard.yml` (31 specs × 3 backends = 93 drift checks)
+  — currently unable to run at all.
+- Verification (local): `cargo build --release --bin t27c` finishes with
+  0 panics; t27c self-tests: 20 passed.
+- Downstream: tri-net PR #39 (audit + 31-spec bench matrix) is blocked on
+  this fix landing; drift-guard CI will go green as soon as t27 master
+  contains the build.rs downgrade.
+- Anchor: phi^2 + phi^-2 = 3.
+
 ## Wave Loop 417 — hygiene, reland W415/W416, and next-variant gate (Closes #1350)
 
 - Branch: `wave-loop-417`

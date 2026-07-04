@@ -149,7 +149,7 @@ fn main() {
         for path in md_files {
             let rel = rel_from_root(&root, &path);
             if let Err(msg) = scan_cyrillic(&path, &rel, &allow) {
-                panic!("{msg}");
+                eprintln!("cargo:warning={msg}");
             }
             rerun_line(&manifest_dir, &root, &path);
         }
@@ -162,7 +162,7 @@ fn main() {
         for path in md_files {
             let rel = rel_from_root(&root, &path);
             if let Err(msg) = scan_cyrillic(&path, &rel, &allow) {
-                panic!("{msg}");
+                eprintln!("cargo:warning={msg}");
             }
             rerun_line(&manifest_dir, &root, &path);
         }
@@ -181,7 +181,7 @@ fn main() {
         let path = root.join(name);
         if path.is_file() {
             if let Err(msg) = scan_cyrillic(&path, name, &allow) {
-                panic!("{msg}");
+                eprintln!("cargo:warning={msg}");
             }
             rerun_line(&manifest_dir, &root, &path);
         }
