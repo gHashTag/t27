@@ -1,16 +1,16 @@
-# Wave Loop 425 — FPGA board evidence / relay gate / PVT falsification
+# Wave Loop 420 — physical CCLK capture, real relay gate, or instrument-import depth
 
-**Issue:** #1374  
-**Branch:** `wave-loop-425`  
-**Milestone:** Continue the FPGA boot-evidence line from W424.
+**Issue:** #1361  
+**Branch:** `wave-loop-420`  
+**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 419.
 
 ---
 
 ## Goal
 
-Wave 424 hardened the FPGA tooling around instrument import, PVT context, CSV
-voltage units, and non-blocking auto-continue. Wave 425 must produce real
-boot evidence by executing the first available variant:
+Wave 419 closed the Variant C fallback (instrument-import parity, PVT
+monotonicity, standalone lake workflow). Wave 420 re-evaluates the bench state
+and executes the first available variant.
 
 1. **Variant A (preferred when bench becomes available):**
    - Confirm P12 is wired to a logic-analyzer channel.
@@ -29,27 +29,33 @@ boot evidence by executing the first available variant:
    - Document the import recipe and PVT-context checklist in
      `fpga/HARDWARE_SSOT.md`.
 
-3. **Variant C (fallback if bench still fully blocked):**
-   - Implement or defer real XADC readout in `tri fpga boot-log` / `cclk-sweep`.
-   - Land the next safe gen-verilog #1245 sub-fix if one is narrow and
-     regression-free; otherwise explicitly defer.
-   - Harden boot-log / cold-por / cclk-sweep JSON schema and update the
-     competitor snapshot.
+2. **Variant B (if relay hardware is available, no CCLK probe):**
+   - Implement a real `--relay-port` backend for `tri fpga cold-por`
+     (e.g. serial or TCP relay controlling board power).
+   - Perform an automated cold-POR power-cycle and capture STAT without
+     operator intervention.
+   - Document relay wiring and port syntax in `fpga/HARDWARE_SSOT.md`.
+
+3. **Variant C (fallback if bench still blocked):**
+   - Extend instrument-import depth: VCD auto-threshold, CSV sample-rate
+     auto-detection, or additional vendor header aliases.
+   - Refine the PVT envelope if real N25Q128_3V timing curves become available,
+     otherwise add another shape-preservation lemma.
+   - Land one safe gen-verilog #1245 sub-fix that does not destabilize the
+     existing 16-failure yosys smoke baseline.
 
 ---
 
 ## Decomposed plan
 
-See `docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md`.
-
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `cli/tri/src/fpga.rs` | Variant A capture import, B dry-run + PVT context, or C XADC/schema hardening |
-| 2 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | New measured theorems or PVT helpers |
-| 3 | `fpga/HARDWARE_SSOT.md` | Updated capture / import / PVT protocol |
-| 4 | `docs/reports/*` | W425 report, evidence, W426 cooperation |
-| 5 | `.trinity/experience.md` | W425 learnings |
-| 6 | git/PR | squash-merge to `master`, close #1374, open next issue for W426 |
+| 1 | `cli/tri/src/fpga.rs` | Variant A import, B relay backend, or C instrument-import depth / gen-verilog sub-fix |
+| 2 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | New measured theorems or PVT shape lemma |
+| 3 | `fpga/HARDWARE_SSOT.md` | Updated capture / relay / integration protocol |
+| 4 | `docs/reports/*` | W420 report, evidence, W421 cooperation |
+| 5 | `.trinity/experience.md` | W420 learnings |
+| 6 | git/PR | squash-merge to `master`, close #1361, open #? for W421 |
 
 ---
 
@@ -67,9 +73,9 @@ See `docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md`.
 - [ ] AC-B3: `fpga/HARDWARE_SSOT.md` documents the import recipe and PVT-context checklist.
 
 ### Bundle C
-- [ ] AC-C1: Real XADC readout is implemented or a documented deferral explains why it remains placeholder.
-- [ ] AC-C2: `gen-verilog-yosys-smoke` failure count does not increase; any deferred #1245 sub-fix is explained.
-- [ ] AC-C3: Boot-log / cold-por / cclk-sweep JSON schema is measurably more robust or better documented.
+- [x] AC-C1: VCD instrument-import unit tests land: exact `$end` token terminator regression and real-valued net auto-threshold.
+- [x] AC-C2: New PVT envelope shape lemma/test lands: process-corner monotonicity (`ff ≤ tt ≤ ss`).
+- [ ] AC-C3: One safe gen-verilog #1245 sub-fix lands without increasing the 16-failure yosys smoke count. (Deferred; the remaining tracked gap is RAM style inference, which is not a safe narrow sub-fix for a Variant C wave.)
 
 ### Invariant checks
 - [ ] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
@@ -81,10 +87,11 @@ See `docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md`.
 ## PR
 
 - Target: `master`
-- Body: `Closes #1374`
-- Report: `docs/reports/WAVE_LOOP_425_REPORT.md`
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W425_2026-07-05.md`
-- Cooperation W426: `docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md`
+- PR: to open after work
+- Body: `Closes #1361`
+- Report: `docs/reports/WAVE_LOOP_420_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-06.md`
+- Cooperation W421: `docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-06.md`
 
 ---
 

@@ -878,6 +878,36 @@ package-root module, not for a file nested inside the `Trinity` module path.
 When adding a theorem to the main tree, use the non-standalone snippet and paste
 it into an existing `Trinity` module.
 
+#### 3.6.17 VCD `$comment` exact terminator, real-net auto-threshold, and PVT corner monotonicity (W420)
+
+While the bench remained blocked, W420 hardened the instrument-import pipeline:
+
+- **VCD `$comment` exact-token terminator.** The parser no longer terminates a
+  `$date`, `$version`, or `$comment` section when the line merely contains the
+  substring `$end`. Only a bare `$end` token closes the section. This prevents
+  vendor comments such as `Note: the $end token marks section boundaries` from
+  corrupting the signal dictionary.
+
+- **Real-valued VCD auto-threshold.** For analog VCD exports (e.g. from an
+  oscilloscope or a real-valued logic-analyzer channel), `--vcd-threshold-v` is
+  now optional. When omitted, `tri fpga measured-to-lean` computes the threshold
+  as `50% (vmin + vmax)` over the observed voltage swing and prints it:
+
+  ```bash
+  tri fpga measured-to-lean --vcd cclk_analog.vcd --vcd-signal cclk_analog \
+    --raw-ns --standalone --out MeasuredAnalog.lean
+  # [measured-to-lean] VCD real-valued signal auto-threshold: 1.650 V (swing 0.000 V .. 3.300 V)
+  ```
+
+  Supply `--vcd-threshold-v` explicitly when the observed swing includes noise
+  floors or overshoots that would move the 50% point away from the true logic
+  threshold.
+
+- **PVT corner monotonicity.** The placeholder envelope now has a Lean 4 proof
+  (`pvt_half_ns_monotone_in_process_corner`) plus a Rust operating-rectangle test
+  verifying that the half-period bound respects the `ff ≤ tt ≤ ss` ordering:
+  a worse process corner never yields a smaller (less conservative) bound.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)
