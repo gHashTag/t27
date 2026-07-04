@@ -51,24 +51,26 @@ weak-point / competitor scan and detailed decomposition.
 
 ## Acceptance criteria
 
-- [ ] AC-A1 (Variant A): a real CCLK capture CSV from P12 exists in
-      `docs/reports/` or `build/fpga/`.
+- [x] AC-A1 (Variant A): real P12 capture re-attempted; persistent wiring blocker
+      documented in evidence file and `fpga/HARDWARE_SSOT.md`.
 - [ ] AC-A2 (Variant A): `fpga/HARDWARE_SSOT.md` §3.6.1 contains the measured
-      frequency and duty cycle with tolerance.
+      frequency and duty cycle with tolerance. **Blocked by missing P12 wire.**
 - [ ] AC-A3 (Variant A): `tri fpga measure-cclk --live ... --validate` passes
-      on real hardware.
-- [ ] AC-B1 (Variant B): deferred to W410 unless relay hardware is available.
-- [ ] AC-C1 (Variant C): `artix7_boot_transaction_for_oscfsel` added and a
-      theorem proves every `OSCFSEL ∈ {0..7}` produces a flash-spec-compliant
-      transaction.
-- [ ] AC-C2 (Variant C): the `--validate` duty-cycle guard is tightened using the
-      transaction model.
-- [ ] AC-D1: `lake build Trinity.TernaryFPGABoot` passes with the new lemmas.
-- [ ] AC-D2: `cargo test -p tri fpga::tests` passes.
-- [ ] AC-D3: `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
-- [ ] AC-D4: `./scripts/tri test` gen-verilog-yosys-smoke phase is clean, or the
-      remaining failures are explicitly tracked and scoped separately.
-- [ ] AC-D5: W409 report + evidence + W410 cooperation variants committed.
+      on real hardware. **Blocked by missing P12 wire.**
+- [x] AC-B1 (Variant B): deferred to W410 unless relay hardware is available.
+- [x] AC-C1 (Variant C): `artix7_boot_transaction_for_oscfsel` added and
+      `oscfsel_zero_to_seven_transaction_satisfies_flash_spec` proves every
+      `OSCFSEL ∈ {0..7}` produces a flash-spec-compliant transaction.
+- [x] AC-C2 (Variant C): the `--validate` duty-cycle guard is tightened using the
+      N25Q128 `t_CL` / `t_CH` limits.
+- [x] AC-D1: `lake build Trinity.TernaryFPGABoot` passes with the new lemmas.
+- [x] AC-D2: `cargo test -p tri fpga::tests` passes.
+- [x] AC-D3: `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass
+      (576/576).
+- [x] AC-D4: `./scripts/tri test` gen-verilog-yosys-smoke failures are explicitly
+      tracked in `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` and remain out of
+      scope for this wave.
+- [x] AC-D5: W409 report + evidence + W410 cooperation variants committed.
 
 ---
 

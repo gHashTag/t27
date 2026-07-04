@@ -1,5 +1,51 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-04 — Wave Loop 409 (per-OSCFSEL transaction lookup + tighter duty bound)
+
+### What worked
+- Refactoring `artix7_boot_transaction` to call `artix7_boot_transaction_for_oscfsel`
+  made the per-OSCFSEL lookup table trivial to state and prove. The equality
+  theorem `artix7_boot_transaction_eq_for_oscfsel` preserves the link to the
+  config-level API.
+- Using `interval_cases` (from `Mathlib.Tactic`) on `oscfsel ≤ 7` let Lean
+  enumerate the eight documented OSCFSEL values and discharge each branch with
+  `simp` + the UG470 frequency table. This is a clean computational proof pattern
+  for small finite lookup tables.
+- Deriving the duty-cycle bound from the N25Q128 `t_CL` / `t_CH` limits and the
+  measured frequency replaces the arbitrary 25%–75% placeholder with a bound that
+  tightens automatically as frequency increases.
+- Re-running the live P12 capture immediately confirmed the wiring blocker is
+  unchanged, avoiding the temptation to claim Variant A succeeded.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added
+  `artix7_boot_transaction_for_oscfsel`,
+  `oscfsel_zero_to_seven_transaction_satisfies_flash_spec`, and
+  `artix7_boot_transaction_eq_for_oscfsel`; imported `Mathlib.Tactic`.
+- `cli/tri/src/fpga.rs`: added `N25Q128_MIN_SCK_LOW_S` / `N25Q128_MIN_SCK_HIGH_S`
+  and replaced the fixed 25%–75% duty guard with a frequency-derived bound
+  clamped to 10%–90%.
+- `fpga/HARDWARE_SSOT.md` §3.6.9: per-OSCFSEL transaction table and note that
+  OSCFSEL 6/7 are model-only.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_409_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W409_2026-07-04.md`, and
+  `docs/reports/FPGA_LOOP_COOPERATION_W410_2026-07-04.md`.
+
+### Patterns to reuse
+- For a finite lookup-table proof in Lean 4, import `Mathlib.Tactic` and use
+  `interval_cases` followed by `simp` with the lookup function and constants.
+- When replacing a placeholder constant with a computed bound, keep a small
+  sensible clamp so pathological low-frequency captures are still rejected.
+- Always re-run the physical gate that was blocked in the previous wave before
+  claiming it is unblocked.
+
+### Anti-patterns to avoid
+- Do not add a new tactic import without checking that the file builds with it;
+  `interval_cases` is not available in a bare Lean file.
+- Do not change a definition used by existing theorems without updating their
+  `simp` sets; `artix7_boot_transaction` now expands to
+  `artix7_boot_transaction_for_oscfsel`, so the latter must be in the simp list.
+
 ## 2026-07-04 — Wave Loop 408 (SPI transaction model + real CCLK blocker)
 
 ### What worked

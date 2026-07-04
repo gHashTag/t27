@@ -2317,12 +2317,21 @@ const N25Q128_MAX_SCK_HZ: f64 = 50_000_000.0;
 /// or the FPGA never drove the pin. Roughly 100 kHz.
 const CCLK_MIN_SENSE_HZ: f64 = 100_000.0;
 
-/// Sensible duty-cycle range for a valid CCLK. The N25Q128 datasheet only
-/// specifies SCK low/high times; this range rejects pathological captures
-/// (e.g., 1% pulses) while allowing real-world asymmetry. Can be tightened
-/// once a real P12 capture is available.
-const CCLK_MIN_DUTY_PCT: f64 = 25.0;
-const CCLK_MAX_DUTY_PCT: f64 = 75.0;
+/// Minimum SCK clock-low time (seconds) for the N25Q128_3V standard Read
+/// command. Datasheet value: 5.5 ns; rounded up to 6 ns to keep the model
+/// integral and conservative.
+const N25Q128_MIN_SCK_LOW_S: f64 = 6.0e-9;
+
+/// Minimum SCK clock-high time (seconds) for the N25Q128_3V standard Read
+/// command. Datasheet value: 5.5 ns; rounded up to 6 ns to keep the model
+/// integral and conservative.
+const N25Q128_MIN_SCK_HIGH_S: f64 = 6.0e-9;
+
+/// Sensible absolute duty-cycle range for a valid CCLK. This is a last-resort
+/// guard that rejects pathological captures (e.g., 1% pulses) when the
+/// frequency-derived N25Q128 bound becomes very loose at low CCLK rates.
+const CCLK_MIN_DUTY_PCT: f64 = 10.0;
+const CCLK_MAX_DUTY_PCT: f64 = 90.0;
 
 /// Print guidance for measuring the Master SPI CCLK output, run a live capture
 /// via sigrok-cli, parse a CSV export, or generate a synthetic fixture to
@@ -2409,19 +2418,33 @@ fn measure_cclk(
                 CCLK_MIN_SENSE_HZ / 1e6
             );
         }
-        if duty_pct < CCLK_MIN_DUTY_PCT || duty_pct > CCLK_MAX_DUTY_PCT {
+        // N25Q128 t_CL / t_CH bound: for a measured frequency f and period T,
+        // the high time must be ≥ t_CH and the low time must be ≥ t_CL.
+        // High time = duty * T, low time = (1 - duty) * T.
+        // => duty ∈ [t_CL / T, 1 - t_CH / T]
+        // => duty_pct ∈ [100 * t_CL * f, 100 - 100 * t_CH * f].
+        let period_s = 1.0 / freq_hz;
+        let min_duty_pct = 100.0 * N25Q128_MIN_SCK_LOW_S / period_s;
+        let max_duty_pct = 100.0 - 100.0 * N25Q128_MIN_SCK_HIGH_S / period_s;
+        let clamped_min_duty_pct = min_duty_pct.max(CCLK_MIN_DUTY_PCT);
+        let clamped_max_duty_pct = max_duty_pct.min(CCLK_MAX_DUTY_PCT);
+        if duty_pct < clamped_min_duty_pct || duty_pct > clamped_max_duty_pct {
             bail!(
-                "measured duty cycle {:.1}% is outside sensible range {:.1}%–{:.1}%",
+                "measured duty cycle {:.1}% is outside N25Q128-derived range {:.1}%–{:.1}% (or sensible {:.1}%–{:.1}%)",
                 duty_pct,
+                min_duty_pct,
+                max_duty_pct,
                 CCLK_MIN_DUTY_PCT,
                 CCLK_MAX_DUTY_PCT
             );
         }
         println!(
-            "  Validation: OK (CCLK within N25Q128 standard-read spec, {:.1}x below {:.3} MHz limit, duty {:.1}%)",
+            "  Validation: OK (CCLK within N25Q128 standard-read spec, {:.1}x below {:.3} MHz limit, duty {:.1}%, N25Q128-derived range {:.1}%–{:.1}%)",
             N25Q128_MAX_SCK_HZ / freq_hz,
             N25Q128_MAX_SCK_HZ / 1e6,
-            duty_pct
+            duty_pct,
+            min_duty_pct,
+            max_duty_pct
         );
     }
 

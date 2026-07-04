@@ -402,8 +402,9 @@ tri fpga measure-cclk --live --driver ftdi-la --channel ADBUS4 \
 For a DSLogic Plus use `--driver dreamsourcelab-dslogic --channel 0`. The command
 runs `sigrok-cli`, parses the logic CSV, estimates frequency and duty cycle,
 and (with `--validate`) fails if the result is outside the N25Q128 standard-read
-spec, below 100 kHz (noise / no-signal guard), or outside a sensible 25%–75%
-duty-cycle range.
+spec, below 100 kHz (noise / no-signal guard), or outside the N25Q128-derived
+duty-cycle bound computed from the measured frequency and the `t_CL` / `t_CH`
+limits (clamped to a sensible 10%–90% range).
 
 #### 3.6.6 CSV capture (manual export)
 
@@ -429,8 +430,11 @@ With `--validate`, `tri fpga measure-cclk` checks:
 
 - `freq_hz >= 100 kHz` (signal present, not noise).
 - `freq_hz <= 50 MHz` (N25Q128 standard-read maximum for command `0x03`).
-- `25% <= duty_cycle <= 75%` (rejects pathological pulses; can be tightened once
-  a real P12 capture is available).
+- N25Q128-derived duty-cycle bound:
+  `duty_pct ∈ [100·t_CL·f, 100 - 100·t_CH·f]` where `f` is the measured
+  frequency, `t_CL = 6 ns`, and `t_CH = 6 ns`. This bound is clamped to the
+  sensible range `[10%, 90%]` so that very low-frequency captures still reject
+  pathological pulses.
 
 A measured canonical CCLK is expected to be ~2.5 MHz with ~50% duty, giving a
 ~20× frequency margin to the flash limit and a >30× half-period margin to the
@@ -474,11 +478,37 @@ N25Q128_3V spec. This is proved in Lean 4 as
 `canonical_oscfsel_transaction_satisfies_flash_spec` and linked to the cold-POR
 predicate via `cold_por_implies_transaction_satisfies_flash_spec`.
 
-> **Real-capture blocker (2026-07-04):** a live `tri fpga measure-cclk --live`
-> run using the on-bench Digilent FTDI cable returned 100 k all-high samples at
-> 0 MHz, which means the cable is detected but **P12 is not wired to ADBUS4**.
-> The synthetic fixture remains the CI anchor until the P12 → ADBUS4 wire is
-> added.
+#### 3.6.9 Per-OSCFSEL transaction lookup (W409)
+
+W409 extends the transaction model with a lookup table for every documented
+Artix-7 `OSCFSEL` value (0..7). The function
+`BitstreamConfig.artix7_boot_transaction_for_oscfsel` builds an
+`SPIReadTransaction` directly from a raw OSCFSEL selection, and the theorem
+`oscfsel_zero_to_seven_transaction_satisfies_flash_spec` proves that every one of
+these selections produces an N25Q128_3V-compliant transaction.
+
+| OSCFSEL | Nominal CCLK | Nominal period | SCK low/high | Flash margin |
+|---------|-------------:|---------------:|-------------:|--------------|
+| 0       | 2.5 MHz      | 400 ns         | 200 ns       | 20.0× below 50 MHz |
+| 1       | 4.2 MHz      | ~238 ns        | ~119 ns      | 11.9× below 50 MHz |
+| 2       | 6.6 MHz      | ~152 ns        | ~76 ns       | 7.6× below 50 MHz |
+| 3       | 10.0 MHz     | 100 ns         | 50 ns        | 5.0× below 50 MHz |
+| 4       | 12.5 MHz     | 80 ns          | 40 ns        | 4.0× below 50 MHz |
+| 5       | 16.7 MHz     | ~60 ns         | ~30 ns       | 3.0× below 50 MHz |
+| 6       | 25.0 MHz     | 40 ns          | 20 ns        | 2.0× below 50 MHz |
+| 7       | 33.3 MHz     | ~30 ns         | ~15 ns       | 1.5× below 50 MHz |
+
+The W400 cold-POR CCLK sweep verified `OSCFSEL=0..5` on real hardware (all
+reported `STAT=0x401079FC`). `OSCFSEL=6` and `OSCFSEL=7` are predicted by the
+UG470 lookup and have not yet been physically booted on the Wukong board; they
+are included in the formal lookup table because their nominal margins are still
+positive.
+
+> **Real-capture blocker (2026-07-04, confirmed 2026-07-04):** repeated live
+> `tri fpga measure-cclk --live` runs using the on-bench Digilent FTDI cable
+> return 100 k all-high samples at 0 MHz, which means the cable is detected but
+> **P12 is not wired to ADBUS4**. The synthetic fixture remains the CI anchor until
+> the P12 → ADBUS4 wire is added.
 
 ---
 

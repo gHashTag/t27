@@ -2,11 +2,18 @@
 
 Last updated: 2026-07-04
 
-## w409-fpga-p12-retry-and-oscfsel-lookup -- real P12 CCLK retry + per-OSCFSEL SPI transaction lookup (Issue #1323)
+## w410-fpga-p12-or-oscfsel-67 -- real P12 CCLK capture or physical OSCFSEL 6/7 boot + measured-duty formal link (Issue #TBD)
 
-- **WHERE**: `docs/reports/FPGA_LOOP_COOPERATION_W409_2026-07-04.md`, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `fpga/HARDWARE_SSOT.md` §3.6.1, `cli/tri/src/fpga.rs`, close-out reports.
-- **WHAT**: Wave Loop 409 follows W408. Default bundle is Variant A + C: retry the real P12 CCLK capture once wiring is available and extend the Lean 4 transaction model to a per-OSCFSEL lookup for `OSCFSEL = 0..7`, proving every documented Artix-7 CCLK selection is N25Q128_3V compliant. If P12 wiring remains unavailable, fall back to Variant C alone. If CI automation is the priority, pick Variant B (relay-controlled cold-POR + JTAG isolation) and defer per-OSCFSEL lookup to W410.
-- **Why**: W408 proved the canonical transaction is safe; W409 anchors it to silicon (A) and generalizes the proof across all documented CCLK variants (C), making the formal argument strictly stronger and harder for formal-HDL competitors to reproduce.
+- **WHERE**: `docs/reports/FPGA_LOOP_COOPERATION_W410_2026-07-04.md`, `fpga/HARDWARE_SSOT.md` §3.6.1/§3.6.9, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`, close-out reports.
+- **WHAT**: Wave Loop 410 follows W409. Default bundle is Variant A + C: finally capture the real P12 CCLK once the wiring is available, and physically boot `OSCFSEL=6,7` to close the lookup table against silicon. Add a measured-duty formal lemma linking a captured `(frequency, duty)` pair to `transaction_satisfies_flash_spec`. If P12 wiring is still unavailable, fall back to Variant C alone (boot 6/7 + measured-duty lemma). If CI automation is the priority, pick Variant B (relay-controlled cold-POR + JTAG isolation).
+- **Why**: W409 generalized the transaction proof across all documented CCLK variants; W410 anchors the two highest-margin variants to real hardware and makes the CCLK validation pipeline itself formally traceable.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+## w409-fpga-p12-retry-and-oscfsel-lookup -- real P12 CCLK retry + per-OSCFSEL SPI transaction lookup (Closes #1323)
+
+- **WHERE**: `docs/reports/WAVE_LOOP_409_REPORT.md`, `docs/reports/FPGA_LOOP_EVIDENCE_W409_2026-07-04.md`, `docs/reports/FPGA_LOOP_COOPERATION_W410_2026-07-04.md`, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`, `fpga/HARDWARE_SSOT.md` §3.6.9.
+- **WHAT**: Re-attempted real P12 CCLK capture; the wiring blocker persists (0 MHz / 100% duty). Added `artix7_boot_transaction_for_oscfsel` to the Lean 4 model and proved `oscfsel_zero_to_seven_transaction_satisfies_flash_spec` for every documented Artix-7 CCLK selection (0..7). Rewrote `artix7_boot_transaction` as a wrapper around the lookup. Replaced the placeholder 25%–75% duty-cycle guard in `cli/tri/src/fpga.rs` with a frequency-derived bound from the N25Q128 `t_CL` / `t_CH` limits, clamped to 10%–90%. Added §3.6.9 to `fpga/HARDWARE_SSOT.md` with the per-OSCFSEL transaction table and a note that OSCFSEL 6/7 are model-only. Generated W409 report, evidence, and W410 cooperation variants.
+- **Why**: W408 proved the canonical transaction is safe; W409 generalizes the proof across all documented CCLK variants and removes the placeholder duty-cycle guard, making the formal argument strictly stronger and harder for formal-HDL competitors to reproduce.
 - **Anchor**: phi^2 + phi^-2 = 3
 
 ## w408-fpga-real-cclk-and-transaction-model -- real P12 CCLK measurement + complete SPI transaction model in Lean 4 (Closes #1318)
