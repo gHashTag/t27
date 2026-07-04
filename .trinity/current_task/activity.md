@@ -1312,3 +1312,7 @@
 - **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-04T03:35:27Z — wave-loop-394
+- **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
+- **Files:** .claude/plans/wave-loop-394.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-05.md,fpga/HARDWARE_SSOT.md
+

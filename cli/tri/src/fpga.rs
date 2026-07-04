@@ -120,6 +120,17 @@ pub enum FpgaCmd {
         /// Bulk-erase the flash before writing.
         #[arg(long)]
         bulk_erase: bool,
+        /// Enable the SPI flash quad-enable (QE) bit before writing.
+        /// Needed for some boards/flash to boot from x4 SPI.
+        #[arg(long)]
+        enable_quad: bool,
+        /// Disable the SPI flash quad-enable (QE) bit.
+        #[arg(long)]
+        disable_quad: bool,
+        /// SPI bus width expected by the bitstream: 1, 2, or 4.
+        /// Logged for diagnosis; the real width is set in the bitstream.
+        #[arg(long, value_name = "WIDTH", value_parser = clap::builder::PossibleValuesParser::new(["1", "2", "4"]))]
+        spi_buswidth: Option<String>,
     },
     /// Dump SPI flash contents to a file via openFPGALoader's JTAG-to-SPI bridge.
     DumpFlash {
@@ -134,6 +145,16 @@ pub enum FpgaCmd {
         /// Size in bytes to dump (default: 16 MiB, the whole N25Q128).
         #[arg(long, default_value_t = 16777216)]
         size: usize,
+    },
+    /// Read the SPI flash status register via openFPGALoader's JTAG-to-SPI bridge.
+    /// Decodes WIP, WEL, and QE bits to help diagnose boot-from-flash failures.
+    FlashStatus {
+        /// openFPGALoader cable profile (default: digilent_hs2).
+        #[arg(long, default_value = "digilent_hs2")]
+        cable: String,
+        /// FPGA part/package for bridge selection (default: xc7a200tfgg676).
+        #[arg(long, default_value = "xc7a200tfgg676")]
+        part: String,
     },
     /// Diagnostic: load *only* the proxy bridge bitstream (or any other
     /// bitstream) into FPGA SRAM, report STAT, leave TAP in RTI. Does NOT
@@ -317,6 +338,9 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             skip_reset,
             verify,
             bulk_erase,
+            enable_quad,
+            disable_quad,
+            spi_buswidth,
         } => program_flash(
             bit,
             cable,
@@ -327,6 +351,9 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *skip_reset,
             *verify,
             *bulk_erase,
+            *enable_quad,
+            *disable_quad,
+            spi_buswidth.as_deref(),
         ),
         FpgaCmd::DumpFlash {
             out,
@@ -334,6 +361,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             part,
             size,
         } => dump_flash(out, cable, part, *size),
+        FpgaCmd::FlashStatus { cable, part } => flash_status(cable, part),
     }
 }
 
@@ -1300,9 +1328,15 @@ fn program_flash(
     skip_reset: bool,
     verify: bool,
     bulk_erase: bool,
+    enable_quad: bool,
+    disable_quad: bool,
+    spi_buswidth: Option<&str>,
 ) -> Result<()> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
+    }
+    if enable_quad && disable_quad {
+        bail!("--enable-quad and --disable-quad are mutually exclusive");
     }
 
     let bit_str = bit.to_str().ok_or_else(|| anyhow!("bitstream path is not UTF-8"))?;
@@ -1331,7 +1365,20 @@ fn program_flash(
     if bulk_erase {
         args.push("--bulk-erase".to_string());
     }
+    if enable_quad {
+        args.push("--enable-quad".to_string());
+    }
+    if disable_quad {
+        args.push("--disable-quad".to_string());
+    }
     args.push(bit_str.to_string());
+
+    if let Some(w) = spi_buswidth {
+        eprintln!(
+            "[program-flash] bitstream expects SPI x{}; ensure the flash QE bit and board straps match",
+            w
+        );
+    }
 
     let extra: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     let (_status, _output) = run_openfpgaloader(cable, &extra, true)?;
@@ -1355,6 +1402,45 @@ fn dump_flash(out: &PathBuf, cable: &str, part: &str, size: usize) -> Result<()>
     let (_status, _output) = run_openfpgaloader(cable, &extra, true)?;
     eprintln!();
     eprintln!("[dump-flash] Dump complete: {}", out.display());
+    Ok(())
+}
+
+fn flash_status(cable: &str, part: &str) -> Result<()> {
+    eprintln!(
+        "[flash-status] Probing SPI flash via openFPGALoader. \
+         openFPGALoader does not expose a raw RDSR (0x05) read, so this command \
+         reports the detected flash chip and guidance for reading the status register."
+    );
+
+    let extra: Vec<&str> = vec![
+        "-f",
+        "--detect",
+        "--fpga-part",
+        part,
+    ];
+    let (_status, output) = run_openfpgaloader(cable, &extra, true)?;
+    let text = output.unwrap_or_default();
+
+    // Best-effort parse of any JEDEC / flash-id line.
+    for line in text.lines() {
+        let lower = line.to_ascii_lowercase();
+        if lower.contains("flash")
+            || lower.contains("jedec")
+            || lower.contains("manufacturer")
+            || lower.contains("device")
+            || lower.contains("idcode")
+        {
+            println!("{}", line.trim());
+        }
+    }
+
+    println!();
+    println!("Flash status register decode is not available through openFPGALoader.");
+    println!("Recommended alternatives:");
+    println!("  1. Use a dedicated SPI programmer (e.g. flashrom -p ft2232_spi:type=232H,port=A)");
+    println!("     to read RDSR (0x05), RDSR2 (0x35), RDSR3 (0x15).");
+    println!("  2. Build a 200T JTAG-to-SPI proxy for the in-tree dlc10 driver and run");
+    println!("     `tri fpga spi-raw 05 --rx 1` to read SR1.");
     Ok(())
 }
 
