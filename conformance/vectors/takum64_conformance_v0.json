@@ -49,8 +49,8 @@
     },
     {
       "kind": "libtakum_c_parity",
-      "oracle": "full-domain exhaustive / analytic separation bound via libtakum C reference",
-      "result": "NOT DONE -- separate step (Variant B); 2^64 codes infeasible to enumerate here"
+      "oracle": "libtakum (Hunhold, ISO C99 reference, ISC) takum_log64_to_float64 via ctypes; independent 2nd implementation of the takum decode law.",
+      "result": "PARTIAL (honest limitation). DECODE-VALUE parity at f64: all 15 curated decoded_f64 equal the correctly-rounded f64 of the true takum decode (mpmath 1200-bit), and libtakum decodes the same codes to the same f64 (<=1 ULP long-double noise). ENCODE bit-pattern parity does NOT hold and is NOT claimed: curated vectors use the canonical mantissa=0 code for value=exp(c/2); libtakum's encoder returns a different nearest code (nonzero low mantissa bits) that decodes to the SAME f64. Both codes valid; ours is the definitional grid anchor, not the unique round-to-nearest code of the 52-bit f64 input. The 59-bit takum64 mantissa makes these distinct; at takum32 (shorter mantissa) they coincide bit-for-bit."
     }
   ],
   "n_vectors": 15,
