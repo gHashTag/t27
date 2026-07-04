@@ -1,31 +1,37 @@
-# Current Issue: Wave Loop 394
+# Current Issue: Wave Loop 396
 
-**Issue:** #1290
-**Local branch:** `wave-loop-394` (branched from `trinity-rust-rings`)
-**Basis:** W393 close-out report and cooperation variants (`docs/reports/FPGA_LOOP_COOPERATION_2026-07-04.md`)
+**Issue:** #1292
+**Local branch:** `wave-loop-396` (branched from `trinity-rust-rings` @ `6382e54b8`)
+**Basis:** W395 close-out report and revised hypothesis priority (H1 cold-POR mode sampling, H2 bitstream config registers, H3 round-trip, H4 chipdb hygiene low priority)
 
 ## Goal
 
-Resolve or definitively diagnose why the QMTech Wukong V1 / XC7A200T-FGG676 board does not boot from SPI flash after a successful `tri fpga program-flash` write + verify.
+Diagnose why the QMTech Wukong V1 / XC7A200T-FGG676-1 does not boot from Micron N25Q128 SPI flash after successful write+verify, focusing on the revised high-priority hypotheses and avoiding the disproven package-mismatch theory.
 
 ## Selected variant
 
-**Variant A (recommended)** from W393 cooperation variants:
-- Add `--enable-quad` / `--disable-quad` / `--spi-buswidth` options to `tri fpga program-flash`.
-- Add `tri fpga flash-status` to read and decode the SPI flash status register.
-- Run a flash-boot experiment with quad-mode enabled and capture `STAT` after power-cycle.
-- Update `fpga/HARDWARE_SSOT.md` with quad-mode / `SPI_BUSWIDTH` guidance.
-- Maintain conformance at 575/575 PASS.
+**Variant A (root-cause driven)** from W395 cooperation variants, updated per W396 order:
+- Add `tri fpga stat --pre-jtag-reset` to read STAT without issuing a JTAG reset.
+- Add `tri fpga bit-config <bit>` to parse and display bitstream config registers.
+- Add `tri fpga round-trip-verify <bit>` to automate flash dump round-trip verification.
+- Run physical experiments E1–E4 and capture timestamped STAT values in multiple power states.
+- Update `fpga/HARDWARE_SSOT.md` with the FBG676 vs FGG676 pinout identity finding.
+- Maintain conformance at 575/575 PASS; no IGLA/Lean growth in this hardware-debug cycle.
 
 ## Acceptance criteria
 
-- `tri fpga program-flash` exposes `--enable-quad`, `--disable-quad`, and `--spi-buswidth`.
-- `tri fpga flash-status` reads and decodes the SPI flash status register.
-- Flash-boot experiment is documented with captured `STAT` values.
-- `fpga/HARDWARE_SSOT.md` covers quad-mode / SPI_BUSWIDTH.
+- One of AC-1..AC-4 reached:
+  - **AC-1**: E1 shows cold-POR STAT mode bits differ from post-JTAG-reset mode bits.
+  - **AC-2**: E2 shows bitstream config registers incompatible with Master SPI x1 boot.
+  - **AC-3**: E3 shows round-trip mismatch between .bit and flash dump.
+  - **AC-4**: E4 shows quad-mode boot succeeds (DONE=1).
+- If none reached, W396 closes as honest diagnostic gathering and W397 continues.
+- `tri fpga stat --pre-jtag-reset` implemented.
+- `tri fpga bit-config <bit>` implemented.
+- `tri fpga round-trip-verify <bit>` implemented.
 - `t27c suite --repo-root .` reports **575/575 PASS**.
-- Real W394 issue created and referenced in commit/PR (`Closes #1290`).
-- Close-out report and cooperation doc for W395 are written.
+- Real W396 issue created and referenced in commit/PR (`Closes #1292`).
+- Close-out report and cooperation doc for W397 are written.
 - Experience log and memory index updated.
 
 ---

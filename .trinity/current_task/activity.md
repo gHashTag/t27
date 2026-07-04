@@ -1316,3 +1316,7 @@
 - **Commit:** feat(fpga): tri fpga program-flash and dump-flash subcommands
 - **Files:** .claude/plans/wave-loop-394.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-05.md,fpga/HARDWARE_SSOT.md
 
+## 2026-07-04T04:22:10Z — wave-loop-396
+- **Commit:** feat(fpga): quad-mode flash-boot diagnostics and tri CLI hardening
+- **Files:** .claude/plans/wave-loop-396.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-06.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-05.md,docs/reports/WAVE_LOOP_396_REPORT.md,fpga/HARDWARE_SSOT.md,scripts/dump_bit_config.py
+

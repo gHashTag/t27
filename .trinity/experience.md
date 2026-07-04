@@ -1,5 +1,33 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-06 — Wave Loop 396 (FPGA SPI boot debug — bit-config, round-trip verify, cold-POR diagnostics)
+
+### What worked
+- Implemented three CLI diagnostics in `cli/tri/src/fpga.rs` without touching the compiler: `--pre-jtag-reset` for `tri fpga stat`, `tri fpga bit-config <bit>`, and `tri fpga round-trip-verify <bit>`.
+- Wrote `scripts/dump_bit_config.py` using the **prjxray Series-7 Type-1 packet layout** (register address in bits [26:13], word count in bits [10:0]) to decode COR0/COR1/IDCODE/CTL0/CTL1/BSPI and confirm the bitstream is SPI x1 with the correct IDCODE `0x03636093`.
+- Used `openFPGALoader` with the Digilent FTDI cable (`digilent_hs2`) for program, dump, and STAT readback after discovering the Xilinx DLC10 cable (0x03FD) is not connected.
+- Implemented `round-trip-verify` by aligning both the original .bit payload and the dumped flash payload at the sync word `0xAA995566`, accounting for the 7-series SPI preamble that openFPGALoader prepends.
+- Cross-checked with the XC7A100T `blink_j26.bit` and observed `ID_ERROR=1` (STAT `0x5000890c`), confirming the FPGA does check IDCODE during flash boot and that the XC7A200T GF16 bitstream has the right IDCODE.
+
+### What changed behavior
+- `tri fpga stat` can now skip the openFPGALoader JTAG reset with `--pre-jtag-reset`, allowing a post-cold-POR STAT read before the FPGA is reset.
+- `tri fpga bit-config` exposes 7-series configuration register values from any .bit file.
+- `tri fpga round-trip-verify` gives a deterministic pass/fail for flash write-path integrity.
+- `fpga/HARDWARE_SSOT.md` now states that FBG676 and FGG676 have identical pinout and documents the revised flash-boot diagnostic checklist.
+- W396 closed as honest diagnostic gathering: H2 (bitstream config), H3 (round-trip corruption), and H4 (package chipdb) were ruled out; H1 (cold-POR mode sampling) remains unverified and requires a user-assisted physical power-cycle.
+
+### Patterns to reuse
+- When a 7-series .bit parser is needed, use the prjxray bit layout, not the higher-level UG470 register-field layout; the latter misplaces address/count bits and produces "no packets found".
+- Align flash round-trip comparisons at the Xilinx sync word `0xAA995566`; openFPGALoader strips the ASCII header and inserts SPI preamble bytes.
+- When the actual cable is an FTDI probe, treat openFPGALoader as the canonical tool and document that the DLC10 driver is not required.
+- Record every physical measurement with a timestamp and power state, even if the result is "still no boot".
+
+### Anti-patterns to avoid
+- Do not compare flash dump bytes from offset 0 directly to .bit payload bytes from offset 0; the formats differ by header and preamble.
+- Do not use `--enable-quad` / `--disable-quad` with the N25Q128 flash; it has no separate QE bit and openFPGALoader aborts.
+- Do not write `Closes #NNNN` in a PR without first running `gh issue view NNNN`.
+- Do not modify prjxray-db as a first diagnostic step when package pinout identity can be verified from primary Xilinx sources.
+
 ## 2026-07-05 — Wave Loop 394 (FPGA flash-boot diagnostics)
 
 ### What worked

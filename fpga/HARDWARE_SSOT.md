@@ -21,15 +21,20 @@
 
 > **2026-07-03 update:** the physical chip on the connected QMTech Wukong V1 board is an **XC7A200T**, not the earlier assumed XC7A100T. `openFPGALoader` reads IDCODE `0x03636093` and identifies the family as Artix-7 200T. Bitstreams must target `xc7a200tfgg676-1`. The legacy `ternary_mac_demo_top.bit` (3.6 MB) was built for `xc7a100tfgg676-1`; a 200T-compatible bitstream is kept as `ternary_mac_demo_top_200t.bit`.
 
+> **2026-07-05 update:** `xc7a200tfbg676-1` and `xc7a200tfgg676-1` use the **same
+> die and the same BGA-676 pinout**. Xilinx only publishes one pinout file
+> (`xc7a200tfbg676pkg.txt`); the `fgg` variant is the lidded/commercial grade of
+> the same substrate. All configuration pins (`M0/M1/M2`, `CCLK`, `DONE`,
+> `INIT_B`) are on identical BGA positions. Therefore using the prjxray-db
+> `xc7a200tfbg676-1` entry for the FGG676 board is **pinout-correct**; package
+> mismatch is **not** the SPI-boot failure cause.
+
 `Arty A7-100` (`xc7a100t-csg324`, `specs/boards/arty_a7.t27`) is a **different**
 board — not the flash target. Do not mix its `csg324` package into build/flash
 flows for the Wukong.
 
 All Vivado TCL (`fpga/vivado/build*.tcl`) and SPI-flash helpers
 (`fpga/tools/*_xc7a100t*fgg676*.bit`) already target `fgg676`. Keep it that way.
-
-> Note: an earlier memory/deck claim of "XC7A200T" was wrong — the real board is
-> A100T.
 
 ---
 
@@ -95,22 +100,37 @@ The connected Digilent FTDI cable (`0x0403:0x6014`) drives SPI flash through
 **openFPGALoader** and its JTAG-to-SPI bridge (`spiOverJtag`). The in-tree
 `dlc10` driver does not support this cable.
 
-Canonical command:
+Canonical command for x1 SPI boot:
 ```bash
 tri fpga program-flash build/fpga/gf16/gf16_matmul4x4_top.bit \
-    --bulk-erase --verify --enable-quad
+    --spi-buswidth 1 --verify
 ```
 
-If the board does not boot from flash after a power-cycle, check two things:
+**Do not use `--enable-quad` or `--disable-quad` with the Micron N25Q128_3V**
+(JEDEC `0x20ba18`) on this board. openFPGALoader v1.1.0 fails with
+"SPI Flash has no Quad bit (or spiFlashdb must be updated)" because the N25Q
+family supports quad mode natively without a separate QE status bit; the quad
+flags only attempt to toggle that non-existent bit and abort the command.
 
-1. **Mode-pin strapping.** The FPGA must sample `M[2:0] = 001` (Master SPI)
-   at power-on. Verify the QMTech Wukong V1 resistor straps for M0/M1/M2.
-2. **Quad-mode mismatch.** Some virgin boards/flash chips will not boot until the
-   SPI flash **quad-enable (QE)** bit is set. Use `--enable-quad` with
-   `tri fpga program-flash`; see openFPGALoader issue #464 for the same symptom on
-   a TE0712 + XC7A200. The bitstream itself must also be configured for the same
-   SPI width (`BITSTREAM.CONFIG.SPI_BUSWIDTH`: 1, 2, or 4). For x1 SPI boot,
-   `--enable-quad` is not required.
+If the board does not boot from flash after a power-cycle, diagnose in this
+order:
+
+1. **Cold-POR mode-pin sampling (most likely).** `M[2:0]` must be sampled as
+   `001` (Master SPI) at power-on. The value read by `tri fpga stat` after a
+   JTAG reset may differ from the value sampled at a true cold power-cycle.
+   Use `tri fpga stat --pre-jtag-reset` immediately after applying board power
+   (before any other JTAG operation) and compare the `MODE` and `BUS Width`
+   fields.
+2. **Bitstream config audit.** Run `tri fpga bit-config <bit>` and confirm
+   `COR1[8:7]` (`SPI_BUSWIDTH`) is `00` for x1, `COR0[16:15]` (`STARTUPCLK`) is
+   `00` (CCLK), and `IDCODE` matches the target FPGA (`0x03636093` for
+   XC7A200T).
+3. **Flash write-path integrity.** Run `tri fpga round-trip-verify <bit>`. It
+   programs the flash, dumps the same bytes back, and verifies that the dumped
+   bitstream payload matches the original `.bit` file after sync-word alignment.
+4. **Quad-mode / BPI-mode mismatch.** Only relevant if the board straps and
+   bitstream are intentionally configured for x4 SPI or BPI; the current
+   Wukong V1 + GF16 flow uses x1.
 
 Use `tri fpga flash-status` to probe the detected flash chip, and
 `tri fpga dump-flash` to read back the flash contents for verification.
@@ -136,8 +156,10 @@ clear by design class:**
   using dedicated config pins (FCS_B=C8/MOSI=B19/MISO=A18) + STARTUPE2 — i.e. the
   SPI-flash *proxy* `bscan_spi_qmtech` (nextpnr `pack_clocking_xc7.cc` aborts with
   `std::out_of_range`). Our matrix does **not** use those, so OpenXC7 works.
-  **VERIFIED 2026-05-31: the recipe in §8 built `gf16_matmul4x4_top.bit` and it
-  reaches `DONE=HIGH` on the board.**
+  **VERIFIED 2026-07-04: the `tri fpga synth-gf16` flow targets
+  `xc7a200tfbg676-1` (same die/pinout as `fgg676-1`) and reaches `DONE=HIGH`
+  when loaded into SRAM. Flash boot from the same bitstream remains under
+  diagnosis (see `docs/reports/FPGA_LOOP_EVIDENCE_2026-07-05.md`).**
 - **(A) Vivado in Linux Docker** — only needed for the **SPI-flash proxy**
   bitstream (Vivado-only in the OSS ecosystem). Setup exists
   (`docker/Dockerfile.vivado` 2025.2, `tri fpga build-proxy-docker`) but is
