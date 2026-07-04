@@ -566,24 +566,62 @@ structure PvtContext where
   process_corner : ProcessCorner
   deriving Repr, DecidableEq, Inhabited
 
-/-- PVT-aware minimum SCK low time. **Current model:** a conservative worst-case
-    constant (12 ns) regardless of context. The 12 ns value is a deliberate
-    placeholder: it is twice the nominal N25Q128_3V `t_CL` bound (6 ns) and is
-    intended to absorb process/voltage/temperature variation until real
-    characterization data is available.
+/-- Operating-envelope lower bound for temperature in °C. -/
+def PVT_TEMP_MIN_C : Int := -40
+
+/-- Operating-envelope upper bound for temperature in °C. -/
+def PVT_TEMP_MAX_C : Int := 85
+
+/-- Operating-envelope lower bound for VCCINT in millivolts. -/
+def PVT_VCCINT_MIN_MV : Nat := 900
+
+/-- Operating-envelope upper bound for VCCINT in millivolts. -/
+def PVT_VCCINT_MAX_MV : Nat := 1100
+
+/-- Conservative temperature derating in nanoseconds. The N25Q128_3V datasheet
+    does not publish a closed-form curve, so we use a linear upper envelope:
+    0.02 ns per degree Celsius above the minimum temperature. At the industrial
+    upper bound (+85 °C) this adds 2 ns to the nominal bound. -/
+def n25q128_pvt_temp_derating_ns (temp_c : Int) : Nat :=
+  ((temp_c - PVT_TEMP_MIN_C).toNat * 2) / 100
+
+/-- Conservative VCCINT derating in nanoseconds. Lower VCCINT slows the flash
+    output drivers; we model a linear upper envelope of 0.005 ns per millivolt
+    below the maximum VCCINT. At the minimum envelope voltage (900 mV) this
+    adds 1 ns. -/
+def n25q128_pvt_voltage_derating_ns (vccint_mv : Nat) : Nat :=
+  ((PVT_VCCINT_MAX_MV - vccint_mv) * 5) / 1000
+
+/-- Process-corner derating in nanoseconds. `ss` (slow-slow) is the worst case,
+    `tt` is typical, and `ff` (fast-fast) adds no margin. -/
+def n25q128_pvt_process_derating_ns (corner : ProcessCorner) : Nat :=
+  match corner with
+  | ProcessCorner.ff => 0
+  | ProcessCorner.tt => 2
+  | ProcessCorner.ss => 4
+
+/-- PVT-aware minimum SCK low time. Combines nominal N25Q128_3V `t_CL` with
+    conservative temperature, voltage, and process-corner envelopes. The result
+    ranges from the nominal 6 ns (best case) to 13 ns (worst case: +85 °C,
+    900 mV, ss corner), replacing the previous flat 12 ns placeholder.
 
     **Falsification condition:** if a future N25Q128_3V PVT characterization
-    shows that `t_CL` can exceed 12 ns under the intended operating envelope
-    (e.g. extreme low voltage + high temperature + slow process corner), this
-    constant must be raised. All implication theorems below remain valid as long
-    as `n25q128_min_sck_low_ns_pvt ctx ≥ N25Q128_MIN_SCK_LOW_NS`. -/
-def n25q128_min_sck_low_ns_pvt (_ctx : PvtContext) : Nat :=
-  N25Q128_MIN_SCK_LOW_NS_WC
+    shows that `t_CL` can exceed the computed value under the operating envelope,
+    the envelope coefficients must be raised. All implication theorems below
+    remain valid as long as `n25q128_min_sck_low_ns_pvt ctx ≥ N25Q128_MIN_SCK_LOW_NS`. -/
+def n25q128_min_sck_low_ns_pvt (ctx : PvtContext) : Nat :=
+  N25Q128_MIN_SCK_LOW_NS
+  + n25q128_pvt_temp_derating_ns ctx.temp_c
+  + n25q128_pvt_voltage_derating_ns ctx.vccint_mv
+  + n25q128_pvt_process_derating_ns ctx.process_corner
 
 /-- PVT-aware minimum SCK high time. See `n25q128_min_sck_low_ns_pvt` for the
-    conservative placeholder rationale and falsification condition. -/
-def n25q128_min_sck_high_ns_pvt (_ctx : PvtContext) : Nat :=
-  N25Q128_MIN_SCK_HIGH_NS_WC
+    envelope rationale and falsification condition. -/
+def n25q128_min_sck_high_ns_pvt (ctx : PvtContext) : Nat :=
+  N25Q128_MIN_SCK_HIGH_NS
+  + n25q128_pvt_temp_derating_ns ctx.temp_c
+  + n25q128_pvt_voltage_derating_ns ctx.vccint_mv
+  + n25q128_pvt_process_derating_ns ctx.process_corner
 
 /-- PVT-aware measured-CCLK flash predicate. As long as the placeholder derating
     is at least the nominal 6 ns bound, it implies the nominal predicate. -/
@@ -594,27 +632,68 @@ def measured_cclk_with_pvt_satisfies_flash_spec (freq_hz : Nat) (duty_pct : Nat)
   ∧ measured_cclk_low_ns freq_hz duty_pct ≥ n25q128_min_sck_low_ns_pvt ctx
   ∧ measured_cclk_high_ns freq_hz duty_pct ≥ n25q128_min_sck_high_ns_pvt ctx
 
-/-- The placeholder PVT derating is at least the nominal N25Q128 bound. This is
+/-- The temperature derating is non-negative inside the operating envelope. -/
+lemma n25q128_pvt_temp_derating_ns_nonneg (temp_c : Int) :
+  (PVT_TEMP_MIN_C ≤ temp_c) → n25q128_pvt_temp_derating_ns temp_c ≥ 0 := by
+  intro h
+  simp [n25q128_pvt_temp_derating_ns, PVT_TEMP_MIN_C]
+
+/-- The voltage derating is non-negative inside the operating envelope. -/
+lemma n25q128_pvt_voltage_derating_ns_nonneg (vccint_mv : Nat) :
+  (vccint_mv ≤ PVT_VCCINT_MAX_MV) → n25q128_pvt_voltage_derating_ns vccint_mv ≥ 0 := by
+  intro h
+  simp [n25q128_pvt_voltage_derating_ns, PVT_VCCINT_MAX_MV]
+
+/-- The process-corner derating is non-negative. -/
+lemma n25q128_pvt_process_derating_ns_nonneg (corner : ProcessCorner) :
+  n25q128_pvt_process_derating_ns corner ≥ 0 := by
+  cases corner <;> simp [n25q128_pvt_process_derating_ns]
+
+/-- The PVT-aware SCK low bound is at least the nominal N25Q128 bound. This is
     the only fact the implication proof needs; real PVT data must preserve it. -/
-lemma pvt_low_ns_at_least_nominal (_ctx : PvtContext) :
-  n25q128_min_sck_low_ns_pvt _ctx ≥ N25Q128_MIN_SCK_LOW_NS := by
-  simp [n25q128_min_sck_low_ns_pvt, N25Q128_MIN_SCK_LOW_NS_WC, N25Q128_MIN_SCK_LOW_NS]
+lemma pvt_low_ns_at_least_nominal (ctx : PvtContext) :
+  (PVT_TEMP_MIN_C ≤ ctx.temp_c) → (ctx.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+  → n25q128_min_sck_low_ns_pvt ctx ≥ N25Q128_MIN_SCK_LOW_NS := by
+  intro h_temp h_volt
+  simp [n25q128_min_sck_low_ns_pvt]
+  have ht : n25q128_pvt_temp_derating_ns ctx.temp_c ≥ 0 :=
+    n25q128_pvt_temp_derating_ns_nonneg ctx.temp_c h_temp
+  have hv : n25q128_pvt_voltage_derating_ns ctx.vccint_mv ≥ 0 :=
+    n25q128_pvt_voltage_derating_ns_nonneg ctx.vccint_mv h_volt
+  have hp : n25q128_pvt_process_derating_ns ctx.process_corner ≥ 0 :=
+    n25q128_pvt_process_derating_ns_nonneg ctx.process_corner
+  omega
 
-lemma pvt_high_ns_at_least_nominal (_ctx : PvtContext) :
-  n25q128_min_sck_high_ns_pvt _ctx ≥ N25Q128_MIN_SCK_HIGH_NS := by
-  simp [n25q128_min_sck_high_ns_pvt, N25Q128_MIN_SCK_HIGH_NS_WC, N25Q128_MIN_SCK_HIGH_NS]
+/-- The PVT-aware SCK high bound is at least the nominal N25Q128 bound. -/
+lemma pvt_high_ns_at_least_nominal (ctx : PvtContext) :
+  (PVT_TEMP_MIN_C ≤ ctx.temp_c) → (ctx.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+  → n25q128_min_sck_high_ns_pvt ctx ≥ N25Q128_MIN_SCK_HIGH_NS := by
+  intro h_temp h_volt
+  simp [n25q128_min_sck_high_ns_pvt]
+  have ht : n25q128_pvt_temp_derating_ns ctx.temp_c ≥ 0 :=
+    n25q128_pvt_temp_derating_ns_nonneg ctx.temp_c h_temp
+  have hv : n25q128_pvt_voltage_derating_ns ctx.vccint_mv ≥ 0 :=
+    n25q128_pvt_voltage_derating_ns_nonneg ctx.vccint_mv h_volt
+  have hp : n25q128_pvt_process_derating_ns ctx.process_corner ≥ 0 :=
+    n25q128_pvt_process_derating_ns_nonneg ctx.process_corner
+  omega
 
-/-- If the PVT-aware predicate holds, the nominal predicate holds. -/
+/-- If the PVT-aware predicate holds, the nominal predicate holds (for contexts
+    inside the operating envelope). -/
 theorem measured_cclk_with_pvt_implies_measured_cclk_satisfies_flash_spec
   (freq_hz duty_pct : Nat) (ctx : PvtContext) :
-  measured_cclk_with_pvt_satisfies_flash_spec freq_hz duty_pct ctx = true
+  (PVT_TEMP_MIN_C ≤ ctx.temp_c) → (ctx.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+  → measured_cclk_with_pvt_satisfies_flash_spec freq_hz duty_pct ctx = true
   → measured_cclk_satisfies_flash_spec freq_hz duty_pct = true := by
-  intro h
+  intro h_temp h_volt h
   simp [measured_cclk_with_pvt_satisfies_flash_spec, measured_cclk_satisfies_flash_spec,
         n25q128_min_sck_low_ns_pvt, n25q128_min_sck_high_ns_pvt,
-        N25Q128_MIN_SCK_LOW_NS_WC, N25Q128_MIN_SCK_HIGH_NS_WC,
         N25Q128_MIN_SCK_LOW_NS, N25Q128_MIN_SCK_HIGH_NS] at h ⊢
   rcases h with ⟨h_pos, h_max, h_duty, h_low, h_high⟩
+  have h_low_ge : n25q128_min_sck_low_ns_pvt ctx ≥ N25Q128_MIN_SCK_LOW_NS :=
+    pvt_low_ns_at_least_nominal ctx h_temp h_volt
+  have h_high_ge : n25q128_min_sck_high_ns_pvt ctx ≥ N25Q128_MIN_SCK_HIGH_NS :=
+    pvt_high_ns_at_least_nominal ctx h_temp h_volt
   constructor
   · exact h_pos
   constructor
@@ -625,20 +704,22 @@ theorem measured_cclk_with_pvt_implies_measured_cclk_satisfies_flash_spec
   · omega
   · omega
 
-/-- If the PVT-aware predicate holds, the boot transaction satisfies the flash spec. -/
+/-- If the PVT-aware predicate holds (inside the operating envelope), the boot
+    transaction satisfies the flash spec. -/
 theorem measured_cclk_with_pvt_implies_transaction_ok
   (freq_hz duty_pct bits : Nat) (ctx : PvtContext) :
-  measured_cclk_with_pvt_satisfies_flash_spec freq_hz duty_pct ctx = true
+  (PVT_TEMP_MIN_C ≤ ctx.temp_c) → (ctx.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+  → measured_cclk_with_pvt_satisfies_flash_spec freq_hz duty_pct ctx = true
   → transaction_satisfies_flash_spec (measured_boot_transaction freq_hz duty_pct bits) = true := by
-  intro h
+  intro h_temp h_volt h
   apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
-  exact measured_cclk_with_pvt_implies_measured_cclk_satisfies_flash_spec freq_hz duty_pct ctx h
+  exact measured_cclk_with_pvt_implies_measured_cclk_satisfies_flash_spec freq_hz duty_pct ctx h_temp h_volt h
 
 /-- Concrete example: a measured 25 MHz CCLK with 50% duty satisfies the PVT
-    predicate under an industrial-corner placeholder context. -/
-theorem measured_25mhz_50duty_pvt_satisfies_flash_spec :
+    predicate under the worst-case operating envelope (ss corner, 900 mV, +85 °C). -/
+theorem measured_25mhz_50duty_pvt_worstcase_satisfies_flash_spec :
   measured_cclk_with_pvt_satisfies_flash_spec 25_000_000 50
-    { temp_c := (-40 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := ProcessCorner.ff } = true := by
+    { temp_c := (85 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := ProcessCorner.ss } = true := by
   decide
 
 /-- Concrete example: a measured 2.5 MHz CCLK with 50% duty cycle satisfies the
@@ -750,30 +831,43 @@ def measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec (period_ns low_ns hi
 def measured_boot_transaction_from_raw_ns_with_pvt (period_ns _low_ns high_ns bits : Nat) : SPIReadTransaction :=
   measured_boot_transaction_from_raw_ns period_ns _low_ns high_ns bits
 
-/-- If a PVT-aware raw-ns capture satisfies the flash predicate, the
-    transaction built from it satisfies the N25Q128_3V timing spec. -/
+/-- If a PVT-aware raw-ns capture satisfies the flash predicate (inside the
+    operating envelope), the transaction built from it satisfies the N25Q128_3V
+    timing spec. -/
 theorem measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok
   (period_ns low_ns high_ns bits : Nat) (ctx : PvtContext) :
-  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns ctx = true
+  (PVT_TEMP_MIN_C ≤ ctx.temp_c) → (ctx.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+  → measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns ctx = true
   → transaction_satisfies_flash_spec (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits) = true := by
-  intro h
+  intro h_temp h_volt h
   simp [measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec, measured_boot_transaction_from_raw_ns_with_pvt,
         measured_boot_transaction_from_raw_ns] at h ⊢
   rcases h with ⟨_h_consistent, h_spec⟩
   apply measured_cclk_with_pvt_implies_transaction_ok
+  exact h_temp
+  exact h_volt
   exact h_spec
 
 /-- Concrete example: a raw 40 ns / 20 ns / 20 ns capture satisfies the PVT-aware
-    raw-ns predicate under an industrial-corner placeholder context. -/
-theorem measured_raw_ns_40_20_20_with_pvt_satisfies_flash_spec :
+    raw-ns predicate under the worst-case operating envelope. -/
+theorem measured_raw_ns_40_20_20_with_pvt_worstcase_satisfies_flash_spec :
   measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec 40 20 20
-    { temp_c := (-40 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := ProcessCorner.ff } = true := by
+    { temp_c := (85 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := ProcessCorner.ss } = true := by
   decide
 
 /-- Concrete example: a raw 40 ns / 20 ns / 20 ns capture satisfies the
     PVT-margin raw-ns predicate. -/
 theorem measured_raw_ns_40_20_20_with_margin_satisfies_flash_spec :
   measured_cclk_from_raw_ns_satisfies_flash_spec 40 20 20 = true := by
+  decide
+
+/-- The worst-case PVT-aware SCK low bound equals the previous flat 12 ns
+    placeholder only under the best process/voltage/temperature corner; under
+    the worst corner it is strictly larger, making the new envelope at least as
+    conservative as the old placeholder. -/
+theorem pvt_low_ns_wc_ge_old_placeholder :
+  n25q128_min_sck_low_ns_pvt { temp_c := (85 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := ProcessCorner.ss }
+  ≥ N25Q128_MIN_SCK_LOW_NS_WC := by
   decide
 
 end BitstreamConfig

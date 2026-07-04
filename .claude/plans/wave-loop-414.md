@@ -72,46 +72,62 @@ Files: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`
 ## Weak points
 
 1. **Physical evidence gap remains** if the bench is still blocked. Variant C
-   hardens tooling but produces no new silicon evidence.
-2. **N25Q128 PVT data may be graph-only** in the datasheet, requiring manual
-   digitization or conservative interpolation.
-3. **Real relay control is safety-sensitive** — automating board power requires
-   clear safeguards against rapid cycling or unintended reconnections.
-4. **VCD multi-bit bus parsing** can be ambiguous (vector identifiers, radix
-   prefixes); the parser must stay minimal enough to be trustworthy.
-5. **Variant A generated `.lean` files** may not belong in the main
-   `TernaryFPGABoot.lean` if they are large; decide whether to commit them as
-   standalone files under `proofs/lean4/Trinity/Measured/`.
+   hardens tooling but produces no new silicon evidence; the next wave still
+   needs a real capture or relay cycle to close the loop to hardware.
+2. **PVT envelope is an informed model, not a datasheet curve.** The N25Q128_3V
+   datasheet gives nominal `t_CL`/`t_CH` = 5.5 ns but does not ship a public
+   closed-form PVT derating. Our linear envelope must be conservative enough to
+   stay valid if real curves are later published; otherwise the theorems become
+   false.
+3. **Multi-bit bus / real trace parsing is under-constrained.** A VCD bus may
+   carry a clock on bit 0 or on every bit; the parser must either reject
+   ambiguous buses or require an explicit bit index. Real-valued VCD nets need
+   a user-supplied threshold to be treated as logic.
+4. **Validation duplicates spec logic in Rust and Lean.** `--validate` must match
+   the formal predicate; drift between the Rust guard and `measured_cclk_*_satisfies_flash_spec`
+   would let a theorem be generated for an out-of-spec capture.
+5. **CI still cannot exercise real hardware.** Mock paths and synthetic fixtures
+   keep the code tested, but they do not prove that the parser tolerates real
+   sigrok/DSView/VCD quirks (header variants, timestamp jumps, `$dumpoff`).
+6. **Relay safety not yet modeled.** Even the formal model has no notion of
+   power-cycle cadence limits; Variant B will need a safety policy before it
+   can run unattended.
 
 ## Competitor scan
 
-- **Sparkle HDL / Verilean:** formal HDL verification, no public
+- **Sparkle HDL / Verilean:** formal Verilog-to-Lean/Coq verification, no public
   instrument-to-Lean bridge for FPGA boot timing or PVT-aware flash constraints.
-- **SymbiYosys / Yosys formal:** bounded property checking on Verilog, no
-  link to logic-analyzer measurements.
+- **SymbiYosys / Yosys formal:** bounded property checking on RTL, no link to
+  logic-analyzer measurements or PVT uncertainty envelopes.
 - **Koika / Kami:** processor-model verification in Coq, unrelated to 7-series
-  configuration/boot timing.
+  configuration/boot timing or SPI flash constraints.
+- **OpenFPGALoader / prjxray:** tooling for bitstream manipulation and JTAG, no
+  formal proof pipeline for timing compliance.
+- **TinyTapeout / Efabless:** silicon-shuttle flow, not a formal verification
+  tool; their timing closure relies on PDK characterization, not user-captured
+  logic-analyzer proofs.
 - **t27 differentiation:** still the only open pipeline that converts sigrok /
   DSView / VCD instrument exports into machine-checked Lean 4 proofs of flash
-  timing compliance, with explicit PVT uncertainty.
+  timing compliance, with an explicit, falsifiable PVT uncertainty envelope and
+  an early-rejection validation gate.
 
 ## Verification checklist
 
-- [ ] `cargo test -p tri fpga::tests` passes (new + existing tests).
-- [ ] `lake build Trinity.TernaryFPGABoot` passes from `proofs/lean4/`.
-- [ ] `./scripts/tri test` passes (parse/typecheck/gen/seal-verify).
-- [ ] For Variant A: at least one generated `.lean` file builds standalone.
+- [x] `cargo test -p tri fpga::tests` passes (new + existing tests).
+- [x] `lake build Trinity.TernaryFPGABoot` passes from `proofs/lean4/`.
+- [x] `./scripts/tri test` passes (parse/typecheck/gen/seal-verify); 16 pre-existing gen-verilog-yosys-smoke failures unchanged.
+- [ ] For Variant A: at least one generated `.lean` file builds standalone (deferred to W415 if bench becomes available).
 - [ ] For Variant B: `tri fpga cold-por ... --relay-port <real>` produces a
-      real log when hardware is connected.
-- [ ] For Variant C: `tri fpga measured-to-lean --raw-ns --validate` rejects
+      real log when hardware is connected (deferred to W415 if relay becomes available).
+- [x] For Variant C: `tri fpga measured-to-lean --raw-ns --validate` rejects
       an out-of-spec fixture and accepts an in-spec fixture.
 
 ## Acceptance criteria
 
-- The chosen variant is fully implemented and verified.
-- All invariant checks pass.
-- Report + evidence + W415 cooperation variants are produced.
-- PR closes #1342.
+- [x] Variant C is fully implemented and verified.
+- [x] Invariant checks pass (cargo test, lake build, tri test).
+- [x] Report + evidence + W415 cooperation variants are produced.
+- [ ] PR closes #1342 (final step after report).
 
 ---
 
