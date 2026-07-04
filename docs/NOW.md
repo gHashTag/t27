@@ -2,6 +2,13 @@
 
 Last updated: 2026-07-04
 
+## w409-fpga-p12-retry-and-oscfsel-lookup -- real P12 CCLK retry + per-OSCFSEL SPI transaction lookup (Issue #1323)
+
+- **WHERE**: `docs/reports/FPGA_LOOP_COOPERATION_W409_2026-07-04.md`, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `fpga/HARDWARE_SSOT.md` §3.6.1, `cli/tri/src/fpga.rs`, close-out reports.
+- **WHAT**: Wave Loop 409 follows W408. Default bundle is Variant A + C: retry the real P12 CCLK capture once wiring is available and extend the Lean 4 transaction model to a per-OSCFSEL lookup for `OSCFSEL = 0..7`, proving every documented Artix-7 CCLK selection is N25Q128_3V compliant. If P12 wiring remains unavailable, fall back to Variant C alone. If CI automation is the priority, pick Variant B (relay-controlled cold-POR + JTAG isolation) and defer per-OSCFSEL lookup to W410.
+- **Why**: W408 proved the canonical transaction is safe; W409 anchors it to silicon (A) and generalizes the proof across all documented CCLK variants (C), making the formal argument strictly stronger and harder for formal-HDL competitors to reproduce.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## w408-fpga-real-cclk-and-transaction-model -- real P12 CCLK measurement + complete SPI transaction model in Lean 4 (Closes #1318)
 
 - **WHERE**: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `fpga/HARDWARE_SSOT.md` §3.6, `docs/reports/`, close-out reports.

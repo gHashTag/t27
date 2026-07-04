@@ -1433,3 +1433,7 @@
 - **Commit:** feat(igla): Wave Loop 408 — real P12 CCLK attempt + SPI transaction model in Lean 4
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-04T12:18:49Z — wave-loop-409
+- **Commit:** chore(w409): set current issue to Wave Loop 409 (#1323)
+- **Files:** docs/NOW.md
+
