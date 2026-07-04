@@ -1400,3 +1400,88 @@
 - **Commit:** docs(wave-loop-405): set up W405 issue pointer and decomposed plan (refs #1311)
 - **Files:** .claude/plans/wave-loop-405.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-10.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-10.md,docs/reports/WAVE_LOOP_405_REPORT.md
 
+## 2026-07-12T11:31:40Z — wave-loop-406
+- **Commit:** feat(igla): Wave Loop 406 — live CCLK capture, OSCFSEL/CCLK flash-spec safety in Lean 4, close-out reports
+- **Files:** .claude/plans/wave-loop-406.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-12.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-12.md,docs/reports/WAVE_LOOP_406_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+
+## 2026-07-04T11:34:48Z — wave-loop-407
+- **Commit:** chore(w407): set current issue to Wave Loop 407 (#1316)
+- **Files:** .claude/plans/wave-loop-406.md,.trinity/current_task/activity.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-12.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-12.md,docs/reports/WAVE_LOOP_406_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-04T11:50:57Z — wave-loop-407
+- **Commit:** merge(w407): integrate Wave Loop 406 changes into wave-loop-407
+- **Files:** .claude/plans/wave-loop-406.md,.claude/plans/wave-loop-407.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-12.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-13.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-12.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-13.md,docs/reports/WAVE_LOOP_406_REPORT.md,docs/reports/WAVE_LOOP_407_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-04T11:54:08Z — wave-loop-408
+- **Commit:** feat(igla): Wave Loop 407 — deeper N25Q128 SPI timing in Lean 4 + synthetic CCLK fixture
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-04T11:55:07Z — wave-loop-408
+- **Commit:** chore(w408): set current issue to #1318 — real P12 CCLK + SPI transaction model
+- **Files:** .trinity/experience.md,docs/NOW.md
+
+## 2026-07-04T11:55:11Z — wave-loop-408
+- **Commit:** docs(w408): add W408 entry to NOW.md and experience log
+- **Files:** .trinity/current_task/activity.md,.trinity/experience.md,docs/NOW.md
+
+## 2026-07-04T12:16:59Z — wave-loop-408
+- **Commit:** docs(w408): add W408 entry to NOW.md and experience log
+- **Files:** .claude/plans/wave-loop-408.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json,.trinity/seals/agent_EternalMonitor.json
+
+## 2026-07-04T12:18:13Z — wave-loop-409
+- **Commit:** feat(igla): Wave Loop 408 — real P12 CCLK attempt + SPI transaction model in Lean 4
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-04T12:18:49Z — wave-loop-409
+- **Commit:** chore(w409): set current issue to Wave Loop 409 (#1323)
+- **Files:** docs/NOW.md
+
+## 2026-07-04T12:19:10Z — wave-loop-409
+- **Commit:** docs(w409): add W409 entry to NOW.md
+- **Files:** .trinity/experience.md
+
+## 2026-07-04T12:19:28Z — wave-loop-409
+- **Commit:** docs(w409): add W408 learnings to experience log
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-04T12:27:09Z — wave-loop-409
+- **Commit:** chore(w409): update session log and commit count
+- **Files:** .claude/plans/wave-loop-409.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W410_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_W409_2026-07-04.md,docs/reports/WAVE_LOOP_409_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-04T12:28:13Z — wave-loop-410
+- **Commit:** feat(igla): Wave Loop 409 — per-OSCFSEL SPI transaction lookup + tighter duty bound
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-04T12:28:26Z — wave-loop-410
+- **Commit:** chore(w410): set current issue to Wave Loop 410 (#1325)
+- **Files:** docs/NOW.md
+
+## 2026-07-04T12:28:39Z — wave-loop-410
+- **Commit:** docs(w410): add W410 entry to NOW.md
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-04T12:46:23Z — wave-loop-410
+- **Commit:** chore(w410): update session log and commit count
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W411_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_W410_2026-07-04.md,docs/reports/WAVE_LOOP_410_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-04T12:46:48Z — wave-loop-410
+- **Commit:** feat(igla): Wave Loop 410 — measured-duty formal link and Rust JSON export
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-04T12:47:05Z — wave-loop-410
+- **Commit:** chore(w410): update session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-04T12:47:35Z — wave-loop-411
+- **Commit:** chore(w410): update session log and commit count (post-PR)
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/NOW.md
+
+## 2026-07-04T12:58:15Z — wave-loop-411
+- **Commit:** chore(w411): set up Wave Loop 411 current issue and NOW entry
+- **Files:** .claude/plans/wave-loop-411.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W412_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_W411_2026-07-04.md,docs/reports/WAVE_LOOP_411_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-04T13:06:14Z — wave-loop-411
+- **Commit:** docs(w408): add W408 entry to NOW.md and experience log
+- **Files:** .claude/plans/wave-loop-411.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W412_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_W411_2026-07-04.md,docs/reports/WAVE_LOOP_411_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+

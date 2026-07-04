@@ -1,17 +1,87 @@
+# NOW — Wave Loop 411 close-out / Wave Loop 412 setup
+
+## Wave Loop 411 — FPGA measured-to-lean auto-proof + PVT margin (Closes #1329)
+
+- Branch: `wave-loop-411`
+- Issue: #1329
+- Report: `docs/reports/WAVE_LOOP_411_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W411_2026-07-04.md`
+- Cooperation W412: `docs/reports/FPGA_LOOP_COOPERATION_W412_2026-07-04.md`
+
+### What landed
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - worst-case SCK constants `N25Q128_MIN_SCK_LOW_NS_WC` / `N25Q128_MIN_SCK_HIGH_NS_WC` (12 ns, conservative 2× derating)
+  - `measured_cclk_with_margin_satisfies_flash_spec` predicate
+  - `measured_cclk_with_margin_implies_measured_cclk_satisfies_flash_spec`
+  - `measured_cclk_with_margin_implies_transaction_ok`
+  - concrete PVT-margin examples for 2.5 MHz, 25 MHz, 33.3 MHz @ 50 % duty
+- `cli/tri/src/fpga.rs`
+  - `tri fpga measured-to-lean --file/--out/--name/--margin`
+  - emits type-correct Lean theorem from a `MeasuredCclk` JSON record
+  - unit tests: `sanitize_lean_ident`, nominal output, margin output
+- `fpga/HARDWARE_SSOT.md` §3.6.11
+  - measured-to-lean pipeline and PVT-margin documentation
+
+### Blockers still open
+- P12 not wired to a logic-analyzer channel → real CCLK capture impossible.
+- Digilent DLC10 JTAG cable not detected (`VID=0x03FD`) → board program/flash/boot log impossible.
+
+### Verification
+- `lake build Trinity.TernaryFPGABoot` green
+- `cargo test -p tri fpga::tests` 14/14 pass
+- `./scripts/tri test` parse/typecheck/gen/seal-verify green
+- yosys smoke: 40 pass / 16 pre-existing failures
+
+### Default next wave (W412)
+- Variant A + B bundle: wire P12 + DLC10, real `OSCFSEL=6,7` boot, relay CI cold-POR gate.
+- Fallback: Variant C — refine PVT margins, standalone `.lean` output, raw-ns input.
+
+---
+
 # NOW -- Trinity t27 sync
 
 Last updated: 2026-07-04
 
-## exprcast-rust-emitter -- lower ExprCast in gen-rust backend (Closes #1314)
+## w411-fpga-physical-or-automation -- real P12 + OSCFSEL 6/7 retry, relay CI gate, or auto-proof tooling (Issue #1329)
 
-- **WHERE**: `bootstrap/src/compiler.rs` -- added `Expr::Cast { operand, target }` arm in `expr_to_rust`, emits `format!("({} as {})", operand, target)` mirroring the existing gen-verilog arm at compiler.rs:4941. Before this fix, ExprCast in `expr_to_rust` fell through to the default `_ => "()".to_string()` branch, producing empty-tuple stubs in generated Rust and silently corrupting any T27 spec that uses bit-width casts (bit-shift lowering, width promotion, etc.). +18 / -0 lines. Isolated repro filed as #1314 with a 5-line spec showing the empty-tuple emission.
-- **Why**: gen-rust is one of three lowering targets (Rust, Verilog, C). The Verilog and C emitters had ExprCast; the Rust emitter did not. This closes the gen-rust half of #1314; gen (Zig) and gen-c follow-ups tracked separately. Unblocks the tri-net T27-first wire flip (gHashTag/tri-net#33), where specs/wire.t27 needs the fixed emitter to regenerate gen/rust/wire.rs without hand-patching.
+- **WHERE**: `docs/reports/FPGA_LOOP_COOPERATION_W411_2026-07-04.md`, `fpga/HARDWARE_SSOT.md` §3.6.1/§3.6.9/§3.6.10, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`, close-out reports.
+- **WHAT**: Wave Loop 411 follows W410. Default bundle is **Variant A + C again**: finally wire P12 and the DLC10 cable, capture the real CCLK, physically boot `OSCFSEL=6,7`, and turn the capture into an instant `measured_cclk_satisfies_flash_spec` proof. If the bench is still unavailable, pick **Variant B** (relay-controlled cold-POR hardware CI gate) or **Variant C alone** (auto-generate the Lean proof from `--json` and add PVT margins).
+- **Why**: W410 completed the measured-duty formal link but both physical paths remained blocked. W411 either breaks the bench blockers or uses the extra time to build automation / formal-tooling that makes future captures zero-friction.
 - **Anchor**: phi^2 + phi^-2 = 3
 
-## bcd-bitexact-promotion -- promote bcd -> strict bitexact (2-digit packed instance) (Closes #1321)
+## w410-fpga-p12-or-oscfsel-67 -- real P12 CCLK capture or physical OSCFSEL 6/7 boot + measured-duty formal link (Closes #1325)
 
-- **WHERE** (conformance vectors): `conformance/vectors/bcd_conformance_v0.json` promoted from `structural` to `bitexact` in `INDEX_all_formats.json` (bitexact_packs 69 -> 70, structural_packs 14 -> 13; bcd.kind structural -> bitexact, n_vectors 0 -> 100). Fixes ONE concrete instance: 2-digit packed BCD, 8-bit word bcd_in[7:4]=tens, bcd_in[3:0]=ones, decode value = tens*10 + ones (valid 0..99). Generic variable-width BCD (u4_per_digit) stays noted in catalog.instance/format_notes; only this fixed-width instance carries a bit-precise round-trip claim.
-- **Why**: bcd was `structural` only because generic BCD has no single layout, not because it was undone. The 2-digit packed instance is the one decoded on AX7203 silicon (corona-decode-bcd, HW Tier-E 100/100) and is now bit-precise-witnessed. Three witnesses: (1) Python golden tens*10+ones 100/100 abs_error=0; (2) independent iverilog 13.0 sim of bcd_decode.v exhaustive 256/256 bit-exact (fails=0), invalid nibbles 0xA..0xF computed as (tens*10+ones) mod 128 with valid=0, excluded from the round-trip claim; (3) FPGA HW corona-decode-bcd on AX7203 (IDCODE 0x13636093) 100/100 @160000. Honesty: [verified SW na iverilog] (256/256) + [izmereno na kremnii] (HW Tier-E 100/100). Catalog = 83 unchanged. ASCII-only; INDEX sha256 for the pack refreshed to match the file byte-for-byte. Closes #1321.
+- **WHERE**: `docs/reports/WAVE_LOOP_410_REPORT.md`, `docs/reports/FPGA_LOOP_EVIDENCE_W410_2026-07-04.md`, `docs/reports/FPGA_LOOP_COOPERATION_W411_2026-07-04.md`, `fpga/HARDWARE_SSOT.md` §3.6.1/§3.6.9/§3.6.10, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`.
+- **WHAT**: Both physical halves (P12 capture and `OSCFSEL=6,7` boot) remain blocked by missing bench wiring and the missing DLC10 cable. Delivered the formal-only half of Variant C: added `measured_cclk_satisfies_flash_spec` and the `measured_cclk_satisfies_flash_spec_implies_transaction_ok` theorem in Lean 4, plus a `MeasuredCclk` Rust record with `--json` export that mirrors the conservative period/duty conversion. `lake build Trinity.TernaryFPGABoot` passes; `cargo test -p tri fpga::tests` passes 11/11; `./scripts/tri test` passes parse/typecheck/gen/seal-verify with 16 pre-existing gen-verilog-yosys-smoke failures tracked separately.
+- **Why**: keeps making progress while the physical bench is unavailable, and ensures that once P12 is wired the capture can immediately produce a formal proof.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+## w409-fpga-p12-retry-and-oscfsel-lookup -- real P12 CCLK retry + per-OSCFSEL SPI transaction lookup (Closes #1323)
+
+- **WHERE**: `docs/reports/WAVE_LOOP_409_REPORT.md`, `docs/reports/FPGA_LOOP_EVIDENCE_W409_2026-07-04.md`, `docs/reports/FPGA_LOOP_COOPERATION_W410_2026-07-04.md`, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`, `fpga/HARDWARE_SSOT.md` §3.6.9.
+- **WHAT**: Re-attempted real P12 CCLK capture; the wiring blocker persists (0 MHz / 100% duty). Added `artix7_boot_transaction_for_oscfsel` to the Lean 4 model and proved `oscfsel_zero_to_seven_transaction_satisfies_flash_spec` for every documented Artix-7 CCLK selection (0..7). Rewrote `artix7_boot_transaction` as a wrapper around the lookup. Replaced the placeholder 25%–75% duty-cycle guard in `cli/tri/src/fpga.rs` with a frequency-derived bound from the N25Q128 `t_CL` / `t_CH` limits, clamped to 10%–90%. Added §3.6.9 to `fpga/HARDWARE_SSOT.md` with the per-OSCFSEL transaction table and a note that OSCFSEL 6/7 are model-only. Generated W409 report, evidence, and W410 cooperation variants.
+- **Why**: W408 proved the canonical transaction is safe; W409 generalizes the proof across all documented CCLK variants and removes the placeholder duty-cycle guard, making the formal argument strictly stronger and harder for formal-HDL competitors to reproduce.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+## w408-fpga-real-cclk-and-transaction-model -- real P12 CCLK measurement + complete SPI transaction model in Lean 4 (Closes #1318)
+
+- **WHERE**: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `fpga/HARDWARE_SSOT.md` §3.6, `docs/reports/`, close-out reports.
+- **WHAT**: Attempted real CCLK capture with `tri fpga measure-cclk --live --driver ftdi-la --channel ADBUS4 --samplerate 10000000 --samples 100000 --validate`; the FTDI cable is present but P12 is not wired to ADBUS4, so the capture returned 0 MHz / 100% duty and failed validation. Added a complete SPI flash read-transaction model to the Lean 4 proof: `SPIReadTransaction` structure, `artix7_boot_transaction` parameterized by `BitstreamConfig` and `bitstream_bits`, `transaction_satisfies_flash_spec` covering CS# high time, SCK low/high times, maximum SCK frequency, and wake-up, plus theorems `canonical_oscfsel_transaction_satisfies_flash_spec`, `canonical_implies_transaction_satisfies_flash_spec`, and `cold_por_implies_transaction_satisfies_flash_spec`. Updated `fpga/HARDWARE_SSOT.md` §3.6 with transaction-model traceability and the real-capture blocker. Generated W408 report, evidence, and W409 cooperation variants.
+- **Why**: W407 closed the static timing model and added a synthetic fixture; W408 adds a transaction-level proof that is harder for formal-HDL competitors to reproduce, while documenting the remaining physical wiring blocker.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+## w407-fpga-deeper-flash-timing -- extend Lean 4 SPI flash timing model + synthetic CCLK fixture (Closes #1316)
+
+- **WHERE**: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`, `fpga/HARDWARE_SSOT.md` §3.6, close-out reports.
+- **WHAT**: Extended the W406 formal model with additional Micron N25Q128_3V timing constants: `N25Q128_MIN_SCK_LOW_NS` (6 ns), `N25Q128_MIN_SCK_HIGH_NS` (6 ns), `N25Q128_WAKE_FROM_POWERDOWN_US` (100 us), plus `cclk_period_ns`, `sck_duty_ok`, and a comprehensive `flash_spi_timing_ok` predicate. Replaced `cclk_within_flash_spec` with `flash_spi_timing_ok` inside `cold_por_spi_flash_pred` and proved `canonical_oscfsel_flash_spi_timing_ok`, `canonical_implies_flash_spi_timing_ok`, `cold_por_implies_flash_spi_timing_ok`, plus `flash_spi_timing_ok_implies_cclk_within_flash_spec`. In `tri`, added `tri fpga measure-cclk --synth` to generate a board-less 2.5 MHz square-wave logic CSV, extended `--validate` with a 25%–75% duty-cycle guard, and added unit tests for `is_logic_csv`, `parse_logic_csv`, and `generate_synth_cclk_csv`. Updated `fpga/HARDWARE_SSOT.md` §3.6 with the deeper timing constraints, synthetic fixture instructions, and real-capture wiring checklist. Conformance suite `576/576 PASS`; `cargo test -p tri` 8/8 PASS; `lake build Trinity.TernaryFPGABoot` green. Real P12 capture still blocked by missing LA wiring; deferred to W408.
+- **Why**: W406 bounded CCLK frequency; W407 closes the rest of the SPI flash timing-safety argument (SCK low/high, CS high, wake-up) and gives CI a way to validate the measurement pipeline without bench hardware, making the formal+physical chain harder for competitors (Verilean, Sparkle HDL, prjxray, OpenTitan) to reproduce.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+## w406-fpga-cclk-measure-and-formal -- add live CCLK capture + OSCFSEL/CCLK timing safety in Lean 4 (Closes #1313)
+
+- **WHERE**: `cli/tri/src/fpga.rs`, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `fpga/HARDWARE_SSOT.md`, close-out reports.
+- **WHAT**: Closed the remaining FPGA boot verification gap by quantifying the CCLK timing link. In Lean 4, added `BitstreamConfig.cclk_nominal_hz` (OSCFSEL 0..7 lookup from UG470), `N25Q128_MAX_SCK_HZ` (50 MHz Micron standard-read limit), and `cclk_within_flash_spec`; integrated the predicate into `cold_por_spi_flash_pred` and proved `canonical_oscfsel_within_flash_spec`, `canonical_implies_cclk_within_flash_spec`, and `cold_por_implies_cclk_within_flash_spec`. In `tri`, extended `fpga measure-cclk` with `--live --driver <sigrok-driver> --channel <pin> --samplerate <Hz> --samples <N>` to drive `sigrok-cli`, capture logic-analyzer CSV, and compute frequency/period/duty with flash-spec validation (`--validate`). Manual CSV path still works for offline evidence. Added `fpga/HARDWARE_SSOT.md` §3.6 formal CCLK traceability and live-capture protocol. Conformance suite `576/576 PASS`; `lake build Trinity.TernaryFPGABoot` green. Physical P12 wiring is not yet on the bench, so no live measured frequency is available; the infrastructure is ready and a manual/CSV capture is documented as the W407 fallback.
+- **Why**: W405 proved the canonical bitstream reaches `DONE=HIGH` after cold-POR; W406 proves the default CCLK rate itself satisfies the SPI flash timing spec, giving a complete formal+physical chain for FPGA flash boot that competitors (Verilean, Sparkle HDL, OpenTitan) would have to reproduce.
 - **Anchor**: phi^2 + phi^-2 = 3
 
 ## w405-fpga-smoke-gate-flash-boot -- add `--flash-boot` cold-POR gate (Closes #1311)
