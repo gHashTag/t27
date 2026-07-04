@@ -1,16 +1,18 @@
-# Wave Loop 420 — physical CCLK capture, real relay gate, or instrument-import depth
+# Wave Loop 421 — formal-only guarding and instrument-import depth (Variant C fallback)
 
-**Issue:** #1361  
-**Branch:** `wave-loop-420`  
-**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 419.
+**Issue:** #1363  
+**Branch:** `wave-loop-421`  
+**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 420.
 
 ---
 
 ## Goal
 
-Wave 419 closed the Variant C fallback (instrument-import parity, PVT
-monotonicity, standalone lake workflow). Wave 420 re-evaluates the bench state
-and executes the first available variant.
+Wave 420 closed the Variant C fallback with VCD exact-terminator / real-net
+auto-threshold and PVT process-corner monotonicity while the physical bench
+remains blocked (P12 unwired, DLC10 cable missing, no relay). Wave 421
+re-evaluates the bench state and executes the first available variant from
+`docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-06.md`.
 
 1. **Variant A (preferred when bench becomes available):**
    - Wire P12 to a logic-analyzer channel and capture real CCLK for
@@ -22,20 +24,23 @@ and executes the first available variant.
    - Document the measured frequencies/duty cycles and PVT context in
      `fpga/HARDWARE_SSOT.md`.
 
-2. **Variant B (if relay hardware is available, no CCLK probe):**
-   - Implement a real `--relay-port` backend for `tri fpga cold-por`
-     (e.g. serial or TCP relay controlling board power).
-   - Perform an automated cold-POR power-cycle and capture STAT without
-     operator intervention.
-   - Document relay wiring and port syntax in `fpga/HARDWARE_SSOT.md`.
+2. **Variant B (if an external VCD/CSV capture is available, no on-bench relay):**
+   - Add CSV timestamp-column formats (fractional seconds / milliseconds).
+   - Add VCD real-net slope filters (reject transitions with Δt < t_setup or
+     ΔV < threshold_window).
+   - Add a `dlc10 capture --stub` dry-run path for later replay.
+   - Extend the PVT envelope with `OSCFSEL` derating coefficients.
 
 3. **Variant C (fallback if bench still blocked):**
-   - Extend instrument-import depth: VCD auto-threshold, CSV sample-rate
-     auto-detection, or additional vendor header aliases.
-   - Refine the PVT envelope if real N25Q128_3V timing curves become available,
-     otherwise add another shape-preservation lemma.
-   - Land one safe gen-verilog #1245 sub-fix that does not destabilize the
-     existing 16-failure yosys smoke baseline.
+   - Extend VCD robustness: `$timescale` parsing, `$dumpoff`/`$dumpon`
+     completeness, real-net slope/rise-time rejection.
+   - Add remaining PVT envelope shape lemmas (max half-period antitonicity,
+     combined temp+voltage+corner monotonicity, worst-case operating-point
+     search).
+   - Write a public comparison note: t27 vs Sparkle/Verilean vs Clash/Chisel.
+   - Land one safe gen-verilog #1245 sub-fix that does not increase the
+     16-failure yosys smoke baseline, if a narrow regression-free fix is
+     available.
 
 ---
 
@@ -43,12 +48,12 @@ and executes the first available variant.
 
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `cli/tri/src/fpga.rs` | Variant A import, B relay backend, or C instrument-import depth / gen-verilog sub-fix |
+| 1 | `cli/tri/src/fpga.rs` or `cli/dlc10/src/main.rs` | Variant A import, B instrument depth, or C parser/formal hardening |
 | 2 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | New measured theorems or PVT shape lemma |
-| 3 | `fpga/HARDWARE_SSOT.md` | Updated capture / relay / integration protocol |
-| 4 | `docs/reports/*` | W420 report, evidence, W421 cooperation |
-| 5 | `.trinity/experience.md` | W420 learnings |
-| 6 | git/PR | squash-merge to `master`, close #1361, open #? for W421 |
+| 3 | `fpga/HARDWARE_SSOT.md` / `docs/reports` | Updated protocol or comparison note |
+| 4 | `docs/reports/*` | W421 report, evidence, W422 cooperation |
+| 5 | `.trinity/experience.md` | W421 learnings |
+| 6 | git/PR | squash-merge to `master`, close #1363, open #? for W422 |
 
 ---
 
@@ -60,36 +65,37 @@ and executes the first available variant.
 - [ ] AC-A3: Measured CCLK satisfies the PVT-aware flash spec, or any exceedance is explicitly explained.
 
 ### Bundle B
-- [ ] AC-B1: `tri fpga cold-por <bit> --relay-port <real>` performs an automated power-cycle and captures STAT.
-- [ ] AC-B2: The resulting log has `relay_mock: false` and a real STAT raw value.
-- [ ] AC-B3: `fpga/HARDWARE_SSOT.md` documents relay wiring and port syntax.
+- [ ] AC-B1: CSV fractional-second / millisecond timestamp columns are parsed correctly with a regression test.
+- [ ] AC-B2: VCD real-net slope filter rejects spurious transitions with a regression test.
+- [ ] AC-B3: `dlc10 capture --stub` writes a dry-run command log with a regression test.
 
 ### Bundle C
-- [x] AC-C1: VCD instrument-import unit tests land: exact `$end` token terminator regression and real-valued net auto-threshold.
-- [x] AC-C2: New PVT envelope shape lemma/test lands: process-corner monotonicity (`ff ≤ tt ≤ ss`).
-- [ ] AC-C3: One safe gen-verilog #1245 sub-fix lands without increasing the 16-failure yosys smoke count. (Deferred; the remaining tracked gap is RAM style inference, which is not a safe narrow sub-fix for a Variant C wave.)
+- [ ] AC-C1: VCD parser hardening lands with unit tests (`$timescale`, slope filter, or dumpoff completeness).
+- [ ] AC-C2: New PVT envelope shape lemma/test lands (max half-period, combined monotonicity, or worst-case search).
+- [ ] AC-C3: `docs/reports/T27_VS_FORMAL_HDL_2026.md` comparison note is published.
+- [ ] AC-C4: One safe gen-verilog #1245 sub-fix lands without increasing the 16-failure yosys smoke count (optional; defer if unsafe).
 
 ### Invariant checks
-- [x] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
-- [x] `lake build Trinity.TernaryFPGABoot` passes.
-- [x] `cargo test -p tri fpga::tests` passes.
+- [ ] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
+- [ ] `lake build Trinity.TernaryFPGABoot` passes.
+- [ ] `cargo test -p tri fpga::tests` passes.
 
 ---
 
 ## PR
 - Target: `master`
 - PR: to open after work
-- Body: `Closes #1361`
-- Report: `docs/reports/WAVE_LOOP_420_REPORT.md`
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-06.md`
-- Cooperation W421: `docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-06.md`
+- Body: `Closes #1363`
+- Report: `docs/reports/WAVE_LOOP_421_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W421_YYYY-MM-DD.md`
+- Cooperation W422: `docs/reports/FPGA_LOOP_COOPERATION_W422_YYYY-MM-DD.md`
 
 ---
 
 ## Default variant
 
 Execute **Variant A** if the analyzer and DLC10 cable are available. Otherwise
-try **Variant B** if a relay and DLC10 cable are available. Otherwise fall back
+try **Variant B** if an external capture file is available. Otherwise fall back
 to **Variant C**.
 
 ---
