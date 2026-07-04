@@ -184,6 +184,17 @@ Use `tri fpga flash-status` to probe the detected flash chip, and
 > success example (`STAT=0x401079FC`) and the incomplete example
 > (`STAT=0x5000190C`) are verified as instances of `boot_success` and
 > `h2_cclk_timing` respectively.
+>
+> **Bitstream-config traceability (W403):** the canonical SPI-flash boot
+> configuration is also modeled in Lean 4 as
+> `Trinity.BitstreamConfig.canonical`: `IDCODE=0x03636093`,
+> `SPI_BUSWIDTH=x1` (`COR1[8:7]=00`), `STARTUPCLK=CCLK`
+> (`COR0[16:15]=00`), and `OSCFSEL=0` (`COR0[22:17]=0`). The theorem
+> `cold_por_spi_flash_pred` links that static config + correct mode sampling +
+> clean protocol to the STAT-register decision tree, and
+> `decision_tree_exhaustive` proves that every possible STAT value falls into
+> one of the documented outcomes (`boot_success`, `h2_cclk_timing`,
+> `mode_mismatch`, or `fatal_error`).
 
 ### 3.3 H2 — CCLK/SPI-startup timing decision tree
 

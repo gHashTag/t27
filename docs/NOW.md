@@ -2,6 +2,13 @@
 
 Last updated: 2026-07-05
 
+## w403-fpga-bitstream-config-lean4 -- extend Lean 4 formal model to bitstream configuration (Closes #1307)
+
+- **WHERE**: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `fpga/HARDWARE_SSOT.md`, close-out reports.
+- **WHAT**: Extended the Lean 4 STAT-register model with a `BitstreamConfig` structure and `canonical` predicate (`IDCODE=0x03636093`, `SPI_BUSWIDTH=x1`, `STARTUPCLK=CCLK`, `OSCFSEL=0`). Added `ColdPOR` preconditions (`mode_ok`, `no_cable_interference`) and linkage lemmas: `cold_por_done_eos_high_implies_boot_success`, `cold_por_done_low_implies_h2`, and `decision_tree_exhaustive`. Formal traceability callout added to `fpga/HARDWARE_SSOT.md` §3.2. Physical CCLK measurement on P12 (Variant A) deferred again — no logic-analyzer access. Variant C (`--require-cable` SRAM smoke) not attempted. Conformance suite `576/576 PASS`; `lake build Trinity.TernaryFPGABoot` green.
+- **Why**: closes W403 without bench hardware by formalizing the static bitstream-config audit that `tri fpga bit-config` performs, making the FPGA boot model traceable end-to-end from `.bit` register settings through cold-Por preconditions to STAT outcomes.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## w402-fpga-cold-por-lean4 -- formalize cold-POR / CCLK decision tree in Lean 4 (Closes #1305)
 
 - **WHERE**: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `proofs/lean4/Trinity.lean`, `fpga/HARDWARE_SSOT.md`, close-out reports.

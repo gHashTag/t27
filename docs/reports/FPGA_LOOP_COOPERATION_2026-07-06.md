@@ -1,66 +1,88 @@
-# FPGA Loop Cooperation Variants — 2026-07-06 (for W397)
+# FPGA Loop Cooperation Variants — W404 (2026-07-06)
 
-**Basis:** W396 closed as honest diagnostic gathering. H2 (bitstream config), H3 (round-trip mismatch), and H4 (package chipdb) are ruled out. H1 (cold-POR mode-pin sampling) is the only remaining high-priority hypothesis. W397 must either confirm H1 or expand the diagnostic set.
-
----
-
-## Variant A — Confirm and fix cold-POR mode sampling (default)
-
-Execute the user-assisted cold-POR experiment that W396 could not complete autonomously:
-
-1. Power off the QMTech Wukong V1 board completely (all rails) for ≥10 s.
-2. Power on.
-3. Within seconds, run `tri fpga stat --pre-jtag-reset` and capture `MODE`, `BUS Width`, `INIT_B`, `DONE`.
-4. Then run `tri fpga stat` (JTAG reset path) and capture again.
-
-If cold-POR `MODE` differs from post-reset `MODE=0x1`, H1 is confirmed. Root-cause fixes depend on the observed value:
-
-- If cold-POR samples `MODE=0x0` (JTAG) or another value, inspect the board's M0/M1/M2 pull resistor network and `CFGBVS`/`PUDC_B` strapping. A stronger pull-up/down or a dedicated strapping resistor may be needed.
-- If cold-POR samples the same `MODE=0x1` but boot still fails, the issue is not mode sampling; move to Variant B or C.
-
-**Deliverables:** evidence log, board schematic note, `fpga/HARDWARE_SSOT.md` update, and (if a fix is found) a working flash-boot end-to-end.
-
-**IGLA impact:** +0 generic ∀ in W397 unless a quick fix leaves cycles; keep the 125-wave no-regression streak.
+> Proposed follow-up to Wave Loop 403 ([#1307](https://github.com/t27/t27/issues/1307)).  
+> Each variant is independently valuable; choose based on available hardware and
+> reviewer bandwidth.
 
 ---
 
-## Variant B — Bitstream-generation / SPI-startup fix
+## Variant A — Capture the actual CCLK frequency on P12
 
-If Variant A shows the same correct `MODE=0x1` at cold-POR and boot still fails, the problem lies deeper than mode sampling. Candidate causes:
+**Goal:** close the deferred physical AC by measuring the real CCLK frequency
+and duty cycle produced by the canonical `OSCFSEL=0` bitstream.
 
-- `COR0` CCLK frequency field is `0` (default decode). Some Artix-7 speed grades interpret this as a frequency the N25Q128 cannot satisfy in the specific board environment, or the openXC7 `fasm2frames`/`xc7frames2bit` path omits a required SPI-startup timing detail.
-- The openXC7-generated bitstream works in JTAG/SRAM loading but is missing a frame or command needed for autonomous SPI boot. Compare a Vivado-generated `.bin` of the same design byte-by-byte with the OpenXC7 output.
-- The `bscan_spi` bridge loaded during openFPGALoader flash access leaves the FPGA in a state that interferes with the next boot sequence.
+**Steps:**
+1. Attach a logic analyzer / oscilloscope to pin **P12** (CFGCLK / CCLK_0).
+2. Trigger on board power-on; capture the first ~100 µs.
+3. Export CSV and run:
+   ```bash
+   tri fpga measure-cclk --csv build/fpga/p12_cclk.csv
+   ```
+4. Record the frequency and duty cycle in `fpga/HARDWARE_SSOT.md` §3.5.
+5. Optionally sweep `OSCFSEL=0..5` and measure each variant to map raw field
+   value to MHz.
 
-**Actions:**
-- Regenerate a minimal GF16 bitstream with explicit `BITSTREAM.CONFIG.CONFIGRATE` and `SPI_BUSWIDTH` constraints and test flash boot.
-- Use `bitread`/FASM diff to compare OpenXC7 vs Vivado bitstreams for the same design.
-- Try a different, simpler design (e.g., `fpga/openxc7-synth/blink_j26.bit` rebuilt for XC7A200T) to see if the failure is design-specific.
-
-**Deliverables:** root cause in the generation flow, a patched wrapper or `.fasm` pre-processing step, and a booting bitstream.
+**Effort:** ~2–4 hours bench time.  
+**Dependencies:** physical board + DSLogic/oscilloscope.  
+**Impact:** turns the default bitstream choice from empirical to quantitative;
+unblocks future frequency-limited flash devices.
 
 ---
 
-## Variant C — Vivado-in-Docker fallback
+## Variant B — Extend the Lean 4 model to `OSCFSEL` variants and CCLK bounds (no hardware)
 
-If both Variant A and Variant B fail to yield a bootable OpenXC7 bitstream, accept that the open-source 7-series toolchain may have a fundamental gap for XC7A200T FGG676 autonomous SPI boot. Switch to the Vivado-in-Docker path.
+**Goal:** strengthen the formal FPGA-boot story by making the model speak about
+the `OSCFSEL` field and the derived CCLK frequency bounds, without requiring a
+physical measurement.
 
-**Prerequisites (require user action outside the agent):**
-- Restore/install Vivado 2025.2 or later Linux installer.
-- Provide a valid `wi_authentication_key` or offline entitlement.
-- Build the `t27/vivado:webpack` Docker image or supply a multi-arch image.
+**Steps:**
+1. Add constants for the documented `OSCFSEL` values and the corresponding
+   nominal CCLK ranges to `TernaryFPGABoot.lean`.
+2. Define a predicate `cclk_within_flash_spec` that states the configured CCLK
+   is compatible with the N25Q128 read timing.
+3. Prove that `canonical` + `OSCFSEL=0` implies `cclk_within_flash_spec` under
+   the published Artix-7 startup clock tables.
+4. Link the result to `fpga/HARDWARE_SSOT.md` §3.3 (H2 decision tree) as a
+   formal justification for why the default bitstream is timing-safe.
 
-**Actions:**
-- Build `gf16_matmul4x4_top.bit` through Vivado for `xc7a200tfgg676-1`.
-- Program flash with `tri fpga program-flash` and test cold boot.
-- If Vivado-generated bitstream boots from flash, bisect the OpenXC7 differences and file actionable upstream issues or patches.
+**Effort:** ~4–6 hours; no hardware.  
+**Dependencies:** Lean 4 toolchain + Xilinx UG470 tables.  
+**Impact:** turns the W400 empirical result into a provable timing claim,
+adding another formal barrier for competitors to match.
 
-**Deliverables:** boot-from-flash working via Vivado, documented OpenXC7 gap, and a decision on whether to maintain dual-toolchain support.
+---
+
+## Variant C — Cable-connected end-to-end smoke verification
+
+**Goal:** extend `tri fpga smoke-gate` so that, when a Digilent cable is
+detected, it also loads the GF16 matrix into SRAM and asserts `DONE=HIGH`.
+
+**Steps:**
+1. Detect cable presence with `openFPGALoader --detect -c digilent_hs2`.
+2. If the cable is present, run:
+   ```bash
+   openFPGALoader -c digilent_hs2 fpga/verilog/ternary_mac_demo_top_200t.bit
+   ```
+   and then `tri fpga stat` to read `DONE`.
+3. Keep the board-less assertions as the mandatory path and make the physical
+   SRAM load an optional bonus check that is skipped gracefully when no cable is
+   connected.
+4. Add a `--require-cable` flag for CI runners that expect hardware.
+
+**Effort:** ~3–5 hours; needs the board for final verification.  
+**Dependencies:** Digilent FTDI cable + board.  
+**Impact:** turns `smoke-gate` from a static bitstream audit into a true
+hardware smoke test, without breaking board-less CI.
 
 ---
 
 ## Recommendation
 
-Start with **Variant A**. It is the only hypothesis that survived W396 and requires only a user-assisted power-cycle plus CLI capture. If H1 is disproven, proceed to **Variant B** before escalating to **Variant C**, because Vivado-in-Docker has unresolved entitlement/container blockers.
+If hardware is available, start with **Variant A** (it directly closes the
+physical AC and produces numeric evidence). If hardware is not available,
+**Variant B** is the highest-leverage no-hardware path. **Variant C** is best as
+a stretch goal once A is done.
 
-*phi^2 + phi^-2 = 3 | TRINITY*
+---
+
+*φ² + 1/φ² = 3 | TRINITY*
