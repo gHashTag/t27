@@ -1465,3 +1465,7 @@
 - **Commit:** chore(w410): update session log and commit count
 - **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W411_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_W410_2026-07-04.md,docs/reports/WAVE_LOOP_410_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-04T12:46:48Z — wave-loop-410
+- **Commit:** feat(igla): Wave Loop 410 — measured-duty formal link and Rust JSON export
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
