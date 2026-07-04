@@ -3,7 +3,7 @@
   "format": "GF256",
   "format_name": "GF256 (rule-derived)",
   "bitexact": false,
-  "format_notes": "GF256 (rule-derived) -- this work; rule e=round(255/phi^2)=97; normative bias=2^96-1",
+  "format_notes": "GoldenFloat wide rung S1E97M158, bias 2^96-1 (PROPOSED layout: rule e=round(255/phi^2)=97). Dyadic-exact under one decode law; NO independent second witness at 256-bit and the bias is an OPEN R&D parameter -> self-consistent tier, not promoted to bitexact.. IEEE-style specials at top exponent; mantissa exceeds f64 (named dyadic vectors are exact, full grid not enumerable)",
   "catalog": {
     "id": "gf256",
     "bits": 256,
@@ -23,8 +23,105 @@
   "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
   "preprint": "https://arxiv.org/abs/2606.05017",
   "anchor_identity": "phi^2 + 1/phi^2 = 3",
-  "structural_reason": "Bias is an OPEN R&D parameter for this width (see catalog status Experimental); a bit-precise pack is deferred until the bias is fixed. Recorded structurally with the proposed layout.",
-  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
-  "n_vectors": 0,
-  "vectors": []
+  "anchor_check": {
+    "value": 3.0,
+    "expected": 3.0,
+    "ieee754_exact": true,
+    "gf256_bits_hex": "0x4000000000000000000000002000000000000000000000000000000000000000"
+  },
+  "round_trip_policy": "decode: exact bits->f64 (curated_named). encode (reference): round-nearest-ties-even; overflow per format convention. abs_error 0 for representable values.",
+  "vector_mode": "curated_named",
+  "n_vectors": 8,
+  "vectors": [
+    {
+      "name": "pos_zero",
+      "input_f64": 0.0,
+      "input_f64_hex": "0x0000000000000000",
+      "gf256_bits_hex": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "gf256_bits_int": 0,
+      "decoded_f64": 0.0,
+      "decoded_f64_hex": "0x0000000000000000",
+      "abs_error": 0.0,
+      "category": "zero"
+    },
+    {
+      "name": "pos_one",
+      "input_f64": 1.0,
+      "input_f64_hex": "0x3FF0000000000000",
+      "gf256_bits_hex": "0x3FFFFFFFFFFFFFFFFFFFFFFFC000000000000000000000000000000000000000",
+      "gf256_bits_int": 28948022309329048855892746251806601553984770436859219801685325247064299274240,
+      "decoded_f64": 1.0,
+      "decoded_f64_hex": "0x3FF0000000000000",
+      "abs_error": 0.0,
+      "category": "normal"
+    },
+    {
+      "name": "neg_one",
+      "input_f64": -1.0,
+      "input_f64_hex": "0xBFF0000000000000",
+      "gf256_bits_hex": "0xBFFFFFFFFFFFFFFFFFFFFFFFC000000000000000000000000000000000000000",
+      "gf256_bits_int": 86844066927987146567678238756150555480619762769679501821414117251020864094208,
+      "decoded_f64": -1.0,
+      "decoded_f64_hex": "0xBFF0000000000000",
+      "abs_error": 0.0,
+      "category": "normal"
+    },
+    {
+      "name": "pos_two",
+      "input_f64": 2.0,
+      "input_f64_hex": "0x4000000000000000",
+      "gf256_bits_hex": "0x4000000000000000000000000000000000000000000000000000000000000000",
+      "gf256_bits_int": 28948022309329048855892746252171976963317496166410141009864396001978282409984,
+      "decoded_f64": 2.0,
+      "decoded_f64_hex": "0x4000000000000000",
+      "abs_error": 0.0,
+      "category": "normal"
+    },
+    {
+      "name": "pos_three",
+      "input_f64": 3.0,
+      "input_f64_hex": "0x4008000000000000",
+      "gf256_bits_hex": "0x4000000000000000000000002000000000000000000000000000000000000000",
+      "gf256_bits_int": 28948022309329048855892746252354664667983859031185601613953931379435273977856,
+      "decoded_f64": 3.0,
+      "decoded_f64_hex": "0x4008000000000000",
+      "abs_error": 0.0,
+      "category": "normal"
+    },
+    {
+      "name": "pos_half",
+      "input_f64": 0.5,
+      "input_f64_hex": "0x3FE0000000000000",
+      "gf256_bits_hex": "0x3FFFFFFFFFFFFFFFFFFFFFFF8000000000000000000000000000000000000000",
+      "gf256_bits_int": 28948022309329048855892746251441226144652044707308298593506254492150316138496,
+      "decoded_f64": 0.5,
+      "decoded_f64_hex": "0x3FE0000000000000",
+      "abs_error": 0.0,
+      "category": "normal"
+    },
+    {
+      "name": "pos_four",
+      "input_f64": 4.0,
+      "input_f64_hex": "0x4010000000000000",
+      "gf256_bits_hex": "0x4000000000000000000000004000000000000000000000000000000000000000",
+      "gf256_bits_int": 28948022309329048855892746252537352372650221895961062218043466756892265545728,
+      "decoded_f64": 4.0,
+      "decoded_f64_hex": "0x4010000000000000",
+      "abs_error": 0.0,
+      "category": "normal"
+    },
+    {
+      "name": "neg_three",
+      "input_f64": -3.0,
+      "input_f64_hex": "0xC008000000000000",
+      "gf256_bits_hex": "0xC000000000000000000000002000000000000000000000000000000000000000",
+      "gf256_bits_int": 86844066927987146567678238756698618594618851364005883633682723383391838797824,
+      "decoded_f64": -3.0,
+      "decoded_f64_hex": "0xC008000000000000",
+      "abs_error": 0.0,
+      "category": "normal"
+    }
+  ],
+  "selfconsistent": true,
+  "selfconsistent_reason": "Single decode law, dyadic-exact named vectors, but no independent second witness at 256-bit width and bias is an OPEN R&D parameter."
 }
