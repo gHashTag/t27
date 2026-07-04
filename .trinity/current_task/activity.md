@@ -1453,3 +1453,7 @@
 - **Commit:** feat(igla): Wave Loop 409 — per-OSCFSEL SPI transaction lookup + tighter duty bound
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-04T12:28:26Z — wave-loop-410
+- **Commit:** chore(w410): set current issue to Wave Loop 410 (#1325)
+- **Files:** docs/NOW.md
+

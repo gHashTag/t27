@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-04
 
-## w410-fpga-p12-or-oscfsel-67 -- real P12 CCLK capture or physical OSCFSEL 6/7 boot + measured-duty formal link (Issue #TBD)
+## w410-fpga-p12-or-oscfsel-67 -- real P12 CCLK capture or physical OSCFSEL 6/7 boot + measured-duty formal link (Issue #1325)
 
 - **WHERE**: `docs/reports/FPGA_LOOP_COOPERATION_W410_2026-07-04.md`, `fpga/HARDWARE_SSOT.md` §3.6.1/§3.6.9, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`, close-out reports.
 - **WHAT**: Wave Loop 410 follows W409. Default bundle is Variant A + C: finally capture the real P12 CCLK once the wiring is available, and physically boot `OSCFSEL=6,7` to close the lookup table against silicon. Add a measured-duty formal lemma linking a captured `(frequency, duty)` pair to `transaction_satisfies_flash_spec`. If P12 wiring is still unavailable, fall back to Variant C alone (boot 6/7 + measured-duty lemma). If CI automation is the priority, pick Variant B (relay-controlled cold-POR + JTAG isolation).
