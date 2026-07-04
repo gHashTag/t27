@@ -1,68 +1,72 @@
-# Wave Loop 405 — FPGA boot loop closure (variant A/B/C)
+# Wave Loop 407 — close the CCLK measurement gap or deepen formal timing safety
 
-**Issue:** #1311  
-**Branch:** `wave-loop-405`  
-**Milestone:** W404 closed the SRAM hardware smoke gate. W405 should close one
-of the remaining gaps: real CCLK measurement, flash-boot cold-POR gate, or
-formal CCLK timing-safety.
+**Issue:** #1316  
+**Branch:** `wave-loop-407` (created from `master`)  
+**Milestone:** W406 added live CCLK capture infrastructure and formal
+OSCFSEL/CCLK timing safety in Lean 4. W407 should pick one of the remaining
+next steps: a real CCLK measurement on P12, full cold-POR automation, or deeper
+SPI flash timing formalization.
 
 ---
 
 ## Goal
 
-1. **Variant A** — Capture the actual CCLK frequency/duty cycle on pin P12 and
-   record it in `fpga/HARDWARE_SSOT.md` §3.5.
-2. **Variant B** — Extend `tri fpga smoke-gate --require-cable` to flash boot:
-   program flash, prompt for power-cycle, capture cold-POR STAT, assert
-   `boot_success`.
-3. **Variant C** — Extend the Lean 4 model with `OSCFSEL` constants, nominal
-   CCLK ranges, and a `cclk_within_flash_spec` predicate; prove the canonical
-   config is timing-safe.
-4. Update close-out reports and open W406 cooperation variants.
+1. **Variant A** — Complete the real CCLK measurement on pin P12 during
+   cold-POR from flash and record it in `fpga/HARDWARE_SSOT.md` §3.6.
+2. **Variant B** — Automate the cold-POR flash-boot smoke gate with a relay
+   power switch and isolated/tri-stateable JTAG cable so no operator is
+   required.
+3. **Variant C** — Extend the Lean 4 model with additional Micron N25Q128_3V
+   timing constraints (CS# high, clock low/high, wake-up) and link them to the
+   cold-POR predicate.
+
+Default recommendation: **Variant A + C bundle** (measurement + deeper formal
+timing claim). If P12 is still unwired, Variant A becomes "manual CSV evidence"
+and Variant C remains fully deliverable.
 
 ---
 
 ## Decomposed plan
 
-See `.claude/plans/wave-loop-405.md` for the full weak-point / competitor scan
-and detailed decomposition.
+See `.claude/plans/wave-loop-406.md` for the W406 close-out and
+`docs/reports/FPGA_LOOP_COOPERATION_2026-07-12.md` for the full W407 variants.
 
 | Step | File(s) | Deliverable |
-|------|---------|-------------|
-| 1 | `.claude/plans/wave-loop-405.md` | Decomposed plan + weak-point + competitor scan |
-| 2 | `fpga/HARDWARE_SSOT.md` (Variant A) | Measured CCLK frequency/duty cycle on P12 |
-| 3 | `cli/tri/src/fpga.rs` (Variant B) | `--flash-boot` flag + program/reset/capture flow |
-| 4 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` (Variant C) | OSCFSEL/CCLK-bound lemmas |
-| 5 | `docs/reports/*` | W405 report, evidence, W406 cooperation |
-| 6 | `.trinity/experience.md` | W405 learnings |
-| 7 | git/PR | squash-merge to master, close #1311, open #W406 |
+|---|---|---|
+| 1 | `.claude/plans/wave-loop-407.md` | Decomposed plan + weak-point + competitor scan |
+| 2 | `fpga/HARDWARE_SSOT.md` §3.6 (Variant A) | Measured CCLK frequency/duty cycle on P12 |
+| 3 | `cli/tri/src/fpga.rs` (Variant A/B) | Optional live-capture hardening or auto-power-cycle trait |
+| 4 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` (Variant C) | CS-high / SCK duty / wake-up lemmas |
+| 5 | `docs/reports/*` | W407 report, evidence, W408 cooperation |
+| 6 | `.trinity/experience.md` | W407 learnings |
+| 7 | git/PR | squash-merge to master, close #1316, open #W408 |
 
 ---
 
 ## Acceptance criteria
 
-- [ ] AC-A1 (Variant A): a physical CCLK trace is captured and the dominant
+- [ ] AC-A1 (Variant A): a real CCLK capture CSV exists and the dominant
       frequency is recorded.
-- [ ] AC-A2 (Variant A): `fpga/HARDWARE_SSOT.md` §3.5 contains the measured value.
-- [ ] AC-B1 (Variant B): `tri fpga smoke-gate --require-cable --flash-boot`
-      programs flash and asserts `boot_success` after a cold POR.
-- [ ] AC-C1 (Variant C): new Lean 4 lemmas link `OSCFSEL`/CCLK bounds to the
-      documented decision trees.
+- [ ] AC-A2 (Variant A): `fpga/HARDWARE_SSOT.md` §3.6 contains the measured
+      frequency ± tolerance and duty cycle.
+- [ ] AC-A3 (Variant A): `tri fpga measure-cclk --live ... --validate` passes.
+- [ ] AC-B1 (Variant B): `tri fpga smoke-gate --flash-boot --auto-power-cycle`
+      runs the cold-POR gate without operator intervention.
+- [ ] AC-C1 (Variant C): new Lean 4 lemmas link CS# / SCK / wake-up bounds to
+      the cold-POR predicate for `OSCFSEL=0`.
 - [ ] AC-D1: `./scripts/tri test` passes.
-- [ ] AC-D2: W405 report + evidence + W406 cooperation variants committed.
+- [ ] AC-D2: `lake build Trinity.TernaryFPGABoot` passes.
+- [ ] AC-D3: W407 report + evidence + W408 cooperation variants committed.
 
 ---
 
 ## Default variant
 
-The bench cable and board are reachable, so the recommended default is
-**Variant B** (flash-boot cold-POR smoke gate). It directly extends the W404
-SRAM gate and closes the boot loop end-to-end.
-
-If the manual power-cycle step proves too awkward, fall back to **Variant C**
-(no hardware) and pursue Variant B in W406. If a logic analyzer / oscilloscope
-becomes available before implementation starts, switch to **Variant A**.
+**Variant A + C bundle**. The live-capture infrastructure from W406 is ready;
+once P12 is wired to a logic-analyzer channel, the actual frequency can be
+captured and the deeper formal timing model can be proved against the same
+silicon anchor.
 
 ---
 
-*φ² + φ⁻² = 3 | TRINITY*
+*phi^2 + phi^-2 = 3 | TRINITY*

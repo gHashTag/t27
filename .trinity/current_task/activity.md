@@ -1400,3 +1400,7 @@
 - **Commit:** docs(wave-loop-405): set up W405 issue pointer and decomposed plan (refs #1311)
 - **Files:** .claude/plans/wave-loop-405.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-10.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-10.md,docs/reports/WAVE_LOOP_405_REPORT.md
 
+## 2026-07-04T11:33:20Z — wave-loop-407
+- **Commit:** feat(igla): Wave Loop 406 — live CCLK capture, OSCFSEL/CCLK flash-spec safety in Lean 4, close-out reports
+- **Files:** .trinity/current-issue.md
+
