@@ -1,4 +1,18 @@
-# NOW — GF16-paper honesty fix (Closes #1341)
+# NOW — conformance reclassification 69/6/8 (Closes #1347)
+
+Last updated: 2026-07-04
+
+## conformance-reclass-69-6-8 — честная трёхтировая схема пакетов + gf14-witness fix + SW/HW cross-walk (Closes #1347)
+
+- **WHERE** (`conformance/vectors/`): реклассификация 83-форматного каталога 72/0/11 → **69 bit-exact / 6 bit-exact self-consistent / 8 structural = 83**. `INDEX_all_formats.json` totals обновлены; `gen_all_formats.py` идемпотентен (0 изменений при повторном прогоне); README SHA-256 манифест 83/83 совпадают; добавлены `CROSSWALK_sw_hw.{md,json,py}`.
+- **gf14-fix (было 68/7/8 → 69/6/8)**: gf14 остаётся **bit-precise**, НЕ self-consistent. У него ЕСТЬ независимый 2-й witness — iverilog exhaustive 16384/16384 через `gf_decode_param #(WIDTH=14,E=5,M=8,BIAS=15)`, abs_error=0, merge `cb845f75f` (trinity-fpga PR #239). Witness записан verbatim в `witnesses[]` пакета `gf14_conformance_v0.json` с честной пометкой «SW simulation witness — не on-silicon Tier-E claim». Подтверждён независимым IEEE re-decode (0/14 расхождений).
+- **6 promotable self-consistent** (нужен 2-й оракул для bit-exact): gf48, gf96, gf128, gf512, gf1024 (Phase-B широкие GF-ступени), gf256 (открытый bias).
+- **8 structural** (параметрические, не promotable): block_fp, minifloat, q_format, shared_exp, stochastic_rounding, tapered_fp, unum_i, unum_ii.
+- **cross-walk**: `CROSSWALK_sw_hw.{md,json}` авто-выводит SW-тир из INDEX и сопоставляет со статусом decode-HW/compute-HW Tier-E из SSOT-снимка trinity-fpga #199 (02–03.07.2026, НЕ live). HW-потолок на XC7A200T = 71/83 (терминальный; takum32/64 = routing-failure). Строка gf14: `bit-exact | 14 | Tier-E | Tier-E`.
+- **Why**: даёт t27 честную, аудируемую базовую линию (baseline) для conformance-тиров без категорических утверждений. encoding ≠ compute ≠ FPGA; каталог = 83 (НЕ 84). Строгий SW-bitexact (независимый 2-й witness, abs_error=0) отделён от bitexact_selfconsistent (один decode-закон, нет 2-го witness). Данные-файлы + генераторы, не quality-claim; никаких silicon-претензий сверх существующей. Реализация — PR #1345. Closes #1347.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+---
 
 ## Honesty — GF16-статья: FPGA-synth вместо 'verified on silicon', shuttle TTSKY26b (Closes #1341)
 
