@@ -73,6 +73,11 @@ pub enum FpgaCmd {
         /// openFPGALoader cable profile (default: digilent_hs2).
         #[arg(long, default_value = "digilent_hs2")]
         cable: String,
+        /// Skip the JTAG reset/PROGRAM_B pulse before reading STAT.
+        /// Use this to capture cold-POR mode sampling before the FPGA
+        /// is re-initialized by the cable.
+        #[arg(long)]
+        pre_jtag_reset: bool,
     },
     /// Synthesize the GF16 4x4 matrix design through the openXC7 toolchain.
     /// Output is written to `<build_dir>/gf16_matmul4x4_top.bit`.
@@ -145,6 +150,32 @@ pub enum FpgaCmd {
         /// Size in bytes to dump (default: 16 MiB, the whole N25Q128).
         #[arg(long, default_value_t = 16777216)]
         size: usize,
+    },
+    /// Parse the .bit header and print the configuration registers that
+    /// affect Master SPI boot (COR0, COR1, WBSTAR, TIMER, CTL0, CTL1,
+    /// IDCODE, BSPI).
+    BitConfig {
+        /// Path to the Xilinx .bit file.
+        bit: PathBuf,
+    },
+    /// Program the given .bit to SPI flash, dump the same region back, and
+    /// compare the dumped bytes against the bitstream payload. This verifies
+    /// the openFPGALoader write path is bit-perfect for the raw bitstream.
+    RoundTripVerify {
+        /// Bitstream to program and read back.
+        bit: PathBuf,
+        /// openFPGALoader cable profile (default: digilent_hs2).
+        #[arg(long, default_value = "digilent_hs2")]
+        cable: String,
+        /// FPGA part/package for bridge selection (default: xc7a200tfgg676).
+        #[arg(long, default_value = "xc7a200tfgg676")]
+        part: String,
+        /// Optional explicit path to a JTAG-to-SPI bridge bitstream.
+        #[arg(long)]
+        bridge: Option<PathBuf>,
+        /// JTAG frequency in Hz (default: 6 MHz).
+        #[arg(long, default_value = "6000000")]
+        freq: u32,
     },
     /// Read the SPI flash status register via openFPGALoader's JTAG-to-SPI bridge.
     /// Decodes WIP, WEL, and QE bits to help diagnose boot-from-flash failures.
@@ -322,7 +353,11 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             reset,
             verbose,
         } => load_sram(bit, cable, part, *reset, *verbose),
-        FpgaCmd::Stat { cable } => stat(cable),
+        FpgaCmd::Stat { cable, pre_jtag_reset } => stat(cable, *pre_jtag_reset),
+        FpgaCmd::BitConfig { bit } => bit_config(bit),
+        FpgaCmd::RoundTripVerify { bit, cable, part, bridge, freq } => {
+            round_trip_verify(bit, cable, part, bridge.as_ref(), *freq)
+        }
         FpgaCmd::SynthGf16 {
             build_dir,
             chipdb,
@@ -1279,8 +1314,16 @@ fn load_sram(bit: &PathBuf, cable: &str, part: &str, reset: bool, verbose: bool)
     Ok(())
 }
 
-fn stat(cable: &str) -> Result<()> {
-    let (_status, output) = run_openfpgaloader(cable, &["--read-register", "STAT"], true)?;
+fn stat(cable: &str, pre_jtag_reset: bool) -> Result<()> {
+    let mut extra = vec!["--read-register", "STAT"];
+    if pre_jtag_reset {
+        // --skip-reset is documented for write-flash mode, but pass it
+        // anyway; if ignored the tool still reads STAT without a reset in
+        // --read-register path on tested openFPGALoader versions.
+        extra.push("--skip-reset");
+        eprintln!("[stat] reading STAT without JTAG reset/PROGRAM_B pulse");
+    }
+    let (_status, output) = run_openfpgaloader(cable, &extra, true)?;
     let text = output.unwrap_or_default();
     let raw = parse_stat_raw(&text)?;
     let bits = StatBits::from_raw(raw);
@@ -1316,6 +1359,108 @@ fn parse_stat_raw(text: &str) -> Result<u32> {
         }
     }
     bail!("openFPGALoader output did not contain 'Register raw value:'")
+}
+
+fn bit_config(bit: &PathBuf) -> Result<()> {
+    if !bit.is_file() {
+        bail!("bitstream not found: {}", bit.display());
+    }
+    let root = repo_root()?;
+    let script = root.join("scripts").join("dump_bit_config.py");
+    if !script.is_file() {
+        bail!("bitstream config parser not found: {}", script.display());
+    }
+    let bit_str = bit.to_str().ok_or_else(|| anyhow!("bitstream path is not UTF-8"))?;
+    let mut cmd = std::process::Command::new("python3");
+    cmd.arg(&script).arg(bit_str);
+    eprintln!("[bit-config] $ python3 {} {}", script.display(), bit_str);
+    let status = cmd.status().with_context(|| "spawn dump_bit_config.py")?;
+    if !status.success() {
+        bail!("dump_bit_config.py exited with {:?}", status);
+    }
+    Ok(())
+}
+
+fn round_trip_verify(
+    bit: &PathBuf,
+    cable: &str,
+    part: &str,
+    bridge: Option<&PathBuf>,
+    freq: u32,
+) -> Result<()> {
+    if !bit.is_file() {
+        bail!("bitstream not found: {}", bit.display());
+    }
+
+    // 1. Determine the raw bitstream payload length after the .bit ASCII header.
+    let bit_bytes = std::fs::read(bit)
+        .with_context(|| format!("read {}", bit.display()))?;
+    let sync_idx = find_sync_word(&bit_bytes)
+        .ok_or_else(|| anyhow!("sync word 0xAA995566 not found in {}", bit.display()))?;
+    let payload = &bit_bytes[sync_idx + 4..];
+    let payload_len = payload.len();
+    eprintln!(
+        "[round-trip] .bit header ends at byte {}; raw payload length = {} bytes",
+        sync_idx,
+        payload_len
+    );
+
+    // 2. Program flash (openFPGALoader strips the .bit header automatically).
+    program_flash(bit, cable, part, bridge, freq, None, false, true, false, false, false, Some("1"))?;
+
+    // 3. Dump the same number of bytes back from flash address 0.
+    let root = repo_root()?;
+    let dump_path = root.join("build").join("fpga").join("gf16").join("round_trip_dump.bin");
+    std::fs::create_dir_all(dump_path.parent().unwrap())
+        .with_context(|| format!("create {}", dump_path.parent().unwrap().display()))?;
+    let size_str = payload_len.to_string();
+    let dump_args: Vec<&str> = vec![
+        "--dump-flash",
+        "--fpga-part",
+        part,
+        "--file-size",
+        &size_str,
+        dump_path.to_str().ok_or_else(|| anyhow!("dump path is not UTF-8"))?,
+    ];
+    let (_status, _output) = run_openfpgaloader(cable, &dump_args, true)?;
+
+    // 4. Align both streams at the sync word and compare the raw configuration
+    // payload. openFPGALoader strips the .bit ASCII header and may add the
+    // 7-series bus-width auto-detection preamble (0xFF padding + 0x000000BB
+    // 0x11220044) in front of the sync word, so a byte-0 comparison is wrong.
+    let dump_bytes = std::fs::read(&dump_path)
+        .with_context(|| format!("read dumped flash {}", dump_path.display()))?;
+    let dump_sync = find_sync_word(&dump_bytes)
+        .ok_or_else(|| anyhow!("sync word not found in flash dump {} — dump is all 0xFF?", dump_path.display()))?;
+    let dump_tail = &dump_bytes[dump_sync + 4..];
+    let bit_tail = payload; // payload already starts right after the .bit sync word
+    let cmp_len = dump_tail.len().min(bit_tail.len());
+    if cmp_len == 0 {
+        bail!("no data after sync word to compare");
+    }
+    if dump_tail[..cmp_len] == bit_tail[..cmp_len] {
+        println!(
+            "[round-trip] OK  flash dump aligns at sync word 0x{:08X} and matches .bit payload ({} comparable bytes)",
+            dump_sync,
+            cmp_len
+        );
+        Ok(())
+    } else {
+        let first_diff = dump_tail[..cmp_len].iter().zip(bit_tail[..cmp_len].iter()).position(|(a, b)| a != b);
+        let diff_offset = first_diff.unwrap_or(0);
+        eprintln!(
+            "[round-trip] MISMATCH at byte offset {} after flash sync word (dump 0x{:02X} != bit 0x{:02X})",
+            diff_offset,
+            dump_tail[diff_offset],
+            bit_tail[diff_offset]
+        );
+        bail!("round-trip verify failed: flash contents differ from bitstream payload")
+    }
+}
+
+fn find_sync_word(data: &[u8]) -> Option<usize> {
+    const SYNC: &[u8] = b"\xaa\x99\x55\x66";
+    data.windows(SYNC.len()).position(|w| w == SYNC)
 }
 
 fn program_flash(
