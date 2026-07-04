@@ -2,6 +2,12 @@
 
 Last updated: 2026-07-04
 
+## exprcast-rust-emitter -- lower ExprCast in gen-rust backend (Closes #1314)
+
+- **WHERE**: `bootstrap/src/compiler.rs` -- added `Expr::Cast { operand, target }` arm in `expr_to_rust`, emits `format!("({} as {})", operand, target)` mirroring the existing gen-verilog arm at compiler.rs:4941. Before this fix, ExprCast in `expr_to_rust` fell through to the default `_ => "()".to_string()` branch, producing empty-tuple stubs in generated Rust and silently corrupting any T27 spec that uses bit-width casts (bit-shift lowering, width promotion, etc.). +18 / -0 lines. Isolated repro filed as #1314 with a 5-line spec showing the empty-tuple emission.
+- **Why**: gen-rust is one of three lowering targets (Rust, Verilog, C). The Verilog and C emitters had ExprCast; the Rust emitter did not. This closes the gen-rust half of #1314; gen (Zig) and gen-c follow-ups tracked separately. Unblocks the tri-net T27-first wire flip (gHashTag/tri-net#33), where specs/wire.t27 needs the fixed emitter to regenerate gen/rust/wire.rs without hand-patching.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## w405-fpga-smoke-gate-flash-boot -- add `--flash-boot` cold-POR gate (Closes #1311)
 
 - **WHERE**: `cli/tri/src/fpga.rs`, `.claude/plans/wave-loop-405.md`, close-out reports.

@@ -8169,6 +8169,24 @@ impl RustCodegen {
                 s.push('}');
                 s
             }
+            NodeKind::ExprCast => {
+                if node.children.is_empty() {
+                    "()".to_string()
+                } else {
+                    let operand = Self::expr_to_rust(&node.children[0]);
+                    let target = node
+                        .extra_type
+                        .split('[')
+                        .next()
+                        .unwrap_or("")
+                        .trim();
+                    if target.is_empty() {
+                        operand
+                    } else {
+                        format!("({} as {})", operand, target)
+                    }
+                }
+            }
             _ => "()".to_string(),
         }
     }
