@@ -1392,3 +1392,7 @@
 - **Commit:** feat(igla): Wave Loop 404 — hardware smoke-gate --require-cable for FPGA SRAM load (Closes #1309)
 - **Files:** docs/NOW.md
 
+## 2026-07-04T09:57:14Z — wave-loop-405
+- **Commit:** feat(igla): Wave Loop 404 — hardware smoke-gate --require-cable for FPGA SRAM load (Closes #1309)
+- **Files:** .claude/plans/wave-loop-405.md,.trinity/current-issue.md
+

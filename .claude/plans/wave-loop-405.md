@@ -22,10 +22,33 @@ formal CCLK timing-safety.
 
 ---
 
-## Decomposed plan
+## Weak points investigated
 
-See `.claude/plans/wave-loop-405.md` for the full weak-point / competitor scan
-and detailed decomposition.
+| Weak point | Risk | How this wave addresses it |
+|------------|------|----------------------------|
+| We do not know the real CCLK frequency of the default bitstream | Flash/read timing, reproducibility on slower devices | Variant A measures P12; Variant C bounds it formally |
+| SRAM smoke gate does not cover cold-POR / flash-boot path | Bitstream may fail after power loss even if SRAM load works | Variant B adds a manual power-cycle flash-boot gate |
+| Formal model assumes `STARTUPCLK=CCLK` but does not quantify it | Competitors can ask “how fast is CCLK?” | Variant C adds published Artix-7 tables as axiomatic bounds |
+| Bench test requires operator to disconnect/reconnect cable | Not fully automated, easy to skip | Make `--flash-boot` explicit and record evidence |
+
+---
+
+## Competitor scan
+
+| Competitor / project | Relevant capability | t27 differentiator after this wave |
+|----------------------|---------------------|----------------------------------|
+| Verilean | Lean 4 hardware proofs | t27 links the same Lean 4 predicate to a real FPGA STAT register and physical bitstream |
+| Sparkle HDL | End-to-end formal + simulation | t27 has a cable-connected smoke gate on real silicon (W404) and can close flash-boot (W405) |
+| openFPGALoader ecosystem | Tooling for flash / SRAM load | t27 wraps it with a spec-first CLI, formal traceability, and evidence reports |
+| Project Trellis / nextpnr | Open-source bitstream tooling | t27 focuses on Artix-7 boot verification, not place-and-route competition |
+
+The strongest defensive move is to combine real hardware evidence (Variant A or B)
+with a formal timing-safety claim (Variant C), because either alone can be matched
+by a competitor; together they form a traceability stack that is hard to reproduce.
+
+---
+
+## Decomposed plan
 
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
