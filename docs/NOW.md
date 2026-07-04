@@ -1,3 +1,25 @@
+# NOW — GF16-paper honesty fix (Closes #1341)
+
+## Honesty — GF16-статья: FPGA-synth вместо 'verified on silicon', shuttle TTSKY26b (Closes #1341)
+
+- Branch: `fix/gf16-paper-honesty-silicon-shuttle`
+- Issue: #1341
+- Файлы: `docs/arxiv-submission/trinity-gf16.tex`, `docs/arxiv-trinity-gf16-draft.md`
+
+### What landed
+- Абстракт: «4x4 matmul verified on silicon, 35/35 RTL tests» → «verified in FPGA synthesis and RTL simulation, 35/35 tests» (encoding ≠ compute ≠ FPGA; sim/synth ≠ HW-кремний).
+- Shuttle `TTSKY26a (May 2026)` → `TTSKY26b TT4913 Gamma` по SSOT `conformance/FORMAT-SPEC-001.json` (`frozen_silicon_anchor.tapeout`); добавлено «silicon not yet returned (expected late 2026), no on-chip measurement claimed» (TinyTapeout: чипы TTSKY26a/b — late 2026).
+- «actual hardware runs» → «actual FPGA hardware runs (Artix-7 XC7A100T), not ASIC silicon».
+- Заголовок + `\label` §5 ASIC Path: TTSKY26a → TTSKY26b TT4913 Gamma.
+
+### Не тронуто
+- Цифры 323 MHz / 40350 LUT / 64 DSP48E1 / 35/35 / 12.8–41.2 GOPS (FPGA-прогоны), спека 1/6/9 bias=31, φ-anchor.
+
+### Контекст
+- Связано с erratum-треком каталожной статьи arXiv:2606.09686 (84→83, канон `ERRATA_2026-06-14.md`).
+
+---
+
 # NOW — Wave Loop 412 close-out / Wave Loop 413 setup
 
 ## Wave Loop 412 — measured-to-lean standalone + raw-ns + PVT context (Closes #1332)
