@@ -90,11 +90,30 @@ target/release/dlc10 idcode        # expect 0x03636093 for XC7A200T
 target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top_200t.bit
 ```
 
-### SPI flash proxy (non-volatile programming)
-OpenXC7 currently cannot build a working `bscan_spi` proxy for this board, so
-non-volatile flash programming requires **Vivado-in-Docker**
-(`docker/Dockerfile.vivado`) or a prebuilt proxy. That path remains broken
-pending a working proxy bitstream; use SRAM loading for day-to-day iteration.
+### SPI flash programming (non-volatile)
+The connected Digilent FTDI cable (`0x0403:0x6014`) drives SPI flash through
+**openFPGALoader** and its JTAG-to-SPI bridge (`spiOverJtag`). The in-tree
+`dlc10` driver does not support this cable.
+
+Canonical command:
+```bash
+tri fpga program-flash build/fpga/gf16/gf16_matmul4x4_top.bit \
+    --bulk-erase --verify --enable-quad
+```
+
+If the board does not boot from flash after a power-cycle, check two things:
+
+1. **Mode-pin strapping.** The FPGA must sample `M[2:0] = 001` (Master SPI)
+   at power-on. Verify the QMTech Wukong V1 resistor straps for M0/M1/M2.
+2. **Quad-mode mismatch.** Some virgin boards/flash chips will not boot until the
+   SPI flash **quad-enable (QE)** bit is set. Use `--enable-quad` with
+   `tri fpga program-flash`; see openFPGALoader issue #464 for the same symptom on
+   a TE0712 + XC7A200. The bitstream itself must also be configured for the same
+   SPI width (`BITSTREAM.CONFIG.SPI_BUSWIDTH`: 1, 2, or 4). For x1 SPI boot,
+   `--enable-quad` is not required.
+
+Use `tri fpga flash-status` to probe the detected flash chip, and
+`tri fpga dump-flash` to read back the flash contents for verification.
 
 ---
 

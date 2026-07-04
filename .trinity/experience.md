@@ -1,5 +1,22 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-05 — Wave Loop 394 (FPGA flash-boot diagnostics)
+
+### What worked
+- Adding `--enable-quad`, `--disable-quad`, and `--spi-buswidth` to `tri fpga program-flash` required only CLI plumbing in `cli/tri/src/fpga.rs`; no compiler changes.
+- `tri fpga flash-status` was added as a best-effort diagnostic wrapper around `openFPGALoader -f --detect` because openFPGALoader does not expose a raw RDSR (0x05) read.
+- Updating `fpga/HARDWARE_SSOT.md` to cover both mode-pin strapping and quad-mode / `SPI_BUSWIDTH` gives the user a clear checklist for the physical experiment.
+- Conformance suite stayed at **575/575 PASS**; FPGA CLI changes do not affect the compiler conformance path.
+
+### What changed behavior
+- `tri fpga program-flash` now supports the openFPGALoader options that are most likely to fix the W393 boot-from-flash failure (quad-enable).
+- The boot-from-flash root-cause hypothesis expanded from "mode pins only" to "mode pins OR quad-mode/SPI_BUSWIDTH mismatch".
+
+### Patterns to reuse
+- When a competitor (Sparkle/Verilean) has stronger formal verification, differentiate by closing the physical-demo loop: open-source toolchain → real board → non-volatile boot.
+- When an external tool (openFPGALoader) lacks a needed subcommand, wrap the closest available command honestly and document the limitation instead of building a fragile workaround.
+- Create the GitHub issue first, then `Closes #NNNN`.
+
 ## 2026-07-04 — Wave Loop 392 completion
 
 ### What worked
