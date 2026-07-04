@@ -86,7 +86,7 @@ Files: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`
 - The chosen variant is fully implemented and verified.
 - All invariant checks pass.
 - Report + evidence + W416 cooperation variants are produced.
-- PR closes #1343.
+- PR #1346 closes #1343.
 
 ---
 

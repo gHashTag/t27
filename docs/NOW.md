@@ -4,7 +4,7 @@
 
 - Branch: `wave-loop-415`
 - Issue: #1343
-- PR: #1345 (to merge via direct-to-master policy)
+- PR: #1346 (merged via direct-to-master policy)
 - Report: `docs/reports/WAVE_LOOP_415_REPORT.md`
 - Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W415_2026-07-01.md`
 - Cooperation W416: `docs/reports/FPGA_LOOP_COOPERATION_W416_2026-07-01.md`

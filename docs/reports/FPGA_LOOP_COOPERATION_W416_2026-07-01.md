@@ -1,6 +1,6 @@
 # FPGA Loop Cooperation Variants — Wave 416 (2026-07-01)
 
-**Next issue:** #1346  
+**Next issue:** #1347 (to be created after W15 merge)  
 **Next branch:** `wave-loop-416`  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
