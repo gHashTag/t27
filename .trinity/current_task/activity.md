@@ -1441,3 +1441,7 @@
 - **Commit:** docs(w409): add W409 entry to NOW.md
 - **Files:** .trinity/experience.md
 
+## 2026-07-04T12:19:28Z — wave-loop-409
+- **Commit:** docs(w409): add W408 learnings to experience log
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
