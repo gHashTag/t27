@@ -1,10 +1,11 @@
-# Wave Loop 409 — real P12 CCLK retry + per-OSCFSEL SPI transaction lookup
+# Wave Loop 410 — real P12 CCLK capture or physical OSCFSEL 6/7 boot + measured-duty formal link
 
-**Issue:** #1323  
-**Branch:** `wave-loop-409`  
-**Milestone:** W408 delivered the SPI flash read-transaction model in Lean 4 and
-documented the missing P12 wiring blocker. W409 retries the real silicon
-measurement and extends the formal model to a per-OSCFSEL lookup table.
+**Issue:** #1325  
+**Branch:** `wave-loop-410`  
+**Milestone:** W409 delivered the per-OSCFSEL transaction lookup and tighter
+duty-cycle validation, but the real P12 CCLK capture remains blocked by missing
+wiring. W410 anchors the highest-margin OSCFSEL variants to real hardware and
+makes the CCLK validation pipeline formally traceable.
 
 ---
 
@@ -15,70 +16,67 @@ measurement and extends the formal model to a per-OSCFSEL lookup table.
    read transaction, commit the CSV, and record measured frequency ± tolerance
    and duty cycle in `fpga/HARDWARE_SSOT.md` §3.6.1.
 2. **Variant B** — Fully automated cold-POR flash-boot smoke gate with a relay
-   power switch and an isolated / tri-stateable JTAG cable. Deferred unless the
-   relay hardware is on the bench.
-3. **Variant C** — Per-OSCFSEL SPI transaction lookup in Lean 4. Prove that
-   every documented `OSCFSEL = 0..7` CCLK selection produces an N25Q128_3V
-   compliant `SPIReadTransaction`, and tighten the duty-cycle guard from the
-   placeholder 25%–75% range.
+   power switch and an isolated / tri-stateable JTAG cable. Deferred to W411
+   unless relay hardware is available.
+3. **Variant C** — Physically boot `OSCFSEL=6,7` on the Wukong board and add a
+   measured-duty formal lemma in Lean 4. The lemma turns a captured
+   `(frequency, duty)` pair into a `transaction_satisfies_flash_spec` proof using
+   the N25Q128 `t_CL` / `t_CH` limits.
 
 Default recommendation: **Variant A + C bundle**. A real measurement anchors the
-model to silicon, while the per-OSCFSEL lookup closes the timing-safety
-argument across all documented CCLK variants. If P12 wiring is still
-unavailable, fall back to **Variant C alone**. If CI automation is the priority,
-pick **Variant B**.
+model to silicon, while physical verification of OSCFSEL 6/7 closes the lookup
+table. If P12 wiring is still unavailable, fall back to **Variant C alone**. If CI
+automation is the priority, pick **Variant B**.
 
 ---
 
 ## Decomposed plan
 
-See `docs/reports/FPGA_LOOP_COOPERATION_W409_2026-07-04.md` for the full
+See `docs/reports/FPGA_LOOP_COOPERATION_W410_2026-07-04.md` for the full
 weak-point / competitor scan and detailed decomposition.
 
 | Step | File(s) | Deliverable |
 |---|---|---|
-| 1 | `docs/reports/FPGA_LOOP_COOPERATION_W409_2026-07-04.md` | Cooperation variants |
+| 1 | `docs/reports/FPGA_LOOP_COOPERATION_W410_2026-07-04.md` | Cooperation variants |
 | 2 | `fpga/HARDWARE_SSOT.md` §3.6.1 (Variant A) | Real measured CCLK frequency/duty cycle |
-| 3 | `docs/reports/FPGA_LOOP_EVIDENCE_W409_*.md` | Real capture CSV + command/output log |
-| 4 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` (Variant C) | `artix7_boot_transaction_for_oscfsel`, per-OSCFSEL theorem |
-| 5 | `cli/tri/src/fpga.rs` (Variant C) | Tighter duty-cycle validation from transaction model |
-| 6 | `docs/reports/*` | W409 report, evidence, W410 cooperation |
-| 7 | `.trinity/experience.md` | W409 learnings |
-| 8 | `docs/NOW.md` | W409 entry |
-| 9 | git/PR | squash-merge to master, close #1323, open #W410 |
+| 3 | `docs/reports/FPGA_LOOP_EVIDENCE_W410_*.md` | Real capture CSV + command/output log |
+| 4 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` (Variant C) | `measured_cclk_satisfies_flash_spec`, measured-duty lemma |
+| 5 | `cli/tri/src/fpga.rs` (Variant C) | Export measured-frequency/duty types for the formal link |
+| 6 | `build/fpga/boot-log-*.json` (Variant C) | `OSCFSEL=6,7` cold-POR boot logs |
+| 7 | `docs/reports/*` | W410 report, evidence, W411 cooperation |
+| 8 | `.trinity/experience.md` | W410 learnings |
+| 9 | `docs/NOW.md` | W410 entry |
+| 10 | git/PR | squash-merge to master, close #1325, open #W411 |
 
 ---
 
 ## Acceptance criteria
 
-- [x] AC-A1 (Variant A): real P12 capture re-attempted; persistent wiring blocker
-      documented in evidence file and `fpga/HARDWARE_SSOT.md`.
+- [ ] AC-A1 (Variant A): a real CCLK capture CSV from P12 exists in
+      `docs/reports/` or `build/fpga/`.
 - [ ] AC-A2 (Variant A): `fpga/HARDWARE_SSOT.md` §3.6.1 contains the measured
-      frequency and duty cycle with tolerance. **Blocked by missing P12 wire.**
+      frequency and duty cycle with tolerance.
 - [ ] AC-A3 (Variant A): `tri fpga measure-cclk --live ... --validate` passes
-      on real hardware. **Blocked by missing P12 wire.**
-- [x] AC-B1 (Variant B): deferred to W410 unless relay hardware is available.
-- [x] AC-C1 (Variant C): `artix7_boot_transaction_for_oscfsel` added and
-      `oscfsel_zero_to_seven_transaction_satisfies_flash_spec` proves every
-      `OSCFSEL ∈ {0..7}` produces a flash-spec-compliant transaction.
-- [x] AC-C2 (Variant C): the `--validate` duty-cycle guard is tightened using the
-      N25Q128 `t_CL` / `t_CH` limits.
-- [x] AC-D1: `lake build Trinity.TernaryFPGABoot` passes with the new lemmas.
-- [x] AC-D2: `cargo test -p tri fpga::tests` passes.
-- [x] AC-D3: `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass
-      (576/576).
-- [x] AC-D4: `./scripts/tri test` gen-verilog-yosys-smoke failures are explicitly
-      tracked in `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` and remain out of
-      scope for this wave.
-- [x] AC-D5: W409 report + evidence + W410 cooperation variants committed.
+      on real hardware.
+- [ ] AC-B1 (Variant B): deferred to W411 unless relay hardware is available.
+- [ ] AC-C1 (Variant C): `OSCFSEL=6` and `OSCFSEL=7` physically booted and logged,
+      or failures documented.
+- [ ] AC-C2 (Variant C): a `measured_cclk_satisfies_flash_spec` predicate and
+      lemma link a captured `(frequency, duty)` pair to the transaction spec.
+- [ ] AC-D1: `lake build Trinity.TernaryFPGABoot` passes with the new lemmas.
+- [ ] AC-D2: `cargo test -p tri fpga::tests` passes.
+- [ ] AC-D3: `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
+- [ ] AC-D4: `./scripts/tri test` gen-verilog-yosys-smoke phase is clean, or the
+      remaining failures are explicitly tracked and scoped separately.
+- [ ] AC-D5: W410 report + evidence + W411 cooperation variants committed.
 
 ---
 
 ## Default variant
 
-**Variant A + C bundle**. Real silicon measurement (A) plus a per-OSCFSEL formal
-proof (C) is the strongest next move. Hardware fallback: Variant C alone.
-Automation priority: Variant B in W410.
+**Variant A + C bundle**. Real silicon measurement (A) plus physical verification
+of OSCFSEL 6/7 and a measured-duty formal link (C) is the strongest next move.
+Hardware fallback: Variant C alone. Automation priority: Variant B in W411.
 
 ---
 
