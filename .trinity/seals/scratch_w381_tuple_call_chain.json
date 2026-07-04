@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:5f26e6d1d6eda49ca2556be2d4d645996f2a4966827e9bdc2ca3147239cbcd91",
-  "gen_hash_rust": "sha256:6c33774f7881e6e317aee967f157fbeea5cdb7493fa2ed901c5e10b3e42b0b1c",
-  "gen_hash_verilog": "sha256:37688bb82891017874e04a4219f67b12caf542d45dd1800e58f370e363559cfc",
-  "gen_hash_zig": "sha256:a3babcd72232cb12b9aeef7951fdca9d0a534d8d08a6757dad3d41c1c7432179",
+  "gen_hash_c": "sha256:6d182c916a6269fd5e933a603c9da3806833a0693b5a2bd0907c8669a0eb6302",
+  "gen_hash_rust": "sha256:8671347f8c2ab6d08c619de1ccac6d35610855ed9bd61e99fd35e19f8baa3a55",
+  "gen_hash_verilog": "sha256:d765d27e7f28d0264b99f147fb255e0d6b8206e9ad10493411433f3d38cb8dc4",
+  "gen_hash_zig": "sha256:c731224acb0167d26cb7191211c79f4b4d9a8a82287f1ab33fda343ad67af05d",
   "module": "w381_tuple_call_chain",
   "ring": 12,
-  "sealed_at": "2026-07-03T15:03:22Z",
+  "sealed_at": "2026-07-04T12:06:16Z",
   "spec_hash": "sha256:abcd07e0310f16e042345bba21ce5f11a92ac2ae85b640a05c9c6e47d485779c",
   "spec_path": "specs/scratch/w381_tuple_call_chain.t27"
 }

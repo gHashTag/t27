@@ -438,6 +438,48 @@ SCK low/high requirements. Those margins absorb temperature, voltage, and
 process variation and make the formal `flash_spi_timing_ok` claim conservative
 for real silicon.
 
+#### 3.6.8 Formal SPI transaction model traceability (W408)
+
+The static timing predicates in W406/W407 are extended in W408 with a complete
+SPI flash read-transaction model in `proofs/lean4/Trinity/TernaryFPGABoot.lean`:
+
+```lean
+structure SPIReadTransaction where
+  csHighNs : Nat
+  numSckEdges : Nat
+  sckLowNs : Nat
+  sckHighNs : Nat
+  wakeUs : Nat
+
+def artix7_boot_transaction (cfg : BitstreamConfig) (bitstream_bits : Nat) :
+    SPIReadTransaction := ...
+
+def transaction_satisfies_flash_spec (t : SPIReadTransaction) : Bool := ...
+```
+
+The `transaction_satisfies_flash_spec` predicate checks every N25Q128_3V timing
+bound we model:
+
+| Field | Bound checked | Source |
+|---|---|---|
+| `csHighNs` | `≥ 100 ns` | `N25Q128_MIN_CS_HIGH_NS` |
+| `sckLowNs` | `≥ 6 ns` | `N25Q128_MIN_SCK_LOW_NS` |
+| `sckHighNs` | `≥ 6 ns` | `N25Q128_MIN_SCK_HIGH_NS` |
+| `sckLowNs + sckHighNs` | `1e9 / sum ≤ 50 MHz` | `N25Q128_MAX_SCK_HZ` |
+| `wakeUs` | `≥ 100 us` | `N25Q128_WAKE_FROM_POWERDOWN_US` |
+
+For the canonical `OSCFSEL=0` configuration the model predicts a 400 ns CCLK
+period, 200 ns SCK low/high times, and a 2.5 MHz SCK frequency — all within the
+N25Q128_3V spec. This is proved in Lean 4 as
+`canonical_oscfsel_transaction_satisfies_flash_spec` and linked to the cold-POR
+predicate via `cold_por_implies_transaction_satisfies_flash_spec`.
+
+> **Real-capture blocker (2026-07-04):** a live `tri fpga measure-cclk --live`
+> run using the on-bench Digilent FTDI cable returned 100 k all-high samples at
+> 0 MHz, which means the cable is detected but **P12 is not wired to ADBUS4**.
+> The synthetic fixture remains the CI anchor until the P12 → ADBUS4 wire is
+> added.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)

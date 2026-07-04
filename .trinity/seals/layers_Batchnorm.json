@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:59512803704ede40e9899ffdd7ef796bac2e8dac42d68e30fb500fc0a418edcf",
   "gen_hash_rust": "sha256:7d08b25d8c39f03ab1c93b295e8e328b0a15f64515faf81d02405807700bfcf3",
-  "gen_hash_verilog": "sha256:e07c2d9699e8b58996724ec36ea51afe03d44233687d20d827c10996794d7c73",
+  "gen_hash_verilog": "sha256:379db5a2242e4231814e997c9c998b16827a75e7d3b60d4a1ae84d1b3a35e9ce",
   "gen_hash_zig": "sha256:178aa78f473dd3915495e7de92dd286428748ec7669a5543155f84f94a368918",
   "module": "Batchnorm",
   "ring": 12,
-  "sealed_at": "2026-07-03T15:03:23Z",
+  "sealed_at": "2026-07-04T12:06:17Z",
   "spec_hash": "sha256:e33d06c87bbdb7128b94c03795ef3a4832b59758ca66412cd89fde649e7db5e0",
   "spec_path": "specs/ml/layers/batchnorm_layer.t27"
 }

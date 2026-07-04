@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:a8a6864d7adea47ef6e3442575792a1f8e0338058dc762b61f3121dc18f9b179",
-  "gen_hash_rust": "sha256:959a9f5ef4c143d34f4427c95abbd9bb30433a1bdef469a1e4882cd60d9c7269",
-  "gen_hash_verilog": "sha256:538420d0b3a1da188f586a9323523b2664de7f6fc61b6637bb501bdccb64a2a3",
-  "gen_hash_zig": "sha256:fe737e284d11099d77c173e9386d984a91fe8f0115070739b2e413be2060f5fa",
+  "gen_hash_c": "sha256:6efe6e759007b0149472e47175626529940b08ebf9f017e694f5448932659b03",
+  "gen_hash_rust": "sha256:13549fe3b823d3dab88855afdfac74b3d336c7ee9319b13cfb8eefc36d6c9a92",
+  "gen_hash_verilog": "sha256:5a0b7819960acd59d90eefd9ec1af60109de90495446418e1e76b965ea73b4dc",
+  "gen_hash_zig": "sha256:4e8738051125a793072db6926468467c595f9129dc5a44ff995cd67e00da75c2",
   "module": "w379_let_destructuring_generalized",
   "ring": 12,
-  "sealed_at": "2026-07-03T15:03:22Z",
+  "sealed_at": "2026-07-04T12:06:16Z",
   "spec_hash": "sha256:2efb8a20c4eff42b27d9b9806447de4e7a46e435f2e7c7b8b963b91bf68f852b",
   "spec_path": "specs/scratch/w379_let_destructuring_generalized.t27"
 }

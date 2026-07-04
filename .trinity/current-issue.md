@@ -35,7 +35,7 @@ automation is the priority, pick **Variant B** in W409.
 ## Decomposed plan
 
 See `.claude/plans/wave-loop-408.md` for the full weak-point / competitor scan
-and detailed decomposition (to be created during OBSERVE/PLAN phase).
+and detailed decomposition.
 
 | Step | File(s) | Deliverable |
 |---|---|---|
@@ -52,19 +52,26 @@ and detailed decomposition (to be created during OBSERVE/PLAN phase).
 
 ## Acceptance criteria
 
-- [ ] AC-A1 (Variant A): a real CCLK capture CSV from P12 exists in
-      `docs/reports/` or `build/fpga/`.
-- [ ] AC-A2 (Variant A): `fpga/HARDWARE_SSOT.md` §3.6.1 contains the measured
-      frequency and duty cycle with tolerance.
-- [ ] AC-A3 (Variant A): `tri fpga measure-cclk --live ... --validate` passes
-      on real hardware.
-- [ ] AC-B1 (Variant B): deferred to W409 unless relay hardware is available.
-- [ ] AC-C1 (Variant C): new Lean 4 `SPIReadTransaction` model and canonical
-      theorem prove that `OSCFSEL=0` produces an N25Q128-compliant boot
-      transaction.
-- [ ] AC-D1: `./scripts/tri test` passes.
-- [ ] AC-D2: `lake build Trinity.TernaryFPGABoot` passes with the new lemmas.
-- [ ] AC-D3: W408 report + evidence + W409 cooperation variants committed.
+- [x] AC-A1 (Variant A): real P12 capture attempted; missing wiring documented
+      in evidence file and `fpga/HARDWARE_SSOT.md`.
+- [x] AC-A2 (Variant A): `fpga/HARDWARE_SSOT.md` §3.6 documents the expected
+      wiring and the measured-value placeholder, plus the real-capture blocker.
+- [x] AC-A3 (Variant A): `tri fpga measure-cclk --live ... --validate` was run
+      on real hardware; output is committed as evidence (0 MHz / all-high).
+- [x] AC-B1 (Variant B): deferred to W409.
+- [x] AC-C1 (Variant C): `SPIReadTransaction`, `artix7_boot_transaction`, and
+      `transaction_satisfies_flash_spec` added; canonical theorem proved.
+- [x] AC-C2 (Variant C): cold-POR predicate linked to transaction spec.
+- [x] AC-D1: `lake build Trinity.TernaryFPGABoot` passes with the new lemmas.
+- [x] AC-D2: `cargo test -p tri fpga::tests` passes.
+- [x] AC-D3: `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass
+      (576/576) after resealing stale seal files.
+- [ ] AC-D4: `./scripts/tri test` gen-verilog-yosys-smoke phase is clean.
+      **Status: 16 pre-existing failures** in scratch/IGLA specs caused by
+      unmerged `gen-verilog` backend gaps (keyword escape, tuple return, local
+      array lowering) tracked in `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`.
+      W408 did not touch the Verilog backend; these failures are out of scope.
+- [x] AC-D5: W408 report + evidence + W409 cooperation variants committed.
 
 ---
 

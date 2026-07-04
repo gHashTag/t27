@@ -93,6 +93,15 @@ def OSCFSEL_COUNT : Nat := 64
 /-- Maximum valid raw OSCFSEL value (63). -/
 def OSCFSEL_MAX : UInt8 := 0x3F
 
+/-- The default oscillator selection is numerically 0. Used to simplify
+    UInt8-to-Nat projections in the transaction proofs. -/
+theorem OSCFSEL_DEFAULT_toNat : (OSCFSEL_DEFAULT : UInt8).toNat = 0 := by
+  decide
+
+/-- The UInt8 literal 0 projects to the natural number 0. -/
+theorem OSCFSEL_ZERO_toNat : (0 : UInt8).toNat = 0 := by
+  decide
+
 /-- Nominal CCLK frequency in Hz for each 7-series OSCFSEL value.
     Values are taken from UG470 "Configuration Clock Sources" and the
     Artix-7 configuration timing tables. Only the first few values are
@@ -238,6 +247,78 @@ theorem canonical_implies_flash_spi_timing_ok (cfg : BitstreamConfig) :
   rw [h.right.right.right]
   decide
 
+-- ============================================================================
+-- SPI flash read-transaction model (W408)
+-- ============================================================================
+
+/-- A single SPI flash read transaction as issued by the Artix-7 configuration
+    engine during Master SPI boot. The fields capture the timing dimensions that
+    must satisfy the N25Q128_3V datasheet for a safe boot read. -/
+structure SPIReadTransaction where
+  csHighNs : Nat
+  numSckEdges : Nat
+  sckLowNs : Nat
+  sckHighNs : Nat
+  wakeUs : Nat
+  deriving Repr, DecidableEq, Inhabited
+
+/-- Build a conservative SPI read-transaction model from a bitstream config and
+    the number of bits the FPGA will shift from flash during this transaction.
+    The FPGA configuration engine issues one SCK edge per half-bit, so a
+    `bitstream_bits`-bit read produces `2 * bitstream_bits` SCK edges. The CS#
+    high time and wake-up delay are taken as the N25Q128 minimum constants; the
+    SCK low/high times come from the nominal CCLK period. -/
+def artix7_boot_transaction (cfg : BitstreamConfig) (bitstream_bits : Nat) :
+    SPIReadTransaction :=
+  let period := cclk_period_ns cfg.oscfsel.toNat
+  let half := period / 2
+  { csHighNs := N25Q128_MIN_CS_HIGH_NS,
+    numSckEdges := 2 * bitstream_bits,
+    sckLowNs := half,
+    sckHighNs := half,
+    wakeUs := N25Q128_WAKE_FROM_POWERDOWN_US }
+
+/-- True when a transaction respects every N25Q128_3V timing bound we model:
+    CS# high time, SCK low/high times, maximum SCK frequency, and wake-up time.
+    The frequency bound is checked from the sum of the low and high times so
+    that asymmetric duty cycles are still constrained. -/
+def transaction_satisfies_flash_spec (t : SPIReadTransaction) : Bool :=
+  t.csHighNs ≥ N25Q128_MIN_CS_HIGH_NS
+  ∧ t.sckLowNs ≥ N25Q128_MIN_SCK_LOW_NS
+  ∧ t.sckHighNs ≥ N25Q128_MIN_SCK_HIGH_NS
+  ∧ (t.sckLowNs + t.sckHighNs > 0 ∧ 1_000_000_000 / (t.sckLowNs + t.sckHighNs) ≤ N25Q128_MAX_SCK_HZ)
+  ∧ t.wakeUs ≥ N25Q128_WAKE_FROM_POWERDOWN_US
+
+/-- The canonical OSCFSEL=0 configuration produces a 400 ns CCLK period, giving
+    200 ns SCK low/high times, a 2.5 MHz SCK frequency, and all other constants
+    are within the N25Q128_3V spec. This holds for any `bitstream_bits` because
+    the timing spec is per-edge, not per-transaction-length. -/
+theorem canonical_oscfsel_transaction_satisfies_flash_spec :
+  ∀ (bits : Nat),
+    transaction_satisfies_flash_spec
+      (artix7_boot_transaction ⟨IDCODE_XC7A200T, SPI_BUSWIDTH_X1, STARTUPCLK_CCLK, OSCFSEL_DEFAULT⟩ bits)
+      = true := by
+  intro bits
+  have hnat :
+    (⟨IDCODE_XC7A200T, SPI_BUSWIDTH_X1, STARTUPCLK_CCLK, OSCFSEL_DEFAULT⟩ : BitstreamConfig).oscfsel.toNat = 0 := by
+    decide
+  simp [artix7_boot_transaction, transaction_satisfies_flash_spec, cclk_period_ns, cclk_nominal_hz,
+        N25Q128_MAX_SCK_HZ, N25Q128_MIN_CS_HIGH_NS, N25Q128_MIN_SCK_LOW_NS, N25Q128_MIN_SCK_HIGH_NS,
+        N25Q128_WAKE_FROM_POWERDOWN_US, hnat]
+
+/-- If a bitstream is canonical then any boot transaction it produces satisfies
+    the N25Q128_3V timing spec. -/
+theorem canonical_implies_transaction_satisfies_flash_spec (cfg : BitstreamConfig) (bits : Nat) :
+  cfg.canonical → transaction_satisfies_flash_spec (artix7_boot_transaction cfg bits) := by
+  intro h
+  simp [canonical, OSCFSEL_DEFAULT, artix7_boot_transaction, transaction_satisfies_flash_spec,
+        cclk_period_ns, cclk_nominal_hz, N25Q128_MAX_SCK_HZ, N25Q128_MIN_CS_HIGH_NS,
+        N25Q128_MIN_SCK_LOW_NS, N25Q128_MIN_SCK_HIGH_NS, N25Q128_WAKE_FROM_POWERDOWN_US] at h ⊢
+  have hnat : cfg.oscfsel.toNat = 0 := by
+    rw [h.right.right.right]
+    decide
+  simp [hnat]
+
 end BitstreamConfig
 
 -- ============================================================================
@@ -321,6 +402,18 @@ theorem cold_por_implies_cclk_within_flash_spec
   intro h
   apply BitstreamConfig.flash_spi_timing_ok_implies_cclk_within_flash_spec
   exact cold_por_implies_flash_spi_timing_ok p s h
+
+/-- If the static preconditions hold then the boot transaction produced by the
+    bitstream configuration satisfies the N25Q128_3V timing spec. This closes
+    the loop between the cold-POR predicate and the transaction-level model. -/
+theorem cold_por_implies_transaction_satisfies_flash_spec
+  (p : ColdPOR) (s : StatRegister) (bits : Nat) :
+  cold_por_spi_flash_pred p s
+  → BitstreamConfig.transaction_satisfies_flash_spec (BitstreamConfig.artix7_boot_transaction p.cfg bits) := by
+  intro h
+  apply BitstreamConfig.canonical_implies_transaction_satisfies_flash_spec
+  simp [cold_por_spi_flash_pred] at h
+  exact h.left
 
 /-- If the static preconditions hold and both DONE and EOS are HIGH, then
     boot_success holds. EOS is a dynamic observation, not a static config field. -/

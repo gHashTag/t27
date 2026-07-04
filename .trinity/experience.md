@@ -1,5 +1,53 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-04 — Wave Loop 408 (SPI transaction model + real CCLK blocker)
+
+### What worked
+- Adding a `SPIReadTransaction` structure and `artix7_boot_transaction` function
+  turned the static `flash_spi_timing_ok` predicate into a transaction-level
+  model that captures CS# high time, SCK edges, SCK low/high times, and wake-up
+  delay. This is a harder claim for competitors to reproduce than a single
+  frequency bound.
+- Proving `canonical_implies_transaction_satisfies_flash_spec` required dealing
+  with `UInt8.toNat 0` carefully: compute the `cfg.oscfsel.toNat = 0` equality
+  as a separate `have` and then use `simp` with that equality, rather than
+  relying on `decide` with free variables.
+- Attempting the real P12 capture immediately surfaced the missing wiring
+  blocker. Recording the failed capture as evidence is better than pretending
+  Variant A happened.
+- Resealing all `.t27` specs with the freshly built `t27c` release binary
+  brought the seal files back into sync with the compiler output.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added `SPIReadTransaction`,
+  `artix7_boot_transaction`, `transaction_satisfies_flash_spec`, and the
+  theorems `canonical_oscfsel_transaction_satisfies_flash_spec`,
+  `canonical_implies_transaction_satisfies_flash_spec`, and
+  `cold_por_implies_transaction_satisfies_flash_spec`.
+- `fpga/HARDWARE_SSOT.md` §3.6.8 documents the transaction model and the
+  real-capture blocker.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_408_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W408_2026-07-04.md`, and
+  `docs/reports/FPGA_LOOP_COOPERATION_W409_2026-07-04.md`.
+- `docs/NOW.md` updated with W408 entry and `Last updated: 2026-07-04`.
+
+### Patterns to reuse
+- When a Lean proof involves a `UInt8` literal projected to `Nat`, compute the
+  equality as a standalone `have` and feed it to `simp` instead of calling
+  `decide` on a goal with free variables.
+- When a real hardware step is blocked, run the command anyway, capture the
+  output, and commit it as evidence. The blocker becomes a traceable
+  acceptance-criterion item instead of an invisible gap.
+- Before claiming `./scripts/tri test` passes, run it and reseal any stale
+  seal files so the verification gate is grounded in the current compiler.
+
+### Anti-patterns to avoid
+- Do not write Lean proofs that rely on `decide` with free variables in the
+  goal; use `intro` binders plus `exact rfl`, or compute the closed equality
+  first and then simplify.
+- Do not update only the report date; also update `docs/NOW.md` `Last updated:`
+  or the suite check will block the build.
+
 ## 2026-07-13 — Wave Loop 407 close-out / Wave Loop 408 setup
 
 ### What worked

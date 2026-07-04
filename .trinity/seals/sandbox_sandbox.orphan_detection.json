@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:092ba185a901b07fec43002d8f11379708d7419ec767fb3dbe9628918ad5aa63",
   "gen_hash_rust": "sha256:e89076c0cc803fb49a0447d1027439e692bbcbfbc779677c62d5280b7bf4e898",
-  "gen_hash_verilog": "sha256:2505211ae6ca580fd8865933e8fb9cfab06677b440c389f9967e68de020086cb",
+  "gen_hash_verilog": "sha256:ab4689e5d9158b3aba12b3495b17afd7dcdad9790e20e03a337b40e0f2949630",
   "gen_hash_zig": "sha256:5170cb7aa4893112fddc13040d50f20ada1dea8ab9c082346797f645d1510557",
   "module": "sandbox.orphan_detection",
   "ring": 12,
-  "sealed_at": "2026-07-03T15:03:23Z",
+  "sealed_at": "2026-07-04T12:06:17Z",
   "spec_hash": "sha256:3076c6f6ada328638763f370697f192fea2be5b311c3dab795e995d798a7b91e",
   "spec_path": "specs/sandbox/orphan_detection.t27"
 }
