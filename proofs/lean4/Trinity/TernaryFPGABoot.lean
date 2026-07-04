@@ -566,16 +566,22 @@ structure PvtContext where
   process_corner : ProcessCorner
   deriving Repr, DecidableEq, Inhabited
 
-/-- Placeholder PVT derating for minimum SCK low time. Currently returns the
-    conservative worst-case constant (12 ns) regardless of context. This is
-    intentionally a falsifiable stub: once real N25Q128_3V PVT data is found,
-    replace this function with a lookup/curve and the theorems below remain
-    valid because they only require `n25q128_min_sck_low_ns_pvt ctx ≥ 6`. -/
+/-- PVT-aware minimum SCK low time. **Current model:** a conservative worst-case
+    constant (12 ns) regardless of context. The 12 ns value is a deliberate
+    placeholder: it is twice the nominal N25Q128_3V `t_CL` bound (6 ns) and is
+    intended to absorb process/voltage/temperature variation until real
+    characterization data is available.
+
+    **Falsification condition:** if a future N25Q128_3V PVT characterization
+    shows that `t_CL` can exceed 12 ns under the intended operating envelope
+    (e.g. extreme low voltage + high temperature + slow process corner), this
+    constant must be raised. All implication theorems below remain valid as long
+    as `n25q128_min_sck_low_ns_pvt ctx ≥ N25Q128_MIN_SCK_LOW_NS`. -/
 def n25q128_min_sck_low_ns_pvt (_ctx : PvtContext) : Nat :=
   N25Q128_MIN_SCK_LOW_NS_WC
 
-/-- Placeholder PVT derating for minimum SCK high time. See
-    `n25q128_min_sck_low_ns_pvt` for the replacement plan. -/
+/-- PVT-aware minimum SCK high time. See `n25q128_min_sck_low_ns_pvt` for the
+    conservative placeholder rationale and falsification condition. -/
 def n25q128_min_sck_high_ns_pvt (_ctx : PvtContext) : Nat :=
   N25Q128_MIN_SCK_HIGH_NS_WC
 
@@ -725,6 +731,49 @@ theorem measured_25mhz_50duty_with_margin_satisfies_flash_spec :
     PVT-margin predicate. This is the nominal rate for OSCFSEL=7. -/
 theorem measured_33_3mhz_50duty_with_margin_satisfies_flash_spec :
   measured_cclk_with_margin_satisfies_flash_spec 33_300_000 50 = true := by
+  decide
+
+/-- PVT-aware raw-ns measured-CCLK flash predicate. As long as the placeholder
+    PVT derating is at least the nominal N25Q128 bound, a raw capture that
+    passes this predicate also passes the nominal raw-ns predicate. This is the
+    falsifiable entry point for instrument exports: replace `n25q128_min_sck_*_ns_pvt`
+    with real N25Q128_3V PVT curves; the implication theorems below remain valid
+    as long as the derated limits are ≥ the nominal 6 ns bounds. -/
+def measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec (period_ns low_ns high_ns : Nat) (ctx : PvtContext) : Bool :=
+  low_ns + high_ns = period_ns
+  ∧ let freq_hz := measured_cclk_freq_hz_from_period_ns period_ns
+    let duty_pct := measured_cclk_duty_pct_from_raw_ns period_ns high_ns
+    measured_cclk_with_pvt_satisfies_flash_spec freq_hz duty_pct ctx
+
+/-- Transaction built from a PVT-aware raw-ns capture. Mirrors
+    `measured_boot_transaction_from_raw_ns`. -/
+def measured_boot_transaction_from_raw_ns_with_pvt (period_ns _low_ns high_ns bits : Nat) : SPIReadTransaction :=
+  measured_boot_transaction_from_raw_ns period_ns _low_ns high_ns bits
+
+/-- If a PVT-aware raw-ns capture satisfies the flash predicate, the
+    transaction built from it satisfies the N25Q128_3V timing spec. -/
+theorem measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok
+  (period_ns low_ns high_ns bits : Nat) (ctx : PvtContext) :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns ctx = true
+  → transaction_satisfies_flash_spec (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits) = true := by
+  intro h
+  simp [measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec, measured_boot_transaction_from_raw_ns_with_pvt,
+        measured_boot_transaction_from_raw_ns] at h ⊢
+  rcases h with ⟨_h_consistent, h_spec⟩
+  apply measured_cclk_with_pvt_implies_transaction_ok
+  exact h_spec
+
+/-- Concrete example: a raw 40 ns / 20 ns / 20 ns capture satisfies the PVT-aware
+    raw-ns predicate under an industrial-corner placeholder context. -/
+theorem measured_raw_ns_40_20_20_with_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec 40 20 20
+    { temp_c := (-40 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := ProcessCorner.ff } = true := by
+  decide
+
+/-- Concrete example: a raw 40 ns / 20 ns / 20 ns capture satisfies the
+    PVT-margin raw-ns predicate. -/
+theorem measured_raw_ns_40_20_20_with_margin_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_satisfies_flash_spec 40 20 20 = true := by
   decide
 
 end BitstreamConfig

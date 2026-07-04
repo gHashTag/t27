@@ -1408,3 +1408,11 @@
 - **Commit:** feat(igla): Wave Loop 412 — measured-to-lean standalone + raw-ns + PVT context (Closes #1332)
 - **Files:** .claude/plans/wave-loop-412.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json,.trinity/seals/agent_EternalMonitor.json,.trinity/seals/agent_FacultyBoard.json
 
+## 2026-07-04T14:57:28Z — wave-loop-413
+- **Commit:** feat(igla/fpga): W413 Variant C fallback — CSV/VCD import, PVT falsification model, relay mock
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-04T14:58:00Z — wave-loop-413
+- **Commit:** feat(igla/fpga): W413 Variant C fallback — CSV/VCD import, PVT falsification model, relay mock
+- **Files:** 
+
