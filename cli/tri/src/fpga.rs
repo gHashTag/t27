@@ -4,6 +4,7 @@
 //! All operations use pure-Rust paths through `rusb`; no external tools
 //! (Vivado / openFPGALoader) and no Python dependencies are required.
 
+use std::io::BufRead;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -351,11 +352,30 @@ pub enum FpgaCmd {
     },
     /// Print DSLogic / oscilloscope instructions for measuring the FPGA CCLK
     /// output during Master SPI configuration. Optionally parse a DSView CSV
-    /// export to estimate frequency and duty cycle.
+    /// export or run a live capture via `sigrok-cli` with a connected logic
+    /// analyzer (e.g., the Digilent FTDI cable as `ftdi-la`).
     MeasureCclk {
-        /// Path to a DSView CSV export of the CCLK trace.
+        /// Path to a DSView / PulseView / Saleae CSV export of the CCLK trace.
         #[arg(long)]
         csv: Option<PathBuf>,
+        /// Run a live capture using sigrok-cli instead of parsing a CSV.
+        #[arg(long)]
+        live: bool,
+        /// sigrok driver to use for live capture (default: ftdi-la).
+        #[arg(long, default_value = "ftdi-la")]
+        driver: String,
+        /// Logic-analyzer channel to capture (default: ADBUS4 for ftdi-la).
+        #[arg(long, default_value = "ADBUS4")]
+        channel: String,
+        /// Sample rate for live capture, e.g. 10 MHz (default: 10000000).
+        #[arg(long, default_value = "10000000")]
+        samplerate: u32,
+        /// Number of samples to capture (default: 1000000).
+        #[arg(long, default_value_t = 1000000)]
+        samples: u32,
+        /// Fail if the measured CCLK is outside the N25Q128 standard-read spec.
+        #[arg(long)]
+        validate: bool,
     },
     /// Read the SPI flash status register via openFPGALoader's JTAG-to-SPI bridge.
     /// Decodes WIP, WEL, and QE bits to help diagnose boot-from-flash failures.
@@ -612,7 +632,23 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
         FpgaCmd::SweepReport { log_dir, out } => {
             sweep_report(log_dir.as_ref(), out.as_ref())
         },
-        FpgaCmd::MeasureCclk { csv } => measure_cclk(csv.as_ref()),
+        FpgaCmd::MeasureCclk {
+            csv,
+            live,
+            driver,
+            channel,
+            samplerate,
+            samples,
+            validate,
+        } => measure_cclk(
+            csv.as_ref(),
+            *live,
+            driver,
+            channel,
+            *samplerate,
+            *samples,
+            *validate,
+        ),
         FpgaCmd::SynthGf16 {
             build_dir,
             chipdb,
@@ -2267,50 +2303,232 @@ fn sweep_report(log_dir: Option<&PathBuf>, out: Option<&PathBuf>) -> Result<()> 
     Ok(())
 }
 
-/// Print guidance for measuring the Master SPI CCLK output, and optionally parse
-/// a DSView CSV export to estimate frequency / duty cycle.
-fn measure_cclk(csv: Option<&PathBuf>) -> Result<()> {
+/// Maximum SCK frequency (Hz) the Micron N25Q128_3V supports for the
+/// standard SPI Read command used during 7-series Master SPI boot.
+const N25Q128_MAX_SCK_HZ: f64 = 50_000_000.0;
+
+/// Minimum sensible CCLK frequency (Hz). Below this the capture is likely noise
+/// or the FPGA never drove the pin. Roughly 100 kHz.
+const CCLK_MIN_SENSE_HZ: f64 = 100_000.0;
+
+/// Print guidance for measuring the Master SPI CCLK output, run a live capture
+/// via sigrok-cli, or parse a CSV export to estimate frequency / duty cycle.
+fn measure_cclk(
+    csv: Option<&PathBuf>,
+    live: bool,
+    driver: &str,
+    channel: &str,
+    samplerate: u32,
+    samples: u32,
+    validate: bool,
+) -> Result<()> {
     println!("== CCLK measurement guide ==");
     println!();
     println!("Target board: QMTech Wukong V1 / XC7A200T-FGG676-1");
     println!("CCLK pin: P12 (CFGCLK / CCLK_0, bank 0, 3.3 V)");
     println!("Ground: any GND pin on the JTAG header or board");
     println!();
-    println!("DSLogic Plus setup:");
-    println!("  Channel: 0");
-    println!("  Sample rate: 100 MHz");
-    println!("  Duration: 1 ms");
-    println!("  Threshold: 1.65 V (3.3 V / 2)");
-    println!("  Trigger: rising edge on channel 0");
+    println!("Live capture setup (sigrok-cli):");
+    println!("  Driver: {} (use 'dreamsourcelab-dslogic' for DSLogic Plus)", driver);
+    println!("  Channel: {} (for ftdi-la use ADBUS4..7, not ADBUS0..3 which are JTAG)", channel);
+    println!("  Sample rate: {} Hz", samplerate);
+    println!("  Samples: {}", samples);
+    println!("  Expected CCLK: active only during FPGA configuration from flash.");
     println!();
-    println!("Expected signal:");
-    println!("  CCLK is active only during FPGA configuration from flash.");
-    println!("  After configuration CCLK is tri-stated or held by the internal oscillator.");
-    println!("  Capture the first 100 us after POR; the SPI read command (0x03) follows");
-    println!("  the 0xFF + 0xBB width auto-detection preamble.");
+    println!("CSV setup:");
+    println!("  DSView / PulseView / Saleae export: one analog or logic channel.");
     println!();
 
-    if let Some(path) = csv {
+    let (freq_hz, duty_pct, source) = if live {
+        println!("[measure-cclk] running live capture via sigrok-cli ...");
+        let tmp = std::env::temp_dir().join(format!("tri_cclk_capture_{}.csv", std::process::id()));
+        capture_cclk_live(driver, channel, samplerate, samples, &tmp)?;
+        let (f, d) = parse_logic_csv(&tmp, samplerate)?;
+        println!("[measure-cclk] captured {} samples to {}", samples, tmp.display());
+        (f, d, format!("live ({}, {})", driver, channel))
+    } else if let Some(path) = csv {
         if !path.is_file() {
             bail!("CSV not found: {}", path.display());
         }
-        println!("Parsing {} ...", path.display());
-        let (freq_hz, duty_pct) = parse_cclk_csv(path)?;
-        println!("  Estimated frequency: {:.3} MHz", freq_hz / 1e6);
-        println!("  Estimated duty cycle: {:.1}%", duty_pct);
+        println!("[measure-cclk] parsing {} ...", path.display());
+        // Auto-detect analog vs logic CSV by looking at the first non-comment row.
+        let (f, d) = if is_logic_csv(path)? {
+            let samplerate = detect_logic_csv_samplerate(path)?.unwrap_or(samplerate);
+            parse_logic_csv(path, samplerate)?
+        } else {
+            parse_cclk_csv(path)?
+        };
+        (f, d, format!("csv {}", path.display()))
     } else {
-        println!("Pass --csv <dsview-export.csv> to estimate frequency/duty cycle.");
+        println!("Pass --csv <export.csv> to parse a saved capture, or --live to capture now.");
+        return Ok(());
+    };
+
+    println!("  Source: {}", source);
+    println!("  Estimated frequency: {:.3} MHz", freq_hz / 1e6);
+    println!("  Estimated duty cycle: {:.1}%", duty_pct);
+
+    if validate {
+        if freq_hz > N25Q128_MAX_SCK_HZ {
+            bail!(
+                "measured CCLK {:.3} MHz exceeds N25Q128 standard-read limit {:.3} MHz",
+                freq_hz / 1e6,
+                N25Q128_MAX_SCK_HZ / 1e6
+            );
+        }
+        if freq_hz < CCLK_MIN_SENSE_HZ {
+            bail!(
+                "measured CCLK {:.3} MHz is below {:.3} MHz; capture looks like noise or no signal",
+                freq_hz / 1e6,
+                CCLK_MIN_SENSE_HZ / 1e6
+            );
+        }
+        println!(
+            "  Validation: OK (CCLK within N25Q128 standard-read spec, {:.1}x below {:.3} MHz limit)",
+            N25Q128_MAX_SCK_HZ / freq_hz,
+            N25Q128_MAX_SCK_HZ / 1e6
+        );
     }
 
     Ok(())
 }
 
+/// Run a live sigrok-cli capture and write the logic CSV to `out`.
+fn capture_cclk_live(
+    driver: &str,
+    channel: &str,
+    samplerate: u32,
+    samples: u32,
+    out: &PathBuf,
+) -> Result<()> {
+    let mut cmd = std::process::Command::new("sigrok-cli");
+    cmd.arg("--driver").arg(driver);
+    cmd.arg("--config")
+        .arg(format!("samplerate={}", samplerate));
+    cmd.arg("--channels").arg(channel);
+    cmd.arg("--samples").arg(samples.to_string());
+    cmd.arg("--output-format").arg("csv");
+    cmd.arg("--output-file").arg(out);
+    eprintln!("[sigrok-cli] $ sigrok-cli {}",
+        cmd.get_args()
+            .map(|a| a.to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .join(" "));
+    let status = cmd.status().with_context(|| "spawn sigrok-cli")?;
+    if !status.success() {
+        bail!("sigrok-cli failed (is the logic analyzer connected and the driver correct?)");
+    }
+    Ok(())
+}
+
+/// Return true if the CSV looks like a sigrok logic export (header row is
+/// "logic" followed by 0/1 samples).
+fn is_logic_csv(path: &PathBuf) -> Result<bool> {
+    let file = std::fs::File::open(path)
+        .with_context(|| format!("open {}", path.display()))?;
+    let reader = std::io::BufReader::new(file);
+    for line in reader.lines() {
+        let line = line?;
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with(';') || trimmed.starts_with('#') {
+            continue;
+        }
+        return Ok(trimmed.eq_ignore_ascii_case("logic"));
+    }
+    Ok(false)
+}
+
+/// Try to read the samplerate from a sigrok logic CSV comment line such as
+/// `; Samplerate: 10 MHz`.
+fn detect_logic_csv_samplerate(path: &PathBuf) -> Result<Option<u32>> {
+    let file = std::fs::File::open(path)
+        .with_context(|| format!("open {}", path.display()))?;
+    let reader = std::io::BufReader::new(file);
+    let re = regex::Regex::new(r"(?i)samplerate:\s*([0-9]+\.?[0-9]*)\s*(Hz|kHz|MHz|GHz)?")
+        .map_err(|e| anyhow::anyhow!("regex: {}", e))?;
+    for line in reader.lines() {
+        let line = line?;
+        if let Some(caps) = re.captures(&line) {
+            let value: f64 = caps[1].parse().map_err(|_| anyhow!("invalid samplerate"))?;
+            let mult: f64 = match caps.get(2).map(|m| m.as_str().to_lowercase()).as_deref() {
+                Some("khz") => 1_000.0,
+                Some("mhz") => 1_000_000.0,
+                Some("ghz") => 1_000_000_000.0,
+                _ => 1.0,
+            };
+            return Ok(Some((value * mult) as u32));
+        }
+    }
+    Ok(None)
+}
+
+/// Parse a sigrok logic CSV (one sample per line, 0 or 1) and estimate frequency
+/// and duty cycle given the sample rate in Hz.
+fn parse_logic_csv(path: &PathBuf, samplerate: u32) -> Result<(f64, f64)> {
+    if samplerate == 0 {
+        bail!("samplerate must be > 0");
+    }
+    let file = std::fs::File::open(path)
+        .with_context(|| format!("open {}", path.display()))?;
+    let reader = std::io::BufReader::new(file);
+    let mut samples: Vec<bool> = Vec::new();
+    let mut header_seen = false;
+    for line in reader.lines() {
+        let line = line?;
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with(';') || trimmed.starts_with('#') {
+            continue;
+        }
+        if !header_seen {
+            if trimmed.eq_ignore_ascii_case("logic") {
+                header_seen = true;
+            }
+            continue;
+        }
+        match trimmed {
+            "0" => samples.push(false),
+            "1" => samples.push(true),
+            _ => continue,
+        }
+    }
+    if samples.len() < 4 {
+        bail!("too few logic samples to estimate frequency");
+    }
+
+    let high_count = samples.iter().filter(|&&v| v).count();
+    let low_count = samples.len() - high_count;
+    let mut transitions = 0usize;
+    for window in samples.windows(2) {
+        if window[0] != window[1] {
+            transitions += 1;
+        }
+    }
+
+    let total_time = samples.len() as f64 / samplerate as f64;
+    let duty_pct = 100.0 * high_count as f64 / samples.len() as f64;
+
+    // A clean clock with N full periods has 2N transitions (rising + falling).
+    let freq_hz = if transitions >= 2 {
+        transitions as f64 / (2.0 * total_time)
+    } else {
+        0.0
+    };
+
+    println!(
+        "  Logic samples: {} (high {}, low {}, transitions {})",
+        samples.len(),
+        high_count,
+        low_count,
+        transitions
+    );
+    Ok((freq_hz, duty_pct))
+}
+
 /// Parse a logic-analyser CSV export and estimate CCLK frequency and duty cycle.
 ///
 /// Supported formats (auto-detected):
-/// - DSView: two columns `Time,Voltage`.
-/// - PulseView: header row with `Time,Channel 0,...` or `samplerate,...`.
-/// - Saleae: header row with `time, channel 0` or `time,channel 0`.
+/// - DSView analog: two columns `Time,Voltage`.
+/// - PulseView / Saleae: header row with time and voltage columns.
 ///
 /// The first numeric column is treated as time (seconds) and the next numeric
 /// column as the signal voltage (volts). Rows with non-numeric fields are

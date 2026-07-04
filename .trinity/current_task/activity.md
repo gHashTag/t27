@@ -1404,3 +1404,7 @@
 - **Commit:** feat(igla): Wave Loop 405 — flash-boot cold-POR smoke gate
 - **Files:** .claude/plans/wave-loop-406.md,.trinity/current-issue.md
 
+## 2026-07-04T11:31:40Z — wave-loop-406
+- **Commit:** docs(w406): W406 plan and current-issue for CCLK measurement + formal timing-safety
+- **Files:** .claude/plans/wave-loop-406.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-12.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-12.md,docs/reports/WAVE_LOOP_406_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+

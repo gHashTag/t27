@@ -202,6 +202,14 @@ Use `tri fpga flash-status` to probe the detected flash chip, and
 > STAT, and asserts the same `boot_success` predicate the Lean model defines:
 > `DONE=1`, `MODE=0b001`, no CRC/ID/DEC errors. This turns the board-less
 > static audit into an end-to-end hardware smoke test.
+>
+> **CCLK timing-safety traceability (W406):** the Lean 4 model adds an
+> `OSCFSEL`->CCLK lookup table and a `cclk_within_flash_spec` predicate that
+> bounds the nominal CCLK against the N25Q128 50 MHz standard-read limit. The
+> theorem `canonical_implies_cclk_within_flash_spec` proves that the canonical
+> `OSCFSEL=0` configuration is timing-safe, and `cold_por_implies_cclk_within_flash_spec`
+> links that bound to the cold-POR preconditions. The `tri fpga measure-cclk`
+> command validates real captures against the same 50 MHz limit.
 
 ### 3.3 H2 — CCLK/SPI-startup timing decision tree
 
@@ -302,39 +310,78 @@ tri fpga cclk-sweep fpga/verilog/ternary_mac_demo_top_200t.bit \
 > bitstream contains CRC register writes, the patch may cause `CRC_ERROR=1`.
 > `tri fpga bit-config` now warns when CRC writes are present.
 
-### 3.5 Measuring the actual CCLK frequency
+### 3.6 Measuring the actual CCLK frequency
 
 A raw `OSCFSEL` value that boots is not enough; the actual CCLK frequency must
-be measured before it becomes the default. Capture the CCLK pin:
+be measured and validated against the flash timing spec before it becomes the
+default. The CCLK pin is **P12** (CFGCLK / CCLK_0, bank 0, 3.3 V). CCLK is active
+only during FPGA configuration from flash, so capture the first 100 µs–1 ms
+after POR.
+
+#### 3.6.1 Expected nominal range
+
+The canonical bitstream uses `OSCFSEL=0` (default internal CCLK oscillator). The
+Artix-7 UG470 tables give a nominal ~2.5 MHz for this selection; all documented
+`t27` selections are below the Micron N25Q128_3V standard-read limit of 50 MHz.
+The formal model in `proofs/lean4/Trinity/TernaryFPGABoot.lean` encodes this as
+`BitstreamConfig.cclk_within_flash_spec` and proves `canonical_implies_cclk_within_flash_spec`.
+
+| OSCFSEL | Nominal CCLK | Within N25Q128 50 MHz spec? |
+|---------|-------------:|-----------------------------|
+| 0       | 2.5 MHz      | yes (canonical default)     |
+| 1       | 4.2 MHz      | yes                         |
+| 2       | 6.6 MHz      | yes                         |
+| 3       | 10.0 MHz     | yes                         |
+| 4       | 12.5 MHz     | yes                         |
+| 5       | 16.7 MHz     | yes                         |
+| 6       | 25.0 MHz     | yes                         |
+| 7       | 33.3 MHz     | yes                         |
+
+#### 3.6.2 Live capture (sigrok-cli)
+
+If a supported logic analyzer is connected, capture CCLK directly:
 
 ```bash
-tri fpga measure-cclk
+# Digilent FTDI cable used as a logic analyzer (ftdi-la).
+# Wire P12 -> ADBUS4 and GND -> GND before running.
+tri fpga measure-cclk --live --driver ftdi-la --channel ADBUS4 \
+    --samplerate 10000000 --samples 1000000 --validate
 ```
 
-Then export a trace and estimate frequency / duty cycle:
+For a DSLogic Plus use `--driver dreamsourcelab-dslogic --channel 0`. The command
+runs `sigrok-cli`, parses the logic CSV, estimates frequency and duty cycle,
+and (with `--validate`) fails if the result is outside the N25Q128 standard-read
+spec or below 100 kHz (noise / no-signal guard).
+
+#### 3.6.3 CSV capture (manual export)
+
+If you prefer to capture in DSView / PulseView / Saleae and export later:
 
 ```bash
-tri fpga measure-cclk --csv build/fpga/cclk.csv
+tri fpga measure-cclk --csv build/fpga/cclk.csv --validate
 ```
 
-Target pin: **P12** (CFGCLK / CCLK_0, bank 0, 3.3 V). Capture the first 100 µs
-after POR; CCLK is active only during configuration.
+The parser auto-detects two formats:
 
-The CSV parser auto-detects the three common export formats:
+| Format      | Example header / first data row                         | Notes |
+|-------------|---------------------------------------------------------|-------|
+| Logic CSV   | `logic` then `0`/`1` per line; `; Samplerate: 10 MHz` | Used by sigrok-cli live capture |
+| Analog CSV  | `Time,Voltage` or `time, channel 0,...`                 | Used by DSView / PulseView / Saleae |
 
-| Tool       | Header example                                        | Time unit |
-|------------|-------------------------------------------------------|-----------|
-| DSView     | `Time,Voltage`                                        | seconds   |
-| PulseView  | `Time,Channel 0,Channel 1,...`                         | seconds   |
-| Saleae     | `time, channel 0, channel 1,...` (lower-case, spaces)    | seconds   |
+Numeric columns are detected heuristically. If fewer than two transitions are
+found, the command exits with an error and asks for a longer capture.
 
-Numeric columns are detected heuristically; the command reports the dominant
-frequency and duty cycle. If fewer than 10 transitions are found, it exits with
-an error and asks for a longer capture.
+#### 3.6.4 Validation
 
-When the `tri fpga smoke-gate` dry-run path runs (§3.4), it verifies that
-`sweep-report` emits exactly the six `OSCFSEL` variant rows produced by
-`cclk-sweep --dry-run`.
+With `--validate`, `tri fpga measure-cclk` checks:
+
+- `freq_hz >= 100 kHz` (signal present, not noise).
+- `freq_hz <= 50 MHz` (N25Q128 standard-read maximum for command `0x03`).
+
+A measured canonical CCLK is expected to be ~2.5 MHz, giving a ~20× margin to
+the flash limit. That margin absorbs temperature, voltage, and process variation
+and makes the formal `cclk_within_flash_spec` claim conservative for real
+silicon.
 
 ---
 
