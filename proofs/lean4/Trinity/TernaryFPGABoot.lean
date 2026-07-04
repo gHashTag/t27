@@ -497,6 +497,144 @@ theorem measured_cclk_satisfies_flash_spec_implies_transaction_ok
   simp [N25Q128_MAX_SCK_HZ] at h_freq
   simp_all
 
+-- ============================================================================
+-- Raw-ns measured-CCLK formal link (W412)
+-- ============================================================================
+
+/-- Frequency in Hz derived from a raw measured period in nanoseconds.
+    Rounded down to keep the estimate conservative. -/
+def measured_cclk_freq_hz_from_period_ns (period_ns : Nat) : Nat :=
+  if period_ns > 0 then 1_000_000_000 / period_ns else 0
+
+/-- Duty-cycle percentage (high-time fraction) derived from raw low/high times.
+    Rounded to the nearest integer, clamped to [0, 100]. -/
+def measured_cclk_duty_pct_from_raw_ns (period_ns : Nat) (high_ns : Nat) : Nat :=
+  if period_ns > 0 then (100 * high_ns) / period_ns else 0
+
+/-- True when raw nanosecond timings satisfy the N25Q128_3V standard-read bounds.
+    This is the entry point for instrument exports that report period/low/high
+    directly instead of frequency/duty. The `low_ns + high_ns = period_ns`
+    precondition rejects inconsistent instrument readings. -/
+def measured_cclk_from_raw_ns_satisfies_flash_spec (period_ns low_ns high_ns : Nat) : Bool :=
+  low_ns + high_ns = period_ns
+  ∧ let freq_hz := measured_cclk_freq_hz_from_period_ns period_ns
+    let duty_pct := measured_cclk_duty_pct_from_raw_ns period_ns high_ns
+    measured_cclk_satisfies_flash_spec freq_hz duty_pct
+
+/-- Transaction built from raw nanosecond timings, mirroring `measured_boot_transaction`. -/
+def measured_boot_transaction_from_raw_ns (period_ns _low_ns high_ns bits : Nat) : SPIReadTransaction :=
+  let freq_hz := measured_cclk_freq_hz_from_period_ns period_ns
+  let duty_pct := measured_cclk_duty_pct_from_raw_ns period_ns high_ns
+  measured_boot_transaction freq_hz duty_pct bits
+
+/-- If raw nanosecond timings satisfy the flash spec, the transaction is OK. -/
+theorem measured_cclk_from_raw_ns_implies_transaction_ok
+  (period_ns low_ns high_ns bits : Nat) :
+  measured_cclk_from_raw_ns_satisfies_flash_spec period_ns low_ns high_ns = true
+  → transaction_satisfies_flash_spec (measured_boot_transaction_from_raw_ns period_ns low_ns high_ns bits) = true := by
+  intro h
+  simp [measured_cclk_from_raw_ns_satisfies_flash_spec, measured_boot_transaction_from_raw_ns] at h ⊢
+  rcases h with ⟨_h_consistent, h_spec⟩
+  apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  exact h_spec
+
+/-- Concrete example: a raw 40 ns period / 20 ns low / 20 ns high capture
+    satisfies the flash spec. -/
+theorem measured_raw_ns_40_20_20_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_satisfies_flash_spec 40 20 20 = true := by
+  decide
+
+-- ============================================================================
+-- PVT-aware timing model (W412)
+-- ============================================================================
+
+/-- Process corner for PVT-aware derating. The actual numeric derating is a
+    placeholder pending Micron N25Q128_3V PVT characterization data. -/
+inductive ProcessCorner where
+  | tt
+  | ff
+  | ss
+  deriving Repr, DecidableEq, Inhabited
+
+/-- PVT context supplied with a measured CCLK pair. All fields are part of the
+    falsifiable assumption set; replacing the placeholder derating below with
+    real datasheet curves is the next step once PVT data is available. -/
+structure PvtContext where
+  temp_c : Int
+  vccint_mv : Nat
+  vccaux_mv : Nat
+  process_corner : ProcessCorner
+  deriving Repr, DecidableEq, Inhabited
+
+/-- Placeholder PVT derating for minimum SCK low time. Currently returns the
+    conservative worst-case constant (12 ns) regardless of context. This is
+    intentionally a falsifiable stub: once real N25Q128_3V PVT data is found,
+    replace this function with a lookup/curve and the theorems below remain
+    valid because they only require `n25q128_min_sck_low_ns_pvt ctx ≥ 6`. -/
+def n25q128_min_sck_low_ns_pvt (_ctx : PvtContext) : Nat :=
+  N25Q128_MIN_SCK_LOW_NS_WC
+
+/-- Placeholder PVT derating for minimum SCK high time. See
+    `n25q128_min_sck_low_ns_pvt` for the replacement plan. -/
+def n25q128_min_sck_high_ns_pvt (_ctx : PvtContext) : Nat :=
+  N25Q128_MIN_SCK_HIGH_NS_WC
+
+/-- PVT-aware measured-CCLK flash predicate. As long as the placeholder derating
+    is at least the nominal 6 ns bound, it implies the nominal predicate. -/
+def measured_cclk_with_pvt_satisfies_flash_spec (freq_hz : Nat) (duty_pct : Nat) (ctx : PvtContext) : Bool :=
+  freq_hz > 0
+  ∧ freq_hz ≤ N25Q128_MAX_SCK_HZ
+  ∧ duty_pct ≤ 100
+  ∧ measured_cclk_low_ns freq_hz duty_pct ≥ n25q128_min_sck_low_ns_pvt ctx
+  ∧ measured_cclk_high_ns freq_hz duty_pct ≥ n25q128_min_sck_high_ns_pvt ctx
+
+/-- The placeholder PVT derating is at least the nominal N25Q128 bound. This is
+    the only fact the implication proof needs; real PVT data must preserve it. -/
+lemma pvt_low_ns_at_least_nominal (_ctx : PvtContext) :
+  n25q128_min_sck_low_ns_pvt _ctx ≥ N25Q128_MIN_SCK_LOW_NS := by
+  simp [n25q128_min_sck_low_ns_pvt, N25Q128_MIN_SCK_LOW_NS_WC, N25Q128_MIN_SCK_LOW_NS]
+
+lemma pvt_high_ns_at_least_nominal (_ctx : PvtContext) :
+  n25q128_min_sck_high_ns_pvt _ctx ≥ N25Q128_MIN_SCK_HIGH_NS := by
+  simp [n25q128_min_sck_high_ns_pvt, N25Q128_MIN_SCK_HIGH_NS_WC, N25Q128_MIN_SCK_HIGH_NS]
+
+/-- If the PVT-aware predicate holds, the nominal predicate holds. -/
+theorem measured_cclk_with_pvt_implies_measured_cclk_satisfies_flash_spec
+  (freq_hz duty_pct : Nat) (ctx : PvtContext) :
+  measured_cclk_with_pvt_satisfies_flash_spec freq_hz duty_pct ctx = true
+  → measured_cclk_satisfies_flash_spec freq_hz duty_pct = true := by
+  intro h
+  simp [measured_cclk_with_pvt_satisfies_flash_spec, measured_cclk_satisfies_flash_spec,
+        n25q128_min_sck_low_ns_pvt, n25q128_min_sck_high_ns_pvt,
+        N25Q128_MIN_SCK_LOW_NS_WC, N25Q128_MIN_SCK_HIGH_NS_WC,
+        N25Q128_MIN_SCK_LOW_NS, N25Q128_MIN_SCK_HIGH_NS] at h ⊢
+  rcases h with ⟨h_pos, h_max, h_duty, h_low, h_high⟩
+  constructor
+  · exact h_pos
+  constructor
+  · exact h_max
+  constructor
+  · exact h_duty
+  constructor
+  · omega
+  · omega
+
+/-- If the PVT-aware predicate holds, the boot transaction satisfies the flash spec. -/
+theorem measured_cclk_with_pvt_implies_transaction_ok
+  (freq_hz duty_pct bits : Nat) (ctx : PvtContext) :
+  measured_cclk_with_pvt_satisfies_flash_spec freq_hz duty_pct ctx = true
+  → transaction_satisfies_flash_spec (measured_boot_transaction freq_hz duty_pct bits) = true := by
+  intro h
+  apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  exact measured_cclk_with_pvt_implies_measured_cclk_satisfies_flash_spec freq_hz duty_pct ctx h
+
+/-- Concrete example: a measured 25 MHz CCLK with 50% duty satisfies the PVT
+    predicate under an industrial-corner placeholder context. -/
+theorem measured_25mhz_50duty_pvt_satisfies_flash_spec :
+  measured_cclk_with_pvt_satisfies_flash_spec 25_000_000 50
+    { temp_c := (-40 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := ProcessCorner.ff } = true := by
+  decide
+
 /-- Concrete example: a measured 2.5 MHz CCLK with 50% duty cycle satisfies the
     flash timing predicate. This matches the synthetic fixture used by the
     `tri fpga measure-cclk --synth` CI path. -/

@@ -616,6 +616,37 @@ Use `--margin` with `measured-to-lean` to generate the PVT-margin variant:
 tri fpga measured-to-lean --file measured.json --margin --out MeasuredCclkWukongMargin.lean
 ```
 
+#### 3.6.12 Standalone file, raw-ns input, and PVT context (W412)
+
+For board-less CI or instrument exports that report raw nanoseconds, `tri fpga
+measured-to-lean` supports two extra modes in W412:
+
+- `--standalone` emits a self-contained `.lean` file with the required imports
+  and `namespace Trinity.BitstreamConfig` wrapper. Paste it directly into the
+  `proofs/lean4/Trinity` tree or build it standalone.
+
+  ```bash
+  tri fpga measured-to-lean --file measured.json --standalone --out MeasuredCclkWukong.lean
+  ```
+
+- `--raw-ns` reads a JSON record with `period_ns`, `sck_low_ns`, and
+  `sck_high_ns` instead of deriving low/high from frequency/duty. This matches
+  logic-analyzer exports that report timing in nanoseconds and avoids duty-cycle
+  quantization.
+
+  ```bash
+  echo '{"period_ns":40,"sck_low_ns":20,"sck_high_ns":20,"source":"live"}' > raw.json
+  tri fpga measured-to-lean --file raw.json --raw-ns --standalone --out MeasuredRaw.lean
+  ```
+
+- PVT-aware predicates in `proofs/lean4/Trinity/TernaryFPGABoot.lean` now accept a
+  `PvtContext { temp_c, vccint_mv, vccaux_mv, process_corner }`. The derating
+  functions are currently a **placeholder** returning the conservative 12 ns
+  worst-case constants regardless of context. Once real N25Q128_3V PVT data is
+  available, replace the stub functions (`n25q128_min_sck_low_ns_pvt` /
+  `n25q128_min_sck_high_ns_pvt`); the existing implication theorems remain valid
+  as long as the derated limits are at least the nominal 6 ns bounds.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)
