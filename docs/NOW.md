@@ -2,6 +2,12 @@
 
 Last updated: 2026-07-04
 
+## exprcast-rust-emitter -- lower ExprCast in gen-rust backend (Closes #1314)
+
+- **WHERE**: `bootstrap/src/compiler.rs` -- added `Expr::Cast { operand, target }` arm in `expr_to_rust`, emits `format!("({} as {})", operand, target)` mirroring the existing gen-verilog arm at compiler.rs:4941. Before this fix, ExprCast in `expr_to_rust` fell through to the default `_ => "()".to_string()` branch, producing empty-tuple stubs in generated Rust and silently corrupting any T27 spec that uses bit-width casts (bit-shift lowering, width promotion, etc.). +18 / -0 lines. Isolated repro filed as #1314 with a 5-line spec showing the empty-tuple emission.
+- **Why**: gen-rust is one of three lowering targets (Rust, Verilog, C). The Verilog and C emitters had ExprCast; the Rust emitter did not. This closes the gen-rust half of #1314; gen (Zig) and gen-c follow-ups tracked separately. Unblocks the tri-net T27-first wire flip (gHashTag/tri-net#33), where specs/wire.t27 needs the fixed emitter to regenerate gen/rust/wire.rs without hand-patching.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## bcd-bitexact-promotion -- promote bcd -> strict bitexact (2-digit packed instance) (Closes #1321)
 
 - **WHERE** (conformance vectors): `conformance/vectors/bcd_conformance_v0.json` promoted from `structural` to `bitexact` in `INDEX_all_formats.json` (bitexact_packs 69 -> 70, structural_packs 14 -> 13; bcd.kind structural -> bitexact, n_vectors 0 -> 100). Fixes ONE concrete instance: 2-digit packed BCD, 8-bit word bcd_in[7:4]=tens, bcd_in[3:0]=ones, decode value = tens*10 + ones (valid 0..99). Generic variable-width BCD (u4_per_digit) stays noted in catalog.instance/format_notes; only this fixed-width instance carries a bit-precise round-trip claim.
