@@ -31,6 +31,28 @@
   },
   "round_trip_policy": "decode: exact bits->f64 (curated_named). encode (reference): round-nearest-ties-even; overflow per format convention. abs_error 0 for representable values.",
   "vector_mode": "curated_named",
+  "witnesses": [
+    {
+      "kind": "python_mpmath_oracle",
+      "oracle": "witness_takum_wide.py: value = exp(ell/2), ell exact dyadic; mpmath 1200-bit (arXiv:2404.18603). Decoder validated against all 3 known takum16 codes.",
+      "result": "15/15 abs_error=0 on curated named vectors (Witness #1)"
+    },
+    {
+      "kind": "python_independent_math_exp",
+      "oracle": "decode values cross-checked bit-for-bit against math.exp(+/-k/2) (independent reimplementation, not the mpmath path)",
+      "result": "10/10 grid values match to the bit (independent second reproduction of the value claim)"
+    },
+    {
+      "kind": "sample_probe_supporting_evidence",
+      "oracle": "400k+ randomized+structured codes at 1200-bit; min midpoint gap 8.78e-7 ULP >> oracle floor 6.1e-356, 0 ambiguous",
+      "result": "supporting evidence only -- NOT part of the bitexact claim (curated-backed, not exhaustive)"
+    },
+    {
+      "kind": "libtakum_c_parity",
+      "oracle": "full-domain exhaustive / analytic separation bound via libtakum C reference",
+      "result": "NOT DONE -- separate step (Variant B); 2^64 codes infeasible to enumerate here"
+    }
+  ],
   "n_vectors": 15,
   "vectors": [
     {

@@ -243,7 +243,7 @@
       "kind": "bitexact",
       "n_vectors": 15,
       "source": "curated_named oracle (witness_takum_wide.py, mpmath 1200-bit); see format_notes",
-      "sha256": "fd7ec34a74e4ae0577c64999ee2a972788020a6a62b80dd32312cc9082f6cf8a"
+      "sha256": "9743747e70e9da3490a08c6d2c954f49108293a6381a4e1365a6434444478cf0"
     },
     {
       "id": "takum64",
@@ -251,7 +251,7 @@
       "kind": "bitexact",
       "n_vectors": 15,
       "source": "curated_named oracle (witness_takum_wide.py, mpmath 1200-bit); see format_notes",
-      "sha256": "ab1bf903a5de88d784364e6bc6d54faea0e40a19725076bda65e6c8933b7b58e"
+      "sha256": "9467083cfdd44436a257b0efedbdbffe0b24ffe5b3ce45f16637d6fdd6739340"
     },
     {
       "id": "lns8",
