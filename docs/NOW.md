@@ -2,11 +2,27 @@
 
 Last updated: 2026-07-04
 
+## Wave Loop 418 — FPGA physical capture, real relay gate, or further formal tooling (Issue #1353)
+
+- Branch: `wave-loop-418`
+- Issue: #1353
+- PR: to open after work
+- Report: `docs/reports/WAVE_LOOP_418_REPORT.md` (to create)
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W418_2026-07-04.md` (to create)
+- Cooperation W419: `docs/reports/FPGA_LOOP_COOPERATION_W419_2026-07-04.md` (to create)
+
+### Candidate variants
+- Variant A: capture real CCLK for `OSCFSEL=6/7` once P12 is wired and the analyzer / DLC10 cable is available.
+- Variant B: implement a real `--relay-port` backend once a relay board or USB power switch is available.
+- Variant C: PVT envelope regression test, VCD `$date`/`$version`/`$comment` headers, analog CSV voltage columns, standalone Lean integration test.
+
+---
+
 ## Wave Loop 417 — hygiene, reland W415/W416, and next-variant gate (Closes #1350)
 
 - Branch: `wave-loop-417`
 - Issue: #1350
-- PR: #1351/#1352 (W415 and W416 relanded; see report)
+- PR: #1354
 - Report: `docs/reports/WAVE_LOOP_417_REPORT.md`
 - Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W417_2026-07-04.md`
 - Cooperation W418: `docs/reports/FPGA_LOOP_COOPERATION_W418_2026-07-04.md`
@@ -16,9 +32,10 @@ Last updated: 2026-07-04
 - Rebased `wave-loop-416` onto current master; opened and merged PR #1352 with corrected `Closes #1349` link.
 - Closed superseded PR #1351 after its commits reached `master` via PR #1352.
 - Closed stale wave-loop PRs #1315, #1317, #1322, #1324, #1330 and issues #1313, #1316, #1318, #1323, #1325.
-- Created real tracking issues #1349 (W416) and #1350 (W417).
+- Created real tracking issues #1349 (W416), #1350 (W417), and #1353 (W418).
 - Updated `docs/BRANCHING_MODEL.md` to master-first Strategy P.
 - Allowlisted `conformance/vectors/CROSSWALK_sw_hw.md` in `docs/.legacy-non-english-docs` to unblock the `fpga-smoke` / `t27c` language-policy check while the file awaits translation.
+- Merged PR #1354 (wave-loop-417 → master).
 
 ### Not done (blocked on hardware)
 - Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired, DLC10 cable missing.

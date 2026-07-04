@@ -1,42 +1,85 @@
-# Wave Loop 417 — hygiene, reland W415/W416, and next-variant gate
+# Wave Loop 418 — FPGA physical capture, real relay gate, or further formal tooling
 
-**Issue:** #1350  
-**Branch:** `wave-loop-417`  
-**Milestone:** Close out the W415/W416 reland mess and set up the next FPGA boot-evidence wave.
+**Issue:** #1353  
+**Branch:** `wave-loop-418`  
+**Milestone:** Continue the FPGA boot-evidence line from W417.
 
 ---
 
 ## Goal
 
-Wave 415 and Wave 416 were stuck on a dirty PR (#1346) and a branch that had
-fallen behind `master`. Wave 417 lands the hygiene work: close/replace stale
-PRs, fix the branch target to `master` (Strategy P), repair the CI blocker
-introduced by the Russian cross-walk file, and produce the W417 report plus
-W418 cooperation variants.
+Wave 417 closed the W415/W416 hygiene loop. Wave 418 re-evaluates the bench
+state and executes the first available variant.
+
+1. **Variant A (preferred when bench becomes available):**
+   - Wire P12 to a logic-analyzer channel and capture real CCLK for
+     `OSCFSEL=6` and `OSCFSEL=7`.
+   - Import the captures with `tri fpga measured-to-lean --csv/--vcd --raw-ns
+     --standalone --validate --pvt-context <ctx.json>` and commit the generated
+     Lean theorems.
+   - Document the measured frequencies/duty cycles and PVT context in
+     `fpga/HARDWARE_SSOT.md`.
+
+2. **Variant B (if relay hardware is available):**
+   - Implement a real `--relay-port` backend for `tri fpga cold-por`
+     (e.g. serial or TCP relay controlling board power).
+   - Perform an automated cold-POR power-cycle and capture STAT without
+     operator intervention.
+   - Document relay wiring in `fpga/HARDWARE_SSOT.md`.
+
+3. **Variant C (fallback if bench still blocked):**
+   - Add a regression test that the PVT envelope stays ≥ the nominal bound
+     across the full operating rectangle.
+   - Extend instrument import for VCD `$date`/`$version`/`$comment` headers and
+     analog CSV voltage columns.
+   - Build a standalone Lean proof integration test from a synthetic CSV.
+   - Document the first-real-capture checklist in `fpga/HARDWARE_SSOT.md`.
 
 ---
 
 ## Decomposed plan
 
+See `docs/reports/FPGA_LOOP_COOPERATION_W418_2026-07-04.md`.
+
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | GitHub PRs/issues | Close superseded #1351; confirm stale wave-loop PRs/issues are closed |
-| 2 | `docs/BRANCHING_MODEL.md` | Document Strategy P: wave-loop PR target is `master` |
-| 3 | `docs/.legacy-non-english-docs` | Allowlist `conformance/vectors/CROSSWALK_sw_hw.md` until translated |
-| 4 | `docs/NOW.md` | Update W417 section to in-progress / close-out state |
-| 5 | `docs/reports/*` | `WAVE_LOOP_417_REPORT.md`, `FPGA_LOOP_EVIDENCE_W417_2026-07-04.md`, `FPGA_LOOP_COOPERATION_W418_2026-07-04.md` |
-| 6 | `.trinity/experience.md` | Capture W417 learnings |
-| 7 | git/PR | Open PR from `wave-loop-417` to `master`, close #1350, create #1353 for W418 |
+| 1 | `cli/tri/src/fpga.rs` | Variant A import, B relay backend, or C regression/integration tests |
+| 2 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | PVT envelope regression lemma or new measured theorems |
+| 3 | `fpga/HARDWARE_SSOT.md` | Updated capture / relay / integration protocol |
+| 4 | `docs/reports/*` | W418 report, evidence, W419 cooperation |
+| 5 | `.trinity/experience.md` | W418 learnings |
+| 6 | git/PR | squash-merge to `master`, close #1353, open #? for W419 |
 
 ---
 
 ## Acceptance criteria
 
-- [ ] AC-1: `docs/BRANCHING_MODEL.md` clearly states wave-loop PRs target `master`.
-- [ ] AC-2: `cargo build --release` in `bootstrap/` no longer panics on the Russian cross-walk file.
-- [ ] AC-3: `./scripts/tri test` parse/typecheck/gen/seal phases pass.
-- [ ] AC-4: W417 report and W418 cooperation files exist and are linked from `docs/NOW.md`.
-- [ ] AC-5: PR from `wave-loop-417` to `master` is opened with `Closes #1350`.
+### Bundle A
+- [ ] AC-A1: P12 is wired to a logic-analyzer channel and real CCLK capture files exist for `OSCFSEL=6` and `OSCFSEL=7`.
+- [ ] AC-A2: `tri fpga measured-to-lean --csv/--vcd --raw-ns --standalone` generated Lean files build with `lake build`.
+- [ ] AC-A3: Measured CCLK is within the N25Q128_3V spec, or any exceedance is explicitly explained.
+
+### Bundle B
+- [ ] AC-B1: `tri fpga cold-por <bit> --relay-port <real>` performs an automated power-cycle and captures STAT.
+- [ ] AC-B2: The resulting log has `relay_mock: false` and a real STAT raw value.
+- [ ] AC-B3: `fpga/HARDWARE_SSOT.md` documents relay wiring and port mapping.
+
+### Bundle C
+- [ ] AC-C1: A regression test verifies the PVT envelope lower bound across the operating rectangle.
+- [ ] AC-C2: Instrument import handles VCD `$date`/`$version`/`$comment` headers or analog CSV voltage columns.
+- [ ] AC-C3: A standalone `.lean` file generated from the CLI type-checks in a temporary `lake` package.
+
+### Invariant checks
+- [ ] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
+- [ ] `lake build Trinity.TernaryFPGABoot` passes.
+- [ ] `cargo test -p tri fpga::tests` passes.
+
+---
+
+## Default variant
+
+Execute **Variant A** if the analyzer is wired. Otherwise try **Variant B** if a
+relay is available. Otherwise fall back to **Variant C**.
 
 ---
 
