@@ -1,76 +1,85 @@
-# Wave Loop 412 — FPGA physical capture + relay CI gate or PVT refinement
+# Wave Loop 414 — FPGA physical capture, real relay gate, or further formal tooling
 
-**Issue:** #1332  
-**Branch:** `wave-loop-412`  
-**Milestone:** Continue the FPGA boot-evidence line from W411.
+**Issue:** #1339  
+**Branch:** `wave-loop-414`  
+**Milestone:** Continue the FPGA boot-evidence line from W413.
 
 ---
 
 ## Goal
 
-1. **Variant A + B (preferred when bench is available):**
+Wave 413 delivered the **Variant C** formal-tooling fallback because the bench
+was blocked. Wave 414 re-evaluates the bench state and executes the first
+available variant.
+
+1. **Variant A (preferred when bench becomes available):**
    - Wire P12 to a logic-analyzer channel and capture real CCLK for
      `OSCFSEL=6` and `OSCFSEL=7`.
-   - Verify the Digilent DLC10 cable is detected with `dlc10 idcode`.
-   - Boot from flash with both oscillator settings and collect boot logs.
-   - Feed the measured `(frequency, duty)` into
-     `tri fpga measured-to-lean --json` and commit the generated Lean theorems.
-   - Add relay-controlled cold-POR automation (`tri fpga cold-por`) with a
-     mock CI path.
+   - Import the captures with `tri fpga measured-to-lean --csv/--vcd --raw-ns
+     --standalone` and commit the generated Lean theorems.
+   - Document the measured frequencies/duty cycles in `fpga/HARDWARE_SSOT.md`.
 
-2. **Variant C (fallback if bench still blocked):**
-   - Replace the placeholder 2× PVT constants with real N25Q128 PVT derating
-     data or document the assumption more precisely.
-   - Extend `tri fpga measured-to-lean` to emit a self-contained `.lean` file.
-   - Add raw-ns input mode (`period_ns`, `low_ns`, `high_ns`) and a
-     corresponding Lean predicate.
+2. **Variant B (if relay hardware is available):**
+   - Implement a real `--relay-port` backend for `tri fpga cold-por`
+     (e.g. serial or TCP relay controlling board power).
+   - Perform an automated cold-POR power-cycle and capture STAT without
+     operator intervention.
+   - Document relay wiring in `fpga/HARDWARE_SSOT.md`.
+
+3. **Variant C (fallback if bench still blocked):**
+   - Replace the single-constant 2× PVT placeholder with a temperature /
+     voltage-aware uncertainty envelope.
+   - Extend the VCD parser to multi-bit buses and analog real-valued traces.
+   - Add `--validate` to `measured-to-lean --raw-ns` to reject instrument
+     exports that would produce false theorems.
 
 ---
 
 ## Decomposed plan
 
-See `.claude/plans/wave-loop-412.md` and
-`docs/reports/FPGA_LOOP_COOPERATION_W412_2026-07-04.md`.
+See `.claude/plans/wave-loop-414.md` and
+`docs/reports/FPGA_LOOP_COOPERATION_W414_2026-07-04.md`.
 
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `.claude/plans/wave-loop-412.md` | Decomposed plan + weak points + competitor scan |
-| 2 | `fpga/HARDWARE_SSOT.md` §3.6.12 | Relay wiring and CI cold-POR protocol (A+B) |
-| 3 | `cli/tri/src/fpga.rs` + new `fpga/src/relay.rs` | `tri fpga cold-por` with mock + hardware backends (A+B) |
-| 4 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | Real-measurement theorems or PVT refinement (C) |
-| 5 | `docs/reports/*` | W412 report, evidence, W413 cooperation |
-| 6 | `.trinity/experience.md` | W412 learnings |
-| 7 | git/PR | squash-merge to `master`, close #1332, open #1333 |
+| 1 | `.claude/plans/wave-loop-414.md` | Decomposed plan + weak points + competitor scan |
+| 2 | `fpga/HARDWARE_SSOT.md` | Updated capture / relay protocol |
+| 3 | `cli/tri/src/fpga.rs` | Variant A CSV/VCD capture import, B relay backend, or C parser/validate extensions |
+| 4 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | PVT envelope or new example theorems |
+| 5 | `docs/reports/*` | W414 report, evidence, W415 cooperation |
+| 6 | `.trinity/experience.md` | W414 learnings |
+| 7 | git/PR | squash-merge to `master`, close #1339, open #1340 |
 
 ---
 
 ## Acceptance criteria
 
-### Bundle A + B (deferred — bench unavailable)
-- [ ] AC-A1: P12 is wired to a logic-analyzer channel and a real CCLK capture CSV exists for `OSCFSEL=6` and `OSCFSEL=7`.
-- [ ] AC-A2: `dlc10 idcode` returns the expected Artix-7 IDCODE.
-- [ ] AC-A3: Cold-POR boot logs exist for `OSCFSEL=6` and `OSCFSEL=7`.
-- [ ] AC-A4: Measured `(frequency, duty)` theorems are generated and `lake build` green.
-- [ ] AC-B1: `tri fpga cold-por --relay-port MOCK` runs in CI and returns a JSON boot log.
-- [ ] AC-B2: `fpga/HARDWARE_SSOT.md` documents the relay wiring.
+### Bundle A
+- [ ] AC-A1: P12 is wired to a logic-analyzer channel and real CCLK capture files exist for `OSCFSEL=6` and `OSCFSEL=7`.
+- [ ] AC-A2: `tri fpga measured-to-lean --csv/--vcd --raw-ns --standalone` generated Lean files build with `lake build`.
+- [ ] AC-A3: Measured CCLK is within the N25Q128_3V spec, or any exceedance is explicitly explained.
 
-### Bundle C (delivered)
-- [x] AC-C1: PVT placeholder model is documented in `fpga/HARDWARE_SSOT.md` §3.6.12 with falsification plan.
-- [x] AC-C2: `tri fpga measured-to-lean --standalone --out File.lean` emits a self-contained file.
-- [x] AC-C3: Raw-ns input predicate `measured_cclk_from_raw_ns_satisfies_flash_spec` is defined and implies `transaction_satisfies_flash_spec`.
+### Bundle B
+- [ ] AC-B1: `tri fpga cold-por <bit> --relay-port <real>` performs an automated power-cycle and captures STAT.
+- [ ] AC-B2: The resulting log has `relay_mock: false` and a real STAT raw value.
+- [ ] AC-B3: `fpga/HARDWARE_SSOT.md` documents relay wiring and port mapping.
+
+### Bundle C
+- [ ] AC-C1: PVT model depends on at least temperature and voltage bounds, not a single constant.
+- [ ] AC-C2: VCD parser handles scalar and multi-bit logic traces.
+- [ ] AC-C3: `measured-to-lean --raw-ns --validate` rejects captures that violate the flash spec.
 
 ### Invariant checks
-- [x] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass (16 pre-existing yosys-smoke failures remain).
-- [x] `lake build Trinity.TernaryFPGABoot` passes.
-- [x] `cargo test -p tri fpga::tests` passes (16/16).
+- [ ] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
+- [ ] `lake build Trinity.TernaryFPGABoot` passes.
+- [ ] `cargo test -p tri fpga::tests` passes.
 
 ---
 
 ## Default variant
 
-Execute **Variant A + B** when the bench becomes available. Otherwise fall back
- to **Variant C** to keep the formal tooling useful while the physical blockers
-persist.
+Execute **Variant A** if the analyzer is wired. Otherwise try **Variant B** if a
+relay is available. Otherwise fall back to **Variant C**.
 
 ---
 

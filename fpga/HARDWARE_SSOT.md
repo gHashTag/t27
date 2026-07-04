@@ -616,10 +616,10 @@ Use `--margin` with `measured-to-lean` to generate the PVT-margin variant:
 tri fpga measured-to-lean --file measured.json --margin --out MeasuredCclkWukongMargin.lean
 ```
 
-#### 3.6.12 Standalone file, raw-ns input, and PVT context (W412)
+#### 3.6.12 Standalone file, raw-ns input, CSV/VCD import, and PVT context (W413)
 
 For board-less CI or instrument exports that report raw nanoseconds, `tri fpga
-measured-to-lean` supports two extra modes in W412:
+measured-to-lean` supports several extra modes:
 
 - `--standalone` emits a self-contained `.lean` file with the required imports
   and `namespace Trinity.BitstreamConfig` wrapper. Paste it directly into the
@@ -639,13 +639,39 @@ measured-to-lean` supports two extra modes in W412:
   tri fpga measured-to-lean --file raw.json --raw-ns --standalone --out MeasuredRaw.lean
   ```
 
-- PVT-aware predicates in `proofs/lean4/Trinity/TernaryFPGABoot.lean` now accept a
+- `--raw-ns --csv <export.csv>` parses a sigrok/DSView/PulseView/Saleae logic or
+  analog CSV export and converts the measured waveform into a raw-ns theorem.
+
+  ```bash
+  tri fpga measured-to-lean --csv cclk_capture.csv --raw-ns --standalone --out MeasuredRaw.lean
+  ```
+
+- `--raw-ns --vcd <trace.vcd>` parses a scalar VCD net and converts its
+  transitions into a raw-ns theorem. Use `--vcd-signal <name>` to select a
+  specific net; otherwise the first scalar `$var` is used.
+
+  ```bash
+  tri fpga measured-to-lean --vcd cclk.vcd --raw-ns --standalone --out MeasuredRaw.lean
+  ```
+
+- PVT-aware predicates in `proofs/lean4/Trinity/TernaryFPGABoot.lean` accept a
   `PvtContext { temp_c, vccint_mv, vccaux_mv, process_corner }`. The derating
-  functions are currently a **placeholder** returning the conservative 12 ns
-  worst-case constants regardless of context. Once real N25Q128_3V PVT data is
-  available, replace the stub functions (`n25q128_min_sck_low_ns_pvt` /
-  `n25q128_min_sck_high_ns_pvt`); the existing implication theorems remain valid
-  as long as the derated limits are at least the nominal 6 ns bounds.
+  functions are intentionally a **conservative placeholder**: they return 12 ns
+  (2× the nominal 6 ns `t_CL`/`t_CH` bounds) to absorb PVT variation until real
+  N25Q128_3V characterization data is available. The model is **falsifiable**:
+  if PVT data shows the bound should be higher, raise `N25Q128_MIN_SCK_*_NS_WC`;
+  all implication theorems remain valid as long as the derated limits are at
+  least the nominal 6 ns bounds.
+
+- `tri fpga cold-por --relay-port MOCK` writes a deterministic, clearly-labeled
+  mock boot log so CI can exercise the cold-POR JSON path without hardware. The
+  mock log carries `relay_mock: true` and the canonical W400 success STAT
+  `0x401079FC`. Real relay ports are reserved for Variant A/B when the bench is
+  available.
+
+  ```bash
+  tri fpga cold-por --bit fpga/verilog/ternary_mac_demo_top_200t.bit --relay-port MOCK
+  ```
 
 ---
 

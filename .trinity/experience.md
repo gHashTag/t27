@@ -1,5 +1,59 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-04 — Wave Loop 413 (CSV/VCD import, PVT falsification model, relay mock)
+
+### What worked
+- Extending `measured-to-lean --raw-ns` with `--csv` and `--vcd` options closed
+  the instrument-to-proof gap without forcing users to hand-write JSON. Reusing
+  the existing analog/logic CSV parsers kept the change small and testable.
+- Implementing a minimal zero-dependency VCD parser (single-bit `$var`,
+  `$timescale`, timestamp/value lines) was sufficient for CCLK traces and avoided
+  adding a new crate dependency.
+- Documenting the PVT derating as a falsifiable placeholder (12 ns = 2× nominal
+  6 ns, raise if real N25Q128 PVT data exceeds it) makes the model honest and
+  gives future waves a clear replacement contract.
+- Adding `measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec` and its chain
+  theorem proved that the PVT-aware raw-ns path also closes the transaction
+  proof, mirroring the existing freq/duty path.
+- `tri fpga cold-por --relay-port MOCK` uses the same JSON schema as real
+  `boot-log` / `cclk-sweep` logs, so downstream report tooling stays compatible
+  while the `relay_mock: true` flag prevents confusion with physical evidence.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`: added `--csv`, `--vcd`, `--vcd-signal` to
+  `FpgaCmd::MeasuredToLean`; added `parse_csv_to_raw_ns`,
+  `parse_vcd_to_raw_ns`, and `freq_duty_to_raw_ns`; added `FpgaCmd::ColdPor`
+  and `cold_por` with `--relay-port MOCK`; added unit tests for CSV, VCD,
+  and mock relay paths.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: documented PVT placeholder
+  falsification conditions; added
+  `measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec`,
+  `measured_boot_transaction_from_raw_ns_with_pvt`, and
+  `measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok`; added example
+  theorems for 40/20/20 raw-ns captures under PVT.
+- `fpga/HARDWARE_SSOT.md` §3.6.12: documented CSV/VCD import, PVT
+  falsification model, and `cold-por --relay-port MOCK`.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_413_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W413_2026-07-04.md`, and
+  `docs/reports/FPGA_LOOP_COOPERATION_W414_2026-07-04.md`.
+
+### Patterns to reuse
+- When adding instrument import to a formal pipeline, parse the user's native
+  format (CSV/VCD) and convert it to the existing internal JSON/record shape
+  rather than forking the proof-generation code.
+- Keep placeholder constants falsifiable: document the source of the value,
+  the conservative factor, and the exact condition that would invalidate it.
+- A deterministic mock is useful for CI only when it uses the real output schema
+  and carries an explicit `*_mock: true` flag.
+
+### Anti-patterns to avoid
+- Do not let a mock silently masquerade as real evidence; label the JSON field
+  and the conclusion text clearly.
+- Do not assume VCD `$var` declarations are multi-line; parse both single-line
+  and multi-line forms.
+- Do not change a function signature (`measured_to_lean`) without updating every
+  call site, including unit tests.
+
 ## 2026-07-04 — Wave Loop 409 (per-OSCFSEL transaction lookup + tighter duty bound)
 
 ### What worked

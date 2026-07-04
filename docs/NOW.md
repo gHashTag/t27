@@ -20,12 +20,73 @@
 
 ---
 
+# NOW — Wave Loop 414 setup
+
+## Wave Loop 414 — FPGA physical capture, real relay gate, or further formal tooling (Issue #1339)
+
+- Branch: `wave-loop-414`
+- Issue: #1339
+- Plan: `.claude/plans/wave-loop-414.md` (to be created)
+- Cooperation W414: `docs/reports/FPGA_LOOP_COOPERATION_W414_2026-07-04.md`
+
+### Default plan
+- **Variant A** if P12 is wired and the analyzer works:
+  - Capture real CCLK for `OSCFSEL=6` and `OSCFSEL=7`.
+  - Import captures with `tri fpga measured-to-lean --csv/--vcd --raw-ns --standalone`.
+- **Variant B** if a relay board / USB power switch is available:
+  - Implement real `--relay-port` backend for `tri fpga cold-por`.
+  - Document relay wiring in `fpga/HARDWARE_SSOT.md`.
+- **Variant C** fallback if the bench remains blocked:
+  - Replace the 2× PVT placeholder with temperature/voltage-aware uncertainty model.
+  - Extend VCD parser to multi-bit buses and analog real traces.
+  - Add `--validate` to `measured-to-lean --raw-ns` to reject false theorems early.
+
+---
+
+# NOW — Wave Loop 413 close-out
+
+## Wave Loop 413 — CSV/VCD import + PVT falsification model + relay mock (Closes #1338)
+
+- Branch: `wave-loop-413`
+- Issue: #1338
+- PR: #?
+- Report: `docs/reports/WAVE_LOOP_413_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W413_2026-07-04.md`
+- Cooperation W414: `docs/reports/FPGA_LOOP_COOPERATION_W414_2026-07-04.md`
+
+### What landed
+- `cli/tri/src/fpga.rs`
+  - `tri fpga measured-to-lean --csv <export.csv> --raw-ns --standalone` imports sigrok/DSView/PulseView/Saleae CSV.
+  - `tri fpga measured-to-lean --vcd <trace.vcd> --vcd-signal <name> --raw-ns --standalone` imports scalar VCD nets.
+  - `tri fpga cold-por <bit> --relay-port MOCK` writes a deterministic, labeled mock boot log.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - PVT placeholder documented as a falsifiable 2× derating with explicit invalidation condition.
+  - `measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec` and chain theorem.
+  - Example theorems for 40/20/20 raw-ns captures under PVT margin and worst-case context.
+- `fpga/HARDWARE_SSOT.md` §3.6.12 — documents CSV/VCD import, PVT falsification model, and mock relay path.
+- `.claude/plans/wave-loop-413.md` — decomposed plan, weak points, competitor scan.
+
+### Blockers still open
+- P12 still not wired to a logic-analyzer channel.
+- Digilent DLC10 JTAG cable still not detected (`VID=0x03FD`).
+- Real relay hardware integration remains for Variant B.
+
+### Verification
+- `lake build Trinity.TernaryFPGABoot` green
+- `cargo test -p tri fpga::tests` 20/20 pass
+- `./scripts/tri test` parse/typecheck/gen/seal-verify green
+- yosys smoke: 40 pass / 16 pre-existing failures
+- PR #? merged to `master`; issue #1338 closed.
+
+---
+
 # NOW — Wave Loop 412 close-out / Wave Loop 413 setup
 
 ## Wave Loop 412 — measured-to-lean standalone + raw-ns + PVT context (Closes #1332)
 
 - Branch: `wave-loop-412`
 - Issue: #1332
+- PR: #1336
 - Report: `docs/reports/WAVE_LOOP_412_REPORT.md`
 - Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W412_2026-07-04.md`
 - Cooperation W413: `docs/reports/FPGA_LOOP_COOPERATION_W413_2026-07-04.md`
@@ -40,6 +101,7 @@
   - `measured_cclk_with_pvt_satisfies_flash_spec` and implication theorems.
 - `fpga/HARDWARE_SSOT.md` §3.6.12 — documents `--standalone`, `--raw-ns`, and PVT context.
 - `docs/BRANCHING_MODEL.md` updated: `master` = integration+release, `trinity-rust-rings` = archived/deprecated.
+- All `.trinity/seals/*.json` refreshed after `c4dc8eed6` gen-rust change.
 
 ### Blockers still open
 - P12 still not wired to a logic-analyzer channel.
@@ -51,11 +113,7 @@
 - `cargo test -p tri fpga::tests` 16/16 pass
 - `./scripts/tri test` parse/typecheck/gen/seal-verify green
 - yosys smoke: 40 pass / 16 pre-existing failures
-
-### Default next wave (W413)
-- Variant A + B bundle if the bench becomes available; otherwise continue Variant C
-  (replace placeholder PVT derating with real N25Q128_3V curves, extend `--raw-ns`
-  to read sigrok CSV directly, or add relay mock CI scaffolding).
+- PR #1336 merged to `master`; issue #1332 closed.
 
 ---
 

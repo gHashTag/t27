@@ -212,6 +212,28 @@ pub enum FpgaCmd {
         #[arg(long)]
         log_dir: Option<PathBuf>,
     },
+    /// Deterministic cold-POR boot experiment with optional relay control.
+    /// With `--relay-port MOCK` the command writes a deterministic, clearly
+    /// labeled mock boot log so CI can exercise the cold-POR JSON path without
+    /// touching hardware. Real relay ports are reserved for Variant A/B.
+    ColdPor {
+        /// Bitstream to associate with the cold-POR experiment.
+        bit: PathBuf,
+        /// Relay control port. `MOCK` produces a deterministic mock log; any
+        /// other value is not yet implemented.
+        #[arg(long, default_value = "MOCK")]
+        relay_port: String,
+        /// Number of consecutive STAT samples to report (default: 3).
+        #[arg(long, default_value_t = 3)]
+        repeat: u32,
+        /// Seconds to wait for the relay/mock power-cycle before sampling STAT.
+        /// Ignored in MOCK mode.
+        #[arg(long, default_value_t = 0)]
+        wait_seconds: u32,
+        /// JSON boot-log directory (default: <repo>/build/fpga).
+        #[arg(long)]
+        log_dir: Option<PathBuf>,
+    },
     /// Board-less smoke gate for the FPGA path. Runs `tri fpga bit-config`
     /// on the GF16 demo bitstream and, if yosys is available, a synthesis
     /// smoke check on the demo Verilog. Requires no physical board.
@@ -516,6 +538,17 @@ pub enum FpgaCmd {
         /// of computing from `freq_hz`/`duty_pct`.
         #[arg(long)]
         raw_ns: bool,
+        /// Parse a sigrok/DSView/PulseView/Saleae logic or analog CSV export and
+        /// convert it to a raw-ns theorem. Mutually exclusive with `--file` and `--vcd`.
+        #[arg(long, conflicts_with = "file", conflicts_with = "vcd")]
+        csv: Option<PathBuf>,
+        /// Parse a VCD file and convert the first (or `--vcd-signal`) scalar net
+        /// transitions to a raw-ns theorem. Mutually exclusive with `--file` and `--csv`.
+        #[arg(long, conflicts_with = "file", conflicts_with = "csv")]
+        vcd: Option<PathBuf>,
+        /// VCD signal name to measure (default: the first scalar `$var` net).
+        #[arg(long)]
+        vcd_signal: Option<String>,
     },
     /// Build the QMTech XC7A100T-FGG676 proxy bitstream via a Docker
     /// container running Xilinx Vivado. Clones our `openFPGALoader` fork
@@ -736,7 +769,27 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             margin,
             standalone,
             raw_ns,
-        } => measured_to_lean(file.as_ref(), out.as_ref(), name, *margin, *standalone, *raw_ns),
+            csv,
+            vcd,
+            vcd_signal,
+        } => measured_to_lean(
+            file.as_ref(),
+            csv.as_ref(),
+            vcd.as_ref(),
+            vcd_signal.as_deref(),
+            out.as_ref(),
+            name,
+            *margin,
+            *standalone,
+            *raw_ns,
+        ),
+        FpgaCmd::ColdPor {
+            bit,
+            relay_port,
+            repeat,
+            wait_seconds,
+            log_dir,
+        } => cold_por(bit, relay_port, *repeat, *wait_seconds, log_dir.as_ref()),
     }
 }
 
@@ -2571,21 +2624,48 @@ fn sanitize_lean_ident(s: &str) -> String {
 /// to `transaction_satisfies_flash_spec`.
 fn measured_to_lean(
     file: Option<&PathBuf>,
+    csv: Option<&PathBuf>,
+    vcd: Option<&PathBuf>,
+    vcd_signal: Option<&str>,
     out: Option<&PathBuf>,
     name: &str,
     margin: bool,
     standalone: bool,
     raw_ns: bool,
 ) -> Result<()> {
-    let text = match file {
-        Some(path) => std::fs::read_to_string(path)
-            .with_context(|| format!("read {}", path.display()))?,
-        None => {
-            let mut buf = String::new();
-            std::io::stdin()
-                .read_to_string(&mut buf)
-                .context("read JSON from stdin")?;
-            buf
+    let text = if let Some(path) = csv {
+        let (period_ns, low_ns, high_ns) = parse_csv_to_raw_ns(path)?;
+        let source = format!("csv {}", path.display());
+        serde_json::to_string_pretty(&MeasuredCclkRawNs {
+            period_ns,
+            sck_low_ns: low_ns,
+            sck_high_ns: high_ns,
+            source,
+        })?
+    } else if let Some(path) = vcd {
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(path, vcd_signal)?;
+        let source = format!(
+            "vcd {} {}",
+            path.display(),
+            vcd_signal.unwrap_or("first")
+        );
+        serde_json::to_string_pretty(&MeasuredCclkRawNs {
+            period_ns,
+            sck_low_ns: low_ns,
+            sck_high_ns: high_ns,
+            source,
+        })?
+    } else {
+        match file {
+            Some(path) => std::fs::read_to_string(path)
+                .with_context(|| format!("read {}", path.display()))?,
+            None => {
+                let mut buf = String::new();
+                std::io::stdin()
+                    .read_to_string(&mut buf)
+                    .context("read JSON from stdin")?;
+                buf
+            }
         }
     };
 
@@ -2998,6 +3078,233 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R) -> Result<(f64, f64)> {
     Ok((freq_hz, duty_pct))
 }
 
+/// Convert a frequency/duty estimate into a conservative integer nanosecond
+/// (period, low, high) triple. The period is rounded down; the low time is
+/// rounded down; the high time is the remainder so `low + high = period`.
+fn freq_duty_to_raw_ns(freq_hz: f64, duty_pct: f64) -> (u64, u64, u64) {
+    if freq_hz <= 0.0 {
+        return (0, 0, 0);
+    }
+    let period_ns = (1.0e9 / freq_hz).floor() as u64;
+    let high_ns = (period_ns as f64 * duty_pct / 100.0).floor() as u64;
+    let low_ns = period_ns.saturating_sub(high_ns);
+    (period_ns, low_ns, high_ns)
+}
+
+/// Parse a logic-analyzer CSV export and return a raw-ns (period, low, high)
+/// triple suitable for `tri fpga measured-to-lean --raw-ns`. Logic CSVs use
+/// `parse_logic_csv`; analog CSVs use `parse_cclk_csv_reader`.
+fn parse_csv_to_raw_ns(path: &PathBuf) -> Result<(u64, u64, u64)> {
+    if !path.is_file() {
+        bail!("CSV not found: {}", path.display());
+    }
+    let source = format!("csv {}", path.display());
+    if is_logic_csv(path)? {
+        let samplerate = detect_logic_csv_samplerate(path)?.unwrap_or(10_000_000);
+        let (freq_hz, duty_pct) = parse_logic_csv(path, samplerate)?;
+        let (period_ns, low_ns, high_ns) = freq_duty_to_raw_ns(freq_hz, duty_pct);
+        println!(
+            "[measured-to-lean] logic CSV {} -> {} ns period, {} ns low, {} ns high",
+            source, period_ns, low_ns, high_ns
+        );
+        Ok((period_ns, low_ns, high_ns))
+    } else {
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("open {}", path.display()))?;
+        let reader = std::io::BufReader::new(file);
+        let (freq_hz, duty_pct) = parse_cclk_csv_reader(reader)?;
+        let (period_ns, low_ns, high_ns) = freq_duty_to_raw_ns(freq_hz, duty_pct);
+        println!(
+            "[measured-to-lean] analog CSV {} -> {} ns period, {} ns low, {} ns high",
+            source, period_ns, low_ns, high_ns
+        );
+        Ok((period_ns, low_ns, high_ns))
+    }
+}
+
+/// Parse a minimal VCD file and return a raw-ns (period, low, high) triple for
+/// the requested (or first) scalar net. Supports `$var` wires/regs of size 1;
+/// buses and real-valued nets are ignored.
+fn parse_vcd_to_raw_ns(path: &PathBuf, signal: Option<&str>) -> Result<(u64, u64, u64)> {
+    if !path.is_file() {
+        bail!("VCD not found: {}", path.display());
+    }
+    let text = std::fs::read_to_string(path)
+        .with_context(|| format!("read {}", path.display()))?;
+    let mut timescale_s: f64 = 1.0e-9; // default 1 ns
+    let mut vars: Vec<(String, String, usize)> = Vec::new(); // (id, name, size)
+    let mut in_var = false;
+    let mut var_tokens: Vec<String> = Vec::new();
+    let mut in_timescale = false;
+    let mut ts_tokens: Vec<String> = Vec::new();
+    let mut past_dumpvars = false;
+    let mut current_time_s: f64 = 0.0;
+    let mut selected_id: Option<String> = None;
+    let mut transitions: Vec<(f64, bool)> = Vec::new();
+
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let tokens: Vec<&str> = trimmed.split_whitespace().collect();
+
+        // Timescale parsing: `$timescale 1 ns $end` (possibly across lines).
+        if trimmed.to_lowercase().starts_with("$timescale") {
+            in_timescale = true;
+            ts_tokens.clear();
+            // Add any tokens after `$timescale` on the same line.
+            ts_tokens.extend(tokens.iter().skip(1).map(|s| s.to_string()));
+            if trimmed.to_lowercase().contains(" $end") || trimmed.to_lowercase().ends_with(" $end") {
+                // Single-line timescale; close below.
+            } else if !trimmed.to_lowercase().ends_with("$end") {
+                continue;
+            }
+        }
+        if in_timescale {
+            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+                in_timescale = false;
+                if let Some(num_str) = ts_tokens.first() {
+                    if let Ok(num) = num_str.parse::<f64>() {
+                        let unit_mult = match ts_tokens.get(1).map(|s| s.to_lowercase()).as_deref() {
+                            Some("s") => 1.0,
+                            Some("ms") => 1.0e-3,
+                            Some("us") => 1.0e-6,
+                            Some("ns") => 1.0e-9,
+                            Some("ps") => 1.0e-12,
+                            Some("fs") => 1.0e-15,
+                            _ => 1.0e-9,
+                        };
+                        timescale_s = num * unit_mult;
+                    }
+                }
+            } else {
+                ts_tokens.extend(tokens.iter().map(|s| s.to_string()));
+            }
+            continue;
+        }
+
+        // Var declaration: `$var wire 1 ! cclk $end` (possibly across lines).
+        if trimmed.to_lowercase().starts_with("$var") {
+            in_var = true;
+            var_tokens.clear();
+            // Add any tokens after `$var` on the same line.
+            var_tokens.extend(tokens.iter().skip(1).map(|s| s.to_string()));
+            if trimmed.to_lowercase().contains(" $end") || trimmed.to_lowercase().ends_with(" $end") {
+                // Single-line var; close below.
+            } else if !trimmed.to_lowercase().ends_with("$end") {
+                continue;
+            }
+        }
+        if in_var {
+            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+                in_var = false;
+                // Expected tokens: [type, size, id, name]
+                if var_tokens.len() >= 4 {
+                    let size = var_tokens[1].parse::<usize>().unwrap_or(0);
+                    let id = var_tokens[2].clone();
+                    let name = var_tokens[3].clone();
+                    if size == 1 {
+                        vars.push((id.clone(), name.clone(), size));
+                        if selected_id.is_none() {
+                            if let Some(target) = signal {
+                                if name == target {
+                                    selected_id = Some(id);
+                                }
+                            } else {
+                                selected_id = Some(id);
+                            }
+                        }
+                    }
+                }
+            } else {
+                var_tokens.extend(tokens.iter().map(|s| s.to_string()));
+            }
+            continue;
+        }
+
+        if trimmed.eq_ignore_ascii_case("$dumpvars") {
+            past_dumpvars = true;
+            continue;
+        }
+        if trimmed.eq_ignore_ascii_case("$dumpoff") || trimmed.eq_ignore_ascii_case("$enddefinitions") {
+            continue;
+        }
+
+        // Data section: timestamp lines `#12345`, value lines `0!` / `1!`.
+        if let Some(ts_str) = trimmed.strip_prefix('#') {
+            if let Ok(ts) = ts_str.parse::<f64>() {
+                current_time_s = ts * timescale_s;
+            }
+            continue;
+        }
+        if !past_dumpvars {
+            continue;
+        }
+        // Scalar value change: one token like "1!" or "0$".
+        if tokens.len() == 1 && tokens[0].len() >= 2 {
+            let tok = tokens[0];
+            let value_char = tok.chars().next().unwrap();
+            let id: String = tok.chars().skip(1).collect();
+            if let Some(sel) = &selected_id {
+                if id == *sel {
+                    let high = value_char == '1';
+                    transitions.push((current_time_s, high));
+                }
+            }
+        }
+    }
+
+    let selected_name = vars
+        .iter()
+        .find(|(id, _, _)| Some(id) == selected_id.as_ref())
+        .map(|(_, name, _)| name.clone())
+        .unwrap_or_else(|| "unknown".to_string());
+    let source = format!(
+        "vcd {} {}",
+        path.display(),
+        signal.unwrap_or(&selected_name)
+    );
+
+    if transitions.len() < 4 {
+        bail!(
+            "VCD has too few transitions for signal '{}' (found {}); need at least 4",
+            signal.unwrap_or(&selected_name),
+            transitions.len()
+        );
+    }
+
+    // Compute average period, low, high from transitions.
+    let mut low_time = 0.0;
+    let mut high_time = 0.0;
+    for window in transitions.windows(2) {
+        let dt = window[1].0 - window[0].0;
+        if window[0].1 {
+            high_time += dt;
+        } else {
+            low_time += dt;
+        }
+    }
+    let total = high_time + low_time;
+    if total <= 0.0 {
+        bail!("could not measure high/low time from VCD transitions");
+    }
+    let period_count = (transitions.len() - 1) as f64 / 2.0;
+    let period_s = if period_count > 0.0 {
+        total / period_count
+    } else {
+        0.0
+    };
+    let period_ns = (period_s * 1.0e9).floor() as u64;
+    let high_ns = (high_time / total * period_s * 1.0e9).floor() as u64;
+    let low_ns = period_ns.saturating_sub(high_ns);
+    println!(
+        "[measured-to-lean] VCD {} -> {} ns period, {} ns low, {} ns high",
+        source, period_ns, low_ns, high_ns
+    );
+    Ok((period_ns, low_ns, high_ns))
+}
+
 fn bit_config(bit: &PathBuf, extra_args: &[&str]) -> Result<()> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
@@ -3247,6 +3554,81 @@ fn boot_log(
             bail!("cold-POR boot failed — STAT capture error")
         }
     }
+}
+
+/// Deterministic cold-POR experiment. `--relay-port MOCK` writes a labeled,
+/// reproducible mock boot log so CI can exercise the JSON/log path without
+/// hardware. Real relay ports are not implemented in Variant C.
+fn cold_por(
+    bit: &PathBuf,
+    relay_port: &str,
+    repeat: u32,
+    _wait_seconds: u32,
+    log_dir: Option<&PathBuf>,
+) -> Result<()> {
+    if !bit.is_file() {
+        bail!("bitstream not found: {}", bit.display());
+    }
+
+    let root = repo_root()?;
+    let boot_log_dir = match log_dir {
+        Some(d) => d.to_path_buf(),
+        None => root.join("build").join("fpga"),
+    };
+    std::fs::create_dir_all(&boot_log_dir)
+        .with_context(|| format!("create {}", boot_log_dir.display()))?;
+    let start_time = chrono::Local::now();
+
+    if relay_port != "MOCK" {
+        bail!(
+            "real relay control on port '{}' is not implemented; use '--relay-port MOCK' for the deterministic CI mock",
+            relay_port
+        );
+    }
+
+    println!("== Cold-POR (relay MOCK) ==");
+    println!("Bitstream: {}", bit.display());
+    println!("Relay port: MOCK (deterministic, no hardware touched)");
+
+    // Deterministic mock outcome: a successful cold-POR with the canonical W400
+    // STAT signature.
+    let raw = 0x401079FCu32;
+    let fake_done = true;
+    let samples: Vec<serde_json::Value> = (0..repeat.max(1))
+        .map(|i| {
+            serde_json::json!({
+                "index": i as usize,
+                "raw": raw,
+                "done": fake_done,
+                "eos": fake_done,
+                "init_complete": fake_done,
+                "crc_error": false,
+                "id_error": false,
+                "mode": 0b001,
+                "diagnosis": "FPGA configured (relay mock)",
+            })
+        })
+        .collect();
+
+    let conclusion = "DONE=HIGH: board boots from flash (relay mock)";
+    let log_entry = serde_json::json!({
+        "timestamp": start_time.to_rfc3339(),
+        "bitstream": bit.to_string_lossy().to_string(),
+        "relay_port": relay_port,
+        "relay_mock": true,
+        "repeat": repeat.max(1),
+        "conclusion": conclusion,
+        "samples": samples,
+    });
+    let log_path = boot_log_dir.join(format!(
+        "boot-log-cold-por-mock-{}.json",
+        start_time.format("%Y%m%d-%H%M%S")
+    ));
+    std::fs::write(&log_path, serde_json::to_string_pretty(&log_entry)?)
+        .with_context(|| format!("write {}", log_path.display()))?;
+    println!("[cold-por] mock log written to {}", log_path.display());
+    println!("[cold-por] conclusion: {}", conclusion);
+    Ok(())
 }
 
 /// Detect whether a target FPGA is reachable on the given openFPGALoader
@@ -3973,7 +4355,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, "measured_cclk", false, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, "measured_cclk", false, false, false).unwrap();
         assert_eq!(out, ());
         // Clean up.
         std::fs::remove_file(&tmp).unwrap();
@@ -3985,7 +4367,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_margin_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, "measured_cclk", true, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, "measured_cclk", true, false, false).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -3997,7 +4379,7 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_standalone_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_standalone_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(Some(&tmp), Some(&out_path), "measured_cclk", false, true, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, Some(&out_path), "measured_cclk", false, true, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.BitstreamConfig"));
@@ -4018,8 +4400,119 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_raw_ns_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, "measured_cclk", false, false, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, "measured_cclk", false, false, true).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_measured_to_lean_csv_raw_ns() {
+        let samplerate = 100_000_000_u32;
+        let csv_tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_csv_raw_ns_{}.csv", std::process::id()));
+        generate_synth_cclk_csv(2_500_000.0, samplerate, 1000, &csv_tmp).unwrap();
+        let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_csv_raw_ns_out_{}.lean", std::process::id()));
+        let out = measured_to_lean(None, Some(&csv_tmp), None, None, Some(&out_path), "measured_csv", false, true, true).unwrap();
+        assert_eq!(out, ());
+        let content = std::fs::read_to_string(&out_path).unwrap();
+        assert!(content.contains("import Trinity.BitstreamConfig"));
+        assert!(content.contains("namespace Trinity.BitstreamConfig"));
+        assert!(content.contains("measured_cclk_from_raw_ns_satisfies_flash_spec"));
+        assert!(content.contains("decide"));
+        std::fs::remove_file(&csv_tmp).unwrap();
+        std::fs::remove_file(&out_path).unwrap();
+    }
+
+    /// Generate a minimal scalar VCD with a single 25 MHz clock net.
+    fn generate_vcd_clock(freq_hz: f64, cycles: usize) -> String {
+        let period_s = 1.0 / freq_hz;
+        let half_s = period_s / 2.0;
+        let timescale_ps = 100; // 100 ps = 0.1 ns
+        let mut out = String::new();
+        out.push_str("$date today $end\n");
+        out.push_str("$version tri test $end\n");
+        out.push_str(&format!("$timescale {} ps $end\n", timescale_ps));
+        out.push_str("$scope module top $end\n");
+        out.push_str("$var wire 1 ! cclk $end\n");
+        out.push_str("$upscope $end\n");
+        out.push_str("$enddefinitions $end\n");
+        out.push_str("$dumpvars\n");
+        out.push_str("0!\n");
+        out.push_str("$end\n");
+        let mut t = 0.0;
+        for i in 0..(2 * cycles) {
+            t += half_s;
+            let ts = (t / (timescale_ps as f64 * 1.0e-12)).round() as u64;
+            let val = if i % 2 == 0 { '1' } else { '0' };
+            out.push_str(&format!("#{}\n{}!\n", ts, val));
+        }
+        out
+    }
+
+    #[test]
+    fn test_parse_vcd_to_raw_ns_25mhz() {
+        let vcd = generate_vcd_clock(25_000_000.0, 20);
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_raw_ns_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk")).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    #[test]
+    fn test_measured_to_lean_vcd_raw_ns() {
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_vcd_raw_ns_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, generate_vcd_clock(25_000_000.0, 20)).unwrap();
+        let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_vcd_raw_ns_out_{}.lean", std::process::id()));
+        let out = measured_to_lean(None, None, Some(&vcd_tmp), None, Some(&out_path), "measured_vcd", false, true, true).unwrap();
+        assert_eq!(out, ());
+        let content = std::fs::read_to_string(&out_path).unwrap();
+        assert!(content.contains("import Trinity.BitstreamConfig"));
+        assert!(content.contains("namespace Trinity.BitstreamConfig"));
+        assert!(content.contains("measured_cclk_from_raw_ns_satisfies_flash_spec"));
+        assert!(content.contains("decide"));
+        std::fs::remove_file(&vcd_tmp).unwrap();
+        std::fs::remove_file(&out_path).unwrap();
+    }
+
+    #[test]
+    fn test_cold_por_mock_relay() {
+        let root = repo_root().unwrap();
+        // Any existing bitstream will do for the mock; fall back to the demo.
+        let bit = root
+            .join("fpga")
+            .join("verilog")
+            .join("ternary_mac_demo_top_200t.bit");
+        let log_dir = std::env::temp_dir().join(format!("tri_cold_por_mock_{}", std::process::id()));
+        std::fs::create_dir_all(&log_dir).unwrap();
+        let out = cold_por(&bit,
+            "MOCK",
+            3,
+            0,
+            Some(&log_dir),
+        );
+        if bit.is_file() {
+            out.unwrap();
+            let entries: Vec<_> = std::fs::read_dir(&log_dir)
+                .unwrap()
+                .filter_map(|e| e.ok())
+                .filter(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    name.starts_with("boot-log-cold-por-mock-") && name.ends_with(".json")
+                })
+                .collect();
+            assert_eq!(entries.len(), 1, "expected one mock log file");
+            let content = std::fs::read_to_string(entries[0].path()).unwrap();
+            let log: serde_json::Value = serde_json::from_str(&content).unwrap();
+            assert_eq!(log["relay_port"], "MOCK");
+            assert_eq!(log["relay_mock"], true);
+            assert!(log["conclusion"].as_str().unwrap().contains("DONE=HIGH"));
+            assert_eq!(log["samples"].as_array().unwrap().len(), 3);
+        } else {
+            // If no bitstream exists, cold_por should fail with "not found".
+            assert!(out.is_err());
+        }
+        let _ = std::fs::remove_dir_all(&log_dir);
     }
 }
