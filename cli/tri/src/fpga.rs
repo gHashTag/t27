@@ -217,6 +217,9 @@ pub enum FpgaCmd {
     ///
     /// Asserts the canonical 200T configuration: IDCODE 0x03636093, SPI x1,
     /// CCLK startup, OSCFSEL=0, and no CRC register writes.
+    ///
+    /// With `--require-cable`, also detect the Digilent FTDI cable, load the
+    /// bitstream into FPGA SRAM via openFPGALoader, and assert DONE=HIGH.
     SmokeGate {
         /// Bitstream to audit (default: fpga/verilog/ternary_mac_demo_top_200t.bit).
         #[arg(long)]
@@ -224,6 +227,16 @@ pub enum FpgaCmd {
         /// Verilog top module to synthesize (default: ternary_mac_demo_top).
         #[arg(long, default_value = "ternary_mac_demo_top")]
         top: String,
+        /// Require a connected Digilent cable and load the bitstream into SRAM.
+        /// If no device is detected, the gate fails. Board-less checks still run.
+        #[arg(long)]
+        require_cable: bool,
+        /// openFPGALoader cable profile for the cable-connected check.
+        #[arg(long, default_value = "digilent_hs2")]
+        cable: String,
+        /// FPGA part/package for openFPGALoader (default: xc7a200tfgg676).
+        #[arg(long, default_value = "xc7a200tfgg676")]
+        part: String,
     },
     /// Print or interactively confirm the cold-POR boot protocol. This is the
     /// standalone version of the instructions embedded in `boot-log` and
@@ -524,7 +537,13 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             wait_seconds,
             log_dir,
         } => boot_log(bit, cable, part, bridge.as_ref(), *freq, *repeat, *wait_seconds, log_dir.as_ref()),
-        FpgaCmd::SmokeGate { bit, top } => smoke_gate(bit.as_ref(), top),
+        FpgaCmd::SmokeGate {
+            bit,
+            top,
+            require_cable,
+            cable,
+            part,
+        } => smoke_gate(bit.as_ref(), top, *require_cable, cable, part),
         FpgaCmd::BootProtocol { checklist } => boot_protocol(*checklist),
         FpgaCmd::PatchCor0 { bit, out, oscfsel } => patch_cor0(bit, out, *oscfsel),
         FpgaCmd::CclkVariants { bit, output_dir, values } => {
@@ -2636,7 +2655,46 @@ fn boot_log(
     }
 }
 
-fn smoke_gate(bit: Option<&PathBuf>, top: &str) -> Result<()> {
+/// Detect whether a target FPGA is reachable on the given openFPGALoader
+/// cable profile. Returns false when the chain is empty / cable missing.
+fn cable_detected(cable: &str) -> bool {
+    let Ok((_, Some(output))) = run_openfpgaloader(cable, &["--detect"], true) else {
+        return false;
+    };
+    output.contains("idcode")&& output.contains("manufacturer")
+}
+
+/// Assert that the decoded STAT register shows a successful boot/config.
+fn assert_stat_boot_success(bits: &StatBits, ctx: &str) -> Result<()> {
+    if !bits.done {
+        bail!("{}: DONE=LOW (raw=0x{:08X}, {})", ctx, bits.raw, bits.diagnose());
+    }
+    if bits.mode != 0b001 {
+        bail!(
+            "{}: MODE=0b{:03b} != 0b001 (Master SPI x1)",
+            ctx,
+            bits.mode
+        );
+    }
+    if bits.crc_error {
+        bail!("{}: CRC_ERROR=1", ctx);
+    }
+    if bits.id_error {
+        bail!("{}: ID_ERROR=1", ctx);
+    }
+    if bits.dec_error {
+        bail!("{}: DEC_ERROR=1", ctx);
+    }
+    Ok(())
+}
+
+fn smoke_gate(
+    bit: Option<&PathBuf>,
+    top: &str,
+    require_cable: bool,
+    cable: &str,
+    part: &str,
+) -> Result<()> {
     let root = repo_root()?;
     let bit_path = bit.cloned().unwrap_or_else(|| {
         root.join("fpga")
@@ -2644,7 +2702,39 @@ fn smoke_gate(bit: Option<&PathBuf>, top: &str) -> Result<()> {
             .join("ternary_mac_demo_top_200t.bit")
     });
 
-    println!("== FPGA board-less smoke gate ==");
+    println!("== FPGA smoke gate ==");
+
+    // Cable-connected hardware check (optional, gated by --require-cable).
+    if require_cable {
+        println!("[smoke-gate] require-cable: detecting FPGA via {}...", cable);
+        if !cable_detected(cable) {
+            bail!(
+                "no FPGA detected on cable {} (is the board powered and connected?)",
+                cable
+            );
+        }
+        println!("[smoke-gate] cable OK (FPGA detected)");
+
+        if !bit_path.is_file() {
+            bail!(
+                "bitstream not found at {} (required for --require-cable)",
+                bit_path.display()
+            );
+        }
+
+        println!(
+            "[smoke-gate] loading SRAM: {}",
+            bit_path.display()
+        );
+        load_sram(&bit_path, cable, part, false, false)?;
+
+        println!("[smoke-gate] reading STAT after SRAM load...");
+        let samples = capture_stat(cable, false, 1)?;
+        let bits = samples.first().cloned().expect("at least one STAT sample");
+        assert_stat_boot_success(&bits, "SRAM load")
+            .with_context(|| "hardware smoke-gate failed after SRAM load")?;
+        println!("[smoke-gate] hardware check OK (DONE=HIGH, mode=001, no errors)");
+    }
 
     // 1. bit-config audit if the bitstream exists.
     if bit_path.is_file() {

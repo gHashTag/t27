@@ -1368,3 +1368,27 @@
 - **Commit:** Merge branch 'master' into trinity-rust-rings for W403 (Closes #1307)
 - **Files:** .claude/plans/wave-loop-403.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-06.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-06.md,docs/reports/WAVE_LOOP_403_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-04T09:16:11Z — trinity-rust-rings
+- **Commit:** feat(igla): Wave Loop 403 — bitstream config linked to cold-POR decision tree in Lean 4 (Closes #1307)
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-04T09:16:34Z — trinity-rust-rings
+- **Commit:** chore(trinity): point current-issue.md to W404 issue #1309
+- **Files:** .claude/plans/wave-loop-404.md
+
+## 2026-07-04T09:29:40Z — trinity-rust-rings
+- **Commit:** docs(trinity): add decomposed W404 plan with weak points and competitor scan (Closes #1309)
+- **Files:** .claude/plans/wave-loop-404.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-07.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-07.md,docs/reports/WAVE_LOOP_404_REPORT.md,fpga/HARDWARE_SSOT.md
+
+## 2026-07-04T09:30:41Z — trinity-rust-rings
+- **Commit:** feat(igla): Wave Loop 404 — hardware smoke-gate --require-cable for FPGA SRAM load (Closes #1309)
+- **Files:** .claude/plans/wave-loop-404.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-07.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-07.md,docs/reports/WAVE_LOOP_404_REPORT.md,fpga/HARDWARE_SSOT.md
+
+## 2026-07-04T09:42:42Z — trinity-rust-rings
+- **Commit:** feat(igla): Wave Loop 404 — hardware smoke-gate --require-cable for FPGA SRAM load (Closes #1309)
+- **Files:** docs/NOW.md
+
+## 2026-07-04T09:43:49Z — trinity-rust-rings
+- **Commit:** feat(igla): Wave Loop 404 — hardware smoke-gate --require-cable for FPGA SRAM load (Closes #1309)
+- **Files:** docs/NOW.md
+

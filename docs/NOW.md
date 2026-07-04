@@ -1,6 +1,13 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-07-05
+Last updated: 2026-07-04
+
+## w404-fpga-smoke-gate-cable -- add `--require-cable` hardware smoke gate (Closes #1309)
+
+- **WHERE**: `cli/tri/src/fpga.rs`, `fpga/HARDWARE_SSOT.md`, close-out reports.
+- **WHAT**: Extended `tri fpga smoke-gate` with `--require-cable` mode. When the Digilent FTDI cable and XC7A200T board are connected, the gate detects the JTAG chain, loads the canonical bitstream into FPGA SRAM via openFPGALoader, captures STAT, and asserts `DONE=HIGH`, `MODE=0b001`, no CRC/ID/DEC errors — the same predicate the Lean model calls `boot_success`. Verified on the bench: idcode `0x3636093` detected, SRAM load completes with `done 1`, post-load STAT = `0x401079FC`. Board-less checks (bit-config audit, dry-run CCLK sweep, yosys synthesis) remain mandatory and still pass without hardware. Physical CCLK measurement on P12 (Variant A) still deferred — no logic analyzer/oscilloscope available. Conformance suite `576/576 PASS`.
+- **Why**: turns the board-less static audit into an end-to-end hardware smoke test, gives CI an optional cable-connected gate, and adds another physical evidence layer that formal-HDL competitors would have to reproduce.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## w403-fpga-bitstream-config-lean4 -- extend Lean 4 formal model to bitstream configuration (Closes #1307)
 
