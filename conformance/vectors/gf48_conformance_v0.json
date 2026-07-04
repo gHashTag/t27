@@ -26,6 +26,7 @@
   "preprint": "arXiv:2606.05017 (GoldenFloat)",
   "schema": "t27-conformance/v0.1",
   "ssot": "gHashTag/t27 specs/numeric/formats_catalog.t27",
+  "structural_reason": "Bit-precise round-trip defined; vectors emitted by encoder and confirmed by an INDEPENDENT second decoder (gf_wide_independent_witness.py, dyadic A*2^B exact comparison, abs_error=0), plus a golden Fraction oracle and a fixed-width FP64 RTL bit-model (224255/224255 vs golden). Strict bitexact, not selfconsistent. See the witnesses array.",
   "vectors": [
     {
       "abs_error": "0",
@@ -160,5 +161,30 @@
       "value_encoding": "dyadic"
     }
   ],
-  "structural_reason": "Bit-precise round-trip defined; vectors emitted by encoder and confirmed by an INDEPENDENT second decoder (gf_wide_independent_witness.py, dyadic A*2^B exact comparison, abs_error=0) -> strict bitexact, not selfconsistent."
+  "witnesses": [
+    {
+      "decoder": "gf_wide_independent_witness.py (from-scratch dyadic normalizer, odd*2^shift; does NOT reuse the encoder)",
+      "kind": "sw_independent_dyadic",
+      "note": "Independent second decoder distinct from the software encoder that produced these vectors. This is the in-repo witness that promotes gf48 from selfconsistent to strict bitexact. SW-only; not an on-silicon HW-conformance (Tier-E) claim.",
+      "result": "15/15 bit-exact vs golden, abs_error=0 [e=18 m=29 bias=131071]",
+      "scope": "all 15 pack vectors (dyadic A*2^B exact comparison)",
+      "source": "gHashTag/t27 conformance/gf_wide_independent_witness.py"
+    },
+    {
+      "decoder": "gf48_decode_ref.py (fractions.Fraction exact oracle -> IEEE binary64, RNE)",
+      "kind": "sw_golden_fraction_oracle",
+      "note": "Third independent decode path (exact rational arithmetic) agreeing with the dyadic witness. SW-only.",
+      "result": "15/15 exact vs pack",
+      "scope": "all 15 pack vectors + FP64 target lowering",
+      "source": "gHashTag/t27 conformance/gf48 witness set (gf48_decode_ref.py)"
+    },
+    {
+      "decoder": "rtl_bit_model_fp64.py (fixed-width Python model of gf_decode_param_fp64.v) vs gf48_decode_ref.py golden",
+      "kind": "rtl_bit_model_fp64",
+      "note": "Fixed-width datapath spec for the FP64 RTL. The iverilog run of gf_decode_param_fp64.v with tb_gf_decode_fp64.v is the stronger RTL-simulation witness prepared for the local agent (sandbox has no iverilog). Both fixed-width fixes (widen-before-shift; OOB-safe wide sub_shifted) carried over from the FP32 iverilog witness. SW/simulation-only; not Tier-E HW.",
+      "result": "224255/224255 bit-exact vs golden, fails=0",
+      "scope": "224255 representative codes: 5-class + boundary + full-exponent stress sweep + deep-underflow edge + 200k deterministic random (2^48 exhaustive infeasible)",
+      "source": "gHashTag/t27 conformance/gf48 witness set (rtl_bit_model_fp64.py, gf_decode_param_fp64.v, tb_gf_decode_fp64.v)"
+    }
+  ]
 }
