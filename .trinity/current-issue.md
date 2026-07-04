@@ -1,10 +1,10 @@
-# Wave Loop 405 — FPGA boot loop closure (variant A/B/C)
+# Wave Loop 406 — CCLK measurement + formal timing-safety (variants A/B/C)
 
-**Issue:** #1311  
-**Branch:** `wave-loop-405`  
-**Milestone:** W404 closed the SRAM hardware smoke gate. W405 should close one
-of the remaining gaps: real CCLK measurement, flash-boot cold-POR gate, or
-formal CCLK timing-safety.
+**Issue:** #1313  
+**Branch:** `wave-loop-406` (to be created)  
+**Milestone:** W405 closed the flash-boot cold-POR smoke gate. W406 should close
+one of the remaining gaps: real CCLK measurement on P12, fully automated cold-POR,
+or formal OSCFSEL/CCLK timing-safety in Lean 4.
 
 ---
 
@@ -12,12 +12,13 @@ formal CCLK timing-safety.
 
 1. **Variant A** — Capture the actual CCLK frequency/duty cycle on pin P12 and
    record it in `fpga/HARDWARE_SSOT.md` §3.5.
-2. **Variant B** — Extend `tri fpga smoke-gate --require-cable` to flash boot:
-   program flash, prompt for power-cycle, capture cold-POR STAT, assert
-   `boot_success`.
+2. **Variant B** — Automate the cold-POR flash-boot smoke gate with a relay
+   power switch and isolated JTAG cable so no operator is required.
 3. **Variant C** — Extend the Lean 4 model with `OSCFSEL` constants, nominal
    CCLK ranges, and a `cclk_within_flash_spec` predicate; prove the canonical
    config is timing-safe.
+
+Default recommendation: Variant A + C bundle (measurement + formal claim).
 4. Update close-out reports and open W406 cooperation variants.
 
 ---
