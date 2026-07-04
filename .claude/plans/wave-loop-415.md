@@ -11,7 +11,9 @@
 | Relay / power switch + cable | Variant B |
 | Nothing | Variant C |
 
-Current state (2026-07-01): **nothing** — P12 unwired, DLC10 cable missing. Default to **Variant C** unless the bench state changes at the start of the wave.
+Current state (2026-07-01): **nothing** — P12 unwired, DLC10 cable missing, no USB relay detected. Confirmed by `dlc10 idcode` (`VID=0x03FD` not found) and `system_profiler SPUSBDataType` (no FTDI/relay/serial signatures). Default to **Variant C** for W415.
+
+Execution status: **Variant C completed**.
 
 ## Goals
 
@@ -72,19 +74,19 @@ Files: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`
 
 ## Verification checklist
 
-- [ ] `cargo test -p tri fpga::tests` passes (new + existing tests).
-- [ ] `lake build Trinity.TernaryFPGABoot` passes from `proofs/lean4/`.
-- [ ] `./scripts/tri test` passes (parse/typecheck/gen/seal-verify).
-- [ ] For Variant A: at least one generated `.lean` file builds standalone.
-- [ ] For Variant B: `tri fpga cold-por ... --relay-port <real>` produces a real log when hardware is connected.
-- [ ] For Variant C: `--validate` can check against PVT-margin bounds and the VCD parser tests cover bus/real/dumpoff edge cases.
+- [x] `cargo test -p tri fpga::tests` passes (32/32).
+- [x] `lake build Trinity.TernaryFPGABoot` passes from `proofs/lean4/`.
+- [x] `./scripts/tri test` passes seal-verify and all code-generation phases.
+- [ ] For Variant A: deferred until P12 / analyzer available.
+- [ ] For Variant B: deferred until relay hardware available.
+- [x] For Variant C: PVT-aware validation, VCD parser tests (multi-line var, mixed scalar/bus, dumpoff), and OSCFSEL 0..7 nominal/worst-case theorem library landed.
 
 ## Acceptance criteria
 
 - The chosen variant is fully implemented and verified.
 - All invariant checks pass.
 - Report + evidence + W416 cooperation variants are produced.
-- PR closes #1343.
+- PR #1346 closes #1343.
 
 ---
 

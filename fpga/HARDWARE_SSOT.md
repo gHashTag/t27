@@ -513,8 +513,11 @@ are included in the formal lookup table because their nominal margins are still
 positive. W410 added the `measured_cclk_satisfies_flash_spec` predicate and the
 `measured_25mhz_50duty_satisfies_flash_spec` /
 `measured_33_3mhz_50duty_satisfies_flash_spec` examples that correspond to the
-nominal 6/7 CCLK rates, but physical boot logs for 6/7 are still blocked by the
-missing DLC10 cable.
+nominal 6/7 CCLK rates. W416 closes the loop by proving, for every OSCFSEL
+0..7, that the nominal measured-CCLK rate produces a flash-spec-compliant
+`SPIReadTransaction` via `measured_cclk_satisfies_flash_spec_implies_transaction_ok`
+(`oscfsel_0_measured_transaction_ok` .. `oscfsel_7_measured_transaction_ok`).
+Physical boot logs for 6/7 are still blocked by the missing DLC10 cable.
 
 > **Real-capture blocker (2026-07-04, confirmed 2026-07-04):** repeated live
 > `tri fpga measure-cclk --live` runs using the on-bench Digilent FTDI cable
@@ -684,6 +687,22 @@ measured-to-lean` supports several extra modes:
   all implication theorems remain valid as long as the derated limits are at
   least the nominal 6 ns bounds.
 
+- `--pvt-context <ctx.json>` supplies a `PvtContext` to `tri fpga measure-cclk`
+  and `tri fpga measured-to-lean`. Validation and generated theorems then use the
+  derated bounds for the supplied temperature, voltage, and process corner instead
+  of the flat nominal or PVT-margin bounds.
+
+  ```bash
+  cat > worstcase.json <<'EOF'
+  {"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}
+  EOF
+  tri fpga measure-cclk --csv cclk_capture.csv --validate --pvt-context worstcase.json
+  tri fpga measured-to-lean --csv cclk_capture.csv --raw-ns --validate \
+    --pvt-context worstcase.json --standalone --out MeasuredRawWorstCase.lean
+  tri fpga measured-to-lean --file measured.json --validate \
+    --pvt-context worstcase.json --standalone --out MeasuredPVT.lean
+  ```
+
 - `tri fpga cold-por --relay-port MOCK` writes a deterministic, clearly-labeled
   mock boot log so CI can exercise the cold-POR JSON path without hardware. The
   mock log carries `relay_mock: true` and the canonical W400 success STAT
@@ -693,6 +712,37 @@ measured-to-lean` supports several extra modes:
   ```bash
   tri fpga cold-por --bit fpga/verilog/ternary_mac_demo_top_200t.bit --relay-port MOCK
   ```
+
+#### 3.6.13 PVT-envelope helper and VCD parser coverage (W416)
+
+`tri fpga pvt-envelope` prints the PVT-derated N25Q128_3V `t_CL`/`t_CH` bound for
+a supplied operating context, or an envelope summary with best/typical/worst-case
+examples when no context is given.
+
+```bash
+tri fpga pvt-envelope
+tri fpga pvt-envelope --pvt-context worstcase.json
+```
+
+The output reports:
+- the operating envelope (`temp = -40..85 °C`, `vccint = 900..1100 mV`);
+- the derated minimum SCK low/high time in nanoseconds;
+- the margin over the nominal 6 ns bound;
+- a warning if the supplied context is outside the documented envelope.
+
+The VCD parser used by `tri fpga measured-to-lean --vcd ... --raw-ns` was
+hardened in W416 for three real-world quirks:
+
+- **Escaped identifiers** with embedded spaces, e.g. `\my cclk $end`, are joined
+  across tokens and the leading backslash is stripped before signal matching.
+- **Scalar `x`/`z`/`X`/`Z` transitions** are skipped instead of being treated as
+  edges, so indeterminate simulator states do not corrupt the raw-ns extraction.
+- **Hex bus literals** (`hFF !`) are expanded to binary and then sampled at the
+  selected bit index, matching the existing `b...` bus path.
+
+`tri fpga measured-to-lean --vcd ...` therefore accepts exports from more
+logic-analyzer and simulator formats while still rejecting out-of-spec captures
+via `--validate`.
 
 ---
 

@@ -398,6 +398,11 @@ pub enum FpgaCmd {
         /// Fail if the measured CCLK is outside the N25Q128 standard-read spec.
         #[arg(long)]
         validate: bool,
+        /// Optional PVT context JSON file. When supplied with --validate, the capture
+        /// is checked against PVT-derated SCK low/high bounds instead of the nominal
+        /// 6 ns bounds.
+        #[arg(long)]
+        pvt_context: Option<PathBuf>,
         /// Generate a synthetic 2.5 MHz logic CSV fixture and validate it.
         /// Useful for CI when P12 is not wired to a logic analyzer.
         #[arg(long)]
@@ -530,6 +535,11 @@ pub enum FpgaCmd {
         /// instead of the nominal predicate.
         #[arg(long)]
         margin: bool,
+        /// Optional PVT context JSON file. When supplied, the generated theorem uses
+        /// the PVT-aware predicate (`measured_cclk_*_with_pvt_satisfies_flash_spec`).
+        /// Mutually exclusive with `--margin` because both select a derated bound.
+        #[arg(long, conflicts_with = "margin")]
+        pvt_context: Option<PathBuf>,
         /// Emit a self-contained `.lean` file with imports and namespace instead
         /// of a bare snippet.
         #[arg(long)]
@@ -564,6 +574,16 @@ pub enum FpgaCmd {
         /// Without this, analog nets are rejected.
         #[arg(long)]
         vcd_threshold_v: Option<f64>,
+    },
+    /// Print the PVT-derated N25Q128_3V SCK low/high bound for a supplied
+    /// operating context. Also prints the margin over the nominal 6 ns bound
+    /// and warns if the context is outside the documented operating envelope.
+    PvtEnvelope {
+        /// PVT context JSON file: {"temp_c": ..., "vccint_mv": ...,
+        /// "vccaux_mv": ..., "process_corner": "ff" | "tt" | "ss"}.
+        /// If omitted, prints the operating envelope bounds and example contexts.
+        #[arg(long)]
+        pvt_context: Option<PathBuf>,
     },
     /// Build the QMTech XC7A100T-FGG676 proxy bitstream via a Docker
     /// container running Xilinx Vivado. Clones our `openFPGALoader` fork
@@ -725,6 +745,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             samplerate,
             samples,
             validate,
+            pvt_context,
             synth,
             json,
         } => measure_cclk(
@@ -735,6 +756,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *samplerate,
             *samples,
             *validate,
+            pvt_context.as_ref(),
             *synth,
             *json,
         ),
@@ -782,6 +804,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             out,
             name,
             margin,
+            pvt_context,
             standalone,
             raw_ns,
             validate,
@@ -800,10 +823,12 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             out.as_ref(),
             name,
             *margin,
+            pvt_context.as_ref(),
             *standalone,
             *raw_ns,
             *validate,
         ),
+        FpgaCmd::PvtEnvelope { pvt_context } => pvt_envelope(pvt_context.as_ref()),
         FpgaCmd::ColdPor {
             bit,
             relay_port,
@@ -2313,6 +2338,26 @@ struct MeasuredCclkRawNs {
     source: String,
 }
 
+/// Process corner used for PVT-aware flash timing derating.
+/// Mirrors `ProcessCorner` in `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+#[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum ProcessCorner {
+    Tt,
+    Ff,
+    Ss,
+}
+
+/// PVT context used for N25Q128_3V timing derating.
+/// Mirrors `PvtContext` in `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+#[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+struct PvtContext {
+    temp_c: i64,
+    vccint_mv: u64,
+    vccaux_mv: u64,
+    process_corner: ProcessCorner,
+}
+
 /// Structs used to persist and report a single cold-POR sweep attempt.
 #[derive(serde::Serialize, serde::Deserialize)]
 struct SweepLog {
@@ -2507,6 +2552,7 @@ fn measure_cclk(
     samplerate: u32,
     samples: u32,
     validate: bool,
+    pvt_context: Option<&PathBuf>,
     synth: bool,
     json: bool,
 ) -> Result<()> {
@@ -2582,34 +2628,65 @@ fn measure_cclk(
                 CCLK_MIN_SENSE_HZ / 1e6
             );
         }
-        // N25Q128 t_CL / t_CH bound: for a measured frequency f and period T,
-        // the high time must be ≥ t_CH and the low time must be ≥ t_CL.
-        // High time = duty * T, low time = (1 - duty) * T.
-        // => duty ∈ [t_CL / T, 1 - t_CH / T]
-        // => duty_pct ∈ [100 * t_CL * f, 100 - 100 * t_CH * f].
-        let period_s = 1.0 / freq_hz;
-        let min_duty_pct = 100.0 * N25Q128_MIN_SCK_LOW_S / period_s;
-        let max_duty_pct = 100.0 - 100.0 * N25Q128_MIN_SCK_HIGH_S / period_s;
-        let clamped_min_duty_pct = min_duty_pct.max(CCLK_MIN_DUTY_PCT);
-        let clamped_max_duty_pct = max_duty_pct.min(CCLK_MAX_DUTY_PCT);
-        if duty_pct < clamped_min_duty_pct || duty_pct > clamped_max_duty_pct {
-            bail!(
-                "measured duty cycle {:.1}% is outside N25Q128-derived range {:.1}%–{:.1}% (or sensible {:.1}%–{:.1}%)",
+
+        let measured = MeasuredCclk::new(freq_hz, duty_pct, source.clone());
+
+        if let Some(ctx_path) = pvt_context {
+            let ctx = parse_pvt_context(ctx_path)?;
+            let min_half_ns = n25q128_min_sck_half_ns_pvt(&ctx);
+            if !raw_ns_satisfies_flash_spec_pvt(
+                measured.period_ns,
+                measured.sck_low_ns,
+                measured.sck_high_ns,
+                &ctx,
+            ) {
+                bail!(
+                    "measured CCLK violates PVT-aware flash spec (min half-period {} ns at {} °C, {} mV, {:?} corner)",
+                    min_half_ns,
+                    ctx.temp_c,
+                    ctx.vccint_mv,
+                    ctx.process_corner
+                );
+            }
+            println!(
+                "  Validation: OK (PVT-aware, min half-period {} ns at {} °C, {} mV, {:?} corner, {:.1}x below {:.3} MHz limit)",
+                min_half_ns,
+                ctx.temp_c,
+                ctx.vccint_mv,
+                ctx.process_corner,
+                N25Q128_MAX_SCK_HZ / freq_hz,
+                N25Q128_MAX_SCK_HZ / 1e6
+            );
+        } else {
+            // N25Q128 t_CL / t_CH bound: for a measured frequency f and period T,
+            // the high time must be ≥ t_CH and the low time must be ≥ t_CL.
+            // High time = duty * T, low time = (1 - duty) * T.
+            // => duty ∈ [t_CL / T, 1 - t_CH / T]
+            // => duty_pct ∈ [100 * t_CL * f, 100 - 100 * t_CH * f].
+            let period_s = 1.0 / freq_hz;
+            let min_duty_pct = 100.0 * N25Q128_MIN_SCK_LOW_S / period_s;
+            let max_duty_pct = 100.0 - 100.0 * N25Q128_MIN_SCK_HIGH_S / period_s;
+            let clamped_min_duty_pct = min_duty_pct.max(CCLK_MIN_DUTY_PCT);
+            let clamped_max_duty_pct = max_duty_pct.min(CCLK_MAX_DUTY_PCT);
+            if duty_pct < clamped_min_duty_pct || duty_pct > clamped_max_duty_pct {
+                bail!(
+                    "measured duty cycle {:.1}% is outside N25Q128-derived range {:.1}%–{:.1}% (or sensible {:.1}%–{:.1}%)",
+                    duty_pct,
+                    min_duty_pct,
+                    max_duty_pct,
+                    CCLK_MIN_DUTY_PCT,
+                    CCLK_MAX_DUTY_PCT
+                );
+            }
+            println!(
+                "  Validation: OK (CCLK within N25Q128 standard-read spec, {:.1}x below {:.3} MHz limit, duty {:.1}%, N25Q128-derived range {:.1}%–{:.1}%)",
+                N25Q128_MAX_SCK_HZ / freq_hz,
+                N25Q128_MAX_SCK_HZ / 1e6,
                 duty_pct,
                 min_duty_pct,
-                max_duty_pct,
-                CCLK_MIN_DUTY_PCT,
-                CCLK_MAX_DUTY_PCT
+                max_duty_pct
             );
         }
-        println!(
-            "  Validation: OK (CCLK within N25Q128 standard-read spec, {:.1}x below {:.3} MHz limit, duty {:.1}%, N25Q128-derived range {:.1}%–{:.1}%)",
-            N25Q128_MAX_SCK_HZ / freq_hz,
-            N25Q128_MAX_SCK_HZ / 1e6,
-            duty_pct,
-            min_duty_pct,
-            max_duty_pct
-        );
     }
 
     let measured = MeasuredCclk::new(freq_hz, duty_pct, source);
@@ -2657,6 +2734,197 @@ fn raw_ns_satisfies_flash_spec(period_ns: u64, low_ns: u64, high_ns: u64, margin
         && high_ns >= min_half_ns
 }
 
+/// Operating-envelope bounds that match the Lean 4 PVT model.
+const PVT_TEMP_MIN_C: i64 = -40;
+const PVT_TEMP_MAX_C: i64 = 85;
+const PVT_VCCINT_MIN_MV: u64 = 900;
+const PVT_VCCINT_MAX_MV: u64 = 1100;
+
+/// Conservative temperature derating in nanoseconds: 0.02 ns per °C above -40 °C.
+fn n25q128_pvt_temp_derating_ns(temp_c: i64) -> u64 {
+    ((temp_c - PVT_TEMP_MIN_C).max(0) as u64 * 2) / 100
+}
+
+/// Conservative voltage derating in nanoseconds: 0.005 ns per mV below 1100 mV.
+fn n25q128_pvt_voltage_derating_ns(vccint_mv: u64) -> u64 {
+    ((PVT_VCCINT_MAX_MV - vccint_mv.min(PVT_VCCINT_MAX_MV)) * 5) / 1000
+}
+
+/// Process-corner derating in nanoseconds.
+fn n25q128_pvt_process_derating_ns(corner: &ProcessCorner) -> u64 {
+    match corner {
+        ProcessCorner::Ff => 0,
+        ProcessCorner::Tt => 2,
+        ProcessCorner::Ss => 4,
+    }
+}
+
+/// Convert a hexadecimal string (e.g. "FF", "0a") into an equivalent
+/// binary string with leading zeros so that bit-indexing matches the VCD
+/// LSB-first convention. Returns `None` for invalid hex digits or x/z.
+fn hex_to_binary_string(hex: &str) -> Option<String> {
+    let mut out = String::new();
+    for c in hex.chars() {
+        let nibble = match c.to_ascii_lowercase() {
+            '0' => "0000",
+            '1' => "0001",
+            '2' => "0010",
+            '3' => "0011",
+            '4' => "0100",
+            '5' => "0101",
+            '6' => "0110",
+            '7' => "0111",
+            '8' => "1000",
+            '9' => "1001",
+            'a' => "1010",
+            'b' => "1011",
+            'c' => "1100",
+            'd' => "1101",
+            'e' => "1110",
+            'f' => "1111",
+            _ => return None,
+        };
+        out.push_str(nibble);
+    }
+    Some(out)
+}
+
+/// PVT-aware minimum SCK low/high time in nanoseconds.
+fn n25q128_min_sck_half_ns_pvt(ctx: &PvtContext) -> u64 {
+    6 + n25q128_pvt_temp_derating_ns(ctx.temp_c)
+        + n25q128_pvt_voltage_derating_ns(ctx.vccint_mv)
+        + n25q128_pvt_process_derating_ns(&ctx.process_corner)
+}
+
+/// Print the PVT-aware SCK low/high bound for a user-supplied context.
+fn pvt_envelope(pvt_context: Option<&PathBuf>) -> Result<()> {
+    const NOMINAL_HALF_NS: u64 = 6;
+
+    if let Some(path) = pvt_context {
+        let ctx = parse_pvt_context(path)?;
+        let half_ns = n25q128_min_sck_half_ns_pvt(&ctx);
+        let margin_ns = half_ns.saturating_sub(NOMINAL_HALF_NS);
+        let corner_str = format!("{:?}", ctx.process_corner).to_lowercase();
+
+        println!("PVT-aware N25Q128_3V SCK timing envelope");
+        println!(
+            "  context: temp = {} °C, vccint = {} mV, vccaux = {} mV, process corner = {}",
+            ctx.temp_c, ctx.vccint_mv, ctx.vccaux_mv, corner_str
+        );
+        println!("  min SCK low / high = {} ns", half_ns);
+        println!("  margin over nominal {} ns = {} ns", NOMINAL_HALF_NS, margin_ns);
+
+        let temp_ok = ctx.temp_c >= PVT_TEMP_MIN_C && ctx.temp_c <= PVT_TEMP_MAX_C;
+        let vccint_ok = ctx.vccint_mv >= PVT_VCCINT_MIN_MV && ctx.vccint_mv <= PVT_VCCINT_MAX_MV;
+        if !temp_ok || !vccint_ok {
+            eprintln!(
+                "  WARNING: context is outside the documented operating envelope (temp {}..{} °C, vccint {}..{} mV).",
+                PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV
+            );
+        }
+        return Ok(());
+    }
+
+    println!("N25Q128_3V SCK timing envelope");
+    println!(
+        "  operating envelope: temp = {}..{} °C, vccint = {}..{} mV",
+        PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV
+    );
+    println!("  nominal min SCK low / high = {} ns", NOMINAL_HALF_NS);
+
+    let example_ctxs = [
+        (
+            "best-case (ff corner, 1100 mV, -40 °C)",
+            PvtContext {
+                temp_c: PVT_TEMP_MIN_C,
+                vccint_mv: PVT_VCCINT_MAX_MV,
+                vccaux_mv: 2700,
+                process_corner: ProcessCorner::Ff,
+            },
+        ),
+        (
+            "typical (tt corner, 1000 mV, 25 °C)",
+            PvtContext {
+                temp_c: 25,
+                vccint_mv: 1000,
+                vccaux_mv: 2700,
+                process_corner: ProcessCorner::Tt,
+            },
+        ),
+        (
+            "worst-case (ss corner, 900 mV, +85 °C)",
+            PvtContext {
+                temp_c: PVT_TEMP_MAX_C,
+                vccint_mv: PVT_VCCINT_MIN_MV,
+                vccaux_mv: 2700,
+                process_corner: ProcessCorner::Ss,
+            },
+        ),
+    ];
+
+    for (label, ctx) in example_ctxs {
+        let half_ns = n25q128_min_sck_half_ns_pvt(&ctx);
+        println!(
+            "  {}: min SCK low / high = {} ns (margin {} ns)",
+            label,
+            half_ns,
+            half_ns.saturating_sub(NOMINAL_HALF_NS)
+        );
+    }
+    println!("\nUse --pvt-context <ctx.json> to compute the bound for a specific context.");
+    Ok(())
+}
+
+/// Validate a raw-ns triple against the PVT-aware N25Q128_3V timing bounds.
+/// `ctx` must be inside the operating envelope; the caller is responsible for
+/// envelope preconditions. Mirrors `measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec`.
+fn raw_ns_satisfies_flash_spec_pvt(period_ns: u64, low_ns: u64, high_ns: u64, ctx: &PvtContext) -> bool {
+    if period_ns == 0 || low_ns + high_ns != period_ns {
+        return false;
+    }
+    let min_half_ns = n25q128_min_sck_half_ns_pvt(ctx);
+    let max_freq_hz = 50_000_000_u64;
+    let freq_hz = 1_000_000_000_u64 / period_ns;
+    freq_hz > 0
+        && freq_hz <= max_freq_hz
+        && low_ns >= min_half_ns
+        && high_ns >= min_half_ns
+}
+
+/// Helper to parse a PVT context JSON file.
+fn parse_pvt_context(path: &std::path::Path) -> Result<PvtContext> {
+    let text = std::fs::read_to_string(path)
+        .with_context(|| format!("read PVT context {}", path.display()))?;
+    let ctx: PvtContext = serde_json::from_str(&text)
+        .with_context(|| format!("parse PVT context JSON {}", path.display()))?;
+    if ctx.temp_c < PVT_TEMP_MIN_C || ctx.temp_c > PVT_TEMP_MAX_C {
+        bail!(
+            "PVT temp_c {} is outside operating envelope [{}..{}] °C",
+            ctx.temp_c, PVT_TEMP_MIN_C, PVT_TEMP_MAX_C
+        );
+    }
+    if ctx.vccint_mv < PVT_VCCINT_MIN_MV || ctx.vccint_mv > PVT_VCCINT_MAX_MV {
+        bail!(
+            "PVT vccint_mv {} is outside operating envelope [{}..{}] mV",
+            ctx.vccint_mv, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV
+        );
+    }
+    Ok(ctx)
+}
+
+/// Format a `PvtContext` as a Lean 4 record literal.
+fn format_pvt_context_lean(ctx: &PvtContext) -> String {
+    let corner = match ctx.process_corner {
+        ProcessCorner::Tt => "ProcessCorner.tt",
+        ProcessCorner::Ff => "ProcessCorner.ff",
+        ProcessCorner::Ss => "ProcessCorner.ss",
+    };
+    format!(
+        "{{ temp_c := ({} : Int), vccint_mv := {}, vccaux_mv := {}, process_corner := {} }}",
+        ctx.temp_c, ctx.vccint_mv, ctx.vccaux_mv, corner
+    )
+}
+
 /// Read a `MeasuredCclk` JSON record (from `--file` or stdin) and emit a Lean 4
 /// theorem that proves the measured pair satisfies the flash spec and links it
 /// to `transaction_satisfies_flash_spec`.
@@ -2670,21 +2938,38 @@ fn measured_to_lean(
     out: Option<&PathBuf>,
     name: &str,
     margin: bool,
+    pvt_context: Option<&PathBuf>,
     standalone: bool,
     raw_ns: bool,
     validate: bool,
 ) -> Result<()> {
+    let pvt_ctx: Option<PvtContext> = match pvt_context {
+        Some(path) => Some(parse_pvt_context(path)?),
+        None => None,
+    };
     let text = if let Some(path) = csv {
         let (period_ns, low_ns, high_ns) = parse_csv_to_raw_ns(path)?;
-        if validate && !raw_ns_satisfies_flash_spec(period_ns, low_ns, high_ns, margin) {
-            bail!(
-                "CSV capture {} -> {} ns period / {} ns low / {} ns high violates the {}flash spec; refusing to generate a false theorem",
-                path.display(),
-                period_ns,
-                low_ns,
-                high_ns,
-                if margin { "PVT-margin " } else { "" }
-            );
+        if validate {
+            if let Some(ref ctx) = pvt_ctx {
+                if !raw_ns_satisfies_flash_spec_pvt(period_ns, low_ns, high_ns, ctx) {
+                    bail!(
+                        "CSV capture {} -> {} ns period / {} ns low / {} ns high violates the PVT-aware flash spec; refusing to generate a false theorem",
+                        path.display(),
+                        period_ns,
+                        low_ns,
+                        high_ns
+                    );
+                }
+            } else if !raw_ns_satisfies_flash_spec(period_ns, low_ns, high_ns, margin) {
+                bail!(
+                    "CSV capture {} -> {} ns period / {} ns low / {} ns high violates the {}flash spec; refusing to generate a false theorem",
+                    path.display(),
+                    period_ns,
+                    low_ns,
+                    high_ns,
+                    if margin { "PVT-margin " } else { "" }
+                );
+            }
         }
         let source = format!("csv {}", path.display());
         serde_json::to_string_pretty(&MeasuredCclkRawNs {
@@ -2695,15 +2980,27 @@ fn measured_to_lean(
         })?
     } else if let Some(path) = vcd {
         let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(path, vcd_signal, vcd_bit, vcd_threshold_v)?;
-        if validate && !raw_ns_satisfies_flash_spec(period_ns, low_ns, high_ns, margin) {
-            bail!(
-                "VCD capture {} -> {} ns period / {} ns low / {} ns high violates the {}flash spec; refusing to generate a false theorem",
-                path.display(),
-                period_ns,
-                low_ns,
-                high_ns,
-                if margin { "PVT-margin " } else { "" }
-            );
+        if validate {
+            if let Some(ref ctx) = pvt_ctx {
+                if !raw_ns_satisfies_flash_spec_pvt(period_ns, low_ns, high_ns, ctx) {
+                    bail!(
+                        "VCD capture {} -> {} ns period / {} ns low / {} ns high violates the PVT-aware flash spec; refusing to generate a false theorem",
+                        path.display(),
+                        period_ns,
+                        low_ns,
+                        high_ns
+                    );
+                }
+            } else if !raw_ns_satisfies_flash_spec(period_ns, low_ns, high_ns, margin) {
+                bail!(
+                    "VCD capture {} -> {} ns period / {} ns low / {} ns high violates the {}flash spec; refusing to generate a false theorem",
+                    path.display(),
+                    period_ns,
+                    low_ns,
+                    high_ns,
+                    if margin { "PVT-margin " } else { "" }
+                );
+            }
         }
         let source = format!(
             "vcd {} {}",
@@ -2735,7 +3032,16 @@ fn measured_to_lean(
         if raw_ns {
             let m: MeasuredCclkRawNs = serde_json::from_str(&text)
                 .context("parse MeasuredCclkRawNs JSON for validation")?;
-            if !raw_ns_satisfies_flash_spec(m.period_ns, m.sck_low_ns, m.sck_high_ns, margin) {
+            if let Some(ref ctx) = pvt_ctx {
+                if !raw_ns_satisfies_flash_spec_pvt(m.period_ns, m.sck_low_ns, m.sck_high_ns, ctx) {
+                    bail!(
+                        "JSON raw-ns capture -> {} ns period / {} ns low / {} ns high violates the PVT-aware flash spec; refusing to generate a false theorem",
+                        m.period_ns,
+                        m.sck_low_ns,
+                        m.sck_high_ns
+                    );
+                }
+            } else if !raw_ns_satisfies_flash_spec(m.period_ns, m.sck_low_ns, m.sck_high_ns, margin) {
                 bail!(
                     "JSON raw-ns capture -> {} ns period / {} ns low / {} ns high violates the {}flash spec; refusing to generate a false theorem",
                     m.period_ns,
@@ -2750,7 +3056,15 @@ fn measured_to_lean(
             let period_ns = 1_000_000_000_u64 / m.freq_hz.max(1);
             let low_ns = m.sck_low_ns;
             let high_ns = m.sck_high_ns;
-            if !raw_ns_satisfies_flash_spec(period_ns, low_ns, high_ns, margin) {
+            if let Some(ref ctx) = pvt_ctx {
+                if !raw_ns_satisfies_flash_spec_pvt(period_ns, low_ns, high_ns, ctx) {
+                    bail!(
+                        "JSON capture -> {} Hz / {:.1}% duty violates the PVT-aware flash spec; refusing to generate a false theorem",
+                        m.freq_hz,
+                        m.duty_pct
+                    );
+                }
+            } else if !raw_ns_satisfies_flash_spec(period_ns, low_ns, high_ns, margin) {
                 bail!(
                     "JSON capture -> {} Hz / {:.1}% duty violates the {}flash spec; refusing to generate a false theorem",
                     m.freq_hz,
@@ -2783,18 +3097,45 @@ fn measured_to_lean(
             )
         };
 
+        let (predicate, link_theorem, transaction_ctor) = if pvt_ctx.is_some() {
+            (
+                "measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec",
+                "measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok",
+                "measured_boot_transaction_from_raw_ns_with_pvt",
+            )
+        } else {
+            (
+                "measured_cclk_from_raw_ns_satisfies_flash_spec",
+                "measured_cclk_from_raw_ns_implies_transaction_ok",
+                "measured_boot_transaction_from_raw_ns",
+            )
+        };
+
         lean.push_str(&format!(
             "/- Generated by `tri fpga measured-to-lean --raw-ns` from source: {} -/\n",
             m.source
         ));
+        if let Some(ref ctx) = pvt_ctx {
+            lean.push_str(&format!(
+                "/- PVT context: {} -/\n",
+                format_pvt_context_lean(ctx)
+            ));
+        }
         lean.push_str(&format!(
             "theorem {}_satisfies_flash_spec :\n",
             theorem_base
         ));
-        lean.push_str(&format!(
-            "  measured_cclk_from_raw_ns_satisfies_flash_spec {} {} {} = true := by\n",
-            m.period_ns, m.sck_low_ns, m.sck_high_ns
-        ));
+        if let Some(ref ctx) = pvt_ctx {
+            lean.push_str(&format!(
+                "  {} {} {} {} {} = true := by\n",
+                predicate, m.period_ns, m.sck_low_ns, m.sck_high_ns, format_pvt_context_lean(ctx)
+            ));
+        } else {
+            lean.push_str(&format!(
+                "  {} {} {} {} = true := by\n",
+                predicate, m.period_ns, m.sck_low_ns, m.sck_high_ns
+            ));
+        }
         lean.push_str("  decide\n");
         lean.push('\n');
         lean.push_str(&format!(
@@ -2802,14 +3143,23 @@ fn measured_to_lean(
             theorem_base
         ));
         lean.push_str(&format!(
-            "  transaction_satisfies_flash_spec (measured_boot_transaction_from_raw_ns {} {} {} bits) = true := by\n",
-            m.period_ns, m.sck_low_ns, m.sck_high_ns
+            "  transaction_satisfies_flash_spec ({} {} {} {} bits) = true := by\n",
+            transaction_ctor, m.period_ns, m.sck_low_ns, m.sck_high_ns
         ));
-        lean.push_str("  apply measured_cclk_from_raw_ns_implies_transaction_ok\n");
-        lean.push_str(&format!(
-            "  exact {}_satisfies_flash_spec\n",
-            theorem_base
-        ));
+        lean.push_str(&format!("  apply {}\n", link_theorem));
+        if pvt_ctx.is_some() {
+            lean.push_str("  · decide\n");
+            lean.push_str("  · decide\n");
+            lean.push_str(&format!(
+                "  · exact {}_satisfies_flash_spec\n",
+                theorem_base
+            ));
+        } else {
+            lean.push_str(&format!(
+                "  exact {}_satisfies_flash_spec\n",
+                theorem_base
+            ));
+        }
     } else {
         let m: MeasuredCclk = serde_json::from_str(&text)
             .context("parse MeasuredCclk JSON")?;
@@ -2825,29 +3175,48 @@ fn measured_to_lean(
             format!("{}_{}_{}_{}", name, source_suffix, m.freq_hz, duty_pct_int)
         };
 
-        let predicate = if margin {
-            "measured_cclk_with_margin_satisfies_flash_spec"
+        let (predicate, link_theorem) = if pvt_ctx.is_some() {
+            (
+                "measured_cclk_with_pvt_satisfies_flash_spec",
+                "measured_cclk_with_pvt_implies_transaction_ok",
+            )
+        } else if margin {
+            (
+                "measured_cclk_with_margin_satisfies_flash_spec",
+                "measured_cclk_with_margin_implies_transaction_ok",
+            )
         } else {
-            "measured_cclk_satisfies_flash_spec"
-        };
-        let link_theorem = if margin {
-            "measured_cclk_with_margin_implies_transaction_ok"
-        } else {
-            "measured_cclk_satisfies_flash_spec_implies_transaction_ok"
+            (
+                "measured_cclk_satisfies_flash_spec",
+                "measured_cclk_satisfies_flash_spec_implies_transaction_ok",
+            )
         };
 
         lean.push_str(&format!(
             "/- Generated by `tri fpga measured-to-lean` from source: {} -/\n",
             m.source
         ));
+        if let Some(ref ctx) = pvt_ctx {
+            lean.push_str(&format!(
+                "/- PVT context: {} -/\n",
+                format_pvt_context_lean(ctx)
+            ));
+        }
         lean.push_str(&format!(
             "theorem {}_satisfies_flash_spec :\n",
             theorem_base
         ));
-        lean.push_str(&format!(
-            "  {} {} {} = true := by\n",
-            predicate, m.freq_hz, duty_pct_int
-        ));
+        if let Some(ref ctx) = pvt_ctx {
+            lean.push_str(&format!(
+                "  {} {} {} {} = true := by\n",
+                predicate, m.freq_hz, duty_pct_int, format_pvt_context_lean(ctx)
+            ));
+        } else {
+            lean.push_str(&format!(
+                "  {} {} {} = true := by\n",
+                predicate, m.freq_hz, duty_pct_int
+            ));
+        }
         lean.push_str("  decide\n");
         lean.push('\n');
         lean.push_str(&format!(
@@ -2859,10 +3228,19 @@ fn measured_to_lean(
             m.freq_hz, duty_pct_int
         ));
         lean.push_str(&format!("  apply {}\n", link_theorem));
-        lean.push_str(&format!(
-            "  exact {}_satisfies_flash_spec\n",
-            theorem_base
-        ));
+        if pvt_ctx.is_some() {
+            lean.push_str("  · decide\n");
+            lean.push_str("  · decide\n");
+            lean.push_str(&format!(
+                "  · exact {}_satisfies_flash_spec\n",
+                theorem_base
+            ));
+        } else {
+            lean.push_str(&format!(
+                "  exact {}_satisfies_flash_spec\n",
+                theorem_base
+            ));
+        }
     }
 
     if standalone {
@@ -3242,6 +3620,7 @@ fn parse_vcd_to_raw_ns(
     let mut selected_id: Option<String> = None;
     let mut selected_is_real: bool = false;
     let mut transitions: Vec<(f64, bool)> = Vec::new();
+    let mut last_high: Option<bool> = None;
 
     for line in text.lines() {
         let trimmed = line.trim();
@@ -3262,6 +3641,9 @@ fn parse_vcd_to_raw_ns(
             }
         }
         if in_timescale {
+            if !trimmed.to_lowercase().starts_with("$timescale") {
+                ts_tokens.extend(tokens.iter().map(|s| s.to_string()));
+            }
             if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
                 in_timescale = false;
                 if let Some(num_str) = ts_tokens.first() {
@@ -3296,15 +3678,34 @@ fn parse_vcd_to_raw_ns(
             }
         }
         if in_var {
+            if !trimmed.to_lowercase().starts_with("$var") {
+                var_tokens.extend(tokens.iter().map(|s| s.to_string()));
+            }
             if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
                 in_var = false;
-                // Expected tokens: [type, size, id, name]
+                // Expected tokens: [type, size, id, name, ...attrs..., $end]
+                // The name may be an escaped identifier split across tokens, e.g.
+                // `\my sig`. Strip the leading backslash used by VCD escaping.
                 if var_tokens.len() >= 4 {
                     let vtype = var_tokens[0].to_lowercase();
                     let is_real = vtype == "real" || vtype == "integer";
                     let size = var_tokens[1].parse::<usize>().unwrap_or(0);
-                    let id = var_tokens[2].clone();
-                    let name = var_tokens[3].clone();
+                    let mut id = var_tokens[2].clone();
+                    let name_end = if var_tokens.last()
+                        .map(|s| s.eq_ignore_ascii_case("$end"))
+                        .unwrap_or(false)
+                    {
+                        var_tokens.len().saturating_sub(1)
+                    } else {
+                        var_tokens.len()
+                    };
+                    let mut name = var_tokens[3..name_end].join(" ");
+                    if name.starts_with('\\') {
+                        name = name.trim_start_matches('\\').to_string();
+                    }
+                    if id.starts_with('\\') {
+                        id = id.trim_start_matches('\\').to_string();
+                    }
                     vars.push((id.clone(), name.clone(), size, is_real));
                     if selected_id.is_none() {
                         let matches = if let Some(target) = signal {
@@ -3359,19 +3760,26 @@ fn parse_vcd_to_raw_ns(
 
         if let Some(sel) = &selected_id {
             // Scalar value change: one token like "1!" or "0$".
+            // x/z/X/Z values are indeterminate and must be ignored.
             if tokens.len() == 1 && tokens[0].len() >= 2 && !selected_is_real {
                 let tok = tokens[0];
                 let value_char = tok.chars().next().unwrap();
+                if value_char != '0' && value_char != '1' {
+                    continue;
+                }
                 let id: String = tok.chars().skip(1).collect();
                 if id == *sel {
                     let high = value_char == '1';
-                    transitions.push((current_time_s, high));
+                    if last_high != Some(high) {
+                        transitions.push((current_time_s, high));
+                        last_high = Some(high);
+                    }
                 }
                 continue;
             }
 
             // Bus value change: `b<value> <id>` (e.g. `b0 !`, `b1 !`, `b0001_ !`).
-            if tokens.len() == 2 && tokens[0].starts_with('b') && !selected_is_real {
+            if tokens.len() == 2 && (tokens[0].starts_with('b') || tokens[0].starts_with('B')) && !selected_is_real {
                 let value_str = &tokens[0][1..];
                 let id = tokens[1];
                 if id == *sel {
@@ -3380,7 +3788,30 @@ fn parse_vcd_to_raw_ns(
                     // Only accept deterministic 0/1 bits; x/z skip the transition.
                     if bit_char == '0' || bit_char == '1' {
                         let high = bit_char == '1';
-                        transitions.push((current_time_s, high));
+                        if last_high != Some(high) {
+                            transitions.push((current_time_s, high));
+                            last_high = Some(high);
+                        }
+                    }
+                }
+                continue;
+            }
+
+            // Hex bus value change: `h<value> <id>` (some tools emit hex).
+            if tokens.len() == 2 && (tokens[0].starts_with('h') || tokens[0].starts_with('H')) && !selected_is_real {
+                let value_str = &tokens[0][1..];
+                let id = tokens[1];
+                if id == *sel {
+                    if let Some(bin) = hex_to_binary_string(value_str) {
+                        let bit = vcd_bit.min(bin.len().saturating_sub(1));
+                        let bit_char = bin.chars().rev().nth(bit).unwrap_or('0');
+                        if bit_char == '0' || bit_char == '1' {
+                            let high = bit_char == '1';
+                            if last_high != Some(high) {
+                                transitions.push((current_time_s, high));
+                                last_high = Some(high);
+                            }
+                        }
                     }
                 }
                 continue;
@@ -3395,7 +3826,10 @@ fn parse_vcd_to_raw_ns(
                 if id == *sel {
                     if let Ok(v) = value_str.parse::<f64>() {
                         let high = v > threshold;
-                        transitions.push((current_time_s, high));
+                        if last_high != Some(high) {
+                            transitions.push((current_time_s, high));
+                            last_high = Some(high);
+                        }
                     }
                 }
                 continue;
@@ -4375,6 +4809,9 @@ fn synth_gf16(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static PVT_CTX_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     fn square_wave_csv(period: f64, cycles: usize) -> String {
         let mut out = String::from("Time,Voltage\n");
@@ -4511,7 +4948,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, false, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, None, false, false, false).unwrap();
         assert_eq!(out, ());
         // Clean up.
         std::fs::remove_file(&tmp).unwrap();
@@ -4523,7 +4960,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_margin_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", true, false, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", true, None, false, false, false).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -4535,7 +4972,7 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_standalone_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_standalone_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, Some(&out_path), "measured_cclk", false, true, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, Some(&out_path), "measured_cclk", false, None, true, false, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.BitstreamConfig"));
@@ -4556,7 +4993,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_raw_ns_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, false, true, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, None, false, true, false).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -4567,7 +5004,7 @@ mod tests {
         let csv_tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_csv_raw_ns_{}.csv", std::process::id()));
         generate_synth_cclk_csv(2_500_000.0, samplerate, 1000, &csv_tmp).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_csv_raw_ns_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(None, Some(&csv_tmp), None, None, 0, None, Some(&out_path), "measured_csv", false, true, true, false).unwrap();
+        let out = measured_to_lean(None, Some(&csv_tmp), None, None, 0, None, Some(&out_path), "measured_csv", false, None, true, true, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.BitstreamConfig"));
@@ -4621,7 +5058,7 @@ mod tests {
         let vcd_tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_vcd_raw_ns_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, generate_vcd_clock(25_000_000.0, 20)).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_vcd_raw_ns_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(None, None, Some(&vcd_tmp), None, 0, None, Some(&out_path), "measured_vcd", false, true, true, false).unwrap();
+        let out = measured_to_lean(None, None, Some(&vcd_tmp), None, 0, None, Some(&out_path), "measured_vcd", false, None, true, true, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.BitstreamConfig"));
@@ -4710,6 +5147,187 @@ mod tests {
         std::fs::remove_file(&vcd_tmp).unwrap();
     }
 
+    /// VCD with a multi-line $var declaration (size and identifier on one line,
+    /// name on the next). The parser must accumulate tokens until `$end`.
+    #[test]
+    fn test_parse_vcd_multiline_var_declaration() {
+        let mut vcd = String::new();
+        vcd.push_str("$date today $end\n");
+        vcd.push_str("$version tri test $end\n");
+        vcd.push_str("$timescale 100 ps $end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 1 !\n");
+        vcd.push_str("cclk $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("$end\n");
+        vcd.push_str(&generate_vcd_clock(25_000_000.0, 20));
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_multiline_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// VCD containing both a scalar clock and a multi-bit bus; selecting the
+    /// scalar by name must ignore the bus transitions.
+    #[test]
+    fn test_parse_vcd_mixed_scalar_and_bus() {
+        let mut vcd = String::new();
+        vcd.push_str("$timescale 100 ps $end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 1 ! cclk $end\n");
+        vcd.push_str("$var wire 8 @ data $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("b00000000 @\n");
+        vcd.push_str("$end\n");
+        // Append a clean 25 MHz scalar clock plus per-step bus noise.
+        let timescale_ps = 100;
+        let period_s = 1.0 / 25_000_000.0;
+        let half_s = period_s / 2.0;
+        let mut t = 0.0;
+        for i in 0..40 {
+            t += half_s;
+            let ts = (t / (timescale_ps as f64 * 1.0e-12)).round() as u64;
+            let cclk_val = if i % 2 == 0 { '1' } else { '0' };
+            let bus = format!("b{:08b} @\n", i as u8);
+            vcd.push_str(&format!("#{}\n{}!\n{}", ts, cclk_val, bus));
+        }
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_mixed_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// VCD with a $dumpoff/$dumpon region containing spurious fast toggles.
+    /// The parser must ignore the dumpoff region entirely so the measured
+    /// period matches the clean 25 MHz clock present before it.
+    #[test]
+    fn test_parse_vcd_dumpoff_ignores_spurious_edges() {
+        let mut vcd = generate_vcd_clock(25_000_000.0, 10);
+        // $dumpoff in the middle of the capture, then inject spurious edges.
+        vcd.push_str("$dumpoff\n");
+        for i in 0..100 {
+            let ts = 500 + i; // arbitrary fast toggles at ~1 GHz relative scale
+            let val = if i % 2 == 0 { '1' } else { '0' };
+            vcd.push_str(&format!("#{}\n{}!\n", ts, val));
+        }
+        vcd.push_str("$dumpon\n");
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_dumpoff_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
+            &vcd_tmp, Some("cclk"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// VCD with an escaped identifier that contains a space in the name.
+    /// The parser must join name tokens and strip the leading backslash.
+    #[test]
+    fn test_parse_vcd_escaped_identifier_with_space() {
+        let mut vcd = String::new();
+        vcd.push_str("$timescale 100 ps $end\n");
+        vcd.push_str("$scope module top $end\n");
+        // Escaped identifier: id=!, name="\my sig"
+        vcd.push_str("$var wire 1 ! \\my sig $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("$end\n");
+        vcd.push_str(&generate_vcd_clock(25_000_000.0, 20));
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_escaped_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
+            &vcd_tmp, Some("my sig"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// VCD scalar net with x/z transitions inserted between real edges.
+    /// The parser must ignore x/z and still measure a clean 25 MHz clock.
+    #[test]
+    fn test_parse_vcd_scalar_xz_ignored() {
+        let mut vcd = String::new();
+        vcd.push_str("$timescale 100 ps $end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 1 ! cclk $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("$end\n");
+        let timescale_ps = 100;
+        let period_s = 1.0 / 25_000_000.0;
+        let half_s = period_s / 2.0;
+        let mut t = 0.0;
+        for i in 0..40 {
+            t += half_s;
+            let ts = (t / (timescale_ps as f64 * 1.0e-12)).round() as u64;
+            let cclk_val = if i % 2 == 0 { '1' } else { '0' };
+            vcd.push_str(&format!("#{}\n{}!\n", ts, cclk_val));
+            // Insert an indeterminate transition right after each edge.
+            let xz_ts = ts + 1;
+            let xz_val = if i % 4 == 0 { 'x' } else { 'z' };
+            vcd.push_str(&format!("#{}\n{}!\n", xz_ts, xz_val));
+        }
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_xz_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
+            &vcd_tmp, Some("cclk"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// VCD with a 4-bit hex bus. Bit 0 toggles at 25 MHz.
+    #[test]
+    fn test_parse_vcd_hex_bus_to_raw_ns_25mhz() {
+        let mut vcd = String::new();
+        vcd.push_str("$timescale 100 ps $end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 4 ! data $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("h0 !\n");
+        vcd.push_str("$end\n");
+        let timescale_ps = 100;
+        let period_s = 1.0 / 25_000_000.0;
+        let half_s = period_s / 2.0;
+        let mut t = 0.0;
+        for i in 0..40 {
+            t += half_s;
+            let ts = (t / (timescale_ps as f64 * 1.0e-12)).round() as u64;
+            // bit 0 toggles; upper bits stay 0 => h0 / h1 alternating.
+            let val = if i % 2 == 0 { "h1" } else { "h0" };
+            vcd.push_str(&format!("#{}\n{} !\n", ts, val));
+        }
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_hex_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
+            &vcd_tmp, Some("data"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
     #[test]
     fn test_validate_accepts_in_spec_raw_ns() {
         let m = MeasuredCclkRawNs {
@@ -4721,7 +5339,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_in_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, false, true, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, None, false, true, true).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -4737,7 +5355,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_out_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, false, true, true);
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, None, false, true, true);
         assert!(out.is_err(), "expected validation to reject out-of-spec raw-ns capture");
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -4753,7 +5371,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_margin_in_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", true, false, true, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", true, None, false, true, true).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -4769,9 +5387,133 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_margin_out_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", true, false, true, true);
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", true, None, false, true, true);
         assert!(out.is_err(), "expected PVT-margin validation to reject 8 ns low time");
         std::fs::remove_file(&tmp).unwrap();
+    }
+
+    /// Helper: write a PVT context JSON file and return a unique path.
+    fn write_pvt_context_json(name: &str, ctx: &serde_json::Value) -> PathBuf {
+        let n = PVT_CTX_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "tri_pvt_ctx_{}_{}_{}.json",
+            name,
+            std::process::id(),
+            n
+        ));
+        std::fs::write(&path, serde_json::to_string(ctx).unwrap()).unwrap();
+        path
+    }
+
+    #[test]
+    fn test_validate_pvt_worstcase_accepts_in_spec_raw_ns() {
+        let m = MeasuredCclkRawNs {
+            period_ns: 40,
+            sck_low_ns: 20,
+            sck_high_ns: 20,
+            source: "live".to_string(),
+        };
+        let json = serde_json::to_string(&m).unwrap();
+        let tmp = std::env::temp_dir().join(format!("tri_validate_pvt_in_spec_{}.json", std::process::id()));
+        std::fs::write(&tmp, json).unwrap();
+        let pvt = write_pvt_context_json(
+            "worstcase",
+            &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
+        );
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, Some(&pvt), false, true, true).unwrap();
+        assert_eq!(out, ());
+        std::fs::remove_file(&tmp).unwrap();
+        std::fs::remove_file(&pvt).unwrap();
+    }
+
+    #[test]
+    fn test_validate_pvt_worstcase_rejects_out_of_spec_raw_ns() {
+        // 20 ns period / 8 ns low fails the 13 ns worst-case half-period bound.
+        let m = MeasuredCclkRawNs {
+            period_ns: 20,
+            sck_low_ns: 8,
+            sck_high_ns: 12,
+            source: "live".to_string(),
+        };
+        let json = serde_json::to_string(&m).unwrap();
+        let tmp = std::env::temp_dir().join(format!("tri_validate_pvt_out_spec_{}.json", std::process::id()));
+        std::fs::write(&tmp, json).unwrap();
+        let pvt = write_pvt_context_json(
+            "worstcase",
+            &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
+        );
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, Some(&pvt), false, true, true);
+        assert!(out.is_err(), "expected PVT worst-case validation to reject 8 ns low time");
+        std::fs::remove_file(&tmp).unwrap();
+        std::fs::remove_file(&pvt).unwrap();
+    }
+
+    #[test]
+    fn test_measured_to_lean_raw_ns_pvt_emits_pvt_theorem() {
+        let m = MeasuredCclkRawNs {
+            period_ns: 40,
+            sck_low_ns: 20,
+            sck_high_ns: 20,
+            source: "live".to_string(),
+        };
+        let json = serde_json::to_string(&m).unwrap();
+        let tmp = std::env::temp_dir().join(format!("tri_pvt_lean_in_{}.json", std::process::id()));
+        std::fs::write(&tmp, json).unwrap();
+        let pvt = write_pvt_context_json(
+            "worstcase",
+            &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
+        );
+        let out_path = std::env::temp_dir().join(format!("tri_pvt_lean_out_{}.lean", std::process::id()));
+        let out = measured_to_lean(
+            Some(&tmp), None, None, None, 0, None, Some(&out_path),
+            "measured_cclk", false, Some(&pvt), true, true, true,
+        ).unwrap();
+        assert_eq!(out, ());
+        let content = std::fs::read_to_string(&out_path).unwrap();
+        assert!(content.contains("measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec"));
+        assert!(content.contains("process_corner := ProcessCorner.ss"));
+        assert!(content.contains("decide"));
+        std::fs::remove_file(&tmp).unwrap();
+        std::fs::remove_file(&pvt).unwrap();
+        std::fs::remove_file(&out_path).unwrap();
+    }
+
+    #[test]
+    fn test_pvt_envelope_worstcase_context() {
+        let pvt = write_pvt_context_json(
+            "worstcase",
+            &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
+        );
+        let out = pvt_envelope(Some(&pvt));
+        assert!(out.is_ok(), "pvt_envelope should accept a valid worst-case context");
+        // Worst-case bound is 6 + 2.5 (temp) + 1.0 (voltage) + 4 (ss) = 13 ns
+        // (integer arithmetic: temp derating = (125*2)/100 = 2; voltage = (200*5)/1000 = 1).
+        assert_eq!(n25q128_min_sck_half_ns_pvt(
+            &parse_pvt_context(&pvt).unwrap()), 13,
+            "worst-case half-period bound should be 13 ns");
+        std::fs::remove_file(&pvt).unwrap();
+    }
+
+    #[test]
+    fn test_pvt_envelope_no_context_prints_examples() {
+        // Without a context file the command prints the operating envelope and
+        // best/typical/worst example bounds. It should not error.
+        let out = pvt_envelope(None);
+        assert!(out.is_ok());
+    }
+
+    #[test]
+    fn test_parse_pvt_context_roundtrip() {
+        let pvt = write_pvt_context_json(
+            "roundtrip",
+            &serde_json::json!({"temp_c":-40,"vccint_mv":1100,"vccaux_mv":2700,"process_corner":"ff"}),
+        );
+        let ctx = parse_pvt_context(&pvt).unwrap();
+        assert_eq!(ctx.temp_c, -40);
+        assert_eq!(ctx.vccint_mv, 1100);
+        assert_eq!(ctx.vccaux_mv, 2700);
+        assert_eq!(ctx.process_corner, ProcessCorner::Ff);
+        std::fs::remove_file(&pvt).unwrap();
     }
 
     #[test]
