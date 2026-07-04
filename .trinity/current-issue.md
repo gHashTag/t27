@@ -1,39 +1,43 @@
-# Current Issue: Wave Loop 397
+# Current Issue: Wave Loop 398
 
-**Issue:** #1294
-**Local branch:** `wave-loop-397` (branched from `trinity-rust-rings` @ `4aed560b`)
-**Basis:** W396 close-out report; H1 cold-POR mode sampling was the remaining
-high-priority hypothesis.
+**Issue:** #1296
+**Local branch:** `wave-loop-398` (branched from `trinity-rust-rings` @ `d370b27ab`)
+**Basis:** W397 close-out report; H1 cold-POR mode sampling is likely ruled out,
+so H2 (CCLK/SPI-startup timing) is the leading hypothesis.
 
 ## Goal
 
-Confirm or rule out H1 cold-POR mode sampling for the QMTech Wukong V1 /
-XC7A200T-FGG676-1 boot-from-flash failure. If H1 is ruled out, pivot to H2
-(CCLK/SPI-startup timing) in W398.
+Make the QMTech Wukong V1 / XC7A200T-FGG676-1 boot-from-flash H2 hypothesis
+(CCLK/SPI-startup timing or flash state after reset) actionable and testable
+with board-less tooling, while documenting the user-assisted cold-POR/CCLK-sweep
+protocol for the next physical session.
 
 ## Selected variant
 
-**Variant A (root-cause driven)** from W397 cooperation variants:
-- Add `tri fpga boot-log <bit>` to guide the cold-POR experiment.
-- Add `--repeat N` to `tri fpga stat --pre-jtag-reset` for multiple power-on samples.
-- Add board-less `tri fpga smoke-gate` and integrate it into the conformance suite.
-- Harden `fpga/HARDWARE_SSOT.md` cold-POR protocol and decision tree.
-- Update/deprecate stale `fpga/diagnostics/jtag_wiring.md`.
+**Variant A (root-cause driven)** from W397 cooperation variants, adapted for
+board-less tooling + user-assisted physical closure:
+- Add `tri fpga patch-cor0 <in.bit> <out.bit> --oscfsel N` to create CCLK-variants.
+- Add `tri fpga cclk-variants <in.bit>` to generate a sweep directory.
+- Extend `tri fpga bit-config` decoding to CTL0 and BSPI; add assertion flags.
+- Harden `tri fpga smoke-gate` to fail on IDCODE/SPI-width/startup-clock regressions.
+- Harden `tri fpga boot-log` with JSON logging and JTAG-cable-disconnect instructions
+  (per AR66954 / XAPP1188).
+- Update `fpga/HARDWARE_SSOT.md` with the H2 decision tree and `patch-cor0` usage.
 - Maintain conformance at 575/575 PASS; no IGLA/Lean growth.
 
 ## Acceptance criteria
 
-- One of AC-1..AC-4 reached:
-  - **AC-1**: H1 confirmed and fix path documented.
-  - **AC-2**: H1 ruled out and H2 scoped for W398.
-  - **AC-3**: board boots from flash (DONE=1 after cold-POR).
-  - **AC-4**: CLI smoke gate implemented and green even without physical board.
-- `tri fpga boot-log <bit>` implemented.
-- `tri fpga stat --pre-jtag-reset --repeat N` implemented.
-- `tri fpga smoke-gate` implemented.
+- `tri fpga patch-cor0` produces a `.bit` with the requested raw `OSCFSEL` value
+  and warns about the undocumented MHz mapping and CRC risk.
+- `tri fpga cclk-variants` produces a sweep directory with named variants.
+- `tri fpga bit-config` decodes CTL0/BSPI and warns on `OSCFSEL=0` / enabled CRC.
+- `tri fpga smoke-gate` fails CI if the demo bitstream has wrong IDCODE, SPI width,
+  or startup clock.
+- `tri fpga boot-log` writes a JSON log and tells the user to disconnect the JTAG
+  cable before power-cycle.
 - `t27c suite --repo-root .` reports **575/575 PASS**.
-- Real W397 issue created and referenced in commit/PR (`Closes #1294`).
-- Close-out report and cooperation doc for W398 are written.
+- Real W398 issue created and referenced in commit/PR (`Closes #1296`).
+- Close-out report and cooperation doc for W399 are written.
 - Experience log and memory index updated.
 
 ---

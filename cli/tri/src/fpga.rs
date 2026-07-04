@@ -219,6 +219,33 @@ pub enum FpgaCmd {
         #[arg(long, default_value = "ternary_mac_demo_top")]
         top: String,
     },
+    /// Patch the raw OSCFSEL field (COR0[22:17]) of a 7-series .bit file.
+    ///
+    /// WARNING: the OSCFSEL-to-MHz mapping is not publicly documented, and
+    /// modifying a bitstream with CRC enabled will produce a CRC_ERROR. This
+    /// command is intended for experimental CCLK-sweep work only; verify
+    /// results on real hardware before committing a default bitstream.
+    PatchCor0 {
+        /// Input Xilinx .bit file.
+        bit: PathBuf,
+        /// Output patched .bit file.
+        out: PathBuf,
+        /// Raw 6-bit OSCFSEL value for COR0[22:17].
+        #[arg(long)]
+        oscfsel: u8,
+    },
+    /// Generate a set of OSCFSEL variants from a single input .bit file.
+    /// Outputs one file per requested value to the given directory.
+    CclkVariants {
+        /// Input Xilinx .bit file.
+        bit: PathBuf,
+        /// Output directory (default: <repo>/build/fpga/cclk_variants).
+        #[arg(long)]
+        output_dir: Option<PathBuf>,
+        /// Comma-separated list of raw 6-bit OSCFSEL values to produce.
+        #[arg(long, value_delimiter = ',')]
+        values: Vec<u8>,
+    },
     /// Read the SPI flash status register via openFPGALoader's JTAG-to-SPI bridge.
     /// Decodes WIP, WEL, and QE bits to help diagnose boot-from-flash failures.
     FlashStatus {
@@ -400,7 +427,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             pre_jtag_reset,
             repeat,
         } => stat(cable, *pre_jtag_reset, *repeat),
-        FpgaCmd::BitConfig { bit } => bit_config(bit),
+        FpgaCmd::BitConfig { bit } => bit_config(bit, &[]),
         FpgaCmd::RoundTripVerify { bit, cable, part, bridge, freq } => {
             round_trip_verify(bit, cable, part, bridge.as_ref(), *freq)
         }
@@ -414,6 +441,10 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             wait_seconds,
         } => boot_log(bit, cable, part, bridge.as_ref(), *freq, *repeat, *wait_seconds),
         FpgaCmd::SmokeGate { bit, top } => smoke_gate(bit.as_ref(), top),
+        FpgaCmd::PatchCor0 { bit, out, oscfsel } => patch_cor0(bit, out, *oscfsel),
+        FpgaCmd::CclkVariants { bit, output_dir, values } => {
+            cclk_variants(bit, output_dir.as_ref(), values)
+        },
         FpgaCmd::SynthGf16 {
             build_dir,
             chipdb,
@@ -1371,6 +1402,33 @@ fn load_sram(bit: &PathBuf, cable: &str, part: &str, reset: bool, verbose: bool)
 }
 
 fn stat(cable: &str, pre_jtag_reset: bool, repeat: u32) -> Result<()> {
+    let samples = capture_stat(cable, pre_jtag_reset, repeat)?;
+    let bits = samples.first().cloned().expect("at least one STAT sample");
+    println!("== STAT register (openFPGALoader --read-register STAT) ==");
+    println!("  samples             : {}", samples.len());
+    println!("  raw                 : 0x{:08X}", bits.raw);
+    println!("  DONE       [14]     : {}", bits.done as u8);
+    println!("  INIT_COMPL [11]     : {}", bits.init_complete as u8);
+    println!("  EOS        [4]      : {}", bits.eos as u8);
+    println!("  CRC_ERROR  [0]      : {}", bits.crc_error as u8);
+    println!("  ID_ERROR   [15]     : {}", bits.id_error as u8);
+    println!("  MODE       [2:0]    : 0b{:03b} ({})", bits.mode, mode_name(bits.mode));
+    println!("  diagnosis           : {}", bits.diagnose());
+    println!();
+
+    if bits.done {
+        println!("=> FPGA is configured. DONE=HIGH.");
+        Ok(())
+    } else {
+        eprintln!("=> FPGA is NOT configured. {}", bits.diagnose());
+        bail!("DONE=LOW")
+    }
+}
+
+/// Capture multiple STAT samples via openFPGALoader and return the decoded
+/// `StatBits` for each sample. This is used by `boot-log` to build a JSON
+/// record of a cold-POR attempt.
+fn capture_stat(cable: &str, pre_jtag_reset: bool, repeat: u32) -> Result<Vec<StatBits>> {
     let mut extra = vec!["--read-register", "STAT"];
     if pre_jtag_reset {
         // --skip-reset is documented for write-flash mode, but pass it
@@ -1392,27 +1450,7 @@ fn stat(cable: &str, pre_jtag_reset: bool, repeat: u32) -> Result<()> {
             eprintln!("[stat] sample {}/{}: raw=0x{:08X}", i + 1, n, bits.raw);
         }
     }
-
-    let bits = samples.first().cloned().expect("at least one STAT sample");
-    println!("== STAT register (openFPGALoader --read-register STAT) ==");
-    println!("  samples             : {}", samples.len());
-    println!("  raw                 : 0x{:08X}", bits.raw);
-    println!("  DONE       [14]     : {}", bits.done as u8);
-    println!("  INIT_COMPL [11]     : {}", bits.init_complete as u8);
-    println!("  EOS        [4]      : {}", bits.eos as u8);
-    println!("  CRC_ERROR  [0]      : {}", bits.crc_error as u8);
-    println!("  ID_ERROR   [15]     : {}", bits.id_error as u8);
-    println!("  MODE       [2:0]    : 0b{:03b} ({})", bits.mode, mode_name(bits.mode));
-    println!("  diagnosis           : {}", bits.diagnose());
-    println!();
-
-    if bits.done {
-        println!("=> FPGA is configured. DONE=HIGH.");
-        Ok(())
-    } else {
-        eprintln!("=> FPGA is NOT configured. {}", bits.diagnose());
-        bail!("DONE=LOW")
-    }
+    Ok(samples)
 }
 
 fn mode_name(mode: u8) -> &'static str {
@@ -1443,7 +1481,120 @@ fn parse_stat_raw(text: &str) -> Result<u32> {
     bail!("openFPGALoader output did not contain 'Register raw value:'")
 }
 
-fn bit_config(bit: &PathBuf) -> Result<()> {
+/// Patch the raw OSCFSEL value (COR0[22:17]) in a 7-series `.bit` file.
+///
+/// The sync word is located, the Type-1 configuration packet stream is walked,
+/// and the last Type-1 write to COR0 (register 0x09) is rewritten in place.
+/// The ASCII `.bit` header and any frame data are left untouched.
+fn patch_cor0(bit: &PathBuf, out: &PathBuf, oscfsel: u8) -> Result<()> {
+    if !bit.is_file() {
+        bail!("bitstream not found: {}", bit.display());
+    }
+    if oscfsel > 0x3F {
+        bail!("OSCFSEL must be a 6-bit value (0..63), got {}", oscfsel);
+    }
+
+    let mut data = std::fs::read(bit)
+        .with_context(|| format!("read {}", bit.display()))?;
+    let sync_idx = find_sync_word(&data)
+        .ok_or_else(|| anyhow!("sync word 0xAA995566 not found in {}", bit.display()))?;
+    let payload_start = sync_idx + 4;
+    let word_count = (data.len().saturating_sub(payload_start)) / 4;
+
+    let mut cor0_word_idx: Option<usize> = None;
+    let mut cor0_value: Option<u32> = None;
+    let mut i = 0usize;
+    while i < word_count {
+        let w = read_word_be(&data, payload_start + i * 4);
+        let pkt_type = ((w >> 29) & 0x7) as u32;
+        let opcode = ((w >> 27) & 0x3) as u32;
+        if pkt_type == 1 {
+            let reg = ((w >> 13) & 0x3FFF) as u32;
+            let count = (w & 0x07FF) as usize;
+            if reg == 0x09 && opcode == 2 && count > 0 {
+                cor0_word_idx = Some(i + count);
+                cor0_value = Some(read_word_be(&data, payload_start + (i + count) * 4));
+            }
+            i += 1 + count;
+        } else if pkt_type == 2 {
+            let count = (w & 0x07FFFFFF) as usize;
+            i += 1 + count;
+        } else {
+            i += 1;
+        }
+    }
+
+    let (idx, old_val) = cor0_word_idx
+        .zip(cor0_value)
+        .ok_or_else(|| anyhow!("no Type-1 write to COR0 (0x09) found in {}", bit.display()))?;
+
+    const OSCFSEL_MASK: u32 = 0x007E_0000;
+    let new_val = (old_val & !OSCFSEL_MASK) | (((oscfsel as u32) & 0x3F) << 17);
+    write_word_be(&mut data, payload_start + idx * 4, new_val);
+
+    std::fs::write(out, &data)
+        .with_context(|| format!("write {}", out.display()))?;
+
+    println!(
+        "[patch-cor0] {} -> {}",
+        bit.display(),
+        out.display()
+    );
+    println!("  COR0 0x{:08X} -> 0x{:08X}", old_val, new_val);
+    println!("  OSCFSEL[22:17] = {}", oscfsel);
+    eprintln!("⚠ Warning: OSCFSEL-to-MHz mapping is not publicly documented.");
+    eprintln!("⚠ Warning: If CRC is enabled in CTL0, this patch may cause CRC_ERROR.");
+    eprintln!("⚠ Verify the result on real hardware before using this bitstream as default.");
+    Ok(())
+}
+
+/// Generate CCLK-variants of a bitstream by patching COR0[22:17] for each
+/// requested raw OSCFSEL value.
+fn cclk_variants(
+    bit: &PathBuf,
+    output_dir: Option<&PathBuf>,
+    values: &Vec<u8>,
+) -> Result<()> {
+    if !bit.is_file() {
+        bail!("bitstream not found: {}", bit.display());
+    }
+    let dir = match output_dir {
+        Some(d) => d.to_path_buf(),
+        None => {
+            let root = repo_root()?;
+            root.join("build").join("fpga").join("cclk_variants")
+        }
+    };
+    std::fs::create_dir_all(&dir)
+        .with_context(|| format!("create {}", dir.display()))?;
+
+    let values: Vec<u8> = if values.is_empty() {
+        vec![0, 1, 2, 3, 4, 5]
+    } else {
+        values.clone()
+    };
+
+    let stem = bit
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("bitstream");
+
+    eprintln!("[cclk-variants] generating {} variant(s) in {}", values.len(), dir.display());
+    for v in &values {
+        let out = dir.join(format!("{}_oscfsel{:02}.bit", stem, v));
+        patch_cor0(bit, &out, *v)?;
+    }
+    println!(
+        "[cclk-variants] {} variant(s) written to {}",
+        values.len(),
+        dir.display()
+    );
+    eprintln!("Next step: program each variant to flash and run a cold-POR sweep,");
+    eprintln!("capturing STAT with `tri fpga stat --pre-jtag-reset --repeat 5`.");
+    Ok(())
+}
+
+fn bit_config(bit: &PathBuf, extra_args: &[&str]) -> Result<()> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
@@ -1454,8 +1605,12 @@ fn bit_config(bit: &PathBuf) -> Result<()> {
     }
     let bit_str = bit.to_str().ok_or_else(|| anyhow!("bitstream path is not UTF-8"))?;
     let mut cmd = std::process::Command::new("python3");
-    cmd.arg(&script).arg(bit_str);
-    eprintln!("[bit-config] $ python3 {} {}", script.display(), bit_str);
+    cmd.arg(&script);
+    for a in extra_args {
+        cmd.arg(*a);
+    }
+    cmd.arg(bit_str);
+    eprintln!("[bit-config] $ python3 {} {} {}", script.display(), extra_args.join(" "), bit_str);
     let status = cmd.status().with_context(|| "spawn dump_bit_config.py")?;
     if !status.success() {
         bail!("dump_bit_config.py exited with {:?}", status);
@@ -1545,6 +1700,15 @@ fn find_sync_word(data: &[u8]) -> Option<usize> {
     data.windows(SYNC.len()).position(|w| w == SYNC)
 }
 
+fn read_word_be(data: &[u8], idx: usize) -> u32 {
+    u32::from_be_bytes([data[idx], data[idx + 1], data[idx + 2], data[idx + 3]])
+}
+
+fn write_word_be(data: &mut [u8], idx: usize, value: u32) {
+    let bytes = value.to_be_bytes();
+    data[idx..idx + 4].copy_from_slice(&bytes);
+}
+
 fn boot_log(
     bit: &PathBuf,
     cable: &str,
@@ -1557,6 +1721,7 @@ fn boot_log(
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
+    let start_time = chrono::Local::now();
 
     eprintln!("[boot-log] Step 1/4: program flash with {}", bit.display());
     program_flash(
@@ -1576,11 +1741,15 @@ fn boot_log(
 
     eprintln!();
     eprintln!("[boot-log] Step 2/4: PHYSICAL POWER-CYCLE REQUIRED");
-    eprintln!("  1. Disconnect the board's USB power / barrel jack.");
-    eprintln!("  2. Wait at least 10 seconds for all rails to collapse.");
-    eprintln!("  3. Reconnect power.");
-    eprintln!("  4. Do NOT press the FPGA's PROG_B or RESET button.");
-    eprintln!("  5. Press ENTER here when the board is powered and stable.");
+    eprintln!("  1. Disconnect the JTAG/programming cable from the board.");
+    eprintln!("     (An attached cable can hold TMS/TCK/PROGRAM_B and corrupt cold-POR");
+    eprintln!("      mode sampling. See AR66954 / XAPP1188.)");
+    eprintln!("  2. Disconnect the board's USB power / barrel jack.");
+    eprintln!("  3. Wait at least 10 seconds for all rails to collapse.");
+    eprintln!("  4. Reconnect power.");
+    eprintln!("  5. Do NOT press the FPGA's PROG_B or RESET button.");
+    eprintln!("  6. Wait at least 2 seconds, then reconnect the JTAG cable.");
+    eprintln!("  7. Press ENTER here when the board and cable are stable.");
     eprintln!();
 
     let mut input = String::new();
@@ -1589,26 +1758,85 @@ fn boot_log(
         .context("waiting for user confirmation after power-cycle")?;
 
     eprintln!("[boot-log] Step 3/4: capture STAT without JTAG reset ({} sample[s])", repeat.max(1));
-    let stat_result = stat(cable, true, repeat);
+    let stat_result = capture_stat(cable, true, repeat);
+
+    let samples = match &stat_result {
+        Ok(s) => s.clone(),
+        Err(_) => Vec::new(),
+    };
+    let conclusion = if let Ok(s) = &stat_result {
+        if s.iter().any(|b| b.done) {
+            "DONE=HIGH: board boots from flash"
+        } else if s.iter().any(|b| b.mode != 0b001) {
+            "MODE_MISMATCH: mode-pin strapping issue"
+        } else {
+            "H2_CCLK_TIMING: mode OK but DONE=LOW; try CCLK variants"
+        }
+    } else {
+        "STAT_CAPTURE_FAILED"
+    };
+
+    // Persist a JSON log entry for later comparison across variants.
+    let log_entry = serde_json::json!({
+        "timestamp": start_time.to_rfc3339(),
+        "bitstream": bit.to_string_lossy().to_string(),
+        "cable": cable,
+        "part": part,
+        "freq_hz": freq,
+        "repeat": repeat.max(1),
+        "conclusion": conclusion,
+        "samples": samples.iter().enumerate().map(|(i, b)| serde_json::json!({
+            "index": i,
+            "raw": b.raw,
+            "done": b.done,
+            "eos": b.eos,
+            "init_complete": b.init_complete,
+            "crc_error": b.crc_error,
+            "id_error": b.id_error,
+            "mode": b.mode,
+            "diagnosis": b.diagnose(),
+        })).collect::<Vec<_>>(),
+    });
+    let root = repo_root()?;
+    let log_dir = root.join("build").join("fpga");
+    std::fs::create_dir_all(&log_dir)
+        .with_context(|| format!("create {}", log_dir.display()))?;
+    let log_path = log_dir.join(format!(
+        "boot-log-{}.json",
+        start_time.format("%Y%m%d-%H%M%S")
+    ));
+    std::fs::write(&log_path, serde_json::to_string_pretty(&log_entry)?)
+        .with_context(|| format!("write {}", log_path.display()))?;
+    eprintln!("[boot-log] log written to {}", log_path.display());
 
     eprintln!();
-    eprintln!("[boot-log] Step 4/4: decision tree");
+    eprintln!("[boot-log] Step 4/4: decision tree — {}", conclusion);
     match stat_result {
-        Ok(()) => {
+        Ok(samples) if samples.iter().any(|b| b.done) => {
             eprintln!("  SUCCESS: cold-POR STAT shows DONE=1.");
-            eprintln!("  => The board boots from flash. No further mode-pin work needed.");
+            eprintln!("  => The board boots from flash. No further mode-pin/CCLK work needed.");
             Ok(())
         }
-        Err(_) => {
-            eprintln!("  DONE=0 after cold-POR. Possible causes:");
-            eprintln!("    A. Mode-pin strapping: check that M[2:0]=001 (Master SPI x1) is sampled.");
-            eprintln!("       Run `tri fpga stat --pre-jtag-reset --repeat 5` immediately after power-on.");
-            eprintln!("       If MODE != 001, inspect board resistors/jumpers or add external straps.");
-            eprintln!("    B. CCLK/SPI-startup timing: if MODE=001 and still DONE=0, the N25Q128");
-            eprintln!("       may not respond to the default CCLK rate. Next wave should audit");
-            eprintln!("       COR0 CFGRATE and add a slow-startup bitstream variant.");
+        Ok(samples) if samples.iter().any(|b| b.mode != 0b001) => {
+            eprintln!("  MODE MISMATCH: cold-POR sampled M[2:0] != 001.");
+            eprintln!("  => Inspect board mode-pin straps (resistors / jumpers) or add external");
+            eprintln!("     pull resistors to M0/M1/M2. See fpga/HARDWARE_SSOT.md §3.2.");
+            bail!("cold-POR mode mismatch — see decision tree")
+        }
+        Ok(_) => {
+            eprintln!("  DONE=0 after cold-POR with MODE=001. Possible causes:");
+            eprintln!("    A. CCLK/SPI-startup timing: the N25Q128 may not respond to the");
+            eprintln!("       default CCLK rate. Generate variants with:");
+            eprintln!("         tri fpga cclk-variants {}", bit.display());
+            eprintln!("       then program each *_oscfsel*.bit and repeat this boot-log.");
+            eprintln!("    B. Flash wake-up state: before the power-cycle, issue a software");
+            eprintln!("       reset via `tri fpga spi-raw 66` + `tri fpga spi-raw 99`.");
             eprintln!("    C. Signal integrity: verify 3.3 V VCCO_0 and clean CCLK/MISO/MOSI/FCS_B.");
-            bail!("cold-POR boot failed — see decision tree above")
+            bail!("cold-POR boot failed — see H2 decision tree")
+        }
+        Err(e) => {
+            eprintln!("  STAT capture failed: {e}");
+            bail!("cold-POR boot failed — STAT capture error")
         }
     }
 }
@@ -1626,7 +1854,18 @@ fn smoke_gate(bit: Option<&PathBuf>, top: &str) -> Result<()> {
     // 1. bit-config audit if the bitstream exists.
     if bit_path.is_file() {
         println!("[smoke-gate] bit-config audit: {}", bit_path.display());
-        bit_config(&bit_path)?;
+        let assert_args: [&str; 6] = [
+            "--assert-idcode",
+            "0x03636093",
+            "--assert-spi-x1",
+            "--assert-cclk-startup",
+            // bit path is appended by bit_config()
+            "",
+            "",
+        ];
+        // Only pass the four meaningful args; the two trailing empty strings avoid
+        // creating a variable-length slice with a length expression in the call.
+        bit_config(&bit_path, &assert_args[..4])?;
     } else {
         println!(
             "[smoke-gate] SKIP: bitstream not found at {} (run openXC7 flow first)",
