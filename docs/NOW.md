@@ -1,5 +1,12 @@
 # NOW — Wave Loop 411 close-out / Wave Loop 412 setup
 
+## takum32-64-curated-bitexact -- promote takum32/takum64 structural -> curated_named bitexact (Closes #1327)
+
+- **WHERE** (conformance vectors): `conformance/vectors/takum32_conformance_v0.json` and `takum64_conformance_v0.json` promoted from structural (n_vectors=0) to bit-precise with `vector_mode: curated_named` (15 named vectors each: zero, +1, -1, and exp(c/2) grid points for c=+/-2,+/-4,+/-6, both signs). `INDEX_all_formats.json` updated: bitexact_packs 70 -> 72, structural_packs 13 -> 11 (total stays 83); both takum32/64 entries kind structural -> bitexact with fresh n_vectors and sha256. A machine-readable `witnesses[]` array records provenance (mpmath 1200-bit oracle + independent math.exp cross-check; sample-probe as supporting evidence only; libtakum C-parity marked NOT DONE).
+- **Why**: takum8 (exhaustive 256) and takum16 (curated 3, decoder validated against all 3 known codes) already carry bit-precise packs; takum32/64 stayed structural pending a wide-width oracle. Each named vector is the correctly-rounded f64 of an exact grid value under the Takum decode law (Hunhold 2024, arXiv:2404.18603, value = exp(ell/2), ell exact dyadic), certified by an independent 400+bit mpmath oracle (Witness #1) and cross-checked bit-for-bit against an independent math.exp reproduction (Witness #2 on values); abs_error = 0 by construction on these vectors. **CURATED-BACKED, NOT exhaustive** -- 2^32 / 2^64 codes are infeasible to enumerate, so this is explicitly distinct from takum16 which is exhaustive-backed (2^16). Recorded in `format_notes`, `vector_mode: curated_named`, and `witnesses[]`. A 400k+ randomized+structured sample probe (min midpoint gap >> oracle floor, 0 ambiguous codes) is supporting evidence only, NOT part of the bitexact claim; the full-domain exhaustive guarantee (libtakum C-parity) remains a separate step. Passes WP-18 conformance-integrity-gate (A/B/C/D/D2/E all CLEAN) locally. No `.t27` specs, no `gen/` edits, no code paths, no other conformance files touched; SSOT count stays 83. [verified SW] on curated named vectors; NOT [exhaustive]; NOT a silicon/HW claim. Context preprint: arXiv:2606.05017. Closes #1327.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## Wave Loop 411 — FPGA measured-to-lean auto-proof + PVT margin (Closes #1329)
 
 - Branch: `wave-loop-411`
