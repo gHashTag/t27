@@ -1,3 +1,42 @@
+# NOW — Wave Loop 412 close-out / Wave Loop 413 setup
+
+## Wave Loop 412 — measured-to-lean standalone + raw-ns + PVT context (Closes #1332)
+
+- Branch: `wave-loop-412`
+- Issue: #1332
+- Report: `docs/reports/WAVE_LOOP_412_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W412_2026-07-04.md`
+- Cooperation W413: `docs/reports/FPGA_LOOP_COOPERATION_W413_2026-07-04.md`
+
+### What landed
+- `cli/tri/src/fpga.rs`
+  - `tri fpga measured-to-lean --standalone` emits a self-contained `.lean` file.
+  - `tri fpga measured-to-lean --raw-ns` reads `(period_ns, sck_low_ns, sck_high_ns)` directly.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - `measured_cclk_from_raw_ns_satisfies_flash_spec` predicate and chain theorem.
+  - `PvtContext { temp_c, vccint_mv, vccaux_mv, process_corner }` placeholder PVT model.
+  - `measured_cclk_with_pvt_satisfies_flash_spec` and implication theorems.
+- `fpga/HARDWARE_SSOT.md` §3.6.12 — documents `--standalone`, `--raw-ns`, and PVT context.
+- `docs/BRANCHING_MODEL.md` updated: `master` = integration+release, `trinity-rust-rings` = archived/deprecated.
+
+### Blockers still open
+- P12 still not wired to a logic-analyzer channel.
+- Digilent DLC10 JTAG cable still not detected (`VID=0x03FD`).
+- Variant A + B deferred again; Variant C fallback delivered.
+
+### Verification
+- `lake build Trinity.TernaryFPGABoot` green
+- `cargo test -p tri fpga::tests` 16/16 pass
+- `./scripts/tri test` parse/typecheck/gen/seal-verify green
+- yosys smoke: 40 pass / 16 pre-existing failures
+
+### Default next wave (W413)
+- Variant A + B bundle if the bench becomes available; otherwise continue Variant C
+  (replace placeholder PVT derating with real N25Q128_3V curves, extend `--raw-ns`
+  to read sigrok CSV directly, or add relay mock CI scaffolding).
+
+---
+
 # NOW — Wave Loop 411 close-out / Wave Loop 412 setup
 
 ## exprcast-zig-c-emitters -- lower ExprCast in gen (Zig) and gen-c (C) emitters (Closes #1333)
