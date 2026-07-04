@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/scratch/w378_let_destructuring.t27
+// Regression spec for W378 gen-verilog let destructuring syntax lowering.
+// Tuple-style `let(a, b, c) = f(...)` must emit parseable Verilog so that
+// yosys `read_verilog -sv` does not fail with a syntax error.
+//
+// NOTE: This is a syntax-level workaround (Defect 6). Full semantic
+// correctness for tuple-return functions requires deeper backend work.
+
+module w378_let_destructuring;
+
+fn make_tuple(a : u32, b : u32, c : u32) -> (u32, u32, u32) {
+    return (a, b, c);
+}
+
+fn sum_tuple(a : u32, b : u32, c : u32) -> u32 {
+    let (x, y, z) = make_tuple(a, b, c);
+    return x + y + z;
+}
+
+fn use_two(a : u32, b : u32) -> u32 {
+    let (x, _y) = make_tuple(a, b, 0);
+    return x;
+}
+
+test w378_let_destructuring_basic {
+    assert sum_tuple(1, 2, 3) == 6;
+    assert use_two(7, 8) == 7;
+}
+
+invariant w378_let_destructuring_bounds always sum_tuple(1, 2, 3) >= 0;
+
+endmodule

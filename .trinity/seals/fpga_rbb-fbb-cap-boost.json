@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4ee276c11e4a21fc8a9140db9bca845b2e7d7e7700750d204e9908e7c27c53c9",
+  "gen_hash_rust": "sha256:d46d37521a803992add46f465688ed0d20709a17478460d798f285eb40ee9950",
+  "gen_hash_verilog": "sha256:304a09ea8a46abed4bd5e3cd764a519df0397a3f710f352eb5fd403ec29f0f29",
+  "gen_hash_zig": "sha256:b6bb256f14dda9fe8b84ea69384fd6567639e5ef533026b75e80dd04bc0350b0",
+  "module": "rbb-fbb-cap-boost",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:25Z",
+  "spec_hash": "sha256:01d7a5e4ae4e2b2d2a4cb74c948dcf4a19f8ba13d7c0ec66414edc060a619c09",
+  "spec_path": "specs/fpga/rbb_fbb_cap_boost.t27"
+}

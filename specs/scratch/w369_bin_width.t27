@@ -1,0 +1,9 @@
+module w369_bin_width;
+
+const MASK_CONST : u16 = 0b1;
+
+fn get_mask() -> u16 {
+    return 0b100;
+}
+
+test w369_bin_width_const_ok { assert true }

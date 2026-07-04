@@ -1,0 +1,16 @@
+module w387_2d_local_array_signed;
+
+fn sum_signed_2d() -> i8 {
+    var m : [2][3]i8;
+    m[0][0] = 1;
+    m[0][1] = -2;
+    m[0][2] = 3;
+    m[1][0] = -4;
+    m[1][1] = 5;
+    m[1][2] = -6;
+    return m[0][0] + m[0][1] + m[0][2] + m[1][0] + m[1][1] + m[1][2];
+}
+
+test sum_signed_2d { assert_eq(sum_signed_2d(), (1 - 2 + 3 - 4 + 5 - 6) as i8); }
+
+endmodule

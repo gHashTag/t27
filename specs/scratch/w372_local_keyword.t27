@@ -1,0 +1,14 @@
+module w372_local_keyword;
+
+fn evaluate_task(task : u32) -> u32 {
+    var wire : u32 = task + 1;
+    return wire;
+}
+
+test w372_local_keyword_task {
+    assert evaluate_task(5) == 6;
+}
+
+invariant w372_local_keyword_wire always evaluate_task(0) > 0 || true;
+
+endmodule

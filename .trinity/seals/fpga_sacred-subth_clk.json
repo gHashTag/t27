@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:98b11ca82618dd33b7de51d7560d28a74dfc514d7e68888cf88a929817556392",
+  "gen_hash_rust": "sha256:d00b5580f3d42a8a02f56878f0a36a2c0593507d52eb9e420c2899c74abbba4c",
+  "gen_hash_verilog": "sha256:4213ff8aabdd76dcaec0bd7e15c4a1a5fabc923823d3a53d17c59abfd52d395b",
+  "gen_hash_zig": "sha256:61c0c36e18e7a8d7d7bfbabf1a7a711210574e53cf1e9b140475324617d7543f",
+  "module": "sacred-subth_clk",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:25Z",
+  "spec_hash": "sha256:b49a837b6ff0a2af8a4137800dd3a6a176b178ce47283187bb7d0d911e12335e",
+  "spec_path": "specs/fpga/subth_clk.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:8776309d5373c19366744e9d580542a37417df43053f8ba2590f41978ba59d0a",
+  "gen_hash_rust": "sha256:e2a0624f88cd9fb7b08b76cb1f01d56ccf4a748ecc535e4c72566ff7dada9ab1",
+  "gen_hash_verilog": "sha256:51be846a9049b9c4b354706351cda8a326daf92543154e08623163026800b07c",
+  "gen_hash_zig": "sha256:37a2321068a9cff8392d1fea151a6e5e5d6832c7fa5a7b1a424bda30a4496ef1",
+  "module": "FpgaStdlib",
+  "ring": 12,
+  "sealed_at": "2026-06-22T03:01:22Z",
+  "spec_hash": "sha256:73ad7c5c09d16f563dea69cff2c13f7fb860e27d31d57d1e97ac29ebb8efbd95",
+  "spec_path": "specs/fpga/stdlib.t27"
+}

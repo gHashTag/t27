@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:55cfee5f48a5a13c5f6bda3f1cf1be4a31d1fa4e09af17b9bdbb53f0a7e7b27a",
+  "gen_hash_rust": "sha256:6335b730862a2e4ee85a76617598fb3f85badcd21685a4327ac18fdef5320442",
+  "gen_hash_verilog": "sha256:dc6b73c2963c4b94b07d0942f113a2ace104883f32bb12d716c95ccc059665fc",
+  "gen_hash_zig": "sha256:6b642d29d6bd35dfc2c8f9ba8e6201d5b6b5435ff020d0c1fdc5178bcc39066f",
+  "module": "ExperienceHooks",
+  "ring": 12,
+  "sealed_at": "2026-06-22T03:01:24Z",
+  "spec_hash": "sha256:f1889e80cebaa8d8bc2c62b597fd1d482297b7c99519c036282db0c9e4a50817",
+  "spec_path": "specs/tri/agent/experience_hooks.t27"
+}

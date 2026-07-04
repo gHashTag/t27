@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:2adc73975cb2eabb92afc984bff098cb58b27e0c13104eca7d056dd6c3f80521",
+  "gen_hash_rust": "sha256:d8100130ffb786d42a2d4757324698216cf7cdc4d4859a05cf761a0605498c73",
+  "gen_hash_verilog": "sha256:e9311555242998a6b5add36801e5ce05e46ab9f64830fc4b1fc75fb3f26ee16e",
+  "gen_hash_zig": "sha256:52d4215158c9bc1057c1cb00f46476d17d289d34efcc1dd5fb20573039b063ab",
+  "module": "igla-race-formal",
+  "ring": 12,
+  "sealed_at": "2026-06-23T07:33:22Z",
+  "spec_hash": "sha256:f1da7838010c0a72c70e64fd37c642c66fca4bba0285268151d7dc865f12f4aa",
+  "spec_path": "/Users/playra/t27/specs/igla/race/formal.t27"
+}

@@ -1,0 +1,22 @@
+module w371_verilog_keyword;
+
+fn evaluate_task_at_k(bank : u32, task : u32, k : u32) -> bool {
+    if (k == 0) {
+        return false;
+    }
+    return evaluate_task_at_k_inner(bank, task, k, 0);
+}
+
+fn evaluate_task_at_k_inner(bank : u32, task : u32, k : u32, attempt : u32) -> bool {
+    if (attempt >= k) {
+        return false;
+    }
+    if (bank == task) {
+        return true;
+    }
+    return evaluate_task_at_k_inner(bank, task, k, attempt + 1);
+}
+
+test w371_verilog_keyword_ok {
+    assert true
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:90d40191f5a510f4f95e84b7b388e65ea7ebe59f99d16c2871a2b98cf81070b9",
+  "gen_hash_rust": "sha256:ff9394e6344b2ecd6ef25f218d0b820174e124549991b6543d45c7e1dde182d8",
+  "gen_hash_verilog": "sha256:e619d77490db6f383604b285cae3948c17d100178d997fbba61e6bdacad22abd",
+  "gen_hash_zig": "sha256:0a8c43f5ef8c0fdb72a6db1e8b2aa8404975aaace34c2a63d5841e87e1f857b2",
+  "module": "igla-race-gemm",
+  "ring": 12,
+  "sealed_at": "2026-06-23T07:33:23Z",
+  "spec_hash": "sha256:d25ab7cbd58320b007f12d8b3f0fc2274c1e72745d8a9ad5c9678a2bddb8a4e3",
+  "spec_path": "/Users/playra/t27/specs/igla/race/gemm.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:857beb0cf423cfc38e1cc1230e5bbc43b3b2af94db0b2ed8bcc082cee76e7626",
+  "gen_hash_rust": "sha256:89e401ff34d61477e4ab40334e2e80ce390917ff619bb23a643de6661000a00d",
+  "gen_hash_verilog": "sha256:7b9284b1d9d7baaed859148c23b777c2f112b6552b966b7263decb914b899b79",
+  "gen_hash_zig": "sha256:4aa3441c432935b23319f315c5ed61d4cd9a9c124cd10ab66421c49899b9cd46",
+  "module": "sacred-sparse_skip",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:25Z",
+  "spec_hash": "sha256:4497c2debd26c36b55cb5483f00b3bd21e40e3e9c73eb4258cf4354bc05a0f3a",
+  "spec_path": "specs/fpga/sparse_skip.t27"
+}

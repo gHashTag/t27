@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:3e81e193d600fc5df74f963ed0f06680827d19d124d336a6b3d5aa326417ac08",
+  "gen_hash_rust": "sha256:f7c305379d9872be30486d66b0efe163cf6df7b7934851202f1ee13cd9d103ca",
+  "gen_hash_verilog": "sha256:c73b753ada2670c145fdd13fa671830e06fd6810d9e59a79b17318476cf3fb15",
+  "gen_hash_zig": "sha256:fa25bc32406ef16360f3f41c49b881afa04b335fee3c0fb1be84f2bc01c730dd",
+  "module": "TriLogger",
+  "ring": 12,
+  "sealed_at": "2026-06-22T10:06:33Z",
+  "spec_hash": "sha256:4c38a6e66cd84104d34c1d4493c7a8bfd12cd316794892aa3f54a6cbbbd24468",
+  "spec_path": "specs/tri/utils/logger.t27"
+}

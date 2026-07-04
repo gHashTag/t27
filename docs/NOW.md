@@ -1,6 +1,13 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-07-02
+Last updated: 2026-07-05
+
+## w401-fpga-cold-por-hardening -- cold-POR protocol hardening and board-less CI guards (Closes #1303)
+
+- **WHERE**: `cli/tri/src/fpga.rs`, `scripts/dump_bit_config.py`, `fpga/HARDWARE_SSOT.md`, close-out reports.
+- **WHAT**: `tri fpga smoke-gate` now asserts canonical bitstream config (IDCODE `0x03636093`, SPI x1, CCLK startup, `OSCFSEL=0`, no CRC writes). Added `tri fpga boot-protocol` interactive / `--checklist` modes. `tri fpga measure-cclk --csv` auto-detects DSView / PulseView / Saleae CSV exports and reports frequency/duty cycle with unit tests. Smoke-gate dry-run path verifies six `OSCFSEL` variant rows from `sweep-report`. Conformance suite `575/575 PASS`. Physical CCLK measurement on P12 deferred to W402 (#1305).
+- **Why**: protects the W400 physical result (default bitstream boots from flash) from silent regression and makes the cold-POR protocol reproducible even without the board connected.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## seal-sweep-and-dedup -- reseal all specs + disambiguate 3 duplicate module names (Closes #1245)
 
