@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:1a010a05b992a304cd8f67ee63a525bb236e42f38d1c673d1a5a83fbce10b864",
   "gen_hash_rust": "sha256:767198c6dea2678e8379f6a93e5be87c084059352934268044178d1e36f06ffb",
-  "gen_hash_verilog": "sha256:c59b3d15fb12d836ab4e561696395f4109e08e79bdd4f0e21dab010a4617865c",
+  "gen_hash_verilog": "sha256:2f2f90bce7129e8147413011761ae750c526e12caf9a471b5e84577088cca1aa",
   "gen_hash_zig": "sha256:23fd347e6fd5f66dd5dd47b999308372f8c892657beaa6e8be544228d0b7001b",
   "module": "BootROM",
   "ring": 12,
-  "sealed_at": "2026-07-03T15:03:19Z",
+  "sealed_at": "2026-07-04T13:20:45Z",
   "spec_hash": "sha256:095347af6f8f5f079b3e9cc138edcc5cc9dc15ecc82a153fab158de646476958",
   "spec_path": "specs/fpga/bootrom.t27"
 }

@@ -1,89 +1,77 @@
-# Wave Loop 411 — real P12 + OSCFSEL 6/7 retry, relay CI gate, or auto-proof tooling
+# Wave Loop 412 — FPGA physical capture + relay CI gate or PVT refinement
 
-**Issue:** #1329  
-**Branch:** `wave-loop-411`  
-**Milestone:** W410 completed the measured-duty formal link but both physical
-paths (real P12 capture and DLC10-based `OSCFSEL=6,7` boot) remain blocked. W411
-either finally connects the bench or uses the extra cycle to build automation /
-formal tooling.
+**Issue:** #1332  
+**Branch:** `wave-loop-412`  
+**Milestone:** Continue the FPGA boot-evidence line from W411.
 
 ---
 
 ## Goal
 
-1. **Variant A** — Real P12 CCLK capture + physical `OSCFSEL=6,7` cold-POR
-   boot. Wire P12 to ADBUS4 (or a DSLogic/scope channel), connect the DLC10
-   cable, capture the real CCLK, run the 6/7 sweep, and turn the measured
-   values into a `measured_cclk_satisfies_flash_spec` proof.
-2. **Variant B** — Relay-controlled cold-POR hardware CI gate. Build the
-   relay + tri-stateable JTAG automation infrastructure so the flash-boot gate
-   can run unattended.
-3. **Variant C** — Auto-proof tooling + PVT margins. Add a subcommand that
-   generates a Lean theorem from a `--json` measurement, and extend the formal
-   model with conservative process/voltage/temperature margins.
+1. **Variant A + B (preferred when bench is available):**
+   - Wire P12 to a logic-analyzer channel and capture real CCLK for
+     `OSCFSEL=6` and `OSCFSEL=7`.
+   - Verify the Digilent DLC10 cable is detected with `dlc10 idcode`.
+   - Boot from flash with both oscillator settings and collect boot logs.
+   - Feed the measured `(frequency, duty)` into
+     `tri fpga measured-to-lean --json` and commit the generated Lean theorems.
+   - Add relay-controlled cold-POR automation (`tri fpga cold-por`) with a
+     mock CI path.
 
-Default recommendation: **Variant A + C bundle**. If the bench is still
-unavailable, pick **Variant B** or **Variant C alone**.
+2. **Variant C (fallback if bench still blocked):**
+   - Replace the placeholder 2× PVT constants with real N25Q128 PVT derating
+     data or document the assumption more precisely.
+   - Extend `tri fpga measured-to-lean` to emit a self-contained `.lean` file.
+   - Add raw-ns input mode (`period_ns`, `low_ns`, `high_ns`) and a
+     corresponding Lean predicate.
 
 ---
 
 ## Decomposed plan
 
-See `docs/reports/FPGA_LOOP_COOPERATION_W411_2026-07-04.md` for the full
-weak-point / competitor scan and detailed decomposition.
+See `.claude/plans/wave-loop-412.md` and
+`docs/reports/FPGA_LOOP_COOPERATION_W412_2026-07-04.md`.
 
 | Step | File(s) | Deliverable |
-|---|---|---|
-| 1 | `docs/reports/FPGA_LOOP_COOPERATION_W411_2026-07-04.md` | Cooperation variants |
-| 2 | `fpga/HARDWARE_SSOT.md` §3.6.1/§3.6.9 (Variant A) | Real measured CCLK and 6/7 boot status |
-| 3 | `build/fpga/` + `docs/reports/` (Variant A) | Real capture CSV + boot-log JSON |
-| 4 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` (Variant A/C) | `measured_*_satisfies_flash_spec` instance from real data |
-| 5 | `cli/tri/src/fpga.rs` (Variant B/C) | Relay trait + auto-power-cycle mode, or `measured-to-lean` subcommand |
-| 6 | `docs/reports/*` | W411 report, evidence, W412 cooperation |
-| 7 | `.trinity/experience.md` | W411 learnings |
-| 8 | `docs/NOW.md` | W411 entry |
-| 9 | git/PR | squash-merge to master, close #1329, open #W412 |
+|------|---------|-------------|
+| 1 | `.claude/plans/wave-loop-412.md` | Decomposed plan + weak points + competitor scan |
+| 2 | `fpga/HARDWARE_SSOT.md` §3.6.12 | Relay wiring and CI cold-POR protocol (A+B) |
+| 3 | `cli/tri/src/fpga.rs` + new `fpga/src/relay.rs` | `tri fpga cold-por` with mock + hardware backends (A+B) |
+| 4 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | Real-measurement theorems or PVT refinement (C) |
+| 5 | `docs/reports/*` | W412 report, evidence, W413 cooperation |
+| 6 | `.trinity/experience.md` | W412 learnings |
+| 7 | git/PR | squash-merge to `master`, close #1332, open #1333 |
 
 ---
 
 ## Acceptance criteria
 
-- [ ] AC-A1: real P12 CCLK capture CSV exists (or blocker documented). **Blocked — P12 not wired.**
-- [ ] AC-A2: `OSCFSEL=6,7` boot logs exist (PASS or documented failure). **Blocked — DLC10 cable missing.**
-- [ ] AC-A3: a Lean theorem links the captured `(frequency, duty)` pair to
-      `transaction_satisfies_flash_spec`. **Delivered via `measured-to-lean` generated theorems on synthetic data.**
-- [ ] AC-B1: relay auto-power-cycle mode exists behind a trait with a board-less
-      mock path, or explicitly deferred. **Deferred to W412.**
-- [x] AC-C1: `measured-to-lean` subcommand generates a type-correct theorem
-      skeleton from `--json`.
-- [x] AC-C2: PVT margin predicate exists in Lean 4 and implies
-      `measured_cclk_satisfies_flash_spec`.
-- [x] AC-C3: A Lean theorem proves that the PVT margin predicate implies
-      `transaction_satisfies_flash_spec`.
-- [x] AC-D1: `lake build Trinity.TernaryFPGABoot` passes.
-- [x] AC-D2: `cargo test -p tri fpga::tests` passes.
-- [x] AC-D3: `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
-- [x] AC-D4: gen-verilog-yosys-smoke failures remain tracked separately.
-- [x] AC-D5: W411 report + evidence + W412 cooperation variants committed.
+### Bundle A + B (deferred — bench unavailable)
+- [ ] AC-A1: P12 is wired to a logic-analyzer channel and a real CCLK capture CSV exists for `OSCFSEL=6` and `OSCFSEL=7`.
+- [ ] AC-A2: `dlc10 idcode` returns the expected Artix-7 IDCODE.
+- [ ] AC-A3: Cold-POR boot logs exist for `OSCFSEL=6` and `OSCFSEL=7`.
+- [ ] AC-A4: Measured `(frequency, duty)` theorems are generated and `lake build` green.
+- [ ] AC-B1: `tri fpga cold-por --relay-port MOCK` runs in CI and returns a JSON boot log.
+- [ ] AC-B2: `fpga/HARDWARE_SSOT.md` documents the relay wiring.
 
----
+### Bundle C (delivered)
+- [x] AC-C1: PVT placeholder model is documented in `fpga/HARDWARE_SSOT.md` §3.6.12 with falsification plan.
+- [x] AC-C2: `tri fpga measured-to-lean --standalone --out File.lean` emits a self-contained file.
+- [x] AC-C3: Raw-ns input predicate `measured_cclk_from_raw_ns_satisfies_flash_spec` is defined and implies `transaction_satisfies_flash_spec`.
 
-## Close-out note
-
-W411 implemented **Variant C alone** because the bench blockers persisted. The
-`tri fpga measured-to-lean` subcommand and the PVT-margin predicate close two
-real weak points in the measured-to-formal pipeline. Variant A and the physical
-half of any bundle remain blocked until P12 is wired and the DLC10 cable is
-connected.
+### Invariant checks
+- [x] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass (16 pre-existing yosys-smoke failures remain).
+- [x] `lake build Trinity.TernaryFPGABoot` passes.
+- [x] `cargo test -p tri fpga::tests` passes (16/16).
 
 ---
 
 ## Default variant
 
-**Variant A + C bundle**: physical measurement and 6/7 boot, with auto-proof
-tooling. If the bench is still unavailable, fall back to **Variant B** (relay
-CI gate) or **Variant C alone** (formal-tooling improvements).
+Execute **Variant A + B** when the bench becomes available. Otherwise fall back
+ to **Variant C** to keep the formal tooling useful while the physical blockers
+persist.
 
 ---
 
-*phi^2 + phi^-2 = 3 | TRINITY*
+*φ² + φ⁻² = 3 | TRINITY*
