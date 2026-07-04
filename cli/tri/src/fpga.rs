@@ -2340,7 +2340,7 @@ struct MeasuredCclkRawNs {
 
 /// Process corner used for PVT-aware flash timing derating.
 /// Mirrors `ProcessCorner` in `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
-#[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 enum ProcessCorner {
     Tt,
@@ -3440,6 +3440,7 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R) -> Result<(f64, f64)> {
     let mut times: Vec<f64> = Vec::new();
     let mut values: Vec<f64> = Vec::new();
     let mut header_seen = false;
+    let mut header_named_columns = false;
     let mut time_idx = 0usize;
     let mut value_idx = 1usize;
 
@@ -3462,12 +3463,29 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R) -> Result<(f64, f64)> {
                 || lower.contains("samplerate")
                 || lower.contains("sample")
                 || lower.contains("voltage")
+                || lower.contains("analog")
         });
         if has_header_token && !header_seen {
             header_seen = true;
-            // Find the first numeric-looking column index in the next data row
-            // lazily by recording candidates; we default to (0, 1) and refine
-            // on the first fully-numeric row.
+            let header_names: Vec<String> = parts.iter().map(|s| s.to_lowercase()).collect();
+            // Prefer the voltage/analog column as the signal value if the header
+            // names it explicitly. This fixes multi-channel CSVs where the first
+            // numeric column after time is the wrong channel.
+            for (i, name) in header_names.iter().enumerate() {
+                if name.contains("voltage") || name == "v" || name.contains("analog") {
+                    value_idx = i;
+                    header_named_columns = true;
+                    break;
+                }
+            }
+            // Time column is usually named time/s/time_s/timestamp; default to 0.
+            for (i, name) in header_names.iter().enumerate() {
+                if name.contains("time") || name == "t" || name.contains("timestamp") {
+                    time_idx = i;
+                    header_named_columns = true;
+                    break;
+                }
+            }
             continue;
         }
 
@@ -3478,8 +3496,8 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R) -> Result<(f64, f64)> {
             .collect();
 
         // If this is the first data row and we have at least two numeric columns,
-        // lock the time/value indices.
-        if !header_seen || (times.is_empty() && parsed.iter().filter(|x| x.is_some()).count() >= 2) {
+        // lock the time/value indices only when the header did not name them.
+        if !header_seen || (!header_named_columns && times.is_empty() && parsed.iter().filter(|x| x.is_some()).count() >= 2) {
             let numeric_positions: Vec<usize> = parsed
                 .iter()
                 .enumerate()
@@ -3614,6 +3632,9 @@ fn parse_vcd_to_raw_ns(
     let mut var_tokens: Vec<String> = Vec::new();
     let mut in_timescale = false;
     let mut ts_tokens: Vec<String> = Vec::new();
+    let mut in_date = false;
+    let mut in_version = false;
+    let mut in_comment = false;
     let mut past_dumpvars = false;
     let mut dumpoff = false;
     let mut current_time_s: f64 = 0.0;
@@ -3628,6 +3649,48 @@ fn parse_vcd_to_raw_ns(
             continue;
         }
         let tokens: Vec<&str> = trimmed.split_whitespace().collect();
+
+        // Header sections that must be skipped entirely so their contents are
+        // never mistaken for `$var` declarations or value changes.
+        if trimmed.to_lowercase().starts_with("$date") {
+            in_date = true;
+            if trimmed.to_lowercase().ends_with("$end") || trimmed.to_lowercase().contains(" $end") {
+                in_date = false;
+            }
+            continue;
+        }
+        if in_date {
+            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+                in_date = false;
+            }
+            continue;
+        }
+        if trimmed.to_lowercase().starts_with("$version") {
+            in_version = true;
+            if trimmed.to_lowercase().ends_with("$end") || trimmed.to_lowercase().contains(" $end") {
+                in_version = false;
+            }
+            continue;
+        }
+        if in_version {
+            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+                in_version = false;
+            }
+            continue;
+        }
+        if trimmed.to_lowercase().starts_with("$comment") {
+            in_comment = true;
+            if trimmed.to_lowercase().ends_with("$end") || trimmed.to_lowercase().contains(" $end") {
+                in_comment = false;
+            }
+            continue;
+        }
+        if in_comment {
+            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+                in_comment = false;
+            }
+            continue;
+        }
 
         // Timescale parsing: `$timescale 1 ns $end` (possibly across lines).
         if trimmed.to_lowercase().starts_with("$timescale") {
@@ -4860,6 +4923,24 @@ mod tests {
         assert!((duty - 60.0).abs() < 5.0, "duty {} should be ~60%", duty);
     }
 
+    /// Voltage column is explicitly named and is not the second column. The
+    /// parser must use the named voltage column rather than the first numeric
+    /// column after time.
+    #[test]
+    fn test_parse_cclk_csv_named_voltage_column() {
+        let mut csv = String::from("time_s,counter,voltage\n");
+        let dt = (1.0 / 8.0e6) / 20.0;
+        for i in 0..200 {
+            let t = i as f64 * dt;
+            let counter = i as f64; // steadily increasing, not the signal
+            let v = if i % 20 < 10 { 0.0 } else { 3.3 }; // 50% duty 8 MHz
+            csv.push_str(&format!("{:.12},{},{}\n", t, counter, v));
+        }
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv)).unwrap();
+        assert!((freq - 8.0e6).abs() < 150_000.0, "freq {} should be ~8 MHz", freq);
+        assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
+    }
+
     #[test]
     fn test_parse_cclk_csv_too_few_samples() {
         let csv = "Time,Voltage\n0.0,0.0\n1.0,3.3\n";
@@ -5233,6 +5314,49 @@ mod tests {
         std::fs::remove_file(&vcd_tmp).unwrap();
     }
 
+    /// Multi-line $date / $version / $comment header sections must be skipped so
+    /// their free-form contents are not mistaken for $var declarations. This
+    /// is a regression test for vendor VCDs that split the header across lines.
+    #[test]
+    fn test_parse_vcd_multiline_header_sections_skipped() {
+        let timescale_ps = 100;
+        let mut vcd = String::new();
+        vcd.push_str("$date\n");
+        vcd.push_str("  Thu Jan 01 00:00:00 2026\n");
+        vcd.push_str("$end\n");
+        vcd.push_str("$version\n");
+        vcd.push_str("  SomeVendor Simulator 1.2.3\n");
+        vcd.push_str("$end\n");
+        vcd.push_str("$comment\n");
+        vcd.push_str("  This is a multi-line comment that could contain words like wire or reg.\n");
+        vcd.push_str("$end\n");
+        vcd.push_str(&format!("$timescale {} ps $end\n", timescale_ps));
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 1 ! cclk $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("$end\n");
+        let period_s = 1.0 / 25_000_000.0;
+        let half_s = period_s / 2.0;
+        let mut t = 0.0;
+        for i in 0..40 {
+            t += half_s;
+            let ts = (t / (timescale_ps as f64 * 1.0e-12)).round() as u64;
+            let val = if i % 2 == 0 { '1' } else { '0' };
+            vcd.push_str(&format!("#{}\n{}!\n", ts, val));
+        }
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_multiline_header_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
+            &vcd_tmp, Some("cclk"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
     /// VCD with an escaped identifier that contains a space in the name.
     /// The parser must join name tokens and strip the leading backslash.
     #[test]
@@ -5502,6 +5626,35 @@ mod tests {
         assert!(out.is_ok());
     }
 
+    /// Regression: the PVT-aware minimum SCK half-period bound must be at least
+    /// the nominal 6 ns across the entire operating rectangle. This mirrors the
+    /// Lean 4 `pvt_half_ns_at_least_nominal` lemma and catches accidental
+    /// coefficient changes that would shrink the envelope below the datasheet.
+    #[test]
+    fn test_pvt_half_ns_lower_bound_across_operating_rectangle() {
+        let temps = [PVT_TEMP_MIN_C, -20_i64, 0_i64, 25_i64, PVT_TEMP_MAX_C];
+        let vccints = [PVT_VCCINT_MIN_MV, 950_u64, 1000_u64, 1050_u64, PVT_VCCINT_MAX_MV];
+        let corners = [ProcessCorner::Ff, ProcessCorner::Tt, ProcessCorner::Ss];
+        for temp in temps {
+            for vccint in vccints {
+                for corner in &corners {
+                    let ctx = PvtContext {
+                        temp_c: temp,
+                        vccint_mv: vccint,
+                        vccaux_mv: 2700,
+                        process_corner: corner.clone(),
+                    };
+                    let half_ns = n25q128_min_sck_half_ns_pvt(&ctx);
+                    assert!(
+                        half_ns >= 6,
+                        "PVT half-period bound {} ns below nominal 6 ns at temp={} °C, vccint={} mV, corner={:?}",
+                        half_ns, temp, vccint, corner
+                    );
+                }
+            }
+        }
+    }
+
     #[test]
     fn test_parse_pvt_context_roundtrip() {
         let pvt = write_pvt_context_json(
@@ -5554,5 +5707,81 @@ mod tests {
             assert!(out.is_err());
         }
         let _ = std::fs::remove_dir_all(&log_dir);
+    }
+
+    /// Standalone Lean integration test: a synthetic raw-ns capture is exported
+    /// with `--standalone`, then copied into a minimal temporary `lake` package
+    /// that depends on the local Trinity library. The package must typecheck
+    /// with `lake build`, proving the generated theorem is consumable outside
+    /// the monorepo.
+    #[test]
+    fn test_measured_to_lean_standalone_lake_package_builds() {
+        let root = repo_root().unwrap();
+        let trinity_pkg = root.join("proofs").join("lean4");
+        if !trinity_pkg.join("lakefile.lean").is_file() {
+            // Skip if the Trinity package is not present in this checkout.
+            return;
+        }
+
+        // Generate a synthetic raw-ns capture.
+        let m = MeasuredCclkRawNs {
+            period_ns: 40,
+            sck_low_ns: 20,
+            sck_high_ns: 20,
+            source: "synthetic".to_string(),
+        };
+        let json = serde_json::to_string(&m).unwrap();
+        let tmp = std::env::temp_dir().join(format!(
+            "tri_standalone_lake_in_{}.json",
+            std::process::id()
+        ));
+        std::fs::write(&tmp, json).unwrap();
+
+        let generated = std::env::temp_dir().join(format!(
+            "tri_standalone_lake_generated_{}.lean",
+            std::process::id()
+        ));
+        let out = measured_to_lean(
+            Some(&tmp), None, None, None, 0, None, Some(&generated),
+            "measured_cclk", false, None, true, true, false,
+        );
+        assert!(out.is_ok(), "measured-to-lean standalone should succeed: {:?}", out);
+        assert!(generated.is_file(), "generated Lean file should exist");
+
+        // Create a minimal temporary lake package that consumes the theorem.
+        let pkg_dir = std::env::temp_dir().join(format!(
+            "tri_standalone_lake_pkg_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&pkg_dir);
+        std::fs::create_dir_all(pkg_dir.join(".lake")).unwrap();
+
+        let trinity_path = trinity_pkg.canonicalize().unwrap_or_else(|_| trinity_pkg.clone());
+        let lakefile = format!(
+            "import Lake\nopen Lake DSL\n\npackage StandaloneTest where\n\nrequire Trinity from \"{}\"\n\n@[default_target]\nlean_lib StandaloneTest where\n",
+            trinity_path.display().to_string().replace('\\', "/")
+        );
+        std::fs::write(pkg_dir.join("lakefile.lean"), lakefile).unwrap();
+        std::fs::copy(&generated, pkg_dir.join("StandaloneTest.lean")).unwrap();
+
+        // Build the temporary package. This reuses the local Trinity/.lake cache
+        // because the dependency is a local path.
+        let lake_status = std::process::Command::new("lake")
+            .arg("build")
+            .current_dir(&pkg_dir)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .status();
+
+        // Clean up inputs before assertions so failures still remove temp files.
+        let _ = std::fs::remove_file(&tmp);
+        let _ = std::fs::remove_file(&generated);
+        let _ = std::fs::remove_dir_all(&pkg_dir);
+
+        let status = lake_status.expect("lake command should be available");
+        assert!(
+            status.success(),
+            "temporary lake package consuming standalone measured-to-lean output should build"
+        );
     }
 }

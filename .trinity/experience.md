@@ -1,5 +1,63 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-04 — Wave Loop 418 (Variant C fallback: PVT regression, instrument import, standalone Lean integration)
+
+### What worked
+- Adding a PVT-envelope **lower-bound regression test** in Rust and a matching
+  Lean 4 lemma kept the placeholder envelope honest: every sampled operating
+  context must produce `n25q128_min_sck_half_ns_pvt >= 6 ns`. The Rust test
+  catches accidental coefficient changes; the Lean lemma proves the bound
+  symbolically.
+- Skipping multi-line VCD `$date`/`$version`/`$comment` header sections with a
+  small state machine was a contained parser change that prevents common
+  vendor headers from being mistaken for `$var` declarations.
+- Detecting the analog CSV voltage column by header name (`voltage`, `v`,
+  `analog`) fixes multi-channel imports where the first numeric column after
+  time is the wrong signal. Adding a `header_named_columns` guard prevents the
+  first-data-row numeric fallback from overriding an explicitly named column.
+- The **standalone Lean integration test** proves that `measured-to-lean
+  --standalone --raw-ns` emits a file that builds inside a fresh temporary lake
+  package requiring only the local Trinity library. This closes the gap between
+  CLI output and external consumption.
+- Documenting the first-real-capture checklist and the PVT coefficient replacement
+  recipe in `fpga/HARDWARE_SSOT.md` turns the current physical-evidence gap into
+  an actionable protocol once the bench is wired.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`: added PVT lower-bound regression test; added VCD
+  multi-line header skip; added analog CSV voltage-column auto-detection; added
+  standalone lake-package integration test.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added
+  `n25q128_min_sck_half_ns_pvt` and `pvt_half_ns_at_least_nominal`.
+- `fpga/HARDWARE_SSOT.md`: added §3.6.14 first-real-capture checklist and
+  §3.6.15 PVT coefficient replacement recipe.
+- `docs/NOW.md`: updated W418 close-out and W419 setup.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_418_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W418_2026-07-04.md`, and
+  `docs/reports/FPGA_LOOP_COOPERATION_W419_2026-07-04.md`.
+
+### Patterns to reuse
+- When a formal model uses placeholder coefficients, add both a symbolic
+  lower-bound lemma and an exhaustive numeric regression test. The lemma
+  documents the invariant; the test guards against accidental regressions.
+- For instrument parsers, add a regression test that exercises the exact quirk
+  (multi-line VCD header, named CSV column) so future refactors do not drop the
+  special case.
+- To prove a generated proof artifact is externally consumable, build it inside
+  a temporary package that depends on the real library via a local path. This
+  reuses existing `.lake` caches and avoids network downloads in CI.
+- When hardware is unavailable, convert the blocked physical step into a
+  checklist and a falsifiable model update so the next wave can execute it
+  immediately once the bench is ready.
+
+### Anti-patterns to avoid
+- Do not let a parser fallback override an explicit user/header signal; track
+  whether the header named the columns and skip the fallback when it did.
+- Do not add PVT coefficients in only one of the Rust or Lean files; keep the
+  two models synchronized so the CLI and the proof assistant agree.
+- Do not claim an integration test passes just because the unit test of the
+  generator passes; actually invoke `lake build` on the generated file.
+
 ## 2026-07-04 — Wave Loop 417 (hygiene, reland W415/W416, Strategy P)
 
 ### What worked

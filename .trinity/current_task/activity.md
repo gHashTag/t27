@@ -1444,3 +1444,19 @@
 - **Commit:** docs(NOW): W418 header, fix W417 issue reference to #1350, add Last updated line
 - **Files:** .trinity/current-issue.md,.trinity/experience.md,docs/.legacy-non-english-docs,docs/BRANCHING_MODEL.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W418_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_W417_2026-07-04.md,docs/reports/WAVE_LOOP_417_REPORT.md
 
+## 2026-07-04T16:40:02Z — wave-loop-418
+- **Commit:** docs(w417): hygiene, Strategy P, legacy allowlist, W417 close-out artifacts
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-04T16:40:27Z — wave-loop-418
+- **Commit:** docs(w418): set up current issue for Wave Loop 418
+- **Files:** docs/NOW.md
+
+## 2026-07-04T16:40:35Z — wave-loop-418
+- **Commit:** docs(NOW): W418 setup, mark W417 PR #1354 merged
+- **Files:** .trinity/current_task/activity.md,docs/NOW.md
+
+## 2026-07-04T16:57:24Z — wave-loop-418
+- **Commit:** docs(NOW): W418 setup, mark W417 PR #1354 merged
+- **Files:** .claude/plans/wave-loop-418.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W419_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_W418_2026-07-04.md,docs/reports/WAVE_LOOP_418_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+

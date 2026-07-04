@@ -623,6 +623,13 @@ def n25q128_min_sck_high_ns_pvt (ctx : PvtContext) : Nat :=
   + n25q128_pvt_voltage_derating_ns ctx.vccint_mv
   + n25q128_pvt_process_derating_ns ctx.process_corner
 
+/-- PVT-aware minimum SCK half-period time. The low and high bounds are symmetric
+    in the current envelope, so the half-period bound equals both; this function
+    is the single entry point used by the Rust `n25q128_min_sck_half_ns_pvt` and
+    by instrument-export validation. Units: nanoseconds. -/
+def n25q128_min_sck_half_ns_pvt (ctx : PvtContext) : Nat :=
+  n25q128_min_sck_low_ns_pvt ctx
+
 /-- PVT-aware measured-CCLK flash predicate. As long as the placeholder derating
     is at least the nominal 6 ns bound, it implies the nominal predicate. -/
 def measured_cclk_with_pvt_satisfies_flash_spec (freq_hz : Nat) (duty_pct : Nat) (ctx : PvtContext) : Bool :=
@@ -713,6 +720,16 @@ lemma pvt_high_ns_at_least_nominal (ctx : PvtContext) :
   have hp : n25q128_pvt_process_derating_ns ctx.process_corner ≥ 0 :=
     n25q128_pvt_process_derating_ns_nonneg ctx.process_corner
   omega
+
+/-- The PVT-aware SCK half-period bound is at least the nominal 6 ns bound across
+    the entire operating envelope. This is the regression fact checked by the
+    Rust `n25q128_min_sck_half_ns_pvt` operating-rectangle sweep. -/
+lemma pvt_half_ns_at_least_nominal (ctx : PvtContext) :
+  (PVT_TEMP_MIN_C ≤ ctx.temp_c) → (ctx.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+  → n25q128_min_sck_half_ns_pvt ctx ≥ N25Q128_MIN_SCK_LOW_NS := by
+  intro h_temp h_volt
+  simp [n25q128_min_sck_half_ns_pvt]
+  exact pvt_low_ns_at_least_nominal ctx h_temp h_volt
 
 /-- If the PVT-aware predicate holds, the nominal predicate holds (for contexts
     inside the operating envelope). -/
