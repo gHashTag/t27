@@ -1,97 +1,99 @@
-# Wave Loop 398 — Cooperation Variants
+# Wave Loop 401 — Cooperation Variants
 
-**Context:** W397 ruled out H1 (mode-pin sampling) with high confidence by showing
-that after a JTAG reset the FPGA samples **MODE=0b001 (Master SPI x1)** yet
-fails to reach DONE=1. H3 (round-trip corruption) and H4 (package pinout) remain
-ruled out. The leading hypothesis is now **H2 CCLK/SPI-startup timing or flash
-state after reset**.
-
-**Constraint:** A true cold power-cycle still requires a user-assisted physical
-step. Any W398 variant should either (a) close that step or (b) make progress on
-H2 without requiring it.
+**Context:** W400 physically verified that the canonical
+`fpga/verilog/ternary_mac_demo_top_200t.bit` boots from flash when the
+ disciplined cold-POR protocol is followed. All six `OSCFSEL` variants
+(0..5) reached `DONE=1` with `MODE=0b001`, so CCLK frequency is **not** the
+blocker. The remaining work is to document the exact CCLK frequency, harden
+the cold-POR protocol, and make the success reproducible in CI.
 
 ---
 
-## Variant A — Confirm cold-POR and fix H2 timing (default, root-cause driven)
+## Variant A — Measure CCLK and lock the working default (default)
 
-**Goal:** definitively confirm or rule out cold-POR mode sampling, then fix the
-SPI-startup timing issue so the board boots from flash.
+**Goal:** capture the actual CCLK frequency for the working default bitstream,
+commit it as the canonical evidence, and update `fpga/HARDWARE_SSOT.md` so the
+cold-POR success is the documented norm.
 
 **Work**
-1. Run `tri fpga boot-log fpga/verilog/ternary_mac_demo_top_200t.bit` with a
-   user-assisted cold power-cycle.
-2. If cold-POR `MODE != 0b001`, document the exact strap fix (resistor/jumper).
-3. If cold-POR `MODE = 0b001` and `DONE=0`, generate a bitstream with a slower
-   CCLK startup / extended SPI wake-up and re-test:
-   - Audit `COR0[22:17]` CCLK frequency options in UG470.
-   - Try a bitstream with `cclk_freq_mhz` set to a slower value (if the openXC7
-     flow exposes it) or add a `.fasm` pre-processing step to patch the COR0
-     register.
-4. Test whether issuing a flash software reset (`0x66`/`0x99`) before board reset
-   changes the outcome.
+1. Capture pin **P12** (`CFGCLK` / `CCLK_0`, bank 0) on a logic analyser during
+the first ~100 µs after cold-POR.
+2. Export the trace to CSV and run:
+   ```bash
+   tri fpga measure-cclk --csv build/fpga/dsview_cclk.csv
+   ```
+3. Update `fpga/HARDWARE_SSOT.md` §3.5 with the measured frequency and duty
+cycle.
+4. Confirm the canonical `ternary_mac_demo_top_200t.bit` is the committed
+default; archive or delete the now-unnecessary COR0-patched variants.
 
 **Acceptance**
-- AC-A1: cold-POR `DONE=1` and the board boots from flash.
-- AC-A2: cold-POR `MODE` is documented and a strap or timing fix is committed.
+- AC-A1: A measured CCLK frequency is recorded for `OSCFSEL=0`.
+- AC-A2: `fpga/HARDWARE_SSOT.md` states that the default bitstream boots from
+  flash and documents the cold-POR protocol as mandatory.
 
 ---
 
-## Variant B — Board-less CI and proxy/toolchain hardening
+## Variant B — Harden the cold-POR protocol and make it testable without a board
 
-**Goal:** make the FPGA evidence path reproducible without a physical board by
-hardening the board-less smoke gate and removing dependencies on opaque upstream
-artifacts.
+**Goal:** ensure the cold-POR/JTAG-cable interference lesson is not lost, and
+build board-less guards so regressions are caught before the next physical
+session.
 
 **Work**
-1. Extend `tri fpga smoke-gate` to also verify the SPI preamble pattern and
-   bus-width auto-detection sequence in the generated bitstream.
-2. Add a `tri fpga bit-config --expect-idcode 0x03636093 --expect-spi-x1`
-   assertion mode so CI can fail if a bitstream is built for the wrong part or
-   width.
-3. Document the exact openXC7/nextpnr/prjxray versions and build flags in
-   `fpga/HARDWARE_SSOT.md` so the toolchain can be rebuilt deterministically.
-4. Investigate building a 200T-compatible JTAG-to-SPI proxy without Vivado, or
-   document the upstream openFPGALoader `spiOverJtag` source so the dependency is
-   not entirely opaque.
+1. Add `tri fpga boot-protocol --checklist` that prints the exact disconnect/
+reconnect sequence and refuses to sample `STAT` if the user has not confirmed
+each step.
+2. Extend `tri fpga smoke-gate` to assert that the canonical bitstream has:
+   - `IDCODE=0x03636093`
+   - `SPI_BUSWIDTH=x1`
+   - `STARTUPCLK=CCLK`
+   - `OSCFSEL=0` (no unexpected COR0 patch)
+3. Add a CI test that verifies `cclk-sweep --dry-run` and `sweep-report` produce
+   the expected markdown structure.
+4. Document the JTAG-cable interference failure mode in `fpga/HARDWARE_SSOT.md`
+   with the observed `STAT` signature (`0x5000190C`) vs. success signature
+   (`0x401079FC`).
 
 **Acceptance**
-- AC-B1: `tri fpga smoke-gate` runs green in CI with no physical board.
-- AC-B2: The FPGA path has a version-locked, reproducible toolchain recipe.
+- AC-B1: `tri fpga smoke-gate` fails if the canonical bitstream is patched or
+  misconfigured.
+- AC-B2: A new board-less CI guard exercises `cclk-sweep --dry-run` and
+  `sweep-report`.
 
 ---
 
-## Variant C — Vivado-in-Docker controlled comparison
+## Variant C — Reproduce boot-from-flash on a second board / second bitstream
 
-**Goal:** produce a Vivado-generated XC7A200T SPI bitstream and compare its
-behavior against the openXC7 bitstream, isolating whether the boot failure is an
-openXC7 generation artifact.
+**Goal:** prove the W400 result is not a one-off by reproducing it on another
+physical artifact, and close the loop on the original GF16 matrix design.
 
 **Work**
-1. Resolve the Xilinx auth token / disk-space blockers documented in
-   `fpga/HARDWARE_SSOT.md` §4 and `docs/fpga/DOCKER_VIVADO_STATUS.md`.
-2. Build `fpga/vivado/build_gf16_matmul4x4.tcl` (or a minimal 200T demo wrapper)
-   inside a `t27/vivado:webpack` container.
-3. Program the Vivado bitstream to flash and run the same cold-POR / JTAG-reset
-   STAT sequence.
-4. Compare COR0/COR1 register values and CCLK timing between openXC7 and
-   Vivado outputs.
+1. Use the same cold-POR protocol to boot a second QMTech Wukong V1 board from
+   the same flash image, or re-flash the current board with the
+   `gf16_matmul4x4_top.bit` bitstream and verify boot.
+2. If a second board is unavailable, synthesize a fresh
+   `ternary_mac_demo_top_200t.bit` from the current source and verify the new
+   build also boots from flash.
+3. Compare `STAT` values, `bit-config` output, and CCLK capture between the two
+   runs.
+4. Document any board-to-board variance in `docs/reports/FPGA_LOOP_EVIDENCE_...`.
 
 **Acceptance**
-- AC-C1: A Vivado-generated 200T bitstream exists and is documented.
-- AC-C2: The comparison identifies whether the boot failure is openXC7-specific
-  or board/flash-specific.
+- AC-C1: Boot-from-flash is reproduced on a second board or a freshly built
+  bitstream.
+- AC-C2: Variance (if any) is documented and bounded.
 
 ---
 
 ## Recommended choice
 
-**Variant A** is the default because W397 already gathered the evidence needed
-to justify focusing on H2. A single user-assisted cold-POR experiment plus a CCLK
-timing patch is the shortest path to a booting board.
+**Variant A** is the default because the only unresolved artifact from W400 is
+the actual CCLK frequency. Capturing it closes the H2 timing chapter and lets the
+repository declare a known-good default bitstream.
 
-If board access is unavailable, fall back to **Variant B** to keep the toolchain
-reproducible and CI-enforced.
+If a logic analyser is not immediately available, fall back to **Variant B** to
+harden the protocol and CI guards so the W400 finding survives toolchain churn.
 
-**Variant C** is the long-leverage insurance policy: it resolves the
-open-source-vs-vendor question but requires the most external setup (Xilinx
-entitlement, disk space, Docker image).
+**Variant C** is the long-leverage verification step once Variant A is done and
+a second board or fresh build is available.

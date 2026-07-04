@@ -1332,3 +1332,7 @@
 - **Commit:** feat(fpga): W398 cold-POR board-less tooling, COR0 CCLK variants, bit-config assertions, close-out + cooperation (Closes #1296)
 - **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-05.md,docs/reports/WAVE_LOOP_399_REPORT.md,fpga/HARDWARE_SSOT.md
 
+## 2026-07-04T08:00:41Z — wave-loop-400
+- **Commit:** feat(fpga): W399 automated cold-POR CCLK sweep, sweep-report, and CCLK measurement helper (Closes #1298)
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-08.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-08.md,docs/reports/WAVE_LOOP_400_REPORT.md,fpga/HARDWARE_SSOT.md
+

@@ -282,6 +282,16 @@ pub enum FpgaCmd {
         /// (default: 3).
         #[arg(long, default_value_t = 3)]
         repeat: u32,
+        /// Seconds to wait for the user to power-cycle before auto-continuing
+        /// (default: 0, wait forever). Use only when the board state is already
+        /// known and you want to skip the interactive prompt.
+        #[arg(long, default_value_t = 0)]
+        wait_seconds: u32,
+        /// Sweep only a single specified OSCFSEL value and exit. Useful for
+        /// testing one variant at a time or for scripting around manual
+        /// power-cycles.
+        #[arg(long)]
+        single: Option<u8>,
     },
     /// Read all `build/fpga/boot-log-*.json` files and produce a markdown sweep
     /// report identifying the first working CCLK variant.
@@ -511,6 +521,8 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             bridge,
             freq,
             repeat,
+            wait_seconds,
+            single,
         } => cclk_sweep(
             bit,
             values,
@@ -522,6 +534,8 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             bridge.as_ref(),
             *freq,
             *repeat,
+            *wait_seconds,
+            *single,
         ),
         FpgaCmd::SweepReport { log_dir, out } => {
             sweep_report(log_dir.as_ref(), out.as_ref())
@@ -1694,12 +1708,19 @@ fn cclk_sweep(
     bridge: Option<&PathBuf>,
     freq: u32,
     repeat: u32,
+    wait_seconds: u32,
+    single: Option<u8>,
 ) -> Result<()> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
 
-    let values: Vec<u8> = if values.is_empty() {
+    let values: Vec<u8> = if let Some(v) = single {
+        if v > 0x3F {
+            bail!("OSCFSEL must be a 6-bit value (0..63), got {}", v);
+        }
+        vec![v]
+    } else if values.is_empty() {
         vec![0, 1, 2, 3, 4, 5]
     } else {
         values.clone()
@@ -1856,13 +1877,37 @@ fn cclk_sweep(
         eprintln!("  4. Reconnect power.");
         eprintln!("  5. Do NOT press the FPGA's PROG_B or RESET button.");
         eprintln!("  6. Wait at least 2 seconds, then reconnect the JTAG cable.");
-        eprintln!("  7. Press ENTER here when the board and cable are stable.");
+        if wait_seconds > 0 {
+            eprintln!(
+                "  7. Auto-continuing after {} seconds (press ENTER to continue early).",
+                wait_seconds
+            );
+        } else {
+            eprintln!("  7. Press ENTER here when the board and cable are stable.");
+        }
         eprintln!();
 
-        let mut input = String::new();
-        std::io::stdin()
-            .read_line(&mut input)
-            .context("waiting for user confirmation after power-cycle")?;
+        if wait_seconds > 0 {
+            let start = std::time::Instant::now();
+            let timeout = std::time::Duration::from_secs(wait_seconds as u64);
+            let mut input = String::new();
+            // Best-effort early-exit: try to read a line with a short poll loop.
+            loop {
+                if std::io::stdin().read_line(&mut input).is_ok() && !input.trim().is_empty() {
+                    break;
+                }
+                if start.elapsed() >= timeout {
+                    eprintln!("[cclk-sweep] auto-continuing after {} s", wait_seconds);
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        } else {
+            let mut input = String::new();
+            std::io::stdin()
+                .read_line(&mut input)
+                .context("waiting for user confirmation after power-cycle")?;
+        }
 
         match capture_stat(cable, true, repeat) {
             Ok(samples) => {

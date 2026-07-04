@@ -1,42 +1,43 @@
-# Current Issue: Wave Loop 399
+# Wave Loop 401 — CCLK measurement & cold-POR hardening
 
-**Issue:** #1298
-**Local branch:** `wave-loop-399` (branched from `trinity-rust-rings` @ `d0bedd818`)
-**Basis:** W398 close-out report; H2 CCLK/SPI-startup tooling is complete, but the
-physical cold-POR CCLK sweep has not yet been run.
-
-## Goal
-
-Automate the W398 CCLK-sweep workflow so a single user-assisted cold-POR session
-on the QMTech Wukong V1 / XC7A200T-FGG676-1 can generate, program, test, and
-report on multiple `OSCFSEL` variants, and produce a machine-readable evidence
-report.
-
-## Selected variant
-
-**Variant A (root-cause driven)** from W398 cooperation variants, with tooling
-automation so the only manual step is the physical power-cycle / cable handling:
-- Add `tri fpga cclk-sweep <in.bit>` to generate OSCFSEL variants, program each
-to flash, run the interactive cold-POR protocol, capture STAT, write JSON logs,
-and print a summary table.
-- Add `tri fpga sweep-report` to read all `build/fpga/boot-log-*.json` files and
-produce a markdown report identifying the first working variant.
-- Add `tri fpga measure-cclk` helper for DSLogic / oscilloscope CCLK capture and
-optional CSV parsing.
-- Update `fpga/HARDWARE_SSOT.md` with the W399 sweep protocol.
-- Maintain conformance at 575/575 PASS; no IGLA/Lean growth.
-
-## Acceptance criteria
-
-- `tri fpga cclk-sweep --dry-run` produces expected synthetic logs without a board.
-- `tri fpga sweep-report` reads existing logs and produces a markdown table.
-- `tri fpga measure-cclk` prints correct CCLK pin and DSLogic settings.
-- `fpga/HARDWARE_SSOT.md` documents the sweep protocol.
-- `t27c suite --repo-root .` reports **575/575 PASS**.
-- Real W399 issue created and referenced in commit/PR (`Closes #1298`).
-- Close-out report and cooperation doc for W400 are written.
-- Experience log and memory index updated.
+**Issue:** #1301  
+**Branch:** `trinity-rust-rings`  
+**Milestone:** FPGA boot-from-flash is verified; now lock the working default and measure CCLK.
 
 ---
 
-*phi^2 + 1/phi^2 = 3 | TRINITY*
+## Goal
+
+Close the remaining W400 follow-ups:
+
+1. Measure actual CCLK frequency on pin P12 for the working default bitstream
+   (`OSCFSEL=0`).
+2. Harden the cold-POR protocol in the CLI and documentation.
+3. Update CI smoke gate to enforce the canonical bitstream configuration.
+4. Land W401 and publish W402 cooperation variants.
+
+---
+
+## Acceptance criteria
+
+- [ ] AC1: CCLK frequency measured and recorded in `fpga/HARDWARE_SSOT.md`.
+- [ ] AC2: `tri fpga smoke-gate` asserts `OSCFSEL=0` and no CRC/ID errors.
+- [ ] AC3: `tri fpga boot-protocol --checklist` (or equivalent) documents/validates the cold-POR steps.
+- [ ] AC4: `./scripts/tri test` passes (575/575).
+- [ ] AC5: W401 report + evidence + W402 cooperation variants committed.
+
+---
+
+## Default variant
+
+Execute **Variant A** from `docs/reports/FPGA_LOOP_COOPERATION_2026-07-08.md`:
+- capture P12 with a logic analyser;
+- parse with `tri fpga measure-cclk --csv <trace>`;
+- update SSOT and land.
+
+If no logic analyser is available, fall back to **Variant B**: board-less
+hardening and CI guards.
+
+---
+
+*φ² + φ⁻² = 3 | TRINITY*

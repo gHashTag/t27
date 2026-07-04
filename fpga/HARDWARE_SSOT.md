@@ -195,6 +195,16 @@ Before concluding H2, rule out JTAG-cable interference: the cable must be
 **disconnected during POR** and reconnected only after the board rails are
 stable.
 
+> **W400 physical result (2026-07-04).** The canonical
+> `fpga/verilog/ternary_mac_demo_top_200t.bit` (`OSCFSEL=0`) boots from flash
+> when the cold-POR protocol above is followed. A full CCLK sweep over
+> `OSCFSEL=0..5` produced `STAT=0x401079FC` (`DONE=1`, `MODE=001`, `EOS=1`) for
+> every variant. Therefore the earlier `DONE=0` observations were caused by
+> incomplete cold-POR or JTAG-cable interference, **not** CCLK frequency. The
+> default bitstream is the working default; no COR0 patch is required. See
+> `docs/reports/WAVE_LOOP_400_REPORT.md` and `build/fpga/sweep-report-w400-clean.md`
+> for the raw logs.
+
 ### 3.4 Automated cold-POR CCLK sweep
 
 The openXC7 flow does **not** expose a `BITSTREAM.CONFIG.CONFIGRATE` knob, and
@@ -224,6 +234,20 @@ After a real sweep, generate the markdown evidence report:
 
 ```bash
 tri fpga sweep-report --out build/fpga/sweep-report.md
+```
+
+For a one-off test of a single OSCFSEL value:
+
+```bash
+tri fpga cclk-sweep fpga/verilog/ternary_mac_demo_top_200t.bit --single 3
+```
+
+If you want the command to auto-continue after a fixed delay (e.g. 120 s) so
+you can perform the power-cycle without keeping the terminal open:
+
+```bash
+tri fpga cclk-sweep fpga/verilog/ternary_mac_demo_top_200t.bit \
+    --values 0,1,2,3,4,5 --wait-seconds 120
 ```
 
 > **WARNING:** `tri fpga patch-cor0` rewrites COR0 in place. If the original
@@ -271,8 +295,9 @@ clear by design class:**
   `std::out_of_range`). Our matrix does **not** use those, so OpenXC7 works.
   **VERIFIED 2026-07-04: the `tri fpga synth-gf16` flow targets
   `xc7a200tfbg676-1` (same die/pinout as `fgg676-1`) and reaches `DONE=HIGH`
-  when loaded into SRAM. Flash boot from the same bitstream remains under
-  diagnosis (see `docs/reports/FPGA_LOOP_EVIDENCE_2026-07-05.md`).**
+  when loaded into SRAM. Flash boot from the canonical
+  `fpga/verilog/ternary_mac_demo_top_200t.bit` was verified on 2026-07-04
+  with the W400 cold-POR CCLK sweep (see `docs/reports/WAVE_LOOP_400_REPORT.md`).**
 - **(A) Vivado in Linux Docker** — only needed for the **SPI-flash proxy**
   bitstream (Vivado-only in the OSS ecosystem). Setup exists
   (`docker/Dockerfile.vivado` 2025.2, `tri fpga build-proxy-docker`) but is

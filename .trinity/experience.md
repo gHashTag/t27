@@ -1,5 +1,31 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-08 — Wave Loop 400 (FPGA SPI boot root-cause closure — default bitstream boots from flash)
+
+### What worked
+- Running the automated `tri fpga cclk-sweep` on the physical board with `--wait-seconds 120` kept the protocol disciplined: disconnect cable, power-cycle, reconnect, press ENTER.
+- Capturing `STAT` with `--pre-jtag-reset` (no JTAG reset / PROGRAM_B pulse) gave the true cold-POR state rather than a post-reset artifact.
+- All six `OSCFSEL` variants (0..5) produced `STAT=0x401079FC` (`DONE=1`, `MODE=001`, `EOS=1`, no CRC/ID errors), so the default bitstream is verified to boot from flash.
+- Archiving stale dry-run/partial JSON logs into `build/fpga/boot-log-archive/` kept the active `boot-log-*.json` directory clean for `sweep-report`.
+- `sweep-report` correctly aggregated the six logs into `sweep-report-w400-clean.md`, confirming the first working value is `OSCFSEL=0`.
+- `fpga/HARDWARE_SSOT.md` was updated to state that the canonical bitstream boots from flash and that earlier `DONE=0` observations were caused by incomplete cold-POR or JTAG-cable interference, not CCLK timing.
+
+### What changed behavior
+- `fpga/HARDWARE_SSOT.md` §3.3 now contains the W400 physical result box and declares the default `ternary_mac_demo_top_200t.bit` the working default.
+- `docs/reports/WAVE_LOOP_400_REPORT.md`, `FPGA_LOOP_EVIDENCE_2026-07-08.md`, and `FPGA_LOOP_COOPERATION_2026-07-08.md` are the W400 close-out artifacts.
+- The CCLK timing hypothesis (H2) is closed as a blocker; the remaining work is to measure the actual CCLK frequency for documentation.
+
+### Patterns to reuse
+- When a hardware experiment has many variants, script the entire sweep in one command that handles variant generation, programming, user prompting, STAT capture, and JSON logging.
+- Use `--pre-jtag-reset` (or the tool's equivalent) when diagnosing cold-POR; a normal JTAG reset before `STAT` read destroys the evidence.
+- When all variants pass, the default is the default — do not patch what already works.
+- Keep raw logs and generated reports in version control so the evidence is reviewable without re-running the physical experiment.
+
+### Anti-patterns to avoid
+- Do not attribute `DONE=0` to CCLK timing before ruling out incomplete cold-POR and attached JTAG-cable interference.
+- Do not leave stale dry-run logs in the active log directory; archive them so report generators do not mix real and synthetic data.
+- Do not skip writing the close-out report because the physical result was unexpected; document the null result as strongly as a fix.
+
 ## 2026-07-05 — Wave Loop 399 (FPGA SPI boot cold-POR CCLK sweep automation)
 
 ### What worked
