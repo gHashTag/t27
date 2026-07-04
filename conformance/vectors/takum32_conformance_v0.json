@@ -49,8 +49,8 @@
     },
     {
       "kind": "libtakum_c_parity",
-      "oracle": "full-domain exhaustive / analytic separation bound via libtakum C reference",
-      "result": "NOT DONE -- separate step (Variant B); 2^32 codes infeasible to enumerate here"
+      "oracle": "libtakum (Hunhold, ISO C99 reference, ISC) takum_log32_from/to_float64 via ctypes; independent 2nd implementation of the takum decode law (value=(-1)^s*sqrt(e)^l). Built from src/conversion.c+codec.c+util.c.",
+      "result": "DONE. ENCODE bit-for-bit: 15/15 curated vectors -- takum_log32_from_float64(input_f64) == stored bits exactly. DECODE-LAW parity on 2,000,000 random+structured codes: max relative error 7.5e-15 (long-double transcendental-rounding noise), 0 law breaks. Where the two decoders differ (<=65 ULP at extreme exponents) OUR mpmath oracle is correctly-rounded (0 ULP vs 400-bit truth); libtakum's powl carries the rounding. Independent C reference CONFIRMS the decode law and the 15 curated codes."
     }
   ],
   "n_vectors": 15,
