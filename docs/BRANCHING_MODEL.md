@@ -10,7 +10,16 @@ This document records the branch policy agreed in **Wave Loop 392**.
 |---|---|---|---|
 | `master` | Release / stable dependabot updates | **Never** | N/A |
 | `trinity-rust-rings` | IGLA CODER+RACE integration branch | Only emergency recovery | N/A (integration sink) |
-| `wave-loop-NNN` | Temporary wave-loop work branches | Allowed while open | `trinity-rust-rings` only |
+| `wave-loop-NNN` | Temporary wave-loop work branches | Allowed while open | `master` (Strategy P) |
+
+## Strategy P (Wave Loop 417+)
+
+- Wave-loop PRs are opened against **`master`**, not `trinity-rust-rings`.
+- `trinity-rust-rings` remains the IGLA CODER+RACE integration sink, but the
+  `specs/igla/` tree is no longer on `master`, so FPGA/tooling waves land
+  directly on `master`.
+- Branches are deleted after merge; force-push is still allowed only while the
+  PR branch is open.
 
 ## `master`
 
@@ -28,9 +37,10 @@ This document records the branch policy agreed in **Wave Loop 392**.
 
 ## `wave-loop-NNN`
 
-- One branch per wave-loop. Branch from the previous wave-loop branch or from `trinity-rust-rings`.
+- One branch per wave-loop. Branch from `master` (or from the previous
+  wave-loop branch only when it has already landed on `master`).
 - Force-push to the work branch is allowed while the branch is open.
-- PR target is always `trinity-rust-rings`, never `master`.
+- PR target is always `master` per Strategy P.
 - Deleted after merge.
 
 ## Master-alignment epic

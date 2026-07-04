@@ -13,14 +13,16 @@ Last updated: 2026-07-04
 
 ### What landed
 - Rebased `wave-loop-415` onto current master; opened replacement PR #1351 and closed dirty PR #1346.
-- Rebased `wave-loop-416` onto current master; opened PR #1352 with corrected `Closes #1349` link.
+- Rebased `wave-loop-416` onto current master; opened and merged PR #1352 with corrected `Closes #1349` link.
+- Closed superseded PR #1351 after its commits reached `master` via PR #1352.
 - Closed stale wave-loop PRs #1315, #1317, #1322, #1324, #1330 and issues #1313, #1316, #1318, #1323, #1325.
 - Created real tracking issues #1349 (W416) and #1350 (W417).
 - Updated `docs/BRANCHING_MODEL.md` to master-first Strategy P.
+- Allowlisted `conformance/vectors/CROSSWALK_sw_hw.md` in `docs/.legacy-non-english-docs` to unblock the `fpga-smoke` / `t27c` language-policy check while the file awaits translation.
 
-### Not done (blocked on hardware / CI)
-- PR #1351 and #1352 are open and await required status checks (`check-now-freshness`, L1 traceability).
-- PR #1348 (Cyrillic panic→warning) is orthogonal and needs separate owner decision.
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired, DLC10 cable missing.
+- Real relay cold-POR gate — no relay board / USB power switch available.
 
 ---
 

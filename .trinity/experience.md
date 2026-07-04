@@ -1,5 +1,50 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-04 — Wave Loop 417 (hygiene, reland W415/W416, Strategy P)
+
+### What worked
+- Treating a "hygiene" wave as a real deliverable prevented W415/W416 from
+  staying stuck on a dirty PR and a stale branch. Closing superseded PR #1351 and
+  confirming the stale PR/issue list unblocked the next physics wave.
+- Rebasing the W415 commits onto `master` and landing them through the W416 PR
+  (#1352) avoided a second merge conflict window; the W415 reland PR became
+  unnecessary once its content reached `master`.
+- Switching the wave-loop PR target to `master` (Strategy P) matches the current
+  repo state where `specs/igla/` lives on `trinity-rust-rings`, not `master`.
+  Updating `docs/BRANCHING_MODEL.md` makes the policy discoverable.
+- Adding the Russian cross-walk file to the non-English allowlist fixed the
+  `bootstrap/build.rs` language-policy panic without translating the file in the
+  same wave; translation was deferred as a future hygiene task.
+
+### What changed behavior
+- `docs/BRANCHING_MODEL.md`: documented Strategy P (`master` as wave-loop merge
+  target).
+- `docs/.legacy-non-english-docs`: allowlisted `conformance/vectors/CROSSWALK_sw_hw.md`.
+- `.trinity/current-issue.md`: rewritten for W417 hygiene and corrected to #1350.
+- `docs/NOW.md`: W417 close-out state and W418 setup.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_417_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W417_2026-07-04.md`, and
+  `docs/reports/FPGA_LOOP_COOPERATION_W418_2026-07-04.md`.
+
+### Patterns to reuse
+- When a PR becomes dirty because `master` moved ahead, prefer a clean rebase
+  onto current `master` over merging the old branch state; if the clean PR
+  already landed the same commits, close the old PR as superseded rather than
+  leaving it open.
+- A wave-loop PR should target the branch named in the current branching model;
+  when the model changes, update `docs/BRANCHING_MODEL.md` in the same hygiene
+  wave so future branches do not silently target the wrong base.
+- If a non-English doc breaks the language-policy build, the cheapest correct
+  fix is to add it to the legacy allowlist and open a translation issue,
+  rather than hacking the build script or rushing a partial translation.
+
+### Anti-patterns to avoid
+- Do not leave a work branch pointing at an old merge base while `master` moves
+  forward; the PR will accumulate conflicts and the L1 traceability / NOW.md
+  freshness checks will drift.
+- Do not open a replacement PR without deciding what to do with the old one; an
+  open superseded PR creates confusion and can block status-check dashboards.
+
 ## 2026-07-01 — Wave Loop 416 (PVT-envelope CLI, VCD parser coverage, OSCFSEL transaction theorems)
 
 ### What worked
