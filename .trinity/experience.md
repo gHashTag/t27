@@ -1,5 +1,53 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-05 — Wave Loop 403 (Bitstream config linked to cold-POR decision tree)
+
+### What worked
+- Falling back to **Variant B** again (Lean 4 extension) let W403 close without
+  bench hardware. The formal layer added value by connecting the `.bit`
+  configuration audit to the STAT-register decision tree.
+- Keeping the `BitstreamConfig` structure field names identical to the
+  `tri fpga bit-config` output (`idcode`, `spi_buswidth`, `startupclk`,
+  `oscfsel`) makes the formal model traceable to the CLI tool.
+- The `ColdPOR` structure cleanly separates static bitstream facts from dynamic
+  physical preconditions (`mode_ok`, `no_cable_interference`), matching the
+  prose in `fpga/HARDWARE_SSOT.md`.
+- Proving `decision_tree_exhaustive` by explicit `Or.inl` / `Or.inr`
+  construction avoided fragile `tauto`/`rcases` behavior on `Bool` disjunctions
+  defined via `decide`.
+- Removing the unnecessary `eos` requirement from `boot_success` closed a
+  logical gap and made the exhaustiveness theorem provable without inventing an
+  unreachable "other" branch.
+- Conformance suite: **576/576 PASS**; `lake build Trinity.TernaryFPGABoot` green.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean` now contains:
+  - `BitstreamConfig` and `BitstreamConfig.canonical`
+  - `ColdPOR` and `cold_por_spi_flash_pred`
+  - Linkage lemmas `cold_por_done_eos_high_implies_boot_success`,
+    `cold_por_done_low_implies_h2`, and `decision_tree_exhaustive`
+- `fpga/HARDWARE_SSOT.md` §3.2 now links the canonical bitstream config audit to
+  the Lean 4 predicates and the exhaustive decision-tree theorem.
+- `docs/NOW.md` updated with the W403 entry.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_403_REPORT.md`,
+  `FPGA_LOOP_EVIDENCE_2026-07-06.md`, and
+  `FPGA_LOOP_COOPERATION_2026-07-06.md`.
+
+### Patterns to reuse
+- Extend a formal model one layer at a time: W402 formalized STAT decode and
+  the decision tree; W403 formalized the static bitstream config that feeds the
+  tree. Each layer is a small, reviewable diff.
+- Use explicit disjunct construction in Lean 4 when working with `Bool`
+  predicates that contain `decide` terms; automation is brittle there.
+- Keep the physical-deferred AC explicit in the report and the next-loop
+  cooperation variants so the work does not silently drop off the radar.
+
+### Anti-patterns to avoid
+- Do not require `eos` in a success predicate unless the exhaustiveness proof
+  actually needs it. Unnecessary conjuncts create unreachable model corners.
+- Do not rely on `tauto`/`rcases` to split `Bool` disjunctions that are not
+  syntactic inductives; build the proof term explicitly instead.
+
 ## 2026-07-05 — Wave Loop 402 (Cold-POR decision tree formalized in Lean 4)
 
 ### What worked

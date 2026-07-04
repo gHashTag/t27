@@ -1356,3 +1356,15 @@
 - **Commit:** merge(master): integrate upstream master into trinity-rust-rings for W401 land
 - **Files:** docs/NOW.md
 
+## 2026-07-04T09:08:07Z — trinity-rust-rings
+- **Commit:** chore(trinity): point current-issue.md to W403 issue #1307 and add decomposed plan
+- **Files:** .claude/plans/wave-loop-403.md,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-06.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-06.md,docs/reports/WAVE_LOOP_403_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-04T09:11:36Z — trinity-rust-rings
+- **Commit:** feat(igla): Wave Loop 403 — bitstream config linked to cold-POR decision tree in Lean 4 (Closes #1307)
+- **Files:** 
+
+## 2026-07-04T09:13:38Z — trinity-rust-rings
+- **Commit:** Merge branch 'master' into trinity-rust-rings for W403 (Closes #1307)
+- **Files:** .claude/plans/wave-loop-403.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-06.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-06.md,docs/reports/WAVE_LOOP_403_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
