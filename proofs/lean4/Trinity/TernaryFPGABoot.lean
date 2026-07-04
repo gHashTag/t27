@@ -769,6 +769,23 @@ lemma pvt_half_ns_monotone_in_process_corner (t : Int) (v : Nat) (c1 c2 : Proces
         n25q128_pvt_process_derating_ns, ProcessCorner.worse_than] at h ⊢
   cases c1 <;> cases c2 <;> omega
 
+/-- The PVT-aware SCK half-period bound is monotone in the combined ordering:
+    higher temperature, lower VCCINT, and a worse process corner all increase
+    (or keep) the bound. This is the shape property used by worst-case
+    operating-point search. -/
+lemma pvt_half_ns_monotone_combined
+  (t1 t2 : Int) (v1 v2 : Nat) (c1 c2 : ProcessCorner) :
+  (PVT_TEMP_MIN_C ≤ t1) → (t1 ≤ t2)
+  → (v2 ≤ v1) → (v1 ≤ PVT_VCCINT_MAX_MV)
+  → c1.worse_than c2
+  → n25q128_min_sck_half_ns_pvt ⟨t1, v1, 2700, c1⟩
+    ≤ n25q128_min_sck_half_ns_pvt ⟨t2, v2, 2700, c2⟩ := by
+  intro ht_min ht_le hv_le hv_max hc
+  simp [n25q128_min_sck_half_ns_pvt, n25q128_min_sck_low_ns_pvt,
+        n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+        n25q128_pvt_process_derating_ns, ProcessCorner.worse_than, PVT_TEMP_MIN_C, PVT_VCCINT_MAX_MV] at ht_min ht_le hv_le hv_max hc ⊢
+  cases c1 <;> cases c2 <;> omega
+
 /-- If the PVT-aware predicate holds, the nominal predicate holds (for contexts
     inside the operating envelope). -/
 theorem measured_cclk_with_pvt_implies_measured_cclk_satisfies_flash_spec

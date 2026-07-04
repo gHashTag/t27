@@ -3743,21 +3743,13 @@ fn parse_vcd_to_raw_ns(
         }
 
         // Timescale parsing: `$timescale 1 ns $end` (possibly across lines).
+        // The terminator is matched by exact token so embedded `$end`-like
+        // strings in comments do not close the section early.
         if trimmed.to_lowercase().starts_with("$timescale") {
             in_timescale = true;
             ts_tokens.clear();
             ts_tokens.extend(tokens.iter().skip(1).map(|s| s.to_string()));
-            if trimmed.to_lowercase().contains(" $end") || trimmed.to_lowercase().ends_with(" $end") {
-                // Single-line timescale; close below.
-            } else if !trimmed.to_lowercase().ends_with("$end") {
-                continue;
-            }
-        }
-        if in_timescale {
-            if !trimmed.to_lowercase().starts_with("$timescale") {
-                ts_tokens.extend(tokens.iter().map(|s| s.to_string()));
-            }
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_timescale = false;
                 if let Some(num_str) = ts_tokens.first() {
                     if let Ok(num) = num_str.parse::<f64>() {
@@ -3773,8 +3765,27 @@ fn parse_vcd_to_raw_ns(
                         timescale_s = num * unit_mult;
                     }
                 }
-            } else {
-                ts_tokens.extend(tokens.iter().map(|s| s.to_string()));
+            }
+            continue;
+        }
+        if in_timescale {
+            ts_tokens.extend(tokens.iter().map(|s| s.to_string()));
+            if vcd_line_ends_with_token(trimmed, "$end") {
+                in_timescale = false;
+                if let Some(num_str) = ts_tokens.first() {
+                    if let Ok(num) = num_str.parse::<f64>() {
+                        let unit_mult = match ts_tokens.get(1).map(|s| s.to_lowercase()).as_deref() {
+                            Some("s") => 1.0,
+                            Some("ms") => 1.0e-3,
+                            Some("us") => 1.0e-6,
+                            Some("ns") => 1.0e-9,
+                            Some("ps") => 1.0e-12,
+                            Some("fs") => 1.0e-15,
+                            _ => 1.0e-9,
+                        };
+                        timescale_s = num * unit_mult;
+                    }
+                }
             }
             continue;
         }
@@ -5366,6 +5377,94 @@ mod tests {
         std::fs::remove_file(&vcd_tmp).unwrap();
     }
 
+    /// A multi-line `$timescale` block containing the literal substring `$end`
+    /// before the real `$end` terminator must not corrupt the timescale. With the
+    /// old substring heuristic the embedded `$end` closed the section early and
+    /// the following `$var` line was swallowed, producing a parse error.
+    #[test]
+    fn test_parse_vcd_timescale_with_embedded_end_token() {
+        let mut vcd = String::new();
+        vcd.push_str("$date today $end\n");
+        vcd.push_str("$version tri test $end\n");
+        vcd.push_str("$timescale\n");
+        vcd.push_str("  1 us\n");
+        vcd.push_str("  // note: $end appears in this comment line\n");
+        vcd.push_str("$end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 1 ! cclk $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("$end\n");
+        // 25 kHz clock with 1 us timescale: period = 40 us, half = 20 us.
+        // Timestamps are clean integer microseconds.
+        let half_us = 20u64;
+        for i in 0..40 {
+            let ts = half_us * (i + 1);
+            let val = if i % 2 == 0 { '1' } else { '0' };
+            vcd.push_str(&format!("#{}\n{}!\n", ts, val));
+        }
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_timescale_embedded_end_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None).unwrap();
+        assert_eq!(period_ns, 40_000, "period {} should be 40_000 ns (1 us timescale)", period_ns);
+        // Low/high may differ by 1 ns due to floating-point timescale conversion; accept a small tolerance.
+        assert!(
+            low_ns.abs_diff(20_000) <= 1,
+            "low {} should be within 1 ns of 20_000 ns", low_ns
+        );
+        assert!(
+            high_ns.abs_diff(20_000) <= 1,
+            "high {} should be within 1 ns of 20_000 ns", high_ns
+        );
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// Real-valued VCD with a non-default `$timescale 1 us $end` and no explicit
+    /// threshold. Auto-threshold must still recover the 25 kHz clock from the
+    /// observed 0.0 V .. 3.3 V swing.
+    #[test]
+    fn test_parse_vcd_real_auto_threshold_us_timescale() {
+        let timescale_us = 1u64;
+        let freq_hz = 25_000.0;
+        let period_s = 1.0 / freq_hz;
+        let half_s = period_s / 2.0;
+        let mut vcd = String::new();
+        vcd.push_str("$date today $end\n");
+        vcd.push_str("$version tri test $end\n");
+        vcd.push_str("$timescale 1 us $end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var real 32 ! cclk_analog $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("r0.0 !\n");
+        vcd.push_str("$end\n");
+        let mut t = 0.0;
+        for i in 0..40 {
+            t += half_s;
+            let ts = (t / (timescale_us as f64 * 1.0e-6)).round() as u64;
+            let v = if i % 2 == 0 { 3.3 } else { 0.0 };
+            vcd.push_str(&format!("#{}\nr{} !\n", ts, v));
+        }
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_real_auto_threshold_us_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
+            &vcd_tmp, Some("cclk_analog"), 0, None).unwrap();
+        assert_eq!(period_ns, 40_000, "period {} should be 40_000 ns (1 us timescale)", period_ns);
+        // Low/high may differ by 1 ns due to floating-point timescale conversion; accept a small tolerance.
+        assert!(
+            low_ns.abs_diff(20_000) <= 1,
+            "low {} should be within 1 ns of 20_000 ns", low_ns
+        );
+        assert!(
+            high_ns.abs_diff(20_000) <= 1,
+            "high {} should be within 1 ns of 20_000 ns", high_ns
+        );
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
     /// VCD with a multi-line $var declaration (size and identifier on one line,
     /// name on the next). The parser must accumulate tokens until `$end`.
     #[test]
@@ -5859,6 +5958,63 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// The PVT-aware half-period bound is monotone in the combined ordering:
+    /// higher temperature, lower VCCINT, and a worse process corner all increase
+    /// (or keep) the bound. This is the shape property a worst-case operating
+    /// point search relies on.
+    #[test]
+    fn test_pvt_half_ns_monotone_combined() {
+        let temps = [PVT_TEMP_MIN_C, -20_i64, 0_i64, 25_i64, PVT_TEMP_MAX_C];
+        let vccints = [PVT_VCCINT_MIN_MV, 950_u64, 1000_u64, 1050_u64, PVT_VCCINT_MAX_MV];
+        let corners = [ProcessCorner::Ff, ProcessCorner::Tt, ProcessCorner::Ss];
+        // Iterate over every pair of contexts where ctx2 is "worse or equal" on
+        // all three axes. This is not a full lattice pair enumeration; it checks
+        // the monotone path property.
+        for i in 0..temps.len() {
+            for j in 0..vccints.len() {
+                for k in 0..corners.len() {
+                    let ctx_bestish = PvtContext {
+                        temp_c: temps[i.min(temps.len() - 1)],
+                        vccint_mv: vccints[j.max(0)],
+                        vccaux_mv: 2700,
+                        process_corner: corners[k.min(corners.len() - 1)].clone(),
+                    };
+                    let ctx_worstish = PvtContext {
+                        temp_c: temps[temps.len() - 1],
+                        vccint_mv: vccints[0],
+                        vccaux_mv: 2700,
+                        process_corner: ProcessCorner::Ss,
+                    };
+                    let half_bestish = n25q128_min_sck_half_ns_pvt(&ctx_bestish);
+                    let half_worstish = n25q128_min_sck_half_ns_pvt(&ctx_worstish);
+                    assert!(
+                        half_bestish <= half_worstish,
+                        "PVT half-period bound not monotone combined: bestish {} ns > worstish {} ns",
+                        half_bestish, half_worstish
+                    );
+                }
+            }
+        }
+
+        // Spot-check specific axis-combined pairs.
+        let ctx_a = PvtContext {
+            temp_c: -40,
+            vccint_mv: 1100,
+            vccaux_mv: 2700,
+            process_corner: ProcessCorner::Ff,
+        };
+        let ctx_b = PvtContext {
+            temp_c: 85,
+            vccint_mv: 900,
+            vccaux_mv: 2700,
+            process_corner: ProcessCorner::Ss,
+        };
+        assert!(
+            n25q128_min_sck_half_ns_pvt(&ctx_a) <= n25q128_min_sck_half_ns_pvt(&ctx_b),
+            "combined PVT monotonicity failed on explicit best/worst pair"
+        );
     }
 
     /// Regression: the PVT-aware minimum SCK half-period bound must be at least

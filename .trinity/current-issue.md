@@ -78,15 +78,15 @@ re-evaluates the bench state and executes the first available variant from
 - [ ] AC-B3: `dlc10 capture --stub` writes a dry-run command log with a regression test.
 
 ### Bundle C
-- [ ] AC-C1: VCD parser hardening lands with unit tests (`$timescale`, slope filter, or dumpoff completeness).
-- [ ] AC-C2: New PVT envelope shape lemma/test lands (max half-period, combined monotonicity, or worst-case search).
-- [ ] AC-C3: `docs/reports/T27_VS_FORMAL_HDL_2026.md` comparison note is published.
-- [ ] AC-C4: One safe gen-verilog #1245 sub-fix lands without increasing the 16-failure yosys smoke count (optional; defer if unsafe).
+- [x] AC-C1: VCD parser hardening lands with unit tests (`$timescale` exact-token terminator + embedded `$end` regression; real-net auto-threshold with `1 us` timescale).
+- [x] AC-C2: New PVT envelope shape lemma/test lands (`pvt_half_ns_monotone_combined`).
+- [x] AC-C3: `docs/reports/T27_VS_FORMAL_HDL_2026.md` comparison note is published.
+- [ ] AC-C4: One safe gen-verilog #1245 sub-fix lands without increasing the 16-failure yosys smoke count (deferred; remaining tracked gaps are not narrow regression-free sub-fixes).
 
 ### Invariant checks
-- [ ] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
-- [ ] `lake build Trinity.TernaryFPGABoot` passes.
-- [ ] `cargo test -p tri fpga::tests` passes.
+- [x] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
+- [x] `lake build Trinity.TernaryFPGABoot` passes.
+- [x] `cargo test -p tri fpga::tests` passes.
 
 ---
 
