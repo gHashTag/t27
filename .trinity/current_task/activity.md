@@ -1436,3 +1436,7 @@
 - **Commit:** docs(w415): correct PR/issue numbers for W415 land and W416 setup
 - **Files:** .claude/plans/wave-loop-416.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W417_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W416_2026-07-01.md,docs/reports/WAVE_LOOP_416_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-04T16:31:20Z — wave-loop-416
+- **Commit:** docs(w415): correct PR/issue numbers for W415 land and W416 setup
+- **Files:** docs/NOW.md
+

@@ -1,13 +1,37 @@
-# NOW — Wave Loop 416 close-out / Wave Loop 417 setup (2026-07-01)
+# NOW — Wave Loop 417 close-out / Wave Loop 418 setup (2026-07-04)
 
-## Wave Loop 416 — PVT-envelope CLI, VCD parser coverage, OSCFSEL transaction theorems (Closes #1347)
+Last updated: 2026-07-04
+
+## Wave Loop 417 — hygiene, reland W415/W416, and next-variant gate (Closes #1350)
+
+- Branch: `wave-loop-417`
+- Issue: #1350
+- PR: #1351/#1352 (W415 and W416 relanded; see report)
+- Report: `docs/reports/WAVE_LOOP_417_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W417_2026-07-04.md`
+- Cooperation W418: `docs/reports/FPGA_LOOP_COOPERATION_W418_2026-07-04.md`
+
+### What landed
+- Rebased `wave-loop-415` onto current master; opened replacement PR #1351 and closed dirty PR #1346.
+- Rebased `wave-loop-416` onto current master; opened PR #1352 with corrected `Closes #1349` link.
+- Closed stale wave-loop PRs #1315, #1317, #1322, #1324, #1330 and issues #1313, #1316, #1318, #1323, #1325.
+- Created real tracking issues #1349 (W416) and #1350 (W417).
+- Updated `docs/BRANCHING_MODEL.md` to master-first Strategy P.
+
+### Not done (blocked on hardware / CI)
+- PR #1351 and #1352 are open and await required status checks (`check-now-freshness`, L1 traceability).
+- PR #1348 (Cyrillic panic→warning) is orthogonal and needs separate owner decision.
+
+---
+
+## Wave Loop 416 — PVT-envelope CLI, VCD parser coverage, OSCFSEL transaction theorems (Closes #1349)
 
 - Branch: `wave-loop-416`
-- Issue: #1347
-- PR: #1348 (to merge via direct-to-master policy)
+- Issue: #1349
+- PR: #1352
 - Report: `docs/reports/WAVE_LOOP_416_REPORT.md`
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W416_2026-07-01.md`
-- Cooperation W417: `docs/reports/FPGA_LOOP_COOPERATION_W417_2026-07-01.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W416_2026-07-04.md`
+- Cooperation W417: `docs/reports/FPGA_LOOP_COOPERATION_W417_2026-07-04.md`
 
 ### What landed (Variant C — bench still blocked)
 - `cli/tri/src/fpga.rs`
@@ -43,7 +67,7 @@
 
 - Branch: `wave-loop-415`
 - Issue: #1343
-- PR: #1346 (merged via direct-to-master policy)
+- PR: #1351 (relayed via clean rebase after #1346 became dirty)
 - Report: `docs/reports/WAVE_LOOP_415_REPORT.md`
 - Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W415_2026-07-01.md`
 - Cooperation W416: `docs/reports/FPGA_LOOP_COOPERATION_W416_2026-07-01.md`
@@ -83,15 +107,15 @@
 
 ---
 
-# NOW — Wave Loop 417 setup
+# NOW — Wave Loop 418 setup
 
-## Wave Loop 417 — choose next variant after W416 land (Issue #1348)
+## Wave Loop 418 — choose next variant after W417 land (Issue #1350)
 
-- Branch: `wave-loop-417` (to create after W416 merge)
-- Issue: #1348 (to create after W416 merge)
-- Plan: `.claude/plans/wave-loop-417.md` (to create)
-- Report: `docs/reports/WAVE_LOOP_417_REPORT.md` (to create)
-- Cooperation W418: `docs/reports/FPGA_LOOP_COOPERATION_W418_2026-07-01.md` (to create)
+- Branch: `wave-loop-418` (to create after W417 merge)
+- Issue: #1350
+- Plan: `.claude/plans/wave-loop-418.md` (to create)
+- Report: `docs/reports/WAVE_LOOP_418_REPORT.md` (to create)
+- Cooperation W419: `docs/reports/FPGA_LOOP_COOPERATION_W419_2026-07-04.md` (to create)
 
 ### Candidate variants
 - Variant A: resume physical CCLK capture once P12 is wired and the analyzer / DLC10 cable is available.
