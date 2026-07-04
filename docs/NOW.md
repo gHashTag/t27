@@ -1,6 +1,6 @@
-# NOW — Wave Loop 418 close-out / Wave Loop 419 setup (2026-07-04)
+# NOW — Wave Loop 419 close-out / Wave Loop 420 setup (2026-07-05)
 
-Last updated: 2026-07-04
+Last updated: 2026-07-05
 
 ## SW-conformance — gf48 promoted to strict SW-bitexact (70/5/8) (Closes #1358)
 
@@ -21,19 +21,55 @@ Last updated: 2026-07-04
 - Remaining selfconsistent (5): gf96, gf128, gf256, gf512, gf1024.
   gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
 
-## Wave Loop 419 — physical CCLK capture, real relay gate, or further formal tooling (Issue #1354)
+## Wave Loop 419 — Variant C fallback: VCD/CSV hardening, PVT monotonicity, standalone lake workflow (Closes #1357)
 
 - Branch: `wave-loop-419`
-- Issue: #1354 (to create)
+- Issue: #1357
+- PR: #1360
+- Report: `docs/reports/WAVE_LOOP_419_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W419_2026-07-05.md`
+- Cooperation W420: `docs/reports/FPGA_LOOP_COOPERATION_W420_2026-07-05.md`
+
+### What landed (Variant C — bench still blocked)
+- `cli/tri/src/fpga.rs`
+  - VCD `$comment` hardening: exact `$end` token terminator and regression test for embedded `$end`-like tokens.
+  - CSV multi-channel support: header auto-detection extended to `cclk`, `vccint`, `vccaux`, `ain`, `a0`, `channel0`; added `--csv-channel` explicit selection.
+  - PVT envelope monotonicity/antitonicity Rust tests (`test_pvt_half_ns_monotone_in_temp`, `test_pvt_half_ns_antitone_in_vccint`).
+  - Fixed `--standalone` output to remove invalid `import Trinity.BitstreamConfig`; updated integration test and string assertions.
+  - Added `test_parse_cclk_csv_explicit_channel_select`.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `pvt_half_ns_monotone_in_temp` and `pvt_half_ns_antitone_in_vccint`.
+- `fpga/HARDWARE_SSOT.md`
+  - Added §3.6.16 "Standalone lake-package workflow for generated theorems (W419)".
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired, DLC10 cable missing.
+- Real relay cold-POR gate — no relay board / USB power switch available.
+
+### Verification
+- `cargo test -p tri vcd`: **PASS** (11 tests).
+- `cargo test -p tri csv`: **PASS** (11 tests).
+- `cargo test -p tri pvt`: **PASS** (9 tests).
+- `cargo test -p tri fpga::tests`: **PASS** (45 tests).
+- `cargo test -p tri test_measured_to_lean_standalone_lake_package_builds`: **PASS**.
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test`: parse/typecheck/GF16/gen-Zig/gen-Rust/gen-Verilog/seal/C/fixed-point PASS; gen-Verilog yosys smoke has 16 pre-existing failures from weak point #1245.
+
+---
+
+## Wave Loop 420 — physical capture, relay gate, or instrument-import depth (Issue #1361)
+
+- Branch: `wave-loop-420` (to create after W419 merge)
+- Issue: #1361
 - PR: to open after work
-- Report: `docs/reports/WAVE_LOOP_419_REPORT.md` (to create)
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W419_2026-07-04.md` (to create)
-- Cooperation W420: `docs/reports/FPGA_LOOP_COOPERATION_W420_2026-07-04.md` (to create)
+- Report: `docs/reports/WAVE_LOOP_420_REPORT.md` (to create)
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-05.md` (to create)
+- Cooperation W421: `docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-05.md` (to create)
 
 ### Candidate variants
 - Variant A: capture real CCLK for `OSCFSEL=6/7` once P12 is wired and the analyzer / DLC10 cable is available.
 - Variant B: implement a real `--relay-port` backend once a relay board or USB power switch is available.
-- Variant C: further instrument-import parity, PVT envelope monotonicity tests, and standalone lake-package documentation.
+- Variant C: further instrument-import depth (VCD auto-threshold, CSV samplerate auto-detection), PVT envelope refinement with real curves if available, or one safe gen-verilog #1245 sub-fix.
 
 ---
 

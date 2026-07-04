@@ -731,6 +731,32 @@ lemma pvt_half_ns_at_least_nominal (ctx : PvtContext) :
   simp [n25q128_min_sck_half_ns_pvt]
   exact pvt_low_ns_at_least_nominal ctx h_temp h_volt
 
+/-- The PVT-aware SCK half-period bound is monotone non-decreasing in
+    temperature (inside the operating envelope): a higher temperature never
+    yields a smaller bound. -/
+lemma pvt_half_ns_monotone_in_temp (t1 t2 : Int) (v : Nat) (c : ProcessCorner) :
+  (PVT_TEMP_MIN_C ≤ t1) → (t1 ≤ t2)
+  → n25q128_min_sck_half_ns_pvt ⟨t1, v, 2700, c⟩
+    ≤ n25q128_min_sck_half_ns_pvt ⟨t2, v, 2700, c⟩ := by
+  intro h_min h_le
+  simp [n25q128_min_sck_half_ns_pvt, n25q128_min_sck_low_ns_pvt,
+        n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+        n25q128_pvt_process_derating_ns, PVT_TEMP_MIN_C]
+  omega
+
+/-- The PVT-aware SCK half-period bound is antitone non-increasing in VCCINT
+    (inside the operating envelope): a higher VCCINT (closer to the maximum)
+    never yields a larger bound. -/
+lemma pvt_half_ns_antitone_in_vccint (t : Int) (v1 v2 : Nat) (c : ProcessCorner) :
+  (v1 ≤ v2) → (v2 ≤ PVT_VCCINT_MAX_MV)
+  → n25q128_min_sck_half_ns_pvt ⟨t, v2, 2700, c⟩
+    ≤ n25q128_min_sck_half_ns_pvt ⟨t, v1, 2700, c⟩ := by
+  intro h_le h_max
+  simp [n25q128_min_sck_half_ns_pvt, n25q128_min_sck_low_ns_pvt,
+        n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+        n25q128_pvt_process_derating_ns, PVT_VCCINT_MAX_MV]
+  omega
+
 /-- If the PVT-aware predicate holds, the nominal predicate holds (for contexts
     inside the operating envelope). -/
 theorem measured_cclk_with_pvt_implies_measured_cclk_satisfies_flash_spec
