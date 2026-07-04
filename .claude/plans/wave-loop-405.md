@@ -64,15 +64,15 @@ by a competitor; together they form a traceability stack that is hard to reprodu
 
 ## Acceptance criteria
 
-- [ ] AC-A1 (Variant A): a physical CCLK trace is captured and the dominant
-      frequency is recorded.
-- [ ] AC-A2 (Variant A): `fpga/HARDWARE_SSOT.md` §3.5 contains the measured value.
-- [ ] AC-B1 (Variant B): `tri fpga smoke-gate --require-cable --flash-boot`
+- [x] AC-B1 (Variant B): `tri fpga smoke-gate --require-cable --flash-boot`
       programs flash and asserts `boot_success` after a cold POR.
+- [x] AC-D1: `./scripts/tri test` passes.
+- [x] AC-D2: W405 report + evidence + W406 cooperation variants committed.
+- [ ] AC-A1 (Variant A): a physical CCLK trace is captured and the dominant
+      frequency is recorded. (Deferred to W406.)
+- [ ] AC-A2 (Variant A): `fpga/HARDWARE_SSOT.md` §3.5 contains the measured value. (Deferred to W406.)
 - [ ] AC-C1 (Variant C): new Lean 4 lemmas link `OSCFSEL`/CCLK bounds to the
-      documented decision trees.
-- [ ] AC-D1: `./scripts/tri test` passes.
-- [ ] AC-D2: W405 report + evidence + W406 cooperation variants committed.
+      documented decision trees. (Deferred to W406.)
 
 ---
 

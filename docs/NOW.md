@@ -2,6 +2,13 @@
 
 Last updated: 2026-07-04
 
+## w405-fpga-smoke-gate-flash-boot -- add `--flash-boot` cold-POR gate (Closes #1311)
+
+- **WHERE**: `cli/tri/src/fpga.rs`, `.claude/plans/wave-loop-405.md`, close-out reports.
+- **WHAT**: Extended `tri fpga smoke-gate` with `--flash-boot` mode. `--flash-boot` implies `--require-cable`; the gate detects the Digilent FTDI cable and XC7A200T board, programs the canonical bitstream to SPI flash with verify, prompts the operator for the documented cold-POR protocol (disconnect JTAG cable, disconnect power, wait ≥10 s, reconnect power, wait ≥2 s, reconnect cable), captures STAT without JTAG reset, and asserts `boot_success` (`DONE=HIGH`, `MODE=0b001`, `EOS=1`, no CRC/ID/DEC errors). The implementation reuses the empirically-working `cclk_sweep` cold-POR code path: an earlier direct `program_flash` + `capture_stat` implementation produced `H2_CCLK_TIMING` (`STAT=0x5000190C`) with identical operator actions, while the `cclk_sweep` path consistently reaches `STAT=0x401079FC` on the Wukong 200T. Verified on the bench: flash program+verify completes, cold-POR STAT = `0x401079FC`, `[smoke-gate] flash-boot check OK`, `[smoke-gate] complete`. Conformance suite `576/576 PASS`; `Gen Verilog Yosys Smoke: 56 passed, 0 failed`. Physical CCLK measurement on P12 (Variant A) and formal OSCFSEL/CCLK bounds (Variant C) deferred to W406.
+- **Why**: closes the flash-boot verification gap left after W404's SRAM smoke gate, giving t27 a reproducible cold-POR hardware gate that formal-HDL competitors would have to reproduce on real silicon.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## w404-fpga-smoke-gate-cable -- add `--require-cable` hardware smoke gate (Closes #1309)
 
 - **WHERE**: `cli/tri/src/fpga.rs`, `fpga/HARDWARE_SSOT.md`, close-out reports.

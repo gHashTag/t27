@@ -1,5 +1,49 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-04 — Wave Loop 405 (Hardware smoke-gate `--flash-boot`)
+
+### What worked
+- Reusing the empirically-working `cclk_sweep` cold-POR path for the flash-boot
+  smoke gate instead of writing a separate `program_flash` + `capture_stat`
+  sequence. The first implementation produced `H2_CCLK_TIMING` (`STAT=0x5000190C`)
+  repeatedly despite identical operator actions; delegating to `cclk_sweep`
+  immediately reached `STAT=0x401079FC` and passed the gate.
+- Returning `Vec<SweepResult>` from `cclk_sweep` let both the CLI and the
+  smoke-gate caller inspect the outcome without parsing logs or side files.
+- Keeping `--flash-boot` explicit (and implying `--require-cable`) preserves the
+  existing SRAM smoke-gate path and the board-less default.
+- Writing the W405 plan, NOW.md entry, and close-out reports in the same
+  session keeps the traceability chain intact (issue -> branch -> implementation
+  -> evidence -> next variants).
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`: `FpgaCmd::SmokeGate` now accepts `--flash-boot` and
+  `--wait-seconds`. When `--flash-boot` is set, `smoke_gate` calls
+  `cclk_sweep` with a single `OSCFSEL=0` variant, verifies that at least one
+  result has `done=true`, and prints the existing `boot_success` confirmation.
+- `cclk_sweep` now returns `Result<Vec<SweepResult>>`; CLI dispatch bails if
+  no variant reaches `DONE=HIGH`.
+- `.claude/plans/wave-loop-405.md` acceptance criteria updated.
+- `docs/NOW.md` updated with the W405 entry.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_405_REPORT.md`,
+  `FPGA_LOOP_EVIDENCE_2026-07-10.md`, and
+  `FPGA_LOOP_COOPERATION_2026-07-10.md`.
+
+### Patterns to reuse
+- When a physical cold-POR code path is known to work, reuse it exactly rather
+  than duplicating it with slightly different helper calls. Subtle differences
+  in stdin timing, prompt text, or helper interaction can change bench
+  behavior even when the openFPGALoader invocations look identical.
+- Make command helpers return structured results so higher-level callers can
+  assert on them without parsing text output.
+- Keep hardware gates opt-in via explicit flags so CI and board-less runs are
+  unaffected.
+
+### Anti-patterns to avoid
+- Do not assume two command implementations are equivalent just because they
+  invoke the same binary with the same flags. Cold-POR state machines can be
+  sensitive to timing and order that is not obvious in the code.
+
 ## 2026-07-06 — Wave Loop 404 (Hardware smoke-gate `--require-cable`)
 
 ### What worked

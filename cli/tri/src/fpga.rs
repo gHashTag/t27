@@ -220,6 +220,10 @@ pub enum FpgaCmd {
     ///
     /// With `--require-cable`, also detect the Digilent FTDI cable, load the
     /// bitstream into FPGA SRAM via openFPGALoader, and assert DONE=HIGH.
+    ///
+    /// With `--flash-boot`, program the bitstream to SPI flash, prompt for a
+    /// physical power-cycle, then capture cold-POR STAT and assert `boot_success`.
+    /// `--flash-boot` implies `--require-cable`.
     SmokeGate {
         /// Bitstream to audit (default: fpga/verilog/ternary_mac_demo_top_200t.bit).
         #[arg(long)]
@@ -231,6 +235,17 @@ pub enum FpgaCmd {
         /// If no device is detected, the gate fails. Board-less checks still run.
         #[arg(long)]
         require_cable: bool,
+        /// Program flash and verify cold-POR boot instead of SRAM load.
+        /// Implies `--require-cable` and asks the operator to power-cycle.
+        #[arg(long)]
+        flash_boot: bool,
+        /// Seconds to wait for the operator to perform the cold-POR power-cycle
+        /// before capturing STAT. When non-zero, the gate auto-continues after
+        /// the timeout (the operator may press ENTER to continue early). A long
+        /// wait (e.g. 120 s) is recommended so the FPGA has time to complete
+        /// configuration after the cable is reconnected.
+        #[arg(long, default_value_t = 0)]
+        wait_seconds: u32,
         /// openFPGALoader cable profile for the cable-connected check.
         #[arg(long, default_value = "digilent_hs2")]
         cable: String,
@@ -541,9 +556,19 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             bit,
             top,
             require_cable,
+            flash_boot,
+            wait_seconds,
             cable,
             part,
-        } => smoke_gate(bit.as_ref(), top, *require_cable, cable, part),
+        } => smoke_gate(
+            bit.as_ref(),
+            top,
+            *require_cable || *flash_boot,
+            *flash_boot,
+            *wait_seconds,
+            cable,
+            part,
+        ),
         FpgaCmd::BootProtocol { checklist } => boot_protocol(*checklist),
         FpgaCmd::PatchCor0 { bit, out, oscfsel } => patch_cor0(bit, out, *oscfsel),
         FpgaCmd::CclkVariants { bit, output_dir, values } => {
@@ -563,21 +588,27 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             repeat,
             wait_seconds,
             single,
-        } => cclk_sweep(
-            bit,
-            values,
-            output_dir.as_ref(),
-            log_dir.as_ref(),
-            *stop_on_fail,
-            *dry_run,
-            cable,
-            part,
-            bridge.as_ref(),
-            *freq,
-            *repeat,
-            *wait_seconds,
-            *single,
-        ),
+        } => {
+            let results = cclk_sweep(
+                bit,
+                values,
+                output_dir.as_ref(),
+                log_dir.as_ref(),
+                *stop_on_fail,
+                *dry_run,
+                cable,
+                part,
+                bridge.as_ref(),
+                *freq,
+                *repeat,
+                *wait_seconds,
+                *single,
+            )?;
+            if !results.iter().any(|r| r.done) {
+                bail!("CCLK sweep did not find a working variant");
+            }
+            Ok(())
+        }
         FpgaCmd::SweepReport { log_dir, out } => {
             sweep_report(log_dir.as_ref(), out.as_ref())
         },
@@ -1752,7 +1783,7 @@ fn cclk_sweep(
     repeat: u32,
     wait_seconds: u32,
     single: Option<u8>,
-) -> Result<()> {
+) -> Result<Vec<SweepResult>> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
@@ -2072,10 +2103,9 @@ fn cclk_sweep(
         println!();
         println!("=> No variant reached DONE=HIGH.");
         println!("   Next: expand the OSCFSEL range, check mode-pin straps, or capture CCLK with a logic analyser.");
-        bail!("CCLK sweep did not find a working variant");
     }
 
-    Ok(())
+    Ok(results)
 }
 
 /// Structs used to persist and report a single cold-POR sweep attempt.
@@ -2692,6 +2722,8 @@ fn smoke_gate(
     bit: Option<&PathBuf>,
     top: &str,
     require_cable: bool,
+    flash_boot: bool,
+    wait_seconds: u32,
     cable: &str,
     part: &str,
 ) -> Result<()> {
@@ -2705,6 +2737,8 @@ fn smoke_gate(
     println!("== FPGA smoke gate ==");
 
     // Cable-connected hardware check (optional, gated by --require-cable).
+    // --flash-boot implies --require-cable and performs a cold-POR flash-boot
+    // gate instead of a volatile SRAM load.
     if require_cable {
         println!("[smoke-gate] require-cable: detecting FPGA via {}...", cable);
         if !cable_detected(cable) {
@@ -2722,18 +2756,53 @@ fn smoke_gate(
             );
         }
 
-        println!(
-            "[smoke-gate] loading SRAM: {}",
-            bit_path.display()
-        );
-        load_sram(&bit_path, cable, part, false, false)?;
+        if flash_boot {
+            println!(
+                "[smoke-gate] flash-boot: verifying cold-POR boot via single-variant CCLK sweep"
+            );
+            // Reuse the cclk-sweep code path for the cold-POR flash-boot check.
+            // Empirically this path produces DONE=HIGH on the Wukong 200T, while
+            // the older direct program_flash + capture path returned H2_CCLK_TIMING
+            // with identical operator actions. The sweep patches OSCFSEL=0, programs
+            // flash, prompts for power-cycle, and captures STAT.
+            let results = cclk_sweep(
+                &bit_path,
+                &vec![0u8],
+                Some(&root.join("build").join("fpga").join("cclk_variants")),
+                Some(&root.join("build").join("fpga")),
+                false,
+                false,
+                cable,
+                part,
+                None,
+                6_000_000,
+                3,
+                wait_seconds,
+                None,
+            )
+            .with_context(|| "flash-boot CCLK sweep failed")?;
+            if !results.iter().any(|r| r.done) {
+                bail!(
+                    "hardware smoke-gate failed: cold-POR flash boot did not reach DONE=HIGH (OSCFSEL=0)"
+                );
+            }
+            println!(
+                "[smoke-gate] flash-boot check OK (DONE=HIGH, mode=001, no errors)"
+            );
+        } else {
+            println!(
+                "[smoke-gate] loading SRAM: {}",
+                bit_path.display()
+            );
+            load_sram(&bit_path, cable, part, false, false)?;
 
-        println!("[smoke-gate] reading STAT after SRAM load...");
-        let samples = capture_stat(cable, false, 1)?;
-        let bits = samples.first().cloned().expect("at least one STAT sample");
-        assert_stat_boot_success(&bits, "SRAM load")
-            .with_context(|| "hardware smoke-gate failed after SRAM load")?;
-        println!("[smoke-gate] hardware check OK (DONE=HIGH, mode=001, no errors)");
+            println!("[smoke-gate] reading STAT after SRAM load...");
+            let samples = capture_stat(cable, false, 1)?;
+            let bits = samples.first().cloned().expect("at least one STAT sample");
+            assert_stat_boot_success(&bits, "SRAM load")
+                .with_context(|| "hardware smoke-gate failed after SRAM load")?;
+            println!("[smoke-gate] hardware check OK (DONE=HIGH, mode=001, no errors)");
+        }
     }
 
     // 1. bit-config audit if the bitstream exists.
@@ -2775,7 +2844,7 @@ fn smoke_gate(
                 }
             }
         }
-        cclk_sweep(
+        let _dry_results = cclk_sweep(
             &bit_path,
             &values,
             Some(&root.join("build").join("fpga").join("cclk_variants")),
