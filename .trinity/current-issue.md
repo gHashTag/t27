@@ -1,45 +1,42 @@
-# Current Issue: Wave Loop 398
+# Current Issue: Wave Loop 399
 
-**Issue:** #1296
-**Local branch:** `wave-loop-398` (branched from `trinity-rust-rings` @ `d370b27ab`)
-**Basis:** W397 close-out report; H1 cold-POR mode sampling is likely ruled out,
-so H2 (CCLK/SPI-startup timing) is the leading hypothesis.
+**Issue:** #1298
+**Local branch:** `wave-loop-399` (branched from `trinity-rust-rings` @ `d0bedd818`)
+**Basis:** W398 close-out report; H2 CCLK/SPI-startup tooling is complete, but the
+physical cold-POR CCLK sweep has not yet been run.
 
 ## Goal
 
-Make the QMTech Wukong V1 / XC7A200T-FGG676-1 boot-from-flash H2 hypothesis
-(CCLK/SPI-startup timing or flash state after reset) actionable and testable
-with board-less tooling, while documenting the user-assisted cold-POR/CCLK-sweep
-protocol for the next physical session.
+Automate the W398 CCLK-sweep workflow so a single user-assisted cold-POR session
+on the QMTech Wukong V1 / XC7A200T-FGG676-1 can generate, program, test, and
+report on multiple `OSCFSEL` variants, and produce a machine-readable evidence
+report.
 
 ## Selected variant
 
-**Variant A (root-cause driven)** from W397 cooperation variants, adapted for
-board-less tooling + user-assisted physical closure:
-- Add `tri fpga patch-cor0 <in.bit> <out.bit> --oscfsel N` to create CCLK-variants.
-- Add `tri fpga cclk-variants <in.bit>` to generate a sweep directory.
-- Extend `tri fpga bit-config` decoding to CTL0 and BSPI; add assertion flags.
-- Harden `tri fpga smoke-gate` to fail on IDCODE/SPI-width/startup-clock regressions.
-- Harden `tri fpga boot-log` with JSON logging and JTAG-cable-disconnect instructions
-  (per AR66954 / XAPP1188).
-- Update `fpga/HARDWARE_SSOT.md` with the H2 decision tree and `patch-cor0` usage.
+**Variant A (root-cause driven)** from W398 cooperation variants, with tooling
+automation so the only manual step is the physical power-cycle / cable handling:
+- Add `tri fpga cclk-sweep <in.bit>` to generate OSCFSEL variants, program each
+to flash, run the interactive cold-POR protocol, capture STAT, write JSON logs,
+and print a summary table.
+- Add `tri fpga sweep-report` to read all `build/fpga/boot-log-*.json` files and
+produce a markdown report identifying the first working variant.
+- Add `tri fpga measure-cclk` helper for DSLogic / oscilloscope CCLK capture and
+optional CSV parsing.
+- Update `fpga/HARDWARE_SSOT.md` with the W399 sweep protocol.
 - Maintain conformance at 575/575 PASS; no IGLA/Lean growth.
 
 ## Acceptance criteria
 
-- `tri fpga patch-cor0` produces a `.bit` with the requested raw `OSCFSEL` value
-  and warns about the undocumented MHz mapping and CRC risk.
-- `tri fpga cclk-variants` produces a sweep directory with named variants.
-- `tri fpga bit-config` decodes CTL0/BSPI and warns on `OSCFSEL=0` / enabled CRC.
-- `tri fpga smoke-gate` fails CI if the demo bitstream has wrong IDCODE, SPI width,
-  or startup clock.
-- `tri fpga boot-log` writes a JSON log and tells the user to disconnect the JTAG
-  cable before power-cycle.
+- `tri fpga cclk-sweep --dry-run` produces expected synthetic logs without a board.
+- `tri fpga sweep-report` reads existing logs and produces a markdown table.
+- `tri fpga measure-cclk` prints correct CCLK pin and DSLogic settings.
+- `fpga/HARDWARE_SSOT.md` documents the sweep protocol.
 - `t27c suite --repo-root .` reports **575/575 PASS**.
-- Real W398 issue created and referenced in commit/PR (`Closes #1296`).
-- Close-out report and cooperation doc for W399 are written.
+- Real W399 issue created and referenced in commit/PR (`Closes #1298`).
+- Close-out report and cooperation doc for W400 are written.
 - Experience log and memory index updated.
 
 ---
 
-*phi^2 + phi^-2 = 3 | TRINITY*
+*phi^2 + 1/phi^2 = 3 | TRINITY*

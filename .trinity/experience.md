@@ -1,5 +1,49 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-05 — Wave Loop 399 (FPGA SPI boot cold-POR CCLK sweep automation)
+
+### What worked
+- Adding `tri fpga cclk-sweep` wrapped the entire W398 variant workflow into one
+  command: generate variants, program flash, prompt for the physical power-cycle,
+  capture STAT, and write JSON logs. This keeps the only manual step strictly the
+  cable / power handling that software cannot perform.
+- Adding `tri fpga sweep-report` turned the per-variant JSON logs into a single
+  markdown evidence table, making it easy to identify the first working OSCFSEL
+  value after a session.
+- Adding `tri fpga measure-cclk` gives a concrete capture protocol (pin P12,
+  DSLogic settings) and optional CSV parsing so frequency/duty cycle can be
+  estimated from a logic-analyser export.
+- A `--dry-run` mode let the sweep and report paths be tested board-less in CI.
+- Conformance suite stayed at **575/575 PASS**; FPGA CLI changes remain isolated
+  from the compiler path.
+
+### What changed behavior
+- `tri fpga cclk-sweep` is now the canonical way to run a cold-POR CCLK sweep.
+- `tri fpga sweep-report` reads `build/fpga/boot-log-*.json` and produces a
+  markdown report.
+- `tri fpga measure-cclk` documents CCLK pin P12 and DSLogic settings and can
+  parse DSView CSV exports.
+- `fpga/HARDWARE_SSOT.md` §3.4 and §9 describe the automated sweep and measurement
+  protocol.
+- W399 closes with tooling complete; the physical board sweep is deferred to W400.
+
+### Patterns to reuse
+- When a physical action cannot be automated, wrap everything around it in a single
+  command and make the manual step explicit in printed instructions.
+- Persist every attempt in machine-readable JSON so a separate report command can
+  summarise results without re-running the experiment.
+- Provide a `--dry-run` mode for any hardware-dependent workflow so CI and review
+  can exercise the logic without a board.
+- Keep the report generator separate from the data collector; they evolve at
+  different rates and may be run by different people.
+
+### Anti-patterns to avoid
+- Do not claim a CCLK timing fix is verified without a physical cold-POR
+  measurement and an actual frequency reading.
+- Do not mix data collection and report formatting in one function; separation
+  makes both easier to test.
+- Do not let a hardware-dependent command fail CI by lacking a board-less path.
+
 ## 2026-07-08 — Wave Loop 398 (FPGA SPI boot root-cause closure — CCLK variant tooling, H2 actionable)
 
 ### What worked
