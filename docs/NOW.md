@@ -2,6 +2,23 @@
 
 Last updated: 2026-07-13
 
+## w408-fpga-real-cclk-and-transaction-model -- real P12 CCLK measurement + complete SPI transaction model in Lean 4 (Closes #1318)
+
+- **WHERE**: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `fpga/HARDWARE_SSOT.md` §3.6.1, `docs/reports/`, close-out reports.
+- **WHAT**: Capture the real CCLK frequency and duty cycle produced by the
+  canonical `OSCFSEL=0` configuration during cold-POR from flash, and extend
+  the Lean 4 model with a full SPI flash read-transaction structure. Work
+  includes wiring P12 → ADBUS4 (or DSLogic/scope), running
+  `tri fpga measure-cclk --live --driver ftdi-la --channel ADBUS4`, adding
+  `SPIReadTransaction`/`artix7_boot_transaction` to the proof, and proving
+  `cfg.canonical → transaction_satisfies_flash_spec`. Issue #1318 and branch
+  `wave-loop-408` created; real measurement blocked until LA wiring is on the
+  bench.
+- **Why**: W407 closed the static timing model and added a synthetic fixture;
+  W408 anchors the model to silicon and gives a transaction-level proof that is
+  harder for formal-HDL competitors to reproduce.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## w407-fpga-deeper-flash-timing -- extend Lean 4 SPI flash timing model + synthetic CCLK fixture (Closes #1316)
 
 - **WHERE**: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`, `fpga/HARDWARE_SSOT.md` §3.6, close-out reports.

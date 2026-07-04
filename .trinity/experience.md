@@ -1,5 +1,24 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-13 — Wave Loop 407 close-out / Wave Loop 408 setup
+
+### What worked
+- Using `gh pr edit <n> --body-file /tmp/body.md` repaired a PR body that had
+  been mangled by shell interpretation of backticks and newlines in an inline
+  `--body` argument.
+- Creating the W408 issue (#1318) and branch (`wave-loop-408`) immediately
+  after the W407 commit keeps the loop boundary explicit and gives the next
+  wave a clean starting point.
+- Branching `wave-loop-408` from `wave-loop-407` carries the W407 timing-model
+  changes while PR #1317 is still open; it can be rebased onto `master` once
+  #1317 lands.
+
+### Anti-patterns to avoid
+- Never pass a `gh pr create --body` string that contains backticks or literal
+  newlines; always write the body to a file and use `--body-file`.
+- Do not assume the next PR/issue number matches the `Closes #N` reference;
+  GitHub assigns the next available number independently.
+
 ## 2026-07-13 — Wave Loop 407 (Deeper SPI flash timing + synthetic CCLK fixture)
 
 ### What worked

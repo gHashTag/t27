@@ -1417,3 +1417,11 @@
 - **Commit:** feat(igla): Wave Loop 407 — deeper N25Q128 SPI timing in Lean 4 + synthetic CCLK fixture
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-04T11:55:07Z — wave-loop-408
+- **Commit:** chore(w408): set current issue to #1318 — real P12 CCLK + SPI transaction model
+- **Files:** .trinity/experience.md,docs/NOW.md
+
+## 2026-07-04T11:55:11Z — wave-loop-408
+- **Commit:** docs(w408): add W408 entry to NOW.md and experience log
+- **Files:** .trinity/current_task/activity.md,.trinity/experience.md,docs/NOW.md
+
