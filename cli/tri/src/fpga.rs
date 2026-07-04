@@ -380,6 +380,10 @@ pub enum FpgaCmd {
         /// Useful for CI when P12 is not wired to a logic analyzer.
         #[arg(long)]
         synth: bool,
+        /// Emit a JSON object with the measured frequency, duty cycle, and the
+        /// conservative SCK low/high times used by the Lean formal link.
+        #[arg(long)]
+        json: bool,
     },
     /// Read the SPI flash status register via openFPGALoader's JTAG-to-SPI bridge.
     /// Decodes WIP, WEL, and QE bits to help diagnose boot-from-flash failures.
@@ -645,6 +649,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             samples,
             validate,
             synth,
+            json,
         } => measure_cclk(
             csv.as_ref(),
             *live,
@@ -654,6 +659,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *samples,
             *validate,
             *synth,
+            *json,
         ),
         FpgaCmd::SynthGf16 {
             build_dir,
@@ -2150,6 +2156,38 @@ fn cclk_sweep(
     Ok(results)
 }
 
+/// A measured CCLK frequency/duty pair, ready for the Lean formal link.
+/// `sck_low_ns` and `sck_high_ns` are conservative integer nanoseconds derived
+/// from the floating-point instrument estimate; they mirror the definitions in
+/// `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+#[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+struct MeasuredCclk {
+    freq_hz: u64,
+    duty_pct: f64,
+    sck_low_ns: u64,
+    sck_high_ns: u64,
+    source: String,
+}
+
+impl MeasuredCclk {
+    /// Build a conservative measured-CCLK record from a frequency (Hz) and duty
+    /// cycle (% high). The period is rounded down and the low time is rounded
+    /// down; the high time is the remainder so that low + high exactly equals
+    /// the conservative period.
+    fn new(freq_hz: f64, duty_pct: f64, source: String) -> Self {
+        let period_ns = (1.0e9 / freq_hz).floor() as u64;
+        let low_ns = (period_ns as f64 * (100.0 - duty_pct) / 100.0).floor() as u64;
+        let high_ns = period_ns.saturating_sub(low_ns);
+        Self {
+            freq_hz: freq_hz.floor() as u64,
+            duty_pct,
+            sck_low_ns: low_ns,
+            sck_high_ns: high_ns,
+            source,
+        }
+    }
+}
+
 /// Structs used to persist and report a single cold-POR sweep attempt.
 #[derive(serde::Serialize, serde::Deserialize)]
 struct SweepLog {
@@ -2345,6 +2383,7 @@ fn measure_cclk(
     samples: u32,
     validate: bool,
     synth: bool,
+    json: bool,
 ) -> Result<()> {
     println!("== CCLK measurement guide ==");
     println!();
@@ -2446,6 +2485,14 @@ fn measure_cclk(
             min_duty_pct,
             max_duty_pct
         );
+    }
+
+    let measured = MeasuredCclk::new(freq_hz, duty_pct, source);
+    if json {
+        println!("{}", serde_json::to_string_pretty(&measured)?);
+    } else {
+        println!("  Formal link: freq_hz={} duty_pct={:.1} sck_low_ns={} sck_high_ns={}",
+            measured.freq_hz, measured.duty_pct, measured.sck_low_ns, measured.sck_high_ns);
     }
 
     Ok(())
@@ -3671,5 +3718,32 @@ mod tests {
         let lines: Vec<_> = content.lines().collect();
         assert_eq!(lines.len(), 21); // header + 20 samples
         std::fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_measured_cclk_conservative_2_5mhz_50duty() {
+        let m = MeasuredCclk::new(2_500_000.0, 50.0, "synthetic".to_string());
+        assert_eq!(m.freq_hz, 2_500_000);
+        assert_eq!(m.sck_low_ns, 200);
+        assert_eq!(m.sck_high_ns, 200);
+        assert_eq!(m.sck_low_ns + m.sck_high_ns, 400);
+    }
+
+    #[test]
+    fn test_measured_cclk_25mhz_50duty() {
+        let m = MeasuredCclk::new(25_000_000.0, 50.0, "synthetic".to_string());
+        assert_eq!(m.freq_hz, 25_000_000);
+        assert_eq!(m.sck_low_ns, 20);
+        assert_eq!(m.sck_high_ns, 20);
+        assert!(m.sck_low_ns >= 6);
+        assert!(m.sck_high_ns >= 6);
+    }
+
+    #[test]
+    fn test_measured_cclk_json_roundtrip() {
+        let m = MeasuredCclk::new(33_300_000.0, 48.5, "live".to_string());
+        let json = serde_json::to_string(&m).unwrap();
+        let back: MeasuredCclk = serde_json::from_str(&json).unwrap();
+        assert_eq!(m, back);
     }
 }

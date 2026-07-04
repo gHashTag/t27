@@ -1505,3 +1505,26 @@
 - Do not plan cancellation theorems at odd depths while claiming identity collapse; always use even depths or match the statement to the residual weight.
 - Do not rebuild the workspace root crate and assume `target/release/t27c` is fresh; if the binary timestamp is stale, rebuild the `bootstrap` crate explicitly.
 - Do not emit individual `reg name_0, name_1, ...` for array vars when a true Verilog memory `reg [W-1:0] name [0:N-1];` is what downstream indexing expects.
+
+## 2026-07-04 — Wave Loop 410 (measured-duty formal link)
+
+### What worked
+- Delivered the formal-only half of Variant C after both physical paths (P12 capture and DLC10-based `OSCFSEL=6,7` boot) remained blocked.
+- Added `measured_cclk_satisfies_flash_spec` and the linking theorem `measured_cclk_satisfies_flash_spec_implies_transaction_ok` in `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+- Kept the measured low/high/period functions symbolic in the main theorem proof so that the `low + high = period` rewrite matched syntactically; then used `simp_all` to close the resulting decidable goals.
+- Added `MeasuredCclk` in `cli/tri/src/fpga.rs` with conservative `sck_low_ns` / `sck_high_ns` and a `--json` output that feeds the Lean predicate.
+- `lake build Trinity.TernaryFPGABoot` passed cleanly; `cargo test -p tri fpga::tests` passed 11/11; `./scripts/tri test` passed parse/typecheck/gen/seal-verify with 16 pre-existing yosys-smoke failures tracked separately.
+
+### What changed behavior
+- `tri fpga measure-cclk` has a new `--json` flag.
+- `fpga/HARDWARE_SSOT.md` has new §3.6.10 documenting the measured-duty formal link.
+- Close-out docs: `docs/reports/WAVE_LOOP_410_REPORT.md`, `docs/reports/FPGA_LOOP_EVIDENCE_W410_2026-07-04.md`, `docs/reports/FPGA_LOOP_COOPERATION_W411_2026-07-04.md`.
+
+### Patterns to reuse
+- When proving a generic theorem over a decidable predicate with arithmetic division, build explicit helper lemmas for period positivity and the `low + high = period` identity, then let `simp_all` discharge the Boolean/Prop conjunction.
+- Mirror conservative integer conversions between Rust and Lean exactly (floor period, floor low time, remainder high time) so that the JSON record is directly pasteable into the formal predicate.
+
+### Anti-patterns to avoid
+- Do not use `cases` on a `Prop` like `freq_hz > 0`; use `by_cases` instead.
+- Do not include constant definitions such as `N25Q128_MAX_SCK_HZ` in `simp` lists after they have already been expanded in the goal; it triggers unused-simp-arg warnings.
+- Do not try to `constructor` split a `Bool` equality goal; either convert to a Prop implication or let `simp` reduce the Boolean expression.

@@ -340,6 +340,14 @@ frequency bound as a corollary.
 | 6       | 25.0 MHz     | 40 ns          | yes                         |
 | 7       | 33.3 MHz     | ~30 ns         | yes                         |
 
+> **Real-capture blocker (2026-07-04, confirmed 2026-07-04):** a live
+> `tri fpga measure-cclk --live` capture is still not possible because P12 is
+> not wired to a logic-analyzer channel. The synthetic fixture (`--synth`) is
+> the only validated path. W410 added the `measured_cclk_satisfies_flash_spec`
+> predicate in `proofs/lean4/Trinity/TernaryFPGABoot.lean` and the `--json`
+> output in `tri fpga measure-cclk` so that a real capture can be linked
+> directly to `transaction_satisfies_flash_spec` once the wiring is fixed.
+
 #### 3.6.2 Deeper N25Q128 timing constraints
 
 The `flash_spi_timing_ok` predicate in `proofs/lean4/Trinity/TernaryFPGABoot.lean`
@@ -502,13 +510,53 @@ The W400 cold-POR CCLK sweep verified `OSCFSEL=0..5` on real hardware (all
 reported `STAT=0x401079FC`). `OSCFSEL=6` and `OSCFSEL=7` are predicted by the
 UG470 lookup and have not yet been physically booted on the Wukong board; they
 are included in the formal lookup table because their nominal margins are still
-positive.
+positive. W410 added the `measured_cclk_satisfies_flash_spec` predicate and the
+`measured_25mhz_50duty_satisfies_flash_spec` /
+`measured_33_3mhz_50duty_satisfies_flash_spec` examples that correspond to the
+nominal 6/7 CCLK rates, but physical boot logs for 6/7 are still blocked by the
+missing DLC10 cable.
 
 > **Real-capture blocker (2026-07-04, confirmed 2026-07-04):** repeated live
 > `tri fpga measure-cclk --live` runs using the on-bench Digilent FTDI cable
 > return 100 k all-high samples at 0 MHz, which means the cable is detected but
 > **P12 is not wired to ADBUS4**. The synthetic fixture remains the CI anchor until
-> the P12 → ADBUS4 wire is added.
+> the P12 → ADBUS4 wire is added. A separate **JTAG-cable blocker** prevents
+> programming flash and running `cclk-sweep` for `OSCFSEL=6,7`: `dlc10 idcode`
+> fails with "DLC10 cable not found (VID=0x03FD)" because the Digilent DLC10 is
+> not connected to the host.
+
+#### 3.6.10 Measured-duty formal link (W410)
+
+W410 closes the gap between a captured `(frequency, duty)` pair and the
+existing `transaction_satisfies_flash_spec` model.
+
+In Lean 4 (`proofs/lean4/Trinity/TernaryFPGABoot.lean`):
+
+```lean
+def measured_cclk_satisfies_flash_spec (freq_hz : Nat) (duty_pct : Nat) : Bool :=
+  freq_hz > 0
+  ∧ freq_hz ≤ N25Q128_MAX_SCK_HZ
+  ∧ duty_pct ≤ 100
+  ∧ measured_cclk_low_ns freq_hz duty_pct ≥ N25Q128_MIN_SCK_LOW_NS
+  ∧ measured_cclk_high_ns freq_hz duty_pct ≥ N25Q128_MIN_SCK_HIGH_NS
+
+theorem measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  (freq_hz duty_pct bits : Nat) :
+  measured_cclk_satisfies_flash_spec freq_hz duty_pct = true
+  → transaction_satisfies_flash_spec (measured_boot_transaction freq_hz duty_pct bits) = true
+```
+
+In `cli/tri/src/fpga.rs`, the `MeasuredCclk` record computes the same
+conservative `sck_low_ns` / `sck_high_ns` values, and `tri fpga measure-cclk
+--json` emits them:
+
+```bash
+tri fpga measure-cclk --synth --validate --json
+```
+
+Once the bench is wired, the JSON output can be used to instantiate the Lean
+predicate and produce a proof that the measured CCLK satisfies the N25Q128_3V
+standard-read spec.
 
 ---
 

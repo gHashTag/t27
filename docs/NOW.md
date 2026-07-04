@@ -2,11 +2,18 @@
 
 Last updated: 2026-07-04
 
-## w410-fpga-p12-or-oscfsel-67 -- real P12 CCLK capture or physical OSCFSEL 6/7 boot + measured-duty formal link (Issue #1325)
+## w411-fpga-physical-or-automation -- real P12 + OSCFSEL 6/7 retry, relay CI gate, or auto-proof tooling (Issue #TBD)
 
-- **WHERE**: `docs/reports/FPGA_LOOP_COOPERATION_W410_2026-07-04.md`, `fpga/HARDWARE_SSOT.md` §3.6.1/§3.6.9, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`, close-out reports.
-- **WHAT**: Wave Loop 410 follows W409. Default bundle is Variant A + C: finally capture the real P12 CCLK once the wiring is available, and physically boot `OSCFSEL=6,7` to close the lookup table against silicon. Add a measured-duty formal lemma linking a captured `(frequency, duty)` pair to `transaction_satisfies_flash_spec`. If P12 wiring is still unavailable, fall back to Variant C alone (boot 6/7 + measured-duty lemma). If CI automation is the priority, pick Variant B (relay-controlled cold-POR + JTAG isolation).
-- **Why**: W409 generalized the transaction proof across all documented CCLK variants; W410 anchors the two highest-margin variants to real hardware and makes the CCLK validation pipeline itself formally traceable.
+- **WHERE**: `docs/reports/FPGA_LOOP_COOPERATION_W411_2026-07-04.md`, `fpga/HARDWARE_SSOT.md` §3.6.1/§3.6.9/§3.6.10, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`, close-out reports.
+- **WHAT**: Wave Loop 411 follows W410. Default bundle is **Variant A + C again**: finally wire P12 and the DLC10 cable, capture the real CCLK, physically boot `OSCFSEL=6,7`, and turn the capture into an instant `measured_cclk_satisfies_flash_spec` proof. If the bench is still unavailable, pick **Variant B** (relay-controlled cold-POR hardware CI gate) or **Variant C alone** (auto-generate the Lean proof from `--json` and add PVT margins).
+- **Why**: W410 completed the measured-duty formal link but both physical paths remained blocked. W411 either breaks the bench blockers or uses the extra time to build automation / formal-tooling that makes future captures zero-friction.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+## w410-fpga-p12-or-oscfsel-67 -- real P12 CCLK capture or physical OSCFSEL 6/7 boot + measured-duty formal link (Closes #1325)
+
+- **WHERE**: `docs/reports/WAVE_LOOP_410_REPORT.md`, `docs/reports/FPGA_LOOP_EVIDENCE_W410_2026-07-04.md`, `docs/reports/FPGA_LOOP_COOPERATION_W411_2026-07-04.md`, `fpga/HARDWARE_SSOT.md` §3.6.1/§3.6.9/§3.6.10, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`.
+- **WHAT**: Both physical halves (P12 capture and `OSCFSEL=6,7` boot) remain blocked by missing bench wiring and the missing DLC10 cable. Delivered the formal-only half of Variant C: added `measured_cclk_satisfies_flash_spec` and the `measured_cclk_satisfies_flash_spec_implies_transaction_ok` theorem in Lean 4, plus a `MeasuredCclk` Rust record with `--json` export that mirrors the conservative period/duty conversion. `lake build Trinity.TernaryFPGABoot` passes; `cargo test -p tri fpga::tests` passes 11/11; `./scripts/tri test` passes parse/typecheck/gen/seal-verify with 16 pre-existing gen-verilog-yosys-smoke failures tracked separately.
+- **Why**: keeps making progress while the physical bench is unavailable, and ensures that once P12 is wired the capture can immediately produce a formal proof.
 - **Anchor**: phi^2 + phi^-2 = 3
 
 ## w409-fpga-p12-retry-and-oscfsel-lookup -- real P12 CCLK retry + per-OSCFSEL SPI transaction lookup (Closes #1323)

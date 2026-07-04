@@ -357,6 +357,153 @@ theorem artix7_boot_transaction_eq_for_oscfsel
   artix7_boot_transaction cfg bits = artix7_boot_transaction_for_oscfsel cfg.oscfsel.toNat bits := by
   rfl
 
+-- ============================================================================
+-- Measured-CCLK formal link (W410)
+-- ============================================================================
+
+/-- Conservative nanosecond period derived from a measured frequency in Hz.
+    Uses integer division rounded down; this is the conservative (shorter-period)
+    direction because a real frequency estimate is an upper bound on the actual
+    clock. Returns 0 for an invalid zero frequency. -/
+def measured_cclk_period_ns (freq_hz : Nat) : Nat :=
+  if freq_hz > 0 then 1_000_000_000 / freq_hz else 0
+
+/-- Clock-low time in nanoseconds from a measured duty-cycle percentage.
+    `duty_pct` is the high-time fraction, so low time is the complement. -/
+def measured_cclk_low_ns (freq_hz : Nat) (duty_pct : Nat) : Nat :=
+  measured_cclk_period_ns freq_hz * (100 - duty_pct) / 100
+
+/-- Clock-high time in nanoseconds from a measured duty-cycle percentage.
+    Defined as the remainder of the conservative period so that low + high
+    exactly equals the measured period, avoiding rounding drift in the SCK
+    frequency bound. -/
+def measured_cclk_high_ns (freq_hz : Nat) (duty_pct : Nat) : Nat :=
+  let period := measured_cclk_period_ns freq_hz
+  let low := measured_cclk_low_ns freq_hz duty_pct
+  period - low
+
+/-- Minimum SCK period implied by the N25Q128_3V 50 MHz standard-read limit.
+    Units: nanoseconds. -/
+def N25Q128_MIN_SCK_PERIOD_NS : Nat :=
+  1_000_000_000 / N25Q128_MAX_SCK_HZ
+
+/-- Build a transaction from a measured (frequency, duty-cycle) pair. The
+    number of bits is not part of the timing predicate, but the transaction
+    carries it for consistency with `artix7_boot_transaction`. -/
+def measured_boot_transaction (freq_hz : Nat) (duty_pct : Nat) (bits : Nat) :
+    SPIReadTransaction :=
+  { csHighNs := N25Q128_MIN_CS_HIGH_NS,
+    numSckEdges := 2 * bits,
+    sckLowNs := measured_cclk_low_ns freq_hz duty_pct,
+    sckHighNs := measured_cclk_high_ns freq_hz duty_pct,
+    wakeUs := N25Q128_WAKE_FROM_POWERDOWN_US }
+
+/-- True when a measured (frequency, duty-cycle) pair satisfies the N25Q128_3V
+    standard-read timing bounds. This is the formal counterpart of the Rust
+    `tri fpga measure-cclk --validate` guard, and the entry point for turning a
+    real capture into a `transaction_satisfies_flash_spec` proof. -/
+def measured_cclk_satisfies_flash_spec (freq_hz : Nat) (duty_pct : Nat) : Bool :=
+  freq_hz > 0
+  ∧ freq_hz ≤ N25Q128_MAX_SCK_HZ
+  ∧ duty_pct ≤ 100
+  ∧ measured_cclk_low_ns freq_hz duty_pct ≥ N25Q128_MIN_SCK_LOW_NS
+  ∧ measured_cclk_high_ns freq_hz duty_pct ≥ N25Q128_MIN_SCK_HIGH_NS
+
+/-- The measured low time is never larger than the conservative period when the
+    duty cycle is at most 100%. This is needed to show that low + high equals
+    the period. -/
+lemma measured_cclk_low_le_period (freq_hz duty_pct : Nat) :
+  duty_pct ≤ 100 → measured_cclk_low_ns freq_hz duty_pct ≤ measured_cclk_period_ns freq_hz := by
+  intro h
+  simp [measured_cclk_low_ns, measured_cclk_period_ns]
+  by_cases hz : freq_hz > 0
+  · -- freq_hz > 0, so period = 1_000_000_000 / freq_hz
+    simp [hz]
+    have h1 : 1_000_000_000 / freq_hz * (100 - duty_pct) ≤ 1_000_000_000 / freq_hz * 100 := by
+      apply Nat.mul_le_mul_left
+      omega
+    have h2 : 1_000_000_000 / freq_hz * (100 - duty_pct) / 100 ≤ 1_000_000_000 / freq_hz * 100 / 100 := by
+      apply Nat.div_le_div_right
+      exact h1
+    have h3 : 1_000_000_000 / freq_hz * 100 / 100 = 1_000_000_000 / freq_hz := by
+      simp
+    linarith
+  · -- freq_hz = 0, both sides reduce to 0
+    have hz' : freq_hz = 0 := by omega
+    simp [hz']
+
+/-- If the measured pair satisfies the flash timing predicate, the conservative
+    period is at least the N25Q128 minimum SCK period. -/
+lemma measured_cclk_period_at_least_min_sck_period (freq_hz : Nat) :
+  freq_hz > 0 → freq_hz ≤ N25Q128_MAX_SCK_HZ
+  → measured_cclk_period_ns freq_hz ≥ N25Q128_MIN_SCK_PERIOD_NS := by
+  intro h_pos h_max
+  simp [measured_cclk_period_ns, N25Q128_MIN_SCK_PERIOD_NS, N25Q128_MAX_SCK_HZ] at *
+  rw [if_pos h_pos]
+  rw [Nat.le_div_iff_mul_le h_pos]
+  omega
+
+/-- A measured (frequency, duty-cycle) pair that passes the flash predicate
+    produces a `SPIReadTransaction` that satisfies the N25Q128_3V timing spec.
+    This closes the formal link between a real CCLK capture and the boot
+    transaction model. -/
+theorem measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  (freq_hz duty_pct bits : Nat) :
+  measured_cclk_satisfies_flash_spec freq_hz duty_pct = true
+  → transaction_satisfies_flash_spec (measured_boot_transaction freq_hz duty_pct bits) = true := by
+  intro h
+  -- Simplify the predicate and the transaction spec, but keep the measured
+  -- low/high/period functions symbolic so that the `low + high = period` rewrite
+  -- matches syntactically in the goal.
+  simp [measured_cclk_satisfies_flash_spec, measured_boot_transaction, transaction_satisfies_flash_spec,
+        N25Q128_MAX_SCK_HZ,
+        N25Q128_MIN_CS_HIGH_NS, N25Q128_MIN_SCK_LOW_NS,
+        N25Q128_MIN_SCK_HIGH_NS, N25Q128_WAKE_FROM_POWERDOWN_US] at h ⊢
+  rcases h with ⟨h_fpos, h_fmax, h_duty, h_low, h_high⟩
+  have h_period_min : measured_cclk_period_ns freq_hz ≥ N25Q128_MIN_SCK_PERIOD_NS :=
+    measured_cclk_period_at_least_min_sck_period freq_hz h_fpos h_fmax
+  have h_period_pos : measured_cclk_period_ns freq_hz > 0 := by
+    simp [measured_cclk_period_ns]
+    rw [if_pos h_fpos]
+    apply Nat.div_pos
+    · omega
+    · exact h_fpos
+  have h_low_le_period : measured_cclk_low_ns freq_hz duty_pct ≤ measured_cclk_period_ns freq_hz :=
+    measured_cclk_low_le_period freq_hz duty_pct h_duty
+  have h_sum : measured_cclk_low_ns freq_hz duty_pct + measured_cclk_high_ns freq_hz duty_pct = measured_cclk_period_ns freq_hz := by
+    simp [measured_cclk_high_ns]
+    rw [Nat.add_sub_of_le h_low_le_period]
+  have h_freq : 1_000_000_000 / measured_cclk_period_ns freq_hz ≤ N25Q128_MAX_SCK_HZ := by
+    rw [Nat.div_le_iff_le_mul_add_pred h_period_pos]
+    simp [N25Q128_MAX_SCK_HZ, N25Q128_MIN_SCK_PERIOD_NS] at h_period_min ⊢
+    omega
+  have h_low_pos : 0 < measured_cclk_low_ns freq_hz duty_pct := by omega
+  have h_high_pos : 0 < measured_cclk_high_ns freq_hz duty_pct := by omega
+  -- Rewrite `low + high = period` in the goal so the frequency bound follows
+  -- from h_freq and the positivity disjunction follows from h_low_pos.
+  rw [h_sum]
+  simp [N25Q128_MAX_SCK_HZ] at h_freq
+  simp_all
+
+/-- Concrete example: a measured 2.5 MHz CCLK with 50% duty cycle satisfies the
+    flash timing predicate. This matches the synthetic fixture used by the
+    `tri fpga measure-cclk --synth` CI path. -/
+theorem measured_2_5mhz_50duty_satisfies_flash_spec :
+  measured_cclk_satisfies_flash_spec 2_500_000 50 = true := by
+  decide
+
+/-- Concrete example: a measured 25 MHz CCLK with 50% duty cycle satisfies the
+    flash timing predicate. This is the nominal rate for OSCFSEL=6. -/
+theorem measured_25mhz_50duty_satisfies_flash_spec :
+  measured_cclk_satisfies_flash_spec 25_000_000 50 = true := by
+  decide
+
+/-- Concrete example: a measured 33.3 MHz CCLK with 50% duty cycle satisfies the
+    flash timing predicate. This is the nominal rate for OSCFSEL=7. -/
+theorem measured_33_3mhz_50duty_satisfies_flash_spec :
+  measured_cclk_satisfies_flash_spec 33_300_000 50 = true := by
+  decide
+
 end BitstreamConfig
 
 -- ============================================================================

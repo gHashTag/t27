@@ -53,22 +53,35 @@ weak-point / competitor scan and detailed decomposition.
 ## Acceptance criteria
 
 - [ ] AC-A1 (Variant A): a real CCLK capture CSV from P12 exists in
-      `docs/reports/` or `build/fpga/`.
+      `docs/reports/` or `build/fpga/`. **Blocked — P12 not wired.**
 - [ ] AC-A2 (Variant A): `fpga/HARDWARE_SSOT.md` §3.6.1 contains the measured
-      frequency and duty cycle with tolerance.
+      frequency and duty cycle with tolerance. **Blocked — P12 not wired.**
 - [ ] AC-A3 (Variant A): `tri fpga measure-cclk --live ... --validate` passes
-      on real hardware.
+      on real hardware. **Blocked — P12 not wired.**
 - [ ] AC-B1 (Variant B): deferred to W411 unless relay hardware is available.
-- [ ] AC-C1 (Variant C): `OSCFSEL=6` and `OSCFSEL=7` physically booted and logged,
-      or failures documented.
-- [ ] AC-C2 (Variant C): a `measured_cclk_satisfies_flash_spec` predicate and
+- [x] AC-C1 (Variant C): `OSCFSEL=6` and `OSCFSEL=7` physically booted and logged,
+      or failures documented. **Failures documented — DLC10 cable missing.**
+- [x] AC-C2 (Variant C): a `measured_cclk_satisfies_flash_spec` predicate and
       lemma link a captured `(frequency, duty)` pair to the transaction spec.
-- [ ] AC-D1: `lake build Trinity.TernaryFPGABoot` passes with the new lemmas.
-- [ ] AC-D2: `cargo test -p tri fpga::tests` passes.
-- [ ] AC-D3: `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
-- [ ] AC-D4: `./scripts/tri test` gen-verilog-yosys-smoke phase is clean, or the
-      remaining failures are explicitly tracked and scoped separately.
-- [ ] AC-D5: W410 report + evidence + W411 cooperation variants committed.
+- [x] AC-D1: `lake build Trinity.TernaryFPGABoot` passes with the new lemmas.
+- [x] AC-D2: `cargo test -p tri fpga::tests` passes.
+- [x] AC-D3: `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
+- [x] AC-D4: `./scripts/tri test` gen-verilog-yosys-smoke phase is clean, or the
+      remaining failures are explicitly tracked and scoped separately. **16
+      pre-existing failures tracked in
+      `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`.**
+- [x] AC-D5: W410 report + evidence + W411 cooperation variants committed.
+
+---
+
+## Close-out note
+
+W410 delivered the formal-only half of Variant C because both physical paths
+remain blocked by the same bench state. The measured-duty formal link is now
+ready; a real P12 capture or an `OSCFSEL=6,7` cold-POR boot will immediately
+produce a `transaction_satisfies_flash_spec` proof once the wiring/cable issues
+are resolved. The default W411 recommendation remains Variant A + C (physical
+measurement + physical 6/7 boot + auto-proof tooling).
 
 ---
 
