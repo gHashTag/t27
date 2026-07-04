@@ -516,7 +516,7 @@
       "kind": "bitexact",
       "n_vectors": 100,
       "source": "2-digit packed BCD instance; iverilog-witnessed (256/256) + HW Tier-E",
-      "sha256": "42de461e6878d7a8b891f72b07c9158ac4cc1c92c5dbfbdbbe0c46c60429dd29"
+      "sha256": "637912a0b8d1a4a1e5a50ddafa2c6dbc8e44c7e96218fb8c70763bc69de505cb"
     },
     {
       "id": "ibm_hfp32",

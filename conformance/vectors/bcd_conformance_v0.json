@@ -1,7 +1,7 @@
 {
   "schema": "t27-conformance/v0.1",
   "format": "BCD",
-  "format_name": "BCD (binary-coded decimal) — 2-digit packed instance",
+  "format_name": "BCD (binary-coded decimal) - 2-digit packed instance",
   "bitexact": true,
   "format_notes": "Fixed-width instance: 2-digit packed BCD, 8-bit word bcd_in[7:4]=tens, bcd_in[3:0]=ones; decode value = tens*10 + ones (valid range 0..99). This is the concrete instance decoded on AX7203 silicon (corona-decode-bcd, HW Tier-E 100/100) and iverilog-witnessed on bcd_decode.v (256/256 bit-exact). GENERIC BCD is variable-width (u4_per_digit, no single layout) which is why the catalog row carries bits=0/storage=u4_per_digit; this pack fixes the 2-digit instance to make a bit-precise round-trip well-defined. Invalid nibbles (0xA..0xF) are excluded from the bitexact vector set; the RTL computes (tens*10+ones) mod 128 on them with valid=0 (documented, not part of the round-trip claim).",
   "catalog": {
@@ -41,7 +41,7 @@
     {
       "kind": "fpga_hw",
       "cell": "corona-decode-bcd on AX7203 (IDCODE 0x13636093)",
-      "result": "100/100 bit-exact (fails=0) @160000 — HW Tier-E (see trinity-fpga #199)"
+      "result": "100/100 bit-exact (fails=0) @160000 - HW Tier-E (see trinity-fpga #199)"
     }
   ],
   "n_vectors": 100,

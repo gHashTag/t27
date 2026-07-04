@@ -2,6 +2,12 @@
 
 Last updated: 2026-07-04
 
+## bcd-bitexact-promotion -- promote bcd -> strict bitexact (2-digit packed instance) (Closes #1321)
+
+- **WHERE** (conformance vectors): `conformance/vectors/bcd_conformance_v0.json` promoted from `structural` to `bitexact` in `INDEX_all_formats.json` (bitexact_packs 69 -> 70, structural_packs 14 -> 13; bcd.kind structural -> bitexact, n_vectors 0 -> 100). Fixes ONE concrete instance: 2-digit packed BCD, 8-bit word bcd_in[7:4]=tens, bcd_in[3:0]=ones, decode value = tens*10 + ones (valid 0..99). Generic variable-width BCD (u4_per_digit) stays noted in catalog.instance/format_notes; only this fixed-width instance carries a bit-precise round-trip claim.
+- **Why**: bcd was `structural` only because generic BCD has no single layout, not because it was undone. The 2-digit packed instance is the one decoded on AX7203 silicon (corona-decode-bcd, HW Tier-E 100/100) and is now bit-precise-witnessed. Three witnesses: (1) Python golden tens*10+ones 100/100 abs_error=0; (2) independent iverilog 13.0 sim of bcd_decode.v exhaustive 256/256 bit-exact (fails=0), invalid nibbles 0xA..0xF computed as (tens*10+ones) mod 128 with valid=0, excluded from the round-trip claim; (3) FPGA HW corona-decode-bcd on AX7203 (IDCODE 0x13636093) 100/100 @160000. Honesty: [verified SW na iverilog] (256/256) + [izmereno na kremnii] (HW Tier-E 100/100). Catalog = 83 unchanged. ASCII-only; INDEX sha256 for the pack refreshed to match the file byte-for-byte. Closes #1321.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## w405-fpga-smoke-gate-flash-boot -- add `--flash-boot` cold-POR gate (Closes #1311)
 
 - **WHERE**: `cli/tri/src/fpga.rs`, `.claude/plans/wave-loop-405.md`, close-out reports.
