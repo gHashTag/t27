@@ -1,65 +1,60 @@
-# Wave Loop 401 — CCLK measurement & cold-POR hardening
+# Wave Loop 402 — FPGA: close AC5 physical CCLK measurement + follow-up hardening
 
-**Issue:** #1303  
+**Issue:** #1305  
 **Branch:** `trinity-rust-rings`  
-**Milestone:** FPGA boot-from-flash is verified; now lock the working default,
-harden the cold-POR protocol, and measure/record CCLK.
+**Milestone:** W401 hardened the cold-POR protocol and added board-less CI guards.
+Now close the deferred AC5 (physical CCLK measurement on P12) or pursue one of the
+alternate cooperation variants.
 
 ---
 
 ## Goal
 
-1. Harden the cold-POR protocol with a standalone `tri fpga boot-protocol`
-   command and explicit operator checklist.
-2. Extend `tri fpga smoke-gate` to enforce the canonical bitstream:
-   `IDCODE=0x03636093`, `SPI_BUSWIDTH=x1`, `STARTUPCLK=CCLK`, `OSCFSEL=0`,
-   and no CRC register writes.
-3. Make `tri fpga measure-cclk --csv` robust to DSView, PulseView, and Saleae
-   CSV exports, and add unit tests for the parser.
-4. Add a board-less dry-run sweep guard so CI exercises `cclk-sweep` and
-   `sweep-report` without hardware.
-5. If a physical CCLK capture is available, record the measured frequency in
-   `fpga/HARDWARE_SSOT.md`.
-6. Land W401 and publish W402 cooperation variants.
+1. Capture the actual CCLK frequency on pin P12 and record it in
+   `fpga/HARDWARE_SSOT.md` (Variant A — default if hardware is available).
+2. OR encode the cold-POR / CCLK decision tree in Lean 4 (Variant B — no
+   hardware required).
+3. OR extend `tri fpga smoke-gate` to optionally load the GF16 matrix into SRAM
+   and assert `DONE=HIGH` when a cable is present (Variant C — stretch).
+4. Update close-out reports and open W403 cooperation variants.
 
 ---
 
 ## Decomposed plan
 
-See `.claude/plans/wave-loop-401.md` for the full work breakdown.
+See `.claude/plans/wave-loop-402.md` for the full work breakdown.
 
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `scripts/dump_bit_config.py` | `--assert-oscfsel N`, `--assert-no-crc-writes` |
-| 2 | `cli/tri/src/fpga.rs` | Extended `smoke-gate`, new `boot-protocol`, robust CSV parser + tests |
-| 3 | `bootstrap/src/suite.rs` | Board-less dry-run sweep + report guard |
-| 4 | `fpga/HARDWARE_SSOT.md`, `docs/reports/*` | SSOT update + W401 report/evidence/cooperation |
-| 5 | `.trinity/experience.md` | W401 learnings |
-| 6 | git/PR | squash-merge to `trinity-rust-rings`, close #1303, open #W402 |
+| 1 | `.claude/plans/wave-loop-402.md` | Decomposed plan + weak-point + competitor scan |
+| 2 | `fpga/HARDWARE_SSOT.md` (Variant A) | Measured CCLK frequency/duty cycle on P12 |
+| 3 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` (Variant B) | Formal STAT/decision-tree lemmas |
+| 4 | `cli/tri/src/fpga.rs` (Variant C) | Optional cable-connected SRAM smoke load |
+| 5 | `docs/reports/*` | W402 report, evidence, W403 cooperation |
+| 6 | `.trinity/experience.md` | W402 learnings |
+| 7 | git/PR | squash-merge to `trinity-rust-rings`, close #1305, open #W403 |
 
 ---
 
 ## Acceptance criteria
 
-- [ ] AC1: `tri fpga smoke-gate` asserts `OSCFSEL=0` and no CRC writes.
-- [ ] AC2: `tri fpga boot-protocol --checklist` prints the cold-POR steps.
-- [ ] AC3: `tri fpga measure-cclk --csv` parses DSView, PulseView, and Saleae CSV
-      exports.
-- [ ] AC4: Unit tests for CSV parsing pass.
-- [ ] AC5: Board-less dry-run sweep + report path is exercised in CI/smoke gate.
-- [ ] AC6: `./scripts/tri test` passes (575/575).
-- [ ] AC7: W401 report + evidence + W402 cooperation variants committed.
-- [ ] AC8: If a physical CCLK capture is available, pin P12 frequency is recorded
-      in `fpga/HARDWARE_SSOT.md`.
+- [ ] AC-A1 (Variant A): a physical CCLK trace is captured and the dominant
+      frequency is recorded.
+- [ ] AC-A2 (Variant A): `fpga/HARDWARE_SSOT.md` §3.5 contains the measured value.
+- [ ] AC-B1 (Variant B): new Lean 4 module builds and links `STAT` decoding to the
+      documented decision trees.
+- [ ] AC-C1 (Variant C): `tri fpga smoke-gate --require-cable` reaches
+      `DONE=HIGH` on the bench.
+- [ ] AC-D1: `./scripts/tri test` passes.
+- [ ] AC-D2: W402 report + evidence + W403 cooperation variants committed.
 
 ---
 
 ## Default variant
 
-Execute **Variant A** from `docs/reports/FPGA_LOOP_COOPERATION_2026-07-08.md`
-when a logic analyser is available; otherwise execute **Variant B**:
-board-less hardening and CI guards. This wave implements both so that the
-physical capture can be slotted in as soon as hardware is ready.
+Execute **Variant A** when a logic analyser / oscilloscope is available; otherwise
+fall back to **Variant B** (Lean 4 formalization). **Variant C** is a stretch
+goal once Variant A is closed.
 
 ---
 

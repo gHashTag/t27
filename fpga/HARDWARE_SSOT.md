@@ -178,6 +178,13 @@ strap is the root cause, not the bitstream.
 Use `tri fpga flash-status` to probe the detected flash chip, and
 `tri fpga dump-flash` to read back the flash contents for verification.
 
+> **Formal traceability:** the predicates in this decision tree are encoded in
+> Lean 4 as `Trinity.StatRegister.boot_success`, `h2_cclk_timing`, and
+> `mode_mismatch` in `proofs/lean4/Trinity/TernaryFPGABoot.lean`. The W400
+> success example (`STAT=0x401079FC`) and the incomplete example
+> (`STAT=0x5000190C`) are verified as instances of `boot_success` and
+> `h2_cclk_timing` respectively.
+
 ### 3.3 H2 — CCLK/SPI-startup timing decision tree
 
 If cold-POR samples `MODE=0b001` (Master SPI x1) but `DONE=0`, the failure is

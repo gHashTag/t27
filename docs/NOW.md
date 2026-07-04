@@ -2,6 +2,13 @@
 
 Last updated: 2026-07-05
 
+## w402-fpga-cold-por-lean4 -- formalize cold-POR / CCLK decision tree in Lean 4 (Closes #1305)
+
+- **WHERE**: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `proofs/lean4/Trinity.lean`, `fpga/HARDWARE_SSOT.md`, close-out reports.
+- **WHAT**: Added a Lean 4 model of the 7-series FPGA STAT register with named bit-field decoders and decision predicates (`boot_success`, `h2_cclk_timing`, `mode_mismatch`, `fatal_error`). Proved 8 lemmas including the W400 success example (`STAT=0x401079FC` → `boot_success`) and the incomplete cold-POR example (`STAT=0x5000190C` → `h2_cclk_timing`). Linked the documented decision trees in `fpga/HARDWARE_SSOT.md` to the formal predicates. Resealed `bpsk`, `feed_forward_network`, and `formats_catalog` specs after the master gen-verilog backend reached `trinity-rust-rings`. Conformance suite `576/576 PASS`. Physical CCLK measurement on P12 still deferred to W403.
+- **Why**: closes the deferred W401 AC5 without requiring bench hardware and gives t27 a formal traceability claim in the same design space as Verilean / Sparkle HDL.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## w401-fpga-cold-por-hardening -- cold-POR protocol hardening and board-less CI guards (Closes #1303)
 
 - **WHERE**: `cli/tri/src/fpga.rs`, `scripts/dump_bit_config.py`, `fpga/HARDWARE_SSOT.md`, close-out reports.

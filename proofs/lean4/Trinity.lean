@@ -9,3 +9,4 @@ import Trinity.H4Lagrangian
 import Trinity.TernaryMac
 import Trinity.TernaryGemm
 import Trinity.TernaryInference
+import Trinity.TernaryFPGABoot

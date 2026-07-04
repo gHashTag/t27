@@ -1,5 +1,57 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-05 — Wave Loop 402 (Cold-POR decision tree formalized in Lean 4)
+
+### What worked
+- Defaulting to **Variant B** (Lean 4 formalization) when bench hardware was
+  unavailable let W402 close cleanly. The physical CCLK capture tooling was
+  already ready from W401; only the operator step was missing.
+- Modeling the 7-series STAT register directly from the `cli/dlc10` bit layout
+  kept the formal predicates faithful to the Rust tooling. Named field decoders
+  (`mode`, `done`, `eos`, `crc_error`, `id_error`, `dec_error`, `bus_width`)
+  make the Lean module readable next to `fpga/HARDWARE_SSOT.md`.
+- Proving both the W400 success example (`0x401079FC`) and the incomplete
+  example (`0x5000190C`) as concrete instances of `boot_success` and
+  `h2_cclk_timing` ties the formal specification to real captured data.
+- Squashing the W397-W401 wave sequence into a single mergeable commit was the
+  only path through the L1 TRACEABILITY gate, because the long-lived
+  `trinity-rust-rings` branch had accumulated commits without per-commit issue
+  references.
+- Resealing the three specs whose generated hashes shifted after the master
+  gen-verilog backend (#1250) reached the branch kept the conformance gate green.
+- Conformance suite: **576/576 PASS**.
+
+### What changed behavior
+- New Lean 4 module `proofs/lean4/Trinity/TernaryFPGABoot.lean` formalizes the
+  cold-POR / CCLK decision tree.
+- `proofs/lean4/Trinity.lean` imports the new module.
+- `fpga/HARDWARE_SSOT.md` §3.2 now links the documented decision tree to the
+  Lean predicates.
+- `.trinity/current-issue.md` points to W402 issue #1305.
+- `.claude/plans/wave-loop-402.md` records the weak-point + competitor analysis.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_402_REPORT.md`,
+  `FPGA_LOOP_EVIDENCE_2026-07-05.md`, and
+  `FPGA_LOOP_COOPERATION_2026-07-05.md`.
+
+### Patterns to reuse
+- When a physical AC cannot be closed in a headless session, convert it into a
+  formal or tooling AC that captures the same knowledge and can be verified
+  board-less.
+- Keep formal predicates adjacent to the operational prose that defines them;
+  cross-linking the docs and the Lean module makes both easier to audit.
+- Squash long-lived feature branches before opening a PR if earlier commits
+  lack issue references; a single clean merge commit satisfies L1 TRACEABILITY.
+- After any backend change reaches a working branch, run the seal gate and
+  reseal affected specs before declaring the wave complete.
+
+### Anti-patterns to avoid
+- Do not let a long-lived branch accumulate commits without issue references;
+  landing becomes painful when branch protection checks every commit.
+- Do not assume the conformance suite count is static; backend improvements can
+  change generated hashes and require resealing.
+- Do not skip documenting the deferred physical AC; state explicitly what is
+  blocked and what would unblock it.
+
 ## 2026-07-09 — Wave Loop 401 (Cold-POR protocol hardening & board-less CI guards)
 
 ### What worked
