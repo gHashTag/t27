@@ -1400,7 +1400,16 @@
 - **Commit:** docs(wave-loop-405): set up W405 issue pointer and decomposed plan (refs #1311)
 - **Files:** .claude/plans/wave-loop-405.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-10.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-10.md,docs/reports/WAVE_LOOP_405_REPORT.md
 
-## 2026-07-04T11:33:20Z — wave-loop-407
+## 2026-07-12T11:31:40Z — wave-loop-406
 - **Commit:** feat(igla): Wave Loop 406 — live CCLK capture, OSCFSEL/CCLK flash-spec safety in Lean 4, close-out reports
-- **Files:** .trinity/current-issue.md
+- **Files:** .claude/plans/wave-loop-406.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-12.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-12.md,docs/reports/WAVE_LOOP_406_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+
+## 2026-07-04T11:34:48Z — wave-loop-407
+- **Commit:** chore(w407): set current issue to Wave Loop 407 (#1316)
+- **Files:** .claude/plans/wave-loop-406.md,.trinity/current_task/activity.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-12.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-12.md,docs/reports/WAVE_LOOP_406_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-04T11:50:57Z — wave-loop-407
+- **Commit:** merge(w407): integrate Wave Loop 406 changes into wave-loop-407
+- **Files:** .claude/plans/wave-loop-406.md,.claude/plans/wave-loop-407.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-12.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-13.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-12.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-13.md,docs/reports/WAVE_LOOP_406_REPORT.md,docs/reports/WAVE_LOOP_407_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 

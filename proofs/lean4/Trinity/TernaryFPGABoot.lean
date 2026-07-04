@@ -87,6 +87,86 @@ def STARTUPCLK_CCLK : UInt8 := 0x0
 /-- Default internal CCLK oscillator selection (COR0[22:17] = 0). -/
 def OSCFSEL_DEFAULT : UInt8 := 0x0
 
+/-- 6-bit raw OSCFSEL value has 64 possible selections. -/
+def OSCFSEL_COUNT : Nat := 64
+
+/-- Maximum valid raw OSCFSEL value (63). -/
+def OSCFSEL_MAX : UInt8 := 0x3F
+
+/-- Nominal CCLK frequency in Hz for each 7-series OSCFSEL value.
+    Values are taken from UG470 "Configuration Clock Sources" and the
+    Artix-7 configuration timing tables. Only the first few values are
+    documented/used by the t27 canonical bitstream; higher values are reserved
+    or device-specific and are mapped to 0 here to keep the function total. -/
+def cclk_nominal_hz (oscfsel : Nat) : Nat :=
+  match oscfsel with
+  | 0 => 2_500_000   -- default / 2.5 MHz
+  | 1 => 4_200_000   -- ~4.2 MHz
+  | 2 => 6_600_000   -- ~6.6 MHz
+  | 3 => 10_000_000  -- ~10 MHz
+  | 4 => 12_500_000  -- ~12.5 MHz
+  | 5 => 16_700_000  -- ~16.7 MHz
+  | 6 => 25_000_000  -- ~25 MHz
+  | 7 => 33_300_000  -- ~33.3 MHz
+  | _ => 0           -- reserved / undefined in this model
+
+/-- Maximum SCK frequency supported by the on-board Micron N25Q128_3V for the
+    standard SPI Read command (0x03) used during 7-series Master SPI boot.
+    Datasheet value: 50 MHz for standard read; fast read can go higher but the
+    FPGA boot loader issues 0x03 by default. Units: Hz. -/
+def N25Q128_MAX_SCK_HZ : Nat := 50_000_000
+
+/-- Minimum CS# high time (t_SHSL) required between SPI transactions for the
+    N25Q128. Datasheet value: 100 ns. Units: nanoseconds. -/
+def N25Q128_MIN_CS_HIGH_NS : Nat := 100
+
+/-- Minimum SCK clock-low time (t_CL) for the N25Q128 standard Read command.
+    Datasheet value: 5.5 ns; rounded up to 6 ns to keep the model integral.
+    Units: nanoseconds. -/
+def N25Q128_MIN_SCK_LOW_NS : Nat := 6
+
+/-- Minimum SCK clock-high time (t_CH) for the N25Q128 standard Read command.
+    Datasheet value: 5.5 ns; rounded up to 6 ns to keep the model integral.
+    Units: nanoseconds. -/
+def N25Q128_MIN_SCK_HIGH_NS : Nat := 6
+
+/-- Maximum wake-up time from power-down (t_RES1) for the N25Q128. The
+    datasheet gives ~30 us max; this model uses 100 us as a conservative bound
+    that also absorbs board-level power-rail settling. Units: microseconds. -/
+def N25Q128_WAKE_FROM_POWERDOWN_US : Nat := 100
+
+/-- A given raw OSCFSEL selection is within the flash timing spec when its
+    nominal CCLK is non-zero and does not exceed the flash maximum SCK
+    frequency. This is a static, conservative predicate: it does not account for
+    temperature/voltage/process variation; those are covered by the margin
+    between the nominal CCLK and the flash limit. -/
+def cclk_within_flash_spec (oscfsel : UInt8) : Bool :=
+  let f := cclk_nominal_hz oscfsel.toNat
+  f > 0 ∧ f ≤ N25Q128_MAX_SCK_HZ
+
+/-- Nominal CCLK period in nanoseconds for a given OSCFSEL selection. Returns 0
+    for reserved/undefined selections. -/
+def cclk_period_ns (oscfsel : Nat) : Nat :=
+  let f := cclk_nominal_hz oscfsel
+  if f > 0 then 1_000_000_000 / f else 0
+
+/-- True when the nominal CCLK period is long enough that both the clock-low
+    and clock-high half-periods satisfy the N25Q128 minimum SCK low/high times.
+    Assumes a nominal 50% duty cycle; the conservative period bound makes the
+    predicate robust to moderate duty-cycle asymmetry. -/
+def sck_duty_ok (oscfsel : Nat) : Bool :=
+  let period := cclk_period_ns oscfsel
+  let half := period / 2
+  half ≥ N25Q128_MIN_SCK_LOW_NS ∧ half ≥ N25Q128_MIN_SCK_HIGH_NS
+
+/-- Comprehensive SPI flash timing predicate for a given OSCFSEL selection.
+    Combines the CCLK frequency bound with the SCK low/high half-period bounds.
+    CS# high time and wake-up are separate board-level constants because they
+    depend on the FPGA configuration engine's inter-transaction timing rather
+    than on the CCLK frequency alone. -/
+def flash_spi_timing_ok (oscfsel : UInt8) : Bool :=
+  cclk_within_flash_spec oscfsel ∧ sck_duty_ok oscfsel.toNat
+
 /-- The canonical bitstream configuration proven to boot from flash on W400.
     Matches the assertions run by `tri fpga smoke-gate`. -/
 def canonical (cfg : BitstreamConfig) : Bool :=
@@ -109,6 +189,54 @@ theorem canonical_implies_spi_x1_cclk_boot (cfg : BitstreamConfig) :
   intro h
   simp [canonical, spi_x1_cclk_boot] at h ⊢
   exact ⟨h.right.left, h.right.right.left⟩
+
+/-- The canonical OSCFSEL=0 selection has a 2.5 MHz nominal CCLK, well below
+    the N25Q128 50 MHz standard-read limit. -/
+theorem canonical_oscfsel_within_flash_spec :
+  cclk_within_flash_spec 0 = true := by
+  decide
+
+/-- If a bitstream is canonical then its oscillator selection is timing-safe
+    for the on-board flash. This closes the static CCLK-timing side of the
+    cold-POR decision tree. -/
+theorem canonical_implies_cclk_within_flash_spec (cfg : BitstreamConfig) :
+  cfg.canonical → cclk_within_flash_spec cfg.oscfsel := by
+  intro h
+  simp [canonical, OSCFSEL_DEFAULT, cclk_within_flash_spec, cclk_nominal_hz,
+        N25Q128_MAX_SCK_HZ] at h ⊢
+  rw [h.right.right.right]
+  decide
+
+/-- The full SPI flash timing predicate implies the CCLK frequency bound. -/
+theorem flash_spi_timing_ok_implies_cclk_within_flash_spec (oscfsel : UInt8) :
+  flash_spi_timing_ok oscfsel → cclk_within_flash_spec oscfsel := by
+  intro h
+  simp [flash_spi_timing_ok] at h
+  exact h.left
+
+/-- The canonical OSCFSEL=0 selection has a 400 ns CCLK period, giving a 200 ns
+    half-period that is far above the N25Q128 6 ns SCK low/high limits. -/
+theorem canonical_oscfsel_sck_duty_ok :
+  sck_duty_ok 0 = true := by
+  decide
+
+/-- The canonical OSCFSEL=0 selection satisfies the full SPI flash timing
+    predicate: frequency is within the 50 MHz standard-read limit and the
+    nominal period is long enough for the SCK low/high constraints. -/
+theorem canonical_oscfsel_flash_spi_timing_ok :
+  flash_spi_timing_ok 0 = true := by
+  decide
+
+/-- If a bitstream is canonical then its oscillator selection satisfies the
+    full SPI flash timing predicate. -/
+theorem canonical_implies_flash_spi_timing_ok (cfg : BitstreamConfig) :
+  cfg.canonical → flash_spi_timing_ok cfg.oscfsel := by
+  intro h
+  simp [canonical, OSCFSEL_DEFAULT, flash_spi_timing_ok,
+        cclk_within_flash_spec, sck_duty_ok, cclk_period_ns, cclk_nominal_hz,
+        N25Q128_MAX_SCK_HZ, N25Q128_MIN_SCK_LOW_NS, N25Q128_MIN_SCK_HIGH_NS] at h ⊢
+  rw [h.right.right.right]
+  decide
 
 end BitstreamConfig
 
@@ -170,7 +298,29 @@ structure ColdPOR where
     DONE is observed. -/
 def cold_por_spi_flash_pred (p : ColdPOR) (s : StatRegister) : Bool :=
   p.cfg.canonical ∧ p.mode_ok ∧ p.no_cable_interference
+  ∧ BitstreamConfig.flash_spi_timing_ok p.cfg.oscfsel
   ∧ s.mode_master_spi_x1 ∧ ¬s.fatal_error
+
+/-- If the static preconditions hold then the oscillator selection is within
+    the flash timing spec. This is the formal link between the cold-POR
+    predicate and the CCLK timing bounds. -/
+theorem cold_por_implies_flash_spi_timing_ok
+  (p : ColdPOR) (s : StatRegister) :
+  cold_por_spi_flash_pred p s → BitstreamConfig.flash_spi_timing_ok p.cfg.oscfsel := by
+  intro h
+  simp [cold_por_spi_flash_pred] at h
+  rcases h with ⟨_, _, _, h_flash, _, _⟩
+  exact h_flash
+
+/-- If the static preconditions hold then the oscillator selection is within
+    the flash CCLK-frequency bound. This follows from the stronger
+    `flash_spi_timing_ok` precondition. -/
+theorem cold_por_implies_cclk_within_flash_spec
+  (p : ColdPOR) (s : StatRegister) :
+  cold_por_spi_flash_pred p s → BitstreamConfig.cclk_within_flash_spec p.cfg.oscfsel := by
+  intro h
+  apply BitstreamConfig.flash_spi_timing_ok_implies_cclk_within_flash_spec
+  exact cold_por_implies_flash_spi_timing_ok p s h
 
 /-- If the static preconditions hold and both DONE and EOS are HIGH, then
     boot_success holds. EOS is a dynamic observation, not a static config field. -/
@@ -179,7 +329,7 @@ theorem cold_por_done_eos_high_implies_boot_success
   cold_por_spi_flash_pred p s → s.done → s.eos → s.boot_success := by
   intro h h_done _h_eos
   simp [cold_por_spi_flash_pred, boot_success, mode_master_spi_x1, fatal_error] at h ⊢
-  rcases h with ⟨_, _, _, h_mode, h_no_fatal⟩
+  rcases h with ⟨_, _, _, _, h_mode, h_no_fatal⟩
   rcases h_no_fatal with ⟨h_crc, h_id, h_dec⟩
   simp [h_done, h_mode, h_crc, h_id, h_dec]
 
@@ -190,7 +340,7 @@ theorem cold_por_done_low_implies_h2
   cold_por_spi_flash_pred p s → ¬s.done → s.h2_cclk_timing := by
   intro h h_not_done
   simp [cold_por_spi_flash_pred, h2_cclk_timing, mode_master_spi_x1, fatal_error] at h ⊢
-  rcases h with ⟨_, _, _, h_mode, h_no_fatal⟩
+  rcases h with ⟨_, _, _, _, h_mode, h_no_fatal⟩
   rcases h_no_fatal with ⟨h_crc, h_id, _⟩
   simp [h_not_done, h_mode, h_crc, h_id]
 

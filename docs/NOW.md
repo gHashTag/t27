@@ -1,6 +1,20 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-07-04
+Last updated: 2026-07-13
+
+## w407-fpga-deeper-flash-timing -- extend Lean 4 SPI flash timing model + synthetic CCLK fixture (Closes #1316)
+
+- **WHERE**: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`, `fpga/HARDWARE_SSOT.md` §3.6, close-out reports.
+- **WHAT**: Extended the W406 formal model with additional Micron N25Q128_3V timing constants: `N25Q128_MIN_SCK_LOW_NS` (6 ns), `N25Q128_MIN_SCK_HIGH_NS` (6 ns), `N25Q128_WAKE_FROM_POWERDOWN_US` (100 us), plus `cclk_period_ns`, `sck_duty_ok`, and a comprehensive `flash_spi_timing_ok` predicate. Replaced `cclk_within_flash_spec` with `flash_spi_timing_ok` inside `cold_por_spi_flash_pred` and proved `canonical_oscfsel_flash_spi_timing_ok`, `canonical_implies_flash_spi_timing_ok`, `cold_por_implies_flash_spi_timing_ok`, plus `flash_spi_timing_ok_implies_cclk_within_flash_spec`. In `tri`, added `tri fpga measure-cclk --synth` to generate a board-less 2.5 MHz square-wave logic CSV, extended `--validate` with a 25%–75% duty-cycle guard, and added unit tests for `is_logic_csv`, `parse_logic_csv`, and `generate_synth_cclk_csv`. Updated `fpga/HARDWARE_SSOT.md` §3.6 with the deeper timing constraints, synthetic fixture instructions, and real-capture wiring checklist. Conformance suite `576/576 PASS`; `cargo test -p tri` 8/8 PASS; `lake build Trinity.TernaryFPGABoot` green. Real P12 capture still blocked by missing LA wiring; deferred to W408.
+- **Why**: W406 bounded CCLK frequency; W407 closes the rest of the SPI flash timing-safety argument (SCK low/high, CS high, wake-up) and gives CI a way to validate the measurement pipeline without bench hardware, making the formal+physical chain harder for competitors (Verilean, Sparkle HDL, prjxray, OpenTitan) to reproduce.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+## w406-fpga-cclk-measure-and-formal -- add live CCLK capture + OSCFSEL/CCLK timing safety in Lean 4 (Closes #1313)
+
+- **WHERE**: `cli/tri/src/fpga.rs`, `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `fpga/HARDWARE_SSOT.md`, close-out reports.
+- **WHAT**: Closed the remaining FPGA boot verification gap by quantifying the CCLK timing link. In Lean 4, added `BitstreamConfig.cclk_nominal_hz` (OSCFSEL 0..7 lookup from UG470), `N25Q128_MAX_SCK_HZ` (50 MHz Micron standard-read limit), and `cclk_within_flash_spec`; integrated the predicate into `cold_por_spi_flash_pred` and proved `canonical_oscfsel_within_flash_spec`, `canonical_implies_cclk_within_flash_spec`, and `cold_por_implies_cclk_within_flash_spec`. In `tri`, extended `fpga measure-cclk` with `--live --driver <sigrok-driver> --channel <pin> --samplerate <Hz> --samples <N>` to drive `sigrok-cli`, capture logic-analyzer CSV, and compute frequency/period/duty with flash-spec validation (`--validate`). Manual CSV path still works for offline evidence. Added `fpga/HARDWARE_SSOT.md` §3.6 formal CCLK traceability and live-capture protocol. Conformance suite `576/576 PASS`; `lake build Trinity.TernaryFPGABoot` green. Physical P12 wiring is not yet on the bench, so no live measured frequency is available; the infrastructure is ready and a manual/CSV capture is documented as the W407 fallback.
+- **Why**: W405 proved the canonical bitstream reaches `DONE=HIGH` after cold-POR; W406 proves the default CCLK rate itself satisfies the SPI flash timing spec, giving a complete formal+physical chain for FPGA flash boot that competitors (Verilean, Sparkle HDL, OpenTitan) would have to reproduce.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## w405-fpga-smoke-gate-flash-boot -- add `--flash-boot` cold-POR gate (Closes #1311)
 

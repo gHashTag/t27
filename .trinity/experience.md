@@ -1,5 +1,110 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-13 — Wave Loop 407 (Deeper SPI flash timing + synthetic CCLK fixture)
+
+### What worked
+- Extending the W406 formal model with additional N25Q128 timing constants
+  (`MIN_SCK_LOW_NS`, `MIN_SCK_HIGH_NS`, `WAKE_FROM_POWERDOWN_US`) and a
+  comprehensive `flash_spi_timing_ok` predicate made the CCLK bound a
+  *component* of a fuller timing-safety argument rather than a one-off claim.
+- Replacing `cclk_within_flash_spec` with `flash_spi_timing_ok` inside
+  `cold_por_spi_flash_pred` keeps the cold-POR precondition as strong as
+  possible while recovering the original frequency bound through a separate
+  lemma (`flash_spi_timing_ok_implies_cclk_within_flash_spec`).
+- Adding a `--synth` fixture to `tri fpga measure-cclk` gave the validation
+  pipeline a CI-runnable path with no bench hardware, which is exactly the
+  fallback needed when P12 is not wired.
+- Unit tests for `is_logic_csv`, `parse_logic_csv`, and `generate_synth_cclk_csv`
+  catch parser regressions before they reach the conformance suite.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added `N25Q128_MIN_SCK_LOW_NS`,
+  `N25Q128_MIN_SCK_HIGH_NS`, `N25Q128_WAKE_FROM_POWERDOWN_US`, `cclk_period_ns`,
+  `sck_duty_ok`, and `flash_spi_timing_ok`. Proved
+  `canonical_oscfsel_flash_spi_timing_ok`,
+  `canonical_implies_flash_spi_timing_ok`,
+  `cold_por_implies_flash_spi_timing_ok`, and
+  `flash_spi_timing_ok_implies_cclk_within_flash_spec`.
+  `cold_por_spi_flash_pred` now requires `flash_spi_timing_ok`.
+- `cli/tri/src/fpga.rs`: `FpgaCmd::MeasureCclk` gained `--synth`. Added
+  `generate_synth_cclk_csv`, duty-cycle constants, duty-cycle validation in
+  `--validate`, and four new unit tests.
+- `fpga/HARDWARE_SSOT.md` §3.6 expanded with N25Q128 SCK low/high / wake-up
+  constants, `flash_spi_timing_ok` traceability, synthetic fixture instructions,
+  and real-capture wiring checklist.
+- `docs/NOW.md` updated with the W407 entry.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_407_REPORT.md`,
+  `FPGA_LOOP_EVIDENCE_2026-07-13.md`, and
+  `FPGA_LOOP_COOPERATION_2026-07-13.md`.
+
+### Patterns to reuse
+- When a formal predicate can be strengthened without losing the old lemma,
+  replace the old predicate in the main definition and re-prove the old lemma
+  as a corollary. This keeps downstream proofs compact and the model auditable.
+- For bench commands that depend on physical wiring, add a synthetic fixture
+  path so CI can exercise the same parsing/validation code without the probe.
+
+### Anti-patterns to avoid
+- Do not conflate static config timing with dynamic STAT observations. The
+  new `flash_spi_timing_ok` is a function of `OSCFSEL` only; the cold-POR
+  predicate links it to the observed STAT outcome, not the other way around.
+
+## 2026-07-12 — Wave Loop 406 (CCLK measurement + OSCFSEL/CCLK timing safety in Lean 4)
+
+### What worked
+- Adding an axiomatic `cclk_nominal_hz` lookup and `N25Q128_MAX_SCK_HZ` flash spec to
+  `TernaryFPGABoot.lean` closed the quantitative gap in the cold-POR formal model.
+  `cclk_within_flash_spec` now links `OSCFSEL` to the Micron standard-read timing
+  bound (≤ 50 MHz) and is integrated into `cold_por_spi_flash_pred`.
+- Extending `tri fpga measure-cclk` with a `--live` path that drives `sigrok-cli`
+  and parses exported logic CSV gives a repeatable way to verify nominal CCLK
+  against the same flash bound, not just a manual spreadsheet.
+- Keeping the measurement command board-less (CSV) by default and opt-in (`--live`)
+  preserves CI while enabling bench evidence when the P12 wiring is ready.
+- The W405 `cclk_sweep` gate was already sufficient to prove cold-POR success; W406
+  adds the *formal reason* the CCLK rate itself is safe, which is the remaining
+  half of the boot-verification gap.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added `OSCFSEL_COUNT`,
+  `OSCFSEL_MAX`, `cclk_nominal_hz`, `N25Q128_MAX_SCK_HZ`,
+  `N25Q128_MIN_CS_HIGH_NS`, and `cclk_within_flash_spec`. Three theorems connect
+  the canonical config, any canonical config, and the cold-POR predicate to the
+  flash spec.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: `cold_por_spi_flash_pred` now
+  requires `BitstreamConfig.cclk_within_flash_spec p.cfg.oscfsel`.
+- `cli/tri/src/fpga.rs`: `FpgaCmd::MeasureCclk` now accepts `--live`, `--driver`,
+  `--channel`, `--samplerate`, `--samples`, and `--validate`. Added live capture
+  through `sigrok-cli`, logic CSV parsing, frequency/period estimation, and
+  flash-spec validation.
+- `fpga/HARDWARE_SSOT.md` §3.6 updated with nominal CCLK table, live-capture
+  protocol, CSV parsing rules, and formal traceability to
+  `BitstreamConfig.cclk_within_flash_spec`.
+- `docs/NOW.md` updated with the W406 entry.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_406_REPORT.md`,
+  `FPGA_LOOP_EVIDENCE_2026-07-12.md`, and
+  `FPGA_LOOP_COOPERATION_2026-07-12.md`.
+
+### Patterns to reuse
+- When a physical quantity is implicit in a formal model, expose it as a lookup
+  table + spec constant + predicate; then prove that the concrete/default case
+  satisfies the predicate. This makes the model auditable without over-fitting
+  to one board.
+- Bridge bench tooling and formal models through a single CLI subcommand that
+  accepts both recorded CSV (offline) and live logic-analyzer capture (online)
+  so the same validation predicate can be evaluated on either data source.
+- Document the *blocking hardware precondition* (P12 → logic analyzer channel)
+  explicitly in the report and cooperation variants rather than silently leaving
+  the measurement at zero.
+
+### Anti-patterns to avoid
+- Do not let a CLI live-capture helper swallow the underlying tool error. The
+  first implementation masked `sigrok-cli` failures; surfacing `stderr` in the
+  `anyhow` error made the "no transitions" case immediately interpretable.
+- Do not add new formal constants without a corresponding test/theorem; the
+  `canonical_oscfsel_within_flash_spec` `decide` theorem catches lookup-table
+  typos at build time.
+
 ## 2026-07-04 — Wave Loop 405 (Hardware smoke-gate `--flash-boot`)
 
 ### What worked
