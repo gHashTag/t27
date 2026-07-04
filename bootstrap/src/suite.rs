@@ -188,6 +188,58 @@ fn igla_clean_specs() -> Vec<String> {
     ]
 }
 
+fn cmd_fpga_smoke_gate(repo: &Path) -> anyhow::Result<()> {
+    let bit = repo.join("fpga").join("verilog").join("ternary_mac_demo_top_200t.bit");
+    if !bit.is_file() {
+        println!("  SKIP: demo bitstream not found at {}", bit.display());
+        return Ok(());
+    }
+
+    let script = repo.join("scripts").join("dump_bit_config.py");
+    let st = Command::new("python3")
+        .arg(&script)
+        .arg(&bit)
+        .output()
+        .with_context(|| format!("spawning {} for FPGA smoke gate", script.display()))?;
+    if !st.status.success() {
+        let err = String::from_utf8_lossy(&st.stderr);
+        anyhow::bail!("dump_bit_config.py failed: {}", err.trim());
+    }
+
+    let v_paths: Vec<PathBuf> = [
+        repo.join("fpga").join("verilog").join("ternary_mac_synth.v"),
+        repo.join("fpga").join("verilog").join("ternary_mac_demo_top.v"),
+    ]
+    .into_iter()
+    .filter(|p| p.is_file())
+    .collect();
+
+    if !v_paths.is_empty() && yosys_available() {
+        let reads: Vec<String> = v_paths
+            .iter()
+            .map(|p| format!("read_verilog -sv {}", p.display()))
+            .collect();
+        let st = Command::new("yosys")
+            .arg("-q")
+            .arg("-p")
+            .arg(format!(
+                "{}; synth_xilinx -top ternary_mac_demo_top -family xc7; stat",
+                reads.join("; ")
+            ))
+            .output()
+            .context("spawning yosys for FPGA smoke gate")?;
+        if !st.status.success() {
+            let err = String::from_utf8_lossy(&st.stderr);
+            anyhow::bail!("yosys rejected demo Verilog: {}", err.trim());
+        }
+        println!("  yosys synthesis smoke: OK");
+    } else {
+        println!("  SKIP: yosys or demo Verilog unavailable");
+    }
+
+    Ok(())
+}
+
 fn cmd_gen_verilog_yosys_smoke(repo: &Path, rel: &str) -> anyhow::Result<()> {
     let verilog = cmd_gen_verilog_stdout(repo, rel)?;
     let tmp = std::env::temp_dir().join(format!("t27c_yosys_smoke_{}.v", rel.replace('/', "_")));
@@ -301,6 +353,13 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
         println!("Yosys not available; skipping gen-verilog yosys smoke gate");
     }
 
+    println!("--- Phase 3c: FPGA Board-Less Smoke Gate ---");
+    let mut p3c_fail = 0usize;
+    if let Err(e) = cmd_fpga_smoke_gate(&repo) {
+        eprintln!("FPGA smoke gate failed: {}", e);
+        p3c_fail = 1;
+    }
+
     println!("--- Phase 4: Gen C ---");
     let (p4p, p4f) = run_phase(
         &repo,
@@ -334,7 +393,7 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
 
     println!();
     println!("=== SUMMARY ===");
-    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p4f + p5f + fp_diff;
+    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p4f + p5f + fp_diff;
     println!("Parse failures:           {}", p1f);
     println!("Typecheck fails:          {}", p1bf);
     println!("GF16 conformance:         {}", gf16_fail);
@@ -342,6 +401,7 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
     println!("Gen Rust failures:        {}", p2bf);
     println!("Gen Verilog fails:        {}", p3f);
     println!("Gen Verilog smoke fails:  {}", p3b_fail);
+    println!("FPGA smoke fails:         {}", p3c_fail);
     println!("Gen C failures:           {}", p4f);
     println!("Seal mismatches:          {}", p5f);
     println!("FP divergences:           {}", fp_diff);

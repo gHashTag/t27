@@ -78,6 +78,10 @@ pub enum FpgaCmd {
         /// is re-initialized by the cable.
         #[arg(long)]
         pre_jtag_reset: bool,
+        /// Number of consecutive STAT samples to capture (default: 1).
+        /// Useful to see transient mode-bit values right after power-on.
+        #[arg(long, default_value_t = 1)]
+        repeat: u32,
     },
     /// Synthesize the GF16 4x4 matrix design through the openXC7 toolchain.
     /// Output is written to `<build_dir>/gf16_matmul4x4_top.bit`.
@@ -176,6 +180,44 @@ pub enum FpgaCmd {
         /// JTAG frequency in Hz (default: 6 MHz).
         #[arg(long, default_value = "6000000")]
         freq: u32,
+    },
+    /// Guided cold-POR boot experiment. Programs flash, asks the user to
+    /// physically power-cycle the board, then captures STAT without a JTAG
+    /// reset and prints a decision-tree diagnosis.
+    BootLog {
+        /// Bitstream to program to flash.
+        bit: PathBuf,
+        /// openFPGALoader cable profile (default: digilent_hs2).
+        #[arg(long, default_value = "digilent_hs2")]
+        cable: String,
+        /// FPGA part/package for bridge selection (default: xc7a200tfgg676).
+        #[arg(long, default_value = "xc7a200tfgg676")]
+        part: String,
+        /// Optional explicit path to a JTAG-to-SPI bridge bitstream.
+        #[arg(long)]
+        bridge: Option<PathBuf>,
+        /// JTAG frequency in Hz (default: 6 MHz).
+        #[arg(long, default_value = "6000000")]
+        freq: u32,
+        /// Number of consecutive STAT samples to capture after power-on
+        /// (default: 3).
+        #[arg(long, default_value_t = 3)]
+        repeat: u32,
+        /// Seconds to wait for the user to power-cycle before sampling STAT.
+        /// Ignored; the command waits for keyboard input by default.
+        #[arg(long, default_value_t = 0)]
+        wait_seconds: u32,
+    },
+    /// Board-less smoke gate for the FPGA path. Runs `tri fpga bit-config`
+    /// on the GF16 demo bitstream and, if yosys is available, a synthesis
+    /// smoke check on the demo Verilog. Requires no physical board.
+    SmokeGate {
+        /// Bitstream to audit (default: fpga/verilog/ternary_mac_demo_top.bit).
+        #[arg(long)]
+        bit: Option<PathBuf>,
+        /// Verilog top module to synthesize (default: ternary_mac_demo_top).
+        #[arg(long, default_value = "ternary_mac_demo_top")]
+        top: String,
     },
     /// Read the SPI flash status register via openFPGALoader's JTAG-to-SPI bridge.
     /// Decodes WIP, WEL, and QE bits to help diagnose boot-from-flash failures.
@@ -353,11 +395,25 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             reset,
             verbose,
         } => load_sram(bit, cable, part, *reset, *verbose),
-        FpgaCmd::Stat { cable, pre_jtag_reset } => stat(cable, *pre_jtag_reset),
+        FpgaCmd::Stat {
+            cable,
+            pre_jtag_reset,
+            repeat,
+        } => stat(cable, *pre_jtag_reset, *repeat),
         FpgaCmd::BitConfig { bit } => bit_config(bit),
         FpgaCmd::RoundTripVerify { bit, cable, part, bridge, freq } => {
             round_trip_verify(bit, cable, part, bridge.as_ref(), *freq)
         }
+        FpgaCmd::BootLog {
+            bit,
+            cable,
+            part,
+            bridge,
+            freq,
+            repeat,
+            wait_seconds,
+        } => boot_log(bit, cable, part, bridge.as_ref(), *freq, *repeat, *wait_seconds),
+        FpgaCmd::SmokeGate { bit, top } => smoke_gate(bit.as_ref(), top),
         FpgaCmd::SynthGf16 {
             build_dir,
             chipdb,
@@ -1314,7 +1370,7 @@ fn load_sram(bit: &PathBuf, cable: &str, part: &str, reset: bool, verbose: bool)
     Ok(())
 }
 
-fn stat(cable: &str, pre_jtag_reset: bool) -> Result<()> {
+fn stat(cable: &str, pre_jtag_reset: bool, repeat: u32) -> Result<()> {
     let mut extra = vec!["--read-register", "STAT"];
     if pre_jtag_reset {
         // --skip-reset is documented for write-flash mode, but pass it
@@ -1323,18 +1379,30 @@ fn stat(cable: &str, pre_jtag_reset: bool) -> Result<()> {
         extra.push("--skip-reset");
         eprintln!("[stat] reading STAT without JTAG reset/PROGRAM_B pulse");
     }
-    let (_status, output) = run_openfpgaloader(cable, &extra, true)?;
-    let text = output.unwrap_or_default();
-    let raw = parse_stat_raw(&text)?;
-    let bits = StatBits::from_raw(raw);
 
+    let n = repeat.max(1);
+    let mut samples = Vec::with_capacity(n as usize);
+    for i in 0..n {
+        let (_status, output) = run_openfpgaloader(cable, &extra, true)?;
+        let text = output.unwrap_or_default();
+        let raw = parse_stat_raw(&text)?;
+        let bits = StatBits::from_raw(raw);
+        samples.push(bits);
+        if n > 1 {
+            eprintln!("[stat] sample {}/{}: raw=0x{:08X}", i + 1, n, bits.raw);
+        }
+    }
+
+    let bits = samples.first().cloned().expect("at least one STAT sample");
     println!("== STAT register (openFPGALoader --read-register STAT) ==");
+    println!("  samples             : {}", samples.len());
     println!("  raw                 : 0x{:08X}", bits.raw);
     println!("  DONE       [14]     : {}", bits.done as u8);
     println!("  INIT_COMPL [11]     : {}", bits.init_complete as u8);
     println!("  EOS        [4]      : {}", bits.eos as u8);
     println!("  CRC_ERROR  [0]      : {}", bits.crc_error as u8);
     println!("  ID_ERROR   [15]     : {}", bits.id_error as u8);
+    println!("  MODE       [2:0]    : 0b{:03b} ({})", bits.mode, mode_name(bits.mode));
     println!("  diagnosis           : {}", bits.diagnose());
     println!();
 
@@ -1344,6 +1412,20 @@ fn stat(cable: &str, pre_jtag_reset: bool) -> Result<()> {
     } else {
         eprintln!("=> FPGA is NOT configured. {}", bits.diagnose());
         bail!("DONE=LOW")
+    }
+}
+
+fn mode_name(mode: u8) -> &'static str {
+    match mode {
+        0b000 => "JTAG/boundary-scan (M[2:0]=000)",
+        0b001 => "Master SPI x1 (M[2:0]=001) — expected for N25Q128 boot",
+        0b010 => "Master SPI x2/x4 (M[2:0]=010)",
+        0b011 => "Master BPI x8/x16 (M[2:0]=011)",
+        0b100 => "NAND (M[2:0]=100)",
+        0b101 => "reserved",
+        0b110 => "reserved",
+        0b111 => "JTAG/boundary-scan (M[2:0]=111)",
+        _ => "unknown",
     }
 }
 
@@ -1461,6 +1543,154 @@ fn round_trip_verify(
 fn find_sync_word(data: &[u8]) -> Option<usize> {
     const SYNC: &[u8] = b"\xaa\x99\x55\x66";
     data.windows(SYNC.len()).position(|w| w == SYNC)
+}
+
+fn boot_log(
+    bit: &PathBuf,
+    cable: &str,
+    part: &str,
+    bridge: Option<&PathBuf>,
+    freq: u32,
+    repeat: u32,
+    _wait_seconds: u32,
+) -> Result<()> {
+    if !bit.is_file() {
+        bail!("bitstream not found: {}", bit.display());
+    }
+
+    eprintln!("[boot-log] Step 1/4: program flash with {}", bit.display());
+    program_flash(
+        bit,
+        cable,
+        part,
+        bridge,
+        freq,
+        None,
+        false,
+        true,
+        false,
+        false,
+        false,
+        Some("1"),
+    )?;
+
+    eprintln!();
+    eprintln!("[boot-log] Step 2/4: PHYSICAL POWER-CYCLE REQUIRED");
+    eprintln!("  1. Disconnect the board's USB power / barrel jack.");
+    eprintln!("  2. Wait at least 10 seconds for all rails to collapse.");
+    eprintln!("  3. Reconnect power.");
+    eprintln!("  4. Do NOT press the FPGA's PROG_B or RESET button.");
+    eprintln!("  5. Press ENTER here when the board is powered and stable.");
+    eprintln!();
+
+    let mut input = String::new();
+    std::io::stdin()
+        .read_line(&mut input)
+        .context("waiting for user confirmation after power-cycle")?;
+
+    eprintln!("[boot-log] Step 3/4: capture STAT without JTAG reset ({} sample[s])", repeat.max(1));
+    let stat_result = stat(cable, true, repeat);
+
+    eprintln!();
+    eprintln!("[boot-log] Step 4/4: decision tree");
+    match stat_result {
+        Ok(()) => {
+            eprintln!("  SUCCESS: cold-POR STAT shows DONE=1.");
+            eprintln!("  => The board boots from flash. No further mode-pin work needed.");
+            Ok(())
+        }
+        Err(_) => {
+            eprintln!("  DONE=0 after cold-POR. Possible causes:");
+            eprintln!("    A. Mode-pin strapping: check that M[2:0]=001 (Master SPI x1) is sampled.");
+            eprintln!("       Run `tri fpga stat --pre-jtag-reset --repeat 5` immediately after power-on.");
+            eprintln!("       If MODE != 001, inspect board resistors/jumpers or add external straps.");
+            eprintln!("    B. CCLK/SPI-startup timing: if MODE=001 and still DONE=0, the N25Q128");
+            eprintln!("       may not respond to the default CCLK rate. Next wave should audit");
+            eprintln!("       COR0 CFGRATE and add a slow-startup bitstream variant.");
+            eprintln!("    C. Signal integrity: verify 3.3 V VCCO_0 and clean CCLK/MISO/MOSI/FCS_B.");
+            bail!("cold-POR boot failed — see decision tree above")
+        }
+    }
+}
+
+fn smoke_gate(bit: Option<&PathBuf>, top: &str) -> Result<()> {
+    let root = repo_root()?;
+    let bit_path = bit.cloned().unwrap_or_else(|| {
+        root.join("fpga")
+            .join("verilog")
+            .join("ternary_mac_demo_top_200t.bit")
+    });
+
+    println!("== FPGA board-less smoke gate ==");
+
+    // 1. bit-config audit if the bitstream exists.
+    if bit_path.is_file() {
+        println!("[smoke-gate] bit-config audit: {}", bit_path.display());
+        bit_config(&bit_path)?;
+    } else {
+        println!(
+            "[smoke-gate] SKIP: bitstream not found at {} (run openXC7 flow first)",
+            bit_path.display()
+        );
+    }
+
+    // 2. yosys synthesis smoke on the demo sources if available.
+    let verilog_dir: PathBuf = bit_path
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| root.join("fpga").join("verilog"));
+    let v_paths: Vec<PathBuf> = [
+        "ternary_mac_synth.v",
+        "ternary_mac_demo_top.v",
+    ]
+    .iter()
+    .map(|f| verilog_dir.join(f))
+    .filter(|p| p.is_file())
+    .collect();
+
+    if !v_paths.is_empty() && yosys_available() {
+        let reads: Vec<String> = v_paths
+            .iter()
+            .map(|p| format!("read_verilog -sv {}", p.display()))
+            .collect();
+        let script = format!(
+            "{}\nsynth_xilinx -top {} -family xc7\nstat\n",
+            reads.join("\n"),
+            top
+        );
+        let ys_path = root.join("build").join("fpga").join("smoke_gate.ys");
+        std::fs::create_dir_all(ys_path.parent().unwrap())
+            .with_context(|| format!("create {}", ys_path.parent().unwrap().display()))?;
+        std::fs::write(&ys_path, script)
+            .with_context(|| format!("write {}", ys_path.display()))?;
+        let status = std::process::Command::new("yosys")
+            .arg("-q")
+            .arg("-s")
+            .arg(&ys_path)
+            .status()
+            .context("spawning yosys for smoke gate")?;
+        if !status.success() {
+            bail!("yosys rejected demo Verilog");
+        }
+        println!("[smoke-gate] yosys synthesis OK");
+    } else if v_paths.is_empty() {
+        println!("[smoke-gate] SKIP: demo Verilog sources not found");
+    } else {
+        println!("[smoke-gate] SKIP: yosys not on PATH");
+    }
+
+    println!("[smoke-gate] complete");
+    Ok(())
+}
+
+fn yosys_available() -> bool {
+    std::process::Command::new("yosys")
+        .arg("-q")
+        .arg("-p")
+        .arg("echo on")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
 
 fn program_flash(
