@@ -195,6 +195,13 @@ Use `tri fpga flash-status` to probe the detected flash chip, and
 > `decision_tree_exhaustive` proves that every possible STAT value falls into
 > one of the documented outcomes (`boot_success`, `h2_cclk_timing`,
 > `mode_mismatch`, or `fatal_error`).
+>
+> **Hardware smoke traceability (W404):** when a Digilent FTDI cable and the
+> XC7A200T board are connected, `tri fpga smoke-gate --require-cable`
+> detects the JTAG chain, loads the canonical bitstream into FPGA SRAM, reads
+> STAT, and asserts the same `boot_success` predicate the Lean model defines:
+> `DONE=1`, `MODE=0b001`, no CRC/ID/DEC errors. This turns the board-less
+> static audit into an end-to-end hardware smoke test.
 
 ### 3.3 H2 — CCLK/SPI-startup timing decision tree
 

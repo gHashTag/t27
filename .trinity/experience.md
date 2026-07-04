@@ -1,5 +1,51 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-06 — Wave Loop 404 (Hardware smoke-gate `--require-cable`)
+
+### What worked
+- Checking the bench before choosing the variant changed the wave outcome: the
+  Digilent FTDI cable and XC7A200T board were reachable, so **Variant C**
+  (hardware smoke gate) became feasible instead of another no-hardware formal
+  extension.
+- Keeping `--require-cable` as an **optional** flag preserved the board-less
+  default path. CI without a cable still passes all static checks; a runner
+  with hardware can opt into the SRAM load assertion.
+- Reusing the existing `load_sram` and `capture_stat` helpers kept the change
+  small and avoided duplicating openFPGALoader parsing logic.
+- Asserting the same `boot_success` conditions used by the Lean model
+  (`DONE=1`, `MODE=0b001`, no CRC/ID/DEC errors) links the hardware smoke gate
+  directly to the formal predicates.
+- On the bench: `openFPGALoader --detect` returned idcode `0x3636093`, SRAM
+  load completed with `done 1`, and post-load STAT matched `0x401079FC`.
+- Conformance suite: **576/576 PASS**.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`: `FpgaCmd::SmokeGate` now accepts `--require-cable`,
+  `--cable`, and `--part`. When `--require-cable` is set, the gate runs
+  `cable_detected`, `load_sram`, `capture_stat`, and `assert_stat_boot_success`
+  before the existing board-less checks.
+- `fpga/HARDWARE_SSOT.md` §3.2 now references the hardware smoke traceability.
+- `docs/NOW.md` updated with the W404 entry.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_404_REPORT.md`,
+  `FPGA_LOOP_EVIDENCE_2026-07-07.md`, and
+  `FPGA_LOOP_COOPERATION_2026-07-07.md`.
+
+### Patterns to reuse
+- Probe hardware availability at the start of a wave; it can change which
+  variant is highest leverage.
+- Add optional hardware gates as `--require-<resource>` flags so board-less CI
+  stays green while physical evidence can be collected when a resource is present.
+- Reuse existing command helpers (`load_sram`, `capture_stat`) instead of
+  spawning openFPGALoader ad-hoc; this keeps parsing and error handling
+  consistent.
+
+### Anti-patterns to avoid
+- Do not make a hardware gate mandatory unless the normal CI environment is
+  guaranteed to have the resource. A broken cable should fail the specific
+  check, not the whole pipeline.
+- Do not skip the board-less path when adding hardware coverage; the static
+  audit is still the regression barrier that runs on every PR.
+
 ## 2026-07-05 — Wave Loop 403 (Bitstream config linked to cold-POR decision tree)
 
 ### What worked
