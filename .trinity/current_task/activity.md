@@ -1328,3 +1328,7 @@
 - **Commit:** feat(fpga): W397 SPI boot root-cause closure — boot-log, smoke gate, H1 likely ruled out
 - **Files:** .claude/plans/wave-loop-398.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-09.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-08.md,docs/reports/WAVE_LOOP_398_REPORT.md,fpga/HARDWARE_SSOT.md,scripts/dump_bit_config.py
 
+## 2026-07-04T05:30:00Z — wave-loop-399
+- **Commit:** feat(fpga): W398 cold-POR board-less tooling, COR0 CCLK variants, bit-config assertions, close-out + cooperation (Closes #1296)
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-05.md,docs/reports/WAVE_LOOP_399_REPORT.md,fpga/HARDWARE_SSOT.md
+

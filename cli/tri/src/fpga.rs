@@ -246,6 +246,61 @@ pub enum FpgaCmd {
         #[arg(long, value_delimiter = ',')]
         values: Vec<u8>,
     },
+    /// Automated cold-POR CCLK sweep. Generates OSCFSEL variants, programs each
+    /// to flash, prompts for the physical power-cycle, captures STAT, and writes
+    /// JSON logs. The only manual step is disconnecting/reconnecting the cable
+    /// and power-cycling the board.
+    CclkSweep {
+        /// Input Xilinx .bit file.
+        bit: PathBuf,
+        /// Comma-separated list of raw 6-bit OSCFSEL values to sweep.
+        /// Defaults to 0,1,2,3,4,5.
+        #[arg(long, value_delimiter = ',')]
+        values: Vec<u8>,
+        /// Variant output directory (default: <repo>/build/fpga/cclk_variants).
+        #[arg(long)]
+        output_dir: Option<PathBuf>,
+        /// Stop the sweep on the first failure instead of continuing.
+        #[arg(long)]
+        stop_on_fail: bool,
+        /// Do not touch hardware; generate synthetic logs for testing the report path.
+        #[arg(long)]
+        dry_run: bool,
+        /// openFPGALoader cable profile (default: digilent_hs2).
+        #[arg(long, default_value = "digilent_hs2")]
+        cable: String,
+        /// FPGA part/package for bridge selection (default: xc7a200tfgg676).
+        #[arg(long, default_value = "xc7a200tfgg676")]
+        part: String,
+        /// Optional explicit path to a JTAG-to-SPI bridge bitstream.
+        #[arg(long)]
+        bridge: Option<PathBuf>,
+        /// JTAG frequency in Hz (default: 6 MHz).
+        #[arg(long, default_value = "6000000")]
+        freq: u32,
+        /// Number of consecutive STAT samples to capture after power-on
+        /// (default: 3).
+        #[arg(long, default_value_t = 3)]
+        repeat: u32,
+    },
+    /// Read all `build/fpga/boot-log-*.json` files and produce a markdown sweep
+    /// report identifying the first working CCLK variant.
+    SweepReport {
+        /// Directory containing boot-log JSON files.
+        #[arg(long)]
+        log_dir: Option<PathBuf>,
+        /// Output markdown report path.
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+    /// Print DSLogic / oscilloscope instructions for measuring the FPGA CCLK
+    /// output during Master SPI configuration. Optionally parse a DSView CSV
+    /// export to estimate frequency and duty cycle.
+    MeasureCclk {
+        /// Path to a DSView CSV export of the CCLK trace.
+        #[arg(long)]
+        csv: Option<PathBuf>,
+    },
     /// Read the SPI flash status register via openFPGALoader's JTAG-to-SPI bridge.
     /// Decodes WIP, WEL, and QE bits to help diagnose boot-from-flash failures.
     FlashStatus {
@@ -445,6 +500,33 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
         FpgaCmd::CclkVariants { bit, output_dir, values } => {
             cclk_variants(bit, output_dir.as_ref(), values)
         },
+        FpgaCmd::CclkSweep {
+            bit,
+            values,
+            output_dir,
+            stop_on_fail,
+            dry_run,
+            cable,
+            part,
+            bridge,
+            freq,
+            repeat,
+        } => cclk_sweep(
+            bit,
+            values,
+            output_dir.as_ref(),
+            *stop_on_fail,
+            *dry_run,
+            cable,
+            part,
+            bridge.as_ref(),
+            *freq,
+            *repeat,
+        ),
+        FpgaCmd::SweepReport { log_dir, out } => {
+            sweep_report(log_dir.as_ref(), out.as_ref())
+        },
+        FpgaCmd::MeasureCclk { csv } => measure_cclk(csv.as_ref()),
         FpgaCmd::SynthGf16 {
             build_dir,
             chipdb,
@@ -1592,6 +1674,589 @@ fn cclk_variants(
     eprintln!("Next step: program each variant to flash and run a cold-POR sweep,");
     eprintln!("capturing STAT with `tri fpga stat --pre-jtag-reset --repeat 5`.");
     Ok(())
+}
+
+/// Run an automated cold-POR CCLK sweep over a set of OSCFSEL variants.
+///
+/// In normal mode this generates variants, programs each to flash, asks the user
+/// to perform the cable-disconnect + power-cycle protocol, captures STAT, and
+/// writes a JSON log entry for every variant.  In `--dry-run` mode it synthesises
+/// log entries from a fake board so the `sweep-report` path can be tested without
+/// hardware.
+fn cclk_sweep(
+    bit: &PathBuf,
+    values: &Vec<u8>,
+    output_dir: Option<&PathBuf>,
+    stop_on_fail: bool,
+    dry_run: bool,
+    cable: &str,
+    part: &str,
+    bridge: Option<&PathBuf>,
+    freq: u32,
+    repeat: u32,
+) -> Result<()> {
+    if !bit.is_file() {
+        bail!("bitstream not found: {}", bit.display());
+    }
+
+    let values: Vec<u8> = if values.is_empty() {
+        vec![0, 1, 2, 3, 4, 5]
+    } else {
+        values.clone()
+    };
+    for v in &values {
+        if *v > 0x3F {
+            bail!("OSCFSEL must be a 6-bit value (0..63), got {}", v);
+        }
+    }
+
+    let root = repo_root()?;
+    let variant_dir = match output_dir {
+        Some(d) => d.to_path_buf(),
+        None => root.join("build").join("fpga").join("cclk_variants"),
+    };
+    std::fs::create_dir_all(&variant_dir)
+        .with_context(|| format!("create {}", variant_dir.display()))?;
+
+    eprintln!(
+        "[cclk-sweep] {} variant(s) will be swept from {}",
+        values.len(),
+        bit.display()
+    );
+    if dry_run {
+        eprintln!("[cclk-sweep] DRY RUN: no hardware will be touched; synthetic logs will be written.");
+    }
+
+    let mut results: Vec<SweepResult> = Vec::with_capacity(values.len());
+
+    for (idx, oscfsel) in values.iter().enumerate() {
+        let variant_name = format!(
+            "{}_oscfsel{:02}.bit",
+            bit.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("bitstream"),
+            oscfsel
+        );
+        let variant_path = variant_dir.join(&variant_name);
+
+        if !dry_run {
+            patch_cor0(bit, &variant_path, *oscfsel)?;
+        }
+
+        eprintln!();
+        eprintln!(
+            "[cclk-sweep] variant {}/{}: OSCFSEL={} => {}",
+            idx + 1,
+            values.len(),
+            oscfsel,
+            variant_path.display()
+        );
+
+        let start_time = chrono::Local::now();
+        if dry_run {
+            // Synthesise a log entry with a deterministic "first variant works"
+            // pattern so the report path is exercisable without a board.
+            let fake_done = *oscfsel == values.first().copied().unwrap_or(0);
+            let conclusion = if fake_done {
+                "DONE=HIGH: board boots from flash"
+            } else {
+                "H2_CCLK_TIMING: mode OK but DONE=LOW; try CCLK variants"
+            };
+            let samples = (0..repeat.max(1))
+                .map(|i| SweepSample {
+                    index: i as usize,
+                    raw: if fake_done { 0x50001B8C } else { 0x5000190C },
+                    done: fake_done,
+                    eos: fake_done,
+                    init_complete: fake_done,
+                    crc_error: false,
+                    id_error: false,
+                    mode: 0b001,
+                    diagnosis: if fake_done {
+                        "FPGA configured".to_string()
+                    } else {
+                        "FPGA NOT configured".to_string()
+                    },
+                })
+                .collect();
+            let log = SweepLog {
+                timestamp: start_time.to_rfc3339(),
+                bitstream: variant_path.to_string_lossy().to_string(),
+                oscfsel: *oscfsel,
+                cable: cable.to_string(),
+                part: part.to_string(),
+                freq_hz: freq,
+                repeat: repeat.max(1),
+                conclusion: conclusion.to_string(),
+                samples,
+            };
+            write_sweep_log(&log)?;
+            results.push(SweepResult {
+                oscfsel: log.oscfsel,
+                bitstream: variant_path.clone(),
+                done: log.samples.iter().any(|s| s.done),
+                mode: Some(log.samples.first().map(|s| s.mode).unwrap_or(0b001)),
+                crc_error: log.samples.iter().any(|s| s.crc_error),
+                id_error: log.samples.iter().any(|s| s.id_error),
+                conclusion: log.conclusion.clone(),
+            });
+            continue;
+        }
+
+        // Program flash and run the interactive cold-POR protocol.
+        if let Err(e) = program_flash(
+            &variant_path,
+            cable,
+            part,
+            bridge,
+            freq,
+            None,
+            false,
+            true,
+            false,
+            false,
+            false,
+            Some("1"),
+        ) {
+            eprintln!("[cclk-sweep] program-flash failed: {e}");
+            let log = SweepLog {
+                timestamp: start_time.to_rfc3339(),
+                bitstream: variant_path.to_string_lossy().to_string(),
+                oscfsel: *oscfsel,
+                cable: cable.to_string(),
+                part: part.to_string(),
+                freq_hz: freq,
+                repeat: repeat.max(1),
+                conclusion: "PROGRAM_FLASH_FAILED".to_string(),
+                samples: Vec::new(),
+            };
+            write_sweep_log(&log)?;
+            results.push(SweepResult {
+                oscfsel: *oscfsel,
+                bitstream: variant_path,
+                done: false,
+                mode: None,
+                crc_error: false,
+                id_error: false,
+                conclusion: log.conclusion.clone(),
+            });
+            if stop_on_fail {
+                bail!("stopping sweep because --stop-on-fail was set");
+            }
+            continue;
+        }
+
+        eprintln!();
+        eprintln!("[cclk-sweep] PHYSICAL POWER-CYCLE REQUIRED");
+        eprintln!("  1. Disconnect the JTAG/programming cable from the board.");
+        eprintln!("     (An attached cable can hold TMS/TCK/PROGRAM_B and corrupt cold-POR");
+        eprintln!("      mode sampling. See AR66954 / XAPP1188.)");
+        eprintln!("  2. Disconnect the board's USB power / barrel jack.");
+        eprintln!("  3. Wait at least 10 seconds for all rails to collapse.");
+        eprintln!("  4. Reconnect power.");
+        eprintln!("  5. Do NOT press the FPGA's PROG_B or RESET button.");
+        eprintln!("  6. Wait at least 2 seconds, then reconnect the JTAG cable.");
+        eprintln!("  7. Press ENTER here when the board and cable are stable.");
+        eprintln!();
+
+        let mut input = String::new();
+        std::io::stdin()
+            .read_line(&mut input)
+            .context("waiting for user confirmation after power-cycle")?;
+
+        match capture_stat(cable, true, repeat) {
+            Ok(samples) => {
+                let bits = samples.first().cloned().expect("at least one STAT sample");
+                let conclusion = if samples.iter().any(|b| b.done) {
+                    "DONE=HIGH: board boots from flash".to_string()
+                } else if samples.iter().any(|b| b.mode != 0b001) {
+                    "MODE_MISMATCH: mode-pin strapping issue".to_string()
+                } else {
+                    "H2_CCLK_TIMING: mode OK but DONE=LOW; try CCLK variants".to_string()
+                };
+                let log = SweepLog {
+                    timestamp: start_time.to_rfc3339(),
+                    bitstream: variant_path.to_string_lossy().to_string(),
+                    oscfsel: *oscfsel,
+                    cable: cable.to_string(),
+                    part: part.to_string(),
+                    freq_hz: freq,
+                    repeat: repeat.max(1),
+                    conclusion: conclusion.clone(),
+                    samples: samples
+                        .iter()
+                        .enumerate()
+                        .map(|(i, b)| SweepSample {
+                            index: i,
+                            raw: b.raw,
+                            done: b.done,
+                            eos: b.eos,
+                            init_complete: b.init_complete,
+                            crc_error: b.crc_error,
+                            id_error: b.id_error,
+                            mode: b.mode,
+                            diagnosis: b.diagnose(),
+                        })
+                        .collect(),
+                };
+                write_sweep_log(&log)?;
+                results.push(SweepResult {
+                    oscfsel: *oscfsel,
+                    bitstream: variant_path,
+                    done: samples.iter().any(|b| b.done),
+                    mode: Some(bits.mode),
+                    crc_error: samples.iter().any(|b| b.crc_error),
+                    id_error: samples.iter().any(|b| b.id_error),
+                    conclusion,
+                });
+            }
+            Err(e) => {
+                eprintln!("[cclk-sweep] STAT capture failed: {e}");
+                let log = SweepLog {
+                    timestamp: start_time.to_rfc3339(),
+                    bitstream: variant_path.to_string_lossy().to_string(),
+                    oscfsel: *oscfsel,
+                    cable: cable.to_string(),
+                    part: part.to_string(),
+                    freq_hz: freq,
+                    repeat: repeat.max(1),
+                    conclusion: "STAT_CAPTURE_FAILED".to_string(),
+                    samples: Vec::new(),
+                };
+                write_sweep_log(&log)?;
+                results.push(SweepResult {
+                    oscfsel: *oscfsel,
+                    bitstream: variant_path,
+                    done: false,
+                    mode: None,
+                    crc_error: false,
+                    id_error: false,
+                    conclusion: log.conclusion.clone(),
+                });
+                if stop_on_fail {
+                    bail!("stopping sweep because --stop-on-fail was set");
+                }
+            }
+        }
+    }
+
+    // Print summary table.
+    println!();
+    println!("== CCLK sweep summary ==");
+    println!("{:-<70}", "");
+    println!("{:>8}  {:<30}  {:>6}  {:>6}  {:<30}", "OSCFSEL", "bitstream", "DONE", "MODE", "conclusion");
+    println!("{:-<70}", "");
+    for r in &results {
+        let mode_str = r
+            .mode
+            .map(|m| format!("0b{:03b}", m))
+            .unwrap_or_else(|| "n/a".to_string());
+        let bit_name = r
+            .bitstream
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("?");
+        println!(
+            "{:>8}  {:<30}  {:>6}  {:>6}  {:<30}",
+            r.oscfsel,
+            bit_name,
+            if r.done { "1" } else { "0" },
+            mode_str,
+            r.conclusion
+        );
+    }
+    println!("{:-<70}", "");
+
+    if let Some(first) = results.iter().find(|r| r.done) {
+        println!();
+        println!(
+            "=> First working variant: OSCFSEL={} ({})",
+            first.oscfsel,
+            first.bitstream.display()
+        );
+        println!("   Next: measure actual CCLK with `tri fpga measure-cclk` and commit this variant as the default.");
+    } else {
+        println!();
+        println!("=> No variant reached DONE=HIGH.");
+        println!("   Next: expand the OSCFSEL range, check mode-pin straps, or capture CCLK with a logic analyser.");
+        bail!("CCLK sweep did not find a working variant");
+    }
+
+    Ok(())
+}
+
+/// Structs used to persist and report a single cold-POR sweep attempt.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SweepLog {
+    timestamp: String,
+    bitstream: String,
+    oscfsel: u8,
+    cable: String,
+    part: String,
+    freq_hz: u32,
+    repeat: u32,
+    conclusion: String,
+    samples: Vec<SweepSample>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SweepSample {
+    index: usize,
+    raw: u32,
+    done: bool,
+    eos: bool,
+    init_complete: bool,
+    crc_error: bool,
+    id_error: bool,
+    mode: u8,
+    diagnosis: String,
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+struct SweepResult {
+    oscfsel: u8,
+    bitstream: PathBuf,
+    done: bool,
+    mode: Option<u8>,
+    crc_error: bool,
+    id_error: bool,
+    conclusion: String,
+}
+
+fn write_sweep_log(log: &SweepLog) -> Result<()> {
+    let root = repo_root()?;
+    let log_dir = root.join("build").join("fpga");
+    std::fs::create_dir_all(&log_dir)
+        .with_context(|| format!("create {}", log_dir.display()))?;
+    let name = format!(
+        "boot-log-{}-oscfsel{:02}.json",
+        chrono::Local::now().format("%Y%m%d-%H%M%S"),
+        log.oscfsel
+    );
+    let path = log_dir.join(name);
+    std::fs::write(&path, serde_json::to_string_pretty(log)?)
+        .with_context(|| format!("write {}", path.display()))?;
+    eprintln!("[cclk-sweep] log written to {}", path.display());
+    Ok(())
+}
+
+/// Produce a markdown sweep report from all `boot-log-*.json` files in the FPGA
+/// build directory.
+fn sweep_report(log_dir: Option<&PathBuf>, out: Option<&PathBuf>) -> Result<()> {
+    let root = repo_root()?;
+    let dir = match log_dir {
+        Some(d) => d.to_path_buf(),
+        None => root.join("build").join("fpga"),
+    };
+    if !dir.is_dir() {
+        bail!("log directory not found: {}", dir.display());
+    }
+
+    let mut entries: Vec<SweepLog> = Vec::new();
+    for entry in std::fs::read_dir(&dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        let name = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+        if name.starts_with("boot-log-") && name.ends_with(".json") {
+            let text = std::fs::read_to_string(&path)
+                .with_context(|| format!("read {}", path.display()))?;
+            let log: SweepLog = serde_json::from_str(&text)
+                .with_context(|| format!("parse {}", path.display()))?;
+            entries.push(log);
+        }
+    }
+
+    // Sort by OSCFSEL for the report.
+    entries.sort_by_key(|e| e.oscfsel);
+
+    let first_working = entries.iter().find(|e| {
+        e.samples.iter().any(|s| s.done)
+            || e.conclusion.starts_with("DONE=HIGH")
+    });
+
+    let mut md = String::new();
+    md.push_str("# FPGA cold-POR CCLK sweep report\n\n");
+    md.push_str(&format!("Generated: {}\n\n", chrono::Local::now().to_rfc3339()));
+    md.push_str(&format!("Variants tested: {}\n\n", entries.len()));
+
+    if let Some(w) = first_working {
+        md.push_str(&format!(
+            "**First working variant:** OSCFSEL={} (`{}`)\n\n",
+            w.oscfsel,
+            w.bitstream
+        ));
+    } else {
+        md.push_str("**First working variant:** none reached DONE=HIGH\n\n");
+    }
+
+    md.push_str("| OSCFSEL | Bitstream | DONE | MODE | CRC | ID | Conclusion |\n");
+    md.push_str("|---------|-----------|------|------|-----|----|------------|\n");
+
+    for e in &entries {
+        let any_done = e.samples.iter().any(|s| s.done);
+        let mode = e
+            .samples
+            .first()
+            .map(|s| format!("0b{:03b}", s.mode))
+            .unwrap_or_else(|| "n/a".to_string());
+        let crc = e.samples.iter().any(|s| s.crc_error);
+        let id_err = e.samples.iter().any(|s| s.id_error);
+        let bit_name = std::path::Path::new(&e.bitstream)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("?");
+        md.push_str(&format!(
+            "| {} | {} | {} | {} | {} | {} | {} |\n",
+            e.oscfsel,
+            bit_name,
+            if any_done { "1" } else { "0" },
+            mode,
+            if crc { "1" } else { "0" },
+            if id_err { "1" } else { "0" },
+            e.conclusion.replace('|', "\\|")
+        ));
+    }
+
+    md.push('\n');
+    md.push_str("## Next steps\n\n");
+    if first_working.is_some() {
+        md.push_str("1. Measure actual CCLK with `tri fpga measure-cclk`.\n");
+        md.push_str("2. Rename the working variant to the canonical default bitstream.\n");
+        md.push_str("3. Update `fpga/HARDWARE_SSOT.md` with the measured frequency.\n");
+    } else {
+        md.push_str("1. Expand the OSCFSEL sweep range.\n");
+        md.push_str("2. Verify mode-pin straps with `tri fpga stat --pre-jtag-reset`.\n");
+        md.push_str("3. Capture CCLK with a logic analyser to confirm the FPGA is driving it.\n");
+    }
+
+    let out_path = match out {
+        Some(p) => p.to_path_buf(),
+        None => dir.join(format!(
+            "sweep-report-{}.md",
+            chrono::Local::now().format("%Y%m%d-%H%M%S")
+        )),
+    };
+    std::fs::write(&out_path, &md)
+        .with_context(|| format!("write {}", out_path.display()))?;
+    println!("[sweep-report] wrote {} variant(s) to {}", entries.len(), out_path.display());
+    Ok(())
+}
+
+/// Print guidance for measuring the Master SPI CCLK output, and optionally parse
+/// a DSView CSV export to estimate frequency / duty cycle.
+fn measure_cclk(csv: Option<&PathBuf>) -> Result<()> {
+    println!("== CCLK measurement guide ==");
+    println!();
+    println!("Target board: QMTech Wukong V1 / XC7A200T-FGG676-1");
+    println!("CCLK pin: P12 (CFGCLK / CCLK_0, bank 0, 3.3 V)");
+    println!("Ground: any GND pin on the JTAG header or board");
+    println!();
+    println!("DSLogic Plus setup:");
+    println!("  Channel: 0");
+    println!("  Sample rate: 100 MHz");
+    println!("  Duration: 1 ms");
+    println!("  Threshold: 1.65 V (3.3 V / 2)");
+    println!("  Trigger: rising edge on channel 0");
+    println!();
+    println!("Expected signal:");
+    println!("  CCLK is active only during FPGA configuration from flash.");
+    println!("  After configuration CCLK is tri-stated or held by the internal oscillator.");
+    println!("  Capture the first 100 us after POR; the SPI read command (0x03) follows");
+    println!("  the 0xFF + 0xBB width auto-detection preamble.");
+    println!();
+
+    if let Some(path) = csv {
+        if !path.is_file() {
+            bail!("CSV not found: {}", path.display());
+        }
+        println!("Parsing {} ...", path.display());
+        let (freq_hz, duty_pct) = parse_dsview_csv(path)?;
+        println!("  Estimated frequency: {:.3} MHz", freq_hz / 1e6);
+        println!("  Estimated duty cycle: {:.1}%", duty_pct);
+    } else {
+        println!("Pass --csv <dsview-export.csv> to estimate frequency/duty cycle.");
+    }
+
+    Ok(())
+}
+
+/// Parse a two-column DSView CSV export (time seconds, voltage volts) and
+/// estimate CCLK frequency and duty cycle via zero-crossing detection.
+fn parse_dsview_csv(path: &PathBuf) -> Result<(f64, f64)> {
+    let mut times: Vec<f64> = Vec::new();
+    let mut values: Vec<f64> = Vec::new();
+
+    let file = std::fs::File::open(path)
+        .with_context(|| format!("open {}", path.display()))?;
+    let reader = std::io::BufReader::new(file);
+    for line in std::io::BufRead::lines(reader) {
+        let line = line?;
+        if line.trim().is_empty() || line.starts_with("Time") {
+            continue;
+        }
+        let parts: Vec<&str> = line.split(',').collect();
+        if parts.len() < 2 {
+            continue;
+        }
+        if let (Ok(t), Ok(v)) = (parts[0].trim().parse::<f64>(), parts[1].trim().parse::<f64>()) {
+            times.push(t);
+            values.push(v);
+        }
+    }
+
+    if times.len() < 2 {
+        bail!("CSV has too few samples to estimate frequency");
+    }
+
+    // Compute a simple threshold midpoint from the min/max observed voltage.
+    let vmin = values.iter().copied().fold(f64::INFINITY, f64::min);
+    let vmax = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let threshold = (vmin + vmax) / 2.0;
+
+    // Find zero crossings (rising and falling) and accumulate high/low durations.
+    let mut crossings: Vec<(f64, bool)> = Vec::new();
+    for i in 1..values.len() {
+        let prev_high = values[i - 1] > threshold;
+        let curr_high = values[i] > threshold;
+        if prev_high != curr_high {
+            // Linear-interpolated crossing time.
+            let t0 = times[i - 1];
+            let t1 = times[i];
+            let v0 = values[i - 1];
+            let v1 = values[i];
+            let frac = (threshold - v0) / (v1 - v0);
+            let tc = t0 + frac * (t1 - t0);
+            crossings.push((tc, curr_high)); // true = now high
+        }
+    }
+
+    if crossings.len() < 4 {
+        bail!("too few zero crossings; check threshold / signal quality");
+    }
+
+    let mut high_time = 0.0;
+    let mut low_time = 0.0;
+    for window in crossings.windows(2) {
+        let dt = window[1].0 - window[0].0;
+        if window[1].1 {
+            // entering high
+            low_time += dt;
+        } else {
+            high_time += dt;
+        }
+    }
+    let total = high_time + low_time;
+    if total <= 0.0 {
+        bail!("could not measure high/low time");
+    }
+
+    let freq_hz = (crossings.len() as f64 - 1.0) / (2.0 * total);
+    let duty_pct = 100.0 * high_time / total;
+    Ok((freq_hz, duty_pct))
 }
 
 fn bit_config(bit: &PathBuf, extra_args: &[&str]) -> Result<()> {

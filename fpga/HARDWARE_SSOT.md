@@ -195,30 +195,58 @@ Before concluding H2, rule out JTAG-cable interference: the cable must be
 **disconnected during POR** and reconnected only after the board rails are
 stable.
 
-### 3.4 Generating CCLK variants for experimental sweep
+### 3.4 Automated cold-POR CCLK sweep
 
 The openXC7 flow does **not** expose a `BITSTREAM.CONFIG.CONFIGRATE` knob, and
-the 7-series `OSCFSEL` field-to-MHz mapping is not publicly documented. To
-experiment, patch an existing `.bit`:
+the 7-series `OSCFSEL` field-to-MHz mapping is not publicly documented. Run the
+automated sweep to generate variants, program each to flash, prompt for the
+physical power-cycle, capture `STAT`, and write JSON logs:
 
 ```bash
-tri fpga cclk-variants fpga/verilog/ternary_mac_demo_top_200t.bit \
+tri fpga cclk-sweep fpga/verilog/ternary_mac_demo_top_200t.bit \
     --output-dir build/fpga/cclk_variants --values 0,1,2,3,4,5
 ```
 
-This writes `*_oscfsel00.bit` … `*_oscfsel05.bit` with raw `COR0[22:17]` values
-0–5. For each variant:
+The only manual steps are disconnecting the JTAG cable, disconnecting board
+power, waiting ≥10 s, reconnecting power, waiting ≥2 s, then reconnecting the
+cable and pressing ENTER. The command repeats this for every requested
+OSCFSEL value and writes one JSON log per variant to
+`build/fpga/boot-log-<timestamp>-oscfselNN.json`.
 
-1. Program flash: `tri fpga program-flash build/fpga/cclk_variants/..._oscfselNN.bit --spi-buswidth 1 --verify`
-2. Disconnect JTAG cable, disconnect power, wait ≥10 s, reconnect power.
-3. Reconnect JTAG cable and run `tri fpga stat --pre-jtag-reset --repeat 5`.
-4. The first variant that reaches `DONE=1` identifies a working raw OSCFSEL
-   value. Capture the actual CCLK frequency with a logic analyser / oscilloscope
-   before adopting it as the default bitstream.
+Test the report path without touching hardware:
+
+```bash
+tri fpga cclk-sweep fpga/verilog/ternary_mac_demo_top_200t.bit --dry-run
+tri fpga sweep-report
+```
+
+After a real sweep, generate the markdown evidence report:
+
+```bash
+tri fpga sweep-report --out build/fpga/sweep-report.md
+```
 
 > **WARNING:** `tri fpga patch-cor0` rewrites COR0 in place. If the original
 > bitstream contains CRC register writes, the patch may cause `CRC_ERROR=1`.
 > `tri fpga bit-config` now warns when CRC writes are present.
+
+### 3.5 Measuring the actual CCLK frequency
+
+A raw `OSCFSEL` value that boots is not enough; the actual CCLK frequency must
+be measured before it becomes the default. Capture the CCLK pin:
+
+```bash
+tri fpga measure-cclk
+```
+
+Then export the DSView trace and estimate frequency / duty cycle:
+
+```bash
+tri fpga measure-cclk --csv build/fpga/dsview_cclk.csv
+```
+
+Target pin: **P12** (CFGCLK / CCLK_0, bank 0, 3.3 V). Capture the first 100 µs
+after POR; CCLK is active only during configuration.
 
 ---
 
@@ -353,15 +381,40 @@ why it stayed hidden. **The same pattern should be audited in the chip RTL repos
 
 ## 9. CCLK / OSCFSEL experimental tooling
 
-Because the openXC7 flow has no `CONFIGRATE` parameter, the repo provides two
-board-less helpers for CCLK experimentation:
+Because the openXC7 flow has no `CONFIGRATE` parameter, the repo provides board-less
+and user-assisted helpers for CCLK experimentation.
+
+### 9.1 Patch a single variant
 
 - `tri fpga patch-cor0 <in.bit> <out.bit> --oscfsel N`  
   Rewrites `COR0[22:17]` to the 6-bit raw value `N` and emits warnings about the
   undocumented OSCFSEL-to-MHz mapping and CRC risk.
 
+### 9.2 Generate a variant directory
+
 - `tri fpga cclk-variants <in.bit> --output-dir D --values 0,1,2,3,4,5`  
   Generates one output file per OSCFSEL value, named `*_oscfselNN.bit`.
+
+### 9.3 Automated cold-POR sweep
+
+- `tri fpga cclk-sweep <in.bit> --values 0,1,2,3,4,5 --dry-run`  
+  Generates synthetic JSON logs so the report path can be tested board-less.
+
+- `tri fpga cclk-sweep <in.bit> --values 0,1,2,3,4,5`  
+  Programs each variant to flash, prompts for the physical power-cycle, captures
+  STAT, and writes JSON logs.
+
+- `tri fpga sweep-report --out build/fpga/sweep-report.md`  
+  Reads all `build/fpga/boot-log-*.json` files and produces a markdown table
+  identifying the first working variant.
+
+### 9.4 Measure actual CCLK
+
+- `tri fpga measure-cclk`  
+  Prints DSLogic / oscilloscope instructions for the CCLK pin (P12).
+
+- `tri fpga measure-cclk --csv <dsview-export.csv>`  
+  Estimates frequency and duty cycle from a DSView CSV export.
 
 Always verify a patched bitstream with:
 
