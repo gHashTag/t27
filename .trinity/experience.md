@@ -1,5 +1,33 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-08 — Wave Loop 398 (FPGA SPI boot root-cause closure — CCLK variant tooling, H2 actionable)
+
+### What worked
+- Adding `tri fpga patch-cor0` and `tri fpga cclk-variants` made the H2 CCLK/SPI-startup hypothesis testable without regenerating the bitstream from openXC7, which has no `CONFIGRATE` knob.
+- Extending `scripts/dump_bit_config.py` to decode `CTL0` and `BSPI` and to warn on `OSCFSEL=0` / CRC writes gives clearer diagnostics for both users and CI.
+- Adding assertion flags to `bit-config` and wiring them into `tri fpga smoke-gate` turned the board-less smoke gate into a real regression catch for IDCODE/SPI width/startup clock.
+- Instructing the user to **disconnect the JTAG cable during POR** in `tri fpga boot-log` addresses a known source of cold-POR corruption (AR66954 / XAPP1188).
+- Writing a JSON log entry from `boot-log` lets multiple CCLK variants be compared after a sweep, even if the capturing session is interrupted.
+- The conformance suite stayed at **575/575 PASS**; FPGA tooling changes remain isolated from the compiler path.
+
+### What changed behavior
+- `tri fpga bit-config` now prints warnings and supports CI assertions.
+- `tri fpga smoke-gate` fails if the demo bitstream does not target `xc7a200tfgg676-1`, does not use SPI x1, or does not start up from CCLK.
+- `tri fpga boot-log` now documents the JTAG-cable-disconnect step and persists results to JSON.
+- `fpga/HARDWARE_SSOT.md` contains the H2 decision tree and the CCLK-variant protocol.
+- W398 closes with H2 tooling complete; the actual cold-POR/CCLK sweep is deferred to W399.
+
+### Patterns to reuse
+- When a vendor bitstream field (e.g. `OSCFSEL`) is not publicly documented, provide a raw-value patch tool and a structured sweep protocol rather than guessing a MHz mapping.
+- Capture every physical-diagnostic attempt in a machine-readable log (JSON) so that later waves can compare runs without re-running the experiment.
+- Add explicit CI assertions for hardware-invariant register values (IDCODE, SPI width, startup clock) so regressions are caught board-less.
+- When a physical action is unsafe or impossible to automate (disconnecting a cable), make the printed protocol the source of truth and record the user's follow-through in the log.
+
+### Anti-patterns to avoid
+- Do not claim a CCLK timing fix is verified without a physical cold-POR measurement; document the unknown MHz mapping and the required experiment.
+- Do not silently patch a bitstream without warning about CRC invalidation; check for CRC register writes and surface the risk.
+- Do not add new Python scripts on the verification critical path; extend existing helpers (`dump_bit_config.py`) and drive them through Rust CLI/tri.
+
 ## 2026-07-06 — Wave Loop 397 (FPGA SPI boot root-cause closure — boot-log, smoke gate, H1 likely ruled out)
 
 ### What worked

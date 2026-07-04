@@ -143,9 +143,14 @@ tri fpga boot-log fpga/verilog/ternary_mac_demo_top_200t.bit
 
 It will:
 1. Program the flash with the canonical x1 command (verify enabled, no quad flags).
-2. Ask you to physically disconnect board power, wait ≥10 s, then reconnect.
-3. Capture `STAT` without issuing a JTAG reset/PROGRAM_B pulse.
-4. Print a decision tree based on the cold-POR `MODE` and `DONE` bits.
+2. Ask you to **disconnect the JTAG/programming cable** before power-cycle
+   (an attached cable can hold TMS/TCK/PROGRAM_B and corrupt cold-POR mode
+   sampling; see AR66954 / XAPP1188).
+3. Ask you to physically disconnect board power, wait ≥10 s, then reconnect.
+4. Capture `STAT` without issuing a JTAG reset/PROGRAM_B pulse.
+5. Print a decision tree based on the cold-POR `MODE` and `DONE` bits.
+6. Write a JSON log entry to `build/fpga/boot-log-<timestamp>.json` for later
+   comparison across CCLK variants.
 
 For finer-grained sampling, capture multiple consecutive STAT reads right after
 power-on:
@@ -172,6 +177,48 @@ strap is the root cause, not the bitstream.
 
 Use `tri fpga flash-status` to probe the detected flash chip, and
 `tri fpga dump-flash` to read back the flash contents for verification.
+
+### 3.3 H2 — CCLK/SPI-startup timing decision tree
+
+If cold-POR samples `MODE=0b001` (Master SPI x1) but `DONE=0`, the failure is
+almost certainly **H2**: the FPGA cannot finish configuration from the N25Q128.
+Diagnose in this order:
+
+| Symptom | Interpretation | Next step |
+|---------|----------------|-----------|
+| `MODE=001`, `DONE=0`, `CRC_ERROR=0` | Mode OK; configuration aborted before CRC. | Try a slower CCLK variant (see §9). |
+| `MODE=001`, `DONE=0`, `CRC_ERROR=1` | Bitstream was read but CRC check failed. | Re-run `tri fpga round-trip-verify`; if flash read-back is clean, the patched COR0 value invalidated the embedded CRC. |
+| `MODE=001`, `DONE=0`, `ID_ERROR=1` | Bitstream IDCODE does not match the FPGA. | Regenerate for `xc7a200tfgg676-1` (`0x03636093`). |
+| First flash read returns `FF FF FF` after cold-POR | Flash is still in power-down / busy state. | Issue `0x66`/`0x99` software reset before power-cycle (`tri fpga spi-raw 66` then `tri fpga spi-raw 99`). |
+
+Before concluding H2, rule out JTAG-cable interference: the cable must be
+**disconnected during POR** and reconnected only after the board rails are
+stable.
+
+### 3.4 Generating CCLK variants for experimental sweep
+
+The openXC7 flow does **not** expose a `BITSTREAM.CONFIG.CONFIGRATE` knob, and
+the 7-series `OSCFSEL` field-to-MHz mapping is not publicly documented. To
+experiment, patch an existing `.bit`:
+
+```bash
+tri fpga cclk-variants fpga/verilog/ternary_mac_demo_top_200t.bit \
+    --output-dir build/fpga/cclk_variants --values 0,1,2,3,4,5
+```
+
+This writes `*_oscfsel00.bit` … `*_oscfsel05.bit` with raw `COR0[22:17]` values
+0–5. For each variant:
+
+1. Program flash: `tri fpga program-flash build/fpga/cclk_variants/..._oscfselNN.bit --spi-buswidth 1 --verify`
+2. Disconnect JTAG cable, disconnect power, wait ≥10 s, reconnect power.
+3. Reconnect JTAG cable and run `tri fpga stat --pre-jtag-reset --repeat 5`.
+4. The first variant that reaches `DONE=1` identifies a working raw OSCFSEL
+   value. Capture the actual CCLK frequency with a logic analyser / oscilloscope
+   before adopting it as the default bitstream.
+
+> **WARNING:** `tri fpga patch-cor0` rewrites COR0 in place. If the original
+> bitstream contains CRC register writes, the patch may cause `CRC_ERROR=1`.
+> `tri fpga bit-config` now warns when CRC writes are present.
 
 ---
 
@@ -301,3 +348,26 @@ pairs were ~2× wrong (e.g. 1.002×1.996 → 1.0 instead of 2.0). Fixed by widen
 identity self-check never triggered the bug (×1.0 doesn't round-overflow), which is
 why it stayed hidden. **The same pattern should be audited in the chip RTL repos
 (`tt-gf16-euler` etc.) and the wider GF4..GF256 multiplier portfolio.**
+
+---
+
+## 9. CCLK / OSCFSEL experimental tooling
+
+Because the openXC7 flow has no `CONFIGRATE` parameter, the repo provides two
+board-less helpers for CCLK experimentation:
+
+- `tri fpga patch-cor0 <in.bit> <out.bit> --oscfsel N`  
+  Rewrites `COR0[22:17]` to the 6-bit raw value `N` and emits warnings about the
+  undocumented OSCFSEL-to-MHz mapping and CRC risk.
+
+- `tri fpga cclk-variants <in.bit> --output-dir D --values 0,1,2,3,4,5`  
+  Generates one output file per OSCFSEL value, named `*_oscfselNN.bit`.
+
+Always verify a patched bitstream with:
+
+```bash
+tri fpga bit-config build/fpga/cclk_variants/..._oscfselNN.bit
+```
+
+and confirm that `OSCFSEL` matches the requested value and `CRC_ERROR` remains 0
+after loading into SRAM.

@@ -13,16 +13,19 @@ Master SPI boot:
   CTL1  (0x18)  control register 1
   IDCODE(0x0c)  device IDCODE
   BSPI  (0x1f)  SPI configuration register
+  CRC   (0x00)  expected CRC (diagnostic only)
 
 Field decoding follows UG470 "7 Series FPGAs Configuration" and the prjxray
 Series7ConfigurationRegister enum.
 """
 
-import sys
+import argparse
 import struct
+import sys
 
 SYNC = b'\xaa\x99\x55\x66'
 
+# Register address to human-readable name.
 REG_NAMES = {
     0x00: "CRC",
     0x01: "FAR",
@@ -46,6 +49,9 @@ REG_NAMES = {
     0x18: "CTL1",
     0x1f: "BSPI",
 }
+
+# Registers we decode and possibly assert on.
+INTERESTING = {0x05, 0x09, 0x0c, 0x0e, 0x10, 0x11, 0x18, 0x1f}
 
 
 def extract_bitstream_words(data: bytes):
@@ -115,7 +121,7 @@ def decode_cor0(v):
     startup_names = {0: "CCLK", 1: "UserClk", 2: "JTAGClk"}
     lines.append(f"  startup_clk       [16:15] : {startup} ({startup_names.get(startup, 'reserved')})")
     cclk_mhz = field(v, 22, 17)
-    lines.append(f"  cclk_freq_mhz     [22:17] : {cclk_mhz}")
+    lines.append(f"  oscfsel           [22:17] : {cclk_mhz}")
     lines.append(f"  readback_single   [23]    : {field(v, 23, 23)}")
     lines.append(f"  drive_done_high   [24]    : {field(v, 24, 24)}")
     lines.append(f"  done_pipeline     [25]    : {field(v, 25, 25)}")
@@ -145,18 +151,46 @@ def decode_timer(v):
 
 
 def decode_ctl0(v):
-    return f"  raw                 : 0x{v:08X}"
+    lines = []
+    lines.append(f"  raw                 : 0x{v:08X}")
+    # UG470 Table 5-27 / Table 5-28
+    gts_usr_b = field(v, 0, 0)
+    lines.append(f"  gts_usr_b         [0]     : {gts_usr_b} ({'I/Os active' if gts_usr_b else 'I/Os 3-stated'})")
+    sbits = field(v, 5, 4)
+    sbits_names = {0: "Read/Write OK", 1: "Readback disabled", 2: "Both disabled", 3: "Both disabled"}
+    lines.append(f"  sbits             [5:4]   : {sbits} ({sbits_names.get(sbits, 'reserved')})")
+    dec = field(v, 6, 6)
+    lines.append(f"  aes_decryptor     [6]     : {dec} ({'enabled' if dec else 'disabled'})")
+    farsrc = field(v, 7, 7)
+    lines.append(f"  farsrc            [7]     : {farsrc} ({'FAR' if farsrc else 'EFAR'})")
+    glutmask = field(v, 8, 8)
+    lines.append(f"  glutmask_b        [8]     : {glutmask} ({'do not mask' if glutmask else 'mask'})")
+    fallback = field(v, 10, 10)
+    lines.append(f"  config_fallback   [10]    : {fallback} ({'disabled' if fallback else 'enabled'})")
+    overtemp = field(v, 12, 12)
+    lines.append(f"  overtemp_pwrdwn   [12]    : {overtemp} ({'enabled' if overtemp else 'disabled'})")
+    icap = field(v, 30, 30)
+    lines.append(f"  icap_select       [30]    : {icap} ({'bottom' if icap else 'top'})")
+    efuse = field(v, 31, 31)
+    lines.append(f"  efuse_key         [31]    : {efuse} ({'eFUSE' if efuse else 'BBRAM'})")
+    return "\n".join(lines)
 
 
 def decode_ctl1(v):
-    return f"  raw                 : 0x{v:08X}"
+    lines = []
+    lines.append(f"  raw                 : 0x{v:08X}")
+    # UG470: CTL1 is mostly reserved; bit 0 is ICAP_ENCRYPTION?
+    lines.append(f"  reserved fields present; consult UG470 for design-specific bits")
+    return "\n".join(lines)
 
 
 def decode_bspi(v):
     lines = []
     lines.append(f"  raw                 : 0x{v:08X}")
     lines.append(f"  read_cmd          [7:0]   : 0x{field(v, 7, 0):02X}")
-    lines.append(f"  dummy_clk_cycles  [11:8]   : {field(v, 11, 8)}")
+    lines.append(f"  dummy_clk_cycles  [11:8]    : {field(v, 11, 8)}")
+    # BSPI bus-width field interpretation differs from COR1; keep it visible
+    lines.append(f"  extended_addr     [16]      : {field(v, 16, 16)}")
     return "\n".join(lines)
 
 
@@ -172,16 +206,83 @@ DECODERS = {
 }
 
 
-def main():
-    if len(sys.argv) != 2:
-        print(f"usage: {sys.argv[0]} <bitstream.bit>", file=sys.stderr)
-        sys.exit(1)
+def run_assertions(registers, args):
+    """Exit non-zero if any requested assertion fails."""
+    failed = False
 
-    path = sys.argv[1]
-    with open(path, "rb") as f:
+    if args.assert_idcode is not None:
+        idcode = registers.get(0x0c)
+        if idcode != args.assert_idcode:
+            print(
+                f"ASSERTION FAILED: IDCODE=0x{idcode:08X}, expected 0x{args.assert_idcode:08X}",
+                file=sys.stderr,
+            )
+            failed = True
+        else:
+            print(f"ASSERTION OK: IDCODE=0x{idcode:08X}")
+
+    if args.assert_spi_x1:
+        cor1 = registers.get(0x0e)
+        if cor1 is None:
+            print("ASSERTION FAILED: COR1 not present in bitstream", file=sys.stderr)
+            failed = True
+        else:
+            spi_width = field(cor1, 8, 7)
+            if spi_width != 0:
+                print(
+                    f"ASSERTION FAILED: SPI_BUSWIDTH={spi_width}, expected 0 (x1)",
+                    file=sys.stderr,
+                )
+                failed = True
+            else:
+                print("ASSERTION OK: SPI_BUSWIDTH=x1")
+
+    if args.assert_cclk_startup:
+        cor0 = registers.get(0x09)
+        if cor0 is None:
+            print("ASSERTION FAILED: COR0 not present in bitstream", file=sys.stderr)
+            failed = True
+        else:
+            startup = field(cor0, 16, 15)
+            if startup != 0:
+                print(
+                    f"ASSERTION FAILED: STARTUPCLK={startup}, expected 0 (CCLK)",
+                    file=sys.stderr,
+                )
+                failed = True
+            else:
+                print("ASSERTION OK: STARTUPCLK=CCLK")
+
+    return not failed
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Parse a Xilinx 7-series .bit file and dump config registers.",
+    )
+    parser.add_argument("bit", help="Path to the Xilinx .bit file")
+    parser.add_argument(
+        "--assert-idcode",
+        type=lambda s: int(s, 0),
+        default=None,
+        help="Fail if IDCODE does not match this value (e.g. 0x03636093).",
+    )
+    parser.add_argument(
+        "--assert-spi-x1",
+        action="store_true",
+        help="Fail if COR1 SPI_BUSWIDTH is not x1.",
+    )
+    parser.add_argument(
+        "--assert-cclk-startup",
+        action="store_true",
+        help="Fail if COR0 STARTUPCLK is not CCLK.",
+    )
+    args = parser.parse_args()
+
+    with open(args.bit, "rb") as f:
         data = f.read()
 
-    print(f"File: {path} ({len(data)} bytes)")
+    print(f"File: {args.bit} ({len(data)} bytes)")
     sync_idx = data.find(SYNC)
     print(f"Sync word 0xAA995566 at byte offset: {sync_idx} (0x{sync_idx:x})")
 
@@ -189,21 +290,39 @@ def main():
     print(f"Configuration words after sync: {len(words)}")
     print()
 
-    # Collect the final write to each interesting register.
+    # Collect the final write to each interesting register and all CRC writes.
     last_writes = {}
+    crc_writes = 0
     for pkt_type, opcode, reg, payload in parse_packets(words):
-        if pkt_type == 1 and opcode == 2 and reg is not None and reg in DECODERS and payload:
-            last_writes[reg] = payload[-1]
+        if pkt_type == 1 and opcode == 2 and reg is not None and payload:
+            if reg in INTERESTING:
+                last_writes[reg] = payload[-1]
+            if reg == 0x00:
+                crc_writes += len(payload)
 
     if not last_writes:
         print("No configuration-register writes found.")
         sys.exit(1)
+
+    # Diagnostics: warn about common boot-from-flash gotchas.
+    cor0 = last_writes.get(0x09)
+    if cor0 is not None:
+        oscfsel = field(cor0, 22, 17)
+        if oscfsel == 0:
+            print("WARNING: OSCFSEL[22:17] = 0 (default/internal CCLK). "
+                  "A non-default value may be needed for reliable SPI flash wake-up.")
+    if crc_writes > 0:
+        print(f"WARNING: {crc_writes} CRC register (0x00) write(s) present. "
+              "Manual COR0 patching without CRC recomputation may cause CRC_ERROR.")
 
     for reg in sorted(last_writes):
         name, decoder = DECODERS[reg]
         print(f"== {name} register (addr 0x{reg:02X}) ==")
         print(decoder(last_writes[reg]))
         print()
+
+    if not run_assertions(last_writes, args):
+        sys.exit(2)
 
 
 if __name__ == "__main__":

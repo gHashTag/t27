@@ -1324,3 +1324,7 @@
 - **Commit:** feat(fpga): W396 SPI boot debug — bit-config parser, round-trip verify, cold-POR diagnostics
 - **Files:** .claude/plans/wave-loop-397.md,.trinity/current-issue.md,.trinity/experience.md,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-08.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-07.md,docs/reports/WAVE_LOOP_397_REPORT.md,fpga/HARDWARE_SSOT.md,fpga/diagnostics/jtag_wiring.md
 
+## 2026-07-04T05:16:32Z — wave-loop-398
+- **Commit:** feat(fpga): W397 SPI boot root-cause closure — boot-log, smoke gate, H1 likely ruled out
+- **Files:** .claude/plans/wave-loop-398.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-09.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-08.md,docs/reports/WAVE_LOOP_398_REPORT.md,fpga/HARDWARE_SSOT.md,scripts/dump_bit_config.py
+
