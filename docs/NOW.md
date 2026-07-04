@@ -1,5 +1,12 @@
 # NOW — Wave Loop 411 close-out / Wave Loop 412 setup
 
+## exprcast-zig-c-emitters -- lower ExprCast in gen (Zig) and gen-c (C) emitters (Closes #1333)
+
+- **WHERE** (compiler emitters): `bootstrap/src/compiler.rs`. gen (Zig) `gen_expr` default arm `_ => {}` (silent drop for ExprCast) replaced with an `@as(<T>, @intCast(<operand>))` form -- stronger than the issue's `@as`-only suggestion because `@intCast` correctly narrows as well as widens. gen-c (C) `gen_c_expr` default `/* unsupported: ExprCast */` replaced with `((<uintN_t>)(<operand>))` via `Self::type_to_c`. Rust arm (compiler.rs:8172 from #1320) unchanged; Verilog arm already lowered ExprCast. All four backends now lower ExprCast.
+- **Why**: with #1320 Rust-only, `t27c gen` and `t27c gen-c` silently produced empty output or `/* unsupported */` for any T27 program using `as`-casts. Downstream `gHashTag/tri-net` needed this for multi-target drift-guard (Rust + Zig + C from a single `specs/wire.t27`); without ExprCast in Zig/C the guard would trip on the first cast (`be_byte`, `u32_be`) and no Zig/C-target port could ship. Verified on real wire.t27: `be_byte` emits `@as(u8, @intCast((w >> 24) & 255))` in Zig and `((uint8_t)(((w >> 24) & 255)))` in C; `u32_be` emits the four `@as(u32, @intCast(...))` widen-then-shift terms. Regression: `t27c` self-tests 20/0; `comprehensive_suite.t27` contains 0 occurrences of `unsupported: ExprCast` in Zig+C output. Closes #1333.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## takum32-64-libtakum-parity -- record libtakum C-reference parity witness (Closes #1334)
 
 - **WHERE** (conformance vectors, witness-only): `conformance/vectors/takum32_conformance_v0.json` and `takum64_conformance_v0.json` -- update the `libtakum_c_parity` entry in `witnesses[]` from NOT DONE to results; append one ASCII clause to `format_notes`; refresh both `sha256` values in `INDEX_all_formats.json`. No vector data, no counts, no SSOT, no gen/ edits; SW-axis stays 72/83. WP-18 conformance-integrity-gate (A/B/C/D/D2/E) CLEAN locally.
