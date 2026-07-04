@@ -1464,3 +1464,15 @@
 - **Commit:** docs(w420): set W420 issue number to #1361 and record W419 PR #1360 (Closes #1357, Refs #1361)
 - **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W420_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W419_2026-07-05.md,docs/reports/WAVE_LOOP_419_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-04T18:36:50Z — wave-loop-420
+- **Commit:** feat(igla): Wave Loop 419 — Variant C VCD/CSV hardening, PVT monotonicity, standalone lake workflow
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-04T18:37:55Z — wave-loop-420
+- **Commit:** setup(igla): initialize Wave Loop 420 current issue (#1361)
+- **Files:** .trinity/current-issue.md,.trinity/current_task/activity.md,docs/NOW.md
+
+## 2026-07-04T19:27:38Z — wave-loop-420
+- **Commit:** setup(igla): initialize Wave Loop 420 current issue and NOW.md update
+- **Files:** .claude/plans/wave-loop-420.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-06.md,docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-06.md,docs/reports/WAVE_LOOP_420_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+

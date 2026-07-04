@@ -757,6 +757,18 @@ lemma pvt_half_ns_antitone_in_vccint (t : Int) (v1 v2 : Nat) (c : ProcessCorner)
         n25q128_pvt_process_derating_ns, PVT_VCCINT_MAX_MV]
   omega
 
+/-- The PVT-aware SCK half-period bound is monotone with the process-corner
+    ordering: a worse corner (larger derating) never yields a smaller bound. -/
+lemma pvt_half_ns_monotone_in_process_corner (t : Int) (v : Nat) (c1 c2 : ProcessCorner) :
+  c1.worse_than c2
+  → n25q128_min_sck_half_ns_pvt ⟨t, v, 2700, c1⟩
+    ≤ n25q128_min_sck_half_ns_pvt ⟨t, v, 2700, c2⟩ := by
+  intro h
+  simp [n25q128_min_sck_half_ns_pvt, n25q128_min_sck_low_ns_pvt,
+        n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+        n25q128_pvt_process_derating_ns, ProcessCorner.worse_than] at h ⊢
+  cases c1 <;> cases c2 <;> omega
+
 /-- If the PVT-aware predicate holds, the nominal predicate holds (for contexts
     inside the operating envelope). -/
 theorem measured_cclk_with_pvt_implies_measured_cclk_satisfies_flash_spec

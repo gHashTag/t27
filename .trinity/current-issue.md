@@ -1,15 +1,16 @@
-# Wave Loop 419 — physical CCLK capture, real relay gate, or instrument-import parity
+# Wave Loop 420 — physical CCLK capture, real relay gate, or instrument-import depth
 
-**Issue:** #1357  
-**Branch:** `wave-loop-419`  
-**Milestone:** Continue the FPGA boot-evidence line from W418.
+**Issue:** #1361  
+**Branch:** `wave-loop-420`  
+**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 419.
 
 ---
 
 ## Goal
 
-Wave 418 closed the Variant C fallback (formal tooling and instrument import).
-Wave 419 re-evaluates the bench state and executes the first available variant.
+Wave 419 closed the Variant C fallback (instrument-import parity, PVT
+monotonicity, standalone lake workflow). Wave 420 re-evaluates the bench state
+and executes the first available variant.
 
 1. **Variant A (preferred when bench becomes available):**
    - Wire P12 to a logic-analyzer channel and capture real CCLK for
@@ -29,27 +30,25 @@ Wave 419 re-evaluates the bench state and executes the first available variant.
    - Document relay wiring and port syntax in `fpga/HARDWARE_SSOT.md`.
 
 3. **Variant C (fallback if bench still blocked):**
-   - Extend instrument-import parity: additional VCD/CSV formats and hardened
-     `$comment` sections.
-   - Add PVT envelope monotonicity/antitonicity tests in Rust and Lean.
-   - Document the standalone `lake`-package workflow end-to-end in
-     `fpga/HARDWARE_SSOT.md`.
+   - Extend instrument-import depth: VCD auto-threshold, CSV sample-rate
+     auto-detection, or additional vendor header aliases.
+   - Refine the PVT envelope if real N25Q128_3V timing curves become available,
+     otherwise add another shape-preservation lemma.
+   - Land one safe gen-verilog #1245 sub-fix that does not destabilize the
+     existing 16-failure yosys smoke baseline.
 
 ---
 
 ## Decomposed plan
 
-See `docs/reports/FPGA_LOOP_COOPERATION_W419_2026-07-04.md` and
-`.claude/plans/wave-loop-419.md`.
-
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `cli/tri/src/fpga.rs` | Variant A import, B relay backend, or C parity/monotonicity tests |
-| 2 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | PVT monotonicity lemmas or new measured theorems |
+| 1 | `cli/tri/src/fpga.rs` | Variant A import, B relay backend, or C instrument-import depth / gen-verilog sub-fix |
+| 2 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | New measured theorems or PVT shape lemma |
 | 3 | `fpga/HARDWARE_SSOT.md` | Updated capture / relay / integration protocol |
-| 4 | `docs/reports/*` | W419 report, evidence, W420 cooperation |
-| 5 | `.trinity/experience.md` | W419 learnings |
-| 6 | git/PR | squash-merge to `master`, close #1357, open #? for W420 |
+| 4 | `docs/reports/*` | W420 report, evidence, W421 cooperation |
+| 5 | `.trinity/experience.md` | W420 learnings |
+| 6 | git/PR | squash-merge to `master`, close #1361, open #? for W421 |
 
 ---
 
@@ -66,9 +65,9 @@ See `docs/reports/FPGA_LOOP_COOPERATION_W419_2026-07-04.md` and
 - [ ] AC-B3: `fpga/HARDWARE_SSOT.md` documents relay wiring and port syntax.
 
 ### Bundle C
-- [x] AC-C1: At least one additional instrument-import unit test lands (VCD `$comment` hardening + CSV `--csv-channel` explicit select).
-- [x] AC-C2: Rust and Lean tests verify PVT envelope monotonicity/antitonicity.
-- [x] AC-C3: The standalone lake-package workflow is documented end-to-end.
+- [x] AC-C1: VCD instrument-import unit tests land: exact `$end` token terminator regression and real-valued net auto-threshold.
+- [x] AC-C2: New PVT envelope shape lemma/test lands: process-corner monotonicity (`ff ≤ tt ≤ ss`).
+- [ ] AC-C3: One safe gen-verilog #1245 sub-fix lands without increasing the 16-failure yosys smoke count. (Deferred; the remaining tracked gap is RAM style inference, which is not a safe narrow sub-fix for a Variant C wave.)
 
 ### Invariant checks
 - [x] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
@@ -79,11 +78,11 @@ See `docs/reports/FPGA_LOOP_COOPERATION_W419_2026-07-04.md` and
 
 ## PR
 - Target: `master`
-- PR: #1360
-- Body: `Closes #1357`
-- Report: `docs/reports/WAVE_LOOP_419_REPORT.md`
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W419_2026-07-05.md`
-- Cooperation W420: `docs/reports/FPGA_LOOP_COOPERATION_W420_2026-07-05.md`
+- PR: to open after work
+- Body: `Closes #1361`
+- Report: `docs/reports/WAVE_LOOP_420_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-06.md`
+- Cooperation W421: `docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-06.md`
 
 ---
 

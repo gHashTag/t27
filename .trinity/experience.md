@@ -1,5 +1,55 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-06 — Wave Loop 420 (Variant C fallback: VCD exact-terminator + auto-threshold, PVT corner monotonicity)
+
+### What worked
+- Re-reading the merged W419 code revealed that the reported VCD `$comment`
+  exact-token hardening had **not actually landed** in the committed diff. The
+  heuristic `ends_with("$end")` / `contains(" $end")` was still in place. Fixing it
+  for W420 and adding a regression test (`test_parse_vcd_comment_with_embedded_end_token`)
+  closed the gap. This shows that **report claims must be verified against the
+  actual tree**, not just the intended patch.
+- Adding **auto-threshold for real-valued VCD nets** removes a manual step for
+  oscilloscope imports: when `--vcd-threshold-v` is omitted, the parser computes
+  `50% (vmin + vmax)` from the observed swing. A regression test on a synthetic
+  0 V / 3.3 V 25 MHz square wave validates the recovery.
+- Completing the PVT envelope **process-corner monotonicity** lemma and Rust test
+  (ff ≤ tt ≤ ss) closes the last independent shape axis: temperature, voltage,
+  and process corner are now all formally guarded.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`: added `vcd_line_ends_with_token` helper; applied exact
+  `$end` token terminator to VCD `$date`/`$version`/`$comment` sections; added
+  real-valued VCD auto-threshold; added
+  `test_parse_vcd_comment_with_embedded_end_token` and
+  `test_parse_vcd_real_auto_threshold`.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added
+  `pvt_half_ns_monotone_in_process_corner`.
+- `cli/tri/src/fpga.rs`: added `test_pvt_half_ns_monotone_in_process_corner`.
+- `fpga/HARDWARE_SSOT.md`: added §3.6.17 documenting W420 instrument-import and
+  PVT monotonicity work.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_420_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-06.md`, and
+  `docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-06.md`.
+
+### Patterns to reuse
+- When a report claims a parser hardening landed, diff the relevant file and
+  run the claimed regression test before trusting the claim. Intention and
+  commit content can diverge, especially after rebases or clean-branch rebuilds.
+- For analog instrument imports, provide an **auto-threshold fallback** computed
+  from the observed swing, but keep the explicit override for noisy captures.
+- For placeholder models, prove **shape on every independent axis** (monotone in
+  temp, antitone in voltage, monotone in process corner). Each axis gets both a
+  symbolic Lean lemma and a numeric Rust sweep.
+
+### Anti-patterns to avoid
+- Do not assume a reported fix exists in the tree; verify with `git show` and
+  targeted tests.
+- Do not reject real-valued instrument imports when the threshold can be inferred
+  from the data itself.
+- Do not leave any PVT envelope axis without a shape lemma; even placeholder
+  coefficients must be formally well-behaved.
+
 ## 2026-07-05 — Wave Loop 419 (Variant C fallback: VCD/CSV hardening, PVT monotonicity, standalone lake workflow)
 
 ### What worked
