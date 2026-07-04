@@ -1480,3 +1480,7 @@
 - **Commit:** feat(igla): Wave Loop 420 — VCD exact-terminator + real-net auto-threshold, PVT process-corner monotonicity
 - **Files:** docs/NOW.md
 
+## 2026-07-04T19:34:37Z — wave-loop-421
+- **Commit:** docs(issue): set current issue to Wave Loop 421\n\nCloses #1363\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .trinity/current-issue.md
+
