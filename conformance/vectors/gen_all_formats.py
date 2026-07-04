@@ -48,6 +48,43 @@ EXISTING = {
     "fp8_e5m2": "fp8_e5m2_conformance_v0.json",
     "mxfp4": "mxfp4_e2m1_conformance_v0.json",
     "bfloat16": "bf16_golden_conformance_v0.json",
+    # Hand-curated fixed-width INSTANCE packs whose curated vectors evolved beyond
+    # the batch decoder. Preserved verbatim so a re-run does not clobber them:
+    #   * bcd      -> 2-digit packed-BCD 8-bit instance (exhaustive_valid 100/256)
+    #   * takum32/64 -> curated_named fixed-width instances of the tapered format
+    # (These stay bit-exact per their own curated content; the generic wide-domain
+    #  correctly-rounded proof over 2^32/2^64 codes remains out of scope in-sandbox,
+    #  but the curated INSTANCE round-trips are exact and independently witnessed.)
+    "bcd": "bcd_conformance_v0.json",
+    "takum32": "takum32_conformance_v0.json",
+    "takum64": "takum64_conformance_v0.json",
+    # gf14: Phase-A (FP32-width) GoldenFloat wide rung, layout S1E5M8 bias 15.
+    # Unlike the wider Phase-B rungs (gf48/96/128/512/1024), gf14 HAS an
+    # independent second witness: an exhaustive iverilog RTL decode over all
+    # 16384 codes via the parametric gf_decode_param #(14,5,8,15) generator
+    # merged in trinity-fpga PR #239 (merge cb845f75f). Every code round-trips
+    # to f64 with abs_error=0 (also confirmed by a plain IEEE re-decode here).
+    # => bit-precise, NOT self-consistent. The witness is recorded in the pack's
+    #    witnesses[] array (injected below, preserving the WP-29/30 file body).
+    "gf14": "gf14_conformance_v0.json",
+}
+
+# EXISTING packs that additionally carry an explicit independent-witness record.
+# The witness is injected into the pack file's witnesses[] array on generation
+# so the bit-precise claim is self-documenting inside the pack, not only in the
+# index. (encoding != compute != FPGA: this is a SW decode witness.)
+WITNESSES = {
+    "gf14": [{
+        "kind": "rtl_iverilog_exhaustive",
+        "scope": "all 16384 codes (u16 domain of the 14-bit format)",
+        "decoder": "gf_decode_param #(WIDTH=14, E=5, M=8, BIAS=15)",
+        "result": "16384/16384 bit-exact vs golden, abs_error=0",
+        "source": "trinity-fpga PR #239 (merge cb845f75f)",
+        "repo": "https://github.com/gHashTag/trinity-fpga/pull/239",
+        "note": "Independent second witness (RTL simulation) distinct from the "
+                "software encoder that produced these vectors. SW simulation "
+                "witness -- not an on-silicon HW-conformance (Tier-E) claim."
+    }]
 }
 
 # Externally-generated, dyadic-exact packs that re-derive under ONE decode law
@@ -58,12 +95,12 @@ EXISTING = {
 # registry exists so a re-run of this generator PRESERVES the self-consistent tier
 # instead of re-deriving these wide rungs as plain structural stubs.
 SELFCONSISTENT = {
-    "gf14": "gf14_conformance_v0.json",
     "gf48": "gf48_conformance_v0.json",
     "gf96": "gf96_conformance_v0.json",
     "gf128": "gf128_conformance_v0.json",
     "gf512": "gf512_conformance_v0.json",
     "gf1024": "gf1024_conformance_v0.json",
+    "gf256": "gf256_conformance_v0.json",
 }
 
 def f64_hex(x):
@@ -696,7 +733,20 @@ def build_decodable(rec):
         return (make_int_decoder(m, signed=True),
                 f"two's-complement signed integer, {bits} bits", "no inf/nan; exact integers")
     if cid == "per_channel_scale":
-        return None  # has external fp32 scale -> structural
+        # INT8 payload with an EXTERNAL per-channel fp32 scale. The scale is a
+        # tensor artifact, not part of the code -> we cannot bit-exactly define
+        # the *scaled* value. But the 8-bit two's-complement PAYLOAD decode is a
+        # fixed, unambiguous round-trip (identical to int8). We pack the payload
+        # round-trip bit-exactly and document the external scale in notes. This
+        # is exactly the artifact a bit-exact-inference frontier consumer needs:
+        # the deterministic integer payload, with scale applied downstream.
+        return (make_int_decoder(7, signed=True),
+                "per-channel affine quant (Jacob 2018, TFLite): 8-bit "
+                "two's-complement INT8 PAYLOAD; the real value is "
+                "payload * per_channel_fp32_scale, where the scale is an "
+                "EXTERNAL tensor (not part of the 8-bit code). This pack fixes "
+                "the deterministic payload round-trip; scale is applied downstream.",
+                "no inf/nan in the payload; exact integers; external fp32 scale documented")
 
     # LNS family
     if cluster == "Lns" and bits in (8, 16, 32, 64):
@@ -782,6 +832,21 @@ def build_decodable(rec):
                     f"value = (SIG/2^{m-1}) * 2^(E-{bias})",
                     "inf at max exp (int=1, frac=0); nan otherwise at max exp")
         # double_double / quad_double handled above (multi-double limb-sum decode)
+
+    # QuantTuned: AFP (Tambe 2020) stores a fixed S1E8M7 radix-2 16-bit PAYLOAD
+    # plus an external per-TENSOR exponent shift. The 16-bit payload is a plain
+    # bf16-shaped radix-2 field (e=8, m=7, bias=127) whose decode is unambiguous;
+    # the tensor shift is an external scale applied downstream (documented). We
+    # pack the deterministic payload round-trip bit-exactly.
+    if cluster == "QuantTuned" and cid == "afp":
+        dec = make_ieee_decoder(e, m, bias, has_inf=True, has_nan=True)
+        return (dec,
+                "AFP (Adaptive Floating-Point, Tambe 2020, DAC): 16-bit S1E8M7 "
+                "radix-2 PAYLOAD (bf16-shaped, bias 127) plus an EXTERNAL "
+                "per-tensor exponent shift (not part of the 16-bit code). This "
+                "pack fixes the deterministic payload round-trip; the tensor "
+                "shift is an external scale applied downstream.",
+                "IEEE-style specials at top exponent; external per-tensor shift documented")
 
     # QuantTuned: NF4 is a fixed 16-entry quantile table -> bit-exact lookup.
     if cluster == "QuantTuned" and cid == "nf4":
@@ -1062,8 +1127,24 @@ def main():
 
         if cid in EXISTING:
             existing_file = EXISTING[cid]
-            index.append({"id": cid, "file": existing_file, "kind": "bitexact",
-                          "source": "hand-curated (pre-existing)"})
+            # If this pack has a recorded independent witness, inject it into the
+            # pack file's witnesses[] array (idempotent: replace, don't append).
+            src = "hand-curated (pre-existing)"
+            n_vec = None
+            if cid in WITNESSES:
+                path = os.path.join(OUT, existing_file)
+                pk = json.load(open(path))
+                pk["witnesses"] = WITNESSES[cid]
+                pk["bitexact"] = True
+                with open(path, "w") as f:
+                    json.dump(pk, f, indent=2)
+                src = "pre-existing pack + recorded independent witness"
+                n_vec = len(pk.get("vectors", []))
+            entry = {"id": cid, "file": existing_file, "kind": "bitexact",
+                     "source": src}
+            if n_vec is not None:
+                entry["n_vectors"] = n_vec
+            index.append(entry)
             continue
 
         if cid in SELFCONSISTENT:
@@ -1131,6 +1212,39 @@ def main():
                 structural += 1
             else:
                 pack = build_structural_pack(rec); structural += 1
+        elif cid == "gf256":
+            # gf256: GoldenFloat wide rung, S1E97M158, bias = 2^96-1 (PROPOSED in
+            # the catalog per rule e=round(255/phi^2)=97). The decode law is fixed
+            # by that proposed layout, so we CAN emit a dyadic-exact self-consistent
+            # pack (named vectors + 3.0 anchor placed directly via the exact
+            # encoder). But at 256-bit width the mantissa exceeds f64 and there is
+            # NO independent second witness (no silicon, no external oracle), and
+            # the bias is still an OPEN R&D parameter -> label bitexact_selfconsistent,
+            # NOT bitexact. Same honest tier as gf128 / the WP-29/30 wide rungs.
+            dec = make_ieee_decoder(rec["e"], rec["m"], rec["bias"], has_inf=True, has_nan=True)
+            pack = build_bitexact_pack(
+                rec, dec,
+                "GoldenFloat wide rung S1E97M158, bias 2^96-1 (PROPOSED layout: "
+                "rule e=round(255/phi^2)=97). Dyadic-exact under one decode law; "
+                "NO independent second witness at 256-bit and the bias is an OPEN "
+                "R&D parameter -> self-consistent tier, not promoted to bitexact.",
+                "IEEE-style specials at top exponent; mantissa exceeds f64 (named "
+                "dyadic vectors are exact, full grid not enumerable)")
+            # honest self-consistent tier: keep the file's own bitexact flag false
+            pack["bitexact"] = False
+            pack["selfconsistent"] = True
+            pack["selfconsistent_reason"] = (
+                "Single decode law, dyadic-exact named vectors, but no independent "
+                "second witness at 256-bit width and bias is an OPEN R&D parameter.")
+            with open(os.path.join(OUT, fname), "w") as f:
+                json.dump(pack, f, indent=2)
+            written += 1
+            index.append({"id": cid, "file": fname, "kind": "bitexact_selfconsistent",
+                          "n_vectors": pack.get("n_vectors", 0),
+                          "source": "generated by gen_all_formats.py (self-consistent "
+                                    "wide-rung: single decode law, no independent "
+                                    "second witness, open bias)"})
+            continue
         else:
             built = build_decodable(rec)
             if built is not None:

@@ -111,5 +111,16 @@
       "hex": "0x1EFF",
       "value": "65408"
     }
+  ],
+  "witnesses": [
+    {
+      "kind": "rtl_iverilog_exhaustive",
+      "scope": "all 16384 codes (u16 domain of the 14-bit format)",
+      "decoder": "gf_decode_param #(WIDTH=14, E=5, M=8, BIAS=15)",
+      "result": "16384/16384 bit-exact vs golden, abs_error=0",
+      "source": "trinity-fpga PR #239 (merge cb845f75f)",
+      "repo": "https://github.com/gHashTag/trinity-fpga/pull/239",
+      "note": "Independent second witness (RTL simulation) distinct from the software encoder that produced these vectors. SW simulation witness -- not an on-silicon HW-conformance (Tier-E) claim."
+    }
   ]
 }
