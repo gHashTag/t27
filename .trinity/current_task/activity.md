@@ -1413,3 +1413,7 @@
 - **Commit:** merge(w407): integrate Wave Loop 406 changes into wave-loop-407
 - **Files:** .claude/plans/wave-loop-406.md,.claude/plans/wave-loop-407.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-12.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-13.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-12.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-13.md,docs/reports/WAVE_LOOP_406_REPORT.md,docs/reports/WAVE_LOOP_407_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-04T11:54:08Z — wave-loop-408
+- **Commit:** feat(igla): Wave Loop 407 — deeper N25Q128 SPI timing in Lean 4 + synthetic CCLK fixture
+- **Files:** .trinity/current-issue.md
+
