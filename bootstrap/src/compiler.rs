@@ -3624,6 +3624,20 @@ impl Codegen {
                 }
                 self.write(" }");
             }
+            NodeKind::ExprCast => {
+                if !node.children.is_empty() {
+                    let target = node
+                        .extra_type
+                        .split('[')
+                        .next()
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
+                    self.write(&format!("@as({}, @intCast(", target));
+                    self.gen_expr(&node.children[0]);
+                    self.write("))");
+                }
+            }
             _ => {}
         }
     }
@@ -5968,6 +5982,19 @@ impl CCodegen {
                 self.write("return ");
                 if !node.children.is_empty() {
                     self.gen_c_expr(&node.children[0]);
+                }
+            }
+            NodeKind::ExprCast => {
+                if !node.children.is_empty() {
+                    let target = node
+                        .extra_type
+                        .split('[')
+                        .next()
+                        .unwrap_or("")
+                        .trim();
+                    self.write(&format!("(({})(", Self::type_to_c(target)));
+                    self.gen_c_expr(&node.children[0]);
+                    self.write("))");
                 }
             }
             _ => {
