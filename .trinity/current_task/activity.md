@@ -1476,3 +1476,7 @@
 - **Commit:** setup(igla): initialize Wave Loop 420 current issue and NOW.md update
 - **Files:** .claude/plans/wave-loop-420.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-06.md,docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-06.md,docs/reports/WAVE_LOOP_420_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-04T19:30:24Z — wave-loop-420
+- **Commit:** feat(igla): Wave Loop 420 — VCD exact-terminator + real-net auto-threshold, PVT process-corner monotonicity
+- **Files:** docs/NOW.md
+
