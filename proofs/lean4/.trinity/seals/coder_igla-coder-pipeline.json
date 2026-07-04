@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:5f0e02456382c55e44fa845a884adb580bb399861c1ef3b382d95134c66b6a14",
+  "gen_hash_rust": "sha256:0cfab0e48a5cdceeecd57da0d4d2d387aaa01203b9adceb712241d5a24e39b9c",
+  "gen_hash_verilog": "sha256:8e4364fdf88eba8c3611e099a4ba7869d66a23be113768f933d02b7fe92886e4",
+  "gen_hash_zig": "sha256:038eebeb3f9607e5387693226838ae3b58168d6ed6ed882ca3af1d2d37233359",
+  "module": "igla-coder-pipeline",
+  "ring": 12,
+  "sealed_at": "2026-06-23T07:33:23Z",
+  "spec_hash": "sha256:df8eeb58a4866d76d9372221a73cbc7d52244e568601e04effe8ab8952d8df34",
+  "spec_path": "/Users/playra/t27/specs/igla/coder/pipeline.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:8afeb99568875fcb760ba6a00c9669a4e9ec8b347c843751d2b698999d970a1e",
+  "gen_hash_rust": "sha256:270837171c83eb3aea0d72f16d41f108a465d01cf24a1c106354d22c795f352b",
+  "gen_hash_verilog": "sha256:96911487b6da3e18ebdcf212dd6d54b8d903fbf83ffa3583dbf4ed736079e257",
+  "gen_hash_zig": "sha256:d3e86d155afa340b48d51d04c264ccd2628a2368a18f8a442be66ba8d53e2c58",
+  "module": "Gf16Accelerator",
+  "ring": 12,
+  "sealed_at": "2026-06-17T01:12:38Z",
+  "spec_hash": "sha256:e91f5dde68d1ded68fe0a13824d80759aae9bf40435692c85247a6f05323de91",
+  "spec_path": "examples/fpga-accelerator/gf16-accelerator.t27"
+}

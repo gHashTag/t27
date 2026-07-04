@@ -1,0 +1,30 @@
+module w385_local_array_init;
+
+fn read_init(idx : u32) -> u16 {
+    var buf : [4]u16 = [4]u16{0xA1B2, 0xC3D4, 0xE5F6, 0x6789};
+    return buf[idx];
+}
+
+test init_first {
+    assert_eq(read_init(0), 0xA1B2);
+}
+
+test init_last {
+    assert_eq(read_init(3), 0x6789);
+}
+
+test init_middle {
+    assert_eq(read_init(2), 0xE5F6);
+}
+
+fn write_after_init(idx : u32, val : u16) -> u16 {
+    var buf : [4]u16 = [4]u16{0x1111, 0x2222, 0x3333, 0x4444};
+    buf[idx] = val;
+    return buf[idx];
+}
+
+test init_then_write {
+    assert_eq(write_after_init(1, 0xBEEF), 0xBEEF);
+}
+
+endmodule

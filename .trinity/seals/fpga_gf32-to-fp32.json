@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:5677ac86d736ca6dbd27df59ea0d6def229e71208979182164d4ce2495fb2442",
+  "gen_hash_rust": "sha256:3448906250ad011e605c850830696b7e538e51031fbc3f03c3876abae3b0703e",
+  "gen_hash_verilog": "sha256:639ed71ce8831a80b629e48bf2996e50a96b165bcd25264bbf579bb5be8fe4d6",
+  "gen_hash_zig": "sha256:50889aa5300129b5117617a3c439f0200294dadd71148d94744c46822ec7d458",
+  "module": "gf32-to-fp32",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:25Z",
+  "spec_hash": "sha256:899509d93d57de75c59f71f7b01d707438c109d6951027d86d761222811cefe6",
+  "spec_path": "specs/fpga/gf32_to_fp32.t27"
+}

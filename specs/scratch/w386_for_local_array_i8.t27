@@ -1,0 +1,30 @@
+module w386_for_local_array_i8;
+
+fn fill_and_sum_i8() -> i8 {
+    var buf : [4]i8;
+    for i in 0..4 {
+        buf[i] = (i + 1) as i8 - 2;
+    }
+    var sum : i8 = 0;
+    for i in 0..4 {
+        sum = sum + buf[i];
+    }
+    return sum;
+}
+
+fn negate_in_place() -> i8 {
+    var buf : [4]i8;
+    buf[0] = 1;
+    buf[1] = -2;
+    buf[2] = 3;
+    buf[3] = -4;
+    for i in 0..4 {
+        buf[i] = -buf[i];
+    }
+    return buf[0] + buf[1] + buf[2] + buf[3];
+}
+
+test fill_and_sum_i8 { assert_eq(fill_and_sum_i8(), (-1 + 0 + 1 + 2) as i8); }
+test negate_in_place { assert_eq(negate_in_place(), (-1 + 2 + -3 + 4) as i8); }
+
+endmodule

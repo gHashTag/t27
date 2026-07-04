@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:acf63edff0b6ceb2d361960d3ebbc0ac806004f5c4d5640b59ad06def0b8a502",
   "gen_hash_rust": "sha256:eac91e8f91e836475306237cf4f917a53e786a1f346ffd8d0a60dfdba496f5ea",
-  "gen_hash_verilog": "sha256:d93ae488ab78bd73c33d0e03948e9f9a5e046e279433c424acb60bc3a77fa3df",
+  "gen_hash_verilog": "sha256:a6dd3330f672e4f501c35b4dc28f390bd9db6beb7a868e07b7dfcbf7ce0df311",
   "gen_hash_zig": "sha256:ae3600eae2a1434c8e23979e4fbe1a3dd2246ad15d0abf989429e6e56f20c50f",
   "module": "PipelineE2E",
   "ring": 12,
-  "sealed_at": "2026-07-01T20:00:14Z",
+  "sealed_at": "2026-07-03T15:03:21Z",
   "spec_hash": "sha256:47ff992484aab2a06b5e58c1487fffee481eac77c19fe81827b1e1572f5aee59",
   "spec_path": "specs/pipeline/e2e_test.t27"
 }

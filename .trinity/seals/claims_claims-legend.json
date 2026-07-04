@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:adf01617482a52d4413bfd577f81c229c5768da002fde68c0bb0f36ffd525f25",
+  "gen_hash_rust": "sha256:dbef6e3f1bc7e849c979eea35b91095503976919fa88595278967d10e7ecaf53",
+  "gen_hash_verilog": "sha256:c85dfea58f6a313094278f1793baa8f0a44da133eb978f198eb9b7d975ed06b3",
+  "gen_hash_zig": "sha256:cdcbc4768c7020296a3eace1f873cd06947422a66422d986d384014e4d355b60",
+  "module": "claims-legend",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:24Z",
+  "spec_hash": "sha256:ffea01aa58c09469fa8d8a23643f741a9e1afcbeddb27fab9fe8ee3f4d6fded3",
+  "spec_path": "specs/claims/claims_legend.t27"
+}

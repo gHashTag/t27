@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:6bddf41b8e32bc29485e527ee6852ea021e4aa77d8d274803cf4d1860e9d5eb5",
+  "gen_hash_rust": "sha256:6341d15b30ce02ad5913c649e7e31b71f46fab43a82f45a2ddf5b28b54ef6ed8",
+  "gen_hash_verilog": "sha256:f168e356521f644cc31020bc5afc3ff114520c024d7be9f1fd3871c915f781e1",
+  "gen_hash_zig": "sha256:f7b5d0912e1b65102caa1599eafd00b79de96ef28c6df89f34004299c725877a",
+  "module": "igla-race-adder-tree",
+  "ring": 12,
+  "sealed_at": "2026-06-23T07:33:22Z",
+  "spec_hash": "sha256:f357b3492de44f19257be21e9d5a75405e595e27d1f70a923538e6d065d7490b",
+  "spec_path": "/Users/playra/t27/specs/igla/race/adder_tree.t27"
+}

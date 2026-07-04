@@ -15,9 +15,19 @@
 | Field | Value |
 |-------|-------|
 | Board | **QMTech Wukong V1** |
-| FPGA | **XC7A100T-FGG676** |
-| Vivado part string | **`xc7a100tfgg676-1`** |
-| JTAG IDCODE | **`0x13631093`** (XC7A100T) |
+| FPGA | **XC7A200T-FGG676** |
+| Vivado part string | **`xc7a200tfgg676-1`** |
+| JTAG IDCODE | **`0x03636093`** (XC7A200T) |
+
+> **2026-07-03 update:** the physical chip on the connected QMTech Wukong V1 board is an **XC7A200T**, not the earlier assumed XC7A100T. `openFPGALoader` reads IDCODE `0x03636093` and identifies the family as Artix-7 200T. Bitstreams must target `xc7a200tfgg676-1`. The legacy `ternary_mac_demo_top.bit` (3.6 MB) was built for `xc7a100tfgg676-1`; a 200T-compatible bitstream is kept as `ternary_mac_demo_top_200t.bit`.
+
+> **2026-07-05 update:** `xc7a200tfbg676-1` and `xc7a200tfgg676-1` use the **same
+> die and the same BGA-676 pinout**. Xilinx only publishes one pinout file
+> (`xc7a200tfbg676pkg.txt`); the `fgg` variant is the lidded/commercial grade of
+> the same substrate. All configuration pins (`M0/M1/M2`, `CCLK`, `DONE`,
+> `INIT_B`) are on identical BGA positions. Therefore using the prjxray-db
+> `xc7a200tfbg676-1` entry for the FGG676 board is **pinout-correct**; package
+> mismatch is **not** the SPI-boot failure cause.
 
 `Arty A7-100` (`xc7a100t-csg324`, `specs/boards/arty_a7.t27`) is a **different**
 board — not the flash target. Do not mix its `csg324` package into build/flash
@@ -26,17 +36,16 @@ flows for the Wukong.
 All Vivado TCL (`fpga/vivado/build*.tcl`) and SPI-flash helpers
 (`fpga/tools/*_xc7a100t*fgg676*.bit`) already target `fgg676`. Keep it that way.
 
-> Note: an earlier memory/deck claim of "XC7A200T" was wrong — the real board is
-> A100T.
-
 ---
 
-## 2. What is physically connected (via Terminus USB2.0 hub)
+## 2. What is physically connected
 
 | Device | USB VID:PID | Role |
 |--------|-------------|------|
-| Xilinx Platform Cable USB II (Digilent DLC10) | `0x03FD:0x0013` (pre-FW), `0x03FD:0x0008` (after firmware load) | JTAG programmer |
+| Digilent USB Device (FT2232H/FT232-based JTAG cable) | `0x0403:0x6014` | JTAG programmer |
 | DSLogic Plus (DreamSourceLab) | `0x2A0E:0x0035` | Logic analyzer (JTAG capture) |
+
+> **Note:** the connected cable is a **Digilent FTDI cable** (`0x0403:0x6014`), not the Xilinx `0x03FD` Platform Cable. The in-repo `dlc10` driver only supports `0x03FD` cables, so the bring-up flow now uses **openFPGALoader** with the `digilent_hs2` cable profile.
 
 There is **no `/dev/cu.usb*` / `/dev/tty.usb*` serial node**, and there should
 not be: both devices speak **libusb**, not UART/VCP. Absence of a serial port is
@@ -50,35 +59,257 @@ tooling/IDCODE sections are stale; see §6).
 
 ## 3. Program / flash path (CANONICAL, local, no Vivado)
 
-The cable is a **native Xilinx cable (`0x03FD`)**. Drive it with the in-repo
-pure-Rust driver:
-
-**`cli/dlc10`** — `rusb`/libusb driver for DLC10/DLC9, JTAG + SPI flash via a
-7-series proxy. No prebuilt binary; build it:
+The connected cable is an **FTDI-based Digilent cable (`0x0403:0x6014`)**.
+Use `openFPGALoader` (installed via Homebrew) to program the FPGA:
 
 ```bash
-cargo build --release -p dlc10        # from repo root
+# Detect the JTAG chain and confirm the device
+openFPGALoader --detect -c digilent_hs2
+
+# Program FPGA SRAM (volatile, fast iteration)
+openFPGALoader -c digilent_hs2 fpga/verilog/ternary_mac_demo_top_200t.bit
 ```
 
-Subcommands (`src/bin/dlc10.rs`):
+Expected detection output:
+```text
+idcode 0x3636093
+manufacturer xilinx
+family artix a7 200t
+model  xc7a200
+irlength 6
+```
 
-| Command | Purpose |
-|---------|---------|
-| `dlc10 idcode` | Read JTAG IDCODE → **must be `0x13631093`** (confirms XC7A100T alive) |
-| `dlc10 sram <file.bit>` | Program FPGA SRAM (volatile, fast iteration) |
-| `dlc10 flash <file.bit>` | Program on-board SPI flash (non-volatile) |
-| `dlc10 reload` | JPROGRAM + JSTART (reload FPGA from flash) |
-| `dlc10 read-id` | SPI flash JEDEC ID via JTAG→SPI bridge |
-| `dlc10 debug` | Decode 7-series config registers |
+Expected post-load status line:
+```text
+ir: 1 isc_done 1 isc_ena 0 init 1 done 1
+```
+`done 1` confirms the bitstream was accepted and the FPGA is running.
 
-Typical bring-up: `cargo build --release -p dlc10` → `dlc10 idcode` →
-`dlc10 flash <bitstream>` → `dlc10 reload`.
+### When a Xilinx `0x03FD` cable is available
+The in-repo **`cli/dlc10`** driver supports native Xilinx cables (`0x03FD`). Build
+and use it as a fallback:
 
-### Do NOT use openFPGALoader for this board
-`openFPGALoader` (v1.1.1, installed via brew) **cannot drive the `0x03FD` cable**.
-Its cable DB is FTDI (`0x0403:*`) / CMSIS-DAP / J-Link / XVC only — there is no
-`0x03FD` entry, so `--detect` fails with "device not found". Dead end; use
-`dlc10`.
+```bash
+cargo build --release -p dlc10
+target/release/dlc10 idcode        # expect 0x03636093 for XC7A200T
+target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top_200t.bit
+```
+
+### SPI flash programming (non-volatile)
+The connected Digilent FTDI cable (`0x0403:0x6014`) drives SPI flash through
+**openFPGALoader** and its JTAG-to-SPI bridge (`spiOverJtag`). The in-tree
+`dlc10` driver does not support this cable.
+
+Canonical command for x1 SPI boot:
+```bash
+tri fpga program-flash build/fpga/gf16/gf16_matmul4x4_top.bit \
+    --spi-buswidth 1 --verify
+```
+
+**Do not use `--enable-quad` or `--disable-quad` with the Micron N25Q128_3V**
+(JEDEC `0x20ba18`) on this board. openFPGALoader v1.1.0 fails with
+"SPI Flash has no Quad bit (or spiFlashdb must be updated)" because the N25Q
+family supports quad mode natively without a separate QE status bit; the quad
+flags only attempt to toggle that non-existent bit and abort the command.
+
+If the board does not boot from flash after a power-cycle, diagnose in this
+order:
+
+1. **Cold-POR mode-pin sampling (most likely).** `M[2:0]` must be sampled as
+   `001` (Master SPI) at power-on. The value read by `tri fpga stat` after a
+   JTAG reset may differ from the value sampled at a true cold power-cycle.
+   Use `tri fpga stat --pre-jtag-reset` immediately after applying board power
+   (before any other JTAG operation) and compare the `MODE` and `BUS Width`
+   fields.
+2. **Bitstream config audit.** Run `tri fpga bit-config <bit>` and confirm
+   `COR1[8:7]` (`SPI_BUSWIDTH`) is `00` for x1, `COR0[16:15]` (`STARTUPCLK`) is
+   `00` (CCLK), and `IDCODE` matches the target FPGA (`0x03636093` for
+   XC7A200T).
+3. **Flash write-path integrity.** Run `tri fpga round-trip-verify <bit>`. It
+   programs the flash, dumps the same bytes back, and verifies that the dumped
+   bitstream payload matches the original `.bit` file after sync-word alignment.
+4. **Quad-mode / BPI-mode mismatch.** Only relevant if the board straps and
+   bitstream are intentionally configured for x4 SPI or BPI; the current
+   Wukong V1 + GF16 flow uses x1.
+
+### 3.1 Guided cold-POR boot experiment
+
+The `tri fpga boot-log` command automates the programming step and prints the
+exact user-assisted power-cycle protocol:
+
+```bash
+tri fpga boot-log fpga/verilog/ternary_mac_demo_top_200t.bit
+```
+
+It will:
+1. Program the flash with the canonical x1 command (verify enabled, no quad flags).
+2. Ask you to **disconnect the JTAG/programming cable** before power-cycle
+   (an attached cable can hold TMS/TCK/PROGRAM_B and corrupt cold-POR mode
+   sampling; see AR66954 / XAPP1188).
+3. Ask you to physically disconnect board power, wait ≥10 s, then reconnect.
+4. Capture `STAT` without issuing a JTAG reset/PROGRAM_B pulse.
+5. Print a decision tree based on the cold-POR `MODE` and `DONE` bits.
+6. Write a JSON log entry to `build/fpga/boot-log-<timestamp>.json` for later
+   comparison across CCLK variants.
+
+For finer-grained sampling, capture multiple consecutive STAT reads right after
+power-on:
+
+```bash
+tri fpga stat --pre-jtag-reset --repeat 5
+```
+
+### 3.2 Cold-POR decision tree
+
+Read `STAT` immediately after a cold power-cycle (no JTAG reset):
+
+| `MODE` bits | `DONE` | Interpretation | Next step |
+|-------------|--------|----------------|-----------|
+| `001` (Master SPI x1) | 1 | **Success** — FPGA booted from flash. | Done. |
+| `001` (Master SPI x1) | 0 | Mode is correct but configuration did not finish. | Audit CCLK/SPI timing (H2) or signal integrity. |
+| `000` / `111` (JTAG) | 0 | Board sampled JTAG mode at POR; likely missing/strapped mode-pin pull resistors. | Inspect board mode-pin straps; add external pull to `M0`/`M1`/`M2`. |
+| any | 1 with `ID_ERROR=1` | Bitstream IDCODE does not match the FPGA. | Regenerate the bitstream for `xc7a200tfgg676-1` (`0x03636093`). |
+| any | 0 with `CRC_ERROR=1` | Flash read corrupted the bitstream. | Re-run `tri fpga round-trip-verify`; check flash/clock integrity. |
+
+The mode-pin strap state on the QMTech Wukong V1 is not documented in this
+repository. If cold-POR `MODE` differs from post-JTAG-reset `MODE`, the physical
+strap is the root cause, not the bitstream.
+
+Use `tri fpga flash-status` to probe the detected flash chip, and
+`tri fpga dump-flash` to read back the flash contents for verification.
+
+### 3.3 H2 — CCLK/SPI-startup timing decision tree
+
+If cold-POR samples `MODE=0b001` (Master SPI x1) but `DONE=0`, the failure is
+almost certainly **H2**: the FPGA cannot finish configuration from the N25Q128.
+Diagnose in this order:
+
+| Symptom | Interpretation | Next step |
+|---------|----------------|-----------|
+| `MODE=001`, `DONE=0`, `CRC_ERROR=0` | Mode OK; configuration aborted before CRC. | Try a slower CCLK variant (see §9). |
+| `MODE=001`, `DONE=0`, `CRC_ERROR=1` | Bitstream was read but CRC check failed. | Re-run `tri fpga round-trip-verify`; if flash read-back is clean, the patched COR0 value invalidated the embedded CRC. |
+| `MODE=001`, `DONE=0`, `ID_ERROR=1` | Bitstream IDCODE does not match the FPGA. | Regenerate for `xc7a200tfgg676-1` (`0x03636093`). |
+| First flash read returns `FF FF FF` after cold-POR | Flash is still in power-down / busy state. | Issue `0x66`/`0x99` software reset before power-cycle (`tri fpga spi-raw 66` then `tri fpga spi-raw 99`). |
+
+Before concluding H2, rule out JTAG-cable interference: the cable must be
+**disconnected during POR** and reconnected only after the board rails are
+stable.
+
+> **W400 physical result (2026-07-04).** The canonical
+> `fpga/verilog/ternary_mac_demo_top_200t.bit` (`OSCFSEL=0`) boots from flash
+> when the cold-POR protocol above is followed. A full CCLK sweep over
+> `OSCFSEL=0..5` produced `STAT=0x401079FC` (`DONE=1`, `MODE=001`, `EOS=1`) for
+> every variant. Therefore the earlier `DONE=0` observations were caused by
+> incomplete cold-POR or JTAG-cable interference, **not** CCLK frequency. The
+> default bitstream is the working default; no COR0 patch is required. See
+> `docs/reports/WAVE_LOOP_400_REPORT.md` and `build/fpga/sweep-report-w400-clean.md`
+> for the raw logs.
+
+### 3.4 Cold-POR protocol checklist
+
+Before any physical boot experiment, print and confirm the protocol:
+
+```bash
+tri fpga boot-protocol --checklist
+```
+
+For an interactive session where the CLI asks you to confirm each step:
+
+```bash
+tri fpga boot-protocol
+```
+
+### 3.5 Automated cold-POR CCLK sweep
+
+The openXC7 flow does **not** expose a `BITSTREAM.CONFIG.CONFIGRATE` knob, and
+the 7-series `OSCFSEL` field-to-MHz mapping is not publicly documented. Run the
+automated sweep to generate variants, program each to flash, prompt for the
+physical power-cycle, capture `STAT`, and write JSON logs:
+
+```bash
+tri fpga cclk-sweep fpga/verilog/ternary_mac_demo_top_200t.bit \
+    --output-dir build/fpga/cclk_variants --values 0,1,2,3,4,5
+```
+
+The only manual steps are disconnecting the JTAG cable, disconnecting board
+power, waiting ≥10 s, reconnecting power, waiting ≥2 s, then reconnecting the
+cable and pressing ENTER. The command repeats this for every requested
+OSCFSEL value and writes one JSON log per variant to
+`build/fpga/boot-log-<timestamp>-oscfselNN.json`.
+
+Write logs to a custom directory (useful when running multiple sweeps):
+
+```bash
+tri fpga cclk-sweep fpga/verilog/ternary_mac_demo_top_200t.bit \
+    --output-dir build/fpga/cclk_variants \
+    --log-dir build/fpga/sweep-2026-07-04 \
+    --values 0,1,2,3,4,5
+```
+
+Test the report path without touching hardware:
+
+```bash
+tri fpga cclk-sweep fpga/verilog/ternary_mac_demo_top_200t.bit --dry-run
+tri fpga sweep-report
+```
+
+After a real sweep, generate the markdown evidence report:
+
+```bash
+tri fpga sweep-report --out build/fpga/sweep-report.md
+```
+
+For a one-off test of a single OSCFSEL value:
+
+```bash
+tri fpga cclk-sweep fpga/verilog/ternary_mac_demo_top_200t.bit --single 3
+```
+
+If you want the command to auto-continue after a fixed delay (e.g. 120 s) so
+you can perform the power-cycle without keeping the terminal open:
+
+```bash
+tri fpga cclk-sweep fpga/verilog/ternary_mac_demo_top_200t.bit \
+    --values 0,1,2,3,4,5 --wait-seconds 120
+```
+
+> **WARNING:** `tri fpga patch-cor0` rewrites COR0 in place. If the original
+> bitstream contains CRC register writes, the patch may cause `CRC_ERROR=1`.
+> `tri fpga bit-config` now warns when CRC writes are present.
+
+### 3.5 Measuring the actual CCLK frequency
+
+A raw `OSCFSEL` value that boots is not enough; the actual CCLK frequency must
+be measured before it becomes the default. Capture the CCLK pin:
+
+```bash
+tri fpga measure-cclk
+```
+
+Then export a trace and estimate frequency / duty cycle:
+
+```bash
+tri fpga measure-cclk --csv build/fpga/cclk.csv
+```
+
+Target pin: **P12** (CFGCLK / CCLK_0, bank 0, 3.3 V). Capture the first 100 µs
+after POR; CCLK is active only during configuration.
+
+The CSV parser auto-detects the three common export formats:
+
+| Tool       | Header example                                        | Time unit |
+|------------|-------------------------------------------------------|-----------|
+| DSView     | `Time,Voltage`                                        | seconds   |
+| PulseView  | `Time,Channel 0,Channel 1,...`                         | seconds   |
+| Saleae     | `time, channel 0, channel 1,...` (lower-case, spaces)    | seconds   |
+
+Numeric columns are detected heuristically; the command reports the dominant
+frequency and duty cycle. If fewer than 10 transitions are found, it exits with
+an error and asks for a longer capture.
+
+When the `tri fpga smoke-gate` dry-run path runs (§3.4), it verifies that
+`sweep-report` emits exactly the six `OSCFSEL` variant rows produced by
+`cclk-sweep --dry-run`.
 
 ---
 
@@ -101,8 +332,11 @@ clear by design class:**
   using dedicated config pins (FCS_B=C8/MOSI=B19/MISO=A18) + STARTUPE2 — i.e. the
   SPI-flash *proxy* `bscan_spi_qmtech` (nextpnr `pack_clocking_xc7.cc` aborts with
   `std::out_of_range`). Our matrix does **not** use those, so OpenXC7 works.
-  **VERIFIED 2026-05-31: the recipe in §8 built `gf16_matmul4x4_top.bit` and it
-  reaches `DONE=HIGH` on the board.**
+  **VERIFIED 2026-07-04: the `tri fpga synth-gf16` flow targets
+  `xc7a200tfbg676-1` (same die/pinout as `fgg676-1`) and reaches `DONE=HIGH`
+  when loaded into SRAM. Flash boot from the canonical
+  `fpga/verilog/ternary_mac_demo_top_200t.bit` was verified on 2026-07-04
+  with the W400 cold-POR CCLK sweep (see `docs/reports/WAVE_LOOP_400_REPORT.md`).**
 - **(A) Vivado in Linux Docker** — only needed for the **SPI-flash proxy**
   bitstream (Vivado-only in the OSS ecosystem). Setup exists
   (`docker/Dockerfile.vivado` 2025.2, `tri fpga build-proxy-docker`) but is
@@ -206,3 +440,60 @@ pairs were ~2× wrong (e.g. 1.002×1.996 → 1.0 instead of 2.0). Fixed by widen
 identity self-check never triggered the bug (×1.0 doesn't round-overflow), which is
 why it stayed hidden. **The same pattern should be audited in the chip RTL repos
 (`tt-gf16-euler` etc.) and the wider GF4..GF256 multiplier portfolio.**
+
+---
+
+## 9. CCLK / OSCFSEL experimental tooling
+
+Because the openXC7 flow has no `CONFIGRATE` parameter, the repo provides board-less
+and user-assisted helpers for CCLK experimentation.
+
+### 9.1 Patch a single variant
+
+- `tri fpga patch-cor0 <in.bit> <out.bit> --oscfsel N`  
+  Rewrites `COR0[22:17]` to the 6-bit raw value `N` and emits warnings about the
+  undocumented OSCFSEL-to-MHz mapping and CRC risk.
+
+### 9.2 Generate a variant directory
+
+- `tri fpga cclk-variants <in.bit> --output-dir D --values 0,1,2,3,4,5`  
+  Generates one output file per OSCFSEL value, named `*_oscfselNN.bit`.
+
+### 9.3 Cold-POR protocol helpers
+
+- `tri fpga boot-protocol`  
+  Interactive walkthrough; the CLI asks you to confirm each cold-POR step.
+
+- `tri fpga boot-protocol --checklist`  
+  Print the cold-POR checklist without interactive prompts.
+
+### 9.4 Automated cold-POR sweep
+
+- `tri fpga cclk-sweep <in.bit> --values 0,1,2,3,4,5 --dry-run`  
+  Generates synthetic JSON logs so the report path can be tested board-less.
+
+- `tri fpga cclk-sweep <in.bit> --values 0,1,2,3,4,5`  
+  Programs each variant to flash, prompts for the physical power-cycle, captures
+  STAT, and writes JSON logs.
+
+- `tri fpga sweep-report --out build/fpga/sweep-report.md`  
+  Reads all `build/fpga/boot-log-*.json` files and produces a markdown table
+  identifying the first working variant.
+
+### 9.5 Measure actual CCLK
+
+- `tri fpga measure-cclk`  
+  Prints DSLogic / oscilloscope instructions for the CCLK pin (P12).
+
+- `tri fpga measure-cclk --csv <export.csv>`  
+  Estimates frequency and duty cycle from a DSView, PulseView, or Saleae CSV
+  export.
+
+Always verify a patched bitstream with:
+
+```bash
+tri fpga bit-config build/fpga/cclk_variants/..._oscfselNN.bit
+```
+
+and confirm that `OSCFSEL` matches the requested value and `CRC_ERROR` remains 0
+after loading into SRAM.
