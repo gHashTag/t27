@@ -819,6 +819,65 @@ To replace them with real curves:
 5. Update this section with the new coefficients, the datasheet reference, and
    the date of characterization.
 
+#### 3.6.16 Standalone lake-package workflow for generated theorems (W419)
+
+The `--standalone` flag of `tri fpga measured-to-lean` emits a self-contained
+Lean 4 file that typechecks outside the main `proofs/lean4/Trinity` tree. This
+is useful when an instrument export or a synthetic fixture should become an
+independently verifiable deliverable without editing the core proof library.
+
+The generated file imports `Trinity.TernaryFPGABoot` and wraps the theorems in
+`namespace Trinity.BitstreamConfig`. To build it, create a minimal `lake`
+package that requires the local Trinity proofs package:
+
+```bash
+# 1. Generate the theorem from a synthetic or captured measurement.
+tri fpga measure-cclk --synth --validate --json > measured.json
+tri fpga measured-to-lean --file measured.json --standalone --out MeasuredCclk.lean
+
+# 2. Create a new lake package that consumes the theorem.
+mkdir my_theorem && cd my_theorem
+cp ../MeasuredCclk.lean .
+
+cat > lakefile.lean <<'EOF'
+import Lake
+open Lake DSL
+
+package «MyTheorem» where
+
+-- Use the absolute path to the Trinity proofs package in your checkout.
+require Trinity from "/Users/playra/t27/proofs/lean4"
+
+@[default_target]
+lean_lib «MyTheorem» where
+  roots := #[`MeasuredCclk]
+EOF
+
+# 3. Typecheck the theorem. The first build downloads mathlib4 if it is not
+#    already cached through the local Trinity dependency; subsequent builds are
+#    incremental.
+lake build
+```
+
+For a relative path, replace the `require` line with a `FilePath` expression:
+
+```lean
+require Trinity from ".." / ".." / "proofs" / "lean4"
+```
+
+The same workflow works for `--raw-ns` inputs (CSV/VCD/manual JSON):
+
+```bash
+tri fpga measured-to-lean --csv cclk_capture.csv --raw-ns --standalone --out MeasuredRaw.lean
+# ... place in a lake package as above
+```
+
+Do **not** copy a `--standalone` file into `proofs/lean4/Trinity/` and try to
+build it as `Trinity.MeasuredCclk`: the namespace wrapper is written for a
+package-root module, not for a file nested inside the `Trinity` module path.
+When adding a theorem to the main tree, use the non-standalone snippet and paste
+it into an existing `Trinity` module.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)

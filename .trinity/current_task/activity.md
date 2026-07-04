@@ -1460,3 +1460,7 @@
 - **Commit:** docs(NOW): W418 setup, mark W417 PR #1354 merged
 - **Files:** .claude/plans/wave-loop-418.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W419_2026-07-04.md,docs/reports/FPGA_LOOP_EVIDENCE_W418_2026-07-04.md,docs/reports/WAVE_LOOP_418_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-04T18:22:51Z — wave-loop-419-clean
+- **Commit:** docs(w420): set W420 issue number to #1361 and record W419 PR #1360 (Closes #1357, Refs #1361)
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W420_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W419_2026-07-05.md,docs/reports/WAVE_LOOP_419_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+

@@ -557,6 +557,13 @@ pub enum FpgaCmd {
         /// convert it to a raw-ns theorem. Mutually exclusive with `--file` and `--vcd`.
         #[arg(long, conflicts_with = "file", conflicts_with = "vcd")]
         csv: Option<PathBuf>,
+        /// For multi-channel CSV exports, select the active signal channel by
+        /// column name (e.g. `voltage`, `cclk_v`, `channel0`). The column name
+        /// is matched case-insensitively against the header row. If the header
+        /// row names the channel, `--csv-channel` overrides the default voltage
+        /// column heuristic.
+        #[arg(long)]
+        csv_channel: Option<String>,
         /// Parse a VCD file and convert the first (or `--vcd-signal`) scalar or
         /// multi-bit logic net transitions to a raw-ns theorem. Mutually exclusive
         /// with `--file` and `--csv`.
@@ -809,6 +816,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             raw_ns,
             validate,
             csv,
+            csv_channel,
             vcd,
             vcd_signal,
             vcd_bit,
@@ -816,6 +824,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
         } => measured_to_lean(
             file.as_ref(),
             csv.as_ref(),
+            csv_channel.as_deref(),
             vcd.as_ref(),
             vcd_signal.as_deref(),
             *vcd_bit,
@@ -2601,7 +2610,7 @@ fn measure_cclk(
             let samplerate = detect_logic_csv_samplerate(path)?.unwrap_or(samplerate);
             parse_logic_csv(path, samplerate)?
         } else {
-            parse_cclk_csv(path)?
+            parse_cclk_csv(path, None)?
         };
         (f, d, format!("csv {}", path.display()))
     } else {
@@ -2931,6 +2940,7 @@ fn format_pvt_context_lean(ctx: &PvtContext) -> String {
 fn measured_to_lean(
     file: Option<&PathBuf>,
     csv: Option<&PathBuf>,
+    csv_channel: Option<&str>,
     vcd: Option<&PathBuf>,
     vcd_signal: Option<&str>,
     vcd_bit: usize,
@@ -2948,7 +2958,7 @@ fn measured_to_lean(
         None => None,
     };
     let text = if let Some(path) = csv {
-        let (period_ns, low_ns, high_ns) = parse_csv_to_raw_ns(path)?;
+        let (period_ns, low_ns, high_ns) = parse_csv_to_raw_ns(path, csv_channel)?;
         if validate {
             if let Some(ref ctx) = pvt_ctx {
                 if !raw_ns_satisfies_flash_spec_pvt(period_ns, low_ns, high_ns, ctx) {
@@ -3078,7 +3088,6 @@ fn measured_to_lean(
     let mut lean = String::new();
 
     if standalone {
-        lean.push_str("import Trinity.BitstreamConfig\n");
         lean.push_str("import Trinity.TernaryFPGABoot\n\n");
         lean.push_str("namespace Trinity.BitstreamConfig\n");
         lean.push('\n');
@@ -3429,14 +3438,14 @@ fn parse_logic_csv(path: &PathBuf, samplerate: u32) -> Result<(f64, f64)> {
 /// The first numeric column is treated as time (seconds) and the next numeric
 /// column as the signal voltage (volts). Rows with non-numeric fields are
 /// skipped.
-fn parse_cclk_csv(path: &PathBuf) -> Result<(f64, f64)> {
+fn parse_cclk_csv(path: &PathBuf, channel: Option<&str>) -> Result<(f64, f64)> {
     let file = std::fs::File::open(path)
         .with_context(|| format!("open {}", path.display()))?;
     let reader = std::io::BufReader::new(file);
-    parse_cclk_csv_reader(reader)
+    parse_cclk_csv_reader(reader, channel)
 }
 
-fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R) -> Result<(f64, f64)> {
+fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R, channel: Option<&str>) -> Result<(f64, f64)> {
     let mut times: Vec<f64> = Vec::new();
     let mut values: Vec<f64> = Vec::new();
     let mut header_seen = false;
@@ -3464,6 +3473,9 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R) -> Result<(f64, f64)> {
                 || lower.contains("sample")
                 || lower.contains("voltage")
                 || lower.contains("analog")
+                || lower.contains("cclk")
+                || lower.contains("vccint")
+                || lower.contains("vccaux")
         });
         if has_header_token && !header_seen {
             header_seen = true;
@@ -3471,11 +3483,33 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R) -> Result<(f64, f64)> {
             // Prefer the voltage/analog column as the signal value if the header
             // names it explicitly. This fixes multi-channel CSVs where the first
             // numeric column after time is the wrong channel.
-            for (i, name) in header_names.iter().enumerate() {
-                if name.contains("voltage") || name == "v" || name.contains("analog") {
-                    value_idx = i;
-                    header_named_columns = true;
-                    break;
+            if let Some(target) = channel {
+                // Explicit channel selection: match the requested column name.
+                let target_lower = target.to_lowercase();
+                for (i, name) in header_names.iter().enumerate() {
+                    if name == &target_lower || name.contains(&target_lower) {
+                        value_idx = i;
+                        header_named_columns = true;
+                        break;
+                    }
+                }
+            } else {
+                // Auto-detect a signal column from common instrument headers.
+                for (i, name) in header_names.iter().enumerate() {
+                    if name.contains("voltage")
+                        || name == "v"
+                        || name.contains("analog")
+                        || name.contains("cclk_v")
+                        || name.contains("vccint")
+                        || name.contains("vccaux")
+                        || name.contains("ain")
+                        || name.contains("a0")
+                        || name.contains("channel0")
+                    {
+                        value_idx = i;
+                        header_named_columns = true;
+                        break;
+                    }
                 }
             }
             // Time column is usually named time/s/time_s/timestamp; default to 0.
@@ -3582,7 +3616,7 @@ fn freq_duty_to_raw_ns(freq_hz: f64, duty_pct: f64) -> (u64, u64, u64) {
 /// Parse a logic-analyzer CSV export and return a raw-ns (period, low, high)
 /// triple suitable for `tri fpga measured-to-lean --raw-ns`. Logic CSVs use
 /// `parse_logic_csv`; analog CSVs use `parse_cclk_csv_reader`.
-fn parse_csv_to_raw_ns(path: &PathBuf) -> Result<(u64, u64, u64)> {
+fn parse_csv_to_raw_ns(path: &PathBuf, channel: Option<&str>) -> Result<(u64, u64, u64)> {
     if !path.is_file() {
         bail!("CSV not found: {}", path.display());
     }
@@ -3600,7 +3634,7 @@ fn parse_csv_to_raw_ns(path: &PathBuf) -> Result<(u64, u64, u64)> {
         let file = std::fs::File::open(path)
             .with_context(|| format!("open {}", path.display()))?;
         let reader = std::io::BufReader::new(file);
-        let (freq_hz, duty_pct) = parse_cclk_csv_reader(reader)?;
+        let (freq_hz, duty_pct) = parse_cclk_csv_reader(reader, channel)?;
         let (period_ns, low_ns, high_ns) = freq_duty_to_raw_ns(freq_hz, duty_pct);
         println!(
             "[measured-to-lean] analog CSV {} -> {} ns period, {} ns low, {} ns high",
@@ -4890,7 +4924,7 @@ mod tests {
     #[test]
     fn test_parse_cclk_csv_dsview_header() {
         let csv = square_wave_csv(1.0 / 3.0e6, 10); // 3 MHz, 50% duty
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv)).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None).unwrap();
         assert!((freq - 3.0e6).abs() < 50_000.0, "freq {} should be ~3 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -4904,7 +4938,7 @@ mod tests {
             let v0 = if i % 20 < 10 { 0.0 } else { 3.3 };
             csv.push_str(&format!("{:.12},{:.1},0.0\n", t, v0));
         }
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv)).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None).unwrap();
         assert!((freq - 6.0e6).abs() < 100_000.0, "freq {} should be ~6 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -4918,7 +4952,7 @@ mod tests {
             let v = if i % 20 < 8 { 0.0 } else { 3.3 }; // 60% high duty
             csv.push_str(&format!("{:.12},{:.1}\n", t, v));
         }
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv)).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None).unwrap();
         assert!((freq - 12.0e6).abs() < 200_000.0, "freq {} should be ~12 MHz", freq);
         assert!((duty - 60.0).abs() < 5.0, "duty {} should be ~60%", duty);
     }
@@ -4936,7 +4970,7 @@ mod tests {
             let v = if i % 20 < 10 { 0.0 } else { 3.3 }; // 50% duty 8 MHz
             csv.push_str(&format!("{:.12},{},{}\n", t, counter, v));
         }
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv)).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None).unwrap();
         assert!((freq - 8.0e6).abs() < 150_000.0, "freq {} should be ~8 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -4944,7 +4978,24 @@ mod tests {
     #[test]
     fn test_parse_cclk_csv_too_few_samples() {
         let csv = "Time,Voltage\n0.0,0.0\n1.0,3.3\n";
-        assert!(parse_cclk_csv_reader(std::io::Cursor::new(csv)).is_err());
+        assert!(parse_cclk_csv_reader(std::io::Cursor::new(csv), None).is_err());
+    }
+
+    #[test]
+    fn test_parse_cclk_csv_explicit_channel_select() {
+        // Multi-channel export: time, a flat 0.0 reference, and the real CCLK signal.
+        // Without --csv-channel the flat column would be chosen as the second
+        // numeric column and produce no transitions; with `cclk_v` we get ~1 MHz.
+        let mut csv = String::from("time,ref,cclk_v\n");
+        for i in 0..200 {
+            let t = i as f64 * 1.0e-7; // 0.1 µs per sample
+            let v = if i % 10 < 5 { 0.0 } else { 3.3 }; // 1 µs period
+            csv.push_str(&format!("{:.6e},0.0,{:.1}\n", t, v));
+        }
+        let (freq, duty) =
+            parse_cclk_csv_reader(std::io::Cursor::new(csv), Some("cclk_v")).unwrap();
+        assert!((freq - 1.0e6).abs() < 100_000.0, "freq {} should be ~1 MHz", freq);
+        assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
 
     #[test]
@@ -5029,7 +5080,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, None, false, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", false, None, false, false, false).unwrap();
         assert_eq!(out, ());
         // Clean up.
         std::fs::remove_file(&tmp).unwrap();
@@ -5041,7 +5092,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_margin_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", true, None, false, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", true, None, false, false, false).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5053,10 +5104,10 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_standalone_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_standalone_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, Some(&out_path), "measured_cclk", false, None, true, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, Some(&out_path), "measured_cclk", false, None, true, false, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
-        assert!(content.contains("import Trinity.BitstreamConfig"));
+        assert!(content.contains("import Trinity.TernaryFPGABoot"));
         assert!(content.contains("namespace Trinity.BitstreamConfig"));
         assert!(content.contains("end Trinity.BitstreamConfig"));
         std::fs::remove_file(&tmp).unwrap();
@@ -5074,7 +5125,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_raw_ns_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, None, false, true, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", false, None, false, true, false).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5085,10 +5136,10 @@ mod tests {
         let csv_tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_csv_raw_ns_{}.csv", std::process::id()));
         generate_synth_cclk_csv(2_500_000.0, samplerate, 1000, &csv_tmp).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_csv_raw_ns_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(None, Some(&csv_tmp), None, None, 0, None, Some(&out_path), "measured_csv", false, None, true, true, false).unwrap();
+        let out = measured_to_lean(None, Some(&csv_tmp), None, None, None, 0, None, Some(&out_path), "measured_csv", false, None, true, true, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
-        assert!(content.contains("import Trinity.BitstreamConfig"));
+        assert!(content.contains("import Trinity.TernaryFPGABoot"));
         assert!(content.contains("namespace Trinity.BitstreamConfig"));
         assert!(content.contains("measured_cclk_from_raw_ns_satisfies_flash_spec"));
         assert!(content.contains("decide"));
@@ -5139,10 +5190,10 @@ mod tests {
         let vcd_tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_vcd_raw_ns_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, generate_vcd_clock(25_000_000.0, 20)).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_vcd_raw_ns_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(None, None, Some(&vcd_tmp), None, 0, None, Some(&out_path), "measured_vcd", false, None, true, true, false).unwrap();
+        let out = measured_to_lean(None, None, None, Some(&vcd_tmp), None, 0, None, Some(&out_path), "measured_vcd", false, None, true, true, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
-        assert!(content.contains("import Trinity.BitstreamConfig"));
+        assert!(content.contains("import Trinity.TernaryFPGABoot"));
         assert!(content.contains("namespace Trinity.BitstreamConfig"));
         assert!(content.contains("measured_cclk_from_raw_ns_satisfies_flash_spec"));
         assert!(content.contains("decide"));
@@ -5463,7 +5514,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_in_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, None, false, true, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", false, None, false, true, true).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5479,7 +5530,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_out_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, None, false, true, true);
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", false, None, false, true, true);
         assert!(out.is_err(), "expected validation to reject out-of-spec raw-ns capture");
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5495,7 +5546,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_margin_in_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", true, None, false, true, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", true, None, false, true, true).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5511,7 +5562,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_margin_out_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", true, None, false, true, true);
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", true, None, false, true, true);
         assert!(out.is_err(), "expected PVT-margin validation to reject 8 ns low time");
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5544,7 +5595,7 @@ mod tests {
             "worstcase",
             &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
         );
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, Some(&pvt), false, true, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", false, Some(&pvt), false, true, true).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
         std::fs::remove_file(&pvt).unwrap();
@@ -5566,7 +5617,7 @@ mod tests {
             "worstcase",
             &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
         );
-        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, Some(&pvt), false, true, true);
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", false, Some(&pvt), false, true, true);
         assert!(out.is_err(), "expected PVT worst-case validation to reject 8 ns low time");
         std::fs::remove_file(&tmp).unwrap();
         std::fs::remove_file(&pvt).unwrap();
@@ -5589,8 +5640,7 @@ mod tests {
         );
         let out_path = std::env::temp_dir().join(format!("tri_pvt_lean_out_{}.lean", std::process::id()));
         let out = measured_to_lean(
-            Some(&tmp), None, None, None, 0, None, Some(&out_path),
-            "measured_cclk", false, Some(&pvt), true, true, true,
+            Some(&tmp), None, None, None, None, 0, None, Some(&out_path), "measured_cclk", false, Some(&pvt), true, true, true,
         ).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
@@ -5624,6 +5674,66 @@ mod tests {
         // best/typical/worst example bounds. It should not error.
         let out = pvt_envelope(None);
         assert!(out.is_ok());
+    }
+
+    /// The PVT-aware half-period bound is monotone non-decreasing in temperature
+    /// inside the operating envelope: raising temperature (or keeping it equal)
+    /// never shrinks the bound.
+    #[test]
+    fn test_pvt_half_ns_monotone_in_temp() {
+        let vccints = [PVT_VCCINT_MIN_MV, 950_u64, 1000_u64, 1050_u64, PVT_VCCINT_MAX_MV];
+        let corners = [ProcessCorner::Ff, ProcessCorner::Tt, ProcessCorner::Ss];
+        let temps = [PVT_TEMP_MIN_C, -20_i64, 0_i64, 25_i64, PVT_TEMP_MAX_C];
+        for vccint in vccints {
+            for corner in &corners {
+                let mut prev = 0u64;
+                for (i, temp) in temps.iter().enumerate() {
+                    let ctx = PvtContext {
+                        temp_c: *temp,
+                        vccint_mv: vccint,
+                        vccaux_mv: 2700,
+                        process_corner: corner.clone(),
+                    };
+                    let half_ns = n25q128_min_sck_half_ns_pvt(&ctx);
+                    assert!(
+                        half_ns >= prev,
+                        "PVT half-period bound not monotone at step {}: {} ns < previous {} ns (temp={} -> {}, vccint={}, corner={:?})",
+                        i, half_ns, prev, if i > 0 { temps[i - 1] } else { *temp }, *temp, vccint, corner
+                    );
+                    prev = half_ns;
+                }
+            }
+        }
+    }
+
+    /// The PVT-aware half-period bound is antitone non-increasing in VCCINT
+    /// inside the operating envelope: raising VCCINT (closer to the maximum)
+    /// never increases the bound.
+    #[test]
+    fn test_pvt_half_ns_antitone_in_vccint() {
+        let temps = [PVT_TEMP_MIN_C, -20_i64, 0_i64, 25_i64, PVT_TEMP_MAX_C];
+        let corners = [ProcessCorner::Ff, ProcessCorner::Tt, ProcessCorner::Ss];
+        let vccints = [PVT_VCCINT_MIN_MV, 950_u64, 1000_u64, 1050_u64, PVT_VCCINT_MAX_MV];
+        for temp in temps {
+            for corner in &corners {
+                let mut prev = u64::MAX;
+                for (i, vccint) in vccints.iter().enumerate() {
+                    let ctx = PvtContext {
+                        temp_c: temp,
+                        vccint_mv: *vccint,
+                        vccaux_mv: 2700,
+                        process_corner: corner.clone(),
+                    };
+                    let half_ns = n25q128_min_sck_half_ns_pvt(&ctx);
+                    assert!(
+                        half_ns <= prev,
+                        "PVT half-period bound not antitone at step {}: {} ns > previous {} ns (vccint={} -> {}, temp={}, corner={:?})",
+                        i, half_ns, prev, if i > 0 { vccints[i - 1] } else { *vccint }, *vccint, temp, corner
+                    );
+                    prev = half_ns;
+                }
+            }
+        }
     }
 
     /// Regression: the PVT-aware minimum SCK half-period bound must be at least
@@ -5742,8 +5852,7 @@ mod tests {
             std::process::id()
         ));
         let out = measured_to_lean(
-            Some(&tmp), None, None, None, 0, None, Some(&generated),
-            "measured_cclk", false, None, true, true, false,
+            Some(&tmp), None, None, None, None, 0, None, Some(&generated), "measured_cclk", false, None, true, true, false,
         );
         assert!(out.is_ok(), "measured-to-lean standalone should succeed: {:?}", out);
         assert!(generated.is_file(), "generated Lean file should exist");

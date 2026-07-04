@@ -1,5 +1,67 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-05 — Wave Loop 419 (Variant C fallback: VCD/CSV hardening, PVT monotonicity, standalone lake workflow)
+
+### What worked
+- Hardening the VCD `$comment` parser with an **exact-token terminator** closed a
+  real regression vector: vendor comments that contain the substring `$end` no
+  longer confuse the signal dictionary. A single regression test with an embedded
+  `$end`-like token prevents future heuristic drift.
+- Adding `--csv-channel <name>` and extending header-name auto-detection to
+  `cclk`, `vccint`, `vccaux`, `ain`, `a0`, `channel0` makes multi-channel
+  instrument exports first-class. The explicit selector is simpler than trying to
+  guess every vendor dialect.
+- Proving PVT envelope **monotonicity in temperature** and **antitonicity in
+  VCCINT** in both Lean 4 and Rust guards the shape of the placeholder envelope
+  independently of the exact coefficients. The symbolic Lean proofs and the
+  numeric Rust tests reinforce each other.
+- Documenting the full `measured-to-lean --standalone` lake-package workflow in
+  `fpga/HARDWARE_SSOT.md` turned a "works in tests" feature into a reproducible
+  user protocol.
+- Catching the invalid `import Trinity.BitstreamConfig` in the `--standalone`
+  output showed that **string assertions are not enough** for generated-code
+  tests: the integration test that runs `lake build` on the generated file is
+  what found the bug.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`: VCD `$comment` exact-terminator parsing;
+  `--csv-channel` option and multi-channel header detection;
+  `test_pvt_half_ns_monotone_in_temp` / `test_pvt_half_ns_antitone_in_vccint`;
+  `test_parse_cclk_csv_explicit_channel_select`;
+  `--standalone` template now imports only `Trinity.TernaryFPGABoot`.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added
+  `pvt_half_ns_monotone_in_temp` and `pvt_half_ns_antitone_in_vccint`.
+- `fpga/HARDWARE_SSOT.md`: added §3.6.16 standalone lake-package workflow.
+- `docs/NOW.md`: W419 close-out and W420 setup.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_419_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W419_2026-07-05.md`, and
+  `docs/reports/FPGA_LOOP_COOPERATION_W420_2026-07-05.md`.
+
+### Patterns to reuse
+- For section-skipping parsers, match the **exact delimiter token** and clear
+  state immediately when the delimiter appears on the same line; do not use
+  substring heuristics.
+- When adding user-facing selectors to instrument parsers, also add a
+  regression test that would fail if the selector is ignored or the fallback
+  overrides it.
+- For placeholder model coefficients, prove the **shape** (monotonicity,
+  bounds) symbolically and add a numeric operating-rectangle regression. This
+  combination survives coefficient updates as long as the shape constraints
+  remain.
+- For generated-code deliverables, the canonical integration test is to
+  **type-check the generated artifact in a fresh package** that depends on the
+  real library via a local path. String snapshots catch regressions; package
+  builds catch invalid imports and namespaces.
+
+### Anti-patterns to avoid
+- Do not assert only string contents for generated source files; always exercise
+  the downstream compiler/package build.
+- Do not import a Lean 4 **namespace** as if it were a module. Names inside a
+  file are reached through the file's module name, then opened with `open` if
+  needed.
+- Do not let a parser heuristic silently override an explicit user option;
+  resolve precedence clearly (explicit option > named header > numeric fallback).
+
 ## 2026-07-04 — Wave Loop 418 (Variant C fallback: PVT regression, instrument import, standalone Lean integration)
 
 ### What worked
