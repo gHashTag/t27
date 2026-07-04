@@ -47,6 +47,12 @@
   first and then simplify.
 - Do not update only the report date; also update `docs/NOW.md` `Last updated:`
   or the suite check will block the build.
+- Do not claim `./scripts/tri test` passes when a local phase (gen-verilog-yosys-smoke)
+  has pre-existing failures; report the exact phase and the tracked defect file
+  instead.
+- When `gh` operations fail with `HTTP 401: Bad credentials`, check for a stale
+  `GH_TOKEN` environment variable overriding the keyring credentials. Unset it
+  (`unset GH_TOKEN`) so `gh` uses the active keyring account.
 
 ## 2026-07-13 — Wave Loop 407 close-out / Wave Loop 408 setup
 

@@ -1437,3 +1437,7 @@
 - **Commit:** chore(w409): set current issue to Wave Loop 409 (#1323)
 - **Files:** docs/NOW.md
 
+## 2026-07-04T12:19:10Z — wave-loop-409
+- **Commit:** docs(w409): add W409 entry to NOW.md
+- **Files:** .trinity/experience.md
+
