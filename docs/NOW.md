@@ -59,9 +59,9 @@ Last updated: 2026-07-05
 
 ## Wave Loop 420 — Variant C fallback: VCD exact-terminator + auto-threshold, PVT corner monotonicity (Closes #1361)
 
-- Branch: `wave-loop-420` (created after W419 merge)
+- Branch: `wave-loop-420`
 - Issue: #1361
-- PR: to open after work
+- PR: #1362 (merge blocked by base-branch policy; requires review/approval)
 - Report: `docs/reports/WAVE_LOOP_420_REPORT.md`
 - Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-06.md`
 - Cooperation W421: `docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-06.md`
