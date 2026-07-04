@@ -1392,3 +1392,11 @@
 - **Commit:** feat(igla): Wave Loop 404 — hardware smoke-gate --require-cable for FPGA SRAM load (Closes #1309)
 - **Files:** docs/NOW.md
 
+## 2026-07-04T09:57:14Z — wave-loop-405
+- **Commit:** feat(igla): Wave Loop 404 — hardware smoke-gate --require-cable for FPGA SRAM load (Closes #1309)
+- **Files:** .claude/plans/wave-loop-405.md,.trinity/current-issue.md
+
+## 2026-07-04T11:07:34Z — wave-loop-405
+- **Commit:** docs(wave-loop-405): set up W405 issue pointer and decomposed plan (refs #1311)
+- **Files:** .claude/plans/wave-loop-405.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_2026-07-10.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-10.md,docs/reports/WAVE_LOOP_405_REPORT.md
+
