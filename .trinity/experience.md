@@ -1,5 +1,34 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-06 — Wave Loop 397 (FPGA SPI boot root-cause closure — boot-log, smoke gate, H1 likely ruled out)
+
+### What worked
+- Adding `tri fpga boot-log <bit>` kept the cold-POR experiment self-contained: it programs flash, prints the exact user-assisted power-cycle protocol, and runs `tri fpga stat --pre-jtag-reset` after the user presses ENTER.
+- Adding `--repeat N` to `tri fpga stat` captured multiple consecutive STAT samples after power-on, making transient mode-bit or DONE behavior visible.
+- Adding `tri fpga smoke-gate` and a Phase 3c in-runner check in `bootstrap/src/suite.rs` gives the FPGA path a board-less CI gate that runs `bit-config` and yosys synthesis on `fpga/verilog/ternary_mac_demo_top_200t.bit`.
+- A controlled JTAG-reset experiment showed STAT=`0x5000190C` with `MODE=0b001` and `DONE=0`, strongly suggesting H1 (mode-pin sampling) is not the blocker.
+- SRAM load of the same 200T bitstream reported `done 1`, confirming the bitstream itself is valid.
+- Flash round-trip verify matched 9,730,548 bytes, confirming the write path is still bit-perfect.
+
+### What changed behavior
+- `tri fpga stat` now decodes and prints the `MODE` field so boot-mode diagnosis is explicit.
+- `tri fpga boot-log` provides a reproducible cold-POR protocol and decision tree, removing the ambiguity of which commands to run in what order.
+- The conformance suite now includes an FPGA board-less smoke gate; regressions in `tri fpga bit-config` or the demo Verilog will fail CI even without a physical board.
+- `fpga/HARDWARE_SSOT.md` now contains the cold-POR decision tree, and `fpga/diagnostics/jtag_wiring.md` is explicitly deprecated.
+- W397 closes with H1 likely ruled out and H2 (CCLK/SPI-startup timing or flash state after reset) as the leading hypothesis for W398.
+
+### Patterns to reuse
+- When a CLI command needs a physical user step (power-cycle), keep it interactive with clear printed instructions and a single keypress to continue; do not try to automate the unsafe physical action.
+- Add a board-less smoke gate for every hardware-dependent feature so CI can catch regressions in generated artifacts even when the board is unavailable.
+- Decode and print bit-field values (e.g. STAT `MODE`) explicitly; raw hex alone is not enough for root-cause diagnosis.
+- After a JTAG reset fails with correct mode and no CRC/ID error, the next hypothesis is SPI/CCLK timing or flash wake-up state, not mode pins.
+
+### Anti-patterns to avoid
+- Do not claim a cold-POR experiment is complete without a true physical power-cycle; document the user-assisted step and the evidence that exists without it.
+- Do not default the smoke gate to the smaller/older bitstream (`ternary_mac_demo_top.bit`) when the target board is the 200T; always use the part-matched artifact.
+- Do not run yosys synthesis on a single demo file when the top module instantiates another local module; include all required Verilog sources in the smoke script.
+- Do not leave stale docs with wrong IDCODEs and broken tool paths; either update them or add a prominent deprecation notice redirecting to the SSOT.
+
 ## 2026-07-06 — Wave Loop 396 (FPGA SPI boot debug — bit-config, round-trip verify, cold-POR diagnostics)
 
 ### What worked

@@ -1320,3 +1320,7 @@
 - **Commit:** feat(fpga): quad-mode flash-boot diagnostics and tri CLI hardening
 - **Files:** .claude/plans/wave-loop-396.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-06.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-05.md,docs/reports/WAVE_LOOP_396_REPORT.md,fpga/HARDWARE_SSOT.md,scripts/dump_bit_config.py
 
+## 2026-07-04T04:54:54Z — wave-loop-397
+- **Commit:** feat(fpga): W396 SPI boot debug — bit-config parser, round-trip verify, cold-POR diagnostics
+- **Files:** .claude/plans/wave-loop-397.md,.trinity/current-issue.md,.trinity/experience.md,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/reports/FPGA_LOOP_COOPERATION_2026-07-08.md,docs/reports/FPGA_LOOP_EVIDENCE_2026-07-07.md,docs/reports/WAVE_LOOP_397_REPORT.md,fpga/HARDWARE_SSOT.md,fpga/diagnostics/jtag_wiring.md
+

@@ -132,6 +132,44 @@ order:
    bitstream are intentionally configured for x4 SPI or BPI; the current
    Wukong V1 + GF16 flow uses x1.
 
+### 3.1 Guided cold-POR boot experiment
+
+The `tri fpga boot-log` command automates the programming step and prints the
+exact user-assisted power-cycle protocol:
+
+```bash
+tri fpga boot-log fpga/verilog/ternary_mac_demo_top_200t.bit
+```
+
+It will:
+1. Program the flash with the canonical x1 command (verify enabled, no quad flags).
+2. Ask you to physically disconnect board power, wait ≥10 s, then reconnect.
+3. Capture `STAT` without issuing a JTAG reset/PROGRAM_B pulse.
+4. Print a decision tree based on the cold-POR `MODE` and `DONE` bits.
+
+For finer-grained sampling, capture multiple consecutive STAT reads right after
+power-on:
+
+```bash
+tri fpga stat --pre-jtag-reset --repeat 5
+```
+
+### 3.2 Cold-POR decision tree
+
+Read `STAT` immediately after a cold power-cycle (no JTAG reset):
+
+| `MODE` bits | `DONE` | Interpretation | Next step |
+|-------------|--------|----------------|-----------|
+| `001` (Master SPI x1) | 1 | **Success** — FPGA booted from flash. | Done. |
+| `001` (Master SPI x1) | 0 | Mode is correct but configuration did not finish. | Audit CCLK/SPI timing (H2) or signal integrity. |
+| `000` / `111` (JTAG) | 0 | Board sampled JTAG mode at POR; likely missing/strapped mode-pin pull resistors. | Inspect board mode-pin straps; add external pull to `M0`/`M1`/`M2`. |
+| any | 1 with `ID_ERROR=1` | Bitstream IDCODE does not match the FPGA. | Regenerate the bitstream for `xc7a200tfgg676-1` (`0x03636093`). |
+| any | 0 with `CRC_ERROR=1` | Flash read corrupted the bitstream. | Re-run `tri fpga round-trip-verify`; check flash/clock integrity. |
+
+The mode-pin strap state on the QMTech Wukong V1 is not documented in this
+repository. If cold-POR `MODE` differs from post-JTAG-reset `MODE`, the physical
+strap is the root cause, not the bitstream.
+
 Use `tri fpga flash-status` to probe the detected flash chip, and
 `tri fpga dump-flash` to read back the flash contents for verification.
 

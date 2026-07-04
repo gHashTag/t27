@@ -1,37 +1,39 @@
-# Current Issue: Wave Loop 396
+# Current Issue: Wave Loop 397
 
-**Issue:** #1292
-**Local branch:** `wave-loop-396` (branched from `trinity-rust-rings` @ `6382e54b8`)
-**Basis:** W395 close-out report and revised hypothesis priority (H1 cold-POR mode sampling, H2 bitstream config registers, H3 round-trip, H4 chipdb hygiene low priority)
+**Issue:** #1294
+**Local branch:** `wave-loop-397` (branched from `trinity-rust-rings` @ `4aed560b`)
+**Basis:** W396 close-out report; H1 cold-POR mode sampling was the remaining
+high-priority hypothesis.
 
 ## Goal
 
-Diagnose why the QMTech Wukong V1 / XC7A200T-FGG676-1 does not boot from Micron N25Q128 SPI flash after successful write+verify, focusing on the revised high-priority hypotheses and avoiding the disproven package-mismatch theory.
+Confirm or rule out H1 cold-POR mode sampling for the QMTech Wukong V1 /
+XC7A200T-FGG676-1 boot-from-flash failure. If H1 is ruled out, pivot to H2
+(CCLK/SPI-startup timing) in W398.
 
 ## Selected variant
 
-**Variant A (root-cause driven)** from W395 cooperation variants, updated per W396 order:
-- Add `tri fpga stat --pre-jtag-reset` to read STAT without issuing a JTAG reset.
-- Add `tri fpga bit-config <bit>` to parse and display bitstream config registers.
-- Add `tri fpga round-trip-verify <bit>` to automate flash dump round-trip verification.
-- Run physical experiments E1–E4 and capture timestamped STAT values in multiple power states.
-- Update `fpga/HARDWARE_SSOT.md` with the FBG676 vs FGG676 pinout identity finding.
-- Maintain conformance at 575/575 PASS; no IGLA/Lean growth in this hardware-debug cycle.
+**Variant A (root-cause driven)** from W397 cooperation variants:
+- Add `tri fpga boot-log <bit>` to guide the cold-POR experiment.
+- Add `--repeat N` to `tri fpga stat --pre-jtag-reset` for multiple power-on samples.
+- Add board-less `tri fpga smoke-gate` and integrate it into the conformance suite.
+- Harden `fpga/HARDWARE_SSOT.md` cold-POR protocol and decision tree.
+- Update/deprecate stale `fpga/diagnostics/jtag_wiring.md`.
+- Maintain conformance at 575/575 PASS; no IGLA/Lean growth.
 
 ## Acceptance criteria
 
 - One of AC-1..AC-4 reached:
-  - **AC-1**: E1 shows cold-POR STAT mode bits differ from post-JTAG-reset mode bits.
-  - **AC-2**: E2 shows bitstream config registers incompatible with Master SPI x1 boot.
-  - **AC-3**: E3 shows round-trip mismatch between .bit and flash dump.
-  - **AC-4**: E4 shows quad-mode boot succeeds (DONE=1).
-- If none reached, W396 closes as honest diagnostic gathering and W397 continues.
-- `tri fpga stat --pre-jtag-reset` implemented.
-- `tri fpga bit-config <bit>` implemented.
-- `tri fpga round-trip-verify <bit>` implemented.
+  - **AC-1**: H1 confirmed and fix path documented.
+  - **AC-2**: H1 ruled out and H2 scoped for W398.
+  - **AC-3**: board boots from flash (DONE=1 after cold-POR).
+  - **AC-4**: CLI smoke gate implemented and green even without physical board.
+- `tri fpga boot-log <bit>` implemented.
+- `tri fpga stat --pre-jtag-reset --repeat N` implemented.
+- `tri fpga smoke-gate` implemented.
 - `t27c suite --repo-root .` reports **575/575 PASS**.
-- Real W396 issue created and referenced in commit/PR (`Closes #1292`).
-- Close-out report and cooperation doc for W397 are written.
+- Real W397 issue created and referenced in commit/PR (`Closes #1294`).
+- Close-out report and cooperation doc for W398 are written.
 - Experience log and memory index updated.
 
 ---
