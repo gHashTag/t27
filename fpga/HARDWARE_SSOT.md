@@ -684,6 +684,22 @@ measured-to-lean` supports several extra modes:
   all implication theorems remain valid as long as the derated limits are at
   least the nominal 6 ns bounds.
 
+- `--pvt-context <ctx.json>` supplies a `PvtContext` to `tri fpga measure-cclk`
+  and `tri fpga measured-to-lean`. Validation and generated theorems then use the
+  derated bounds for the supplied temperature, voltage, and process corner instead
+  of the flat nominal or PVT-margin bounds.
+
+  ```bash
+  cat > worstcase.json <<'EOF'
+  {"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}
+  EOF
+  tri fpga measure-cclk --csv cclk_capture.csv --validate --pvt-context worstcase.json
+  tri fpga measured-to-lean --csv cclk_capture.csv --raw-ns --validate \
+    --pvt-context worstcase.json --standalone --out MeasuredRawWorstCase.lean
+  tri fpga measured-to-lean --file measured.json --validate \
+    --pvt-context worstcase.json --standalone --out MeasuredPVT.lean
+  ```
+
 - `tri fpga cold-por --relay-port MOCK` writes a deterministic, clearly-labeled
   mock boot log so CI can exercise the cold-POR JSON path without hardware. The
   mock log carries `relay_mock: true` and the canonical W400 success STAT
