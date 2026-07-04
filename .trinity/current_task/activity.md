@@ -1416,3 +1416,11 @@
 - **Commit:** feat(igla/fpga): W413 Variant C fallback — CSV/VCD import, PVT falsification model, relay mock
 - **Files:** 
 
+## 2026-07-04T15:02:51Z — wave-loop-414
+- **Commit:** feat(igla/fpga): W413 Variant C fallback — CSV/VCD import, PVT falsification model, relay mock
+- **Files:** .claude/plans/wave-loop-414.md,.trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W414_2026-07-04.md,docs/reports/WAVE_LOOP_413_REPORT.md
+
+## 2026-07-04T15:15:04Z — wave-loop-414
+- **Commit:** docs(w414): W414 setup - issue #1342, branch wave-loop-414, update NOW/plan/cooperation/report
+- **Files:** .claude/plans/wave-loop-414.md,.claude/plans/wave-loop-415.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W415_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W414_2026-07-01.md,docs/reports/WAVE_LOOP_414_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+

@@ -616,7 +616,7 @@ Use `--margin` with `measured-to-lean` to generate the PVT-margin variant:
 tri fpga measured-to-lean --file measured.json --margin --out MeasuredCclkWukongMargin.lean
 ```
 
-#### 3.6.12 Standalone file, raw-ns input, CSV/VCD import, and PVT context (W413)
+#### 3.6.12 Standalone file, raw-ns input, CSV/VCD import, and PVT context (W413/W414)
 
 For board-less CI or instrument exports that report raw nanoseconds, `tri fpga
 measured-to-lean` supports several extra modes:
@@ -646,20 +646,41 @@ measured-to-lean` supports several extra modes:
   tri fpga measured-to-lean --csv cclk_capture.csv --raw-ns --standalone --out MeasuredRaw.lean
   ```
 
-- `--raw-ns --vcd <trace.vcd>` parses a scalar VCD net and converts its
-  transitions into a raw-ns theorem. Use `--vcd-signal <name>` to select a
-  specific net; otherwise the first scalar `$var` is used.
+- `--raw-ns --vcd <trace.vcd>` parses a scalar VCD net, a multi-bit logic bus,
+  or a real-valued analog net and converts its transitions into a raw-ns theorem.
+  Use `--vcd-signal <name>` to select a specific net; otherwise the first scalar
+  `$var` is used. For buses, `--vcd-bit <N>` selects the bit index (default 0).
+  For real-valued nets, `--vcd-threshold-v <V>` is required.
 
   ```bash
   tri fpga measured-to-lean --vcd cclk.vcd --raw-ns --standalone --out MeasuredRaw.lean
+  tri fpga measured-to-lean --vcd cclk_bus.vcd --vcd-signal cclk_bus --vcd-bit 0 --raw-ns --standalone --out MeasuredBus.lean
+  tri fpga measured-to-lean --vcd cclk_analog.vcd --vcd-signal cclk_analog --vcd-threshold-v 1.65 --raw-ns --standalone --out MeasuredAnalog.lean
+  ```
+
+- `--validate` rejects instrument exports or JSON inputs that violate the flash
+  timing spec before a Lean theorem is emitted. With `--margin` the PVT-margin
+  bounds (12 ns low/high) are used; otherwise the nominal 6 ns bounds are used.
+  This prevents an out-of-spec capture from becoming a false proof.
+
+  ```bash
+  tri fpga measured-to-lean --csv cclk_capture.csv --raw-ns --validate --standalone --out MeasuredRaw.lean
+  tri fpga measured-to-lean --file raw.json --raw-ns --validate --margin --standalone --out MeasuredRawMargin.lean
   ```
 
 - PVT-aware predicates in `proofs/lean4/Trinity/TernaryFPGABoot.lean` accept a
-  `PvtContext { temp_c, vccint_mv, vccaux_mv, process_corner }`. The derating
-  functions are intentionally a **conservative placeholder**: they return 12 ns
-  (2× the nominal 6 ns `t_CL`/`t_CH` bounds) to absorb PVT variation until real
-  N25Q128_3V characterization data is available. The model is **falsifiable**:
-  if PVT data shows the bound should be higher, raise `N25Q128_MIN_SCK_*_NS_WC`;
+  `PvtContext { temp_c, vccint_mv, vccaux_mv, process_corner }`. W414 replaced
+  the flat 12 ns placeholder with a **temperature/voltage/process-corner envelope**:
+
+  | Corner | Temp (°C) | VCCINT (mV) | derated `t_CL`/`t_CH` |
+  |--------|-----------|-------------|----------------------|
+  | ff     | -40       | 1100        | 6 ns (best case)     |
+  | ss     | +85       | 900         | 13 ns (worst case)   |
+
+  The envelope is an intentionally conservative linear upper bound: 0.02 ns/°C
+  above -40 °C, 0.005 ns/mV below 1100 mV, and 0/2/4 ns for ff/tt/ss corners.
+  It is **falsifiable**: if N25Q128_3V PVT characterization shows `t_CL`/`t_CH`
+  can exceed the envelope inside the operating rectangle, raise the coefficients;
   all implication theorems remain valid as long as the derated limits are at
   least the nominal 6 ns bounds.
 

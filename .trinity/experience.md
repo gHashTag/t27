@@ -1,5 +1,56 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-01 — Wave Loop 414 (PVT envelope, multi-bit/real VCD, `--validate`)
+
+### What worked
+- Replacing the flat 12 ns PVT placeholder with a temperature/voltage/process-corner
+  envelope made the model both more informative and more conservative: worst case
+  is now 13 ns (ss, +85 °C, 900 mV), exceeding the old 12 ns bound.
+- Keeping the envelope additive over the nominal 6 ns bound let us preserve all
+  implication theorems by proving non-negativity of each derating term. No theorem
+  needed to be rewritten from scratch.
+- Extending the zero-dependency VCD parser to multi-bit buses and real-valued
+  nets reuses the same transition-counting path; only the value-extraction step
+  changed. This kept the parser small and testable.
+- Adding `--validate` as an early-rejection gate in `measured-to-lean` prevents
+  out-of-spec instrument exports from becoming false theorems, closing a real
+  correctness risk in the instrument-to-proof pipeline.
+- Writing the Rust validation helper to mirror the Lean predicate (`low + high = period`,
+  `freq_hz ≤ 50 MHz`, `low/high ≥ 6 ns` or `12 ns` with `--margin`) ensures the
+  CLI rejects exactly the captures that the formal model would not prove.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added `PVT_TEMP_*`, `PVT_VCCINT_*`,
+  `n25q128_pvt_*_derating_ns`, rewrote `n25q128_min_sck_low_ns_pvt` /
+  `n25q128_min_sck_high_ns_pvt` as envelope functions; updated implication
+  theorems to require operating-envelope preconditions; added worst-case examples.
+- `cli/tri/src/fpga.rs`: added `--validate`, `--vcd-bit`, `--vcd-threshold-v`;
+  added `raw_ns_satisfies_flash_spec`; rewrote `parse_vcd_to_raw_ns` for buses,
+  real nets, and `$dumpoff`/`$dumpon`; added 8 new unit tests.
+- `fpga/HARDWARE_SSOT.md` §3.6.12: documented PVT envelope, bus/real VCD import,
+  and `--validate`.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_414_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W414_2026-07-01.md`, and
+  `docs/reports/FPGA_LOOP_COOPERATION_W415_2026-07-01.md`.
+
+### Patterns to reuse
+- When a formal placeholder must be replaced by a richer model, design the new
+  model so it is pointwise ≥ the old bound; implication theorems then carry over
+  with only the lower-bound proof updated.
+- Mirror the formal predicate in the CLI validation code to avoid generating
+  theorems that the proof assistant cannot prove.
+- For instrument parsers, support the most common quirks (multi-line declarations,
+  bus values, real thresholds, dumpoff) up front; the test cost is low and the
+  user-facing robustness is high.
+
+### Anti-patterns to avoid
+- Do not silently drop VCD value changes you cannot parse (x/z bus bits); skip
+  them explicitly so the transition count remains meaningful.
+- Do not make a PVT envelope depend only on one variable when the physics clearly
+  depends on at least temperature, voltage, and corner.
+- Do not omit CLI validation just because the formal predicate exists; users can
+  still feed bad data into the theorem generator.
+
 ## 2026-07-04 — Wave Loop 413 (CSV/VCD import, PVT falsification model, relay mock)
 
 ### What worked

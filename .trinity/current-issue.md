@@ -1,22 +1,22 @@
-# Wave Loop 414 — FPGA physical capture, real relay gate, or further formal tooling
+# Wave Loop 415 — FPGA physical capture, real relay gate, or further formal tooling
 
-**Issue:** #1339  
-**Branch:** `wave-loop-414`  
-**Milestone:** Continue the FPGA boot-evidence line from W413.
+**Issue:** #1343  
+**Branch:** `wave-loop-415`  
+**Milestone:** Continue the FPGA boot-evidence line from W414.
 
 ---
 
 ## Goal
 
-Wave 413 delivered the **Variant C** formal-tooling fallback because the bench
-was blocked. Wave 414 re-evaluates the bench state and executes the first
+Wave 414 delivered the **Variant C** formal-tooling fallback because the bench
+was still blocked. Wave 415 re-evaluates the bench state and executes the first
 available variant.
 
 1. **Variant A (preferred when bench becomes available):**
    - Wire P12 to a logic-analyzer channel and capture real CCLK for
      `OSCFSEL=6` and `OSCFSEL=7`.
    - Import the captures with `tri fpga measured-to-lean --csv/--vcd --raw-ns
-     --standalone` and commit the generated Lean theorems.
+     --standalone --validate` and commit the generated Lean theorems.
    - Document the measured frequencies/duty cycles in `fpga/HARDWARE_SSOT.md`.
 
 2. **Variant B (if relay hardware is available):**
@@ -27,28 +27,27 @@ available variant.
    - Document relay wiring in `fpga/HARDWARE_SSOT.md`.
 
 3. **Variant C (fallback if bench still blocked):**
-   - Replace the single-constant 2× PVT placeholder with a temperature /
-     voltage-aware uncertainty envelope.
-   - Extend the VCD parser to multi-bit buses and analog real-valued traces.
-   - Add `--validate` to `measured-to-lean --raw-ns` to reject instrument
-     exports that would produce false theorems.
+   - Integrate the PVT envelope into `tri fpga measure-cclk --validate`.
+   - Extend VCD parser unit tests for real-world quirks.
+   - Build a library of measured-CCLK theorems for every documented Artix-7
+     OSCFSEL value (0..7) under nominal and worst-case PVT contexts.
 
 ---
 
 ## Decomposed plan
 
-See `.claude/plans/wave-loop-414.md` and
-`docs/reports/FPGA_LOOP_COOPERATION_W414_2026-07-04.md`.
+See `.claude/plans/wave-loop-415.md` and
+`docs/reports/FPGA_LOOP_COOPERATION_W415_2026-07-01.md`.
 
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `.claude/plans/wave-loop-414.md` | Decomposed plan + weak points + competitor scan |
+| 1 | `.claude/plans/wave-loop-415.md` | Decomposed plan + weak points + competitor scan |
 | 2 | `fpga/HARDWARE_SSOT.md` | Updated capture / relay protocol |
-| 3 | `cli/tri/src/fpga.rs` | Variant A CSV/VCD capture import, B relay backend, or C parser/validate extensions |
-| 4 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | PVT envelope or new example theorems |
-| 5 | `docs/reports/*` | W414 report, evidence, W415 cooperation |
-| 6 | `.trinity/experience.md` | W414 learnings |
-| 7 | git/PR | squash-merge to `master`, close #1339, open #1340 |
+| 3 | `cli/tri/src/fpga.rs` | Variant A import, B relay backend, or C parser/validate extensions |
+| 4 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | PVT-aware theorems or OSCFSEL library |
+| 5 | `docs/reports/*` | W415 report, evidence, W416 cooperation |
+| 6 | `.trinity/experience.md` | W415 learnings |
+| 7 | git/PR | squash-merge to `master`, close #1343, open #1344 |
 
 ---
 
@@ -65,9 +64,9 @@ See `.claude/plans/wave-loop-414.md` and
 - [ ] AC-B3: `fpga/HARDWARE_SSOT.md` documents relay wiring and port mapping.
 
 ### Bundle C
-- [ ] AC-C1: PVT model depends on at least temperature and voltage bounds, not a single constant.
-- [ ] AC-C2: VCD parser handles scalar and multi-bit logic traces.
-- [ ] AC-C3: `measured-to-lean --raw-ns --validate` rejects captures that violate the flash spec.
+- [ ] AC-C1: PVT-aware validation is available in `tri fpga measure-cclk --validate`.
+- [ ] AC-C2: VCD parser unit tests cover multi-line declarations, bus values, real thresholds, and `$dumpoff`/`$dumpon`.
+- [ ] AC-C3: Measured-CCLK theorem library covers OSCFSEL 0..7 under nominal and worst-case PVT contexts.
 
 ### Invariant checks
 - [ ] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.

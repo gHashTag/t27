@@ -20,26 +20,62 @@
 
 ---
 
-# NOW — Wave Loop 414 setup
+# NOW — Wave Loop 415 setup
 
-## Wave Loop 414 — FPGA physical capture, real relay gate, or further formal tooling (Issue #1339)
+## Wave Loop 415 — FPGA physical capture, real relay gate, or further formal tooling (Issue #1343)
 
-- Branch: `wave-loop-414`
-- Issue: #1339
-- Plan: `.claude/plans/wave-loop-414.md` (to be created)
-- Cooperation W414: `docs/reports/FPGA_LOOP_COOPERATION_W414_2026-07-04.md`
+- Branch: `wave-loop-415`
+- Issue: #1343 (to be created)
+- Plan: `.claude/plans/wave-loop-415.md` (to be created)
+- Cooperation W415: `docs/reports/FPGA_LOOP_COOPERATION_W415_2026-07-01.md`
 
 ### Default plan
 - **Variant A** if P12 is wired and the analyzer works:
   - Capture real CCLK for `OSCFSEL=6` and `OSCFSEL=7`.
-  - Import captures with `tri fpga measured-to-lean --csv/--vcd --raw-ns --standalone`.
+  - Import captures with `tri fpga measured-to-lean --csv/--vcd --raw-ns --standalone --validate`.
 - **Variant B** if a relay board / USB power switch is available:
   - Implement real `--relay-port` backend for `tri fpga cold-por`.
   - Document relay wiring in `fpga/HARDWARE_SSOT.md`.
 - **Variant C** fallback if the bench remains blocked:
-  - Replace the 2× PVT placeholder with temperature/voltage-aware uncertainty model.
-  - Extend VCD parser to multi-bit buses and analog real traces.
-  - Add `--validate` to `measured-to-lean --raw-ns` to reject false theorems early.
+  - Integrate PVT envelope into `tri fpga measure-cclk --validate`.
+  - Extend VCD parser unit tests for real-world quirks.
+  - Build measured-CCLK theorem library for OSCFSEL 0..7 under nominal and worst-case PVT.
+
+---
+
+# NOW — Wave Loop 414 close-out
+
+## Wave Loop 414 — PVT envelope + multi-bit/real VCD + `--validate` (Closes #1342)
+
+- Branch: `wave-loop-414`
+- Issue: #1342
+- PR: #? (to be created after merge)
+- Report: `docs/reports/WAVE_LOOP_414_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W414_2026-07-01.md`
+- Cooperation W415: `docs/reports/FPGA_LOOP_COOPERATION_W415_2026-07-01.md`
+
+### What landed (Variant C — bench still blocked)
+- `cli/tri/src/fpga.rs`
+  - `--validate` rejects out-of-spec captures before theorem generation.
+  - VCD parser extended to scalar nets, multi-bit logic buses (`--vcd-bit`), and real-valued nets (`--vcd-threshold-v`).
+  - `$dumpoff` / `$dumpon` handled.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Temperature/voltage/process-corner PVT envelope replaces flat 12 ns placeholder.
+  - Worst-case bound is 13 ns (ss, +85 °C, 900 mV), strictly more conservative than the old 12 ns.
+  - Implication theorems preserved under operating-envelope preconditions.
+- `fpga/HARDWARE_SSOT.md` §3.6.12 — documents PVT envelope, VCD bus/real import, `--validate`.
+- `.claude/plans/wave-loop-414.md` — updated weak points and competitor scan.
+
+### Blockers still open
+- P12 still not wired to a logic-analyzer channel.
+- Digilent DLC10 JTAG cable still not detected (`VID=0x03FD`).
+- Real relay hardware integration remains for Variant B.
+
+### Verification
+- `lake build Trinity.TernaryFPGABoot` green
+- `cargo test -p tri fpga::tests` 26/26 pass
+- `./scripts/tri test` parse/typecheck/gen/seal-verify green; yosys smoke 40 pass / 16 pre-existing failures
+- PR #? merged to `master`; issue #1342 closed.
 
 ---
 
@@ -49,7 +85,7 @@
 
 - Branch: `wave-loop-413`
 - Issue: #1338
-- PR: #?
+- PR: #1339
 - Report: `docs/reports/WAVE_LOOP_413_REPORT.md`
 - Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W413_2026-07-04.md`
 - Cooperation W414: `docs/reports/FPGA_LOOP_COOPERATION_W414_2026-07-04.md`
@@ -76,7 +112,7 @@
 - `cargo test -p tri fpga::tests` 20/20 pass
 - `./scripts/tri test` parse/typecheck/gen/seal-verify green
 - yosys smoke: 40 pass / 16 pre-existing failures
-- PR #? merged to `master`; issue #1338 closed.
+- PR #1339 merged to `master`; issue #1338 closed.
 
 ---
 

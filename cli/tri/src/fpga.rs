@@ -538,17 +538,32 @@ pub enum FpgaCmd {
         /// of computing from `freq_hz`/`duty_pct`.
         #[arg(long)]
         raw_ns: bool,
+        /// Reject captures that violate the flash timing spec (or PVT-margin spec
+        /// if `--margin` is also set) before emitting the theorem. This keeps the
+        /// formal pipeline from generating a false proof for an out-of-spec trace.
+        #[arg(long)]
+        validate: bool,
         /// Parse a sigrok/DSView/PulseView/Saleae logic or analog CSV export and
         /// convert it to a raw-ns theorem. Mutually exclusive with `--file` and `--vcd`.
         #[arg(long, conflicts_with = "file", conflicts_with = "vcd")]
         csv: Option<PathBuf>,
-        /// Parse a VCD file and convert the first (or `--vcd-signal`) scalar net
-        /// transitions to a raw-ns theorem. Mutually exclusive with `--file` and `--csv`.
+        /// Parse a VCD file and convert the first (or `--vcd-signal`) scalar or
+        /// multi-bit logic net transitions to a raw-ns theorem. Mutually exclusive
+        /// with `--file` and `--csv`.
         #[arg(long, conflicts_with = "file", conflicts_with = "csv")]
         vcd: Option<PathBuf>,
-        /// VCD signal name to measure (default: the first scalar `$var` net).
+        /// VCD signal name to measure (default: the first scalar `$var` net, or
+        /// the first bit of the first bus if no scalar net exists).
         #[arg(long)]
         vcd_signal: Option<String>,
+        /// For VCD buses, measure the clock on this bit index (default: 0).
+        /// Real-valued VCD nets require `--vcd-threshold-v`.
+        #[arg(long, default_value_t = 0)]
+        vcd_bit: usize,
+        /// Voltage threshold (volts) for treating a real-valued VCD net as logic.
+        /// Without this, analog nets are rejected.
+        #[arg(long)]
+        vcd_threshold_v: Option<f64>,
     },
     /// Build the QMTech XC7A100T-FGG676 proxy bitstream via a Docker
     /// container running Xilinx Vivado. Clones our `openFPGALoader` fork
@@ -769,19 +784,25 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             margin,
             standalone,
             raw_ns,
+            validate,
             csv,
             vcd,
             vcd_signal,
+            vcd_bit,
+            vcd_threshold_v,
         } => measured_to_lean(
             file.as_ref(),
             csv.as_ref(),
             vcd.as_ref(),
             vcd_signal.as_deref(),
+            *vcd_bit,
+            vcd_threshold_v.as_ref(),
             out.as_ref(),
             name,
             *margin,
             *standalone,
             *raw_ns,
+            *validate,
         ),
         FpgaCmd::ColdPor {
             bit,
@@ -2619,6 +2640,23 @@ fn sanitize_lean_ident(s: &str) -> String {
     out.trim_matches('_').to_string()
 }
 
+/// Validate a raw-ns triple against the N25Q128_3V standard-read timing bounds.
+/// `margin` uses the conservative 2× PVT-derated limits (12 ns); otherwise the
+/// nominal 6 ns bounds are used. Mirrors the formal predicates in
+/// `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+fn raw_ns_satisfies_flash_spec(period_ns: u64, low_ns: u64, high_ns: u64, margin: bool) -> bool {
+    if period_ns == 0 || low_ns + high_ns != period_ns {
+        return false;
+    }
+    let min_half_ns: u64 = if margin { 12 } else { 6 };
+    let max_freq_hz = 50_000_000_u64;
+    let freq_hz = 1_000_000_000_u64 / period_ns;
+    freq_hz > 0
+        && freq_hz <= max_freq_hz
+        && low_ns >= min_half_ns
+        && high_ns >= min_half_ns
+}
+
 /// Read a `MeasuredCclk` JSON record (from `--file` or stdin) and emit a Lean 4
 /// theorem that proves the measured pair satisfies the flash spec and links it
 /// to `transaction_satisfies_flash_spec`.
@@ -2627,14 +2665,27 @@ fn measured_to_lean(
     csv: Option<&PathBuf>,
     vcd: Option<&PathBuf>,
     vcd_signal: Option<&str>,
+    vcd_bit: usize,
+    vcd_threshold_v: Option<&f64>,
     out: Option<&PathBuf>,
     name: &str,
     margin: bool,
     standalone: bool,
     raw_ns: bool,
+    validate: bool,
 ) -> Result<()> {
     let text = if let Some(path) = csv {
         let (period_ns, low_ns, high_ns) = parse_csv_to_raw_ns(path)?;
+        if validate && !raw_ns_satisfies_flash_spec(period_ns, low_ns, high_ns, margin) {
+            bail!(
+                "CSV capture {} -> {} ns period / {} ns low / {} ns high violates the {}flash spec; refusing to generate a false theorem",
+                path.display(),
+                period_ns,
+                low_ns,
+                high_ns,
+                if margin { "PVT-margin " } else { "" }
+            );
+        }
         let source = format!("csv {}", path.display());
         serde_json::to_string_pretty(&MeasuredCclkRawNs {
             period_ns,
@@ -2643,7 +2694,17 @@ fn measured_to_lean(
             source,
         })?
     } else if let Some(path) = vcd {
-        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(path, vcd_signal)?;
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(path, vcd_signal, vcd_bit, vcd_threshold_v)?;
+        if validate && !raw_ns_satisfies_flash_spec(period_ns, low_ns, high_ns, margin) {
+            bail!(
+                "VCD capture {} -> {} ns period / {} ns low / {} ns high violates the {}flash spec; refusing to generate a false theorem",
+                path.display(),
+                period_ns,
+                low_ns,
+                high_ns,
+                if margin { "PVT-margin " } else { "" }
+            );
+        }
         let source = format!(
             "vcd {} {}",
             path.display(),
@@ -2668,6 +2729,37 @@ fn measured_to_lean(
             }
         }
     };
+
+    // Early validation for JSON inputs (raw-ns or freq/duty).
+    if validate {
+        if raw_ns {
+            let m: MeasuredCclkRawNs = serde_json::from_str(&text)
+                .context("parse MeasuredCclkRawNs JSON for validation")?;
+            if !raw_ns_satisfies_flash_spec(m.period_ns, m.sck_low_ns, m.sck_high_ns, margin) {
+                bail!(
+                    "JSON raw-ns capture -> {} ns period / {} ns low / {} ns high violates the {}flash spec; refusing to generate a false theorem",
+                    m.period_ns,
+                    m.sck_low_ns,
+                    m.sck_high_ns,
+                    if margin { "PVT-margin " } else { "" }
+                );
+            }
+        } else {
+            let m: MeasuredCclk = serde_json::from_str(&text)
+                .context("parse MeasuredCclk JSON for validation")?;
+            let period_ns = 1_000_000_000_u64 / m.freq_hz.max(1);
+            let low_ns = m.sck_low_ns;
+            let high_ns = m.sck_high_ns;
+            if !raw_ns_satisfies_flash_spec(period_ns, low_ns, high_ns, margin) {
+                bail!(
+                    "JSON capture -> {} Hz / {:.1}% duty violates the {}flash spec; refusing to generate a false theorem",
+                    m.freq_hz,
+                    m.duty_pct,
+                    if margin { "PVT-margin " } else { "" }
+                );
+            }
+        }
+    }
 
     let mut lean = String::new();
 
@@ -3123,23 +3215,32 @@ fn parse_csv_to_raw_ns(path: &PathBuf) -> Result<(u64, u64, u64)> {
 }
 
 /// Parse a minimal VCD file and return a raw-ns (period, low, high) triple for
-/// the requested (or first) scalar net. Supports `$var` wires/regs of size 1;
-/// buses and real-valued nets are ignored.
-fn parse_vcd_to_raw_ns(path: &PathBuf, signal: Option<&str>) -> Result<(u64, u64, u64)> {
+/// the requested (or first) net. Supports scalar `$var` wires/regs, multi-bit
+/// logic buses (selecting `vcd_bit`), and real-valued nets (with an optional
+/// voltage threshold). Handles `$dumpoff` / `$dumpon` by suspending sampling.
+fn parse_vcd_to_raw_ns(
+    path: &PathBuf,
+    signal: Option<&str>,
+    vcd_bit: usize,
+    vcd_threshold_v: Option<&f64>,
+) -> Result<(u64, u64, u64)> {
     if !path.is_file() {
         bail!("VCD not found: {}", path.display());
     }
     let text = std::fs::read_to_string(path)
         .with_context(|| format!("read {}", path.display()))?;
     let mut timescale_s: f64 = 1.0e-9; // default 1 ns
-    let mut vars: Vec<(String, String, usize)> = Vec::new(); // (id, name, size)
+    // (id, name, size, is_real)
+    let mut vars: Vec<(String, String, usize, bool)> = Vec::new();
     let mut in_var = false;
     let mut var_tokens: Vec<String> = Vec::new();
     let mut in_timescale = false;
     let mut ts_tokens: Vec<String> = Vec::new();
     let mut past_dumpvars = false;
+    let mut dumpoff = false;
     let mut current_time_s: f64 = 0.0;
     let mut selected_id: Option<String> = None;
+    let mut selected_is_real: bool = false;
     let mut transitions: Vec<(f64, bool)> = Vec::new();
 
     for line in text.lines() {
@@ -3153,7 +3254,6 @@ fn parse_vcd_to_raw_ns(path: &PathBuf, signal: Option<&str>) -> Result<(u64, u64
         if trimmed.to_lowercase().starts_with("$timescale") {
             in_timescale = true;
             ts_tokens.clear();
-            // Add any tokens after `$timescale` on the same line.
             ts_tokens.extend(tokens.iter().skip(1).map(|s| s.to_string()));
             if trimmed.to_lowercase().contains(" $end") || trimmed.to_lowercase().ends_with(" $end") {
                 // Single-line timescale; close below.
@@ -3184,11 +3284,10 @@ fn parse_vcd_to_raw_ns(path: &PathBuf, signal: Option<&str>) -> Result<(u64, u64
             continue;
         }
 
-        // Var declaration: `$var wire 1 ! cclk $end` (possibly across lines).
+        // Var declaration: `$var wire 1 ! cclk $end` or `$var real 32 ! v $end`.
         if trimmed.to_lowercase().starts_with("$var") {
             in_var = true;
             var_tokens.clear();
-            // Add any tokens after `$var` on the same line.
             var_tokens.extend(tokens.iter().skip(1).map(|s| s.to_string()));
             if trimmed.to_lowercase().contains(" $end") || trimmed.to_lowercase().ends_with(" $end") {
                 // Single-line var; close below.
@@ -3201,18 +3300,25 @@ fn parse_vcd_to_raw_ns(path: &PathBuf, signal: Option<&str>) -> Result<(u64, u64
                 in_var = false;
                 // Expected tokens: [type, size, id, name]
                 if var_tokens.len() >= 4 {
+                    let vtype = var_tokens[0].to_lowercase();
+                    let is_real = vtype == "real" || vtype == "integer";
                     let size = var_tokens[1].parse::<usize>().unwrap_or(0);
                     let id = var_tokens[2].clone();
                     let name = var_tokens[3].clone();
-                    if size == 1 {
-                        vars.push((id.clone(), name.clone(), size));
-                        if selected_id.is_none() {
-                            if let Some(target) = signal {
-                                if name == target {
-                                    selected_id = Some(id);
-                                }
-                            } else {
+                    vars.push((id.clone(), name.clone(), size, is_real));
+                    if selected_id.is_none() {
+                        let matches = if let Some(target) = signal {
+                            name == target
+                        } else {
+                            true
+                        };
+                        if matches {
+                            // For scalar signals, accept size == 1. For explicitly
+                            // named buses, accept any size and let the user pick
+                            // the bit via --vcd-bit.
+                            if signal.is_some() || size == 1 {
                                 selected_id = Some(id);
+                                selected_is_real = is_real;
                             }
                         }
                     }
@@ -3227,44 +3333,94 @@ fn parse_vcd_to_raw_ns(path: &PathBuf, signal: Option<&str>) -> Result<(u64, u64
             past_dumpvars = true;
             continue;
         }
-        if trimmed.eq_ignore_ascii_case("$dumpoff") || trimmed.eq_ignore_ascii_case("$enddefinitions") {
+        if trimmed.eq_ignore_ascii_case("$dumpoff") {
+            dumpoff = true;
+            continue;
+        }
+        if trimmed.eq_ignore_ascii_case("$dumpon") {
+            dumpoff = false;
+            continue;
+        }
+        if trimmed.eq_ignore_ascii_case("$enddefinitions") {
             continue;
         }
 
-        // Data section: timestamp lines `#12345`, value lines `0!` / `1!`.
+        // Data section: timestamp lines `#12345`, value lines `0!`, `1!`,
+        // `b101 !`, `r1.23e-9 !`.
         if let Some(ts_str) = trimmed.strip_prefix('#') {
             if let Ok(ts) = ts_str.parse::<f64>() {
                 current_time_s = ts * timescale_s;
             }
             continue;
         }
-        if !past_dumpvars {
+        if !past_dumpvars || dumpoff {
             continue;
         }
-        // Scalar value change: one token like "1!" or "0$".
-        if tokens.len() == 1 && tokens[0].len() >= 2 {
-            let tok = tokens[0];
-            let value_char = tok.chars().next().unwrap();
-            let id: String = tok.chars().skip(1).collect();
-            if let Some(sel) = &selected_id {
+
+        if let Some(sel) = &selected_id {
+            // Scalar value change: one token like "1!" or "0$".
+            if tokens.len() == 1 && tokens[0].len() >= 2 && !selected_is_real {
+                let tok = tokens[0];
+                let value_char = tok.chars().next().unwrap();
+                let id: String = tok.chars().skip(1).collect();
                 if id == *sel {
                     let high = value_char == '1';
                     transitions.push((current_time_s, high));
                 }
+                continue;
+            }
+
+            // Bus value change: `b<value> <id>` (e.g. `b0 !`, `b1 !`, `b0001_ !`).
+            if tokens.len() == 2 && tokens[0].starts_with('b') && !selected_is_real {
+                let value_str = &tokens[0][1..];
+                let id = tokens[1];
+                if id == *sel {
+                    let bit = vcd_bit.min(value_str.len().saturating_sub(1));
+                    let bit_char = value_str.chars().rev().nth(bit).unwrap_or('0');
+                    // Only accept deterministic 0/1 bits; x/z skip the transition.
+                    if bit_char == '0' || bit_char == '1' {
+                        let high = bit_char == '1';
+                        transitions.push((current_time_s, high));
+                    }
+                }
+                continue;
+            }
+
+            // Real value change: `r<value> <id>`.
+            if tokens.len() == 2 && tokens[0].starts_with('r') && selected_is_real {
+                let threshold = vcd_threshold_v.copied()
+                    .ok_or_else(|| anyhow!("VCD signal '{}' is real-valued; supply --vcd-threshold-v", signal.unwrap_or(sel)))?;
+                let value_str = &tokens[0][1..];
+                let id = tokens[1];
+                if id == *sel {
+                    if let Ok(v) = value_str.parse::<f64>() {
+                        let high = v > threshold;
+                        transitions.push((current_time_s, high));
+                    }
+                }
+                continue;
             }
         }
     }
 
     let selected_name = vars
         .iter()
-        .find(|(id, _, _)| Some(id) == selected_id.as_ref())
-        .map(|(_, name, _)| name.clone())
+        .find(|(id, _, _, _)| Some(id) == selected_id.as_ref())
+        .map(|(_, name, _, _)| name.clone())
         .unwrap_or_else(|| "unknown".to_string());
     let source = format!(
         "vcd {} {}",
         path.display(),
         signal.unwrap_or(&selected_name)
     );
+
+    if selected_id.is_none() {
+        if let Some(target) = signal {
+            bail!("VCD signal '{}' not found", target);
+        } else {
+            bail!("VCD has no scalar or selectable logic net");
+        }
+    }
 
     if transitions.len() < 4 {
         bail!(
@@ -4355,7 +4511,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, "measured_cclk", false, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, false, false, false).unwrap();
         assert_eq!(out, ());
         // Clean up.
         std::fs::remove_file(&tmp).unwrap();
@@ -4367,7 +4523,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_margin_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, "measured_cclk", true, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", true, false, false, false).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -4379,7 +4535,7 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_standalone_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_standalone_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(Some(&tmp), None, None, None, Some(&out_path), "measured_cclk", false, true, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, Some(&out_path), "measured_cclk", false, true, false, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.BitstreamConfig"));
@@ -4400,7 +4556,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_raw_ns_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, "measured_cclk", false, false, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, false, true, false).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -4411,7 +4567,7 @@ mod tests {
         let csv_tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_csv_raw_ns_{}.csv", std::process::id()));
         generate_synth_cclk_csv(2_500_000.0, samplerate, 1000, &csv_tmp).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_csv_raw_ns_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(None, Some(&csv_tmp), None, None, Some(&out_path), "measured_csv", false, true, true).unwrap();
+        let out = measured_to_lean(None, Some(&csv_tmp), None, None, 0, None, Some(&out_path), "measured_csv", false, true, true, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.BitstreamConfig"));
@@ -4453,7 +4609,7 @@ mod tests {
         let vcd = generate_vcd_clock(25_000_000.0, 20);
         let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_raw_ns_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, vcd).unwrap();
-        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk")).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None).unwrap();
         assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
         assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
         assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
@@ -4465,7 +4621,7 @@ mod tests {
         let vcd_tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_vcd_raw_ns_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, generate_vcd_clock(25_000_000.0, 20)).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_vcd_raw_ns_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(None, None, Some(&vcd_tmp), None, Some(&out_path), "measured_vcd", false, true, true).unwrap();
+        let out = measured_to_lean(None, None, Some(&vcd_tmp), None, 0, None, Some(&out_path), "measured_vcd", false, true, true, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.BitstreamConfig"));
@@ -4474,6 +4630,148 @@ mod tests {
         assert!(content.contains("decide"));
         std::fs::remove_file(&vcd_tmp).unwrap();
         std::fs::remove_file(&out_path).unwrap();
+    }
+
+    /// Generate a minimal VCD with a multi-bit logic bus where bit 0 toggles.
+    fn generate_vcd_bus(freq_hz: f64, cycles: usize) -> String {
+        let period_s = 1.0 / freq_hz;
+        let half_s = period_s / 2.0;
+        let timescale_ps = 100;
+        let mut out = String::new();
+        out.push_str("$date today $end\n");
+        out.push_str("$version tri test $end\n");
+        out.push_str(&format!("$timescale {} ps $end\n", timescale_ps));
+        out.push_str("$scope module top $end\n");
+        out.push_str("$var wire 4 ! cclk_bus $end\n");
+        out.push_str("$upscope $end\n");
+        out.push_str("$enddefinitions $end\n");
+        out.push_str("$dumpvars\n");
+        out.push_str("b0000 !\n");
+        out.push_str("$end\n");
+        let mut t = 0.0;
+        for i in 0..(2 * cycles) {
+            t += half_s;
+            let ts = (t / (timescale_ps as f64 * 1.0e-12)).round() as u64;
+            // bit 0 toggles; upper bits stay 0.
+            let val = if i % 2 == 0 { "b0001" } else { "b0000" };
+            out.push_str(&format!("#{}\n{} !\n", ts, val));
+        }
+        out
+    }
+
+    #[test]
+    fn test_parse_vcd_bus_to_raw_ns_25mhz() {
+        let vcd = generate_vcd_bus(25_000_000.0, 20);
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_bus_raw_ns_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk_bus"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// Generate a minimal VCD with a real-valued net crossing a threshold.
+    fn generate_vcd_real(freq_hz: f64, cycles: usize) -> String {
+        let period_s = 1.0 / freq_hz;
+        let half_s = period_s / 2.0;
+        let timescale_ps = 100;
+        let mut out = String::new();
+        out.push_str("$date today $end\n");
+        out.push_str("$version tri test $end\n");
+        out.push_str(&format!("$timescale {} ps $end\n", timescale_ps));
+        out.push_str("$scope module top $end\n");
+        out.push_str("$var real 32 ! cclk_analog $end\n");
+        out.push_str("$upscope $end\n");
+        out.push_str("$enddefinitions $end\n");
+        out.push_str("$dumpvars\n");
+        out.push_str("r0.0 !\n");
+        out.push_str("$end\n");
+        let mut t = 0.0;
+        for i in 0..(2 * cycles) {
+            t += half_s;
+            let ts = (t / (timescale_ps as f64 * 1.0e-12)).round() as u64;
+            let v = if i % 2 == 0 { 3.3 } else { 0.0 };
+            out.push_str(&format!("#{}{}\nr{} !\n", ts, if i == cycles { "\n$dumpoff\n" } else { "" }, v));
+        }
+        out.push_str("$dumpon\n");
+        out
+    }
+
+    #[test]
+    fn test_parse_vcd_real_to_raw_ns_25mhz() {
+        let vcd = generate_vcd_real(25_000_000.0, 20);
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_real_raw_ns_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk_analog"), 0, Some(&1.65)).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    #[test]
+    fn test_validate_accepts_in_spec_raw_ns() {
+        let m = MeasuredCclkRawNs {
+            period_ns: 40,
+            sck_low_ns: 20,
+            sck_high_ns: 20,
+            source: "live".to_string(),
+        };
+        let json = serde_json::to_string(&m).unwrap();
+        let tmp = std::env::temp_dir().join(format!("tri_validate_in_spec_{}.json", std::process::id()));
+        std::fs::write(&tmp, json).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, false, true, true).unwrap();
+        assert_eq!(out, ());
+        std::fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_validate_rejects_out_of_spec_raw_ns() {
+        let m = MeasuredCclkRawNs {
+            period_ns: 5,
+            sck_low_ns: 2,
+            sck_high_ns: 3,
+            source: "live".to_string(),
+        };
+        let json = serde_json::to_string(&m).unwrap();
+        let tmp = std::env::temp_dir().join(format!("tri_validate_out_spec_{}.json", std::process::id()));
+        std::fs::write(&tmp, json).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", false, false, true, true);
+        assert!(out.is_err(), "expected validation to reject out-of-spec raw-ns capture");
+        std::fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_validate_margin_accepts_in_spec_raw_ns() {
+        let m = MeasuredCclkRawNs {
+            period_ns: 30,
+            sck_low_ns: 15,
+            sck_high_ns: 15,
+            source: "live".to_string(),
+        };
+        let json = serde_json::to_string(&m).unwrap();
+        let tmp = std::env::temp_dir().join(format!("tri_validate_margin_in_spec_{}.json", std::process::id()));
+        std::fs::write(&tmp, json).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", true, false, true, true).unwrap();
+        assert_eq!(out, ());
+        std::fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_validate_margin_rejects_out_of_spec_raw_ns() {
+        let m = MeasuredCclkRawNs {
+            period_ns: 20,
+            sck_low_ns: 8,
+            sck_high_ns: 12,
+            source: "live".to_string(),
+        };
+        let json = serde_json::to_string(&m).unwrap();
+        let tmp = std::env::temp_dir().join(format!("tri_validate_margin_out_spec_{}.json", std::process::id()));
+        std::fs::write(&tmp, json).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, 0, None, None, "measured_cclk", true, false, true, true);
+        assert!(out.is_err(), "expected PVT-margin validation to reject 8 ns low time");
+        std::fs::remove_file(&tmp).unwrap();
     }
 
     #[test]
