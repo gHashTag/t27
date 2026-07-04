@@ -1,6 +1,6 @@
 # Wave Loop 414 Plan
 
-**Issue:** #1339  
+**Issue:** #1342  
 **Branch:** `wave-loop-414`
 
 ## Decision gate
@@ -111,7 +111,7 @@ Files: `proofs/lean4/Trinity/TernaryFPGABoot.lean`, `cli/tri/src/fpga.rs`
 - The chosen variant is fully implemented and verified.
 - All invariant checks pass.
 - Report + evidence + W415 cooperation variants are produced.
-- PR closes #1339.
+- PR closes #1342.
 
 ---
 

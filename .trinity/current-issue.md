@@ -1,6 +1,6 @@
 # Wave Loop 414 — FPGA physical capture, real relay gate, or further formal tooling
 
-**Issue:** #1339  
+**Issue:** #1342  
 **Branch:** `wave-loop-414`  
 **Milestone:** Continue the FPGA boot-evidence line from W413.
 
@@ -48,7 +48,7 @@ See `.claude/plans/wave-loop-414.md` and
 | 4 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | PVT envelope or new example theorems |
 | 5 | `docs/reports/*` | W414 report, evidence, W415 cooperation |
 | 6 | `.trinity/experience.md` | W414 learnings |
-| 7 | git/PR | squash-merge to `master`, close #1339, open #1340 |
+| 7 | git/PR | squash-merge to `master`, close #1342, open #1343 |
 
 ---
 

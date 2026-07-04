@@ -22,10 +22,10 @@
 
 # NOW — Wave Loop 414 setup
 
-## Wave Loop 414 — FPGA physical capture, real relay gate, or further formal tooling (Issue #1339)
+## Wave Loop 414 — FPGA physical capture, real relay gate, or further formal tooling (Issue #1342)
 
 - Branch: `wave-loop-414`
-- Issue: #1339
+- Issue: #1342
 - Plan: `.claude/plans/wave-loop-414.md` (to be created)
 - Cooperation W414: `docs/reports/FPGA_LOOP_COOPERATION_W414_2026-07-04.md`
 
@@ -49,7 +49,7 @@
 
 - Branch: `wave-loop-413`
 - Issue: #1338
-- PR: #?
+- PR: #1339
 - Report: `docs/reports/WAVE_LOOP_413_REPORT.md`
 - Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W413_2026-07-04.md`
 - Cooperation W414: `docs/reports/FPGA_LOOP_COOPERATION_W414_2026-07-04.md`
@@ -76,7 +76,7 @@
 - `cargo test -p tri fpga::tests` 20/20 pass
 - `./scripts/tri test` parse/typecheck/gen/seal-verify green
 - yosys smoke: 40 pass / 16 pre-existing failures
-- PR #? merged to `master`; issue #1338 closed.
+- PR #1339 merged to `master`; issue #1338 closed.
 
 ---
 
