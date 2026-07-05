@@ -115,12 +115,68 @@
 
 ---
 
-## Wave Loop 436 — Next: real capture, live XADC pipeline extension, or master-merge retry
+## Wave Loop 436 — FPGA boot-evidence: live XADC → PVT context in boot logs and sweep reports (Closes #1402)
 
 - Branch: `wave-loop-436`
 - Issue: #1402
+- PR: #1405
+- Report: `docs/reports/WAVE_LOOP_436_REPORT.md`
+- Evidence W436: `docs/reports/FPGA_LOOP_EVIDENCE_W436_2026-07-01.md`
+- Cooperation W437: `docs/reports/FPGA_LOOP_COOPERATION_W437_2026-07-01.md`
+
+### What landed (Variant B — board reachable, P12/relay still blocked)
+
+- `cli/tri/src/fpga.rs`
+  - Added `--process-corner` and `--to-pvt-context` to `tri fpga cold-por` and `tri fpga cclk-sweep`.
+  - Added `resolve_pvt_context_for_boot` helper with shared priority logic: explicit PVT file > live XADC > none.
+  - Added `operating_point` JSON object to `SweepLog` and cold-POR mock boot log.
+  - Added closed-vocabulary `source` labels: `xadc`, `pvt_context_file`, `worstcase`, `not_read`.
+  - Added `--pvt-context-source` to `tri fpga measured-to-lean` to override/confirm the provenance label.
+  - Added `test_measured_to_lean_pvt_context_source_override`; hardened `test_sweep_report_json_roundtrip`.
+
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added quantified theorem `xadc_live_w434_all_oscfsel_combined_check_true`:
+    for every `oscfsel ≤ 7`, the computable `cclk_variant_and_xadc_envelope_check`
+    gate returns `true` under the W434 live XADC operating point.
+
+- `fpga/HARDWARE_SSOT.md` §3.6.21
+  - Documented the live XADC → PVT context pipeline, CLI flags, source labels,
+    and formal coverage.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W436; updated competitive notes around Sparkle/Verilean.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Documented the W436 triage decision: no compiler work attempted; the 7
+    residual yosys smoke failures remain the documented baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_436_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W436_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W437_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — not performed this wave.
+- Master-merge to clear #1245 — deferred to a dedicated future wave.
+
+### Verification
+
+- `cargo test -p tri --bin tri fpga::`: **PASS** (84 tests, +1 W436 regression).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test` parse/typecheck/GF16/gen-zig/gen-rust/gen-c/seal-verify/FPGA smoke/fixed-point: **PASS**.
+- `./scripts/tri test` gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+
+---
+
+## Wave Loop 437 — Next: dry-run XADC→PVT validation and real-capture fallback (Variant B, A optional)
+
+- Branch: `wave-loop-437`
+- Issue: #1404
 - Default variant: **B** unless P12 or the relay gate becomes available.
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W436_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W437_2026-07-01.md`
 
 ---
 
