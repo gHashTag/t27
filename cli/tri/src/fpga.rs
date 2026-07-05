@@ -8444,4 +8444,29 @@ mod tests {
         assert_eq!(pvt.vccint_mv, 950);
         assert_eq!(pvt.process_corner, ProcessCorner::Tt);
     }
+
+    /// Regression test for the live XADC readout captured in Wave Loop 434.
+    /// `tri fpga read-xadc` reported temp_c≈41.44 °C, vccint≈1.00049 V,
+    /// vccaux≈1.80688 V. The rounded `PvtContext` must match the values used
+    /// in the generated `measured-to-lean` theorem for OSCFSEL=6.
+    #[test]
+    fn test_xadc_context_to_pvt_context_w434_live_capture() {
+        let ctx = XadcContext {
+            temp_c: 41.4422,
+            max_temp_c: 44.5567,
+            min_temp_c: 40.3425,
+            vccint_v: 1.00049,
+            max_vccint_v: 1.00195,
+            min_vccint_v: 0.998291,
+            vccaux_v: 1.80688,
+            max_vccaux_v: 1.81055,
+            min_vccaux_v: 1.80322,
+            raw: None,
+        };
+        let pvt = ctx.to_pvt_context(ProcessCorner::Ss).unwrap();
+        assert_eq!(pvt.temp_c, 41);
+        assert_eq!(pvt.vccint_mv, 1000);
+        assert_eq!(pvt.vccaux_mv, 1807);
+        assert_eq!(pvt.process_corner, ProcessCorner::Ss);
+    }
 }

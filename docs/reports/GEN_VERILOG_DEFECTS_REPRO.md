@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-433`  
-**Last updated:** 2026-07-01 (Wave Loop 433)  
+**Branch:** `wave-loop-434`  
+**Last updated:** 2026-07-01 (Wave Loop 434)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -482,7 +482,24 @@ W433 (same matrix as W432). They will be addressed only in a dedicated future
 merge/rebase wave, or once the FPGA boot-evidence line is no longer the primary
 wave focus.
 
-## Open work after W388 / W427 / W429 / W432 / W433
+### Triage decision for W434
+
+**Still deferred; W434 executed Variant B (live XADC validation + synthetic CCLK
+proof-of-pipeline).** W434 captured a real XADC operating point from the live
+board (temp≈41 °C, VCCINT≈1.00 V, VCCAUX≈1.81 V), validated it inside the PVT
+envelope, generated a `measured-to-lean --raw-ns --pvt-context` theorem, and added
+`xadc_live_w434_justifies_cclk_variant_raw_ns_pvt` in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean` to apply the W431/W432 formal bridge
+to real silicon data. The physical capture path (P12 wiring, relay gate) and the
+master-merge path for the gen-verilog fix set remain blocked, so no compiler work
+was attempted.
+
+The 7 yosys smoke failures are **re-confirmed as the documented baseline** for
+W434 (same matrix as W432/W433). They will be addressed only in a dedicated future
+merge/rebase wave, or once the FPGA boot-evidence line is no longer the primary
+wave focus.
+
+## Open work after W388 / W427 / W429 / W432 / W433 / W434
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.
