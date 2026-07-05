@@ -2,6 +2,26 @@
 
 Last updated: 2026-07-05
 
+## SW-conformance — gf128 promoted to strict SW-bitexact (72/3/8) (Closes #1370)
+
+- gf128 (GoldenFloat128: S1 E49 M78, BIAS=281474976710655=2^48-1) promoted from
+  `bitexact_selfconsistent` to strict `bitexact` in `conformance/vectors/INDEX_all_formats.json`.
+- INDEX totals: bitexact 71 -> 72, selfconsistent 4 -> 3, structural 8 (sum=83).
+- Status tag: [verified SW]. Like gf96, gf128 has M=78 > 52, so binary64 CANNOT
+  hold the mantissa exactly; there is NO FP lowering and NO rounding: every finite
+  gf128 value is an exact dyadic rational odd*2^k.
+- Witness chain: TWO structurally independent exact decode paths
+  (dyadic integer normalizer `conformance/gf_wide_independent_witness.py` +
+  Fraction-significand symbolic-shift `conformance/witness/gf128/gf128_decode_ref.py`)
+  agree on all 15 pack vectors (abs_error=0) AND on a 201512-code representative
+  sweep (seed=128); + analytic separation-bound `conformance/witness/gf128/SEPARATION_BOUND.md`
+  (zero-rounding lemma over the whole 2^128 domain; exhaustive infeasible).
+- OOM-safe: the +-2^48 exponent is NEVER materialized; both paths keep the huge
+  power of two symbolic in `shift`, numerators <= ~2^80.
+- NOT on-silicon Tier-E: HW-decode / HW-compute for gf128 remain [REQUIRES USER
+  ACTION] (4/4 chain on AX7203, trinity-fpga #199).
+- Remaining selfconsistent (3): gf256, gf512, gf1024.
+
 ## SW-conformance — gf96 promoted to strict SW-bitexact (71/4/8) (Closes #1366)
 
 - gf96 (GoldenFloat96: S1 E36 M59, BIAS=34359738367=2^35-1) promoted from
