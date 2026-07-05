@@ -1,3 +1,50 @@
+## 2026-07-01 — Wave Loop 429 (FPGA formal/tooling hardening: raw-ns OSCFSEL theorems, `tri fpga measured-to-lean --json`, W429 close-out / W430 setup)
+
+### What worked
+- Defaulting to **Variant C** again (bench still blocked: P12 unwired, no relay
+  gate, DLC10 missing, no OSCFSEL 6/7 physical captures) kept W429 bounded and
+  shippable.
+- Adding raw-ns counterparts to the W428 unified OSCFSEL theorems
+  (`cclk_variant_raw_ns_worstcase_pvt_satisfies_flash_spec`,
+  `cclk_variant_raw_ns_worstcase_pvt_implies_transaction_ok`) closed the loop
+  between the instrument-import `--raw-ns` path and the quantified OSCFSEL
+  result.
+- For odd `cclk_period_ns` values (OSCFSEL 2 and 5), computing `high_ns` as
+  `period_ns - low_ns` instead of `period_ns / 2` preserved the raw-ns
+  consistency precondition `low_ns + high_ns = period_ns`.
+- Extracting `build_measured_to_lean_summary` as a pure helper made the new
+  `--json` summary unit-testable without stdout capture and kept the CLI I/O
+  path thin.
+- Refreshing `docs/reports/T27_VS_FORMAL_HDL_2026.md` for W429 keeps the
+  competitive snapshot current as Sparkle/Verilean and other Lean-native HDL
+  projects accelerate.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added raw-ns unified OSCFSEL PVT
+  theorems after the W428 block.
+- `cli/tri/src/fpga.rs`:
+  - Added `json: bool` to `FpgaCmd::MeasuredToLean` and propagated it through the
+    dispatch pattern.
+  - Added `build_measured_to_lean_summary` returning `serde_json::Value`.
+  - Guarded `--json` so it requires `--out`.
+  - Updated all 14 existing `measured_to_lean` test call sites and added three
+    new unit tests for the summary builder.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`: added W429 triage confirming the
+  same 7 residual yosys smoke failures and deferral until a dedicated
+  master-merge/rebase wave.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`: refreshed for W429.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_429_REPORT.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W430_2026-07-01.md`.
+- Issue/branch: GitHub issue #1388, branch `wave-loop-430`.
+
+### Verification
+- `cargo test --bin tri fpga::`: 75/75 pass.
+- `lake build Trinity.TernaryFPGABoot`: 2967 jobs, 0 errors.
+- `./scripts/tri test`: all phases pass; 7 pre-existing gen-verilog yosys smoke
+  failures (#1245); 0 FPGA smoke failures; 0 seal mismatches.
+
+---
+
 ## 2026-07-05 — Wave Loop 428 (FPGA formal/tooling hardening: unified OSCFSEL PVT theorems, `tri fpga pvt-envelope --json`, competitor refresh)
 
 ### What worked
