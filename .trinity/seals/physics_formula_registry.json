@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:191bf07addaf829849dc9ccb43ca39a82ba7694355076ddc8d81288e835f5623",
   "module": "formula_registry",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:10Z",
+  "sealed_at": "2026-07-05T06:16:58Z",
   "spec_hash": "sha256:c6c888eead59d10c6030023702fa4faf2457e75a595c1dafe65a00f70626f17c",
   "spec_path": "specs/physics/formula_registry.t27"
 }

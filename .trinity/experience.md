@@ -1,5 +1,69 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-06 — Wave Loop 422 (Live XC7A200T SRAM boot + gen-verilog keyword escape + PVT worst-case bound)
+
+### What worked
+- Re-checking the bench at the start of the wave changed the outcome: the board
+  was reachable via `openFPGALoader` + Digilent HS2 even though the W421 close-out
+  had reported 0 detected devices. Physical state can change between waves; always
+  probe before choosing a variant.
+- Capturing the live SRAM load and XADC context immediately turned a pure
+  Variant-C fallback into a mixed A-lite/C close-out, producing stronger evidence
+  than another formal-only wave.
+- Treating the gen-verilog keyword-collision subclass as a **narrow regression-free
+  sub-fix** closed one item from weak point #1245 and dropped the yosys smoke
+  failure count from 16 to 7. The fix was safe because it only changes identifier
+  emission when a collision is detected and is applied consistently to all
+  declaration and reference sites.
+- Adding two unit tests (parameter `task`, local/module `wire`/`reg`/`task`) gives
+  future refactors a concrete guard against re-introducing keyword-collision
+  failures.
+- Completing the PVT envelope shape theory with separate low/high combined
+  monotonicity, a `ProcessCorner.any_worse_than_ss` helper, and a worst-case bound
+  theorem gives future validation tools a single corner to check.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: added `verilog_keywords()`,
+  `verilog_safe_identifier()`, and applied escaping across function/task names,
+  parameters, local/module vars/consts, loop variables, identifiers, calls, enum
+  values, and field-access bases. Added
+  `test_verilog_keyword_parameter_escaped` and
+  `test_verilog_keyword_local_and_module_escaped`.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added `pvt_low_ns_monotone_combined`,
+  `pvt_high_ns_monotone_combined`, `ProcessCorner.any_worse_than_ss`, and
+  `pvt_half_ns_worst_case_bound`.
+- `cli/tri/src/fpga.rs`: added `test_pvt_half_ns_worst_case_bound` grid-search
+  regression test.
+- `fpga/HARDWARE_SSOT.md`: added §3.6.19 documenting the live XC7A200T SRAM boot
+  and XADC context.
+- `.trinity/seals/*.json`: regenerated after the compiler change; only
+  `gen_hash_verilog` shifted for specs containing keyword identifiers.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_422_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W422_2026-07-06.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W423_2026-07-06.md`.
+
+### Patterns to reuse
+- Probe hardware availability at the start of every wave; a blocker can clear
+  between sessions and change which variant is highest leverage.
+- When a broad defect bucket (#1245) contains narrow subclasses, land the
+  regression-free ones first. Each safe sub-fix reduces noise and protects the
+  remaining work from being blamed for pre-existing failures.
+- Apply identifier escaping consistently across **all** emission sites
+  (declaration, reference, field flattening, loop variables). A partial fix
+  produces internally inconsistent Verilog that is harder to debug than the
+  original collision.
+- For placeholder models, prove the combined shape fact that a grid search or
+  worst-case validation actually calls, not just the per-axis lemmas.
+
+### Anti-patterns to avoid
+- Do not assume the previous wave's hardware assessment is still true; re-run
+  the probe command before committing to a fallback variant.
+- Do not mix a broad gen-verilog refactor with a targeted sub-fix. The safe path
+  is to change only the collision path and verify that no new yosys failures
+  appear.
+- Do not regenerate seal files without `--save`; `t27c seal` without the flag
+  only prints hashes and leaves the working tree out of sync.
+
 ## 2026-07-06 — Wave Loop 421 (Variant C fallback: VCD `$timescale` exact terminator, combined PVT monotonicity, competitor snapshot)
 
 ### What worked

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:00668fcf4a92600bc8576a284d4ef835c7f9c0e3839a83a6b6d43e7539b33cf9",
   "module": "config-migrate",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:06Z",
+  "sealed_at": "2026-07-05T06:16:56Z",
   "spec_hash": "sha256:727efa1d6127c74538d09d298db43a9f02c622507541c51d0659b078dee2fb48",
   "spec_path": "specs/config/migrate.t27"
 }
