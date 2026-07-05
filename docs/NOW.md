@@ -474,12 +474,76 @@ target `Trinity.TernaryFPGABoot` still builds.
 
 ---
 
-## Wave Loop 441 — Next: CI schema hardening / board-less theorem matrix / real-capture fallback / gen-verilog debt (Variant B default)
+## Wave Loop 441 — CI schema hardening / board-less theorem matrix / real-capture fallback / gen-verilog debt (Variant B default) (Closes #1413)
 
 - Branch: `wave-loop-441`
 - Issue: #1413
+- PR: (to open after this close-out)
+- Report: `docs/reports/WAVE_LOOP_441_REPORT.md`
+- Evidence W441: `docs/reports/FPGA_LOOP_EVIDENCE_W441_2026-07-01.md`
+- Cooperation W442: `docs/reports/FPGA_LOOP_COOPERATION_W442_2026-07-01.md`
+
+### What landed (Variant B — board still blocked)
+
+- `bootstrap/src/suite.rs`
+  - Added `docs/reports/gen_verilog_smoke_baseline.json` loader and computed a
+    baseline-aware `acceptable` flag: `true` only when all observed failures are
+    within the documented baseline and every other phase is clean.
+  - Exposed `known_failures`, `baseline_failures`, `total_failures`, `passed`,
+    and `acceptable` in the `./scripts/tri test --json` summary.
+  - Added `#[cfg(test)]` regression tests: `tri_exe()` discovery,
+    `SuiteSummary` schema round-trip, `acceptable` computation, and fake-
+    `tri`-script pass/fail parsing.
+  - Refactored `cmd_fpga_smoke_gate` into `run_fpga_smoke_gate` core +
+    repo-aware wrapper to enable deterministic unit tests.
+
+- `cli/tri/src/fpga.rs`
+  - Added `cclk_period_ns(oscfsel)` helper mirroring the Lean definition.
+  - Added `--theorem-matrix` to `tri fpga smoke-gate`.
+  - When `--synthetic-operating-point --verify-lean --theorem-matrix` are used,
+    the gate generates and verifies a PVT-aware raw-ns theorem for each Artix-7
+    Master SPI OSCFSEL value 0..7, recording an 8-element `theorem_matrix`
+    array in the JSON report.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W441; no new public competitor signals appeared after Sparkle's
+    関数型まつり2026 talk on 2026-07-11.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Updated branch to `wave-loop-441` and documented the W441 triage decision:
+    no compiler work; 7 residual failures remain the baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_441_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W441_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W442_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — not performed this wave.
+- Master-merge to clear #1245 — deferred to a dedicated future wave.
+
+### Verification
+
+- `cargo check -p tri`: **PASS**.
+- `cargo test -p tri`: **PASS** (127 tests, 0 ignored).
+- `cargo test -p t27c --bin t27c suite::tests`: **PASS** (7 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test` parse/typecheck/GF16/gen-zig/gen-rust/gen-verilog/gen-c/seal-verify/FPGA smoke/fixed-point: **PASS**.
+- `./scripts/tri test` gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+- `./scripts/tri test --json /tmp/w441_suite_summary.json`: **PASS**, `known_failures` = 7 baseline specs, `acceptable: true`, `fpga_smoke_passed: true`.
+- `tri fpga smoke-gate --synthetic-operating-point --verify-lean --theorem-matrix --json /tmp/tri_smoke_matrix.json`: **PASS**, `theorem_matrix` = 8 variants, `passed: true`.
+
+---
+
+## Wave Loop 442 — Next: expanded board-less theorem matrix + CI artifact hardening + real-capture fallback + gen-verilog debt (Variant B default)
+
+- Branch: `wave-loop-442`
+- Issue: #1415
 - Default variant: **B** unless P12 or the relay gate becomes available.
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W441_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W442_2026-07-01.md`
 
 ---
 

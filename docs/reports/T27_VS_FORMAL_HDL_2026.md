@@ -119,6 +119,20 @@ Ternary-NanoCore) continues to validate the {-1, 0, +1} compute niche but none
 combine it with a Lean-native proof pipeline. The 7 residual `gen-verilog` yosys
 smoke failures remain the documented baseline.
 
+**W441 hardens the suite summary against the documented baseline and closes the
+board-less OSCFSEL 0..7 theorem matrix.** `bootstrap/src/suite.rs` now loads
+`docs/reports/gen_verilog_smoke_baseline.json`, reports the exact
+`known_failures` from the `gen-verilog-yosys-smoke` phase, and exposes an
+`acceptable` flag that is `true` only when all observed failures are within the
+documented baseline and every other phase is clean. `tri fpga smoke-gate` gains
+`--theorem-matrix`; when combined with `--synthetic-operating-point` and
+`--verify-lean` it generates and verifies a PVT-aware raw-ns theorem for each
+ documented Artix-7 Master SPI CCLK variant (OSCFSEL 0..7), producing an 8-element
+`theorem_matrix` array in the JSON report. No new public competitor signals
+surfaced between the W440 close-out and the W441 boundary; Sparkle's 関数型まつり2026
+talk remains the most recent competitive-intelligence checkpoint. The 7 residual
+`gen-verilog` yosys smoke failures remain the documented baseline.
+
 ---
 
 ## Competitor matrix

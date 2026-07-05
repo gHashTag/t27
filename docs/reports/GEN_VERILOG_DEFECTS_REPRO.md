@@ -565,7 +565,30 @@ re-confirmed as the baseline**. No new narrow defect was introduced.
 
 **Defect status matrix after W439:** same as after W435.
 
-## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439
+## W440 triage (2026-07-01)
+
+Wave Loop 440 selected **Variant B** of the W440 cooperation plan (consume the
+FPGA smoke-gate JSON report in the suite runner, add a machine-readable
+`SuiteSummary` to `./scripts/tri test --json`, harden skip/fail handling, and
+restore zero ignored tests). The wave did not touch the `gen-verilog` backend, so
+the 7 residual yosys smoke failures remain **unchanged and re-confirmed as the
+baseline**. No new narrow defect was introduced.
+
+**Defect status matrix after W440:** same as after W435.
+
+## W441 triage (2026-07-01)
+
+Wave Loop 441 selected **Variant B** of the W441 cooperation plan (baseline-aware
+suite summary + board-less OSCFSEL 0..7 theorem matrix). Work focused on
+`bootstrap/src/suite.rs` (known-failure reporting, `acceptable` flag, schema/unit
+regression tests) and `cli/tri/src/fpga.rs` (`--theorem-matrix` dry-run coverage).
+The wave did not touch the `gen-verilog` backend, so the 7 residual yosys smoke
+failures remain **unchanged and re-confirmed as the baseline**. No new narrow
+defect was introduced.
+
+**Defect status matrix after W441:** same as after W435.
+
+## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439 / W440 / W441
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.
