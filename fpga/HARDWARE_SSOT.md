@@ -1374,6 +1374,25 @@ quantified bridge to the real captured operating point, producing a
 machine-checked claim that OSCFSEL=0..7 are safe under the live silicon
 conditions.
 
-**W434 blocker:** P12 is still unwired and no relay gate exists, so the
+**W435 hardening:** `tri fpga read-xadc` can now export the rounded `PvtContext`
+directly, and `measured-to-lean --json` includes the source operating point:
+
+```bash
+tri fpga read-xadc --cable digilent_hs2 --process-corner ss \
+    --to-pvt-context xadc_pvt.json
+tri fpga pvt-envelope --pvt-context xadc_pvt.json --json
+tri fpga measured-to-lean --raw-ns --file synth_oscfsel_06.json \
+    --pvt-context xadc_pvt.json --validate --standalone \
+    --name xadc_live_w434 --out CclkOscfsel06LiveXadc.lean --json
+```
+
+Wave Loop 435 also adds the synthetic OSCFSEL 0..7 theorem matrix
+(`xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec`) and the computable
+gate `cclk_variant_and_xadc_envelope_check` in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean`. The matrix proves each documented
+CCLK variant is safe under the live W434 XADC point without requiring a physical
+capture of every variant.
+
+**W434/W435 blocker:** P12 is still unwired and no relay gate exists, so the
 synthetic CCLK fixture substitutes for a real capture. Once P12 is wired, the same
 `--pvt-context xadc_pvt.json` pipeline can consume a real CSV/VCD CCLK trace.

@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 434)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 435)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -45,7 +45,15 @@ machine-checkable `measured-to-lean` theorem and a dedicated
 `xadc_live_w434_justifies_cclk_variant_raw_ns_pvt` theorem in
 `proofs/lean4/Trinity/TernaryFPGABoot.lean`. The physical bench and the
 master-merge debt remain blocked, so the 7 residual `gen-verilog` yosys smoke
-failures are documented but not cleared.**
+failures are documented but not cleared.
+
+**W435 hardens the live-readout pipeline without clearing the master-merge debt.**
+`tri fpga read-xadc` now exports a rounded `PvtContext` JSON via `--to-pvt-context`;
+`tri fpga measured-to-lean --json` reports the source operating point; a new
+end-to-end Rust test exercises the XADC → PVT → theorem path; and
+`TernaryFPGABoot.lean` adds a synthetic OSCFSEL 0..7 coverage matrix under the W434
+live XADC point plus a computable combined `cclk_variant_and_xadc_envelope_check`
+gate. The 7 residual yosys smoke failures remain the documented baseline.**
 
 ---
 
