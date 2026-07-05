@@ -1696,3 +1696,7 @@
 - **Commit:** docs(w441): add PR #1416 to close-out report (Closes #1413)
 - **Files:** docs/NOW.md
 
+## 2026-07-05T15:22:21Z — wave-loop-442
+- **Commit:** docs(w441): record PR #1416 in NOW.md (Closes #1413)
+- **Files:** .trinity/current-issue.md,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W443_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W442_2026-07-01.md,docs/reports/FPGA_LOOP_PLAN_W442_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_442_REPORT.md
+

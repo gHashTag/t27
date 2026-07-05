@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 440)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 442)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -131,6 +131,20 @@ documented baseline and every other phase is clean. `tri fpga smoke-gate` gains
 `theorem_matrix` array in the JSON report. No new public competitor signals
 surfaced between the W440 close-out and the W441 boundary; Sparkle's 関数型まつり2026
 talk remains the most recent competitive-intelligence checkpoint. The 7 residual
+`gen-verilog` yosys smoke failures remain the documented baseline.
+
+**W442 extends the board-less theorem matrix across all documented process
+corners and hardens the smoke-gate report schema.** `tri fpga smoke-gate
+--theorem-matrix` now iterates `ff`/`tt`/`ss` process corners inside the existing
+OSCFSEL 0..7 loop, generating and verifying 24 corner×variant PVT-aware raw-ns
+theorems. The JSON report gains a top-level `schema_version: "1.0"` field and a
+structured `theorem_matrix` block with `corner_count`, `oscfsel_count`, and
+per-variant `corner`/`oscfsel` records. New Rust unit tests in `cli/tri/src/fpga.rs`
+and `bootstrap/src/suite.rs` protect the fixture/summary path and the report
+schema against regressions. No new public competitor signals surfaced between the
+W441 close-out and the W442 boundary; Sparkle's 関数型まつり2026 talk remains the
+most recent competitive-intelligence checkpoint, and **CIRCT firtool-1.152.0**
+(shipped 2026-07-04) is still the latest public release. The 7 residual
 `gen-verilog` yosys smoke failures remain the documented baseline.
 
 ---
