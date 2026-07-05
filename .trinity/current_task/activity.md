@@ -1640,3 +1640,7 @@
 - **Commit:** chore(now): merge master into wave-loop-435 and update NOW.md for W435 close-out
 - **Files:** .trinity/current-issue.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W437_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W436_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_436_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-05T13:23:42Z — wave-loop-437
+- **Commit:** feat(igla): Wave Loop 436 — live XADC → PVT context in boot logs and sweep reports, closed-vocabulary source labels, quantified combined-check theorem
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W437_2026-07-01.md
+

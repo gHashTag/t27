@@ -1,6 +1,6 @@
 # Wave Loop 437 — dry-run XADC→PVT boot-evidence validation and real-capture fallback (Variant B, A optional)
 
-**Issue:** #1404
+**Issue:** #1405
 **Branch:** `wave-loop-437`
 **Milestone:** Continue the FPGA boot-evidence line from Wave Loop 436.
 

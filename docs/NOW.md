@@ -231,7 +231,7 @@
 ## Wave Loop 437 — Next: dry-run XADC→PVT validation and real-capture fallback (Variant B, A optional)
 
 - Branch: `wave-loop-437`
-- Issue: #1404
+- Issue: #1405
 - Default variant: **B** unless P12 or the relay gate becomes available.
 - Plan: `docs/reports/FPGA_LOOP_COOPERATION_W437_2026-07-01.md`
 

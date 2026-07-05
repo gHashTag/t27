@@ -1,6 +1,6 @@
 # FPGA Loop Cooperation Plan — Wave Loop 437 (2026-07-01)
 
-**Issue:** #1402 (W436) → **#1404** (W437)  
+**Issue:** #1402 (W436) → **#1405** (W437)  
 **Branch:** `wave-loop-436` → **`wave-loop-437`**  
 **Date:** 2026-07-01  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
