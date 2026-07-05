@@ -1592,3 +1592,7 @@
 - **Commit:** docs(trinity): W431 setup — current issue, NOW, experience (Wave Loop 430 close-out)\n\n- Point .trinity/current-issue.md and docs/NOW.md to W431 (#1389).\n- Add W430 learnings to .trinity/experience.md.\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
 - **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W432_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W431_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_431_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-05T10:43:02Z — wave-loop-431
+- **Commit:** feat(igla): Wave Loop 431 — XADC→PVT context bridge, computable envelope, measured-to-lean --json summary hardening
+- **Files:** .trinity/experience.md,docs/NOW.md
+

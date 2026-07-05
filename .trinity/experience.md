@@ -45,7 +45,7 @@
 - Close-out artifacts: `docs/reports/WAVE_LOOP_431_REPORT.md`,
   `docs/reports/FPGA_LOOP_EVIDENCE_W431_2026-07-01.md`,
   `docs/reports/FPGA_LOOP_COOPERATION_W432_2026-07-01.md`.
-- Issue/branch: GitHub issue #1391, branch `wave-loop-432`; PR closes #1389.
+- Issue/branch: GitHub issue #1391, branch `wave-loop-432`; PR #1392 closes #1389.
 
 ### Verification
 - `cargo test --bin tri fpga::`: 81/81 pass.
