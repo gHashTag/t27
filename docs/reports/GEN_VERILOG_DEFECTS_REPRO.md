@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-432`  
-**Last updated:** 2026-07-01 (Wave Loop 432)  
+**Branch:** `wave-loop-433`  
+**Last updated:** 2026-07-01 (Wave Loop 433)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -468,7 +468,21 @@ branch onto the reachable `master` line (or a topic-branch merge) only when the
 FPGA boot-evidence line is not the primary wave focus; until then, keep the
 failure matrix current and treat the 7 failures as a known baseline.
 
-## Open work after W388 / W427 / W429 / W432
+### Triage decision for W433
+
+**Still deferred; W433 focused on formal composition instead of merge risk.** W433
+executed Variant C3 and added `xadc_envelope_justifies_cclk_variant_raw_ns_pvt` in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean` — a board-less theorem that composes
+the live-XADC envelope bound with the per-process-corner raw-ns OSCFSEL theorem.
+The physical bench and the master-merge path remain blocked, so no compiler work
+was attempted.
+
+The 7 yosys smoke failures are **re-confirmed as the documented baseline** for
+W433 (same matrix as W432). They will be addressed only in a dedicated future
+merge/rebase wave, or once the FPGA boot-evidence line is no longer the primary
+wave focus.
+
+## Open work after W388 / W427 / W429 / W432 / W433
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.

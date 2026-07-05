@@ -1,19 +1,20 @@
-# Wave Loop 433 — FPGA boot-evidence next variant (real CCLK capture, live XADC validation, or master-merge retry)
+# Wave Loop 434 — FPGA boot-evidence next variant (real capture, live XADC validation, or master-merge retry)
 
-**Issue:** #1393  
-**Branch:** `wave-loop-433`  
-**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 432.
+**Issue:** #1395  
+**Branch:** `wave-loop-434`  
+**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 433.
 
 ---
 
 ## Goal
 
-Wave Loop 432 shipped per-process-corner raw-ns OSCFSEL theorems in Lean 4 and
-probed the `origin/master` merge path for the `gen-verilog` fix set
-(`701d79b3b`), finding it not safely reachable from `wave-loop-432`. The bench
-remains blocked (P12 unwired, no relay gate, no DLC10 cable). Wave Loop 433
-executes the first available variant from
-`docs/reports/FPGA_LOOP_COOPERATION_W433_2026-07-01.md`.
+Wave Loop 433 composed the W431 live-XADC envelope bound with the W432
+per-process-corner raw-ns OSCFSEL theorem, producing a single theorem that covers
+any in-envelope XADC operating point and any documented OSCFSEL selection. The
+bench remains blocked (P12 unwired, no relay gate, no DLC10 cable) and the
+master-merge path for the `gen-verilog` fix set (`701d79b3b`) is still not safely
+reachable from `wave-loop-433`. Wave Loop 434 executes the first available variant
+from `docs/reports/FPGA_LOOP_COOPERATION_W434_2026-07-01.md`.
 
 1. **Variant A (preferred when bench becomes fully available):**
    - Confirm P12 is wired to a logic-analyzer channel and a relay/remote-power
@@ -24,6 +25,8 @@ executes the first available variant from
    - Import with `tri fpga measured-to-lean --csv/--vcd --raw-ns --standalone
      --validate --pvt-context <xadc.json> --out <theorem.lean> --json` and commit
      generated Lean theorems plus JSON summaries.
+   - Reference the W433 quantified theorem
+     (`xadc_envelope_justifies_cclk_variant_raw_ns_pvt`) in the generated proof.
    - Update `fpga/HARDWARE_SSOT.md` §3.6 with measured frequency/duty/margin.
 
 2. **Variant B (if board is reachable but P12 / relay are still blocked):**
@@ -31,6 +34,7 @@ executes the first available variant from
    - Verify the JSON converts to a valid `PvtContext` via `tri fpga pvt-envelope`.
    - Generate at least one `measured-to-lean` theorem using the real XADC context
      (synthetic CCLK fixture is acceptable for proof-of-pipeline).
+   - Reference the W433 quantified theorem in the generated proof.
    - Alternatively, run `tri fpga cclk-sweep` over OSCFSEL 0..5 with `--xadc` and
      manual power cycles.
    - Refresh `docs/reports/T27_VS_FORMAL_HDL_2026.md` and re-evaluate
@@ -41,9 +45,8 @@ executes the first available variant from
      the `gen-verilog` fix set (`701d79b3b`) into the wave-loop line and clear the
      7 residual yosys smoke failures (#1245).
    - If the merge is still too risky, land another formal/tooling sub-task:
-     machine-readable `sweep-report --json` hardening, a Lean theorem linking a
-     live `XadcOperatingPoint` to the per-process-corner raw-ns OSCFSEL theorem,
-     or a deeper competitor refresh.
+     harden `measured-to-lean` to emit the W433 theorem name, add a computable
+     combined OSCFSEL+XADC envelope check, or refresh the competitor report.
    - Update `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` with the new baseline.
 
 ---
@@ -57,7 +60,7 @@ executes the first available variant from
       cleared).
 - [ ] `cargo test --bin tri fpga::` passes.
 - [ ] Close-out report and next-wave cooperation variants are written.
-- [ ] Issue/branch for Wave Loop 434 are created.
+- [ ] Issue/branch for Wave Loop 435 are created.
 
 ---
 
