@@ -1628,3 +1628,11 @@
 - **Commit:** feat(igla): Wave Loop 435 — live XADC → PVT context CLI export, OSCFSEL 0..7 synthetic theorem matrix, end-to-end integration test
 - **Files:** docs/NOW.md
 
+## 2026-07-05T12:48:00Z — wave-loop-435
+- **Commit:** docs(w435): record PR #1403 in NOW.md
+- **Files:** conformance/vectors/INDEX_all_formats.json,conformance/vectors/gf1024_conformance_v0.json,conformance/vectors/gf128_conformance_v0.json,conformance/vectors/gf256_conformance_v0.json,conformance/vectors/gf512_conformance_v0.json,conformance/witness/gf1024/README.md,conformance/witness/gf1024/SEPARATION_BOUND.md,conformance/witness/gf1024/cross_check_representative.py,conformance/witness/gf1024/gf1024_decode_ref.py,conformance/witness/gf128/README.md,conformance/witness/gf128/SEPARATION_BOUND.md,conformance/witness/gf128/cross_check_representative.py,conformance/witness/gf128/gf128_decode_ref.py,conformance/witness/gf256/README.md,conformance/witness/gf256/SEPARATION_BOUND.md,conformance/witness/gf256/cross_check_representative.py,conformance/witness/gf256/gf256_decode_ref.py,conformance/witness/gf512/README.md,conformance/witness/gf512/SEPARATION_BOUND.md,conformance/witness/gf512/cross_check_representative.py
+
+## 2026-07-05T12:48:05Z — wave-loop-435
+- **Commit:** Merge remote-tracking branch 'origin/master' into wave-loop-435
+- **Files:** .trinity/current_task/activity.md,conformance/vectors/INDEX_all_formats.json,conformance/vectors/gf1024_conformance_v0.json,conformance/vectors/gf128_conformance_v0.json,conformance/vectors/gf256_conformance_v0.json,conformance/vectors/gf512_conformance_v0.json,conformance/witness/gf1024/README.md,conformance/witness/gf1024/SEPARATION_BOUND.md,conformance/witness/gf1024/cross_check_representative.py,conformance/witness/gf1024/gf1024_decode_ref.py,conformance/witness/gf128/README.md,conformance/witness/gf128/SEPARATION_BOUND.md,conformance/witness/gf128/cross_check_representative.py,conformance/witness/gf128/gf128_decode_ref.py,conformance/witness/gf256/README.md,conformance/witness/gf256/SEPARATION_BOUND.md,conformance/witness/gf256/cross_check_representative.py,conformance/witness/gf256/gf256_decode_ref.py,conformance/witness/gf512/README.md,conformance/witness/gf512/SEPARATION_BOUND.md
+

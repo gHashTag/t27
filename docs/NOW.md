@@ -1,6 +1,63 @@
-# NOW — Wave Loop 434 close-out / Wave Loop 435 setup (2026-07-01)
+# NOW — Wave Loop 435 close-out / Wave Loop 436 setup (2026-07-01)
 
 **Last updated:** 2026-07-01
+
+## SW-conformance — gf256 promoted to strict SW-bitexact (75/0/8) (Closes #1397)
+
+- gf256 (GoldenFloat256: S1 E97 M158, BIAS=79228162514264337593543950335=2^96-1,
+  u256_software) promoted from `bitexact_selfconsistent` to strict `bitexact` in
+  `conformance/vectors/INDEX_all_formats.json`. This is the LAST selfconsistent rung.
+- INDEX totals: bitexact 74 -> 75, selfconsistent 1 -> 0, structural 8 (sum=83).
+  Horizon-A SW ceiling reached (75 bit-precise; 8 structural are terminal, no single
+  decode law; 83/83 SW-bitexact is NOT achievable).
+- Bias hold lifted: earlier NOW entries said gf256 "stays open (open bias R&D) -- do
+  NOT promote". The 2026-07-05 bias audit resolved this: the decode uses ONLY the
+  closed-form interchange bias 2^(E-1)-1 = 2^96-1 (identical rule to gf128/gf512).
+  The descriptive PHI_BIAS spec metadata is NOT part of the decode path and no
+  decoded value depends on it (red herring). Decode-definition is definitive.
+- Status tag: [verified SW]. M=158 >> 52 -> no FP lowering; every finite value is an
+  EXACT dyadic odd*2^k (analytic separation-bound, same lemma as gf128/gf512).
+- Witness chain: dyadic normalizer 2021/2021 + Fraction oracle 2021/2021 + analytic
+  separation-bound; cross-check dyadic==Fraction on 201512 representative codes
+  (seed=256) agree, abs_error=0. OOM-safe (+-2^96 exponent kept symbolic).
+- NOT on-silicon Tier-E: gf256 is u256_software, has NO RTL -> no decode-HW/compute-HW
+  cell exists for it; the Tier-E ceiling 71/83 (trinity-fpga #199) is unaffected.
+
+## SW-conformance — gf512 + gf1024 promoted to strict SW-bitexact (paired, 74/1/8) (Closes #1380)
+
+- gf512 (S1 E195 M316, BIAS=2^194-1, u512_software) and gf1024 (S1 E391 M632,
+  BIAS=2^390-1, u1024_software; lowest phi-distance in the ladder) promoted from
+  `bitexact_selfconsistent` to strict `bitexact` (paired).
+- INDEX totals: bitexact 72 -> 74, selfconsistent 3 -> 1, structural 8 (sum=83).
+- Status tag: [verified SW]. M=316/632 > 52 -> no FP lowering; every finite value
+  is an EXACT dyadic odd*2^k (parametric separation-bound, same lemma as gf96/gf128).
+- Witness chain (each format): dyadic normalizer 15/15 + Fraction oracle 15/15 +
+  analytic separation-bound; cross-check dyadic==Fraction on 201512 representative
+  codes (seed=512 / seed=1024) agree. OOM-safe (+-2^194 / +-2^390 symbolic).
+- NOT on-silicon Tier-E: HW decode/compute [REQUIRES USER ACTION] (trinity-fpga #199).
+- Remaining selfconsistent (1): gf256 (bias-open R&D, separate research).
+
+## SW-conformance — gf128 promoted to strict SW-bitexact (72/3/8) (Closes #1370)
+
+- gf128 (GoldenFloat128: S1 E49 M78, BIAS=281474976710655=2^48-1) promoted from
+  `bitexact_selfconsistent` to strict `bitexact` in `conformance/vectors/INDEX_all_formats.json`.
+- INDEX totals: bitexact 71 -> 72, selfconsistent 4 -> 3, structural 8 (sum=83).
+- Status tag: [verified SW]. Like gf96, gf128 has M=78 > 52, so binary64 CANNOT
+  hold the mantissa exactly; there is NO FP lowering and NO rounding: every finite
+  gf128 value is an exact dyadic rational odd*2^k.
+- Witness chain: TWO structurally independent exact decode paths
+  (dyadic integer normalizer `conformance/gf_wide_independent_witness.py` +
+  Fraction-significand symbolic-shift `conformance/witness/gf128/gf128_decode_ref.py`)
+  agree on all 15 pack vectors (abs_error=0) AND on a 201512-code representative
+  sweep (seed=128); + analytic separation-bound `conformance/witness/gf128/SEPARATION_BOUND.md`
+  (zero-rounding lemma over the whole 2^128 domain; exhaustive infeasible).
+- OOM-safe: the +-2^48 exponent is NEVER materialized; both paths keep the huge
+  power of two symbolic in `shift`, numerators <= ~2^80.
+- NOT on-silicon Tier-E: HW-decode / HW-compute for gf128 remain [REQUIRES USER
+  ACTION] (4/4 chain on AX7203, trinity-fpga #199).
+- Remaining selfconsistent (3): gf256, gf512, gf1024.
+
+## SW-conformance — gf96 promoted to strict SW-bitexact (71/4/8) (Closes #1366)
 
 ## Wave Loop 434 — FPGA boot-evidence live XADC validation + synthetic CCLK proof-of-pipeline (Closes #1395)
 
