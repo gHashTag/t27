@@ -1,0 +1,6 @@
+{
+  "period_ns": 30,
+  "sck_low_ns": 15,
+  "sck_high_ns": 15,
+  "source": "dry_run_live ss oscfsel 7"
+}

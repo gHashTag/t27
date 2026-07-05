@@ -2148,6 +2148,37 @@ theorem golden_w447_all_oscfsel_combined_check_true (oscfsel : Nat) (h : oscfsel
   rw [cclk_variant_and_xadc_envelope_check_eq]
   exact ⟨h, golden_w447_operating_point_within_envelope⟩
 
+-- ============================================================================
+-- Adversarial W448 envelope theorem: outside-envelope operating point
+-- ============================================================================
+
+/-- A deliberately out-of-envelope operating point: 150 °C is above the
+    documented +85 °C industrial maximum, while VCCINT and VCCAUX remain nominal.
+    This witness is used to prove the dashboard gate returns `false` outside
+    the operating rectangle. -/
+def OUTSIDE_ENVELOPE_W448_OPERATING_POINT : XadcOperatingPoint :=
+  { temp_c := (150 : Int), vccint_mv := 1000, vccaux_mv := 1800,
+    process_corner := ProcessCorner.ss }
+
+/-- The W448 outside-envelope witness is not inside the documented operating
+    envelope because its temperature exceeds `PVT_TEMP_MAX_C`. -/
+theorem outside_envelope_w448_operating_point_not_within_envelope :
+  ¬ xadc_operating_point_within_envelope OUTSIDE_ENVELOPE_W448_OPERATING_POINT := by
+  simp [xadc_operating_point_within_envelope, OUTSIDE_ENVELOPE_W448_OPERATING_POINT,
+        PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- Adversarial envelope theorem: for any documented OSCFSEL selection, the
+    dashboard combined-check gate returns `false` when the operating point lies
+    outside the PVT envelope. This complements the positive in-envelope theorems
+    and closes the formal envelope characterization. -/
+theorem cclk_variant_and_xadc_envelope_check_outside_envelope_false
+  (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_variant_and_xadc_envelope_check oscfsel OUTSIDE_ENVELOPE_W448_OPERATING_POINT = false := by
+  simp [cclk_variant_and_xadc_envelope_check, xadc_operating_point_within_envelope_dec,
+        OUTSIDE_ENVELOPE_W448_OPERATING_POINT,
+        PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV,
+        decide_eq_true h]
+
 end BitstreamConfig
 
 end StatRegister

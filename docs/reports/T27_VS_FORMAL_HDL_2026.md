@@ -241,6 +241,35 @@ are unchanged from W446:
 - **Ternary-FPGA niche:** No new Lean-native ternary-FPGA competitor appeared.
   TernaryCore and BitNet-RISCV-Multicore remain the closest non-Lean signals.
 
+**W448 hardens the dry-run-live path into a committed regression anchor and adds
+an adversarial envelope theorem.** The synthetic dry-run-live fixtures are now
+committed under `tests/fixtures/fpga/theorem-matrix/dry-run-live-w448/` with a
+snapshot diff test, making the live-capture fallback a first-class CI regression
+anchor. `tri fpga smoke-gate --theorem-matrix` gains
+`--validate-lean-standalone`, which builds a standalone generated theorem in a
+temporary lake package and proves the artifact path that real captures will use.
+`TernaryFPGABoot.lean` adds the `OUTSIDE_ENVELOPE_W448_OPERATING_POINT` witness
+and `cclk_variant_and_xadc_envelope_check_outside_envelope_false`, proving the
+dashboard gate returns `false` outside the PVT envelope. Competitor signals at
+the W448 boundary:
+
+- **Sparkle / Verilean:** Repository last pushed **2026-07-03**. PR #66
+  “IP.Net: USB Web server + memcached server + Compiler perf” is still **open**
+  (~27K additions across 204 files). The RV32 divider correctness proof
+  (`9c7809c`, 2026-06-25) added formal verification files under
+  `Sparkle/Verification/Divider/`. The FIDO2/crypto burst (PR #97–#100) remains
+  merged 2026-07-04, and PR #101 is still open. The Sparkle README now cites
+  **102 formal theorems** for the RV32 SoC. No new public Sparkle signals
+  appeared after 2026-07-11.
+- **CIRCT / firtool:** `firtool-1.152.0` (2026-07-04) is still the latest public
+  release; `firtool-1.151.0` shipped 2026-06-26 and no `1.153.0` exists as of the
+  W448 boundary.
+- **Clash:** `clash-ghc-1.11.0` remains a Hackage candidate; latest official
+  release is still `1.10.0` (April 2026).
+- **Ternary-FPGA niche:** No new Lean-native ternary-FPGA competitor appeared.
+  TernaryCore and BitNet-RISCV-Multicore continue to validate {-1,0,+1} compute
+  hardware without a formal proof pipeline.
+
 ---
 
 ## Competitor matrix

@@ -370,6 +370,12 @@ pub enum FpgaCmd {
         /// `summary.json`, and `theorem.lean`. Useful for fast CI replay.
         #[arg(long)]
         replay_fixtures: Option<PathBuf>,
+        /// After the theorem matrix is generated, build one variant as a standalone
+        /// `.lean` theorem in a temporary lake package. This exercises the artifact
+        /// path that real captures will use when `measured-to-lean --standalone` is
+        /// invoked in the field. Implies `--theorem-matrix`.
+        #[arg(long)]
+        validate_lean_standalone: bool,
         /// Emit a machine-readable JSON report instead of human-readable prose.
         /// The report object contains per-phase results for bit-config audit,
         /// dry-run sweep, verify-lean (if requested), and yosys synthesis.
@@ -927,6 +933,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             dry_run_live,
             process_corner,
             replay_fixtures,
+            validate_lean_standalone,
             json,
         } => smoke_gate(
             bit.as_ref(),
@@ -936,12 +943,13 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *wait_seconds,
             cable,
             part,
-            *synthetic_operating_point || *verify_lean || *theorem_matrix || *dry_run_live,
-            *verify_lean || *theorem_matrix || *dry_run_live,
-            *theorem_matrix || *dry_run_live,
+            *synthetic_operating_point || *verify_lean || *theorem_matrix || *dry_run_live || *validate_lean_standalone,
+            *verify_lean || *theorem_matrix || *dry_run_live || *validate_lean_standalone,
+            *theorem_matrix || *dry_run_live || *validate_lean_standalone,
             *dry_run_live,
             process_corner,
             replay_fixtures.as_ref(),
+            *validate_lean_standalone,
             json.as_ref(),
         ),
         FpgaCmd::BootProtocol { checklist } => boot_protocol(*checklist),
@@ -6076,6 +6084,7 @@ fn smoke_gate(
     dry_run_live: bool,
     process_corner: &str,
     replay_fixtures: Option<&PathBuf>,
+    validate_lean_standalone: bool,
     json: Option<&PathBuf>,
 ) -> Result<()> {
     let corner = parse_process_corner(process_corner)?;
@@ -6085,6 +6094,7 @@ fn smoke_gate(
         "dry_run_sweep": null,
         "verify_lean": null,
         "theorem_matrix": null,
+        "validate_lean_standalone": null,
         "yosys_synthesis": null,
         "passed": false,
     });
@@ -6215,6 +6225,7 @@ fn smoke_gate(
     // 2. Dry-run CCLK sweep + report path (no hardware required).
     let mut dry_run_sweep_ok = false;
     let mut verify_lean_ok = false;
+    let mut validate_lean_standalone_ok = false;
     let theorem_matrix_ok = true;
     if bit_path.is_file() {
         if synthetic_operating_point {
@@ -6492,6 +6503,119 @@ fn smoke_gate(
                     replay_source,
                     elapsed_ms
                 );
+
+                // 2d. Optional standalone Lean artifact gate: pick one variant and
+                // prove the generated theorem builds in a temporary lake package.
+                // This works during replay because the fixtures already contain the
+                // raw-ns and PVT files needed by `measured-to-lean --standalone`.
+                if validate_lean_standalone {
+                    let validate_start = std::time::Instant::now();
+                    let first = entries.first().context(
+                        "theorem-matrix validate-lean-standalone needs at least one variant"
+                    )?;
+                    let fixtures = first
+                        .get("fixtures")
+                        .and_then(|f| f.as_object())
+                        .context("validate-lean-standalone: missing fixtures block")?;
+                    let raw_ns_path = fixtures
+                        .get("raw_ns")
+                        .and_then(|v| v.as_str())
+                        .map(std::path::PathBuf::from)
+                        .context("validate-lean-standalone: missing raw_ns fixture")?;
+                    let pvt_path = fixtures
+                        .get("pvt")
+                        .and_then(|v| v.as_str())
+                        .map(std::path::PathBuf::from)
+                        .context("validate-lean-standalone: missing pvt fixture")?;
+
+                    let standalone_out = matrix_fixture_dir
+                        .join(format!("theorem_matrix_validate_standalone_{}_{}.lean", replay_source, 0));
+                    let m2l_result = measured_to_lean(
+                        Some(&raw_ns_path),
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        0,
+                        None,
+                        None,
+                        None,
+                        Some(&standalone_out),
+                        "smoke_gate_validate_standalone",
+                        false,
+                        Some(&pvt_path),
+                        false,
+                        Some(&replay_source),
+                        true,
+                        true,
+                        false,
+                        false,
+                    );
+                    if m2l_result.is_err() {
+                        report["validate_lean_standalone"] = serde_json::json!({
+                            "status": "failed",
+                            "phase": "measured-to-lean",
+                            "error": format!("{:?}", m2l_result.unwrap_err()),
+                        });
+                        bail!("validate-lean-standalone measured-to-lean failed");
+                    }
+
+                    let repo_root = repo_root()?;
+                    let trinity_pkg = repo_root.join("proofs").join("lean4");
+                    if !trinity_pkg.join("lakefile.lean").is_file() {
+                        bail!("validate-lean-standalone: in-repo Trinity lakefile not found");
+                    }
+
+                    let pkg_dir = std::env::temp_dir().join(format!(
+                        "tri_smoke_gate_validate_standalone_{}",
+                        std::process::id()
+                    ));
+                    let _ = std::fs::remove_dir_all(&pkg_dir);
+                    std::fs::create_dir_all(&pkg_dir)
+                        .with_context(|| format!("create temp lake package {}", pkg_dir.display()))?;
+                    let lakefile = format!(
+                        "import Lake\n\
+                         open Lake DSL\n\n\
+                         package \"TrinityStandalone\" where\n\n\
+                         require trinity from \"{}\"\n\n\
+                         @[default_target]\n\
+                         lean_lib \"TrinityStandalone\" where\n",
+                        trinity_pkg.display()
+                    );
+                    std::fs::write(pkg_dir.join("lakefile.lean"), lakefile)
+                        .with_context(|| "write temp lakefile")?;
+                    std::fs::copy(&standalone_out, pkg_dir.join("TrinityStandalone.lean"))
+                        .with_context(|| "copy standalone theorem to temp package")?;
+
+                    let lake_status = std::process::Command::new("lake")
+                        .arg("build")
+                        .current_dir(&pkg_dir)
+                        .status()
+                        .context("spawn lake build for validate-lean-standalone")?;
+                    let _ = std::fs::remove_dir_all(&pkg_dir);
+                    let validate_elapsed_ms = validate_start.elapsed().as_millis() as u64;
+                    if !lake_status.success() {
+                        report["validate_lean_standalone"] = serde_json::json!({
+                            "status": "failed",
+                            "phase": "lake build",
+                            "elapsed_ms": validate_elapsed_ms,
+                        });
+                        bail!("validate-lean-standalone lake build failed");
+                    }
+                    report["validate_lean_standalone"] = serde_json::json!({
+                        "status": "ok",
+                        "source": replay_source,
+                        "lean_file": standalone_out.to_string_lossy().to_string(),
+                        "elapsed_ms": validate_elapsed_ms,
+                    });
+                    validate_lean_standalone_ok = true;
+                    println!(
+                        "[smoke-gate] validate-lean-standalone OK (source={}, {} ms)",
+                        replay_source, validate_elapsed_ms
+                    );
+                }
             } else {
                 println!(
                     "[smoke-gate] theorem-matrix: generating OSCFSEL 0..7 {} theorems for ff/tt/ss",
@@ -6511,6 +6635,117 @@ fn smoke_gate(
                     source,
                     elapsed_ms
                 );
+
+                // 2d. Optional standalone Lean artifact gate: pick one variant and
+                // prove the generated theorem builds in a temporary lake package.
+                if validate_lean_standalone {
+                    let validate_start = std::time::Instant::now();
+                    let first = entries.first().context(
+                        "theorem-matrix validate-lean-standalone needs at least one variant"
+                    )?;
+                    let fixtures = first
+                        .get("fixtures")
+                        .and_then(|f| f.as_object())
+                        .context("validate-lean-standalone: missing fixtures block")?;
+                    let raw_ns_path = fixtures
+                        .get("raw_ns")
+                        .and_then(|v| v.as_str())
+                        .map(std::path::PathBuf::from)
+                        .context("validate-lean-standalone: missing raw_ns fixture")?;
+                    let pvt_path = fixtures
+                        .get("pvt")
+                        .and_then(|v| v.as_str())
+                        .map(std::path::PathBuf::from)
+                        .context("validate-lean-standalone: missing pvt fixture")?;
+
+                    let standalone_out = matrix_fixture_dir
+                        .join(format!("theorem_matrix_validate_standalone_{}_{}.lean", source, 0));
+                    let m2l_result = measured_to_lean(
+                        Some(&raw_ns_path),
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        0,
+                        None,
+                        None,
+                        None,
+                        Some(&standalone_out),
+                        "smoke_gate_validate_standalone",
+                        false,
+                        Some(&pvt_path),
+                        false,
+                        Some(source),
+                        true,
+                        true,
+                        false,
+                        false,
+                    );
+                    if m2l_result.is_err() {
+                        report["validate_lean_standalone"] = serde_json::json!({
+                            "status": "failed",
+                            "phase": "measured-to-lean",
+                            "error": format!("{:?}", m2l_result.unwrap_err()),
+                        });
+                        bail!("validate-lean-standalone measured-to-lean failed");
+                    }
+
+                    let repo_root = repo_root()?;
+                    let trinity_pkg = repo_root.join("proofs").join("lean4");
+                    if !trinity_pkg.join("lakefile.lean").is_file() {
+                        bail!("validate-lean-standalone: in-repo Trinity lakefile not found");
+                    }
+
+                    let pkg_dir = std::env::temp_dir().join(format!(
+                        "tri_smoke_gate_validate_standalone_{}",
+                        std::process::id()
+                    ));
+                    let _ = std::fs::remove_dir_all(&pkg_dir);
+                    std::fs::create_dir_all(&pkg_dir)
+                        .with_context(|| format!("create temp lake package {}", pkg_dir.display()))?;
+                    let lakefile = format!(
+                        "import Lake\n\
+                         open Lake DSL\n\n\
+                         package \"TrinityStandalone\" where\n\n\
+                         require trinity from \"{}\"\n\n\
+                         @[default_target]\n\
+                         lean_lib \"TrinityStandalone\" where\n",
+                        trinity_pkg.display()
+                    );
+                    std::fs::write(pkg_dir.join("lakefile.lean"), lakefile)
+                        .with_context(|| "write temp lakefile")?;
+                    std::fs::copy(&standalone_out, pkg_dir.join("TrinityStandalone.lean"))
+                        .with_context(|| "copy standalone theorem to temp package")?;
+
+                    let lake_status = std::process::Command::new("lake")
+                        .arg("build")
+                        .current_dir(&pkg_dir)
+                        .status()
+                        .context("spawn lake build for validate-lean-standalone")?;
+                    let _ = std::fs::remove_dir_all(&pkg_dir);
+                    let validate_elapsed_ms = validate_start.elapsed().as_millis() as u64;
+                    if !lake_status.success() {
+                        report["validate_lean_standalone"] = serde_json::json!({
+                            "status": "failed",
+                            "phase": "lake build",
+                            "elapsed_ms": validate_elapsed_ms,
+                        });
+                        bail!("validate-lean-standalone lake build failed");
+                    }
+                    report["validate_lean_standalone"] = serde_json::json!({
+                        "status": "ok",
+                        "source": source,
+                        "lean_file": standalone_out.to_string_lossy().to_string(),
+                        "elapsed_ms": validate_elapsed_ms,
+                    });
+                    validate_lean_standalone_ok = true;
+                    println!(
+                        "[smoke-gate] validate-lean-standalone OK (source={}, {} ms)",
+                        source, validate_elapsed_ms
+                    );
+                }
             }
         }
     } else {
@@ -6585,6 +6820,7 @@ fn smoke_gate(
         && dry_run_sweep_ok
         && (!run_verify_lean || verify_lean_ok)
         && (!run_theorem_matrix || theorem_matrix_ok)
+        && (!validate_lean_standalone || validate_lean_standalone_ok)
         && yosys_ok;
     report["passed"] = serde_json::Value::Bool(passed);
 
@@ -10398,6 +10634,7 @@ mod tests {
             false,
             "ss",
             None,
+            false,
             Some(&report_path),
         );
 
@@ -10803,6 +11040,108 @@ mod tests {
             assert!(
                 entry.get("fixtures").is_some(),
                 "every golden variant must carry a fixtures block"
+            );
+        }
+    }
+
+    /// Snapshot diff gate for the W448 dry-run-live fixture set.
+    ///
+    /// Mirrors the golden snapshot test; protects the committed dry-run-live
+    /// fixtures as a second regression anchor.
+    #[test]
+    fn test_theorem_matrix_dry_run_live_w448_replay_matches_snapshot() {
+        let mut dry_run_live = std::path::PathBuf::from(
+            std::env::var("CARGO_MANIFEST_DIR")
+                .as_deref()
+                .unwrap_or("."),
+        );
+        dry_run_live.pop(); // cli/tri
+        dry_run_live.pop(); // cli
+        dry_run_live.push("tests");
+        dry_run_live.push("fixtures");
+        dry_run_live.push("fpga");
+        dry_run_live.push("theorem-matrix");
+        dry_run_live.push("dry-run-live-w448");
+
+        assert_theorem_matrix_fixture_directory_matches_snapshot(
+            &dry_run_live,
+            "dry-run-live-w448",
+            "dry_run_live",
+        );
+    }
+
+    /// Shared snapshot assertion for a committed theorem-matrix fixture directory.
+    fn assert_theorem_matrix_fixture_directory_matches_snapshot(
+        fixture_dir: &std::path::Path,
+        label: &str,
+        expected_source: &str,
+    ) {
+        assert!(
+            fixture_dir.is_dir(),
+            "{} fixture directory must exist: {}",
+            label,
+            fixture_dir.display()
+        );
+
+        let (entries, elapsed_ms, source) = replay_theorem_matrix(fixture_dir)
+            .expect(&format!("{} fixture replay should succeed", label));
+        assert_eq!(entries.len(), 24, "expected 24 {} variants", label);
+        assert_eq!(
+            source, expected_source,
+            "{} fixture source must be {}",
+            label, expected_source
+        );
+
+        let normalized = normalize_fixture_paths(&entries, fixture_dir);
+        let report = build_theorem_matrix_report(&normalized, elapsed_ms, true, &source);
+
+        let expected_path = fixture_dir.join("expected_report.json");
+        // The snapshot omits `elapsed_ms` because it is machine/run-dependent.
+        let mut snapshot_report = report.clone();
+        if let Some(obj) = snapshot_report.as_object_mut() {
+            obj.remove("elapsed_ms");
+        }
+        if std::env::var("UPDATE_EXPECTED").is_ok() || !expected_path.is_file() {
+            std::fs::write(
+                &expected_path,
+                serde_json::to_string_pretty(&snapshot_report)
+                    .expect("serialize report snapshot"),
+            )
+            .expect("write expected_report.json");
+            println!("wrote expected_report.json: {}", expected_path.display());
+        }
+
+        let expected_text = std::fs::read_to_string(&expected_path)
+            .expect("read expected_report.json");
+        let expected: serde_json::Value = serde_json::from_str(&expected_text)
+            .expect("parse expected_report.json");
+
+        // Assert the actual report (minus the run-dependent metric) is a strict
+        // superset of the expected snapshot. Every expected top-level field and
+        // every expected variant field must match; actual may contain additional
+        // fields.
+        assert_report_superset(&snapshot_report, &expected, "theorem_matrix");
+
+        // Independently assert the live metrics and envelope verdict.
+        assert!(
+            report.get("elapsed_ms").and_then(|v| v.as_u64()).is_some(),
+            "report must contain elapsed_ms"
+        );
+        for entry in report
+            .get("variants")
+            .and_then(|v| v.as_array())
+            .expect("variants array")
+        {
+            assert_eq!(
+                entry.get("envelope_check"),
+                Some(&serde_json::Value::String("ok".to_string())),
+                "every {} variant must pass envelope check",
+                label
+            );
+            assert!(
+                entry.get("fixtures").is_some(),
+                "every {} variant must carry a fixtures block",
+                label
             );
         }
     }

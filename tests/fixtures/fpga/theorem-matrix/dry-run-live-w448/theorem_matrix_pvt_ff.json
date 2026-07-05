@@ -1,0 +1,6 @@
+{
+  "temp_c": 42,
+  "vccint_mv": 1000,
+  "vccaux_mv": 1800,
+  "process_corner": "ff"
+}
