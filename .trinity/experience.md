@@ -1,3 +1,51 @@
+## 2026-07-01 — Wave Loop 434 (FPGA boot-evidence: live XADC → PVT context theorem, synthetic CCLK proof-of-pipeline, W434 close-out / W435 setup)
+
+### What worked
+- Choosing **Variant B** (live XADC validation + synthetic CCLK proof-of-pipeline) kept W434 shippable while physical capture remains blocked: P12 is still unwired to a logic-analyzer channel, no relay/remote-power cold-POR gate exists, and the DLC10 cable is still missing.
+- Capturing a live XADC readout (`temp_c ≈ 41.44`, `vccint_v ≈ 1.00049`, `vccaux_v ≈ 1.80688`, `ss` corner) and rounding it to the integer `PvtContext` used by the envelope produced the first t27 proof artifact whose PVT context came from real silicon rather than a worst-case placeholder.
+- Validating the rounded point with `tri fpga pvt-envelope --pvt-context ... --json` showed `margin_ns = 5`, confirming it lies safely inside the documented operating envelope.
+- Adding `test_xadc_context_to_pvt_context_w434_live_capture` in `cli/tri/src/fpga.rs` locks the rounding behavior to the exact values used in the theorem, preventing drift between the Rust pipeline and the Lean model.
+- Generating a `measured-to-lean` snippet from the live PVT context with a synthetic 40/20/20 ns OSCFSEL=6 fixture demonstrates the end-to-end `--pvt-context` path with real sensor data.
+- Adding the library theorem `xadc_live_w434_justifies_cclk_variant_raw_ns_pvt` applies the W431/W432 formal bridge directly to the captured operating point, giving a quantified claim over all documented OSCFSEL selections for this live point.
+- Refreshing `docs/reports/T27_VS_FORMAL_HDL_2026.md` for W434 and extending `fpga/HARDWARE_SSOT.md` §9.6.2 preserves the live-XADC validation recipe for future waves.
+- Creating GitHub issue #1398 and branch `wave-loop-435` before closing W434 keeps the PHI LOOP continuous.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added
+  `XADC_LIVE_W434_OPERATING_POINT`,
+  `xadc_live_w434_operating_point_within_envelope`,
+  `xadc_live_w434_justifies_cclk_variant_raw_ns_pvt`,
+  `xadc_live_w434_oscfsel_6_raw_ns_pvt_satisfies_flash_spec`, and
+  `xadc_live_w434_oscfsel_6_transaction_ok`.
+- `cli/tri/src/fpga.rs`: added regression test `test_xadc_context_to_pvt_context_w434_live_capture`.
+- `fpga/HARDWARE_SSOT.md`: added §9.6.2 live XADC validation + synthetic CCLK proof-of-pipeline recipe.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`: refreshed competitor snapshot for W434.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`: W434 triage entry confirming the same 7 residual yosys smoke failures (#1245) and the deferral decision.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_434_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W434_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W435_2026-07-01.md`,
+  `.claude/plans/wave-loop-434.md`.
+- Issue/branch: GitHub issue #1398, branch `wave-loop-435`; issue #1395 / branch `wave-loop-434` to be closed by PR.
+
+### Verification
+- `cargo test -p tri --bin tri fpga::`: 82/82 pass.
+- `lake build Trinity.TernaryFPGABoot`: PASS (2967 jobs).
+- `./scripts/tri test`: PASS with 7 pre-existing gen-verilog yosys smoke failures (#1245); 0 new failures; 0 seal mismatches.
+
+### Patterns to reuse
+- When a physical measurement variant is blocked but the board is reachable, capture live sensor data and immediately produce a theorem that uses the captured point; this is stronger than a synthetic placeholder and can be reused once real CCLK traces arrive.
+- Add a Rust regression test for every live→model conversion so the rounding path is guarded against future changes.
+- Use `measured-to-lean --standalone` with a synthetic fixture to exercise the entire proof-generation pipeline using real PVT context before the analog capture path is available.
+- Apply existing formal bridges (`xadc_envelope_justifies_cclk_variant_raw_ns_pvt`) to new concrete operating points instead of reproving the arithmetic; this keeps proofs small and maintainable.
+- Create the next issue and branch as part of close-out, not after, so the loop has no idle gap.
+
+### Anti-patterns to avoid
+- Do not create GitHub issue bodies with backticks or shell-special characters on the command line; write the body to a file and use `--body-file`, and verify the label exists before using it.
+- Do not merge a long-running wave branch locally until stashed WIP changes are fully accounted for; unresolved merge stages can hide and reappear at commit time.
+- Do not treat a synthetic fixture as a replacement for real measurement; label it explicitly as a proof-of-pipeline artifact and keep the real-capture variant on the roadmap.
+
+---
+
 ## 2026-07-01 — Wave Loop 433 (FPGA formal bridge fallback: compose W431 XADC envelope with W432 per-process-corner raw-ns OSCFSEL theorems, W433 close-out / W434 setup)
 
 ### What worked

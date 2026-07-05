@@ -1851,6 +1851,62 @@ theorem xadc_live_example_oscfsel_6_raw_ns_pvt :
     (xadc_operating_point_to_pvt pt) = true := by
   decide
 
+-- ============================================================================
+-- Live XADC operating point applied to OSCFSEL variants (W434)
+-- ============================================================================
+
+/-- The live XADC operating point captured in Wave Loop 434, rounded to the
+    integers used by the PVT envelope: 41 °C, 1000 mV VCCINT, 1807 mV VCCAUX,
+    slow-slow process corner. This point is inside the documented operating
+    envelope (`xadc_live_w434_operating_point_within_envelope`). -/
+def XADC_LIVE_W434_OPERATING_POINT : XadcOperatingPoint :=
+  { temp_c := (41 : Int), vccint_mv := 1000, vccaux_mv := 1807,
+    process_corner := ProcessCorner.ss }
+
+/-- The W434 live XADC point is inside the documented operating envelope. -/
+theorem xadc_live_w434_operating_point_within_envelope :
+  xadc_operating_point_within_envelope XADC_LIVE_W434_OPERATING_POINT := by
+  simp [xadc_operating_point_within_envelope, XADC_LIVE_W434_OPERATING_POINT,
+        PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- For the W434 live XADC operating point and any documented OSCFSEL
+    selection, the ideal raw-ns CCLK capture satisfies the PVT-aware flash
+    predicate. This is a direct application of the W431/W432 formal bridge
+    (`xadc_envelope_justifies_cclk_variant_raw_ns_pvt`) to real captured silicon
+    data. -/
+theorem xadc_live_w434_justifies_cclk_variant_raw_ns_pvt
+  (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  intro period_ns low_ns high_ns
+  apply xadc_envelope_justifies_cclk_variant_raw_ns_pvt oscfsel XADC_LIVE_W434_OPERATING_POINT h
+  · exact xadc_live_w434_operating_point_within_envelope
+  · -- slow-slow corner is no better than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+/-- For the W434 live XADC operating point, OSCFSEL=6 (25 MHz nominal) and the
+    ideal 40 ns / 20 ns / 20 ns raw-ns capture satisfy the PVT-aware flash
+    predicate. This is the concrete synthetic fixture matching the live
+    capture point used in Wave Loop 434. -/
+theorem xadc_live_w434_oscfsel_6_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec 40 20 20
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  decide
+
+/-- For the W434 live XADC operating point and OSCFSEL=6, the ideal raw-ns
+    capture produces a flash-spec-compliant SPI read transaction. -/
+theorem xadc_live_w434_oscfsel_6_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt 40 20 20 bits) = true := by
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok 40 20 20 bits
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT)
+  · decide
+  · decide
+  · exact xadc_live_w434_oscfsel_6_raw_ns_pvt_satisfies_flash_spec
+
 end BitstreamConfig
 
 end StatRegister

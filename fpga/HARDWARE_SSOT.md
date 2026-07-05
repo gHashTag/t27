@@ -1304,3 +1304,76 @@ weakening the formal claim.
 CCLK frequency/duty capture remains impossible. The XADC → PVT bridge is validated
 with unit tests and synthetic fixtures; the first real end-to-end run requires
 the P12 wiring from Variant A/B.
+
+#### 9.6.2 Live XADC validation + synthetic CCLK proof-of-pipeline (W434)
+
+Wave Loop 434 executes Variant B: the board is reachable over JTAG and a live
+XADC readout succeeds, but P12 / the relay gate are still blocked, so a real
+CCLK capture is not possible. The wave therefore validates the live XADC → PVT
+context conversion and generates a `measured-to-lean` theorem using the real
+silicon operating point and a synthetic CCLK fixture.
+
+Live capture example (2026-07-01):
+
+```bash
+tri fpga read-xadc --cable digilent_hs2
+```
+
+Representative output (rounded):
+
+```json
+{
+  "source": "xadc",
+  "temp_c": 41.44,
+  "vccint_v": 1.00049,
+  "vccaux_v": 1.80688
+}
+```
+
+Rounded `PvtContext` (temp in °C, voltages in mV, process corner supplied by
+caller because the XADC cannot measure process):
+
+```json
+{
+  "temp_c": 41,
+  "vccint_mv": 1000,
+  "vccaux_mv": 1807,
+  "process_corner": "ss"
+}
+```
+
+Validate the rounded point inside the documented envelope and inspect the
+derated bound:
+
+```bash
+tri fpga pvt-envelope --pvt-context xadc_pvt.json --json
+```
+
+Generate a Lean 4 theorem from the live XADC context and a synthetic raw-ns
+CCLK fixture that matches the OSCFSEL=6 nominal period (40 ns / 20 ns / 20 ns):
+
+```bash
+cat > synth_oscfsel_06.json <<'EOF'
+{
+  "period_ns": 40,
+  "sck_low_ns": 20,
+  "sck_high_ns": 20,
+  "source": "synth"
+}
+EOF
+tri fpga measured-to-lean --raw-ns --file synth_oscfsel_06.json \
+    --pvt-context xadc_pvt.json --validate --standalone \
+    --name xadc_live_w434 --out CclkOscfsel06LiveXadc.lean --json
+```
+
+The formal library adds `XADC_LIVE_W434_OPERATING_POINT`,
+`xadc_live_w434_operating_point_within_envelope`, and
+`xadc_live_w434_justifies_cclk_variant_raw_ns_pvt` in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean`. These theorems apply the W431/W432
+quantified bridge to the real captured operating point, producing a
+machine-checked claim that OSCFSEL=0..7 are safe under the live silicon
+conditions.
+
+**W434 blocker:** P12 is still unwired and no relay gate exists, so the
+synthetic CCLK fixture substitutes for a real capture. Once P12 is wired, the same
+`--pvt-context xadc_pvt.json` pipeline can consume a real CSV/VCD CCLK trace.
