@@ -1074,6 +1074,42 @@ run can be replayed and audited.
   Trinity.TernaryFPGABoot` succeeds. The 7 residual `gen-verilog` yosys smoke
   failures remain the documented baseline.
 
+#### 3.6.22 Dry-run / synthetic operating point protocol (W437)
+
+W437 hardens the software-only path used while the bench is blocked. A
+closed-vocabulary `synthetic` source label makes deterministic artifacts
+explicitly distinguishable from real silicon captures.
+
+- **`tri fpga cold-por --synthetic-operating-point`** writes a mock boot log
+  with `operating_point.source = "synthetic"` and a deterministic PVT context
+  (42 °C, 1000 mV VCCINT, 1800 mV VCCAUX, selected process corner). No
+  hardware is touched.
+
+- **`tri fpga cclk-sweep --dry-run --synthetic-operating-point`** writes
+  synthetic sweep logs carrying the `synthetic` operating point in every
+  variant, so the `sweep-report --json` path can be exercised in CI without a
+  board.
+
+- **`tri fpga verify-lean <theorem.lean> --summary <summary.json>`** checks a
+  generated `.lean` theorem against its machine-readable summary. It verifies
+  that `operating_point.source` matches the CLI expectation (e.g.
+  `--expected-source synthetic`) and counts the `theorem` declarations. This
+  gives CI a one-command gate for the bench-to-proof artifact pipeline.
+
+- **`tri fpga measured-to-lean --pvt-context-source synthetic`** emits the
+  same `synthetic` label in the `--json` summary and in the generated theorem
+  comment, so the label round-trips through boot log → sweep report → `.lean`
+  JSON → theorem comment.
+
+- **Priority order.** When multiple PVT sources are supplied, the resolver
+  picks the first of: explicit `--pvt-context` file, live `--xadc` readout,
+  `--synthetic-operating-point`, none (`not_read`). This order is enforced by
+  unit tests in `cli/tri/src/fpga.rs`.
+
+- **Verification.** `cargo test -p tri` reports 123 PASS; `lake build
+  Trinity.TernaryFPGABoot` succeeds. The 7 residual `gen-verilog` yosys smoke
+  failures remain the documented baseline.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)

@@ -41,10 +41,10 @@ merge is still too risky to mix with boot-evidence work.
 
 ## Definition of done
 
-- [ ] `cargo check -p tri` passes.
-- [ ] `cargo test -p tri` passes (target: 118+/117, no regressions).
-- [ ] `lake build Trinity.TernaryFPGABoot` passes.
-- [ ] `./scripts/tri test` passes with the documented baseline (7 pre-existing
+- [x] `cargo check -p tri` passes.
+- [x] `cargo test -p tri` passes (123/123, no regressions).
+- [x] `lake build Trinity.TernaryFPGABoot` passes.
+- [x] `./scripts/tri test` passes with the documented baseline (7 pre-existing
       gen-verilog smoke failures; no new failures).
 - [ ] Close-out report and next-wave cooperation variants are written.
 - [ ] Issue/branch for Wave Loop 438 are created.
