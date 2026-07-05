@@ -1,6 +1,72 @@
-# NOW — Wave Loop 427 close-out / Wave Loop 428 setup (2026-07-05)
+# NOW — Wave Loop 428 close-out / Wave Loop 429 setup (2026-07-05)
 
 **Last updated:** 2026-07-05
+
+## Wave Loop 428 — FPGA formal/tooling hardening: unified OSCFSEL PVT theorems, `tri fpga pvt-envelope --json`, competitor refresh (Closes #1383)
+
+- Branch: `wave-loop-428`
+- Issue: #1383
+- PR: to open
+- Report: `docs/reports/WAVE_LOOP_428_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W428_2026-07-05.md`
+- Cooperation W429: `docs/reports/FPGA_LOOP_COOPERATION_W429_2026-07-05.md`
+
+### What landed (Variant C — bench still blocked)
+
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `all_oscfsel_cclk_within_pvt_envelope`: every OSCFSEL 0..7 variant's
+    nominal half-period is at least the worst-case PVT-aware minimum half-period.
+  - Added `cclk_variant_worstcase_pvt_measured_satisfies_flash_spec`: every
+    OSCFSEL 0..7 variant satisfies the worst-case PVT measured-CCLK flash
+    predicate at 50% duty.
+  - Added `cclk_variant_implies_transaction_ok`: every OSCFSEL 0..7 variant
+    produces a flash-spec-compliant SPI read transaction at its nominal rate.
+  - Added `cclk_variant_worstcase_pvt_implies_transaction_ok`: the same,
+    under the worst-case PVT corner.
+- `cli/tri/src/fpga.rs`
+  - Added `--json` flag to `tri fpga pvt-envelope`.
+  - Added `build_pvt_envelope_report` helper shared by human-readable and JSON
+    output paths.
+  - JSON report includes `pvt_context`, `nominal_min_sck_half_ns`,
+    `min_sck_half_ns`, `margin_ns`, `operating_envelope`, `examples`, and
+    `warnings`.
+  - Added three unit tests for the JSON report builder.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Documented the W428 triage: same 7 residual yosys smoke failures and
+    explicit deferral of any sub-fix.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W428: Sparkle/Hesper, Clash 1.11.0 candidate, Chisel 7.13.0,
+    Bluespec 2026.01, SpinalHDL v1.14.0, firtool 1.152.0/1.150.0/1.147.0.
+  - Added "Emerging signals" subsection: CktFormalizer, Aria-HDL, TernaryCore,
+    BitNet-RISCV-Multicore, MINRES RISC-V Tournament.
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_428_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W428_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W429_2026-07-05.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real XADC readout — deferred; placeholder `source: "not_read"` retained.
+- Safe gen-verilog #1245 sub-fix — deferred; remaining 7 yosys smoke failures are
+  tied to major features, not narrow regression-free fixes on the wave-loop
+  branch.
+
+### Verification
+
+- `cargo test -p tri`: **PASS** (105 tests).
+- `cargo build --release` in `bootstrap/`: **PASS**.
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `tri fpga pvt-envelope --pvt-context ctx.json --json`: **PASS**.
+- `tri fpga smoke-gate`: **PASS** (board-less, 8 variants).
+- `./scripts/tri test` parse/typecheck/gen-zig/gen-rust/gen-c/seal-verify: **PASS**.
+- `./scripts/tri test` gen-verilog-yosys-smoke: **7 failures** (pre-existing
+  gen-verilog #1245 weak points).
+
+---
+
+# NOW — Wave Loop 427 close-out / Wave Loop 428 setup (2026-07-05)
 
 ## Wave Loop 427 — FPGA formal/tooling hardening: per-OSCFSEL PVT envelope theorems, `tri fpga sweep-report --json`, competitor refresh (Closes #1379)
 

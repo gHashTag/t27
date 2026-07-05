@@ -384,6 +384,16 @@ FPGA/formal work. The failures are tracked here and will be resolved by either:
 
 The 7-failure count is accepted as a known, documented baseline for W427.
 
+### Triage decision for W428
+
+**Still deferred.** The W428 start-of-wave probe re-ran `./scripts/tri test` on
+`wave-loop-428` and confirmed the same 7 yosys smoke failures. No new
+narrow subclass appeared; the failures remain tied to tuple-return generation,
+`let` destructuring lowering, ROM arrays, and CORDIC structural changes. The
+wave-loop strategy of one narrow, regression-free sub-fix per wave is therefore
+not applicable. The 7-failure count is accepted as the documented baseline for
+W428; resolution continues to depend on a future master merge/rebase wave.
+
 ## Open work after W388 / W427
 
 - **Array/RAM sub-gaps remaining:**

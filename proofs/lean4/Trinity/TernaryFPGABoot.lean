@@ -1325,6 +1325,48 @@ theorem oscfsel_7_measured_transaction_ok (bits : Nat) :
   apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
   · exact oscfsel_7_nominal_measured_satisfies_flash_spec
 
+-- ============================================================================
+-- Unified OSCFSEL 0..7 theorems (W428)
+-- ============================================================================
+
+/-- Every documented OSCFSEL selection (0..7) has a nominal CCLK half-period that
+    dominates the worst-case PVT-aware minimum half-period. This is the
+    quantified form of the eight per-variant envelope theorems. -/
+theorem all_oscfsel_cclk_within_pvt_envelope (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_period_ns oscfsel / 2 ≥ n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT :=
+  cclk_variant_within_pvt_envelope oscfsel h
+
+/-- Every documented OSCFSEL selection satisfies the worst-case PVT-aware
+    measured-CCLK flash predicate at 50% duty cycle. Downstream tooling can
+    reference this single theorem instead of eight concrete instances. -/
+theorem cclk_variant_worstcase_pvt_measured_satisfies_flash_spec
+  (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  measured_cclk_with_pvt_satisfies_flash_spec (cclk_nominal_hz oscfsel) 50
+    OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  interval_cases oscfsel <;> decide
+
+/-- Every documented OSCFSEL selection produces a flash-spec-compliant SPI read
+    transaction at its nominal CCLK rate and 50% duty cycle. This is the
+    end-to-end link from a configuration bitstream choice to a timing-safe
+    transaction. -/
+theorem cclk_variant_implies_transaction_ok (oscfsel : Nat) (h : oscfsel ≤ 7) (bits : Nat) :
+  transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz oscfsel) 50 bits) = true := by
+  apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  interval_cases oscfsel <;> decide
+
+/-- Every documented OSCFSEL selection also satisfies the worst-case PVT-aware
+    flash predicate end-to-end: the nominal CCLK rate and 50% duty cycle produce
+    a flash-spec-compliant transaction under the worst-case operating corner. -/
+theorem cclk_variant_worstcase_pvt_implies_transaction_ok
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (bits : Nat) :
+  transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz oscfsel) 50 bits) = true := by
+  apply measured_cclk_with_pvt_implies_transaction_ok _ _ _ OSCFSEL_WORST_CASE_PVT_CONTEXT
+  · -- -40 °C ≤ 85 °C
+    norm_num [PVT_TEMP_MIN_C, OSCFSEL_WORST_CASE_PVT_CONTEXT]
+  · -- 900 mV ≤ 1100 mV
+    norm_num [PVT_VCCINT_MAX_MV, OSCFSEL_WORST_CASE_PVT_CONTEXT]
+  · exact cclk_variant_worstcase_pvt_measured_satisfies_flash_spec oscfsel h
+
 end BitstreamConfig
 
 -- ============================================================================
