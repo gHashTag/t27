@@ -66,7 +66,7 @@
 
 - Branch: `wave-loop-435`
 - Issue: #1398
-- PR: (to open after this close-out)
+- PR: #1403
 - Report: `docs/reports/WAVE_LOOP_435_REPORT.md`
 - Evidence W435: `docs/reports/FPGA_LOOP_EVIDENCE_W435_2026-07-01.md`
 - Cooperation W436: `docs/reports/FPGA_LOOP_COOPERATION_W436_2026-07-01.md`
