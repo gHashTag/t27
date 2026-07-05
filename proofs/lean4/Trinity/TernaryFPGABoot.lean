@@ -692,6 +692,29 @@ lemma ProcessCorner.ff_worse_than_tt : ProcessCorner.ff.worse_than ProcessCorner
 lemma ProcessCorner.tt_worse_than_ss : ProcessCorner.tt.worse_than ProcessCorner.ss := by
   simp [worse_than, n25q128_pvt_process_derating_ns]
 
+/-- Decidable equality for process corners (exposed for automation that cannot
+    see the auto-derived instance). -/
+def ProcessCorner.eq_decidable (c1 c2 : ProcessCorner) : Decidable (c1 = c2) :=
+  inferInstance
+
+/-- Decidable corner ordering. This lets future automation compare two contexts
+    without leaving a `Prop` goal. -/
+def ProcessCorner.worse_than_decidable (c1 c2 : ProcessCorner) :
+  Decidable (c1.worse_than c2) := by
+  cases c1 <;> cases c2 <;> simp [worse_than] <;> infer_instance
+
+/-- Total severity rank: ff=0, tt=1, ss=2. Useful for `if c1 < c2` style scripts. -/
+def ProcessCorner.severity (c : ProcessCorner) : Nat :=
+  match c with
+  | ProcessCorner.ff => 0
+  | ProcessCorner.tt => 1
+  | ProcessCorner.ss => 2
+
+/-- The severity rank agrees with the `worse_than` order. -/
+lemma ProcessCorner.worse_than_iff_severity_le (c1 c2 : ProcessCorner) :
+  c1.worse_than c2 ↔ c1.severity ≤ c2.severity := by
+  cases c1 <;> cases c2 <;> simp [worse_than, severity, n25q128_pvt_process_derating_ns]
+
 /-- The PVT-aware SCK low bound is at least the nominal N25Q128 bound. This is
     the only fact the implication proof needs; real PVT data must preserve it. -/
 lemma pvt_low_ns_at_least_nominal (ctx : PvtContext) :

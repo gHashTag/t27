@@ -1,3 +1,53 @@
+# NOW — Wave Loop 424 close-out / Wave Loop 425 setup (2026-07-05)
+
+**Last updated:** 2026-07-05
+
+## Wave Loop 424 — FPGA tooling hardening: auto-continue boot logs, PVT/XADC context, CSV voltage units, ProcessCorner helpers (Closes #1371)
+
+- Branch: `wave-loop-424`
+- Issue: #1371
+- PR: to open after work
+- Report: `docs/reports/WAVE_LOOP_424_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W424_2026-07-05.md`
+- Cooperation W425: `docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md`
+
+### What landed (Variant B/C — bench still blocked)
+- `cli/tri/src/fpga.rs`
+  - `boot-log`, `cold-por`, and `cclk-sweep` now honor `--wait-seconds` with a
+    non-blocking auto-continue and an early ENTER path.
+  - All three commands accept `--pvt-context` and embed the supplied PVT context
+    plus an XADC placeholder (`source: "not_read"`) in their JSON logs.
+  - `measured-to-lean --csv` gained `--csv-voltage-unit v|mv` for oscilloscope
+    exports in millivolts.
+  - `cclk-sweep` default OSCFSEL range expanded from 0–5 to 0–7.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `ProcessCorner.eq_decidable`, `ProcessCorner.worse_than_decidable`,
+    `ProcessCorner.severity`, and `ProcessCorner.worse_than_iff_severity_le` to
+    support future PVT automation.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for mid-2026, including firtool 1.152.0 and W423–W424
+    boot-evidence progress.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired.
+- Cold-POR SPI flash boot for OSCFSEL 6/7 — board physically reachable but the
+  relay/remote-power gate is not available; manual power-cycle remains required.
+- DLC10 cable still missing; Digilent HS2 + openFPGALoader is the working path.
+- Safe gen-verilog #1245 sub-fix deferred: the remaining 7 yosys smoke failures are
+  all tied to major features (let destructuring, tuple returns, ROM arrays,
+  CORDIC) that are not narrow regression-free fixes.
+
+### Verification
+- `cargo test -p tri fpga::tests`: **PASS** (60 tests).
+- `cargo build --release` in `bootstrap/`: **PASS**.
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `tri fpga cclk-sweep --dry-run` (OSCFSEL 0–7): **PASS** (8 variants, first working = 0).
+- `tri fpga measured-to-lean --csv --raw-ns --validate`: **PASS** for both volts and
+  millivolts fixtures.
+- `tri fpga smoke-gate`: **PASS** (board-less).
+
+---
+
 # NOW — Wave Loop 423 close-out / Wave Loop 424 setup (2026-07-05)
 
 **Last updated:** 2026-07-05
