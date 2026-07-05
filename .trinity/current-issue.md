@@ -1,6 +1,6 @@
 # Wave Loop 424 — FPGA boot-evidence next variant (physical CCLK / real capture import / formal fallback)
 
-**Issue:** to be created after W423 closes (#1368).  
+**Issue:** #1371  
 **Branch:** `wave-loop-424`  
 **Milestone:** Continue the FPGA boot-evidence line from Wave Loop 423.
 
@@ -82,7 +82,7 @@ worst-case validation. Wave 424 executes the first available variant from
 
 - Target: `master`
 - PR: to open after work
-- Body: `Closes #<W424 issue>`
+- Body: `Closes #1371`
 - Report: `docs/reports/WAVE_LOOP_424_REPORT.md`
 - Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W424_YYYY-MM-DD.md`
 - Cooperation W425: `docs/reports/FPGA_LOOP_COOPERATION_W425_YYYY-MM-DD.md`

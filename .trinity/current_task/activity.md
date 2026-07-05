@@ -1504,3 +1504,7 @@
 - **Commit:** docs(issue): set current issue to Wave Loop 423
 - **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W423_2026-07-05.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_423_REPORT.md,fpga/HARDWARE_SSOT.md
 
+## 2026-07-05T06:48:03Z — wave-loop-424
+- **Commit:** feat(igla): Wave Loop 423 — CSV time units, VCD slope filter, PVT worst-case, competitor refresh (Closes #1368)
+- **Files:** .trinity/current-issue.md,docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-05.md
+
