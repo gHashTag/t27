@@ -2,6 +2,28 @@
 
 Last updated: 2026-07-05
 
+## Compiler — lexer accepts `let` as immutable-local synonym for `const` (Closes #1401)
+
+- Root cause of E0425 x2609 (93% of Rust codegen errors) and 1957 C-emitter sites:
+  the lexer recognized `const`/`var` but NOT `let`. tri-net specs write `let x = ...;`
+  in function bodies -> `let` tokenized as a bare `Ident` -> `parse_body_stmt`
+  (dispatches to `parse_local_decl` only for `KwConst || KwVar`, compiler.rs:1690)
+  fell through to expression parsing -> the binding was dropped entirely before every
+  backend emitter.
+- The issue diagnosis suspected the emitter -- that is INCORRECT. `gen_rust_stmt`
+  (compiler.rs:7912) and the C/Zig/Verilog `StmtLocal` branches are correct. The real
+  bug is in the lexer. A single alias line repairs Rust + C + Zig + Verilog at once,
+  because every emitter already handles `StmtLocal`.
+- Fix (additive): lexer (compiler.rs:341) `"let" => TokenKind::KwConst` -- `let` is an
+  immutable local (matches the `let` the Rust emitter already prints). Mutable local
+  stays `var`; there is no `let mut` spec form yet.
+- Tests: +3 regression tests (`test_let_binding_emitted_rust_1401`,
+  `test_let_binding_emitted_c_1401`, `test_let_is_immutable_local_1401`); replaced the
+  GAP-characterization test `let_binding_falls_back_to_todo_characterization` ->
+  `let_binding_is_lowered_1401` per its own note.
+- Status tag: [verified SW] (CI `check` job GREEN -- cargo tests ran and passed).
+  SSOT=83 untouched.
+
 ## SW-conformance — gf256 promoted to strict SW-bitexact (75/0/8) (Closes #1397)
 
 - gf256 (GoldenFloat256: S1 E97 M158, BIAS=79228162514264337593543950335=2^96-1,
