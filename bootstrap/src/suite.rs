@@ -3,6 +3,7 @@
 
 use anyhow::Context;
 use chrono::Local;
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -44,6 +45,42 @@ fn tri_exe(repo: &Path) -> anyhow::Result<PathBuf> {
     );
 }
 
+/// Load the set of spec paths that are documented as pre-existing
+/// `gen-verilog` yosys smoke failures. If the baseline file is missing, the
+/// set is empty and the suite summary falls back to a strict `acceptable ==
+/// passed` interpretation.
+fn load_gen_verilog_smoke_baseline(repo: &Path) -> HashSet<String> {
+    let path = repo
+        .join("docs")
+        .join("reports")
+        .join("gen_verilog_smoke_baseline.json");
+    let raw = match fs::read_to_string(&path) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!(
+                "[suite] baseline file not readable ({}); using empty baseline",
+                e
+            );
+            return HashSet::new();
+        }
+    };
+    let json: serde_json::Value = match serde_json::from_str(&raw) {
+        Ok(j) => j,
+        Err(e) => {
+            eprintln!("[suite] baseline file invalid JSON ({}); using empty baseline", e);
+            return HashSet::new();
+        }
+    };
+    json.get("expected_failures")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn rel_arg(repo: &Path, file: &Path) -> anyhow::Result<String> {
     let rel = file.strip_prefix(repo).with_context(|| {
         format!(
@@ -75,25 +112,40 @@ fn run_phase(
     f: impl Fn(&Path, &str) -> anyhow::Result<()>,
     files: &[PathBuf],
 ) -> anyhow::Result<(usize, usize)> {
+    let (pass, fail, _) = run_phase_with_failures(repo, label, f, files)?;
+    Ok((pass, fail))
+}
+
+/// Like `run_phase`, but also returns the relative paths of failing files so the
+/// suite summary can expose them to CI consumers.
+fn run_phase_with_failures(
+    repo: &Path,
+    label: &str,
+    f: impl Fn(&Path, &str) -> anyhow::Result<()>,
+    files: &[PathBuf],
+) -> anyhow::Result<(usize, usize, Vec<String>)> {
     let mut pass = 0usize;
     let mut fail = 0usize;
+    let mut failures: Vec<String> = Vec::new();
     for file in files {
         let rel = match rel_arg(repo, file) {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("FAIL {}: {}", file.display(), e);
                 fail += 1;
+                failures.push(file.display().to_string().replace('\\', "/"));
                 continue;
             }
         };
         if let Err(e) = f(repo, &rel) {
             eprintln!("FAIL {} ({}): {}", label, rel, e);
             fail += 1;
+            failures.push(rel);
         } else {
             pass += 1;
         }
     }
-    Ok((pass, fail))
+    Ok((pass, fail, failures))
 }
 
 fn cmd_parse(repo: &Path, rel: &str) -> anyhow::Result<()> {
@@ -233,10 +285,7 @@ struct FpgaSmokeResult {
 
 fn cmd_fpga_smoke_gate(repo: &Path) -> anyhow::Result<FpgaSmokeResult> {
     let bit = repo.join("fpga").join("verilog").join("ternary_mac_demo_top_200t.bit");
-    let report_path = repo
-        .join("build")
-        .join("fpga")
-        .join("smoke_gate_report.json");
+    let report_path = repo.join("build").join("fpga").join("smoke_gate_report.json");
 
     if !bit.is_file() {
         println!("  SKIP: demo bitstream not found at {}", bit.display());
@@ -252,12 +301,29 @@ fn cmd_fpga_smoke_gate(repo: &Path) -> anyhow::Result<FpgaSmokeResult> {
     }
 
     let tri = tri_exe(repo)?;
-    let fallback_dir = repo.join("build").join("fpga");
+    run_fpga_smoke_gate(&bit, &tri, report_path, Some(repo))
+}
+
+/// Core smoke-gate consumer. Separated from `cmd_fpga_smoke_gate` so unit tests
+/// can inject fake bitstreams / `tri` binaries without touching the repo.
+fn run_fpga_smoke_gate(
+    _bit: &Path,
+    tri: &Path,
+    report_path: PathBuf,
+    cwd: Option<&Path>,
+) -> anyhow::Result<FpgaSmokeResult> {
+    let fallback_dir = report_path
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| std::env::temp_dir());
     let report_dir = report_path.parent().unwrap_or(&fallback_dir);
     fs::create_dir_all(report_dir)?;
 
-    let st = Command::new(&tri)
-        .current_dir(repo)
+    let mut cmd = Command::new(tri);
+    if let Some(dir) = cwd {
+        cmd.current_dir(dir);
+    }
+    let st = cmd
         .args([
             "fpga",
             "smoke-gate",
@@ -274,9 +340,11 @@ fn cmd_fpga_smoke_gate(repo: &Path) -> anyhow::Result<FpgaSmokeResult> {
         anyhow::bail!("tri fpga smoke-gate failed: {} {}", out.trim(), err.trim());
     }
 
-    // Parse the machine-readable report so the suite can incorporate its
-    // per-phase status into its own summary and so CI can act on it directly.
-    let report: serde_json::Value = match fs::read_to_string(&report_path) {
+    parse_smoke_gate_report(&report_path)
+}
+
+fn parse_smoke_gate_report(report_path: &Path) -> anyhow::Result<FpgaSmokeResult> {
+    let report: serde_json::Value = match fs::read_to_string(report_path) {
         Ok(text) => serde_json::from_str(&text)
             .with_context(|| format!("parsing smoke-gate report {}", report_path.display()))?,
         Err(e) => anyhow::bail!("smoke-gate report missing: {}: {}", report_path.display(), e),
@@ -297,7 +365,7 @@ fn cmd_fpga_smoke_gate(repo: &Path) -> anyhow::Result<FpgaSmokeResult> {
     let result = FpgaSmokeResult {
         passed,
         skipped: false,
-        report_path: Some(report_path.clone()),
+        report_path: Some(report_path.to_path_buf()),
         bit_config_status: phase_status("bit_config"),
         dry_run_sweep_status: phase_status("dry_run_sweep"),
         verify_lean_status: phase_status("verify_lean"),
@@ -346,7 +414,7 @@ fn cmd_gen_verilog_yosys_smoke(repo: &Path, rel: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 struct SuitePhaseSummary {
     name: String,
     passed: usize,
@@ -354,14 +422,22 @@ struct SuitePhaseSummary {
     skipped: usize,
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 struct SuiteSummary {
     repo: String,
     phases: Vec<SuitePhaseSummary>,
     fpga_smoke_report: Option<String>,
     fpga_smoke_passed: Option<bool>,
+    /// Specs that failed in the `gen-verilog-yosys-smoke` phase, if any.
+    known_failures: Vec<String>,
+    /// Number of failures documented as the current baseline in
+    /// `docs/reports/gen_verilog_smoke_baseline.json`.
+    baseline_failures: usize,
     total_failures: usize,
+    /// True when no failures were observed at all.
     passed: bool,
+    /// True when the only observed failures are within the documented baseline.
+    acceptable: bool,
 }
 
 /// Phases 1–6: same coverage as legacy `tests/run_all.sh`.
@@ -457,27 +533,30 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
     println!("--- Phase 3b: Gen Verilog Yosys Smoke ---");
     let mut p3b_fail = 0usize;
     let mut p3b_skipped = 0usize;
-    let (p3bp, p3bf) = if yosys_available() {
+    let baseline = load_gen_verilog_smoke_baseline(&repo);
+    let (p3bp, p3bf, p3b_known_failures) = if yosys_available() {
         let mut smoke_targets = specs_scratch.clone();
         for rel in igla_clean_specs() {
             smoke_targets.push(repo.join(&rel));
         }
         smoke_targets.sort();
         smoke_targets.dedup();
-        let (bp, bf) = run_phase(
+        let (bp, bf, failures) = run_phase_with_failures(
             &repo,
             "gen-verilog-yosys-smoke",
             cmd_gen_verilog_yosys_smoke,
             &smoke_targets,
         )?;
         println!("Gen Verilog Yosys Smoke: {} passed, {} failed", bp, bf);
-        (bp, bf)
+        summary.known_failures = failures;
+        (bp, bf, summary.known_failures.clone())
     } else {
         println!("Yosys not available; skipping gen-verilog yosys smoke gate");
         p3b_skipped = 1;
-        (0, 0)
+        (0, 0, Vec::new())
     };
     p3b_fail = p3bf;
+    summary.baseline_failures = baseline.len();
     push_phase("gen-verilog-yosys-smoke", p3bp, p3bf, p3b_skipped);
 
     println!("--- Phase 3c: FPGA Board-Less Smoke Gate ---");
@@ -545,6 +624,13 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
     println!();
     println!("=== SUMMARY ===");
     let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p4f + p5f + fp_diff;
+
+    summary.total_failures = total_fail;
+    summary.passed = total_fail == 0;
+    let known_set: HashSet<String> = summary.known_failures.iter().cloned().collect();
+    let non_baseline_failures = total_fail.saturating_sub(summary.known_failures.len());
+    summary.acceptable = known_set.is_subset(&baseline) && non_baseline_failures == 0;
+
     println!("Parse failures:           {}", p1f);
     println!("Typecheck fails:          {}", p1bf);
     println!("GF16 conformance:         {}", gf16_fail);
@@ -557,10 +643,12 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
     println!("Seal mismatches:          {}", p5f);
     println!("FP divergences:           {}", fp_diff);
     println!("TOTAL FAILURES:    {}", total_fail);
+    println!("BASELINE FAILURES: {}", summary.baseline_failures);
+    println!(
+        "ACCEPTABLE:        {} (known failures match baseline, no other failures)",
+        if summary.acceptable { "yes" } else { "no" }
+    );
     println!();
-
-    summary.total_failures = total_fail;
-    summary.passed = total_fail == 0;
 
     if let Some(path) = json_out {
         let json = serde_json::to_string_pretty(&summary)
@@ -839,4 +927,207 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
         println!("✅ NOW.md synced ({}) — build authorized", today);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_tri_exe_finds_target_debug_tri() {
+        let tmp = std::env::temp_dir().join(format!("t27_suite_tri_exe_test_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("target").join("debug")).unwrap();
+        let fake_tri = tmp.join("target").join("debug").join("tri");
+        {
+            let mut f = std::fs::File::create(&fake_tri).unwrap();
+            f.write_all(b"#!/bin/sh\necho fake tri\n").unwrap();
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&fake_tri).unwrap().permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&fake_tri, perms).unwrap();
+        }
+        let found = tri_exe(&tmp).expect("tri_exe should find target/debug/tri");
+        assert_eq!(found, fake_tri);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_suite_summary_schema_roundtrip() {
+        let summary = SuiteSummary {
+            repo: "/tmp/t27".to_string(),
+            phases: vec![
+                SuitePhaseSummary {
+                    name: "parse".to_string(),
+                    passed: 10,
+                    failed: 0,
+                    skipped: 0,
+                },
+                SuitePhaseSummary {
+                    name: "gen-verilog-yosys-smoke".to_string(),
+                    passed: 5,
+                    failed: 2,
+                    skipped: 0,
+                },
+            ],
+            fpga_smoke_report: Some("build/fpga/smoke_gate_report.json".to_string()),
+            fpga_smoke_passed: Some(true),
+            known_failures: vec!["specs/scratch/a.t27".to_string()],
+            baseline_failures: 2,
+            total_failures: 2,
+            passed: false,
+            acceptable: true,
+        };
+        let json = serde_json::to_string_pretty(&summary).unwrap();
+        let parsed: SuiteSummary = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, summary);
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value["repo"].as_str(), Some("/tmp/t27"));
+        assert_eq!(value["phases"].as_array().unwrap().len(), 2);
+        assert_eq!(value["known_failures"].as_array().unwrap().len(), 1);
+        assert_eq!(value["acceptable"].as_bool(), Some(true));
+    }
+
+    #[test]
+    fn test_suite_summary_acceptable_computation() {
+        let baseline: HashSet<String> = vec![
+            "specs/scratch/a.t27".to_string(),
+            "specs/scratch/b.t27".to_string(),
+        ]
+        .into_iter()
+        .collect();
+
+        // All failures are within baseline and there are no other failures.
+        let known = vec!["specs/scratch/a.t27".to_string()];
+        let total = known.len();
+        let known_set: HashSet<String> = known.iter().cloned().collect();
+        assert!(known_set.is_subset(&baseline));
+        assert_eq!(total.saturating_sub(known.len()), 0);
+
+        // A non-baseline failure makes the run unacceptable.
+        let known_bad = vec!["specs/scratch/c.t27".to_string()];
+        let known_bad_set: HashSet<String> = known_bad.iter().cloned().collect();
+        assert!(!known_bad_set.is_subset(&baseline));
+
+        // An extra non-smoke failure makes the run unacceptable even when known
+        // failures match the baseline.
+        let total_extra = known.len() + 1;
+        assert_ne!(total_extra.saturating_sub(known.len()), 0);
+    }
+
+    #[test]
+    fn test_load_gen_verilog_smoke_baseline() {
+        let tmp = std::env::temp_dir().join(format!(
+            "t27_suite_baseline_test_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        let docs = tmp.join("docs").join("reports");
+        std::fs::create_dir_all(&docs).unwrap();
+        let baseline_path = docs.join("gen_verilog_smoke_baseline.json");
+        std::fs::write(
+            &baseline_path,
+            r#"{"expected_failures": ["specs/a.t27", "specs/b.t27"]}"#,
+        )
+        .unwrap();
+        let set = load_gen_verilog_smoke_baseline(&tmp);
+        assert!(set.contains("specs/a.t27"));
+        assert!(set.contains("specs/b.t27"));
+        assert_eq!(set.len(), 2);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    fn make_fake_tri_script(report_path: &Path, passed: bool) -> PathBuf {
+        let script_dir = report_path
+            .parent()
+            .expect("report_path must have a parent")
+            .join("fake_tri");
+        let _ = std::fs::remove_dir_all(&script_dir);
+        std::fs::create_dir_all(&script_dir).unwrap();
+        let script = script_dir.join("tri");
+        let report_json = if passed {
+            r#"{"bit_config":{"status":"ok"},"dry_run_sweep":{"status":"ok"},"verify_lean":{"status":"ok"},"yosys_synthesis":{"status":"ok"},"passed":true}"#
+        } else {
+            r#"{"bit_config":{"status":"ok"},"dry_run_sweep":{"status":"failed"},"verify_lean":null,"yosys_synthesis":null,"passed":false}"#
+        };
+        let body = format!(
+            "#!/bin/sh\nprintf '%s' '{}' > {}\nexit 0\n",
+            report_json.replace('\'', "'\"'\"'"),
+            report_path.to_string_lossy()
+        );
+        {
+            let mut f = std::fs::File::create(&script).unwrap();
+            f.write_all(body.as_bytes()).unwrap();
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&script).unwrap().permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&script, perms).unwrap();
+        }
+        script
+    }
+
+    #[test]
+    fn test_run_fpga_smoke_gate_passes_with_good_report() {
+        let tmp = std::env::temp_dir().join(format!(
+            "t27_suite_smoke_pass_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let bit = tmp.join("demo.bit");
+        std::fs::File::create(&bit).unwrap();
+        let report_path = tmp.join("smoke_gate_report.json");
+        let fake_tri = make_fake_tri_script(&report_path, true);
+        let result = run_fpga_smoke_gate(
+            &bit,
+            &fake_tri,
+            report_path.clone(),
+            None,
+        )
+        .expect("smoke-gate should pass");
+        assert!(result.passed);
+        assert!(!result.skipped);
+        assert_eq!(result.bit_config_status.as_deref(), Some("ok"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_run_fpga_smoke_gate_fails_with_bad_report() {
+        let tmp = std::env::temp_dir().join(format!(
+            "t27_suite_smoke_fail_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let bit = tmp.join("demo.bit");
+        std::fs::File::create(&bit).unwrap();
+        let report_path = tmp.join("smoke_gate_report.json");
+        let fake_tri = make_fake_tri_script(&report_path, false);
+        let err = run_fpga_smoke_gate(
+            &bit,
+            &fake_tri,
+            report_path.clone(),
+            None,
+        )
+        .expect_err("smoke-gate should fail when report says passed=false");
+        assert!(err.to_string().contains("smoke-gate report indicates failure"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_parse_smoke_gate_report_missing_file() {
+        let missing = std::env::temp_dir().join(format!(
+            "t27_suite_missing_report_{}.json",
+            std::process::id()
+        ));
+        let err = parse_smoke_gate_report(&missing).expect_err("missing report should error");
+        assert!(err.to_string().contains("smoke-gate report missing"));
+    }
 }

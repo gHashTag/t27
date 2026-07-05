@@ -348,6 +348,12 @@ pub enum FpgaCmd {
         /// `verify-lean --expected-source synthetic`. Implies `--synthetic-operating-point`.
         #[arg(long)]
         verify_lean: bool,
+        /// Generate and verify a synthetic `.lean` theorem for every documented
+        /// OSCFSEL 0..7 selection, using the nominal period for that variant. Adds
+        /// a `theorem_matrix` array to the JSON report. Implies `--verify-lean`
+        /// and `--synthetic-operating-point`.
+        #[arg(long)]
+        theorem_matrix: bool,
         /// Process corner for the synthetic PVT context (default: ss).
         #[arg(long, default_value = "ss")]
         process_corner: String,
@@ -904,6 +910,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             part,
             synthetic_operating_point,
             verify_lean,
+            theorem_matrix,
             process_corner,
             json,
         } => smoke_gate(
@@ -914,8 +921,9 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *wait_seconds,
             cable,
             part,
-            *synthetic_operating_point || *verify_lean,
-            *verify_lean,
+            *synthetic_operating_point || *verify_lean || *theorem_matrix,
+            *verify_lean || *theorem_matrix,
+            *theorem_matrix,
             process_corner,
             json.as_ref(),
         ),
@@ -3445,6 +3453,16 @@ fn cclk_nominal_hz(oscfsel: u8) -> u32 {
         7 => 33_300_000,
         _ => 0,
     }
+}
+
+/// Nominal CCLK period in nanoseconds for an Artix-7 Master SPI boot OSCFSEL
+/// selection. Mirrors `cclk_period_ns` in `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+fn cclk_period_ns(oscfsel: u8) -> u32 {
+    let freq_hz = cclk_nominal_hz(oscfsel);
+    if freq_hz == 0 {
+        return 0;
+    }
+    1_000_000_000u32 / freq_hz
 }
 
 /// PVT envelope margin for a given nominal CCLK frequency: how many nanoseconds
@@ -6003,6 +6021,7 @@ fn smoke_gate(
     part: &str,
     synthetic_operating_point: bool,
     run_verify_lean: bool,
+    run_theorem_matrix: bool,
     process_corner: &str,
     json: Option<&PathBuf>,
 ) -> Result<()> {
@@ -6011,6 +6030,7 @@ fn smoke_gate(
         "bit_config": null,
         "dry_run_sweep": null,
         "verify_lean": null,
+        "theorem_matrix": null,
         "yosys_synthesis": null,
         "passed": false,
     });
@@ -6141,6 +6161,7 @@ fn smoke_gate(
     // 2. Dry-run CCLK sweep + report path (no hardware required).
     let mut dry_run_sweep_ok = false;
     let mut verify_lean_ok = false;
+    let mut theorem_matrix_ok = true;
     if bit_path.is_file() {
         if synthetic_operating_point {
             println!(
@@ -6286,16 +6307,17 @@ fn smoke_gate(
 
         // 2b. Optional end-to-end artifact gate: generate a synthetic .lean
         // theorem from a raw-ns fixture and verify it with `verify-lean`.
+        let fixture_dir = root
+            .join("build")
+            .join("fpga")
+            .join("smoke-gate-dry-run")
+            .join("verify-lean-fixture");
+        let corner_for_verify = corner.clone();
         if run_verify_lean {
             println!("[smoke-gate] verify-lean: generating synthetic theorem");
-            let fixture_dir = root
-                .join("build")
-                .join("fpga")
-                .join("smoke-gate-dry-run")
-                .join("verify-lean-fixture");
             std::fs::create_dir_all(&fixture_dir)
                 .with_context(|| format!("create {}", fixture_dir.display()))?;
-            let pvt = synthetic_pvt_context(corner);
+            let pvt = synthetic_pvt_context(corner_for_verify);
             let pvt_path = fixture_dir.join("pvt.json");
             std::fs::write(
                 &pvt_path,
@@ -6385,6 +6407,140 @@ fn smoke_gate(
             });
             println!("[smoke-gate] verify-lean OK (source=synthetic, theorems present)");
         }
+
+        // 2c. Optional board-less OSCFSEL 0..7 theorem matrix: verify a PVT-aware
+        // raw-ns theorem for each documented Artix-7 Master SPI CCLK variant.
+        let mut theorem_matrix_ok = true;
+        if run_theorem_matrix {
+            println!("[smoke-gate] theorem-matrix: generating OSCFSEL 0..7 synthetic theorems");
+            let corner_clone = corner.clone();
+            let pvt = synthetic_pvt_context(corner_clone);
+            let pvt_path = fixture_dir.join("theorem_matrix_pvt.json");
+            std::fs::write(
+                &pvt_path,
+                serde_json::to_string_pretty(&pvt)
+                    .with_context(|| "serialize theorem-matrix PVT context")?,
+            )
+            .with_context(|| format!("write {}", pvt_path.display()))?;
+
+            let mut matrix_entries = Vec::new();
+            for oscfsel in 0u8..=7u8 {
+                let period_ns = cclk_period_ns(oscfsel);
+                if period_ns == 0 {
+                    theorem_matrix_ok = false;
+                    report["theorem_matrix"] = serde_json::json!({
+                        "status": "failed",
+                        "reason": format!("invalid period for OSCFSEL {}", oscfsel),
+                    });
+                    bail!("theorem-matrix encountered invalid CCLK period");
+                }
+                let low_ns = period_ns / 2;
+                let high_ns = period_ns - low_ns;
+                let raw_ns = MeasuredCclkRawNs {
+                    period_ns: period_ns as u64,
+                    sck_low_ns: low_ns as u64,
+                    sck_high_ns: high_ns as u64,
+                    source: format!("synthetic oscfsel {}", oscfsel),
+                };
+                let raw_ns_text = serde_json::to_string_pretty(&raw_ns)
+                    .with_context(|| "serialize theorem-matrix raw-ns fixture")?;
+                let raw_ns_path =
+                    fixture_dir.join(format!("theorem_matrix_raw_ns_{}.json", oscfsel));
+                std::fs::write(&raw_ns_path, &raw_ns_text)
+                    .with_context(|| format!("write {}", raw_ns_path.display()))?;
+
+                let lean_path =
+                    fixture_dir.join(format!("theorem_matrix_oscfsel_{}.lean", oscfsel));
+                let name = format!("smoke_gate_oscfsel_{}", oscfsel);
+                let m2l_result = measured_to_lean(
+                    Some(&raw_ns_path),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    0,
+                    None,
+                    None,
+                    None,
+                    Some(&lean_path),
+                    &name,
+                    false,
+                    Some(&pvt_path),
+                    false,
+                    Some("synthetic"),
+                    false,
+                    true,
+                    true,
+                    false,
+                );
+                if m2l_result.is_err() {
+                    report["theorem_matrix"] = serde_json::json!({
+                        "status": "failed",
+                        "phase": "measured-to-lean",
+                        "oscfsel": oscfsel,
+                        "error": format!("{:?}", m2l_result.unwrap_err()),
+                    });
+                    theorem_matrix_ok = false;
+                    bail!("theorem-matrix measured-to-lean failed for OSCFSEL {}", oscfsel);
+                }
+
+                let pvt_for_summary = pvt.clone();
+                let summary = build_measured_to_lean_summary(
+                    &name,
+                    true,
+                    false,
+                    &Some(pvt_for_summary),
+                    "synthetic",
+                    &raw_ns_text,
+                )
+                .with_context(|| "build theorem-matrix measured-to-lean summary")?;
+                let summary_path =
+                    fixture_dir.join(format!("theorem_matrix_summary_{}.json", oscfsel));
+                std::fs::write(
+                    &summary_path,
+                    serde_json::to_string_pretty(&summary)
+                        .with_context(|| "serialize theorem-matrix summary")?,
+                )
+                .with_context(|| format!("write {}", summary_path.display()))?;
+
+                let verify_result =
+                    verify_lean(&lean_path, Some(&summary_path), Some("synthetic"), false
+                    );
+                if verify_result.is_err() {
+                    report["theorem_matrix"] = serde_json::json!({
+                        "status": "failed",
+                        "phase": "verify-lean",
+                        "oscfsel": oscfsel,
+                        "error": format!("{:?}", verify_result.unwrap_err()),
+                    });
+                    theorem_matrix_ok = false;
+                    bail!("theorem-matrix verify-lean failed for OSCFSEL {}", oscfsel);
+                }
+
+                matrix_entries.push(serde_json::json!({
+                    "oscfsel": oscfsel,
+                    "period_ns": period_ns,
+                    "sck_low_ns": low_ns,
+                    "sck_high_ns": high_ns,
+                    "status": "ok",
+                    "lean_file": lean_path.to_string_lossy().to_string(),
+                    "summary_file": summary_path.to_string_lossy().to_string(),
+                }));
+            }
+
+            report["theorem_matrix"] = serde_json::json!({
+                "status": if theorem_matrix_ok { "ok" } else { "failed" },
+                "variant_count": matrix_entries.len(),
+                "source": "synthetic",
+                "variants": matrix_entries,
+            });
+            println!(
+                "[smoke-gate] theorem-matrix OK ({} variants, source=synthetic)",
+                matrix_entries.len()
+            );
+        }
     } else {
         report["dry_run_sweep"] = serde_json::json!({
             "status": "skipped",
@@ -6456,6 +6612,7 @@ fn smoke_gate(
     let passed = bit_config_result.is_ok()
         && dry_run_sweep_ok
         && (!run_verify_lean || verify_lean_ok)
+        && (!run_theorem_matrix || theorem_matrix_ok)
         && yosys_ok;
     report["passed"] = serde_json::Value::Bool(passed);
 
@@ -9824,6 +9981,7 @@ mod tests {
             0,
             "digilent_hs2",
             "xc7a200tfgg676",
+            true,
             true,
             true,
             "ss",
