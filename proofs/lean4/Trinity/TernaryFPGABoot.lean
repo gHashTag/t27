@@ -1398,6 +1398,74 @@ theorem cclk_variant_raw_ns_worstcase_pvt_implies_transaction_ok
   · norm_num [PVT_VCCINT_MAX_MV, OSCFSEL_WORST_CASE_PVT_CONTEXT]
   · exact cclk_variant_raw_ns_worstcase_pvt_satisfies_flash_spec oscfsel h
 
+-- ============================================================================
+-- Live XADC operating-point / PVT-envelope bridge (W430)
+-- ============================================================================
+
+/-- Live XADC operating point read from the FPGA via `tri fpga read-xadc`.
+    Temperature is in °C and rail voltages are in millivolts. The process corner
+    is not measured by the XADC and is supplied externally (default `ss` for
+    worst-case reasoning). Mirrors the Rust `XadcContext` in `cli/tri/src/fpga.rs`. -/
+structure XadcOperatingPoint where
+  temp_c : Int
+  vccint_mv : Nat
+  vccaux_mv : Nat
+  process_corner : ProcessCorner
+  deriving Repr, DecidableEq, Inhabited
+
+/-- Convert a live XADC readout to the `PvtContext` used by the PVT envelope. -/
+def xadc_operating_point_to_pvt (pt : XadcOperatingPoint) : PvtContext :=
+  { temp_c := pt.temp_c, vccint_mv := pt.vccint_mv, vccaux_mv := pt.vccaux_mv,
+    process_corner := pt.process_corner }
+
+/-- A measured XADC operating point lies inside the documented N25Q128_3V
+    operating rectangle (temperature and VCCINT envelope). -/
+def xadc_operating_point_within_envelope (pt : XadcOperatingPoint) : Prop :=
+  (PVT_TEMP_MIN_C ≤ pt.temp_c)
+  ∧ (pt.temp_c ≤ PVT_TEMP_MAX_C)
+  ∧ (PVT_VCCINT_MIN_MV ≤ pt.vccint_mv)
+  ∧ (pt.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+
+/-- If a measured operating point is inside the envelope, its PVT half-period
+    bound is no larger (i.e., no slower) than the global worst-case bound. This
+    justifies using the conservative worst-case `OSCFSEL_WORST_CASE_PVT_CONTEXT`
+    in proof goals even when the bench records a live, in-envelope measurement.
+    The process-corner hypothesis records that the measured corner is at least
+    as slow as `ss`; the XADC cannot measure process, so it is supplied by the
+    caller. -/
+theorem xadc_operating_point_envelope_implies_worst_case_bound
+  (pt : XadcOperatingPoint) :
+  xadc_operating_point_within_envelope pt
+  → pt.process_corner.worse_than ProcessCorner.ss
+  → n25q128_min_sck_half_ns_pvt (xadc_operating_point_to_pvt pt)
+    ≤ n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+  intro h_env h_corner
+  simp [xadc_operating_point_within_envelope, xadc_operating_point_to_pvt,
+        n25q128_min_sck_half_ns_pvt, n25q128_min_sck_low_ns_pvt,
+        OSCFSEL_WORST_CASE_PVT_CONTEXT] at h_env ⊢
+  rcases h_env with ⟨h_temp_min, h_temp_max, h_volt_min, h_volt_max⟩
+  apply Nat.add_le_add
+  · apply Nat.add_le_add
+    · apply Nat.add_le_add
+      · rfl
+      · apply n25q128_pvt_temp_derating_ns_monotone
+        · exact h_temp_min
+        · exact h_temp_max
+    · apply n25q128_pvt_voltage_derating_ns_antitone
+      · exact h_volt_min
+      · exact h_volt_max
+  · apply n25q128_pvt_process_derating_ns_monotone
+    exact h_corner
+
+/-- Example: a live XADC readout at the documented worst-case operating point
+    is inside the envelope and produces the worst-case PVT bound. -/
+theorem xadc_worstcase_operating_point_within_envelope :
+  xadc_operating_point_within_envelope
+    { temp_c := (85 : Int), vccint_mv := 900, vccaux_mv := 2700,
+      process_corner := ProcessCorner.ss } := by
+  simp [xadc_operating_point_within_envelope, PVT_TEMP_MIN_C, PVT_TEMP_MAX_C,
+        PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
 end BitstreamConfig
 
 -- ============================================================================
