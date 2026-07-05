@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 435)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 436)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -53,7 +53,18 @@ failures are documented but not cleared.
 end-to-end Rust test exercises the XADC → PVT → theorem path; and
 `TernaryFPGABoot.lean` adds a synthetic OSCFSEL 0..7 coverage matrix under the W434
 live XADC point plus a computable combined `cclk_variant_and_xadc_envelope_check`
-gate. The 7 residual yosys smoke failures remain the documented baseline.**
+gate. The 7 residual yosys smoke failures remain the documented baseline.
+
+**W436 extends the live XADC → PVT context pipeline into cold-POR boot logs and
+sweep-report JSON.** `tri fpga cold-por` and `tri fpga cclk-sweep` now accept
+`--process-corner` and `--to-pvt-context`; every boot log and sweep-report variant
+carries a closed-vocabulary `operating_point` object with `source` (`xadc`,
+`pvt_context_file`, `worstcase`, `not_read`). `tri fpga measured-to-lean` gains
+`--pvt-context-source` so generated theorems can be tagged with the same closed
+vocabulary. `TernaryFPGABoot.lean` adds the quantified
+`xadc_live_w434_all_oscfsel_combined_check_true` theorem. The 7 residual yosys
+smoke failures remain the documented baseline; physical bench execution is still
+blocked by the missing DLC10 cable.**
 
 ---
 
@@ -113,14 +124,14 @@ competitor to t27's "Lean-native proof → synthesis" positioning.
     broader Lean-for-hardware strategy.
   - Infrastructure for zero-knowledge (Merkle tree / polynomial commitment,
     mini-STARK verifier, Goldilocks field) and verified GPU programming.
-  - **Late-July 2026 activity signals:** the public repository shows a last push on
-    **2026-07-03** and PR #66 (IP.Net + compiler perf) remains open with passing
-    tests as of the W433 boundary. No additional public PRs or commits surfaced
-    between the W431 and W433 boundaries. The IP.Net PR adds UART, SLIP, IPv4/ARP/ICMP,
-    TCP, HTTP, a USB-tethered web server, a memcached ASCII server, Ethernet framing,
-    CRC32, and HFT-over-TLS/HTTPS demo blocks, plus compiler performance fixes
-    (`SPARKLE_TRANSLATE_LIMIT`, `getWireWidth` caching, multi-output submodule
-    wiring).
+  - **W436 boundary activity signals:** the public repository still shows a last push
+    on **2026-07-03**. PR #66 (IP.Net + compiler perf) and PR #65 (formal RV32
+    divider proof) remain open with passing tests. PR #57 (analog circuit simulation
+    support) is closed as a draft. No new public PRs or commits surfaced between the
+    W433 and W436 boundaries. Sparkle’s 関数型まつり2026 talk on **2026-07-11**
+    will present JIT, formal verification, and reverse-synthesis direction; t27
+    should treat the post-talk publication window as the next competitive
+    intelligence checkpoint.
 
 **Where t27 still differentiates:**
 1. **Ternary compute and balanced-trit proof lattice.** Sparkle is binary
