@@ -12,6 +12,38 @@ fn t27c_exe() -> anyhow::Result<PathBuf> {
     std::env::current_exe().context("current_exe failed (expected t27c binary)")
 }
 
+/// Locate the `tri` CLI binary used for FPGA smoke-gate integration.
+/// Prefers the same build profile as the running `t27c` binary, then falls
+/// back through common target directories.
+fn tri_exe(repo: &Path) -> anyhow::Result<PathBuf> {
+    let t27c = t27c_exe()?;
+    if let Some(dir) = t27c.parent() {
+        let adjacent = dir.join("tri");
+        if adjacent.is_file() {
+            return Ok(adjacent);
+        }
+    }
+    let candidates: Vec<PathBuf> = vec![
+        repo.join("target").join("release").join("tri"),
+        repo.join("target").join("debug").join("tri"),
+        repo.join("bootstrap").join("target").join("release").join("tri"),
+        repo.join("bootstrap").join("target").join("debug").join("tri"),
+    ];
+    for p in &candidates {
+        if p.is_file() {
+            return Ok(p.clone());
+        }
+    }
+    anyhow::bail!(
+        "tri binary not found. Expected one of: {}. Run: cargo build -p tri",
+        candidates
+            .iter()
+            .map(|p| p.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+}
+
 fn rel_arg(repo: &Path, file: &Path) -> anyhow::Result<String> {
     let rel = file.strip_prefix(repo).with_context(|| {
         format!(
@@ -195,48 +227,33 @@ fn cmd_fpga_smoke_gate(repo: &Path) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let script = repo.join("scripts").join("dump_bit_config.py");
-    let st = Command::new("python3")
-        .arg(&script)
-        .arg(&bit)
+    let tri = tri_exe(repo)?;
+    let report_path = repo
+        .join("build")
+        .join("fpga")
+        .join("smoke_gate_report.json");
+    let fallback_dir = repo.join("build").join("fpga");
+    let report_dir = report_path.parent().unwrap_or(&fallback_dir);
+    fs::create_dir_all(report_dir)?;
+
+    let st = Command::new(&tri)
+        .current_dir(repo)
+        .args([
+            "fpga",
+            "smoke-gate",
+            "--synthetic-operating-point",
+            "--verify-lean",
+            "--json",
+            &report_path.to_string_lossy(),
+        ])
         .output()
-        .with_context(|| format!("spawning {} for FPGA smoke gate", script.display()))?;
+        .with_context(|| format!("spawning {} for FPGA smoke gate", tri.display()))?;
     if !st.status.success() {
+        let out = String::from_utf8_lossy(&st.stdout);
         let err = String::from_utf8_lossy(&st.stderr);
-        anyhow::bail!("dump_bit_config.py failed: {}", err.trim());
+        anyhow::bail!("tri fpga smoke-gate failed: {} {}", out.trim(), err.trim());
     }
-
-    let v_paths: Vec<PathBuf> = [
-        repo.join("fpga").join("verilog").join("ternary_mac_synth.v"),
-        repo.join("fpga").join("verilog").join("ternary_mac_demo_top.v"),
-    ]
-    .into_iter()
-    .filter(|p| p.is_file())
-    .collect();
-
-    if !v_paths.is_empty() && yosys_available() {
-        let reads: Vec<String> = v_paths
-            .iter()
-            .map(|p| format!("read_verilog -sv {}", p.display()))
-            .collect();
-        let st = Command::new("yosys")
-            .arg("-q")
-            .arg("-p")
-            .arg(format!(
-                "{}; synth_xilinx -top ternary_mac_demo_top -family xc7; stat",
-                reads.join("; ")
-            ))
-            .output()
-            .context("spawning yosys for FPGA smoke gate")?;
-        if !st.status.success() {
-            let err = String::from_utf8_lossy(&st.stderr);
-            anyhow::bail!("yosys rejected demo Verilog: {}", err.trim());
-        }
-        println!("  yosys synthesis smoke: OK");
-    } else {
-        println!("  SKIP: yosys or demo Verilog unavailable");
-    }
-
+    println!("  FPGA smoke gate: OK (report: {})", report_path.display());
     Ok(())
 }
 

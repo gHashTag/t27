@@ -1672,3 +1672,7 @@
 - **Commit:** feat(w438): integrate synthetic dry-run + verify-lean into FPGA smoke gate
 - **Files:** .trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W439_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W438_2026-07-05.md,docs/reports/WAVE_LOOP_438_REPORT.md
 
+## 2026-07-05T14:23:11Z — wave-loop-439
+- **Commit:** docs(w438): close-out report, evidence, and W439 cooperation variants
+- **Files:** .trinity/current-issue.md,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W440_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W439_2026-07-05.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_439_REPORT.md,fpga/HARDWARE_SSOT.md
+

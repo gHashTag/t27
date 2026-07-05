@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-438`  
-**Last updated:** 2026-07-05 (Wave Loop 438)  
+**Branch:** `wave-loop-439`  
+**Last updated:** 2026-07-05 (Wave Loop 439)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -537,7 +537,27 @@ re-confirmed as the baseline**. No new narrow defect was introduced.
 | 6 — `let` destructuring | PARTIALLY FIXED (W378–W381) | stable; residual cases in 7 failures |
 | 7 residual yosys smoke failures (#1245) | **BASELINE** | tuple-return / `let` destructuring / ROM arrays / CORDIC; deferred to master-merge |
 
-## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435
+## W438 triage (2026-07-05)
+
+Wave Loop 438 selected **Variant B** of the W438 cooperation plan (integrate the
+dry-run synthetic path and `verify-lean` into `tri fpga smoke-gate`). The wave did
+not touch the gen-verilog backend, so the 7 residual yosys smoke failures remain
+**unchanged and re-confirmed as the baseline**. No new narrow defect was
+introduced.
+
+**Defect status matrix after W438:** same as after W435.
+
+## W439 triage (2026-07-05)
+
+Wave Loop 439 selected **Variant B** of the W439 cooperation plan (wire the
+smoke-gate artifact trail into the default `./scripts/tri test` FPGA phase and add
+a machine-readable `--json` report). The wave did not touch the gen-verilog
+backend, so the 7 residual yosys smoke failures remain **unchanged and
+re-confirmed as the baseline**. No new narrow defect was introduced.
+
+**Defect status matrix after W439:** same as after W435.
+
+## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.
