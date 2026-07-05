@@ -353,7 +353,7 @@ target `Trinity.TernaryFPGABoot` still builds.
 
 - Branch: `wave-loop-440`
 - Issue: #1411
-- PR: #1413 (predicted)
+- PR: #1414
 - Report: `docs/reports/WAVE_LOOP_440_REPORT.md`
 - Evidence W440: `docs/reports/FPGA_LOOP_EVIDENCE_W440_2026-07-01.md`
 - Cooperation W441: `docs/reports/FPGA_LOOP_COOPERATION_W441_2026-07-01.md`
@@ -420,7 +420,7 @@ target `Trinity.TernaryFPGABoot` still builds.
 ## Wave Loop 441 — Next: CI schema hardening / board-less theorem matrix / real-capture fallback / gen-verilog debt (Variant B default)
 
 - Branch: `wave-loop-441`
-- Issue: #1414 (predicted)
+- Issue: #1413
 - Default variant: **B** unless P12 or the relay gate becomes available.
 - Plan: `docs/reports/FPGA_LOOP_COOPERATION_W441_2026-07-01.md`
 

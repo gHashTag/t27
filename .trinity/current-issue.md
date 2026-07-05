@@ -1,6 +1,6 @@
 # Wave Loop 441 — CI schema hardening / board-less theorem matrix / real-capture fallback / gen-verilog debt (Variant B default)
 
-**Issue:** #1414 (predicted)
+**Issue:** #1413
 **Branch:** `wave-loop-441`
 **Milestone:** Continue the FPGA boot-evidence line from Wave Loop 440.
 
