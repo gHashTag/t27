@@ -58,15 +58,19 @@ competitor to t27's "Lean-native proof → synthesis" positioning.
   - **PR #66** (June 2026): IP.Net expansion — USB web server on Tang Nano 50K,
     memcached server, compiler performance improvements, TLS/crypto/bus/networking
     IPs.
-  - **Commit `9c7809c`** (June 2026): Formal verification of the RV32 divider
-    against its pure-FSM model and the synthesized circuit, covering signed/
-    unsigned division and divide-by-zero behavior.
+  - **PR #65** (June 2026): “Prove that Divider divides” — formal verification of
+    the RV32 divider against both its pure-FSM model and the synthesized circuit,
+    covering signed/unsigned division, divide-by-zero, and done-pulse timing.
+    This is the kind of IP-level correctness proof t27 has not yet published
+    for its ternary catalog.
   - **関数型まつり2026 talk** (July 11 2026, Track A): *“Lean 4をRTL開発の中核にする
     — Sparkle におけるJIT、検証、Reverse Synthesis（逆合成）”* by Junji Hashimoto.
     Sparkle is now being positioned publicly as making Lean 4 the core of RTL
     development, with a C++ JIT backend reported to outrun Verilator on LiteX
     1-core, “time-leap” simulation reaching ~49 GHz equivalent, and oracle-based
     reverse synthesis giving a 2.14× speedup on a carry-save multiplier.
+  - Repository activity: last push July 3 2026, showing continued momentum right
+    before the public talk.
   - Infrastructure for zero-knowledge (Merkle tree / polynomial commitment,
     mini-STARK verifier, Goldilocks field) and verified GPU programming
     (Hesper repo).
@@ -96,17 +100,20 @@ unique.
 
 Clash compiles Haskell to VHDL/Verilog/SystemVerilog. Recent 2026 work includes:
 
+- **Clash 1.10** (released April 23 2026) — the first release under the new
+  QBayLogic lead; removes deprecated `Clash.Prelude.DataFlow`, adds
+  `Clash.Class.NumConvert`, time-domain helpers, and zero-width improvements.
+  No verification-specific headline features, but the release cadence is healthy.
 - **Clash 1.8.5** (released March 24 2026) — verification-related fixes for the
   `Clash.Explicit.Verification.check` blackbox: the clock line is now used
   correctly instead of assuming a pre-bound identifier (PR #2907), and string
   literal types match the input provided via `Clash.Explicit.Verification.name`
   (PR #2908). These are small but concrete signs the open-source verification
   backend is still being hardened.
-- **Clash Formal** (QBayLogic) — cryptographic cores, RISC-V with CHERI, FIDO2/
-  CTAP2 passkey stacks, integrating proof assistants/SMT/model checkers.
-- **CIRCT integration** (LATTE 2026 paper) — three lowering strategies into
-  CIRCT, including a new lambda-calculus dialect preserving ADTs and pattern
-  matching.
+- **Clash Formal** (QBayLogic / Cyberagentur EvIT, 2025–ongoing) —
+  cryptographic cores, RISC-V with CHERI, FIDO2/CTAP2 passkey stacks, and a
+  roadmap toward **Clash 2.0** with native proof-assistant / SMT / model-checker
+  integration.
 - **Bug-fix activity for `Clash.Verification`** (Issue #3153, February 2026):
   operator translations to Yosys/SymbiYosys are still being fixed (`lit True` →
   `true`, `implies` → `->`, etc.), highlighting the difficulty of building a
@@ -131,11 +138,21 @@ The industry-standard Chisel flow is adding formal verification rapidly:
 - **Chisel 7.11.0 LTL front-end** — `AssertProperty`, `AssumeProperty`,
   `CoverProperty`, `RequireProperty`, `EnsureProperty`, `Property`/`Sequence`
   composition.
-- **firtool 1.152.0** (June 2026): continued LTL/Verif improvements, BTOR2
-  backend hardening for `verif.formal`, and symbolic-value lowering refinements.
-- **firtool 1.143.0** (March 2026): new `FoldAssume` pass, improved
-  `CombineAssertLike`, BTOR2 backend improvements for `verif.formal` and
-  symbolic values, and LTL `past` clock-operand lowering.rand lowering.
+- **firtool 1.152.0** (July 4 2026): a maintenance release focusing on
+  ImportVerilog/Moore (`$fscanf`/`$sscanf`, `$timeformat`, `%l`/`%L` format
+  specifiers), Arc-dialect coroutine work, FIRRTL NLA/inliner fixes, and string
+  lowering. No major new LTL/Verif/BTOR2 headline features, but the pipeline
+  stays current.
+- **firtool 1.150.0** (June 22 2026): `VerifToSMT` BMC debug-name preservation,
+  `verif.registerVerifPasses` CAPI, multi-bit boolean expressions in
+  ImportVerilog assertions.
+- **firtool 1.147.0** (May 16 2026): `ClockedDelayOp` description and
+  canonicalizations; `PastOp` clock operand made mandatory; `LTLToCore` dropped
+  `assume-first-clock`; `ExportVerilog` now emits LTL clocked delays.
+- **firtool 1.143.0** (March 2026): the largest formal-verification release so
+  far: new `FoldAssume` pass, improved `CombineAssertLike`, BTOR2 backend
+  improvements for `verif.formal` and symbolic values, and LTL `past` clock-
+  operand lowering.
 - **May 2026 CIRCT PR #10392 / Chisel PR #5291**: explicit clocking for
   `ltl.past` — implicit clocking was removed because it complicated lowering.
 
@@ -152,14 +169,15 @@ It also has no ternary compute line and no physical boot-evidence loop.
    intersection no competitor currently occupies. Sparkle's July 2026 public
    positioning (“Lean 4 as the core of RTL development”) makes this defence
    urgent.
-2. **Expand the physical boot-evidence story.** Wave Loops 423–426 hardened the
-   VCD/CSV import path (`--csv-voltage-unit`, slope filters, unknown-timescale
-   fallbacks), added PVT-worst-case theorem generation, embedded PVT context in
-   boot-log JSON, and added machine-readable `recommendation` objects plus
-   worst-case PVT margin fields. Next: relay automation, PVT falsification
-   reports, and Lean theorems per captured corner.
+2. **Expand the physical boot-evidence story.** Wave Loops 423–427 hardened the
+   VCD/CSV import path, added PVT-worst-case and finite-grid theorems, embedded
+   PVT context and machine-readable `recommendation` objects in `tri fpga` JSON,
+   added `pvt_envelope_margin_ns`, and introduced `tri fpga sweep-report --json`
+   for downstream tooling. Next: relay automation, PVT falsification reports,
+   and Lean theorems per captured corner.
 3. **Grow the ternary IP catalog.** Sparkle's broad IP list is its headline
-   advantage. t27 needs visible ternary MAC/GEMM/encoder blocks with matching
+   advantage; the RV32 divider proof in PR #65 shows it can do deep IP-level
+   correctness. t27 needs visible ternary MAC/GEMM/encoder blocks with matching
    Lean proofs.
 4. **Keep the `tri` pipeline fast and deterministic.** A one-command
    `tri test` + `tri gen` + `tri seal` workflow is a UX advantage over
@@ -171,12 +189,14 @@ It also has no ternary compute line and no physical boot-evidence loop.
 
 - Sparkle / Verilean: <https://github.com/Verilean/sparkle>
 - Sparkle PR #66 (IP.Net + compiler perf): <https://github.com/Verilean/sparkle/pull/66>
+- Sparkle PR #65 (RV32 divider proof): <https://github.com/Verilean/sparkle/pull/65>
 - Sparkle RV32 divider verification commit: <https://github.com/Verilean/sparkle/commit/9c7809c13cc2d2abd8d5aa0b7c2943ac76340a75>
 - Sparkle / 関数型まつり2026 talk proposal (July 11 2026): <https://fortee.jp/2026fp-matsuri/proposal/0950c519-6c98-4db6-b819-eff0f4f3d06e>
 - Verilean organization: <https://github.com/Verilean>
 - Clash homepage: <https://clash-lang.org/>
 - Clash Formal project: <https://trustworthy-it.com/en/projekte/clash-formal>
 - Clash compiler repo: <https://github.com/clash-lang/clash-compiler/>
+- Clash 1.10 release (April 2026): <https://clash-lang.org/blog/2026-04-28-clash110/>
 - Clash 1.8.5 release / changelog: <https://github.com/clash-lang/clash-compiler/releases/tag/v1.8.5>
 - LATTE 2026 Clash/CIRCT paper: <https://www.cs.princeton.edu/~ad4048/pdfs/latte-2026-submission-14.pdf>
 - CIRCT LTL dialect: <https://circt.llvm.org/docs/Dialects/LTL/>

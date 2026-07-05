@@ -1,5 +1,71 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-05 — Wave Loop 427 (FPGA formal/tooling hardening: per-OSCFSEL PVT envelope theorems, `tri fpga sweep-report --json`, competitor refresh)
+
+### What worked
+- Re-probing the bench at the start of the wave confirmed the same blockers as
+  W424/W425/W426: P12 unwired, no relay gate, DLC10 missing. Defaulting to
+  **Variant C** again kept the wave bounded and shippable.
+- Proving per-OSCFSEL PVT envelope theorems (`cclk_variant_within_pvt_envelope`,
+  `cclk_variant_pvt_envelope_margin_nonneg`) for all eight Artix-7 CCLK variants
+  made the W426 finite-grid lemma directly applicable to every documented
+  configuration, not just a single worst-case search.
+- Using `interval_cases oscfsel <;> decide` handled the `Int.toNat` arithmetic
+  that `norm_num` left unsolved. Concrete lookup-table proofs with `UInt8`
+  projections need a tactic that reduces the whole inequality, not just the
+  rational side.
+- Adding a `--json` output mode to `tri fpga sweep-report` and a round-trip unit
+  test made the CLI output consumable by downstream dashboards while guarding
+  against accidental schema drift.
+- Refreshing `docs/reports/T27_VS_FORMAL_HDL_2026.md` with Sparkle's July 2026
+  Functional Matsuri talk, PR #65 divider proof, Clash 1.10, and updated firtool
+  versions kept the competitor snapshot current.
+- Explicitly documenting the gen-verilog #1245 deferral in
+  `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` prevented the 7 pre-existing yosys
+  smoke failures from being re-investigated every wave.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added
+  `cclk_variant_within_pvt_envelope` and
+  `cclk_variant_pvt_envelope_margin_nonneg`.
+- `cli/tri/src/fpga.rs`:
+  - Added `--json` flag to `FpgaCmd::SweepReport` and JSON serialization for the
+    sweep report.
+  - Added `first_working_oscfsel`, `variants_tested`, `next_steps`, and
+    per-variant `recommendation` / `pvt_envelope_margin_ns` to the JSON output.
+  - Added `test_sweep_report_json_roundtrip`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`: added W427 section documenting
+  the 7 residual failures and the deferral decision.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`: refreshed for W427.
+- `docs/reports/W427_WEAK_POINTS_AND_COMPETITORS.md`: new weak-point/competitor
+  scan for W427.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_427_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W427_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W428_2026-07-05.md`.
+
+### Patterns to reuse
+- After proving a finite-grid worst-case lemma, add a per-configuration envelope
+  theorem so callers can apply the lemma by exact matching rather than redoing
+  interval reasoning.
+- Use `interval_cases + decide` for small lookup-table proofs that involve
+  `UInt8.toNat` or `Int.toNat`; `norm_num` may leave nat projections unevaluated.
+- Add a JSON round-trip unit test whenever a CLI report gains a machine-readable
+  mode. Schema drift is hard to catch with text snapshots alone.
+- Refresh the competitor snapshot in the same wave that touches strategic
+  differentiation, even if the technical work is internal/tooling.
+- Document explicit deferrals in a durable defects file so future waves do not
+  waste time re-triaging the same unsafe fixes.
+
+### Anti-patterns to avoid
+- Do not use `norm_num` alone when the goal contains `Int.toNat` projections;
+  prefer `decide` or reduce the equality first.
+- Do not attempt a gen-verilog #1245 sub-fix when the residual failures are tied
+  to major features (let destructuring, tuple returns, ROM arrays, CORDIC).
+  Continue to defer until a narrow, regression-free subclass appears or the
+  master fix set is merged.
+- Do not emit JSON report fields without a round-trip test; adding fields is
+  cheap, but silently breaking downstream consumers is expensive.
+
 ## 2026-07-05 — Wave Loop 426 (FPGA formal/tooling hardening: finite-grid PVT theorems, machine-readable `tri fpga` JSON, competitor refresh)
 
 ### What worked

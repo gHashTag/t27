@@ -45,11 +45,14 @@ Wave 426 hardened the FPGA CLI and formal model while the bench was blocked
 
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` or `cli/tri/src/fpga.rs` or `bootstrap/src/compiler.rs` | Variant A capture import, B XADC readout/capture import, or C formal/gen-verilog hardening |
-| 2 | `fpga/HARDWARE_SSOT.md` / `docs/reports` | Updated protocol or comparison note |
-| 3 | `docs/reports/*` | W427 report, evidence, W428 cooperation |
-| 4 | `.trinity/experience.md` | W427 learnings |
-| 5 | git/PR | squash-merge to `master`, close issue, open #? for W428 |
+| 1 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | Per-OSCFSEL PVT envelope theorems (0..7) using the finite-grid lemma |
+| 2 | `cli/tri/src/fpga.rs` | `tri fpga sweep-report --json` output mode consuming new recommendation/margin fields |
+| 3 | `bootstrap/src/compiler.rs` or `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` | One safe gen-verilog #1245 sub-fix, or explicit deferral update |
+| 4 | `docs/reports/T27_VS_FORMAL_HDL_2026.md` | Refreshed competitor snapshot |
+| 5 | `docs/reports/W427_WEAK_POINTS_AND_COMPETITORS.md` | Weak-point and competitor scan for W427 |
+| 6 | `docs/reports/*` | W427 report, evidence, W428 cooperation |
+| 7 | `.trinity/experience.md` | W427 learnings |
+| 8 | git/PR | squash-merge to `master`, close issue, open #? for W428 |
 
 ---
 
@@ -99,7 +102,11 @@ Otherwise fall back to **Variant C**.
 
 ## Chosen variant
 
-**To be determined** at the start of W427 after probing the bench.
+**Variant C** is selected for W427. Bench probe confirms the XC7A200T board is
+reachable via Digilent HS2 (`idcode 0x03636093`), but P12 remains unwired, no
+relay/remote-power gate is available, the DLC10 cable is still missing, and no
+external capture was provided. Real XADC readout over the HS2 JTAG path is too
+large and risky for a single wave.
 
 ---
 
