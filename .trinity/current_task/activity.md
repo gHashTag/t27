@@ -1596,3 +1596,7 @@
 - **Commit:** feat(igla): Wave Loop 431 — XADC→PVT context bridge, computable envelope, measured-to-lean --json summary hardening
 - **Files:** .trinity/experience.md,docs/NOW.md
 
+## 2026-07-05T11:58:14Z — wave-loop-432
+- **Commit:** chore(merge): bring origin/master (gf128 promotion) into wave-loop-432
+- **Files:** .claude/plans/wave-loop-432.md,.trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W433_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W432_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_432_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
