@@ -1564,3 +1564,7 @@
 - **Commit:** feat(igla): Wave Loop 428 — unified OSCFSEL PVT theorems, tri fpga pvt-envelope --json, competitor refresh
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-05T09:29:29Z — wave-loop-429
+- **Commit:** chore(w429): seed current-issue.md for Wave Loop 429
+- **Files:** cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W430_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_429_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+

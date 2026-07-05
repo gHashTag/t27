@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-01 (Wave Loop 388)  
+**Last updated:** 2026-07-01 (Wave Loop 429)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -394,7 +394,21 @@ wave-loop strategy of one narrow, regression-free sub-fix per wave is therefore
 not applicable. The 7-failure count is accepted as the documented baseline for
 W428; resolution continues to depend on a future master merge/rebase wave.
 
-## Open work after W388 / W427
+### Triage decision for W429
+
+**Still deferred.** W429 focused on the FPGA boot-evidence formal bridge (raw-ns
+OSCFSEL theorems and `tri fpga measured-to-lean --json`). The start-of-wave probe
+re-ran the yosys smoke gate on `wave-loop-429` and confirmed the same 7 failures.
+No new narrow gen-verilog defect surfaced, and none of the existing 7 failures is
+safe to address as a side task while the wave is closing out the formal
+boot-evidence line. The 7-failure count remains the documented baseline.
+
+**Recommended resolution path for W430/W431:** once the FPGA boot-evidence line
+lands, schedule a dedicated merge/rebase wave whose sole purpose is to bring in
+the `master` fix set (`701d79b3b`) and clear these 7 failures. Until then,
+continue to accept the count and keep the failure matrix in this document current.
+
+## Open work after W388 / W427 / W429
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.
