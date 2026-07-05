@@ -145,10 +145,10 @@ bitstream / seal hashes. Should be its own wave.
 
 ## W443 issue/branch action
 
-- Create GitHub issue **#1417** titled **“Wave Loop 443 — PVT-envelope hardening
-  for the 24-variant theorem matrix + real-capture fallback + gen-verilog debt
-  (Variant B, A optional)”**.
-- Create branch **`wave-loop-443`** from the W442 land commit.
+- Create GitHub issue for Wave Loop 443 titled **“Wave Loop 443 — PVT-envelope
+  hardening for the 24-variant theorem matrix + real-capture fallback +
+  gen-verilog debt (Variant B, A optional)”**.
+- Branch **`wave-loop-443`** has been created from the W442 close-out commit.
 - Update `docs/NOW.md` and `.trinity/current-issue.md` to reference W443 / #1417.
 
 ---
