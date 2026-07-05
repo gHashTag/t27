@@ -1,6 +1,154 @@
-# NOW — Wave Loop 443 close-out / Wave Loop 444 setup (2026-07-01)
+# NOW — Wave Loop 446 setup / Wave Loop 445 close-out (2026-07-01)
 
 **Last updated:** 2026-07-01
+
+## Wave Loop 446 — Theorem-matrix golden fixture diff gate + live-capture fallback + gen-verilog debt (Variant B default)
+
+- Branch: `wave-loop-446`
+- Issue: #1420 (to create after #1419 exists)
+- PR: (to open after this close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W446_2026-07-01.md`
+
+---
+
+## Wave Loop 445 — Theorem-matrix golden fixture gate + suite-level timing metric (Closes #1419)
+
+- Branch: `wave-loop-445`
+- Issue: #1419
+- PR: (to open after this close-out)
+- Report: `docs/reports/WAVE_LOOP_445_REPORT.md`
+- Evidence W445: `docs/reports/FPGA_LOOP_EVIDENCE_W445_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_PLAN_W445_2026-07-01.md`
+- Cooperation W446: `docs/reports/FPGA_LOOP_COOPERATION_W446_2026-07-01.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `tests/fixtures/fpga/theorem-matrix/golden/`
+  - Committed the 75-file W444 synthetic fixture set (3 PVT contexts, 24 raw-ns,
+    24 Lean, 24 JSON summary files) as a golden regression set.
+  - Added `README.md` documenting provenance and regeneration.
+
+- `cli/tri/src/fpga.rs`
+  - Added `test_theorem_matrix_golden_replay_passes` which replays the checked-in
+    golden fixtures and asserts 24 variants, all `envelope_check: "ok"`, and a
+    `fixtures` block on every variant.
+
+- `bootstrap/src/suite.rs`
+  - Added `theorem_matrix_elapsed_ms` to `FpgaSmokeResult` and
+    `fpga_smoke_gate_elapsed_ms` to `SuiteSummary`.
+  - `parse_smoke_gate_report` reads `theorem_matrix.elapsed_ms` and the suite
+    runner copies it into the machine-readable summary.
+  - Updated schema regression tests to exercise the new field.
+
+- `fpga/HARDWARE_SSOT.md`
+  - Extended §3.6.26 with the golden fixture path and the `fpga_smoke_gate_elapsed_ms`
+    metric semantics.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W445; Sparkle July 4 2026 FIDO2/crypto burst remains the most
+    recent public signal.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Documented the W445 triage decision: no compiler work attempted; the 7
+    residual yosys smoke failures remain the documented baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_445_REPORT.md`,
+  `docs/reports/FPGA_LOOP_PLAN_W445_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W445_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W446_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — possible but not
+  performed this wave.
+- Master-merge to clear #1245 — fix set not safely reachable from
+  `wave-loop-445` this wave.
+
+### Verification
+
+- `cargo test -p tri --bin tri`: **PASS** (137 tests).
+- `cargo test -p t27c --bin t27c suite::tests`: **PASS** (8 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test --json build/suite_report_w445.json`: **PASS**.
+  - Parse/typecheck/GF16/gen-zig/gen-rust/gen-c/seal-verify: 576/576 PASS.
+  - Gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+  - FPGA board-less smoke gate: **PASS**, theorem matrix 24 variants,
+    `envelope_check: "ok"`, `fixtures` present, `schema_version: "1.0"`,
+    `acceptable: true`, `fpga_smoke_gate_elapsed_ms: 9`.
+
+---
+
+## Wave Loop 444 — Theorem-matrix fixture replay + deterministic CI artifact (Closes #1418)
+
+- Branch: `wave-loop-444`
+- Issue: #1418
+- PR: (to open after this close-out)
+- Report: `docs/reports/WAVE_LOOP_444_REPORT.md`
+- Evidence W444: `docs/reports/FPGA_LOOP_EVIDENCE_W444_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_PLAN_W444_2026-07-01.md`
+- Cooperation W445: `docs/reports/FPGA_LOOP_COOPERATION_W445_2026-07-01.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `cli/tri/src/fpga.rs`
+  - Added `--replay-fixtures <dir>` to `tri fpga smoke-gate`.
+  - Extracted `generate_theorem_matrix(fixture_dir)` that persists PVT, raw-ns,
+    Lean, and summary fixtures for each of the 24 `ff`/`tt`/`ss` × OSCFSEL 0..7
+    variants.
+  - Implemented `replay_theorem_matrix(fixture_dir)` that verifies the persisted
+    fixtures and reproduces the matrix report without regenerating theorems.
+  - Extended the `theorem_matrix` report block with per-variant `fixtures`,
+    `replay: true/false`, and `elapsed_ms`.
+  - Added fixture-roundtrip and replay-regression unit tests.
+
+- `bootstrap/src/suite.rs`
+  - Default `./scripts/tri test` FPGA phase now passes `--theorem-matrix`, so the
+    suite-generated smoke-gate report includes the 24-variant matrix.
+  - Updated the fake smoke-gate report test to exercise the new `fixtures`,
+    `replay`, and `elapsed_ms` fields.
+
+- `fpga/HARDWARE_SSOT.md`
+  - Added §3.6.26 documenting fixture file patterns and the `--replay-fixtures`
+    workflow.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W444; Sparkle July 4 2026 FIDO2/crypto burst is now recorded.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Documented the W444 triage decision: no compiler work attempted; the 7
+    residual yosys smoke failures remain the documented baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_444_REPORT.md`,
+  `docs/reports/FPGA_LOOP_PLAN_W444_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W444_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W445_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — possible but not
+  performed this wave.
+- Master-merge to clear #1245 — fix set not safely reachable from
+  `wave-loop-444` this wave.
+
+### Verification
+
+- `cargo test -p tri --bin tri`: **PASS** (136 tests).
+- `cargo test -p t27c --bin t27c suite::tests`: **PASS** (8 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test --json build/suite_report_w444_final.json`: **PASS**.
+  - Parse/typecheck/GF16/gen-zig/gen-rust/gen-c/seal-verify: 576/576 PASS.
+  - Gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+  - FPGA board-less smoke gate: **PASS**, theorem matrix 24 variants,
+    `envelope_check: "ok"`, `fixtures` present, `schema_version: "1.0"`,
+    `acceptable: true`.
+
+---
 
 ## Wave Loop 443 — PVT-envelope hardening for the 24-variant theorem matrix (Closes #1417)
 

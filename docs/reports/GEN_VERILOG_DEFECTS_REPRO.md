@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-443`  
-**Last updated:** 2026-07-01 (Wave Loop 443)  
+**Branch:** `wave-loop-444`  
+**Last updated:** 2026-07-01 (Wave Loop 444)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -50,6 +50,20 @@ adds explicit PVT-envelope validation to the 24-variant theorem matrix and makes
 `tri fpga pvt-envelope --json` emit an `inside_envelope` boolean plus a
 closed-vocabulary `envelope_check`. The 7 residual yosys smoke failures remain the
 documented baseline; Variant C (master-merge) remains a dedicated future wave.
+
+**W444 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W444
+makes the theorem matrix deterministic and replayable from JSON fixtures by
+persisting PVT, raw-ns, Lean, and summary fixtures under
+`build/fpga/theorem-matrix-fixtures/` and adding a `--replay-fixtures` mode. The
+7 residual yosys smoke failures remain the documented baseline; Variant C
+(master-merge) remains a dedicated future wave.
+
+**W445 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W445
+commits the W444 synthetic theorem-matrix fixtures as a golden regression set
+under `tests/fixtures/fpga/theorem-matrix/golden/` and adds a suite-level
+`fpga_smoke_gate_elapsed_ms` metric. The 7 residual yosys smoke failures remain
+the documented baseline; Variant C (master-merge) remains a dedicated future
+wave.
 
 ---
 
@@ -601,7 +615,20 @@ defect was introduced.
 
 **Defect status matrix after W441:** same as after W435.
 
-## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439 / W440 / W441
+## W444 triage (2026-07-01)
+
+Wave Loop 444 selected **Variant B** of the W444 cooperation plan (theorem-matrix
+fixture replay + deterministic CI artifact). Work focused on `cli/tri/src/fpga.rs`
+(`--replay-fixtures`, `generate_theorem_matrix`, `replay_theorem_matrix`, fixture
+persistence, `fixtures` block in the report) and `bootstrap/src/suite.rs`
+(default `--theorem-matrix` in the suite smoke-gate invocation, updated fake
+report fixture). The wave did not touch the `gen-verilog` backend, so the 7
+residual yosys smoke failures remain **unchanged and re-confirmed as the
+baseline**. No new narrow defect was introduced.
+
+**Defect status matrix after W444:** same as after W435.
+
+## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439 / W440 / W441 / W444
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.

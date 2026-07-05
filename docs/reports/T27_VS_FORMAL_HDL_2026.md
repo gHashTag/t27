@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 443)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 444)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -154,14 +154,45 @@ most recent competitive-intelligence checkpoint, and **CIRCT firtool-1.152.0**
 validates every synthetic corner context against the operating rectangle before
 generating a theorem and records `envelope_check: "ok"` in each per-variant
 matrix entry. New Rust unit tests cover the envelope verdict and synthetic-corner
-invariants. Public competitor signals remain unchanged since the W442 boundary:
-Sparkle's last public push is still **2026-07-03 19:27:50Z**; PR #66 (IP.Net +
-compiler perf) and PR #57 (analogue simulation, now closed/spun out) are the most
-recent visible items. **CIRCT firtool-1.152.0** is still the latest public
-release; no `1.153.0` has appeared. The ternary-FPGA ecosystem (TernaryCore,
-ternfpga, ternaryLLM) continues to validate the {-1, 0, +1} compute niche but none
-combine it with a Lean-native proof pipeline. The 7 residual `gen-verilog` yosys
-smoke failures remain the documented baseline.
+invariants. Sparkle remains active: PR #66 (IP.Net + compiler perf) was merged
+2026-06-30, and a burst of FIDO2/crypto work landed on **2026-07-04**
+(PR #97 FIDO2/CTAP2 data layer, PR #98 P-256 hardware sign stack + SHA-256
+streaming, PR #99 CTAPHID + CTAP2 dispatch top, PR #100 crypto refactor with
+P-256 math-property proofs). This validates the strategic threat: Sparkle is
+building a broad, formally verified IP catalog inside Lean 4 HDL — exactly the
+area where t27 has the least surface area today. **CIRCT firtool-1.152.0** is
+still the latest public release; no `1.153.0` has appeared. The ternary-FPGA
+ecosystem (TernaryCore, ternfpga, ternaryLLM) continues to validate the
+{-1, 0, +1} compute niche but none combine it with a Lean-native proof pipeline.
+The 7 residual `gen-verilog` yosys smoke failures remain the documented baseline.
+
+**W444 makes the theorem matrix deterministic and replayable from JSON
+fixtures.** `tri fpga smoke-gate --theorem-matrix` now persists `pvt.json`,
+`raw_ns.json`, `summary.json`, and `theorem.lean` for each of the 24 variants
+under `build/fpga/theorem-matrix-fixtures/`, and a new `--replay-fixtures <dir>`
+mode reproduces the matrix report from those fixtures without regenerating the
+Lean theorems. The report carries a structured `fixtures` object per variant,
+an `elapsed_ms` metric, and a `replay` flag. This strengthens t27's
+machine-checkable evidence trail: a captured or CI-generated fixture set can
+be re-run cheaply and diffed between waves. Competitor signals at the W444
+boundary remain the same: Sparkle is the closest Lean-native threat, CIRCT is the
+mainstream formal train, and the ternary-FPGA niche is still untapped by any
+formal-HDL competitor. t27's differentiator remains the sealed
+spec → generated code → seal hash → physical boot-evidence loop.
+
+**W445 adds a checked-in golden fixture set and a suite-level timing metric.**
+The W444 synthetic fixtures are now committed under
+`tests/fixtures/fpga/theorem-matrix/golden/` so CI can replay the exact same
+24-variant matrix from a known-good set. A new regression test
+(`test_theorem_matrix_golden_replay_passes`) verifies that replay still
+produces all `envelope_check: "ok"` results and that every variant carries a
+`fixtures` block. The suite-level JSON summary produced by `./scripts/tri test
+--json` now includes `fpga_smoke_gate_elapsed_ms`, allowing the project to trend
+generation/replay cost across waves. Competitor signals at the W445 boundary are
+unchanged: Sparkle's July 4 2026 FIDO2/crypto burst remains the most recent
+public signal, CIRCT `firtool-1.152.0` is still the latest release, and no
+ternary-FPGA project besides Sparkle combines ternary compute with a
+Lean-native proof pipeline.
 
 ---
 

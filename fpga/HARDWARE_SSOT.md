@@ -1243,6 +1243,54 @@ JSON to the path supplied with `--json`. When the FPGA smoke gate is skipped
 phase's `skipped` count is incremented, so consumers can distinguish "skipped"
 from "failed".
 
+#### 3.6.26 `tri fpga smoke-gate --theorem-matrix` fixture replay (W444–W445)
+
+W444 persists the 24 synthetic theorem-matrix variants (3 process corners × 8
+OSCFSEL values) as machine-readable fixtures under
+`build/fpga/theorem-matrix-fixtures/`:
+
+| File pattern | Contents |
+|--------------|----------|
+| `theorem_matrix_pvt_<corner>.json` | `PvtContext` for the corner (`ff`/`tt`/`ss`) |
+| `theorem_matrix_raw_ns_<corner>_<oscfsel>.json` | `MeasuredCclkRawNs` period/low/high |
+| `theorem_matrix_summary_<corner>_<oscfsel>.json` | `measured-to-lean --json` summary |
+| `theorem_matrix_<corner>_oscfsel_<oscfsel>.lean` | Generated Lean theorem |
+
+The smoke-gate report's `theorem_matrix.variants[]` block now contains a
+`fixtures` object with absolute paths to these four files, plus a top-level
+`replay` boolean (`false` for generation, `true` for replay) and `elapsed_ms`
+timing. To replay an existing fixture set without regenerating theorems:
+
+```bash
+tri fpga smoke-gate \
+  --synthetic-operating-point --verify-lean --theorem-matrix \
+  --replay-fixtures build/fpga/theorem-matrix-fixtures \
+  --json /tmp/replay_report.json
+```
+
+Replay is input-driven: it reads the persisted PVT/raw-ns fixtures, runs
+`verify-lean` on each `.lean` file, and checks the envelope. It does **not**
+invoke `measured-to-lean` or `lake build`, so CI can validate the matrix shape
+in milliseconds rather than seconds.
+
+W445 commits the W444 synthetic fixture set as a **golden regression set** under
+`tests/fixtures/fpga/theorem-matrix/golden/`. A checked-in golden set lets CI
+replay the exact same 24 variants on every run and diff the report shape
+between waves. To replay from the golden fixtures:
+
+```bash
+tri fpga smoke-gate \
+  --synthetic-operating-point --verify-lean --theorem-matrix \
+  --replay-fixtures tests/fixtures/fpga/theorem-matrix/golden \
+  --json /tmp/golden_replay_report.json
+```
+
+The suite-level JSON summary produced by `./scripts/tri test --json` also
+exposes `fpga_smoke_gate_elapsed_ms`, which is read from
+`build/fpga/smoke_gate_report.json`'s `theorem_matrix.elapsed_ms`. This metric
+is optional in the report; older reports without the field simply leave the
+suite field as `null`.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)
