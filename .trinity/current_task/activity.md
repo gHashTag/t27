@@ -1688,3 +1688,7 @@
 - **Commit:** docs(w440): correct issue/PR numbers — W440 PR #1414, W441 issue #1413
 - **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W442_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W441_2026-07-01.md,docs/reports/FPGA_LOOP_PLAN_W441_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_441_REPORT.md,docs/reports/gen_verilog_smoke_baseline.json
 
+## 2026-07-05T15:07:02Z — wave-loop-441
+- **Commit:** feat(igla): Wave Loop 441 — baseline-aware suite summary, OSCFSEL 0..7 theorem matrix, CI schema tests (Closes #1413)
+- **Files:** docs/reports/WAVE_LOOP_441_REPORT.md
+

@@ -2,7 +2,7 @@
 
 **Issue:** [#1413](https://github.com/gHashTag/t27/issues/1413)  
 **Branch:** `wave-loop-441`  
-**PR:** (to open after this close-out)  
+**PR:** [#1416](https://github.com/gHashTag/t27/pull/1416)  
 **Date:** 2026-07-01  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
