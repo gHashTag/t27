@@ -1490,6 +1490,21 @@ theorem xadc_operating_point_within_envelope_dec_eq (pt : XadcOperatingPoint) :
   simp [xadc_operating_point_within_envelope_dec, xadc_operating_point_within_envelope,
         Bool.and_eq_true]
 
+/-- Computable combined check: a documented OSCFSEL selection and a measured XADC
+    operating point are both within their allowed ranges. This is the gate used by
+    dashboard tooling to decide whether a live readout justifies a given CCLK
+    variant without unfolding the full PVT proof. -/
+def cclk_variant_and_xadc_envelope_check (oscfsel : Nat) (pt : XadcOperatingPoint) : Bool :=
+  decide (oscfsel ≤ 7) && xadc_operating_point_within_envelope_dec pt
+
+/-- The combined check is equivalent to the conjunction of `oscfsel ≤ 7` and the
+    XADC operating-point envelope predicate. -/
+theorem cclk_variant_and_xadc_envelope_check_eq (oscfsel : Nat) (pt : XadcOperatingPoint) :
+  cclk_variant_and_xadc_envelope_check oscfsel pt = true
+  ↔ (oscfsel ≤ 7) ∧ xadc_operating_point_within_envelope pt := by
+  simp [cclk_variant_and_xadc_envelope_check, xadc_operating_point_within_envelope_dec_eq,
+        Bool.and_eq_true]
+
 /-- If a measured operating point is inside the envelope, then any raw-ns capture
     that satisfies the PVT-aware flash predicate under the global worst-case
     context also satisfies it under the measured point's context. This is the
@@ -1836,6 +1851,51 @@ theorem xadc_envelope_justifies_cclk_variant_transaction_ok
     exact h_volt_max
   · exact xadc_envelope_justifies_cclk_variant_raw_ns_pvt oscfsel pt h h_env h_corner
 
+-- ============================================================================
+-- Computable combined OSCFSEL + XADC envelope check (W435)
+-- ============================================================================
+
+/-- If the combined OSCFSEL + XADC envelope check holds and the measured process
+    corner is at least as slow as `ss`, then the ideal raw-ns CCLK capture at the
+    nominal OSCFSEL period satisfies the PVT-aware flash predicate. This links the
+    computable dashboard gate directly to the formal safety theorem. -/
+theorem cclk_variant_and_xadc_envelope_check_implies_raw_ns_ok
+  (oscfsel : Nat) (pt : XadcOperatingPoint) (h_check : cclk_variant_and_xadc_envelope_check oscfsel pt)
+  (h_corner : pt.process_corner.worse_than ProcessCorner.ss) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (xadc_operating_point_to_pvt pt) = true := by
+  have h : (oscfsel ≤ 7) ∧ xadc_operating_point_within_envelope pt :=
+    (cclk_variant_and_xadc_envelope_check_eq oscfsel pt).mp h_check
+  exact xadc_envelope_justifies_cclk_variant_raw_ns_pvt oscfsel pt h.left h.right h_corner
+
+/-- If the combined OSCFSEL + XADC envelope check holds, the ideal raw-ns CCLK
+    capture produces a flash-spec-compliant SPI read transaction. -/
+theorem cclk_variant_and_xadc_envelope_check_implies_transaction_ok
+  (oscfsel : Nat) (pt : XadcOperatingPoint) (bits : Nat)
+  (h_check : cclk_variant_and_xadc_envelope_check oscfsel pt)
+  (h_corner : pt.process_corner.worse_than ProcessCorner.ss) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits)
+    = true := by
+  intro period_ns low_ns high_ns
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok period_ns low_ns high_ns bits
+    (xadc_operating_point_to_pvt pt)
+  · have h := (cclk_variant_and_xadc_envelope_check_eq oscfsel pt).mp h_check
+    simp [xadc_operating_point_within_envelope] at h
+    rcases h.right with ⟨h_temp_min, _, _, _⟩
+    exact h_temp_min
+  · have h := (cclk_variant_and_xadc_envelope_check_eq oscfsel pt).mp h_check
+    simp [xadc_operating_point_within_envelope] at h
+    rcases h.right with ⟨_, _, _, h_volt_max⟩
+    exact h_volt_max
+  · exact cclk_variant_and_xadc_envelope_check_implies_raw_ns_ok oscfsel pt h_check h_corner
+
 /-- Concrete example: a representative live XADC readout (≈43 °C, ≈1.00 V VCCINT,
     ≈1.81 V VCCAUX, slow-slow corner) satisfies the PVT-aware raw-ns flash
     predicate for the OSCFSEL=6 nominal CCLK period under the measured PVT
@@ -1887,25 +1947,170 @@ theorem xadc_live_w434_justifies_cclk_variant_raw_ns_pvt
   · -- slow-slow corner is no better than itself
     simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
 
-/-- For the W434 live XADC operating point, OSCFSEL=6 (25 MHz nominal) and the
-    ideal 40 ns / 20 ns / 20 ns raw-ns capture satisfy the PVT-aware flash
-    predicate. This is the concrete synthetic fixture matching the live
-    capture point used in Wave Loop 434. -/
-theorem xadc_live_w434_oscfsel_6_raw_ns_pvt_satisfies_flash_spec :
-  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec 40 20 20
+-- ============================================================================
+-- Synthetic OSCFSEL 0..7 theorem matrix under the W434 live XADC point (W435)
+-- ============================================================================
+
+/-- Quantified theorem: for every documented OSCFSEL selection (0..7), the ideal
+    raw-ns CCLK capture at the nominal OSCFSEL period satisfies the PVT-aware
+    flash predicate under the W434 live XADC operating point. This is the synthetic
+    coverage matrix that closes the live-readout → all-CCLK-variants loop without
+    requiring a physical logic-analyzer capture of every variant. -/
+theorem xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec
+  (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
     (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  exact xadc_live_w434_justifies_cclk_variant_raw_ns_pvt oscfsel h
+
+/-- Concrete theorems for each documented OSCFSEL selection under the W434 live
+    XADC point. Each one is `decide`-cheap because it reuses the quantified bridge
+    theorem above. -/
+theorem xadc_live_w434_oscfsel_0_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 0) (cclk_period_ns 0 / 2) (cclk_period_ns 0 - cclk_period_ns 0 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 0
   decide
 
-/-- For the W434 live XADC operating point and OSCFSEL=6, the ideal raw-ns
-    capture produces a flash-spec-compliant SPI read transaction. -/
+theorem xadc_live_w434_oscfsel_1_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 1) (cclk_period_ns 1 / 2) (cclk_period_ns 1 - cclk_period_ns 1 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 1
+  decide
+
+theorem xadc_live_w434_oscfsel_2_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 2) (cclk_period_ns 2 / 2) (cclk_period_ns 2 - cclk_period_ns 2 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 2
+  decide
+
+theorem xadc_live_w434_oscfsel_3_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 3) (cclk_period_ns 3 / 2) (cclk_period_ns 3 - cclk_period_ns 3 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 3
+  decide
+
+theorem xadc_live_w434_oscfsel_4_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 4) (cclk_period_ns 4 / 2) (cclk_period_ns 4 - cclk_period_ns 4 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 4
+  decide
+
+theorem xadc_live_w434_oscfsel_5_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 5) (cclk_period_ns 5 / 2) (cclk_period_ns 5 - cclk_period_ns 5 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 5
+  decide
+
+theorem xadc_live_w434_oscfsel_6_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 6) (cclk_period_ns 6 / 2) (cclk_period_ns 6 - cclk_period_ns 6 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 6
+  decide
+
+theorem xadc_live_w434_oscfsel_7_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 7) (cclk_period_ns 7 / 2) (cclk_period_ns 7 - cclk_period_ns 7 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 7
+  decide
+
+/-- End-to-end transaction theorems for each OSCFSEL variant under the W434 live
+    XADC point. -/
+theorem xadc_live_w434_oscfsel_0_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 0) (cclk_period_ns 0 / 2) (cclk_period_ns 0 - cclk_period_ns 0 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 0 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_1_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 1) (cclk_period_ns 1 / 2) (cclk_period_ns 1 - cclk_period_ns 1 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 1 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_2_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 2) (cclk_period_ns 2 / 2) (cclk_period_ns 2 - cclk_period_ns 2 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 2 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_3_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 3) (cclk_period_ns 3 / 2) (cclk_period_ns 3 - cclk_period_ns 3 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 3 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_4_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 4) (cclk_period_ns 4 / 2) (cclk_period_ns 4 - cclk_period_ns 4 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 4 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_5_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 5) (cclk_period_ns 5 / 2) (cclk_period_ns 5 - cclk_period_ns 5 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 5 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
 theorem xadc_live_w434_oscfsel_6_transaction_ok (bits : Nat) :
   transaction_satisfies_flash_spec
-    (measured_boot_transaction_from_raw_ns_with_pvt 40 20 20 bits) = true := by
-  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok 40 20 20 bits
-    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT)
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 6) (cclk_period_ns 6 / 2) (cclk_period_ns 6 - cclk_period_ns 6 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 6 XADC_LIVE_W434_OPERATING_POINT bits
   · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_7_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 7) (cclk_period_ns 7 / 2) (cclk_period_ns 7 - cclk_period_ns 7 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 7 XADC_LIVE_W434_OPERATING_POINT bits
   · decide
-  · exact xadc_live_w434_oscfsel_6_raw_ns_pvt_satisfies_flash_spec
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+/-- Example: the combined OSCFSEL + XADC envelope check evaluates to `true` for
+    the W434 live point and OSCFSEL=6, matching the dashboard gate. -/
+theorem xadc_live_w434_oscfsel_6_combined_check_true :
+  cclk_variant_and_xadc_envelope_check 6 XADC_LIVE_W434_OPERATING_POINT = true := by
+  decide
 
 end BitstreamConfig
 
