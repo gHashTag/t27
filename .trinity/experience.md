@@ -1,5 +1,65 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-05 — Wave Loop 426 (FPGA formal/tooling hardening: finite-grid PVT theorems, machine-readable `tri fpga` JSON, competitor refresh)
+
+### What worked
+- Re-probing the bench at the start of the wave confirmed the same blockers as
+  W424/W425: P12 unwired, no relay gate, DLC10 missing. Defaulting to **Variant C**
+  again kept the wave bounded and shippable.
+- Adding finite-grid PVT theorems (`pvt_half_ns_operating_rectangle_grid_bounded`,
+  `pvt_low_ns_operating_rectangle_grid_bounded`) turned the worst-case envelope
+  from a symbolic shape claim into an exhaustive 75-point proof that the worst
+  corner dominates every documented operating point.
+- Computing `pvt_envelope_margin_ns` from a Rust mirror of the Lean `cclk_nominal_hz`
+  table made the CLI output self-describing: each OSCFSEL variant now carries a
+  numeric safety margin in its JSON log.
+- Adding a closed-vocabulary `recommendation` object to `cclk-sweep`, `boot-log`,
+  and `cold-por` logs makes downstream tooling actionable without parsing free-form
+  conclusion strings.
+- Refreshing `docs/reports/T27_VS_FORMAL_HDL_2026.md` with Sparkle's July 2026
+  Functional Matsuri talk and Clash 1.8.5 verification fixes kept the competitor
+  snapshot current.
+- Running `./scripts/tri test` immediately after the Rust edits confirmed that
+  the 7 deferred `gen-verilog-yosys-smoke` failures were unchanged; no new
+  regressions were introduced.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added
+  `pvt_half_ns_operating_rectangle_grid_bounded` and
+  `pvt_low_ns_operating_rectangle_grid_bounded`.
+- `cli/tri/src/fpga.rs`:
+  - Added `cclk_nominal_hz`, `pvt_envelope_margin_ns`, and
+    `recommendation_from_conclusion`.
+  - Added `pvt_envelope_margin_ns` and `recommendation` fields to `SweepLog`.
+  - Populated both fields in all four `cclk-sweep` log construction sites.
+  - Added both fields to `boot-log` and `cold-por` JSON output.
+  - Added 8 new unit tests for the new helpers.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`: refreshed for W426.
+- Close-out artifacts: `docs/reports/FPGA_LOOP_EVIDENCE_W426_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W427_2026-07-05.md`.
+
+### Patterns to reuse
+- When a worst-case bound is used by downstream validation, prove a finite-grid
+  lemma that enumerates every realistic operating point. Callers can then apply
+  the grid lemma by exact matching rather than redoing the lattice reasoning.
+- Mirror formal lookup tables (e.g. `cclk_nominal_hz`) in Rust so the CLI and the
+  theorem prover agree on the constants that feed margin calculations.
+- Add a closed-vocabulary recommendation object as soon as the conclusion strings
+  are used for decision-tree guidance; this prevents downstream scripts from
+  having to parse prose.
+- Refresh the competitor snapshot in the same wave that touches strategic
+  differentiation, even if the technical work is internal/tooling.
+
+### Anti-patterns to avoid
+- Do not compute a PVT margin from the JTAG frequency when the relevant clock is
+  the FPGA's CCLK; use the OSCFSEL-specific nominal frequency instead.
+- Do not pass mutable first-working state into a log builder in a way that creates
+  ordering-dependent recommendations; `get_or_insert` keeps the first success stable.
+- Do not attempt a gen-verilog #1245 sub-fix when the residual failures are tied
+  to major features (let destructuring, tuple returns, ROM arrays, CORDIC). Continue
+  to defer until a narrow, regression-free subclass appears or the master fix set
+  is merged.
+
 ## 2026-07-05 — Wave Loop 425 (FPGA formal/tooling hardening: OSCFSEL 0–7 sweep, PVT worst-case envelope theorems)
 
 ### What worked

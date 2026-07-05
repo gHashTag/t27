@@ -1,7 +1,7 @@
 # Wave Loop 426 Cooperation Variants
 
 **Date:** 2026-07-05  
-**For:** issue #? (to be created after W425 lands)  
+**For:** issue #1376  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
 ---
