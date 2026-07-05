@@ -1624,3 +1624,7 @@
 - **Commit:** chore(trinity): update current_task counters after W434 verification run
 - **Files:** .claude/plans/wave-loop-435.md,.trinity/current-issue.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W436_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W435_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_435_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-05T12:46:22Z — wave-loop-435
+- **Commit:** feat(igla): Wave Loop 435 — live XADC → PVT context CLI export, OSCFSEL 0..7 synthetic theorem matrix, end-to-end integration test
+- **Files:** docs/NOW.md
+
