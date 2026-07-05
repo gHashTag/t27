@@ -1,3 +1,77 @@
+## 2026-07-01 — Wave Loop 433 (FPGA formal bridge fallback: compose W431 XADC envelope with W432 per-process-corner raw-ns OSCFSEL theorems, W433 close-out / W434 setup)
+
+### What worked
+- Choosing **Variant C3** (formal bridge fallback) kept W433 shippable while the
+  bench remains blocked: P12 is still unwired, the relay gate is absent, and the
+  DLC10 cable is missing. Variant A/B physical captures remain infeasible, and
+  Variant C1 (master-merge of the gen-verilog #1245 fix set) is still blocked by
+  the divergent `master` lineage, so the wave composed existing formal assets
+  instead.
+- Composing the W431 XADC operating-point envelope bound
+  (`xadc_envelope_implies_raw_ns_satisfies_any_in_envelope`) with the W432
+  per-process-corner raw-ns OSCFSEL theorem
+  (`cclk_variant_raw_ns_per_process_corner_pvt_satisfies_flash_spec`) produced a
+  single theorem that covers any in-envelope live XADC point and any documented
+  OSCFSEL, closing the gap between live sensor data and the corner theorem.
+- Adding `xadc_envelope_justifies_cclk_variant_transaction_ok` shows that the same
+  composition also justifies the transaction-level flash spec, not just the raw-ns
+  clock spec, so downstream `--validate` and `--pvt-context` tooling can claim a
+  closed proof chain.
+- The concrete example `xadc_live_example_oscfsel_6_raw_ns_pvt` demonstrates
+  that a realistic in-envelope point (43 °C, 1.000 V, 1.806 V, ss corner) at
+  OSCFSEL 6 satisfies the flash spec by `decide`.
+- Refreshing `docs/reports/T27_VS_FORMAL_HDL_2026.md` for W433 keeps the
+  competitive snapshot current: Sparkle PR #66 remains open, firtool 1.152.0 is
+  now published, Clash 1.11.0 is still a Hackage candidate, and Aria-HDL has
+  retiming/PCIe BAR updates.
+- Documenting the 7 residual gen-verilog yosys smoke failures as the W433 baseline
+  prevents scope creep and preserves the master-merge decision for a future wave.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added
+  `xadc_envelope_justifies_cclk_variant_raw_ns_pvt`,
+  `xadc_envelope_justifies_cclk_variant_transaction_ok`, and
+  `xadc_live_example_oscfsel_6_raw_ns_pvt`.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`: refreshed competitor snapshot for W433.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`: added W433 triage entry confirming
+  the same 7 residual yosys smoke failures and the deferral decision.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_433_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W433_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W434_2026-07-01.md`.
+- Issue/branch: GitHub issue #1395, branch `wave-loop-434`;
+  PR #1396 closes #1393.
+
+### Verification
+- `cargo test --bin tri fpga::`: 81/81 pass.
+- `lake build Trinity.TernaryFPGABoot`: PASS.
+- `./scripts/tri test`: PASS with 7 pre-existing gen-verilog yosys smoke failures
+  (#1245); 0 new failures; 0 seal mismatches.
+
+### Patterns to reuse
+- When physical capture variants are blocked, look for a formal composition that
+  reuses two previously proven lemmas to produce a stronger, more general claim.
+  This is often higher leverage than another tooling-only incremental fix.
+- When composing an implication theorem with preconditions, list the preconditions
+  explicitly as theorem arguments and discharge them with small lemma calls rather
+  than reproducing the arithmetic inline.
+- Keep the competitor snapshot update in the same wave as any strategic or formal
+  milestone; the formal-HDL landscape in 2026 moves fast and stale claims weaken
+  the close-out report.
+- Document the exact blocker for each deferred variant (missing cable, unwired
+  probe, divergent branch) so the next wave's variant choice is data-driven rather
+  than a re-debate.
+
+### Anti-patterns to avoid
+- Do not attempt a master-merge of a broad gen-verilog fix set in the same wave
+  that is supposed to close a narrow formal gap; the divergence risk and review
+  load will derail the wave.
+- Do not compose lemmas by inlining their proofs; reference the existing theorems
+  by name so that future changes to the underlying model propagate correctly.
+- Do not run `gh pr create` with a stale `GH_TOKEN` in the environment; unset it
+  (`env -u GH_TOKEN`) so `gh` falls back to the keyring-backed account.
+
+---
+
 ## 2026-07-01 — Wave Loop 431 (FPGA boot-evidence: XADC → PVT context bridge, computable envelope check, `measured-to-lean --json` summary hardening, W431 close-out / W432 setup)
 
 ### What worked
