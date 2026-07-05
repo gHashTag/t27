@@ -1110,6 +1110,46 @@ explicitly distinguishable from real silicon captures.
   Trinity.TernaryFPGABoot` succeeds. The 7 residual `gen-verilog` yosys smoke
   failures remain the documented baseline.
 
+#### 3.6.23 `tri fpga verify-lean --json` schema (W438)
+
+The `--json` mode of `verify-lean` emits a single JSON object so CI gates can
+parse the result without scraping human-readable prose. The schema is stable
+across W438 and later waves.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `lean_file` | string | Absolute or relative path to the `.lean` file that was checked. |
+| `summary_file` | string \| null | Path to the JSON summary, if one was supplied via `--summary`; otherwise `null`. |
+| `operating_point_source` | string \| null | Closed-vocabulary source label (`xadc`, `pvt_context_file`, `worstcase`, `synthetic`, `not_read`). `null` only when no summary was provided and no source comment was found. |
+| `theorem_count` | integer | Number of top-level `theorem ... :` declarations parsed from the file. |
+| `theorems` | array of strings | List of theorem names in parse order. |
+| `expected_source` | string \| null | Value of `--expected-source`, if supplied; otherwise `null`. |
+| `passed` | boolean | `true` when theorems exist and, if `--expected-source` was given, the actual source matches it. |
+
+Example:
+
+```json
+{
+  "lean_file": "build/fpga/smoke-gate-dry-run/verify-lean-fixture/smoke_gate_synthetic.lean",
+  "summary_file": "build/fpga/smoke-gate-dry-run/verify-lean-fixture/summary.json",
+  "operating_point_source": "synthetic",
+  "theorem_count": 1,
+  "theorems": [
+    "smoke_gate_synthetic_smoke_gate_synthetic_fixture_40_20_20_satisfies_flash_spec"
+  ],
+  "expected_source": "synthetic",
+  "passed": true
+}
+```
+
+When the check fails, the command exits non-zero and the JSON object still
+contains the parsed fields, so callers can distinguish a source mismatch from a
+missing theorem.
+
+- **Verification.** `cargo test -p tri` reports 126 PASS; `lake build
+  Trinity.TernaryFPGABoot` succeeds. The 7 residual `gen-verilog` yosys smoke
+  failures remain the documented baseline.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)

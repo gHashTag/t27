@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 436)  
+**Date:** 2026-07-05 (refreshed for Wave Loop 438)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -75,6 +75,20 @@ their JSON summaries, count theorem declarations, and enforce the closed
 public helper with unit-test coverage for file > live XADC > synthetic > not_read.
 No new competitor signals appeared between the W436 close-out and the W437
 boundary; Sparkle's 関数型まつり2026 talk on 2026-07-11 remains the next checkpoint.**
+
+**W438 turns the dry-run synthetic path into a CI artifact gate.** `tri fpga
+smoke-gate` gains `--synthetic-operating-point` and `--verify-lean`; when both
+flags are used the gate runs a dry-run CCLK sweep with a deterministic synthetic
+PVT context, asserts that every sweep-report variant carries
+`operating_point.source = "synthetic"`, generates a synthetic `.lean` theorem,
+and runs `verify-lean --expected-source synthetic` on it. Edge-case unit tests
+for `verify-lean` (missing theorem, missing summary + source comment, mismatched
+expected source) are added, and the `--json` output schema is documented in
+`fpga/HARDWARE_SSOT.md`. No new competitor signals appeared between the W437
+close-out and the W438 boundary; Sparkle's public repository shows a last push
+on **2026-07-03** (stable cache-key fix for multi-output sub-modules) and the
+**関数型まつり2026** talk on 2026-07-11 remains the next checkpoint. The 7
+residual `gen-verilog` yosys smoke failures remain the documented baseline.
 
 ---
 

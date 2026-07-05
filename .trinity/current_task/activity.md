@@ -1664,3 +1664,7 @@
 - **Commit:** chore(now): set W437 PR number to #1408
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-05T13:44:34Z — wave-loop-438
+- **Commit:** chore(w438): update current-issue.md for Wave Loop 438
+- **Files:** cli/tri/src/fpga.rs,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,fpga/HARDWARE_SSOT.md
+
