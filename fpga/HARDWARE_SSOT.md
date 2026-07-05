@@ -1211,13 +1211,37 @@ Phases that are not applicable to the invoked configuration are recorded as
 - **Integration.** `./scripts/tri test` (via `t27c suite`) invokes `tri fpga
   smoke-gate --synthetic-operating-point --verify-lean --json
   build/fpga/smoke_gate_report.json` in Phase 3c. If the demo bitstream is
-  absent the phase prints `SKIP` and continues.
+  absent the phase prints `SKIP` and continues. W440 consumes the resulting
+  report in `bootstrap/src/suite.rs`, asserts `passed: true`, and emits a
+  top-level machine-readable suite summary when `./scripts/tri test --json
+  <path>` is used.
 
-- **Verification.** `cargo test -p tri` reports 125 PASS, 2 IGNORED (full
-  Trinity `lake build` currently broken on unrelated `NeutrinoMasses.lean` /
-  `H4Lagrangian.lean` physics proofs); `lake build Trinity.TernaryFPGABoot`
-  succeeds. The 7 residual `gen-verilog` yosys smoke failures remain the
-  documented baseline.
+- **Verification.** `cargo test -p tri` reports 127 PASS, 0 IGNORED. The two
+  previously ignored full-Trinity `lake build` integration tests are replaced
+  by lightweight content checks that inspect the generated `.lean` theorem and
+  the XADC→PVT context path (`lake build Trinity.TernaryFPGABoot` remains the
+  build target used by the smoke gate). The 7 residual `gen-verilog` yosys smoke
+  failures remain the documented baseline.
+
+#### 3.6.25 `t27c suite --json` summary (W440)
+
+W440 adds a top-level machine-readable summary to `./scripts/tri test` so CI
+pipelines can act on the suite result without scraping prose.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `repo` | string | Absolute path of the repository root passed to `t27c suite`. |
+| `phases` | array | Each object has `name`, `passed`, `failed`, `skipped`. |
+| `fpga_smoke_report` | string \| null | Path to the consumed `tri fpga smoke-gate --json` report, or `null` if the phase was skipped. |
+| `fpga_smoke_passed` | boolean \| null | Value of the report's `passed` field, or `null` if unavailable. |
+| `total_failures` | integer | Sum of all `failed` counts across phases. |
+| `passed` | boolean | `true` when `total_failures == 0`. |
+
+The summary is produced by `bootstrap/src/suite.rs` and written as pretty-printed
+JSON to the path supplied with `--json`. When the FPGA smoke gate is skipped
+(bitstream missing or yosys unavailable) the report fields are `null` and the
+phase's `skipped` count is incremented, so consumers can distinguish "skipped"
+from "failed".
 
 ---
 

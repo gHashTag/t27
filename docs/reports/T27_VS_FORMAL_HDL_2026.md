@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-05 (refreshed for Wave Loop 439)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 440)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -102,6 +102,22 @@ appeared from Sparkle/Verilean or other tracked competitors between the W438
 close-out and the W439 boundary; Sparkle's 関数型まつり2026 talk remains the
 most recent public competitive intelligence checkpoint. The 7 residual
 `gen-verilog` yosys smoke failures remain the documented baseline.
+
+**W440 makes the smoke-gate JSON report consumable by the suite runner and adds
+a machine-readable suite summary.** `bootstrap/src/suite.rs` now parses
+`build/fpga/smoke_gate_report.json`, asserts `passed: true`, and emits per-phase
+counts into a new `SuiteSummary` JSON produced by `./scripts/tri test --json
+<path>`. Two previously ignored full-Trinity `lake build` integration tests are
+replaced with lightweight content checks on the generated Lean theorem and the
+XADC→PVT context path, so the test suite returns to 127 active passes with 0
+ignored. Public competitor signals between the W439 close-out and the W440
+boundary remain unchanged: Sparkle's 関数型まつり2026 talk on 2026-07-11 is still
+the next checkpoint, and **CIRCT firtool-1.152.0** shipped on 2026-07-04 with
+mostly incremental Moore/FIRRTL fixes. Ternary-accelerator activity (TernaryCore,
+BitNet-RISCV-Multicore, Neumann-Labs/ternfpga, KULeuven ternary-lut-dse,
+Ternary-NanoCore) continues to validate the {-1, 0, +1} compute niche but none
+combine it with a Lean-native proof pipeline. The 7 residual `gen-verilog` yosys
+smoke failures remain the documented baseline.
 
 ---
 

@@ -1676,3 +1676,7 @@
 - **Commit:** docs(w438): close-out report, evidence, and W439 cooperation variants
 - **Files:** .trinity/current-issue.md,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W440_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W439_2026-07-05.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_439_REPORT.md,fpga/HARDWARE_SSOT.md
 
+## 2026-07-05T14:41:16Z — wave-loop-440
+- **Commit:** feat(igla): Wave Loop 439 — wire smoke-gate into tri test, add --json report, regression test
+- **Files:** .trinity/current-issue.md,bootstrap/src/main.rs,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W441_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W440_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_440_REPORT.md,fpga/HARDWARE_SSOT.md,scripts/tri
+
