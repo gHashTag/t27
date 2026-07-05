@@ -1604,3 +1604,7 @@
 - **Commit:** feat(igla): Wave Loop 432 — per-process-corner raw-ns OSCFSEL theorems, master-merge feasibility probe, W432 close-out artifacts
 - **Files:** .trinity/experience.md
 
+## 2026-07-05T12:07:23Z — wave-loop-433
+- **Commit:** docs(experience): W432 learnings — per-process-corner theorem, master-merge probe, blocked bench redirect
+- **Files:** .claude/plans/wave-loop-433.md,.trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W434_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W433_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_433_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+

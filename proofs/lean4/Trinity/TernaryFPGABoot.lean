@@ -1791,6 +1791,66 @@ theorem cclk_variant_raw_ns_per_process_corner_pvt_implies_transaction_ok
   · norm_num [PVT_VCCINT_MAX_MV]
   · exact cclk_variant_raw_ns_per_process_corner_pvt_satisfies_flash_spec oscfsel corner h
 
+/-- For every documented OSCFSEL selection (0..7) and any live XADC operating
+    point inside the documented envelope whose process corner is at least as
+    slow as `ss`, the ideal raw-ns CCLK capture at the nominal OSCFSEL period
+    satisfies the PVT-aware raw-ns flash predicate under the measured operating
+    point. This composes the W431 XADC envelope bound with the W432
+    per-process-corner theorem, closing the live-readout → OSCFSEL safety loop. -/
+theorem xadc_envelope_justifies_cclk_variant_raw_ns_pvt
+  (oscfsel : Nat) (pt : XadcOperatingPoint) (h : oscfsel ≤ 7)
+  (h_env : xadc_operating_point_within_envelope pt)
+  (h_corner : pt.process_corner.worse_than ProcessCorner.ss) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (xadc_operating_point_to_pvt pt) = true := by
+  intro period_ns low_ns high_ns
+  apply xadc_envelope_implies_raw_ns_satisfies_any_in_envelope pt period_ns low_ns high_ns
+    h_env h_corner
+  exact cclk_variant_raw_ns_per_process_corner_pvt_satisfies_flash_spec oscfsel ProcessCorner.ss h
+
+/-- End-to-end transaction link: for every documented OSCFSEL selection and any
+    live in-envelope XADC operating point with a corner at least as slow as `ss`,
+    the ideal raw-ns CCLK capture produces a flash-spec-compliant SPI read
+    transaction under the measured PVT context. -/
+theorem xadc_envelope_justifies_cclk_variant_transaction_ok
+  (oscfsel : Nat) (pt : XadcOperatingPoint) (bits : Nat) (h : oscfsel ≤ 7)
+  (h_env : xadc_operating_point_within_envelope pt)
+  (h_corner : pt.process_corner.worse_than ProcessCorner.ss) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits)
+    = true := by
+  intro period_ns low_ns high_ns
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok period_ns low_ns high_ns bits
+    (xadc_operating_point_to_pvt pt)
+  · simp [xadc_operating_point_within_envelope] at h_env
+    rcases h_env with ⟨h_temp_min, _, _, _⟩
+    exact h_temp_min
+  · simp [xadc_operating_point_within_envelope] at h_env
+    rcases h_env with ⟨_, _, _, h_volt_max⟩
+    exact h_volt_max
+  · exact xadc_envelope_justifies_cclk_variant_raw_ns_pvt oscfsel pt h h_env h_corner
+
+/-- Concrete example: a representative live XADC readout (≈43 °C, ≈1.00 V VCCINT,
+    ≈1.81 V VCCAUX, slow-slow corner) satisfies the PVT-aware raw-ns flash
+    predicate for the OSCFSEL=6 nominal CCLK period under the measured PVT
+    context. -/
+theorem xadc_live_example_oscfsel_6_raw_ns_pvt :
+  let period_ns := cclk_period_ns 6
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  let pt : XadcOperatingPoint :=
+    { temp_c := (43 : Int), vccint_mv := 1000, vccaux_mv := 1806,
+      process_corner := ProcessCorner.ss }
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (xadc_operating_point_to_pvt pt) = true := by
+  decide
+
 end BitstreamConfig
 
 end StatRegister
