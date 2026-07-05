@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 431)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 432)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -22,18 +22,22 @@ hardware proof backend, plus ternary compute projects **TernaryCore** and
 **BitNet-RISCV-Multicore** — validate t27's direction while raising the bar for
 differentiation.
 
-This note documents the competitive landscape as input for Wave Loops 421–431
+This note documents the competitive landscape as input for Wave Loops 421–432
 and subsequent waves. W429 added raw-ns quantified OSCFSEL theorems and a
 machine-readable `--json` path for `tri fpga measured-to-lean`, reinforcing the
 physical boot-evidence loop. W430 added live XADC readout via `tri fpga
 read-xadc` and a formal bridge (`xadc_operating_point_envelope_implies_worst_case_bound`)
 that justifies replacing a measured in-envelope operating point with the
-conservative worst-case PVT context in proof goals. **W431 hardens the bridge by
+conservative worst-case PVT context in proof goals. W431 hardened the bridge by
 making the XADC → PVT context conversion explicit in `cli/tri/src/fpga.rs`, adding
 a computable `Bool` envelope check with a proven `Decidable` equivalence, and
 emitting a closed-vocabulary `recommendation` field in the `measured-to-lean --json`
-summary — none of the listed competitors currently exposes a boot-to-proof loop
-with live silicon operating points and a machine-readable recommendation.**
+summary. **W432 extends the formal boot-evidence line with per-process-corner
+(`ff`/`tt`/`ss`) raw-ns OSCFSEL theorems in `proofs/lean4/Trinity/TernaryFPGABoot.lean`,
+quantifying the PVT-aware safety claim over all documented Artix-7 CCLK variants
+and all process corners. The physical bench remains blocked, so the 7 residual
+`gen-verilog` yosys smoke failures tied to the master fix set are documented but
+not cleared this wave.**
 
 ---
 
@@ -176,7 +180,7 @@ The industry-standard Chisel flow is adding formal verification rapidly:
 - **Chisel 7.11.0 LTL front-end** — `AssertProperty`, `AssumeProperty`,
   `CoverProperty`, `RequireProperty`, `EnsureProperty`, `Property`/`Sequence`
   composition.
-- **firtool 1.152.0** (July 4 2026): the latest available release at the W431
+- **firtool 1.152.0** (July 2026): the latest available release at the W432
   boundary. It is a maintenance release focusing on ImportVerilog/Moore
   (`$fscanf`/`$sscanf`, `$timeformat`, `%l`/`%L` format specifiers), Arc-dialect
   coroutine work, FIRRTL NLA/inliner fixes, and string lowering. A public
@@ -226,8 +230,10 @@ parts of t27's thesis and may become relevant:
   hardware proof backend** is gaining traction beyond Sparkle/t27.
 - **Aria-HDL / fpga-meta-compiler-public** (2026): a Rust-based “FPGA
   meta-compiler” with `--emit-lean4` proof extraction and `--emit-sby`
-  SVA/SymbiYosys backend. Targets low-cost boards through AWS F2. Shows that
-  spec→proof→bitstream pipelines are a general direction, not unique to t27.
+  SVA/SymbiYosys backend. Recent 2026 updates add Leiserson-Saxe retiming,
+  constraint annotations, and a PCIe BAR test. Targets low-cost boards through
+  AWS F2. Shows that spec→proof→bitstream pipelines are a general direction,
+  not unique to t27.
 - **TernaryCore** (2026): open-source FPGA accelerator for BitNet b1.58
   ternary inference with native `{-1,0,+1}` MAC/dot/GEMM units. Reports 31/31
   RTL simulation tests passing, cross-verified against Python, but no formal
@@ -258,8 +264,10 @@ parts of t27's thesis and may become relevant:
    `tri fpga sweep-report --json`, added `tri fpga pvt-envelope --json`, and in
    W429 added raw-ns quantified OSCFSEL theorems plus a machine-readable
    `--json` summary to `tri fpga measured-to-lean` so the bench-to-proof bridge
-   can be consumed by downstream automation. Next: relay automation, real PVT
-   corner captures, and Lean theorems per captured corner.
+   can be consumed by downstream automation. W432 added quantified per-process-corner
+   (`ff`/`tt`/`ss`) raw-ns OSCFSEL theorems, closing the formal corner-envelope gap.
+   Next: relay automation, real PVT corner captures, and Lean theorems per captured
+   corner.
 3. **Grow the ternary IP catalog.** Sparkle's broad IP list is its headline
    advantage; the RV32 divider proof in PR #65 shows it can do deep IP-level
    correctness. Signals like TernaryCore and BitNet-RISCV-Multicore confirm that

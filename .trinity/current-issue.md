@@ -1,18 +1,19 @@
-# Wave Loop 432 — FPGA boot-evidence next variant (real CCLK capture, live XADC validation, or master-merge)
+# Wave Loop 433 — FPGA boot-evidence next variant (real CCLK capture, live XADC validation, or master-merge retry)
 
-**Issue:** #1391  
-**Branch:** `wave-loop-432`  
-**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 431.
+**Issue:** #1393  
+**Branch:** `wave-loop-433`  
+**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 432.
 
 ---
 
 ## Goal
 
-Wave Loop 431 hardened the XADC → PVT context bridge, added a computable Lean 4
-envelope check, and improved the machine-readable `measured-to-lean --json`
-summary while the bench remained partially blocked (P12 unwired, no relay gate,
-no DLC10 cable). Wave Loop 432 executes the first available variant from
-`docs/reports/FPGA_LOOP_COOPERATION_W432_2026-07-01.md`.
+Wave Loop 432 shipped per-process-corner raw-ns OSCFSEL theorems in Lean 4 and
+probed the `origin/master` merge path for the `gen-verilog` fix set
+(`701d79b3b`), finding it not safely reachable from `wave-loop-432`. The bench
+remains blocked (P12 unwired, no relay gate, no DLC10 cable). Wave Loop 433
+executes the first available variant from
+`docs/reports/FPGA_LOOP_COOPERATION_W433_2026-07-01.md`.
 
 1. **Variant A (preferred when bench becomes fully available):**
    - Confirm P12 is wired to a logic-analyzer channel and a relay/remote-power
@@ -36,12 +37,13 @@ no DLC10 cable). Wave Loop 432 executes the first available variant from
      `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`.
 
 3. **Variant C (fallback if bench still blocked):**
-   - Execute the deferred master-merge/rebase wave to bring the `master` fix set
-     (`701d79b3b`) into `wave-loop-432` and clear the 7 residual yosys smoke
-     failures (#1245).
-   - If the merge is too risky for one wave, land a formal/tooling sub-task:
-     per-OSCFSEL PVT-corner theorems, machine-readable `sweep-report --json`, or
-     a deeper competitor refresh.
+   - Re-attempt the `master` merge/rebase wave from a fresh topic branch to bring
+     the `gen-verilog` fix set (`701d79b3b`) into the wave-loop line and clear the
+     7 residual yosys smoke failures (#1245).
+   - If the merge is still too risky, land another formal/tooling sub-task:
+     machine-readable `sweep-report --json` hardening, a Lean theorem linking a
+     live `XadcOperatingPoint` to the per-process-corner raw-ns OSCFSEL theorem,
+     or a deeper competitor refresh.
    - Update `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` with the new baseline.
 
 ---
@@ -55,7 +57,7 @@ no DLC10 cable). Wave Loop 432 executes the first available variant from
       cleared).
 - [ ] `cargo test --bin tri fpga::` passes.
 - [ ] Close-out report and next-wave cooperation variants are written.
-- [ ] Issue/branch for Wave Loop 433 are created.
+- [ ] Issue/branch for Wave Loop 434 are created.
 
 ---
 

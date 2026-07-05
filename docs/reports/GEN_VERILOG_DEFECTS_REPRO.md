@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-431`  
-**Last updated:** 2026-07-01 (Wave Loop 431)  
+**Branch:** `wave-loop-432`  
+**Last updated:** 2026-07-01 (Wave Loop 432)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -436,7 +436,39 @@ whose sole purpose is to bring in the `master` fix set (`701d79b3b`) and clear
 these 7 failures. Until then, continue to accept the count and keep the failure
 matrix in this document current.
 
-## Open work after W388 / W427 / W429
+### Triage decision for W432
+
+**Still deferred; master-merge attempted and found not feasible.** W432 opened by
+probing the `origin/master` merge path for the `701d79b3b` fix set. The merge
+completed for the gf128/gf96 conformance promotion, but the gen-verilog fix commits
+`701d79b3b` and `507408f47` are on a divergent `master` lineage that is not
+reachable from `origin/master` relative to `wave-loop-432`. A direct cherry-pick of
+`507408f47` also conflicts heavily with the wave-loop compiler state
+(`bootstrap/src/compiler.rs`, `.trinity/seals/fpga_ZeroDSP_BPSK.json`, `docs/NOW.md`).
+Rather than land a risky broad merge as a side task while the wave is closing out
+formal boot-evidence work, the W432 deliverable was redirected to a board-less
+formal lemma: per-process-corner raw-ns OSCFSEL theorems in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+
+The 7 yosys smoke failures are **re-confirmed as the documented baseline** for
+W432:
+
+| Spec | Failure mode |
+|---|---|
+| `specs/igla/race/cordic.t27` | `syntax error, unexpected '='` |
+| `specs/igla/race/cordic_top.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w378_let_destructuring.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w379_let_destructuring_generalized.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w380_tuple_return.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w381_tuple_call_chain.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w383_rom_array.t27` | `syntax error, unexpected '['` |
+
+**Recommended resolution path for W433 / later:** attempt a rebase of the wave-loop
+branch onto the reachable `master` line (or a topic-branch merge) only when the
+FPGA boot-evidence line is not the primary wave focus; until then, keep the
+failure matrix current and treat the 7 failures as a known baseline.
+
+## Open work after W388 / W427 / W429 / W432
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.
