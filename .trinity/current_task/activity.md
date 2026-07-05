@@ -1464,3 +1464,7 @@
 - **Commit:** docs(w420): set W420 issue number to #1361 and record W419 PR #1360 (Closes #1357, Refs #1361)
 - **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W420_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W419_2026-07-05.md,docs/reports/WAVE_LOOP_419_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-05T07:14:41Z — wave-loop-425
+- **Commit:** chore(tri): update session log and commit count after W424 close-out
+- **Files:** .trinity/current-issue.md,docs/NOW.md
+

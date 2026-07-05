@@ -1,3 +1,52 @@
+# NOW — Wave Loop 424 close-out / Wave Loop 425 setup (2026-07-01)
+
+Last updated: 2026-07-01
+
+## Wave Loop 424 — FPGA tooling hardening, PVT context, CSV voltage units, non-blocking continue (Closes #1371)
+
+- Branch: `wave-loop-424`
+- Issue: #1371
+- PR: #1373
+- Report: `docs/reports/WAVE_LOOP_424_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W424_2026-07-05.md`
+- Cooperation W425: `docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md`
+
+### What landed
+- `cli/tri/src/fpga.rs`
+  - Non-blocking `wait_for_continue` helper for `--wait-seconds` in `boot-log`,
+    `cold-por`, and `cclk-sweep`.
+  - CSV voltage-unit scaling (`--csv-voltage-unit v|mv`) before threshold detection.
+  - Optional `--pvt-context` JSON embedding in boot-log / cold-por / cclk-sweep.
+  - Default CCLK sweep expanded to OSCFSEL 0..7.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - `ProcessCorner` decidability, equality, `severity`, and
+    `worse_than_iff_severity_le` helpers.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed date and W423–W424 boot-evidence differentiator note.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired, DLC10 cable missing.
+- Real relay cold-POR gate — no relay board / USB power switch available.
+- Real XADC readout in CLI still deferred (`xadc.source: "not_read"`).
+
+### Verification
+- `cargo test -p tri`: **PASS** (93 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS**.
+- `./scripts/tri test`: parse/typecheck/gen/seal phases **PASS**; 7 pre-existing
+  `gen-verilog-yosys-smoke` failures tied to #1245 (`let` destructuring, tuple
+  returns, ROM arrays, CORDIC) and not introduced by this wave.
+
+## Wave Loop 425 — FPGA board evidence / relay gate / PVT falsification (#1374)
+
+- Branch: `wave-loop-425`
+- Issue: #1374
+- Goal: execute Variant A (real P12 CCLK capture + cold-POR flash sweep), Variant
+  B (partial-bench import + PVT context dry-run), or Variant C (XADC/schema
+  hardening + safe gen-verilog sub-fix / deferral).
+- Cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md`.
+
+---
+
 # NOW — Wave Loop 419 close-out / Wave Loop 420 setup (2026-07-05)
 
 Last updated: 2026-07-05
