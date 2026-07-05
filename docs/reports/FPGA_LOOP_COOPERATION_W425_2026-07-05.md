@@ -1,6 +1,6 @@
 # FPGA Loop Cooperation — Wave Loop 425 (2026-07-05)
 
-**Next issue:** #1372 (to be created on W424 land)  
+**Next issue:** #1374 (to be created on W424 land)  
 **Next branch:** `wave-loop-425`
 
 ---

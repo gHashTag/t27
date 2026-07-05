@@ -1516,3 +1516,11 @@
 - **Commit:** feat(igla): Wave Loop 424 — FPGA tooling hardening, PVT context, CSV voltage units, non-blocking continue, W425 setup
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-05T07:15:04Z — wave-loop-424
+- **Commit:** docs(tri): W425 issue + NOW setup (#1374, wave-loop-425)
+- **Files:** docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md
+
+## 2026-07-05T07:15:09Z — wave-loop-424
+- **Commit:** docs(tri): correct W425 issue reference to #1374
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md
+
