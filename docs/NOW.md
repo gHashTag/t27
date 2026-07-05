@@ -1,12 +1,73 @@
-# NOW — Wave Loop 442 close-out / Wave Loop 443 setup (2026-07-01)
+# NOW — Wave Loop 443 close-out / Wave Loop 444 setup (2026-07-01)
 
 **Last updated:** 2026-07-01
+
+## Wave Loop 443 — PVT-envelope hardening for the 24-variant theorem matrix (Closes #1417)
+
+- Branch: `wave-loop-443`
+- Issue: #1417
+- PR: (to open after this close-out)
+- Report: `docs/reports/WAVE_LOOP_443_REPORT.md`
+- Evidence W443: `docs/reports/FPGA_LOOP_EVIDENCE_W443_2026-07-01.md`
+- Cooperation W444: `docs/reports/FPGA_LOOP_COOPERATION_W444_2026-07-01.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `cli/tri/src/fpga.rs`
+  - `build_pvt_envelope_report` now emits `inside_envelope: true/false` and a
+    closed-vocabulary `envelope_check` (`"ok"` / `"failed"` / `"skipped"`) when a
+    PVT context file is supplied.
+  - The theorem-matrix block validates every synthetic `ff`/`tt`/`ss` corner
+    context against the operating envelope before generating a theorem and
+    records `envelope_check: "ok"` in each per-variant matrix entry.
+  - Added envelope-related unit tests: `inside_envelope` true, `skipped` without
+    context, synthetic corners inside envelope, outside-envelope detection,
+    matrix envelope check OK.
+
+- `bootstrap/src/suite.rs`
+  - Updated the fake smoke-gate report test to include a theorem-matrix variant
+    with `envelope_check: "ok"`.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W443; no new public competitor signals appeared after the W442
+    close-out.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Documented the W443 triage decision: no compiler work attempted; the 7
+    residual yosys smoke failures remain the documented baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_443_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W443_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W444_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — possible but not
+  performed this wave.
+- Master-merge to clear #1245 — fix set not safely reachable from
+  `wave-loop-443` this wave.
+
+### Verification
+
+- `cargo test -p tri --bin tri fpga::`: **PASS** (96 tests, +5 W443 regressions).
+- `cargo test -p t27c --bin t27c suite::tests`: **PASS** (8 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test --json build/suite_report.json`: **PASS**.
+  - Parse/typecheck/GF16/gen-zig/gen-rust/gen-c/seal-verify: 576/576 PASS.
+  - Gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+  - FPGA board-less smoke gate: **PASS**, theorem matrix 24 variants,
+    `envelope_check: "ok"`, `schema_version: "1.0"`, `acceptable: true`.
+
+---
 
 ## Wave Loop 442 — Expanded board-less theorem matrix + CI artifact schema hardening (Closes #1415)
 
 - Branch: `wave-loop-442`
 - Issue: #1415
-- PR: #1417
+- PR: (to open after this close-out)
 - Report: `docs/reports/WAVE_LOOP_442_REPORT.md`
 - Evidence W442: `docs/reports/FPGA_LOOP_EVIDENCE_W442_2026-07-01.md`
 - Cooperation W443: `docs/reports/FPGA_LOOP_COOPERATION_W443_2026-07-01.md`
