@@ -2617,3 +2617,22 @@
 - Do not generate a branch-local gen-verilog sub-fix when the remaining failures
   are tied to major codegen features (let destructuring, tuple returns, ROM
   arrays); defer to the planned codegen refactor on `master`.
+
+## 2026-07-01 — Wave Loop 432 (FPGA boot-evidence: per-process-corner raw-ns OSCFSEL theorems, master-merge feasibility probe, W432 close-out / W433 setup)
+
+### What worked
+- Executing **Variant C2** kept the wave shippable while the bench and the master-merge path were both blocked.
+- Adding a single quantified theorem over OSCFSEL 0..7 and ProcessCorner (`ff`/`tt`/`ss`) gives downstream `measured-to-lean` proofs one theorem to reference for any documented Artix-7 CCLK selection and any process corner.
+- Probing the `origin/master` merge and a direct cherry-pick before committing to a merge wave revealed early that the `gen-verilog` fix set is on a divergent lineage; this avoided a destabilizing broad merge mid-wave.
+- Refreshing the competitor and defect reports keeps the baseline honest even when no new code is landed for those areas.
+
+### What was blocked
+- **Physical bench:** P12 CCLK probe, relay/remote-power cold-POR gate, and DLC10 cable remain unavailable.
+- **Master merge:** `701d79b3b` / `507408f47` are not reachable from `origin/master` relative to `wave-loop-432`, and cherry-picking `507408f47` conflicts heavily with `bootstrap/src/compiler.rs` and seals.
+
+### Corrective / keep-doing patterns
+- When a merge/rebase wave is the fallback, create a throwaway probe first (merge-tree or temporary cherry-pick) before touching the real branch.
+- If the merge is unsafe, redirect immediately to a board-less formal/tooling lemma that advances the same product line.
+- Continue documenting the exact 7 yosys smoke failure matrix each wave so the baseline is auditable.
+- Keep `docs/NOW.md`, `.trinity/current-issue.md`, and persistent memory updated in the same commit as the close-out reports.
+
