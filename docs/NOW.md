@@ -478,7 +478,7 @@ target `Trinity.TernaryFPGABoot` still builds.
 
 - Branch: `wave-loop-441`
 - Issue: #1413
-- PR: (to open after this close-out)
+- PR: #1416
 - Report: `docs/reports/WAVE_LOOP_441_REPORT.md`
 - Evidence W441: `docs/reports/FPGA_LOOP_EVIDENCE_W441_2026-07-01.md`
 - Cooperation W442: `docs/reports/FPGA_LOOP_COOPERATION_W442_2026-07-01.md`

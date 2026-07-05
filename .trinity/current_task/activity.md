@@ -1692,3 +1692,7 @@
 - **Commit:** feat(igla): Wave Loop 441 — baseline-aware suite summary, OSCFSEL 0..7 theorem matrix, CI schema tests (Closes #1413)
 - **Files:** docs/reports/WAVE_LOOP_441_REPORT.md
 
+## 2026-07-05T15:07:57Z — wave-loop-441
+- **Commit:** docs(w441): add PR #1416 to close-out report (Closes #1413)
+- **Files:** docs/NOW.md
+
