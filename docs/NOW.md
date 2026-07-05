@@ -1,31 +1,33 @@
-# NOW — Wave Loop 425 close-out / Wave Loop 426 setup (2026-07-05)
+# NOW — Wave Loop 426 close-out / Wave Loop 427 setup (2026-07-05)
 
 **Last updated:** 2026-07-05
 
-## Wave Loop 425 — FPGA formal/tooling hardening: OSCFSEL 0–7 sweep, PVT worst-case envelope theorems (Closes #1374)
+## Wave Loop 426 — FPGA formal/tooling hardening: finite-grid PVT theorems, machine-readable `tri fpga` JSON, competitor refresh (Closes #1376)
 
-- Branch: `wave-loop-425`
-- Issue: #1374
-- PR: #1375 (closes #1374)
-- Report: `docs/reports/WAVE_LOOP_425_REPORT.md`
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W425_2026-07-05.md`
-- Cooperation W426: `docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md`
+- Branch: `wave-loop-426`
+- Issue: #1376
+- PR: to open
+- Report: `docs/reports/FPGA_LOOP_EVIDENCE_W426_2026-07-05.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W426_2026-07-05.md`
+- Cooperation W427: `docs/reports/FPGA_LOOP_COOPERATION_W427_2026-07-05.md`
 
 ### What landed (Variant C — bench still blocked)
 
-- `cli/tri/src/fpga.rs`
-  - Default `cclk-sweep` OSCFSEL range expanded from 0–5 to **0–7**.
-  - `smoke-gate` dry-run sweep matches the 0–7 range.
 - `proofs/lean4/Trinity/TernaryFPGABoot.lean`
-  - Added `pvt_half_ns_worst_case_is_upper_envelope` and
-    `pvt_low_ns_worst_case_is_upper_envelope`: the documented worst-case
-    operating point (85 °C, 900 mV, slow-slow corner) is the upper envelope of the
-    PVT-aware SCK low/half-period bounds over the full operating rectangle.
-  - Moved `OSCFSEL_WORST_CASE_PVT_CONTEXT` earlier so the monotonicity proofs
-    can reference it.
-- `docs/reports/WAVE_LOOP_425_REPORT.md`,
-  `docs/reports/FPGA_LOOP_EVIDENCE_W425_2026-07-05.md`,
-  `docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md`
+  - Added `pvt_half_ns_operating_rectangle_grid_bounded` and
+    `pvt_low_ns_operating_rectangle_grid_bounded`: the documented worst-case
+    operating point dominates every grid point inside the operating rectangle.
+- `cli/tri/src/fpga.rs`
+  - Added `cclk_nominal_hz`, `pvt_envelope_margin_ns`, and
+    `recommendation_from_conclusion` helpers.
+  - `cclk-sweep`, `boot-log`, and `cold-por` JSON now include a machine-readable
+    `recommendation` object and a `pvt_envelope_margin_ns` field.
+  - Added 8 unit tests for the new helpers.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W426: Sparkle July 2026 Functional Matsuri talk, Clash 1.8.5
+    verification fixes, firtool 1.143.0/1.152.0 notes.
+- `docs/reports/FPGA_LOOP_EVIDENCE_W426_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W427_2026-07-05.md`
 
 ### Not done (blocked on hardware or out of scope)
 
@@ -38,7 +40,7 @@
 
 ### Verification
 
-- `cargo test -p tri`: **PASS** (93 tests).
+- `cargo test -p tri`: **PASS** (101 tests).
 - `cargo build --release` in `bootstrap/`: **PASS**.
 - `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
 - `tri fpga cclk-sweep --dry-run` (OSCFSEL 0–7): **PASS** (8 variants).

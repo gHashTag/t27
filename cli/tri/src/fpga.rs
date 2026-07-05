@@ -2093,6 +2093,7 @@ fn cclk_sweep(
     }
 
     let mut results: Vec<SweepResult> = Vec::with_capacity(values.len());
+    let mut first_working_oscfsel: Option<u8> = None;
 
     for (idx, oscfsel) in values.iter().enumerate() {
         let variant_name = format!(
@@ -2144,6 +2145,9 @@ fn cclk_sweep(
                     },
                 })
                 .collect();
+            if fake_done {
+                first_working_oscfsel.get_or_insert(*oscfsel);
+            }
             let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
             let log = SweepLog {
                 timestamp: start_time.to_rfc3339(),
@@ -2157,6 +2161,8 @@ fn cclk_sweep(
                 samples,
                 pvt_context: pvt_json,
                 xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
+                pvt_envelope_margin_ns: pvt_envelope_margin_ns(cclk_nominal_hz(*oscfsel)),
+                recommendation: recommendation_from_conclusion(conclusion, Some(*oscfsel), first_working_oscfsel),
             };
             write_sweep_log(&log, &sweep_log_dir)?;
             results.push(SweepResult {
@@ -2188,6 +2194,7 @@ fn cclk_sweep(
         ) {
             eprintln!("[cclk-sweep] program-flash failed: {e}");
             let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
+            let conclusion = "PROGRAM_FLASH_FAILED";
             let log = SweepLog {
                 timestamp: start_time.to_rfc3339(),
                 bitstream: variant_path.to_string_lossy().to_string(),
@@ -2196,10 +2203,12 @@ fn cclk_sweep(
                 part: part.to_string(),
                 freq_hz: freq,
                 repeat: repeat.max(1),
-                conclusion: "PROGRAM_FLASH_FAILED".to_string(),
+                conclusion: conclusion.to_string(),
                 samples: Vec::new(),
                 pvt_context: pvt_json,
                 xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
+                pvt_envelope_margin_ns: pvt_envelope_margin_ns(cclk_nominal_hz(*oscfsel)),
+                recommendation: recommendation_from_conclusion(conclusion, Some(*oscfsel), first_working_oscfsel),
             };
             write_sweep_log(&log, &sweep_log_dir)?;
             results.push(SweepResult {
@@ -2249,6 +2258,9 @@ fn cclk_sweep(
                 } else {
                     "H2_CCLK_TIMING: mode OK but DONE=LOW; try CCLK variants".to_string()
                 };
+                if samples.iter().any(|b| b.done) {
+                    first_working_oscfsel.get_or_insert(*oscfsel);
+                }
                 let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
                 let log = SweepLog {
                     timestamp: start_time.to_rfc3339(),
@@ -2276,6 +2288,8 @@ fn cclk_sweep(
                         .collect(),
                     pvt_context: pvt_json,
                     xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
+                    pvt_envelope_margin_ns: pvt_envelope_margin_ns(cclk_nominal_hz(*oscfsel)),
+                    recommendation: recommendation_from_conclusion(&conclusion, Some(*oscfsel), first_working_oscfsel),
                 };
                 write_sweep_log(&log, &sweep_log_dir)?;
                 results.push(SweepResult {
@@ -2291,6 +2305,7 @@ fn cclk_sweep(
             Err(e) => {
                 eprintln!("[cclk-sweep] STAT capture failed: {e}");
                 let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
+                let conclusion = "STAT_CAPTURE_FAILED";
                 let log = SweepLog {
                     timestamp: start_time.to_rfc3339(),
                     bitstream: variant_path.to_string_lossy().to_string(),
@@ -2299,10 +2314,12 @@ fn cclk_sweep(
                     part: part.to_string(),
                     freq_hz: freq,
                     repeat: repeat.max(1),
-                    conclusion: "STAT_CAPTURE_FAILED".to_string(),
+                    conclusion: conclusion.to_string(),
                     samples: Vec::new(),
                     pvt_context: pvt_json,
                     xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
+                    pvt_envelope_margin_ns: pvt_envelope_margin_ns(cclk_nominal_hz(*oscfsel)),
+                    recommendation: recommendation_from_conclusion(conclusion, Some(*oscfsel), first_working_oscfsel),
                 };
                 write_sweep_log(&log, &sweep_log_dir)?;
                 results.push(SweepResult {
@@ -2446,6 +2463,13 @@ struct SweepLog {
     #[serde(skip_serializing_if = "Option::is_none")]
     pvt_context: Option<serde_json::Value>,
     xadc: serde_json::Value,
+    /// Nominal CCLK half-period margin over the documented PVT worst-case bound,
+    /// in nanoseconds. Positive means the nominal timing is safe even at the
+    /// worst-case operating point.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pvt_envelope_margin_ns: Option<i64>,
+    /// Machine-readable next action derived from the conclusion.
+    recommendation: serde_json::Value,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -2929,6 +2953,99 @@ fn n25q128_min_sck_half_ns_pvt(ctx: &PvtContext) -> u64 {
     6 + n25q128_pvt_temp_derating_ns(ctx.temp_c)
         + n25q128_pvt_voltage_derating_ns(ctx.vccint_mv)
         + n25q128_pvt_process_derating_ns(&ctx.process_corner)
+}
+
+/// Worst-case documented operating point: max temperature, min VCCINT, slow-slow
+/// process corner. This matches `OSCFSEL_WORST_CASE_PVT_CONTEXT` in Lean 4.
+fn pvt_worst_case_context() -> PvtContext {
+    PvtContext {
+        temp_c: PVT_TEMP_MAX_C,
+        vccint_mv: PVT_VCCINT_MIN_MV,
+        vccaux_mv: 2700,
+        process_corner: ProcessCorner::Ss,
+    }
+}
+
+/// Nominal CCLK frequency in hertz for an Artix-7 Master SPI boot OSCFSEL
+/// selection. Mirrors `cclk_nominal_hz` in `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+fn cclk_nominal_hz(oscfsel: u8) -> u32 {
+    match oscfsel {
+        0 => 2_500_000,
+        1 => 4_200_000,
+        2 => 6_600_000,
+        3 => 10_000_000,
+        4 => 12_500_000,
+        5 => 16_700_000,
+        6 => 25_000_000,
+        7 => 33_300_000,
+        _ => 0,
+    }
+}
+
+/// PVT envelope margin for a given nominal CCLK frequency: how many nanoseconds
+/// the nominal half-period exceeds the worst-case PVT-aware minimum half-period.
+/// Returns `None` when the frequency is zero.
+fn pvt_envelope_margin_ns(freq_hz: u32) -> Option<i64> {
+    if freq_hz == 0 {
+        return None;
+    }
+    let period_ns = 1_000_000_000u64 / (freq_hz as u64);
+    let half_ns = period_ns / 2;
+    let worst_bound = n25q128_min_sck_half_ns_pvt(&pvt_worst_case_context());
+    Some(half_ns as i64 - worst_bound as i64)
+}
+
+/// Build a machine-readable recommendation object from a sweep/boot/cold-por
+/// conclusion. The action vocabulary is closed so downstream tooling can react
+/// without parsing free-form strings.
+fn recommendation_from_conclusion(
+    conclusion: &str,
+    oscfsel: Option<u8>,
+    first_working_oscfsel: Option<u8>,
+) -> serde_json::Value {
+    let action = if conclusion.starts_with("DONE=HIGH") {
+        "success"
+    } else if conclusion.starts_with("H2_CCLK_TIMING") {
+        "try_next_oscfsel"
+    } else if conclusion.starts_with("MODE_MISMATCH") {
+        "inspect_mode_straps"
+    } else if conclusion == "PROGRAM_FLASH_FAILED" {
+        "check_cable_and_flash"
+    } else if conclusion == "STAT_CAPTURE_FAILED" {
+        "retry_stat_capture"
+    } else {
+        "retry_or_debug"
+    };
+    let mut steps = Vec::new();
+    if action == "try_next_oscfsel" {
+        if let Some(current) = oscfsel {
+            steps.push(format!(
+                "Program and boot the next slower OSCFSEL variant (current = {})",
+                current
+            ));
+        }
+        if let Some(first) = first_working_oscfsel {
+            steps.push(format!("Use the first working OSCFSEL variant: {}", first));
+        }
+        steps.push("See fpga/HARDWARE_SSOT.md §3.3 (H2 decision tree)".to_string());
+    } else if action == "inspect_mode_straps" {
+        steps.push(
+            "Inspect board mode-pin straps and add external pull resistors if needed".to_string(),
+        );
+        steps.push("See fpga/HARDWARE_SSOT.md §3.2".to_string());
+    } else if action == "check_cable_and_flash" {
+        steps.push("Verify the JTAG cable is connected and the flash chip is detected".to_string());
+        steps.push("Run `tri fpga stat` and `tri fpga flash-status`".to_string());
+    } else if action == "retry_stat_capture" {
+        steps.push("Reconnect the cable and retry STAT capture".to_string());
+        steps.push("Ensure the board rails are stable before JTAG operations".to_string());
+    }
+    serde_json::json!({
+        "action": action,
+        "oscfsel": oscfsel,
+        "first_working_oscfsel": first_working_oscfsel,
+        "next_steps": steps,
+    })
 }
 
 /// Print the PVT-aware SCK low/high bound for a user-supplied context.
@@ -4624,6 +4741,8 @@ fn boot_log(
         })).collect::<Vec<_>>(),
         "pvt_context": pvt_json,
         "xadc": xadc_context_json("not_read", pvt_ctx.as_ref()),
+        "pvt_envelope_margin_ns": Option::<i64>::None,
+        "recommendation": recommendation_from_conclusion(conclusion, None, None),
     });
     let log_path = boot_log_dir.join(format!(
         "boot-log-{}.json",
@@ -4737,6 +4856,8 @@ fn cold_por(
         "samples": samples,
         "pvt_context": pvt_json,
         "xadc": xadc_context_json("not_read", pvt_ctx.as_ref()),
+        "pvt_envelope_margin_ns": Option::<i64>::None,
+        "recommendation": recommendation_from_conclusion(conclusion, None, None),
     });
     let log_path = boot_log_dir.join(format!(
         "boot-log-cold-por-mock-{}.json",
@@ -6674,6 +6795,86 @@ mod tests {
         assert_eq!(ctx.vccaux_mv, 2700);
         assert_eq!(ctx.process_corner, ProcessCorner::Ff);
         std::fs::remove_file(&pvt).unwrap();
+    }
+
+    #[test]
+    fn test_cclk_nominal_hz_matches_lean() {
+        assert_eq!(cclk_nominal_hz(0), 2_500_000);
+        assert_eq!(cclk_nominal_hz(1), 4_200_000);
+        assert_eq!(cclk_nominal_hz(2), 6_600_000);
+        assert_eq!(cclk_nominal_hz(3), 10_000_000);
+        assert_eq!(cclk_nominal_hz(4), 12_500_000);
+        assert_eq!(cclk_nominal_hz(5), 16_700_000);
+        assert_eq!(cclk_nominal_hz(6), 25_000_000);
+        assert_eq!(cclk_nominal_hz(7), 33_300_000);
+        assert_eq!(cclk_nominal_hz(8), 0);
+    }
+
+    #[test]
+    fn test_pvt_envelope_margin_ns_zero_freq() {
+        assert_eq!(pvt_envelope_margin_ns(0), None);
+        assert_eq!(pvt_envelope_margin_ns(cclk_nominal_hz(255)), None);
+    }
+
+    #[test]
+    fn test_pvt_envelope_margin_ns_2_5mhz() {
+        // Worst-case bound is 13 ns. 2.5 MHz period = 400 ns, half = 200 ns.
+        // Margin = 200 - 13 = 187 ns.
+        let margin = pvt_envelope_margin_ns(cclk_nominal_hz(0)).unwrap();
+        assert_eq!(margin, 187, "2.5 MHz OSCFSEL should have 187 ns worst-case margin");
+    }
+
+    #[test]
+    fn test_pvt_envelope_margin_ns_33mhz() {
+        // 33.3 MHz period = 30 ns, half = 15 ns. Margin = 15 - 13 = 2 ns.
+        let margin = pvt_envelope_margin_ns(cclk_nominal_hz(7)).unwrap();
+        assert_eq!(margin, 2, "33.3 MHz OSCFSEL should have 2 ns worst-case margin");
+    }
+
+    #[test]
+    fn test_recommendation_success() {
+        let rec = recommendation_from_conclusion(
+            "DONE=HIGH: board boots from flash",
+            Some(3),
+            Some(3),
+        );
+        assert_eq!(rec["action"], "success");
+        assert_eq!(rec["oscfsel"], 3);
+        assert_eq!(rec["first_working_oscfsel"], 3);
+    }
+
+    #[test]
+    fn test_recommendation_try_next_without_first_working() {
+        let rec = recommendation_from_conclusion(
+            "H2_CCLK_TIMING: mode OK but DONE=LOW; try CCLK variants",
+            Some(2),
+            None,
+        );
+        assert_eq!(rec["action"], "try_next_oscfsel");
+        let steps = rec["next_steps"].as_array().unwrap();
+        assert!(steps.iter().any(|s| s.as_str().unwrap().contains("next slower")));
+    }
+
+    #[test]
+    fn test_recommendation_try_next_with_first_working() {
+        let rec = recommendation_from_conclusion(
+            "H2_CCLK_TIMING: mode OK but DONE=LOW; try CCLK variants",
+            Some(4),
+            Some(3),
+        );
+        assert_eq!(rec["action"], "try_next_oscfsel");
+        let steps = rec["next_steps"].as_array().unwrap();
+        assert!(steps.iter().any(|s| s.as_str().unwrap().contains("Use the first working")));
+    }
+
+    #[test]
+    fn test_recommendation_mode_mismatch() {
+        let rec = recommendation_from_conclusion(
+            "MODE_MISMATCH: mode-pin strapping issue",
+            Some(1),
+            None,
+        );
+        assert_eq!(rec["action"], "inspect_mode_straps");
     }
 
     #[test]

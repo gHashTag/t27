@@ -67,15 +67,15 @@ Wave 425 hardened the FPGA CLI and formal model while the bench was blocked
 - [ ] AC-B3: Dry-run boot-log artifacts exist for OSCFSEL 6/7 and include PVT/XADC context.
 
 ### Bundle C
-- [ ] AC-C1: At least one new PVT grid / envelope / OSCFSEL-link theorem is added and builds.
-- [ ] AC-C2: One safe gen-verilog #1245 sub-fix lands without increasing the 7-failure yosys smoke count, or is explicitly deferred if unsafe.
-- [ ] AC-C3: `boot-log` / `cold-por` / `cclk-sweep` tooling is measurably more robust or better documented.
-- [ ] AC-C4: Competitor snapshot is updated if any new 2026 developments are found.
+- [x] AC-C1: At least one new PVT grid / envelope / OSCFSEL-link theorem is added and builds.
+- [x] AC-C2: One safe gen-verilog #1245 sub-fix lands without increasing the 7-failure yosys smoke count, or is explicitly deferred if unsafe.
+- [x] AC-C3: `boot-log` / `cold-por` / `cclk-sweep` tooling is measurably more robust or better documented.
+- [x] AC-C4: Competitor snapshot is updated if any new 2026 developments are found.
 
 ### Invariant checks
-- [ ] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
-- [ ] `lake build Trinity.TernaryFPGABoot` passes.
-- [ ] `cargo test -p tri fpga::tests` passes.
+- [x] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
+- [x] `lake build Trinity.TernaryFPGABoot` passes.
+- [x] `cargo test -p tri fpga::tests` passes.
 
 ---
 
@@ -85,8 +85,8 @@ Wave 425 hardened the FPGA CLI and formal model while the bench was blocked
 - PR: to open after work
 - Body: `Closes #1376`
 - Report: `docs/reports/WAVE_LOOP_426_REPORT.md`
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W426_YYYY-MM-DD.md`
-- Cooperation W427: `docs/reports/FPGA_LOOP_COOPERATION_W427_YYYY-MM-DD.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W426_2026-07-05.md`
+- Cooperation W427: `docs/reports/FPGA_LOOP_COOPERATION_W427_2026-07-05.md`
 
 ---
 
@@ -96,6 +96,33 @@ Execute **Variant A** if P12 is wired and the analyzer is ready.
 Otherwise execute **Variant B** if the board is reachable for real XADC readout
 or an external capture is available.  
 Otherwise fall back to **Variant C**.
+
+## Chosen variant
+
+**Variant C** is selected for W426. The bench probe confirms the XC7A200T board
+is reachable via HS2 (`idcode 0x03636093`), but P12 remains unwired, no relay gate
+is available, and no external capture was provided. Real XADC readout over the
+HS2 path is too large and risky for a single wave.
+
+## Detailed plan
+
+| Step | File(s) | Deliverable |
+|------|---------|-------------|
+| 1 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | Add a finite-grid PVT upper-envelope theorem (`pvt_half_ns_operating_rectangle_grid_bounded`) and a corollary for every OSCFSEL 0–7 worst-case PVT flash-spec transaction. |
+| 2 | `cli/tri/src/fpga.rs` | Add `pvt_envelope_margin_ns` and `recommendation` fields to `SweepLog`; emit them in `cclk-sweep`, `cold-por`, and `boot-log` JSON; add unit tests. |
+| 3 | `docs/reports/T27_VS_FORMAL_HDL_2026.md` | Refresh competitor snapshot with Sparkle July 2026 talk, CIRCT firtool 1.143.0, and Clash 1.8.5 verification fixes. |
+| 4 | `docs/reports/W426_WEAK_POINTS_AND_COMPETITORS.md` | Document weak points and competitor scan (already created in PLAN phase). |
+| 5 | `docs/reports/WAVE_LOOP_426_REPORT.md`, `FPGA_LOOP_EVIDENCE_W426_2026-07-05.md`, `FPGA_LOOP_COOPERATION_W427_2026-07-05.md` | Close-out artifacts. |
+| 6 | `.trinity/experience.md` | W426 learnings. |
+| 7 | git/PR | Commit, push, open PR #? closing #1376, create #? for W427. |
+
+## Deferred items
+
+- Real P12 CCLK capture and cold-POR boot for OSCFSEL 6/7 → W427 Variant A if P12
+  is wired.
+- Real XADC readout → W427 Variant B if a safe JTAG/HS2 path is validated.
+- Gen-verilog #1245 sub-fix → deferred; remaining 7 failures are tied to major
+  features, not narrow regression-free fixes.
 
 ---
 

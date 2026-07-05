@@ -935,6 +935,46 @@ lemma pvt_half_ns_worst_case_bound (ctx : PvtContext) :
   · exact hv_max
   · exact ProcessCorner.any_worse_than_ss ctx.process_corner
 
+/-- Finite-grid operating-rectangle check: every grid point in a 5×5×3
+    temperature / VCCINT / process-corner grid is bounded by the worst-case
+    corner (max temperature, min VCCINT, slow-slow process corner). This is the
+    computational counterpart of the Rust `test_pvt_half_ns_worst_case_bound`
+    grid search. -/
+theorem pvt_half_ns_operating_rectangle_grid_bounded
+  (temp_c : Int) (vccint_mv : Nat) (corner : ProcessCorner) :
+  (temp_c = -40 ∨ temp_c = -20 ∨ temp_c = 0 ∨ temp_c = 25 ∨ temp_c = 85)
+  → (vccint_mv = 900 ∨ vccint_mv = 950 ∨ vccint_mv = 1000 ∨ vccint_mv = 1050 ∨ vccint_mv = 1100)
+  → (corner = ProcessCorner.ff ∨ corner = ProcessCorner.tt ∨ corner = ProcessCorner.ss)
+  → n25q128_min_sck_half_ns_pvt ⟨temp_c, vccint_mv, 2700, corner⟩
+    ≤ n25q128_min_sck_half_ns_pvt ⟨PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, 2700, ProcessCorner.ss⟩ := by
+  intro ht hv hc
+  rcases ht with (rfl | rfl | rfl | rfl | rfl)
+  all_goals
+    rcases hv with (rfl | rfl | rfl | rfl | rfl)
+    all_goals
+      rcases hc with (rfl | rfl | rfl)
+      all_goals
+        apply pvt_half_ns_worst_case_bound
+        all_goals norm_num [PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- Low-bound version of the finite-grid operating-rectangle check. -/
+theorem pvt_low_ns_operating_rectangle_grid_bounded
+  (temp_c : Int) (vccint_mv : Nat) (corner : ProcessCorner) :
+  (temp_c = -40 ∨ temp_c = -20 ∨ temp_c = 0 ∨ temp_c = 25 ∨ temp_c = 85)
+  → (vccint_mv = 900 ∨ vccint_mv = 950 ∨ vccint_mv = 1000 ∨ vccint_mv = 1050 ∨ vccint_mv = 1100)
+  → (corner = ProcessCorner.ff ∨ corner = ProcessCorner.tt ∨ corner = ProcessCorner.ss)
+  → n25q128_min_sck_low_ns_pvt ⟨temp_c, vccint_mv, 2700, corner⟩
+    ≤ n25q128_min_sck_low_ns_pvt ⟨PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, 2700, ProcessCorner.ss⟩ := by
+  intro ht hv hc
+  rcases ht with (rfl | rfl | rfl | rfl | rfl)
+  all_goals
+    rcases hv with (rfl | rfl | rfl | rfl | rfl)
+    all_goals
+      rcases hc with (rfl | rfl | rfl)
+      all_goals
+        apply pvt_low_ns_worst_case_is_upper_envelope
+        all_goals norm_num [PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
 /-- If the PVT-aware predicate holds, the nominal predicate holds (for contexts
     inside the operating envelope). -/
 theorem measured_cclk_with_pvt_implies_measured_cclk_satisfies_flash_spec
