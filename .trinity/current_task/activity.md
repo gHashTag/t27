@@ -1584,3 +1584,7 @@
 - **Commit:** docs: Wave Loop 429 experience log
 - **Files:** .trinity/current-issue.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W431_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_430_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-05T10:06:55Z — wave-loop-431
+- **Commit:** feat(igla): Wave Loop 430 — live XADC readout, PVT-envelope bridge, W431 cooperation\n\n- Add tri fpga read-xadc and --xadc flags on boot-log/cold-por/cclk-sweep.\n- Parse openFPGALoader --read-xadc output and embed live temp/vccint/vccaux in JSON logs.\n- Add XadcOperatingPoint formal bridge and worst-case-bound theorem in TernaryFPGABoot.lean.\n- Update fpga/HARDWARE_SSOT.md, T27_VS_FORMAL_HDL_2026.md, GEN_VERILOG_DEFECTS_REPRO.md.\n- Create WAVE_LOOP_430_REPORT.md and FPGA_LOOP_COOPERATION_W431_2026-07-01.md.\n- Verification: cargo test fpga:: 79/79, lake build pass, tri test pass except 7 pre-existing #1245 failures.\n\nCloses #1388\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .trinity/experience.md
+

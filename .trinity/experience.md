@@ -1,3 +1,49 @@
+## 2026-07-01 — Wave Loop 430 (FPGA boot-evidence: live XADC readout, PVT-envelope bridge, W430 close-out / W431 setup)
+
+### What worked
+- Executing **Variant B** kept the wave shippable: the board is reachable over
+  the Digilent HS2 cable, so live XADC readout is real evidence even though P12
+  and the relay gate are still unwired.
+- A small `normalize_trailing_commas` step plus `parse_xadc_output` made
+  `openFPGALoader --read-xadc` output consumable by `serde_json`; unit tests for
+  the normalizer and the full round-trip prevent silent regressions.
+- Adding the formal bridge *inside* `namespace BitstreamConfig` avoided the
+  "unknown identifier" errors that appear when the same names are referenced
+  after `end BitstreamConfig`.
+- Making `--xadc` opt-in on `boot-log`, `cold-por`, and `cclk-sweep` keeps the
+  board-less CI path green while letting real runs embed `source: "xadc"`.
+- Explicitly triaging gen-verilog #1245 to "deferred" this wave kept scope
+  bounded and is documented in `GEN_VERILOG_DEFECTS_REPRO.md`.
+- Using `env -u GH_TOKEN gh ...` works around the stale `GH_TOKEN` in the shell
+  and lets the keyring-backed `gHashTag` account create issues and PRs.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`:
+  - Added `XadcContext`, `read_xadc_via_openfpgaloader`, `parse_xadc_output`.
+  - Added `FpgaCmd::ReadXadc` and `--xadc` flags on `BootLog`, `ColdPor`, and
+    `CclkSweep`.
+  - Updated `boot_log`, `cold_por`, and `cclk_sweep` to embed live XADC values
+    when requested; added unit tests.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`:
+  - Added `XadcOperatingPoint`, `xadc_operating_point_to_pvt`,
+    `xadc_operating_point_within_envelope`,
+    `xadc_operating_point_envelope_implies_worst_case_bound`, and the concrete
+    worst-case example theorem.
+- `fpga/HARDWARE_SSOT.md`: added §9.6 with the `read-xadc` and `--xadc` recipes.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`: refreshed for W430.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`: documented W430 triage decision.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_430_REPORT.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W431_2026-07-01.md`.
+- Issue/branch: GitHub issue #1389, branch `wave-loop-431`; PR #1390 closes #1388.
+
+### Verification
+- `cargo test --bin tri fpga::`: 79/79 pass.
+- `lake build Trinity.TernaryFPGABoot`: 2967 jobs, 0 errors.
+- `./scripts/tri test`: all phases pass; 7 pre-existing gen-verilog yosys smoke
+  failures (#1245); 0 FPGA smoke failures; 0 seal mismatches.
+
+---
+
 ## 2026-07-01 — Wave Loop 429 (FPGA formal/tooling hardening: raw-ns OSCFSEL theorems, `tri fpga measured-to-lean --json`, W429 close-out / W430 setup)
 
 ### What worked
