@@ -307,7 +307,7 @@ fn cmd_fpga_smoke_gate(repo: &Path) -> anyhow::Result<FpgaSmokeResult> {
     }
 
     let tri = tri_exe(repo)?;
-    run_fpga_smoke_gate(&bit, &tri, report_path, Some(repo))
+    run_fpga_smoke_gate(&bit, &tri, report_path, Some(repo), None)
 }
 
 /// Core smoke-gate consumer. Separated from `cmd_fpga_smoke_gate` so unit tests
@@ -317,6 +317,7 @@ fn run_fpga_smoke_gate(
     tri: &Path,
     report_path: PathBuf,
     cwd: Option<&Path>,
+    replay_fixtures: Option<&Path>,
 ) -> anyhow::Result<FpgaSmokeResult> {
     let fallback_dir = report_path
         .parent()
@@ -329,16 +330,21 @@ fn run_fpga_smoke_gate(
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
     }
+    let mut args: Vec<String> = vec![
+        "fpga".to_string(),
+        "smoke-gate".to_string(),
+        "--synthetic-operating-point".to_string(),
+        "--verify-lean".to_string(),
+        "--theorem-matrix".to_string(),
+        "--json".to_string(),
+        report_path.to_string_lossy().to_string(),
+    ];
+    if let Some(fixtures) = replay_fixtures {
+        args.push("--replay-fixtures".to_string());
+        args.push(fixtures.to_string_lossy().to_string());
+    }
     let st = cmd
-        .args([
-            "fpga",
-            "smoke-gate",
-            "--synthetic-operating-point",
-            "--verify-lean",
-            "--theorem-matrix",
-            "--json",
-            &report_path.to_string_lossy(),
-        ])
+        .args(&args)
         .output()
         .with_context(|| format!("spawning {} for FPGA smoke gate", tri.display()))?;
     if !st.status.success() {
@@ -448,6 +454,10 @@ struct SuiteSummary {
     fpga_smoke_passed: Option<bool>,
     /// Elapsed milliseconds reported by the smoke-gate theorem matrix, if any.
     fpga_smoke_gate_elapsed_ms: Option<u64>,
+    /// Elapsed milliseconds reported by the smoke-gate theorem-matrix replay path,
+    /// if run. Separated from `fpga_smoke_gate_elapsed_ms` so CI can trend
+    /// generation and replay cost independently.
+    fpga_smoke_gate_replay_elapsed_ms: Option<u64>,
     /// Specs that failed in the `gen-verilog-yosys-smoke` phase, if any.
     known_failures: Vec<String>,
     /// Number of failures documented as the current baseline in
@@ -580,6 +590,10 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
     push_phase("gen-verilog-yosys-smoke", p3bp, p3bf, p3b_skipped);
 
     println!("--- Phase 3c: FPGA Board-Less Smoke Gate ---");
+    let bit = repo
+        .join("fpga")
+        .join("verilog")
+        .join("ternary_mac_demo_top_200t.bit");
     let mut p3c_fail = 0usize;
     let mut p3c_skipped = 0usize;
     let fpga_result = match cmd_fpga_smoke_gate(&repo) {
@@ -610,6 +624,57 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
         }
     };
     push_phase("fpga-smoke-gate", if fpga_result.passed { 1 } else { 0 }, p3c_fail, p3c_skipped);
+
+    println!("--- Phase 3d: FPGA Board-Less Smoke Gate Replay ---");
+    let mut p3d_fail = 0usize;
+    let mut p3d_skipped = 0usize;
+    let golden_fixtures = repo
+        .join("tests")
+        .join("fixtures")
+        .join("fpga")
+        .join("theorem-matrix")
+        .join("golden");
+    let replay_report_path = repo
+        .join("build")
+        .join("fpga")
+        .join("smoke_gate_replay_report.json");
+    if !bit.is_file() || !golden_fixtures.is_dir() {
+        println!(
+            "  SKIP: FPGA smoke-gate replay requires bitstream and golden fixtures"
+        );
+        p3d_skipped = 1;
+    } else {
+        let tri = tri_exe(&repo).with_context(|| "locate tri binary for replay")?;
+        match run_fpga_smoke_gate(
+            &bit,
+            &tri,
+            replay_report_path,
+            Some(&repo),
+            Some(&golden_fixtures),
+        ) {
+            Ok(r) => {
+                summary.fpga_smoke_gate_replay_elapsed_ms = r.theorem_matrix_elapsed_ms;
+                if !r.passed {
+                    p3d_fail = 1;
+                    eprintln!("FPGA smoke-gate replay report indicates failure");
+                }
+            }
+            Err(e) => {
+                eprintln!("FPGA smoke-gate replay failed: {}", e);
+                p3d_fail = 1;
+            }
+        }
+    }
+    push_phase(
+        "fpga-smoke-gate-replay",
+        if p3d_fail == 0 && p3d_skipped == 0 {
+            1
+        } else {
+            0
+        },
+        p3d_fail,
+        p3d_skipped,
+    );
 
     println!("--- Phase 4: Gen C ---");
     let (p4p, p4f) = run_phase(
@@ -647,7 +712,7 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
 
     println!();
     println!("=== SUMMARY ===");
-    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p4f + p5f + fp_diff;
+    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p4f + p5f + fp_diff;
 
     summary.total_failures = total_fail;
     summary.passed = total_fail == 0;
@@ -1001,6 +1066,7 @@ mod tests {
             fpga_smoke_report: Some("build/fpga/smoke_gate_report.json".to_string()),
             fpga_smoke_passed: Some(true),
             fpga_smoke_gate_elapsed_ms: Some(42),
+            fpga_smoke_gate_replay_elapsed_ms: Some(7),
             known_failures: vec!["specs/scratch/a.t27".to_string()],
             baseline_failures: 2,
             total_failures: 2,
@@ -1016,6 +1082,10 @@ mod tests {
         assert_eq!(value["known_failures"].as_array().unwrap().len(), 1);
         assert_eq!(value["acceptable"].as_bool(), Some(true));
         assert_eq!(value["fpga_smoke_gate_elapsed_ms"].as_u64(), Some(42));
+        assert_eq!(
+            value["fpga_smoke_gate_replay_elapsed_ms"].as_u64(),
+            Some(7)
+        );
     }
 
     #[test]
@@ -1116,6 +1186,7 @@ mod tests {
             &fake_tri,
             report_path.clone(),
             None,
+            None,
         )
         .expect("smoke-gate should pass");
         assert!(result.passed);
@@ -1143,6 +1214,7 @@ mod tests {
             &bit,
             &fake_tri,
             report_path.clone(),
+            None,
             None,
         )
         .expect_err("smoke-gate should fail when report says passed=false");

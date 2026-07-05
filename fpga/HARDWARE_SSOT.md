@@ -1243,7 +1243,7 @@ JSON to the path supplied with `--json`. When the FPGA smoke gate is skipped
 phase's `skipped` count is incremented, so consumers can distinguish "skipped"
 from "failed".
 
-#### 3.6.26 `tri fpga smoke-gate --theorem-matrix` fixture replay (W444–W445)
+#### 3.6.26 `tri fpga smoke-gate --theorem-matrix` fixture replay (W444–W446)
 
 W444 persists the 24 synthetic theorem-matrix variants (3 process corners × 8
 OSCFSEL values) as machine-readable fixtures under
@@ -1285,11 +1285,32 @@ tri fpga smoke-gate \
   --json /tmp/golden_replay_report.json
 ```
 
-The suite-level JSON summary produced by `./scripts/tri test --json` also
-exposes `fpga_smoke_gate_elapsed_ms`, which is read from
-`build/fpga/smoke_gate_report.json`'s `theorem_matrix.elapsed_ms`. This metric
-is optional in the report; older reports without the field simply leave the
-suite field as `null`.
+W446 adds a **report-shape diff gate** that compares the replayed theorem-matrix
+report against a committed snapshot:
+
+```
+tests/fixtures/fpga/theorem-matrix/golden/expected_report.json
+```
+
+The snapshot records the normalized report shape (24 variants, `envelope_check:
+"ok"`, per-variant `fixtures` object with paths relative to the fixture
+directory). A Rust unit test replays the golden fixtures, serializes the report
+block, and asserts the actual report is a strict superset of the snapshot.
+Use `UPDATE_EXPECTED=1 cargo test -p tri --bin tri test_theorem_matrix_golden_replay_matches_snapshot`
+to regenerate the snapshot after an intentional fixture or schema update.
+
+The suite-level JSON summary produced by `./scripts/tri test --json` exposes
+both:
+
+- `fpga_smoke_gate_elapsed_ms` — read from
+  `build/fpga/smoke_gate_report.json`'s `theorem_matrix.elapsed_ms`
+  (generation path).
+- `fpga_smoke_gate_replay_elapsed_ms` — read from
+  `build/fpga/smoke_gate_replay_report.json`'s `theorem_matrix.elapsed_ms`
+  (golden fixture replay path).
+
+Both metrics are optional in the report; older reports without the field simply
+leave the corresponding suite field as `null`.
 
 ---
 

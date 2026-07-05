@@ -4905,17 +4905,14 @@ impl VerilogCodegen {
                     let child = &node.children[0];
                     if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
                         let base_name = match child.children[0].kind {
-                            NodeKind::ExprIdentifier => {
-                                Self::verilog_safe_identifier(&child.children[0].name)
-                            }
+                            NodeKind::ExprIdentifier => child.children[0].name.clone(),
                             _ => String::new(),
                         };
                         let flat_name = format!("{}_{}", base_name, node.name);
-                        self.write(&flat_name);
+                        self.write(&Self::verilog_safe_identifier(&flat_name));
                     } else if child.kind == NodeKind::ExprIdentifier {
-                        self.write(&Self::verilog_safe_identifier(&child.name));
-                        self.write("_");
-                        self.write(&node.name);
+                        let flat_name = format!("{}_{}", child.name, node.name);
+                        self.write(&Self::verilog_safe_identifier(&flat_name));
                     } else {
                         self.gen_verilog_expr(child);
                         self.write("_");
@@ -19844,6 +19841,31 @@ mod tests_hir_pipeline_parity {
         assert!(
             v.contains("\\wire ") && v.contains("\\reg ") && v.contains("\\task "),
             "all references to escaped identifiers must use escaped form, got:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn test_verilog_keyword_field_access_flattened_escape() {
+        // Field access on a variable whose name is a Verilog keyword must be
+        // flattened into a single escaped identifier, not escaped as a
+        // partial component. `task.prompt` where `task` is a port must render
+        // as `\task_prompt ` (or `task_prompt` if non-keyword), never as
+        // `\task _prompt` which is invalid Verilog.
+        let src = r#"module KeywordFieldAccess {
+    pub fn evaluate(task: u32) -> u32 {
+        return task.prompt
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(
+            !v.contains("\\task _prompt"),
+            "field access on a keyword base must not produce a broken partial escape, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("task_prompt") || v.contains("\\task_prompt "),
+            "field access must flatten to a single identifier, got:\n{}",
             v
         );
     }

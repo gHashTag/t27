@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-444`  
-**Last updated:** 2026-07-01 (Wave Loop 444)  
+**Branch:** `wave-loop-446`  
+**Last updated:** 2026-07-01 (Wave Loop 446)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -64,6 +64,17 @@ under `tests/fixtures/fpga/theorem-matrix/golden/` and adds a suite-level
 `fpga_smoke_gate_elapsed_ms` metric. The 7 residual yosys smoke failures remain
 the documented baseline; Variant C (master-merge) remains a dedicated future
 wave.
+
+**W446 triage decision:** the 7 residual yosys smoke failures remain the
+documented baseline, but one field-access keyword-escape regression was fixed
+to prevent `specs/igla/coder/benchmark.t27` from falling into the failure set.
+`ExprFieldAccess` in `bootstrap/src/compiler.rs` now flattens a keyword-named
+base and its field (`task.prompt`) into a single escaped identifier
+(`\task_prompt `) instead of escaping only the base component (`\task _prompt`).
+The fix is covered by regression test
+`test_verilog_keyword_field_access_flattened_escape`, and 52 stale seals were
+resealed to the current compiler output. Variant C (master-merge) remains a
+dedicated future wave.
 
 ---
 
@@ -628,7 +639,21 @@ baseline**. No new narrow defect was introduced.
 
 **Defect status matrix after W444:** same as after W435.
 
-## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439 / W440 / W441 / W444
+## W446 triage (2026-07-01)
+
+Wave Loop 446 selected **Variant B** of the W446 cooperation plan (golden fixture
+report-shape diff gate + timing dashboard). Work focused on
+`cli/tri/src/fpga.rs` (`build_theorem_matrix_report`,
+`normalize_fixture_paths`, `test_theorem_matrix_golden_replay_matches_snapshot`)
+and `bootstrap/src/suite.rs` (`fpga_smoke_gate_replay_elapsed_ms`, a second
+suite phase that replays the golden fixtures). The wave did not touch the
+`gen-verilog` backend, so the 7 residual yosys smoke failures remain
+**unchanged and re-confirmed as the baseline**. No new narrow defect was
+introduced.
+
+**Defect status matrix after W446:** same as after W435.
+
+## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439 / W440 / W441 / W444 / W446
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.

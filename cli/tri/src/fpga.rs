@@ -6455,16 +6455,8 @@ fn smoke_gate(
                 );
                 let (entries, elapsed_ms) = replay_theorem_matrix(&matrix_fixture_dir)
                     .with_context(|| "theorem-matrix fixture replay failed")?;
-                report["theorem_matrix"] = serde_json::json!({
-                    "status": "ok",
-                    "variant_count": entries.len(),
-                    "source": "synthetic",
-                    "corner_count": 3,
-                    "oscfsel_count": 8,
-                    "replay": true,
-                    "elapsed_ms": elapsed_ms,
-                    "variants": entries,
-                });
+                report["theorem_matrix"] =
+                    build_theorem_matrix_report(&entries, elapsed_ms, true);
                 println!(
                     "[smoke-gate] theorem-matrix replay OK ({} variants, {} ms)",
                     entries.len(),
@@ -6478,16 +6470,8 @@ fn smoke_gate(
                 let entries = generate_theorem_matrix(&matrix_fixture_dir, &report)
                     .with_context(|| "theorem-matrix generation failed")?;
                 let elapsed_ms = gen_start.elapsed().as_millis() as u64;
-                report["theorem_matrix"] = serde_json::json!({
-                    "status": "ok",
-                    "variant_count": entries.len(),
-                    "source": "synthetic",
-                    "corner_count": 3,
-                    "oscfsel_count": 8,
-                    "replay": false,
-                    "elapsed_ms": elapsed_ms,
-                    "variants": entries,
-                });
+                report["theorem_matrix"] =
+                    build_theorem_matrix_report(&entries, elapsed_ms, false);
                 println!(
                     "[smoke-gate] theorem-matrix OK ({} variants, source=synthetic, {} ms)",
                     entries.len(),
@@ -6788,6 +6772,52 @@ fn replay_theorem_matrix(
     }
     let elapsed_ms = start.elapsed().as_millis() as u64;
     Ok((matrix_entries, elapsed_ms))
+}
+
+/// Build the `theorem_matrix` report block used by `tri fpga smoke-gate --json`.
+/// Keeps the generation and replay paths producing the same schema.
+fn build_theorem_matrix_report(
+    entries: &[serde_json::Value],
+    elapsed_ms: u64,
+    replay: bool,
+) -> serde_json::Value {
+    serde_json::json!({
+        "status": "ok",
+        "variant_count": entries.len(),
+        "source": "synthetic",
+        "corner_count": 3,
+        "oscfsel_count": 8,
+        "replay": replay,
+        "elapsed_ms": elapsed_ms,
+        "variants": entries,
+    })
+}
+
+/// Strip `fixture_dir` from the fixture paths inside matrix entries so that
+/// snapshots are stable across machines.
+#[cfg(test)]
+fn normalize_fixture_paths(
+    entries: &[serde_json::Value],
+    fixture_dir: &std::path::Path,
+) -> Vec<serde_json::Value> {
+    entries
+        .iter()
+        .map(|entry| {
+            let mut entry = entry.clone();
+            if let Some(serde_json::Value::Object(fixtures)) = entry.get_mut("fixtures") {
+                for (_key, value) in fixtures.iter_mut() {
+                    if let Some(path_str) = value.as_str() {
+                        let path = std::path::Path::new(path_str);
+                        if let Ok(rel) = path.strip_prefix(fixture_dir) {
+                            *value =
+                                serde_json::Value::String(rel.to_string_lossy().to_string());
+                        }
+                    }
+                }
+            }
+            entry
+        })
+        .collect()
 }
 
 fn boot_protocol(checklist: bool) -> Result<()> {
@@ -10507,5 +10537,145 @@ mod tests {
 
         // Record elapsed_ms as a metric only; do not gate on an absolute bound.
         println!("golden theorem-matrix replay elapsed_ms: {}", elapsed_ms);
+    }
+
+    /// Snapshot diff gate for the golden theorem-matrix replay report.
+    ///
+    /// The first time the test runs it writes
+    /// `tests/fixtures/fpga/theorem-matrix/golden/expected_report.json`.
+    /// Subsequent runs compare the actual replay report against that snapshot.
+    /// Fixture paths are normalized to be relative to the fixture directory so
+    /// the snapshot is stable across machines.
+    #[test]
+    fn test_theorem_matrix_golden_replay_matches_snapshot() {
+        let mut golden = std::path::PathBuf::from(
+            std::env::var("CARGO_MANIFEST_DIR")
+                .as_deref()
+                .unwrap_or("."),
+        );
+        golden.pop(); // cli/tri
+        golden.pop(); // cli
+        golden.push("tests");
+        golden.push("fixtures");
+        golden.push("fpga");
+        golden.push("theorem-matrix");
+        golden.push("golden");
+
+        assert!(
+            golden.is_dir(),
+            "golden fixture directory must exist: {}",
+            golden.display()
+        );
+
+        let (entries, elapsed_ms) = replay_theorem_matrix(&golden)
+            .expect("golden fixture replay should succeed");
+        assert_eq!(entries.len(), 24, "expected 24 golden variants");
+
+        let normalized = normalize_fixture_paths(&entries, &golden);
+        let report = build_theorem_matrix_report(&normalized, elapsed_ms, true);
+
+        let expected_path = golden.join("expected_report.json");
+        // The snapshot omits `elapsed_ms` because it is machine/run-dependent.
+        let mut snapshot_report = report.clone();
+        if let Some(obj) = snapshot_report.as_object_mut() {
+            obj.remove("elapsed_ms");
+        }
+        if std::env::var("UPDATE_EXPECTED").is_ok() || !expected_path.is_file() {
+            std::fs::write(
+                &expected_path,
+                serde_json::to_string_pretty(&snapshot_report)
+                    .expect("serialize report snapshot"),
+            )
+            .expect("write expected_report.json");
+            println!("wrote expected_report.json: {}", expected_path.display());
+        }
+
+        let expected_text = std::fs::read_to_string(&expected_path)
+            .expect("read expected_report.json");
+        let expected: serde_json::Value = serde_json::from_str(&expected_text)
+            .expect("parse expected_report.json");
+
+        // Assert the actual report (minus the run-dependent metric) is a strict
+        // superset of the expected snapshot. Every expected top-level field and
+        // every expected variant field must match; actual may contain additional
+        // fields.
+        assert_report_superset(&snapshot_report, &expected, "theorem_matrix");
+
+        // Independently assert the live metrics.
+        assert!(
+            report.get("elapsed_ms").and_then(|v| v.as_u64()).is_some(),
+            "report must contain elapsed_ms"
+        );
+        for entry in report
+            .get("variants")
+            .and_then(|v| v.as_array())
+            .expect("variants array")
+        {
+            assert_eq!(
+                entry.get("envelope_check"),
+                Some(&serde_json::Value::String("ok".to_string())
+                ),
+                "every golden variant must pass envelope check"
+            );
+            assert!(
+                entry.get("fixtures").is_some(),
+                "every golden variant must carry a fixtures block"
+            );
+        }
+    }
+
+    /// Compare `actual` against `expected` as a strict superset: every field that
+    /// exists in `expected` must exist in `actual` and be equal. `actual` may
+    /// contain additional fields.
+    fn assert_report_superset(
+        actual: &serde_json::Value,
+        expected: &serde_json::Value,
+        context: &str,
+    ) {
+        match (actual, expected) {
+            (
+                serde_json::Value::Object(actual_obj),
+                serde_json::Value::Object(expected_obj),
+            ) => {
+                for (key, expected_value) in expected_obj.iter() {
+                    let actual_value = actual_obj.get(key).unwrap_or_else(|| {
+                        panic!(
+                            "{}: missing expected key '{}' in actual report",
+                            context, key
+                        )
+                    });
+                    assert_report_superset(
+                        actual_value,
+                        expected_value,
+                        &format!("{}.{}", context, key),
+                    );
+                }
+            }
+            (
+                serde_json::Value::Array(actual_arr),
+                serde_json::Value::Array(expected_arr),
+            ) => {
+                assert_eq!(
+                    actual_arr.len(),
+                    expected_arr.len(),
+                    "{}: array length mismatch",
+                    context
+                );
+                for (idx, (actual_item, expected_item)) in
+                    actual_arr.iter().zip(expected_arr.iter()).enumerate()
+                {
+                    assert_report_superset(
+                        actual_item,
+                        expected_item,
+                        &format!("{}[{}]", context, idx),
+                    );
+                }
+            }
+            _ => assert_eq!(
+                actual, expected,
+                "{}: value mismatch",
+                context
+            ),
+        }
     }
 }

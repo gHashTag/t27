@@ -194,6 +194,31 @@ public signal, CIRCT `firtool-1.152.0` is still the latest release, and no
 ternary-FPGA project besides Sparkle combines ternary compute with a
 Lean-native proof pipeline.
 
+**W446 hardens the deterministic artifact trail with a report-shape diff gate
+and separates generation vs. replay timing.** `tri fpga smoke-gate
+--replay-fixtures tests/fixtures/fpga/theorem-matrix/golden` now produces a
+report whose theorem-matrix block is snapshotted in
+`tests/fixtures/fpga/theorem-matrix/golden/expected_report.json`; a new Rust
+unit test asserts the actual replay is a strict superset of that snapshot.
+`./scripts/tri test --json` now carries both `fpga_smoke_gate_elapsed_ms`
+(generation path) and `fpga_smoke_gate_replay_elapsed_ms` (golden replay path).
+Competitor signals at the W446 boundary:
+
+- **Sparkle / Verilean:** PR #66 (IP.Net + compiler perf) is merged (June 30
+  2026). The July 4 2026 FIDO2/crypto burst is confirmed: PR #97 (FIDO2/CTAP2
+  data layer + P-256 sign), PR #98 (P-256 HW sign stack + SHA-256 streaming),
+  PR #99 (FIDO2 CTAPHID + CTAP2 dispatch top), and PR #100 (crypto refactor
+  with P-256 math-property proofs) are all merged. PR #96 (policy-enforcing
+  Ethereum signer) also merged July 4 2026. PR #101 “docs(tutorial): Ch11 web3
+  signer — flash, sign, and broadcast to local anvil (+ M2)” is open as of
+  the boundary. No new public Sparkle signals have appeared after 2026-07-11.
+- **CIRCT / firtool:** `firtool-1.152.0` (shipped 2026-07-04) is still the
+  latest public release; no `1.153.0` exists as of the W446 boundary.
+- **Ternary-FPGA niche:** TernaryCore, ternfpga, KULeuven ternary-lut-dse, and
+  BitNet-RISCV-Multicore continue to validate {-1,0,+1} compute hardware, but
+  none pairs it with a Lean-native proof pipeline. t27's differentiation remains
+  intact.
+
 ---
 
 ## Competitor matrix

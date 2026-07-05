@@ -1,13 +1,85 @@
-# NOW — Wave Loop 446 setup / Wave Loop 445 close-out (2026-07-01)
+# NOW — Wave Loop 447 next / Wave Loop 446 close-out (2026-07-01)
 
 **Last updated:** 2026-07-01
 
-## Wave Loop 446 — Theorem-matrix golden fixture diff gate + live-capture fallback + gen-verilog debt (Variant B default)
+## Wave Loop 447 — Live-capture fallback + golden-matrix combined-check theorem + competitor refresh (Variant B default) (Closes #1422)
+
+- Branch: `wave-loop-447`
+- Issue: #1422
+- PR: (to open after close-out)
+- Plan: `docs/reports/FPGA_LOOP_PLAN_W447_2026-07-01.md` (to be written at W447 start)
+- Cooperation W448: `docs/reports/FPGA_LOOP_COOPERATION_W448_2026-07-01.md` (to be written at W447 close-out)
+
+### Not started
+
+- Select Variant A if bench unblocks, otherwise Variant B.
+- Create issue #1422 and branch `wave-loop-447` from the W446 land commit.
+
+---
+
+## Wave Loop 446 — Theorem-matrix golden fixture diff gate + timing dashboard (Variant B default) (Closes #1420)
 
 - Branch: `wave-loop-446`
-- Issue: #1420 (to create after #1419 exists)
+- Issue: #1420
 - PR: (to open after this close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W446_2026-07-01.md`
+- Report: `docs/reports/WAVE_LOOP_446_REPORT.md`
+- Evidence W446: `docs/reports/FPGA_LOOP_EVIDENCE_W446_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_PLAN_W446_2026-07-01.md`
+- Cooperation W447: `docs/reports/FPGA_LOOP_COOPERATION_W447_2026-07-01.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `cli/tri/src/fpga.rs`
+  - Added `build_theorem_matrix_report` helper shared by the CLI and the test suite.
+  - Added `test_theorem_matrix_golden_replay_matches_snapshot` with strict-superset
+    snapshot comparison against `tests/fixtures/fpga/theorem-matrix/golden/expected_report.json`.
+
+- `bootstrap/src/suite.rs`
+  - Added `fpga_smoke_gate_replay_elapsed_ms` to `SuiteSummary`.
+  - Added Phase 3d replay invocation and populated the new elapsed-ms field.
+
+- `tests/fixtures/fpga/theorem-matrix/golden/expected_report.json`
+  - New committed snapshot of the normalized theorem-matrix replay report.
+
+- `fpga/HARDWARE_SSOT.md`
+  - Documented the snapshot semantics and both suite-level elapsed-ms metrics.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - W446 competitor boundary: Sparkle PR #97–#100 merged 2026-07-04, PR #101 open,
+    CIRCT `firtool-1.152.0` latest, no post-2026-07-11 signals.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - W446 triage: fixed a field-access keyword-escape regression in
+    `bootstrap/src/compiler.rs`; 7 residual yosys smoke failures remain baseline.
+
+- `bootstrap/src/compiler.rs`
+  - Fixed `ExprFieldAccess` so keyword-named bases flatten to a single escaped
+    identifier; added regression test; resealed 52 specs.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_446_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W446_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W447_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — not performed this wave.
+- Master-merge to clear #1245 — deferred to a dedicated future wave.
+
+### Verification
+
+- `cargo check -p tri`: **PASS**.
+- `cargo test -p tri`: **PASS** (138 tests, 0 ignored, 0 new regressions).
+- `cargo test -p t27c --bin t27c suite::tests`: **PASS**.
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test --json /tmp/suite_report_w446.json`: **PASS**.
+  - Parse/typecheck/GF16/gen-zig/gen-rust/gen-verilog/gen-c/seal-verify: 576/576 PASS.
+  - Gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+  - FPGA board-less smoke gate: **PASS**, theorem matrix 24 variants,
+    `envelope_check: "ok"`, `fixtures` present, `schema_version: "1.0"`,
+    `acceptable: true`, both elapsed-ms fields populated.
 
 ---
 
