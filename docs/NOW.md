@@ -225,12 +225,66 @@
 
 ---
 
-## Wave Loop 438 — Next: CI artifact audit trail for dry-run boot-evidence + real-capture fallback (Variant B, A optional)
+## Wave Loop 438 — CI artifact audit trail for dry-run boot-evidence (Closes #1407)
 
 - Branch: `wave-loop-438`
 - Issue: #1407
+- PR: #1410
+- Report: `docs/reports/WAVE_LOOP_438_REPORT.md`
+- Evidence W438: `docs/reports/FPGA_LOOP_EVIDENCE_W438_2026-07-05.md`
+- Cooperation W439: `docs/reports/FPGA_LOOP_COOPERATION_W439_2026-07-05.md`
+
+### What landed (Variant B — board still blocked)
+
+- `cli/tri/src/fpga.rs`
+  - Added `--synthetic-operating-point` and `--verify-lean` to `tri fpga smoke-gate`.
+  - When `--synthetic-operating-point` is used, the dry-run CCLK sweep uses a
+    deterministic synthetic PVT context and the JSON sweep report is asserted to
+    carry `operating_point.source == "synthetic"` for every variant.
+  - When `--verify-lean` is used, the gate generates a synthetic raw-ns `.lean`
+    theorem and runs `verify-lean --expected-source synthetic` on it.
+  - Added edge-case unit tests for `verify_lean`: no theorem, missing summary +
+    missing source comment, and mismatched expected source.
+
+- `fpga/HARDWARE_SSOT.md` §3.6.23
+  - Documented the machine-readable `tri fpga verify-lean --json` schema.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W438; Sparkle's 関数型まつり2026 talk on 2026-07-11 remains the
+    next checkpoint.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Updated branch to `wave-loop-438` and documented the W438 triage decision:
+    no compiler work; 7 residual failures remain the baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_438_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W438_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W439_2026-07-05.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — not performed this wave.
+- Master-merge to clear #1245 — deferred to a dedicated future wave.
+
+### Verification
+
+- `cargo test -p tri --bin tri fpga::`: **PASS** (93 tests, +3 W438 regressions).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test` parse/typecheck/GF16/gen-zig/gen-rust/gen-verilog/gen-c/seal-verify/FPGA smoke/fixed-point: **PASS**.
+- `./scripts/tri test` gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+- `tri fpga smoke-gate --synthetic-operating-point --verify-lean --process-corner ss`: **PASS**.
+
+---
+
+## Wave Loop 439 — Next: CI artifact trail hardening / real-capture fallback / gen-verilog debt (Variant B default)
+
+- Branch: `wave-loop-439`
+- Issue: #1409
 - Default variant: **B** unless P12 or the relay gate becomes available.
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W438_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W439_2026-07-05.md`
 
 ---
 
