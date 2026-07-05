@@ -1,16 +1,16 @@
-# Wave Loop 426 — FPGA boot-evidence next variant (physical CCLK / XADC readout / formal fallback)
+# Wave Loop 425 — FPGA board evidence / relay gate / PVT falsification
 
-**Issue:** #1376  
-**Branch:** `wave-loop-426`  
-**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 425.
+**Issue:** #1374  
+**Branch:** `wave-loop-425`  
+**Milestone:** Continue the FPGA boot-evidence line from W424.
 
 ---
 
 ## Goal
 
-Wave 425 hardened the FPGA CLI and formal model while the bench was blocked
-(P12 unwired, no relay gate). Wave 426 executes the first available variant from
-`docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md`.
+Wave 424 hardened the FPGA tooling around instrument import, PVT context, CSV
+voltage units, and non-blocking auto-continue. Wave 425 must produce real
+boot evidence by executing the first available variant:
 
 1. **Variant A (preferred when bench becomes available):**
    - Confirm P12 is wired to a logic-analyzer channel.
@@ -21,35 +21,35 @@ Wave 425 hardened the FPGA CLI and formal model while the bench was blocked
    - Document frequencies/duty cycles and PVT context in
      `fpga/HARDWARE_SSOT.md` §3.6.21.
 
-2. **Variant B (if board is reachable or external capture available):**
-   - Add real XADC readout to `tri fpga boot-log` / `cclk-sweep` / `cold-por`
-     over the existing JTAG path, so JSON `xadc` has `source: "xadc"` and live
-     temp/vccint/vccaux values.
-   - Alternatively, import at least one external CSV/VCD capture end-to-end.
-   - Run dry-run cold-POR boot-log for OSCFSEL 6/7 variants with
-     `--pvt-context`.
-   - Document the recipe in `fpga/HARDWARE_SSOT.md` §3.6.21.
+2. **Variant B (if hardware is partial):**
+   - Import a real or representative CCLK/CSV/VCD capture with
+     `--pvt-worstcase` validation.
+   - Run `tri fpga boot-log --dry-run` or `cclk-sweep --dry-run` for OSCFSEL
+     6/7 with `--pvt-context`.
+   - Document the import recipe and PVT-context checklist in
+     `fpga/HARDWARE_SSOT.md`.
 
-3. **Variant C (fallback if bench still blocked):**
-   - Extend the PVT formal model with an operating-rectangle grid theorem or a
-     measured-CCLK link theorem for every OSCFSEL 0–7 variant.
-   - Land one safe gen-verilog #1245 sub-fix from the remaining 7 failures, if
-     narrow and regression-free; otherwise explicitly defer.
-   - Harden `tri fpga` JSON schema / decision-tree output.
-   - Refresh `docs/reports/T27_VS_FORMAL_HDL_2026.md` if new 2026 competitor
-     developments surface.
+3. **Variant C (fallback if bench still fully blocked):**
+   - Implement or defer real XADC readout in `tri fpga boot-log` / `cclk-sweep`.
+   - Land the next safe gen-verilog #1245 sub-fix if one is narrow and
+     regression-free; otherwise explicitly defer.
+   - Harden boot-log / cold-por / cclk-sweep JSON schema and update the
+     competitor snapshot.
 
 ---
 
 ## Decomposed plan
 
+See `docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md`.
+
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `cli/tri/src/fpga.rs` or `proofs/lean4/Trinity/TernaryFPGABoot.lean` or `bootstrap/src/compiler.rs` | Variant A capture import, B XADC readout/capture import, or C formal/gen-verilog hardening |
-| 2 | `fpga/HARDWARE_SSOT.md` / `docs/reports` | Updated protocol or comparison note |
-| 3 | `docs/reports/*` | W426 report, evidence, W427 cooperation |
-| 4 | `.trinity/experience.md` | W426 learnings |
-| 5 | git/PR | squash-merge to `master`, close issue, open #? for W427 |
+| 1 | `cli/tri/src/fpga.rs` | Variant A capture import, B dry-run + PVT context, or C XADC/schema hardening |
+| 2 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | New measured theorems or PVT helpers |
+| 3 | `fpga/HARDWARE_SSOT.md` | Updated capture / import / PVT protocol |
+| 4 | `docs/reports/*` | W425 report, evidence, W426 cooperation |
+| 5 | `.trinity/experience.md` | W425 learnings |
+| 6 | git/PR | squash-merge to `master`, close #1374, open next issue for W426 |
 
 ---
 
@@ -62,15 +62,14 @@ Wave 425 hardened the FPGA CLI and formal model while the bench was blocked
 - [ ] AC-A4: Cold-POR SPI flash boot for OSCFSEL 6/7 is documented with STAT reads.
 
 ### Bundle B
-- [ ] AC-B1: Real XADC readout lands, OR at least one external capture is imported end-to-end.
-- [ ] AC-B2: The import/readout path exposes no unhandled unit, voltage-unit, or noise cases.
-- [ ] AC-B3: Dry-run boot-log artifacts exist for OSCFSEL 6/7 and include PVT/XADC context.
+- [ ] AC-B1: At least one real or representative capture is imported end-to-end and passes `--validate`.
+- [ ] AC-B2: Dry-run boot-log / cclk-sweep artifacts include PVT/XADC context fields for OSCFSEL 6/7.
+- [ ] AC-B3: `fpga/HARDWARE_SSOT.md` documents the import recipe and PVT-context checklist.
 
 ### Bundle C
-- [ ] AC-C1: At least one new PVT grid / envelope / OSCFSEL-link theorem is added and builds.
-- [ ] AC-C2: One safe gen-verilog #1245 sub-fix lands without increasing the 7-failure yosys smoke count, or is explicitly deferred if unsafe.
-- [ ] AC-C3: `boot-log` / `cold-por` / `cclk-sweep` tooling is measurably more robust or better documented.
-- [ ] AC-C4: Competitor snapshot is updated if any new 2026 developments are found.
+- [ ] AC-C1: Real XADC readout is implemented or a documented deferral explains why it remains placeholder.
+- [ ] AC-C2: `gen-verilog-yosys-smoke` failure count does not increase; any deferred #1245 sub-fix is explained.
+- [ ] AC-C3: Boot-log / cold-por / cclk-sweep JSON schema is measurably more robust or better documented.
 
 ### Invariant checks
 - [ ] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
@@ -82,19 +81,18 @@ Wave 425 hardened the FPGA CLI and formal model while the bench was blocked
 ## PR
 
 - Target: `master`
-- PR: to open after work
-- Body: `Closes #1376`
-- Report: `docs/reports/WAVE_LOOP_426_REPORT.md`
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W426_YYYY-MM-DD.md`
-- Cooperation W427: `docs/reports/FPGA_LOOP_COOPERATION_W427_YYYY-MM-DD.md`
+- Body: `Closes #1374`
+- Report: `docs/reports/WAVE_LOOP_425_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W425_2026-07-05.md`
+- Cooperation W426: `docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md`
 
 ---
 
 ## Default variant
 
-Execute **Variant A** if P12 is wired and the analyzer is ready.  
-Otherwise execute **Variant B** if the board is reachable for real XADC readout
-or an external capture is available.  
+Execute **Variant A** if P12 is wired and a logic analyzer is available.  
+Otherwise try **Variant B** if an external capture or partial board access is
+available.  
 Otherwise fall back to **Variant C**.
 
 ---
