@@ -2,6 +2,27 @@
 
 Last updated: 2026-07-05
 
+## SW-conformance — gf256 promoted to strict SW-bitexact (75/0/8) (Closes #1397)
+
+- gf256 (GoldenFloat256: S1 E97 M158, BIAS=79228162514264337593543950335=2^96-1,
+  u256_software) promoted from `bitexact_selfconsistent` to strict `bitexact` in
+  `conformance/vectors/INDEX_all_formats.json`. This is the LAST selfconsistent rung.
+- INDEX totals: bitexact 74 -> 75, selfconsistent 1 -> 0, structural 8 (sum=83).
+  Horizon-A SW ceiling reached (75 bit-precise; 8 structural are terminal, no single
+  decode law; 83/83 SW-bitexact is NOT achievable).
+- Bias hold lifted: earlier NOW entries said gf256 "stays open (open bias R&D) -- do
+  NOT promote". The 2026-07-05 bias audit resolved this: the decode uses ONLY the
+  closed-form interchange bias 2^(E-1)-1 = 2^96-1 (identical rule to gf128/gf512).
+  The descriptive PHI_BIAS spec metadata is NOT part of the decode path and no
+  decoded value depends on it (red herring). Decode-definition is definitive.
+- Status tag: [verified SW]. M=158 >> 52 -> no FP lowering; every finite value is an
+  EXACT dyadic odd*2^k (analytic separation-bound, same lemma as gf128/gf512).
+- Witness chain: dyadic normalizer 2021/2021 + Fraction oracle 2021/2021 + analytic
+  separation-bound; cross-check dyadic==Fraction on 201512 representative codes
+  (seed=256) agree, abs_error=0. OOM-safe (+-2^96 exponent kept symbolic).
+- NOT on-silicon Tier-E: gf256 is u256_software, has NO RTL -> no decode-HW/compute-HW
+  cell exists for it; the Tier-E ceiling 71/83 (trinity-fpga #199) is unaffected.
+
 ## SW-conformance — gf512 + gf1024 promoted to strict SW-bitexact (paired, 74/1/8) (Closes #1380)
 
 - gf512 (S1 E195 M316, BIAS=2^194-1, u512_software) and gf1024 (S1 E391 M632,
