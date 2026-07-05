@@ -171,12 +171,66 @@
 
 ---
 
-## Wave Loop 437 — Next: dry-run XADC→PVT validation and real-capture fallback (Variant B, A optional)
+## Wave Loop 437 — Dry-run XADC→PVT validation and `verify-lean` (Closes #1405)
 
 - Branch: `wave-loop-437`
 - Issue: #1405
+- PR: (to open after this close-out)
+- Report: `docs/reports/WAVE_LOOP_437_REPORT.md`
+- Evidence W437: `docs/reports/FPGA_LOOP_EVIDENCE_W437_2026-07-01.md`
+- Cooperation W438: `docs/reports/FPGA_LOOP_COOPERATION_W438_2026-07-01.md`
+
+### What landed (Variant B — board still blocked)
+
+- `cli/tri/src/fpga.rs`
+  - Added `--synthetic-operating-point` to `tri fpga cold-por` and `tri fpga cclk-sweep`.
+  - Added `tri fpga verify-lean` subcommand to validate `.lean` theorem blocks
+    against JSON summaries and count theorem declarations.
+  - Promoted `resolve_pvt_context_for_boot` to a public helper returning
+    `ResolvedPvtContext`; added `synthetic_pvt_context` helper.
+  - Added unit tests for PVT source priority (file > live XADC > synthetic >
+    not_read), synthetic cold-POR, sweep-report propagation, and
+    `verify-lean` round-trip.
+  - `measured-to-lean` now emits `-- operating_point source: <label>` in the
+    generated `.lean` comment when a PVT context is present.
+
+- `fpga/HARDWARE_SSOT.md` §3.6.22
+  - Documented the dry-run / synthetic operating point protocol and `verify-lean`.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W437; no new public competitor signals as of the boundary.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Documented the W437 triage decision: no compiler work; 7 residual failures
+    remain the baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_437_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W437_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W438_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — not performed this wave.
+- Master-merge to clear #1245 — deferred to a dedicated future wave.
+
+### Verification
+
+- `cargo test -p tri --bin tri fpga::`: **PASS** (90 tests, +6 W437 regressions).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test` parse/typecheck/GF16/gen-zig/gen-rust/gen-verilog/gen-c/seal-verify/FPGA smoke/fixed-point: **PASS**.
+- `./scripts/tri test` gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+
+---
+
+## Wave Loop 438 — Next: CI artifact audit trail for dry-run boot-evidence + real-capture fallback (Variant B, A optional)
+
+- Branch: `wave-loop-438`
+- Issue: #1407
 - Default variant: **B** unless P12 or the relay gate becomes available.
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W437_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W438_2026-07-01.md`
 
 ---
 

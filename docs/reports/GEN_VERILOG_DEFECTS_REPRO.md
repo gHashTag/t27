@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-436`  
-**Last updated:** 2026-07-01 (Wave Loop 436)  
+**Branch:** `wave-loop-437`  
+**Last updated:** 2026-07-01 (Wave Loop 437)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -18,6 +18,11 @@ logs, sweep-report JSON, and the `measured-to-lean` source-label path. The 7
 residual yosys smoke failures remain the documented baseline; they will be
 addressed in a future wave after the master-merge debt is cleared or a safe
 regression-free sub-fix is identified.
+
+**W437 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W437
+hardens the dry-run / synthetic operating point path and adds `tri fpga
+verify-lean`. The 7 residual yosys smoke failures remain the documented baseline;
+the master-merge fix set is still scheduled for a dedicated future wave.
 
 ---
 

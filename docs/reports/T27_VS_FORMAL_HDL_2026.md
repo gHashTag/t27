@@ -64,7 +64,17 @@ carries a closed-vocabulary `operating_point` object with `source` (`xadc`,
 vocabulary. `TernaryFPGABoot.lean` adds the quantified
 `xadc_live_w434_all_oscfsel_combined_check_true` theorem. The 7 residual yosys
 smoke failures remain the documented baseline; physical bench execution is still
-blocked by the missing DLC10 cable.**
+blocked by the missing DLC10 cable.
+
+**W437 hardens the dry-run / synthetic operating point path.** `tri fpga
+cold-por` and `tri fpga cclk-sweep` gain `--synthetic-operating-point`, producing
+deterministic boot/sweep logs with `source: "synthetic"` and no hardware access.
+`tri fpga verify-lean` is added to check generated `.lean` theorem blocks against
+their JSON summaries, count theorem declarations, and enforce the closed
+`operating_point` source label. The priority resolver for PVT sources is made a
+public helper with unit-test coverage for file > live XADC > synthetic > not_read.
+No new competitor signals appeared between the W436 close-out and the W437
+boundary; Sparkle's 関数型まつり2026 talk on 2026-07-11 remains the next checkpoint.**
 
 ---
 
