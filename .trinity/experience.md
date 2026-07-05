@@ -1,5 +1,278 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-05 — Wave Loop 425 (FPGA formal/tooling hardening: OSCFSEL 0–7 sweep, PVT worst-case envelope theorems)
+
+### What worked
+- Re-probing the bench at the start of the wave confirmed the same blockers as
+  W424: P12 unwired, no relay gate, DLC10 missing. Choosing **Variant C**
+  immediately kept the wave bounded and deliverable.
+- Extending the `cclk-sweep` and `smoke-gate` dry-run default OSCFSEL range to
+  0–7 closed the Rust-side gap with the already-proven OSCFSEL 6/7 theorems in
+  `TernaryFPGABoot.lean`.
+- Moving `OSCFSEL_WORST_CASE_PVT_CONTEXT` earlier in the Lean file made the new
+  combined-monotonicity envelope proofs syntactically stable. Definitions used by
+  proof automation must be visible before the theorems that reference them.
+- Adding the two worst-case envelope theorems (`pvt_half_ns_worst_case_is_upper_envelope`,
+  `pvt_low_ns_worst_case_is_upper_envelope`) gives the Rust validation tools a
+  mathematically justified single worst-case context instead of an ad-hoc choice.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`:
+  - Default `cclk_sweep` OSCFSEL values expanded from `vec![0,1,2,3,4,5]` to
+    `vec![0,1,2,3,4,5,6,7]`.
+  - `smoke_gate` dry-run sweep values expanded to match (0–7).
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`:
+  - Moved `OSCFSEL_WORST_CASE_PVT_CONTEXT` definition earlier.
+  - Added `pvt_half_ns_worst_case_is_upper_envelope` and
+    `pvt_low_ns_worst_case_is_upper_envelope`.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_425_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W425_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md`.
+
+### Patterns to reuse
+- When a constant is referenced in a proof automation chain, define it before
+  the first theorem that needs it, even if its primary use is later in the file.
+  This avoids opaque "local variable has no definition" errors from Lean's
+  name-resolution order.
+- Expand CLI defaults to match the formal theorem library as soon as the formal
+  side is ready; keeping the Rust and Lean scopes aligned prevents a proof gap.
+- Document hardware deferrals explicitly in the acceptance criteria rather than
+  leaving them unchecked; this makes the close-out report honest and the next
+  wave's variant choice transparent.
+
+### Anti-patterns to avoid
+- Do not try to prove an equality between a constant and a literal by `unfold`
+  if the constant is defined later in the file. Reorder definitions or use the
+  literal directly in the theorem statement.
+- Do not attempt a gen-verilog sub-fix inside a wave-loop branch when the failures
+  are tied to major features; wait for the master-side fix set to be merged or
+  cherry-pick it in a dedicated wave.
+
+## 2026-07-05 — Wave Loop 424 (FPGA tooling hardening: auto-continue boot logs, PVT/XADC context, CSV voltage units, ProcessCorner helpers)
+
+### What worked
+- Probing the bench at the start of the wave confirmed the board is still
+  reachable via openFPGALoader + Digilent HS2 (idcode `0x03636093`), but P12
+  remains unwired and the relay gate is still absent. Re-probing avoids
+  committing to a Variant A plan that cannot run.
+- Treating W424 as a pure **Variant B/C tooling wave** kept the scope bounded
+  and landed every planned item without hardware blockers.
+- Centralizing the wait/continue logic in a single `wait_for_continue` helper
+  made `boot-log`, `cold-por`, and `cclk-sweep` behave consistently and removed
+  the subtle blocking bug in `cclk-sweep` where the polling loop could not time
+  out because `read_line` itself blocked.
+- Embedding `--pvt-context` in all three boot-log commands, plus an XADC
+  placeholder object, prepares the JSON schema for real XADC readout in W425.
+- Adding `--csv-voltage-unit mv` closed a realistic failure mode where a scope
+  export in millivolts produced an absurd threshold midpoint near 1650 V.
+- Adding small `ProcessCorner` decidability helpers in Lean 4 gives future
+  automation a clean way to compare operating corners without leaving a `Prop`
+  goal.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`:
+  - Added `wait_for_continue`, `load_optional_pvt_context`,
+    `xadc_context_json`.
+  - Added `--pvt-context` to `BootLog`, `ColdPor`, and `CclkSweep`.
+  - Added `--csv-voltage-unit v|mv` to `MeasuredToLean`.
+  - Added `CsvVoltageUnit` and scaling in `parse_cclk_csv_reader`.
+  - Expanded `cclk_sweep` default OSCFSEL range to 0–7.
+  - Added `pvt_context` and `xadc` fields to `SweepLog` and boot-log JSON.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`:
+  - Added `ProcessCorner.eq_decidable`, `ProcessCorner.worse_than_decidable`,
+    `ProcessCorner.severity`, `ProcessCorner.worse_than_iff_severity_le`.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`:
+  - Refreshed for mid-2026, added firtool 1.152.0 and W423–W424
+    boot-evidence progress note.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_424_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W424_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md`.
+
+### Patterns to reuse
+- Centralize interactive wait logic in one helper; do not duplicate the stdin +
+  timeout dance across commands.
+- Embed context fields in JSON artifacts as soon as the schema is designed,
+  even if the sensor readout is not implemented. A placeholder with a clear
+  `source` value lets later waves flip the source without a schema migration.
+- When adding a CLI unit argument, default to the most common unit (volts) and
+  require an explicit flag only for the alternative (millivolts). This keeps
+  the common path unchanged.
+- Add decidability/equality infrastructure for inductive configuration types
+  in Lean 4 as soon as automation starts needing to compare them; it is cheaper
+  than retrofitting `Decidable` instances later.
+
+### Anti-patterns to avoid
+- Do not implement a timeout around `read_line` by calling `read_line` inside a
+  loop with a sleep; the call itself blocks and defeats the timeout.
+- Do not change a CLI function signature in a large file by hand across dozens
+  of call sites without a mechanical check; it is easy to miss a multi-line
+  test call or a function definition.
+- Do not defer the competitor snapshot update indefinitely; the formal-HDL
+  landscape changes fast and stale competitive claims weaken the close-out report.
+
+## 2026-07-06 — Wave Loop 422 (Live XC7A200T SRAM boot + gen-verilog keyword escape + PVT worst-case bound)
+
+### What worked
+- Re-checking the bench at the start of the wave changed the outcome: the board
+  was reachable via `openFPGALoader` + Digilent HS2 even though the W421 close-out
+  had reported 0 detected devices. Physical state can change between waves; always
+  probe before choosing a variant.
+- Capturing the live SRAM load and XADC context immediately turned a pure
+  Variant-C fallback into a mixed A-lite/C close-out, producing stronger evidence
+  than another formal-only wave.
+- Treating the gen-verilog keyword-collision subclass as a **narrow regression-free
+  sub-fix** closed one item from weak point #1245 and dropped the yosys smoke
+  failure count from 16 to 7. The fix was safe because it only changes identifier
+  emission when a collision is detected and is applied consistently to all
+  declaration and reference sites.
+- Adding two unit tests (parameter `task`, local/module `wire`/`reg`/`task`) gives
+  future refactors a concrete guard against re-introducing keyword-collision
+  failures.
+- Completing the PVT envelope shape theory with separate low/high combined
+  monotonicity, a `ProcessCorner.any_worse_than_ss` helper, and a worst-case bound
+  theorem gives future validation tools a single corner to check.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: added `verilog_keywords()`,
+  `verilog_safe_identifier()`, and applied escaping across function/task names,
+  parameters, local/module vars/consts, loop variables, identifiers, calls, enum
+  values, and field-access bases. Added
+  `test_verilog_keyword_parameter_escaped` and
+  `test_verilog_keyword_local_and_module_escaped`.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added `pvt_low_ns_monotone_combined`,
+  `pvt_high_ns_monotone_combined`, `ProcessCorner.any_worse_than_ss`, and
+  `pvt_half_ns_worst_case_bound`.
+- `cli/tri/src/fpga.rs`: added `test_pvt_half_ns_worst_case_bound` grid-search
+  regression test.
+- `fpga/HARDWARE_SSOT.md`: added §3.6.19 documenting the live XC7A200T SRAM boot
+  and XADC context.
+- `.trinity/seals/*.json`: regenerated after the compiler change; only
+  `gen_hash_verilog` shifted for specs containing keyword identifiers.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_422_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W422_2026-07-06.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W423_2026-07-06.md`.
+
+### Patterns to reuse
+- Probe hardware availability at the start of every wave; a blocker can clear
+  between sessions and change which variant is highest leverage.
+- When a broad defect bucket (#1245) contains narrow subclasses, land the
+  regression-free ones first. Each safe sub-fix reduces noise and protects the
+  remaining work from being blamed for pre-existing failures.
+- Apply identifier escaping consistently across **all** emission sites
+  (declaration, reference, field flattening, loop variables). A partial fix
+  produces internally inconsistent Verilog that is harder to debug than the
+  original collision.
+- For placeholder models, prove the combined shape fact that a grid search or
+  worst-case validation actually calls, not just the per-axis lemmas.
+
+### Anti-patterns to avoid
+- Do not assume the previous wave's hardware assessment is still true; re-run
+  the probe command before committing to a fallback variant.
+- Do not mix a broad gen-verilog refactor with a targeted sub-fix. The safe path
+  is to change only the collision path and verify that no new yosys failures
+  appear.
+- Do not regenerate seal files without `--save`; `t27c seal` without the flag
+  only prints hashes and leaves the working tree out of sync.
+
+## 2026-07-06 — Wave Loop 421 (Variant C fallback: VCD `$timescale` exact terminator, combined PVT monotonicity, competitor snapshot)
+
+### What worked
+- Resetting `wave-loop-421` onto `wave-loop-420` before implementing prevented
+  building on a stale `master` base that lacked the W420 parser hardening. This
+  is the correct workflow when the previous wave's PR is pending merge.
+- Applying the exact-token terminator to `$timescale` closed the last VCD header
+  section that still used substring heuristics. A regression test with an embedded
+  `$end` in a multi-line `$timescale` block validates the fix.
+- Adding a **combined PVT monotonicity** lemma (`pvt_half_ns_monotone_combined`)
+  and Rust test gives the worst-case operating-point search the single shape fact
+  it actually needs: temp ↑, VCCINT ↓, corner worse → bound ↑.
+- Writing the competitor snapshot confirmed that **Sparkle/Verilean** is the
+  closest Lean-native HDL threat in 2026, with a broad IP catalog and active
+  formal verification work. t27's differentiation remains the ternary compute
+  + spec-first sealed pipeline + physical boot-evidence loop.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`: `$timescale` now uses `vcd_line_ends_with_token`;
+  added `test_parse_vcd_timescale_with_embedded_end_token`,
+  `test_parse_vcd_real_auto_threshold_us_timescale`, and
+  `test_pvt_half_ns_monotone_combined`.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added `pvt_half_ns_monotone_combined`.
+- `fpga/HARDWARE_SSOT.md`: added §3.6.18 documenting W421 instrument-import and
+  PVT improvements.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`: published competitor comparison.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_421_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W421_2026-07-06.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W422_2026-07-06.md`.
+
+### Patterns to reuse
+- When a previous wave's PR has not merged, base the next wave on that branch
+  rather than on `master`. Rebase onto `master` only after the parent PR lands.
+- After fixing one header-section terminator, audit **all** section terminators
+  in the same parser for the same class of bug; `$timescale` was the remaining
+  outlier after W420.
+- For placeholder models, prove both per-axis shape and combined shape. The
+  combined lemma is what callers (worst-case search, falsification) actually use.
+- Keep a living competitor snapshot. The formal-HDL landscape is moving fast in
+  2026; a quarterly update lets the project adjust differentiation strategy.
+
+### Anti-patterns to avoid
+- Do not start a wave-loop branch from `master` while the previous wave's PR is
+  still open; this creates duplicate/rebase work and risks stale assumptions.
+- Do not tolerate substring terminators for any VCD section once an exact-token
+  helper exists; inconsistency is itself a bug.
+- Do not let competitor research live only in a report; link it from the
+  experience log so future waves inherit the strategic context.
+
+## 2026-07-06 — Wave Loop 420 (Variant C fallback: VCD exact-terminator + auto-threshold, PVT corner monotonicity)
+
+### What worked
+- Re-reading the merged W419 code revealed that the reported VCD `$comment`
+  exact-token hardening had **not actually landed** in the committed diff. The
+  heuristic `ends_with("$end")` / `contains(" $end")` was still in place. Fixing it
+  for W420 and adding a regression test (`test_parse_vcd_comment_with_embedded_end_token`)
+  closed the gap. This shows that **report claims must be verified against the
+  actual tree**, not just the intended patch.
+- Adding **auto-threshold for real-valued VCD nets** removes a manual step for
+  oscilloscope imports: when `--vcd-threshold-v` is omitted, the parser computes
+  `50% (vmin + vmax)` from the observed swing. A regression test on a synthetic
+  0 V / 3.3 V 25 MHz square wave validates the recovery.
+- Completing the PVT envelope **process-corner monotonicity** lemma and Rust test
+  (ff ≤ tt ≤ ss) closes the last independent shape axis: temperature, voltage,
+  and process corner are now all formally guarded.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`: added `vcd_line_ends_with_token` helper; applied exact
+  `$end` token terminator to VCD `$date`/`$version`/`$comment` sections; added
+  real-valued VCD auto-threshold; added
+  `test_parse_vcd_comment_with_embedded_end_token` and
+  `test_parse_vcd_real_auto_threshold`.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added
+  `pvt_half_ns_monotone_in_process_corner`.
+- `cli/tri/src/fpga.rs`: added `test_pvt_half_ns_monotone_in_process_corner`.
+- `fpga/HARDWARE_SSOT.md`: added §3.6.17 documenting W420 instrument-import and
+  PVT monotonicity work.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_420_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-06.md`, and
+  `docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-06.md`.
+
+### Patterns to reuse
+- When a report claims a parser hardening landed, diff the relevant file and
+  run the claimed regression test before trusting the claim. Intention and
+  commit content can diverge, especially after rebases or clean-branch rebuilds.
+- For analog instrument imports, provide an **auto-threshold fallback** computed
+  from the observed swing, but keep the explicit override for noisy captures.
+- For placeholder models, prove **shape on every independent axis** (monotone in
+  temp, antitone in voltage, monotone in process corner). Each axis gets both a
+  symbolic Lean lemma and a numeric Rust sweep.
+
+### Anti-patterns to avoid
+- Do not assume a reported fix exists in the tree; verify with `git show` and
+  targeted tests.
+- Do not reject real-valued instrument imports when the threshold can be inferred
+  from the data itself.
+- Do not leave any PVT envelope axis without a shape lemma; even placeholder
+  coefficients must be formally well-behaved.
+
 ## 2026-07-05 — Wave Loop 419 (Variant C fallback: VCD/CSV hardening, PVT monotonicity, standalone lake workflow)
 
 ### What worked
@@ -1946,3 +2219,58 @@
 - Do not assume `t27c seal` persists; pass `--save` to update `.trinity/seals/*.json`.
 - Do not mix `--margin` and `--pvt-context` in the same `measured-to-lean` invocation; use `clap` `conflicts_with` to make the CLI reject the ambiguous combination.
 - Do not record a transition every time a value line is parsed; only record actual state changes, otherwise duty-cycle averages become distorted.
+
+## 2026-07-05 — Wave Loop 423 (instrument-import depth + VCD robustness)
+
+### What worked
+- Delivered Variant B/C because the physical bench stayed partially blocked (P12
+  unwired, no relay gate, DLC10 cable missing).
+- Added CSV time-column unit detection for `time_ms`, `time_us`, `time_ns`, and
+  sample-number headers, plus `--csv-samplerate` for the sample-number case.
+- Added VCD real-net slope filter (`--vcd-slope-min-v`, `--vcd-slope-min-s`) and
+  switched real-net threshold crossings to use the new sample timestamp instead
+  of linear interpolation.
+- Added `--pvt-worstcase` to `tri fpga measured-to-lean` so a capture can be
+  validated against the combined-monotonicity corner without a JSON context
+  file.
+- Hardened the VCD parser for unknown `$timescale` units (warn + default to 1 ns)
+  and `$dumpoff`/`$dumpon` lines without a preceding `#` timestamp.
+- Added 10 new regression tests; `cargo test -p tri fpga::tests`: 60/60 PASS.
+- Full repo sweep: 576 passed, 0 seal mismatches, 7 pre-existing gen-verilog
+  yosys smoke failures.
+- Updated `fpga/HARDWARE_SSOT.md` §3.6.20 and the W423 close-out docs.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`: CSV unit normalization, VCD slope filter, real-net
+  event-time crossing, unknown timescale fallback, dumpoff/dumpon without
+  timestamp, `--pvt-worstcase`.
+- `fpga/HARDWARE_SSOT.md`: §3.6.20 documenting the W423 import pipeline.
+- Close-out docs: `docs/reports/WAVE_LOOP_423_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W423_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-01.md`.
+
+### Patterns to reuse
+- When normalizing instrument time columns, detect the unit from the header
+  first, then fall back to data-shape heuristics, and require an explicit
+  samplerate for sample-number columns. This gives users a clear error instead
+  of silently guessing.
+- For real-valued VCD nets, treat value changes as events at sample timestamps;
+  linear interpolation between samples misplaces the crossing for digital-style
+  step waveforms.
+- A slope filter that rejects transitions by time spacing is safe only when the
+  rejected transition does not mask a real opposite-state segment. Place the
+  glitch in the middle of a stable half-cycle so the next real edge still
+  changes state correctly.
+- Keep `--pvt-worstcase` as a separate flag that conflicts with `--pvt-context`
+  to avoid ambiguous validation modes.
+
+### Anti-patterns to avoid
+- Do not accept a CSV row as the header just because it contains a metadata
+  token like `samplerate`; require a `time`-like column so metadata rows are
+  skipped.
+- Do not push every real-net crossing to the transition list without checking
+  `last_high`; a filtered-out intermediate state can otherwise create duplicate
+  transitions that distort period/duty.
+- Do not generate a branch-local gen-verilog sub-fix when the remaining failures
+  are tied to major codegen features (let destructuring, tuple returns, ROM
+  arrays); defer to the planned codegen refactor on `master`.

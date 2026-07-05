@@ -878,6 +878,165 @@ package-root module, not for a file nested inside the `Trinity` module path.
 When adding a theorem to the main tree, use the non-standalone snippet and paste
 it into an existing `Trinity` module.
 
+#### 3.6.17 VCD `$comment` exact terminator, real-net auto-threshold, and PVT corner monotonicity (W420)
+
+While the bench remained blocked, W420 hardened the instrument-import pipeline:
+
+- **VCD `$comment` exact-token terminator.** The parser no longer terminates a
+  `$date`, `$version`, or `$comment` section when the line merely contains the
+  substring `$end`. Only a bare `$end` token closes the section. This prevents
+  vendor comments such as `Note: the $end token marks section boundaries` from
+  corrupting the signal dictionary.
+
+- **Real-valued VCD auto-threshold.** For analog VCD exports (e.g. from an
+  oscilloscope or a real-valued logic-analyzer channel), `--vcd-threshold-v` is
+  now optional. When omitted, `tri fpga measured-to-lean` computes the threshold
+  as `50% (vmin + vmax)` over the observed voltage swing and prints it:
+
+  ```bash
+  tri fpga measured-to-lean --vcd cclk_analog.vcd --vcd-signal cclk_analog \
+    --raw-ns --standalone --out MeasuredAnalog.lean
+  # [measured-to-lean] VCD real-valued signal auto-threshold: 1.650 V (swing 0.000 V .. 3.300 V)
+  ```
+
+  Supply `--vcd-threshold-v` explicitly when the observed swing includes noise
+  floors or overshoots that would move the 50% point away from the true logic
+  threshold.
+
+- **PVT corner monotonicity.** The placeholder envelope now has a Lean 4 proof
+  (`pvt_half_ns_monotone_in_process_corner`) plus a Rust operating-rectangle test
+  verifying that the half-period bound respects the `ff ≤ tt ≤ ss` ordering:
+  a worse process corner never yields a smaller (less conservative) bound.
+
+#### 3.6.18 VCD `$timescale` exact terminator and combined PVT monotonicity (W421)
+
+W421 continued the Variant C fallback while the physical bench remained
+unreachable (`openFPGALoader --detect` reports 0 devices; the board is not
+powered/connected).
+
+- **VCD `$timescale` exact-token terminator.** The `$timescale` section now uses
+  the same exact-token terminator as `$date`, `$version`, and `$comment`. A
+  multi-line `$timescale` block that mentions `$end` in an inline comment is no
+  longer terminated early, and the parser correctly reads units such as `1 us`
+  or `1 ps`.
+
+- **Real-valued VCD with non-default timescale.** The auto-threshold path was
+  regression-tested with `$timescale 1 us $end`, confirming that the midpoint
+  threshold and the measured period are both computed in the declared unit.
+
+- **Combined PVT monotonicity.** Added the Lean 4 lemma
+  `pvt_half_ns_monotone_combined` and a matching Rust test: raising temperature,
+  lowering VCCINT, and moving to a worse process corner all increase (or keep)
+  the half-period bound. This is the shape property a worst-case operating-point
+  search relies on.
+
+#### 3.6.19 Live XC7A200T SRAM boot and XADC context (W422)
+
+The physical bench, previously reported as unreachable in W421, is now powered
+and responding. W422 captured the first live evidence on the XC7A200T board
+using `openFPGALoader` with a Digilent HS2 cable:
+
+```bash
+openFPGALoader -c digilent_hs2 --detect
+# index 0:
+#     idcode 0x3636093
+#     manufacturer xilinx
+#     family artix a7 200t
+#     model  xc7a200
+#     irlength 6
+
+openFPGALoader -c digilent_hs2 -m fpga/verilog/ternary_mac_demo_top_200t.bit
+# Load SRAM: 100%
+# ir: 1 isc_done 1 isc_ena 0 init 1 done 1
+
+openFPGALoader -c digilent_hs2 --read-register STAT
+# Register raw value: 0x401079fc
+# Done            0x1
+# EOS             0x1
+# INIT Complete   0x1
+# CRC Error       No CRC error
+# ID Error        No ID error
+# BUS Width       x1
+
+openFPGALoader -c digilent_hs2 --read-xadc
+# temp: 45.6583 °C
+# vccint: 1.00049 V
+# vccaux: 1.80688 V
+```
+
+The captured boot log is committed as
+`build/fpga/boot-log-archive/boot-log-20260706-130006-w422-sram-load.json`.
+It records the operating context (temperature, VCCINT, VCCAUX) measured
+immediately after the SRAM load and the decoded STAT register.
+
+**Blockers still active:**
+
+- **P12 CCLK probe:** pin P12 (CFGCLK / CCLK_0) is still not wired to a
+  logic-analyzer channel, so a real CCLK frequency/duty capture is not yet
+  possible. The synthetic fixture (`tri fpga measure-cclk --synth`) remains the
+  validated CI path.
+- **DLC10 cable:** the on-board Xilinx DLC10 / Platform Cable USB II is not
+  connected to the host, so the in-repo `dlc10` driver cannot be used. The
+  Digilent HS2 cable plus `openFPGALoader` is the working path for this board.
+- **SPI flash boot:** W422 only exercised volatile SRAM load. Non-volatile flash
+  boot and the OSCFSEL=6/7 cold-POR sweep are deferred to W423.
+
+The live STAT capture (`0x401079FC`, DONE=1) confirms that the canonical
+`ternary_mac_demo_top_200t.bit` configures the Artix-7 200T correctly when loaded
+through JTAG/SRAM. The XADC readings give a real operating point inside the
+envelope used by the PVT-aware flash-timing model (≈46 °C, ≈1.00 V VCCINT,
+≈1.81 V VCCAUX, tt corner).
+
+#### 3.6.20 Instrument-import depth: CSV time units, VCD slope filter, and PVT worst-case theorem (W423)
+
+W423 stayed on the Variant B/C path: the bench is reachable via JTAG/SRAM, but a
+real CCLK probe on P12 is still unavailable, and the relay cold-POR gate is still
+not wired. Work therefore focused on making the `tri fpga measured-to-lean`
+import pipeline accept a wider range of instrument exports and tolerate noisy
+analog captures.
+
+- **CSV time-column units.** The analog-CSV parser now detects unit suffixes in
+the header and normalizes the time column to seconds before measuring frequency
+and duty:
+
+  | Header pattern | Unit | Example |
+  |----------------|------|---------|
+  | `time_ms`, `milliseconds` | milliseconds | `time_ms,voltage` |
+  | `time_us`, `microseconds`, `µs` | microseconds | `time_us,voltage` |
+  | `time_ns`, `nanoseconds` | nanoseconds | `time_ns,voltage` |
+  | `Sample`, `index`, `point` | sample number | `Sample,cclk_v` |
+
+  Sample-number columns require `--csv-samplerate <Hz>`. A leading metadata row
+  such as `samplerate,100000000` (PulseView export) is no longer accepted as the
+  column header.
+
+- **VCD real-net slope filter.** Two new flags on `tri fpga measured-to-lean`
+filter spurious transitions on real-valued VCD signals:
+
+  - `--vcd-slope-min-v <V>` drops a crossing whose voltage step is smaller than
+    the given value (useful for rejecting low-amplitude noise).
+  - `--vcd-slope-min-s <s>` drops a crossing that is closer than the given
+    number of seconds to the previous accepted crossing (useful for rejecting
+    narrow glitches).
+
+  The threshold crossing itself is now associated with the timestamp of the new
+  VCD sample, not with a linear interpolation between samples, because VCD value
+  changes are events at exact simulation times.
+
+- **VCD robustness.** Unknown `$timescale` units emit a warning and default to
+1 ns instead of aborting. `$dumpoff`/`$dumpon` directives may appear on lines
+that do not carry a `#` timestamp; the parser keeps the last known time and
+ignores any value changes while dumping is suspended.
+
+- **PVT worst-case theorem.** `tri fpga measured-to-lean --pvt-worstcase`
+generates a theorem that uses the worst-case operating point (85 °C, 900 mV,
+ss corner) without requiring a `--pvt-context` JSON file.
+
+- **Verification.** 10 new regression tests were added to `cli/tri/src/fpga.rs`;
+`cargo test -p tri fpga::tests` reports 60 PASS. The full repo sweep remains
+576 PASS with the same 7 pre-existing gen-verilog yosys smoke failures from
+weak point #1245.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)

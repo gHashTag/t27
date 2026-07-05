@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5b477ae214b05abadce9c1acf51f137fb038595514cd5885a72294bf481469e7",
   "module": "w388_2d_local_array_init",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:11Z",
+  "sealed_at": "2026-07-05T06:16:59Z",
   "spec_hash": "sha256:626a8a2ae2357d8102bdafb2009aac7196ea3562dee3dc27857b8903019c778e",
   "spec_path": "specs/scratch/w388_2d_local_array_init.t27"
 }
