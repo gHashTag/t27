@@ -1464,3 +1464,7 @@
 - **Commit:** docs(w420): set W420 issue number to #1361 and record W419 PR #1360 (Closes #1357, Refs #1361)
 - **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W420_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W419_2026-07-05.md,docs/reports/WAVE_LOOP_419_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-05T07:39:42Z — wave-loop-426
+- **Commit:** feat(igla): Wave Loop 425 — OSCFSEL 0–7 sweep, PVT worst-case envelope theorems (closes #1374)
+- **Files:** .trinity/current-issue.md
+

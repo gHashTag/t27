@@ -1,97 +1,101 @@
-# Wave Loop 419 — physical CCLK capture, real relay gate, or instrument-import parity
+# Wave Loop 426 — FPGA boot-evidence next variant (physical CCLK / XADC readout / formal fallback)
 
-**Issue:** #1357  
-**Branch:** `wave-loop-419`  
-**Milestone:** Continue the FPGA boot-evidence line from W418.
+**Issue:** #1376  
+**Branch:** `wave-loop-426`  
+**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 425.
 
 ---
 
 ## Goal
 
-Wave 418 closed the Variant C fallback (formal tooling and instrument import).
-Wave 419 re-evaluates the bench state and executes the first available variant.
+Wave 425 hardened the FPGA CLI and formal model while the bench was blocked
+(P12 unwired, no relay gate). Wave 426 executes the first available variant from
+`docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md`.
 
 1. **Variant A (preferred when bench becomes available):**
-   - Wire P12 to a logic-analyzer channel and capture real CCLK for
-     `OSCFSEL=6` and `OSCFSEL=7`.
-   - Program each variant to SPI flash and perform a true cold-POR boot.
-   - Import the captures with `tri fpga measured-to-lean --csv/--vcd --raw-ns
-     --standalone --validate --pvt-context <ctx.json>` and commit the generated
-     Lean theorems.
-   - Document the measured frequencies/duty cycles and PVT context in
-     `fpga/HARDWARE_SSOT.md`.
+   - Confirm P12 is wired to a logic-analyzer channel.
+   - Program SPI flash with OSCFSEL=6 and OSCFSEL=7 variants.
+   - Capture real CCLK during cold-POR boot for both variants.
+   - Import with `tri fpga measured-to-lean --csv/--vcd --raw-ns --standalone
+     --validate --pvt-context <ctx.json>` and commit generated Lean theorems.
+   - Document frequencies/duty cycles and PVT context in
+     `fpga/HARDWARE_SSOT.md` §3.6.21.
 
-2. **Variant B (if relay hardware is available, no CCLK probe):**
-   - Implement a real `--relay-port` backend for `tri fpga cold-por`
-     (e.g. serial or TCP relay controlling board power).
-   - Perform an automated cold-POR power-cycle and capture STAT without
-     operator intervention.
-   - Document relay wiring and port syntax in `fpga/HARDWARE_SSOT.md`.
+2. **Variant B (if board is reachable or external capture available):**
+   - Add real XADC readout to `tri fpga boot-log` / `cclk-sweep` / `cold-por`
+     over the existing JTAG path, so JSON `xadc` has `source: "xadc"` and live
+     temp/vccint/vccaux values.
+   - Alternatively, import at least one external CSV/VCD capture end-to-end.
+   - Run dry-run cold-POR boot-log for OSCFSEL 6/7 variants with
+     `--pvt-context`.
+   - Document the recipe in `fpga/HARDWARE_SSOT.md` §3.6.21.
 
 3. **Variant C (fallback if bench still blocked):**
-   - Extend instrument-import parity: additional VCD/CSV formats and hardened
-     `$comment` sections.
-   - Add PVT envelope monotonicity/antitonicity tests in Rust and Lean.
-   - Document the standalone `lake`-package workflow end-to-end in
-     `fpga/HARDWARE_SSOT.md`.
+   - Extend the PVT formal model with an operating-rectangle grid theorem or a
+     measured-CCLK link theorem for every OSCFSEL 0–7 variant.
+   - Land one safe gen-verilog #1245 sub-fix from the remaining 7 failures, if
+     narrow and regression-free; otherwise explicitly defer.
+   - Harden `tri fpga` JSON schema / decision-tree output.
+   - Refresh `docs/reports/T27_VS_FORMAL_HDL_2026.md` if new 2026 competitor
+     developments surface.
 
 ---
 
 ## Decomposed plan
 
-See `docs/reports/FPGA_LOOP_COOPERATION_W419_2026-07-04.md` and
-`.claude/plans/wave-loop-419.md`.
-
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `cli/tri/src/fpga.rs` | Variant A import, B relay backend, or C parity/monotonicity tests |
-| 2 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | PVT monotonicity lemmas or new measured theorems |
-| 3 | `fpga/HARDWARE_SSOT.md` | Updated capture / relay / integration protocol |
-| 4 | `docs/reports/*` | W419 report, evidence, W420 cooperation |
-| 5 | `.trinity/experience.md` | W419 learnings |
-| 6 | git/PR | squash-merge to `master`, close #1357, open #? for W420 |
+| 1 | `cli/tri/src/fpga.rs` or `proofs/lean4/Trinity/TernaryFPGABoot.lean` or `bootstrap/src/compiler.rs` | Variant A capture import, B XADC readout/capture import, or C formal/gen-verilog hardening |
+| 2 | `fpga/HARDWARE_SSOT.md` / `docs/reports` | Updated protocol or comparison note |
+| 3 | `docs/reports/*` | W426 report, evidence, W427 cooperation |
+| 4 | `.trinity/experience.md` | W426 learnings |
+| 5 | git/PR | squash-merge to `master`, close issue, open #? for W427 |
 
 ---
 
 ## Acceptance criteria
 
 ### Bundle A
-- [ ] AC-A1: P12 is wired to a logic-analyzer channel and real CCLK capture files exist for `OSCFSEL=6` and `OSCFSEL=7`.
+- [ ] AC-A1: Real CCLK capture for `OSCFSEL=6` and `OSCFSEL=7` exists.
 - [ ] AC-A2: `tri fpga measured-to-lean --csv/--vcd --raw-ns --standalone` generated Lean files build with `lake build`.
 - [ ] AC-A3: Measured CCLK satisfies the PVT-aware flash spec, or any exceedance is explicitly explained.
+- [ ] AC-A4: Cold-POR SPI flash boot for OSCFSEL 6/7 is documented with STAT reads.
 
 ### Bundle B
-- [ ] AC-B1: `tri fpga cold-por <bit> --relay-port <real>` performs an automated power-cycle and captures STAT.
-- [ ] AC-B2: The resulting log has `relay_mock: false` and a real STAT raw value.
-- [ ] AC-B3: `fpga/HARDWARE_SSOT.md` documents relay wiring and port syntax.
+- [ ] AC-B1: Real XADC readout lands, OR at least one external capture is imported end-to-end.
+- [ ] AC-B2: The import/readout path exposes no unhandled unit, voltage-unit, or noise cases.
+- [ ] AC-B3: Dry-run boot-log artifacts exist for OSCFSEL 6/7 and include PVT/XADC context.
 
 ### Bundle C
-- [x] AC-C1: At least one additional instrument-import unit test lands (VCD `$comment` hardening + CSV `--csv-channel` explicit select).
-- [x] AC-C2: Rust and Lean tests verify PVT envelope monotonicity/antitonicity.
-- [x] AC-C3: The standalone lake-package workflow is documented end-to-end.
+- [ ] AC-C1: At least one new PVT grid / envelope / OSCFSEL-link theorem is added and builds.
+- [ ] AC-C2: One safe gen-verilog #1245 sub-fix lands without increasing the 7-failure yosys smoke count, or is explicitly deferred if unsafe.
+- [ ] AC-C3: `boot-log` / `cold-por` / `cclk-sweep` tooling is measurably more robust or better documented.
+- [ ] AC-C4: Competitor snapshot is updated if any new 2026 developments are found.
 
 ### Invariant checks
-- [x] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
-- [x] `lake build Trinity.TernaryFPGABoot` passes.
-- [x] `cargo test -p tri fpga::tests` passes.
+- [ ] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
+- [ ] `lake build Trinity.TernaryFPGABoot` passes.
+- [ ] `cargo test -p tri fpga::tests` passes.
 
 ---
 
 ## PR
+
 - Target: `master`
-- PR: #1360
-- Body: `Closes #1357`
-- Report: `docs/reports/WAVE_LOOP_419_REPORT.md`
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W419_2026-07-05.md`
-- Cooperation W420: `docs/reports/FPGA_LOOP_COOPERATION_W420_2026-07-05.md`
+- PR: to open after work
+- Body: `Closes #1376`
+- Report: `docs/reports/WAVE_LOOP_426_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W426_YYYY-MM-DD.md`
+- Cooperation W427: `docs/reports/FPGA_LOOP_COOPERATION_W427_YYYY-MM-DD.md`
 
 ---
 
 ## Default variant
 
-Execute **Variant A** if the analyzer and DLC10 cable are available. Otherwise
-try **Variant B** if a relay and DLC10 cable are available. Otherwise fall back
-to **Variant C**.
+Execute **Variant A** if P12 is wired and the analyzer is ready.  
+Otherwise execute **Variant B** if the board is reachable for real XADC readout
+or an external capture is available.  
+Otherwise fall back to **Variant C**.
 
 ---
 
