@@ -1568,3 +1568,7 @@
 - **Commit:** chore(w429): seed current-issue.md for Wave Loop 429
 - **Files:** cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W430_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_429_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-05T09:31:50Z — wave-loop-430
+- **Commit:** feat(igla): Wave Loop 429 — raw-ns OSCFSEL theorems, measured-to-lean --json, W429 report and W430 cooperation (Closes #1385)
+- **Files:** .trinity/current-issue.md
+
