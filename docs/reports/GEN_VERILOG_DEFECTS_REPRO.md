@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-446`  
-**Last updated:** 2026-07-01 (Wave Loop 446)  
+**Branch:** `wave-loop-449`  
+**Last updated:** 2026-07-01 (Wave Loop 449)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -75,6 +75,23 @@ The fix is covered by regression test
 `test_verilog_keyword_field_access_flattened_escape`, and 52 stale seals were
 resealed to the current compiler output. Variant C (master-merge) remains a
 dedicated future wave.
+
+**W447 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W447
+focuses on a live-capture fallback, the golden theorem-matrix combined-check
+theorem, and a competitor refresh. The 7 residual yosys smoke failures remain the
+documented baseline; Variant C (master-merge) remains a dedicated future wave.
+
+**W448 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W448
+hardens the dry-run-live fixture anchor, adds a standalone Lean smoke-gate phase,
+and mints an adversarial envelope theorem. The 7 residual yosys smoke failures
+remain the documented baseline; Variant C (master-merge) remains a dedicated
+future wave.
+
+**W449 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W449
+expands the formal boot-evidence lattice with a quantified transaction theorem,
+adds a standalone-build suite metric, and refreshes the competitor boundary. The
+7 residual yosys smoke failures remain the documented baseline; Variant C
+(master-merge) remains a dedicated future wave.
 
 ---
 

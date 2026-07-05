@@ -1,63 +1,24 @@
-# Wave Loop 449 — Formal boot-evidence lattice expansion + standalone-build suite metric + competitor refresh (Variant B default)
+Wave Loop 450 — Formal boot-evidence expansion + standalone-build snapshot + CI hardening (Variant B default) (Closes #1425)
 
-**Issue:** #1424
-**Branch:** `wave-loop-449`
-**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 448.
-**Status:** Not started (Variant B selected by default).
+Branch: wave-loop-450
+Issue: #1425
 
----
+Variant A (physical cold-POR capture with live fixture archive) is preferred if
+the bench unblocks (DLC10 cable detected, P12 wired or relay gate available).
+Variant B (default) is a software-only continuation that adds a quantified
+transaction theorem over the W448 dry-run-live operating point, hardens the
+standalone-build report schema with a snapshot test, and optionally splits the
+standalone lake-package build into its own suite phase.
 
-## Goal
+Deliverables:
+1. Quantified dry-run-live transaction theorem in
+   `proofs/lean4/Trinity/TernaryFPGABoot.lean` (or live-capture theorem if Variant A).
+2. Snapshot test for the smoke-gate `validate_lean_standalone` report block shape.
+3. Optional: dedicated suite phase / `--fast` mode for the standalone build.
+4. Competitor refresh in `docs/reports/T27_VS_FORMAL_HDL_2026.md`.
+5. Close-out artifacts: W450 report, evidence, plan, and W451 cooperation variants.
 
-Wave Loop 448 committed the dry-run-live fixtures as a regression anchor,
-wired standalone `measured-to-lean` into the smoke gate, and minted an
-adversarial envelope theorem. The bench remains blocked (DLC10 cable not
-detected, P12 unwired, no relay gate), the `gen-verilog` fix set on `master`
-(`701d79b3b`) is still not merged, and the full Trinity `lake build` is still
-broken on unrelated physics proofs in `Trinity/NeutrinoMasses.lean` and
-`Trinity/H4Lagrangian.lean`.
-
-Wave Loop 449 executes **Variant B** from
-`docs/reports/FPGA_LOOP_COOPERATION_W449_2026-07-01.md`:
-
-1. Add a quantified transaction theorem in `TernaryFPGABoot.lean` stating that
-   every OSCFSEL 0..7 under every `ff`/`tt`/`ss` corner satisfies the PVT-aware
-   flash transaction spec when the operating point is the W448 golden point.
-2. Add `validate_lean_standalone_elapsed_ms` to `SuiteSummary` and populate it
-   from the smoke-gate report in `bootstrap/src/suite.rs`.
-3. Add a schema regression test for the new suite-summary field.
-4. Add a Rust unit test that runs `smoke_gate` with
-   `--validate-lean-standalone` directly and asserts the report block.
-5. Refresh `docs/reports/T27_VS_FORMAL_HDL_2026.md` with any new public competitor
-   signals at the W449 boundary.
-6. Mint the W449 evidence file and cooperation variants for W450.
-
-**Variant A remains preferred** if the bench unblocks during the wave: run a real
-`cclk-sweep --xadc --to-pvt-context`, persist live fixtures under
-`tests/fixtures/fpga/theorem-matrix/live-w449/`, replay them, capture
-`XADC_LIVE_W449_OPERATING_POINT`, and mint a quantified combined-check theorem
-over all process corners.
-
-**Variant C is deferred** to a dedicated future wave; the `gen-verilog` fix-set
-merge is still too risky to mix with boot-evidence work.
-
----
-
-## Definition of done
-
-- [ ] `cargo check -p tri` passes.
-- [ ] `cargo test -p tri` passes (target: 143+/143 active, 0 ignored, 0 new regressions).
-- [ ] `cargo test -p t27c --bin t27c suite::tests` passes.
-- [ ] `lake build Trinity.TernaryFPGABoot` passes.
-- [ ] `./scripts/tri test` passes with the documented baseline (7 pre-existing
-      gen-verilog smoke failures; no new failures; FPGA smoke fails: 0).
-- [ ] `./scripts/tri test --json suite-summary.json` produces a parseable
-      machine-readable summary with `acceptable: true` and the new
-      `validate_lean_standalone_elapsed_ms` field populated.
-- [ ] New quantified transaction theorem builds in `Trinity.TernaryFPGABoot`.
-- [ ] Close-out report and next-wave cooperation variants are written.
-- [ ] Issue/branch for Wave Loop 450 are recorded (#1425 / `wave-loop-450`).
-
----
-
-*φ² + φ⁻² = 3 | TRINITY*
+Blocked / out of scope:
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Master-merge to clear #1245 — deferred to a dedicated future wave.

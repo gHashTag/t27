@@ -1,86 +1,83 @@
-# NOW — Wave Loop 449 next / Wave Loop 448 close-out (2026-07-01)
+# NOW — Wave Loop 450 next / Wave Loop 449 close-out (2026-07-01)
 
 **Last updated:** 2026-07-01
 
-## Wave Loop 449 — Formal boot-evidence lattice expansion + standalone-build suite metric + competitor refresh (Variant B default) (Closes #1424)
+## Wave Loop 450 — Formal boot-evidence expansion + standalone-build snapshot + CI hardening (Variant B default) (Closes #1425)
 
-- Branch: `wave-loop-449`
-- Issue: #1424
+- Branch: `wave-loop-450`
+- Issue: #1425
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_PLAN_W449_2026-07-01.md` (to be written at W449 start)
-- Cooperation W450: `docs/reports/FPGA_LOOP_COOPERATION_W450_2026-07-01.md` (to be written at W449 close-out)
+- Plan: `docs/reports/FPGA_LOOP_PLAN_W450_2026-07-01.md` (to be written at W450 start)
+- Cooperation W451: `docs/reports/FPGA_LOOP_COOPERATION_W451_2026-07-01.md` (to be written at W450 close-out)
 
 ### Not started
 
 - Select Variant A if bench unblocks, otherwise Variant B.
-- Create issue #1424 and branch `wave-loop-449` from the W448 land commit.
+- Create issue #1425 and branch `wave-loop-450` from the W449 land commit.
 
 ---
 
-## Wave Loop 448 — Dry-run-live fixture anchor + standalone Lean smoke gate + adversarial envelope theorem (Variant B default) (Closes #1423)
+## Wave Loop 449 — Golden quantified transaction theorem + standalone-build suite metric + competitor refresh (Variant B default) (Closes #1424)
 
-- Branch: `wave-loop-448`
-- Issue: #1423
-- PR: (to open after this close-out)
-- Report: `docs/reports/WAVE_LOOP_448_REPORT.md`
-- Evidence W448: `docs/reports/FPGA_LOOP_EVIDENCE_W448_2026-07-01.md`
-- Plan: `docs/reports/FPGA_LOOP_PLAN_W448_2026-07-01.md`
-- Cooperation W449: `docs/reports/FPGA_LOOP_COOPERATION_W449_2026-07-01.md`
+- Branch: `wave-loop-449`
+- Issue: #1424
+- PR: (to open after close-out)
+- Report: `docs/reports/WAVE_LOOP_449_REPORT.md`
+- Evidence W449: `docs/reports/FPGA_LOOP_EVIDENCE_W449_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_PLAN_W449_2026-07-01.md`
+- Cooperation W450: `docs/reports/FPGA_LOOP_COOPERATION_W450_2026-07-01.md`
 
 ### What landed (Variant B — bench still blocked)
 
-- `tests/fixtures/fpga/theorem-matrix/dry-run-live-w448/`
-  - Committed the 75-file W448 dry-run-live fixture set (3 PVT contexts, 24
-    raw-ns, 24 Lean, 24 JSON summary files, 1 `expected_report.json` snapshot)
-    as a second regression anchor.
-  - Added `README.md` documenting provenance, contents, regeneration, and CI usage.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `GOLDEN_W449_PVT_CONTEXT` / `GOLDEN_W449_OPERATING_POINT` and proved
+    envelope / corner-worse-than properties.
+  - Minted `golden_w449_raw_ns_satisfies_flash_spec` and
+    `golden_w449_all_corners_transaction_ok`: a single quantified theorem that
+    the ideal raw-ns capture produces a flash-spec-compliant transaction for every
+    OSCFSEL 0..7 and every `ff`/`tt`/`ss` corner at the golden operating point.
+
+- `bootstrap/src/suite.rs`
+  - Added `validate_lean_standalone_status` / `validate_lean_standalone_elapsed_ms`
+    to `FpgaSmokeResult` and `SuiteSummary`.
+  - Wired Phase 3c to pass `--validate-lean-standalone` to `tri fpga smoke-gate`
+    and populate the new suite metric.
+  - Added schema regression tests for the new fields.
 
 - `cli/tri/src/fpga.rs`
-  - Added `--validate-lean-standalone` to `tri fpga smoke-gate --theorem-matrix`.
-    It picks the first theorem-matrix variant, calls
-    `measured-to-lean --standalone --raw-ns`, and builds the generated theorem
-    in a temporary lake package depending only on the in-repo `Trinity` package.
-  - The smoke-gate JSON report now carries a `validate_lean_standalone` block.
-  - Refactored the golden snapshot test into a shared helper and added
-    `test_theorem_matrix_dry_run_live_w448_replay_matches_snapshot`.
-
-- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
-  - Added `OUTSIDE_ENVELOPE_W448_OPERATING_POINT` witness.
-  - Proved `outside_envelope_w448_operating_point_not_within_envelope`.
-  - Minted `cclk_variant_and_xadc_envelope_check_outside_envelope_false`.
+  - Added `test_smoke_gate_json_synthetic_validate_lean_standalone`, exercising
+    the theorem-matrix + standalone lake-package build path end-to-end.
 
 - `docs/reports/T27_VS_FORMAL_HDL_2026.md`
-  - Added W448 boundary section with Sparkle PR #66 open, 102 theorems, CIRCT
-    `firtool-1.152.0` still latest.
+  - Added W449 boundary section; no new public competitor signals.
 
 - Close-out artifacts:
-  `docs/reports/WAVE_LOOP_448_REPORT.md`,
-  `docs/reports/FPGA_LOOP_EVIDENCE_W448_2026-07-01.md`,
-  `docs/reports/FPGA_LOOP_PLAN_W448_2026-07-01.md`,
-  `docs/reports/FPGA_LOOP_COOPERATION_W449_2026-07-01.md`.
+  `docs/reports/WAVE_LOOP_449_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W449_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_PLAN_W449_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W450_2026-07-01.md`.
 
 ### Not done (blocked on hardware or out of scope)
 
 - Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
 - Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
 - Real cold-POR `cclk-sweep --xadc` with manual power cycle — not performed this wave.
-- Master-merge to clear #1245 — deferred to a dedicated future wave.
+- Master-merge to clear #1245 — still deferred to a dedicated future wave.
 
 ### Verification
 
 - `cargo check -p tri`: **PASS**.
-- `cargo test -p tri`: **PASS** (141 tests, 0 ignored, 0 new regressions).
+- `cargo check -p t27c`: **PASS**.
+- `cargo test -p tri --bin tri test_smoke_gate_json_synthetic_validate_lean_standalone`: **PASS**.
 - `cargo test -p t27c --bin t27c suite::tests`: **PASS**.
 - `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
-- `./scripts/tri test --json build/suite_summary_w448.json`: **PASS**.
+- `./scripts/tri test --json /tmp/t27_w449_suite.json`: **PASS**.
   - Parse/typecheck/GF16/gen-zig/gen-rust/gen-verilog/gen-c/seal-verify: 576/576 PASS.
   - Gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
   - FPGA board-less smoke gate: **PASS**, theorem matrix 24 variants,
     `envelope_check: "ok"`, `fixtures` present, `schema_version: "1.0"`,
-    `acceptable: true`, both elapsed-ms fields populated.
-- Dry-run-live fixture replay report matches the committed snapshot.
-- Smoke-gate `--validate-lean-standalone` reports `status: "ok"`.
-- Adversarial envelope theorem builds in `Trinity.TernaryFPGABoot`.
+    `acceptable: true`, all elapsed-ms fields populated.
+  - `validate_lean_standalone_elapsed_ms`: populated (≈ 311 s on this run).
 
 ---
 

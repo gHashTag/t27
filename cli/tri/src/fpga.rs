@@ -10675,6 +10675,96 @@ mod tests {
         let _ = std::fs::remove_file(&report_path);
     }
 
+    /// Unit test for the `--validate-lean-standalone` smoke-gate phase. The
+    /// theorem matrix generates one synthetic OSCFSEL/corner variant, then
+    /// `measured-to-lean --standalone` produces a temporary lake package that
+    /// builds against the in-repo `Trinity` package. This exercises the full
+    /// generated-theorem → standalone lake build path.
+    #[test]
+    fn test_smoke_gate_json_synthetic_validate_lean_standalone() {
+        let root = repo_root().expect("repo root");
+        let bit = root.join("fpga").join("verilog").join("ternary_mac_demo_top_200t.bit");
+        if !bit.is_file() {
+            println!("SKIP: demo bitstream not found at {}", bit.display());
+            return;
+        }
+
+        // Skip when `lake` is not installed; the standalone path requires a real
+        // Lean toolchain.
+        if std::process::Command::new("lake")
+            .arg("--version")
+            .output()
+            .map_or(true, |o| !o.status.success())
+        {
+            println!("SKIP: lake not on PATH");
+            return;
+        }
+
+        let report_path = std::env::temp_dir().join(format!(
+            "tri_smoke_gate_validate_standalone_{}.json",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&report_path);
+
+        let result = smoke_gate(
+            None,
+            "ternary_mac_demo_top",
+            false,
+            false,
+            0,
+            "digilent_hs2",
+            "xc7a200tfgg676",
+            true,
+            false,
+            true,
+            false,
+            "ss",
+            None,
+            true,
+            Some(&report_path),
+        );
+
+        assert!(
+            result.is_ok(),
+            "smoke-gate synthetic validate-lean-standalone path failed: {:?}",
+            result
+        );
+        assert!(
+            report_path.is_file(),
+            "JSON report was not written to {}",
+            report_path.display()
+        );
+        let report: serde_json::Value =
+            serde_json::from_reader(std::fs::File::open(&report_path).unwrap()).unwrap();
+        assert_eq!(
+            report.get("passed").and_then(|v| v.as_bool()),
+            Some(true),
+            "report should show passed=true: {}",
+            report
+        );
+
+        let phase = report
+            .get("validate_lean_standalone")
+            .expect("missing validate_lean_standalone phase");
+        assert!(
+            phase.is_object(),
+            "validate_lean_standalone phase should be populated: {}",
+            phase
+        );
+        let status = phase
+            .get("status")
+            .and_then(|s| s.as_str())
+            .unwrap_or("missing");
+        assert_eq!(status, "ok", "validate_lean_standalone should have status=ok");
+        assert!(
+            phase.get("elapsed_ms").and_then(|v| v.as_u64()).is_some(),
+            "validate_lean_standalone should report elapsed_ms: {}",
+            phase
+        );
+
+        let _ = std::fs::remove_file(&report_path);
+    }
+
     /// Unit test for the Artix-7 CCLK period helper used by the theorem matrix.
     #[test]
     fn test_cclk_period_ns_oscfsel_0_7() {

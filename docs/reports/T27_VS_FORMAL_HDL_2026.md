@@ -270,6 +270,37 @@ the W448 boundary:
   TernaryCore and BitNet-RISCV-Multicore continue to validate {-1,0,+1} compute
   hardware without a formal proof pipeline.
 
+**W449 closes the golden-fixture → raw-ns → transaction loop in a single
+quantified theorem and hardens the standalone-build metric trail.**
+`proofs/lean4/Trinity/TernaryFPGABoot.lean` adds
+`golden_w449_all_corners_transaction_ok`: for every `oscfsel ≤ 7` and every
+process corner (`ff`/`tt`/`ss`), the ideal raw-ns capture at the W447/W448
+golden operating point (42 °C, 1.0 V VCCINT, 1.8 V VCCAUX) produces a
+flash-spec-compliant SPI read transaction. The proof reuses the W431 XADC-envelope
+bridge and the W432/W442 worst-case raw-ns theorems, so it adds no new ad-hoc
+computation. `bootstrap/src/suite.rs` now parses the
+`validate_lean_standalone.elapsed_ms` field from the smoke-gate JSON report and
+emits it in the `./scripts/tri test --json` summary, giving CI a direct trend
+metric for the standalone lake-package build cost. A schema regression test and a
+new Rust unit test (`test_smoke_gate_json_synthetic_validate_lean_standalone`)
+protect the field and the phase end-to-end. Competitor signals at the W449
+boundary:
+
+- **Sparkle / Verilean:** No new public signals appeared between the W448 close-out
+  and the W449 boundary. The repository last pushed **2026-07-03**, PR #66
+  “IP.Net + compiler perf” remains **open**, the RV32 divider correctness proof is
+  merged, the FIDO2/crypto burst (PR #97–#100) remains merged 2026-07-04, and
+  PR #101 is still open. Sparkle's public README still cites **102 formal theorems**
+  for the RV32 SoC. The 関数型まつり2026 talk on **2026-07-11** remains the most
+  recent public competitive-intelligence checkpoint.
+- **CIRCT / firtool:** `firtool-1.152.0` (2026-07-04) is still the latest public
+  release; no `1.153.0` has shipped as of the W449 boundary.
+- **Clash:** `clash-ghc-1.11.0` remains a Hackage candidate; the latest published
+  release is still `1.10.0` (April 2026).
+- **Ternary-FPGA niche:** No new Lean-native ternary-FPGA competitor appeared.
+  TernaryCore and BitNet-RISCV-Multicore continue to validate {-1,0,+1} compute
+  hardware without a formal proof pipeline.
+
 ---
 
 ## Competitor matrix
