@@ -1,19 +1,91 @@
-# NOW — Wave Loop 447 next / Wave Loop 446 close-out (2026-07-01)
+# NOW — Wave Loop 448 next / Wave Loop 447 close-out (2026-07-01)
 
 **Last updated:** 2026-07-01
+
+## Wave Loop 448 — Dry-run-live fixture anchor + standalone Lean smoke gate + adversarial envelope theorem (Variant B default) (Closes #1423)
+
+- Branch: `wave-loop-448`
+- Issue: #1423
+- PR: (to open after close-out)
+- Plan: `docs/reports/FPGA_LOOP_PLAN_W448_2026-07-01.md` (to be written at W448 start)
+- Cooperation W449: `docs/reports/FPGA_LOOP_COOPERATION_W449_2026-07-01.md` (to be written at W448 close-out)
+
+### Not started
+
+- Select Variant A if bench unblocks, otherwise Variant B.
+- Create issue #1423 and branch `wave-loop-448` from the W447 land commit.
+
+---
 
 ## Wave Loop 447 — Live-capture fallback + golden-matrix combined-check theorem + competitor refresh (Variant B default) (Closes #1422)
 
 - Branch: `wave-loop-447`
 - Issue: #1422
-- PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_PLAN_W447_2026-07-01.md` (to be written at W447 start)
-- Cooperation W448: `docs/reports/FPGA_LOOP_COOPERATION_W448_2026-07-01.md` (to be written at W447 close-out)
+- PR: (to open after this close-out)
+- Report: `docs/reports/WAVE_LOOP_447_REPORT.md`
+- Evidence W447: `docs/reports/FPGA_LOOP_EVIDENCE_W447_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_PLAN_W447_2026-07-01.md`
+- Cooperation W448: `docs/reports/FPGA_LOOP_COOPERATION_W448_2026-07-01.md`
 
-### Not started
+### What landed (Variant B — bench still blocked)
 
-- Select Variant A if bench unblocks, otherwise Variant B.
-- Create issue #1422 and branch `wave-loop-447` from the W446 land commit.
+- `cli/tri/src/fpga.rs`
+  - Added `--dry-run-live` to `tri fpga smoke-gate --theorem-matrix`, emitting
+    fixtures under `build/fpga/theorem-matrix-dry-run-live/` with deterministic
+    synthetic timings and `source: "dry_run_live"`.
+  - Refactored `generate_theorem_matrix(fixture_dir, report, source)` so the
+    synthetic and dry-run-live paths share one implementation.
+  - Updated `replay_theorem_matrix` to detect the expected source label from
+    each summary fixture, making replay work for any fixture set regardless of
+    source label.
+  - Added `test_theorem_matrix_dry_run_live_replay_matches_golden_shape`, which
+    replays both the golden fixtures and a fresh dry-run-live set and asserts
+    matching 24-variant report shape with correct per-set source labels.
+  - Fixed `measured-to-lean --standalone` output to build in isolation:
+    corrected the namespace from `Trinity.BitstreamConfig` to
+    `Trinity.StatRegister.BitstreamConfig`, added `open`, and fixed the
+    generated transaction-theorem proof to pass `PvtContext` explicitly.
+  - Added `test_measured_to_lean_standalone_builds_in_temp_lake_package`, which
+    drops a standalone generated theorem into a fresh lake package depending only
+    on the in-repo `Trinity` package and asserts `lake build` succeeds.
+
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `GOLDEN_W447_OPERATING_POINT` matching the synthetic PVT context.
+  - Proved `golden_w447_operating_point_within_envelope`.
+  - Minted `golden_w447_all_oscfsel_combined_check_true`: for every
+    `oscfsel ≤ 7`, the dashboard gate evaluates to `true` under the golden
+    operating point.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W447 boundary section; no new public competitor signals since W446.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_447_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W447_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W448_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — not performed this wave.
+- Master-merge to clear #1245 — deferred to a dedicated future wave.
+
+### Verification
+
+- `cargo check -p tri`: **PASS**.
+- `cargo test -p tri`: **PASS** (140 tests, 0 ignored, 0 new regressions).
+- `cargo test -p t27c --bin t27c suite::tests`: **PASS**.
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test --json build/suite_summary.json`: **PASS**.
+  - Parse/typecheck/GF16/gen-zig/gen-rust/gen-verilog/gen-c/seal-verify: 576/576 PASS.
+  - Gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+  - FPGA board-less smoke gate: **PASS**, theorem matrix 24 variants,
+    `envelope_check: "ok"`, `fixtures` present, `schema_version: "1.0"`,
+    `acceptable: true`, both elapsed-ms fields populated.
+- Golden fixture replay report matches the committed snapshot.
+- Dry-run-live fixture replay produces 24 variants with `source: "dry_run_live"`.
+- Standalone `measured-to-lean` theorem builds in a temporary lake package.
 
 ---
 

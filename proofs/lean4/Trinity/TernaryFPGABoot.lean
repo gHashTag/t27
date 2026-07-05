@@ -2121,6 +2121,33 @@ theorem xadc_live_w434_all_oscfsel_combined_check_true (oscfsel : Nat) (h : oscf
   rw [cclk_variant_and_xadc_envelope_check_eq]
   exact ⟨h, xadc_live_w434_operating_point_within_envelope⟩
 
+-- ============================================================================
+-- Golden W447 theorem-matrix operating point and quantified combined check
+-- ============================================================================
+
+/-- The deterministic operating point used by the W447 golden theorem-matrix
+    fixtures. It matches the synthetic PVT context rounded from a live XADC
+    readout: 42 °C, 1000 mV VCCINT, 1800 mV VCCAUX, slow-slow process corner.
+    This point is inside the documented operating envelope. -/
+def GOLDEN_W447_OPERATING_POINT : XadcOperatingPoint :=
+  { temp_c := (42 : Int), vccint_mv := 1000, vccaux_mv := 1800,
+    process_corner := ProcessCorner.ss }
+
+/-- The W447 golden operating point is inside the documented operating envelope. -/
+theorem golden_w447_operating_point_within_envelope :
+  xadc_operating_point_within_envelope GOLDEN_W447_OPERATING_POINT := by
+  simp [xadc_operating_point_within_envelope, GOLDEN_W447_OPERATING_POINT,
+        PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- Quantified combined-check theorem: the dashboard gate holds for every
+    documented OSCFSEL selection under the W447 golden operating point. This is
+    the computable counterpart to the golden theorem matrix and closes the
+    synthetic-fixture → all-CCLK-variants loop in a single `∀` statement. -/
+theorem golden_w447_all_oscfsel_combined_check_true (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_variant_and_xadc_envelope_check oscfsel GOLDEN_W447_OPERATING_POINT = true := by
+  rw [cclk_variant_and_xadc_envelope_check_eq]
+  exact ⟨h, golden_w447_operating_point_within_envelope⟩
+
 end BitstreamConfig
 
 end StatRegister

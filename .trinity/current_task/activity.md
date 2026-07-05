@@ -1712,3 +1712,7 @@
 - **Commit:** feat(fpga): W444 fixture replay + elapsed_ms metric
 - **Files:** .trinity/current-issue.md,.trinity/seals/account_AccountRepo.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json,.trinity/seals/compiler_Parsing.json,.trinity/seals/config_config-load.json,.trinity/seals/config_config-schema.json,.trinity/seals/demos_JonesTopologyFilter.json,.trinity/seals/enrichment_enrichment::audio_overview.json,.trinity/seals/enrichment_enrichment::youtube_transcript.json,.trinity/seals/file_FileWatcher.json,.trinity/seals/math_Constants.json,.trinity/seals/math_GFCompetitive.json,.trinity/seals/math_PhiSplitOptimality.json,.trinity/seals/math_PhiUniversalAttractor.json,.trinity/seals/math_RadixEconomy.json
 
+## 2026-07-05T18:13:25Z — wave-loop-447
+- **Commit:** feat(fpga): W446 golden fixture report-shape diff gate + replay timing + keyword field-access fix
+- **Files:** .trinity/current-issue.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W448_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W447_2026-07-01.md,docs/reports/FPGA_LOOP_PLAN_W447_2026-07-01.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_447_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+

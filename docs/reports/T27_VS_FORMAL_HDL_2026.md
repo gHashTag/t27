@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 444)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 447)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -218,6 +218,28 @@ Competitor signals at the W446 boundary:
   BitNet-RISCV-Multicore continue to validate {-1,0,+1} compute hardware, but
   none pairs it with a Lean-native proof pipeline. t27's differentiation remains
   intact.
+
+**W447 keeps the pipeline ready for real capture while the bench is blocked.**
+It adds a synthetic dry-run live-capture path (`tri fpga smoke-gate --theorem-matrix
+--dry-run-live`) that emits the same fixture directory structure a real board
+would produce, a regression test that replays both the golden fixtures and the
+dry-run-live fixtures, and a quantified Lean combined-check theorem over the
+24-variant golden matrix (OSCFSEL 0..7 × `ff`/`tt`/`ss`). The standalone
+`measured-to-lean --standalone` path is now exercised by a temporary lake package
+build that depends only on `Trinity.TernaryFPGABoot`, avoiding the broken full
+`lake build` on unrelated physics proofs. Competitor signals at the W447 boundary
+are unchanged from W446:
+
+- **Sparkle / Verilean:** PR #97–#100 and PR #96 remain merged on 2026-07-04.
+  PR #101 “docs(tutorial): Ch11 web3 signer” is still open. No new public Sparkle
+  signals appeared after 2026-07-11. PR #66 “IP.Net + compiler perf” is still
+  treated as merged at the W446 boundary; no reversal signal observed.
+- **CIRCT / firtool:** `firtool-1.152.0` (2026-07-04) is still the latest public
+  release; no `1.153.0` has shipped as of the W447 boundary.
+- **Clash:** `clash-ghc-1.11.0` remains a Hackage candidate; the latest published
+  release is still `1.10.0` (April 2026).
+- **Ternary-FPGA niche:** No new Lean-native ternary-FPGA competitor appeared.
+  TernaryCore and BitNet-RISCV-Multicore remain the closest non-Lean signals.
 
 ---
 

@@ -354,6 +354,13 @@ pub enum FpgaCmd {
         /// and `--synthetic-operating-point`.
         #[arg(long)]
         theorem_matrix: bool,
+        /// Emit fixtures that mimic a live board capture but use deterministic
+        /// synthetic timings. The fixture source label is `dry_run_live` and the
+        /// output directory is `build/fpga/theorem-matrix-dry-run-live/`. Useful
+        /// for exercising the live-capture → replay pipeline without hardware.
+        /// Implies `--theorem-matrix`.
+        #[arg(long)]
+        dry_run_live: bool,
         /// Process corner for the synthetic PVT context (default: ss).
         #[arg(long, default_value = "ss")]
         process_corner: String,
@@ -917,6 +924,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             synthetic_operating_point,
             verify_lean,
             theorem_matrix,
+            dry_run_live,
             process_corner,
             replay_fixtures,
             json,
@@ -928,9 +936,10 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *wait_seconds,
             cable,
             part,
-            *synthetic_operating_point || *verify_lean || *theorem_matrix,
-            *verify_lean || *theorem_matrix,
-            *theorem_matrix,
+            *synthetic_operating_point || *verify_lean || *theorem_matrix || *dry_run_live,
+            *verify_lean || *theorem_matrix || *dry_run_live,
+            *theorem_matrix || *dry_run_live,
+            *dry_run_live,
             process_corner,
             replay_fixtures.as_ref(),
             json.as_ref(),
@@ -4257,8 +4266,8 @@ fn measured_to_lean(
 
     if standalone {
         lean.push_str("import Trinity.TernaryFPGABoot\n\n");
-        lean.push_str("namespace Trinity.BitstreamConfig\n");
-        lean.push('\n');
+        lean.push_str("namespace Trinity.StatRegister.BitstreamConfig\n");
+        lean.push_str("open Trinity.StatRegister.BitstreamConfig\n\n");
     }
 
     if raw_ns {
@@ -4331,8 +4340,15 @@ fn measured_to_lean(
             "  transaction_satisfies_flash_spec ({} {} {} {} bits) = true := by\n",
             transaction_ctor, m.period_ns, m.sck_low_ns, m.sck_high_ns
         ));
-        lean.push_str(&format!("  apply {}\n", link_theorem));
-        if pvt_ctx.is_some() {
+        if let Some(ref ctx) = pvt_ctx {
+            lean.push_str(&format!(
+                "  apply {} {} {} {} bits {}\n",
+                link_theorem,
+                m.period_ns,
+                m.sck_low_ns,
+                m.sck_high_ns,
+                format_pvt_context_lean(ctx)
+            ));
             lean.push_str("  · decide\n");
             lean.push_str("  · decide\n");
             lean.push_str(&format!(
@@ -4340,6 +4356,7 @@ fn measured_to_lean(
                 theorem_base
             ));
         } else {
+            lean.push_str(&format!("  apply {}\n", link_theorem));
             lean.push_str(&format!("  exact {}_satisfies_flash_spec\n", theorem_base));
         }
     } else {
@@ -4412,8 +4429,14 @@ fn measured_to_lean(
             "  transaction_satisfies_flash_spec (measured_boot_transaction {} {} bits) = true := by\n",
             m.freq_hz, duty_pct_int
         ));
-        lean.push_str(&format!("  apply {}\n", link_theorem));
-        if pvt_ctx.is_some() {
+        if let Some(ref ctx) = pvt_ctx {
+            lean.push_str(&format!(
+                "  apply {} {} {} bits {}\n",
+                link_theorem,
+                m.freq_hz,
+                duty_pct_int,
+                format_pvt_context_lean(ctx)
+            ));
             lean.push_str("  · decide\n");
             lean.push_str("  · decide\n");
             lean.push_str(&format!(
@@ -4421,13 +4444,14 @@ fn measured_to_lean(
                 theorem_base
             ));
         } else {
+            lean.push_str(&format!("  apply {}\n", link_theorem));
             lean.push_str(&format!("  exact {}_satisfies_flash_spec\n", theorem_base));
         }
     }
 
     if standalone {
         lean.push('\n');
-        lean.push_str("end Trinity.BitstreamConfig\n");
+        lean.push_str("end Trinity.StatRegister.BitstreamConfig\n");
     }
 
     // Build machine-readable summary metadata (used by `--json`).
@@ -6049,6 +6073,7 @@ fn smoke_gate(
     synthetic_operating_point: bool,
     run_verify_lean: bool,
     run_theorem_matrix: bool,
+    dry_run_live: bool,
     process_corner: &str,
     replay_fixtures: Option<&PathBuf>,
     json: Option<&PathBuf>,
@@ -6441,10 +6466,14 @@ fn smoke_gate(
         // raw-ns theorem for each documented Artix-7 Master SPI CCLK variant across
         // all three synthetic process corners (ff/tt/ss), or replay from fixtures.
         if run_theorem_matrix {
-            let matrix_default_dir = root
-                .join("build")
-                .join("fpga")
-                .join("theorem-matrix-fixtures");
+            let matrix_default_dir = if dry_run_live {
+                root.join("build")
+                    .join("fpga")
+                    .join("theorem-matrix-dry-run-live")
+            } else {
+                root.join("build").join("fpga").join("theorem-matrix-fixtures")
+            };
+            let source = if dry_run_live { "dry_run_live" } else { "synthetic" };
             let matrix_fixture_dir = replay_fixtures
                 .cloned()
                 .unwrap_or_else(|| matrix_default_dir.clone());
@@ -6453,28 +6482,33 @@ fn smoke_gate(
                     "[smoke-gate] theorem-matrix: replaying from fixtures {}",
                     matrix_fixture_dir.display()
                 );
-                let (entries, elapsed_ms) = replay_theorem_matrix(&matrix_fixture_dir)
+                let (entries, elapsed_ms, replay_source) = replay_theorem_matrix(&matrix_fixture_dir)
                     .with_context(|| "theorem-matrix fixture replay failed")?;
                 report["theorem_matrix"] =
-                    build_theorem_matrix_report(&entries, elapsed_ms, true);
+                    build_theorem_matrix_report(&entries, elapsed_ms, true, &replay_source);
                 println!(
-                    "[smoke-gate] theorem-matrix replay OK ({} variants, {} ms)",
+                    "[smoke-gate] theorem-matrix replay OK ({} variants, source={}, {} ms)",
                     entries.len(),
+                    replay_source,
                     elapsed_ms
                 );
             } else {
-                println!("[smoke-gate] theorem-matrix: generating OSCFSEL 0..7 synthetic theorems for ff/tt/ss");
+                println!(
+                    "[smoke-gate] theorem-matrix: generating OSCFSEL 0..7 {} theorems for ff/tt/ss",
+                    source
+                );
                 let gen_start = std::time::Instant::now();
                 std::fs::create_dir_all(&matrix_fixture_dir)
                     .with_context(|| format!("create {}", matrix_fixture_dir.display()))?;
-                let entries = generate_theorem_matrix(&matrix_fixture_dir, &report)
+                let entries = generate_theorem_matrix(&matrix_fixture_dir, &report, source)
                     .with_context(|| "theorem-matrix generation failed")?;
                 let elapsed_ms = gen_start.elapsed().as_millis() as u64;
                 report["theorem_matrix"] =
-                    build_theorem_matrix_report(&entries, elapsed_ms, false);
+                    build_theorem_matrix_report(&entries, elapsed_ms, false, source);
                 println!(
-                    "[smoke-gate] theorem-matrix OK ({} variants, source=synthetic, {} ms)",
+                    "[smoke-gate] theorem-matrix OK ({} variants, source={}, {} ms)",
                     entries.len(),
+                    source,
                     elapsed_ms
                 );
             }
@@ -6573,6 +6607,7 @@ fn smoke_gate(
 fn generate_theorem_matrix(
     fixture_dir: &std::path::Path,
     _report: &serde_json::Value,
+    source: &str,
 ) -> Result<Vec<serde_json::Value>> {
     let mut matrix_entries = Vec::new();
     for corner_str in ["ff", "tt", "ss"] {
@@ -6596,7 +6631,7 @@ fn generate_theorem_matrix(
                 period_ns: period_ns as u64,
                 sck_low_ns: low_ns as u64,
                 sck_high_ns: high_ns as u64,
-                source: format!("synthetic {} oscfsel {}", corner_str, oscfsel),
+                source: format!("{} {} oscfsel {}", source, corner_str, oscfsel),
             };
             let raw_ns_text = serde_json::to_string_pretty(&raw_ns)
                 .with_context(|| "serialize theorem-matrix raw-ns fixture")?;
@@ -6625,7 +6660,7 @@ fn generate_theorem_matrix(
                 false,
                 Some(&pvt_path),
                 false,
-                Some("synthetic"),
+                Some(source),
                 false,
                 true,
                 true,
@@ -6643,7 +6678,7 @@ fn generate_theorem_matrix(
                 true,
                 false,
                 &Some(pvt.clone()),
-                "synthetic",
+                source,
                 &raw_ns_text,
             )
             .with_context(|| "build theorem-matrix measured-to-lean summary")?;
@@ -6658,7 +6693,7 @@ fn generate_theorem_matrix(
 
             verify_lean(&lean_path,
                 Some(&summary_path),
-                Some("synthetic"),
+                Some(source),
                 false,
             )
             .with_context(|| {
@@ -6697,12 +6732,14 @@ fn generate_theorem_matrix(
 
 /// Replay the theorem matrix from a fixture directory. Each variant must contain
 /// the four fixtures written by `generate_theorem_matrix`. Returns the
-/// per-variant report entries and the elapsed milliseconds.
+/// per-variant report entries, the elapsed milliseconds, and the detected source
+/// label from the first summary fixture.
 fn replay_theorem_matrix(
     fixture_dir: &std::path::Path,
-) -> Result<(Vec<serde_json::Value>, u64)> {
+) -> Result<(Vec<serde_json::Value>, u64, String)> {
     let start = std::time::Instant::now();
     let mut matrix_entries = Vec::new();
+    let mut detected_source: Option<String> = None;
     for corner_str in ["ff", "tt", "ss"] {
         let pvt_path = fixture_dir.join(format!("theorem_matrix_pvt_{}.json", corner_str));
         if !pvt_path.is_file() {
@@ -6734,9 +6771,23 @@ fn replay_theorem_matrix(
             )
             .with_context(|| format!("parse {}", raw_ns_path.display()))?;
 
+            let summary_json: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(&summary_path)
+                    .with_context(|| format!("read {}", summary_path.display()))?,
+            )
+            .with_context(|| format!("parse {}", summary_path.display()))?;
+            let expected_source = summary_json
+                .get("operating_point")
+                .and_then(|op| op.get("source"))
+                .and_then(|s| s.as_str());
+            if detected_source.is_none() {
+                detected_source = expected_source.map(|s| s.to_string());
+            }
+            let expected_source_str = expected_source.unwrap_or("synthetic");
+
             verify_lean(&lean_path,
                 Some(&summary_path),
-                Some("synthetic"),
+                Some(expected_source_str),
                 false,
             )
             .with_context(|| {
@@ -6771,7 +6822,8 @@ fn replay_theorem_matrix(
         }
     }
     let elapsed_ms = start.elapsed().as_millis() as u64;
-    Ok((matrix_entries, elapsed_ms))
+    let source = detected_source.unwrap_or_else(|| "synthetic".to_string());
+    Ok((matrix_entries, elapsed_ms, source))
 }
 
 /// Build the `theorem_matrix` report block used by `tri fpga smoke-gate --json`.
@@ -6780,11 +6832,12 @@ fn build_theorem_matrix_report(
     entries: &[serde_json::Value],
     elapsed_ms: u64,
     replay: bool,
+    source: &str,
 ) -> serde_json::Value {
     serde_json::json!({
         "status": "ok",
         "variant_count": entries.len(),
-        "source": "synthetic",
+        "source": source,
         "corner_count": 3,
         "oscfsel_count": 8,
         "replay": replay,
@@ -7580,10 +7633,135 @@ mod tests {
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.TernaryFPGABoot"));
-        assert!(content.contains("namespace Trinity.BitstreamConfig"));
-        assert!(content.contains("end Trinity.BitstreamConfig"));
+        assert!(content.contains("namespace Trinity.StatRegister.BitstreamConfig"));
+        assert!(content.contains("open Trinity.StatRegister.BitstreamConfig"));
+        assert!(content.contains("end Trinity.StatRegister.BitstreamConfig"));
         std::fs::remove_file(&tmp).unwrap();
         std::fs::remove_file(&out_path).unwrap();
+    }
+
+    /// Integration test: a standalone `.lean` file emitted by `measured-to-lean
+    /// --standalone` can be dropped into a fresh lake package that depends only on
+    /// the in-repo `Trinity` package and built with `lake build`. This proves the
+    /// generated artifact is internally consistent and links against the formal
+    /// model without manual copy-paste.
+    #[test]
+    fn test_measured_to_lean_standalone_builds_in_temp_lake_package() {
+        // Skip if `lake` is not installed; the fast content test above still gates
+        // the generated shape.
+        if std::process::Command::new("lake")
+            .arg("--version")
+            .output()
+            .is_err()
+        {
+            println!("skip: lake not on PATH");
+            return;
+        }
+
+        let pvt = synthetic_pvt_context(ProcessCorner::Ss);
+        let pvt_path = std::env::temp_dir().join(format!(
+            "tri_m2l_standalone_pvt_{}.json",
+            std::process::id()
+        ));
+        std::fs::write(
+            &pvt_path,
+            serde_json::to_string_pretty(&pvt).unwrap(),
+        )
+        .unwrap();
+
+        let raw_ns = MeasuredCclkRawNs {
+            period_ns: 40,
+            sck_low_ns: 20,
+            sck_high_ns: 20,
+            source: "standalone_build_test".to_string(),
+        };
+        let raw_ns_path = std::env::temp_dir().join(format!(
+            "tri_m2l_standalone_raw_ns_{}.json",
+            std::process::id()
+        ));
+        std::fs::write(
+            &raw_ns_path,
+            serde_json::to_string_pretty(&raw_ns).unwrap(),
+        )
+        .unwrap();
+
+        let out_path = std::env::temp_dir().join(format!(
+            "tri_m2l_standalone_out_{}.lean",
+            std::process::id()
+        ));
+        measured_to_lean(
+            Some(&raw_ns_path),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            0,
+            None,
+            None,
+            None,
+            Some(&out_path),
+            "measured_cclk",
+            false,
+            Some(&pvt_path),
+            false,
+            Some("standalone_build_test"),
+            true,
+            true,
+            false,
+            false,
+        )
+        .expect("measured-to-lean standalone should succeed");
+
+        // Locate the repo root so the temp package can depend on the in-tree
+        // Trinity package.
+        let mut repo_root = std::path::PathBuf::from(
+            std::env::var("CARGO_MANIFEST_DIR")
+                .as_deref()
+                .unwrap_or("."),
+        );
+        repo_root.pop(); // cli/tri
+        repo_root.pop(); // cli
+        let trinity_pkg = repo_root.join("proofs").join("lean4");
+        assert!(
+            trinity_pkg.join("lakefile.lean").is_file(),
+            "in-repo Trinity lakefile must exist"
+        );
+
+        let pkg_dir = std::env::temp_dir().join(format!(
+            "tri_m2l_standalone_pkg_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&pkg_dir);
+        std::fs::create_dir_all(&pkg_dir).unwrap();
+
+        let lakefile = format!(
+            "import Lake\n\
+             open Lake DSL\n\n\
+             package \"TrinityStandalone\" where\n\n\
+             require trinity from \"{}\"\n\n\
+             @[default_target]\n\
+             lean_lib \"TrinityStandalone\" where\n",
+            trinity_pkg.display()
+        );
+        std::fs::write(pkg_dir.join("lakefile.lean"), lakefile).unwrap();
+        std::fs::copy(&out_path, pkg_dir.join("TrinityStandalone.lean")).unwrap();
+
+        let status = std::process::Command::new("lake")
+            .arg("build")
+            .current_dir(&pkg_dir)
+            .status()
+            .expect("spawn lake build");
+        assert!(
+            status.success(),
+            "lake build of standalone generated theorem package should succeed"
+        );
+
+        let _ = std::fs::remove_dir_all(&pkg_dir);
+        let _ = std::fs::remove_file(&out_path);
+        let _ = std::fs::remove_file(&raw_ns_path);
+        let _ = std::fs::remove_file(&pvt_path);
     }
 
     #[test]
@@ -7800,7 +7978,7 @@ mod tests {
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.TernaryFPGABoot"));
-        assert!(content.contains("namespace Trinity.BitstreamConfig"));
+        assert!(content.contains("namespace Trinity.StatRegister.BitstreamConfig"));
         assert!(content.contains("measured_cclk_from_raw_ns_satisfies_flash_spec"));
         assert!(content.contains("decide"));
         std::fs::remove_file(&csv_tmp).unwrap();
@@ -7885,7 +8063,7 @@ mod tests {
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.TernaryFPGABoot"));
-        assert!(content.contains("namespace Trinity.BitstreamConfig"));
+        assert!(content.contains("namespace Trinity.StatRegister.BitstreamConfig"));
         assert!(content.contains("measured_cclk_from_raw_ns_satisfies_flash_spec"));
         assert!(content.contains("decide"));
         std::fs::remove_file(&vcd_tmp).unwrap();
@@ -9565,8 +9743,8 @@ mod tests {
             "generated theorem must import Trinity.TernaryFPGABoot"
         );
         assert!(
-            lean_text.contains("namespace Trinity.BitstreamConfig"),
-            "generated theorem must use Trinity.BitstreamConfig namespace"
+            lean_text.contains("namespace Trinity.StatRegister.BitstreamConfig"),
+            "generated theorem must use Trinity.StatRegister.BitstreamConfig namespace"
         );
         assert!(
             lean_text.contains("theorem measured_cclk"),
@@ -9577,7 +9755,7 @@ mod tests {
             "generated theorem must use the raw-ns flash-spec predicate"
         );
         assert!(
-            lean_text.contains("end Trinity.BitstreamConfig"),
+            lean_text.contains("end Trinity.StatRegister.BitstreamConfig"),
             "generated theorem must close the namespace"
         );
 
@@ -10217,6 +10395,7 @@ mod tests {
             true,
             true,
             true,
+            false,
             "ss",
             None,
             Some(&report_path),
@@ -10401,13 +10580,15 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
 
-        let generated = generate_theorem_matrix(&tmp,
+        let generated = generate_theorem_matrix(
+            &tmp,
             &serde_json::json!({}),
+            "synthetic",
         )
         .expect("generate theorem matrix should succeed");
         assert_eq!(generated.len(), 24, "expected 24 variants");
 
-        let (replayed, _elapsed_ms) = replay_theorem_matrix(&tmp)
+        let (replayed, _elapsed_ms, _source) = replay_theorem_matrix(&tmp)
             .expect("replay theorem matrix should succeed");
         assert_eq!(replayed.len(), 24, "expected 24 replayed variants");
 
@@ -10452,8 +10633,10 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
 
-        generate_theorem_matrix(&tmp,
+        generate_theorem_matrix(
+            &tmp,
             &serde_json::json!({}),
+            "synthetic",
         )
         .expect("generate theorem matrix should succeed");
 
@@ -10466,7 +10649,7 @@ mod tests {
         raw_ns["source"] = serde_json::Value::String("mutated".to_string());
         std::fs::write(&corrupt_path, serde_json::to_string_pretty(&raw_ns).unwrap()).unwrap();
 
-        let (replayed, _elapsed_ms) = replay_theorem_matrix(&tmp)
+        let (replayed, _elapsed_ms, _source) = replay_theorem_matrix(&tmp)
             .expect("replay should still succeed because it does not re-parse raw_ns source into the report");
         assert_eq!(replayed.len(), 24);
         // The replayed report keeps the original source string from the fixture.
@@ -10510,7 +10693,7 @@ mod tests {
             golden.display()
         );
 
-        let (entries, elapsed_ms) = replay_theorem_matrix(&golden)
+        let (entries, elapsed_ms, _source) = replay_theorem_matrix(&golden)
             .expect("golden fixture replay should succeed");
         assert_eq!(
             entries.len(),
@@ -10567,12 +10750,12 @@ mod tests {
             golden.display()
         );
 
-        let (entries, elapsed_ms) = replay_theorem_matrix(&golden)
+        let (entries, elapsed_ms, source) = replay_theorem_matrix(&golden)
             .expect("golden fixture replay should succeed");
         assert_eq!(entries.len(), 24, "expected 24 golden variants");
 
         let normalized = normalize_fixture_paths(&entries, &golden);
-        let report = build_theorem_matrix_report(&normalized, elapsed_ms, true);
+        let report = build_theorem_matrix_report(&normalized, elapsed_ms, true, &source);
 
         let expected_path = golden.join("expected_report.json");
         // The snapshot omits `elapsed_ms` because it is machine/run-dependent.
@@ -10622,6 +10805,130 @@ mod tests {
                 "every golden variant must carry a fixtures block"
             );
         }
+    }
+
+    /// Regression test for the W447 dry-run-live fixture path. Generates a
+    /// 24-variant matrix with `source: "dry_run_live"`, replays it, and replays
+    /// the checked-in golden fixtures. Asserts both produce the same report shape
+    /// and that the dry-run-live report carries the distinct source label.
+    #[test]
+    fn test_theorem_matrix_dry_run_live_replay_matches_golden_shape() {
+        let dry_run_live = std::env::temp_dir().join(format!(
+            "tri_theorem_matrix_dry_run_live_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dry_run_live);
+        std::fs::create_dir_all(&dry_run_live).unwrap();
+
+        let dry_entries = generate_theorem_matrix(
+            &dry_run_live,
+            &serde_json::json!({}),
+            "dry_run_live",
+        )
+        .expect("dry-run-live theorem matrix generation should succeed");
+        assert_eq!(dry_entries.len(), 24, "expected 24 dry-run-live variants");
+
+        let (dry_replayed, dry_elapsed_ms, dry_source) = replay_theorem_matrix(&dry_run_live)
+            .expect("dry-run-live replay should succeed");
+        assert_eq!(dry_replayed.len(), 24, "expected 24 replayed dry-run-live variants");
+        assert_eq!(
+            dry_source, "dry_run_live",
+            "dry-run-live replay should detect source=dry_run_live"
+        );
+
+        let dry_report = build_theorem_matrix_report(
+            &dry_replayed,
+            dry_elapsed_ms,
+            true,
+            &dry_source,
+        );
+        assert_eq!(
+            dry_report.get("source"),
+            Some(&serde_json::Value::String("dry_run_live".to_string())
+            ),
+            "dry-run-live report must carry source=dry_run_live"
+        );
+        assert_eq!(
+            dry_report.get("variant_count"),
+            Some(&serde_json::Value::Number(serde_json::Number::from(24)))
+        );
+        assert_eq!(
+            dry_report.get("corner_count"),
+            Some(&serde_json::Value::Number(serde_json::Number::from(3)))
+        );
+        assert_eq!(
+            dry_report.get("oscfsel_count"),
+            Some(&serde_json::Value::Number(serde_json::Number::from(8)))
+        );
+
+        let mut golden = std::path::PathBuf::from(
+            std::env::var("CARGO_MANIFEST_DIR")
+                .as_deref()
+                .unwrap_or("."),
+        );
+        golden.pop(); // cli/tri
+        golden.pop(); // cli
+        golden.push("tests");
+        golden.push("fixtures");
+        golden.push("fpga");
+        golden.push("theorem-matrix");
+        golden.push("golden");
+
+        let (golden_replayed, golden_elapsed_ms, golden_source) =
+            replay_theorem_matrix(&golden
+            ).expect("golden fixture replay should succeed");
+        assert_eq!(golden_replayed.len(), 24, "expected 24 golden variants");
+        assert_eq!(
+            golden_source, "synthetic",
+            "golden fixture source must remain synthetic"
+        );
+
+        let golden_report = build_theorem_matrix_report(
+            &golden_replayed,
+            golden_elapsed_ms,
+            true,
+            &golden_source,
+        );
+
+        // Both reports must have the same structural shape (variant/corner/oscfsel
+        // counts, all envelope checks ok).
+        for report in [&dry_report, &golden_report] {
+            assert_eq!(
+                report.get("status"),
+                Some(&serde_json::Value::String("ok".to_string())),
+                "report status must be ok"
+            );
+            assert_eq!(
+                report.get("variant_count"),
+                Some(&serde_json::Value::Number(serde_json::Number::from(24)))
+            );
+            assert_eq!(
+                report.get("corner_count"),
+                Some(&serde_json::Value::Number(serde_json::Number::from(3)))
+            );
+            assert_eq!(
+                report.get("oscfsel_count"),
+                Some(&serde_json::Value::Number(serde_json::Number::from(8)))
+            );
+            for entry in report
+                .get("variants")
+                .and_then(|v| v.as_array())
+                .expect("variants array")
+            {
+                assert_eq!(
+                    entry.get("envelope_check"),
+                    Some(&serde_json::Value::String("ok".to_string())
+                    ),
+                    "every variant must pass envelope check"
+                );
+                assert!(
+                    entry.get("fixtures").is_some(),
+                    "every variant must carry a fixtures block"
+                );
+            }
+        }
+
+        let _ = std::fs::remove_dir_all(&dry_run_live);
     }
 
     /// Compare `actual` against `expected` as a strict superset: every field that
