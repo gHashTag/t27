@@ -6,7 +6,7 @@
 
 - Branch: `wave-loop-431`
 - Issue: #1389
-- PR: to open
+- PR: #1392 (closes #1389)
 - Report: `docs/reports/WAVE_LOOP_431_REPORT.md`
 - Evidence W431: `docs/reports/FPGA_LOOP_EVIDENCE_W431_2026-07-01.md`
 - Cooperation W432: `docs/reports/FPGA_LOOP_COOPERATION_W432_2026-07-01.md`
