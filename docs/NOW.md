@@ -2,6 +2,20 @@
 
 Last updated: 2026-07-05
 
+## SW-conformance — gf512 + gf1024 promoted to strict SW-bitexact (paired, 74/1/8) (Closes #1380)
+
+- gf512 (S1 E195 M316, BIAS=2^194-1, u512_software) and gf1024 (S1 E391 M632,
+  BIAS=2^390-1, u1024_software; lowest phi-distance in the ladder) promoted from
+  `bitexact_selfconsistent` to strict `bitexact` (paired).
+- INDEX totals: bitexact 72 -> 74, selfconsistent 3 -> 1, structural 8 (sum=83).
+- Status tag: [verified SW]. M=316/632 > 52 -> no FP lowering; every finite value
+  is an EXACT dyadic odd*2^k (parametric separation-bound, same lemma as gf96/gf128).
+- Witness chain (each format): dyadic normalizer 15/15 + Fraction oracle 15/15 +
+  analytic separation-bound; cross-check dyadic==Fraction on 201512 representative
+  codes (seed=512 / seed=1024) agree. OOM-safe (+-2^194 / +-2^390 symbolic).
+- NOT on-silicon Tier-E: HW decode/compute [REQUIRES USER ACTION] (trinity-fpga #199).
+- Remaining selfconsistent (1): gf256 (bias-open R&D, separate research).
+
 ## SW-conformance — gf128 promoted to strict SW-bitexact (72/3/8) (Closes #1370)
 
 - gf128 (GoldenFloat128: S1 E49 M78, BIAS=281474976710655=2^48-1) promoted from
