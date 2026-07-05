@@ -1,3 +1,63 @@
+# NOW — Wave Loop 423 close-out / Wave Loop 424 setup (2026-07-05)
+
+**Last updated:** 2026-07-05
+
+## Wave Loop 423 — instrument-import depth: CSV time units, VCD slope filter, PVT worst-case theorem (Closes #1368)
+
+- Branch: `wave-loop-423`
+- Issue: #1368
+- PR: to open after work
+- Report: `docs/reports/WAVE_LOOP_423_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W423_2026-07-05.md`
+- Cooperation W424: `docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-05.md`
+
+### What landed (Variant B/C — bench still blocked)
+- `cli/tri/src/fpga.rs`
+  - CSV time-column unit detection and normalization: `time_ms`, `time_us`,
+    `time_ns`, and sample-number columns (`Sample`, `index`, `point`) are now
+    converted to seconds before frequency/duty estimation. A leading metadata row
+    such as `samplerate,100000000` is no longer mistaken for the header.
+  - `--csv-samplerate <Hz>` supplies the sample rate when the CSV time column is
+    sample numbers.
+  - Real-valued VCD threshold crossing now uses the new sample timestamp rather
+    than linear interpolation, matching the VCD event semantics of digital
+    simulators.
+  - Real-valued VCD slope filter: `--vcd-slope-min-v <V>` rejects transitions
+    whose voltage step is too small, and `--vcd-slope-min-s <s>` rejects
+    transitions closer than the requested spacing. This lets `measured-to-lean`
+    ignore noise glitches on analog probe captures.
+  - Unknown `$timescale` units emit a warning and default to 1 ns instead of
+    aborting.
+  - `$dumpoff` / `$dumpon` lines without a preceding `#` timestamp now keep the
+    last known time, and any value change while dumping is suspended is ignored.
+  - `--pvt-worstcase` flag for `tri fpga measured-to-lean` generates a
+    worst-case PVT theorem (85 °C, 900 mV, ss corner) without requiring a
+    `--pvt-context` JSON file.
+  - Added regression tests covering all of the above (10 new tests in
+    `fpga::tests`).
+- `fpga/HARDWARE_SSOT.md`
+  - Added §3.6.20 documenting the W423 instrument-import hardening.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired.
+- Cold-POR SPI flash boot for OSCFSEL 6/7 — board physically reachable but the
+  relay/remote-power gate is not available; manual power-cycle remains required.
+- DLC10 cable still missing; Digilent HS2 + openFPGALoader is the working path.
+- Safe gen-verilog #1245 sub-fix deferred: the remaining 7 yosys smoke failures are
+  all tied to major features (let destructuring, tuple returns, ROM arrays,
+  CORDIC) that are not narrow regression-free fixes.
+
+### Verification
+- `cargo test -p tri fpga::tests`: **PASS** (60 tests).
+- `cargo test -p tri`: **PASS** (93 tests).
+- `cargo build --release` in `bootstrap/`: **PASS**.
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test` / `t27c suite --repo-root .`: **576 passed**, 0 seal
+  mismatches, 7 pre-existing gen-verilog yosys smoke failures, 0 FPGA smoke
+  failures.
+
+---
+
 # NOW — Wave Loop 422 close-out / Wave Loop 423 setup (2026-07-06)
 
 Last updated: 2026-07-06

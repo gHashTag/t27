@@ -987,6 +987,56 @@ through JTAG/SRAM. The XADC readings give a real operating point inside the
 envelope used by the PVT-aware flash-timing model (≈46 °C, ≈1.00 V VCCINT,
 ≈1.81 V VCCAUX, tt corner).
 
+#### 3.6.20 Instrument-import depth: CSV time units, VCD slope filter, and PVT worst-case theorem (W423)
+
+W423 stayed on the Variant B/C path: the bench is reachable via JTAG/SRAM, but a
+real CCLK probe on P12 is still unavailable, and the relay cold-POR gate is still
+not wired. Work therefore focused on making the `tri fpga measured-to-lean`
+import pipeline accept a wider range of instrument exports and tolerate noisy
+analog captures.
+
+- **CSV time-column units.** The analog-CSV parser now detects unit suffixes in
+the header and normalizes the time column to seconds before measuring frequency
+and duty:
+
+  | Header pattern | Unit | Example |
+  |----------------|------|---------|
+  | `time_ms`, `milliseconds` | milliseconds | `time_ms,voltage` |
+  | `time_us`, `microseconds`, `µs` | microseconds | `time_us,voltage` |
+  | `time_ns`, `nanoseconds` | nanoseconds | `time_ns,voltage` |
+  | `Sample`, `index`, `point` | sample number | `Sample,cclk_v` |
+
+  Sample-number columns require `--csv-samplerate <Hz>`. A leading metadata row
+  such as `samplerate,100000000` (PulseView export) is no longer accepted as the
+  column header.
+
+- **VCD real-net slope filter.** Two new flags on `tri fpga measured-to-lean`
+filter spurious transitions on real-valued VCD signals:
+
+  - `--vcd-slope-min-v <V>` drops a crossing whose voltage step is smaller than
+    the given value (useful for rejecting low-amplitude noise).
+  - `--vcd-slope-min-s <s>` drops a crossing that is closer than the given
+    number of seconds to the previous accepted crossing (useful for rejecting
+    narrow glitches).
+
+  The threshold crossing itself is now associated with the timestamp of the new
+  VCD sample, not with a linear interpolation between samples, because VCD value
+  changes are events at exact simulation times.
+
+- **VCD robustness.** Unknown `$timescale` units emit a warning and default to
+1 ns instead of aborting. `$dumpoff`/`$dumpon` directives may appear on lines
+that do not carry a `#` timestamp; the parser keeps the last known time and
+ignores any value changes while dumping is suspended.
+
+- **PVT worst-case theorem.** `tri fpga measured-to-lean --pvt-worstcase`
+generates a theorem that uses the worst-case operating point (85 °C, 900 mV,
+ss corner) without requiring a `--pvt-context` JSON file.
+
+- **Verification.** 10 new regression tests were added to `cli/tri/src/fpga.rs`;
+`cargo test -p tri fpga::tests` reports 60 PASS. The full repo sweep remains
+576 PASS with the same 7 pre-existing gen-verilog yosys smoke failures from
+weak point #1245.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)
