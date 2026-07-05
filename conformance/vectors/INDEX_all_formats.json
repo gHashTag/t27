@@ -5,8 +5,8 @@
   "preprint": "https://arxiv.org/abs/2606.05017",
   "total_formats": 83,
   "total_packs": 83,
-  "bitexact_packs": 70,
-  "selfconsistent_packs": 5,
+  "bitexact_packs": 71,
+  "selfconsistent_packs": 4,
   "structural_packs": 8,
   "packs": [
     {
@@ -388,9 +388,9 @@
     {
       "id": "gf96",
       "file": "gf96_conformance_v0.json",
-      "kind": "bitexact_selfconsistent",
-      "source": "wide-rung GoldenFloat oracle (single decode law, dyadic-exact, no independent second witness)",
-      "sha256": "5b2ddc76f1c7a8c0ce50b1e4a8bf8bfcc7d3419916fa3b36780fdd5da02eb0bf"
+      "kind": "bitexact",
+      "source": "wide-rung GoldenFloat exact-dyadic pack promoted to strict bitexact by an analytic zero-rounding separation-bound + two structurally independent exact decoders (dyadic gf_wide_independent_witness.py + Fraction oracle gf96_decode_ref.py), 15/15 abs_error=0, 201512-code cross-check",
+      "sha256": "43127e758d653d26640d38801d42d4daf36fdc70df66a63aadac6a8ce06159fa"
     },
     {
       "id": "gf128",

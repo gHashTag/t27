@@ -2,6 +2,32 @@
 
 Last updated: 2026-07-05
 
+## SW-conformance — gf96 promoted to strict SW-bitexact (71/4/8) (Closes #1366)
+
+- gf96 (GoldenFloat96: S1 E36 M59, BIAS=34359738367=2^35-1) promoted from
+  `bitexact_selfconsistent` to strict `bitexact` in
+  `conformance/vectors/INDEX_all_formats.json`.
+- INDEX totals: bitexact 70 -> 71, selfconsistent 5 -> 4, structural 8 (sum=83).
+- Status tag: [verified SW]. Unlike gf48, gf96 has M=59 > 52, so binary64 CANNOT
+  hold the mantissa exactly and there is NO FP lowering and NO rounding: every
+  finite gf96 value is an exact dyadic rational. The proof is therefore an
+  analytic zero-rounding separation-bound plus two structurally independent EXACT
+  decode paths (no RTL bit-model / iverilog needed, because there is nothing to
+  round). Witnesses pass in-sandbox:
+  (1) dyadic independent decoder 15/15 (abs_error=0);
+  (2) golden Fraction oracle 15/15 exact vs pack;
+  (3) two-path cross-check over 201512 representative codes (5-class + exponent
+      boundaries + full-mantissa edges + deep-underflow/overflow + 200k random
+      seed=96), both paths agree bit-exactly.
+- Witness chain + separation-bound lemma: `conformance/witness/gf96/README.md`
+  and `conformance/witness/gf96/SEPARATION_BOUND.md`. Memory note: the +-2^35
+  exponent means `2^(exp-BIAS)` is NEVER materialized as an integer (would OOM);
+  both paths keep the huge power symbolic (peak RSS ~14 MB).
+- NOT on-silicon Tier-E: HW-decode / HW-compute for gf96 remain [REQUIRES USER
+  ACTION] (4/4 chain on AX7203, trinity-fpga #199). encoding != compute != FPGA.
+- Remaining selfconsistent (4): gf128, gf256, gf512, gf1024.
+  gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
+
 ## SW-conformance — gf48 promoted to strict SW-bitexact (70/5/8) (Closes #1358)
 
 - gf48 (GoldenFloat48: S1 E18 M29, BIAS=131071) promoted from
@@ -18,8 +44,9 @@ Last updated: 2026-07-05
   local agent (no iverilog in sandbox) = stronger witness, not yet run.
 - NOT on-silicon Tier-E: HW-decode / HW-compute for gf48 remain [REQUIRES USER
   ACTION] (4/4 chain on AX7203, trinity-fpga #199). encoding != compute != FPGA.
-- Remaining selfconsistent (5): gf96, gf128, gf256, gf512, gf1024.
-  gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
+- Remaining selfconsistent (5 at the time of #1358): gf96, gf128, gf256, gf512,
+  gf1024. gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
+  (gf96 later promoted, see the gf96 section above -> 4 remaining.)
 
 ## Wave Loop 419 — Variant C fallback: VCD/CSV hardening, PVT monotonicity, standalone lake workflow (Closes #1357)
 
