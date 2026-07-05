@@ -1500,3 +1500,7 @@
 - **Commit:** feat(igla): Wave Loop 422 — live XC7A200T SRAM boot, Verilog keyword escape, PVT worst-case bound
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-05T06:47:22Z — wave-loop-423
+- **Commit:** docs(issue): set current issue to Wave Loop 423
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W423_2026-07-05.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_423_REPORT.md,fpga/HARDWARE_SSOT.md
+

@@ -2109,3 +2109,58 @@
 - Do not assume `t27c seal` persists; pass `--save` to update `.trinity/seals/*.json`.
 - Do not mix `--margin` and `--pvt-context` in the same `measured-to-lean` invocation; use `clap` `conflicts_with` to make the CLI reject the ambiguous combination.
 - Do not record a transition every time a value line is parsed; only record actual state changes, otherwise duty-cycle averages become distorted.
+
+## 2026-07-05 — Wave Loop 423 (instrument-import depth + VCD robustness)
+
+### What worked
+- Delivered Variant B/C because the physical bench stayed partially blocked (P12
+  unwired, no relay gate, DLC10 cable missing).
+- Added CSV time-column unit detection for `time_ms`, `time_us`, `time_ns`, and
+  sample-number headers, plus `--csv-samplerate` for the sample-number case.
+- Added VCD real-net slope filter (`--vcd-slope-min-v`, `--vcd-slope-min-s`) and
+  switched real-net threshold crossings to use the new sample timestamp instead
+  of linear interpolation.
+- Added `--pvt-worstcase` to `tri fpga measured-to-lean` so a capture can be
+  validated against the combined-monotonicity corner without a JSON context
+  file.
+- Hardened the VCD parser for unknown `$timescale` units (warn + default to 1 ns)
+  and `$dumpoff`/`$dumpon` lines without a preceding `#` timestamp.
+- Added 10 new regression tests; `cargo test -p tri fpga::tests`: 60/60 PASS.
+- Full repo sweep: 576 passed, 0 seal mismatches, 7 pre-existing gen-verilog
+  yosys smoke failures.
+- Updated `fpga/HARDWARE_SSOT.md` §3.6.20 and the W423 close-out docs.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`: CSV unit normalization, VCD slope filter, real-net
+  event-time crossing, unknown timescale fallback, dumpoff/dumpon without
+  timestamp, `--pvt-worstcase`.
+- `fpga/HARDWARE_SSOT.md`: §3.6.20 documenting the W423 import pipeline.
+- Close-out docs: `docs/reports/WAVE_LOOP_423_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W423_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-01.md`.
+
+### Patterns to reuse
+- When normalizing instrument time columns, detect the unit from the header
+  first, then fall back to data-shape heuristics, and require an explicit
+  samplerate for sample-number columns. This gives users a clear error instead
+  of silently guessing.
+- For real-valued VCD nets, treat value changes as events at sample timestamps;
+  linear interpolation between samples misplaces the crossing for digital-style
+  step waveforms.
+- A slope filter that rejects transitions by time spacing is safe only when the
+  rejected transition does not mask a real opposite-state segment. Place the
+  glitch in the middle of a stable half-cycle so the next real edge still
+  changes state correctly.
+- Keep `--pvt-worstcase` as a separate flag that conflicts with `--pvt-context`
+  to avoid ambiguous validation modes.
+
+### Anti-patterns to avoid
+- Do not accept a CSV row as the header just because it contains a metadata
+  token like `samplerate`; require a `time`-like column so metadata rows are
+  skipped.
+- Do not push every real-net crossing to the transition list without checking
+  `last_high`; a filtered-out intermediate state can otherwise create duplicate
+  transitions that distort period/duty.
+- Do not generate a branch-local gen-verilog sub-fix when the remaining failures
+  are tied to major codegen features (let destructuring, tuple returns, ROM
+  arrays); defer to the planned codegen refactor on `master`.

@@ -1,17 +1,17 @@
-# Wave Loop 423 — FPGA boot-evidence next variant (physical CCLK / instrument depth / gen-verilog narrowing)
+# Wave Loop 424 — FPGA boot-evidence next variant (physical CCLK / real capture import / formal fallback)
 
-**Issue:** #1368  
-**Branch:** `wave-loop-423`  
-**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 422.
+**Issue:** to be created after W423 closes (#1368).  
+**Branch:** `wave-loop-424`  
+**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 423.
 
 ---
 
 ## Goal
 
-Wave 422 re-established live contact with the XC7A200T board (SRAM load OK,
-STAT `0x401079FC`, real XADC context) but could not complete the full Variant A
-plan because pin P12 is not wired to a logic analyzer. Wave 423 executes the
-first available variant from `docs/reports/FPGA_LOOP_COOPERATION_W423_2026-07-06.md`.
+Wave 423 extended the `tri fpga measured-to-lean` import pipeline to handle CSV
+time units, VCD real-net slope filtering, unknown timescale units, and PVT
+worst-case validation. Wave 424 executes the first available variant from
+`docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-01.md`.
 
 1. **Variant A (preferred when bench becomes available):**
    - Confirm P12 is wired to a logic-analyzer channel.
@@ -21,24 +21,23 @@ first available variant from `docs/reports/FPGA_LOOP_COOPERATION_W423_2026-07-06
      Lean theorems.
    - Program each OSCFSEL variant to SPI flash and perform a true cold-POR boot.
    - Document measured frequencies/duty cycles and PVT context in
-     `fpga/HARDWARE_SSOT.md`.
+     `fpga/HARDWARE_SSOT.md` §3.6.21.
 
-2. **Variant B (if an external VCD/CSV capture is available, no on-bench relay):**
-   - Add CSV timestamp-column parsing for fractional seconds, milliseconds, and
-     sample-number-only exports.
-   - Add VCD real-net slope filter: reject transitions where ΔV is below a noise
-     window or Δt is below a configurable `t_setup`.
-   - Add `tri fpga measured-to-lean --pvt-worstcase` mode using the combined
-     monotonicity corner (max temp, min VCCINT, ss corner).
-   - Document the multi-format import matrix in `fpga/HARDWARE_SSOT.md`.
+2. **Variant B (if an external capture is available or the board is reachable for dry-run boot-log):**
+   - Import at least one real or representative CCLK capture end-to-end using the
+     W423 unit/noise handling.
+   - Add any missing parser handling exposed by the real export.
+   - Run a dry-run cold-POR boot-log for OSCFSEL 6/7 variants.
+   - Document the import recipe in `fpga/HARDWARE_SSOT.md` §3.6.21.
 
 3. **Variant C (fallback if bench still blocked):**
-   - Extend VCD robustness: detect/report unknown `$timescale` units, handle
-     `$dumpoff`/`$dumpon` without a preceding `#timestamp`.
-   - Land one safe narrow gen-verilog #1245 sub-fix from the remaining 7 failures,
-     if it does not increase the yosys smoke failure count.
-   - Update `docs/reports/T27_VS_FORMAL_HDL_2026.md` with any new 2026
-     developments.
+   - Land the next safe gen-verilog #1245 sub-fix from the remaining 7 failures,
+     if one is narrow and regression-free; otherwise explicitly defer.
+   - Harden `tri fpga boot-log` / `cclk-sweep` cold-POR artifact capture for
+     manual-power-cycle mode.
+   - Add small Lean helpers in `TernaryFPGABoot.lean` if future theorems need them.
+   - Update `docs/reports/T27_VS_FORMAL_HDL_2026.md` if any new 2026 competitor
+     developments surface.
 
 ---
 
@@ -46,12 +45,11 @@ first available variant from `docs/reports/FPGA_LOOP_COOPERATION_W423_2026-07-06
 
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `cli/tri/src/fpga.rs` or `bootstrap/src/compiler.rs` | Variant A import, B instrument depth, or C parser/gen-verilog hardening |
-| 2 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | New measured theorems or small formal helpers |
-| 3 | `fpga/HARDWARE_SSOT.md` / `docs/reports` | Updated protocol or comparison note |
-| 4 | `docs/reports/*` | W423 report, evidence, W424 cooperation |
-| 5 | `.trinity/experience.md` | W423 learnings |
-| 6 | git/PR | squash-merge to `master`, close #1368, open #? for W424 |
+| 1 | `cli/tri/src/fpga.rs` or `bootstrap/src/compiler.rs` or `proofs/lean4/Trinity/TernaryFPGABoot.lean` | Variant A capture import, B import/dry-run, or C parser/formal/gen-verilog hardening |
+| 2 | `fpga/HARDWARE_SSOT.md` / `docs/reports` | Updated protocol or comparison note |
+| 3 | `docs/reports/*` | W424 report, evidence, W425 cooperation |
+| 4 | `.trinity/experience.md` | W424 learnings |
+| 5 | git/PR | squash-merge to `master`, close issue, open #? for W425 |
 
 ---
 
@@ -64,12 +62,12 @@ first available variant from `docs/reports/FPGA_LOOP_COOPERATION_W423_2026-07-06
 - [ ] AC-A4: Cold-POR SPI flash boot for OSCFSEL 6/7 is documented with STAT reads.
 
 ### Bundle B
-- [ ] AC-B1: CSV fractional-second / millisecond / sample-number timestamp columns are parsed correctly with a regression test.
-- [ ] AC-B2: VCD real-net slope filter rejects noisy transitions with a regression test.
-- [ ] AC-B3: `--pvt-worstcase` mode validates against the combined-monotonicity corner with a regression test.
+- [ ] AC-B1: At least one real or representative CCLK/CSV/VCD capture is imported end-to-end.
+- [ ] AC-B2: The import path exposes no unhandled unit or noise cases.
+- [ ] AC-B3: Dry-run boot-log artifacts exist for OSCFSEL 6/7.
 
 ### Bundle C
-- [ ] AC-C1: VCD parser hardening lands with unit tests (unknown timescale unit handling, or dumpoff without timestamp).
+- [ ] AC-C1: `boot-log` / `cclk-sweep` cold-POR tooling is measurably more robust or better documented.
 - [ ] AC-C2: One safe gen-verilog #1245 sub-fix lands without increasing the 7-failure yosys smoke count, or is explicitly deferred if unsafe.
 - [ ] AC-C3: Competitor snapshot is updated if any new 2026 developments are found.
 
@@ -84,17 +82,18 @@ first available variant from `docs/reports/FPGA_LOOP_COOPERATION_W423_2026-07-06
 
 - Target: `master`
 - PR: to open after work
-- Body: `Closes #1368`
-- Report: `docs/reports/WAVE_LOOP_423_REPORT.md`
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W423_YYYY-MM-DD.md`
-- Cooperation W424: `docs/reports/FPGA_LOOP_COOPERATION_W424_YYYY-MM-DD.md`
+- Body: `Closes #<W424 issue>`
+- Report: `docs/reports/WAVE_LOOP_424_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W424_YYYY-MM-DD.md`
+- Cooperation W425: `docs/reports/FPGA_LOOP_COOPERATION_W425_YYYY-MM-DD.md`
 
 ---
 
 ## Default variant
 
 Execute **Variant A** if P12 is wired and the analyzer is ready.  
-Otherwise try **Variant B** if an external capture file is available.  
+Otherwise execute **Variant B** if an external capture is available or the board
+is reachable for a dry-run boot-log.  
 Otherwise fall back to **Variant C**.
 
 ---
