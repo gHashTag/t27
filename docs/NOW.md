@@ -1,81 +1,164 @@
-# NOW — Wave Loop 424 close-out / Wave Loop 425 setup (2026-07-01)
+# NOW — Wave Loop 424 close-out / Wave Loop 425 setup (2026-07-05)
 
-Last updated: 2026-07-01
+**Last updated:** 2026-07-05
 
-## Wave Loop 424 — FPGA tooling hardening, PVT context, CSV voltage units, non-blocking continue (Closes #1371)
+## Wave Loop 424 — FPGA tooling hardening: auto-continue boot logs, PVT/XADC context, CSV voltage units, ProcessCorner helpers (Closes #1371)
 
 - Branch: `wave-loop-424`
 - Issue: #1371
-- PR: #1373
+- PR: to open after work
 - Report: `docs/reports/WAVE_LOOP_424_REPORT.md`
 - Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W424_2026-07-05.md`
 - Cooperation W425: `docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md`
 
-### What landed
+### What landed (Variant B/C — bench still blocked)
 - `cli/tri/src/fpga.rs`
-  - Non-blocking `wait_for_continue` helper for `--wait-seconds` in `boot-log`,
-    `cold-por`, and `cclk-sweep`.
-  - CSV voltage-unit scaling (`--csv-voltage-unit v|mv`) before threshold detection.
-  - Optional `--pvt-context` JSON embedding in boot-log / cold-por / cclk-sweep.
-  - Default CCLK sweep expanded to OSCFSEL 0..7.
+  - `boot-log`, `cold-por`, and `cclk-sweep` now honor `--wait-seconds` with a
+    non-blocking auto-continue and an early ENTER path.
+  - All three commands accept `--pvt-context` and embed the supplied PVT context
+    plus an XADC placeholder (`source: "not_read"`) in their JSON logs.
+  - `measured-to-lean --csv` gained `--csv-voltage-unit v|mv` for oscilloscope
+    exports in millivolts.
+  - `cclk-sweep` default OSCFSEL range expanded from 0–5 to 0–7.
 - `proofs/lean4/Trinity/TernaryFPGABoot.lean`
-  - `ProcessCorner` decidability, equality, `severity`, and
-    `worse_than_iff_severity_le` helpers.
+  - Added `ProcessCorner.eq_decidable`, `ProcessCorner.worse_than_decidable`,
+    `ProcessCorner.severity`, and `ProcessCorner.worse_than_iff_severity_le` to
+    support future PVT automation.
 - `docs/reports/T27_VS_FORMAL_HDL_2026.md`
-  - Refreshed date and W423–W424 boot-evidence differentiator note.
+  - Refreshed for mid-2026, including firtool 1.152.0 and W423–W424
+    boot-evidence progress.
 
 ### Not done (blocked on hardware)
-- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired, DLC10 cable missing.
-- Real relay cold-POR gate — no relay board / USB power switch available.
-- Real XADC readout in CLI still deferred (`xadc.source: "not_read"`).
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired.
+- Cold-POR SPI flash boot for OSCFSEL 6/7 — board physically reachable but the
+  relay/remote-power gate is not available; manual power-cycle remains required.
+- DLC10 cable still missing; Digilent HS2 + openFPGALoader is the working path.
+- Safe gen-verilog #1245 sub-fix deferred: the remaining 7 yosys smoke failures are
+  all tied to major features (let destructuring, tuple returns, ROM arrays,
+  CORDIC) that are not narrow regression-free fixes.
 
 ### Verification
-- `cargo test -p tri`: **PASS** (93 tests).
-- `lake build Trinity.TernaryFPGABoot`: **PASS**.
-- `./scripts/tri test`: parse/typecheck/gen/seal phases **PASS**; 7 pre-existing
-  `gen-verilog-yosys-smoke` failures tied to #1245 (`let` destructuring, tuple
-  returns, ROM arrays, CORDIC) and not introduced by this wave.
-
-## Wave Loop 425 — FPGA board evidence / relay gate / PVT falsification (#1374)
-
-- Branch: `wave-loop-425`
-- Issue: #1374
-- Goal: execute Variant A (real P12 CCLK capture + cold-POR flash sweep), Variant
-  B (partial-bench import + PVT context dry-run), or Variant C (XADC/schema
-  hardening + safe gen-verilog sub-fix / deferral).
-- Cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md`.
+- `cargo test -p tri fpga::tests`: **PASS** (60 tests).
+- `cargo build --release` in `bootstrap/`: **PASS**.
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `tri fpga cclk-sweep --dry-run` (OSCFSEL 0–7): **PASS** (8 variants, first working = 0).
+- `tri fpga measured-to-lean --csv --raw-ns --validate`: **PASS** for both volts and
+  millivolts fixtures.
+- `tri fpga smoke-gate`: **PASS** (board-less).
 
 ---
 
-# NOW — Wave Loop 419 close-out / Wave Loop 420 setup (2026-07-05)
+# NOW — Wave Loop 423 close-out / Wave Loop 424 setup (2026-07-05)
 
-Last updated: 2026-07-05
+**Last updated:** 2026-07-05
 
-## SW-conformance — gf96 promoted to strict SW-bitexact (71/4/8) (Closes #1366)
+## Wave Loop 423 — instrument-import depth: CSV time units, VCD slope filter, PVT worst-case theorem (Closes #1368)
 
-- gf96 (GoldenFloat96: S1 E36 M59, BIAS=34359738367=2^35-1) promoted from
-  `bitexact_selfconsistent` to strict `bitexact` in
-  `conformance/vectors/INDEX_all_formats.json`.
-- INDEX totals: bitexact 70 -> 71, selfconsistent 5 -> 4, structural 8 (sum=83).
-- Status tag: [verified SW]. Unlike gf48, gf96 has M=59 > 52, so binary64 CANNOT
-  hold the mantissa exactly and there is NO FP lowering and NO rounding: every
-  finite gf96 value is an exact dyadic rational. The proof is therefore an
-  analytic zero-rounding separation-bound plus two structurally independent EXACT
-  decode paths (no RTL bit-model / iverilog needed, because there is nothing to
-  round). Witnesses pass in-sandbox:
-  (1) dyadic independent decoder 15/15 (abs_error=0);
-  (2) golden Fraction oracle 15/15 exact vs pack;
-  (3) two-path cross-check over 201512 representative codes (5-class + exponent
-      boundaries + full-mantissa edges + deep-underflow/overflow + 200k random
-      seed=96), both paths agree bit-exactly.
-- Witness chain + separation-bound lemma: `conformance/witness/gf96/README.md`
-  and `conformance/witness/gf96/SEPARATION_BOUND.md`. Memory note: the +-2^35
-  exponent means `2^(exp-BIAS)` is NEVER materialized as an integer (would OOM);
-  both paths keep the huge power symbolic (peak RSS ~14 MB).
-- NOT on-silicon Tier-E: HW-decode / HW-compute for gf96 remain [REQUIRES USER
-  ACTION] (4/4 chain on AX7203, trinity-fpga #199). encoding != compute != FPGA.
-- Remaining selfconsistent (4): gf128, gf256, gf512, gf1024.
-  gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
+- Branch: `wave-loop-423`
+- Issue: #1368
+- PR: to open after work
+- Report: `docs/reports/WAVE_LOOP_423_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W423_2026-07-05.md`
+- Cooperation W424: `docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-05.md`
+
+### What landed (Variant B/C — bench still blocked)
+- `cli/tri/src/fpga.rs`
+  - CSV time-column unit detection and normalization: `time_ms`, `time_us`,
+    `time_ns`, and sample-number columns (`Sample`, `index`, `point`) are now
+    converted to seconds before frequency/duty estimation. A leading metadata row
+    such as `samplerate,100000000` is no longer mistaken for the header.
+  - `--csv-samplerate <Hz>` supplies the sample rate when the CSV time column is
+    sample numbers.
+  - Real-valued VCD threshold crossing now uses the new sample timestamp rather
+    than linear interpolation, matching the VCD event semantics of digital
+    simulators.
+  - Real-valued VCD slope filter: `--vcd-slope-min-v <V>` rejects transitions
+    whose voltage step is too small, and `--vcd-slope-min-s <s>` rejects
+    transitions closer than the requested spacing. This lets `measured-to-lean`
+    ignore noise glitches on analog probe captures.
+  - Unknown `$timescale` units emit a warning and default to 1 ns instead of
+    aborting.
+  - `$dumpoff` / `$dumpon` lines without a preceding `#` timestamp now keep the
+    last known time, and any value change while dumping is suspended is ignored.
+  - `--pvt-worstcase` flag for `tri fpga measured-to-lean` generates a
+    worst-case PVT theorem (85 °C, 900 mV, ss corner) without requiring a
+    `--pvt-context` JSON file.
+  - Added regression tests covering all of the above (10 new tests in
+    `fpga::tests`).
+- `fpga/HARDWARE_SSOT.md`
+  - Added §3.6.20 documenting the W423 instrument-import hardening.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired.
+- Cold-POR SPI flash boot for OSCFSEL 6/7 — board physically reachable but the
+  relay/remote-power gate is not available; manual power-cycle remains required.
+- DLC10 cable still missing; Digilent HS2 + openFPGALoader is the working path.
+- Safe gen-verilog #1245 sub-fix deferred: the remaining 7 yosys smoke failures are
+  all tied to major features (let destructuring, tuple returns, ROM arrays,
+  CORDIC) that are not narrow regression-free fixes.
+
+### Verification
+- `cargo test -p tri fpga::tests`: **PASS** (60 tests).
+- `cargo test -p tri`: **PASS** (93 tests).
+- `cargo build --release` in `bootstrap/`: **PASS**.
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test` / `t27c suite --repo-root .`: **576 passed**, 0 seal
+  mismatches, 7 pre-existing gen-verilog yosys smoke failures, 0 FPGA smoke
+  failures.
+
+---
+
+# NOW — Wave Loop 422 close-out / Wave Loop 423 setup (2026-07-06)
+
+Last updated: 2026-07-06
+
+## Wave Loop 422 — Live XC7A200T SRAM boot + gen-verilog keyword escape + PVT worst-case bound (Closes #1365)
+
+- Branch: `wave-loop-422`
+- Issue: #1365
+- PR: to open after work
+- Report: `docs/reports/WAVE_LOOP_422_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W422_2026-07-06.md`
+- Cooperation W423: `docs/reports/FPGA_LOOP_COOPERATION_W423_2026-07-06.md`
+
+### What landed (Variant A-lite + Variant C fallback)
+- `bootstrap/src/compiler.rs`
+  - Added Verilog-2001 keyword escape (`\\name `) for colliding user identifiers.
+  - Applied escaping to function/task names, parameters, local/module vars/consts,
+    loop variables, identifiers, calls, enum values, and field-access bases.
+  - Added regression tests `test_verilog_keyword_parameter_escaped` and
+    `test_verilog_keyword_local_and_module_escaped`.
+  - The gen-verilog yosys smoke failure count dropped from **16 to 7**;
+    remaining failures are pre-existing weak point #1245 defects unrelated to
+    keyword collision.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `pvt_low_ns_monotone_combined` and `pvt_high_ns_monotone_combined`.
+  - Added `ProcessCorner.any_worse_than_ss` helper.
+  - Added `pvt_half_ns_worst_case_bound` — the half-period bound is maximized at
+    (max temp, min VCCINT, ss corner).
+- `cli/tri/src/fpga.rs`
+  - Added `test_pvt_half_ns_worst_case_bound`, mirroring the Lean lemma with a
+    numeric grid-search regression.
+- `fpga/HARDWARE_SSOT.md`
+  - Added §3.6.19 documenting the first live XC7A200T board response since W404:
+    SRAM load succeeded, STAT `0x401079FC`, XADC context captured.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired.
+- Cold-POR SPI flash boot for OSCFSEL 6/7 — deferred to W423.
+- DLC10 cable still missing; Digilent HS2 + openFPGALoader is the working path.
+
+### Verification
+- `cargo test -p tri fpga::tests`: **PASS** (52 tests).
+- `cargo test -p t27c --bin t27c`: **PASS** (1493 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test` / `t27c suite --repo-root .`: **576 passed**, 0 seal
+  mismatches, 7 pre-existing gen-verilog yosys smoke failures, 0 FPGA smoke
+  failures.
+
+---
+
+# NOW — Wave Loop 421 close-out / Wave Loop 422 setup (2026-07-06)
 
 ## SW-conformance — gf48 promoted to strict SW-bitexact (70/5/8) (Closes #1358)
 
@@ -93,9 +176,8 @@ Last updated: 2026-07-05
   local agent (no iverilog in sandbox) = stronger witness, not yet run.
 - NOT on-silicon Tier-E: HW-decode / HW-compute for gf48 remain [REQUIRES USER
   ACTION] (4/4 chain on AX7203, trinity-fpga #199). encoding != compute != FPGA.
-- Remaining selfconsistent (5 at the time of #1358): gf96, gf128, gf256, gf512,
-  gf1024. gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
-  (gf96 later promoted, see the gf96 section above -> 4 remaining.)
+- Remaining selfconsistent (5): gf96, gf128, gf256, gf512, gf1024.
+  gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
 
 ## Wave Loop 419 — Variant C fallback: VCD/CSV hardening, PVT monotonicity, standalone lake workflow (Closes #1357)
 
@@ -133,19 +215,74 @@ Last updated: 2026-07-05
 
 ---
 
-## Wave Loop 420 — physical capture, relay gate, or instrument-import depth (Issue #1361)
+## Wave Loop 420 — Variant C fallback: VCD exact-terminator + auto-threshold, PVT corner monotonicity (Closes #1361)
 
-- Branch: `wave-loop-420` (to create after W419 merge)
+- Branch: `wave-loop-420`
 - Issue: #1361
-- PR: to open after work
-- Report: `docs/reports/WAVE_LOOP_420_REPORT.md` (to create)
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-05.md` (to create)
-- Cooperation W421: `docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-05.md` (to create)
+- PR: #1362 (merge blocked by base-branch policy; requires review/approval)
+- Report: `docs/reports/WAVE_LOOP_420_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-06.md`
+- Cooperation W421: `docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-06.md`
 
-### Candidate variants
-- Variant A: capture real CCLK for `OSCFSEL=6/7` once P12 is wired and the analyzer / DLC10 cable is available.
-- Variant B: implement a real `--relay-port` backend once a relay board or USB power switch is available.
-- Variant C: further instrument-import depth (VCD auto-threshold, CSV samplerate auto-detection), PVT envelope refinement with real curves if available, or one safe gen-verilog #1245 sub-fix.
+### What landed (Variant C — bench still blocked)
+- `cli/tri/src/fpga.rs`
+  - Added `vcd_line_ends_with_token` helper and applied exact `$end` token terminator to VCD `$date`/`$version`/`$comment` sections (the W419 report claimed this, but the merged diff did not include it).
+  - Added real-valued VCD auto-threshold: computes `50% (vmin + vmax)` when `--vcd-threshold-v` is omitted.
+  - Added regression tests `test_parse_vcd_comment_with_embedded_end_token` and `test_parse_vcd_real_auto_threshold`.
+  - Added `test_pvt_half_ns_monotone_in_process_corner`.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `pvt_half_ns_monotone_in_process_corner`.
+- `fpga/HARDWARE_SSOT.md`
+  - Added §3.6.17 documenting W420 VCD/CSV/PVT improvements.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired, DLC10 cable missing.
+- Real relay cold-POR gate — no relay board / USB power switch available.
+
+### Verification
+- `cargo test -p tri vcd`: **PASS** (13 tests).
+- `cargo test -p tri csv`: **PASS** (11 tests).
+- `cargo test -p tri pvt`: **PASS** (10 tests).
+- `cargo test -p tri fpga::tests`: **PASS** (48 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test`: parse/typecheck/GF16/gen-Zig/gen-Rust/gen-Verilog/seal/C/fixed-point PASS; gen-Verilog yosys smoke has 16 pre-existing failures from weak point #1245.
+
+---
+
+## Wave Loop 421 — Variant C fallback: VCD `$timescale` exact terminator, combined PVT monotonicity, competitor snapshot (Closes #1363)
+
+- Branch: `wave-loop-421`
+- Issue: #1363
+- PR: to open after work
+- Report: `docs/reports/WAVE_LOOP_421_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W421_2026-07-06.md`
+- Cooperation W422: `docs/reports/FPGA_LOOP_COOPERATION_W422_2026-07-06.md`
+- Competitor note: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+
+### What landed (Variant C — bench still blocked)
+- `cli/tri/src/fpga.rs`
+  - Applied `vcd_line_ends_with_token` exact `$end` token terminator to VCD `$timescale` sections.
+  - Added regression test `test_parse_vcd_timescale_with_embedded_end_token` for multi-line `$timescale` blocks with embedded `$end` substrings.
+  - Added regression test `test_parse_vcd_real_auto_threshold_us_timescale` for real-valued nets with `$timescale 1 us $end`.
+  - Added `test_pvt_half_ns_monotone_combined` verifying the combined ordering (temp ↑, VCCINT ↓, corner worse).
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `pvt_half_ns_monotone_combined` lemma.
+- `fpga/HARDWARE_SSOT.md`
+  - Added §3.6.18 documenting W421 VCD/PVT improvements.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Published competitor comparison covering Sparkle/Verilean, Clash, Chisel/FIRRTL/CIRCT, Bluespec, Coq Kami/Silver Oak, ACL2, Knox/HARDENS.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — `openFPGALoader --detect` reports 0 devices; board not powered/connected.
+- Real relay cold-POR gate — no relay board / USB power switch available.
+- Safe gen-verilog #1245 sub-fix deferred; remaining tracked gaps (RAM style inference, tuple-return syntax) are not narrow regression-free sub-fixes.
+
+### Verification
+- `cargo test -p tri vcd`: **PASS** (15 tests).
+- `cargo test -p tri pvt`: **PASS** (11 tests).
+- `cargo test -p tri fpga::tests`: **PASS** (51 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test`: parse/typecheck/GF16/gen-Zig/gen-Rust/gen-Verilog/seal/C/fixed-point PASS; gen-Verilog yosys smoke has 16 pre-existing failures from weak point #1245, no new failures.
 
 ---
 

@@ -1464,7 +1464,67 @@
 - **Commit:** docs(w420): set W420 issue number to #1361 and record W419 PR #1360 (Closes #1357, Refs #1361)
 - **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W420_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W419_2026-07-05.md,docs/reports/WAVE_LOOP_419_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
-## 2026-07-05T07:14:41Z — wave-loop-425
-- **Commit:** chore(tri): update session log and commit count after W424 close-out
-- **Files:** .trinity/current-issue.md,docs/NOW.md
+## 2026-07-04T18:36:50Z — wave-loop-420
+- **Commit:** feat(igla): Wave Loop 419 — Variant C VCD/CSV hardening, PVT monotonicity, standalone lake workflow
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-04T18:37:55Z — wave-loop-420
+- **Commit:** setup(igla): initialize Wave Loop 420 current issue (#1361)
+- **Files:** .trinity/current-issue.md,.trinity/current_task/activity.md,docs/NOW.md
+
+## 2026-07-04T19:27:38Z — wave-loop-420
+- **Commit:** setup(igla): initialize Wave Loop 420 current issue and NOW.md update
+- **Files:** .claude/plans/wave-loop-420.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-06.md,docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-06.md,docs/reports/WAVE_LOOP_420_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-04T19:30:24Z — wave-loop-420
+- **Commit:** feat(igla): Wave Loop 420 — VCD exact-terminator + real-net auto-threshold, PVT process-corner monotonicity
+- **Files:** docs/NOW.md
+
+## 2026-07-04T19:34:37Z — wave-loop-421
+- **Commit:** docs(issue): set current issue to Wave Loop 421\n\nCloses #1363\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-04T19:44:52Z — wave-loop-421
+- **Commit:** docs(issue): set current issue to Wave Loop 421
+- **Files:** .claude/plans/wave-loop-421.md,.trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W422_2026-07-06.md,docs/reports/FPGA_LOOP_EVIDENCE_W421_2026-07-06.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_421_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-04T19:45:56Z — wave-loop-422
+- **Commit:** docs(issue): set current issue to Wave Loop 422\n\nCloses #1365\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-05T06:22:32Z — wave-loop-422
+- **Commit:** docs(issue): set current issue to Wave Loop 422\n\nCloses #1365\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json,.trinity/seals/agent_EternalMonitor.json,.trinity/seals/agent_FacultyBoard.json,.trinity/seals/agent_Handoff.json,".trinity/seals/agent_Str = \"\",.json",.trinity/seals/agent_String  # phi, trinity, gematria, evolution, safety.json
+
+## 2026-07-05T06:23:51Z — wave-loop-423
+- **Commit:** feat(igla): Wave Loop 422 — live XC7A200T SRAM boot, Verilog keyword escape, PVT worst-case bound
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-05T06:47:22Z — wave-loop-423
+- **Commit:** docs(issue): set current issue to Wave Loop 423
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W423_2026-07-05.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_423_REPORT.md,fpga/HARDWARE_SSOT.md
+
+## 2026-07-05T06:48:03Z — wave-loop-424
+- **Commit:** feat(igla): Wave Loop 423 — CSV time units, VCD slope filter, PVT worst-case, competitor refresh (Closes #1368)
+- **Files:** .trinity/current-issue.md,docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-05.md
+
+## 2026-07-05T07:13:01Z — wave-loop-424
+- **Commit:** setup(igla): Wave Loop 424 branch and issue (#1371)
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W424_2026-07-05.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_424_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T07:13:28Z — wave-loop-424
+- **Commit:** feat(igla): Wave Loop 424 — FPGA tooling hardening, PVT context, CSV voltage units, non-blocking continue, W425 setup
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-05T07:15:04Z — wave-loop-424
+- **Commit:** docs(tri): W425 issue + NOW setup (#1374, wave-loop-425)
+- **Files:** docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md
+
+## 2026-07-05T07:15:09Z — wave-loop-424
+- **Commit:** docs(tri): correct W425 issue reference to #1374
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md
+
+## 2026-07-05T07:22:12Z — wave-loop-425
+- **Commit:** docs(tri): correct W425 issue reference to #1374
+- **Files:** .claude/plans/wave-loop-420.md,.claude/plans/wave-loop-421.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json
 

@@ -205,9 +205,15 @@ pub enum FpgaCmd {
         #[arg(long, default_value_t = 3)]
         repeat: u32,
         /// Seconds to wait for the user to power-cycle before sampling STAT.
-        /// Ignored; the command waits for keyboard input by default.
+        /// With 0 the command waits for keyboard input; with a positive value it
+        /// auto-continues after the timeout (operator may press ENTER early).
         #[arg(long, default_value_t = 0)]
         wait_seconds: u32,
+        /// Optional PVT context JSON file to embed in the boot log. The context
+        /// is not validated against the captured CCLK; it records ambient
+        /// conditions for later comparison.
+        #[arg(long)]
+        pvt_context: Option<PathBuf>,
         /// JSON boot-log directory (default: <repo>/build/fpga).
         #[arg(long)]
         log_dir: Option<PathBuf>,
@@ -227,9 +233,13 @@ pub enum FpgaCmd {
         #[arg(long, default_value_t = 3)]
         repeat: u32,
         /// Seconds to wait for the relay/mock power-cycle before sampling STAT.
-        /// Ignored in MOCK mode.
+        /// In MOCK mode this simulates the operator delay and auto-continues
+        /// after the timeout (operator may press ENTER early).
         #[arg(long, default_value_t = 0)]
         wait_seconds: u32,
+        /// Optional PVT context JSON file to embed in the mock boot log.
+        #[arg(long)]
+        pvt_context: Option<PathBuf>,
         /// JSON boot-log directory (default: <repo>/build/fpga).
         #[arg(long)]
         log_dir: Option<PathBuf>,
@@ -356,6 +366,9 @@ pub enum FpgaCmd {
         /// known and you want to skip the interactive prompt.
         #[arg(long, default_value_t = 0)]
         wait_seconds: u32,
+        /// Optional PVT context JSON file to embed in each sweep log entry.
+        #[arg(long)]
+        pvt_context: Option<PathBuf>,
         /// Sweep only a single specified OSCFSEL value and exit. Useful for
         /// testing one variant at a time or for scripting around manual
         /// power-cycles.
@@ -537,9 +550,16 @@ pub enum FpgaCmd {
         margin: bool,
         /// Optional PVT context JSON file. When supplied, the generated theorem uses
         /// the PVT-aware predicate (`measured_cclk_*_with_pvt_satisfies_flash_spec`).
-        /// Mutually exclusive with `--margin` because both select a derated bound.
-        #[arg(long, conflicts_with = "margin")]
+        /// Mutually exclusive with `--margin` and `--pvt-worstcase` because all three
+        /// select a derated bound.
+        #[arg(long, conflicts_with = "margin", conflicts_with = "pvt_worstcase")]
         pvt_context: Option<PathBuf>,
+        /// Use the worst-case documented operating point for PVT validation and the
+        /// generated theorem: max temperature, min VCCINT, slow-slow process corner.
+        /// This is the corner proven by `pvt_half_ns_worst_case_bound` in Lean 4.
+        /// Mutually exclusive with `--margin` and `--pvt-context`.
+        #[arg(long, conflicts_with = "margin", conflicts_with = "pvt_context")]
+        pvt_worstcase: bool,
         /// Emit a self-contained `.lean` file with imports and namespace instead
         /// of a bare snippet.
         #[arg(long)]
@@ -564,6 +584,16 @@ pub enum FpgaCmd {
         /// column heuristic.
         #[arg(long)]
         csv_channel: Option<String>,
+        /// Sample rate (Hz) for CSV exports whose time column is sample-number
+        /// only (0, 1, 2, ...) rather than seconds. Required when the parser
+        /// detects a sample-number time column and no other unit is found.
+        #[arg(long)]
+        csv_samplerate: Option<u32>,
+        /// Unit of the voltage column in an analog CSV export. Some instruments
+        /// report millivolts (e.g. 0..3300) instead of volts (0..3.3). Use `mv`
+        /// to scale the column by 1e-3 before threshold detection. Default: `v`.
+        #[arg(long, value_name = "v|mv")]
+        csv_voltage_unit: Option<String>,
         /// Parse a VCD file and convert the first (or `--vcd-signal`) scalar or
         /// multi-bit logic net transitions to a raw-ns theorem. Mutually exclusive
         /// with `--file` and `--csv`.
@@ -581,6 +611,15 @@ pub enum FpgaCmd {
         /// Without this, analog nets are rejected.
         #[arg(long)]
         vcd_threshold_v: Option<f64>,
+        /// Minimum voltage change (volts) between two consecutive real-valued VCD
+        /// samples for the crossing to count as a real transition. Filters noise
+        /// near the threshold.
+        #[arg(long)]
+        vcd_slope_min_v: Option<f64>,
+        /// Minimum time difference (seconds) between two accepted transitions.
+        /// Filters ringing / bounce near the threshold.
+        #[arg(long)]
+        vcd_slope_min_s: Option<f64>,
     },
     /// Print the PVT-derated N25Q128_3V SCK low/high bound for a supplied
     /// operating context. Also prints the margin over the nominal 6 ns bound
@@ -682,8 +721,19 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             freq,
             repeat,
             wait_seconds,
+            pvt_context,
             log_dir,
-        } => boot_log(bit, cable, part, bridge.as_ref(), *freq, *repeat, *wait_seconds, log_dir.as_ref()),
+        } => boot_log(
+            bit,
+            cable,
+            part,
+            bridge.as_ref(),
+            *freq,
+            *repeat,
+            *wait_seconds,
+            pvt_context.as_ref(),
+            log_dir.as_ref(),
+        ),
         FpgaCmd::SmokeGate {
             bit,
             top,
@@ -719,6 +769,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             freq,
             repeat,
             wait_seconds,
+            pvt_context,
             single,
         } => {
             let results = cclk_sweep(
@@ -734,6 +785,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
                 *freq,
                 *repeat,
                 *wait_seconds,
+                pvt_context.as_ref(),
                 *single,
             )?;
             if !results.iter().any(|r| r.done) {
@@ -812,27 +864,37 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             name,
             margin,
             pvt_context,
+            pvt_worstcase,
             standalone,
             raw_ns,
             validate,
             csv,
             csv_channel,
+            csv_samplerate,
+            csv_voltage_unit,
             vcd,
             vcd_signal,
             vcd_bit,
             vcd_threshold_v,
+            vcd_slope_min_v,
+            vcd_slope_min_s,
         } => measured_to_lean(
             file.as_ref(),
             csv.as_ref(),
             csv_channel.as_deref(),
+            *csv_samplerate,
+            csv_voltage_unit.as_deref(),
             vcd.as_ref(),
             vcd_signal.as_deref(),
             *vcd_bit,
             vcd_threshold_v.as_ref(),
+            vcd_slope_min_v.as_ref(),
+            vcd_slope_min_s.as_ref(),
             out.as_ref(),
             name,
             *margin,
             pvt_context.as_ref(),
+            *pvt_worstcase,
             *standalone,
             *raw_ns,
             *validate,
@@ -843,8 +905,16 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             relay_port,
             repeat,
             wait_seconds,
+            pvt_context,
             log_dir,
-        } => cold_por(bit, relay_port, *repeat, *wait_seconds, log_dir.as_ref()),
+        } => cold_por(
+            bit,
+            relay_port,
+            *repeat,
+            *wait_seconds,
+            pvt_context.as_ref(),
+            log_dir.as_ref(),
+        ),
     }
 }
 
@@ -1975,11 +2045,13 @@ fn cclk_sweep(
     freq: u32,
     repeat: u32,
     wait_seconds: u32,
+    pvt_context: Option<&PathBuf>,
     single: Option<u8>,
 ) -> Result<Vec<SweepResult>> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
+    let pvt_ctx = load_optional_pvt_context(pvt_context)?;
 
     let values: Vec<u8> = if let Some(v) = single {
         if v > 0x3F {
@@ -1987,7 +2059,7 @@ fn cclk_sweep(
         }
         vec![v]
     } else if values.is_empty() {
-        vec![0, 1, 2, 3, 4, 5]
+        vec![0, 1, 2, 3, 4, 5, 6, 7]
     } else {
         values.clone()
     };
@@ -2072,6 +2144,7 @@ fn cclk_sweep(
                     },
                 })
                 .collect();
+            let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
             let log = SweepLog {
                 timestamp: start_time.to_rfc3339(),
                 bitstream: variant_path.to_string_lossy().to_string(),
@@ -2082,6 +2155,8 @@ fn cclk_sweep(
                 repeat: repeat.max(1),
                 conclusion: conclusion.to_string(),
                 samples,
+                pvt_context: pvt_json,
+                xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
             };
             write_sweep_log(&log, &sweep_log_dir)?;
             results.push(SweepResult {
@@ -2112,6 +2187,7 @@ fn cclk_sweep(
             Some("1"),
         ) {
             eprintln!("[cclk-sweep] program-flash failed: {e}");
+            let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
             let log = SweepLog {
                 timestamp: start_time.to_rfc3339(),
                 bitstream: variant_path.to_string_lossy().to_string(),
@@ -2122,6 +2198,8 @@ fn cclk_sweep(
                 repeat: repeat.max(1),
                 conclusion: "PROGRAM_FLASH_FAILED".to_string(),
                 samples: Vec::new(),
+                pvt_context: pvt_json,
+                xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
             };
             write_sweep_log(&log, &sweep_log_dir)?;
             results.push(SweepResult {
@@ -2159,27 +2237,7 @@ fn cclk_sweep(
         }
         eprintln!();
 
-        if wait_seconds > 0 {
-            let start = std::time::Instant::now();
-            let timeout = std::time::Duration::from_secs(wait_seconds as u64);
-            let mut input = String::new();
-            // Best-effort early-exit: try to read a line with a short poll loop.
-            loop {
-                if std::io::stdin().read_line(&mut input).is_ok() && !input.trim().is_empty() {
-                    break;
-                }
-                if start.elapsed() >= timeout {
-                    eprintln!("[cclk-sweep] auto-continuing after {} s", wait_seconds);
-                    break;
-                }
-                std::thread::sleep(std::time::Duration::from_millis(100));
-            }
-        } else {
-            let mut input = String::new();
-            std::io::stdin()
-                .read_line(&mut input)
-                .context("waiting for user confirmation after power-cycle")?;
-        }
+        wait_for_continue(wait_seconds, "cclk-sweep")?;
 
         match capture_stat(cable, true, repeat) {
             Ok(samples) => {
@@ -2191,6 +2249,7 @@ fn cclk_sweep(
                 } else {
                     "H2_CCLK_TIMING: mode OK but DONE=LOW; try CCLK variants".to_string()
                 };
+                let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
                 let log = SweepLog {
                     timestamp: start_time.to_rfc3339(),
                     bitstream: variant_path.to_string_lossy().to_string(),
@@ -2215,6 +2274,8 @@ fn cclk_sweep(
                             diagnosis: b.diagnose(),
                         })
                         .collect(),
+                    pvt_context: pvt_json,
+                    xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
                 };
                 write_sweep_log(&log, &sweep_log_dir)?;
                 results.push(SweepResult {
@@ -2229,6 +2290,7 @@ fn cclk_sweep(
             }
             Err(e) => {
                 eprintln!("[cclk-sweep] STAT capture failed: {e}");
+                let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
                 let log = SweepLog {
                     timestamp: start_time.to_rfc3339(),
                     bitstream: variant_path.to_string_lossy().to_string(),
@@ -2239,6 +2301,8 @@ fn cclk_sweep(
                     repeat: repeat.max(1),
                     conclusion: "STAT_CAPTURE_FAILED".to_string(),
                     samples: Vec::new(),
+                    pvt_context: pvt_json,
+                    xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
                 };
                 write_sweep_log(&log, &sweep_log_dir)?;
                 results.push(SweepResult {
@@ -2379,6 +2443,9 @@ struct SweepLog {
     repeat: u32,
     conclusion: String,
     samples: Vec<SweepSample>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pvt_context: Option<serde_json::Value>,
+    xadc: serde_json::Value,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -2404,6 +2471,65 @@ struct SweepResult {
     crc_error: bool,
     id_error: bool,
     conclusion: String,
+}
+
+/// Wait for the operator to continue. With `wait_seconds == 0` the call blocks
+/// until ENTER is pressed. With `wait_seconds > 0` it auto-continues after the
+/// timeout, while a background stdin reader lets the operator press ENTER to
+/// continue early. This is used by `boot-log`, `cold-por`, and `cclk-sweep`.
+fn wait_for_continue(wait_seconds: u32, label: &str) -> Result<()> {
+    if wait_seconds == 0 {
+        eprintln!("  Press ENTER here when the board and cable are stable.");
+        let mut input = String::new();
+        std::io::stdin()
+            .read_line(&mut input)
+            .context(format!("{} waiting for operator confirmation", label))?;
+        return Ok(());
+    }
+
+    eprintln!(
+        "  Auto-continuing after {} seconds (press ENTER to continue early).",
+        wait_seconds
+    );
+    let timeout = std::time::Duration::from_secs(wait_seconds as u64);
+    let start = std::time::Instant::now();
+    let (tx, rx) = std::sync::mpsc::channel::<()>();
+    std::thread::Builder::new()
+        .name(format!("{}-stdin-wait", label))
+        .spawn(move || {
+            let mut input = String::new();
+            if std::io::stdin().read_line(&mut input).is_ok() {
+                let _ = tx.send(());
+            }
+        })
+        .context(format!("{} spawn stdin watcher", label))?;
+
+    loop {
+        if rx.try_recv().is_ok() {
+            return Ok(());
+        }
+        if start.elapsed() >= timeout {
+            eprintln!("[{}] auto-continuing after {} s", label, wait_seconds);
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+
+/// XADC context placeholder. Real XADC readout is not yet implemented; the
+/// helper still records whether the values were read from the board or taken
+/// from a supplied PVT context file, and the temperature / rail voltages when
+/// available.
+fn xadc_context_json(source: &str, ctx: Option<&PvtContext>) -> serde_json::Value {
+    let temp_c = ctx.map(|c| c.temp_c);
+    let vccint_mv = ctx.map(|c| c.vccint_mv);
+    let vccaux_mv = ctx.map(|c| c.vccaux_mv);
+    serde_json::json!({
+        "source": source,
+        "temp_c": temp_c,
+        "vccint_mv": vccint_mv,
+        "vccaux_mv": vccaux_mv,
+    })
 }
 
 fn write_sweep_log(log: &SweepLog, log_dir: &PathBuf) -> Result<()> {
@@ -2610,7 +2736,7 @@ fn measure_cclk(
             let samplerate = detect_logic_csv_samplerate(path)?.unwrap_or(samplerate);
             parse_logic_csv(path, samplerate)?
         } else {
-            parse_cclk_csv(path, None)?
+            parse_cclk_csv(path, None, None, None)?
         };
         (f, d, format!("csv {}", path.display()))
     } else {
@@ -2900,6 +3026,14 @@ fn raw_ns_satisfies_flash_spec_pvt(period_ns: u64, low_ns: u64, high_ns: u64, ct
         && high_ns >= min_half_ns
 }
 
+/// Helper to parse an optional PVT context JSON file.
+fn load_optional_pvt_context(path: Option<&PathBuf>) -> Result<Option<PvtContext>> {
+    match path {
+        Some(p) => Ok(Some(parse_pvt_context(p)?)),
+        None => Ok(None),
+    }
+}
+
 /// Helper to parse a PVT context JSON file.
 fn parse_pvt_context(path: &std::path::Path) -> Result<PvtContext> {
     let text = std::fs::read_to_string(path)
@@ -2941,24 +3075,38 @@ fn measured_to_lean(
     file: Option<&PathBuf>,
     csv: Option<&PathBuf>,
     csv_channel: Option<&str>,
+    csv_samplerate: Option<u32>,
+    csv_voltage_unit: Option<&str>,
     vcd: Option<&PathBuf>,
     vcd_signal: Option<&str>,
     vcd_bit: usize,
     vcd_threshold_v: Option<&f64>,
+    vcd_slope_min_v: Option<&f64>,
+    vcd_slope_min_s: Option<&f64>,
     out: Option<&PathBuf>,
     name: &str,
     margin: bool,
     pvt_context: Option<&PathBuf>,
+    pvt_worstcase: bool,
     standalone: bool,
     raw_ns: bool,
     validate: bool,
 ) -> Result<()> {
-    let pvt_ctx: Option<PvtContext> = match pvt_context {
+    let mut pvt_ctx: Option<PvtContext> = match pvt_context {
         Some(path) => Some(parse_pvt_context(path)?),
         None => None,
     };
+    if pvt_worstcase {
+        pvt_ctx = Some(PvtContext {
+            temp_c: PVT_TEMP_MAX_C,
+            vccint_mv: PVT_VCCINT_MIN_MV,
+            vccaux_mv: 2700,
+            process_corner: ProcessCorner::Ss,
+        });
+    }
+    let csv_volt_unit = csv_voltage_unit.map(parse_csv_voltage_unit).transpose()?;
     let text = if let Some(path) = csv {
-        let (period_ns, low_ns, high_ns) = parse_csv_to_raw_ns(path, csv_channel)?;
+        let (period_ns, low_ns, high_ns) = parse_csv_to_raw_ns(path, csv_channel, csv_samplerate, csv_volt_unit)?;
         if validate {
             if let Some(ref ctx) = pvt_ctx {
                 if !raw_ns_satisfies_flash_spec_pvt(period_ns, low_ns, high_ns, ctx) {
@@ -2989,7 +3137,14 @@ fn measured_to_lean(
             source,
         })?
     } else if let Some(path) = vcd {
-        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(path, vcd_signal, vcd_bit, vcd_threshold_v)?;
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
+            path,
+            vcd_signal,
+            vcd_bit,
+            vcd_threshold_v,
+            vcd_slope_min_v,
+            vcd_slope_min_s,
+        )?;
         if validate {
             if let Some(ref ctx) = pvt_ctx {
                 if !raw_ns_satisfies_flash_spec_pvt(period_ns, low_ns, high_ns, ctx) {
@@ -3434,22 +3589,133 @@ fn parse_logic_csv(path: &PathBuf, samplerate: u32) -> Result<(f64, f64)> {
 /// Supported formats (auto-detected):
 /// - DSView analog: two columns `Time,Voltage`.
 /// - PulseView / Saleae: header row with time and voltage columns.
+/// - Fractional-second, millisecond, microsecond, nanosecond, and sample-number
+///   time columns are normalized to seconds using the header name or the data
+///   shape. For sample-number exports, `samplerate_hz` must be supplied.
 ///
 /// The first numeric column is treated as time (seconds) and the next numeric
 /// column as the signal voltage (volts). Rows with non-numeric fields are
 /// skipped.
-fn parse_cclk_csv(path: &PathBuf, channel: Option<&str>) -> Result<(f64, f64)> {
+fn parse_cclk_csv(
+    path: &PathBuf,
+    channel: Option<&str>,
+    samplerate_hz: Option<u32>,
+    voltage_unit: Option<CsvVoltageUnit>,
+) -> Result<(f64, f64)> {
     let file = std::fs::File::open(path)
         .with_context(|| format!("open {}", path.display()))?;
     let reader = std::io::BufReader::new(file);
-    parse_cclk_csv_reader(reader, channel)
+    parse_cclk_csv_reader(reader, channel, samplerate_hz, voltage_unit)
 }
 
-fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R, channel: Option<&str>) -> Result<(f64, f64)> {
-    let mut times: Vec<f64> = Vec::new();
+/// Time-column unit detected from a logic-analyzer CSV header or data shape.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum CsvTimeUnit {
+    Seconds,
+    Milliseconds,
+    Microseconds,
+    Nanoseconds,
+    SampleNumber,
+}
+
+impl CsvTimeUnit {
+    /// Multiplier to convert the raw time value to seconds.
+    fn to_seconds_multiplier(self) -> f64 {
+        match self {
+            CsvTimeUnit::Seconds => 1.0,
+            CsvTimeUnit::Milliseconds => 1.0e-3,
+            CsvTimeUnit::Microseconds => 1.0e-6,
+            CsvTimeUnit::Nanoseconds => 1.0e-9,
+            CsvTimeUnit::SampleNumber => 1.0,
+        }
+    }
+}
+
+/// Voltage-column unit for analog CSV exports. Some instruments (e.g. scope
+/// CSVs) report millivolts instead of volts; the multiplier normalises to
+/// volts before threshold detection.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum CsvVoltageUnit {
+    V,
+    Mv,
+}
+
+impl CsvVoltageUnit {
+    /// Multiplier to convert the raw voltage value to volts.
+    fn to_volts_multiplier(self) -> f64 {
+        match self {
+            CsvVoltageUnit::V => 1.0,
+            CsvVoltageUnit::Mv => 1.0e-3,
+        }
+    }
+}
+
+fn parse_csv_voltage_unit(s: &str) -> Result<CsvVoltageUnit> {
+    match s.to_lowercase().as_str() {
+        "v" | "volts" | "volt" => Ok(CsvVoltageUnit::V),
+        "mv" | "millivolts" | "millivolt" => Ok(CsvVoltageUnit::Mv),
+        _ => bail!("unsupported --csv-voltage-unit '{}'; expected 'v' or 'mv'", s),
+    }
+}
+
+/// Detect the time-column unit from a header name. Returns `None` when the
+/// header is ambiguous (e.g. a bare "time" or "t"), letting the caller fall
+/// back to data-shape detection.
+fn detect_csv_time_unit_from_header(name: &str) -> Option<CsvTimeUnit> {
+    let lower = name.to_lowercase();
+    if lower.contains("sample") || lower.contains("index") || lower.contains("point") {
+        return Some(CsvTimeUnit::SampleNumber);
+    }
+    if lower.contains("ms") || lower.contains("millisecond") {
+        return Some(CsvTimeUnit::Milliseconds);
+    }
+    if lower.contains("us") || lower.contains("microsecond") || lower.contains("µs") {
+        return Some(CsvTimeUnit::Microseconds);
+    }
+    if lower.contains("ns") || lower.contains("nanosecond") {
+        return Some(CsvTimeUnit::Nanoseconds);
+    }
+    if lower.contains("sec") || lower.contains("second") || lower == "s" {
+        return Some(CsvTimeUnit::Seconds);
+    }
+    None
+}
+
+/// True if the first few time values look like consecutive sample numbers
+/// starting from 0 (0, 1, 2, ...). This is used as a fallback when the header
+/// does not name the unit.
+fn csv_times_look_like_sample_numbers(times: &[Option<f64>]) -> bool {
+    let first: Vec<f64> = times
+        .iter()
+        .copied()
+        .flatten()
+        .take(4)
+        .filter(|v| v.is_finite())
+        .collect();
+    if first.len() < 4 {
+        return false;
+    }
+    for window in first.windows(2) {
+        let expected = window[0] + 1.0;
+        if (window[1] - expected).abs() > 1.0e-6 {
+            return false;
+        }
+    }
+    first[0].abs() <= 1.0e-6
+}
+
+fn parse_cclk_csv_reader<R: std::io::BufRead>(
+    reader: R,
+    channel: Option<&str>,
+    samplerate_hz: Option<u32>,
+    voltage_unit: Option<CsvVoltageUnit>,
+) -> Result<(f64, f64)> {
+    let volts_per_unit = voltage_unit.unwrap_or(CsvVoltageUnit::V).to_volts_multiplier();
+    let mut raw_times: Vec<f64> = Vec::new();
     let mut values: Vec<f64> = Vec::new();
     let mut header_seen = false;
     let mut header_named_columns = false;
+    let mut header_time_unit: Option<CsvTimeUnit> = None;
     let mut time_idx = 0usize;
     let mut value_idx = 1usize;
 
@@ -3464,7 +3730,9 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R, channel: Option<&str>) 
             continue;
         }
 
-        // Detect header row: it contains at least one non-numeric token.
+        // Detect header row: it contains at least one non-numeric token and a
+        // time-like column. A leading metadata row such as "samplerate,100000000"
+        // must not be accepted as the header because it has no "time" column.
         let has_header_token = parts.iter().any(|p| {
             let lower = p.to_lowercase();
             lower.contains("time")
@@ -3477,7 +3745,12 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R, channel: Option<&str>) 
                 || lower.contains("vccint")
                 || lower.contains("vccaux")
         });
-        if has_header_token && !header_seen {
+        let has_time_token = parts.iter().any(|p| {
+            let lower = p.to_lowercase();
+            (lower.contains("time") || lower.contains("timestamp") || lower == "t")
+                && !lower.contains("samplerate")
+        });
+        if has_header_token && has_time_token && !header_seen {
             header_seen = true;
             let header_names: Vec<String> = parts.iter().map(|s| s.to_lowercase()).collect();
             // Prefer the voltage/analog column as the signal value if the header
@@ -3520,6 +3793,10 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R, channel: Option<&str>) 
                     break;
                 }
             }
+            // Detect time unit from the time-column header if possible.
+            if let Some(name) = header_names.get(time_idx) {
+                header_time_unit = detect_csv_time_unit_from_header(name);
+            }
             continue;
         }
 
@@ -3531,7 +3808,7 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R, channel: Option<&str>) 
 
         // If this is the first data row and we have at least two numeric columns,
         // lock the time/value indices only when the header did not name them.
-        if !header_seen || (!header_named_columns && times.is_empty() && parsed.iter().filter(|x| x.is_some()).count() >= 2) {
+        if !header_seen || (!header_named_columns && raw_times.is_empty() && parsed.iter().filter(|x| x.is_some()).count() >= 2) {
             let numeric_positions: Vec<usize> = parsed
                 .iter()
                 .enumerate()
@@ -3545,9 +3822,51 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(reader: R, channel: Option<&str>) 
         }
 
         if let (Some(t), Some(v)) = (parsed.get(time_idx).copied().flatten(), parsed.get(value_idx).copied().flatten()) {
-            times.push(t);
-            values.push(v);
+            raw_times.push(t);
+            values.push(v * volts_per_unit);
         }
+    }
+
+    // Normalize the time column to seconds. If the header named the unit, use it;
+    // otherwise infer from the data shape (sample numbers vs. seconds).
+    let time_unit = header_time_unit.unwrap_or_else(|| {
+        if csv_times_look_like_sample_numbers(
+            &raw_times.iter().map(|t| Some(*t)).collect::<Vec<_>>(),
+        ) {
+            CsvTimeUnit::SampleNumber
+        } else {
+            CsvTimeUnit::Seconds
+        }
+    });
+    let seconds_per_unit = match time_unit {
+        CsvTimeUnit::SampleNumber => {
+            let sr = samplerate_hz.ok_or_else(|| {
+                anyhow!(
+                    "CSV time column looks like sample numbers but no --csv-samplerate was supplied"
+                )
+            })?;
+            if sr == 0 {
+                bail!("--csv-samplerate must be > 0");
+            }
+            1.0 / sr as f64
+        }
+        _ => time_unit.to_seconds_multiplier(),
+    };
+    let times: Vec<f64> = raw_times.iter().map(|t| t * seconds_per_unit).collect();
+
+    if time_unit == CsvTimeUnit::SampleNumber {
+        eprintln!(
+            "[measured-to-lean] CSV time column treated as sample numbers at {} Hz",
+            samplerate_hz.unwrap()
+        );
+    } else {
+        eprintln!(
+            "[measured-to-lean] CSV time-column unit detected as {:?}; converted to seconds",
+            time_unit
+        );
+    }
+    if voltage_unit == Some(CsvVoltageUnit::Mv) {
+        eprintln!("[measured-to-lean] CSV voltage column scaled from mV to V");
     }
 
     if times.len() < 2 {
@@ -3616,7 +3935,12 @@ fn freq_duty_to_raw_ns(freq_hz: f64, duty_pct: f64) -> (u64, u64, u64) {
 /// Parse a logic-analyzer CSV export and return a raw-ns (period, low, high)
 /// triple suitable for `tri fpga measured-to-lean --raw-ns`. Logic CSVs use
 /// `parse_logic_csv`; analog CSVs use `parse_cclk_csv_reader`.
-fn parse_csv_to_raw_ns(path: &PathBuf, channel: Option<&str>) -> Result<(u64, u64, u64)> {
+fn parse_csv_to_raw_ns(
+    path: &PathBuf,
+    channel: Option<&str>,
+    samplerate: Option<u32>,
+    voltage_unit: Option<CsvVoltageUnit>,
+) -> Result<(u64, u64, u64)> {
     if !path.is_file() {
         bail!("CSV not found: {}", path.display());
     }
@@ -3634,7 +3958,7 @@ fn parse_csv_to_raw_ns(path: &PathBuf, channel: Option<&str>) -> Result<(u64, u6
         let file = std::fs::File::open(path)
             .with_context(|| format!("open {}", path.display()))?;
         let reader = std::io::BufReader::new(file);
-        let (freq_hz, duty_pct) = parse_cclk_csv_reader(reader, channel)?;
+        let (freq_hz, duty_pct) = parse_cclk_csv_reader(reader, channel, samplerate, voltage_unit)?;
         let (period_ns, low_ns, high_ns) = freq_duty_to_raw_ns(freq_hz, duty_pct);
         println!(
             "[measured-to-lean] analog CSV {} -> {} ns period, {} ns low, {} ns high",
@@ -3644,15 +3968,31 @@ fn parse_csv_to_raw_ns(path: &PathBuf, channel: Option<&str>) -> Result<(u64, u6
     }
 }
 
+/// Check whether a trimmed VCD line ends with the exact token `token`
+/// (case-insensitive). Only the last whitespace-delimited token is compared;
+/// substring matches inside a larger token do not count. This prevents a
+/// `$comment` block that contains the literal text `$end` from being terminated
+/// early by the heuristic `ends_with("$end")`.
+fn vcd_line_ends_with_token(line: &str, token: &str) -> bool {
+    line.split_whitespace()
+        .last()
+        .map(|t| t.eq_ignore_ascii_case(token))
+        .unwrap_or(false)
+}
+
 /// Parse a minimal VCD file and return a raw-ns (period, low, high) triple for
 /// the requested (or first) net. Supports scalar `$var` wires/regs, multi-bit
 /// logic buses (selecting `vcd_bit`), and real-valued nets (with an optional
-/// voltage threshold). Handles `$dumpoff` / `$dumpon` by suspending sampling.
+/// voltage threshold, or auto-threshold when omitted). Handles `$dumpoff` /
+/// `$dumpon` by suspending sampling. For real-valued nets, a slope filter can
+/// reject transitions whose voltage step or inter-transition time is too small.
 fn parse_vcd_to_raw_ns(
     path: &PathBuf,
     signal: Option<&str>,
     vcd_bit: usize,
     vcd_threshold_v: Option<&f64>,
+    vcd_slope_min_v: Option<&f64>,
+    vcd_slope_min_s: Option<&f64>,
 ) -> Result<(u64, u64, u64)> {
     if !path.is_file() {
         bail!("VCD not found: {}", path.display());
@@ -3675,6 +4015,7 @@ fn parse_vcd_to_raw_ns(
     let mut selected_id: Option<String> = None;
     let mut selected_is_real: bool = false;
     let mut transitions: Vec<(f64, bool)> = Vec::new();
+    let mut real_samples: Vec<(f64, f64)> = Vec::new();
     let mut last_high: Option<bool> = None;
 
     for line in text.lines() {
@@ -3685,63 +4026,57 @@ fn parse_vcd_to_raw_ns(
         let tokens: Vec<&str> = trimmed.split_whitespace().collect();
 
         // Header sections that must be skipped entirely so their contents are
-        // never mistaken for `$var` declarations or value changes.
+        // never mistaken for `$var` declarations or value changes. Terminators are
+        // matched by exact token only, so embedded `$end`-like strings inside
+        // comments do not close the section early.
         if trimmed.to_lowercase().starts_with("$date") {
             in_date = true;
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.to_lowercase().contains(" $end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_date = false;
             }
             continue;
         }
         if in_date {
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_date = false;
             }
             continue;
         }
         if trimmed.to_lowercase().starts_with("$version") {
             in_version = true;
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.to_lowercase().contains(" $end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_version = false;
             }
             continue;
         }
         if in_version {
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_version = false;
             }
             continue;
         }
         if trimmed.to_lowercase().starts_with("$comment") {
             in_comment = true;
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.to_lowercase().contains(" $end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_comment = false;
             }
             continue;
         }
         if in_comment {
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_comment = false;
             }
             continue;
         }
 
         // Timescale parsing: `$timescale 1 ns $end` (possibly across lines).
+        // The terminator is matched by exact token so embedded `$end`-like
+        // strings in comments do not close the section early.
         if trimmed.to_lowercase().starts_with("$timescale") {
             in_timescale = true;
             ts_tokens.clear();
             ts_tokens.extend(tokens.iter().skip(1).map(|s| s.to_string()));
-            if trimmed.to_lowercase().contains(" $end") || trimmed.to_lowercase().ends_with(" $end") {
-                // Single-line timescale; close below.
-            } else if !trimmed.to_lowercase().ends_with("$end") {
-                continue;
-            }
-        }
-        if in_timescale {
-            if !trimmed.to_lowercase().starts_with("$timescale") {
-                ts_tokens.extend(tokens.iter().map(|s| s.to_string()));
-            }
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_timescale = false;
                 if let Some(num_str) = ts_tokens.first() {
                     if let Ok(num) = num_str.parse::<f64>() {
@@ -3752,13 +4087,44 @@ fn parse_vcd_to_raw_ns(
                             Some("ns") => 1.0e-9,
                             Some("ps") => 1.0e-12,
                             Some("fs") => 1.0e-15,
-                            _ => 1.0e-9,
+                            other => {
+                                eprintln!(
+                                    "[measured-to-lean] VCD unknown $timescale unit {:?}; defaulting to 1 ns",
+                                    other
+                                );
+                                1.0e-9
+                            }
                         };
                         timescale_s = num * unit_mult;
                     }
                 }
-            } else {
-                ts_tokens.extend(tokens.iter().map(|s| s.to_string()));
+            }
+            continue;
+        }
+        if in_timescale {
+            ts_tokens.extend(tokens.iter().map(|s| s.to_string()));
+            if vcd_line_ends_with_token(trimmed, "$end") {
+                in_timescale = false;
+                if let Some(num_str) = ts_tokens.first() {
+                    if let Ok(num) = num_str.parse::<f64>() {
+                        let unit_mult = match ts_tokens.get(1).map(|s| s.to_lowercase()).as_deref() {
+                            Some("s") => 1.0,
+                            Some("ms") => 1.0e-3,
+                            Some("us") => 1.0e-6,
+                            Some("ns") => 1.0e-9,
+                            Some("ps") => 1.0e-12,
+                            Some("fs") => 1.0e-15,
+                            other => {
+                                eprintln!(
+                                    "[measured-to-lean] VCD unknown $timescale unit {:?}; defaulting to 1 ns",
+                                    other
+                                );
+                                1.0e-9
+                            }
+                        };
+                        timescale_s = num * unit_mult;
+                    }
+                }
             }
             continue;
         }
@@ -3916,21 +4282,70 @@ fn parse_vcd_to_raw_ns(
 
             // Real value change: `r<value> <id>`.
             if tokens.len() == 2 && tokens[0].starts_with('r') && selected_is_real {
-                let threshold = vcd_threshold_v.copied()
-                    .ok_or_else(|| anyhow!("VCD signal '{}' is real-valued; supply --vcd-threshold-v", signal.unwrap_or(sel)))?;
                 let value_str = &tokens[0][1..];
                 let id = tokens[1];
                 if id == *sel {
                     if let Ok(v) = value_str.parse::<f64>() {
-                        let high = v > threshold;
-                        if last_high != Some(high) {
-                            transitions.push((current_time_s, high));
-                            last_high = Some(high);
-                        }
+                        // Collect all real samples; thresholding and slope filtering
+                        // are applied uniformly after the full waveform is known.
+                        real_samples.push((current_time_s, v));
                     }
                 }
                 continue;
             }
+        }
+    }
+
+    // Thresholding and slope filtering for real-valued VCD nets. If no explicit
+    // threshold was supplied, compute the midpoint of the observed voltage swing.
+    // Then walk consecutive sample pairs, keep only threshold crossings whose
+    // voltage step is at least `vcd_slope_min_v` and whose spacing from the last
+    // accepted transition is at least `vcd_slope_min_s`.
+    if selected_is_real && !real_samples.is_empty() {
+        let threshold = vcd_threshold_v.copied().unwrap_or_else(|| {
+            let vmin = real_samples.iter().map(|(_, v)| *v).fold(f64::INFINITY, f64::min);
+            let vmax = real_samples.iter().map(|(_, v)| *v).fold(f64::NEG_INFINITY, f64::max);
+            let t = (vmin + vmax) / 2.0;
+            eprintln!(
+                "[measured-to-lean] VCD real-valued signal auto-threshold: {:.3} V (swing {:.3} V .. {:.3} V)",
+                t, vmin, vmax
+            );
+            t
+        });
+        let slope_min_v = vcd_slope_min_v.copied().unwrap_or(0.0);
+        let slope_min_s = vcd_slope_min_s.copied().unwrap_or(0.0);
+        let mut last_accepted_t: Option<f64> = None;
+        for window in real_samples.windows(2) {
+            let (t0, v0) = window[0];
+            let (t1, v1) = window[1];
+            let high0 = v0 > threshold;
+            let high1 = v1 > threshold;
+            if high0 == high1 {
+                continue;
+            }
+            let dv = (v1 - v0).abs();
+            if dv < slope_min_v {
+                continue;
+            }
+            // Real-valued VCD samples are events at exact timestamps, so the
+            // threshold crossing is associated with the second sample time. Use
+            // `t1` directly rather than linear interpolation, which would place
+            // the crossing in the middle of an instantaneous step.
+            let tc = t1;
+            if let Some(last_t) = last_accepted_t {
+                if tc - last_t < slope_min_s {
+                    continue;
+                }
+            }
+            // A filtered-out intermediate state can leave `last_high` unchanged,
+            // so a later unfiltered edge that returns to the same side must not
+            // create a spurious duplicate transition.
+            if last_high == Some(high1) {
+                continue;
+            }
+            transitions.push((tc, high1));
+            last_accepted_t = Some(tc);
+            last_high = Some(high1);
         }
     }
 
@@ -4114,12 +4529,14 @@ fn boot_log(
     bridge: Option<&PathBuf>,
     freq: u32,
     repeat: u32,
-    _wait_seconds: u32,
+    wait_seconds: u32,
+    pvt_context: Option<&PathBuf>,
     log_dir: Option<&PathBuf>,
 ) -> Result<()> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
+    let pvt_ctx = load_optional_pvt_context(pvt_context)?;
     let root = repo_root()?;
     let boot_log_dir = match log_dir {
         Some(d) => d.to_path_buf(),
@@ -4155,13 +4572,15 @@ fn boot_log(
     eprintln!("  4. Reconnect power.");
     eprintln!("  5. Do NOT press the FPGA's PROG_B or RESET button.");
     eprintln!("  6. Wait at least 2 seconds, then reconnect the JTAG cable.");
-    eprintln!("  7. Press ENTER here when the board and cable are stable.");
+    let step7 = if wait_seconds == 0 {
+        "Press ENTER here when the board and cable are stable".to_string()
+    } else {
+        format!("Auto-continuing after {} seconds (press ENTER to continue early)", wait_seconds)
+    };
+    eprintln!("  7. {}.", step7);
     eprintln!();
 
-    let mut input = String::new();
-    std::io::stdin()
-        .read_line(&mut input)
-        .context("waiting for user confirmation after power-cycle")?;
+    wait_for_continue(wait_seconds, "boot-log")?;
 
     eprintln!("[boot-log] Step 3/4: capture STAT without JTAG reset ({} sample[s])", repeat.max(1));
     let stat_result = capture_stat(cable, true, repeat);
@@ -4183,6 +4602,7 @@ fn boot_log(
     };
 
     // Persist a JSON log entry for later comparison across variants.
+    let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
     let log_entry = serde_json::json!({
         "timestamp": start_time.to_rfc3339(),
         "bitstream": bit.to_string_lossy().to_string(),
@@ -4202,6 +4622,8 @@ fn boot_log(
             "mode": b.mode,
             "diagnosis": b.diagnose(),
         })).collect::<Vec<_>>(),
+        "pvt_context": pvt_json,
+        "xadc": xadc_context_json("not_read", pvt_ctx.as_ref()),
     });
     let log_path = boot_log_dir.join(format!(
         "boot-log-{}.json",
@@ -4250,12 +4672,14 @@ fn cold_por(
     bit: &PathBuf,
     relay_port: &str,
     repeat: u32,
-    _wait_seconds: u32,
+    wait_seconds: u32,
+    pvt_context: Option<&PathBuf>,
     log_dir: Option<&PathBuf>,
 ) -> Result<()> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
+    let pvt_ctx = load_optional_pvt_context(pvt_context)?;
 
     let root = repo_root()?;
     let boot_log_dir = match log_dir {
@@ -4276,6 +4700,10 @@ fn cold_por(
     println!("== Cold-POR (relay MOCK) ==");
     println!("Bitstream: {}", bit.display());
     println!("Relay port: MOCK (deterministic, no hardware touched)");
+    if wait_seconds > 0 {
+        println!("Simulating operator delay: auto-continuing after {} seconds (press ENTER to continue early).", wait_seconds);
+        wait_for_continue(wait_seconds, "cold-por")?;
+    }
 
     // Deterministic mock outcome: a successful cold-POR with the canonical W400
     // STAT signature.
@@ -4298,6 +4726,7 @@ fn cold_por(
         .collect();
 
     let conclusion = "DONE=HIGH: board boots from flash (relay mock)";
+    let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
     let log_entry = serde_json::json!({
         "timestamp": start_time.to_rfc3339(),
         "bitstream": bit.to_string_lossy().to_string(),
@@ -4306,6 +4735,8 @@ fn cold_por(
         "repeat": repeat.max(1),
         "conclusion": conclusion,
         "samples": samples,
+        "pvt_context": pvt_json,
+        "xadc": xadc_context_json("not_read", pvt_ctx.as_ref()),
     });
     let log_path = boot_log_dir.join(format!(
         "boot-log-cold-por-mock-{}.json",
@@ -4412,6 +4843,7 @@ fn smoke_gate(
                 3,
                 wait_seconds,
                 None,
+                None,
             )
             .with_context(|| "flash-boot CCLK sweep failed")?;
             if !results.iter().any(|r| r.done) {
@@ -4490,6 +4922,7 @@ fn smoke_gate(
             6_000_000,
             3,
             0,
+            None,
             None,
         )?;
         let dry_report = dry_log_dir.join("sweep-report-smoke-gate-dry-run.md");
@@ -4924,7 +5357,7 @@ mod tests {
     #[test]
     fn test_parse_cclk_csv_dsview_header() {
         let csv = square_wave_csv(1.0 / 3.0e6, 10); // 3 MHz, 50% duty
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
         assert!((freq - 3.0e6).abs() < 50_000.0, "freq {} should be ~3 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -4938,7 +5371,7 @@ mod tests {
             let v0 = if i % 20 < 10 { 0.0 } else { 3.3 };
             csv.push_str(&format!("{:.12},{:.1},0.0\n", t, v0));
         }
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
         assert!((freq - 6.0e6).abs() < 100_000.0, "freq {} should be ~6 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -4952,7 +5385,7 @@ mod tests {
             let v = if i % 20 < 8 { 0.0 } else { 3.3 }; // 60% high duty
             csv.push_str(&format!("{:.12},{:.1}\n", t, v));
         }
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
         assert!((freq - 12.0e6).abs() < 200_000.0, "freq {} should be ~12 MHz", freq);
         assert!((duty - 60.0).abs() < 5.0, "duty {} should be ~60%", duty);
     }
@@ -4970,7 +5403,7 @@ mod tests {
             let v = if i % 20 < 10 { 0.0 } else { 3.3 }; // 50% duty 8 MHz
             csv.push_str(&format!("{:.12},{},{}\n", t, counter, v));
         }
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
         assert!((freq - 8.0e6).abs() < 150_000.0, "freq {} should be ~8 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -4978,7 +5411,7 @@ mod tests {
     #[test]
     fn test_parse_cclk_csv_too_few_samples() {
         let csv = "Time,Voltage\n0.0,0.0\n1.0,3.3\n";
-        assert!(parse_cclk_csv_reader(std::io::Cursor::new(csv), None).is_err());
+        assert!(parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).is_err());
     }
 
     #[test]
@@ -4993,9 +5426,77 @@ mod tests {
             csv.push_str(&format!("{:.6e},0.0,{:.1}\n", t, v));
         }
         let (freq, duty) =
-            parse_cclk_csv_reader(std::io::Cursor::new(csv), Some("cclk_v")).unwrap();
+            parse_cclk_csv_reader(std::io::Cursor::new(csv), Some("cclk_v"), None, None).unwrap();
         assert!((freq - 1.0e6).abs() < 100_000.0, "freq {} should be ~1 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
+    }
+
+    /// CSV with a milliseconds time column (`time_ms`). The parser must scale the
+    /// raw values by 1e-3 before computing frequency/duty.
+    #[test]
+    fn test_parse_cclk_csv_ms_header() {
+        let mut csv = String::from("time_ms,voltage\n");
+        let dt = 0.5; // 0.5 ms per sample
+        for i in 0..200 {
+            let t = i as f64 * dt;
+            let v = if i % 20 < 10 { 0.0 } else { 3.3 }; // 100 Hz, 50% duty
+            csv.push_str(&format!("{},{:.1}\n", t, v));
+        }
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
+        assert!((freq - 100.0).abs() < 10.0, "freq {} should be ~100 Hz", freq);
+        assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
+    }
+
+    /// CSV with a microseconds time column (`time_us`).
+    #[test]
+    fn test_parse_cclk_csv_us_header() {
+        let mut csv = String::from("time_us,voltage\n");
+        let dt = 5.0; // 5 µs per sample
+        for i in 0..200 {
+            let t = i as f64 * dt;
+            let v = if i % 20 < 10 { 0.0 } else { 3.3 }; // 10 kHz, 50% duty
+            csv.push_str(&format!("{},{:.1}\n", t, v));
+        }
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
+        assert!((freq - 10_000.0).abs() < 1_000.0, "freq {} should be ~10 kHz", freq);
+        assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
+    }
+
+    /// CSV with a nanoseconds time column (`time_ns`).
+    #[test]
+    fn test_parse_cclk_csv_ns_header() {
+        let mut csv = String::from("time_ns,voltage\n");
+        let dt = 50.0; // 50 ns per sample
+        for i in 0..200 {
+            let t = i as f64 * dt;
+            let v = if i % 20 < 10 { 0.0 } else { 3.3 }; // 1 MHz, 50% duty
+            csv.push_str(&format!("{},{:.1}\n", t, v));
+        }
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
+        assert!((freq - 1.0e6).abs() < 100_000.0, "freq {} should be ~1 MHz", freq);
+        assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
+    }
+
+    /// CSV whose time column is sample numbers (header `Sample`) must be scaled
+    /// by the supplied samplerate.
+    #[test]
+    fn test_parse_cclk_csv_sample_numbers() {
+        let mut csv = String::from("Sample,cclk_v\n");
+        for i in 0..200 {
+            let v = if i % 10 < 5 { 0.0 } else { 3.3 }; // 1 MHz at 10 Msps
+            csv.push_str(&format!("{},{:.1}\n", i, v));
+        }
+        let (freq, duty) =
+            parse_cclk_csv_reader(std::io::Cursor::new(csv), None, Some(10_000_000), None).unwrap();
+        assert!((freq - 1.0e6).abs() < 100_000.0, "freq {} should be ~1 MHz", freq);
+        assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
+    }
+
+    /// CSV with sample-number time column and no samplerate must error clearly.
+    #[test]
+    fn test_parse_cclk_csv_sample_numbers_require_samplerate() {
+        let csv = "Sample,cclk_v\n0,0.0\n1,3.3\n2,0.0\n3,3.3\n";
+        assert!(parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).is_err());
     }
 
     #[test]
@@ -5080,7 +5581,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", false, None, false, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, None, false, false, false, false).unwrap();
         assert_eq!(out, ());
         // Clean up.
         std::fs::remove_file(&tmp).unwrap();
@@ -5092,7 +5593,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_margin_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", true, None, false, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", true, None, false, false, false, false).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5104,7 +5605,7 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_standalone_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_standalone_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, Some(&out_path), "measured_cclk", false, None, true, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, Some(&out_path), "measured_cclk", false, None, false, true, false, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.TernaryFPGABoot"));
@@ -5125,7 +5626,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_raw_ns_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", false, None, false, true, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, None, false, false, true, false).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5136,7 +5637,7 @@ mod tests {
         let csv_tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_csv_raw_ns_{}.csv", std::process::id()));
         generate_synth_cclk_csv(2_500_000.0, samplerate, 1000, &csv_tmp).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_csv_raw_ns_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(None, Some(&csv_tmp), None, None, None, 0, None, Some(&out_path), "measured_csv", false, None, true, true, false).unwrap();
+        let out = measured_to_lean(None, Some(&csv_tmp), None, None, None, None, None, 0, None, None, None, Some(&out_path), "measured_csv", false, None, false, true, true, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.TernaryFPGABoot"));
@@ -5178,7 +5679,7 @@ mod tests {
         let vcd = generate_vcd_clock(25_000_000.0, 20);
         let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_raw_ns_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, vcd).unwrap();
-        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None, None, None).unwrap();
         assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
         assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
         assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
@@ -5190,7 +5691,7 @@ mod tests {
         let vcd_tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_vcd_raw_ns_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, generate_vcd_clock(25_000_000.0, 20)).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_vcd_raw_ns_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(None, None, None, Some(&vcd_tmp), None, 0, None, Some(&out_path), "measured_vcd", false, None, true, true, false).unwrap();
+        let out = measured_to_lean(None, None, None, None, None, Some(&vcd_tmp), None, 0, None, None, None, Some(&out_path), "measured_vcd", false, None, false, true, true, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.TernaryFPGABoot"));
@@ -5233,7 +5734,7 @@ mod tests {
         let vcd = generate_vcd_bus(25_000_000.0, 20);
         let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_bus_raw_ns_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, vcd).unwrap();
-        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk_bus"), 0, None).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk_bus"), 0, None, None, None).unwrap();
         assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
         assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
         assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
@@ -5272,10 +5773,274 @@ mod tests {
         let vcd = generate_vcd_real(25_000_000.0, 20);
         let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_real_raw_ns_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, vcd).unwrap();
-        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk_analog"), 0, Some(&1.65)).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk_analog"), 0, Some(&1.65), None, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert!(low_ns.abs_diff(20) <= 1, "low {} should be within 1 ns of 20 ns", low_ns);
+        assert!(high_ns.abs_diff(20) <= 1, "high {} should be within 1 ns of 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// Real-valued VCD without an explicit threshold: auto-threshold must pick
+    /// the midpoint of the observed 0.0 V .. 3.3 V swing and recover the clock.
+    #[test]
+    fn test_parse_vcd_real_auto_threshold() {
+        let vcd = generate_vcd_real(25_000_000.0, 20);
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_real_auto_threshold_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk_analog"), 0, None, None, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert!(low_ns.abs_diff(20) <= 1, "low {} should be within 1 ns of 20 ns", low_ns);
+        assert!(high_ns.abs_diff(20) <= 1, "high {} should be within 1 ns of 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// A `$comment` block containing the literal substring `$end` before the
+    /// real `$end` terminator must not corrupt the signal dictionary. The old
+    /// heuristic `ends_with("$end")` terminated early and swallowed the following
+    /// `$var` declaration, causing "VCD has no scalar or selectable logic net".
+    #[test]
+    fn test_parse_vcd_comment_with_embedded_end_token() {
+        let mut vcd = String::new();
+        vcd.push_str("$date today $end\n");
+        vcd.push_str("$version tri test $end\n");
+        vcd.push_str("$timescale 100 ps $end\n");
+        vcd.push_str("$comment\n");
+        vcd.push_str("This comment mentions the $end token but is not finished yet.\n");
+        vcd.push_str("Another line with $end embedded in the text.\n");
+        vcd.push_str("$end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 1 ! cclk $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("$end\n");
+        vcd.push_str(&generate_vcd_clock(25_000_000.0, 20));
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_comment_embedded_end_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None, None, None).unwrap();
         assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
         assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
         assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// A multi-line `$timescale` block containing the literal substring `$end`
+    /// before the real `$end` terminator must not corrupt the timescale. With the
+    /// old substring heuristic the embedded `$end` closed the section early and
+    /// the following `$var` line was swallowed, producing a parse error.
+    #[test]
+    fn test_parse_vcd_timescale_with_embedded_end_token() {
+        let mut vcd = String::new();
+        vcd.push_str("$date today $end\n");
+        vcd.push_str("$version tri test $end\n");
+        vcd.push_str("$timescale\n");
+        vcd.push_str("  1 us\n");
+        vcd.push_str("  // note: $end appears in this comment line\n");
+        vcd.push_str("$end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 1 ! cclk $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("$end\n");
+        // 25 kHz clock with 1 us timescale: period = 40 us, half = 20 us.
+        // Timestamps are clean integer microseconds.
+        let half_us = 20u64;
+        for i in 0..40 {
+            let ts = half_us * (i + 1);
+            let val = if i % 2 == 0 { '1' } else { '0' };
+            vcd.push_str(&format!("#{}\n{}!\n", ts, val));
+        }
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_timescale_embedded_end_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None, None, None).unwrap();
+        assert_eq!(period_ns, 40_000, "period {} should be 40_000 ns (1 us timescale)", period_ns);
+        // Low/high may differ by 1 ns due to floating-point timescale conversion; accept a small tolerance.
+        assert!(
+            low_ns.abs_diff(20_000) <= 1,
+            "low {} should be within 1 ns of 20_000 ns", low_ns
+        );
+        assert!(
+            high_ns.abs_diff(20_000) <= 1,
+            "high {} should be within 1 ns of 20_000 ns", high_ns
+        );
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// Real-valued VCD with a non-default `$timescale 1 us $end` and no explicit
+    /// threshold. Auto-threshold must still recover the 25 kHz clock from the
+    /// observed 0.0 V .. 3.3 V swing.
+    #[test]
+    fn test_parse_vcd_real_auto_threshold_us_timescale() {
+        let timescale_us = 1u64;
+        let freq_hz = 25_000.0;
+        let period_s = 1.0 / freq_hz;
+        let half_s = period_s / 2.0;
+        let mut vcd = String::new();
+        vcd.push_str("$date today $end\n");
+        vcd.push_str("$version tri test $end\n");
+        vcd.push_str("$timescale 1 us $end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var real 32 ! cclk_analog $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("r0.0 !\n");
+        vcd.push_str("$end\n");
+        let mut t = 0.0;
+        // Emit 41 samples so the final value is high, producing an odd number of
+        // transitions and equal high/low windows despite the 1 µs timescale.
+        for i in 0..41 {
+            t += half_s;
+            let ts = (t / (timescale_us as f64 * 1.0e-6)).round() as u64;
+            let v = if i % 2 == 0 { 3.3 } else { 0.0 };
+            vcd.push_str(&format!("#{}\nr{} !\n", ts, v));
+        }
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_real_auto_threshold_us_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
+            &vcd_tmp, Some("cclk_analog"), 0, None, None, None).unwrap();
+        assert_eq!(period_ns, 40_000, "period {} should be 40_000 ns (1 us timescale)", period_ns);
+        // Low/high may differ by 1 ns due to floating-point timescale conversion; accept a small tolerance.
+        assert!(
+            low_ns.abs_diff(20_000) <= 1,
+            "low {} should be within 1 ns of 20_000 ns", low_ns
+        );
+        assert!(
+            high_ns.abs_diff(20_000) <= 1,
+            "high {} should be within 1 ns of 20_000 ns", high_ns
+        );
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// VCD with an unsupported `$timescale` unit. The parser must warn and fall
+    /// back to the default 1 ns timescale, then recover the 25 MHz clock.
+    #[test]
+    fn test_parse_vcd_unknown_timescale_defaults_to_1ns() {
+        let mut vcd = String::new();
+        vcd.push_str("$date today $end\n");
+        vcd.push_str("$version tri test $end\n");
+        vcd.push_str("$timescale 1 xy $end\n"); // unsupported unit
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 1 ! cclk $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("$end\n");
+        // With the default 1 ns timescale, timestamps are in nanoseconds.
+        // 25 MHz => 40 ns period, half = 20 ns.
+        for i in 0..41 {
+            let ts = (i + 1) * 20;
+            let val = if i % 2 == 0 { '1' } else { '0' };
+            vcd.push_str(&format!("#{}\n{}!\n", ts, val));
+        }
+        let vcd_tmp = std::env::temp_dir()
+            .join(format!("tri_test_vcd_unknown_timescale_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) =
+            parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None, None, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert!(low_ns.abs_diff(20) <= 1, "low {} should be within 1 ns of 20 ns", low_ns);
+        assert!(high_ns.abs_diff(20) <= 1, "high {} should be within 1 ns of 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// Real-valued VCD with a 5 ns glitch placed 5 ns after a real edge. The
+    /// inter-transition slope filter (`--vcd-slope-min-s`) must drop the glitch
+    /// and recover the underlying 10 MHz clock.
+    #[test]
+    fn test_parse_vcd_real_slope_filter_rejects_glitch() {
+        let mut vcd = String::new();
+        vcd.push_str("$date today $end\n");
+        vcd.push_str("$version tri test $end\n");
+        vcd.push_str("$timescale 1 ns $end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var real 32 ! cclk_analog $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("r0.0 !\n");
+        vcd.push_str("$end\n");
+        // 10 MHz square wave (100 ns period). A 5 ns glitch (55 ns .. 60 ns)
+        // while the signal is high must be ignored.
+        let samples = [
+            (0.0, 0.0),
+            (50.0, 3.3),
+            (55.0, 0.0), // glitch start
+            (60.0, 3.3), // glitch end
+            (100.0, 0.0),
+            (150.0, 3.3),
+            (200.0, 0.0),
+            (250.0, 3.3),
+            (300.0, 0.0),
+            (350.0, 3.3),
+        ];
+        for (t, v) in samples {
+            vcd.push_str(&format!("#{}\nr{} !\n", t as u64, v));
+        }
+        let vcd_tmp = std::env::temp_dir()
+            .join(format!("tri_test_vcd_real_slope_filter_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
+            &vcd_tmp,
+            Some("cclk_analog"),
+            0,
+            Some(&1.65),
+            None,
+            Some(&15.0e-9), // reject transitions closer than 15 ns
+        )
+        .unwrap();
+        assert_eq!(period_ns, 100, "period {} should be 100 ns", period_ns);
+        assert!(
+            low_ns.abs_diff(50) <= 1,
+            "low {} should be within 1 ns of 50 ns",
+            low_ns
+        );
+        assert!(
+            high_ns.abs_diff(50) <= 1,
+            "high {} should be within 1 ns of 50 ns",
+            high_ns
+        );
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// VCD with `$dumpoff` / `$dumpon` placed on lines that do not carry a
+    /// timestamp. The parser must continue using the last known timestamp and
+    /// ignore value changes that occur while dumping is suspended.
+    #[test]
+    fn test_parse_vcd_dumpoff_dumpon_without_timestamp() {
+        let mut vcd = String::new();
+        vcd.push_str("$timescale 1 ns $end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 1 ! cclk $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("$end\n");
+        // 25 MHz clock: timestamps in nanoseconds.
+        vcd.push_str("#20\n1!\n");
+        vcd.push_str("#40\n0!\n"); // real falling edge at 40 ns
+        vcd.push_str("#40\n$dumpoff\n");
+        vcd.push_str("1!\n");      // ignored: dumpoff active and opposite to current low
+        vcd.push_str("$dumpon\n");
+        vcd.push_str("#60\n1!\n"); // normal rising edge at 60 ns
+        for i in 3..42 {
+            let ts = (i + 1) * 20;
+            let val = if i % 2 == 0 { '1' } else { '0' };
+            vcd.push_str(&format!("#{}\n{}!\n", ts, val));
+        }
+        let vcd_tmp = std::env::temp_dir()
+            .join(format!("tri_test_vcd_dumpoff_no_ts_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) =
+            parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None, None, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert!(low_ns.abs_diff(20) <= 1, "low {} should be within 1 ns of 20 ns", low_ns);
+        assert!(high_ns.abs_diff(20) <= 1, "high {} should be within 1 ns of 20 ns", high_ns);
         std::fs::remove_file(&vcd_tmp).unwrap();
     }
 
@@ -5298,7 +6063,7 @@ mod tests {
         vcd.push_str(&generate_vcd_clock(25_000_000.0, 20));
         let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_multiline_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, vcd).unwrap();
-        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None, None, None).unwrap();
         assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
         assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
         assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
@@ -5334,7 +6099,7 @@ mod tests {
         }
         let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_mixed_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, vcd).unwrap();
-        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None, None, None).unwrap();
         assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
         assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
         assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
@@ -5358,7 +6123,7 @@ mod tests {
         let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_dumpoff_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, vcd).unwrap();
         let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
-            &vcd_tmp, Some("cclk"), 0, None).unwrap();
+            &vcd_tmp, Some("cclk"), 0, None, None, None).unwrap();
         assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
         assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
         assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
@@ -5401,7 +6166,7 @@ mod tests {
         let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_multiline_header_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, vcd).unwrap();
         let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
-            &vcd_tmp, Some("cclk"), 0, None).unwrap();
+            &vcd_tmp, Some("cclk"), 0, None, None, None).unwrap();
         assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
         assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
         assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
@@ -5426,7 +6191,7 @@ mod tests {
         let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_escaped_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, vcd).unwrap();
         let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
-            &vcd_tmp, Some("my sig"), 0, None).unwrap();
+            &vcd_tmp, Some("my sig"), 0, None, None, None).unwrap();
         assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
         assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
         assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
@@ -5463,7 +6228,7 @@ mod tests {
         let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_xz_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, vcd).unwrap();
         let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
-            &vcd_tmp, Some("cclk"), 0, None).unwrap();
+            &vcd_tmp, Some("cclk"), 0, None, None, None).unwrap();
         assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
         assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
         assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
@@ -5496,7 +6261,7 @@ mod tests {
         let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_hex_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, vcd).unwrap();
         let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(
-            &vcd_tmp, Some("data"), 0, None).unwrap();
+            &vcd_tmp, Some("data"), 0, None, None, None).unwrap();
         assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
         assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
         assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
@@ -5514,7 +6279,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_in_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", false, None, false, true, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, None, false, false, true, true).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5530,7 +6295,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_out_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", false, None, false, true, true);
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, None, false, false, true, true);
         assert!(out.is_err(), "expected validation to reject out-of-spec raw-ns capture");
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5546,7 +6311,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_margin_in_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", true, None, false, true, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", true, None, false, false, true, true).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5562,7 +6327,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_margin_out_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", true, None, false, true, true);
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", true, None, false, false, true, true);
         assert!(out.is_err(), "expected PVT-margin validation to reject 8 ns low time");
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5595,7 +6360,7 @@ mod tests {
             "worstcase",
             &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
         );
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", false, Some(&pvt), false, true, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, Some(&pvt), false, false, true, true).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
         std::fs::remove_file(&pvt).unwrap();
@@ -5617,7 +6382,7 @@ mod tests {
             "worstcase",
             &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
         );
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, 0, None, None, "measured_cclk", false, Some(&pvt), false, true, true);
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, Some(&pvt), false, false, true, true);
         assert!(out.is_err(), "expected PVT worst-case validation to reject 8 ns low time");
         std::fs::remove_file(&tmp).unwrap();
         std::fs::remove_file(&pvt).unwrap();
@@ -5640,7 +6405,7 @@ mod tests {
         );
         let out_path = std::env::temp_dir().join(format!("tri_pvt_lean_out_{}.lean", std::process::id()));
         let out = measured_to_lean(
-            Some(&tmp), None, None, None, None, 0, None, Some(&out_path), "measured_cclk", false, Some(&pvt), true, true, true,
+            Some(&tmp), None, None, None, None, None, None, 0, None, None, None, Some(&out_path), "measured_cclk", false, Some(&pvt), false, true, true, true,
         ).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
@@ -5736,6 +6501,138 @@ mod tests {
         }
     }
 
+    /// The PVT-aware half-period bound is monotone with the process-corner
+    /// ordering ff ≤ tt ≤ ss: moving to a worse corner never shrinks the bound.
+    #[test]
+    fn test_pvt_half_ns_monotone_in_process_corner() {
+        let temps = [PVT_TEMP_MIN_C, -20_i64, 0_i64, 25_i64, PVT_TEMP_MAX_C];
+        let vccints = [PVT_VCCINT_MIN_MV, 950_u64, 1000_u64, 1050_u64, PVT_VCCINT_MAX_MV];
+        let corner_pairs = [
+            (ProcessCorner::Ff, ProcessCorner::Tt),
+            (ProcessCorner::Tt, ProcessCorner::Ss),
+            (ProcessCorner::Ff, ProcessCorner::Ss),
+        ];
+        for temp in temps {
+            for vccint in vccints {
+                for (c1, c2) in &corner_pairs {
+                    let ctx1 = PvtContext {
+                        temp_c: temp,
+                        vccint_mv: vccint,
+                        vccaux_mv: 2700,
+                        process_corner: c1.clone(),
+                    };
+                    let ctx2 = PvtContext {
+                        temp_c: temp,
+                        vccint_mv: vccint,
+                        vccaux_mv: 2700,
+                        process_corner: c2.clone(),
+                    };
+                    let half1 = n25q128_min_sck_half_ns_pvt(&ctx1);
+                    let half2 = n25q128_min_sck_half_ns_pvt(&ctx2);
+                    assert!(
+                        half1 <= half2,
+                        "PVT half-period bound not monotone in process corner: {} ns (ff) > {} ns ({:?}) at temp={}, vccint={}",
+                        half1, half2, c2, temp, vccint
+                    );
+                }
+            }
+        }
+    }
+
+    /// The PVT-aware half-period bound is monotone in the combined ordering:
+    /// higher temperature, lower VCCINT, and a worse process corner all increase
+    /// (or keep) the bound. This is the shape property a worst-case operating
+    /// point search relies on.
+    #[test]
+    fn test_pvt_half_ns_monotone_combined() {
+        let temps = [PVT_TEMP_MIN_C, -20_i64, 0_i64, 25_i64, PVT_TEMP_MAX_C];
+        let vccints = [PVT_VCCINT_MIN_MV, 950_u64, 1000_u64, 1050_u64, PVT_VCCINT_MAX_MV];
+        let corners = [ProcessCorner::Ff, ProcessCorner::Tt, ProcessCorner::Ss];
+        // Iterate over every pair of contexts where ctx2 is "worse or equal" on
+        // all three axes. This is not a full lattice pair enumeration; it checks
+        // the monotone path property.
+        for i in 0..temps.len() {
+            for j in 0..vccints.len() {
+                for k in 0..corners.len() {
+                    let ctx_bestish = PvtContext {
+                        temp_c: temps[i.min(temps.len() - 1)],
+                        vccint_mv: vccints[j.max(0)],
+                        vccaux_mv: 2700,
+                        process_corner: corners[k.min(corners.len() - 1)].clone(),
+                    };
+                    let ctx_worstish = PvtContext {
+                        temp_c: temps[temps.len() - 1],
+                        vccint_mv: vccints[0],
+                        vccaux_mv: 2700,
+                        process_corner: ProcessCorner::Ss,
+                    };
+                    let half_bestish = n25q128_min_sck_half_ns_pvt(&ctx_bestish);
+                    let half_worstish = n25q128_min_sck_half_ns_pvt(&ctx_worstish);
+                    assert!(
+                        half_bestish <= half_worstish,
+                        "PVT half-period bound not monotone combined: bestish {} ns > worstish {} ns",
+                        half_bestish, half_worstish
+                    );
+                }
+            }
+        }
+
+        // Spot-check specific axis-combined pairs.
+        let ctx_a = PvtContext {
+            temp_c: -40,
+            vccint_mv: 1100,
+            vccaux_mv: 2700,
+            process_corner: ProcessCorner::Ff,
+        };
+        let ctx_b = PvtContext {
+            temp_c: 85,
+            vccint_mv: 900,
+            vccaux_mv: 2700,
+            process_corner: ProcessCorner::Ss,
+        };
+        assert!(
+            n25q128_min_sck_half_ns_pvt(&ctx_a) <= n25q128_min_sck_half_ns_pvt(&ctx_b),
+            "combined PVT monotonicity failed on explicit best/worst pair"
+        );
+    }
+
+    /// The PVT-aware half-period bound is maximized at the worst-case operating
+    /// point (max temperature, min VCCINT, ss corner). This mirrors the Lean 4
+    /// `pvt_half_ns_worst_case_bound` lemma and is the regression fact a finite
+    /// grid-search validation relies on.
+    #[test]
+    fn test_pvt_half_ns_worst_case_bound() {
+        let worst = PvtContext {
+            temp_c: PVT_TEMP_MAX_C,
+            vccint_mv: PVT_VCCINT_MIN_MV,
+            vccaux_mv: 2700,
+            process_corner: ProcessCorner::Ss,
+        };
+        let worst_bound = n25q128_min_sck_half_ns_pvt(&worst);
+
+        let temps = [PVT_TEMP_MIN_C, -20_i64, 0_i64, 25_i64, PVT_TEMP_MAX_C];
+        let vccints = [PVT_VCCINT_MIN_MV, 950_u64, 1000_u64, 1050_u64, PVT_VCCINT_MAX_MV];
+        let corners = [ProcessCorner::Ff, ProcessCorner::Tt, ProcessCorner::Ss];
+        for temp in temps {
+            for vccint in vccints {
+                for corner in &corners {
+                    let ctx = PvtContext {
+                        temp_c: temp,
+                        vccint_mv: vccint,
+                        vccaux_mv: 2700,
+                        process_corner: corner.clone(),
+                    };
+                    let bound = n25q128_min_sck_half_ns_pvt(&ctx);
+                    assert!(
+                        bound <= worst_bound,
+                        "PVT half-period bound {} ns exceeds worst-case {} ns at temp={} °C, vccint={} mV, corner={:?}",
+                        bound, worst_bound, temp, vccint, corner
+                    );
+                }
+            }
+        }
+    }
+
     /// Regression: the PVT-aware minimum SCK half-period bound must be at least
     /// the nominal 6 ns across the entire operating rectangle. This mirrors the
     /// Lean 4 `pvt_half_ns_at_least_nominal` lemma and catches accidental
@@ -5789,10 +6686,12 @@ mod tests {
             .join("ternary_mac_demo_top_200t.bit");
         let log_dir = std::env::temp_dir().join(format!("tri_cold_por_mock_{}", std::process::id()));
         std::fs::create_dir_all(&log_dir).unwrap();
-        let out = cold_por(&bit,
+        let out = cold_por(
+            &bit,
             "MOCK",
             3,
             0,
+            None,
             Some(&log_dir),
         );
         if bit.is_file() {
@@ -5852,7 +6751,7 @@ mod tests {
             std::process::id()
         ));
         let out = measured_to_lean(
-            Some(&tmp), None, None, None, None, 0, None, Some(&generated), "measured_cclk", false, None, true, true, false,
+            Some(&tmp), None, None, None, None, None, None, 0, None, None, None, Some(&generated), "measured_cclk", false, None, false, true, true, false,
         );
         assert!(out.is_ok(), "measured-to-lean standalone should succeed: {:?}", out);
         assert!(generated.is_file(), "generated Lean file should exist");
