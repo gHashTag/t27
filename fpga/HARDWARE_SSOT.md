@@ -1146,9 +1146,78 @@ When the check fails, the command exits non-zero and the JSON object still
 contains the parsed fields, so callers can distinguish a source mismatch from a
 missing theorem.
 
-- **Verification.** `cargo test -p tri` reports 126 PASS; `lake build
-  Trinity.TernaryFPGABoot` succeeds. The 7 residual `gen-verilog` yosys smoke
-  failures remain the documented baseline.
+- **Verification.** `cargo test -p tri` reports 126 PASS (now 125 PASS, 2
+  IGNORED; see 3.6.24); `lake build Trinity.TernaryFPGABoot` succeeds. The 7
+  residual `gen-verilog` yosys smoke failures remain the documented baseline.
+
+#### 3.6.24 `tri fpga smoke-gate --json` schema (W439)
+
+W439 wires the board-less smoke gate into the default `./scripts/tri test`
+FPGA phase. The `--json <path>` mode emits a single machine-readable report so
+`t27c suite` can verify the gate without parsing prose.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `bit_config` | object \| null | Bit-config audit result. `status` is `ok`, `skipped`, or `failed`; `assertions` lists the audited checks. |
+| `dry_run_sweep` | object \| null | Dry-run CCLK sweep result. `status` is `ok`, `skipped`, or `failed`; `variant_count` counts OSCFSEL variants; `source` is the closed-vocabulary operating-point label (e.g. `synthetic`); `report_json` and `report_md` are the sweep-report output paths. |
+| `verify_lean` | object \| null | `verify-lean` result when `--verify-lean` is used. `status` is `ok`, `skipped`, or `failed`; `expected_source` is the requested source label; `lean_file`, `summary_file`, and `theorem_count` mirror the `verify-lean --json` schema. |
+| `yosys_synthesis` | object \| null | Yosys synthesis smoke result. `status` is `ok`, `skipped`, or `failed`; `top` is the Verilog top module; `verilog_files` lists the files read. |
+| `passed` | boolean | `true` when every executed phase reports `ok` and no executed phase reports `failed`. |
+
+Example produced by `tri fpga smoke-gate --synthetic-operating-point --verify-lean --json build/fpga/smoke_gate_report.json`:
+
+```json
+{
+  "bit_config": {
+    "status": "ok",
+    "assertions": [
+      "IDCODE=0x03636093",
+      "SPI_BUSWIDTH=x1",
+      "STARTUPCLK=CCLK",
+      "OSCFSEL=0",
+      "no CRC register writes"
+    ]
+  },
+  "dry_run_sweep": {
+    "status": "ok",
+    "variant_count": 8,
+    "source": "synthetic",
+    "report_json": "build/fpga/smoke-gate-dry-run/sweep-report-smoke-gate-dry-run.json",
+    "report_md": "build/fpga/smoke-gate-dry-run/sweep-report-smoke-gate-dry-run.md"
+  },
+  "verify_lean": {
+    "status": "ok",
+    "expected_source": "synthetic",
+    "lean_file": "build/fpga/smoke-gate-dry-run/verify-lean-fixture/smoke_gate_synthetic.lean",
+    "summary_file": "build/fpga/smoke-gate-dry-run/verify-lean-fixture/summary.json",
+    "theorem_count": 1
+  },
+  "yosys_synthesis": {
+    "status": "ok",
+    "top": "ternary_mac_demo_top",
+    "verilog_files": [
+      "fpga/verilog/ternary_mac_synth.v",
+      "fpga/verilog/ternary_mac_demo_top.v"
+    ]
+  },
+  "passed": true
+}
+```
+
+Phases that are not applicable to the invoked configuration are recorded as
+`null` rather than omitted, so consumers can distinguish "not run" from
+"missing field".
+
+- **Integration.** `./scripts/tri test` (via `t27c suite`) invokes `tri fpga
+  smoke-gate --synthetic-operating-point --verify-lean --json
+  build/fpga/smoke_gate_report.json` in Phase 3c. If the demo bitstream is
+  absent the phase prints `SKIP` and continues.
+
+- **Verification.** `cargo test -p tri` reports 125 PASS, 2 IGNORED (full
+  Trinity `lake build` currently broken on unrelated `NeutrinoMasses.lean` /
+  `H4Lagrangian.lean` physics proofs); `lake build Trinity.TernaryFPGABoot`
+  succeeds. The 7 residual `gen-verilog` yosys smoke failures remain the
+  documented baseline.
 
 ---
 

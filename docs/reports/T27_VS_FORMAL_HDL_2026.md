@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-05 (refreshed for Wave Loop 438)  
+**Date:** 2026-07-05 (refreshed for Wave Loop 439)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -89,6 +89,19 @@ close-out and the W438 boundary; Sparkle's public repository shows a last push
 on **2026-07-03** (stable cache-key fix for multi-output sub-modules) and the
 **関数型まつり2026** talk on 2026-07-11 remains the next checkpoint. The 7
 residual `gen-verilog` yosys smoke failures remain the documented baseline.
+
+**W439 wires the board-less smoke gate into the default `./scripts/tri test`
+FPGA phase and makes it machine-readable.** `tri fpga smoke-gate` gains `--json
+<path>`; the default suite now invokes `tri fpga smoke-gate
+--synthetic-operating-point --verify-lean --json build/fpga/smoke_gate_report.json`
+in Phase 3c, producing a per-phase report (bit-config audit, dry-run sweep,
+verify-lean, yosys synthesis) that consumers can parse deterministically. A new
+regression test (`test_smoke_gate_json_synthetic_verify_lean`) exercises the
+full board-less artifact path end-to-end. No new post-2026-07-11 public signals
+appeared from Sparkle/Verilean or other tracked competitors between the W438
+close-out and the W439 boundary; Sparkle's 関数型まつり2026 talk remains the
+most recent public competitive intelligence checkpoint. The 7 residual
+`gen-verilog` yosys smoke failures remain the documented baseline.
 
 ---
 

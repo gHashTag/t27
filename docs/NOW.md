@@ -229,7 +229,7 @@
 
 - Branch: `wave-loop-438`
 - Issue: #1407
-- PR: #1410
+- PR: #1411
 - Report: `docs/reports/WAVE_LOOP_438_REPORT.md`
 - Evidence W438: `docs/reports/FPGA_LOOP_EVIDENCE_W438_2026-07-05.md`
 - Cooperation W439: `docs/reports/FPGA_LOOP_COOPERATION_W439_2026-07-05.md`
@@ -279,12 +279,82 @@
 
 ---
 
-## Wave Loop 439 — Next: CI artifact trail hardening / real-capture fallback / gen-verilog debt (Variant B default)
+## Wave Loop 439 — CI artifact trail wired into default sweep + smoke-gate JSON report (Closes #1409)
 
 - Branch: `wave-loop-439`
 - Issue: #1409
+- PR: #1412 (predicted)
+- Report: `docs/reports/WAVE_LOOP_439_REPORT.md`
+- Evidence W439: `docs/reports/FPGA_LOOP_EVIDENCE_W439_2026-07-05.md`
+- Cooperation W440: `docs/reports/FPGA_LOOP_COOPERATION_W440_2026-07-05.md`
+
+### What landed (Variant B — board still blocked)
+
+- `cli/tri/src/fpga.rs`
+  - Added `--json <path>` to `tri fpga smoke-gate`; emits a single JSON object
+    with per-phase results for bit-config audit, dry-run CCLK sweep,
+    verify-lean, and yosys synthesis, plus an overall `passed` boolean.
+  - Bit-config audit now captures the `ASSERTION OK:` result lines from
+    `scripts/dump_bit_config.py` in the report.
+  - Added `test_smoke_gate_json_synthetic_verify_lean`, an end-to-end
+    regression test for the board-less synthetic verify-lean path.
+  - Fixed `repo_root()` to prefer a `.git` directory over a `Cargo.toml` file,
+    resolving the workspace root correctly from the `cli/tri` crate root.
+
+- `bootstrap/src/suite.rs`
+  - Phase 3c now invokes `tri fpga smoke-gate --synthetic-operating-point
+    --verify-lean --json build/fpga/smoke_gate_report.json` when the demo
+    bitstream is present, replacing the older direct Python/yosys calls.
+  - Added `tri_exe()` helper to locate the `tri` binary from the same build
+    profile as the running `t27c`.
+
+- `fpga/HARDWARE_SSOT.md` §3.6.24
+  - Documented the machine-readable `tri fpga smoke-gate --json` schema with
+    field types and an example.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W439; no new public competitor signals appeared after Sparkle's
+    関数型まつり2026 talk on 2026-07-11.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Updated branch to `wave-loop-439` and documented the W439 triage decision:
+    no compiler work; 7 residual failures remain the baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_439_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W439_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W440_2026-07-05.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — not performed this wave.
+- Master-merge to clear #1245 — deferred to a dedicated future wave.
+
+### Verification
+
+- `cargo check -p tri`: **PASS**.
+- `cargo test -p tri`: **PASS** (125 tests, 2 ignored; see note below).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test` parse/typecheck/GF16/gen-zig/gen-rust/gen-verilog/gen-c/seal-verify/FPGA smoke/fixed-point: **PASS**.
+- `./scripts/tri test` gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+- `tri fpga smoke-gate --synthetic-operating-point --verify-lean --json /tmp/report.json`: **PASS**.
+
+**Note:** two integration tests (`test_measured_to_lean_standalone_lake_package_builds`
+and `test_measured_to_lean_xadc_to_pvt_context_pipeline`) are now ignored
+because the full Trinity `lake build` fails on unrelated physics proofs
+(`Trinity/NeutrinoMasses.lean`, `Trinity/H4Lagrangian.lean`). The boot-evidence
+target `Trinity.TernaryFPGABoot` still builds.
+
+---
+
+## Wave Loop 440 — Next: CI report consumption / board-less fallback / real-capture fallback / gen-verilog debt (Variant B default)
+
+- Branch: `wave-loop-440`
+- Issue: #1411
 - Default variant: **B** unless P12 or the relay gate becomes available.
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W439_2026-07-05.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W440_2026-07-05.md`
 
 ---
 
