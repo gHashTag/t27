@@ -1062,7 +1062,7 @@ mod tests {
         std::fs::create_dir_all(&script_dir).unwrap();
         let script = script_dir.join("tri");
         let report_json = if passed {
-            r#"{"schema_version":"1.0","bit_config":{"status":"ok"},"dry_run_sweep":{"status":"ok"},"verify_lean":{"status":"ok"},"theorem_matrix":{"status":"ok","variant_count":24,"source":"synthetic"},"yosys_synthesis":{"status":"ok"},"passed":true}"#
+            r#"{"schema_version":"1.0","bit_config":{"status":"ok"},"dry_run_sweep":{"status":"ok"},"verify_lean":{"status":"ok"},"theorem_matrix":{"status":"ok","variant_count":24,"source":"synthetic","variants":[{"corner":"ff","oscfsel":0,"envelope_check":"ok","status":"ok"}]},"yosys_synthesis":{"status":"ok"},"passed":true}"#
         } else {
             r#"{"schema_version":"1.0","bit_config":{"status":"ok"},"dry_run_sweep":{"status":"failed"},"verify_lean":null,"theorem_matrix":null,"yosys_synthesis":null,"passed":false}"#
         };

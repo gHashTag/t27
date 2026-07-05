@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-442`  
-**Last updated:** 2026-07-01 (Wave Loop 442)  
+**Branch:** `wave-loop-443`  
+**Last updated:** 2026-07-01 (Wave Loop 443)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -44,6 +44,12 @@ hardens the smoke-gate JSON report schema with `schema_version: "1.0"`, and adds
 Rust unit tests for the theorem-matrix fixture path and the report schema. The 7
 residual yosys smoke failures remain the documented baseline; Variant C
 (master-merge) remains a dedicated future wave.
+
+**W443 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W443
+adds explicit PVT-envelope validation to the 24-variant theorem matrix and makes
+`tri fpga pvt-envelope --json` emit an `inside_envelope` boolean plus a
+closed-vocabulary `envelope_check`. The 7 residual yosys smoke failures remain the
+documented baseline; Variant C (master-merge) remains a dedicated future wave.
 
 ---
 

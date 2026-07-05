@@ -1704,3 +1704,7 @@
 - **Commit:** feat(igla): Wave Loop 442 — 24-variant ff/tt/ss theorem matrix, smoke-gate schema_version, matrix/schema tests
 - **Files:** docs/reports/FPGA_LOOP_COOPERATION_W443_2026-07-01.md,docs/reports/WAVE_LOOP_442_REPORT.md
 
+## 2026-07-05T15:33:30Z — wave-loop-443
+- **Commit:** docs(w442): note PR/issue numbers to be assigned by GitHub
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W444_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W443_2026-07-01.md,docs/reports/FPGA_LOOP_PLAN_W443_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_443_REPORT.md
+

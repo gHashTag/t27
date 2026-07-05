@@ -3541,13 +3541,20 @@ fn build_pvt_envelope_report(pvt_context: Option<&PathBuf>) -> Result<serde_json
         let half_ns = n25q128_min_sck_half_ns_pvt(&ctx);
         let margin_ns = half_ns.saturating_sub(NOMINAL_HALF_NS);
         let corner_str = format!("{:?}", ctx.process_corner).to_lowercase();
+        let inside_envelope = ctx.temp_c >= PVT_TEMP_MIN_C
+            && ctx.temp_c <= PVT_TEMP_MAX_C
+            && ctx.vccint_mv >= PVT_VCCINT_MIN_MV
+            && ctx.vccint_mv <= PVT_VCCINT_MAX_MV;
         return Ok(serde_json::json!({
             "pvt_context": {
                 "temp_c": ctx.temp_c,
                 "vccint_mv": ctx.vccint_mv,
                 "vccaux_mv": ctx.vccaux_mv,
                 "process_corner": corner_str,
+                "source": "pvt_context_file",
             },
+            "inside_envelope": inside_envelope,
+            "envelope_check": if inside_envelope { "ok" } else { "failed" },
             "nominal_min_sck_half_ns": NOMINAL_HALF_NS,
             "min_sck_half_ns": half_ns,
             "margin_ns": margin_ns,
@@ -3615,6 +3622,8 @@ fn build_pvt_envelope_report(pvt_context: Option<&PathBuf>) -> Result<serde_json
 
     Ok(serde_json::json!({
         "pvt_context": null,
+        "inside_envelope": null,
+        "envelope_check": "skipped",
         "nominal_min_sck_half_ns": NOMINAL_HALF_NS,
         "operating_envelope": {
             "temp_c_min": PVT_TEMP_MIN_C,
@@ -3762,6 +3771,16 @@ pub fn synthetic_pvt_context(process_corner: ProcessCorner) -> PvtContext {
         vccaux_mv: 1800,
         process_corner,
     }
+}
+
+/// Return true iff `ctx` lies inside the documented Artix-7 / N25Q128_3V
+/// operating rectangle (temperature and VCCINT bounds). The process corner is
+/// not part of the envelope itself — it selects the timing model.
+fn pvt_context_inside_envelope(ctx: &PvtContext) -> bool {
+    ctx.temp_c >= PVT_TEMP_MIN_C
+        && ctx.temp_c <= PVT_TEMP_MAX_C
+        && ctx.vccint_mv >= PVT_VCCINT_MIN_MV
+        && ctx.vccint_mv <= PVT_VCCINT_MAX_MV
 }
 
 /// Resolve the PVT context used to annotate a cold-POR or CCLK-sweep boot log.
@@ -6520,6 +6539,18 @@ fn smoke_gate(
                     bail!("theorem-matrix verify-lean failed for corner {} OSCFSEL {}", corner_str, oscfsel);
                 }
 
+                let inside_envelope = pvt_context_inside_envelope(&pvt);
+                if !inside_envelope {
+                    report["theorem_matrix"] = serde_json::json!({
+                        "status": "failed",
+                        "phase": "envelope-check",
+                        "corner": corner_str,
+                        "oscfsel": oscfsel,
+                        "error": "synthetic PVT context is outside the operating envelope",
+                    });
+                    bail!("theorem-matrix envelope-check failed for corner {} OSCFSEL {}", corner_str, oscfsel);
+                }
+
                 matrix_entries.push(serde_json::json!({
                     "corner": corner_str,
                     "oscfsel": oscfsel,
@@ -6527,6 +6558,7 @@ fn smoke_gate(
                     "sck_low_ns": low_ns,
                     "sck_high_ns": high_ns,
                     "status": "ok",
+                    "envelope_check": "ok",
                     "lean_file": lean_path.to_string_lossy().to_string(),
                     "summary_file": summary_path.to_string_lossy().to_string(),
                 }));
@@ -8762,6 +8794,49 @@ mod tests {
         std::fs::remove_file(&pvt).unwrap();
     }
 
+    #[test]
+    fn test_pvt_envelope_json_report_inside_envelope_true() {
+        let pvt = write_pvt_context_json(
+            "typical",
+            &serde_json::json!({"temp_c":25,"vccint_mv":1000,"vccaux_mv":2700,"process_corner":"tt"}),
+        );
+        let report = build_pvt_envelope_report(Some(&pvt)).unwrap();
+        assert_eq!(report["inside_envelope"].as_bool(), Some(true));
+        assert_eq!(report["envelope_check"].as_str(), Some("ok"));
+        assert_eq!(report["pvt_context"]["source"].as_str(), Some("pvt_context_file"));
+        std::fs::remove_file(&pvt).unwrap();
+    }
+
+    #[test]
+    fn test_pvt_envelope_json_report_no_context_skipped() {
+        let report = build_pvt_envelope_report(None).unwrap();
+        assert!(report["inside_envelope"].is_null());
+        assert_eq!(report["envelope_check"].as_str(), Some("skipped"));
+    }
+
+    #[test]
+    fn test_synthetic_pvt_context_inside_envelope_all_corners() {
+        for corner in &[ProcessCorner::Ff, ProcessCorner::Tt, ProcessCorner::Ss] {
+            let ctx = synthetic_pvt_context(corner.clone());
+            assert!(
+                pvt_context_inside_envelope(&ctx),
+                "synthetic {:?} corner must be inside the operating envelope",
+                corner
+            );
+        }
+    }
+
+    #[test]
+    fn test_pvt_context_outside_envelope_detected() {
+        let ctx = PvtContext {
+            temp_c: 200,
+            vccint_mv: 1000,
+            vccaux_mv: 1800,
+            process_corner: ProcessCorner::Tt,
+        };
+        assert!(!pvt_context_inside_envelope(&ctx));
+    }
+
     /// The PVT-aware half-period bound is monotone non-decreasing in temperature
     /// inside the operating envelope: raising temperature (or keeping it equal)
     /// never shrinks the bound.
@@ -10138,6 +10213,25 @@ mod tests {
         verify_lean(&lean_path, Some(&summary_path), Some("synthetic"), false)
             .expect("verify-lean should pass");
 
+        assert!(
+            pvt_context_inside_envelope(&pvt),
+            "synthetic PVT context used in matrix must be inside the operating envelope"
+        );
+
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// Unit test that the smoke-gate theorem-matrix synthetic context is inside
+    /// the operating envelope and would produce an envelope_check=ok record.
+    #[test]
+    fn test_theorem_matrix_synthetic_context_envelope_check_ok() {
+        for corner in &[ProcessCorner::Ff, ProcessCorner::Tt, ProcessCorner::Ss] {
+            let ctx = synthetic_pvt_context(corner.clone());
+            assert!(
+                pvt_context_inside_envelope(&ctx),
+                "synthetic context for {:?} must be inside envelope",
+                corner
+            );
+        }
     }
 }

@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 442)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 443)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -146,6 +146,22 @@ W441 close-out and the W442 boundary; Sparkle's 関数型まつり2026 talk rema
 most recent competitive-intelligence checkpoint, and **CIRCT firtool-1.152.0**
 (shipped 2026-07-04) is still the latest public release. The 7 residual
 `gen-verilog` yosys smoke failures remain the documented baseline.
+
+**W443 hardens the theorem matrix with explicit PVT-envelope validation.**
+`tri fpga pvt-envelope --pvt-context <ctx.json> --json` now emits
+`inside_envelope: true/false` and a closed-vocabulary `envelope_check`
+(`"ok"` / `"failed"` / `"skipped"`). `tri fpga smoke-gate --theorem-matrix`
+validates every synthetic corner context against the operating rectangle before
+generating a theorem and records `envelope_check: "ok"` in each per-variant
+matrix entry. New Rust unit tests cover the envelope verdict and synthetic-corner
+invariants. Public competitor signals remain unchanged since the W442 boundary:
+Sparkle's last public push is still **2026-07-03 19:27:50Z**; PR #66 (IP.Net +
+compiler perf) and PR #57 (analogue simulation, now closed/spun out) are the most
+recent visible items. **CIRCT firtool-1.152.0** is still the latest public
+release; no `1.153.0` has appeared. The ternary-FPGA ecosystem (TernaryCore,
+ternfpga, ternaryLLM) continues to validate the {-1, 0, +1} compute niche but none
+combine it with a Lean-native proof pipeline. The 7 residual `gen-verilog` yosys
+smoke failures remain the documented baseline.
 
 ---
 
