@@ -277,9 +277,11 @@ struct FpgaSmokeResult {
     passed: bool,
     skipped: bool,
     report_path: Option<PathBuf>,
+    schema_version: Option<String>,
     bit_config_status: Option<String>,
     dry_run_sweep_status: Option<String>,
     verify_lean_status: Option<String>,
+    theorem_matrix_status: Option<String>,
     yosys_synthesis_status: Option<String>,
 }
 
@@ -293,9 +295,11 @@ fn cmd_fpga_smoke_gate(repo: &Path) -> anyhow::Result<FpgaSmokeResult> {
             passed: false,
             skipped: true,
             report_path: None,
+            schema_version: None,
             bit_config_status: None,
             dry_run_sweep_status: None,
             verify_lean_status: None,
+            theorem_matrix_status: None,
             yosys_synthesis_status: None,
         });
     }
@@ -362,13 +366,19 @@ fn parse_smoke_gate_report(report_path: &Path) -> anyhow::Result<FpgaSmokeResult
         .get("passed")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
+    let schema_version = report
+        .get("schema_version")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
     let result = FpgaSmokeResult {
         passed,
         skipped: false,
         report_path: Some(report_path.to_path_buf()),
+        schema_version,
         bit_config_status: phase_status("bit_config"),
         dry_run_sweep_status: phase_status("dry_run_sweep"),
         verify_lean_status: phase_status("verify_lean"),
+        theorem_matrix_status: phase_status("theorem_matrix"),
         yosys_synthesis_status: phase_status("yosys_synthesis"),
     };
 
@@ -578,9 +588,11 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
                 passed: false,
                 skipped: false,
                 report_path: None,
+                schema_version: None,
                 bit_config_status: None,
                 dry_run_sweep_status: None,
                 verify_lean_status: None,
+                theorem_matrix_status: None,
                 yosys_synthesis_status: None,
             }
         }
@@ -1050,9 +1062,9 @@ mod tests {
         std::fs::create_dir_all(&script_dir).unwrap();
         let script = script_dir.join("tri");
         let report_json = if passed {
-            r#"{"bit_config":{"status":"ok"},"dry_run_sweep":{"status":"ok"},"verify_lean":{"status":"ok"},"yosys_synthesis":{"status":"ok"},"passed":true}"#
+            r#"{"schema_version":"1.0","bit_config":{"status":"ok"},"dry_run_sweep":{"status":"ok"},"verify_lean":{"status":"ok"},"theorem_matrix":{"status":"ok","variant_count":24,"source":"synthetic"},"yosys_synthesis":{"status":"ok"},"passed":true}"#
         } else {
-            r#"{"bit_config":{"status":"ok"},"dry_run_sweep":{"status":"failed"},"verify_lean":null,"yosys_synthesis":null,"passed":false}"#
+            r#"{"schema_version":"1.0","bit_config":{"status":"ok"},"dry_run_sweep":{"status":"failed"},"verify_lean":null,"theorem_matrix":null,"yosys_synthesis":null,"passed":false}"#
         };
         let body = format!(
             "#!/bin/sh\nprintf '%s' '{}' > {}\nexit 0\n",
@@ -1095,6 +1107,8 @@ mod tests {
         assert!(result.passed);
         assert!(!result.skipped);
         assert_eq!(result.bit_config_status.as_deref(), Some("ok"));
+        assert_eq!(result.schema_version.as_deref(), Some("1.0"));
+        assert_eq!(result.theorem_matrix_status.as_deref(), Some("ok"));
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -1129,5 +1143,26 @@ mod tests {
         ));
         let err = parse_smoke_gate_report(&missing).expect_err("missing report should error");
         assert!(err.to_string().contains("smoke-gate report missing"));
+    }
+
+    #[test]
+    fn test_parse_smoke_gate_report_schema_tolerant_without_theorem_matrix() {
+        let tmp = std::env::temp_dir().join(format!(
+            "t27_suite_smoke_schema_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let report_path = tmp.join("smoke_gate_report.json");
+        std::fs::write(
+            &report_path,
+            r#"{"bit_config":{"status":"ok"},"dry_run_sweep":{"status":"ok"},"verify_lean":{"status":"ok"},"yosys_synthesis":{"status":"ok"},"passed":true}"#,
+        )
+        .unwrap();
+        let result = parse_smoke_gate_report(&report_path).expect("legacy report should parse");
+        assert!(result.passed);
+        assert!(result.schema_version.is_none());
+        assert!(result.theorem_matrix_status.is_none());
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

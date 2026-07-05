@@ -6027,6 +6027,7 @@ fn smoke_gate(
 ) -> Result<()> {
     let corner = parse_process_corner(process_corner)?;
     let mut report = serde_json::json!({
+        "schema_version": "1.0",
         "bit_config": null,
         "dry_run_sweep": null,
         "verify_lean": null,
@@ -6161,7 +6162,7 @@ fn smoke_gate(
     // 2. Dry-run CCLK sweep + report path (no hardware required).
     let mut dry_run_sweep_ok = false;
     let mut verify_lean_ok = false;
-    let mut theorem_matrix_ok = true;
+    let theorem_matrix_ok = true;
     if bit_path.is_file() {
         if synthetic_operating_point {
             println!(
@@ -6409,25 +6410,25 @@ fn smoke_gate(
         }
 
         // 2c. Optional board-less OSCFSEL 0..7 theorem matrix: verify a PVT-aware
-        // raw-ns theorem for each documented Artix-7 Master SPI CCLK variant.
-        let mut theorem_matrix_ok = true;
+        // raw-ns theorem for each documented Artix-7 Master SPI CCLK variant across
+        // all three synthetic process corners (ff/tt/ss).
         if run_theorem_matrix {
-            println!("[smoke-gate] theorem-matrix: generating OSCFSEL 0..7 synthetic theorems");
-            let corner_clone = corner.clone();
-            let pvt = synthetic_pvt_context(corner_clone);
-            let pvt_path = fixture_dir.join("theorem_matrix_pvt.json");
-            std::fs::write(
-                &pvt_path,
-                serde_json::to_string_pretty(&pvt)
-                    .with_context(|| "serialize theorem-matrix PVT context")?,
-            )
-            .with_context(|| format!("write {}", pvt_path.display()))?;
-
+            println!("[smoke-gate] theorem-matrix: generating OSCFSEL 0..7 synthetic theorems for ff/tt/ss");
             let mut matrix_entries = Vec::new();
-            for oscfsel in 0u8..=7u8 {
+            for corner_str in ["ff", "tt", "ss"] {
+                let matrix_corner = parse_process_corner(corner_str)?;
+                let pvt = synthetic_pvt_context(matrix_corner);
+                let pvt_path = fixture_dir.join(format!("theorem_matrix_pvt_{}.json", corner_str));
+                std::fs::write(
+                    &pvt_path,
+                    serde_json::to_string_pretty(&pvt)
+                        .with_context(|| "serialize theorem-matrix PVT context")?,
+                )
+                .with_context(|| format!("write {}", pvt_path.display()))?;
+
+                for oscfsel in 0u8..=7u8 {
                 let period_ns = cclk_period_ns(oscfsel);
                 if period_ns == 0 {
-                    theorem_matrix_ok = false;
                     report["theorem_matrix"] = serde_json::json!({
                         "status": "failed",
                         "reason": format!("invalid period for OSCFSEL {}", oscfsel),
@@ -6440,18 +6441,18 @@ fn smoke_gate(
                     period_ns: period_ns as u64,
                     sck_low_ns: low_ns as u64,
                     sck_high_ns: high_ns as u64,
-                    source: format!("synthetic oscfsel {}", oscfsel),
+                    source: format!("synthetic {} oscfsel {}", corner_str, oscfsel),
                 };
                 let raw_ns_text = serde_json::to_string_pretty(&raw_ns)
                     .with_context(|| "serialize theorem-matrix raw-ns fixture")?;
                 let raw_ns_path =
-                    fixture_dir.join(format!("theorem_matrix_raw_ns_{}.json", oscfsel));
+                    fixture_dir.join(format!("theorem_matrix_raw_ns_{}_{}.json", corner_str, oscfsel));
                 std::fs::write(&raw_ns_path, &raw_ns_text)
                     .with_context(|| format!("write {}", raw_ns_path.display()))?;
 
                 let lean_path =
-                    fixture_dir.join(format!("theorem_matrix_oscfsel_{}.lean", oscfsel));
-                let name = format!("smoke_gate_oscfsel_{}", oscfsel);
+                    fixture_dir.join(format!("theorem_matrix_{}_oscfsel_{}.lean", corner_str, oscfsel));
+                let name = format!("smoke_gate_{}_oscfsel_{}", corner_str, oscfsel);
                 let m2l_result = measured_to_lean(
                     Some(&raw_ns_path),
                     None,
@@ -6479,11 +6480,11 @@ fn smoke_gate(
                     report["theorem_matrix"] = serde_json::json!({
                         "status": "failed",
                         "phase": "measured-to-lean",
+                        "corner": corner_str,
                         "oscfsel": oscfsel,
                         "error": format!("{:?}", m2l_result.unwrap_err()),
                     });
-                    theorem_matrix_ok = false;
-                    bail!("theorem-matrix measured-to-lean failed for OSCFSEL {}", oscfsel);
+                    bail!("theorem-matrix measured-to-lean failed for corner {} OSCFSEL {}", corner_str, oscfsel);
                 }
 
                 let pvt_for_summary = pvt.clone();
@@ -6497,7 +6498,7 @@ fn smoke_gate(
                 )
                 .with_context(|| "build theorem-matrix measured-to-lean summary")?;
                 let summary_path =
-                    fixture_dir.join(format!("theorem_matrix_summary_{}.json", oscfsel));
+                    fixture_dir.join(format!("theorem_matrix_summary_{}_{}.json", corner_str, oscfsel));
                 std::fs::write(
                     &summary_path,
                     serde_json::to_string_pretty(&summary)
@@ -6512,14 +6513,15 @@ fn smoke_gate(
                     report["theorem_matrix"] = serde_json::json!({
                         "status": "failed",
                         "phase": "verify-lean",
+                        "corner": corner_str,
                         "oscfsel": oscfsel,
                         "error": format!("{:?}", verify_result.unwrap_err()),
                     });
-                    theorem_matrix_ok = false;
-                    bail!("theorem-matrix verify-lean failed for OSCFSEL {}", oscfsel);
+                    bail!("theorem-matrix verify-lean failed for corner {} OSCFSEL {}", corner_str, oscfsel);
                 }
 
                 matrix_entries.push(serde_json::json!({
+                    "corner": corner_str,
                     "oscfsel": oscfsel,
                     "period_ns": period_ns,
                     "sck_low_ns": low_ns,
@@ -6529,11 +6531,14 @@ fn smoke_gate(
                     "summary_file": summary_path.to_string_lossy().to_string(),
                 }));
             }
+            }
 
             report["theorem_matrix"] = serde_json::json!({
                 "status": if theorem_matrix_ok { "ok" } else { "failed" },
                 "variant_count": matrix_entries.len(),
                 "source": "synthetic",
+                "corner_count": 3,
+                "oscfsel_count": 8,
                 "variants": matrix_entries,
             });
             println!(
@@ -10023,5 +10028,116 @@ mod tests {
         }
 
         let _ = std::fs::remove_file(&report_path);
+    }
+
+    /// Unit test for the Artix-7 CCLK period helper used by the theorem matrix.
+    #[test]
+    fn test_cclk_period_ns_oscfsel_0_7() {
+        let expected: Vec<(u8, u32)> = vec![
+            (0, 400),
+            (1, 238),
+            (2, 151),
+            (3, 100),
+            (4, 80),
+            (5, 59),
+            (6, 40),
+            (7, 30),
+        ];
+        for (oscfsel, expected_ns) in expected {
+            assert_eq!(
+                cclk_period_ns(oscfsel),
+                expected_ns,
+                "OSCFSEL {} period mismatch",
+                oscfsel
+            );
+        }
+    }
+
+    /// Unit test for the theorem-matrix fixture/summary/verify path. Generates a
+    /// single synthetic raw-ns fixture and PVT context in a temporary directory,
+    /// emits a Lean theorem, builds a summary, and runs verify-lean on it.
+    #[test]
+    fn test_theorem_matrix_synthetic_fixture_and_summary() {
+        let tmp = std::env::temp_dir().join(format!(
+            "tri_theorem_matrix_test_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let pvt = synthetic_pvt_context(ProcessCorner::Ss);
+        let pvt_path = tmp.join("pvt.json");
+        std::fs::write(
+            &pvt_path,
+            serde_json::to_string_pretty(&pvt).unwrap(),
+        ).unwrap();
+
+        let raw_ns = MeasuredCclkRawNs {
+            period_ns: 40,
+            sck_low_ns: 20,
+            sck_high_ns: 20,
+            source: "synthetic ss oscfsel 6".to_string(),
+        };
+        let raw_ns_text = serde_json::to_string_pretty(&raw_ns).unwrap();
+        let raw_ns_path = tmp.join("raw_ns.json");
+        std::fs::write(&raw_ns_path, &raw_ns_text).unwrap();
+
+        let lean_path = tmp.join("theorem.lean");
+        measured_to_lean(
+            Some(&raw_ns_path),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            0,
+            None,
+            None,
+            None,
+            Some(&lean_path),
+            "test_matrix_ss_oscfsel_6",
+            false,
+            Some(&pvt_path),
+            false,
+            Some("synthetic"),
+            true,
+            true,
+            true,
+            false,
+        ).expect("measured-to-lean should succeed");
+
+        let summary = build_measured_to_lean_summary(
+            "test_matrix_ss_oscfsel_6",
+            true,
+            false,
+            &Some(pvt.clone()),
+            "synthetic",
+            &raw_ns_text,
+        ).expect("build summary should succeed");
+        assert_eq!(
+            summary
+                .get("operating_point")
+                .and_then(|o| o.get("source"))
+                .and_then(|s| s.as_str()),
+            Some("synthetic"),
+            "summary should record source=synthetic"
+        );
+        assert_eq!(
+            summary.get("recommendation").and_then(|r| r.as_str()),
+            Some("in_spec"),
+            "summary should report in_spec for synthetic ss 40 ns period"
+        );
+
+        let summary_path = tmp.join("summary.json");
+        std::fs::write(
+            &summary_path,
+            serde_json::to_string_pretty(&summary).unwrap(),
+        ).unwrap();
+
+        verify_lean(&lean_path, Some(&summary_path), Some("synthetic"), false)
+            .expect("verify-lean should pass");
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

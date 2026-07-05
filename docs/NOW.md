@@ -1,6 +1,66 @@
-# NOW — Wave Loop 435 close-out / Wave Loop 436 setup (2026-07-01)
+# NOW — Wave Loop 442 close-out / Wave Loop 443 setup (2026-07-01)
 
 **Last updated:** 2026-07-01
+
+## Wave Loop 442 — Expanded board-less theorem matrix + CI artifact schema hardening (Closes #1415)
+
+- Branch: `wave-loop-442`
+- Issue: #1415
+- PR: #1417
+- Report: `docs/reports/WAVE_LOOP_442_REPORT.md`
+- Evidence W442: `docs/reports/FPGA_LOOP_EVIDENCE_W442_2026-07-01.md`
+- Cooperation W443: `docs/reports/FPGA_LOOP_COOPERATION_W443_2026-07-01.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `cli/tri/src/fpga.rs`
+  - Theorem matrix now iterates `ff`/`tt`/`ss` process corners inside the
+    existing OSCFSEL 0..7 loop, generating and verifying 24 corner×OSCFSEL
+    PVT-aware raw-ns theorems under the synthetic operating point.
+  - Smoke-gate JSON report gains a top-level `schema_version: "1.0"` field and a
+    structured `theorem_matrix` block with `corner_count`, `oscfsel_count`, and
+    per-variant `corner`/`oscfsel` records.
+  - Added `test_cclk_period_ns_oscfsel_0_7` and
+    `test_theorem_matrix_synthetic_fixture_and_summary` unit tests.
+
+- `bootstrap/src/suite.rs`
+  - `FpgaSmokeResult` now exposes `schema_version` and `theorem_matrix_status`.
+  - Added schema-v1 and backward-tolerance tests for the smoke-gate report.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W442; no new public competitor signals appeared after the W441
+    close-out.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Documented the W442 triage decision: no compiler work attempted; the 7
+    residual yosys smoke failures remain the documented baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_442_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W442_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W443_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — possible but not
+  performed this wave.
+- Master-merge to clear #1245 — fix set not safely reachable from
+  `wave-loop-442` this wave.
+
+### Verification
+
+- `cargo test -p tri --bin tri fpga::`: **PASS** (129 tests, +2 W442 regressions).
+- `cargo test -p t27c --bin t27c suite::tests`: **PASS** (4 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test --json build/suite_report.json`: **PASS**.
+  - Parse/typecheck/GF16/gen-zig/gen-rust/gen-c/seal-verify: 576/576 PASS.
+  - Gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+  - FPGA board-less smoke gate: **PASS**, theorem matrix 24 variants,
+    `schema_version: "1.0"`, `acceptable: true`.
+
+---
 
 ## SW-conformance — gf256 promoted to strict SW-bitexact (75/0/8) (Closes #1397)
 
