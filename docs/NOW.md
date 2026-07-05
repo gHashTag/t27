@@ -232,7 +232,7 @@
 
 - Branch: `wave-loop-437`
 - Issue: #1405
-- PR: (to open after this close-out)
+- PR: #1408
 - Report: `docs/reports/WAVE_LOOP_437_REPORT.md`
 - Evidence W437: `docs/reports/FPGA_LOOP_EVIDENCE_W437_2026-07-01.md`
 - Cooperation W438: `docs/reports/FPGA_LOOP_COOPERATION_W438_2026-07-01.md`
