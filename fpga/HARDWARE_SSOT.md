@@ -1267,3 +1267,40 @@ The operating point is combined with the documented worst-case process corner
 (`ss`) in the formal PVT envelope; see
 `xadc_operating_point_envelope_implies_worst_case_bound` in
 `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+
+#### 9.6.1 XADC → PVT context bridge for `measured-to-lean` (W431)
+
+Wave Loop 431 closes the loop between a live XADC readout and the PVT-aware
+`measured-to-lean` pipeline. The `tri fpga read-xadc` JSON values (°C and V) are
+converted to the integer `PvtContext` used by the formal model: temperature in °C
+rounded to the nearest integer, VCCINT/VCCAUX in millivolts, and a process corner
+(`ff` / `tt` / `ss`). This context can be supplied directly to the proof
+generator:
+
+```bash
+tri fpga read-xadc --cable digilent_hs2 > build/fpga/xadc.json
+tri fpga measured-to-lean --csv build/fpga/cclk_oscfsel06.csv --raw-ns --validate \
+    --pvt-context build/fpga/xadc.json --standalone --out build/fpga/CclkOscfsel06.lean \
+    --json > build/fpga/CclkOscfsel06_summary.json
+```
+
+The `--json` summary emitted by `tri fpga measured-to-lean` now includes:
+
+| Field | Meaning |
+|-------|---------|
+| `flash_min_half_period_ns` | PVT-derated N25Q128_3V minimum SCK low/high time |
+| `margin_ns` | measured `min(sck_low_ns, sck_high_ns)` minus `flash_min_half_period_ns` |
+| `recommendation` | closed vocabulary: `needs_pvt_context`, `in_spec`, `out_of_spec` |
+
+When the XADC operating point lies inside the documented envelope
+(`-40 °C..+85 °C`, `900 mV..1100 mV`), the conservative worst-case `ss` bound
+still applies. The Lean 4 theorem
+`xadc_envelope_implies_raw_ns_satisfies_any_in_envelope` proves that any
+in-envelope operating point justifies the same transaction-safety conclusion as
+the global worst-case context, so a real XADC measurement can be used without
+weakening the formal claim.
+
+**W431 blocker:** P12 is still not wired to a logic-analyzer channel, so a live
+CCLK frequency/duty capture remains impossible. The XADC → PVT bridge is validated
+with unit tests and synthetic fixtures; the first real end-to-end run requires
+the P12 wiring from Variant A/B.
