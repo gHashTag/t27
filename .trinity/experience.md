@@ -1,5 +1,53 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-05 — Wave Loop 425 (FPGA formal/tooling hardening: OSCFSEL 0–7 sweep, PVT worst-case envelope theorems)
+
+### What worked
+- Re-probing the bench at the start of the wave confirmed the same blockers as
+  W424: P12 unwired, no relay gate, DLC10 missing. Choosing **Variant C**
+  immediately kept the wave bounded and deliverable.
+- Extending the `cclk-sweep` and `smoke-gate` dry-run default OSCFSEL range to
+  0–7 closed the Rust-side gap with the already-proven OSCFSEL 6/7 theorems in
+  `TernaryFPGABoot.lean`.
+- Moving `OSCFSEL_WORST_CASE_PVT_CONTEXT` earlier in the Lean file made the new
+  combined-monotonicity envelope proofs syntactically stable. Definitions used by
+  proof automation must be visible before the theorems that reference them.
+- Adding the two worst-case envelope theorems (`pvt_half_ns_worst_case_is_upper_envelope`,
+  `pvt_low_ns_worst_case_is_upper_envelope`) gives the Rust validation tools a
+  mathematically justified single worst-case context instead of an ad-hoc choice.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`:
+  - Default `cclk_sweep` OSCFSEL values expanded from `vec![0,1,2,3,4,5]` to
+    `vec![0,1,2,3,4,5,6,7]`.
+  - `smoke_gate` dry-run sweep values expanded to match (0–7).
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`:
+  - Moved `OSCFSEL_WORST_CASE_PVT_CONTEXT` definition earlier.
+  - Added `pvt_half_ns_worst_case_is_upper_envelope` and
+    `pvt_low_ns_worst_case_is_upper_envelope`.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_425_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W425_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md`.
+
+### Patterns to reuse
+- When a constant is referenced in a proof automation chain, define it before
+  the first theorem that needs it, even if its primary use is later in the file.
+  This avoids opaque "local variable has no definition" errors from Lean's
+  name-resolution order.
+- Expand CLI defaults to match the formal theorem library as soon as the formal
+  side is ready; keeping the Rust and Lean scopes aligned prevents a proof gap.
+- Document hardware deferrals explicitly in the acceptance criteria rather than
+  leaving them unchecked; this makes the close-out report honest and the next
+  wave's variant choice transparent.
+
+### Anti-patterns to avoid
+- Do not try to prove an equality between a constant and a literal by `unfold`
+  if the constant is defined later in the file. Reorder definitions or use the
+  literal directly in the theorem statement.
+- Do not attempt a gen-verilog sub-fix inside a wave-loop branch when the failures
+  are tied to major features; wait for the master-side fix set to be merged or
+  cherry-pick it in a dedicated wave.
+
 ## 2026-07-05 — Wave Loop 424 (FPGA tooling hardening: auto-continue boot logs, PVT/XADC context, CSV voltage units, ProcessCorner helpers)
 
 ### What worked
