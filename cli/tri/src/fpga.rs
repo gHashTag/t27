@@ -375,8 +375,8 @@ pub enum FpgaCmd {
         #[arg(long)]
         single: Option<u8>,
     },
-    /// Read all `build/fpga/boot-log-*.json` files and produce a markdown sweep
-    /// report identifying the first working CCLK variant.
+    /// Read all `build/fpga/boot-log-*.json` files and produce a sweep report
+    /// identifying the first working CCLK variant.
     SweepReport {
         /// Directory containing boot-log JSON files.
         #[arg(long)]
@@ -384,6 +384,9 @@ pub enum FpgaCmd {
         /// Output markdown report path.
         #[arg(long)]
         out: Option<PathBuf>,
+        /// Emit a machine-readable JSON report instead of markdown.
+        #[arg(long)]
+        json: bool,
     },
     /// Print DSLogic / oscilloscope instructions for measuring the FPGA CCLK
     /// output during Master SPI configuration. Optionally parse a DSView CSV
@@ -793,8 +796,8 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             }
             Ok(())
         }
-        FpgaCmd::SweepReport { log_dir, out } => {
-            sweep_report(log_dir.as_ref(), out.as_ref())
+        FpgaCmd::SweepReport { log_dir, out, json } => {
+            sweep_report(log_dir.as_ref(), out.as_ref(), *json)
         },
         FpgaCmd::MeasureCclk {
             csv,
@@ -2573,7 +2576,7 @@ fn write_sweep_log(log: &SweepLog, log_dir: &PathBuf) -> Result<()> {
 
 /// Produce a markdown sweep report from all `boot-log-*.json` files in the FPGA
 /// build directory.
-fn sweep_report(log_dir: Option<&PathBuf>, out: Option<&PathBuf>) -> Result<()> {
+fn sweep_report(log_dir: Option<&PathBuf>, out: Option<&PathBuf>, json: bool) -> Result<()> {
     let root = repo_root()?;
     let dir = match log_dir {
         Some(d) => d.to_path_buf(),
@@ -2607,6 +2610,55 @@ fn sweep_report(log_dir: Option<&PathBuf>, out: Option<&PathBuf>) -> Result<()> 
         e.samples.iter().any(|s| s.done)
             || e.conclusion.starts_with("DONE=HIGH")
     });
+
+    if json {
+        let variants: Vec<serde_json::Value> = entries
+            .iter()
+            .map(|e| {
+                serde_json::json!({
+                    "oscfsel": e.oscfsel,
+                    "bitstream": e.bitstream,
+                    "done": e.samples.iter().any(|s| s.done) || e.conclusion.starts_with("DONE=HIGH"),
+                    "mode": e.samples.first().map(|s| s.mode),
+                    "crc_error": e.samples.iter().any(|s| s.crc_error),
+                    "id_error": e.samples.iter().any(|s| s.id_error),
+                    "conclusion": e.conclusion,
+                    "pvt_envelope_margin_ns": e.pvt_envelope_margin_ns,
+                    "recommendation": e.recommendation,
+                })
+            })
+            .collect();
+        let report = serde_json::json!({
+            "generated_at": chrono::Local::now().to_rfc3339(),
+            "variants_tested": entries.len(),
+            "first_working_oscfsel": first_working.map(|e| e.oscfsel),
+            "first_working_bitstream": first_working.map(|e| e.bitstream.clone()),
+            "next_steps": first_working.map_or_else(
+                || vec![
+                    "Expand the OSCFSEL sweep range.",
+                    "Verify mode-pin straps with `tri fpga stat --pre-jtag-reset`.",
+                    "Capture CCLK with a logic analyser to confirm the FPGA is driving it.",
+                ],
+                |_| vec![
+                    "Measure actual CCLK with `tri fpga measure-cclk`.",
+                    "Rename the working variant to the canonical default bitstream.",
+                    "Update `fpga/HARDWARE_SSOT.md` with the measured frequency.",
+                ],
+            ),
+            "variants": variants,
+        });
+        let out_path = match out {
+            Some(p) => p.to_path_buf(),
+            None => dir.join(format!(
+                "sweep-report-{}.json",
+                chrono::Local::now().format("%Y%m%d-%H%M%S")
+            )),
+        };
+        std::fs::write(&out_path, serde_json::to_string_pretty(&report)?)
+            .with_context(|| format!("write {}", out_path.display()))?;
+        println!("[sweep-report] wrote {} variant(s) to {}", entries.len(), out_path.display());
+        return Ok(());
+    }
 
     let mut md = String::new();
     md.push_str("# FPGA cold-POR CCLK sweep report\n\n");
@@ -5047,7 +5099,7 @@ fn smoke_gate(
             None,
         )?;
         let dry_report = dry_log_dir.join("sweep-report-smoke-gate-dry-run.md");
-        sweep_report(Some(&dry_log_dir), Some(&dry_report))?;
+        sweep_report(Some(&dry_log_dir), Some(&dry_report), false)?;
         let report_text = std::fs::read_to_string(&dry_report)
             .with_context(|| format!("read {}", dry_report.display()))?;
         let variant_count = report_text
@@ -6875,6 +6927,96 @@ mod tests {
             None,
         );
         assert_eq!(rec["action"], "inspect_mode_straps");
+    }
+
+    #[test]
+    fn test_sweep_report_json_roundtrip() {
+        let root = repo_root().unwrap();
+        let dry_log_dir = std::env::temp_dir().join(format!("tri_sweep_report_json_{}", std::process::id()));
+        std::fs::create_dir_all(&dry_log_dir).unwrap();
+
+        // Write two synthetic sweep logs with distinct OSCFSELs and conclusions.
+        let log1 = SweepLog {
+            timestamp: chrono::Local::now().to_rfc3339(),
+            bitstream: "demo_oscfsel00.bit".to_string(),
+            oscfsel: 0,
+            cable: "digilent_hs2".to_string(),
+            part: "xc7a200tfbg676-1".to_string(),
+            freq_hz: 2_500_000,
+            repeat: 1,
+            conclusion: "DONE=HIGH: board boots from flash".to_string(),
+            samples: vec![SweepSample {
+                index: 0,
+                raw: 0x401079FC,
+                done: true,
+                eos: true,
+                init_complete: true,
+                crc_error: false,
+                id_error: false,
+                mode: 0b001,
+                diagnosis: "FPGA configured".to_string(),
+            }],
+            pvt_context: None,
+            xadc: serde_json::json!({"source": "not_read"}),
+            pvt_envelope_margin_ns: Some(187),
+            recommendation: recommendation_from_conclusion(
+                "DONE=HIGH: board boots from flash",
+                Some(0),
+                Some(0),
+            ),
+        };
+        let log2 = SweepLog {
+            timestamp: chrono::Local::now().to_rfc3339(),
+            bitstream: "demo_oscfsel01.bit".to_string(),
+            oscfsel: 1,
+            cable: "digilent_hs2".to_string(),
+            part: "xc7a200tfbg676-1".to_string(),
+            freq_hz: 4_200_000,
+            repeat: 1,
+            conclusion: "H2_CCLK_TIMING: mode OK but DONE=LOW; try CCLK variants".to_string(),
+            samples: vec![SweepSample {
+                index: 0,
+                raw: 0x5000190C,
+                done: false,
+                eos: false,
+                init_complete: false,
+                crc_error: false,
+                id_error: false,
+                mode: 0b001,
+                diagnosis: "FPGA NOT configured".to_string(),
+            }],
+            pvt_context: None,
+            xadc: serde_json::json!({"source": "not_read"}),
+            pvt_envelope_margin_ns: Some(106),
+            recommendation: recommendation_from_conclusion(
+                "H2_CCLK_TIMING: mode OK but DONE=LOW; try CCLK variants",
+                Some(1),
+                Some(0),
+            ),
+        };
+        for (i, log) in [log1, log2].iter().enumerate() {
+            let name = format!("boot-log-test-{}-oscfsel{:02}.json", i, log.oscfsel);
+            std::fs::write(dry_log_dir.join(name), serde_json::to_string_pretty(log).unwrap()).unwrap();
+        }
+
+        let json_path = dry_log_dir.join("sweep-report-test.json");
+        sweep_report(Some(&dry_log_dir), Some(&json_path), true).unwrap();
+        let text = std::fs::read_to_string(&json_path).unwrap();
+        let report: serde_json::Value = serde_json::from_str(&text).unwrap();
+
+        assert_eq!(report["variants_tested"], 2);
+        assert_eq!(report["first_working_oscfsel"], 0);
+        assert_eq!(report["first_working_bitstream"], "demo_oscfsel00.bit");
+        let variants = report["variants"].as_array().unwrap();
+        assert_eq!(variants.len(), 2);
+        assert_eq!(variants[0]["oscfsel"], 0);
+        assert_eq!(variants[0]["done"], true);
+        assert_eq!(variants[0]["pvt_envelope_margin_ns"], 187);
+        assert_eq!(variants[1]["oscfsel"], 1);
+        assert_eq!(variants[1]["done"], false);
+        assert_eq!(variants[1]["recommendation"]["action"], "try_next_oscfsel");
+
+        let _ = std::fs::remove_dir_all(&dry_log_dir);
     }
 
     #[test]

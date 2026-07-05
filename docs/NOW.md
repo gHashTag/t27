@@ -1,3 +1,63 @@
+# NOW — Wave Loop 427 close-out / Wave Loop 428 setup (2026-07-05)
+
+**Last updated:** 2026-07-05
+
+## Wave Loop 427 — FPGA formal/tooling hardening: per-OSCFSEL PVT envelope theorems, `tri fpga sweep-report --json`, competitor refresh (Closes #1379)
+
+- Branch: `wave-loop-427`
+- Issue: #1379
+- PR: to open
+- Report: `docs/reports/WAVE_LOOP_427_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W427_2026-07-05.md`
+- Cooperation W428: `docs/reports/FPGA_LOOP_COOPERATION_W428_2026-07-05.md`
+
+### What landed (Variant C — bench still blocked)
+
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `cclk_variant_within_pvt_envelope` and
+    `cclk_variant_pvt_envelope_margin_nonneg`: every OSCFSEL 0..7 variant
+    has a non-negative PVT envelope margin at the worst-case corner.
+- `cli/tri/src/fpga.rs`
+  - Added `--json` output to `tri fpga sweep-report`.
+  - JSON report includes `first_working_oscfsel`, `variants_tested`,
+    `next_steps`, and per-variant `recommendation` / `pvt_envelope_margin_ns`.
+  - Added `test_sweep_report_json_roundtrip`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Documented the 7 residual yosys smoke failures and the W427 decision to defer
+    the full gen-verilog #1245 fix set.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W427: Sparkle July 2026 Functional Matsuri talk, Sparkle PR #65
+    divider proof, Clash 1.10, firtool 1.152.0/1.150.0/1.147.0/1.143.0.
+- `docs/reports/W427_WEAK_POINTS_AND_COMPETITORS.md`
+  - Summarized bench blockers, gen-verilog deferral, PVT/XADC placeholders, and
+    competitor scan.
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_427_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W427_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W428_2026-07-05.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real XADC readout — deferred; placeholder `source: "not_read"` retained.
+- Safe gen-verilog #1245 sub-fix — deferred; remaining 7 yosys smoke failures are
+  tied to major features, not narrow regression-free fixes on the wave-loop
+  branch.
+
+### Verification
+
+- `cargo test -p tri`: **PASS** (102 tests).
+- `cargo build --release` in `bootstrap/`: **PASS**.
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `tri fpga sweep-report --json` round-trip: **PASS** (unit test).
+- `tri fpga smoke-gate`: **PASS** (board-less, 8 variants).
+- `./scripts/tri test` parse/typecheck/gen-zig/gen-rust/gen-c/seal-verify: **PASS**.
+- `./scripts/tri test` gen-verilog-yosys-smoke: **7 failures** (pre-existing
+  gen-verilog #1245 weak points).
+
+---
+
 # NOW — Wave Loop 426 close-out / Wave Loop 427 setup (2026-07-05)
 
 **Last updated:** 2026-07-05
