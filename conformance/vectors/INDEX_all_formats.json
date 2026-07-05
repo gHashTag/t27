@@ -5,8 +5,8 @@
   "preprint": "https://arxiv.org/abs/2606.05017",
   "total_formats": 83,
   "total_packs": 83,
-  "bitexact_packs": 72,
-  "selfconsistent_packs": 3,
+  "bitexact_packs": 74,
+  "selfconsistent_packs": 1,
   "structural_packs": 8,
   "packs": [
     {
@@ -410,16 +410,18 @@
     {
       "id": "gf512",
       "file": "gf512_conformance_v0.json",
-      "kind": "bitexact_selfconsistent",
-      "source": "wide-rung GoldenFloat oracle (single decode law, dyadic-exact, no independent second witness)",
-      "sha256": "7a9be0ebca1e129fbefeb23a5a9bc900beb8215eb856f70c1cc46717ba0189f2"
+      "kind": "bitexact",
+      "source": "promoted selfconsistent->strict bitexact (dual exact path + separation-bound; gf512 paired PR)",
+      "sha256": "08d32005ba118c4d0d4a61cb47e074ffd7131a41ca84d4debcac4ebfdfcef9cd",
+      "n_vectors": 15
     },
     {
       "id": "gf1024",
       "file": "gf1024_conformance_v0.json",
-      "kind": "bitexact_selfconsistent",
-      "source": "wide-rung GoldenFloat oracle (single decode law, dyadic-exact, no independent second witness)",
-      "sha256": "bb70cbc510d9ac07cb4228e918592734b8b7f658015c80537c8ab597c84d3e72"
+      "kind": "bitexact",
+      "source": "promoted selfconsistent->strict bitexact (dual exact path + separation-bound; gf1024 paired PR)",
+      "sha256": "1e1613e3e1d1a11deae5c99408a2581244c2cb98c203d429b24247905d188df4",
+      "n_vectors": 15
     },
     {
       "id": "gf8_bfp",
