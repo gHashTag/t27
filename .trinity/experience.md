@@ -1,3 +1,70 @@
+## 2026-07-05 — Wave Loop 428 (FPGA formal/tooling hardening: unified OSCFSEL PVT theorems, `tri fpga pvt-envelope --json`, competitor refresh)
+
+### What worked
+- Defaulting to **Variant C** again (bench still blocked: P12 unwired, no relay
+  gate, DLC10 missing) kept W428 bounded and shippable.
+- Unifying the eight per-OSCFSEL PVT envelope theorems into four quantified
+  theorems (`all_oscfsel_cclk_within_pvt_envelope`,
+  `cclk_variant_worstcase_pvt_measured_satisfies_flash_spec`,
+  `cclk_variant_implies_transaction_ok`,
+  `cclk_variant_worstcase_pvt_implies_transaction_ok`) gave downstream tooling
+  single-theorem references instead of a lookup table.
+- Proving the worst-case PVT transaction theorem required applying the
+  implication lemma with the context argument explicit
+  (`apply measured_cclk_with_pvt_implies_transaction_ok _ _ _
+  OSCFSEL_WORST_CASE_PVT_CONTEXT`) and then using `norm_num` with the context
+  definition. Metavariables in PVT context goals do not solve by interval
+  reasoning alone.
+- Refactoring `pvt_envelope` to call a pure `build_pvt_envelope_report` helper
+  made both human-readable and JSON output share one schema and made the JSON
+  report unit-testable without stdout capture.
+- Refreshing `docs/reports/T27_VS_FORMAL_HDL_2026.md` with new 2026 releases and
+  an "Emerging signals" subsection keeps the competitive snapshot current as
+  Lean-native HDL tooling accelerates.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added the "Unified OSCFSEL 0..7
+  theorems (W428)" section with four quantified PVT/transaction theorems.
+- `cli/tri/src/fpga.rs`:
+  - Added `json: bool` to `FpgaCmd::PvtEnvelope`.
+  - Added `build_pvt_envelope_report` returning `serde_json::Value`.
+  - Refactored `pvt_envelope` to render text from the shared report or print it
+    as JSON.
+  - Added `test_pvt_envelope_json_report_with_context`,
+    `test_pvt_envelope_json_report_no_context`, and
+    `test_pvt_envelope_json_report_has_operating_envelope`.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`: added W428 triage confirming the
+  7 residual yosys smoke failures and the deferral decision.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`: refreshed for W428.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_428_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W428_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W429_2026-07-05.md`.
+
+### Patterns to reuse
+- After proving per-configuration concrete theorems, add a quantified unified
+  theorem family so callers can reference one symbol instead of eight.
+- When a CLI command gains a machine-readable mode, refactor it to build a pure
+  report value first, then render text or JSON from that value. This keeps the
+  schema in one place and makes unit tests trivial.
+- Use `norm_num [constant_definition]` for goals involving concrete PVT context
+  records; `interval_cases` works on the finite `oscfsel` dimension but not on
+  metavariable context records.
+- Refresh the competitor snapshot in the same wave that touches strategic
+  differentiation, even if the technical work is internal/tooling.
+- Document explicit deferrals in a durable defects file so future waves do not
+  waste time re-triaging the same unsafe fixes.
+
+### Anti-patterns to avoid
+- Do not apply an implication theorem with a context metavariable left implicit
+  when the preconditions mention concrete context fields; pass the context
+  explicitly or use `apply ... with`.
+- Do not attempt a gen-verilog #1245 sub-fix when the residual failures are tied
+  to major features (`let` destructuring, tuple returns, ROM arrays, CORDIC).
+  Continue to defer until a narrow, regression-free subclass appears or the
+  master fix set is merged.
+- Do not emit JSON report fields without a round-trip or schema test; adding
+  fields is cheap, but silently breaking downstream consumers is expensive.
+
 # t27 / Trinity Agent Experience Log
 
 ## 2026-07-05 — Wave Loop 427 (FPGA formal/tooling hardening: per-OSCFSEL PVT envelope theorems, `tri fpga sweep-report --json`, competitor refresh)

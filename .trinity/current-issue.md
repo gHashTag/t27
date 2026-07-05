@@ -47,10 +47,10 @@ from `docs/reports/FPGA_LOOP_COOPERATION_W428_2026-07-05.md`.
 
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | Extend per-OSCFSEL PVT theorem library (implication theorems or full table closure) |
-| 2 | `cli/tri/src/fpga.rs` | Further `tri fpga` CLI/JSON hardening (e.g. additional sweep-report JSON fields) |
-| 3 | `bootstrap/src/compiler.rs` or `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` | One safe gen-verilog #1245 sub-fix, or explicit deferral update |
-| 4 | `docs/reports/T27_VS_FORMAL_HDL_2026.md` | Refreshed competitor snapshot if new developments surface |
+| 1 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | Add unified PVT envelope theorem `all_oscfsel_cclk_within_pvt_envelope` and implication theorem `measured_cclk_variant_implies_transaction_ok` |
+| 2 | `cli/tri/src/fpga.rs` | Add `--json` output to `tri fpga pvt-envelope` with `cclk_period_ns`, `flash_min_half_period_ns`, `worst_case_pvt_context`, `margin_ns`, plus unit tests |
+| 3 | `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` | Confirm the 7 residual #1245 failures are still tied to major features; explicitly defer any sub-fix for W428 |
+| 4 | `docs/reports/T27_VS_FORMAL_HDL_2026.md` | Refresh competitor snapshot with Sparkle/Hesper, Clash 1.11.0 candidate, Chisel 7.13.0, Bluespec 2026.01, firtool 1.152.0, and emerging signals |
 | 5 | `docs/reports/*` | W428 report, evidence, W429 cooperation |
 | 6 | `.trinity/experience.md` | W428 learnings |
 | 7 | git/PR | squash-merge to `master`, close issue, open #? for W429 |
@@ -104,8 +104,18 @@ Otherwise fall back to **Variant C**.
 
 ## Chosen variant
 
-**To be selected at the start of W428.** Current default is **Variant C** because
-the hardware blockers that forced W425/W426/W427 Variant C are still present.
+**Variant C** is selected for W428.
+
+Rationale from the W428 start-of-wave probe:
+- Bench is reachable via Digilent HS2 (`idcode 0x03636093`), but P12 is still
+  unwired, no relay/remote-power gate is available, the DLC10 cable is still
+  missing, and only OSCFSEL 0–5 bitstreams exist in `build/fpga/cclk_variants`
+  (no 6/7 variants).
+- No external CSV/VCD captures for OSCFSEL 6/7 were provided.
+- `./scripts/tri test` baseline shows the same 7 pre-existing
+  gen-verilog-yosys-smoke failures from weak point #1245; no new regressions.
+- Therefore Variant A and Variant B are blocked, and Variant C is the only
+  shippable path for W428.
 
 ---
 
