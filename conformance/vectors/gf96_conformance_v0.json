@@ -160,5 +160,31 @@
       "value_encoding": "dyadic"
     }
   ],
-  "structural_reason": "Bit-precise round-trip defined; vectors emitted by encoder and confirmed by an INDEPENDENT second decoder (gf_wide_independent_witness.py, dyadic A*2^B exact comparison, abs_error=0) -> strict bitexact, not selfconsistent."
+  "structural_reason": "Bit-precise round-trip defined; every finite value is an EXACT dyadic rational odd*2^k (M=59 > 52 -> no FP lowering, no rounding; see SEPARATION_BOUND.md). Confirmed by TWO structurally independent exact decoders (gf_wide_independent_witness.py dyadic + gf96_decode_ref.py Fraction oracle), both 15/15 abs_error=0, cross-checked over 201512 representative codes. Strict bitexact, not selfconsistent. See the witnesses array.",
+  "witnesses": [
+    {
+      "kind": "sw_independent_dyadic",
+      "decoder": "gf_wide_independent_witness.py (from-scratch dyadic normalizer, integer (2^M+mant) -> odd*2^shift; does NOT reuse the encoder)",
+      "scope": "all 15 pack vectors (dyadic A*2^B exact comparison)",
+      "result": "15/15 bit-exact vs pack, abs_error=0 [e=36 m=59 bias=34359738367]",
+      "note": "Independent second decoder distinct from the software encoder that produced these vectors. In-repo witness. SW-only; not an on-silicon HW-conformance (Tier-E) claim.",
+      "source": "gHashTag/t27 conformance/gf_wide_independent_witness.py"
+    },
+    {
+      "kind": "sw_golden_fraction_oracle",
+      "decoder": "gf96_decode_ref.py (fractions.Fraction significand + symbolic integer shift; exact-dyadic target, no FP lowering)",
+      "scope": "all 15 pack vectors",
+      "result": "15/15 exact vs pack, abs_error=0",
+      "note": "Third-path-style independent decode with a DIFFERENT internal representation from the dyadic witness (Fraction significand vs integer odd*2^shift). Does not materialize 2^BIAS (~2^35 bits). SW-only.",
+      "source": "gHashTag/t27 conformance/witness/gf96/gf96_decode_ref.py"
+    },
+    {
+      "kind": "analytic_separation_bound",
+      "decoder": "SEPARATION_BOUND.md (zero-rounding lemma)",
+      "scope": "entire 2^96 domain (analytic; 2^96 exhaustive infeasible)",
+      "result": "decode has NO rounding: every finite value is an exact dyadic odd*2^k; max rounding error 0 < ULP/2 -> deterministic, abs_error=0 identically",
+      "note": "Because M=59 > 52 the pack target is the exact dyadic value, not a binary64 lowering, so the iverilog-FP64 witness (used for gf48) is NOT applicable and no RTL bit-model is required. Cross-check of the two exact paths over a representative sweep (201512/201512 agree, seed=96) supports the lemma empirically.",
+      "source": "gHashTag/t27 conformance/witness/gf96/SEPARATION_BOUND.md + cross_check_representative.py"
+    }
+  ]
 }
