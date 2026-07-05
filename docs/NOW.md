@@ -176,7 +176,7 @@
 
 - Branch: `wave-loop-436`
 - Issue: #1402
-- PR: #1405
+- PR: #1406
 - Report: `docs/reports/WAVE_LOOP_436_REPORT.md`
 - Evidence W436: `docs/reports/FPGA_LOOP_EVIDENCE_W436_2026-07-01.md`
 - Cooperation W437: `docs/reports/FPGA_LOOP_COOPERATION_W437_2026-07-01.md`
