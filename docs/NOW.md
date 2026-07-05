@@ -1,3 +1,54 @@
+# NOW — Wave Loop 425 close-out / Wave Loop 426 setup (2026-07-05)
+
+**Last updated:** 2026-07-05
+
+## Wave Loop 425 — FPGA formal/tooling hardening: OSCFSEL 0–7 sweep, PVT worst-case envelope theorems (Closes #1374)
+
+- Branch: `wave-loop-425`
+- Issue: #1374
+- PR: #1375 (closes #1374)
+- Report: `docs/reports/WAVE_LOOP_425_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W425_2026-07-05.md`
+- Cooperation W426: `docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md`
+
+### What landed (Variant C — bench still blocked)
+
+- `cli/tri/src/fpga.rs`
+  - Default `cclk-sweep` OSCFSEL range expanded from 0–5 to **0–7**.
+  - `smoke-gate` dry-run sweep matches the 0–7 range.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `pvt_half_ns_worst_case_is_upper_envelope` and
+    `pvt_low_ns_worst_case_is_upper_envelope`: the documented worst-case
+    operating point (85 °C, 900 mV, slow-slow corner) is the upper envelope of the
+    PVT-aware SCK low/half-period bounds over the full operating rectangle.
+  - Moved `OSCFSEL_WORST_CASE_PVT_CONTEXT` earlier so the monotonicity proofs
+    can reference it.
+- `docs/reports/WAVE_LOOP_425_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W425_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md`
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real XADC readout — deferred; placeholder `source: "not_read"` retained.
+- Safe gen-verilog #1245 sub-fix — deferred; remaining 7 yosys smoke failures are
+  tied to major features, not narrow regression-free fixes on the wave-loop
+  branch.
+
+### Verification
+
+- `cargo test -p tri`: **PASS** (93 tests).
+- `cargo build --release` in `bootstrap/`: **PASS**.
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `tri fpga cclk-sweep --dry-run` (OSCFSEL 0–7): **PASS** (8 variants).
+- `tri fpga smoke-gate`: **PASS** (board-less, 8 variants).
+- `./scripts/tri test` parse/typecheck/gen-zig/gen-rust/gen-c/seal-verify: **PASS**.
+- `./scripts/tri test` gen-verilog-yosys-smoke: **7 failures** (pre-existing
+  gen-verilog #1245 weak points).
+
+---
+
 # NOW — Wave Loop 424 close-out / Wave Loop 425 setup (2026-07-05)
 
 **Last updated:** 2026-07-05

@@ -1,6 +1,6 @@
 # Wave Loop 425 — FPGA boot-evidence next variant (physical CCLK / real capture import / formal fallback)
 
-**Issue:** #1372  
+**Issue:** #1374  
 **Branch:** `wave-loop-425`  
 **Milestone:** Continue the FPGA boot-evidence line from Wave Loop 424.
 
@@ -69,15 +69,15 @@ volts or millivolts. Wave 425 executes the first available variant from
 - [ ] AC-B3: Dry-run boot-log artifacts exist for OSCFSEL 6/7 and include PVT/XADC context fields.
 
 ### Bundle C
-- [ ] AC-C1: Real XADC readout lands in boot-log/cclk-sweep JSON, or the deferral is documented.
-- [ ] AC-C2: `boot-log` / `cold-por` / `cclk-sweep` tooling is measurably more robust or better documented.
-- [ ] AC-C3: One safe gen-verilog #1245 sub-fix lands without increasing the 7-failure yosys smoke count, or is explicitly deferred if unsafe.
-- [ ] AC-C4: Competitor snapshot is updated if any new 2026 developments are found.
+- [x] AC-C1: Real XADC readout deferred: requires live JTAG XADC register access and a connected DLC10/HS2 probe; placeholder retained (`source: "not_read"`) with documented deferral.
+- [x] AC-C2: `tri fpga cclk-sweep` default OSCFSEL range expanded from 0–5 to 0–7; `tri fpga smoke-gate` dry-run sweep matches; worst-case PVT envelope theorems added to `TernaryFPGABoot.lean`.
+- [x] AC-C3: Safe gen-verilog #1245 sub-fix deferred: the remaining 7 yosys smoke failures are tied to major features (let destructuring, tuple returns, ROM arrays, CORDIC) that are not narrow regression-free fixes on the wave-loop branch.
+- [x] AC-C4: No new 2026 competitor developments identified during W425; existing `T27_VS_FORMAL_HDL_2026.md` snapshot remains current.
 
 ### Invariant checks
-- [ ] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
-- [ ] `lake build Trinity.TernaryFPGABoot` passes.
-- [ ] `cargo test -p tri fpga::tests` passes.
+- [x] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass (gen-verilog yosys smoke has 7 pre-existing failures tied to gen-verilog #1245, not increased by W425).
+- [x] `lake build Trinity.TernaryFPGABoot` passes.
+- [x] `cargo test -p tri fpga::tests` passes.
 
 ---
 
@@ -85,7 +85,7 @@ volts or millivolts. Wave 425 executes the first available variant from
 
 - Target: `master`
 - PR: to open after work
-- Body: `Closes #1372`
+- Body: `Closes #1374`
 - Report: `docs/reports/WAVE_LOOP_425_REPORT.md`
 - Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W425_YYYY-MM-DD.md`
 - Cooperation W426: `docs/reports/FPGA_LOOP_COOPERATION_W426_YYYY-MM-DD.md`
@@ -98,6 +98,13 @@ Execute **Variant A** if P12 is wired and the analyzer is ready.
 Otherwise execute **Variant B** if an external capture is available or the board
 is reachable for a dry-run boot-log.  
 Otherwise fall back to **Variant C**.
+
+## Actual execution
+
+**Variant C** was executed: P12 remains unwired and no external capture or relay
+gate was available. Work focused on formal/tooling hardening (OSCFSEL 0–7 sweep
+and PVT worst-case envelope theorems) and documenting deferrals for hardware-
+dependent items.
 
 ---
 

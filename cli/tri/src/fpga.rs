@@ -330,7 +330,7 @@ pub enum FpgaCmd {
         /// Input Xilinx .bit file.
         bit: PathBuf,
         /// Comma-separated list of raw 6-bit OSCFSEL values to sweep.
-        /// Defaults to 0,1,2,3,4,5.
+        /// Defaults to 0,1,2,3,4,5,6,7.
         #[arg(long, value_delimiter = ',')]
         values: Vec<u8>,
         /// Variant output directory (default: <repo>/build/fpga/cclk_variants).
@@ -2000,7 +2000,7 @@ fn cclk_variants(
         .with_context(|| format!("create {}", dir.display()))?;
 
     let values: Vec<u8> = if values.is_empty() {
-        vec![0, 1, 2, 3, 4, 5]
+        vec![0, 1, 2, 3, 4, 5, 6, 7]
     } else {
         values.clone()
     };
@@ -4893,7 +4893,7 @@ fn smoke_gate(
     // 2. Dry-run CCLK sweep + report path (no hardware required).
     if bit_path.is_file() {
         println!("[smoke-gate] dry-run CCLK sweep: {}", bit_path.display());
-        let values = vec![0u8, 1, 2, 3, 4, 5];
+        let values = vec![0u8, 1, 2, 3, 4, 5, 6, 7];
         let dry_log_dir = root.join("build").join("fpga").join("smoke-gate-dry-run");
         // Remove stale dry-run logs so the report counts only this run.
         if dry_log_dir.is_dir() {
