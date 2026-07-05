@@ -1,5 +1,67 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-05 — Wave Loop 424 (FPGA tooling hardening: auto-continue boot logs, PVT/XADC context, CSV voltage units, ProcessCorner helpers)
+
+### What worked
+- Probing the bench at the start of the wave confirmed the board is still
+  reachable via openFPGALoader + Digilent HS2 (idcode `0x03636093`), but P12
+  remains unwired and the relay gate is still absent. Re-probing avoids
+  committing to a Variant A plan that cannot run.
+- Treating W424 as a pure **Variant B/C tooling wave** kept the scope bounded
+  and landed every planned item without hardware blockers.
+- Centralizing the wait/continue logic in a single `wait_for_continue` helper
+  made `boot-log`, `cold-por`, and `cclk-sweep` behave consistently and removed
+  the subtle blocking bug in `cclk-sweep` where the polling loop could not time
+  out because `read_line` itself blocked.
+- Embedding `--pvt-context` in all three boot-log commands, plus an XADC
+  placeholder object, prepares the JSON schema for real XADC readout in W425.
+- Adding `--csv-voltage-unit mv` closed a realistic failure mode where a scope
+  export in millivolts produced an absurd threshold midpoint near 1650 V.
+- Adding small `ProcessCorner` decidability helpers in Lean 4 gives future
+  automation a clean way to compare operating corners without leaving a `Prop`
+  goal.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`:
+  - Added `wait_for_continue`, `load_optional_pvt_context`,
+    `xadc_context_json`.
+  - Added `--pvt-context` to `BootLog`, `ColdPor`, and `CclkSweep`.
+  - Added `--csv-voltage-unit v|mv` to `MeasuredToLean`.
+  - Added `CsvVoltageUnit` and scaling in `parse_cclk_csv_reader`.
+  - Expanded `cclk_sweep` default OSCFSEL range to 0–7.
+  - Added `pvt_context` and `xadc` fields to `SweepLog` and boot-log JSON.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`:
+  - Added `ProcessCorner.eq_decidable`, `ProcessCorner.worse_than_decidable`,
+    `ProcessCorner.severity`, `ProcessCorner.worse_than_iff_severity_le`.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`:
+  - Refreshed for mid-2026, added firtool 1.152.0 and W423–W424
+    boot-evidence progress note.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_424_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W424_2026-07-05.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md`.
+
+### Patterns to reuse
+- Centralize interactive wait logic in one helper; do not duplicate the stdin +
+  timeout dance across commands.
+- Embed context fields in JSON artifacts as soon as the schema is designed,
+  even if the sensor readout is not implemented. A placeholder with a clear
+  `source` value lets later waves flip the source without a schema migration.
+- When adding a CLI unit argument, default to the most common unit (volts) and
+  require an explicit flag only for the alternative (millivolts). This keeps
+  the common path unchanged.
+- Add decidability/equality infrastructure for inductive configuration types
+  in Lean 4 as soon as automation starts needing to compare them; it is cheaper
+  than retrofitting `Decidable` instances later.
+
+### Anti-patterns to avoid
+- Do not implement a timeout around `read_line` by calling `read_line` inside a
+  loop with a sleep; the call itself blocks and defeats the timeout.
+- Do not change a CLI function signature in a large file by hand across dozens
+  of call sites without a mechanical check; it is easy to miss a multi-line
+  test call or a function definition.
+- Do not defer the competitor snapshot update indefinitely; the formal-HDL
+  landscape changes fast and stale competitive claims weaken the close-out report.
+
 ## 2026-07-06 — Wave Loop 422 (Live XC7A200T SRAM boot + gen-verilog keyword escape + PVT worst-case bound)
 
 ### What worked

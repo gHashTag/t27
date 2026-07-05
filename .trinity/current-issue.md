@@ -1,17 +1,17 @@
-# Wave Loop 424 — FPGA boot-evidence next variant (physical CCLK / real capture import / formal fallback)
+# Wave Loop 425 — FPGA boot-evidence next variant (physical CCLK / real capture import / formal fallback)
 
-**Issue:** #1371  
-**Branch:** `wave-loop-424`  
-**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 423.
+**Issue:** #1372  
+**Branch:** `wave-loop-425`  
+**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 424.
 
 ---
 
 ## Goal
 
-Wave 423 extended the `tri fpga measured-to-lean` import pipeline to handle CSV
-time units, VCD real-net slope filtering, unknown timescale units, and PVT
-worst-case validation. Wave 424 executes the first available variant from
-`docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-01.md`.
+Wave 424 hardened the FPGA CLI so that `boot-log`, `cold-por`, and
+`cclk-sweep` auto-continue, embed PVT/XADC context, and import CSV captures in
+volts or millivolts. Wave 425 executes the first available variant from
+`docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md`.
 
 1. **Variant A (preferred when bench becomes available):**
    - Confirm P12 is wired to a logic-analyzer channel.
@@ -25,17 +25,19 @@ worst-case validation. Wave 424 executes the first available variant from
 
 2. **Variant B (if an external capture is available or the board is reachable for dry-run boot-log):**
    - Import at least one real or representative CCLK capture end-to-end using the
-     W423 unit/noise handling.
+     W423–W424 unit/noise/voltage-unit handling.
    - Add any missing parser handling exposed by the real export.
-   - Run a dry-run cold-POR boot-log for OSCFSEL 6/7 variants.
+   - Run a dry-run cold-POR boot-log for OSCFSEL 6/7 variants with `--pvt-context`.
    - Document the import recipe in `fpga/HARDWARE_SSOT.md` §3.6.21.
 
 3. **Variant C (fallback if bench still blocked):**
+   - Implement real XADC readout in `tri fpga boot-log` / `cclk-sweep` so the JSON
+     `xadc` object has `source: "xadc"` and live temp/vccint/vccaux values; or
+     document the deferral if it is unsafe for the branch.
    - Land the next safe gen-verilog #1245 sub-fix from the remaining 7 failures,
      if one is narrow and regression-free; otherwise explicitly defer.
-   - Harden `tri fpga boot-log` / `cclk-sweep` cold-POR artifact capture for
-     manual-power-cycle mode.
-   - Add small Lean helpers in `TernaryFPGABoot.lean` if future theorems need them.
+   - Continue hardening `tri fpga boot-log` / `cold-por` / `cclk-sweep` JSON schema
+     and decision-tree output.
    - Update `docs/reports/T27_VS_FORMAL_HDL_2026.md` if any new 2026 competitor
      developments surface.
 
@@ -45,11 +47,11 @@ worst-case validation. Wave 424 executes the first available variant from
 
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `cli/tri/src/fpga.rs` or `bootstrap/src/compiler.rs` or `proofs/lean4/Trinity/TernaryFPGABoot.lean` | Variant A capture import, B import/dry-run, or C parser/formal/gen-verilog hardening |
+| 1 | `cli/tri/src/fpga.rs` or `bootstrap/src/compiler.rs` or `proofs/lean4/Trinity/TernaryFPGABoot.lean` | Variant A capture import, B import/dry-run, or C parser/formal/gen-verilog/XADC hardening |
 | 2 | `fpga/HARDWARE_SSOT.md` / `docs/reports` | Updated protocol or comparison note |
-| 3 | `docs/reports/*` | W424 report, evidence, W425 cooperation |
-| 4 | `.trinity/experience.md` | W424 learnings |
-| 5 | git/PR | squash-merge to `master`, close issue, open #? for W425 |
+| 3 | `docs/reports/*` | W425 report, evidence, W426 cooperation |
+| 4 | `.trinity/experience.md` | W425 learnings |
+| 5 | git/PR | squash-merge to `master`, close issue, open #? for W426 |
 
 ---
 
@@ -63,13 +65,14 @@ worst-case validation. Wave 424 executes the first available variant from
 
 ### Bundle B
 - [ ] AC-B1: At least one real or representative CCLK/CSV/VCD capture is imported end-to-end.
-- [ ] AC-B2: The import path exposes no unhandled unit or noise cases.
-- [ ] AC-B3: Dry-run boot-log artifacts exist for OSCFSEL 6/7.
+- [ ] AC-B2: The import path exposes no unhandled unit, voltage-unit, or noise cases.
+- [ ] AC-B3: Dry-run boot-log artifacts exist for OSCFSEL 6/7 and include PVT/XADC context fields.
 
 ### Bundle C
-- [ ] AC-C1: `boot-log` / `cclk-sweep` cold-POR tooling is measurably more robust or better documented.
-- [ ] AC-C2: One safe gen-verilog #1245 sub-fix lands without increasing the 7-failure yosys smoke count, or is explicitly deferred if unsafe.
-- [ ] AC-C3: Competitor snapshot is updated if any new 2026 developments are found.
+- [ ] AC-C1: Real XADC readout lands in boot-log/cclk-sweep JSON, or the deferral is documented.
+- [ ] AC-C2: `boot-log` / `cold-por` / `cclk-sweep` tooling is measurably more robust or better documented.
+- [ ] AC-C3: One safe gen-verilog #1245 sub-fix lands without increasing the 7-failure yosys smoke count, or is explicitly deferred if unsafe.
+- [ ] AC-C4: Competitor snapshot is updated if any new 2026 developments are found.
 
 ### Invariant checks
 - [ ] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
@@ -82,10 +85,10 @@ worst-case validation. Wave 424 executes the first available variant from
 
 - Target: `master`
 - PR: to open after work
-- Body: `Closes #1371`
-- Report: `docs/reports/WAVE_LOOP_424_REPORT.md`
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W424_YYYY-MM-DD.md`
-- Cooperation W425: `docs/reports/FPGA_LOOP_COOPERATION_W425_YYYY-MM-DD.md`
+- Body: `Closes #1372`
+- Report: `docs/reports/WAVE_LOOP_425_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W425_YYYY-MM-DD.md`
+- Cooperation W426: `docs/reports/FPGA_LOOP_COOPERATION_W426_YYYY-MM-DD.md`
 
 ---
 
