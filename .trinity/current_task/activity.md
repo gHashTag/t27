@@ -1700,3 +1700,7 @@
 - **Commit:** docs(w441): record PR #1416 in NOW.md (Closes #1413)
 - **Files:** .trinity/current-issue.md,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W443_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W442_2026-07-01.md,docs/reports/FPGA_LOOP_PLAN_W442_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_442_REPORT.md
 
+## 2026-07-05T15:22:45Z — wave-loop-443
+- **Commit:** feat(igla): Wave Loop 442 — 24-variant ff/tt/ss theorem matrix, smoke-gate schema_version, matrix/schema tests
+- **Files:** docs/reports/FPGA_LOOP_COOPERATION_W443_2026-07-01.md,docs/reports/WAVE_LOOP_442_REPORT.md
+
