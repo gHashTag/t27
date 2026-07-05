@@ -1668,3 +1668,7 @@
 - **Commit:** chore(w438): update current-issue.md for Wave Loop 438
 - **Files:** cli/tri/src/fpga.rs,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,fpga/HARDWARE_SSOT.md
 
+## 2026-07-05T13:47:15Z — wave-loop-438
+- **Commit:** feat(w438): integrate synthetic dry-run + verify-lean into FPGA smoke gate
+- **Files:** .trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W439_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W438_2026-07-05.md,docs/reports/WAVE_LOOP_438_REPORT.md
+
