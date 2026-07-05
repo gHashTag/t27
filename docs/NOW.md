@@ -406,12 +406,80 @@ target `Trinity.TernaryFPGABoot` still builds.
 
 ---
 
-## Wave Loop 440 — Next: CI report consumption / board-less fallback / real-capture fallback / gen-verilog debt (Variant B default)
+## Wave Loop 440 — CI report consumption / board-less fallback / real-capture fallback / gen-verilog debt (Variant B default) (Closes #1411)
 
 - Branch: `wave-loop-440`
 - Issue: #1411
+- PR: #1413 (predicted)
+- Report: `docs/reports/WAVE_LOOP_440_REPORT.md`
+- Evidence W440: `docs/reports/FPGA_LOOP_EVIDENCE_W440_2026-07-01.md`
+- Cooperation W441: `docs/reports/FPGA_LOOP_COOPERATION_W441_2026-07-01.md`
+
+### What landed (Variant B — board still blocked)
+
+- `bootstrap/src/main.rs`
+  - Added `json: Option<PathBuf>` to the `Suite` command.
+
+- `bootstrap/src/suite.rs`
+  - Phase 3c now parses `build/fpga/smoke_gate_report.json`, asserts
+    `passed == true`, logs per-phase statuses, and treats bitstream-missing /
+    yosys-unavailable as `skipped`.
+  - Added `SuitePhaseSummary` / `SuiteSummary` structs and writes pretty-printed
+    JSON when `./scripts/tri test --json <path>` is used.
+
+- `cli/tri/src/fpga.rs`
+  - Replaced the two ignored full-Trinity `lake build` integration tests with
+    lightweight content checks:
+    - `test_measured_to_lean_standalone_outputs_consumable_lean`
+    - `test_measured_to_lean_xadc_to_pvt_context_outputs`
+  - Retained the W439 `test_smoke_gate_json_synthetic_verify_lean` regression
+    test.
+
+- `scripts/tri`
+  - Forwards `--json` and all following arguments after `test`/`suite` to
+    `t27c suite --repo-root "$REPO_ROOT"`.
+
+- `fpga/HARDWARE_SSOT.md` §3.6.24/§3.6.25
+  - Documented suite-level JSON summary consumption and schema.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Refreshed for W440; no new public competitor signals appeared after Sparkle's
+    関数型まつり2026 talk on 2026-07-11. Noted CIRCT `firtool-1.152.0` release
+    on 2026-07-04.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Updated branch to `wave-loop-440` and documented the W440 triage decision:
+    no compiler work; 7 residual yosys smoke failures remain the baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_440_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W440_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W441_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — not performed this wave.
+- Master-merge to clear #1245 — deferred to a dedicated future wave.
+
+### Verification
+
+- `cargo test -p tri --bin tri fpga::`: **PASS** (127 tests, 0 ignored, +2 restored).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test` parse/typecheck/GF16/gen-zig/gen-rust/gen-verilog/gen-c/seal-verify/FPGA smoke/fixed-point: **PASS**.
+- `./scripts/tri test` gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+- `./scripts/tri test --json /tmp/suite_summary.json`: **PASS**, summary contains
+  `fpga_smoke_passed: true` and `total_failures: 7`.
+
+---
+
+## Wave Loop 441 — Next: CI schema hardening / board-less theorem matrix / real-capture fallback / gen-verilog debt (Variant B default)
+
+- Branch: `wave-loop-441`
+- Issue: #1414 (predicted)
 - Default variant: **B** unless P12 or the relay gate becomes available.
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W440_2026-07-05.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W441_2026-07-01.md`
 
 ---
 

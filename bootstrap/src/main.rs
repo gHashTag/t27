@@ -769,6 +769,9 @@ enum Commands {
         /// Repository root (default: current directory)
         #[arg(long, default_value = ".")]
         repo_root: PathBuf,
+        /// Write a machine-readable JSON summary of the suite run to this path.
+        #[arg(long)]
+        json: Option<PathBuf>,
     },
 
     /// Validate conformance/*.json files (JSON + vector keys)
@@ -8211,7 +8214,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
         }
-        Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
+        Commands::Suite { repo_root, json } => suite::run_comprehensive(&repo_root, json.as_ref())?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
         }
@@ -8471,7 +8474,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
         }
-        Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
+        Commands::Suite { repo_root, json } => suite::run_comprehensive(&repo_root, json.as_ref())?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
         }

@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-439`  
-**Last updated:** 2026-07-05 (Wave Loop 439)  
+**Branch:** `wave-loop-440`  
+**Last updated:** 2026-07-01 (Wave Loop 440)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -29,6 +29,14 @@ integrates the synthetic dry-run path and `verify-lean` into the FPGA smoke gate
 adds edge-case unit tests, documents the `verify-lean --json` schema, and
 refreshes the competitor report. The 7 residual yosys smoke failures remain the
 documented baseline; Variant C (master-merge) remains a dedicated future wave.
+
+**W440 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W440
+consumes the FPGA smoke-gate JSON report in the suite runner, adds a
+machine-readable suite-level summary to `./scripts/tri test --json`, hardens
+skip/fail handling for bitstream-missing and yosys-unavailable cases, and replaces
+two previously ignored full-Trinity `lake build` integration tests with lightweight
+content checks. The 7 residual yosys smoke failures remain the documented
+baseline; Variant C (master-merge) remains a dedicated future wave.
 
 ---
 

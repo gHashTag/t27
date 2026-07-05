@@ -16,6 +16,7 @@ fi
 # Map `tri test` to the suite subcommand; pass other commands through unchanged.
 cmd="${1:-}"
 if [[ "$cmd" == "test" || "$cmd" == "suite" ]]; then
+    # Forward everything after the subcommand to t27c suite, including --json.
     exec "$T27C" suite --repo-root "$REPO_ROOT" "${@:2}"
 else
     exec "$T27C" "$@"

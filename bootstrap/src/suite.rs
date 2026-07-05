@@ -220,18 +220,38 @@ fn igla_clean_specs() -> Vec<String> {
     ]
 }
 
-fn cmd_fpga_smoke_gate(repo: &Path) -> anyhow::Result<()> {
-    let bit = repo.join("fpga").join("verilog").join("ternary_mac_demo_top_200t.bit");
-    if !bit.is_file() {
-        println!("  SKIP: demo bitstream not found at {}", bit.display());
-        return Ok(());
-    }
+#[derive(Debug, Clone)]
+struct FpgaSmokeResult {
+    passed: bool,
+    skipped: bool,
+    report_path: Option<PathBuf>,
+    bit_config_status: Option<String>,
+    dry_run_sweep_status: Option<String>,
+    verify_lean_status: Option<String>,
+    yosys_synthesis_status: Option<String>,
+}
 
-    let tri = tri_exe(repo)?;
+fn cmd_fpga_smoke_gate(repo: &Path) -> anyhow::Result<FpgaSmokeResult> {
+    let bit = repo.join("fpga").join("verilog").join("ternary_mac_demo_top_200t.bit");
     let report_path = repo
         .join("build")
         .join("fpga")
         .join("smoke_gate_report.json");
+
+    if !bit.is_file() {
+        println!("  SKIP: demo bitstream not found at {}", bit.display());
+        return Ok(FpgaSmokeResult {
+            passed: false,
+            skipped: true,
+            report_path: None,
+            bit_config_status: None,
+            dry_run_sweep_status: None,
+            verify_lean_status: None,
+            yosys_synthesis_status: None,
+        });
+    }
+
+    let tri = tri_exe(repo)?;
     let fallback_dir = repo.join("build").join("fpga");
     let report_dir = report_path.parent().unwrap_or(&fallback_dir);
     fs::create_dir_all(report_dir)?;
@@ -253,8 +273,55 @@ fn cmd_fpga_smoke_gate(repo: &Path) -> anyhow::Result<()> {
         let err = String::from_utf8_lossy(&st.stderr);
         anyhow::bail!("tri fpga smoke-gate failed: {} {}", out.trim(), err.trim());
     }
-    println!("  FPGA smoke gate: OK (report: {})", report_path.display());
-    Ok(())
+
+    // Parse the machine-readable report so the suite can incorporate its
+    // per-phase status into its own summary and so CI can act on it directly.
+    let report: serde_json::Value = match fs::read_to_string(&report_path) {
+        Ok(text) => serde_json::from_str(&text)
+            .with_context(|| format!("parsing smoke-gate report {}", report_path.display()))?,
+        Err(e) => anyhow::bail!("smoke-gate report missing: {}: {}", report_path.display(), e),
+    };
+
+    let phase_status = |key: &str| {
+        report
+            .get(key)
+            .and_then(|v| v.get("status"))
+            .and_then(|s| s.as_str())
+            .map(|s| s.to_string())
+    };
+
+    let passed = report
+        .get("passed")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let result = FpgaSmokeResult {
+        passed,
+        skipped: false,
+        report_path: Some(report_path.clone()),
+        bit_config_status: phase_status("bit_config"),
+        dry_run_sweep_status: phase_status("dry_run_sweep"),
+        verify_lean_status: phase_status("verify_lean"),
+        yosys_synthesis_status: phase_status("yosys_synthesis"),
+    };
+
+    println!(
+        "  FPGA smoke gate: {} (report: {})",
+        if passed { "OK" } else { "FAILED" },
+        report_path.display()
+    );
+    println!(
+        "    phases: bit_config={:?} dry_run_sweep={:?} verify_lean={:?} yosys_synthesis={:?}",
+        result.bit_config_status,
+        result.dry_run_sweep_status,
+        result.verify_lean_status,
+        result.yosys_synthesis_status
+    );
+
+    if !passed {
+        anyhow::bail!("smoke-gate report indicates failure");
+    }
+
+    Ok(result)
 }
 
 fn cmd_gen_verilog_yosys_smoke(repo: &Path, rel: &str) -> anyhow::Result<()> {
@@ -279,8 +346,26 @@ fn cmd_gen_verilog_yosys_smoke(repo: &Path, rel: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Default, Clone, serde::Serialize)]
+struct SuitePhaseSummary {
+    name: String,
+    passed: usize,
+    failed: usize,
+    skipped: usize,
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize)]
+struct SuiteSummary {
+    repo: String,
+    phases: Vec<SuitePhaseSummary>,
+    fpga_smoke_report: Option<String>,
+    fpga_smoke_passed: Option<bool>,
+    total_failures: usize,
+    passed: bool,
+}
+
 /// Phases 1–6: same coverage as legacy `tests/run_all.sh`.
-pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
+pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow::Result<()> {
     let repo = fs::canonicalize(repo_root)
         .with_context(|| format!("cannot canonicalize repo root {}", repo_root.display()))?;
 
@@ -299,17 +384,33 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
     let specs_only = collect_t27(&repo.join("specs"))?;
     let specs_scratch = collect_t27(&repo.join("specs/scratch"))?;
 
+    let mut summary = SuiteSummary {
+        repo: repo.display().to_string(),
+        ..Default::default()
+    };
+    let mut push_phase = |name: &str, passed: usize, failed: usize, skipped: usize| {
+        summary.phases.push(SuitePhaseSummary {
+            name: name.to_string(),
+            passed,
+            failed,
+            skipped,
+        });
+    };
+
     println!("--- Phase 1: Parse ---");
     let (p1p, p1f) = run_phase(&repo, "parse", cmd_parse, &specs_compiler)?;
     println!("Parse: {} passed, {} failed", p1p, p1f);
+    push_phase("parse", p1p, p1f, 0);
 
     println!("--- Phase 1b: Typecheck ---");
     let (p1bp, p1bf) = run_phase(&repo, "typecheck", cmd_typecheck, &specs_compiler)?;
     println!("Typecheck: {} passed, {} failed", p1bp, p1bf);
+    push_phase("typecheck", p1bp, p1bf, 0);
 
     println!("--- Phase 1c: GF16 Conformance ---");
     let mut gf16_fail = 0usize;
     let gf16_path = repo.join("specs/numeric/gf16.t27");
+    let gf16_skipped = !gf16_path.exists();
     if gf16_path.exists() {
         let rel = rel_arg(&repo, &gf16_path)?;
         if let Err(e) = cmd_typecheck(&repo, &rel) {
@@ -321,6 +422,7 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
     } else {
         println!("GF16: skipped (spec not found)");
     }
+    push_phase("gf16_conformance", 1 - gf16_fail - (gf16_skipped as usize), gf16_fail, gf16_skipped as usize);
 
     println!("--- Phase 2: Gen Zig ---");
     let (p2p, p2f) = run_phase(
@@ -330,6 +432,7 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
         &specs_compiler,
     )?;
     println!("Gen Zig: {} passed, {} failed", p2p, p2f);
+    push_phase("gen-zig", p2p, p2f, 0);
 
     println!("--- Phase 2b: Gen Rust ---");
     let (p2bp, p2bf) = run_phase(
@@ -339,6 +442,7 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
         &specs_compiler,
     )?;
     println!("Gen Rust: {} passed, {} failed", p2bp, p2bf);
+    push_phase("gen-rust", p2bp, p2bf, 0);
 
     println!("--- Phase 3: Gen Verilog ---");
     let (p3p, p3f) = run_phase(
@@ -348,34 +452,61 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
         &specs_only,
     )?;
     println!("Gen Verilog: {} passed, {} failed", p3p, p3f);
+    push_phase("gen-verilog", p3p, p3f, 0);
 
     println!("--- Phase 3b: Gen Verilog Yosys Smoke ---");
     let mut p3b_fail = 0usize;
-    if yosys_available() {
+    let mut p3b_skipped = 0usize;
+    let (p3bp, p3bf) = if yosys_available() {
         let mut smoke_targets = specs_scratch.clone();
         for rel in igla_clean_specs() {
             smoke_targets.push(repo.join(&rel));
         }
         smoke_targets.sort();
         smoke_targets.dedup();
-        let (p3bp, p3bf) = run_phase(
+        let (bp, bf) = run_phase(
             &repo,
             "gen-verilog-yosys-smoke",
             cmd_gen_verilog_yosys_smoke,
             &smoke_targets,
         )?;
-        println!("Gen Verilog Yosys Smoke: {} passed, {} failed", p3bp, p3bf);
-        p3b_fail = p3bf;
+        println!("Gen Verilog Yosys Smoke: {} passed, {} failed", bp, bf);
+        (bp, bf)
     } else {
         println!("Yosys not available; skipping gen-verilog yosys smoke gate");
-    }
+        p3b_skipped = 1;
+        (0, 0)
+    };
+    p3b_fail = p3bf;
+    push_phase("gen-verilog-yosys-smoke", p3bp, p3bf, p3b_skipped);
 
     println!("--- Phase 3c: FPGA Board-Less Smoke Gate ---");
     let mut p3c_fail = 0usize;
-    if let Err(e) = cmd_fpga_smoke_gate(&repo) {
-        eprintln!("FPGA smoke gate failed: {}", e);
-        p3c_fail = 1;
-    }
+    let mut p3c_skipped = 0usize;
+    let fpga_result = match cmd_fpga_smoke_gate(&repo) {
+        Ok(r) => {
+            if r.skipped {
+                p3c_skipped = 1;
+            }
+            summary.fpga_smoke_report = r.report_path.as_ref().map(|p| p.display().to_string());
+            summary.fpga_smoke_passed = Some(r.passed);
+            r
+        }
+        Err(e) => {
+            eprintln!("FPGA smoke gate failed: {}", e);
+            p3c_fail = 1;
+            FpgaSmokeResult {
+                passed: false,
+                skipped: false,
+                report_path: None,
+                bit_config_status: None,
+                dry_run_sweep_status: None,
+                verify_lean_status: None,
+                yosys_synthesis_status: None,
+            }
+        }
+    };
+    push_phase("fpga-smoke-gate", if fpga_result.passed { 1 } else { 0 }, p3c_fail, p3c_skipped);
 
     println!("--- Phase 4: Gen C ---");
     let (p4p, p4f) = run_phase(
@@ -385,10 +516,12 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
         &specs_only,
     )?;
     println!("Gen C: {} passed, {} failed", p4p, p4f);
+    push_phase("gen-c", p4p, p4f, 0);
 
     println!("--- Phase 5: Seal Verify ---");
     let (p5p, p5f) = run_phase(&repo, "seal-verify", cmd_seal_verify, &specs_only)?;
     println!("Seal Verify: {} passed, {} failed", p5p, p5f);
+    push_phase("seal-verify", p5p, p5f, 0);
 
     println!("--- Phase 6: Fixed Point ---");
     let mut fp_diff = 0usize;
@@ -407,6 +540,7 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
         }
     }
     println!("Fixed Point: {} divergences", fp_diff);
+    push_phase("fixed-point", 0, fp_diff, 0);
 
     println!();
     println!("=== SUMMARY ===");
@@ -424,12 +558,24 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
     println!("FP divergences:           {}", fp_diff);
     println!("TOTAL FAILURES:    {}", total_fail);
     println!();
+
+    summary.total_failures = total_fail;
+    summary.passed = total_fail == 0;
+
+    if let Some(path) = json_out {
+        let json = serde_json::to_string_pretty(&summary)
+            .with_context(|| format!("serializing suite summary for {}", path.display()))?;
+        fs::write(path, json)
+            .with_context(|| format!("writing suite summary {}", path.display()))?;
+        println!("[suite] JSON summary: {}", path.display());
+    }
+
     if total_fail == 0 {
         println!("ALL TESTS PASSED");
         println!("phi^2 + 1/phi^2 = 3 | TRINITY");
         Ok(())
     } else {
-        anyhow::bail!("SOME TESTS FAILED");
+        anyhow::bail!("SOME TESTS FAILED")
     }
 }
 
