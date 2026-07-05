@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 430)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 431)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -22,14 +22,18 @@ hardware proof backend, plus ternary compute projects **TernaryCore** and
 **BitNet-RISCV-Multicore** — validate t27's direction while raising the bar for
 differentiation.
 
-This note documents the competitive landscape as input for Wave Loops 421–430
+This note documents the competitive landscape as input for Wave Loops 421–431
 and subsequent waves. W429 added raw-ns quantified OSCFSEL theorems and a
 machine-readable `--json` path for `tri fpga measured-to-lean`, reinforcing the
-physical boot-evidence loop. **W430 adds live XADC readout via `tri fpga
+physical boot-evidence loop. W430 added live XADC readout via `tri fpga
 read-xadc` and a formal bridge (`xadc_operating_point_envelope_implies_worst_case_bound`)
 that justifies replacing a measured in-envelope operating point with the
-conservative worst-case PVT context in proof goals — a step none of the listed
-competitors currently exposes in their boot-evidence workflow.**
+conservative worst-case PVT context in proof goals. **W431 hardens the bridge by
+making the XADC → PVT context conversion explicit in `cli/tri/src/fpga.rs`, adding
+a computable `Bool` envelope check with a proven `Decidable` equivalence, and
+emitting a closed-vocabulary `recommendation` field in the `measured-to-lean --json`
+summary — none of the listed competitors currently exposes a boot-to-proof loop
+with live silicon operating points and a machine-readable recommendation.**
 
 ---
 
@@ -89,6 +93,11 @@ competitor to t27's "Lean-native proof → synthesis" positioning.
     broader Lean-for-hardware strategy.
   - Infrastructure for zero-knowledge (Merkle tree / polynomial commitment,
     mini-STARK verifier, Goldilocks field) and verified GPU programming.
+  - **July 2026 activity signals:** the public repository shows a last push on
+    **2026-07-03** and PR #66 (IP.Net + compiler perf) remains open with passing
+    tests. No additional public PRs or commits surfaced between the W430 and W431
+    boundaries, but the open PR continues to expand Sparkle's networking / IP
+    catalog breadth.
 
 **Where t27 still differentiates:**
 1. **Ternary compute and balanced-trit proof lattice.** Sparkle is binary
@@ -100,14 +109,16 @@ competitor to t27's "Lean-native proof → synthesis" positioning.
    assurance model (spec traceability vs. proof-in-the-same-language).
 3. **Physical boot-evidence instrumentation.** The `tri fpga measured-to-lean`
   VCD/CSV import path ties captured CCLK waveforms to generated Lean theorems.
+  W431 adds a live XADC → PVT context bridge and a machine-readable `--json`
+  recommendation so the same pipeline can consume real silicon operating points.
   Sparkle has no equivalent closed-loop bench-to-proof flow.
 
 **Strategic implication:** Sparkle remains the competitor to watch. The June
 2026 divider proof and the IP.Net expansion show it is pushing both formal
-depth and catalog breadth. If Sparkle adds a spec-first sealed pipeline or a
-physical measurement import path, the gap closes quickly. t27 should
-accelerate its own ternary IP catalog and keep the formal-boot-evidence line
-unique.
+depth and catalog breadth. If Sparkle adds a spec-first sealed pipeline, a
+physical measurement import path, or a PVT-aware boot-to-proof bridge, the gap
+closes quickly. t27 should accelerate its own ternary IP catalog and keep the
+formal-boot-evidence line unique.
 
 ---
 
@@ -152,6 +163,10 @@ The industry-standard Chisel flow is adding formal verification rapidly:
   `chiseltest/formal` package that lets existing ChiselTest formal tests run
   against the new major version. No headline new LTL feature, but the formal
   compatibility layer keeps the verification ecosystem current.
+- **Clash 1.11.0** is still a **Hackage candidate** as of the W431 boundary
+  (`clash-lib-1.11.0/candidate` and `clash-ghc-1.11.0/candidate`). It has not
+  been promoted to a final release, so **Clash 1.10** (April 23 2026) remains
+  the latest official release.
 - **CIRCT LTL dialect** — first-class Linear Temporal Logic IR for SVA and
   formal tools; supports sequences/properties, `delay`, `concat`,
   `implication`, `eventually`, `until`, `repeat`, `clock`, `past`, `$rose`,
@@ -161,11 +176,11 @@ The industry-standard Chisel flow is adding formal verification rapidly:
 - **Chisel 7.11.0 LTL front-end** — `AssertProperty`, `AssumeProperty`,
   `CoverProperty`, `RequireProperty`, `EnsureProperty`, `Property`/`Sequence`
   composition.
-- **firtool 1.152.0** (July 4 2026): the latest available release at the W428
+- **firtool 1.152.0** (July 4 2026): the latest available release at the W431
   boundary. It is a maintenance release focusing on ImportVerilog/Moore
   (`$fscanf`/`$sscanf`, `$timeformat`, `%l`/`%L` format specifiers), Arc-dialect
-  coroutine work, FIRRTL NLA/inliner fixes, and string lowering. firtool 1.153
-  does not yet exist.
+  coroutine work, FIRRTL NLA/inliner fixes, and string lowering. A public
+  `firtool-1.153.0` release does not yet exist.
 - **firtool 1.150.0** (June 22 2026): `VerifToSMT` BMC debug-name preservation,
   `verif.registerVerifPasses` CAPI, multi-bit boolean expressions in
   ImportVerilog assertions.

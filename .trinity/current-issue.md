@@ -1,48 +1,48 @@
-# Wave Loop 431 — FPGA boot-evidence next variant (physical CCLK / XADC sweep / formal fallback)
+# Wave Loop 432 — FPGA boot-evidence next variant (real CCLK capture, live XADC validation, or master-merge)
 
-**Issue:** #1389  
-**Branch:** `wave-loop-431`  
-**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 430.
+**Issue:** #1391  
+**Branch:** `wave-loop-432`  
+**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 431.
 
 ---
 
 ## Goal
 
-Wave Loop 430 added live XADC readout and a formal PVT-envelope bridge while
-the bench remained partially blocked (P12 unwired, no relay gate, no DLC10
-cable). Wave Loop 431 executes the first available variant from
-`docs/reports/FPGA_LOOP_COOPERATION_W431_2026-07-01.md`.
+Wave Loop 431 hardened the XADC → PVT context bridge, added a computable Lean 4
+envelope check, and improved the machine-readable `measured-to-lean --json`
+summary while the bench remained partially blocked (P12 unwired, no relay gate,
+no DLC10 cable). Wave Loop 432 executes the first available variant from
+`docs/reports/FPGA_LOOP_COOPERATION_W432_2026-07-01.md`.
 
 1. **Variant A (preferred when bench becomes fully available):**
    - Confirm P12 is wired to a logic-analyzer channel and a relay/remote-power
      gate is available.
-   - Program SPI flash with OSCFSEL=6 and OSCFSEL=7 variants.
-   - Capture real CCLK during cold-POR boot for both variants.
-   - Run `tri fpga cclk-sweep ... --xadc` so boot logs record live operating
-     points.
+   - Program SPI flash with OSCFSEL=6 (and OSCFSEL=7 if time permits).
+   - Capture real CCLK during cold-POR boot.
+   - Run `tri fpga cclk-sweep ... --xadc` so boot logs record live operating points.
    - Import with `tri fpga measured-to-lean --csv/--vcd --raw-ns --standalone
-     --validate --pvt-context <ctx.json> --out <theorem.lean> --json` and commit
+     --validate --pvt-context <xadc.json> --out <theorem.lean> --json` and commit
      generated Lean theorems plus JSON summaries.
-   - Document frequencies, duty cycles, and XADC/PVT context in
-     `fpga/HARDWARE_SSOT.md` §3.6 / §9.6.
+   - Update `fpga/HARDWARE_SSOT.md` §3.6 with measured frequency/duty/margin.
 
 2. **Variant B (if board is reachable but P12 / relay are still blocked):**
-   - Run a real `tri fpga cclk-sweep` over OSCFSEL 0..7 with `--xadc` and a
-     supplied `--pvt-context`, performing manual power cycles.
-   - Alternatively, import at least one external CSV/VCD capture end-to-end.
-   - Add a Lean theorem or decidability lemma connecting a concrete XADC JSON
-     operating point to `xadc_operating_point_envelope_implies_worst_case_bound`.
-   - Document the sweep/import recipe in `fpga/HARDWARE_SSOT.md`.
+   - Capture a real `tri fpga read-xadc --json` from the live board.
+   - Verify the JSON converts to a valid `PvtContext` via `tri fpga pvt-envelope`.
+   - Generate at least one `measured-to-lean` theorem using the real XADC context
+     (synthetic CCLK fixture is acceptable for proof-of-pipeline).
+   - Alternatively, run `tri fpga cclk-sweep` over OSCFSEL 0..5 with `--xadc` and
+     manual power cycles.
+   - Refresh `docs/reports/T27_VS_FORMAL_HDL_2026.md` and re-evaluate
+     `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`.
 
 3. **Variant C (fallback if bench still blocked):**
-   - Extend the XADC/PVT theorem library (e.g. computable envelope check or an
-     implication theorem linking measured raw-ns + XADC to transaction OK).
-   - Land one safe gen-verilog #1245 sub-fix if narrow and regression-free;
-     otherwise explicitly defer and update
-     `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`.
-   - Harden `tri fpga measured-to-lean` JSON output further.
-   - Refresh `docs/reports/T27_VS_FORMAL_HDL_2026.md` if new competitor signals
-     appear.
+   - Execute the deferred master-merge/rebase wave to bring the `master` fix set
+     (`701d79b3b`) into `wave-loop-432` and clear the 7 residual yosys smoke
+     failures (#1245).
+   - If the merge is too risky for one wave, land a formal/tooling sub-task:
+     per-OSCFSEL PVT-corner theorems, machine-readable `sweep-report --json`, or
+     a deeper competitor refresh.
+   - Update `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` with the new baseline.
 
 ---
 
@@ -50,11 +50,12 @@ cable). Wave Loop 431 executes the first available variant from
 
 - [ ] The chosen variant is executed and its acceptance criteria are met.
 - [ ] `lake build Trinity.TernaryFPGABoot` passes.
-- [ ] `./scripts/tri test` passes with no new failures beyond the documented
-      7 gen-verilog #1245 failures.
+- [ ] `./scripts/tri test` passes with the new documented baseline (ideally 0 new
+      gen-verilog failures; if Variant C succeeds, the 7 #1245 failures are
+      cleared).
 - [ ] `cargo test --bin tri fpga::` passes.
 - [ ] Close-out report and next-wave cooperation variants are written.
-- [ ] Issue/branch for Wave Loop 432 are created.
+- [ ] Issue/branch for Wave Loop 433 are created.
 
 ---
 

@@ -1,3 +1,60 @@
+## 2026-07-01 — Wave Loop 431 (FPGA boot-evidence: XADC → PVT context bridge, computable envelope check, `measured-to-lean --json` summary hardening, W431 close-out / W432 setup)
+
+### What worked
+- Executing **Variant C** kept the wave shippable: P12 and the relay gate are
+  still unwired, so the wave focused on formal/tooling debt instead of physical
+  capture.
+- Converting live XADC `f64` values (°C / V) into the integer `PvtContext` in
+  `XadcContext::to_pvt_context` removes the manual JSON editing step and makes
+  `tri fpga read-xadc --json` directly consumable as `--pvt-context`.
+- Writing a direct `Bool` envelope check (`xadc_operating_point_within_envelope_dec`)
+  and proving equivalence with the propositional version avoids the Lean
+  `Decidable` synthesis failure that blocked the naive `decide (predicate pt)`
+  approach.
+- Proving `xadc_envelope_implies_raw_ns_satisfies_any_in_envelope` and
+  `xadc_envelope_justifies_worstcase_transaction_proof` means a real, in-envelope
+  XADC measurement can be used in proof goals without weakening the existing
+  worst-case transaction theorem.
+- Extending `build_measured_to_lean_summary` with `flash_min_half_period_ns`,
+  `margin_ns`, and a closed `recommendation` vocabulary gives downstream CI a
+  machine-readable signal instead of free-form text.
+- Updating the existing summary unit tests to assert the new fields catches
+  schema drift immediately.
+- Keeping the gen-verilog #1245 deferral explicit in
+  `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` prevents scope creep.
+
+### What changed behavior
+- `cli/tri/src/fpga.rs`:
+  - Added `XadcContext::to_pvt_context` and unit tests for rounding / unit
+    conversion.
+  - Extended `build_measured_to_lean_summary` with `flash_min_half_period_ns`,
+    `margin_ns`, and `recommendation`.
+  - Updated unit tests for the summary builder.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`:
+  - Added `xadc_operating_point_within_envelope_dec` with proven `Bool` ↔
+    propositional equivalence.
+  - Added `xadc_envelope_implies_raw_ns_satisfies_any_in_envelope`.
+  - Added `xadc_envelope_justifies_worstcase_transaction_proof`.
+- `fpga/HARDWARE_SSOT.md`: added §9.6.1 documenting the XADC → PVT bridge and
+  the `--json` summary fields.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`: refreshed for W431; noted Sparkle
+  July 2026 activity signals.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`: added W431 triage decision
+  confirming the same 7 residual yosys smoke failures and recommending a
+  dedicated master-merge wave in W432.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_431_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W431_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W432_2026-07-01.md`.
+- Issue/branch: GitHub issue #1391, branch `wave-loop-432`; PR closes #1389.
+
+### Verification
+- `cargo test --bin tri fpga::`: 81/81 pass.
+- `lake build Trinity.TernaryFPGABoot`: 2967 jobs, 0 errors.
+- `./scripts/tri test`: all phases pass; 7 pre-existing gen-verilog yosys smoke
+  failures (#1245); 0 FPGA smoke failures; 0 seal mismatches.
+
+---
+
 ## 2026-07-01 — Wave Loop 430 (FPGA boot-evidence: live XADC readout, PVT-envelope bridge, W430 close-out / W431 setup)
 
 ### What worked

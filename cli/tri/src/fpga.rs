@@ -2694,6 +2694,30 @@ impl XadcContext {
         }
         value
     }
+
+    /// Convert the live XADC readout to the `PvtContext` used by the PVT envelope.
+    /// The XADC reports temperatures in °C and voltages in volts, while the PVT
+    /// model uses integer °C and millivolts. Values are rounded to the nearest
+    /// integer. The process corner is not measured by the XADC and must be
+    /// supplied by the caller (default `ss` for worst-case reasoning).
+    fn to_pvt_context(&self, corner: ProcessCorner) -> Result<PvtContext> {
+        let temp_c = self
+            .temp_c
+            .round()
+            .clamp(i64::MIN as f64, i64::MAX as f64) as i64;
+        let vccint_mv = (self.vccint_v * 1000.0)
+            .round()
+            .clamp(0.0, u64::MAX as f64) as u64;
+        let vccaux_mv = (self.vccaux_v * 1000.0)
+            .round()
+            .clamp(0.0, u64::MAX as f64) as u64;
+        Ok(PvtContext {
+            temp_c,
+            vccint_mv,
+            vccaux_mv,
+            process_corner: corner,
+        })
+    }
 }
 
 /// Remove trailing commas that appear immediately before a closing brace or
@@ -3537,7 +3561,7 @@ fn build_measured_to_lean_summary(
     pvt_ctx: &Option<PvtContext>,
     text: &str,
 ) -> Result<serde_json::Value> {
-    let (source, theorem_base, predicate) = if raw_ns {
+    let (source, theorem_base, predicate, period_ns, low_ns, high_ns) = if raw_ns {
         let m: MeasuredCclkRawNs =
             serde_json::from_str(text).context("parse MeasuredCclkRawNs JSON for summary")?;
         let source_suffix = sanitize_lean_ident(&m.source);
@@ -3557,7 +3581,14 @@ fn build_measured_to_lean_summary(
         } else {
             "measured_cclk_from_raw_ns_satisfies_flash_spec"
         };
-        (m.source, theorem_base, predicate.to_string())
+        (
+            m.source,
+            theorem_base,
+            predicate.to_string(),
+            m.period_ns,
+            m.sck_low_ns,
+            m.sck_high_ns,
+        )
     } else {
         let m: MeasuredCclk =
             serde_json::from_str(text).context("parse MeasuredCclk JSON for summary")?;
@@ -3575,7 +3606,32 @@ fn build_measured_to_lean_summary(
         } else {
             "measured_cclk_satisfies_flash_spec"
         };
-        (m.source, theorem_base, predicate.to_string())
+        (
+            m.source,
+            theorem_base,
+            predicate.to_string(),
+            m.period_ns,
+            m.sck_low_ns,
+            m.sck_high_ns,
+        )
+    };
+
+    // Compute the flash-spec minimum half-period and the measured margin.
+    let nominal_min_half_ns = (N25Q128_MIN_SCK_LOW_S * 1.0e9).round() as i64;
+    let flash_min_half_period_ns = pvt_ctx
+        .as_ref()
+        .map(|ctx| n25q128_min_sck_half_ns_pvt(ctx) as i64)
+        .unwrap_or(nominal_min_half_ns);
+    let measured_min_half_ns = std::cmp::min(low_ns, high_ns) as i64;
+    let margin_ns = measured_min_half_ns - flash_min_half_period_ns;
+    let recommendation = if pvt_ctx.is_none() {
+        "needs_pvt_context"
+    } else if raw_ns && low_ns + high_ns != period_ns {
+        "out_of_spec"
+    } else if margin_ns >= 0 {
+        "in_spec"
+    } else {
+        "out_of_spec"
     };
 
     Ok(serde_json::json!({
@@ -3585,6 +3641,9 @@ fn build_measured_to_lean_summary(
         "pvt_context": pvt_ctx.as_ref().map(|ctx| serde_json::to_value(ctx).unwrap_or(serde_json::Value::Null)),
         "raw_ns": raw_ns,
         "margin": margin,
+        "flash_min_half_period_ns": flash_min_half_period_ns,
+        "margin_ns": margin_ns,
+        "recommendation": recommendation,
     }))
 }
 
@@ -6452,6 +6511,12 @@ mod tests {
         assert_eq!(summary["raw_ns"].as_bool().unwrap(), false);
         assert_eq!(summary["margin"].as_bool().unwrap(), false);
         assert!(summary["pvt_context"].is_null());
+        assert_eq!(summary["flash_min_half_period_ns"].as_i64().unwrap(), 6);
+        assert_eq!(summary["margin_ns"].as_i64().unwrap(), 194);
+        assert_eq!(
+            summary["recommendation"].as_str().unwrap(),
+            "needs_pvt_context"
+        );
     }
 
     #[test]
@@ -6476,6 +6541,12 @@ mod tests {
         );
         assert_eq!(summary["raw_ns"].as_bool().unwrap(), true);
         assert!(summary["pvt_context"].is_null());
+        assert_eq!(summary["flash_min_half_period_ns"].as_i64().unwrap(), 6);
+        assert_eq!(summary["margin_ns"].as_i64().unwrap(), 14);
+        assert_eq!(
+            summary["recommendation"].as_str().unwrap(),
+            "needs_pvt_context"
+        );
     }
 
     #[test]
@@ -6499,6 +6570,9 @@ mod tests {
         let ctx_out = summary["pvt_context"].as_object().unwrap();
         assert_eq!(ctx_out["temp_c"].as_i64().unwrap(), 85);
         assert_eq!(ctx_out["process_corner"].as_str().unwrap(), "ss");
+        assert_eq!(summary["flash_min_half_period_ns"].as_i64().unwrap(), 13);
+        assert_eq!(summary["margin_ns"].as_i64().unwrap(), 7);
+        assert_eq!(summary["recommendation"].as_str().unwrap(), "in_spec");
     }
 
     #[test]
@@ -8328,5 +8402,46 @@ mod tests {
         assert_eq!(json["source"], "not_read");
         assert_eq!(json["temp_c"], 35);
         assert_eq!(json["vccint_mv"], 1000);
+    }
+
+    #[test]
+    fn test_xadc_context_to_pvt_context_rounds_and_converts_units() {
+        let ctx = XadcContext {
+            temp_c: 42.7,
+            max_temp_c: 85.0,
+            min_temp_c: -40.0,
+            vccint_v: 1.00049,
+            max_vccint_v: 1.050,
+            min_vccint_v: 0.950,
+            vccaux_v: 1.80615,
+            max_vccaux_v: 1.890,
+            min_vccaux_v: 1.710,
+            raw: None,
+        };
+        let pvt = ctx.to_pvt_context(ProcessCorner::Ss).unwrap();
+        assert_eq!(pvt.temp_c, 43);
+        assert_eq!(pvt.vccint_mv, 1000);
+        assert_eq!(pvt.vccaux_mv, 1806);
+        assert_eq!(pvt.process_corner, ProcessCorner::Ss);
+    }
+
+    #[test]
+    fn test_xadc_context_to_pvt_context_negative_temp_rounds() {
+        let ctx = XadcContext {
+            temp_c: -12.4,
+            max_temp_c: 85.0,
+            min_temp_c: -40.0,
+            vccint_v: 0.950,
+            max_vccint_v: 1.050,
+            min_vccint_v: 0.950,
+            vccaux_v: 1.800,
+            max_vccaux_v: 1.890,
+            min_vccaux_v: 1.710,
+            raw: None,
+        };
+        let pvt = ctx.to_pvt_context(ProcessCorner::Tt).unwrap();
+        assert_eq!(pvt.temp_c, -12);
+        assert_eq!(pvt.vccint_mv, 950);
+        assert_eq!(pvt.process_corner, ProcessCorner::Tt);
     }
 }
