@@ -303,6 +303,15 @@ pub enum FpgaCmd {
     /// With `--flash-boot`, program the bitstream to SPI flash, prompt for a
     /// physical power-cycle, then capture cold-POR STAT and assert `boot_success`.
     /// `--flash-boot` implies `--require-cable`.
+    ///
+    /// With `--synthetic-operating-point`, the dry-run CCLK sweep uses a
+    /// deterministic synthetic PVT context so the produced sweep report carries
+    /// `operating_point.source = "synthetic"`. This lets the gate run without
+    /// live XADC hardware while still exercising the PVT-aware artifact trail.
+    ///
+    /// With `--verify-lean`, the dry-run path also generates a synthetic
+    /// `.lean` theorem and runs `verify-lean --expected-source synthetic` on it,
+    /// producing a machine-checkable end-to-end artifact gate.
     SmokeGate {
         /// Bitstream to audit (default: fpga/verilog/ternary_mac_demo_top_200t.bit).
         #[arg(long)]
@@ -331,6 +340,17 @@ pub enum FpgaCmd {
         /// FPGA part/package for openFPGALoader (default: xc7a200tfgg676).
         #[arg(long, default_value = "xc7a200tfgg676")]
         part: String,
+        /// Use a deterministic synthetic operating point for the dry-run sweep.
+        /// The resulting artifact will have `source: "synthetic"`.
+        #[arg(long)]
+        synthetic_operating_point: bool,
+        /// After the dry-run sweep, generate a synthetic `.lean` theorem and run
+        /// `verify-lean --expected-source synthetic`. Implies `--synthetic-operating-point`.
+        #[arg(long)]
+        verify_lean: bool,
+        /// Process corner for the synthetic PVT context (default: ss).
+        #[arg(long, default_value = "ss")]
+        process_corner: String,
     },
     /// Print or interactively confirm the cold-POR boot protocol. This is the
     /// standalone version of the instructions embedded in `boot-log` and
@@ -873,6 +893,9 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             wait_seconds,
             cable,
             part,
+            synthetic_operating_point,
+            verify_lean,
+            process_corner,
         } => smoke_gate(
             bit.as_ref(),
             top,
@@ -881,6 +904,9 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *wait_seconds,
             cable,
             part,
+            *synthetic_operating_point || *verify_lean,
+            *verify_lean,
+            process_corner,
         ),
         FpgaCmd::BootProtocol { checklist } => boot_protocol(*checklist),
         FpgaCmd::PatchCor0 { bit, out, oscfsel } => patch_cor0(bit, out, *oscfsel),
@@ -5954,7 +5980,11 @@ fn smoke_gate(
     wait_seconds: u32,
     cable: &str,
     part: &str,
+    synthetic_operating_point: bool,
+    run_verify_lean: bool,
+    process_corner: &str,
 ) -> Result<()> {
+    let corner = parse_process_corner(process_corner)?;
     let root = repo_root()?;
     let bit_path = bit.cloned().unwrap_or_else(|| {
         root.join("fpga")
@@ -6058,7 +6088,15 @@ fn smoke_gate(
 
     // 2. Dry-run CCLK sweep + report path (no hardware required).
     if bit_path.is_file() {
-        println!("[smoke-gate] dry-run CCLK sweep: {}", bit_path.display());
+        if synthetic_operating_point {
+            println!(
+                "[smoke-gate] dry-run CCLK sweep with synthetic operating point (corner: {}): {}",
+                process_corner,
+                bit_path.display()
+            );
+        } else {
+            println!("[smoke-gate] dry-run CCLK sweep: {}", bit_path.display());
+        }
         let values = vec![0u8, 1, 2, 3, 4, 5, 6, 7];
         let dry_log_dir = root.join("build").join("fpga").join("smoke-gate-dry-run");
         // Remove stale dry-run logs so the report counts only this run.
@@ -6089,12 +6127,14 @@ fn smoke_gate(
             3,
             0,
             None,
-            "ss",
+            process_corner,
             None,
             None,
             false,
-            false,
+            synthetic_operating_point,
         )?;
+
+        // Markdown sanity check: eight variant rows.
         let dry_report = dry_log_dir.join("sweep-report-smoke-gate-dry-run.md");
         sweep_report(Some(&dry_log_dir), Some(&dry_report), false)?;
         let report_text = std::fs::read_to_string(&dry_report)
@@ -6110,10 +6150,132 @@ fn smoke_gate(
                 values.len()
             );
         }
-        println!(
-            "[smoke-gate] dry-run sweep report OK ({} variants)",
-            variant_count
-        );
+
+        // Machine-readable check: when requested, every variant must carry the
+        // synthetic operating-point label.
+        if synthetic_operating_point {
+            let dry_report_json = dry_log_dir.join("sweep-report-smoke-gate-dry-run.json");
+            sweep_report(Some(&dry_log_dir), Some(&dry_report_json), true)?;
+            let report_value: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(&dry_report_json)
+                    .with_context(|| format!("read {}", dry_report_json.display()))?,
+            )
+            .with_context(|| format!("parse {}", dry_report_json.display()))?;
+            let variants = report_value
+                .get("variants")
+                .and_then(|v| v.as_array())
+                .with_context(|| format!("missing variants array in {}", dry_report_json.display()))?;
+            if variants.len() != values.len() {
+                bail!(
+                    "dry-run JSON sweep report has {} variants, expected {}",
+                    variants.len(),
+                    values.len()
+                );
+            }
+            for (idx, variant) in variants.iter().enumerate() {
+                let source = variant
+                    .get("operating_point")
+                    .and_then(|op| op.get("source"))
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("not_read");
+                if source != "synthetic" {
+                    bail!(
+                        "dry-run variant {} has operating_point.source = '{}', expected 'synthetic'",
+                        idx,
+                        source
+                    );
+                }
+            }
+            println!(
+                "[smoke-gate] dry-run synthetic sweep report OK ({} variants, source=synthetic)",
+                variants.len()
+            );
+        } else {
+            println!(
+                "[smoke-gate] dry-run sweep report OK ({} variants)",
+                variant_count
+            );
+        }
+
+        // 2b. Optional end-to-end artifact gate: generate a synthetic .lean
+        // theorem from a raw-ns fixture and verify it with `verify-lean`.
+        if run_verify_lean {
+            println!("[smoke-gate] verify-lean: generating synthetic theorem");
+            let fixture_dir = root
+                .join("build")
+                .join("fpga")
+                .join("smoke-gate-dry-run")
+                .join("verify-lean-fixture");
+            std::fs::create_dir_all(&fixture_dir)
+                .with_context(|| format!("create {}", fixture_dir.display()))?;
+            let pvt = synthetic_pvt_context(corner);
+            let pvt_path = fixture_dir.join("pvt.json");
+            std::fs::write(
+                &pvt_path,
+                serde_json::to_string_pretty(&pvt)
+                    .with_context(|| "serialize synthetic PVT context")?,
+            )
+            .with_context(|| format!("write {}", pvt_path.display()))?;
+
+            let raw_ns = MeasuredCclkRawNs {
+                period_ns: 40,
+                sck_low_ns: 20,
+                sck_high_ns: 20,
+                source: "smoke gate synthetic fixture".to_string(),
+            };
+            let raw_ns_text = serde_json::to_string_pretty(&raw_ns)
+                .with_context(|| "serialize raw-ns fixture")?;
+            let raw_ns_path = fixture_dir.join("raw_ns.json");
+            std::fs::write(&raw_ns_path, &raw_ns_text)
+                .with_context(|| format!("write {}", raw_ns_path.display()))?;
+
+            let lean_path = fixture_dir.join("smoke_gate_synthetic.lean");
+            measured_to_lean(
+                Some(&raw_ns_path),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                0,
+                None,
+                None,
+                None,
+                Some(&lean_path),
+                "smoke_gate_synthetic",
+                false,
+                Some(&pvt_path),
+                false,
+                Some("synthetic"),
+                false,
+                true,
+                false,
+                false,
+            )
+            .with_context(|| "measured-to-lean synthetic theorem generation")?;
+
+            let summary = build_measured_to_lean_summary(
+                "smoke_gate_synthetic",
+                true,
+                false,
+                &Some(pvt),
+                "synthetic",
+                &raw_ns_text,
+            )
+            .with_context(|| "build measured-to-lean summary")?;
+            let summary_path = fixture_dir.join("summary.json");
+            std::fs::write(
+                &summary_path,
+                serde_json::to_string_pretty(&summary)
+                    .with_context(|| "serialize verify-lean summary")?,
+            )
+            .with_context(|| format!("write {}", summary_path.display()))?;
+
+            verify_lean(&lean_path, Some(&summary_path), Some("synthetic"), false)
+                .with_context(|| "verify-lean synthetic theorem")?;
+            println!("[smoke-gate] verify-lean OK (source=synthetic, theorems present)");
+        }
     }
 
     // 3. yosys synthesis smoke on the demo sources if available.
@@ -9447,5 +9609,79 @@ mod tests {
         let _ = std::fs::remove_file(&json_path);
         let _ = std::fs::remove_file(&generated);
         let _ = std::fs::remove_file(&summary);
+    }
+
+    /// `verify_lean` must fail when the `.lean` file contains no theorem
+    /// declarations, even if a source label is present.
+    #[test]
+    fn test_verify_lean_rejects_no_theorem() {
+        let tmp = std::env::temp_dir().join(format!(
+            "tri_verify_lean_no_theorem_{}.lean",
+            std::process::id()
+        ));
+        std::fs::write(&tmp, "-- operating_point source: synthetic\n/- no theorem here -/\n").unwrap();
+        let result = verify_lean(&tmp, None, Some("synthetic"), false);
+        assert!(result.is_err(), "verify-lean should reject a file with no theorems");
+        let msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            msg.contains("no theorem"),
+            "error should mention missing theorems: {}",
+            msg
+        );
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    /// `verify_lean` must fail when `--expected-source` is supplied but neither
+    /// the JSON summary nor the theorem comments provide a source label.
+    #[test]
+    fn test_verify_lean_missing_summary_and_source_comment() {
+        let tmp = std::env::temp_dir().join(format!(
+            "tri_verify_lean_no_source_{}.lean",
+            std::process::id()
+        ));
+        std::fs::write(
+            &tmp,
+            "theorem no_source_test_satisfies_flash_spec :\n  1 = 1 := by rfl\n",
+        )
+        .unwrap();
+        let result = verify_lean(&tmp, None, Some("synthetic"), false);
+        assert!(
+            result.is_err(),
+            "verify-lean should fail when expected source is unavailable"
+        );
+        let msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            msg.contains("expected operating_point source 'synthetic' but found 'not_read'"),
+            "error should report not_read source: {}",
+            msg
+        );
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    /// `verify_lean` must fail when the actual source disagrees with the
+    /// expected source, even when the source comes from a theorem comment.
+    #[test]
+    fn test_verify_lean_mismatched_expected_source_from_comment() {
+        let tmp = std::env::temp_dir().join(format!(
+            "tri_verify_lean_mismatch_{}.lean",
+            std::process::id()
+        ));
+        std::fs::write(
+            &tmp,
+            "-- operating_point source: pvt_context_file\ntheorem mismatch_test_satisfies_flash_spec :\n  1 = 1 := by rfl\n",
+        )
+        .unwrap();
+        let result = verify_lean(&tmp, None, Some("xadc"), false);
+        assert!(
+            result.is_err(),
+            "verify-lean should fail on mismatched source from comment"
+        );
+        let msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            msg.contains("expected operating_point source 'xadc' but found 'pvt_context_file'"),
+            "error should report actual source: {}",
+            msg
+        );
+        let _ = std::fs::remove_file(&tmp);
     }
 }
