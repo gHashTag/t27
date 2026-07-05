@@ -282,6 +282,7 @@ struct FpgaSmokeResult {
     dry_run_sweep_status: Option<String>,
     verify_lean_status: Option<String>,
     theorem_matrix_status: Option<String>,
+    theorem_matrix_elapsed_ms: Option<u64>,
     yosys_synthesis_status: Option<String>,
 }
 
@@ -300,6 +301,7 @@ fn cmd_fpga_smoke_gate(repo: &Path) -> anyhow::Result<FpgaSmokeResult> {
             dry_run_sweep_status: None,
             verify_lean_status: None,
             theorem_matrix_status: None,
+            theorem_matrix_elapsed_ms: None,
             yosys_synthesis_status: None,
         });
     }
@@ -333,6 +335,7 @@ fn run_fpga_smoke_gate(
             "smoke-gate",
             "--synthetic-operating-point",
             "--verify-lean",
+            "--theorem-matrix",
             "--json",
             &report_path.to_string_lossy(),
         ])
@@ -370,6 +373,10 @@ fn parse_smoke_gate_report(report_path: &Path) -> anyhow::Result<FpgaSmokeResult
         .get("schema_version")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
+    let theorem_matrix_elapsed_ms = report
+        .get("theorem_matrix")
+        .and_then(|v| v.get("elapsed_ms"))
+        .and_then(|v| v.as_u64());
     let result = FpgaSmokeResult {
         passed,
         skipped: false,
@@ -379,6 +386,7 @@ fn parse_smoke_gate_report(report_path: &Path) -> anyhow::Result<FpgaSmokeResult
         dry_run_sweep_status: phase_status("dry_run_sweep"),
         verify_lean_status: phase_status("verify_lean"),
         theorem_matrix_status: phase_status("theorem_matrix"),
+        theorem_matrix_elapsed_ms,
         yosys_synthesis_status: phase_status("yosys_synthesis"),
     };
 
@@ -438,6 +446,8 @@ struct SuiteSummary {
     phases: Vec<SuitePhaseSummary>,
     fpga_smoke_report: Option<String>,
     fpga_smoke_passed: Option<bool>,
+    /// Elapsed milliseconds reported by the smoke-gate theorem matrix, if any.
+    fpga_smoke_gate_elapsed_ms: Option<u64>,
     /// Specs that failed in the `gen-verilog-yosys-smoke` phase, if any.
     known_failures: Vec<String>,
     /// Number of failures documented as the current baseline in
@@ -579,6 +589,7 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
             }
             summary.fpga_smoke_report = r.report_path.as_ref().map(|p| p.display().to_string());
             summary.fpga_smoke_passed = Some(r.passed);
+            summary.fpga_smoke_gate_elapsed_ms = r.theorem_matrix_elapsed_ms;
             r
         }
         Err(e) => {
@@ -593,6 +604,7 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
                 dry_run_sweep_status: None,
                 verify_lean_status: None,
                 theorem_matrix_status: None,
+                theorem_matrix_elapsed_ms: None,
                 yosys_synthesis_status: None,
             }
         }
@@ -988,6 +1000,7 @@ mod tests {
             ],
             fpga_smoke_report: Some("build/fpga/smoke_gate_report.json".to_string()),
             fpga_smoke_passed: Some(true),
+            fpga_smoke_gate_elapsed_ms: Some(42),
             known_failures: vec!["specs/scratch/a.t27".to_string()],
             baseline_failures: 2,
             total_failures: 2,
@@ -1002,6 +1015,7 @@ mod tests {
         assert_eq!(value["phases"].as_array().unwrap().len(), 2);
         assert_eq!(value["known_failures"].as_array().unwrap().len(), 1);
         assert_eq!(value["acceptable"].as_bool(), Some(true));
+        assert_eq!(value["fpga_smoke_gate_elapsed_ms"].as_u64(), Some(42));
     }
 
     #[test]
@@ -1062,7 +1076,7 @@ mod tests {
         std::fs::create_dir_all(&script_dir).unwrap();
         let script = script_dir.join("tri");
         let report_json = if passed {
-            r#"{"schema_version":"1.0","bit_config":{"status":"ok"},"dry_run_sweep":{"status":"ok"},"verify_lean":{"status":"ok"},"theorem_matrix":{"status":"ok","variant_count":24,"source":"synthetic","variants":[{"corner":"ff","oscfsel":0,"envelope_check":"ok","status":"ok"}]},"yosys_synthesis":{"status":"ok"},"passed":true}"#
+            r#"{"schema_version":"1.0","bit_config":{"status":"ok"},"dry_run_sweep":{"status":"ok"},"verify_lean":{"status":"ok"},"theorem_matrix":{"status":"ok","variant_count":24,"source":"synthetic","replay":false,"elapsed_ms":42,"variants":[{"corner":"ff","oscfsel":0,"period_ns":400,"sck_low_ns":200,"sck_high_ns":200,"envelope_check":"ok","status":"ok","fixtures":{"pvt":"/tmp/pvt.json","raw_ns":"/tmp/raw_ns.json","lean":"/tmp/theorem.lean","summary":"/tmp/summary.json"}}]},"yosys_synthesis":{"status":"ok"},"passed":true}"#
         } else {
             r#"{"schema_version":"1.0","bit_config":{"status":"ok"},"dry_run_sweep":{"status":"failed"},"verify_lean":null,"theorem_matrix":null,"yosys_synthesis":null,"passed":false}"#
         };
@@ -1109,6 +1123,7 @@ mod tests {
         assert_eq!(result.bit_config_status.as_deref(), Some("ok"));
         assert_eq!(result.schema_version.as_deref(), Some("1.0"));
         assert_eq!(result.theorem_matrix_status.as_deref(), Some("ok"));
+        assert_eq!(result.theorem_matrix_elapsed_ms, Some(42));
         let _ = std::fs::remove_dir_all(&tmp);
     }
 

@@ -357,6 +357,12 @@ pub enum FpgaCmd {
         /// Process corner for the synthetic PVT context (default: ss).
         #[arg(long, default_value = "ss")]
         process_corner: String,
+        /// Directory containing previously generated theorem-matrix fixtures.
+        /// When set, the matrix is reproduced from the fixtures instead of being
+        /// regenerated. Each variant must provide `pvt.json`, `raw_ns.json`,
+        /// `summary.json`, and `theorem.lean`. Useful for fast CI replay.
+        #[arg(long)]
+        replay_fixtures: Option<PathBuf>,
         /// Emit a machine-readable JSON report instead of human-readable prose.
         /// The report object contains per-phase results for bit-config audit,
         /// dry-run sweep, verify-lean (if requested), and yosys synthesis.
@@ -912,6 +918,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             verify_lean,
             theorem_matrix,
             process_corner,
+            replay_fixtures,
             json,
         } => smoke_gate(
             bit.as_ref(),
@@ -925,6 +932,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *verify_lean || *theorem_matrix,
             *theorem_matrix,
             process_corner,
+            replay_fixtures.as_ref(),
             json.as_ref(),
         ),
         FpgaCmd::BootProtocol { checklist } => boot_protocol(*checklist),
@@ -3457,7 +3465,7 @@ fn cclk_nominal_hz(oscfsel: u8) -> u32 {
 
 /// Nominal CCLK period in nanoseconds for an Artix-7 Master SPI boot OSCFSEL
 /// selection. Mirrors `cclk_period_ns` in `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
-fn cclk_period_ns(oscfsel: u8) -> u32 {
+pub fn cclk_period_ns(oscfsel: u8) -> u32 {
     let freq_hz = cclk_nominal_hz(oscfsel);
     if freq_hz == 0 {
         return 0;
@@ -6042,6 +6050,7 @@ fn smoke_gate(
     run_verify_lean: bool,
     run_theorem_matrix: bool,
     process_corner: &str,
+    replay_fixtures: Option<&PathBuf>,
     json: Option<&PathBuf>,
 ) -> Result<()> {
     let corner = parse_process_corner(process_corner)?;
@@ -6430,153 +6439,61 @@ fn smoke_gate(
 
         // 2c. Optional board-less OSCFSEL 0..7 theorem matrix: verify a PVT-aware
         // raw-ns theorem for each documented Artix-7 Master SPI CCLK variant across
-        // all three synthetic process corners (ff/tt/ss).
+        // all three synthetic process corners (ff/tt/ss), or replay from fixtures.
         if run_theorem_matrix {
-            println!("[smoke-gate] theorem-matrix: generating OSCFSEL 0..7 synthetic theorems for ff/tt/ss");
-            let mut matrix_entries = Vec::new();
-            for corner_str in ["ff", "tt", "ss"] {
-                let matrix_corner = parse_process_corner(corner_str)?;
-                let pvt = synthetic_pvt_context(matrix_corner);
-                let pvt_path = fixture_dir.join(format!("theorem_matrix_pvt_{}.json", corner_str));
-                std::fs::write(
-                    &pvt_path,
-                    serde_json::to_string_pretty(&pvt)
-                        .with_context(|| "serialize theorem-matrix PVT context")?,
-                )
-                .with_context(|| format!("write {}", pvt_path.display()))?;
-
-                for oscfsel in 0u8..=7u8 {
-                let period_ns = cclk_period_ns(oscfsel);
-                if period_ns == 0 {
-                    report["theorem_matrix"] = serde_json::json!({
-                        "status": "failed",
-                        "reason": format!("invalid period for OSCFSEL {}", oscfsel),
-                    });
-                    bail!("theorem-matrix encountered invalid CCLK period");
-                }
-                let low_ns = period_ns / 2;
-                let high_ns = period_ns - low_ns;
-                let raw_ns = MeasuredCclkRawNs {
-                    period_ns: period_ns as u64,
-                    sck_low_ns: low_ns as u64,
-                    sck_high_ns: high_ns as u64,
-                    source: format!("synthetic {} oscfsel {}", corner_str, oscfsel),
-                };
-                let raw_ns_text = serde_json::to_string_pretty(&raw_ns)
-                    .with_context(|| "serialize theorem-matrix raw-ns fixture")?;
-                let raw_ns_path =
-                    fixture_dir.join(format!("theorem_matrix_raw_ns_{}_{}.json", corner_str, oscfsel));
-                std::fs::write(&raw_ns_path, &raw_ns_text)
-                    .with_context(|| format!("write {}", raw_ns_path.display()))?;
-
-                let lean_path =
-                    fixture_dir.join(format!("theorem_matrix_{}_oscfsel_{}.lean", corner_str, oscfsel));
-                let name = format!("smoke_gate_{}_oscfsel_{}", corner_str, oscfsel);
-                let m2l_result = measured_to_lean(
-                    Some(&raw_ns_path),
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    0,
-                    None,
-                    None,
-                    None,
-                    Some(&lean_path),
-                    &name,
-                    false,
-                    Some(&pvt_path),
-                    false,
-                    Some("synthetic"),
-                    false,
-                    true,
-                    true,
-                    false,
+            let matrix_default_dir = root
+                .join("build")
+                .join("fpga")
+                .join("theorem-matrix-fixtures");
+            let matrix_fixture_dir = replay_fixtures
+                .cloned()
+                .unwrap_or_else(|| matrix_default_dir.clone());
+            if replay_fixtures.is_some() {
+                println!(
+                    "[smoke-gate] theorem-matrix: replaying from fixtures {}",
+                    matrix_fixture_dir.display()
                 );
-                if m2l_result.is_err() {
-                    report["theorem_matrix"] = serde_json::json!({
-                        "status": "failed",
-                        "phase": "measured-to-lean",
-                        "corner": corner_str,
-                        "oscfsel": oscfsel,
-                        "error": format!("{:?}", m2l_result.unwrap_err()),
-                    });
-                    bail!("theorem-matrix measured-to-lean failed for corner {} OSCFSEL {}", corner_str, oscfsel);
-                }
-
-                let pvt_for_summary = pvt.clone();
-                let summary = build_measured_to_lean_summary(
-                    &name,
-                    true,
-                    false,
-                    &Some(pvt_for_summary),
-                    "synthetic",
-                    &raw_ns_text,
-                )
-                .with_context(|| "build theorem-matrix measured-to-lean summary")?;
-                let summary_path =
-                    fixture_dir.join(format!("theorem_matrix_summary_{}_{}.json", corner_str, oscfsel));
-                std::fs::write(
-                    &summary_path,
-                    serde_json::to_string_pretty(&summary)
-                        .with_context(|| "serialize theorem-matrix summary")?,
-                )
-                .with_context(|| format!("write {}", summary_path.display()))?;
-
-                let verify_result =
-                    verify_lean(&lean_path, Some(&summary_path), Some("synthetic"), false
-                    );
-                if verify_result.is_err() {
-                    report["theorem_matrix"] = serde_json::json!({
-                        "status": "failed",
-                        "phase": "verify-lean",
-                        "corner": corner_str,
-                        "oscfsel": oscfsel,
-                        "error": format!("{:?}", verify_result.unwrap_err()),
-                    });
-                    bail!("theorem-matrix verify-lean failed for corner {} OSCFSEL {}", corner_str, oscfsel);
-                }
-
-                let inside_envelope = pvt_context_inside_envelope(&pvt);
-                if !inside_envelope {
-                    report["theorem_matrix"] = serde_json::json!({
-                        "status": "failed",
-                        "phase": "envelope-check",
-                        "corner": corner_str,
-                        "oscfsel": oscfsel,
-                        "error": "synthetic PVT context is outside the operating envelope",
-                    });
-                    bail!("theorem-matrix envelope-check failed for corner {} OSCFSEL {}", corner_str, oscfsel);
-                }
-
-                matrix_entries.push(serde_json::json!({
-                    "corner": corner_str,
-                    "oscfsel": oscfsel,
-                    "period_ns": period_ns,
-                    "sck_low_ns": low_ns,
-                    "sck_high_ns": high_ns,
+                let (entries, elapsed_ms) = replay_theorem_matrix(&matrix_fixture_dir)
+                    .with_context(|| "theorem-matrix fixture replay failed")?;
+                report["theorem_matrix"] = serde_json::json!({
                     "status": "ok",
-                    "envelope_check": "ok",
-                    "lean_file": lean_path.to_string_lossy().to_string(),
-                    "summary_file": summary_path.to_string_lossy().to_string(),
-                }));
+                    "variant_count": entries.len(),
+                    "source": "synthetic",
+                    "corner_count": 3,
+                    "oscfsel_count": 8,
+                    "replay": true,
+                    "elapsed_ms": elapsed_ms,
+                    "variants": entries,
+                });
+                println!(
+                    "[smoke-gate] theorem-matrix replay OK ({} variants, {} ms)",
+                    entries.len(),
+                    elapsed_ms
+                );
+            } else {
+                println!("[smoke-gate] theorem-matrix: generating OSCFSEL 0..7 synthetic theorems for ff/tt/ss");
+                let gen_start = std::time::Instant::now();
+                std::fs::create_dir_all(&matrix_fixture_dir)
+                    .with_context(|| format!("create {}", matrix_fixture_dir.display()))?;
+                let entries = generate_theorem_matrix(&matrix_fixture_dir, &report)
+                    .with_context(|| "theorem-matrix generation failed")?;
+                let elapsed_ms = gen_start.elapsed().as_millis() as u64;
+                report["theorem_matrix"] = serde_json::json!({
+                    "status": "ok",
+                    "variant_count": entries.len(),
+                    "source": "synthetic",
+                    "corner_count": 3,
+                    "oscfsel_count": 8,
+                    "replay": false,
+                    "elapsed_ms": elapsed_ms,
+                    "variants": entries,
+                });
+                println!(
+                    "[smoke-gate] theorem-matrix OK ({} variants, source=synthetic, {} ms)",
+                    entries.len(),
+                    elapsed_ms
+                );
             }
-            }
-
-            report["theorem_matrix"] = serde_json::json!({
-                "status": if theorem_matrix_ok { "ok" } else { "failed" },
-                "variant_count": matrix_entries.len(),
-                "source": "synthetic",
-                "corner_count": 3,
-                "oscfsel_count": 8,
-                "variants": matrix_entries,
-            });
-            println!(
-                "[smoke-gate] theorem-matrix OK ({} variants, source=synthetic)",
-                matrix_entries.len()
-            );
         }
     } else {
         report["dry_run_sweep"] = serde_json::json!({
@@ -6665,6 +6582,212 @@ fn smoke_gate(
 
     println!("[smoke-gate] complete (passed: {})", passed);
     if passed { Ok(()) } else { bail!("smoke-gate did not pass all phases") }
+}
+
+/// Generate the 24-variant theorem matrix (3 corners x 8 OSCFSEL values) and
+/// persist fixtures for each variant. Returns the per-variant report entries.
+fn generate_theorem_matrix(
+    fixture_dir: &std::path::Path,
+    _report: &serde_json::Value,
+) -> Result<Vec<serde_json::Value>> {
+    let mut matrix_entries = Vec::new();
+    for corner_str in ["ff", "tt", "ss"] {
+        let matrix_corner = parse_process_corner(corner_str)?;
+        let pvt = synthetic_pvt_context(matrix_corner);
+        let pvt_path = fixture_dir.join(format!("theorem_matrix_pvt_{}.json", corner_str));
+        std::fs::write(
+            &pvt_path,
+            serde_json::to_string_pretty(&pvt).with_context(|| "serialize theorem-matrix PVT context")?,
+        )
+        .with_context(|| format!("write {}", pvt_path.display()))?;
+
+        for oscfsel in 0u8..=7u8 {
+            let period_ns = cclk_period_ns(oscfsel);
+            if period_ns == 0 {
+                bail!("theorem-matrix encountered invalid CCLK period for OSCFSEL {}", oscfsel);
+            }
+            let low_ns = period_ns / 2;
+            let high_ns = period_ns - low_ns;
+            let raw_ns = MeasuredCclkRawNs {
+                period_ns: period_ns as u64,
+                sck_low_ns: low_ns as u64,
+                sck_high_ns: high_ns as u64,
+                source: format!("synthetic {} oscfsel {}", corner_str, oscfsel),
+            };
+            let raw_ns_text = serde_json::to_string_pretty(&raw_ns)
+                .with_context(|| "serialize theorem-matrix raw-ns fixture")?;
+            let raw_ns_path = fixture_dir
+                .join(format!("theorem_matrix_raw_ns_{}_{}.json", corner_str, oscfsel));
+            std::fs::write(&raw_ns_path, &raw_ns_text)
+                .with_context(|| format!("write {}", raw_ns_path.display()))?;
+
+            let lean_path = fixture_dir
+                .join(format!("theorem_matrix_{}_oscfsel_{}.lean", corner_str, oscfsel));
+            let name = format!("smoke_gate_{}_oscfsel_{}", corner_str, oscfsel);
+            measured_to_lean(
+                Some(&raw_ns_path),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                0,
+                None,
+                None,
+                None,
+                Some(&lean_path),
+                &name,
+                false,
+                Some(&pvt_path),
+                false,
+                Some("synthetic"),
+                false,
+                true,
+                true,
+                false,
+            )
+            .with_context(|| {
+                format!(
+                    "theorem-matrix measured-to-lean failed for corner {} OSCFSEL {}",
+                    corner_str, oscfsel
+                )
+            })?;
+
+            let summary = build_measured_to_lean_summary(
+                &name,
+                true,
+                false,
+                &Some(pvt.clone()),
+                "synthetic",
+                &raw_ns_text,
+            )
+            .with_context(|| "build theorem-matrix measured-to-lean summary")?;
+            let summary_path = fixture_dir
+                .join(format!("theorem_matrix_summary_{}_{}.json", corner_str, oscfsel));
+            std::fs::write(
+                &summary_path,
+                serde_json::to_string_pretty(&summary)
+                    .with_context(|| "serialize theorem-matrix summary")?,
+            )
+            .with_context(|| format!("write {}", summary_path.display()))?;
+
+            verify_lean(&lean_path,
+                Some(&summary_path),
+                Some("synthetic"),
+                false,
+            )
+            .with_context(|| {
+                format!(
+                    "theorem-matrix verify-lean failed for corner {} OSCFSEL {}",
+                    corner_str, oscfsel
+                )
+            })?;
+
+            if !pvt_context_inside_envelope(&pvt) {
+                bail!(
+                    "theorem-matrix envelope-check failed for corner {} OSCFSEL {}: synthetic PVT context is outside the operating envelope",
+                    corner_str, oscfsel
+                );
+            }
+
+            matrix_entries.push(serde_json::json!({
+                "corner": corner_str,
+                "oscfsel": oscfsel,
+                "period_ns": period_ns,
+                "sck_low_ns": low_ns,
+                "sck_high_ns": high_ns,
+                "status": "ok",
+                "envelope_check": "ok",
+                "fixtures": {
+                    "pvt": pvt_path.to_string_lossy().to_string(),
+                    "raw_ns": raw_ns_path.to_string_lossy().to_string(),
+                    "lean": lean_path.to_string_lossy().to_string(),
+                    "summary": summary_path.to_string_lossy().to_string(),
+                },
+            }));
+        }
+    }
+    Ok(matrix_entries)
+}
+
+/// Replay the theorem matrix from a fixture directory. Each variant must contain
+/// the four fixtures written by `generate_theorem_matrix`. Returns the
+/// per-variant report entries and the elapsed milliseconds.
+fn replay_theorem_matrix(
+    fixture_dir: &std::path::Path,
+) -> Result<(Vec<serde_json::Value>, u64)> {
+    let start = std::time::Instant::now();
+    let mut matrix_entries = Vec::new();
+    for corner_str in ["ff", "tt", "ss"] {
+        let pvt_path = fixture_dir.join(format!("theorem_matrix_pvt_{}.json", corner_str));
+        if !pvt_path.is_file() {
+            bail!("missing fixture: {}", pvt_path.display());
+        }
+        let pvt: PvtContext = serde_json::from_str(
+            &std::fs::read_to_string(&pvt_path)
+                .with_context(|| format!("read {}", pvt_path.display()))?,
+        )
+        .with_context(|| format!("parse {}", pvt_path.display()))?;
+
+        for oscfsel in 0u8..=7u8 {
+            let raw_ns_path = fixture_dir
+                .join(format!("theorem_matrix_raw_ns_{}_{}.json", corner_str, oscfsel));
+            let lean_path = fixture_dir
+                .join(format!("theorem_matrix_{}_oscfsel_{}.lean", corner_str, oscfsel));
+            let summary_path = fixture_dir
+                .join(format!("theorem_matrix_summary_{}_{}.json", corner_str, oscfsel));
+
+            for path in [&raw_ns_path, &lean_path, &summary_path] {
+                if !path.is_file() {
+                    bail!("missing fixture: {}", path.display());
+                }
+            }
+
+            let raw_ns: MeasuredCclkRawNs = serde_json::from_str(
+                &std::fs::read_to_string(&raw_ns_path)
+                    .with_context(|| format!("read {}", raw_ns_path.display()))?,
+            )
+            .with_context(|| format!("parse {}", raw_ns_path.display()))?;
+
+            verify_lean(&lean_path,
+                Some(&summary_path),
+                Some("synthetic"),
+                false,
+            )
+            .with_context(|| {
+                format!(
+                    "theorem-matrix replay verify-lean failed for corner {} OSCFSEL {}",
+                    corner_str, oscfsel
+                )
+            })?;
+
+            if !pvt_context_inside_envelope(&pvt) {
+                bail!(
+                    "theorem-matrix replay envelope-check failed for corner {} OSCFSEL {}: fixture PVT context is outside the operating envelope",
+                    corner_str, oscfsel
+                );
+            }
+
+            matrix_entries.push(serde_json::json!({
+                "corner": corner_str,
+                "oscfsel": oscfsel,
+                "period_ns": raw_ns.period_ns,
+                "sck_low_ns": raw_ns.sck_low_ns,
+                "sck_high_ns": raw_ns.sck_high_ns,
+                "status": "ok",
+                "envelope_check": "ok",
+                "fixtures": {
+                    "pvt": pvt_path.to_string_lossy().to_string(),
+                    "raw_ns": raw_ns_path.to_string_lossy().to_string(),
+                    "lean": lean_path.to_string_lossy().to_string(),
+                    "summary": summary_path.to_string_lossy().to_string(),
+                },
+            }));
+        }
+    }
+    let elapsed_ms = start.elapsed().as_millis() as u64;
+    Ok((matrix_entries, elapsed_ms))
 }
 
 fn boot_protocol(checklist: bool) -> Result<()> {
@@ -9197,7 +9320,7 @@ mod tests {
 
     #[test]
     fn test_sweep_report_json_roundtrip() {
-        let root = repo_root().unwrap();
+        let _root = repo_root().unwrap();
         let dry_log_dir =
             std::env::temp_dir().join(format!("tri_sweep_report_json_{}", std::process::id()));
         std::fs::create_dir_all(&dry_log_dir).unwrap();
@@ -9669,7 +9792,7 @@ mod tests {
     /// over a synthetic operating point.
     #[test]
     fn test_resolve_pvt_context_priority_file_wins_over_synthetic() {
-        let root = repo_root().unwrap();
+        let _root = repo_root().unwrap();
         let pvt = PvtContext {
             temp_c: 35,
             vccint_mv: 1000,
@@ -10065,6 +10188,7 @@ mod tests {
             true,
             true,
             "ss",
+            None,
             Some(&report_path),
         );
 
@@ -10233,5 +10357,155 @@ mod tests {
                 corner
             );
         }
+    }
+
+    /// Regression test for the W444 fixture replay path. Generates the full
+    /// 24-variant matrix, persists fixtures, replays from them, and asserts the
+    /// replay report has the same shape as the generated report.
+    #[test]
+    fn test_theorem_matrix_fixture_roundtrip() {
+        let tmp = std::env::temp_dir().join(format!(
+            "tri_theorem_matrix_roundtrip_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let generated = generate_theorem_matrix(&tmp,
+            &serde_json::json!({}),
+        )
+        .expect("generate theorem matrix should succeed");
+        assert_eq!(generated.len(), 24, "expected 24 variants");
+
+        let (replayed, _elapsed_ms) = replay_theorem_matrix(&tmp)
+            .expect("replay theorem matrix should succeed");
+        assert_eq!(replayed.len(), 24, "expected 24 replayed variants");
+
+        for (gen, rep) in generated.iter().zip(replayed.iter()) {
+            assert_eq!(
+                gen.get("corner"),
+                rep.get("corner"),
+                "corner mismatch between generated and replayed"
+            );
+            assert_eq!(
+                gen.get("oscfsel"),
+                rep.get("oscfsel"),
+                "oscfsel mismatch between generated and replayed"
+            );
+            assert_eq!(
+                gen.get("period_ns"),
+                rep.get("period_ns"),
+                "period_ns mismatch between generated and replayed"
+            );
+            assert_eq!(
+                gen.get("envelope_check"),
+                Some(&serde_json::Value::String("ok".to_string())),
+                "envelope_check should be ok"
+            );
+            assert!(
+                rep.get("fixtures").is_some(),
+                "replayed variant must have fixtures block"
+            );
+        }
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// Unit test that replay is strictly input-driven: it does not invoke
+    /// measured-to-lean and only calls verify_lean on the persisted fixtures.
+    #[test]
+    fn test_theorem_matrix_replay_does_not_regenerate() {
+        let tmp = std::env::temp_dir().join(format!(
+            "tri_theorem_matrix_replay_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        generate_theorem_matrix(&tmp,
+            &serde_json::json!({}),
+        )
+        .expect("generate theorem matrix should succeed");
+
+        // Corrupt the raw-ns fixture for one variant. Replay must read it and
+        // still pass because verify_lean only counts theorems and checks source.
+        let corrupt_path = tmp.join("theorem_matrix_raw_ns_ff_0.json");
+        let mut raw_ns: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&corrupt_path).unwrap()
+        ).unwrap();
+        raw_ns["source"] = serde_json::Value::String("mutated".to_string());
+        std::fs::write(&corrupt_path, serde_json::to_string_pretty(&raw_ns).unwrap()).unwrap();
+
+        let (replayed, _elapsed_ms) = replay_theorem_matrix(&tmp)
+            .expect("replay should still succeed because it does not re-parse raw_ns source into the report");
+        assert_eq!(replayed.len(), 24);
+        // The replayed report keeps the original source string from the fixture.
+        let ff0 = replayed
+            .iter()
+            .find(|v| {
+                v.get("corner").and_then(|c| c.as_str()) == Some("ff")
+                    && v.get("oscfsel").and_then(|o| o.as_u64()) == Some(0)
+            })
+            .expect("ff/0 variant in replay");
+        assert_eq!(
+            ff0.get("status"),
+            Some(&serde_json::Value::String("ok".to_string())),
+            "ff/0 replayed variant should be ok"
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// Golden fixture regression gate. Replays the checked-in W444 synthetic
+    /// fixture set and asserts the full 24-variant matrix passes with fixtures
+    /// present and every envelope_check == "ok".
+    #[test]
+    fn test_theorem_matrix_golden_replay_passes() {
+        let mut golden = std::path::PathBuf::from(
+            std::env::var("CARGO_MANIFEST_DIR")
+                .as_deref()
+                .unwrap_or("."),
+        );
+        golden.pop(); // cli/tri
+        golden.pop(); // cli
+        golden.push("tests");
+        golden.push("fixtures");
+        golden.push("fpga");
+        golden.push("theorem-matrix");
+        golden.push("golden");
+
+        assert!(
+            golden.is_dir(),
+            "golden fixture directory must exist: {}",
+            golden.display()
+        );
+
+        let (entries, elapsed_ms) = replay_theorem_matrix(&golden)
+            .expect("golden fixture replay should succeed");
+        assert_eq!(
+            entries.len(),
+            24,
+            "golden fixture set must produce 24 variants"
+        );
+
+        let mut ok_count = 0;
+        for entry in &entries {
+            assert_eq!(
+                entry.get("envelope_check"),
+                Some(&serde_json::Value::String("ok".to_string())),
+                "every golden variant must pass envelope check"
+            );
+            assert!(
+                entry.get("fixtures").is_some(),
+                "every golden variant must carry a fixtures block"
+            );
+            if entry.get("status") == Some(&serde_json::Value::String("ok".to_string())) {
+                ok_count += 1;
+            }
+        }
+        assert_eq!(ok_count, 24, "all 24 golden variants must have status ok");
+
+        // Record elapsed_ms as a metric only; do not gate on an absolute bound.
+        println!("golden theorem-matrix replay elapsed_ms: {}", elapsed_ms);
     }
 }

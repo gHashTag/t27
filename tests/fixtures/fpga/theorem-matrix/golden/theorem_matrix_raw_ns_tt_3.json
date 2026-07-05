@@ -1,0 +1,6 @@
+{
+  "period_ns": 100,
+  "sck_low_ns": 50,
+  "sck_high_ns": 50,
+  "source": "synthetic tt oscfsel 3"
+}
