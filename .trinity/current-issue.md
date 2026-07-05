@@ -1,16 +1,16 @@
-# Wave Loop 427 — FPGA boot-evidence next variant (physical CCLK / XADC readout / formal fallback)
+# Wave Loop 428 — FPGA boot-evidence next variant (physical CCLK / XADC readout / formal fallback)
 
-**Issue:** #1379  
-**Branch:** `wave-loop-427`  
-**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 426.
+**Issue:** #1383  
+**Branch:** `wave-loop-428`  
+**Milestone:** Continue the FPGA boot-evidence line from Wave Loop 427.
 
 ---
 
 ## Goal
 
-Wave 426 hardened the FPGA CLI and formal model while the bench was blocked
-(P12 unwired, no relay gate). Wave 427 executes the first available variant from
-`docs/reports/FPGA_LOOP_COOPERATION_W427_2026-07-05.md`.
+Wave Loop 427 hardened the FPGA CLI and formal model while the bench was blocked
+(P12 unwired, no relay gate). Wave Loop 428 executes the first available variant
+from `docs/reports/FPGA_LOOP_COOPERATION_W428_2026-07-05.md`.
 
 1. **Variant A (preferred when bench becomes available):**
    - Confirm P12 is wired to a logic-analyzer channel.
@@ -31,11 +31,13 @@ Wave 426 hardened the FPGA CLI and formal model while the bench was blocked
    - Document the recipe in `fpga/HARDWARE_SSOT.md` §3.6.
 
 3. **Variant C (fallback if bench still blocked):**
-   - Add per-OSCFSEL PVT envelope theorems for OSCFSEL 0–7 using the W426
-     finite-grid lemma.
+   - Extend the per-OSCFSEL PVT theorem library from W427 (e.g. implication
+     theorems linking measured CCLK to transaction safety for any variant).
    - Land one safe gen-verilog #1245 sub-fix if narrow and regression-free;
-     otherwise explicitly defer.
-   - Harden `tri fpga` CLI or JSON output further (e.g. `--json` sweep report).
+     otherwise explicitly defer and update
+     `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`.
+   - Further harden `tri fpga` CLI or JSON output (e.g. extend
+     `sweep-report --json` with additional machine-readable fields).
    - Refresh `docs/reports/T27_VS_FORMAL_HDL_2026.md` if new 2026 competitor
      developments surface.
 
@@ -45,14 +47,13 @@ Wave 426 hardened the FPGA CLI and formal model while the bench was blocked
 
 | Step | File(s) | Deliverable |
 |------|---------|-------------|
-| 1 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | Per-OSCFSEL PVT envelope theorems (0..7) using the finite-grid lemma |
-| 2 | `cli/tri/src/fpga.rs` | `tri fpga sweep-report --json` output mode consuming new recommendation/margin fields |
+| 1 | `proofs/lean4/Trinity/TernaryFPGABoot.lean` | Extend per-OSCFSEL PVT theorem library (implication theorems or full table closure) |
+| 2 | `cli/tri/src/fpga.rs` | Further `tri fpga` CLI/JSON hardening (e.g. additional sweep-report JSON fields) |
 | 3 | `bootstrap/src/compiler.rs` or `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` | One safe gen-verilog #1245 sub-fix, or explicit deferral update |
-| 4 | `docs/reports/T27_VS_FORMAL_HDL_2026.md` | Refreshed competitor snapshot |
-| 5 | `docs/reports/W427_WEAK_POINTS_AND_COMPETITORS.md` | Weak-point and competitor scan for W427 |
-| 6 | `docs/reports/*` | W427 report, evidence, W428 cooperation |
-| 7 | `.trinity/experience.md` | W427 learnings |
-| 8 | git/PR | squash-merge to `master`, close issue, open #? for W428 |
+| 4 | `docs/reports/T27_VS_FORMAL_HDL_2026.md` | Refreshed competitor snapshot if new developments surface |
+| 5 | `docs/reports/*` | W428 report, evidence, W429 cooperation |
+| 6 | `.trinity/experience.md` | W428 learnings |
+| 7 | git/PR | squash-merge to `master`, close issue, open #? for W429 |
 
 ---
 
@@ -68,17 +69,18 @@ Wave 426 hardened the FPGA CLI and formal model while the bench was blocked
 - [ ] AC-B1: Real XADC readout lands, OR at least one external capture is imported end-to-end.
 - [ ] AC-B2: The import/readout path exposes no unhandled unit, voltage-unit, or noise cases.
 - [ ] AC-B3: Boot-log artifacts for OSCFSEL 6/7 include PVT/XADC context.
+- [ ] AC-B4: The captured/recorded operating point is linked to the W427 per-OSCFSEL envelope theorems.
 
 ### Bundle C
-- [ ] AC-C1: Per-OSCFSEL PVT envelope theorems for OSCFSEL 0–7 are added and build.
-- [ ] AC-C2: One safe gen-verilog #1245 sub-fix lands without increasing the 7-failure yosys smoke count, or is explicitly deferred if unsafe.
-- [ ] AC-C3: `tri fpga` CLI or JSON output is measurably more actionable than in W426.
+- [ ] AC-C1: At least one new PVT-related theorem is added and builds.
+- [ ] AC-C2: One safe gen-verilog sub-fix lands without increasing the 7-failure yosys smoke count, or is explicitly deferred if unsafe.
+- [ ] AC-C3: `tri fpga` CLI or JSON output is measurably more actionable than in W427.
 - [ ] AC-C4: Competitor snapshot is updated if any new 2026 developments are found.
 
 ### Invariant checks
 - [ ] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
 - [ ] `lake build Trinity.TernaryFPGABoot` passes.
-- [ ] `cargo test -p tri fpga::tests` passes.
+- [ ] `cargo test -p tri` passes.
 
 ---
 
@@ -86,10 +88,10 @@ Wave 426 hardened the FPGA CLI and formal model while the bench was blocked
 
 - Target: `master`
 - PR: to open after work
-- Body: `Closes #1379`
-- Report: `docs/reports/WAVE_LOOP_427_REPORT.md`
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W427_YYYY-MM-DD.md`
-- Cooperation W428: `docs/reports/FPGA_LOOP_COOPERATION_W428_YYYY-MM-DD.md`
+- Body: `Closes #1383`
+- Report: `docs/reports/WAVE_LOOP_428_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W428_YYYY-MM-DD.md`
+- Cooperation W429: `docs/reports/FPGA_LOOP_COOPERATION_W429_YYYY-MM-DD.md`
 
 ---
 
@@ -102,11 +104,8 @@ Otherwise fall back to **Variant C**.
 
 ## Chosen variant
 
-**Variant C** is selected for W427. Bench probe confirms the XC7A200T board is
-reachable via Digilent HS2 (`idcode 0x03636093`), but P12 remains unwired, no
-relay/remote-power gate is available, the DLC10 cable is still missing, and no
-external capture was provided. Real XADC readout over the HS2 JTAG path is too
-large and risky for a single wave.
+**To be selected at the start of W428.** Current default is **Variant C** because
+the hardware blockers that forced W425/W426/W427 Variant C are still present.
 
 ---
 
