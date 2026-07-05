@@ -1572,3 +1572,11 @@
 - **Commit:** feat(igla): Wave Loop 429 — raw-ns OSCFSEL theorems, measured-to-lean --json, W429 report and W430 cooperation (Closes #1385)
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-05T09:32:25Z — wave-loop-430
+- **Commit:** docs: Wave Loop 430 current-issue setup (Refs #1388)
+- **Files:** .trinity/experience.md
+
+## 2026-07-05T09:32:29Z — wave-loop-430
+- **Commit:** docs: Wave Loop 429 experience log (Refs #1385)
+- **Files:** .trinity/current_task/activity.md,.trinity/experience.md
+
