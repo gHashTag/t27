@@ -329,6 +329,16 @@ impl Lexer {
         match ident {
             "pub" => TokenKind::KwPub,
             "const" => TokenKind::KwConst,
+            // #1401: `let` is an accepted synonym for `const` (immutable local
+            // binding). Downstream specs (e.g. tri-net) write `let x = ...;`
+            // in function bodies; without this alias the lexer emitted a bare
+            // Ident, `parse_body_stmt` fell through to expression parsing, and
+            // the entire binding was dropped from generated Rust/C/Zig
+            // (undeclared-identifier E0425, 2609 sites / 93% of Rust errors).
+            // `const` semantics (extra_mutable=false) match the `let` the Rust
+            // emitter already produces; `let mut` has no spec-level source form
+            // yet (use `var` for a mutable local), so this maps to immutable.
+            "let" => TokenKind::KwConst,
             "fn" => TokenKind::KwFn,
             "enum" => TokenKind::KwEnum,
             "struct" => TokenKind::KwStruct,
@@ -20313,16 +20323,23 @@ mod tests_compiler_rejects {
         );
     }
 
-    // CHARACTERIZATION of a current GAP: a `let` binding before the return is
-    // not yet lowered -- the body falls back to the unimplemented stub. This is
-    // a known limitation pinned so the gap is visible; if `let` lowering is
-    // added later this test must be updated deliberately.
+    // #1401: `let` is now an accepted synonym for `const` (immutable local),
+    // so a `let` binding before the return is lowered as a proper local
+    // declaration rather than falling back to the unimplemented stub. This
+    // deliberately replaces the former GAP-characterization test
+    // (`let_binding_falls_back_to_todo_characterization`), per its own note
+    // that it must be updated once `let` lowering was added.
     #[test]
-    fn let_binding_falls_back_to_todo_characterization() {
+    fn let_binding_is_lowered_1401() {
         let v = emit(r#"module XLet { pub fn f(x: u8) -> u8 { let y = x return y } }"#);
         assert!(
-            v.contains("// TODO: implement"),
-            "a `let` binding currently falls back to the unimplemented stub, got:\n{}",
+            !v.contains("// TODO: implement"),
+            "a `let` binding must no longer fall back to the unimplemented stub, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("reg") && v.contains("y = x"),
+            "a `let y = x` binding must lower to a local declaration and assignment, got:\n{}",
             v
         );
     }
@@ -22497,6 +22514,48 @@ mod tests_phase40_coverage {
         cg.gen_rust(&ast);
         let out = cg.into_string();
         assert!(out.contains("for i in 0..8"), "Rust output: {}", out);
+    }
+
+    // #1401 regression: a `let` local binding must survive into generated
+    // Rust (previously the lexer emitted a bare Ident for `let`, the binding
+    // was dropped, and downstream references became undeclared E0425).
+    #[test]
+    fn test_let_binding_emitted_rust_1401() {
+        let code = "module M { pub fn f(policy: u32) -> u32 { let min_role = policy; return min_role; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("let min_role = policy"),
+            "let binding dropped from Rust output: {}",
+            out
+        );
+    }
+
+    // #1401 regression (C emitter shares the same lexer/parser root cause):
+    // the `let` local must appear as a typed C declaration.
+    #[test]
+    fn test_let_binding_emitted_c_1401() {
+        let code = "module M { pub fn f(policy: u32) -> u32 { let min_role = policy; return min_role; } }";
+        let out = Compiler::compile_c(code).expect("compile should succeed");
+        assert!(
+            out.contains("min_role = policy"),
+            "let binding dropped from C output: {}",
+            out
+        );
+    }
+
+    // #1401: `let` must not be usable as an ordinary identifier once reserved.
+    // (Confirmed no t27 spec uses `let` as an identifier prior to this change.)
+    #[test]
+    fn test_let_is_immutable_local_1401() {
+        let code = "module M { pub fn f() -> u32 { let x = 3; return x; } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let ast = parser.parse().expect("parse should succeed");
+        let f = &ast.children[0];
+        let local = &f.children[0];
+        assert_eq!(local.kind, NodeKind::StmtLocal);
+        assert_eq!(local.name, "x");
+        assert!(!local.extra_mutable, "`let` must map to an immutable local");
     }
 
     #[test]
