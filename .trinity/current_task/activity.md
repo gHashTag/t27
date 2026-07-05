@@ -1680,3 +1680,7 @@
 - **Commit:** feat(igla): Wave Loop 439 — wire smoke-gate into tri test, add --json report, regression test
 - **Files:** .trinity/current-issue.md,bootstrap/src/main.rs,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W441_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W440_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_440_REPORT.md,fpga/HARDWARE_SSOT.md,scripts/tri
 
+## 2026-07-05T14:44:30Z — wave-loop-440
+- **Commit:** feat(igla): Wave Loop 440 — consume smoke-gate JSON report, add suite --json summary, harden skip/fail handling, restore 127 active tests (Closes #1411)
+- **Files:** .trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W441_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W440_2026-07-01.md,docs/reports/WAVE_LOOP_440_REPORT.md
+

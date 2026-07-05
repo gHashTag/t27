@@ -1,7 +1,7 @@
 # FPGA Loop Cooperation Plan — Wave Loop 441 (2026-07-01)
 
-**Issue:** #1411 (W440) → **#1414** (W441, predicted)  
-**Branch:** `wave-loop-440` → **`wave-loop-441`** (predicted)  
+**Issue:** #1411 (W440) → **#1413** (W441)  
+**Branch:** `wave-loop-440` → **`wave-loop-441`**  
 **Date:** 2026-07-01  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
@@ -145,7 +145,7 @@ bitstream / seal hashes. Should be its own wave.
 
 ## W441 issue/branch action
 
-- Create GitHub issue **#1414** titled **“Wave Loop 441 — CI schema hardening +
+- Create GitHub issue **#1413** titled **“Wave Loop 441 — CI schema hardening +
   board-less theorem matrix + real-capture fallback + gen-verilog debt (Variant
   B, A optional)”**.
 - Create branch **`wave-loop-441`** from the W440 land commit.
