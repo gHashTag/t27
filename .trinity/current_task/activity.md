@@ -1644,3 +1644,11 @@
 - **Commit:** feat(igla): Wave Loop 436 — live XADC → PVT context in boot logs and sweep reports, closed-vocabulary source labels, quantified combined-check theorem
 - **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W437_2026-07-01.md
 
+## 2026-07-05T13:24:07Z — wave-loop-437
+- **Commit:** chore(w437): update issue references to #1405 after GitHub creation
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/NOW.md
+
+## 2026-07-05T13:24:11Z — wave-loop-437
+- **Commit:** chore(now): set W436 PR number to #1406
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/NOW.md
+
