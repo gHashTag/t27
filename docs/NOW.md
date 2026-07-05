@@ -1,6 +1,15 @@
-# NOW — Wave Loop 443 close-out / Wave Loop 444 setup (2026-07-01)
+# NOW — Wave Loop 444 setup / Wave Loop 443 close-out (2026-07-01)
 
 **Last updated:** 2026-07-01
+
+## Wave Loop 444 — Theorem-matrix fixture replay + deterministic CI artifact + real-capture fallback + gen-verilog debt (Variant B default)
+
+- Branch: `wave-loop-444`
+- Issue: #1418
+- PR: (to open after this close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W444_2026-07-01.md`
+
+---
 
 ## Wave Loop 443 — PVT-envelope hardening for the 24-variant theorem matrix (Closes #1417)
 
