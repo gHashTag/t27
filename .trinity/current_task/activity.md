@@ -1812,3 +1812,7 @@
 - **Commit:** feat(igla): Wave Loop 461 — module-level bare call legalization + array-parameter multi-array function cloning
 - **Files:** .claude/plans/wave-loop-462.md,.trinity/seals/scratch_w462_array_param_bench_local.json,.trinity/seals/scratch_w462_array_param_literal.json,.trinity/seals/scratch_w462_void_bare_call.json,bootstrap/src/compiler.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W463_2026-07-07.md,docs/reports/FPGA_LOOP_EVIDENCE_W462_2026-07-07.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_462_REPORT.md,specs/scratch/w462_array_param_bench_local.t27,specs/scratch/w462_array_param_literal.t27,specs/scratch/w462_void_bare_call.t27
 
+## 2026-07-06T17:16:23Z — wave-loop-463
+- **Commit:** feat(gen-verilog): Wave Loop 462 — literal array argument ROMs, void bare-call task enables, bench-local integration
+- **Files:** .trinity/current-issue.md
+
