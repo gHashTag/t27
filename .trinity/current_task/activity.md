@@ -1824,3 +1824,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 463 — nested same-array array-parameter call propagation, deterministic signature ordering, 591/591 non-smoke PASS + 71/71 yosys smoke PASS
 - **Files:** .claude/plans/wave-loop-464.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/compiler_Lexing.json,.trinity/seals/numeric_GoldenFloatFamily.json,.trinity/seals/scratch_w463_nested_array_param_call.json,.trinity/seals/scratch_w464_clone_name_collision.json,.trinity/seals/scratch_w464_mixed_array_param_call_site.json,.trinity/seals/scratch_w464_struct_array_literal.json,bootstrap/src/compiler.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W465_2026-07-08.md,docs/reports/FPGA_LOOP_EVIDENCE_W464_2026-07-08.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_464_REPORT.md,specs/scratch/w464_clone_name_collision.t27,specs/scratch/w464_mixed_array_param_call_site.t27,specs/scratch/w464_struct_array_literal.t27
 
+## 2026-07-06T18:26:33Z — wave-loop-465
+- **Commit:** feat(gen-verilog): Wave Loop 464 — mixed direct/indirect array-parameter call sites, struct-literal array arguments, deterministic clone-name collision guard, 594/594 non-smoke PASS + 74/74 yosys smoke PASS
+- **Files:** .trinity/current-issue.md
+
