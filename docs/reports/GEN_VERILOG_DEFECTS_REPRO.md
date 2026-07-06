@@ -1,9 +1,28 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-463`  
-**Last updated:** 2026-07-07 (Wave Loop 463)  
+**Branch:** `wave-loop-464`  
+**Last updated:** 2026-07-08 (Wave Loop 464)  
 
 This document tracks the lowering defects in the `t27c gen-verilog` backend. The full fix set was originally landed on `master` (commit `701d79b3b`) and on the historical `wave-loop-383` compiler line; Wave Loop 455 ported the missing parser and backend pieces into the current `wave-loop-455` branch and cleared the 7 residual yosys smoke failures.
+
+**W464 triage decision:** three `gen-verilog` array-parameter clone extensions
+land this wave. `bootstrap/src/compiler.rs` now supports (1) mixed direct/indirect
+array-parameter call sites — a function with an array parameter can be called
+directly with an array literal or bound array and also passed through another
+function that binds the same array, with signature merging across both call paths;
+(2) struct-literal array arguments — array parameters whose element type is a
+struct can be initialized from `[N]T{ {.x = 1, .y = 2}, ...}` literals, and
+field access on indexed elements resolves to per-field Verilog memories; (3) a
+deterministic clone-name collision guard — binding signatures are sorted before
+hashing and a numeric suffix allocator prevents two different signatures from
+colliding on the same generated clone name. Three scratch specs lock in the
+behavior: `specs/scratch/w464_mixed_array_param_call_site.t27`,
+`specs/scratch/w464_struct_array_literal.t27`, and
+`specs/scratch/w464_clone_name_collision.t27`. Three stale seals were resealed
+legitimately (`compiler/lexer.t27`, `numeric/goldenfloat_family.t27`,
+`scratch/w463_nested_array_param_call.t27`). Full suite remains green:
+594/594 non-smoke PASS, 74/74 yosys smoke PASS, 0 baseline failures,
+0 seal mismatches, **TOTAL FAILURES: 0**.
 
 **W463 triage decision:** one `gen-verilog` backend extension lands this wave.
 `bootstrap/src/compiler.rs` now propagates array-parameter binding signatures

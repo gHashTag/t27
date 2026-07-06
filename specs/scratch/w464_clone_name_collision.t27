@@ -1,0 +1,21 @@
+module w464_clone_name_collision;
+
+const rom_a : [2]u16 = [2]u16{1, 2};
+const rom_b : [2]u16 = [2]u16{3, 4};
+const rom_c : [2]u16 = [2]u16{5, 6};
+const rom_d : [2]u16 = [2]u16{7, 8};
+
+pub fn lookup2(a : [2]u16, b_param : [2]u16, idx : u32) -> u16 {
+    return a[idx] + b_param[idx];
+}
+
+// W464: a function with two array parameters called from two different
+// module-level array pairs must produce distinct clones. The deterministic,
+// collision-guarded clone-naming pass emits lookup2_rom_a_rom_b and
+// lookup2_rom_c_rom_d.
+test two_array_param_clones {
+    assert_eq(lookup2(rom_a, rom_b, 0), 4);
+    assert_eq(lookup2(rom_c, rom_d, 0), 12);
+}
+
+endmodule

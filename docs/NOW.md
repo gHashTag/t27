@@ -1,20 +1,128 @@
-# NOW — Wave Loop 463 close-out / Wave Loop 464 next (2026-07-07)
+# NOW — Wave Loop 464 close-out / Wave Loop 465 next (2026-07-08)
 
-**Last updated:** 2026-07-07
+**Last updated:** 2026-07-08
 
-## Wave Loop 464 — Next wave (to be selected from cooperation plan) (Closes #1441)
+## Wave Loop 465 — Next wave (to be selected from cooperation plan) (Closes #1443)
 
-- Branch: `wave-loop-464` (to create from W463 land commit)
-- Issue: #1441 (to create)
+- Branch: `wave-loop-465` (to create from W464 land commit)
+- Issue: #1443 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W464_2026-07-07.md`
-- Cooperation W465: (to be written at W464 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W465_2026-07-08.md`
+- Cooperation W466: (to be written at W465 close-out)
 
 ### Not started
 
-- Create issue #1441 and branch `wave-loop-464` from the W463 land commit.
-- Select one of the three W464 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W464_2026-07-07.md`.
+- Create issue #1443 and branch `wave-loop-465` from the W464 land commit.
+- Select one of the three W465 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W465_2026-07-08.md`.
+
+---
+
+## Wave Loop 464 — compiler-backend hardening: mixed call sites + struct-literal array arguments + clone-name collision guard (Variant B default) (Closes #1441)
+
+- Branch: `wave-loop-464`
+- Issue: #1441
+- PR: (to open)
+- Report: `docs/reports/WAVE_LOOP_464_REPORT.md`
+- Evidence W464: `docs/reports/FPGA_LOOP_EVIDENCE_W464_2026-07-08.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W464_2026-07-07.md`
+- Cooperation W465: `docs/reports/FPGA_LOOP_COOPERATION_W465_2026-07-08.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Added `struct_fields` and `array_param_types` registries so the Verilog backend
+    knows the field layout of every declared struct and the declared type of each
+    array parameter.
+  - Extended the W463 mixed-direct/indirect merge logic with a dedicated regression
+    spec (`w464_mixed_array_param_call_site.t27`). The existing fixed-point
+    propagation already merged the signatures; the spec makes the path explicit.
+  - Added struct-literal array argument lowering:
+    - `array_literal_signature_key` now expands `ExprStructLit` children field-by-field
+      using the declared field order, producing a deterministic ROM signature.
+    - `gen_verilog_const` and `gen_verilog_anon_rom` emit one Verilog memory per
+      scalar struct field (`rom_field [0:N-1]`) and initialize each field memory
+      independently, instead of emitting a single packed memory that Yosys cannot
+      index by field.
+    - `gen_verilog_expr` `ExprFieldAccess` on an indexed array-of-struct parameter
+      now resolves to the bound module-level field memory (`bound_field[idx]`) when
+      the parameter is bound to a module array whose element type is a struct.
+  - Added a deterministic, collision-guarded clone-name assignment pass:
+    - `unique_clone_name` sanitizes the function name and signature parts, then
+      appends a numeric suffix if the base name has already been used for another
+      clone in the same module.
+    - Both module-level multi-signature and propagated multi-signature clone
+      creation sites now sort signatures by key before naming, so assignment is
+      deterministic across runs.
+
+- `specs/scratch/w464_mixed_array_param_call_site.t27`
+  - Regression spec where `lookup(data)` is called both directly from a `test` block
+    and indirectly through `sum_pair(data)`. Verifies the merged clone set is
+    emitted.
+
+- `specs/scratch/w464_struct_array_literal.t27`
+  - Regression spec with a `Pt` struct, a module-level `[3]Pt` array literal, and
+    functions that sum `x`/`y` fields. Verifies per-field memory lowering and
+    field-indexed access.
+
+- `specs/scratch/w464_clone_name_collision.t27`
+  - Regression spec with a two-array-parameter function called from two different
+    module-level array pairs, exercising multi-array-param clone creation.
+
+- `.trinity/seals/scratch_w464_mixed_array_param_call_site.json`
+- `.trinity/seals/scratch_w464_struct_array_literal.json`
+- `.trinity/seals/scratch_w464_clone_name_collision.json`
+  - Seals for the three new regression specs.
+
+- Resealed affected existing specs:
+  - `compiler_Lexing.json`
+  - `numeric_GoldenFloatFamily.json`
+  - `scratch_w463_nested_array_param_call.json`
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W464 competitor boundary section.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Added W464 triage section.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_464_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W464_2026-07-08.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W465_2026-07-08.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W464_OPERATING_POINT` — bench unavailable.
+- Master-merge of `gen-verilog` fix set from `master` (`701d79b3b`) — still
+  rejected as insufficient/too risky for a single wave.
+- GitHub issue #1443 and branch `wave-loop-465` — blocked on `gh` CLI
+  authentication in this environment; must be created manually.
+
+### Verification
+
+- `cargo test -p t27c --bin t27c`: **1524 passed, 0 failed, 2 ignored**.
+- `t27c gen-verilog specs/scratch/w464_mixed_array_param_call_site.t27` +
+  `yosys -q -p 'read_verilog -sv -DSIMULATION ...'`: **PASS**.
+- `t27c gen-verilog specs/scratch/w464_struct_array_literal.t27` +
+  `yosys -q -p 'read_verilog -sv -DSIMULATION ...'`: **PASS**.
+- `t27c gen-verilog specs/scratch/w464_clone_name_collision.t27` +
+  `yosys -q -p 'read_verilog -sv -DSIMULATION ...'`: **PASS**.
+- `./scripts/tri test --fast --json /tmp/tri_test_w464_fast.json`: **ALL TESTS PASSED**
+  - Parse: 594 passed, 0 failed
+  - Typecheck: 594 passed, 0 failed
+  - Gen Zig: 594 passed, 0 failed
+  - Gen Rust: 594 passed, 0 failed
+  - Gen Verilog: 594 passed, 0 failed
+  - Gen Verilog Yosys Smoke: **74 passed, 0 failed**
+  - FPGA Board-Less Smoke Gate: **OK**
+  - Gen C: 594 passed, 0 failed
+  - Seal Verify: 594 passed, 0 failed
+  - Fixed Point: 0 divergences
+  - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes`
 
 ---
 

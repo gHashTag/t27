@@ -1,0 +1,25 @@
+module w464_mixed_array_param_call_site;
+
+const rom_a : [4]u16 = [4]u16{1, 2, 3, 4};
+const rom_b : [4]u16 = [4]u16{10, 20, 30, 40};
+
+pub fn lookup(data : [4]u16, idx : u32) -> u16 {
+    return data[idx];
+}
+
+pub fn sum_pair(data : [4]u16, i : u32, j : u32) -> u16 {
+    let a : u16 = lookup(data, i);
+    let b : u16 = lookup(data, j);
+    return a + b;
+}
+
+// W464: `lookup` is called both directly from a test block and indirectly
+// through `sum_pair`. The backend must merge the direct signature (rom_a) with
+// the propagated signature(s) from `sum_pair` and emit the right clone(s).
+test direct_and_indirect {
+    assert_eq(lookup(rom_a, 0), 1);
+    assert_eq(sum_pair(rom_a, 0, 1), 3);
+    assert_eq(sum_pair(rom_b, 2, 3), 70);
+}
+
+endmodule

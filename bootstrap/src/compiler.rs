@@ -3992,6 +3992,14 @@ pub struct VerilogCodegen {
             ),
         >,
     >,
+    // W464: struct name -> ordered list of (field name, field type) for every
+    // struct declared in the current module. Used to lower array literals whose
+    // element type is a struct and to emit field-indexed memory accesses.
+    struct_fields: std::collections::HashMap<String, Vec<(String, String)>>,
+    // W464: map from the current function's parameter name to its declared type
+    // string. Used to detect array-of-struct parameters and emit the right
+    // field-memory index access.
+    array_param_types: std::collections::HashMap<String, String>,
     // W460: names of bench-local variables that have been hoisted to module scope
     // for the bench currently being emitted. Expressions inside the bench must
     // reference the prefixed hoisted name.
@@ -4023,6 +4031,8 @@ impl VerilogCodegen {
             array_param_clone_bindings: std::collections::HashMap::new(),
             array_param_anon_roms: std::collections::HashMap::new(),
             array_param_propagated: std::collections::HashMap::new(),
+            struct_fields: std::collections::HashMap::new(),
+            array_param_types: std::collections::HashMap::new(),
             bench_local_names: std::collections::HashSet::new(),
             bench_local_prefix: String::new(),
             toplevel_tmp_counter: 0,
@@ -4269,10 +4279,13 @@ impl VerilogCodegen {
         Some((size, elem))
     }
 
-    /// W462: compute the canonical signature key for an ExprArrayLiteral from
+    /// W462/W464: compute the canonical signature key for an ExprArrayLiteral from
     /// its own annotation. Used for call-site clone selection; the binding pass
     /// additionally validates size/element type match the parameter type.
-    fn array_literal_signature_key(arg: &Node) -> Option<String> {
+    /// Struct-literal elements are expanded field-by-field using the module's
+    /// struct-field registry so the key is deterministic and shareable across call
+    /// sites.
+    fn array_literal_signature_key(&self, arg: &Node) -> Option<String> {
         if arg.kind != NodeKind::ExprArrayLiteral || arg.extra_kind == "tuple" {
             return None;
         }
@@ -4286,24 +4299,57 @@ impl VerilogCodegen {
         parts.push(size.to_string());
         parts.push(Self::sanitize_identifier(elem_type));
         for child in &arg.children {
-            if child.kind != NodeKind::ExprLiteral || child.value.is_empty() {
+            if child.kind == NodeKind::ExprLiteral && !child.value.is_empty() {
+                parts.push(Self::sanitize_identifier(&child.value));
+            } else if child.kind == NodeKind::ExprStructLit {
+                let field_key = self.struct_literal_signature_field_key(child)?;
+                parts.push(field_key);
+            } else {
                 return None;
             }
-            parts.push(Self::sanitize_identifier(&child.value
-            ));
         }
         Some(format!("_{}", parts.join("_")))
     }
 
-    /// W462: compute a deterministic module-level ROM name for an
+    /// W464: build a deterministic sub-key for one struct-literal element of an
+    /// array literal. Field values are sorted by field name so the key is stable
+    /// regardless of source ordering.
+    fn struct_literal_signature_field_key(&self, lit: &Node) -> Option<String> {
+        let fields = self.struct_fields.get(&lit.name)?;
+        let mut field_values: std::collections::HashMap<String, &Node> =
+            std::collections::HashMap::new();
+        for field in &lit.children {
+            if field.kind == NodeKind::ExprFieldAccess && !field.name.is_empty() {
+                if let Some(val) = field.children.first() {
+                    field_values.insert(field.name.clone(), val);
+                }
+            }
+        }
+        let mut parts: Vec<String> = Vec::new();
+        for (fname, _ftype) in fields {
+            let val = field_values.get(fname)?;
+            if val.kind != NodeKind::ExprLiteral || val.value.is_empty() {
+                return None;
+            }
+            parts.push(format!(
+                "{}_{}",
+                Self::sanitize_identifier(fname),
+                Self::sanitize_identifier(&val.value)
+            ));
+        }
+        Some(format!("struct_{}", parts.join("_")))
+    }
+
+    /// W462/W464: compute a deterministic module-level ROM name for an
     /// ExprArrayLiteral that is passed to an array parameter, validating that
     /// the literal's declared size and element type match the parameter.
     fn array_literal_rom_name(
+        &self,
         arg: &Node,
         expected_size: usize,
         expected_elem_type: &str,
     ) -> Option<String> {
-        let key = Self::array_literal_signature_key(arg)?;
+        let key = self.array_literal_signature_key(arg)?;
         let size = arg.extra_size.parse::<usize>().ok()?;
         if size != expected_size || arg.extra_type != expected_elem_type {
             return None;
@@ -4380,6 +4426,60 @@ impl VerilogCodegen {
         self.array_param_bindings.get(&self.current_fn_name_original)
     }
 
+    /// W464: if `pname` is an array parameter of the function currently being
+    /// emitted and it is bound to a module-level array, return that bound array
+    /// name. This lets field accesses on the parameter resolve to the actual
+    /// module memory.
+    fn array_param_bound_name(&self, pname: &str) -> Option<String> {
+        let bindings = self.current_array_param_bindings()?;
+        bindings.get(pname).cloned()
+    }
+
+    /// W464: true if `elem_type` is a declared struct type.
+    fn array_element_is_struct(
+        elem_type: Option<&str>,
+        struct_fields: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> bool {
+        if let Some(ty) = elem_type {
+            struct_fields.contains_key(ty)
+        } else {
+            false
+        }
+    }
+
+    /// W464: generate a unique, deterministic Verilog function clone name for
+    /// `fn_name` bound to `sig_parts`. If the sanitized base name has already
+    /// been used for another signature (collision), append a numeric suffix.
+    /// `used` tracks all clone names assigned in the current module so far.
+    fn unique_clone_name(
+        fn_name: &str,
+        sig_parts: &[String],
+        used: &mut std::collections::HashSet<String>,
+    ) -> String {
+        let sanitized_parts: Vec<String> = sig_parts
+            .iter()
+            .map(|s| Self::sanitize_identifier(s))
+            .collect();
+        let base = format!(
+            "{}_{}",
+            Self::sanitize_identifier(fn_name),
+            sanitized_parts.join("_")
+        );
+        let safe_base = Self::verilog_safe_identifier(&base);
+        if used.insert(safe_base.clone()) {
+            return safe_base;
+        }
+        let mut counter = 1usize;
+        loop {
+            let candidate =
+                Self::verilog_safe_identifier(&format!("{}_{}", safe_base, counter));
+            if used.insert(candidate.clone()) {
+                return candidate;
+            }
+            counter += 1;
+        }
+    }
+
     /// W461/W462/W463: compute the binding-signature key for a call site, given
     /// the original callee name. Returns `None` if the callee has no array
     /// parameters or the call site is not well-formed. Array literals are
@@ -4403,9 +4503,9 @@ impl VerilogCodegen {
                 };
                 parts.push(name);
             } else if arg.kind == NodeKind::ExprArrayLiteral {
-                // W462: anonymous ROM lowered by the binding pass. The
+                // W462/W464: anonymous ROM lowered by the binding pass. The
                 // signature must match the name stored there.
-                let key = Self::array_literal_signature_key(arg)?;
+                let key = self.array_literal_signature_key(arg)?;
                 parts.push(key);
             } else {
                 return None;
@@ -4538,6 +4638,19 @@ impl VerilogCodegen {
             self.fn_return_types.insert(f.name.clone(), ret);
         }
 
+        // W464: populate struct-field registry from struct declarations so the
+        // array-literal binding pass and ROM emission can handle arrays of
+        // structs deterministically.
+        self.struct_fields.clear();
+        for s in &structs {
+            let fields: Vec<(String, String)> = s
+                .children
+                .iter()
+                .map(|f| (f.name.clone(), f.extra_type.clone()))
+                .collect();
+            self.struct_fields.insert(s.name.clone(), fields);
+        }
+
         // W458/W461: resolve module-level array parameter bindings. For each
         // function that accepts an array parameter, inspect all call sites
         // (module-level statements and test/invariant/bench blocks). When all
@@ -4563,6 +4676,11 @@ impl VerilogCodegen {
                 String,
                 std::collections::HashMap<String, String>,
             > = std::collections::HashMap::new();
+            // W464: track generated clone names so two different binding
+            // signatures cannot produce the same Verilog function name after
+            // sanitization.
+            let mut used_clone_names: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
 
             for f in &functions {
                 let array_param_indices: Vec<usize> = f
@@ -4636,7 +4754,7 @@ impl VerilogCodegen {
                                 // W462: literal array argument -> lower to an
                                 // anonymous module-level ROM shared by identical
                                 // literals across call sites.
-                                if let Some(rom_name) = Self::array_literal_rom_name(
+                                if let Some(rom_name) = self.array_literal_rom_name(
                                     arg,
                                     expected_size,
                                     &expected_elem_type,
@@ -4711,23 +4829,22 @@ impl VerilogCodegen {
                     }
                     bindings.insert(f.name.clone(), fn_bindings);
                 } else {
-                    // W461: create a clone per unique binding signature.
+                    // W461/W464: create a clone per unique binding signature. Sort
+                    // signatures so clone name assignment is deterministic even
+                    // when different arrays sanitize to the same string.
                     let mut fn_clones: std::collections::HashMap<String, String> =
                         std::collections::HashMap::new();
-                    for (sig_key, (sig_parts, _calls)) in signatures {
-                        let sanitized_clone = format!(
-                            "{}_{}",
-                            Self::sanitize_identifier(&f.name),
-                            sig_parts
-                                .iter()
-                                .map(|s| Self::sanitize_identifier(s))
-                                .collect::<Vec<_>>()
-                                .join("_")
+                    let mut sorted_sigs: Vec<(String, Vec<String>)> = signatures
+                        .into_iter()
+                        .map(|(sig_key, (sig_parts, _calls))| (sig_key, sig_parts))
+                        .collect();
+                    sorted_sigs.sort_by(|a, b| a.0.cmp(&b.0));
+                    for (sig_key, sig_parts) in sorted_sigs {
+                        let safe_clone_name = Self::unique_clone_name(
+                            &f.name,
+                            &sig_parts,
+                            &mut used_clone_names,
                         );
-                        // Store both the clone declaration name (Verilog-safe,
-                        // including keyword escapes) and the binding map under that
-                        // safe name so later lookups are exact.
-                        let safe_clone_name = Self::verilog_safe_identifier(&sanitized_clone);
                         let mut clone_fn_bindings: std::collections::HashMap<
                             String,
                             String,
@@ -4947,20 +5064,20 @@ impl VerilogCodegen {
                         let (_, (sig_parts, b, _)) = all_sigs.into_iter().next().unwrap();
                         bindings.insert(g_name.clone(), b);
                     } else {
-                        // Multiple signatures: emit clones.
+                        // W461/W464: Multiple signatures: emit clones. Sort
+                        // signatures for deterministic name assignment and use the
+                        // collision-proof helper.
                         let mut g_clones: std::collections::HashMap<String, String> =
                             std::collections::HashMap::new();
-                        for (sig_key, (sig_parts, b, _)) in all_sigs {
-                            let sanitized_clone = format!(
-                                "{}_{}",
-                                Self::sanitize_identifier(&g_name),
-                                sig_parts
-                                    .iter()
-                                    .map(|s| Self::sanitize_identifier(s))
-                                    .collect::<Vec<_>>()
-                                    .join("_")
+                        let mut sorted_sigs: Vec<(String, (Vec<String>, std::collections::HashMap<String, String>, Vec<usize>))> =
+                            all_sigs.into_iter().collect();
+                        sorted_sigs.sort_by(|a, b| a.0.cmp(&b.0));
+                        for (sig_key, (sig_parts, b, _)) in sorted_sigs {
+                            let safe_clone_name = Self::unique_clone_name(
+                                &g_name,
+                                &sig_parts,
+                                &mut used_clone_names,
                             );
-                            let safe_clone_name = Self::verilog_safe_identifier(&sanitized_clone);
                             g_clones.insert(sig_key, safe_clone_name.clone());
                             clone_bindings.insert(safe_clone_name, b);
                         }
@@ -5354,9 +5471,11 @@ impl VerilogCodegen {
         self.write_line("`default_nettype wire");
     }
 
-    /// W462: emit a module-level anonymous ROM lowered from an ExprArrayLiteral
-    /// that was used as an array-parameter argument. Mirrors the const-array
-    /// ROM style from gen_verilog_const without a pragma attribute.
+    /// W462/W464: emit a module-level anonymous ROM lowered from an
+    /// ExprArrayLiteral that was used as an array-parameter argument. Mirrors
+    /// the const-array ROM style from gen_verilog_const for scalar elements.
+    /// For struct element types, emit one Verilog memory per scalar field and
+    /// initialize each field memory independently.
     fn gen_verilog_anon_rom(
         &mut self,
         name: &str,
@@ -5364,6 +5483,70 @@ impl VerilogCodegen {
         elem_type: &str,
         lit: &Node,
     ) {
+        let safe_name = Self::verilog_safe_identifier(name);
+        self.write_line(&format!("// LUT: {} [{}] {}", safe_name, size, elem_type)
+        );
+
+        if let Some(fields) = self.struct_fields.get(elem_type).cloned() {
+            // W464: arrays of structs are lowered to one memory per scalar
+            // field, named `{rom_name}_{field}`. This matches the field-access
+            // lowering in gen_verilog_expr.
+            for (fname, ftype) in &fields {
+                let field_width = Self::type_to_width(ftype);
+                let field_signed = Self::type_is_signed(ftype);
+                let field_signed_str = if field_signed { "signed " } else { "" };
+                let field_range = Self::range_decl(field_width);
+                let field_range_str = if field_range.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", field_range)
+                };
+                let field_name_raw = format!("{}_{}", name, fname);
+                let field_safe = Self::verilog_safe_identifier(&field_name_raw);
+                self.write_indent();
+                self.write_line(&format!(
+                    "reg {}{} {} [0:{}];",
+                    field_signed_str, field_range_str, field_safe, size - 1
+                ));
+            }
+
+            self.write_indent();
+            self.write_line("initial begin");
+            self.indent();
+            for (i, elem) in lit.children.iter().enumerate() {
+                if i >= size {
+                    break;
+                }
+                if elem.kind != NodeKind::ExprStructLit {
+                    continue;
+                }
+                let mut field_values: std::collections::HashMap<String, &Node> =
+                    std::collections::HashMap::new();
+                for field in &elem.children {
+                    if field.kind == NodeKind::ExprFieldAccess && !field.name.is_empty() {
+                        if let Some(val) = field.children.first() {
+                            field_values.insert(field.name.clone(), val);
+                        }
+                    }
+                }
+                for (fname, _ftype) in &fields {
+                    if let Some(val) = field_values.get(fname) {
+                        let field_name_raw = format!("{}_{}", name, fname);
+                        let field_safe =
+                            Self::verilog_safe_identifier(&field_name_raw);
+                        self.write_indent();
+                        self.write(&format!("{}[{}] = ", field_safe, i));
+                        self.gen_verilog_expr(val);
+                        self.write_line(";");
+                    }
+                }
+            }
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+            return;
+        }
+
         let elem_width = Self::type_to_width(elem_type);
         let elem_signed = Self::type_is_signed(elem_type);
         let elem_signed_str = if elem_signed { "signed " } else { "" };
@@ -5373,9 +5556,6 @@ impl VerilogCodegen {
         } else {
             format!("{} ", elem_range)
         };
-        let safe_name = Self::verilog_safe_identifier(name);
-        self.write_line(&format!("// LUT: {} [{}] {}", safe_name, size, elem_type)
-        );
         self.write_indent();
         self.write_line(&format!(
             "reg {}{} {} [0:{}];",
@@ -5438,6 +5618,82 @@ impl VerilogCodegen {
                 && node.children[0].kind == NodeKind::ExprArrayLiteral;
 
             if let Some((array_size, elem_type)) = type_array {
+                // W464: arrays of structs are lowered to one Verilog memory per
+                // scalar field, matching the field-access lowering in
+                // gen_verilog_expr.
+                if let Some(fields) = self.struct_fields.get(&elem_type).cloned() {
+                    self.write_line(&format!(
+                        "// LUT: {} [{}] {} (struct)",
+                        safe_name, array_size, elem_type
+                    ));
+                    // W459: emit optional ROM-style attribute (block/distributed).
+                    if !node.extra_pragma.is_empty() {
+                        self.write_indent();
+                        self.write_line(&format!("(* {} *)", node.extra_pragma));
+                    }
+                    for (fname, ftype) in &fields {
+                        let field_width = Self::type_to_width(ftype);
+                        let field_signed = Self::type_is_signed(ftype);
+                        let field_signed_str = if field_signed { "signed " } else { "" };
+                        let field_range = Self::range_decl(field_width);
+                        let field_range_str = if field_range.is_empty() {
+                            String::new()
+                        } else {
+                            format!("{} ", field_range)
+                        };
+                        let field_name_raw = format!("{}_{}", node.name, fname);
+                        let field_safe = Self::verilog_safe_identifier(&field_name_raw);
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "reg {}{} {} [0:{}];",
+                            field_signed_str, field_range_str, field_safe, array_size - 1
+                        ));
+                    }
+
+                    if has_array_literal {
+                        let child = &node.children[0];
+                        self.write_indent();
+                        self.write_line("initial begin");
+                        self.indent();
+                        for (i, elem) in child.children.iter().enumerate() {
+                            if i >= array_size {
+                                break;
+                            }
+                            if elem.kind != NodeKind::ExprStructLit {
+                                continue;
+                            }
+                            let mut field_values: std::collections::HashMap<
+                                String,
+                                &Node,
+                            > = std::collections::HashMap::new();
+                            for field in &elem.children {
+                                if field.kind == NodeKind::ExprFieldAccess
+                                    && !field.name.is_empty()
+                                {
+                                    if let Some(val) = field.children.first() {
+                                        field_values.insert(field.name.clone(), val);
+                                    }
+                                }
+                            }
+                            for (fname, _ftype) in &fields {
+                                if let Some(val) = field_values.get(fname) {
+                                    let field_name_raw = format!("{}_{}", node.name, fname);
+                                    let field_safe =
+                                        Self::verilog_safe_identifier(&field_name_raw);
+                                    self.write_indent();
+                                    self.write(&format!("{}[{}] = ", field_safe, i));
+                                    self.gen_verilog_expr(val);
+                                    self.write_line(";");
+                                }
+                            }
+                        }
+                        self.dedent();
+                        self.write_indent();
+                        self.write_line("end");
+                    }
+                    return;
+                }
+
                 let elem_width = Self::type_to_width(&elem_type);
                 let elem_signed = Self::type_is_signed(&elem_type);
                 let elem_signed_str = if elem_signed { "signed " } else { "" };
@@ -5788,9 +6044,12 @@ impl VerilogCodegen {
         self.current_fn_return_type = node.extra_return_type.clone();
         self.let_tmp_counter = 0;
         self.param_widths.clear();
+        self.array_param_types.clear();
         for (pname, ptype) in &node.params {
             self.param_widths
                 .insert(pname.clone(), Self::type_to_width(ptype) as usize);
+            self.array_param_types
+                .insert(pname.clone(), ptype.clone());
         }
         self.write_line("");
         self.write_indent();
@@ -5816,6 +6075,7 @@ impl VerilogCodegen {
                 self.current_fn_return_type.clear();
                 self.param_widths.clear();
                 self.local_arrays.clear();
+                self.array_param_types.clear();
                 return;
             }
         }
@@ -5937,6 +6197,7 @@ impl VerilogCodegen {
         self.current_fn_return_type.clear();
         self.param_widths.clear();
         self.local_arrays.clear();
+        self.array_param_types.clear();
     }
 
     fn gen_verilog_fn(&mut self, node: &Node) {
@@ -6666,13 +6927,43 @@ impl VerilogCodegen {
             NodeKind::ExprFieldAccess => {
                 if !node.children.is_empty() {
                     let child = &node.children[0];
-                    if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
+                    // W464: if the base is an array parameter bound to a module-level
+                    // array whose element type is a struct, emit a field-indexed memory
+                    // access (`bound_array_field[idx]`).
+                    if child.kind == NodeKind::ExprIndex
+                        && child.children.len() >= 2
+                    {
                         let base_name = match child.children[0].kind {
                             NodeKind::ExprIdentifier => child.children[0].name.clone(),
                             _ => String::new(),
                         };
-                        let flat_name = format!("{}_{}", base_name, node.name);
-                        self.write(&Self::verilog_safe_identifier(&flat_name));
+                        let idx = &child.children[1];
+                        let mut emitted = false;
+                        if let Some(bound) = self.array_param_bound_name(&base_name) {
+                            let elem_type = self
+                                .array_param_types
+                                .get(&base_name)
+                                .and_then(|ptype| {
+                                    Self::parse_array_type(ptype).map(|(_, elem)| elem)
+                                });
+                            if Self::array_element_is_struct(
+                                elem_type.as_deref(),
+                                &self.struct_fields,
+                            ) {
+                                let field_name_raw = format!("{}_{}", bound, node.name);
+                                let field_safe =
+                                    Self::verilog_safe_identifier(&field_name_raw);
+                                self.write(&field_safe);
+                                self.write("[");
+                                self.gen_verilog_expr(idx);
+                                self.write("]");
+                                emitted = true;
+                            }
+                        }
+                        if !emitted {
+                            let flat_name = format!("{}_{}", base_name, node.name);
+                            self.write(&Self::verilog_safe_identifier(&flat_name));
+                        }
                     } else if child.kind == NodeKind::ExprIdentifier {
                         let flat_name = format!("{}_{}", child.name, node.name);
                         self.write(&Self::verilog_safe_identifier(&flat_name));

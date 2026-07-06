@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-07 (refreshed for Wave Loop 462)  
+**Date:** 2026-07-08 (refreshed for Wave Loop 464)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -111,6 +111,8 @@ remains the most recent public checkpoint. CIRCT `firtool-1.152.0` (2026-07-04)
 is still the latest public release, and the ternary-FPGA ecosystem continues to
 validate the {-1, 0, +1} compute niche without pairing it with a Lean-native proof
 pipeline. The master-merge debt and physical-bench blockers remain unchanged.
+
+**Wave Loop 464 closes the `gen-verilog` array-parameter clone loophole without changing the formal-lead position.** Trinity ships 594/594 non-smoke PASS, 74/74 yosys smoke PASS, 0 baseline failures, and `cargo test -p t27c --bin t27c` stays green (1524 passed, 0 failed, 2 ignored). No new public competitor signals appeared between W463 and W464; Sparkle's repository still shows only the 2026-07-03 cache-key fix and the 関数型まつり2026 talk, while CIRCT `firtool-1.152.0` (2026-07-04) remains the latest public release. The ternary-FPGA niche continues to treat Lean as an afterthought, leaving Trinity's proof-pipeline lead intact. Physical bench execution is still blocked by the missing DLC10 cable.
 
 **W435 hardens the live-readout pipeline without clearing the master-merge debt.**
 `tri fpga read-xadc` now exports a rounded `PvtContext` JSON via `--to-pvt-context`;
