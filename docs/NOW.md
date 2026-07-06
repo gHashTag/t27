@@ -1,22 +1,110 @@
-# NOW — Wave Loop 452 next / Wave Loop 451 close-out (2026-07-01)
+# NOW — Wave Loop 453 next / Wave Loop 452 close-out (2026-07-01)
 
 **Last updated:** 2026-07-01
 
-## Wave Loop 452 — Envelope lattice continuation + CI metric hardening (Variant B default) (Closes #1422)
+## Wave Loop 453 — Envelope rectangle closure + smoke-gate report schema hardening (Variant B default) (Closes #1421)
 
-- Branch: `wave-loop-452`
-- Issue: #1422
+- Branch: `wave-loop-453`
+- Issue: #1421
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_PLAN_W451_2026-07-01.md` (carries W452 planning forward)
-- Cooperation W453: (to be written at W452 close-out)
+- Plan: `docs/reports/FPGA_LOOP_PLAN_W452_2026-07-01.md` (carries W453 planning forward)
+- Cooperation W454: (to be written at W453 close-out)
 
 ### Not started
 
 - Select Variant A if bench unblocks (DLC10 cable + P12/relay), otherwise Variant B.
-- Create issue #1422 and branch `wave-loop-452` from the W451 land commit.
-- Extend boundary envelope theorem matrix (cold temp / high voltage corners, per-OSCFSEL monotonicity, additional independence properties).
-- Harden CI metric schemas and add snapshot coverage for remaining smoke-gate shapes.
+- Create issue #1421 and branch `wave-loop-453` from the W452 land commit.
+- Close the four-corner operating-rectangle in `TernaryFPGABoot.lean` (hot/low-v W451, cold/high-v W452, plus hot/high-v and cold/low-v W453 corners) in a single quantified `∀` theorem.
+- Add a smoke-gate JSON report schema regression test (field presence / `deny_unknown_fields` style) so the all-ok snapshot stays trustworthy.
 - Evaluate Variant C master-merge of remaining safe gen-verilog fixes (#1245) only if risk ≤ low.
+
+---
+
+## Wave Loop 452 — Boundary cold/high-voltage envelope-corner theorem + adversarial voltage witness + CI metric hardening (Variant B default) (Closes #1422)
+
+- Branch: `wave-loop-452`
+- Issue: #1422
+- PR: (to open after this close-out)
+- Report: `docs/reports/WAVE_LOOP_452_REPORT.md`
+- Evidence W452: `docs/reports/FPGA_LOOP_EVIDENCE_W452_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_PLAN_W452_2026-07-01.md`
+- Cooperation W453: `docs/reports/FPGA_LOOP_COOPERATION_W453_2026-07-01.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT` at -40 °C, 1100 mV VCCINT,
+    1800 mV VCCAUX, all `ff`/`tt`/`ss` corners.
+  - Proved `boundary_cold_highv_w452_all_corners_transaction_ok`: a single `∀`
+    theorem that the ideal raw-ns capture produces a flash-spec-compliant SPI
+    read transaction for every OSCFSEL 0..7 and every process corner at the
+    cold/high-voltage envelope corner.
+  - Added `OUTSIDE_VCCINT_LOW_W452_OPERATING_POINT` (800 mV, below envelope) and
+    proved `cclk_variant_and_xadc_envelope_check_outside_vccint_low_false` —
+    the dashboard gate rejects low VCCINT.
+  - Added `oscfsel_out_of_range_combined_check_false`: any `oscfsel > 7` is
+    rejected by the combined-check gate.
+
+- `bootstrap/src/suite.rs`
+  - Extended `FpgaSmokeResult` with `failed: bool` and
+    `failure_reason: Option<String>`.
+  - Extended `SuiteSummary` with `fpga_smoke_skipped`, `fpga_smoke_failed`, and
+    `fpga_smoke_failure_reason` so the JSON dashboard distinguishes passed,
+    skipped, and failed smoke gates.
+  - Updated `parse_smoke_gate_report` and the error fallback path to populate
+    the new fields.
+  - Added/updated builder and smoke-state unit tests.
+
+- `cli/tri/src/fpga.rs`
+  - Added `test_smoke_gate_all_ok_matches_snapshot`, a deterministic synthetic
+    snapshot of a fully-passing smoke-gate report with every phase populated.
+
+- `tests/fixtures/fpga/smoke-gate/`
+  - Committed `all_ok_snapshot.json`.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W452 boundary section; Sparkle/Verilean remains the only fresh
+    Lean-native HDL signal in early July 2026.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Updated branch to `wave-loop-452` and documented the W452 triage decision:
+    7 residual yosys smoke failures remain the baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_452_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W452_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_PLAN_W452_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W453_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — not performed this wave.
+- Master-merge to clear #1245 — deferred to a dedicated future wave.
+
+### Verification
+
+- `cargo check -p tri`: **PASS**.
+- `cargo check -p t27c`: **PASS**.
+- `cargo test -p tri --bin tri all_ok`: **PASS**.
+- `cargo test -p tri --bin tri missing_bitstream`: **PASS**.
+- `cargo test -p tri --bin tri fast_skipped`: **PASS**.
+- `cargo test -p t27c --bin t27c suite::tests`: **PASS**.
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test --json /tmp/t27_w452_suite.json`: **ACCEPTABLE**.
+  - Parse/typecheck/GF16/gen-zig/gen-rust/gen-verilog/gen-c/seal-verify: 576/576 PASS.
+  - Gen-verilog-yosys-smoke: 49 passed, **7 pre-existing failures** (#1245).
+  - FPGA board-less smoke gate: **PASS**, theorem matrix 24 variants,
+    `envelope_check: "ok"`, `fixtures` present, `schema_version: "1.0"`,
+    `passed: true`, `acceptable: true`.
+- `./scripts/tri test --fast --json /tmp/t27_w452_fast_suite.json`: **ACCEPTABLE**.
+  - Same 576/576 non-smoke PASS and same 7 baseline gen-verilog failures.
+  - FPGA board-less smoke gate: **PASS**, same 24-variant matrix and
+    `passed: true` as the default run.
+  - Phase 3c-standalone: **skipped** (`--fast` mode);
+    `validate_lean_standalone_elapsed_ms` is `null`.
+  - `acceptable: true`.
 
 ---
 

@@ -1,0 +1,61 @@
+{
+  "bit_config": {
+    "assertions": [
+      "ASSERTION OK: idcode"
+    ],
+    "bitstream": "<TMP>/tri_smoke_gate_all_ok_bitstream.bit",
+    "status": "ok"
+  },
+  "dry_run_sweep": {
+    "report_md": "<TMP>/tri_smoke_gate_all_ok_sweep.md",
+    "source": "synthetic",
+    "status": "ok",
+    "variant_count": 8
+  },
+  "passed": true,
+  "schema_version": "1.0",
+  "theorem_matrix": {
+    "corner_count": 1,
+    "oscfsel_count": 1,
+    "replay": false,
+    "source": "synthetic",
+    "status": "ok",
+    "variant_count": 1,
+    "variants": [
+      {
+        "corner": "ss",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<TMP>/tri_smoke_gate_all_ok_theorem.lean",
+          "pvt": "<TMP>/tri_smoke_gate_all_ok_pvt.json",
+          "raw_ns": "<TMP>/tri_smoke_gate_all_ok_raw_ns.json",
+          "summary": "<TMP>/tri_smoke_gate_all_ok_summary.json"
+        },
+        "oscfsel": 0,
+        "period_ns": 400,
+        "sck_high_ns": 200,
+        "sck_low_ns": 200,
+        "status": "ok"
+      }
+    ]
+  },
+  "validate_lean_standalone": {
+    "lean_file": "<TMP>/tri_smoke_gate_all_ok_validate_standalone.lean",
+    "source": "synthetic",
+    "status": "ok"
+  },
+  "verify_lean": {
+    "expected_source": "synthetic",
+    "lean_file": "<TMP>/tri_smoke_gate_all_ok_verify.lean",
+    "status": "ok",
+    "summary_file": "<TMP>/tri_smoke_gate_all_ok_summary.json"
+  },
+  "yosys_synthesis": {
+    "files": [
+      "<REPO>/fpga/verilog/ternary_mac_synth.v",
+      "<REPO>/fpga/verilog/ternary_mac_demo_top.v"
+    ],
+    "status": "ok",
+    "top": "ternary_mac_demo_top"
+  }
+}

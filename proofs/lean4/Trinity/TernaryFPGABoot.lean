@@ -2407,6 +2407,116 @@ theorem boundary_hot_lowv_w451_all_oscfsel_combined_check_true (oscfsel : Nat) (
   exact ⟨h, boundary_hot_lowv_w451_operating_point_within_envelope ProcessCorner.ss⟩
 
 -- ============================================================================
+-- W452 boundary cold/high-voltage envelope-corner theorem + adversarial voltage
+-- witness + OSCFSEL range gate
+-- ============================================================================
+
+/-- The boundary cold/high-voltage operating point used by the W452 envelope-corner
+    theorem. It sits at the documented industrial minimum (-40 °C) and the maximum
+    envelope VCCINT (1100 mV), with a quantified process corner so a single theorem
+    covers ff/tt/ss. VCCAUX is left at the nominal 1800 mV to demonstrate that the
+    envelope check and the timing predicate are independent of it. -/
+def BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT (corner : ProcessCorner) : XadcOperatingPoint :=
+  { temp_c := (-40 : Int), vccint_mv := 1100, vccaux_mv := 1800,
+    process_corner := corner }
+
+/-- The W452 boundary operating point is inside the documented operating envelope
+    for every process corner (the envelope only constrains temperature and VCCINT). -/
+theorem boundary_cold_highv_w452_operating_point_within_envelope (corner : ProcessCorner) :
+  xadc_operating_point_within_envelope (BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT corner) := by
+  norm_num [BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT, xadc_operating_point_within_envelope,
+            PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- Every documented process corner is at least as fast (has no larger PVT derating)
+    as the slow-slow corner. -/
+theorem boundary_cold_highv_w452_process_corner_worse_than_ss (corner : ProcessCorner) :
+  corner.worse_than ProcessCorner.ss := by
+  cases corner <;> norm_num [ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+/-- For any documented OSCFSEL selection and any documented process corner, the
+    ideal raw-ns capture at the W452 boundary operating point satisfies the
+    PVT-aware raw-ns flash predicate. The proof reuses the worst-case theorem and
+    the envelope bridge. -/
+theorem boundary_cold_highv_w452_raw_ns_satisfies_flash_spec
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (corner : ProcessCorner) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (xadc_operating_point_to_pvt (BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT corner)) = true := by
+  intro period_ns low_ns high_ns
+  have h_env := boundary_cold_highv_w452_operating_point_within_envelope corner
+  have h_worse := boundary_cold_highv_w452_process_corner_worse_than_ss corner
+  apply xadc_envelope_implies_raw_ns_satisfies_any_in_envelope
+    (BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT corner) period_ns low_ns high_ns h_env h_worse
+  exact cclk_variant_raw_ns_worstcase_pvt_satisfies_flash_spec oscfsel h
+
+/-- Quantified end-to-end transaction theorem for the W452 boundary operating
+    point: for every documented OSCFSEL selection (0..7) and every documented
+    process corner (ff/tt/ss), the ideal raw-ns capture at the cold/high-voltage
+    envelope corner produces a flash-spec-compliant SPI read transaction. This
+    closes the symmetric boundary-corner → raw-ns → PVT-context → transaction loop. -/
+theorem boundary_cold_highv_w452_all_corners_transaction_ok
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (corner : ProcessCorner) (bits : Nat) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits)
+    = true := by
+  intro period_ns low_ns high_ns
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok _ _ _ _
+    (xadc_operating_point_to_pvt (BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT corner))
+  · norm_num [PVT_TEMP_MIN_C, xadc_operating_point_to_pvt, BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT]
+  · norm_num [PVT_VCCINT_MAX_MV, xadc_operating_point_to_pvt, BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT]
+  · exact boundary_cold_highv_w452_raw_ns_satisfies_flash_spec oscfsel h corner
+
+/-- Quantified combined-check theorem: the dashboard gate holds for every
+    documented OSCFSEL selection under the W452 boundary operating point. This is
+    the computable counterpart to the boundary transaction theorem. -/
+theorem boundary_cold_highv_w452_all_oscfsel_combined_check_true (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_variant_and_xadc_envelope_check oscfsel (BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT ProcessCorner.ss) = true := by
+  rw [cclk_variant_and_xadc_envelope_check_eq]
+  exact ⟨h, boundary_cold_highv_w452_operating_point_within_envelope ProcessCorner.ss⟩
+
+/-- A deliberately out-of-envelope operating point: 800 mV VCCINT is below the
+    documented 900 mV minimum, while temperature and VCCAUX remain nominal. This
+    witness is used to prove the dashboard gate returns `false` when the supply
+    voltage is outside the operating rectangle. -/
+def OUTSIDE_VCCINT_LOW_W452_OPERATING_POINT : XadcOperatingPoint :=
+  { temp_c := (25 : Int), vccint_mv := 800, vccaux_mv := 1800,
+    process_corner := ProcessCorner.ss }
+
+/-- The W452 low-voltage outside-envelope witness is not inside the documented
+    operating envelope because its VCCINT is below `PVT_VCCINT_MIN_MV`. -/
+theorem outside_vccint_low_w452_operating_point_not_within_envelope :
+  ¬ xadc_operating_point_within_envelope OUTSIDE_VCCINT_LOW_W452_OPERATING_POINT := by
+  simp [xadc_operating_point_within_envelope, OUTSIDE_VCCINT_LOW_W452_OPERATING_POINT,
+        PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- Adversarial envelope theorem: for any documented OSCFSEL selection, the
+    dashboard combined-check gate returns `false` when the VCCINT operating point
+    lies below the PVT envelope. This complements the W448 temperature witness and
+    closes the voltage dimension of the adversarial characterization. -/
+theorem cclk_variant_and_xadc_envelope_check_outside_vccint_low_false
+  (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_variant_and_xadc_envelope_check oscfsel OUTSIDE_VCCINT_LOW_W452_OPERATING_POINT = false := by
+  simp [cclk_variant_and_xadc_envelope_check, xadc_operating_point_within_envelope_dec,
+        OUTSIDE_VCCINT_LOW_W452_OPERATING_POINT,
+        PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV,
+        decide_eq_true h]
+
+/-- The dashboard combined-check gate returns `false` for any OSCFSEL value outside
+    the documented 0..7 range, regardless of the operating point. This isolates the
+    OSCFSEL range assumption in a single falsifiable theorem. -/
+theorem oscfsel_out_of_range_combined_check_false (oscfsel : Nat) (h : oscfsel > 7)
+  (pt : XadcOperatingPoint) :
+  cclk_variant_and_xadc_envelope_check oscfsel pt = false := by
+  have h_not_le : ¬(oscfsel ≤ 7) := by omega
+  have h_dec : decide (oscfsel ≤ 7) = false := decide_eq_false h_not_le
+  simp [cclk_variant_and_xadc_envelope_check, h_dec]
+
+-- ============================================================================
 -- Adversarial W448 envelope theorem: outside-envelope operating point
 -- ============================================================================
 

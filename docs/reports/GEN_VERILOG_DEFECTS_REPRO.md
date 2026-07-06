@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-451`  
-**Last updated:** 2026-07-01 (Wave Loop 451)  
+**Branch:** `wave-loop-452`  
+**Last updated:** 2026-07-01 (Wave Loop 452)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -694,6 +694,23 @@ re-confirmed as the baseline**. No new narrow defect was introduced.
 
 **Defect status matrix after W451:** same as after W435.
 
+## W452 triage (2026-07-01)
+
+Wave Loop 452 selected **Variant B** of the W452 cooperation plan (boundary
+cold/high-voltage envelope-corner theorem + adversarial voltage witness + CI
+metric hardening). Work focused on `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+(`BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT`,
+`boundary_cold_highv_w452_all_corners_transaction_ok`,
+`OUTSIDE_VCCINT_LOW_W452_OPERATING_POINT`,
+`oscfsel_out_of_range_combined_check_false`), `bootstrap/src/suite.rs`
+(`FpgaSmokeResult`/`SuiteSummary` passed/skipped/failed state and failure
+reason), and `cli/tri/src/fpga.rs` (all-ok smoke-gate snapshot test). The wave
+did not touch the `gen-verilog` backend, so the 7 residual yosys smoke failures
+remain **unchanged and re-confirmed as the baseline**. No new narrow defect was
+introduced.
+
+**Defect status matrix after W452:** same as after W435.
+
 ## W450 triage (2026-07-01)
 
 Wave Loop 450 selected **Variant B** of the W450 cooperation plan (quantified
@@ -708,7 +725,7 @@ introduced.
 
 **Defect status matrix after W450:** same as after W435.
 
-## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439 / W440 / W441 / W444 / W446 / W449 / W450 / W451
+## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439 / W440 / W441 / W444 / W446 / W449 / W450 / W451 / W452
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.

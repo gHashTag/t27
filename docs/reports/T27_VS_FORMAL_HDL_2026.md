@@ -301,6 +301,49 @@ boundary:
   TernaryCore and BitNet-RISCV-Multicore continue to validate {-1,0,+1} compute
   hardware without a formal proof pipeline.
 
+**W450 closes the dry-run-live fixture → transaction loop in a single quantified
+ theorem and hardens the smoke-gate phase surface.**
+`proofs/lean4/Trinity/TernaryFPGABoot.lean` adds
+`dry_run_live_w450_all_corners_transaction_ok`: for every `oscfsel ≤ 7` and every
+process corner, the dry-run-live synthetic operating point produces a
+flash-spec-compliant SPI read transaction. A standalone smoke-gate snapshot test
+is added in `cli/tri/src/fpga.rs` so the `--validate-lean-standalone` report shape
+is guarded against regressions without a real board. `./scripts/tri test --fast`
+now runs only the fast/smoke-gate phases, giving a lightweight CI entry point.
+Competitor signals at the W450 boundary are unchanged from W449.
+
+**W451 pushes the envelope lattice to the cold/low-voltage and hot/high-voltage
+boundaries and hardens the suite summary schema.**
+`TernaryFPGABoot.lean` adds `inside_envelope_w451` for the four corner operating
+points (`cold/min-v`, `cold/max-v`, `hot/min-v`, `hot/max-v`) and proves that the
+dashboard gate accepts them (`boundary_hot_lowv_w451_all_corners_combined_check_true`,
+etc.), including explicit `VCCAUX` independence theorems that show the gate
+verdict is unaffected by `VCCAUX` across the full 1500–2050 mV range. On the Rust
+side, `bootstrap/src/suite.rs` introduces a `FpgaSmokeResultBuilder` with
+`#[serde(deny_unknown_fields)]` on `SuiteSummary`/`SuitePhaseSummary`, adds
+machine-readable `passed`/`skipped`/`failed`/`failure_reason` fields to the smoke
+report consumer, and adds missing-bitstream and `--fast` snapshot tests. The suite
+returns to **576/576 non-smoke PASS** with the **7 baseline gen-verilog yosys smoke
+failures** documented. Variant C (master-merge) is deferred because the bench is
+still blocked.
+
+**W452 continues the envelope lattice and hardens CI metrics around failure
+classification.** `TernaryFPGABoot.lean` adds the cold/high-voltage boundary
+operating point (`boundary_cold_highv_w452_all_corners_transaction_ok`), an
+adversarial out-of-envelope VCCINT witness
+(`OUTSIDE_VCCINT_LOW_W452_OPERATING_POINT`) that proves the dashboard gate
+rejects low VCCINT, and an OSCFSEL range gate theorem
+(`oscfsel_out_of_range_combined_check_false`) that proves any `oscfsel > 7` is
+rejected. `bootstrap/src/suite.rs` now distinguishes passed, skipped, and failed
+smoke-gate reports, carries `fpga_smoke_failure_reason` in the suite summary, and
+adds an all-ok smoke-gate snapshot test. The physical bench and the master-merge
+debt remain blocked, so the **7 residual gen-verilog yosys smoke failures** are
+still the documented baseline. No new public competitor signals appeared between
+the W451 close-out and the W452 boundary: Sparkle / Verilean remains the only
+fresh July 2026 Lean-native HDL signal, CIRCT `firtool-1.152.0` (2026-07-04) is
+still the latest public release, and no ternary-FPGA project besides t27 combines
+{-1,0,+1} compute with a Lean-native proof pipeline.
+
 ---
 
 ## Competitor matrix

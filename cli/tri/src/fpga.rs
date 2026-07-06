@@ -11037,6 +11037,88 @@ mod tests {
         );
     }
 
+    /// Snapshot shape regression for the fully-populated, all-ok smoke-gate
+    /// report. The report is synthetic: it captures the canonical shape when every
+    /// phase (bit_config, dry_run_sweep, verify_lean, theorem_matrix,
+    /// validate_lean_standalone, yosys_synthesis) succeeds and `passed` is true.
+    /// This gives a deterministic schema target that does not require a real
+    /// bitstream, `lake`, or `yosys` installation.
+    #[test]
+    fn test_smoke_gate_all_ok_matches_snapshot() {
+        let root = repo_root().expect("repo root");
+        let fixture_dir = root
+            .join("tests")
+            .join("fixtures")
+            .join("fpga")
+            .join("smoke-gate");
+        let tmp_bit = std::env::temp_dir().join("tri_smoke_gate_all_ok_bitstream.bit");
+        let variant = serde_json::json!({
+            "corner": "ss",
+            "oscfsel": 0,
+            "period_ns": 400,
+            "sck_low_ns": 200,
+            "sck_high_ns": 200,
+            "envelope_check": "ok",
+            "status": "ok",
+            "fixtures": {
+                "pvt": std::env::temp_dir().join("tri_smoke_gate_all_ok_pvt.json").to_string_lossy().to_string(),
+                "raw_ns": std::env::temp_dir().join("tri_smoke_gate_all_ok_raw_ns.json").to_string_lossy().to_string(),
+                "lean": std::env::temp_dir().join("tri_smoke_gate_all_ok_theorem.lean").to_string_lossy().to_string(),
+                "summary": std::env::temp_dir().join("tri_smoke_gate_all_ok_summary.json").to_string_lossy().to_string(),
+            },
+        });
+        let report = serde_json::json!({
+            "schema_version": "1.0",
+            "bit_config": {
+                "status": "ok",
+                "bitstream": tmp_bit.to_string_lossy().to_string(),
+                "assertions": ["ASSERTION OK: idcode"],
+            },
+            "dry_run_sweep": {
+                "status": "ok",
+                "variant_count": 8,
+                "source": "synthetic",
+                "report_md": std::env::temp_dir().join("tri_smoke_gate_all_ok_sweep.md").to_string_lossy().to_string(),
+            },
+            "verify_lean": {
+                "status": "ok",
+                "expected_source": "synthetic",
+                "lean_file": std::env::temp_dir().join("tri_smoke_gate_all_ok_verify.lean").to_string_lossy().to_string(),
+                "summary_file": std::env::temp_dir().join("tri_smoke_gate_all_ok_summary.json").to_string_lossy().to_string(),
+            },
+            "theorem_matrix": {
+                "status": "ok",
+                "variant_count": 1,
+                "corner_count": 1,
+                "oscfsel_count": 1,
+                "source": "synthetic",
+                "replay": false,
+                "elapsed_ms": 42,
+                "variants": [variant],
+            },
+            "validate_lean_standalone": {
+                "status": "ok",
+                "source": "synthetic",
+                "lean_file": std::env::temp_dir().join("tri_smoke_gate_all_ok_validate_standalone.lean").to_string_lossy().to_string(),
+                "elapsed_ms": 42,
+            },
+            "yosys_synthesis": {
+                "status": "ok",
+                "top": "ternary_mac_demo_top",
+                "files": [
+                    root.join("fpga").join("verilog").join("ternary_mac_synth.v").to_string_lossy().to_string(),
+                    root.join("fpga").join("verilog").join("ternary_mac_demo_top.v").to_string_lossy().to_string(),
+                ],
+            },
+            "passed": true,
+        });
+        check_smoke_gate_snapshot(
+            &report,
+            &fixture_dir,
+            "all_ok_snapshot",
+        );
+    }
+
     /// Snapshot shape regression for the `--fast` skipped-standalone smoke-gate
     /// report. The report is synthetic: it captures the canonical shape when the
     /// bitstream and all non-standalone phases pass but `validate_lean_standalone`

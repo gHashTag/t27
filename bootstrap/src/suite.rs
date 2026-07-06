@@ -285,6 +285,8 @@ fn igla_clean_specs() -> Vec<String> {
 struct FpgaSmokeResult {
     passed: bool,
     skipped: bool,
+    failed: bool,
+    failure_reason: Option<String>,
     report_path: Option<PathBuf>,
     schema_version: Option<String>,
     bit_config_status: Option<String>,
@@ -317,6 +319,16 @@ impl FpgaSmokeResultBuilder {
 
     fn skipped(mut self, v: bool) -> Self {
         self.inner.skipped = v;
+        self
+    }
+
+    fn failed(mut self, v: bool) -> Self {
+        self.inner.failed = v;
+        self
+    }
+
+    fn failure_reason(mut self, v: impl Into<Option<String>>) -> Self {
+        self.inner.failure_reason = v.into();
         self
     }
 
@@ -375,19 +387,26 @@ impl FpgaSmokeResultBuilder {
     }
 
     /// Pre-built shape used when the demo bitstream is missing: skipped, not
-    /// passed, and with every metric cleared. Centralizing this shape keeps the
-    /// suite's "missing bitstream" behavior consistent across call sites.
+    /// passed, not failed, and with every metric cleared. Centralizing this shape
+    /// keeps the suite's "missing bitstream" behavior consistent across call sites.
     fn missing_bitstream() -> FpgaSmokeResult {
         FpgaSmokeResultBuilder::new()
             .passed(false)
             .skipped(true)
+            .failed(false)
+            .failure_reason(Some("demo bitstream not found".to_string()))
             .build()
     }
 
     /// Pre-built shape used when the smoke gate command itself fails: not passed,
-    /// not skipped, and with every metric cleared.
-    fn failed() -> FpgaSmokeResult {
-        FpgaSmokeResultBuilder::new().passed(false).build()
+    /// not skipped, failed, with every metric cleared and a generic reason.
+    fn failure_fallback() -> FpgaSmokeResult {
+        FpgaSmokeResultBuilder::new()
+            .passed(false)
+            .skipped(false)
+            .failed(true)
+            .failure_reason(Some("smoke gate command failed".to_string()))
+            .build()
     }
 }
 
@@ -505,8 +524,37 @@ fn parse_smoke_gate_report(report_path: &Path) -> anyhow::Result<FpgaSmokeResult
         .get("validate_lean_standalone")
         .and_then(|v| v.get("elapsed_ms"))
         .and_then(|v| v.as_u64());
+    // A report is considered "skipped" when it did not pass and every present
+    // phase status is "skipped". This distinguishes a missing-bitstream or
+    // missing-dependency fallback from a real failure.
+    let present_statuses = [
+        phase_status("bit_config"),
+        phase_status("dry_run_sweep"),
+        phase_status("verify_lean"),
+        phase_status("theorem_matrix"),
+        phase_status("validate_lean_standalone"),
+        phase_status("yosys_synthesis"),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+    let skipped = !passed
+        && !present_statuses.is_empty()
+        && present_statuses.iter().all(|s| s == "skipped");
+    let failed = !passed && !skipped;
+    let failure_reason = if failed {
+        Some("smoke-gate report indicates failure".to_string())
+    } else if skipped {
+        Some("smoke-gate skipped (missing dependency)".to_string())
+    } else {
+        None
+    };
+
     let result = FpgaSmokeResultBuilder::new()
         .passed(passed)
+        .skipped(skipped)
+        .failed(failed)
+        .failure_reason(failure_reason)
         .report_path(Some(report_path.to_path_buf()))
         .schema_version(schema_version)
         .bit_config_status(phase_status("bit_config"))
@@ -521,7 +569,7 @@ fn parse_smoke_gate_report(report_path: &Path) -> anyhow::Result<FpgaSmokeResult
 
     println!(
         "  FPGA smoke gate: {} (report: {})",
-        if passed { "OK" } else { "FAILED" },
+        if passed { "OK" } else if skipped { "SKIPPED" } else { "FAILED" },
         report_path.display()
     );
     println!(
@@ -532,7 +580,7 @@ fn parse_smoke_gate_report(report_path: &Path) -> anyhow::Result<FpgaSmokeResult
         result.yosys_synthesis_status
     );
 
-    if !passed {
+    if failed {
         anyhow::bail!("smoke-gate report indicates failure");
     }
 
@@ -581,6 +629,12 @@ struct SuiteSummary {
     phases: Vec<SuitePhaseSummary>,
     fpga_smoke_report: Option<String>,
     fpga_smoke_passed: Option<bool>,
+    /// True when the FPGA smoke gate was skipped (e.g., demo bitstream missing).
+    fpga_smoke_skipped: Option<bool>,
+    /// True when the FPGA smoke gate failed and was not skipped.
+    fpga_smoke_failed: Option<bool>,
+    /// Human-readable reason when the FPGA smoke gate failed or was skipped.
+    fpga_smoke_failure_reason: Option<String>,
     /// Elapsed milliseconds reported by the smoke-gate theorem matrix, if any.
     fpga_smoke_gate_elapsed_ms: Option<u64>,
     /// Elapsed milliseconds reported by the smoke-gate theorem-matrix replay path,
@@ -746,14 +800,25 @@ pub fn run_comprehensive(
             }
             summary.fpga_smoke_report = r.report_path.as_ref().map(|p| p.display().to_string());
             summary.fpga_smoke_passed = Some(r.passed);
+            summary.fpga_smoke_skipped = Some(r.skipped);
+            summary.fpga_smoke_failed = Some(r.failed);
+            summary.fpga_smoke_failure_reason = r.failure_reason.clone();
             summary.fpga_smoke_gate_elapsed_ms = r.theorem_matrix_elapsed_ms;
             summary.validate_lean_standalone_elapsed_ms = r.validate_lean_standalone_elapsed_ms;
             r
         }
         Err(e) => {
+            let reason = e.to_string();
             eprintln!("FPGA smoke gate failed: {}", e);
             p3c_fail = 1;
-            FpgaSmokeResultBuilder::failed()
+            summary.fpga_smoke_failed = Some(true);
+            summary.fpga_smoke_failure_reason = Some(reason.clone());
+            FpgaSmokeResultBuilder::new()
+                .passed(false)
+                .skipped(false)
+                .failed(true)
+                .failure_reason(Some(reason))
+                .build()
         }
     };
     push_phase(
@@ -1246,6 +1311,9 @@ mod tests {
             ],
             fpga_smoke_report: Some("build/fpga/smoke_gate_report.json".to_string()),
             fpga_smoke_passed: Some(true),
+            fpga_smoke_skipped: Some(false),
+            fpga_smoke_failed: Some(false),
+            fpga_smoke_failure_reason: None,
             fpga_smoke_gate_elapsed_ms: Some(42),
             fpga_smoke_gate_replay_elapsed_ms: Some(7),
             validate_lean_standalone_elapsed_ms: Some(123),
@@ -1268,6 +1336,41 @@ mod tests {
         assert_eq!(
             value["validate_lean_standalone_elapsed_ms"].as_u64(),
             Some(123)
+        );
+        assert_eq!(value["fpga_smoke_skipped"].as_bool(), Some(false));
+        assert_eq!(value["fpga_smoke_failed"].as_bool(), Some(false));
+        assert_eq!(value["fpga_smoke_failure_reason"].as_str(), None);
+    }
+
+    #[test]
+    fn test_suite_summary_smoke_state_roundtrip() {
+        let summary = SuiteSummary {
+            repo: "/tmp/t27".to_string(),
+            phases: vec![],
+            fpga_smoke_report: None,
+            fpga_smoke_passed: Some(false),
+            fpga_smoke_skipped: Some(true),
+            fpga_smoke_failed: Some(false),
+            fpga_smoke_failure_reason: Some("demo bitstream not found".to_string()),
+            fpga_smoke_gate_elapsed_ms: None,
+            fpga_smoke_gate_replay_elapsed_ms: None,
+            validate_lean_standalone_elapsed_ms: None,
+            known_failures: vec![],
+            baseline_failures: 0,
+            total_failures: 0,
+            passed: false,
+            acceptable: true,
+        };
+        let json = serde_json::to_string_pretty(&summary).unwrap();
+        let parsed: SuiteSummary = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, summary);
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value["fpga_smoke_passed"].as_bool(), Some(false));
+        assert_eq!(value["fpga_smoke_skipped"].as_bool(), Some(true));
+        assert_eq!(value["fpga_smoke_failed"].as_bool(), Some(false));
+        assert_eq!(
+            value["fpga_smoke_failure_reason"].as_str(),
+            Some("demo bitstream not found")
         );
     }
 
@@ -1363,6 +1466,8 @@ mod tests {
             .expect("smoke-gate should pass");
         assert!(result.passed);
         assert!(!result.skipped);
+        assert!(!result.failed);
+        assert!(result.failure_reason.is_none());
         assert_eq!(result.bit_config_status.as_deref(), Some("ok"));
         assert_eq!(result.schema_version.as_deref(), Some("1.0"));
         assert_eq!(result.theorem_matrix_status.as_deref(), Some("ok"));
@@ -1426,6 +1531,11 @@ mod tests {
         let result = FpgaSmokeResultBuilder::missing_bitstream();
         assert!(!result.passed);
         assert!(result.skipped);
+        assert!(!result.failed);
+        assert_eq!(
+            result.failure_reason.as_deref(),
+            Some("demo bitstream not found")
+        );
         assert!(result.report_path.is_none());
         assert!(result.schema_version.is_none());
         assert!(result.bit_config_status.is_none());
@@ -1439,10 +1549,15 @@ mod tests {
     }
 
     #[test]
-    fn test_fpga_smoke_result_builder_failed() {
-        let result = FpgaSmokeResultBuilder::failed();
+    fn test_fpga_smoke_result_builder_failure_fallback() {
+        let result = FpgaSmokeResultBuilder::failure_fallback();
         assert!(!result.passed);
         assert!(!result.skipped);
+        assert!(result.failed);
+        assert_eq!(
+            result.failure_reason.as_deref(),
+            Some("smoke gate command failed")
+        );
         assert!(result.report_path.is_none());
     }
 
@@ -1453,6 +1568,9 @@ mod tests {
             "phases": [],
             "fpga_smoke_report": null,
             "fpga_smoke_passed": null,
+            "fpga_smoke_skipped": null,
+            "fpga_smoke_failed": null,
+            "fpga_smoke_failure_reason": null,
             "fpga_smoke_gate_elapsed_ms": null,
             "fpga_smoke_gate_replay_elapsed_ms": null,
             "validate_lean_standalone_elapsed_ms": null,

@@ -1744,3 +1744,7 @@
 - **Commit:** feat(igla): Wave Loop 451 — boundary hot/low-v envelope theorem, VCCAUX independence, CI metric hardening, smoke-gate snapshots
 - **Files:** docs/reports/WAVE_LOOP_451_REPORT.md
 
+## 2026-07-06T07:42:18Z — wave-loop-452
+- **Commit:** feat(igla): Wave Loop 451 — boundary hot/low-v envelope theorem, VCCAUX independence, CI metric hardening, smoke-gate snapshots
+- **Files:** .trinity/current-issue.md,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W453_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W452_2026-07-01.md,docs/reports/FPGA_LOOP_PLAN_W452_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_452_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean,tests/fixtures/fpga/smoke-gate/all_ok_snapshot.json
+
