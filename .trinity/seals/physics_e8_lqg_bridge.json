@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:6a1f6b94b45ad128df2ddf4770fd4ff6caaf17d47625b1a61f226af356cfaeea",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:f74256841edc2f70035d87bbf76c6b8abf432580e1e375b2c5d8bb240ca4e1ed",
+  "gen_hash_verilog": "sha256:89b1095867b092b236cd04ab31c804de91e36686412c815e182de100cebac26a",
   "gen_hash_zig": "sha256:c8a303173516186bae7aaf3be4394e720d5b685de699311e8c72976962ed2ed2",
   "module": "e8_lqg_bridge",
   "ring": 12,
-  "sealed_at": "2026-07-05T06:16:58Z",
+  "sealed_at": "2026-07-06T13:11:27Z",
   "spec_hash": "sha256:46fae880669b169f692fe7f833dbbb5438a038fc51295cd6202ffdfaef75e889",
-  "spec_path": "specs/physics/e8_lqg_bridge.t27"
+  "spec_path": "/Users/playra/t27/specs/physics/e8_lqg_bridge.t27"
 }

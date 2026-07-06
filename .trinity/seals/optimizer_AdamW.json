@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9733fcfadd827b990e0f75493607da24e36d936e4c643a8632b35081643b957b",
   "gen_hash_rust": "sha256:a2fb125f483cfb82228b0fc47326b5031b89a76f0ab8f5d2806bdfd900a41aed",
-  "gen_hash_verilog": "sha256:a053d1f4b7a5972efb65d089bcec444e068613bd1286555fe97d09ce378b3a94",
+  "gen_hash_verilog": "sha256:b8ab8e9948028b6f8e32174330de5601c5afef14fa55c7ad65082663b79a6771",
   "gen_hash_zig": "sha256:de454f9b2779de2c8ea2950424c3dc83cf42023548ebad0b5b965960d61ff470",
   "module": "AdamW",
   "ring": 12,
-  "sealed_at": "2026-07-06T10:10:59Z",
+  "sealed_at": "2026-07-06T13:11:30Z",
   "spec_hash": "sha256:a6f6cfd8423f58f14d672d49bf6d42194d8b9fb1d145ed2c048b10f8a1d4763e",
-  "spec_path": "specs/ml/optimizer/adamw.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/optimizer/adamw.t27"
 }

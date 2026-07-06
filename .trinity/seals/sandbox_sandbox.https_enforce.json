@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e95740eed663cdebb0a2b5f35e1d37893cfd9ec3866e4d50a463d75f635bd6cf",
-  "gen_hash_rust": "sha256:59f9863263c351247d7e3c4b29696098a5b6776ee4bbf92a358f48873975a69e",
-  "gen_hash_verilog": "sha256:6215a0f2351953387fe374d1846ea8dbdc2cf03a669647b0412d2fea4a6ccc7f",
-  "gen_hash_zig": "sha256:da77ce26eb1f6ed606696f3bf87bde7a236a5fdb0a9ef8d495c570489149dc11",
+  "gen_hash_c": "sha256:ab5eed125dc24ad95cad59fee496903d882e411e62e04915b4929c8f02c5f749",
+  "gen_hash_rust": "sha256:8f9d8a7bff6f4ebccc86afd2fe6be944e96a23873ea795a5a48ccaa5bfbbd0ee",
+  "gen_hash_verilog": "sha256:e0890de9f05e87b26ef0ba4450ab4e8ee7b9327458a726056efbc95e0a38367b",
+  "gen_hash_zig": "sha256:ea4bb2a7c6454f115b324f7b0f5fc4ab3a95019f4030db8b5326ecdcebeffae7",
   "module": "sandbox.https_enforce",
   "ring": 12,
-  "sealed_at": "2026-07-05T17:02:53Z",
+  "sealed_at": "2026-07-06T13:11:28Z",
   "spec_hash": "sha256:e1c387ee2e54fabfdcb363337c56c608d48108946f4b089c91a232e9fa8d0f76",
-  "spec_path": "specs/sandbox/https_enforce.t27"
+  "spec_path": "/Users/playra/t27/specs/sandbox/https_enforce.t27"
 }

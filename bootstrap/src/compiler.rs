@@ -1034,11 +1034,21 @@ impl Parser {
 
         self.parse_module_body(&mut module)?;
 
+        // W458: semicolon-style modules close with `endmodule`; consume it so
+        // it is not parsed as a stray top-level expression statement.
+        if self.current.kind == TokenKind::Ident && self.current.lexeme == "endmodule" {
+            self.advance();
+        }
+
         Ok(module)
     }
 
     fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
-        while self.current.kind != TokenKind::Eof && self.current.kind != TokenKind::RBrace {
+        while self.current.kind != TokenKind::Eof
+            && self.current.kind != TokenKind::RBrace
+            && !(self.current.kind == TokenKind::Ident
+                && self.current.lexeme == "endmodule")
+        {
             // Parse use/using statements into UseDecl nodes
             if self.current.kind == TokenKind::KwUse || self.current.kind == TokenKind::KwUsing {
                 self.advance(); // consume 'use'/'using'
@@ -1127,13 +1137,49 @@ impl Parser {
                 continue;
             }
 
-            match self.parse_top_level_decl() {
-                Ok(decl) => {
-                    module.children.push(decl);
+            // W458: allow bare expression / assignment statements at module
+            // level so functions with array parameters can be called from the
+            // module body (e.g. `read_mem(rom_array, idx);`). These are emitted
+            // as Verilog statements inside the module.
+            let is_top_level_decl = matches!(
+                self.current.kind,
+                TokenKind::KwPub
+                    | TokenKind::KwConst
+                    | TokenKind::KwVar
+                    | TokenKind::KwFn
+                    | TokenKind::KwEnum
+                    | TokenKind::KwStruct
+                    | TokenKind::KwTest
+                    | TokenKind::KwInvariant
+                    | TokenKind::KwBench
+            );
+            if is_top_level_decl {
+                match self.parse_top_level_decl() {
+                    Ok(decl) => {
+                        module.children.push(decl);
+                    }
+                    Err(_) => {
+                        // On parse error, skip to next top-level declaration and continue
+                        self.skip_to_next_top_level();
+                    }
                 }
-                Err(_) => {
-                    // On parse error, skip to next top-level declaration and continue
+            } else if self.is_top_level_start() {
+                // Stray top-level keyword (e.g. `module` inside a module, or an
+                // unhandled `use`). Run it through the top-level parser so we
+                // error out and advance at least one token; otherwise
+                // skip_to_next_top_level can stop immediately on the same token
+                // and loop forever.
+                if self.parse_top_level_decl().is_err() {
                     self.skip_to_next_top_level();
+                }
+            } else {
+                match self.parse_body_stmt() {
+                    Ok(stmt) => {
+                        module.children.push(stmt);
+                    }
+                    Err(_) => {
+                        self.skip_to_next_top_level();
+                    }
                 }
             }
         }
@@ -1361,7 +1407,10 @@ impl Parser {
                 self.advance();
             } else if self.current.kind == TokenKind::String {
                 let mut val_node = Node::new(NodeKind::ExprLiteral);
+                // W458: mark string literals so the Verilog backend can escape
+                // newlines/tabs/quotes before emitting them.
                 val_node.value = self.current.lexeme.clone();
+                val_node.extra_kind = "string".to_string();
                 decl.children.push(val_node);
                 self.advance();
             } else {
@@ -2611,7 +2660,8 @@ impl Parser {
                 self.advance();
                 Ok(Node {
                     kind: NodeKind::ExprLiteral,
-                    value: format!("\"{}\"", val),
+                    value: val,
+                    extra_kind: "string".to_string(),
                     ..Default::default()
                 })
             }
@@ -3875,6 +3925,10 @@ pub struct VerilogCodegen {
     indent: u32,
     module_name: String,
     current_fn_name: String,
+    // Original (unsanitized) name of the function currently being lowered. Used
+    // to look up module-level array parameter bindings keyed by the original
+    // function name from the AST.
+    current_fn_name_original: String,
     // Width of the parameters of the function currently being lowered, keyed by
     // parameter name. Populated in `gen_verilog_fn`. Used by `ExprCast` lowering
     // to skip a redundant truncation mask when the operand is a parameter that is
@@ -3893,6 +3947,18 @@ pub struct VerilogCodegen {
     // W383: names of function-local array variables in the current function.
     // Used by ExprIndex to rewrite `tmp[0]` into `tmp_0`.
     local_arrays: std::collections::HashSet<String>,
+    // W458: per-function map of array-parameter name -> module-level array name.
+    // Built before function emission by inspecting the single module-level call
+    // site for each function that accepts a module-level array argument.
+    array_param_bindings: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+    // W458: per-function list of argument indices that are array parameters.
+    // Used at call sites to drop the bound array argument from the emitted
+    // Verilog argument list.
+    array_param_indices: std::collections::HashMap<String, std::collections::HashSet<usize>>,
+    // W458: functions whose array-parameter binding could not be resolved (zero or
+    // multiple/conflicting call sites). The function is skipped and an error
+    // comment is emitted instead.
+    array_param_errors: std::collections::HashMap<String, String>,
 }
 
 impl VerilogCodegen {
@@ -3902,11 +3968,15 @@ impl VerilogCodegen {
             indent: 0,
             module_name: String::new(),
             current_fn_name: String::new(),
+            current_fn_name_original: String::new(),
             param_widths: std::collections::HashMap::new(),
             current_fn_return_type: String::new(),
             let_tmp_counter: 0,
             fn_return_types: std::collections::HashMap::new(),
             local_arrays: std::collections::HashSet::new(),
+            array_param_bindings: std::collections::HashMap::new(),
+            array_param_indices: std::collections::HashMap::new(),
+            array_param_errors: std::collections::HashMap::new(),
         }
     }
 
@@ -3996,6 +4066,12 @@ impl VerilogCodegen {
     /// Map t27 type to Verilog signedness
     fn type_is_signed(ty: &str) -> bool {
         matches!(ty, "i8" | "i16" | "i32" | "i64")
+    }
+
+    /// W458: true for IEEE 754 floating-point scalar types. Used to emit
+    /// `parameter real` / `localparam real` instead of bit-vector params.
+    fn type_is_float(ty: &str) -> bool {
+        matches!(ty, "f32" | "f64")
     }
 
     /// Parse an array type annotation such as "[4]u16" into (size, element_type).
@@ -4105,6 +4181,9 @@ impl VerilogCodegen {
         let mut tests: Vec<&Node> = Vec::new();
         let mut invariants: Vec<&Node> = Vec::new();
         let mut benches: Vec<&Node> = Vec::new();
+        // W458: bare module-level statements (e.g. calls to functions that take
+        // array parameters). Emitted inside an always @(*) block.
+        let mut module_stmts: Vec<&Node> = Vec::new();
 
         for decl in &ast.children {
             match decl.kind {
@@ -4115,6 +4194,7 @@ impl VerilogCodegen {
                 NodeKind::TestBlock => tests.push(decl),
                 NodeKind::InvariantBlock => invariants.push(decl),
                 NodeKind::BenchBlock => benches.push(decl),
+                NodeKind::StmtExpr | NodeKind::StmtAssign => module_stmts.push(decl),
                 _ => {}
             }
         }
@@ -4126,6 +4206,118 @@ impl VerilogCodegen {
                 self.fn_return_types
                     .insert(f.name.clone(), f.extra_return_type.clone());
             }
+        }
+
+        // W458: resolve module-level array parameter bindings. For each
+        // function that accepts an array parameter, inspect the single
+        // module-level call site (bare StmtExpr -> ExprCall in the module
+        // body) to determine which module-level array identifier is passed
+        // for that parameter. Multiple call sites or non-identifier
+        // arguments are recorded as errors and the function is skipped.
+        {
+            let mut bindings: std::collections::HashMap<
+                String,
+                std::collections::HashMap<String, String>,
+            > = std::collections::HashMap::new();
+            let mut indices: std::collections::HashMap<
+                String,
+                std::collections::HashSet<usize>,
+            > = std::collections::HashMap::new();
+            let mut errors: std::collections::HashMap<String, String> =
+                std::collections::HashMap::new();
+
+            for f in &functions {
+                let array_param_indices: Vec<usize> = f
+                    .params
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, (_, ptype))| Self::parse_array_type(ptype).is_some())
+                    .map(|(i, _)| i)
+                    .collect();
+                if array_param_indices.is_empty() {
+                    continue;
+                }
+
+                // Collect module-level call sites of this function.
+                let mut call_sites: Vec<&Node> = Vec::new();
+                for decl in &ast.children {
+                    if decl.kind != NodeKind::StmtExpr {
+                        continue;
+                    }
+                    if let Some(expr) = decl.children.first() {
+                        if expr.kind == NodeKind::ExprCall && expr.name == f.name {
+                            call_sites.push(expr);
+                        }
+                    }
+                }
+
+                if call_sites.is_empty() {
+                    errors.insert(
+                        f.name.clone(),
+                        format!(
+                            "function {} has array parameter(s) but no module-level call site",
+                            f.name
+                        ),
+                    );
+                    continue;
+                }
+
+                let mut fn_bindings: std::collections::HashMap<String, String> =
+                    std::collections::HashMap::new();
+                let mut broken = false;
+                for idx in &array_param_indices {
+                    let (pname, _ptype) = &f.params[*idx];
+                    let mut arg_names: Vec<String> = Vec::new();
+                    for call in &call_sites {
+                        if let Some(arg) = call.children.get(*idx) {
+                            if arg.kind == NodeKind::ExprIdentifier && !arg.name.is_empty() {
+                                arg_names.push(arg.name.clone());
+                            } else {
+                                arg_names.push("W458_NON_ID".to_string());
+                            }
+                        } else {
+                            arg_names.push("W458_MISSING".to_string());
+                        }
+                    }
+                    let unique: std::collections::HashSet<String> =
+                        arg_names.iter().cloned().collect();
+                    if unique.len() != 1 {
+                        errors.insert(
+                            f.name.clone(),
+                            format!(
+                                "function {} array parameter {} has conflicting call-site arguments",
+                                f.name, pname
+                            ),
+                        );
+                        broken = true;
+                        break;
+                    }
+                    let bound = arg_names.into_iter().next().unwrap();
+                    if bound == "W458_NON_ID" || bound == "W458_MISSING" {
+                        errors.insert(
+                            f.name.clone(),
+                            format!(
+                                "function {} array parameter {} must be passed a module-level array identifier",
+                                f.name, pname
+                            ),
+                        );
+                        broken = true;
+                        break;
+                    }
+                    fn_bindings.insert(pname.clone(), bound);
+                }
+                if !broken {
+                    bindings.insert(f.name.clone(), fn_bindings);
+                    indices.insert(
+                        f.name.clone(),
+                        array_param_indices.into_iter().collect(),
+                    );
+                }
+            }
+
+            self.array_param_bindings = bindings;
+            self.array_param_indices = indices;
+            self.array_param_errors = errors;
         }
 
         // Emit top-level module
@@ -4263,6 +4455,26 @@ impl VerilogCodegen {
             }
         }
 
+        // Section: Module-level statements (e.g. calls to array-param functions)
+        if !module_stmts.is_empty() {
+            self.write_indent();
+            self.write_line("// -------------------------------------------------------");
+            self.write_indent();
+            self.write_line("// Module-level statements");
+            self.write_indent();
+            self.write_line("// -------------------------------------------------------");
+            self.write_indent();
+            self.write_line("always @(*) begin");
+            self.indent();
+            for stmt in &module_stmts {
+                self.gen_verilog_stmt(stmt);
+            }
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+            self.write_line("");
+        }
+
         // Section: Tests → assertions (SystemVerilog-style)
         if !tests.is_empty() {
             self.write_indent();
@@ -4272,12 +4484,12 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
             self.write_indent();
-            self.write_line("// synthesis translate_off");
+            self.write_line("`ifndef SIMULATION");
             for t in &tests {
                 self.gen_verilog_test(t);
             }
             self.write_indent();
-            self.write_line("// synthesis translate_on");
+            self.write_line("`endif");
             self.write_line("");
         }
 
@@ -4311,7 +4523,7 @@ impl VerilogCodegen {
             self.write_line("// -------------------------------------------------------");
             // Module-scope counter declarations (R-VD-1 fix).
             self.write_indent();
-            self.write_line("// synthesis translate_off");
+            self.write_line("`ifndef SIMULATION");
             for b in &benches {
                 let counter = format!(
                     "_bench_{}_cycles",
@@ -4321,21 +4533,19 @@ impl VerilogCodegen {
                 self.write_line(&format!("integer {} = 0;", counter));
             }
             self.write_indent();
-            self.write_line("// synthesis translate_on");
+            self.write_line("`endif");
             for b in &benches {
                 let counter = format!(
                     "_bench_{}_cycles",
                     Self::sanitize_identifier(&b.name)
                 );
-                // R-TR-1 (wave-30): emit `// synthesis translate_off` and
-                // `// synthesis translate_on` on STANDALONE comment lines
-                // wrapping the full `initial begin ... end` block. Inline
-                // placement (on the same line as `initial begin :NAME` or
-                // `end`) causes Yosys to consume the matching `end` inside
-                // the skipped region and emit `unexpected TOK_INITIAL` at
-                // the next initial block.
+                // W458: use standard `ifndef SIMULATION` / `endif` guards instead
+                // of the non-standard `// synthesis translate_off` comments.
+                // Keep the guards on STANDALONE lines wrapping the full initial
+                // block so Yosys does not consume the matching `end` inside the
+                // skipped region.
                 self.write_indent();
-                self.write_line("// synthesis translate_off");
+                self.write_line("`ifndef SIMULATION");
                 self.write_indent();
                 self.write_line(&format!(
                     "initial begin : {}_bench",
@@ -4362,7 +4572,7 @@ impl VerilogCodegen {
                 self.write_indent();
                 self.write_line("end");
                 self.write_indent();
-                self.write_line("// synthesis translate_on");
+                self.write_line("`endif");
             }
             self.write_line("");
         }
@@ -4514,21 +4724,29 @@ impl VerilogCodegen {
             }
         } else {
             // Simple scalar constant
+            let is_float = Self::type_is_float(&node.extra_type);
             if node.extra_pub {
                 self.write("parameter ");
             } else {
                 self.write("localparam ");
             }
 
-            // Determine width from type
-            let width = Self::type_to_width(&node.extra_type);
-            let signed = Self::type_is_signed(&node.extra_type);
-            if signed {
-                self.write("signed ");
-            }
-            let range = Self::range_decl(width);
-            if !range.is_empty() {
-                self.write(&format!("{} ", range));
+            if is_float {
+                // W458: real-valued constants must use the `real` keyword, not a
+                // bit-vector range, or Yosys emits "real-value assignment
+                // to non-real variable" warnings.
+                self.write("real ");
+            } else {
+                // Determine width from type
+                let width = Self::type_to_width(&node.extra_type);
+                let signed = Self::type_is_signed(&node.extra_type);
+                if signed {
+                    self.write("signed ");
+                }
+                let range = Self::range_decl(width);
+                if !range.is_empty() {
+                    self.write(&format!("{} ", range));
+                }
             }
 
             self.write(&format!(
@@ -4738,6 +4956,7 @@ impl VerilogCodegen {
 
     fn gen_verilog_fn(&mut self, node: &Node) {
         self.current_fn_name = Self::verilog_safe_identifier(&node.name);
+        self.current_fn_name_original = node.name.clone();
         self.current_fn_return_type = node.extra_return_type.clone();
         self.let_tmp_counter = 0;
         self.param_widths.clear();
@@ -4748,6 +4967,23 @@ impl VerilogCodegen {
         self.write_line("");
         self.write_indent();
         self.write_line(&format!("// function: {}", node.name));
+
+        // W458: if this function has array parameter(s) and the binding could
+        // not be resolved from the module-level call site, emit an error
+        // comment and skip the function entirely.
+        let array_param_error = self.array_param_errors.get(&node.name).cloned();
+        if let Some(err) = array_param_error {
+            self.write_indent();
+            self.write_line(&format!("// ERROR: {}", err));
+            self.write_indent();
+            self.write_line("// (skipping function due to unsupported array parameter binding)");
+            self.current_fn_name.clear();
+            self.current_fn_name_original.clear();
+            self.current_fn_return_type.clear();
+            self.param_widths.clear();
+            self.local_arrays.clear();
+            return;
+        }
 
         // Emit as a Verilog function declaration
         // W380: tuple return types are packed; non-tuple types keep scalar width.
@@ -4793,8 +5029,19 @@ impl VerilogCodegen {
 
         self.indent();
 
-        // Emit parameters as input declarations
+        // Emit parameters as input declarations. W458: array parameters that
+        // are bound to a module-level array are not emitted as scalar inputs;
+        // the function body references the module array by name directly.
         for (pname, ptype) in &node.params {
+            if Self::parse_array_type(ptype).is_some() {
+                if self
+                    .array_param_bindings
+                    .get(&node.name)
+                    .map_or(false, |b| b.contains_key(pname))
+                {
+                    continue;
+                }
+            }
             self.write_indent();
             let pw = Self::type_to_width(ptype);
             let ps = Self::type_is_signed(ptype);
@@ -4843,6 +5090,7 @@ impl VerilogCodegen {
             self.write_line("endfunction");
         }
         self.current_fn_name.clear();
+        self.current_fn_name_original.clear();
         self.current_fn_return_type.clear();
         self.param_widths.clear();
         self.local_arrays.clear();
@@ -5325,6 +5573,19 @@ impl VerilogCodegen {
         match node.kind {
             NodeKind::ExprLiteral => {
                 let val = &node.value;
+                // W458: string literals must escape newlines (and tabs / embedded
+                // quotes) before they are written into a Verilog string literal,
+                // otherwise Yosys emits "unterminated string" / "unknown escape
+                // sequence" warnings.
+                if node.extra_kind == "string" {
+                    let escaped = val
+                        .replace('\\', "\\\\")
+                        .replace('\n', "\\n")
+                        .replace('\t', "\\t")
+                        .replace('"', "\\\"");
+                    self.write(&format!("\"{}\"", escaped));
+                    return;
+                }
                 // Render integer literals as plain decimal (valid Verilog).
                 // Verilog rejects `0x..`/`0b..` and Rust-style `_` separators,
                 // so parse the numeric value and print it in base 10.
@@ -5350,17 +5611,46 @@ impl VerilogCodegen {
                     self.write(val);
                 }
             }
-            NodeKind::ExprIdentifier => self.write(&Self::verilog_safe_identifier(&node.name)),
+            NodeKind::ExprIdentifier => {
+                // W458: if this identifier is a function parameter bound to a
+                // module-level array, emit the module array name instead.
+                if let Some(bindings) = self
+                    .array_param_bindings
+                    .get(&self.current_fn_name_original)
+                {
+                    if let Some(bound) = bindings.get(&node.name) {
+                        self.write(&Self::verilog_safe_identifier(bound));
+                    } else {
+                        self.write(&Self::verilog_safe_identifier(&node.name));
+                    }
+                } else {
+                    self.write(&Self::verilog_safe_identifier(&node.name));
+                }
+            }
             NodeKind::ExprEnumValue => {
                 self.write(&Self::verilog_safe_identifier(&node.name));
             }
             NodeKind::ExprCall => {
                 self.write(&Self::verilog_safe_identifier(&node.name));
                 self.write("(");
+                // W458: drop module-level array arguments from the emitted
+                // Verilog argument list. The function body references the bound
+                // module array by name directly, so the array value is not passed
+                // through a scalar input port.
+                let skip_indices = self
+                    .array_param_indices
+                    .get(&node.name)
+                    .cloned()
+                    .unwrap_or_default();
+                let mut first = true;
                 for (i, arg) in node.children.iter().enumerate() {
-                    if i > 0 {
+                    if skip_indices.contains(&i) {
+                        continue;
+                    }
+                    if !first {
                         self.write(", ");
                     }
+                    first = false;
                     self.gen_verilog_expr(arg);
                 }
                 self.write(")");
@@ -24161,6 +24451,84 @@ mod tests_w457_ram_style {
         assert!(
             r.unwrap_err().contains("Unknown pragma"),
             "error should mention unknown pragma"
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests_w458 {
+    use super::Compiler;
+
+    #[test]
+    fn array_param_read_emitted() {
+        let src = r#"module M {
+            const rom : [4]u16 = [4]u16{0x1234, 0x5678, 0x9ABC, 0xDEF0};
+            pub fn read_mem(mem : [4]u16, i : u32) -> u16 { return mem[i]; }
+            var idx : u32 = 0;
+            read_mem(rom, idx);
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        // The array parameter must not be emitted as a scalar input port.
+        assert!(
+            !v.contains("input [15:0] mem"),
+            "array parameter must not be emitted as scalar input:\n{}",
+            v
+        );
+        // The function body must reference the bound module array directly.
+        assert!(
+            v.contains("rom[i]"),
+            "expected function body to reference module array rom[i]:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn float_param_emits_real() {
+        let src = r#"module M { pub const X : f32 = 0.1; }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("parameter real X = 0.1;"),
+            "expected parameter real declaration:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn string_newline_escaped() {
+        // Use a scalar-typed constant so the string initializer flows through
+        // gen_verilog_expr and the newline escaping path is exercised.
+        let src = r#"module M { const MSG : u32 = "a\nb"; }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("\"a\\nb\""),
+            "expected newline escaped to \\n in Verilog string literal:\n{}",
+            v
+        );
+        // The raw newline must not appear inside the generated string literal.
+        assert!(
+            !v.contains("\"a\nb\""),
+            "raw newline must not appear inside Verilog string literal:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn no_translate_off_comments() {
+        let src = r#"module M {
+            pub fn f() -> u32 { return 1; }
+            test t { assert_eq(f(), 1); }
+            bench b { const x : u32 = 0; }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            !v.contains("// synthesis translate_off"),
+            "generated Verilog must not contain // synthesis translate_off:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("// synthesis translate_on"),
+            "generated Verilog must not contain // synthesis translate_on:\n{}",
+            v
         );
     }
 }

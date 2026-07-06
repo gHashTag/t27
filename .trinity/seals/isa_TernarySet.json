@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:7a3c1872c9887fd9faf016995322f15bba36d94acab3bb43965ad57069a666b9",
   "gen_hash_rust": "sha256:60b002343c13b9aaa0e2d2adfe11bf79116373a9e66a78fe7eb09d32a900a5d9",
-  "gen_hash_verilog": "sha256:c9de9715fa0a0b22712c656ab788cbd7386f3eb7ba9b45f3a9d317e79af90b22",
+  "gen_hash_verilog": "sha256:68b9c21ebd159a596758188490bcd6eea34e1937889afe0e0888b423e27f0a56",
   "gen_hash_zig": "sha256:689c19358a6d3c21087482ebf2b53c616a6e4c3729bcf295faba1ce8ab84fb86",
   "module": "TernarySet",
   "ring": 12,
-  "sealed_at": "2026-07-06T10:10:59Z",
+  "sealed_at": "2026-07-06T13:11:27Z",
   "spec_hash": "sha256:9f31f299bf8feb20f30634bf278318e04e0294700bd1c46fff873e0785c77fbd",
-  "spec_path": "specs/isa/ternary_set.t27"
+  "spec_path": "/Users/playra/t27/specs/isa/ternary_set.t27"
 }

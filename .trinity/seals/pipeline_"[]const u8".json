@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a34b31b504af545b5769f3a62e18fe6ab313328ba309cce6534ad725f2c77488",
   "gen_hash_rust": "sha256:60ac0f54d1a8c306dc8612d18b95f2ad81733bbffb8cd4287dc5196554173a0a",
-  "gen_hash_verilog": "sha256:7ac2e71e470579e19348e3e8704f6fe75338e6c87a93f82d786484427a1f2759",
+  "gen_hash_verilog": "sha256:d92a0d238570ea43a6a8db681581964cc9c28483349514cc75c0fa8122c5894b",
   "gen_hash_zig": "sha256:84602911f5a7245f1dc8d1e29ad398b8a8ba8838c3fdb3c850650530e044f07b",
   "module": "\"[]const u8\"",
   "ring": 12,
-  "sealed_at": "2026-07-05T06:17:00Z",
+  "sealed_at": "2026-07-06T13:11:29Z",
   "spec_hash": "sha256:2e59db33b002aaef259e0a82e2f23b36995c7774acc5026d120de09c6e963416",
-  "spec_path": "specs/tri/pipeline/spec_writer.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/pipeline/spec_writer.t27"
 }

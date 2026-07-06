@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:5fd9cb95cfc2362eb0ebac995c1d74255287e6da4650fca5b85e3ea2c8489c04",
   "gen_hash_rust": "sha256:b66564b075a4b1c10d55d049801de64cac2373a928da9dcbe44addb68d854d66",
-  "gen_hash_verilog": "sha256:a5b8f6c366befe2d5ac705e997cde040db3ade614c9179813d9c1567b2f07207",
+  "gen_hash_verilog": "sha256:60d33c6c52e59d06a80ad8b8fabae7d1c60b6ede504b73eb792315583c521fea",
   "gen_hash_zig": "sha256:f4879a378ab5522c11bf4b6248a6f48f5fcc41d890f211e709a70f707348fe72",
   "module": "RnnCell",
   "ring": 12,
-  "sealed_at": "2026-07-05T06:16:58Z",
+  "sealed_at": "2026-07-06T13:11:30Z",
   "spec_hash": "sha256:05f807c932b9a3ce5837100fe8432e8dfddc733db9f62a494c777ff6da885607",
-  "spec_path": "specs/ml/recurrent/rnn_cell.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/recurrent/rnn_cell.t27"
 }

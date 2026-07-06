@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:52a3eea5b7f69beda6e46bd98ea79f15164c337db010a0f87b82f0458b574a91",
-  "gen_hash_rust": "sha256:1945cc6875ce4e1a531640641a7fe891f77fb005730a6bcf99aa9469fca24bdf",
-  "gen_hash_verilog": "sha256:dd5a7a51710f681dad0f862cbe142a6ec3cfa0c00372a296fdf7294c5dd849f0",
-  "gen_hash_zig": "sha256:4b27b5d0bbd1c1764b5accef2208f2fc8606684b88f5a34cb6bacf842ec8d320",
+  "gen_hash_c": "sha256:7d34a3306718d786baaf2ed44be19a5c7ac1bf1bb22b4d4418a0b9501c8c82b9",
+  "gen_hash_rust": "sha256:153637f403e5c2045238924ff55923283c8b9ef6f37511fd21e040127d42b618",
+  "gen_hash_verilog": "sha256:99d7b52d25b6bf1a5c0c96ff99c02c62eeb7a9ad359e0f6cc7342eb212a5f5a0",
+  "gen_hash_zig": "sha256:302927e174ee53abfbbc024b055b53b507a79c6ac681ef25d0b20c0b0ee11b54",
   "module": "E2eDemo",
   "ring": 12,
-  "sealed_at": "2026-07-05T06:16:57Z",
+  "sealed_at": "2026-07-06T13:11:26Z",
   "spec_hash": "sha256:69729efabc127aefce11e671dcb1abc5029ecd942d0670615a9ab41e73b76fb3",
-  "spec_path": "specs/fpga/e2e_demo.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/e2e_demo.t27"
 }

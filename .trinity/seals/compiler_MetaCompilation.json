@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:aaf675788ad4fd642d09c9b10219a658c14c5988c9e8a261fb2a3a0e278539bb",
   "gen_hash_rust": "sha256:488e9d15dc4788bf519d4ca68515cf2b18167d086c4b35b042e797dfd19e6377",
-  "gen_hash_verilog": "sha256:a826a30d46c8dd81ff5bb9f6c16b81a984b6f4ea4f5be5ad99a8a66e45e42cf6",
+  "gen_hash_verilog": "sha256:f60de6f9a24222ebd8494be6656d6ff75392840246fe792d7fe9fc6c1f2149a6",
   "gen_hash_zig": "sha256:cc90736589709a6b90019c3093db00cb1b2bf4affbfa26ae1ced6ad850449f55",
   "module": "MetaCompilation",
   "ring": 12,
-  "sealed_at": "2026-07-05T06:16:56Z",
+  "sealed_at": "2026-07-06T13:11:27Z",
   "spec_hash": "sha256:7b16ea29ae644a0ff54968ea37806543ba823c4bfeddd82f64c66485efec33b1",
-  "spec_path": "specs/compiler/meta_compile.t27"
+  "spec_path": "/Users/playra/t27/specs/compiler/meta_compile.t27"
 }

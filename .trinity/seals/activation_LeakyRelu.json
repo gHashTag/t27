@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:af62ebe917e3bc16fd84238832f80f900fe5dec9ff226ab3f3af941981ff2c21",
   "gen_hash_rust": "sha256:c692e084486ae2fce2db05ba1db034a42f707c4d676f930aacb1602784ecc401",
-  "gen_hash_verilog": "sha256:11b66d49e81eed448d001c752f54dd57a062b79b99271a5ecbe730054ab45646",
+  "gen_hash_verilog": "sha256:7cf959314a399c8d41adc2fde3910c1d21ba0a355533cd565c04f18fefaae75b",
   "gen_hash_zig": "sha256:4bcaa1e78540c84e27fca79a85713431b34caebdd42e54f8389a99f75df33d83",
   "module": "LeakyRelu",
   "ring": 12,
-  "sealed_at": "2026-07-05T06:16:58Z",
+  "sealed_at": "2026-07-06T13:11:30Z",
   "spec_hash": "sha256:c6cf3e0b7de5d05674b0dcf9c9f2dd1c7efe0a507a99644025f58261c5b15efe",
-  "spec_path": "specs/ml/activation/leaky_relu_activation.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/activation/leaky_relu_activation.t27"
 }

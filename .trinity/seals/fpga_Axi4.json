@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:befa0d177b6b7ef1fe3f920a73b18e784420055a06dc6c7bc1255921c1c219fb",
-  "gen_hash_rust": "sha256:e7d4ddf460a7dd197c37925946bcfb57405d6696e3bddc0fd6a402332c2a3ee3",
-  "gen_hash_verilog": "sha256:8d3ca9b7f63887317bd86a9b62e1d04c087d09afd0b42f1a73fae286be086ff4",
-  "gen_hash_zig": "sha256:01ee360d725e4f07c4b241524eb6e108d3a450fe84000a3c7131392c04aadaa0",
+  "gen_hash_c": "sha256:a30b29b6de7de6196fad8a70cb4941300f5f2433ffaaae0a6a757ba67ef09217",
+  "gen_hash_rust": "sha256:1699a19f031620110417ba381a599ad9008ad944a89a5cbcf276345a059e7d3b",
+  "gen_hash_verilog": "sha256:2af4295d77245a44ebde85b471a75aafd213a3cdae75080614bf852c47207374",
+  "gen_hash_zig": "sha256:4acd9912217106af2f4ce7872fa26ef2769e5a44210054d9e21c9e085705037b",
   "module": "Axi4",
   "ring": 12,
-  "sealed_at": "2026-07-05T06:16:57Z",
+  "sealed_at": "2026-07-06T13:11:26Z",
   "spec_hash": "sha256:6fb6c9bd19533d03aeedfa90cc66376ec7d766d39367b478e9448997d9670c02",
-  "spec_path": "specs/fpga/axi4.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/axi4.t27"
 }

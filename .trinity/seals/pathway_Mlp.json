@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:961132c05fa934ae9882d7a362cc26c6e513cc0ecacd7a2d118c36421abab4c4",
   "gen_hash_rust": "sha256:1a77502868da3b0f28ad3706b9663ef60566ec24af9cd99b3668d1b966f42385",
-  "gen_hash_verilog": "sha256:5e0559a326cce79b7660610d07c8ed02d07684964c37d4314976f674ca936416",
+  "gen_hash_verilog": "sha256:395f51b5c9e6a12d5df4be3482db9fc0241670f3753d6d0fd64d7af786c11607",
   "gen_hash_zig": "sha256:83beef368db980a55f408964b024a170f23918d6363b88a8b4022f953c5e2fcf",
   "module": "Mlp",
   "ring": 12,
-  "sealed_at": "2026-07-05T06:16:58Z",
+  "sealed_at": "2026-07-06T13:11:30Z",
   "spec_hash": "sha256:38e27adb2b1502fe1200eaaaf794baf678bedb3dcf17667cba1c5d1f6eb393ab",
-  "spec_path": "specs/ml/pathway/mlp.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/pathway/mlp.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:49aa0244d6997c4845834030842b67ee0fef49cfb578e16b7f4d5c33a452ff0d",
+  "gen_hash_c": "sha256:1453688b93f81f212b596e65ea53760587c893112e45ff5985f3da073c117d6b",
   "gen_hash_rust": "sha256:96aacac399e6858297117d60a3f8731ad8de02b5d5d2ebbcbf54d0e8cd7695d7",
-  "gen_hash_verilog": "sha256:78129cf7de3e1ead3d21dd8328c601234ffbee4214f60c0697e30f5919b94d01",
-  "gen_hash_zig": "sha256:f0fb47e044d369d47e35f49d06df136a92605b37b085a9e1bb95ecf658501cbe",
+  "gen_hash_verilog": "sha256:fac65469923c23e9964081bf35f9f7673be85e65271104ef793095a573636e17",
+  "gen_hash_zig": "sha256:dceef8f93083632c948f25234acc76770c4e153ec52e596162e5d67bf9fad0df",
   "module": "FormulaEmbed",
   "ring": 12,
-  "sealed_at": "2026-07-05T06:16:58Z",
+  "sealed_at": "2026-07-06T13:11:27Z",
   "spec_hash": "sha256:cd00efe30f02866b622344a58fd1bc8f5904edbbb0d457d2081ee87ad273a94d",
-  "spec_path": "specs/memory/formula_embed.t27"
+  "spec_path": "/Users/playra/t27/specs/memory/formula_embed.t27"
 }

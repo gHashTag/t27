@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:b9c63569c65c62eb138c17cb9a76b696a6204dddea5669c0e21990195ad92e4e",
-  "gen_hash_rust": "sha256:be65e94bbdd2eed017ad3595c0a36b1c49b70e2bc9a8de292fedac541f52616c",
-  "gen_hash_verilog": "sha256:88910e8d3aa54d8db9b8bad9afa52dde993ca736e619a575a9fdec17926c06e6",
-  "gen_hash_zig": "sha256:fe3812efe76800aa3cce19e170c4c34485aeec409eec33e7d6b7b92267e3288f",
+  "gen_hash_c": "sha256:b21212f99f927818a09d7ec298a20e86ea5f101fd823109f6f5400101c6a9323",
+  "gen_hash_rust": "sha256:41e46bf532290a20f60506764cd720d7cfb48036d9cafa4cfca943a1e48d690f",
+  "gen_hash_verilog": "sha256:686f198b7571c2d090b4c7389f73efca6965250f7e624a08891d62637e1a22fd",
+  "gen_hash_zig": "sha256:92be3a94dce0ffca3e7bf167d78b3776b6e283e19f309083a7d45f2ba4bec7bd",
   "module": "igla-coder-tokenizer",
   "ring": 12,
-  "sealed_at": "2026-07-05T17:02:52Z",
+  "sealed_at": "2026-07-06T13:11:29Z",
   "spec_hash": "sha256:67f1dd5128deef3b13032467d23ca64660fe26023a01503673a8f23f0c919f1f",
-  "spec_path": "specs/igla/coder/tokenizer.t27"
+  "spec_path": "/Users/playra/t27/specs/igla/coder/tokenizer.t27"
 }

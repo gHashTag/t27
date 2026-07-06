@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:24bdc76a0cd7185cc9da86be287c45203f8fec87ebda3464ad17986c34558865",
-  "gen_hash_rust": "sha256:4e0c17ec2cb46b2f178dbcdc282b5354a3006114f208053e04d27690d88c2d9d",
-  "gen_hash_verilog": "sha256:a8f2e6ef73c332e1d9baa4fbcebf38efef503b611a46fd8b9bfbd20fbbe3e141",
-  "gen_hash_zig": "sha256:52b94ecd4ac04a71e3a9a45fc2ff4ba41b27d4d1a2d980eaa1f38ec2bc6a1fd3",
+  "gen_hash_c": "sha256:7ff5f9e6922579d434bba642019b94b2bd395e3992785be12c3847e93599809c",
+  "gen_hash_rust": "sha256:646e52b1d44c5fd4298617fea9f9ea5ea7abada463a83b3a52a16e68cfef8304",
+  "gen_hash_verilog": "sha256:8eeae1d604f8e82972f2a98255388962dd8193d525f7e0d40df2e2ff3bcb2468",
+  "gen_hash_zig": "sha256:879e6b7628b9234d3ed05fbbfe5d51dfbd6fa6da0233016214a2b1cb36168b74",
   "module": "config-paths",
   "ring": 12,
-  "sealed_at": "2026-07-06T10:10:59Z",
+  "sealed_at": "2026-07-06T13:11:27Z",
   "spec_hash": "sha256:b8f7c75f19267d15fbd1b8e15e1bb446357bdca35f783d8a58f012dadaa1e4cb",
-  "spec_path": "specs/config/paths.t27"
+  "spec_path": "/Users/playra/t27/specs/config/paths.t27"
 }

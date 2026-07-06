@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:b2cb6d28584b13b529b668171d9cf2a7e3673f53b5b1f1b475067b01e27908a2",
-  "gen_hash_rust": "sha256:0974ef80e539f739e0b13702b9aa6b337ad291e21113196661bf5c0369aee520",
-  "gen_hash_verilog": "sha256:98778b0db61446a78fa859c959f12bc62842c21c550f624d5dc3ef78ae2469dc",
-  "gen_hash_zig": "sha256:c21b0af0e9d64ba117740ad71a4f5928a06732f97cf7b8b27643b2e17dc8c7c0",
+  "gen_hash_c": "sha256:a17aa12f57e3973d4d8f5436c85cfcc4916ee0f992d98dccd43cafb145bae878",
+  "gen_hash_rust": "sha256:bbd06b1e8e5f53f1d27f1ebaeb8a5345881f1ecf2262b05386dd0db4c30307c0",
+  "gen_hash_verilog": "sha256:9a57ebf7b6af293ce4d9051d612954dffd75112241428854cc25b8c310af9604",
+  "gen_hash_zig": "sha256:39e6dac15bf436b22cf8577200419dfb3be28d6818fc2419657c3f780140c9b7",
   "module": "PhiRatio",
   "ring": 12,
-  "sealed_at": "2026-07-05T17:02:53Z",
+  "sealed_at": "2026-07-06T13:11:28Z",
   "spec_hash": "sha256:9481014dd6cef9f3ddb3d77185bf48e722d349748678d294c8f2e9865e63fe28",
-  "spec_path": "specs/numeric/phi_ratio.t27"
+  "spec_path": "/Users/playra/t27/specs/numeric/phi_ratio.t27"
 }

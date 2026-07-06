@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:477c418ea22fb0d58166f0dfd04b8728c4fffe557a851f3d9b9ff39fdef8d6b1",
-  "gen_hash_rust": "sha256:73915dcf183f9010342c192ffe2d14cedd535ef1a276e890353f017c663ff307",
-  "gen_hash_verilog": "sha256:5e818302ebee984ff8b9cc0079968f9ef85b61a57236708bba80622c835099da",
-  "gen_hash_zig": "sha256:d95412b6cde41bd5035ee0ec1d2b472e8bd16eda4d94a13e3b06e92cf6754734",
+  "gen_hash_c": "sha256:9f3e5c0674449cf338255584255ceabd1d4750426620e82a5bcb7d5ded7e115e",
+  "gen_hash_rust": "sha256:0a5d1cb593ea72adf39dc942290189bfc9d7ad239e2814d37bcee558c72390f1",
+  "gen_hash_verilog": "sha256:ede1a1b110001dddeaa76ed7e5cce871e789d4eda3a06d3d46f189e5732a5b84",
+  "gen_hash_zig": "sha256:90748de7f9db1dd0294442c8ebcefbdc7bf1a9c2a2ec459fa7a037137f4fee33",
   "module": "Memory",
   "ring": 12,
-  "sealed_at": "2026-07-05T06:16:57Z",
+  "sealed_at": "2026-07-06T13:11:26Z",
   "spec_hash": "sha256:5847d80ee4a4f2fc5b812078febf793a17aa56e2e4ad3bd6ea158c2d218f0b84",
-  "spec_path": "specs/fpga/memory.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/memory.t27"
 }

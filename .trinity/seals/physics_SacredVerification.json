@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:676f4f511a5599d47d33b35c59c401312c313a630ce377154b3b47f781394a29",
   "gen_hash_rust": "sha256:e69829dffc276f52025aaf84c346d97fdf4ec6d41c2bf8826ca29c09523b98f6",
-  "gen_hash_verilog": "sha256:8496d9e368cd760296d09738d3599fa124733445ba32b9e32ef607efaecdcd93",
+  "gen_hash_verilog": "sha256:eefa8bc0a1e1eab08e20c97bc381d713328707e24953b1a960691ecc92321515",
   "gen_hash_zig": "sha256:ee9bd0c83b8424c5f775de480459803b91b881dfb19728ac63ee4e7e151280a8",
   "module": "SacredVerification",
   "ring": 12,
-  "sealed_at": "2026-07-05T06:16:58Z",
+  "sealed_at": "2026-07-06T13:11:27Z",
   "spec_hash": "sha256:cbbe563060c147cae81b8107e5c170dd55a5d0d63943651cd2ca097f63ed3a6a",
-  "spec_path": "specs/physics/sacred_verification.t27"
+  "spec_path": "/Users/playra/t27/specs/physics/sacred_verification.t27"
 }

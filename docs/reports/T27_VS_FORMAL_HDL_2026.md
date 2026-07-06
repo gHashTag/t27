@@ -839,6 +839,38 @@ and optional ROM-style pragmas) are deferred to Wave Loop 458.
 
 ---
 
+## W458 boundary (2026-07-01)
+
+No new public competitor signals appeared between the W457 close-out and the
+W458 boundary. **Sparkle / Verilean** remains the closest structural competitor
+with ~102 formal theorems (zero generic-∀ over ternary datapaths). CIRCT
+`firtool-1.152.0` (2026-07-04) is still the latest public release, and Clash
+1.11.0 remains a Hackage candidate.
+
+t27's W458 deliverable is the next compiler-backend hardening step inside
+Variant B: **module-level array access from functions** plus **yosys warning
+hygiene**. Functions inside a module can now reference module-level `const`/`var`
+arrays by name, and a `pub fn` can declare an array parameter bound to a
+module-level array through a single module-level call site. The legacy
+`// synthesis translate_off/on` guards are replaced with standard
+`` `ifndef SIMULATION `` / `` `endif ``, `f32`/`f64` scalar constants are emitted
+as `parameter real`, and string literals are escaped before Verilog emission.
+Two scratch specs, unit tests, and updated seals lock in the behavior. The fast
+suite path is green:
+
+- `./scripts/tri test --fast`: **581/581 non-smoke PASS**, **61/61 yosys smoke PASS**,
+  FPGA smoke gate OK, 0 seal mismatches, **TOTAL FAILURES: 0**.
+
+The default `./scripts/tri test` could not complete in this environment because
+Phase 3c-standalone stalls while `lake` downloads the `batteries` dependency from
+`reservoir.lean-lang.org`; the smoke-gate report itself reports `passed: true`.
+
+The remaining Variant B targets (array parameters from test/invariant/bench
+call sites, known-warnings gate, optional ROM-style pragmas) are deferred to
+Wave Loop 459.
+
+---
+
 ## Sources
 
 - Sparkle / Verilean: <https://github.com/Verilean/sparkle>
