@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2095b18c65d10df490cbe3960fdd16404aacdd9fb66766a02846d64d9ab6503f",
   "module": "Constants",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:28Z",
+  "sealed_at": "2026-07-06T15:02:24Z",
   "spec_hash": "sha256:240bf4ced1259db2a1ed7a2944ae452bbae611d5de017c65f85012502183f44d",
-  "spec_path": "/Users/playra/t27/specs/math/constants.t27"
+  "spec_path": "specs/math/constants.t27"
 }

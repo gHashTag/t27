@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3fac2b0303e5d9dde1bd262eb936aeb83ff52792d8f5bef2a7d1e746f7974af2",
   "module": "EmitterXDC",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:27Z",
+  "sealed_at": "2026-07-06T15:02:24Z",
   "spec_hash": "sha256:d9954ca190ee3e748ef8df7ce32bd183096f7f97003651aede1ccabe5c1b0e19",
-  "spec_path": "/Users/playra/t27/specs/pins/emitter_xdc.t27"
+  "spec_path": "specs/pins/emitter_xdc.t27"
 }

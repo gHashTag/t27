@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:8c1e1574b85a0c4f1e7f1138b644003cfe1d956a9a87f6b42bd61045f6d0f489",
   "gen_hash_rust": "sha256:06c93322fbaf957bc4c760848637841d659adabdcafdf00cb601295be238ebe6",
-  "gen_hash_verilog": "sha256:fdb40e532d8c140e34d48fa9149ff1b67ff96b542a93bc4a5ab6fa283157e69d",
+  "gen_hash_verilog": "sha256:13ac8b90c1ba05f6b56f8a80d0a01f55a9b76330a0f6d2418b969573869aa8dc",
   "gen_hash_zig": "sha256:70bc07be3b9a5d7b47ff9edbf6d16f43bdc235bd04bd5fab9ededbe1a969cebf",
   "module": "triformat-tf3",
   "ring": 12,
-  "sealed_at": "2026-07-06T14:14:09Z",
+  "sealed_at": "2026-07-06T15:02:25Z",
   "spec_hash": "sha256:fd487ae8a72c2bb8db20ec41e9d56b0ca480f27c86d9a5b85ee5fe04e31479b9",
   "spec_path": "specs/numeric/tf3.t27"
 }

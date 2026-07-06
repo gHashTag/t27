@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:463e47fb07681a0a6aae516032fd91d11275d5af97445fd4282f6ed7964de657",
   "module": "TriToT27Converter",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:27Z",
+  "sealed_at": "2026-07-06T15:02:24Z",
   "spec_hash": "sha256:7abd3f624fa0938c88e2ca78016af141b213aa31840f7aab968b34ac534a91f0",
-  "spec_path": "/Users/playra/t27/specs/tools/tri_to_t27_converter.t27"
+  "spec_path": "specs/tools/tri_to_t27_converter.t27"
 }

@@ -1,0 +1,14 @@
+module w460_bench_local_var;
+pub fn add(a: u32, b: u32) -> u32 { return a + b; }
+
+bench local_sum {
+    let x : u32 = 1;
+    let y : u32 = 2;
+    let z : u32 = add(x, y);
+    assert_eq(z, 3);
+}
+
+test plus_three {
+    assert_eq(add(1, 2), 3);
+}
+endmodule

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:cab0710291a4f1be9fafff027cd6ddd3a11077ed7deb48f646c443b81f3e784c",
   "module": "Stdlib",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:26Z",
+  "sealed_at": "2026-07-06T15:02:23Z",
   "spec_hash": "sha256:52736507c4760db8b38d73a53705947930521587ea2203c25b60d9c13da41a91",
-  "spec_path": "/Users/playra/t27/specs/fpga/stdlib.t27"
+  "spec_path": "specs/fpga/stdlib.t27"
 }

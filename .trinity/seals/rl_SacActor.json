@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:feb33486739e0941056191e55959d41e352dee72b985329d313a32868f88c48d",
   "module": "SacActor",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:30Z",
+  "sealed_at": "2026-07-06T15:02:26Z",
   "spec_hash": "sha256:e04f5539e6d433e5cd5eaa417f97213e6a4e278989c19a310762537911ac98d4",
-  "spec_path": "/Users/playra/t27/specs/ml/rl/sac_actor.t27"
+  "spec_path": "specs/ml/rl/sac_actor.t27"
 }

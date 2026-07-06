@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2081b50396ebb8712cdcb6c47cafcd2cff79d07bd7e1fbc531eccdd65baa7d6b",
   "module": "TernaryIsa",
   "ring": 12,
-  "sealed_at": "2026-07-06T14:14:08Z",
+  "sealed_at": "2026-07-06T15:02:23Z",
   "spec_hash": "sha256:bc07ce772882b239292707433ac86e6de74e58f38335578ca51916d1be1961ae",
   "spec_path": "specs/fpga/ternary_isa.t27"
 }

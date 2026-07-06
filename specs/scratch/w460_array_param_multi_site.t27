@@ -1,0 +1,12 @@
+module w460_array_param_multi_site;
+const rom : [4]u16 = [4]u16{0x1111, 0x2222, 0x3333, 0x4444};
+pub fn sum_pair(arr: [4]u16, i: u32, j: u32) -> u16 { return arr[i] + arr[j]; }
+// Module-level bare function calls are not valid in generated Verilog,
+// so all binding sites for the array parameter are placed inside test/bench blocks.
+test agrees_a {
+    assert_eq(sum_pair(rom, 0, 1), 0x3333);
+}
+test agrees_b {
+    assert_eq(sum_pair(rom, 2, 3), 0x7777);
+}
+endmodule

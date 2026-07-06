@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d3011e9be7a69a9801bbd6e4b909872504a4ddf421bd430c9e592a79c59a0414",
   "module": "PositionalEncoding",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:30Z",
+  "sealed_at": "2026-07-06T15:02:26Z",
   "spec_hash": "sha256:22b7fd16cc3e23432ab550205a19de7e72f9f80efb73a000a1c9ce56b3c136b6",
-  "spec_path": "/Users/playra/t27/specs/ml/transformer/positional_enc.t27"
+  "spec_path": "specs/ml/transformer/positional_enc.t27"
 }

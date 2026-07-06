@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:acb56f2f0ce8f812e6700522e7f6eceda79d9ceb5b24169823e04010f66e0e8e",
   "module": "LayerNorm",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:30Z",
+  "sealed_at": "2026-07-06T15:02:26Z",
   "spec_hash": "sha256:094222aaee6baf1f769008f2adc84ef15355ff58c9313e44285f16cdda26ae18",
-  "spec_path": "/Users/playra/t27/specs/ml/transformer/norm.t27"
+  "spec_path": "specs/ml/transformer/norm.t27"
 }

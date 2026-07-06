@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 459)  
+**Date:** 2026-07-06 (refreshed for Wave Loop 460)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -46,6 +46,20 @@ machine-checkable `measured-to-lean` theorem and a dedicated
 `proofs/lean4/Trinity/TernaryFPGABoot.lean`. The physical bench and the
 master-merge debt remain blocked, so the 7 residual `gen-verilog` yosys smoke
 failures are documented but not cleared.
+
+**W460 clears compiler-backend debt without clearing the master-merge or
+physical-bench blockers.** `bootstrap/src/compiler.rs` now preserves `let`
+bindings through copy/constant propagation, hoists bench-block local variables
+to module-scope `reg` declarations inside `` `ifndef SIMULATION `` guards, and
+adds a multi-site array-parameter scratch spec. The suite is green:
+585/585 non-smoke PASS, 65/65 yosys smoke PASS, 0 baseline failures, 0 seal
+mismatches, and `cargo test -p t27c --bin t27c` is fully green (1524 passed,
+0 failed). No new public competitor signals surfaced between the W459 close-out
+and the W460 boundary; Sparkle's public repository still shows PR #66 merged
+2026-06-30 and the 関数型まつり2026 talk on 2026-07-11 remains the most recent
+public checkpoint. CIRCT `firtool-1.152.0` (2026-07-04) is still the latest public
+release, and the ternary-FPGA ecosystem continues to validate the
+{-1, 0, +1} compute niche without pairing it with a Lean-native proof pipeline.
 
 **W435 hardens the live-readout pipeline without clearing the master-merge debt.**
 `tri fpga read-xadc` now exports a rounded `PvtContext` JSON via `--to-pvt-context`;

@@ -1800,3 +1800,7 @@
 - **Commit:** feat(igla): Wave Loop 459 — array parameters from test/invariant/bench, yosys warning gate with SIMULATION define, ROM style pragma, 583/583 non-smoke PASS + 63/63 yosys smoke PASS
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/NOW.md,docs/reports/WAVE_LOOP_459_REPORT.md
 
+## 2026-07-06T15:10:54Z — wave-loop-460
+- **Commit:** docs(w459): record PR #1434 in NOW.md and WAVE_LOOP_459_REPORT.md
+- **Files:** .claude/plans/wave-loop-460.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json,.trinity/seals/agent_EternalMonitor.json,.trinity/seals/agent_FacultyBoard.json,.trinity/seals/agent_Handoff.json,".trinity/seals/agent_Str = \"\",.json",.trinity/seals/agent_String  # phi, trinity, gematria, evolution, safety.json
+

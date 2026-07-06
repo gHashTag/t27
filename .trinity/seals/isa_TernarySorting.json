@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d3ef09a5674a2c53c0cffe847501ce0be796696f119cb4f8ceedb5c5139d6c74",
   "gen_hash_rust": "sha256:6c338754c761740bcd3c5cf32718fd29006598308483461b2882073aa534fb6a",
-  "gen_hash_verilog": "sha256:ff9fa8ae10b36a91a9e394af541a4c84d583b89d0983c081789f125e4d4b25d5",
+  "gen_hash_verilog": "sha256:021877556a90e7f83d9f846fbda6c08854cbfd3f4877a66e19c03066baeebce3",
   "gen_hash_zig": "sha256:2a9e616b3f4ff73f3789537549f0b3ca900267e834c59bc77431c8f27d9a0592",
   "module": "TernarySorting",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:27Z",
+  "sealed_at": "2026-07-06T15:02:24Z",
   "spec_hash": "sha256:881cb1ecd624422cbe055e73272343e1fa48151ce41b680fa1b01eaed9a26319",
-  "spec_path": "/Users/playra/t27/specs/isa/ternary_sorting.t27"
+  "spec_path": "specs/isa/ternary_sorting.t27"
 }

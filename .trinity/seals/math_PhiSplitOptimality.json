@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3dc55b442ea9b397387337c41a25d2f26cf9bdaba11e1059de2d93f7548e52c8",
   "module": "PhiSplitOptimality",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:28Z",
+  "sealed_at": "2026-07-06T15:02:24Z",
   "spec_hash": "sha256:d64704f431557636dda3ce15185ce4e96b0bf102dd3cbd806b3c6b8911e28091",
-  "spec_path": "/Users/playra/t27/specs/math/phi_split_optimality.t27"
+  "spec_path": "specs/math/phi_split_optimality.t27"
 }

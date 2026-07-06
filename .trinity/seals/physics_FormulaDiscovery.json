@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f59ea07cdb3f56c564c7267d4fa68b8e49ce52ecc3dd9187ed693b93aea929c6",
   "module": "FormulaDiscovery",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:27Z",
+  "sealed_at": "2026-07-06T15:02:23Z",
   "spec_hash": "sha256:5195f89bfc0b1f3ed434ef6371ba940a629ba01eee7a3746f6f14ec0cde9a141",
-  "spec_path": "/Users/playra/t27/specs/physics/formula_discovery.t27"
+  "spec_path": "specs/physics/formula_discovery.t27"
 }

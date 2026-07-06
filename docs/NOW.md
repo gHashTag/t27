@@ -1,20 +1,108 @@
-# NOW — Wave Loop 460 next / Wave Loop 459 close-out (2026-07-01)
+# NOW — Wave Loop 461 next / Wave Loop 460 close-out (2026-07-06)
 
-**Last updated:** 2026-07-01
+**Last updated:** 2026-07-06
 
-## Wave Loop 460 — Next wave (to be selected from cooperation plan) (Closes #1433)
+## Wave Loop 461 — Next wave (to be selected from cooperation plan) (Closes #1435)
 
-- Branch: `wave-loop-460` (to create from W459 land commit)
-- Issue: #1433 (to create)
+- Branch: `wave-loop-461` (to create from W460 land commit)
+- Issue: #1435 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W460_2026-07-01.md`
-- Cooperation W461: (to be written at W460 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W461_2026-07-06.md`
+- Cooperation W462: (to be written at W461 close-out)
 
 ### Not started
 
-- Create issue #1433 and branch `wave-loop-460` from the W459 land commit.
-- Select one of the three W460 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W460_2026-07-01.md`.
+- Create issue #1435 and branch `wave-loop-461` from the W460 land commit.
+- Select one of the three W461 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W461_2026-07-06.md`.
+
+---
+
+## Wave Loop 460 — compiler-backend hardening: `let` preservation, bench-local hoisting, multi-site array parameters (Variant B default) (Closes #1433)
+
+- Branch: `wave-loop-460`
+- Issue: #1433
+- PR: (to open)
+- Report: `docs/reports/WAVE_LOOP_460_REPORT.md`
+- Evidence W460: `docs/reports/FPGA_LOOP_EVIDENCE_W460_2026-07-06.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W460_2026-07-01.md`
+- Cooperation W461: `docs/reports/FPGA_LOOP_COOPERATION_W461_2026-07-06.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - `parse_local_decl` stores the source keyword (`let`/`const`/`var`) in
+    `StmtLocal::extra_kind`.
+  - `copy_propagate` and `const_propagate` skip `extra_kind == "let"` so explicit
+    `let` local declarations are preserved in generated backends.
+  - `gen_verilog_module` hoists bench-local scalar and array variables to
+    module-scope `reg` declarations inside `` `ifndef SIMULATION `` guards,
+    then emits only assignments inside the bench `initial` block.
+  - `gen_verilog_test_stmt` now accepts a `hoist_locals` flag and emits
+    assignments (not declarations) for bench-local variables.
+  - `gen_verilog_expr` resolves bench-local identifiers through
+    `verilog_local_name` with a `_bench_<name>_<var>` prefix to avoid
+    cross-bench collisions.
+  - `ExprIndex` rewrites variable-indexed bench-local arrays to the prefixed
+    per-element register names.
+
+- `specs/scratch/w460_bench_local_var.t27`
+  - Regression spec with a bench block declaring and using local `u32`
+    variables, plus a `test` block exercising the same function.
+
+- `specs/scratch/w460_array_param_multi_site.t27`
+  - Regression spec with a module-level `const [4]u16` ROM and a `sum_pair`
+    function whose array parameter is bound from two `test` blocks passing the
+    same array.
+
+- `.trinity/seals/scratch_w460_bench_local_var.json`
+- `.trinity/seals/scratch_w460_array_param_multi_site.json`
+  - Seals for the two new regression specs.
+
+- All 585 `.trinity/seals/*.json` files re-sealed to the new gen-verilog output.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W460 competitor boundary section.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_460_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W460_2026-07-06.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W461_2026-07-06.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W460_OPERATING_POINT` — bench unavailable.
+- Array-parameter support for literal array arguments or multiple different
+  bound arrays — deferred to W461 (Variant B).
+- Module-level bare function calls that ignore the return value — deferred to
+  W461 (Variant B).
+- GitHub issue #1435 and branch `wave-loop-461` — blocked on `gh` CLI
+  authentication in this environment; must be created manually.
+
+### Verification
+
+- `cargo test -p t27c --bin t27c let_binding`: **PASS** (3/3).
+- `cargo test -p t27c --bin t27c`: **1524 passed, 0 failed, 2 ignored**.
+- `t27c gen-verilog specs/scratch/w460_bench_local_var.t27` +
+  `yosys read_verilog -sv -DSIMULATION`: **PASS**.
+- `t27c gen-verilog specs/scratch/w460_array_param_multi_site.t27` +
+  `yosys read_verilog -sv -DSIMULATION`: **PASS**.
+- `./scripts/tri test --fast`: **ALL TESTS PASSED**
+  - Parse: 585 passed, 0 failed
+  - Typecheck: 585 passed, 0 failed
+  - Gen Zig: 585 passed, 0 failed
+  - Gen Rust: 585 passed, 0 failed
+  - Gen Verilog: 585 passed, 0 failed
+  - Gen Verilog Yosys Smoke: **65 passed, 0 failed**
+  - FPGA Board-Less Smoke Gate: **OK**
+  - Gen C: 585 passed, 0 failed
+  - Seal Verify: 585 passed, 0 failed
+  - Fixed Point: 0 divergences
+  - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes`
 
 ---
 

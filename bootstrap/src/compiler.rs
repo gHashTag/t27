@@ -1999,12 +1999,15 @@ impl Parser {
         Ok(stmt)
     }
 
-    /// Parse local const/var declaration
+    /// Parse local const/var/let declaration
     fn parse_local_decl(&mut self) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::StmtLocal);
         decl.line = self.current.line as u32;
+        // W460: preserve the source keyword so the optimizer can treat `let`
+        // bindings as explicit local declarations (not copy-propagated away).
+        decl.extra_kind = self.current.lexeme.clone();
         decl.extra_mutable = self.current.kind == TokenKind::KwVar;
-        self.advance(); // consume const/var
+        self.advance(); // consume const/var/let
 
         // Name
         if self.current.kind == TokenKind::Ident {
@@ -3964,6 +3967,13 @@ pub struct VerilogCodegen {
     // multiple/conflicting call sites). The function is skipped and an error
     // comment is emitted instead.
     array_param_errors: std::collections::HashMap<String, String>,
+    // W460: names of bench-local variables that have been hoisted to module scope
+    // for the bench currently being emitted. Expressions inside the bench must
+    // reference the prefixed hoisted name.
+    bench_local_names: std::collections::HashSet<String>,
+    // W460: prefix applied to hoisted bench-local variable names to avoid
+    // collisions between benches and module-level names.
+    bench_local_prefix: String,
 }
 
 impl VerilogCodegen {
@@ -3982,6 +3992,8 @@ impl VerilogCodegen {
             array_param_bindings: std::collections::HashMap::new(),
             array_param_indices: std::collections::HashMap::new(),
             array_param_errors: std::collections::HashMap::new(),
+            bench_local_names: std::collections::HashSet::new(),
+            bench_local_prefix: String::new(),
         }
     }
 
@@ -4023,6 +4035,100 @@ impl VerilogCodegen {
             format!("\\{} ", name)
         } else {
             name.to_string()
+        }
+    }
+
+    /// W460: return the Verilog identifier for a local variable, applying the
+    /// bench-local prefix when the variable was hoisted to module scope for the
+    /// current bench block.
+    fn verilog_local_name(&self, name: &str) -> String {
+        if self.bench_local_names.contains(name) {
+            Self::verilog_safe_identifier(&format!("{}{}", self.bench_local_prefix, name))
+        } else {
+            Self::verilog_safe_identifier(name)
+        }
+    }
+
+    /// W460: recursively collect `StmtLocal` nodes inside a bench body so they
+    /// can be hoisted to module scope before the `initial` block is emitted.
+    fn collect_bench_locals<'a>(&self, node: &'a Node, out: &mut Vec<&'a Node>) {
+        if node.kind == NodeKind::StmtLocal {
+            out.push(node);
+            return;
+        }
+        for child in &node.children {
+            self.collect_bench_locals(child, out);
+        }
+    }
+
+    /// W460: emit a module-scope `reg` declaration for a bench-local scalar or
+    /// array variable. Array locals are emitted as per-element registers (the
+    /// same convention used for function-local arrays).
+    fn gen_verilog_local_decl_hoisted(&mut self, node: &Node) {
+        if let Some((array_size, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            let elem_width = Self::type_to_width(&elem_type);
+            let elem_signed = Self::type_is_signed(&elem_type);
+            let elem_signed_str = if elem_signed { "signed " } else { "" };
+            let elem_range = Self::range_decl(elem_width);
+            let elem_range_str = if elem_range.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", elem_range)
+            };
+            let safe_base = self.verilog_local_name(&node.name);
+            self.local_arrays.insert(safe_base.clone());
+            for i in 0..array_size {
+                let flat_name = format!("{}_{}", safe_base, i);
+                self.write_indent();
+                self.write_line(
+                    &format!("reg {}{} {};", elem_signed_str, elem_range_str, flat_name),
+                );
+            }
+            return;
+        }
+
+        let width = Self::type_to_width(&node.extra_type);
+        let signed = Self::type_is_signed(&node.extra_type);
+        let signed_str = if signed { "signed " } else { "" };
+        let range = Self::range_decl(width);
+        let range_str = if range.is_empty() {
+            String::new()
+        } else {
+            format!("{} ", range)
+        };
+        let safe_name = self.verilog_local_name(&node.name);
+        self.write_indent();
+        self.write_line(
+            &format!("reg {}{}{};", signed_str, range_str, safe_name),
+        );
+    }
+
+    /// W460: emit only the assignment half of a bench-local declaration. The
+    /// declaration itself is hoisted to module scope; inside the bench
+    /// `initial` block we only assign the initial value.
+    fn gen_verilog_local_assign(&mut self, node: &Node) {
+        if let Some((array_size, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            if !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprArrayLiteral
+            {
+                let safe_base = self.verilog_local_name(&node.name);
+                for (i, elem) in node.children[0].children.iter().enumerate().take(array_size) {
+                    let flat_name = format!("{}_{}", safe_base, i);
+                    self.write_indent();
+                    self.write(&format!("{} = ", flat_name));
+                    self.gen_verilog_expr(elem);
+                    self.write_line(";");
+                }
+            }
+            return;
+        }
+
+        if !node.children.is_empty() {
+            let safe_name = self.verilog_local_name(&node.name);
+            self.write_indent();
+            self.write(&format!("{} = ", safe_name));
+            self.gen_verilog_expr(&node.children[0]);
+            self.write_line(";");
         }
     }
 
@@ -4565,6 +4671,29 @@ impl VerilogCodegen {
                     "_bench_{}_cycles",
                     Self::sanitize_identifier(&b.name)
                 );
+
+                // W460: hoist all bench-local variable declarations to module scope
+                // so they are declared outside the procedural `initial` block.
+                let bench_prefix = format!(
+                    "_bench_{}_",
+                    Self::sanitize_identifier(&b.name)
+                );
+                let mut locals: Vec<&Node> = Vec::new();
+                let mut seen: std::collections::HashSet<String> =
+                    std::collections::HashSet::new();
+                for child in &b.children {
+                    self.collect_bench_locals(child, &mut locals);
+                }
+                self.bench_local_prefix = bench_prefix.clone();
+                self.bench_local_names.clear();
+                let mut unique_locals: Vec<&Node> = Vec::new();
+                for local in locals {
+                    if seen.insert(local.name.clone()) {
+                        self.bench_local_names.insert(local.name.clone());
+                        unique_locals.push(local);
+                    }
+                }
+
                 // W458: use standard `ifndef SIMULATION` / `endif` guards instead
                 // of the non-standard `// synthesis translate_off` comments.
                 // Keep the guards on STANDALONE lines wrapping the full initial
@@ -4572,6 +4701,9 @@ impl VerilogCodegen {
                 // skipped region.
                 self.write_indent();
                 self.write_line("`ifndef SIMULATION");
+                for local in &unique_locals {
+                    self.gen_verilog_local_decl_hoisted(local);
+                }
                 self.write_indent();
                 self.write_line(&format!(
                     "initial begin : {}_bench",
@@ -4583,7 +4715,7 @@ impl VerilogCodegen {
                 self.write_indent();
                 self.write_line(&format!("{} = 0;", counter));
                 for child in &b.children {
-                    self.gen_verilog_test_stmt(child, &b.name);
+                    self.gen_verilog_test_stmt(child, &b.name, true);
                     self.write_indent();
                     self.write_line(&format!("{} = {} + 1;", counter, counter));
                 }
@@ -4599,6 +4731,10 @@ impl VerilogCodegen {
                 self.write_line("end");
                 self.write_indent();
                 self.write_line("`endif");
+
+                // W460: clear bench-local hoisting context before the next bench.
+                self.bench_local_names.clear();
+                self.bench_local_prefix.clear();
             }
             self.write_line("");
         }
@@ -5281,7 +5417,7 @@ impl VerilogCodegen {
         self.write_indent();
         self.write_line(&format!("$display(\"[TEST] {} : starting\");", node.name));
         for child in &node.children {
-            self.gen_verilog_test_stmt(child, &node.name);
+            self.gen_verilog_test_stmt(child, &node.name, false);
         }
         self.write_indent();
         self.write_line(&format!("$display(\"[TEST] {} : PASSED\");", node.name));
@@ -5290,7 +5426,12 @@ impl VerilogCodegen {
         self.write_line("end");
     }
 
-    fn gen_verilog_test_stmt(&mut self, node: &Node, test_name: &str) {
+    fn gen_verilog_test_stmt(
+        &mut self,
+        node: &Node,
+        test_name: &str,
+        hoist_locals: bool,
+    ) {
         match node.kind {
             NodeKind::StmtExpr => {
                 if let Some(expr) = node.children.first() {
@@ -5344,14 +5485,24 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtLocal => {
-                self.write_indent();
-                self.write("// ");
-                self.gen_verilog_stmt(node);
+                if hoist_locals {
+                    // W460: declarations were hoisted to module scope; emit only
+                    // the initial-value assignment inside the procedural block.
+                    self.gen_verilog_local_assign(node);
+                } else {
+                    self.write_indent();
+                    self.write("// ");
+                    self.gen_verilog_stmt(node);
+                }
             }
             NodeKind::StmtAssign => {
-                self.write_indent();
-                self.write("// ");
-                self.gen_verilog_stmt(node);
+                if hoist_locals {
+                    self.gen_verilog_stmt(node);
+                } else {
+                    self.write_indent();
+                    self.write("// ");
+                    self.gen_verilog_stmt(node);
+                }
             }
             _ => {
                 self.write_indent();
@@ -5726,10 +5877,10 @@ impl VerilogCodegen {
                     if let Some(bound) = bindings.get(&node.name) {
                         self.write(&Self::verilog_safe_identifier(bound));
                     } else {
-                        self.write(&Self::verilog_safe_identifier(&node.name));
+                        self.write(&self.verilog_local_name(&node.name));
                     }
                 } else {
-                    self.write(&Self::verilog_safe_identifier(&node.name));
+                    self.write(&self.verilog_local_name(&node.name));
                 }
             }
             NodeKind::ExprEnumValue => {
@@ -5844,10 +5995,20 @@ impl VerilogCodegen {
                     // the access to the flattened reg name so it synthesizes inside a
                     // Verilog function.
                     if base.kind == NodeKind::ExprIdentifier {
-                        let safe_base = Self::verilog_safe_identifier(&base.name);
+                        // W460: bench-local arrays are hoisted with a prefixed name,
+                        // so resolve the prefix before checking local_arrays.
+                        let safe_base = self.verilog_local_name(&base.name);
                         if self.local_arrays.contains(&safe_base) {
                             if let Ok(idx_val) = idx.value.parse::<usize>() {
-                                let flat_name = format!("{}_{}", base.name, idx_val);
+                                // For bench-local arrays the declared register name
+                                // already includes the bench prefix; for function-local
+                                // arrays it uses the original base name.
+                                let flat_base = if self.bench_local_names.contains(&base.name) {
+                                    &safe_base
+                                } else {
+                                    &base.name
+                                };
+                                let flat_name = format!("{}_{}", flat_base, idx_val);
                                 self.write(&Self::verilog_safe_identifier(&flat_name));
                                 return;
                             }
@@ -7500,7 +7661,10 @@ fn parse_int_value(s: &str) -> Option<i64> {
 fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     let mut replacements: Vec<(String, String)> = Vec::new();
     for stmt in stmts.iter() {
+        // W460: `let` bindings are intentionally preserved as explicit local
+        // declarations; do not copy-propagate them away.
         if stmt.kind == NodeKind::StmtLocal
+            && stmt.extra_kind != "let"
             && stmt.children.len() == 1
             && stmt.children[0].kind == NodeKind::ExprIdentifier
             && stmt.name != stmt.children[0].name
@@ -7522,7 +7686,10 @@ fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
 fn const_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     let mut consts: Vec<(String, String)> = Vec::new();
     for stmt in stmts.iter() {
+        // W460: preserve `let` bindings as explicit local declarations; only
+        // fold literal constants for `const`/`var` locals.
         if stmt.kind == NodeKind::StmtLocal
+            && stmt.extra_kind != "let"
             && !stmt.extra_mutable
             && stmt.children.len() == 1
             && stmt.children[0].kind == NodeKind::ExprLiteral

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e1f0a026fef245d163fb2195548ac3dbd5ffb8152ab9f7c0276ed89d81cea315",
   "module": "Top_Level_Testbench",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:28Z",
+  "sealed_at": "2026-07-06T15:02:25Z",
   "spec_hash": "sha256:fe2e6531437996fccf8eb91726641ab476d8982b68ca4a1d037819dd9a915d95",
-  "spec_path": "/Users/playra/t27/specs/fpga/testbench/top_tb.t27"
+  "spec_path": "specs/fpga/testbench/top_tb.t27"
 }

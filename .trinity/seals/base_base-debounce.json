@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:36602e24aa813c281d50210b4de288ad707cd72a01fd2a2c547e587d4e06fd3e",
   "module": "base-debounce",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:27Z",
+  "sealed_at": "2026-07-06T15:02:23Z",
   "spec_hash": "sha256:5327811d6750849976773faf4abbe18bd6c06f3a49799ffc4ca850c88581abb9",
-  "spec_path": "/Users/playra/t27/specs/base/debounce.t27"
+  "spec_path": "specs/base/debounce.t27"
 }

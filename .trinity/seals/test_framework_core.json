@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:894df1635fdaf97ff4cde7940282cdc910feea59dbe6da4251f08254afe3db9e",
   "module": "core",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:27Z",
+  "sealed_at": "2026-07-06T15:02:23Z",
   "spec_hash": "sha256:040cc64e7d77017fc0e16281217f34c787680f281ce6c4446eddef7358d98934",
-  "spec_path": "/Users/playra/t27/specs/test_framework/core.t27"
+  "spec_path": "specs/test_framework/core.t27"
 }
