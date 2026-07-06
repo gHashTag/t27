@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-450`  
-**Last updated:** 2026-07-01 (Wave Loop 449)  
+**Branch:** `wave-loop-451`  
+**Last updated:** 2026-07-01 (Wave Loop 451)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -92,6 +92,15 @@ expands the formal boot-evidence lattice with a quantified transaction theorem,
 adds a standalone-build suite metric, and refreshes the competitor boundary. The
 7 residual yosys smoke failures remain the documented baseline; Variant C
 (master-merge) remains a dedicated future wave.
+
+**W451 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W451
+extends the formal boot-evidence lattice with a boundary hot/low-voltage
+adversarial envelope theorem and VCCAUX independence lemmas, hardens the
+`FpgaSmokeResult`/`SuiteSummary` schema with a builder pattern and
+`deny_unknown_fields`, and adds deterministic snapshot tests for the missing-
+bitstream and `--fast` skipped-standalone smoke-gate shapes. The 7 residual yosys
+smoke failures remain the documented baseline; Variant C (master-merge) is
+offered as a cooperation option for Wave Loop 452 but is not executed in W451.
 
 ---
 
@@ -670,6 +679,21 @@ introduced.
 
 **Defect status matrix after W446:** same as after W435.
 
+## W451 triage (2026-07-01)
+
+Wave Loop 451 selected **Variant B** of the W451 cooperation plan (adversarial
+envelope theorem + CI metric hardening). Work focused on
+`proofs/lean4/Trinity/TernaryFPGABoot.lean` (boundary hot/low-voltage operating
+point, VCCAUX independence lemmas, quantified transaction theorem over all
+corners), `bootstrap/src/suite.rs` (`FpgaSmokeResultBuilder`,
+`#[serde(deny_unknown_fields)]` on `SuiteSummary`/`SuitePhaseSummary`), and
+`cli/tri/src/fpga.rs` (deterministic snapshot tests for missing-bitstream and
+`--fast` skipped-standalone shapes). The wave did not touch the `gen-verilog`
+backend, so the 7 residual yosys smoke failures remain **unchanged and
+re-confirmed as the baseline**. No new narrow defect was introduced.
+
+**Defect status matrix after W451:** same as after W435.
+
 ## W450 triage (2026-07-01)
 
 Wave Loop 450 selected **Variant B** of the W450 cooperation plan (quantified
@@ -684,7 +708,7 @@ introduced.
 
 **Defect status matrix after W450:** same as after W435.
 
-## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439 / W440 / W441 / W444 / W446 / W449 / W450
+## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439 / W440 / W441 / W444 / W446 / W449 / W450 / W451
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.

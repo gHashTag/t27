@@ -1728,3 +1728,19 @@
 - **Commit:** feat(igla): Wave Loop 449 — golden quantified transaction theorem, standalone-build suite metric, competitor refresh
 - **Files:** .claude/plans/wave-loop-450.md,.trinity/current-issue.md,bootstrap/src/main.rs,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W451_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W450_2026-07-01.md,docs/reports/FPGA_LOOP_PLAN_W450_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_450_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean,tests/fixtures/fpga/smoke-gate/validate_lean_standalone_snapshot.json
 
+## 2026-07-06T06:55:45Z — wave-loop-450
+- **Commit:** feat(igla): Wave Loop 450 — dry-run-live quantified transaction theorem, standalone snapshot, --fast suite mode
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,bootstrap/src/suite.rs,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W452_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W451_2026-07-01.md,docs/reports/FPGA_LOOP_PLAN_W451_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_451_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean,tests/fixtures/fpga/smoke-gate/fast_skipped_standalone_snapshot.json,tests/fixtures/fpga/smoke-gate/missing_bitstream_snapshot.json
+
+## 2026-07-06T06:59:48Z — wave-loop-451
+- **Commit:** feat(igla): Wave Loop 451 — boundary hot/low-v envelope theorem, VCCAUX independence, CI metric hardening, smoke-gate snapshots
+- **Files:** .trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W452_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W451_2026-07-01.md,docs/reports/FPGA_LOOP_PLAN_W451_2026-07-01.md,docs/reports/WAVE_LOOP_451_REPORT.md
+
+## 2026-07-06T06:59:54Z — wave-loop-451
+- **Commit:** feat(igla): Wave Loop 451 — boundary hot/low-v envelope theorem, VCCAUX independence, CI metric hardening, smoke-gate snapshots
+- **Files:** 
+
+## 2026-07-06T07:00:55Z — wave-loop-452
+- **Commit:** feat(igla): Wave Loop 451 — boundary hot/low-v envelope theorem, VCCAUX independence, CI metric hardening, smoke-gate snapshots
+- **Files:** docs/reports/WAVE_LOOP_451_REPORT.md
+

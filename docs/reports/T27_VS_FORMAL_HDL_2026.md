@@ -576,6 +576,49 @@ remains unmatched by any public competitor.
 
 ---
 
+## W451 boundary (2026-07-01)
+
+Competitor signals at the W451 boundary are largely unchanged from W450, with
+**Sparkle / Verilean** remaining the only fresh Lean-native HDL signal in early
+July 2026. The FIDO2/CTAPHID + P-256 formal proof burst (PR #97–#100, merged
+2026-07-04) is the most recent public evidence that Sparkle is building a broad,
+formally verified IP catalog inside Lean 4. No additional public commits, PRs, or
+release tags appeared between the W450 close-out and the W451 boundary.
+
+- **Sparkle / Verilean:** repository last pushed **2026-07-03**. PR #66
+  “IP.Net + compiler perf” remains open. The FIDO2/crypto work (PR #97–#100,
+  merged 2026-07-04) plus PR #96 (policy-enforcing Ethereum signer, merged
+  2026-07-04) remains the freshest public signal. PR #101 “docs(tutorial): Ch11
+  web3 signer” is still open. Sparkle's README still cites 102 formal theorems for
+  the RV32 SoC.
+- **CIRCT / firtool:** `firtool-1.152.0` (2026-07-04) is still the latest public
+  release; no `1.153.0` has shipped as of the W451 boundary.
+- **Clash:** `clash-ghc-1.11.0` remains a Hackage candidate; the latest official
+  release is still `1.10.0` (April 2026).
+- **Ternary-FPGA niche:** no new Lean-native ternary-FPGA competitor surfaced.
+  TernaryCore and BitNet-RISCV-Multicore continue to validate {-1,0,+1} compute
+  hardware without a sealed spec→proof→bitstream pipeline.
+
+t27's W451 deliverables keep the differentiator intact and close a few internal
+schema gaps:
+- `BOUNDARY_HOT_LOWV_W451_OPERATING_POINT` (+85 °C, 900 mV) and
+  `boundary_hot_lowv_w451_all_corners_transaction_ok` add a quantified
+  end-to-end transaction theorem at the hot/low-voltage envelope corner.
+- `xadc_operating_point_within_envelope_independent_of_vccaux` and the matching
+  timing-predicate independence lemmas formalize the VCCAUX-agnostic design of
+  the PVT envelope.
+- `FpgaSmokeResultBuilder` centralizes the missing-bitstream and failure fallback
+  shapes, and `#[serde(deny_unknown_fields)]` on `SuiteSummary`/`SuitePhaseSummary`
+  prevents silent schema drift in the machine-readable suite summary.
+- Snapshot regression tests for missing-bitstream and `--fast`
+  skipped-standalone smoke-gate report shapes prevent silent report-schema
+  regressions.
+
+No public competitor matches the sealed spec→generated code→seal hash→physical
+CCLK/PVT boot-evidence loop.
+
+---
+
 ## Sources
 
 - Sparkle / Verilean: <https://github.com/Verilean/sparkle>

@@ -10973,6 +10973,135 @@ mod tests {
         walk(report, repo_root, &temp_dir)
     }
 
+    /// Compare a sanitized smoke-gate report against a snapshot file, writing the
+    /// snapshot when `UPDATE_EXPECTED` is set or the file is missing. This keeps the
+    /// shape regression tests deterministic without requiring a real bitstream, lake,
+    /// or yosys installation.
+    fn check_smoke_gate_snapshot(
+        report: &serde_json::Value,
+        fixture_dir: &std::path::Path,
+        name: &str,
+    ) {
+        let root = repo_root().expect("repo root");
+        let snapshot = sanitize_smoke_gate_report(report, &root);
+        let expected_path = fixture_dir.join(format!("{}.json", name));
+        if std::env::var("UPDATE_EXPECTED").is_ok() || !expected_path.is_file() {
+            std::fs::create_dir_all(fixture_dir).expect("create fixture dir");
+            std::fs::write(
+                &expected_path,
+                serde_json::to_string_pretty(&snapshot).expect("serialize snapshot"),
+            )
+            .unwrap_or_else(|_| panic!("write {}", expected_path.display()));
+            println!("wrote {}: {}", name, expected_path.display());
+        }
+        let expected_text = std::fs::read_to_string(&expected_path)
+            .unwrap_or_else(|_| panic!("read {}", expected_path.display()));
+        let expected: serde_json::Value =
+            serde_json::from_str(&expected_text).expect("parse snapshot");
+        assert_eq!(snapshot, expected, "sanitized {} report mismatch", name);
+    }
+
+    /// Snapshot shape regression for the missing-bitstream smoke-gate report. The
+    /// report is synthetic: it captures the canonical shape produced when the demo
+    /// bitstream is absent (bit_config skipped, all other phases null, passed false).
+    #[test]
+    fn test_smoke_gate_missing_bitstream_matches_snapshot() {
+        let root = repo_root().expect("repo root");
+        let fixture_dir = root
+            .join("tests")
+            .join("fixtures")
+            .join("fpga")
+            .join("smoke-gate");
+        let tmp_bit = std::env::temp_dir().join("tri_smoke_gate_missing_bitstream.bit");
+        let report = serde_json::json!({
+            "schema_version": "1.0",
+            "bit_config": {
+                "status": "skipped",
+                "reason": "bitstream not found",
+                "bitstream": tmp_bit.to_string_lossy().to_string(),
+            },
+            "dry_run_sweep": null,
+            "verify_lean": null,
+            "theorem_matrix": null,
+            "validate_lean_standalone": null,
+            "yosys_synthesis": {
+                "status": "skipped",
+                "reason": "demo Verilog sources not found",
+            },
+            "passed": false,
+        });
+        check_smoke_gate_snapshot(
+            &report,
+            &fixture_dir,
+            "missing_bitstream_snapshot",
+        );
+    }
+
+    /// Snapshot shape regression for the `--fast` skipped-standalone smoke-gate
+    /// report. The report is synthetic: it captures the canonical shape when the
+    /// bitstream and all non-standalone phases pass but `validate_lean_standalone`
+    /// is absent (null). The standalone phase is handled separately by the suite.
+    #[test]
+    fn test_smoke_gate_fast_skipped_standalone_matches_snapshot() {
+        let root = repo_root().expect("repo root");
+        let fixture_dir = root
+            .join("tests")
+            .join("fixtures")
+            .join("fpga")
+            .join("smoke-gate");
+        let tmp_bit = std::env::temp_dir().join("tri_smoke_gate_fast_bitstream.bit");
+        let variant = serde_json::json!({
+            "corner": "ff",
+            "oscfsel": 0,
+            "period_ns": 400,
+            "sck_low_ns": 200,
+            "sck_high_ns": 200,
+            "envelope_check": "ok",
+            "status": "ok",
+            "fixtures": {
+                "pvt": std::env::temp_dir().join("tri_smoke_gate_fast_pvt.json").to_string_lossy().to_string(),
+                "raw_ns": std::env::temp_dir().join("tri_smoke_gate_fast_raw_ns.json").to_string_lossy().to_string(),
+                "lean": std::env::temp_dir().join("tri_smoke_gate_fast_theorem.lean").to_string_lossy().to_string(),
+                "summary": std::env::temp_dir().join("tri_smoke_gate_fast_summary.json").to_string_lossy().to_string(),
+            },
+        });
+        let report = serde_json::json!({
+            "schema_version": "1.0",
+            "bit_config": {
+                "status": "ok",
+                "bitstream": tmp_bit.to_string_lossy().to_string(),
+                "assertions": ["ASSERTION OK: idcode"],
+            },
+            "dry_run_sweep": {
+                "status": "ok",
+                "variant_count": 8,
+                "source": "synthetic",
+                "report_md": std::env::temp_dir().join("tri_smoke_gate_fast_sweep.md").to_string_lossy().to_string(),
+            },
+            "verify_lean": { "status": "ok" },
+            "theorem_matrix": {
+                "status": "ok",
+                "variant_count": 1,
+                "source": "synthetic",
+                "replay": false,
+                "elapsed_ms": 42,
+                "variants": [variant],
+            },
+            "validate_lean_standalone": null,
+            "yosys_synthesis": {
+                "status": "ok",
+                "top": "ternary_mac_demo_top",
+                "files": [],
+            },
+            "passed": true,
+        });
+        check_smoke_gate_snapshot(
+            &report,
+            &fixture_dir,
+            "fast_skipped_standalone_snapshot",
+        );
+    }
+
     /// Unit test for the Artix-7 CCLK period helper used by the theorem matrix.
     #[test]
     fn test_cclk_period_ns_oscfsel_0_7() {

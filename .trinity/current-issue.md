@@ -1,25 +1,20 @@
-Wave Loop 451 — Formal boot-evidence expansion + adversarial envelope theorem + CI metric hardening (Variant B default) (Closes #1426)
+# Wave Loop 452 — Issue #1422
 
-Branch: wave-loop-451
-Issue: #1426
+## Goal
+Envelope lattice continuation + CI metric hardening (Variant B default), with optional master-merge gen-verilog fix set (Variant C) if bench remains blocked.
 
-Variant A (physical cold-POR capture with live fixture archive) is preferred if
-the bench unblocks (DLC10 cable detected, P12 wired or relay gate available).
-Variant B (default) is a software-only continuation that adds a quantified
-transaction theorem over an adversarial or envelope-corner operating point,
-hardens the `FpgaSmokeResult`/`SuiteSummary` schema so phases cannot silently
-drop metrics, and extends the `--fast` suite path to produce a clean machine-
-readable summary when the standalone build is skipped.
+## Scope
+- Variant A: if DLC10 cable arrives, live-capture transaction theorem on Wukong board.
+- Variant B (default): extend boundary envelope theorem matrix (cold temp / high voltage corners, per-OSCFSEL raw-ns monotonicity theorem, additional independence properties), harden CI metric schemas, add snapshot coverage for remaining smoke-gate shapes.
+- Variant C: prepare and evaluate master-merge of remaining safe gen-verilog fixes (#1245) to eliminate 7 baseline failures; only proceed if risk ≤ low.
 
-Deliverables:
-1. Quantified adversarial/envelope-corner transaction theorem in
-   `proofs/lean4/Trinity/TernaryFPGABoot.lean` (or live-capture theorem if Variant A).
-2. Schema hardening (builder or non-default guard) for `FpgaSmokeResult` and
-   `SuiteSummary` to protect the new `fpga-smoke-gate-standalone` phase metric.
-3. Refresh `docs/reports/T27_VS_FORMAL_HDL_2026.md` for the W451 boundary.
-4. Close-out artifacts: W451 report, evidence, plan, and W452 cooperation variants.
+## Issue Gate
+- Closes #1422 on land.
+- Branch: `wave-loop-452`.
+- Required: 576/576 non-smoke PASS, smoke gate acceptable, seals green, Lean build succeeds.
 
-Blocked / out of scope:
-- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
-- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
-- Master-merge to clear #1245 — deferred to a dedicated future wave.
+## References
+- `docs/reports/WAVE_LOOP_451_REPORT.md`
+- `docs/reports/FPGA_LOOP_EVIDENCE_W451_2026-07-01.md`
+- `docs/reports/FPGA_LOOP_PLAN_W451_2026-07-01.md`
+- `docs/reports/FPGA_LOOP_COOPERATION_W452_2026-07-01.md`
