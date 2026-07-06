@@ -1,20 +1,31 @@
-# Wave Loop 453 — Issue #1421
+# Wave Loop 454 — Issue #1420
 
 ## Goal
-Envelope rectangle closure + smoke-gate report schema hardening (Variant B default), with optional master-merge gen-verilog fix set (Variant C) if bench remains blocked.
+Master-merge the safe gen-verilog fix set from `master` into the wave-loop branch
+(Variant B default), with live-capture fallback (Variant A) if the bench
+unblocks, and adversarial/robustness theorems (Variant C) if neither hardware nor
+the merge is available.
 
 ## Scope
-- Variant A: if DLC10 cable arrives and P12/relay is wired, live-capture transaction theorem on Wukong board and persist fixtures under `tests/fixtures/fpga/theorem-matrix/live-w453/`.
-- Variant B (default): close the four-corner operating-rectangle in `TernaryFPGABoot.lean` (hot/low-v W451, cold/high-v W452, plus hot/high-v and cold/low-v W453 corners) in a single quantified `∀` theorem; add a smoke-gate JSON report schema regression test; keep CI metrics trustworthy.
-- Variant C: prepare and evaluate master-merge of remaining safe gen-verilog fixes (#1245) to eliminate 7 baseline failures; only proceed if risk ≤ low.
+- Variant A: if DLC10 cable arrives and P12/relay is wired, live-capture CCLK
+  sweeps on Wukong board, persist fixtures under
+  `tests/fixtures/fpga/theorem-matrix/live-w454/`, and mint
+  `XADC_LIVE_W454_OPERATING_POINT` theorems.
+- Variant B (default): merge the safe `gen-verilog` fixes already present on
+  `master` (`701d79b3b`) into `wave-loop-454` to clear the 7 residual yosys
+  smoke failures (#1245), reseal affected specs, and add regression tests.
+- Variant C: if Variant B is blocked, extend the formal boot-evidence lattice
+  with adversarial / duty-cycle / jitter theorems in
+  `TernaryFPGABoot.lean` without hardware or compiler changes.
 
 ## Issue Gate
-- Closes #1421 on land.
-- Branch: `wave-loop-453`.
-- Required: 576/576 non-smoke PASS, smoke gate acceptable, seals green, Lean build succeeds.
+- Closes #1420 on land.
+- Branch: `wave-loop-454`.
+- Required: 576/576 non-smoke PASS (or acceptable baseline), smoke gate
+  acceptable, seals green, Lean build succeeds. For Variant B success the
+  7 residual gen-verilog yosys smoke failures must be driven to 0.
 
 ## References
-- `docs/reports/WAVE_LOOP_452_REPORT.md`
-- `docs/reports/FPGA_LOOP_EVIDENCE_W452_2026-07-01.md`
-- `docs/reports/FPGA_LOOP_PLAN_W452_2026-07-01.md`
-- `docs/reports/FPGA_LOOP_COOPERATION_W453_2026-07-01.md`
+- `docs/reports/WAVE_LOOP_453_REPORT.md`
+- `docs/reports/FPGA_LOOP_EVIDENCE_W453_2026-07-01.md`
+- `docs/reports/FPGA_LOOP_COOPERATION_W454_2026-07-01.md`

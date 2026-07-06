@@ -2937,6 +2937,29 @@ impl XadcContext {
     }
 }
 
+/// Strict schema for the smoke-gate JSON report. Every top-level key emitted by
+/// `tri fpga smoke-gate --json` is enumerated here; unknown top-level fields are
+/// rejected during both generation and consumption. This prevents silent schema
+/// drift between the CLI generator and the suite consumer.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct SmokeGateReport {
+    schema_version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bit_config: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dry_run_sweep: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    verify_lean: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    theorem_matrix: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    validate_lean_standalone: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    yosys_synthesis: Option<serde_json::Value>,
+    passed: bool,
+}
+
 /// Remove trailing commas that appear immediately before a closing brace or
 /// bracket. openFPGALoader's `--read-xadc` output is JSON-like but includes
 /// trailing commas that `serde_json` rejects; normalizing makes it parseable.
@@ -6846,6 +6869,11 @@ fn smoke_gate(
     report["passed"] = serde_json::Value::Bool(passed);
 
     if let Some(path) = json {
+        // Schema guard: reject unknown top-level fields before persisting. This
+        // catches generator-side schema drift immediately instead of letting it
+        // propagate to suite consumers.
+        serde_json::from_value::<SmokeGateReport>(report.clone())
+            .with_context(|| "smoke-gate report violates schema")?;
         std::fs::write(
             path,
             serde_json::to_string_pretty(&report)
@@ -11181,6 +11209,53 @@ mod tests {
             &report,
             &fixture_dir,
             "fast_skipped_standalone_snapshot",
+        );
+    }
+
+    /// Schema regression: a canonical smoke-gate report with all documented
+    /// top-level keys (including null phases) deserializes into the strict
+    /// `SmokeGateReport` schema.
+    #[test]
+    fn test_smoke_gate_report_schema_accepts_canonical() {
+        let report = serde_json::json!({
+            "schema_version": "1.0",
+            "bit_config": { "status": "ok" },
+            "dry_run_sweep": null,
+            "verify_lean": null,
+            "theorem_matrix": null,
+            "validate_lean_standalone": null,
+            "yosys_synthesis": { "status": "skipped", "reason": "yosys not on PATH" },
+            "passed": false,
+        });
+        let parsed: SmokeGateReport = serde_json::from_value(report)
+            .expect("canonical smoke-gate report should match schema");
+        assert_eq!(parsed.schema_version, "1.0");
+        assert!(!parsed.passed);
+        assert!(parsed.bit_config.is_some());
+        assert!(parsed.dry_run_sweep.is_none());
+    }
+
+    /// Schema regression: an unknown top-level field in the smoke-gate report is
+    /// rejected by `SmokeGateReport` before it can reach suite consumers.
+    #[test]
+    fn test_smoke_gate_report_schema_rejects_unknown_field() {
+        let report = serde_json::json!({
+            "schema_version": "1.0",
+            "bit_config": null,
+            "dry_run_sweep": null,
+            "verify_lean": null,
+            "theorem_matrix": null,
+            "validate_lean_standalone": null,
+            "yosys_synthesis": null,
+            "passed": false,
+            "unknown_future_field": 42,
+        });
+        let err = serde_json::from_value::<SmokeGateReport>(report)
+            .expect_err("unknown top-level field should be rejected");
+        assert!(
+            err.to_string().contains("unknown field"),
+            "error should mention unknown field: {}",
+            err
         );
     }
 

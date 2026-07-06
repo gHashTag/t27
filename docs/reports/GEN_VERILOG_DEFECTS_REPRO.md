@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-452`  
-**Last updated:** 2026-07-01 (Wave Loop 452)  
+**Branch:** `wave-loop-453`  
+**Last updated:** 2026-07-01 (Wave Loop 453)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -101,6 +101,21 @@ adversarial envelope theorem and VCCAUX independence lemmas, hardens the
 bitstream and `--fast` skipped-standalone smoke-gate shapes. The 7 residual yosys
 smoke failures remain the documented baseline; Variant C (master-merge) is
 offered as a cooperation option for Wave Loop 452 but is not executed in W451.
+
+**W452 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W452
+continues the envelope lattice with the cold/high-voltage boundary-corner theorem,
+adds an adversarial VCCINT witness and an OSCFSEL range-gate theorem, hardens CI
+metrics around passed/skipped/failed smoke-gate classification, and protects the
+all-ok smoke-gate report shape with a committed snapshot. The 7 residual yosys
+smoke failures remain the documented baseline; Variant C (master-merge) is
+offered as a cooperation option for Wave Loop 453 but is not executed in W452.
+
+**W453 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W453
+closes the four-corner operating rectangle in `TernaryFPGABoot.lean` and hardens
+the smoke-gate JSON report schema with a strict `deny_unknown_fields` contract on
+both the CLI generator and the suite consumer. The 7 residual yosys smoke failures
+remain the documented baseline; Variant C (master-merge) is offered as a
+cooperation option for Wave Loop 454 but is not executed in W453.
 
 ---
 

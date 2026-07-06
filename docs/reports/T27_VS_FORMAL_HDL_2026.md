@@ -344,6 +344,29 @@ fresh July 2026 Lean-native HDL signal, CIRCT `firtool-1.152.0` (2026-07-04) is
 still the latest public release, and no ternary-FPGA project besides t27 combines
 {-1,0,+1} compute with a Lean-native proof pipeline.
 
+**W453 closes the four-corner operating rectangle and hardens the smoke-gate
+JSON report schema.** `proofs/lean4/Trinity/TernaryFPGABoot.lean` adds the two
+remaining envelope corners (`BOUNDARY_HOT_HIGHV_W453_OPERATING_POINT` at +85 °C,
+1100 mV and `BOUNDARY_COLD_LOWV_W453_OPERATING_POINT` at -40 °C, 900 mV), the
+`EnvelopeCorner` enumerated type, `envelope_corner_operating_point`, and the
+single quantified rectangle theorem
+`all_envelope_corners_w453_all_corners_transaction_ok`: for every enumerated
+corner, every OSCFSEL 0..7, every `ff`/`tt`/`ss` process corner, and any bit
+count, the ideal raw-ns capture produces a flash-spec-compliant SPI read
+transaction. The VCCAUX-independence lemmas from W451 let all four corners keep
+VCCAUX at the nominal 1800 mV while the proof remains valid across the full
+1500–2050 mV range. On the Rust side, both `cli/tri/src/fpga.rs` and
+`bootstrap/src/suite.rs` now define a strict `SmokeGateReport` schema with
+`#[serde(deny_unknown_fields)]`; the CLI validates the report before writing it,
+and the suite consumer rejects unknown top-level fields before ingesting metrics.
+New unit tests guard both sides of the schema contract. The physical bench and
+the master-merge debt remain blocked, so the **7 residual gen-verilog yosys smoke
+failures** are still the documented baseline. No new public competitor signals
+appeared between the W452 close-out and the W453 boundary: Sparkle / Verilean
+remains the only fresh July 2026 Lean-native HDL signal, CIRCT
+`firtool-1.152.0` (2026-07-04) is still the latest public release, Clash 1.11.0
+remains a Hackage candidate, and no Lean-native ternary-FPGA competitor surfaced.
+
 ---
 
 ## Competitor matrix

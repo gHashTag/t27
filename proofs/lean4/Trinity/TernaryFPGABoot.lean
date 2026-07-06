@@ -2517,6 +2517,167 @@ theorem oscfsel_out_of_range_combined_check_false (oscfsel : Nat) (h : oscfsel >
   simp [cclk_variant_and_xadc_envelope_check, h_dec]
 
 -- ============================================================================
+-- W453 envelope rectangle closure: hot/high-voltage and cold/low-voltage corners
+-- + single quantified theorem over all four envelope corners
+-- ============================================================================
+
+/-- The four industrial-corners of the documented (temperature, VCCINT) operating
+    rectangle. W451 and W452 each covered one diagonal; W453 adds the opposite diagonal
+    and closes the rectangle in a single enumerated type. -/
+inductive EnvelopeCorner where
+  | hot_lowv  : EnvelopeCorner  -- +85 °C, 900 mV  (W451)
+  | hot_highv : EnvelopeCorner  -- +85 °C, 1100 mV (W453)
+  | cold_lowv : EnvelopeCorner  -- -40 °C, 900 mV  (W453)
+  | cold_highv : EnvelopeCorner -- -40 °C, 1100 mV (W452)
+  deriving Repr, DecidableEq
+
+/-- The W453 hot/high-voltage boundary operating point. It sits at the documented
+    industrial maximum temperature (+85 °C) and the maximum envelope VCCINT
+    (1100 mV). VCCAUX is left at the nominal 1800 mV to demonstrate independence. -/
+def BOUNDARY_HOT_HIGHV_W453_OPERATING_POINT (corner : ProcessCorner) : XadcOperatingPoint :=
+  { temp_c := (85 : Int), vccint_mv := 1100, vccaux_mv := 1800,
+    process_corner := corner }
+
+/-- The W453 cold/low-voltage boundary operating point. It sits at the documented
+    industrial minimum temperature (-40 °C) and the minimum envelope VCCINT
+    (900 mV). VCCAUX is left at the nominal 1800 mV to demonstrate independence. -/
+def BOUNDARY_COLD_LOWV_W453_OPERATING_POINT (corner : ProcessCorner) : XadcOperatingPoint :=
+  { temp_c := (-40 : Int), vccint_mv := 900, vccaux_mv := 1800,
+    process_corner := corner }
+
+/-- Map each rectangle corner to its boundary operating point. VCCAUX is left at the
+    nominal 1800 mV for every corner, reusing the W451 VCCAUX-independence lemmas. -/
+def envelope_corner_operating_point (corner : EnvelopeCorner) (process_corner : ProcessCorner) : XadcOperatingPoint :=
+  match corner with
+  | EnvelopeCorner.hot_lowv  => BOUNDARY_HOT_LOWV_W451_OPERATING_POINT process_corner
+  | EnvelopeCorner.hot_highv => BOUNDARY_HOT_HIGHV_W453_OPERATING_POINT process_corner
+  | EnvelopeCorner.cold_lowv => BOUNDARY_COLD_LOWV_W453_OPERATING_POINT process_corner
+  | EnvelopeCorner.cold_highv => BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT process_corner
+
+/-- Every W453 boundary operating point is inside the documented envelope. -/
+theorem boundary_hot_highv_w453_operating_point_within_envelope (corner : ProcessCorner) :
+  xadc_operating_point_within_envelope (BOUNDARY_HOT_HIGHV_W453_OPERATING_POINT corner) := by
+  norm_num [BOUNDARY_HOT_HIGHV_W453_OPERATING_POINT, xadc_operating_point_within_envelope,
+            PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+theorem boundary_cold_lowv_w453_operating_point_within_envelope (corner : ProcessCorner) :
+  xadc_operating_point_within_envelope (BOUNDARY_COLD_LOWV_W453_OPERATING_POINT corner) := by
+  norm_num [BOUNDARY_COLD_LOWV_W453_OPERATING_POINT, xadc_operating_point_within_envelope,
+            PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- Every documented process corner is at least as fast as ss for the W453 points. -/
+theorem boundary_hot_highv_w453_process_corner_worse_than_ss (corner : ProcessCorner) :
+  corner.worse_than ProcessCorner.ss := by
+  cases corner <;> norm_num [ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem boundary_cold_lowv_w453_process_corner_worse_than_ss (corner : ProcessCorner) :
+  corner.worse_than ProcessCorner.ss := by
+  cases corner <;> norm_num [ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+/-- Per-corner raw-ns flash-predicate theorems for the two new W453 rectangle corners. -/
+theorem boundary_hot_highv_w453_raw_ns_satisfies_flash_spec
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (corner : ProcessCorner) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (xadc_operating_point_to_pvt (BOUNDARY_HOT_HIGHV_W453_OPERATING_POINT corner)) = true := by
+  intro period_ns low_ns high_ns
+  have h_env := boundary_hot_highv_w453_operating_point_within_envelope corner
+  have h_worse := boundary_hot_highv_w453_process_corner_worse_than_ss corner
+  apply xadc_envelope_implies_raw_ns_satisfies_any_in_envelope
+    (BOUNDARY_HOT_HIGHV_W453_OPERATING_POINT corner) period_ns low_ns high_ns h_env h_worse
+  exact cclk_variant_raw_ns_worstcase_pvt_satisfies_flash_spec oscfsel h
+
+theorem boundary_cold_lowv_w453_raw_ns_satisfies_flash_spec
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (corner : ProcessCorner) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (xadc_operating_point_to_pvt (BOUNDARY_COLD_LOWV_W453_OPERATING_POINT corner)) = true := by
+  intro period_ns low_ns high_ns
+  have h_env := boundary_cold_lowv_w453_operating_point_within_envelope corner
+  have h_worse := boundary_cold_lowv_w453_process_corner_worse_than_ss corner
+  apply xadc_envelope_implies_raw_ns_satisfies_any_in_envelope
+    (BOUNDARY_COLD_LOWV_W453_OPERATING_POINT corner) period_ns low_ns high_ns h_env h_worse
+  exact cclk_variant_raw_ns_worstcase_pvt_satisfies_flash_spec oscfsel h
+
+/-- Per-corner transaction theorems for the two new W453 rectangle corners. -/
+theorem boundary_hot_highv_w453_all_corners_transaction_ok
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (corner : ProcessCorner) (bits : Nat) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits)
+    = true := by
+  intro period_ns low_ns high_ns
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok _ _ _ _
+    (xadc_operating_point_to_pvt (BOUNDARY_HOT_HIGHV_W453_OPERATING_POINT corner))
+  · norm_num [PVT_TEMP_MIN_C, xadc_operating_point_to_pvt, BOUNDARY_HOT_HIGHV_W453_OPERATING_POINT]
+  · norm_num [PVT_VCCINT_MAX_MV, xadc_operating_point_to_pvt, BOUNDARY_HOT_HIGHV_W453_OPERATING_POINT]
+  · exact boundary_hot_highv_w453_raw_ns_satisfies_flash_spec oscfsel h corner
+
+theorem boundary_cold_lowv_w453_all_corners_transaction_ok
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (corner : ProcessCorner) (bits : Nat) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits)
+    = true := by
+  intro period_ns low_ns high_ns
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok _ _ _ _
+    (xadc_operating_point_to_pvt (BOUNDARY_COLD_LOWV_W453_OPERATING_POINT corner))
+  · norm_num [PVT_TEMP_MIN_C, xadc_operating_point_to_pvt, BOUNDARY_COLD_LOWV_W453_OPERATING_POINT]
+  · norm_num [PVT_VCCINT_MAX_MV, xadc_operating_point_to_pvt, BOUNDARY_COLD_LOWV_W453_OPERATING_POINT]
+  · exact boundary_cold_lowv_w453_raw_ns_satisfies_flash_spec oscfsel h corner
+
+/-- Computable dashboard-gate counterparts for the two new W453 rectangle corners. -/
+theorem boundary_hot_highv_w453_all_oscfsel_combined_check_true (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_variant_and_xadc_envelope_check oscfsel (BOUNDARY_HOT_HIGHV_W453_OPERATING_POINT ProcessCorner.ss) = true := by
+  rw [cclk_variant_and_xadc_envelope_check_eq]
+  exact ⟨h, boundary_hot_highv_w453_operating_point_within_envelope ProcessCorner.ss⟩
+
+theorem boundary_cold_lowv_w453_all_oscfsel_combined_check_true (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_variant_and_xadc_envelope_check oscfsel (BOUNDARY_COLD_LOWV_W453_OPERATING_POINT ProcessCorner.ss) = true := by
+  rw [cclk_variant_and_xadc_envelope_check_eq]
+  exact ⟨h, boundary_cold_lowv_w453_operating_point_within_envelope ProcessCorner.ss⟩
+
+/-- Single quantified theorem closing the entire operating rectangle: for every
+    enumerated envelope corner (hot/low-v, hot/high-v, cold/low-v, cold/high-v),
+    every documented OSCFSEL selection, every documented process corner, and any
+    bit count, the ideal raw-ns capture produces a flash-spec-compliant SPI read
+    transaction. This subsumes the W451, W452, and W453 per-corner theorems in one
+    `∀` statement. -/
+theorem all_envelope_corners_w453_all_corners_transaction_ok
+  (corner : EnvelopeCorner) (oscfsel : Nat) (h : oscfsel ≤ 7) (process_corner : ProcessCorner) (bits : Nat) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits)
+    = true := by
+  intro period_ns low_ns high_ns
+  cases corner with
+  | hot_lowv  => exact boundary_hot_lowv_w451_all_corners_transaction_ok oscfsel h process_corner bits
+  | hot_highv => exact boundary_hot_highv_w453_all_corners_transaction_ok oscfsel h process_corner bits
+  | cold_lowv => exact boundary_cold_lowv_w453_all_corners_transaction_ok oscfsel h process_corner bits
+  | cold_highv => exact boundary_cold_highv_w452_all_corners_transaction_ok oscfsel h process_corner bits
+
+/-- Computable rectangle theorem: the dashboard gate holds at every enumerated
+    envelope corner for every documented OSCFSEL selection. -/
+theorem all_envelope_corners_w453_all_oscfsel_combined_check_true
+  (corner : EnvelopeCorner) (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_variant_and_xadc_envelope_check oscfsel (envelope_corner_operating_point corner ProcessCorner.ss) = true := by
+  cases corner with
+  | hot_lowv  => exact boundary_hot_lowv_w451_all_oscfsel_combined_check_true oscfsel h
+  | hot_highv => exact boundary_hot_highv_w453_all_oscfsel_combined_check_true oscfsel h
+  | cold_lowv => exact boundary_cold_lowv_w453_all_oscfsel_combined_check_true oscfsel h
+  | cold_highv => exact boundary_cold_highv_w452_all_oscfsel_combined_check_true oscfsel h
+
+-- ============================================================================
 -- Adversarial W448 envelope theorem: outside-envelope operating point
 -- ============================================================================
 

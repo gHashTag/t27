@@ -1,22 +1,24 @@
-# NOW — Wave Loop 453 next / Wave Loop 452 close-out (2026-07-01)
+# NOW — Wave Loop 454 next / Wave Loop 453 close-out (2026-07-01)
 
 **Last updated:** 2026-07-01
 
-## Wave Loop 453 — Envelope rectangle closure + smoke-gate report schema hardening (Variant B default) (Closes #1421)
+## Wave Loop 454 — Master-merge gen-verilog fix set + live-capture fallback (Variant B default) (Closes #1420)
 
-- Branch: `wave-loop-453`
-- Issue: #1421
+- Branch: `wave-loop-454`
+- Issue: #1420
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_PLAN_W452_2026-07-01.md` (carries W453 planning forward)
-- Cooperation W454: (to be written at W453 close-out)
+- Plan: `docs/reports/FPGA_LOOP_PLAN_W453_2026-07-01.md` (carries W454 planning forward)
+- Cooperation W455: (to be written at W454 close-out)
 
 ### Not started
 
-- Select Variant A if bench unblocks (DLC10 cable + P12/relay), otherwise Variant B.
-- Create issue #1421 and branch `wave-loop-453` from the W452 land commit.
-- Close the four-corner operating-rectangle in `TernaryFPGABoot.lean` (hot/low-v W451, cold/high-v W452, plus hot/high-v and cold/low-v W453 corners) in a single quantified `∀` theorem.
-- Add a smoke-gate JSON report schema regression test (field presence / `deny_unknown_fields` style) so the all-ok snapshot stays trustworthy.
-- Evaluate Variant C master-merge of remaining safe gen-verilog fixes (#1245) only if risk ≤ low.
+- Create issue #1420 and branch `wave-loop-454` from the W453 land commit.
+- Variant B default: master-merge the remaining safe `gen-verilog` fixes from
+  `master` (commit `701d79b3b`) to clear the 7 residual yosys smoke failures (#1245).
+- Variant A if bench unblocks (DLC10 cable + P12/relay): live-capture the four-
+  corner rectangle and mint an `XADC_LIVE_W454_OPERATING_POINT` theorem.
+- Variant C fallback: adversarial envelope / duty-cycle / jitter theorems in
+  `TernaryFPGABoot.lean` without hardware or compiler merge.
 
 ---
 
@@ -99,6 +101,85 @@
     `envelope_check: "ok"`, `fixtures` present, `schema_version: "1.0"`,
     `passed: true`, `acceptable: true`.
 - `./scripts/tri test --fast --json /tmp/t27_w452_fast_suite.json`: **ACCEPTABLE**.
+  - Same 576/576 non-smoke PASS and same 7 baseline gen-verilog failures.
+  - FPGA board-less smoke gate: **PASS**, same 24-variant matrix and
+    `passed: true` as the default run.
+  - Phase 3c-standalone: **skipped** (`--fast` mode);
+    `validate_lean_standalone_elapsed_ms` is `null`.
+  - `acceptable: true`.
+
+---
+
+## Wave Loop 453 — Close the four-corner PVT operating rectangle in Lean + smoke-gate JSON schema hardening (Variant B default) (Closes #1421)
+
+- Branch: `wave-loop-453`
+- Issue: #1421
+- PR: (to open after this close-out)
+- Report: `docs/reports/WAVE_LOOP_453_REPORT.md`
+- Evidence W453: `docs/reports/FPGA_LOOP_EVIDENCE_W453_2026-07-01.md`
+- Cooperation W454: `docs/reports/FPGA_LOOP_COOPERATION_W454_2026-07-01.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `EnvelopeCorner` inductive (`hot_lowv`, `hot_highv`, `cold_lowv`, `cold_highv`).
+  - Added direct record definitions `BOUNDARY_HOT_HIGHV_W453_OPERATING_POINT`
+    (85 °C, 1100 mV VCCINT, 1800 mV VCCAUX) and
+    `BOUNDARY_COLD_LOWV_W453_OPERATING_POINT` (-40 °C, 900 mV VCCINT, 1800 mV VCCAUX)
+    covering all `ff`/`tt`/`ss` corners.
+  - Added `envelope_corner_operating_point` mapping each corner to its
+    `XadcOperatingPoint`.
+  - Minted `all_envelope_corners_w453_all_corners_transaction_ok`: a single
+    quantified theorem proving that every envelope corner, every process corner,
+    and every OSCFSEL 0..7 produces a flash-spec-compliant SPI boot transaction.
+
+- `cli/tri/src/fpga.rs`
+  - Added strict `SmokeGateReport` schema struct with `#[serde(deny_unknown_fields)]`
+    guarding every emitted smoke-gate JSON report.
+  - Added generator-side validation before write and two unit tests:
+    acceptance of a canonical report and rejection of an unknown field.
+
+- `bootstrap/src/suite.rs`
+  - Added the same `SmokeGateReport` schema on the consumer side.
+  - Updated `parse_smoke_gate_report` to validate schema before ingesting the report
+    into the suite summary.
+  - Added `test_parse_smoke_gate_report_deny_unknown_fields` and hardened the
+    legacy tolerance test to include the mandatory `schema_version` field.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W453 boundary section describing the four-corner rectangle theorem and
+    the smoke-gate schema guard; no new competitor signals.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Updated branch header to `wave-loop-453` and added W452/W453 triage decisions;
+    7 residual yosys smoke failures remain the documented baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_453_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W453_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W454_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — not performed this wave.
+- Master-merge to clear #1245 — explicitly deferred to Wave Loop 454 (Variant B default).
+
+### Verification
+
+- `cd proofs/lean4 && lake build Trinity.TernaryFPGABoot`: **success**
+  (2967 jobs, all-corners theorem builds).
+- `cargo test -p tri --bin tri fpga::`: **PASS** (new schema acceptance/rejection tests).
+- `cargo test -p t27c --bin t27c suite::tests`: **PASS** (new schema-hardening tests).
+- `./scripts/tri test --json /tmp/t27_w453_full_suite.json`: **ACCEPTABLE**.
+  - 576/576 non-smoke PASS; 7 baseline gen-verilog failures remain unchanged.
+  - FPGA board-less smoke gate: **PASS**, theorem matrix 24 variants,
+    `envelope_check: "ok"`, `fixtures` present, `schema_version: "1.0"`,
+    `passed: true`, `acceptable: true`.
+- `./scripts/tri test --fast --json /tmp/t27_w453_fast_suite.json`: **ACCEPTABLE**.
   - Same 576/576 non-smoke PASS and same 7 baseline gen-verilog failures.
   - FPGA board-less smoke gate: **PASS**, same 24-variant matrix and
     `passed: true` as the default run.

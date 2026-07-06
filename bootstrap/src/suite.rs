@@ -489,16 +489,43 @@ fn run_fpga_smoke_gate(
     parse_smoke_gate_report(&report_path)
 }
 
+/// Strict schema for the smoke-gate JSON report consumed by the comprehensive
+/// suite. Every top-level key emitted by `tri fpga smoke-gate --json` is
+/// enumerated here; unknown top-level fields are rejected so schema drift is
+/// caught before it corrupts suite metrics.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct SmokeGateReport {
+    schema_version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bit_config: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dry_run_sweep: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    verify_lean: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    theorem_matrix: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    validate_lean_standalone: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    yosys_synthesis: Option<serde_json::Value>,
+    passed: bool,
+}
+
 fn parse_smoke_gate_report(report_path: &Path) -> anyhow::Result<FpgaSmokeResult> {
-    let report: serde_json::Value = match fs::read_to_string(report_path) {
-        Ok(text) => serde_json::from_str(&text)
-            .with_context(|| format!("parsing smoke-gate report {}", report_path.display()))?,
+    let text = match fs::read_to_string(report_path) {
+        Ok(t) => t,
         Err(e) => anyhow::bail!(
             "smoke-gate report missing: {}: {}",
             report_path.display(),
             e
         ),
     };
+    // Schema guard: reject unknown top-level fields before consuming the report.
+    let _: SmokeGateReport = serde_json::from_str(&text)
+        .with_context(|| format!("smoke-gate report schema violation in {}", report_path.display()))?;
+    let report: serde_json::Value = serde_json::from_str(&text)
+        .with_context(|| format!("parsing smoke-gate report {}", report_path.display()))?;
 
     let phase_status = |key: &str| {
         report
@@ -1514,14 +1541,16 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
         let report_path = tmp.join("smoke_gate_report.json");
+        // Phase blocks are optional (represented as null or omitted), but the
+        // top-level schema_version field is now mandatory.
         std::fs::write(
             &report_path,
-            r#"{"bit_config":{"status":"ok"},"dry_run_sweep":{"status":"ok"},"verify_lean":{"status":"ok"},"yosys_synthesis":{"status":"ok"},"passed":true}"#,
+            r#"{"schema_version":"1.0","bit_config":{"status":"ok"},"dry_run_sweep":{"status":"ok"},"verify_lean":{"status":"ok"},"yosys_synthesis":{"status":"ok"},"passed":true}"#,
         )
         .unwrap();
         let result = parse_smoke_gate_report(&report_path).expect("legacy report should parse");
         assert!(result.passed);
-        assert!(result.schema_version.is_none());
+        assert_eq!(result.schema_version.as_deref(), Some("1.0"));
         assert!(result.theorem_matrix_status.is_none());
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -1613,6 +1642,28 @@ mod tests {
         assert_eq!(result.validate_lean_standalone_status, None);
         assert_eq!(result.validate_lean_standalone_elapsed_ms, None);
         assert_eq!(result.theorem_matrix_elapsed_ms, Some(42));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_parse_smoke_gate_report_deny_unknown_fields() {
+        let tmp = std::env::temp_dir()
+            .join(format!("t27_suite_smoke_schema_unknown_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        let report_path = tmp.join("smoke_gate_report.json");
+        std::fs::write(
+            &report_path,
+            r#"{"schema_version":"1.0","bit_config":null,"dry_run_sweep":null,"verify_lean":null,"theorem_matrix":null,"validate_lean_standalone":null,"yosys_synthesis":null,"passed":false,"unknown_future_field":42}"#,
+        )
+        .unwrap();
+        let err = parse_smoke_gate_report(&report_path).expect_err(
+            "unknown top-level field should be rejected");
+        assert!(
+            err.to_string().contains("schema violation"),
+            "error should mention schema violation: {}",
+            err
+        );
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }
