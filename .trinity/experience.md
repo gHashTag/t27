@@ -1,3 +1,39 @@
+## 2026-07-01 — Wave Loop 454 (FPGA boot-evidence: high-VCCINT adversarial witness, duty-cycle asymmetry, bounded jitter, W454 close-out / W455 setup)
+
+### What worked
+- Choosing **Variant C** (adversarial/robustness theorems) kept W454 shippable while the physical bench remains blocked and the master-merge fix set was found insufficient.
+- Investigating the actual failure modes of the 7 residual gen-verilog yosys smoke failures before defaulting to Variant B prevented a risky, insufficient merge. The master commit `701d79b3b` fixes narrow pre-existing issues but not the current tuple/array lowering gaps.
+- Adding the high-VCCINT adversarial witness `OUTSIDE_VCCINT_HIGH_W454_OPERATING_POINT` closes the voltage dimension of the envelope characterization alongside the W448 temperature witness and W452 low-voltage witness.
+- Proving `cclk_oscfsel_7_duty_asymmetry_w454` and `cclk_ideal_split_robust_to_1ns_jitter_w454` at the fastest documented CCLK (~33.3 MHz, 30 ns period) gives a concrete, falsifiable robustness budget.
+- Adding Rust computable-gate counterparts (`cclk_variant_and_xadc_envelope_check` helper + 5 unit tests) in `cli/tri/src/fpga.rs` keeps the formal claims tied to executable checks.
+- Refreshing `docs/reports/T27_VS_FORMAL_HDL_2026.md` and `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md` documents the master-merge rejection honestly and updates the competitor boundary.
+- Creating GitHub issue #1425 and branch `wave-loop-455` before closing W454 keeps the PHI LOOP continuous.
+
+### What changed behavior
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`: added `OUTSIDE_VCCINT_HIGH_W454_OPERATING_POINT`, `outside_vccint_high_w454_operating_point_not_within_envelope`, `cclk_variant_and_xadc_envelope_check_outside_vccint_high_false`, `cclk_oscfsel_7_duty_asymmetry_w454`, `cclk_ideal_split_robust_to_1ns_jitter_w454`.
+- `cli/tri/src/fpga.rs`: added `cclk_variant_and_xadc_envelope_check` and W454 unit tests.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`: added W454 boundary paragraph.
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`: W454 triage entry documenting master-merge rejection.
+- Close-out artifacts: `docs/reports/WAVE_LOOP_454_REPORT.md`, `docs/reports/FPGA_LOOP_EVIDENCE_W454_2026-07-01.md`, `docs/reports/FPGA_LOOP_COOPERATION_W455_2026-07-01.md`.
+- Issue/branch: GitHub issue #1425, branch `wave-loop-455`; issue #1424 / branch `wave-loop-454` closed by PR #1426.
+
+### Verification
+- `lake build Trinity.TernaryFPGABoot`: PASS (2967 jobs).
+- `cargo test -p tri w454`: 5/5 pass.
+- `./scripts/tri test --json /tmp/tri_test_w454.json`: ACCEPTABLE — 576/576 non-smoke PASS, 7 baseline gen-verilog yosys smoke failures, FPGA smoke gate passed, standalone build passed.
+
+### Patterns to reuse
+- Re-audit the master-merge assumption every wave; the residual failures may have shifted away from what the upstream fix set addresses.
+- Pair every new Lean adversarial/robustness theorem with a Rust computable-gate or unit-test counterpart so the claim is exercised in CI.
+- Keep theorems falsifiable and symbolic; reuse existing envelope bridges instead of reproving arithmetic.
+- Create the next issue and branch as part of close-out, not after, so the loop has no idle gap.
+
+### Anti-patterns to avoid
+- Do not blindly merge an upstream fix set without checking whether it actually covers the current failure modes.
+- Do not let a rejected Variant B silently become a missed close-out; document the decision, pivot to Variant C, and update the defect tracker.
+
+---
+
 ## 2026-07-01 — Wave Loop 434 (FPGA boot-evidence: live XADC → PVT context theorem, synthetic CCLK proof-of-pipeline, W434 close-out / W435 setup)
 
 ### What worked
