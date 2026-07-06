@@ -2,6 +2,19 @@
 
 Last updated: 2026-07-05
 
+## Architecture — ADR-007 documents de-jure/de-facto split for generated .v in specs/ (Closes #1435)
+
+- Fact-check on HEAD 6c704801: specs/**/*.v = 61 files, gen/**/*.v = 33. Issues
+  #960 and #1205 were closed as done, but the L2 GENERATION violation artifact
+  (61 generated .v in specs/, some already duplicated in gen/, e.g. specs/fpga/uart.v
+  vs canonical gen/verilog/fpga/uart.v) is still present on master.
+- #1205 body itself says "30/61 migrated, ~30 remain" with unchecked acceptance
+  criteria yet the issue is closed -> premature-closure pattern (text claim, not HEAD).
+- This PR adds architecture/ADR-007-verilog-in-specs.md ONLY (a decision record). It
+  does NOT delete any .v file: choice A (finish migration) vs B (legalize as golden
+  fixtures with a whitelist path) is left to the owner. SSOT=83 untouched.
+- Status tag: [доказано] for the counts; [ТРЕБУЕТ ДЕЙСТВИЯ ПОЛЬЗОВАТЕЛЯ] for A vs B.
+
 ## Compiler — lexer accepts `let` as immutable-local synonym for `const` (Closes #1401)
 
 - Root cause of E0425 x2609 (93% of Rust codegen errors) and 1957 C-emitter sites:
