@@ -1840,3 +1840,7 @@
 - **Commit:** chore(trinity): record W464/W465 session log and commit count
 - **Files:** .claude/plans/wave-loop-465.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/cloud_cloud-railway-deploy.json,.trinity/seals/scratch_w465_bench_local_struct_array.json,.trinity/seals/scratch_w465_keyword_field_local_struct_array.json,.trinity/seals/scratch_w465_keyword_field_struct_array.json,.trinity/seals/scratch_w465_local_struct_array.json,.trinity/seals/scratch_w465_multi_site_struct_array_literal.json,bootstrap/src/compiler.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W466_2026-07-08.md,docs/reports/FPGA_LOOP_EVIDENCE_W465_2026-07-08.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_465_REPORT.md,specs/scratch/w465_bench_local_struct_array.t27,specs/scratch/w465_keyword_field_local_struct_array.t27,specs/scratch/w465_keyword_field_struct_array.t27,specs/scratch/w465_local_struct_array.t27
 
+## 2026-07-06T18:44:30Z — wave-loop-466
+- **Commit:** feat(gen-verilog): Wave Loop 465 — function-local/bench-local arrays of structs, keyword-safe field-memory names, multi-site struct-literal dedup, 599/599 non-smoke PASS + 79/79 yosys smoke PASS
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
