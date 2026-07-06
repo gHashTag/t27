@@ -1,0 +1,26 @@
+module w465_keyword_field_struct_array;
+
+pub struct Word {
+    reg : u16,
+    wire : u16,
+}
+
+const words : [2]Word = [2]Word{
+    Word{.reg = 1, .wire = 2},
+    Word{.reg = 3, .wire = 4},
+};
+
+pub fn sum_reg(data : [2]Word) -> u16 {
+    return data[0].reg + data[1].reg;
+}
+
+pub fn sum_wire(data : [2]Word) -> u16 {
+    return data[0].wire + data[1].wire;
+}
+
+test keyword_field_struct_array {
+    assert_eq(sum_reg(words), 4);
+    assert_eq(sum_wire(words), 6);
+}
+
+endmodule

@@ -1,0 +1,21 @@
+module w465_local_struct_array;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn sum_local() -> u16 {
+    var pts : [3]Pt = [3]Pt{
+        Pt{.x = 1, .y = 2},
+        Pt{.x = 3, .y = 4},
+        Pt{.x = 5, .y = 6},
+    };
+    return pts[0].x + pts[1].x + pts[2].x;
+}
+
+test local_struct_array {
+    assert_eq(sum_local(), 9);
+}
+
+endmodule

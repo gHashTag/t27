@@ -1,9 +1,28 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-464`  
-**Last updated:** 2026-07-08 (Wave Loop 464)  
+**Branch:** `wave-loop-465`  
+**Last updated:** 2026-07-08 (Wave Loop 465)  
 
 This document tracks the lowering defects in the `t27c gen-verilog` backend. The full fix set was originally landed on `master` (commit `701d79b3b`) and on the historical `wave-loop-383` compiler line; Wave Loop 455 ported the missing parser and backend pieces into the current `wave-loop-455` branch and cleared the 7 residual yosys smoke failures.
+
+**W465 triage decision:** three `gen-verilog` array-parameter/struct extensions
+land this wave. `bootstrap/src/compiler.rs` now lowers (1) function-local arrays
+of structs to per-element per-field registers (`{base}_{i}_{field}`) with
+struct-literal array initializers; (2) bench-local arrays of structs through
+the same hoisted per-field register path; (3) keyword-safe field-memory names
+by escaping every generated `{base}_{i}_{field}` token as a single identifier.
+The anonymous ROM cache already deduplicates identical struct-literal array
+arguments across call sites; a regression spec locks that behavior. Five scratch
+specs cover the new paths:
+`specs/scratch/w465_local_struct_array.t27`,
+`specs/scratch/w465_bench_local_struct_array.t27`,
+`specs/scratch/w465_keyword_field_local_struct_array.t27`,
+`specs/scratch/w465_keyword_field_struct_array.t27`, and
+`specs/scratch/w465_multi_site_struct_array_literal.t27`.
+`specs/cloud/railway_deploy.t27` was legitimately resealed because its
+function-local `[27]EnvVar` array now emits per-element per-field registers.
+Full suite remains green: **599/599 non-smoke PASS**, **79/79 yosys smoke PASS**,
+0 baseline failures, 0 seal mismatches, **TOTAL FAILURES: 0**.
 
 **W464 triage decision:** three `gen-verilog` array-parameter clone extensions
 land this wave. `bootstrap/src/compiler.rs` now supports (1) mixed direct/indirect

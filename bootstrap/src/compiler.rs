@@ -3955,6 +3955,10 @@ pub struct VerilogCodegen {
     // W383: names of function-local array variables in the current function.
     // Used by ExprIndex to rewrite `tmp[0]` into `tmp_0`.
     local_arrays: std::collections::HashSet<String>,
+    // W465: element type string for each function-local/bench-local array, keyed
+    // by the original declared name. Used to resolve indexed field access on
+    // local arrays whose element type is a struct.
+    local_array_elem_types: std::collections::HashMap<String, String>,
     // W458: per-function map of array-parameter name -> module-level array name.
     // Built before function emission by inspecting the single module-level call
     // site for each function that accepts a module-level array argument.
@@ -4024,6 +4028,7 @@ impl VerilogCodegen {
             let_tmp_counter: 0,
             fn_return_types: std::collections::HashMap::new(),
             local_arrays: std::collections::HashSet::new(),
+            local_array_elem_types: std::collections::HashMap::new(),
             array_param_bindings: std::collections::HashMap::new(),
             array_param_indices: std::collections::HashMap::new(),
             array_param_errors: std::collections::HashMap::new(),
@@ -4108,6 +4113,21 @@ impl VerilogCodegen {
     /// same convention used for function-local arrays).
     fn gen_verilog_local_decl_hoisted(&mut self, node: &Node) {
         if let Some((array_size, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            // W465: arrays of structs are lowered to per-element per-field regs.
+            if let Some((_, _, fields)) =
+                Self::local_array_elem_is_struct(&node.extra_type, &self.struct_fields)
+            {
+                let safe_base = self.verilog_local_name(&node.name);
+                self.local_arrays.insert(safe_base.clone());
+                self.local_array_elem_types
+                    .insert(node.name.clone(), elem_type);
+                self.gen_verilog_local_struct_array_decl(
+                    &safe_base,
+                    &fields,
+                    array_size,
+                );
+                return;
+            }
             let elem_width = Self::type_to_width(&elem_type);
             let elem_signed = Self::type_is_signed(&elem_type);
             let elem_signed_str = if elem_signed { "signed " } else { "" };
@@ -4153,6 +4173,19 @@ impl VerilogCodegen {
             if !node.children.is_empty()
                 && node.children[0].kind == NodeKind::ExprArrayLiteral
             {
+                // W465: struct-literal array initializer for a bench-local array.
+                if let Some((_, _, fields)) =
+                    Self::local_array_elem_is_struct(&node.extra_type, &self.struct_fields)
+                {
+                    let safe_base = self.verilog_local_name(&node.name);
+                    self.gen_verilog_local_struct_array_init(
+                        &safe_base,
+                        &fields,
+                        array_size,
+                        &node.children[0],
+                    );
+                    return;
+                }
                 let safe_base = self.verilog_local_name(&node.name);
                 for (i, elem) in node.children[0].children.iter().enumerate().take(array_size) {
                     let flat_name = format!("{}_{}", safe_base, i);
@@ -4171,6 +4204,82 @@ impl VerilogCodegen {
             self.write(&format!("{} = ", safe_name));
             self.gen_verilog_expr(&node.children[0]);
             self.write_line(";");
+        }
+    }
+
+    /// W465: true if `extra_type` is an array type whose element type is a
+    /// declared struct. Used by function-local and bench-local lowering.
+    fn local_array_elem_is_struct(
+        extra_type: &str,
+        struct_fields: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> Option<(usize, String, Vec<(String, String)>)> {
+        let (size, elem_type) = Self::parse_array_type(extra_type)?;
+        let fields = struct_fields.get(&elem_type).cloned()?;
+        Some((size, elem_type, fields))
+    }
+
+    /// W465: emit per-element per-field register declarations for a local array
+    /// whose element type is a struct.
+    fn gen_verilog_local_struct_array_decl(
+        &mut self,
+        base_name: &str,
+        fields: &[(String, String)],
+        array_size: usize,
+    ) {
+        for i in 0..array_size {
+            for (fname, ftype) in fields {
+                let field_width = Self::type_to_width(ftype);
+                let field_signed = Self::type_is_signed(ftype);
+                let field_signed_str = if field_signed { "signed " } else { "" };
+                let field_range = Self::range_decl(field_width);
+                let field_range_str = if field_range.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", field_range)
+                };
+                let flat_name = format!("{}_{}_{}", base_name, i, fname);
+                let safe_name = Self::verilog_safe_identifier(&flat_name);
+                self.write_indent();
+                self.write_line(&format!(
+                    "reg {}{} {};",
+                    field_signed_str, field_range_str, safe_name
+                ));
+            }
+        }
+    }
+
+    /// W465: emit per-element per-field scalar assignments from a struct-literal
+    /// array initializer for a local array of structs.
+    fn gen_verilog_local_struct_array_init(
+        &mut self,
+        base_name: &str,
+        fields: &[(String, String)],
+        array_size: usize,
+        lit: &Node,
+    ) {
+        for (i, elem) in lit.children.iter().enumerate().take(array_size) {
+            if elem.kind != NodeKind::ExprStructLit {
+                continue;
+            }
+            let mut field_values: std::collections::HashMap<String, &Node> =
+                std::collections::HashMap::new();
+            for field in &elem.children {
+                if field.kind == NodeKind::ExprFieldAccess && !field.name.is_empty() {
+                    if let Some(val) = field.children.first() {
+                        field_values.insert(field.name.clone(), val);
+                    }
+                }
+            }
+            for (fname, _ftype) in fields {
+                if let Some(val) = field_values.get(fname) {
+                    let flat_name = format!("{}_{}_{}", base_name, i, fname);
+                    let safe_name = Self::verilog_safe_identifier(&flat_name);
+                    self.write_indent();
+                    self.write(&format!("{} = ", safe_name));
+                    self.gen_verilog_expr(val);
+                    self.write_line(";");
+                }
+            }
         }
     }
 
@@ -6075,6 +6184,7 @@ impl VerilogCodegen {
                 self.current_fn_return_type.clear();
                 self.param_widths.clear();
                 self.local_arrays.clear();
+                self.local_array_elem_types.clear();
                 self.array_param_types.clear();
                 return;
             }
@@ -6197,6 +6307,7 @@ impl VerilogCodegen {
         self.current_fn_return_type.clear();
         self.param_widths.clear();
         self.local_arrays.clear();
+        self.local_array_elem_types.clear();
         self.array_param_types.clear();
     }
 
@@ -6495,11 +6606,46 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtLocal => {
-                // W383: support function-local array variables such as
-                // `var tmp : [2]u16;`. Emit per-element regs with index access when
+                // W383/W465: support function-local array variables such as
+                // `var tmp : [2]u16;` and `var pts : [3]Pt;`. Emit per-element regs
+                // (per-field regs for struct element types) with index access when
                 // the type annotation is an array type.
                 if let Some((array_size, elem_type)) = Self::parse_array_type(&node.extra_type
                 ) {
+                    let base_name = &node.name;
+                    // W465: struct element type -> per-element per-field registers.
+                    if let Some((_, _elem_type, fields)) =
+                        Self::local_array_elem_is_struct(&node.extra_type, &self.struct_fields)
+                    {
+                        self.local_arrays
+                            .insert(Self::verilog_safe_identifier(base_name));
+                        self.local_array_elem_types
+                            .insert(base_name.clone(), elem_type);
+                        self.gen_verilog_local_struct_array_decl(
+                            base_name,
+                            &fields,
+                            array_size,
+                        );
+                        if !node.children.is_empty()
+                            && node.children[0].kind == NodeKind::ExprArrayLiteral
+                        {
+                            self.gen_verilog_local_struct_array_init(
+                                base_name,
+                                &fields,
+                                array_size,
+                                &node.children[0],
+                            );
+                        } else if !node.children.is_empty() {
+                            self.write_indent();
+                            self.write(&format!(
+                                "// local struct-array initializer for {} not yet lowered",
+                                base_name
+                            ));
+                            self.gen_verilog_expr(&node.children[0]);
+                            self.write_line("");
+                        }
+                        return;
+                    }
                     let elem_width = Self::type_to_width(&elem_type);
                     let elem_signed = Self::type_is_signed(&elem_type);
                     let elem_signed_str = if elem_signed { "signed " } else { "" };
@@ -6509,7 +6655,6 @@ impl VerilogCodegen {
                     } else {
                         format!("{} ", elem_range)
                     };
-                    let base_name = &node.name;
                     self.local_arrays
                         .insert(Self::verilog_safe_identifier(base_name));
                     for i in 0..array_size {
@@ -6958,6 +7103,43 @@ impl VerilogCodegen {
                                 self.gen_verilog_expr(idx);
                                 self.write("]");
                                 emitted = true;
+                            }
+                        }
+                        // W465: if the base is a function-local or bench-local array
+                        // whose element type is a struct, emit the per-element per-field
+                        // register (`base_idx_field`). Only numeric-literal indices are
+                        // supported in this wave.
+                        if !emitted {
+                            let safe_base = self.verilog_local_name(&base_name);
+                            if self.local_arrays.contains(&safe_base) {
+                                if let Some(elem_type) =
+                                    self.local_array_elem_types.get(&base_name)
+                                {
+                                    if Self::array_element_is_struct(
+                                        Some(elem_type),
+                                        &self.struct_fields,
+                                    ) {
+                                        if let Ok(idx_val) = idx.value.parse::<usize>()
+                                        {
+                                            let flat_base = if self
+                                                .bench_local_names
+                                                .contains(&base_name)
+                                            {
+                                                &safe_base
+                                            } else {
+                                                &base_name
+                                            };
+                                            let flat_name = format!(
+                                                "{}_{}_{}",
+                                                flat_base, idx_val, node.name
+                                            );
+                                            self.write(&Self::verilog_safe_identifier(
+                                                &flat_name,
+                                            ));
+                                            emitted = true;
+                                        }
+                                    }
+                                }
                             }
                         }
                         if !emitted {

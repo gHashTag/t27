@@ -1,0 +1,20 @@
+module w465_keyword_field_local_struct_array;
+
+pub struct Word {
+    reg : u16,
+    wire : u16,
+}
+
+pub fn sum_local() -> u16 {
+    var words : [2]Word = [2]Word{
+        Word{.reg = 1, .wire = 2},
+        Word{.reg = 3, .wire = 4},
+    };
+    return words[0].reg + words[1].reg + words[0].wire + words[1].wire;
+}
+
+test keyword_field_local_struct_array {
+    assert_eq(sum_local(), 10);
+}
+
+endmodule

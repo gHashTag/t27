@@ -1,0 +1,18 @@
+module w465_bench_local_struct_array;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+bench bench_local_struct_array {
+    let pts : [3]Pt = [3]Pt{
+        Pt{.x = 1, .y = 2},
+        Pt{.x = 3, .y = 4},
+        Pt{.x = 5, .y = 6},
+    };
+    let sum : u16 = pts[0].x + pts[1].x + pts[2].x;
+    assert_eq(sum, 9);
+}
+
+endmodule

@@ -1,20 +1,69 @@
-# NOW — Wave Loop 464 close-out / Wave Loop 465 next (2026-07-08)
+# NOW — Wave Loop 465 close-out / Wave Loop 466 next (2026-07-08)
 
 **Last updated:** 2026-07-08
 
-## Wave Loop 465 — Next wave (to be selected from cooperation plan) (Closes #1443)
+## Wave Loop 466 — Next wave (to be selected from cooperation plan) (Closes #1444)
 
-- Branch: `wave-loop-465` (to create from W464 land commit)
-- Issue: #1443 (to create)
+- Branch: `wave-loop-466` (to create from W465 land commit)
+- Issue: #1444 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W465_2026-07-08.md`
-- Cooperation W466: (to be written at W465 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W466_2026-07-08.md`
+- Cooperation W467: (to be written at W466 close-out)
 
 ### Not started
 
-- Create issue #1443 and branch `wave-loop-465` from the W464 land commit.
-- Select one of the three W465 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W465_2026-07-08.md`.
+- Create issue #1444 and branch `wave-loop-466` from the W465 land commit.
+- Select one of the three W466 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W466_2026-07-08.md`.
+
+---
+
+## Wave Loop 465 — compiler-backend hardening: function-local arrays of structs + keyword-safe field-memory names + multi-site struct-literal array arguments (Variant B default) (Closes #1443)
+
+- Branch: `wave-loop-465`
+- Issue: #1443
+- PR: (to open)
+- Report: `docs/reports/WAVE_LOOP_465_REPORT.md`
+- Evidence W465: `docs/reports/FPGA_LOOP_EVIDENCE_W465_2026-07-08.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W465_2026-07-08.md`
+- Cooperation W466: `docs/reports/FPGA_LOOP_COOPERATION_W466_2026-07-08.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Added `local_array_elem_types` registry and helpers
+    (`gen_verilog_local_struct_array_decl`,
+    `gen_verilog_local_struct_array_init`,
+    `local_array_elem_is_struct`) to lower function-local and bench-local arrays
+    whose element type is a struct to per-element per-field registers
+    (`{base}_{i}_{field}`).
+  - Extended `StmtLocal` and the bench-local hoisted paths to emit per-field
+    register declarations and scalar field assignments from struct-literal array
+    initializers.
+  - Extended `ExprFieldAccess` so that `local_pts[0].x` on a function-local or
+    bench-local array of structs resolves to `local_pts_0_x` (or the prefixed
+    bench-local equivalent).
+  - Verified that generated field-memory names remain keyword-safe: struct fields
+    named `reg` / `wire` produce single-token names like `words_0_reg` that pass
+    yosys.
+  - Verified that the binding-pass anonymous ROM cache (`array_param_anon_roms`)
+    already deduplicates identical struct-literal array arguments across call
+    sites; a regression spec locks this behavior.
+
+- Regression specs:
+  - `specs/scratch/w465_local_struct_array.t27`
+  - `specs/scratch/w465_bench_local_struct_array.t27`
+  - `specs/scratch/w465_keyword_field_local_struct_array.t27`
+  - `specs/scratch/w465_keyword_field_struct_array.t27`
+  - `specs/scratch/w465_multi_site_struct_array_literal.t27`
+
+### Verification
+
+- `./scripts/tri test --fast`: **599/599 non-smoke PASS**, **79/79 yosys smoke PASS**,
+  FPGA smoke gate OK, 0 baseline failures, 0 seal mismatches, **TOTAL FAILURES: 0**.
+- `cargo test -p t27c --bin t27c`: **1524 passed, 0 failed, 2 ignored**.
 
 ---
 

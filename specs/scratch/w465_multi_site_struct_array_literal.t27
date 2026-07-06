@@ -1,0 +1,21 @@
+module w465_multi_site_struct_array_literal;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn sum_x(data : [3]Pt) -> u16 {
+    return data[0].x + data[1].x + data[2].x;
+}
+
+pub fn sum_y(data : [3]Pt) -> u16 {
+    return data[0].y + data[1].y + data[2].y;
+}
+
+test multi_site_struct_array_literal {
+    assert_eq(sum_x([3]Pt{Pt{.x = 1, .y = 2}, Pt{.x = 3, .y = 4}, Pt{.x = 5, .y = 6}}), 9);
+    assert_eq(sum_y([3]Pt{Pt{.x = 1, .y = 2}, Pt{.x = 3, .y = 4}, Pt{.x = 5, .y = 6}}), 12);
+}
+
+endmodule
