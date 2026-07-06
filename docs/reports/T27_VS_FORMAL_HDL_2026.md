@@ -815,6 +815,30 @@ parameters, warning hygiene) are deferred to Wave Loop 457.
 
 ---
 
+## W457 boundary (2026-07-01)
+
+No new public competitor signals appeared between the W456 close-out and the W457
+boundary. **Sparkle / Verilean** remains the closest structural competitor with
+~102 formal theorems (zero generic-∀ over ternary datapaths). CIRCT
+`firtool-1.152.0` (2026-07-04) is still the latest public release, and Clash
+1.11.0 remains a Hackage candidate.
+
+t27's W457 deliverable is another compiler-backend hardening step inside
+Variant B: **RAM style pragma support** for module-level arrays. A new
+`pragma ram_style = "...";` statement attaches the standard Verilog
+`(* ram_style = "..." *)` attribute to the next array declaration, giving
+Vivado/Yosys explicit control over block vs. distributed RAM inference. Two
+scratch specs, unit tests, and updated seals lock in the behavior. Full suite
+remains green:
+
+- `./scripts/tri test`: **579/579 non-smoke PASS**, **59/59 yosys smoke PASS**,
+  FPGA smoke gate OK, 0 seal mismatches, **TOTAL FAILURES: 0**.
+
+The remaining Variant B targets (module-level array parameters, warning hygiene,
+and optional ROM-style pragmas) are deferred to Wave Loop 458.
+
+---
+
 ## Sources
 
 - Sparkle / Verilean: <https://github.com/Verilean/sparkle>

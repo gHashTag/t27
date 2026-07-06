@@ -1780,3 +1780,11 @@
 - **Commit:** feat(igla): Wave Loop 456 — ROM read-only enforcement + regression spec
 - **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W457_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W456_2026-07-01.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_456_REPORT.md
 
+## 2026-07-06T11:23:37Z — wave-loop-457
+- **Commit:** docs(w456): W456 close-out report, evidence, W457 cooperation plan, NOW/current-issue refresh
+- **Files:** .trinity/current-issue.md,.trinity/seals/scratch_w457_ram_style_block.json,.trinity/seals/scratch_w457_ram_style_distributed.json,bootstrap/src/compiler.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W458_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W457_2026-07-01.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_457_REPORT.md,specs/scratch/w457_ram_style_block.t27,specs/scratch/w457_ram_style_distributed.t27
+
+## 2026-07-06T11:23:42Z — wave-loop-457
+- **Commit:** feat(igla): Wave Loop 458 setup — RAM style pragma support for module-level arrays
+- **Files:** 
+

@@ -1,0 +1,16 @@
+module w457_ram_style_distributed;
+
+pragma ram_style = "distributed";
+var mem : [4]u16 = [4]u16{0, 0, 0, 0};
+
+fn write_read(i : u32, v : u16) -> u16 {
+    mem[i] = v;
+    return mem[i];
+}
+
+test distributed_ram_write_read {
+    assert_eq(write_read(1, 0xBEEF), 0xBEEF);
+    assert_eq(write_read(2, 0xCAFE), 0xCAFE);
+}
+
+endmodule

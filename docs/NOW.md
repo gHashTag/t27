@@ -1,28 +1,101 @@
-# NOW — Wave Loop 457 next / Wave Loop 456 close-out (2026-07-01)
+# NOW — Wave Loop 458 next / Wave Loop 457 close-out (2026-07-01)
 
 **Last updated:** 2026-07-01
 
-## Wave Loop 457 — Next wave (to be selected from cooperation plan) (Closes #1428)
+## Wave Loop 458 — Next wave (to be selected from cooperation plan) (Closes #1429)
 
-- Branch: `wave-loop-457` (to create from W456 land commit)
-- Issue: #1428 (to create)
+- Branch: `wave-loop-458` (to create from W457 land commit)
+- Issue: #1429 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W457_2026-07-01.md`
-- Cooperation W458: (to be written at W457 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W458_2026-07-01.md`
+- Cooperation W459: (to be written at W458 close-out)
 
 ### Not started
 
-- Create issue #1428 and branch `wave-loop-457` from the W456 land commit.
-- Select one of the three W457 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W457_2026-07-01.md`:
-  - **Variant A** if the DLC10 cable + P12/relay are wired: live-capture CCLK sweep
-    and mint an `XADC_LIVE_W457_OPERATING_POINT` theorem.
-  - **Variant B (default)** with bench still blocked: add RAM style pragma support
-    for module-level arrays (`#[ram_style("block")]` / `#[ram_style("distributed")]`),
-    with regression specs and yosys inference checks.
-  - **Variant C fallback** if Variant B is blocked: extend the board-less Lean 4
-    boot-evidence lattice with synthesizability theorems, adversarial ±2 ns jitter
-    envelope, and compiler-correctness bridge lemmas.
+- Create issue #1429 and branch `wave-loop-458` from the W457 land commit.
+- Select one of the three W458 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W458_2026-07-01.md`.
+
+---
+
+## Wave Loop 457 — RAM style pragma support for module-level arrays (Variant B default) (Closes #1428)
+
+- Branch: `wave-loop-457`
+- Issue: #1428
+- PR: (to open after close-out)
+- Report: `docs/reports/WAVE_LOOP_457_REPORT.md`
+- Evidence W457: `docs/reports/FPGA_LOOP_EVIDENCE_W457_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W457_2026-07-01.md`
+- Cooperation W458: `docs/reports/FPGA_LOOP_COOPERATION_W458_2026-07-01.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Added `KwPragma` token and `pragma` keyword lexer mapping.
+  - Added `extra_pragma: String` to `Node`; initialized in `Default` and `new`.
+  - Added `pending_pragma` to `Parser` and `ParserCheckpoint` with save/restore.
+  - Added `parse_pragma` for `pragma name = "value";` top-level statements;
+    currently accepts `ram_style = "block"` / `ram_style = "distributed"`
+    and rejects unknown pragma names.
+  - `parse_module_body` now consumes `pragma` directives before the next
+    module-level declaration.
+  - `parse_const_decl` and `parse_var_decl` capture the pending pragma into the
+    declaration node and clear it so it is not accidentally reused.
+  - `gen_verilog_var` emits `(* {pragma} *)` before the synthesizable `reg ... [0:N]`
+    memory declaration for true array types (e.g. `[4]u16`), giving Vivado/Yosys
+    a synthesizer-controllable RAM style attribute.
+  - Added `tests_w457_ram_style` unit-test module:
+    - `ram_style_block_pragma_emitted`
+    - `ram_style_distributed_pragma_emitted`
+    - `unknown_pragma_rejected`
+
+- `specs/scratch/w457_ram_style_block.t27`
+  - New regression spec exercising `pragma ram_style = "block";` on a module-level
+    writable `[4]u16` array with write/read and loop-sum tests.
+
+- `specs/scratch/w457_ram_style_distributed.t27`
+  - New regression spec exercising `pragma ram_style = "distributed";` on a
+    module-level writable `[4]u16` array with write/read tests.
+
+- `.trinity/seals/scratch_w457_ram_style_block.json`
+- `.trinity/seals/scratch_w457_ram_style_distributed.json`
+  - Seals for the two new regression specs.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W457 competitor boundary section.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_457_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W457_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W458_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W457_OPERATING_POINT` — bench unavailable.
+- Pragmas for module-level `const`/ROM style (`rom_style`) or per-port RAM
+  attributes — deferred to a future wave.
+
+### Verification
+
+- `cargo test -p t27c --bin t27c tests_w457_ram_style`: **PASS** (3/3).
+- `t27c gen-verilog specs/scratch/w457_ram_style_block.t27` +
+  `yosys read_verilog -sv; synth -top w457_ram_style_block`: **PASS**,
+  emits `(* ram_style = "block" *)`.
+- `t27c gen-verilog specs/scratch/w457_ram_style_distributed.t27` +
+  `yosys read_verilog -sv; synth -top w457_ram_style_distributed`: **PASS**,
+  emits `(* ram_style = "distributed" *)`.
+- `./scripts/tri test --json /tmp/tri_test_w457.json`: **ALL TESTS PASSED**.
+  - Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C / Seal Verify:
+    579/579 PASS.
+  - Gen Verilog Yosys Smoke: **59 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**.
+  - FPGA Standalone Lake-Package Build: **OK**.
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `ACCEPTABLE: yes`.
 
 ---
 

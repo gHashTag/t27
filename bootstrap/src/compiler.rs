@@ -60,6 +60,7 @@ pub struct Node {
     pub extra_size: String,
     pub extra_kind: String,
     pub extra_op: String,
+    pub extra_pragma: String,
     pub extra_pub: bool,
     pub extra_mutable: bool,
     pub extra_return_type: String,
@@ -79,6 +80,7 @@ impl Default for Node {
             extra_size: String::new(),
             extra_kind: String::new(),
             extra_op: String::new(),
+            extra_pragma: String::new(),
             extra_pub: false,
             extra_mutable: false,
             extra_return_type: String::new(),
@@ -100,6 +102,7 @@ impl Node {
             extra_size: String::new(),
             extra_kind: String::new(),
             extra_op: String::new(),
+            extra_pragma: String::new(),
             extra_pub: false,
             extra_mutable: false,
             extra_return_type: String::new(),
@@ -150,6 +153,7 @@ pub enum TokenKind {
     KwBreak,
     KwContinue,
     KwIn,
+    KwPragma,
 
     // Literals
     Ident,
@@ -359,6 +363,7 @@ impl Lexer {
             "var" => TokenKind::KwVar,
             "using" => TokenKind::KwUsing,
             "use" => TokenKind::KwUse,
+            "pragma" => TokenKind::KwPragma,
             "void" => TokenKind::KwVoid,
             "true" => TokenKind::KwTrue,
             "false" => TokenKind::KwFalse,
@@ -801,6 +806,7 @@ pub struct Parser {
     lexer: Lexer,
     current: Token,
     peek: Token,
+    pending_pragma: String,
 }
 
 #[derive(Clone)]
@@ -808,6 +814,7 @@ struct ParserCheckpoint {
     lexer: Lexer,
     current: Token,
     peek: Token,
+    pending_pragma: String,
 }
 
 impl Parser {
@@ -818,6 +825,7 @@ impl Parser {
             lexer,
             current: first,
             peek: second,
+            pending_pragma: String::new(),
         }
     }
 
@@ -828,6 +836,7 @@ impl Parser {
             lexer: self.lexer.clone(),
             current: self.current.clone(),
             peek: self.peek.clone(),
+            pending_pragma: self.pending_pragma.clone(),
         }
     }
 
@@ -835,6 +844,7 @@ impl Parser {
         self.lexer = checkpoint.lexer;
         self.current = checkpoint.current;
         self.peek = checkpoint.peek;
+        self.pending_pragma = checkpoint.pending_pragma;
     }
 
     fn advance(&mut self) {
@@ -1112,6 +1122,11 @@ impl Parser {
                 continue;
             }
 
+            if self.current.kind == TokenKind::KwPragma {
+                self.parse_pragma()?;
+                continue;
+            }
+
             match self.parse_top_level_decl() {
                 Ok(decl) => {
                     module.children.push(decl);
@@ -1123,6 +1138,51 @@ impl Parser {
             }
         }
 
+        Ok(())
+    }
+
+    /// Parse `pragma name = "value";` at module top level and store it as the
+    /// pending pragma to be applied to the next module-level declaration.
+    fn parse_pragma(&mut self) -> Result<(), String> {
+        self.advance(); // consume 'pragma'
+
+        if self.current.kind != TokenKind::Ident {
+            return Err(format!(
+                "Expected identifier after 'pragma', got {:?}",
+                self.current.kind
+            ));
+        }
+        let pragma_name = self.current.lexeme.clone();
+        self.advance();
+
+        if self.current.kind != TokenKind::Equals {
+            return Err(format!(
+                "Expected '=' after pragma name, got {:?}",
+                self.current.kind
+            ));
+        }
+        self.advance();
+
+        if self.current.kind != TokenKind::String {
+            return Err(format!(
+                "Expected string literal after pragma '=', got {:?}",
+                self.current.kind
+            ));
+        }
+        let pragma_value = self.current.lexeme.clone();
+        self.advance();
+
+        // W457: only ram_style is supported for now; store the full attribute text
+        // so codegen can emit it verbatim.
+        if pragma_name == "ram_style" {
+            self.pending_pragma = format!("ram_style = \"{}\"", pragma_value);
+        } else {
+            return Err(format!("Unknown pragma '{}', expected 'ram_style'", pragma_name));
+        }
+
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
         Ok(())
     }
 
@@ -1160,6 +1220,12 @@ impl Parser {
     fn parse_const_decl(&mut self, is_pub: bool) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::ConstDecl);
         decl.extra_pub = is_pub;
+        // W457: apply any pending pragma to this declaration and clear it so it
+        // is not accidentally reused for a later declaration.
+        if !self.pending_pragma.is_empty() {
+            decl.extra_pragma = self.pending_pragma.clone();
+            self.pending_pragma.clear();
+        }
 
         self.advance(); // consume 'const'
 
@@ -1334,6 +1400,11 @@ impl Parser {
         let mut decl = Node::new(NodeKind::ConstDecl);
         decl.extra_pub = is_pub;
         decl.extra_mutable = true;
+
+        if !self.pending_pragma.is_empty() {
+            decl.extra_pragma = self.pending_pragma.clone();
+            self.pending_pragma.clear();
+        }
 
         self.advance(); // consume 'var'
 
@@ -4521,6 +4592,9 @@ impl VerilogCodegen {
             } else {
                 format!("{} ", elem_range)
             };
+            if !node.extra_pragma.is_empty() {
+                self.write_line(&format!("(* {} *)", node.extra_pragma));
+            }
             self.write_line(&format!(
                 "reg {}{} {} [0:{}];",
                 elem_signed_str, elem_range_str, safe_name, array_size - 1
@@ -24039,5 +24113,54 @@ mod tests_w456_rom_readonly {
             .iter()
             .any(|e| e.contains("cannot assign to immutable array element"));
         assert!(!rejected, "writable local arrays must remain assignable; errors: {:?}", r.errors);
+    }
+}
+
+#[cfg(test)]
+mod tests_w457_ram_style {
+    use super::Compiler;
+
+    #[test]
+    fn ram_style_block_pragma_emitted() {
+        let src = r#"module M {
+            pragma ram_style = "block";
+            var mem : [4]u16 = [4]u16{0,0,0,0};
+            pub fn f(i: u32) -> u16 { return mem[i]; }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("(* ram_style = \"block\" *)"),
+            "expected block RAM style pragma in generated Verilog:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn ram_style_distributed_pragma_emitted() {
+        let src = r#"module M {
+            pragma ram_style = "distributed";
+            var mem : [4]u16 = [4]u16{0,0,0,0};
+            pub fn f(i: u32) -> u16 { return mem[i]; }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("(* ram_style = \"distributed\" *)"),
+            "expected distributed RAM style pragma in generated Verilog:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn unknown_pragma_rejected() {
+        let src = r#"module M {
+            pragma unknown = "value";
+            var mem : [4]u16 = [4]u16{0,0,0,0};
+        }"#;
+        let r = Compiler::compile_verilog(src);
+        assert!(r.is_err(), "unknown pragma must be rejected");
+        assert!(
+            r.unwrap_err().contains("Unknown pragma"),
+            "error should mention unknown pragma"
+        );
     }
 }
