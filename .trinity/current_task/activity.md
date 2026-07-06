@@ -1816,3 +1816,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 462 — literal array argument ROMs, void bare-call task enables, bench-local integration
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-06T17:43:18Z — wave-loop-463
+- **Commit:** chore(trinity): set current issue to Wave Loop 463 #1439
+- **Files:** .claude/plans/wave-loop-463.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/scratch_w463_nested_array_param_call.json,bootstrap/src/compiler.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W464_2026-07-07.md,docs/reports/FPGA_LOOP_EVIDENCE_W463_2026-07-07.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_463_REPORT.md,specs/scratch/w463_nested_array_param_call.t27
+

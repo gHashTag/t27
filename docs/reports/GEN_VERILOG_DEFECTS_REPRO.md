@@ -1,9 +1,20 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-462`  
-**Last updated:** 2026-07-07 (Wave Loop 462)  
+**Branch:** `wave-loop-463`  
+**Last updated:** 2026-07-07 (Wave Loop 463)  
 
 This document tracks the lowering defects in the `t27c gen-verilog` backend. The full fix set was originally landed on `master` (commit `701d79b3b`) and on the historical `wave-loop-383` compiler line; Wave Loop 455 ported the missing parser and backend pieces into the current `wave-loop-455` branch and cleared the 7 residual yosys smoke failures.
+
+**W463 triage decision:** one `gen-verilog` backend extension lands this wave.
+`bootstrap/src/compiler.rs` now propagates array-parameter binding signatures
+through nested same-array calls, records array-parameter index order for every
+function with array parameters, and fixes a latent `sig_parts[*idx]` indexing bug
+in the binding pass. The W463 plan also scoped struct-literal array arguments
+and one additional safe sub-defect; those items are deferred to W464 because the
+nested-propagation refactor consumed the safe implementation budget for this
+wave. The 7 residual yosys smoke failures from the pre-W455 master-merge debt
+remain the documented baseline; they are not addressed because the safe fix set
+still requires a dedicated master-merge wave.
 
 **W462 triage decision:** three small `gen-verilog` sub-fixes land this wave.
 `bootstrap/src/compiler.rs` now lowers literal array arguments passed to array

@@ -94,6 +94,24 @@ is still the latest public release, and the ternary-FPGA ecosystem continues to
 validate the {-1, 0, +1} compute niche without pairing it with a Lean-native proof
 pipeline. The master-merge debt and physical-bench blockers remain unchanged.
 
+**W463 closes the nested array-parameter propagation gap.**
+`bootstrap/src/compiler.rs` now propagates array-parameter binding signatures
+through nested same-array calls: a helper `lookup(data)` that has no module-level
+call site but is called from `sum_pair(data)` inherits the signatures that
+`sum_pair` resolves to, and the inner call is redirected to the matching clone.
+The wave also fixes a latent `sig_parts[*idx]` indexing bug and makes the
+internal `array_param_indices` registry deterministic by switching from
+`HashSet<usize>` to `Vec<usize>`. The suite stays green: 591/591 non-smoke PASS,
+71/71 yosys smoke PASS, 0 baseline failures, 0 seal mismatches, and
+`cargo test -p t27c --bin t27c` remains fully green (1524 passed, 0 failed,
+2 ignored). No new public competitor signals surfaced between the W462 close-out
+and the W463 boundary; Sparkle's public repository still shows the stable
+cache-key fix from 2026-07-03 and the 関数型まつり2026 talk on 2026-07-11
+remains the most recent public checkpoint. CIRCT `firtool-1.152.0` (2026-07-04)
+is still the latest public release, and the ternary-FPGA ecosystem continues to
+validate the {-1, 0, +1} compute niche without pairing it with a Lean-native proof
+pipeline. The master-merge debt and physical-bench blockers remain unchanged.
+
 **W435 hardens the live-readout pipeline without clearing the master-merge debt.**
 `tri fpga read-xadc` now exports a rounded `PvtContext` JSON via `--to-pvt-context`;
 `tri fpga measured-to-lean --json` reports the source operating point; a new

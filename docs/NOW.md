@@ -1,20 +1,20 @@
-# NOW — Wave Loop 462 close-out / Wave Loop 463 next (2026-07-07)
+# NOW — Wave Loop 463 close-out / Wave Loop 464 next (2026-07-07)
 
 **Last updated:** 2026-07-07
 
-## Wave Loop 463 — Next wave (to be selected from cooperation plan) (Closes #1439)
+## Wave Loop 464 — Next wave (to be selected from cooperation plan) (Closes #1441)
 
-- Branch: `wave-loop-463` (to create from W462 land commit)
-- Issue: #1439 (to create)
+- Branch: `wave-loop-464` (to create from W463 land commit)
+- Issue: #1441 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W463_2026-07-07.md`
-- Cooperation W464: (to be written at W463 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W464_2026-07-07.md`
+- Cooperation W465: (to be written at W464 close-out)
 
 ### Not started
 
-- Create issue #1439 and branch `wave-loop-463` from the W462 land commit.
-- Select one of the three W463 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W463_2026-07-07.md`.
+- Create issue #1441 and branch `wave-loop-464` from the W463 land commit.
+- Select one of the three W464 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W464_2026-07-07.md`.
 
 ---
 
@@ -103,6 +103,83 @@
   - FPGA Board-Less Smoke Gate: **OK**
   - Gen C: 590 passed, 0 failed
   - Seal Verify: 590 passed, 0 failed
+  - Fixed Point: 0 divergences
+  - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes`
+
+---
+
+## Wave Loop 463 — compiler-backend hardening: nested array-parameter call propagation (Variant B default) (Closes #1439)
+
+- Branch: `wave-loop-463`
+- Issue: #1439
+- PR: (to open)
+- Report: `docs/reports/WAVE_LOOP_463_REPORT.md`
+- Evidence W463: `docs/reports/FPGA_LOOP_EVIDENCE_W463_2026-07-07.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W463_2026-07-07.md`
+- Cooperation W464: `docs/reports/FPGA_LOOP_COOPERATION_W464_2026-07-07.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Switched `array_param_indices` from `HashMap<String, HashSet<usize>>` to
+    `HashMap<String, Vec<usize>>` for deterministic signature ordering.
+  - Added `array_param_propagated` and `collect_inner_array_param_calls` to
+    propagate array-parameter binding signatures through nested same-array calls.
+  - Made `call_array_param_signature` substitute current-function array-parameter
+    identifiers with their bound module-level array names.
+  - Fixed the latent `sig_parts[*idx]` indexing bug by using enumeration position.
+  - Recorded `array_param_indices` unconditionally so functions with only nested
+    call sites can still be resolved.
+  - Added a fixed-point propagation loop that merges direct and propagated
+    signatures and emits the correct single binding or clone set.
+
+- `specs/scratch/w463_nested_array_param_call.t27`
+  - Regression spec where `sum_pair(data, i, j)` calls `lookup(data, idx)` and
+    `lookup` has no module-level call site.
+
+- `.trinity/seals/scratch_w463_nested_array_param_call.json`
+  - Seal for the new regression spec.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W463 competitor boundary section.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Added W463 triage section.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_463_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W463_2026-07-07.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W464_2026-07-07.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W463_OPERATING_POINT` — bench unavailable.
+- Struct-literal array arguments — deferred to W464 (Variant B default).
+- Mixed direct/indirect array-parameter call sites — deferred to W464 (Variant B default).
+- Master-merge of `gen-verilog` fix set from `master` (`701d79b3b`) — still
+  rejected as insufficient/too risky for a single wave.
+- GitHub issue #1441 and branch `wave-loop-464` — blocked on `gh` CLI
+  authentication in this environment; must be created manually.
+
+### Verification
+
+- `cargo test -p t27c --bin t27c`: **1524 passed, 0 failed, 2 ignored**.
+- `t27c gen-verilog specs/scratch/w463_nested_array_param_call.t27` +
+  `yosys read_verilog -sv -DSIMULATION`: **PASS**.
+- `./scripts/tri test --fast`: **ALL TESTS PASSED**
+  - Parse: 591 passed, 0 failed
+  - Typecheck: 591 passed, 0 failed
+  - Gen Zig: 591 passed, 0 failed
+  - Gen Rust: 591 passed, 0 failed
+  - Gen Verilog: 591 passed, 0 failed
+  - Gen Verilog Yosys Smoke: **71 passed, 0 failed**
+  - FPGA Board-Less Smoke Gate: **OK**
+  - Gen C: 591 passed, 0 failed
+  - Seal Verify: 591 passed, 0 failed
   - Fixed Point: 0 divergences
   - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes`
 

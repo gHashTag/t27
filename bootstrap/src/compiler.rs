@@ -3959,10 +3959,11 @@ pub struct VerilogCodegen {
     // Built before function emission by inspecting the single module-level call
     // site for each function that accepts a module-level array argument.
     array_param_bindings: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
-    // W458: per-function list of argument indices that are array parameters.
-    // Used at call sites to drop the bound array argument from the emitted
-    // Verilog argument list.
-    array_param_indices: std::collections::HashMap<String, std::collections::HashSet<usize>>,
+    // W458: per-function ordered list of argument indices that are array
+    // parameters. Order follows the function parameter declaration order.
+    // Used at call sites to compute deterministic binding signatures and to drop
+    // bound array arguments from emitted Verilog argument lists.
+    array_param_indices: std::collections::HashMap<String, Vec<usize>>,
     // W458: functions whose array-parameter binding could not be resolved (zero or
     // multiple/conflicting call sites). The function is skipped and an error
     // comment is emitted instead.
@@ -3977,6 +3978,20 @@ pub struct VerilogCodegen {
     // arguments. Keyed by a deterministic signature; value is the array size,
     // element type, and the ExprArrayLiteral node (for element emission).
     array_param_anon_roms: std::collections::HashMap<String, (usize, String, Node)>,
+    // W463: array-parameter signatures propagated from outer functions to inner
+    // helpers. Key: callee name g. Value: map from signature key to
+    // (sig_parts, bindings for g, g's ordered array-param indices).
+    array_param_propagated: std::collections::HashMap<
+        String,
+        std::collections::HashMap<
+            String,
+            (
+                Vec<String>,
+                std::collections::HashMap<String, String>,
+                Vec<usize>,
+            ),
+        >,
+    >,
     // W460: names of bench-local variables that have been hoisted to module scope
     // for the bench currently being emitted. Expressions inside the bench must
     // reference the prefixed hoisted name.
@@ -4007,6 +4022,7 @@ impl VerilogCodegen {
             array_param_clones: std::collections::HashMap::new(),
             array_param_clone_bindings: std::collections::HashMap::new(),
             array_param_anon_roms: std::collections::HashMap::new(),
+            array_param_propagated: std::collections::HashMap::new(),
             bench_local_names: std::collections::HashSet::new(),
             bench_local_prefix: String::new(),
             toplevel_tmp_counter: 0,
@@ -4307,6 +4323,45 @@ impl VerilogCodegen {
         }
     }
 
+    /// W463: recursively scan a function body for calls to other array-parameter
+    /// functions where the argument is one of the outer function's array
+    /// parameters. Returns a list of (call node, callee name, map of callee
+    /// array-param index -> outer param name) for each same-array call.
+    fn collect_inner_array_param_calls<'n>(
+        node: &'n Node,
+        outer_array_params: &[String],
+        all_indices: &std::collections::HashMap<String, Vec<usize>>,
+        out: &mut Vec<(&'n Node, String, std::collections::HashMap<usize, String>)>,
+    ) {
+        if node.kind == NodeKind::ExprCall && all_indices.contains_key(&node.name) {
+            let mut arg_map: std::collections::HashMap<usize, String> =
+                std::collections::HashMap::new();
+            if let Some(g_indices) = all_indices.get(&node.name) {
+                for g_idx in g_indices {
+                    if let Some(arg) = node.children.get(*g_idx) {
+                        if arg.kind == NodeKind::ExprIdentifier
+                            && !arg.name.is_empty()
+                            && outer_array_params.contains(&arg.name)
+                        {
+                            arg_map.insert(*g_idx, arg.name.clone());
+                        }
+                    }
+                }
+            }
+            if !arg_map.is_empty() {
+                out.push((node, node.name.clone(), arg_map));
+            }
+        }
+        for child in &node.children {
+            Self::collect_inner_array_param_calls(
+                child,
+                outer_array_params,
+                all_indices,
+                out,
+            );
+        }
+    }
+
     /// W461: return the array-parameter bindings active for the function
     /// currently being emitted. If the current function is a clone, bindings come
     /// from `array_param_clone_bindings`; otherwise they come from
@@ -4325,17 +4380,28 @@ impl VerilogCodegen {
         self.array_param_bindings.get(&self.current_fn_name_original)
     }
 
-    /// W461/W462: compute the binding-signature key for a call site, given the
-    /// original callee name. Returns `None` if the callee has no array
+    /// W461/W462/W463: compute the binding-signature key for a call site, given
+    /// the original callee name. Returns `None` if the callee has no array
     /// parameters or the call site is not well-formed. Array literals are
     /// lowered to anonymous ROMs; the signature is the ROM name.
+    ///
+    /// W463: when the call occurs inside a function with active array-parameter
+    /// bindings and an argument is an identifier matching one of those bound
+    /// parameters, substitute it with the bound module-level array name so inner
+    /// calls to propagated helpers resolve to the right clone.
     fn call_array_param_signature(&self, call: &Node, callee: &str) -> Option<String> {
         let indices = self.array_param_indices.get(callee)?;
+        let current_bindings = self.current_array_param_bindings();
         let mut parts = Vec::new();
         for idx in indices {
             let arg = call.children.get(*idx)?;
             if arg.kind == NodeKind::ExprIdentifier && !arg.name.is_empty() {
-                parts.push(arg.name.clone());
+                let name = if let Some(bindings) = current_bindings {
+                    bindings.get(&arg.name).cloned().unwrap_or_else(|| arg.name.clone())
+                } else {
+                    arg.name.clone()
+                };
+                parts.push(name);
             } else if arg.kind == NodeKind::ExprArrayLiteral {
                 // W462: anonymous ROM lowered by the binding pass. The
                 // signature must match the name stored there.
@@ -4485,10 +4551,8 @@ impl VerilogCodegen {
                 String,
                 std::collections::HashMap<String, String>,
             > = std::collections::HashMap::new();
-            let mut indices: std::collections::HashMap<
-                String,
-                std::collections::HashSet<usize>,
-            > = std::collections::HashMap::new();
+            let mut indices: std::collections::HashMap<String, Vec<usize>> =
+                std::collections::HashMap::new();
             let mut errors: std::collections::HashMap<String, String> =
                 std::collections::HashMap::new();
             let mut clones: std::collections::HashMap<
@@ -4511,6 +4575,11 @@ impl VerilogCodegen {
                 if array_param_indices.is_empty() {
                     continue;
                 }
+                // W463: record the array-param index order for every function that
+                // has array parameters, even if module-level call sites are missing.
+                // The function may still be resolved later through nested-call
+                // propagation.
+                indices.insert(f.name.clone(), array_param_indices.clone());
 
                 // W459: collect call sites from module-level statements and from
                 // test/invariant/bench blocks.
@@ -4636,14 +4705,11 @@ impl VerilogCodegen {
                     let (sig_parts, _) = signatures.into_values().next().unwrap();
                     let mut fn_bindings: std::collections::HashMap<String, String> =
                         std::collections::HashMap::new();
-                    for (idx, pname) in array_param_indices.iter().zip(f.params.iter().map(|(n, _)| n)) {
-                        fn_bindings.insert(pname.clone(), sig_parts[*idx].clone());
+                    for (pos, idx) in array_param_indices.iter().enumerate() {
+                        let pname = &f.params[*idx].0;
+                        fn_bindings.insert(pname.clone(), sig_parts[pos].clone());
                     }
                     bindings.insert(f.name.clone(), fn_bindings);
-                    indices.insert(
-                        f.name.clone(),
-                        array_param_indices.into_iter().collect(),
-                    );
                 } else {
                     // W461: create a clone per unique binding signature.
                     let mut fn_clones: std::collections::HashMap<String, String> =
@@ -4666,20 +4732,244 @@ impl VerilogCodegen {
                             String,
                             String,
                         > = std::collections::HashMap::new();
-                        for (idx, pname) in array_param_indices
-                            .iter()
-                            .zip(f.params.iter().map(|(n, _)| n))
-                        {
-                            clone_fn_bindings.insert(pname.clone(), sig_parts[*idx].clone());
+                        for (pos, idx) in array_param_indices.iter().enumerate() {
+                            let pname = &f.params[*idx].0;
+                            clone_fn_bindings.insert(pname.clone(), sig_parts[pos].clone());
                         }
                         fn_clones.insert(sig_key, safe_clone_name.clone());
                         clone_bindings.insert(safe_clone_name, clone_fn_bindings);
                     }
                     clones.insert(f.name.clone(), fn_clones);
-                    indices.insert(
-                        f.name.clone(),
-                        array_param_indices.into_iter().collect(),
-                    );
+                }
+            }
+
+            // W463: propagate array-parameter binding signatures through nested
+            // same-array calls. If f(arr) calls g(arr) and g has no (or only
+            // partial) module-level call sites, g inherits the signatures that f
+            // resolves to. Run to a fixed point so two-level chains
+            // (f -> g -> h) are resolved in one wave.
+            let function_map: std::collections::HashMap<String, &Node> = functions
+                .iter()
+                .map(|f| (f.name.clone(), *f))
+                .collect();
+            loop {
+                let mut changed = false;
+                let mut propagated_sigs: std::collections::HashMap<
+                    String,
+                    std::collections::HashMap<
+                        String,
+                        (
+                            Vec<String>,
+                            std::collections::HashMap<String, String>,
+                            Vec<usize>,
+                        ),
+                    >,
+                > = std::collections::HashMap::new();
+
+                for f in &functions {
+                    let f_indices = match indices.get(&f.name) {
+                        Some(v) => v.clone(),
+                        None => continue,
+                    };
+                    let f_array_params: Vec<String> = f_indices
+                        .iter()
+                        .map(|idx| f.params[*idx].0.clone())
+                        .collect();
+
+                    // Build f's resolved signatures from either a single binding
+                    // or from its clones.
+                    let mut f_sigs: Vec<(
+                        String,
+                        Vec<String>,
+                        std::collections::HashMap<String, String>,
+                    )> = Vec::new();
+                    if let Some(fn_bindings) = bindings.get(&f.name) {
+                        let sig_parts: Vec<String> = f_indices
+                            .iter()
+                            .map(|idx| fn_bindings[&f.params[*idx].0].clone())
+                            .collect();
+                        f_sigs.push((sig_parts.join("_"), sig_parts, fn_bindings.clone()));
+                    } else if let Some(fn_clones) = clones.get(&f.name) {
+                        for (sig_key, clone_name) in fn_clones {
+                            if let Some(clone_b) = clone_bindings.get(clone_name) {
+                                let sig_parts: Vec<String> = f_indices
+                                    .iter()
+                                    .map(|idx| clone_b[&f.params[*idx].0].clone())
+                                    .collect();
+                                f_sigs.push((sig_key.clone(), sig_parts, clone_b.clone()));
+                            }
+                        }
+                    } else {
+                        continue;
+                    }
+
+                    let mut inner_calls: Vec<(
+                        &Node,
+                        String,
+                        std::collections::HashMap<usize, String>,
+                    )> = Vec::new();
+                    for stmt in &f.children {
+                        Self::collect_inner_array_param_calls(
+                            stmt,
+                            &f_array_params,
+                            &indices,
+                            &mut inner_calls,
+                        );
+                    }
+
+                    for (_call_node, g_name, arg_map) in inner_calls {
+                        let g_indices = match indices.get(&g_name) {
+                            Some(v) => v.clone(),
+                            None => continue,
+                        };
+                        let g_node = match function_map.get(&g_name) {
+                            Some(n) => *n,
+                            None => continue,
+                        };
+                        let f_param_to_pos: std::collections::HashMap<String, usize> = f_indices
+                            .iter()
+                            .enumerate()
+                            .map(|(pos, idx)| (f.params[*idx].0.clone(), pos))
+                            .collect();
+                        for (_f_sig_key, f_sig_parts, _f_bindings) in &f_sigs {
+                            let mut g_sig_parts: Vec<String> = Vec::new();
+                            let mut g_bindings: std::collections::HashMap<String, String> =
+                                std::collections::HashMap::new();
+                            let mut fully_propagated = true;
+                            for g_idx in &g_indices {
+                                let g_param_name = &g_node.params[*g_idx].0;
+                                if let Some(f_param_name) = arg_map.get(g_idx) {
+                                    let f_pos = match f_param_to_pos.get(f_param_name) {
+                                        Some(p) => *p,
+                                        None => {
+                                            fully_propagated = false;
+                                            break;
+                                        }
+                                    };
+                                    let arr_name = f_sig_parts[f_pos].clone();
+                                    g_sig_parts.push(arr_name.clone());
+                                    g_bindings.insert(g_param_name.clone(), arr_name);
+                                } else {
+                                    fully_propagated = false;
+                                    break;
+                                }
+                            }
+                            if !fully_propagated {
+                                continue;
+                            }
+                            let g_sig_key = g_sig_parts.join("_");
+                            propagated_sigs
+                                .entry(g_name.clone())
+                                .or_default()
+                                .entry(g_sig_key)
+                                .or_insert((g_sig_parts, g_bindings, g_indices.clone()));
+                        }
+                    }
+                }
+
+                if propagated_sigs.is_empty() {
+                    break;
+                }
+
+                for (g_name, g_propagated) in propagated_sigs {
+                    let g_indices = match indices.get(&g_name) {
+                        Some(v) => v.clone(),
+                        None => continue,
+                    };
+                    let g_node = match function_map.get(&g_name) {
+                        Some(n) => *n,
+                        None => continue,
+                    };
+
+                    // Collect existing module-level signatures for g (if any).
+                    let mut all_sigs: std::collections::HashMap<
+                        String,
+                        (
+                            Vec<String>,
+                            std::collections::HashMap<String, String>,
+                            Vec<usize>,
+                        ),
+                    > = std::collections::HashMap::new();
+                    if let Some(g_bindings) = bindings.get(&g_name) {
+                        let sig_parts: Vec<String> = g_indices
+                            .iter()
+                            .map(|idx| g_bindings[&g_node.params[*idx].0].clone())
+                            .collect();
+                        all_sigs.insert(sig_parts.join("_"), (sig_parts, g_bindings.clone(), g_indices.clone()));
+                    } else if let Some(g_clones) = clones.get(&g_name) {
+                        for (sig_key, clone_name) in g_clones {
+                            if let Some(b) = clone_bindings.get(clone_name) {
+                                let sig_parts: Vec<String> = g_indices
+                                    .iter()
+                                    .map(|idx| b[&g_node.params[*idx].0].clone())
+                                    .collect();
+                                all_sigs.insert(sig_key.clone(), (sig_parts, b.clone(), g_indices.clone()));
+                            }
+                        }
+                    }
+
+                    for (sig_key, (sig_parts, b, _)) in g_propagated {
+                        all_sigs.entry(sig_key).or_insert((sig_parts, b, g_indices.clone()));
+                    }
+
+                    // Determine whether the merged signature set is genuinely new.
+                    let old_had_resolution =
+                        bindings.contains_key(&g_name) || clones.contains_key(&g_name);
+                    let old_sig_count = if old_had_resolution {
+                        bindings
+                            .get(&g_name)
+                            .map(|_| 1)
+                            .or_else(|| clones.get(&g_name).map(|m| m.len()))
+                            .unwrap_or(0)
+                    } else {
+                        0
+                    };
+                    let old_in_errors = errors.contains_key(&g_name);
+                    let changed_this_round = old_in_errors
+                        || !old_had_resolution
+                        || old_sig_count != all_sigs.len();
+
+                    // Remove g from the old resolution state; we'll re-resolve it
+                    // below with the merged signature set.
+                    errors.remove(&g_name);
+                    bindings.remove(&g_name);
+                    clones.remove(&g_name);
+
+                    if all_sigs.is_empty() {
+                        continue;
+                    }
+                    if changed_this_round {
+                        changed = true;
+                    }
+                    if all_sigs.len() == 1 {
+                        // Single signature: emit the original function with the
+                        // resolved binding.
+                        let (_, (sig_parts, b, _)) = all_sigs.into_iter().next().unwrap();
+                        bindings.insert(g_name.clone(), b);
+                    } else {
+                        // Multiple signatures: emit clones.
+                        let mut g_clones: std::collections::HashMap<String, String> =
+                            std::collections::HashMap::new();
+                        for (sig_key, (sig_parts, b, _)) in all_sigs {
+                            let sanitized_clone = format!(
+                                "{}_{}",
+                                Self::sanitize_identifier(&g_name),
+                                sig_parts
+                                    .iter()
+                                    .map(|s| Self::sanitize_identifier(s))
+                                    .collect::<Vec<_>>()
+                                    .join("_")
+                            );
+                            let safe_clone_name = Self::verilog_safe_identifier(&sanitized_clone);
+                            g_clones.insert(sig_key, safe_clone_name.clone());
+                            clone_bindings.insert(safe_clone_name, b);
+                        }
+                        clones.insert(g_name.clone(), g_clones);
+                    }
+                }
+
+                if !changed {
+                    break;
                 }
             }
 

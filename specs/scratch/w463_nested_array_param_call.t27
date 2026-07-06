@@ -1,0 +1,21 @@
+module w463_nested_array_param_call;
+
+pub fn lookup(data : [4]u16, idx : u32) -> u16 {
+    return data[idx];
+}
+
+pub fn sum_pair(data : [4]u16, i : u32, j : u32) -> u16 {
+    let a : u16 = lookup(data, i);
+    let b : u16 = lookup(data, j);
+    return a + b;
+}
+
+test single {
+    assert_eq(sum_pair([4]u16{10, 20, 30, 40}, 0, 1), 30);
+}
+
+test other {
+    assert_eq(sum_pair([4]u16{1, 2, 3, 4}, 2, 3), 7);
+}
+
+endmodule
