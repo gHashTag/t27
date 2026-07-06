@@ -1760,3 +1760,11 @@
 - **Commit:** docs(w454): point current-issue, NOW, and cooperation to W454 issue #1424
 - **Files:** .trinity/current-issue.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W455_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W454_2026-07-01.md,docs/reports/FPGA_LOOP_PLAN_W454_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_454_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-06T09:13:27Z — wave-loop-455
+- **Commit:** feat(igla): Wave Loop 454 — high-VCCINT adversarial witness, duty-cycle asymmetry, bounded jitter theorems + Rust counterparts; reject master-merge as insufficient; W455 handoff
+- **Files:** .trinity/experience.md
+
+## 2026-07-06T09:13:41Z — wave-loop-454
+- **Commit:** docs(experience): W454 learnings — master-merge audit, adversarial/robustness theorems, Variant C pivot
+- **Files:** .trinity/current_task/activity.md,.trinity/experience.md
+
