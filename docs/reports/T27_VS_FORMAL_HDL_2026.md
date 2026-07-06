@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 447)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 455)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -720,6 +720,76 @@ schema gaps:
 
 No public competitor matches the sealed spec→generated code→seal hash→physical
 CCLK/PVT boot-evidence loop.
+
+---
+
+## W452 boundary (2026-07-01)
+
+No new public competitor signals appeared between the W451 close-out and the W452
+boundary. Sparkle/Verilean repository last pushed 2026-07-03; PR #66 remains open;
+PR #97–#100 remain merged; the 関数型まつり2026 talk on 2026-07-11 remains the
+next checkpoint. CIRCT `firtool-1.152.0` (2026-07-04) is still the latest public
+release. Clash 1.11.0 remains a Hackage candidate.
+
+t27's W452 deliverable is formal: `BOUNDARY_COLD_HIGHV_W452_OPERATING_POINT` plus
+an adversarial low-VCCINT witness and an OSCFSEL range-gate theorem extend the
+envelope lattice. The 7 residual `gen-verilog` yosys smoke failures remain the
+documented baseline.
+
+---
+
+## W453 boundary (2026-07-01)
+
+No new public competitor signals appeared between the W452 close-out and the W453
+boundary. Sparkle/Verilean, CIRCT, and Clash are unchanged.
+
+t27's W453 deliverable closes the four-corner PVT operating rectangle in
+`TernaryFPGABoot.lean` with `all_envelope_corners_w453_all_corners_transaction_ok`
+and hardens the smoke-gate JSON schema with `#[serde(deny_unknown_fields)]` on
+both generator and consumer. The 7 residual `gen-verilog` yosys smoke failures
+remain the documented baseline.
+
+---
+
+## W454 boundary (2026-07-01)
+
+No new public competitor signals appeared between the W453 close-out and the W454
+boundary. Sparkle/Verilean remains the only fresh Lean-native HDL signal.
+
+t27's W454 deliverable extends the formal boot-evidence lattice with an
+adversarial high-VCCINT operating point, duty-cycle asymmetry theorem, and
+bounded-jitter theorem, plus matching Rust computable-gate counterparts. W454
+investigated the `master` (`701d79b3b`) merge path for the 7 residual yosys smoke
+failures and rejected it as insufficient and regression-risky, scheduling a
+dedicated compiler wave (W455) instead.
+
+---
+
+## W455 boundary (2026-07-01)
+
+No new public competitor signals appeared between the W454 close-out and the W455
+boundary. **Sparkle / Verilean** remains the closest structural competitor: the
+README still cites ~102 formal theorems for the RV32 SoC, with **zero**
+generic-∀ quantifiers over arbitrary-width ternary MAC datapaths. The
+関数型まつり2026 talk on 2026-07-11 remains the most recent public checkpoint.
+CIRCT `firtool-1.152.0` (2026-07-04) is still the latest public release, and Clash
+1.11.0 remains a Hackage candidate.
+
+t27's W455 deliverable is a **compiler-backend breakthrough**: instead of a risky
+`master` merge, W455 incrementally ported the missing `gen-verilog` parser and
+lowering for tuple return types, `let` destructuring, module-level ROM arrays,
+and function-local arrays into the current `wave-loop-455` branch. The result
+clears the 7 residual yosys smoke failures that had been the documented baseline
+since W422/W427:
+
+- `./scripts/tri test`: **576/576 non-smoke PASS**, **56/56 yosys smoke PASS**,
+  FPGA smoke gate OK, 0 seal mismatches, **TOTAL FAILURES: 0**.
+- 67 affected seal files resealed.
+- The physical bench remains blocked, but the generated-code quality gap that was
+the biggest non-hardware vulnerability in the FPGA loop is now closed.
+
+The sealed `*.t27 → gen/` pipeline with tuple/array support is unmatched by any
+public competitor.
 
 ---
 

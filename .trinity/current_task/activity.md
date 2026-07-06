@@ -1768,3 +1768,7 @@
 - **Commit:** docs(experience): W454 learnings — master-merge audit, adversarial/robustness theorems, Variant C pivot
 - **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/api_c_api_contract.json,.trinity/seals/boards_BoardMinimalXC7A100T.json,.trinity/seals/bus_bus-pubsub.json,.trinity/seals/bus_bus-schema.json,.trinity/seals/compiler_Lexing.json,.trinity/seals/config_config-load.json,.trinity/seals/config_config-migrate.json,.trinity/seals/config_config-paths.json,.trinity/seals/config_config-schema.json,.trinity/seals/enrichment_enrichment::youtube_transcript.json,.trinity/seals/fpga_FPGA_Bridge.json,.trinity/seals/git_GitDiff.json,.trinity/seals/git_GitStatus.json,.trinity/seals/isa_TernaryHashTable.json,.trinity/seals/isa_TernaryPatternMatching.json,.trinity/seals/isa_TernarySearch.json,.trinity/seals/isa_TernarySet.json
 
+## 2026-07-06T10:32:53Z — wave-loop-455
+- **Commit:** feat(igla): Wave Loop 455 — clear 7 residual gen-verilog yosys smoke failures by porting tuple/array backend
+- **Files:** docs/reports/T27_VS_FORMAL_HDL_2026.md
+
