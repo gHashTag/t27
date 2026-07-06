@@ -7840,6 +7840,29 @@ fn check_stmt(node: &Node, symbols: &mut Vec<SymbolEntry>, fns: &[FnEntry], resu
                         ));
                     }
                 }
+                // W456: assignments into an element of an immutable array (const
+                // ROM) are also illegal, even though the LHS is an ExprIndex rather
+                // than a bare ExprIdentifier.
+                if node.children[0].kind == NodeKind::ExprIndex
+                    && !node.children[0].children.is_empty()
+                    && node.children[0].children[0].kind == NodeKind::ExprIdentifier
+                {
+                    let base_name = &node.children[0].children[0].name;
+                    if let Some(sym) = symbols.iter().find(|s| s.name == *base_name) {
+                        if !sym.is_mutable {
+                            let line = if node.line > 0 {
+                                format!(":{}", node.line)
+                            } else {
+                                String::new()
+                            };
+                            result.error_count += 1;
+                            result.errors.push(format!(
+                                "error: cannot assign to immutable array element '{}[...]'{}",
+                                base_name, line
+                            ));
+                        }
+                    }
+                }
                 let target_type = infer_expr(&node.children[0], symbols, fns);
                 if node.children.len() > 1 {
                     let value_type = infer_expr(&node.children[1], symbols, fns);
@@ -23985,5 +24008,36 @@ mod tests_local_scope_920_bug2 {
         let r = Compiler::typecheck(src).expect("typecheck should parse");
         let caught = r.errors.iter().any(|e| e.contains("type mismatch"));
         assert!(caught, "cross-sign assignment between locals must be caught; errors: {:?}", r.errors);
+    }
+}
+
+#[cfg(test)]
+mod tests_w456_rom_readonly {
+    use super::Compiler;
+
+    #[test]
+    fn rom_readonly_array_element_assign_is_rejected() {
+        let src = "module M { const lut : [4]u16 = [4]u16{1,2,3,4} pub fn f() -> void { lut[0] = 0xFFFF } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let caught = r
+            .errors
+            .iter()
+            .any(|e| e.contains("cannot assign to immutable array element"));
+        assert!(
+            caught,
+            "writing to a const ROM array element must be rejected; errors: {:?}",
+            r.errors
+        );
+    }
+
+    #[test]
+    fn var_array_element_assign_still_allowed() {
+        let src = "module M { pub fn f() -> u16 { var buf : [4]u16 buf[0] = 0xA1B2 return buf[0] } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let rejected = r
+            .errors
+            .iter()
+            .any(|e| e.contains("cannot assign to immutable array element"));
+        assert!(!rejected, "writable local arrays must remain assignable; errors: {:?}", r.errors);
     }
 }

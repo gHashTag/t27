@@ -1772,3 +1772,7 @@
 - **Commit:** feat(igla): Wave Loop 455 — clear 7 residual gen-verilog yosys smoke failures by porting tuple/array backend
 - **Files:** docs/reports/T27_VS_FORMAL_HDL_2026.md
 
+## 2026-07-06T10:50:25Z — wave-loop-456
+- **Commit:** docs(reports): W452–W455 competitor boundary refresh in T27_VS_FORMAL_HDL_2026.md
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/scratch_w456_rom_readonly.json,bootstrap/src/compiler.rs,specs/scratch/w456_rom_readonly.t27
+
