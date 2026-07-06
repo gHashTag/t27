@@ -1,0 +1,43 @@
+module w466_varidx_struct_array;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn sum_varidx(pts : [3]Pt, idx : u32) -> u16 {
+    return pts[idx].x + pts[idx].y;
+}
+
+pub fn set_and_sum(pts : [3]Pt, idx : u32, vx : u16, vy : u16) -> u32 {
+    pts[idx].x = vx;
+    pts[idx].y = vy;
+    return (pts[idx].x as u32) + (pts[idx].y as u32);
+}
+
+pub fn local_set_and_sum(idx : u32, vx : u16, vy : u16) -> u32 {
+    var tmp : [3]Pt = [3]Pt{
+        Pt{.x = 1, .y = 2},
+        Pt{.x = 3, .y = 4},
+        Pt{.x = 5, .y = 6},
+    };
+    tmp[idx].x = vx;
+    tmp[idx].y = vy;
+    return (tmp[idx].x as u32) + (tmp[idx].y as u32);
+}
+
+const data : [3]Pt = [3]Pt{
+    Pt{.x = 1, .y = 2},
+    Pt{.x = 3, .y = 4},
+    Pt{.x = 5, .y = 6},
+};
+
+test varidx_struct_array {
+    assert_eq(sum_varidx(data, 0), 3);
+    assert_eq(sum_varidx(data, 1), 7);
+    assert_eq(sum_varidx(data, 2), 11);
+    assert_eq(set_and_sum(data, 1, 7, 8), 15);
+    assert_eq(local_set_and_sum(2, 9, 10), 19);
+}
+
+endmodule

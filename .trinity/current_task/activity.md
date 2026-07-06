@@ -1844,3 +1844,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 465 — function-local/bench-local arrays of structs, keyword-safe field-memory names, multi-site struct-literal dedup, 599/599 non-smoke PASS + 79/79 yosys smoke PASS
 - **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-06T19:54:38Z — wave-loop-467
+- **Commit:** docs(w466): Wave Loop 466 issue #1444 + branch wave-loop-466 created, next-wave cooperation variants set\n\nCloses #1444
+- **Files:** .claude/plans/wave-loop-466.md,.claude/plans/wave-loop-467.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/benchmarks_ternary_vs_binary.json,.trinity/seals/conformance_e2e_scenarios.json,.trinity/seals/memory_MemoryPrimitives.json,.trinity/seals/pipeline_ExperienceSave.json,.trinity/seals/queen_queen-task-analysis.json,.trinity/seals/scratch_w466_mixed_struct_array_call.json,.trinity/seals/scratch_w466_nested_struct_array.json,.trinity/seals/scratch_w466_varidx_struct_array.json,.trinity/seals/scratch_w467_keyword_field_struct_array_clone.json,.trinity/seals/scratch_w467_struct_array_element_assign.json,.trinity/seals/scratch_w467_struct_assign.json,.trinity/seals/scratch_w467_struct_field_array.json,bootstrap/src/compiler.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W467_2026-07-08.md
+

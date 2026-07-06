@@ -1,0 +1,26 @@
+module w467_keyword_field_struct_array_clone;
+
+pub struct Word {
+    reg : u16,
+    wire : u16,
+}
+
+pub fn sum_x_direct(words : [3]Word) -> u16 {
+    return (words[0].reg + words[1].reg) + words[2].reg;
+}
+
+pub fn sum_x_indirect(words : [3]Word) -> u16 {
+    return sum_x_direct(words);
+}
+
+const data : [3]Word = [3]Word{
+    Word{.reg = 1, .wire = 2},
+    Word{.reg = 3, .wire = 4},
+    Word{.reg = 5, .wire = 6},
+};
+
+test keyword_field_struct_array_clone {
+    assert_eq(sum_x_indirect(data), 9);
+}
+
+endmodule

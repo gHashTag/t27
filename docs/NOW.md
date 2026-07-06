@@ -1,20 +1,124 @@
-# NOW — Wave Loop 465 close-out / Wave Loop 466 next (2026-07-08)
+# NOW — Wave Loop 467 close-out / Wave Loop 468 next (2026-07-08)
 
 **Last updated:** 2026-07-08
 
-## Wave Loop 466 — Next wave (to be selected from cooperation plan) (Closes #1444)
+## Wave Loop 468 — Next wave (to be selected from cooperation plan) (Closes #1446)
 
-- Branch: `wave-loop-466` (to create from W465 land commit)
-- Issue: #1444 (to create)
+- Branch: `wave-loop-468` (to create from W467 land commit)
+- Issue: #1446 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W466_2026-07-08.md`
-- Cooperation W467: (to be written at W466 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W468_2026-07-08.md`
+- Cooperation W469: (to be written at W468 close-out)
 
 ### Not started
 
-- Create issue #1444 and branch `wave-loop-466` from the W465 land commit.
-- Select one of the three W466 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W466_2026-07-08.md`.
+- Create issue #1446 and branch `wave-loop-468` from the W467 land commit.
+- Select one of the three W468 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W468_2026-07-08.md`.
+
+---
+
+## Wave Loop 467 — compiler-backend hardening: whole-struct assignment by value + struct fields that are arrays + keyword-safe struct-array clone regression (Variant B default) (Closes #1445)
+
+- Branch: `wave-loop-467`
+- Issue: #1445
+- PR: (to open)
+- Report: `docs/reports/WAVE_LOOP_467_REPORT.md`
+- Evidence W467: `docs/reports/FPGA_LOOP_EVIDENCE_W467_2026-07-08.md`
+- Plan: `.claude/plans/wave-loop-467.md`
+- Cooperation W468: `docs/reports/FPGA_LOOP_COOPERATION_W468_2026-07-08.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Added `local_struct_var_types` registry to recognise function-local struct
+    variables at declaration and assignment sites.
+  - Added helpers to declare, initialise, copy, and assign struct variables by
+    expanding fields into scalar registers/memories, including recursion through
+    nested struct fields and element-by-element handling of array fields:
+    `gen_verilog_struct_field_decl`, `gen_verilog_local_struct_var_decl`,
+    `gen_verilog_scalar_assign`, `gen_verilog_struct_field_assign`,
+    `gen_verilog_local_struct_var_init`, `gen_verilog_try_struct_var_assign`,
+    `gen_verilog_try_struct_array_element_assign`.
+  - Updated `StmtLocal` to emit per-field declarations and initialization for
+    local struct variables.
+  - Updated `StmtAssign` to try whole-struct (`a = b`, `a = Pt{...}`) and
+    whole-element (`pts[idx] = ...`) decomposition before the generic scalar
+    path.
+  - Wrapped each arm of the variable-index local-struct-array write path in
+    `begin ... end` so that multiple field assignments share the same condition
+    correctly.
+
+- Regression specs:
+  - `specs/scratch/w467_struct_assign.t27`
+  - `specs/scratch/w467_struct_array_element_assign.t27`
+  - `specs/scratch/w467_struct_field_array.t27`
+  - `specs/scratch/w467_keyword_field_struct_array_clone.t27`
+
+- Resealed specs whose generated output changed legitimately:
+  - `specs/benchmarks/ternary_vs_binary.t27`
+  - `specs/conformance/e2e_scenarios.t27`
+  - `specs/memory/memory_primitives.t27`
+  - `specs/pipeline/experience_save.t27`
+  - `specs/queen/task_analysis.t27`
+
+### Verification
+
+- `./scripts/tri test --fast`: **606/606 non-smoke PASS**, **86/86 yosys smoke PASS**,
+  FPGA smoke gate OK, 0 baseline failures, 0 seal mismatches, **TOTAL FAILURES: 0**.
+- `cargo test -p t27c --bin t27c`: **1524 passed, 0 failed, 2 ignored**.
+
+---
+
+## Wave Loop 466 — compiler-backend hardening: nested struct arrays + variable-index writes to local struct arrays + mixed direct/indirect struct-literal array arguments across function boundaries (Variant B default) (Closes #1444)
+
+- Branch: `wave-loop-466`
+- Issue: #1444
+- PR: (to open)
+- Report: `docs/reports/WAVE_LOOP_466_REPORT.md`
+- Evidence W466: `docs/reports/FPGA_LOOP_EVIDENCE_W466_2026-07-08.md`
+- Plan: `.claude/plans/wave-loop-466.md`
+- Cooperation W467: `docs/reports/FPGA_LOOP_COOPERATION_W467_2026-07-08.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Added `flatten_struct_fields` helper to recursively flatten nested struct
+    fields to scalar leaf names (`inner_a`).
+  - Updated `gen_verilog_const` and `gen_verilog_anon_rom` to register every
+    module-level / anonymous-ROM array of structs in
+    `module_struct_array_fields` and emit one Verilog memory per scalar leaf field.
+  - Extended `gen_verilog_struct_rom_elem_init` with a `field_prefix` parameter
+    so nested struct array ROMs initialize `data_inner_a[0]` instead of
+    `data_a[0]`.
+  - Added `flatten_nested_array_field_access` and a dedicated `ExprFieldAccess`
+    branch to lower `arr[i].inner.a` to the correct field-indexed memory or
+    per-element per-field register.
+  - Renamed `local_array_elem_types` to `local_array_elem_info` so array size is
+    available at use sites.
+  - Added `gen_verilog_try_struct_array_assign` to lower field-wise
+    variable-index writes: `pts[idx].x = vx` becomes `data_x[idx] = vx` for
+    bound/module arrays and an if-else chain over `tmp_i_x` for local arrays.
+  - Extended the local-struct-array read path to emit a correctly parenthesised
+    priority mux for variable-index reads
+    (`((idx == 0) ? tmp_0_x : ((idx == 1) ? tmp_1_x : 0))`).
+  - Updated `test_verilog_struct_field_access_indexed` to expect the new
+    per-element flattened names.
+
+- Regression specs:
+  - `specs/scratch/w466_nested_struct_array.t27`
+  - `specs/scratch/w466_varidx_struct_array.t27`
+  - `specs/scratch/w466_mixed_struct_array_call.t27`
+
+### Verification
+
+- `./scripts/tri test --fast`: **602/602 non-smoke PASS**, **82/82 yosys smoke PASS**,
+  FPGA smoke gate OK, 0 baseline failures, 0 seal mismatches, **TOTAL FAILURES: 0**.
+- `cargo test -p t27c --bin t27c`: **1524 passed, 0 failed, 2 ignored**.
 
 ---
 

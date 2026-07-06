@@ -1,0 +1,36 @@
+module w467_struct_array_element_assign;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn set_from_literal(pts : [3]Pt, idx : u32) -> u16 {
+    pts[idx] = Pt{.x = 9, .y = 10};
+    return pts[idx].x + pts[idx].y;
+}
+
+pub fn local_set_from_literal(idx : u32) -> u16 {
+    var tmp : [3]Pt = [3]Pt{
+        Pt{.x = 1, .y = 2},
+        Pt{.x = 3, .y = 4},
+        Pt{.x = 5, .y = 6},
+    };
+    tmp[idx] = Pt{.x = 7, .y = 8};
+    return tmp[idx].x + tmp[idx].y;
+}
+
+const data : [3]Pt = [3]Pt{
+    Pt{.x = 1, .y = 2},
+    Pt{.x = 3, .y = 4},
+    Pt{.x = 5, .y = 6},
+};
+
+test struct_array_element_assign {
+    assert_eq(set_from_literal(data, 0), 19);
+    assert_eq(set_from_literal(data, 1), 19);
+    assert_eq(set_from_literal(data, 2), 19);
+    assert_eq(local_set_from_literal(2), 15);
+}
+
+endmodule

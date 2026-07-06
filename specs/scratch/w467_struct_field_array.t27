@@ -1,0 +1,24 @@
+module w467_struct_field_array;
+
+pub struct Pt {
+    coords : [3]u8,
+    tag : u8,
+}
+
+pub fn sum_coords() -> u32 {
+    var p : Pt = Pt{.coords = [3]u8{1, 2, 3}, .tag = 4};
+    return (p.coords[0] as u32) + (p.coords[1] as u32) + (p.coords[2] as u32) + (p.tag as u32);
+}
+
+pub fn set_coords(i : u32, v : u8) -> u32 {
+    var p : Pt = Pt{.coords = [3]u8{1, 2, 3}, .tag = 4};
+    p.coords[i] = v;
+    return (p.coords[0] as u32) + (p.coords[1] as u32) + (p.coords[2] as u32) + (p.tag as u32);
+}
+
+test struct_field_array {
+    assert_eq(sum_coords(), 10);
+    assert_eq(set_coords(1, 7), 15);
+}
+
+endmodule

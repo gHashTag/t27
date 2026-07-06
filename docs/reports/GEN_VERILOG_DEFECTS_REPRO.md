@@ -1,9 +1,56 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-465`  
-**Last updated:** 2026-07-08 (Wave Loop 465)  
+**Branch:** `wave-loop-467`  
+**Last updated:** 2026-07-08 (Wave Loop 467)  
 
 This document tracks the lowering defects in the `t27c gen-verilog` backend. The full fix set was originally landed on `master` (commit `701d79b3b`) and on the historical `wave-loop-383` compiler line; Wave Loop 455 ported the missing parser and backend pieces into the current `wave-loop-455` branch and cleared the 7 residual yosys smoke failures.
+
+**W467 triage decision:** four `gen-verilog` struct lowering extensions land this
+wave. `bootstrap/src/compiler.rs` now (1) decomposes whole-struct assignment by
+value into per-field scalar assignments for function-local struct variables
+(`a = b`, `a = Pt{...}`); (2) decomposes whole-element assignment into struct
+arrays (`pts[idx] = Pt{...}` or `tmp[i] = another_var`) into per-field
+assignments, with variable-index writes on local struct arrays wrapped in
+`begin ... end` so each if/else branch can carry multiple field assignments;
+(3) flattens struct fields whose type is a fixed-size array into Verilog
+memories (`Pt { coords : [3]u8 }` → `reg [7:0] p_coords [0:2]`) and supports
+read/write of those elements; (4) verifies that keyword field names (`reg`,
+`wire`) inside a struct-literal array argument that flows through the W461/W463
+clone path remain yosys-clean. Four scratch specs lock the new paths:
+`specs/scratch/w467_struct_assign.t27`,
+`specs/scratch/w467_struct_array_element_assign.t27`,
+`specs/scratch/w467_struct_field_array.t27`, and
+`specs/scratch/w467_keyword_field_struct_array_clone.t27`. Five existing specs
+were legitimately resealed because the variable-index if-else branch formatting
+changed (`begin ... end`) and because local struct variables now emit
+per-field declarations: `specs/benchmarks/ternary_vs_binary.t27`,
+`specs/conformance/e2e_scenarios.t27`, `specs/memory/memory_primitives.t27`,
+`specs/pipeline/experience_save.t27`, and `specs/queen/task_analysis.t27`.
+Full suite remains green: **606/606 non-smoke PASS**, **86/86 yosys smoke PASS**,
+0 baseline failures, 0 seal mismatches, **TOTAL FAILURES: 0**. The master-merge
+debt and physical-bench blockers remain unchanged; multi-dimensional struct
+arrays (`[M][N]Pt`), struct-return function call assignment, and RAM-style
+pragmas for local arrays remain open.
+
+**W466 triage decision:** three `gen-verilog` struct-array extensions land this
+wave. `bootstrap/src/compiler.rs` now (1) flattens nested struct arrays: a
+module-level or anonymous-ROM array whose element type is a struct of structs
+is emitted as one Verilog memory per scalar leaf field, and
+`arr[i].inner.a` resolves to `arr_inner_a[i]`; (2) lowers variable-index reads
+and writes of function-local / bench-local struct arrays — reads emit a
+priority mux over per-element per-field registers, writes emit an if-else chain;
+(3) verifies that mixed direct/indirect struct-literal array arguments continue
+to bind correctly through the W461/W463 array-parameter clone path. Three new
+scratch specs cover the paths:
+`specs/scratch/w466_nested_struct_array.t27`,
+`specs/scratch/w466_varidx_struct_array.t27`, and
+`specs/scratch/w466_mixed_struct_array_call.t27`. No stale seals required
+re-sealing beyond the three new scratch specs. Full suite remains green:
+**602/602 non-smoke PASS**, **82/82 yosys smoke PASS**, 0 baseline failures,
+0 seal mismatches, **TOTAL FAILURES: 0**. The master-merge debt and physical-bench
+blockers remain unchanged; multi-dimensional struct arrays (`[M][N]Pt`),
+whole-struct assignment by value, and RAM-style pragmas for local arrays remain
+open.
 
 **W465 triage decision:** three `gen-verilog` array-parameter/struct extensions
 land this wave. `bootstrap/src/compiler.rs` now lowers (1) function-local arrays

@@ -1,0 +1,34 @@
+module w467_struct_assign;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn copy_var() -> u32 {
+    var a : Pt = Pt{.x = 1, .y = 2};
+    var b : Pt = Pt{.x = 3, .y = 4};
+    a = b;
+    return (a.x as u32) + (a.y as u32);
+}
+
+pub fn copy_from_literal() -> u32 {
+    var a : Pt = Pt{.x = 1, .y = 2};
+    a = Pt{.x = 5, .y = 6};
+    return (a.x as u32) + (a.y as u32);
+}
+
+pub fn local_assign_into_field() -> u32 {
+    var a : Pt = Pt{.x = 0, .y = 0};
+    var b : Pt = Pt{.x = 9, .y = 10};
+    a = b;
+    return (a.x as u32) + (a.y as u32);
+}
+
+test struct_assign {
+    assert_eq(copy_var(), 7);
+    assert_eq(copy_from_literal(), 11);
+    assert_eq(local_assign_into_field(), 19);
+}
+
+endmodule

@@ -1,0 +1,29 @@
+module w466_mixed_struct_array_call;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn sum_x_indirect(data : [3]Pt) -> u16 {
+    return sum_x_direct(data);
+}
+
+pub fn sum_x_direct(data : [3]Pt) -> u16 {
+    return data[0].x + data[1].x + data[2].x;
+}
+
+const pts : [3]Pt = [3]Pt{
+    Pt{.x = 1, .y = 2},
+    Pt{.x = 3, .y = 4},
+    Pt{.x = 5, .y = 6},
+};
+
+test mixed_struct_array_call {
+    assert_eq(sum_x_direct(pts), 9);
+    assert_eq(sum_x_indirect(pts), 9);
+    assert_eq(sum_x_direct([3]Pt{Pt{.x = 1, .y = 2}, Pt{.x = 3, .y = 4}, Pt{.x = 5, .y = 6}}), 9);
+    assert_eq(sum_x_indirect([3]Pt{Pt{.x = 1, .y = 2}, Pt{.x = 3, .y = 4}, Pt{.x = 5, .y = 6}}), 9);
+}
+
+endmodule

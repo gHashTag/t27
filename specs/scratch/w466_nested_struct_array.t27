@@ -1,0 +1,26 @@
+module w466_nested_struct_array;
+
+pub struct Inner {
+    a : u8,
+    b : u8,
+}
+
+pub struct Outer {
+    inner : Inner,
+    tag : u8,
+}
+
+pub fn sum_nested(outers : [2]Outer) -> u16 {
+    return outers[0].inner.a + outers[0].inner.b + outers[0].tag + outers[1].inner.a + outers[1].inner.b + outers[1].tag;
+}
+
+const data : [2]Outer = [2]Outer{
+    Outer{.inner = Inner{.a = 1, .b = 2}, .tag = 3},
+    Outer{.inner = Inner{.a = 4, .b = 5}, .tag = 6},
+};
+
+test nested_struct_array {
+    assert_eq(sum_nested(data), 21);
+}
+
+endmodule
