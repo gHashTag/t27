@@ -1,6 +1,6 @@
 # FPGA Loop Cooperation Plan — Wave Loop 454 (2026-07-01)
 
-**Issue:** #1421 (W453) → **#1420** (W454)
+**Issue:** #1421 (W453) → **#1424** (W454)
 **Branch:** `wave-loop-453` → **`wave-loop-454`**
 **Date:** 2026-07-01
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -188,8 +188,7 @@ Candidate theorems:
 
 ## W454 issue/branch action
 
-- Create GitHub issue for Wave Loop 454 titled **“Wave Loop 454 — Master-merge
-  gen-verilog fix set + live-capture fallback (Variant B default)”**.
+- GitHub issue for Wave Loop 454: **#1424**.
 - Create branch **`wave-loop-454`** from the W453 land commit.
 - Update `docs/NOW.md` and `.trinity/current-issue.md` to reference W454.
 

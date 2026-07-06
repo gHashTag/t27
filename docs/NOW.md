@@ -2,10 +2,10 @@
 
 **Last updated:** 2026-07-01
 
-## Wave Loop 454 — Master-merge gen-verilog fix set + live-capture fallback (Variant B default) (Closes #1420)
+## Wave Loop 454 — Master-merge gen-verilog fix set + live-capture fallback (Variant B default) (Closes #1424)
 
 - Branch: `wave-loop-454`
-- Issue: #1420
+- Issue: #1424
 - PR: (to open after close-out)
 - Plan: `docs/reports/FPGA_LOOP_PLAN_W453_2026-07-01.md` (carries W454 planning forward)
 - Cooperation W455: (to be written at W454 close-out)

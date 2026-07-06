@@ -123,7 +123,7 @@ triage decisions.
 
 ## Next wave
 
-Wave Loop 454 will use issue **#1420** and branch **`wave-loop-454`**.
+Wave Loop 454 will use issue **#1424** and branch **`wave-loop-454`**.
 See `docs/reports/FPGA_LOOP_COOPERATION_W454_2026-07-01.md` for three candidate
 variants.
 

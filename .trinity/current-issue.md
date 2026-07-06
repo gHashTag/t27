@@ -1,4 +1,4 @@
-# Wave Loop 454 — Issue #1420
+# Wave Loop 454 — Issue #1424
 
 ## Goal
 Master-merge the safe gen-verilog fix set from `master` into the wave-loop branch
@@ -19,7 +19,7 @@ the merge is available.
   `TernaryFPGABoot.lean` without hardware or compiler changes.
 
 ## Issue Gate
-- Closes #1420 on land.
+- Closes #1424 on land.
 - Branch: `wave-loop-454`.
 - Required: 576/576 non-smoke PASS (or acceptable baseline), smoke gate
   acceptable, seals green, Lean build succeeds. For Variant B success the
