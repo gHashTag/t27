@@ -2678,6 +2678,68 @@ theorem all_envelope_corners_w453_all_oscfsel_combined_check_true
   | cold_highv => exact boundary_cold_highv_w452_all_oscfsel_combined_check_true oscfsel h
 
 -- ============================================================================
+-- W454 adversarial/robustness theorems: high-VCCINT boundary, duty-cycle
+-- asymmetry, and bounded timing jitter
+-- ============================================================================
+
+/-- A deliberately out-of-envelope operating point: 1200 mV VCCINT is above the
+    documented 1100 mV maximum, while temperature and VCCAUX remain nominal.
+    This witness closes the high-voltage side of the adversarial envelope
+    characterization. -/
+def OUTSIDE_VCCINT_HIGH_W454_OPERATING_POINT : XadcOperatingPoint :=
+  { temp_c := (25 : Int), vccint_mv := 1200, vccaux_mv := 1800,
+    process_corner := ProcessCorner.ss }
+
+/-- The W454 high-voltage outside-envelope witness is not inside the documented
+    operating envelope because its VCCINT exceeds `PVT_VCCINT_MAX_MV`. -/
+theorem outside_vccint_high_w454_operating_point_not_within_envelope :
+  ¬ xadc_operating_point_within_envelope OUTSIDE_VCCINT_HIGH_W454_OPERATING_POINT := by
+  simp [xadc_operating_point_within_envelope, OUTSIDE_VCCINT_HIGH_W454_OPERATING_POINT,
+        PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- Adversarial envelope theorem: for any documented OSCFSEL selection, the
+    dashboard combined-check gate returns `false` when the VCCINT operating point
+    lies above the PVT envelope. This complements the W448 temperature witness
+    and the W452 low-voltage witness, closing the voltage dimension on both
+    sides. -/
+theorem cclk_variant_and_xadc_envelope_check_outside_vccint_high_false
+  (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_variant_and_xadc_envelope_check oscfsel OUTSIDE_VCCINT_HIGH_W454_OPERATING_POINT = false := by
+  simp [cclk_variant_and_xadc_envelope_check, xadc_operating_point_within_envelope_dec,
+        OUTSIDE_VCCINT_HIGH_W454_OPERATING_POINT,
+        PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV,
+        decide_eq_true h]
+
+/-- For the fastest documented CCLK (OSCFSEL=7, ~33.3 MHz, 30 ns period), any
+    high-time between 14 ns and 16 ns inclusive keeps the PVT-aware raw-ns
+    predicate true at the worst-case operating point. This quantified theorem
+    proves the 50 % duty cycle is robust to ±1 ns asymmetry even at the most
+    aggressive supported frequency. -/
+theorem cclk_oscfsel_7_duty_asymmetry_w454
+  (high_ns : Nat) (h_high : 14 ≤ high_ns ∧ high_ns ≤ 16) :
+  let period_ns := cclk_period_ns 7
+  let low_ns := period_ns - high_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  rcases h_high with ⟨h_min, h_max⟩
+  interval_cases high_ns <;> native_decide
+
+/-- Bounded jitter theorem: at every documented OSCFSEL selection, perturbing the
+    ideal 50 % high time by at most ±1 ns preserves the worst-case PVT raw-ns
+    predicate. This is the formal counterpart to the instrument-capture jitter
+    budget used by the dashboard gate. -/
+theorem cclk_ideal_split_robust_to_1ns_jitter_w454
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (high_ns : Nat)
+  (h_jitter : high_ns = cclk_period_ns oscfsel / 2 - 1
+              ∨ high_ns = cclk_period_ns oscfsel / 2
+              ∨ high_ns = cclk_period_ns oscfsel / 2 + 1) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns - high_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  rcases h_jitter with (h | h | h) <;> rw [h] <;> interval_cases oscfsel <;> native_decide
+
+-- ============================================================================
 -- Adversarial W448 envelope theorem: outside-envelope operating point
 -- ============================================================================
 

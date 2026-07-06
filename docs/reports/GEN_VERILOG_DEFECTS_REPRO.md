@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-453`  
-**Last updated:** 2026-07-01 (Wave Loop 453)  
+**Branch:** `wave-loop-454`  
+**Last updated:** 2026-07-01 (Wave Loop 454)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -116,6 +116,22 @@ the smoke-gate JSON report schema with a strict `deny_unknown_fields` contract o
 both the CLI generator and the suite consumer. The 7 residual yosys smoke failures
 remain the documented baseline; Variant C (master-merge) is offered as a
 cooperation option for Wave Loop 454 but is not executed in W453.
+
+**W454 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W454
+investigated the master-merge Variant B proposal (`701d79b3b`) and found it
+insufficient for the 7 residual failures: the master commit fixes narrow,
+pre-existing issues (const trailing-semicolon consumption, decimal integer
+literals, early-return if-else chaining, struct-field reg naming, zero-arg
+function dummy input, named function begin blocks) but does **not** address the
+current failure modes rooted in missing backend support for tuple return types,
+`let (a, b, c)` destructuring, and module-level `const` array literal lowering.
+A blind merge would also risk regressing the wave-loop branch's own sub-fixes
+(`let` keyword alias, broader keyword escaping, local/field identifier escaping,
+cast/bitwise width correctness). W454 therefore executes Variant C, extending
+`TernaryFPGABoot.lean` with adversarial high-VCCINT, duty-cycle asymmetry, and
+bounded-jitter theorems, plus matching Rust unit tests. The 7 residual yosys
+smoke failures remain the documented baseline; a dedicated compiler wave (W455
+or later) is required for the tuple/array backend gaps.
 
 ---
 

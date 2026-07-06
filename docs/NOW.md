@@ -1,24 +1,99 @@
-# NOW — Wave Loop 454 next / Wave Loop 453 close-out (2026-07-01)
+# NOW — Wave Loop 455 next / Wave Loop 454 close-out (2026-07-01)
 
 **Last updated:** 2026-07-01
 
-## Wave Loop 454 — Master-merge gen-verilog fix set + live-capture fallback (Variant B default) (Closes #1424)
+## Wave Loop 455 — Implement missing `gen-verilog` tuple/array backend (Variant B default) (Closes #1425)
+
+- Branch: `wave-loop-455` (to create from W454 land commit)
+- Issue: #1425 (to create)
+- PR: (to open after close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W455_2026-07-01.md`
+- Cooperation W456: (to be written at W455 close-out)
+
+### Not started
+
+- Create issue #1425 and branch `wave-loop-455` from the W454 land commit.
+- Variant B default: implement missing `gen-verilog` backend support for tuple
+  return types, `let (a, b, c)` destructuring, and module-level `const` array
+  literal lowering to clear the 7 residual yosys smoke failures (#1245).
+- Variant A if bench unblocks (DLC10 cable + P12/relay): live-capture CCLK sweep
+  and mint an `XADC_LIVE_W455_OPERATING_POINT` theorem.
+- Variant C fallback: additional adversarial/robustness theorems in
+  `TernaryFPGABoot.lean` without hardware or compiler changes.
+
+---
+
+## Wave Loop 454 — High-VCCINT adversarial witness + duty-cycle / jitter robustness theorems (Variant C) (Closes #1424)
 
 - Branch: `wave-loop-454`
 - Issue: #1424
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_PLAN_W453_2026-07-01.md` (carries W454 planning forward)
-- Cooperation W455: (to be written at W454 close-out)
+- Report: `docs/reports/WAVE_LOOP_454_REPORT.md`
+- Evidence W454: `docs/reports/FPGA_LOOP_EVIDENCE_W454_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_PLAN_W454_2026-07-01.md`
+- Cooperation W455: `docs/reports/FPGA_LOOP_COOPERATION_W455_2026-07-01.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
 
-### Not started
+### What landed (Variant C — master-merge rejected, bench still blocked)
 
-- Create issue #1420 and branch `wave-loop-454` from the W453 land commit.
-- Variant B default: master-merge the remaining safe `gen-verilog` fixes from
-  `master` (commit `701d79b3b`) to clear the 7 residual yosys smoke failures (#1245).
-- Variant A if bench unblocks (DLC10 cable + P12/relay): live-capture the four-
-  corner rectangle and mint an `XADC_LIVE_W454_OPERATING_POINT` theorem.
-- Variant C fallback: adversarial envelope / duty-cycle / jitter theorems in
-  `TernaryFPGABoot.lean` without hardware or compiler merge.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `OUTSIDE_VCCINT_HIGH_W454_OPERATING_POINT` (25 °C, 1200 mV VCCINT,
+    1800 mV VCCAUX, `ss` corner) — a VCCINT above the documented 1100 mV maximum.
+  - Proved `outside_vccint_high_w454_operating_point_not_within_envelope`.
+  - Proved `cclk_variant_and_xadc_envelope_check_outside_vccint_high_false` — the
+    dashboard gate rejects high VCCINT for every documented OSCFSEL.
+  - Added `cclk_oscfsel_7_duty_asymmetry_w454` — at OSCFSEL=7 (~33.3 MHz, 30 ns
+    period), any high-time between 14 ns and 16 ns keeps the PVT-aware raw-ns
+    predicate true under the worst-case operating point.
+  - Added `cclk_ideal_split_robust_to_1ns_jitter_w454` — at every documented
+    OSCFSEL selection, the ideal 50 % high time tolerates ±1 ns of jitter while
+    remaining flash-spec compliant under the worst-case PVT context.
+
+- `cli/tri/src/fpga.rs`
+  - Added `cclk_variant_and_xadc_envelope_check(oscfsel, ctx)` helper mirroring
+    the Lean dashboard gate.
+  - Added five W454 unit tests:
+    - `test_pvt_context_high_vccint_outside_envelope_w454`
+    - `test_cclk_variant_and_xadc_envelope_check_high_vccint_false_w454`
+    - `test_cclk_variant_and_xadc_envelope_check_worst_case_true_w454`
+    - `test_raw_ns_oscfsel_7_duty_asymmetry_w454`
+    - `test_raw_ns_ideal_split_1ns_jitter_w454`
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W454 boundary section; no new public competitor signals appeared.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Updated branch header to `wave-loop-454` and documented the W454 triage
+    decision: master-merge `701d79b3b` rejected as insufficient; 7 residual
+    yosys smoke failures remain the documented baseline.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_454_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W454_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W455_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Real cold-POR `cclk-sweep --xadc` with manual power cycle — not performed this wave.
+- Master-merge of `gen-verilog` fix set from `master` (`701d79b3b`) — rejected
+  as insufficient for the 7 residual failures and as a regression risk to the
+  wave-loop branch's own sub-fixes.
+- Clearing the 7 yosys smoke failures — requires a dedicated compiler wave for
+  tuple/array lowering.
+
+### Verification
+
+- `cd proofs/lean4 && lake build Trinity.TernaryFPGABoot`: **success**
+  (2967 jobs).
+- `cargo test -p tri w454`: **PASS** (5/5 new W454 tests).
+- `./scripts/tri test --json /tmp/tri_test_w454.json`: **ACCEPTABLE**.
+  - 576/576 non-smoke PASS.
+  - Gen-verilog-yosys-smoke: 49 passed, **7 baseline failures** (#1245).
+  - FPGA board-less smoke gate: **PASS**, `passed: true`, `acceptable: true`.
+  - FPGA standalone lake-package build: **PASS**.
 
 ---
 

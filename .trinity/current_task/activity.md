@@ -1756,3 +1756,7 @@
 - **Commit:** feat(igla): Wave Loop 453 — close four-corner PVT rectangle in Lean, harden smoke-gate JSON schema, refresh competitors
 - **Files:** .trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W454_2026-07-01.md,docs/reports/WAVE_LOOP_453_REPORT.md
 
+## 2026-07-06T09:11:06Z — wave-loop-454
+- **Commit:** docs(w454): point current-issue, NOW, and cooperation to W454 issue #1424
+- **Files:** .trinity/current-issue.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W455_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W454_2026-07-01.md,docs/reports/FPGA_LOOP_PLAN_W454_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_454_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+

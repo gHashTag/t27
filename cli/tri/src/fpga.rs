@@ -2765,6 +2765,13 @@ pub(crate) struct PvtContext {
     process_corner: ProcessCorner,
 }
 
+/// Combined dashboard gate: the OSCFSEL selection is within the documented 0..7
+/// range and the PVT context is inside the operating envelope. Mirrors
+/// `cclk_variant_and_xadc_envelope_check` in Lean 4.
+fn cclk_variant_and_xadc_envelope_check(oscfsel: u8, ctx: &PvtContext) -> bool {
+    oscfsel <= 7 && pvt_context_inside_envelope(ctx)
+}
+
 /// Structs used to persist and report a single cold-POR sweep attempt.
 #[derive(serde::Serialize, serde::Deserialize)]
 struct SweepLog {
@@ -3593,10 +3600,7 @@ fn build_pvt_envelope_report(pvt_context: Option<&PathBuf>) -> Result<serde_json
         let half_ns = n25q128_min_sck_half_ns_pvt(&ctx);
         let margin_ns = half_ns.saturating_sub(NOMINAL_HALF_NS);
         let corner_str = format!("{:?}", ctx.process_corner).to_lowercase();
-        let inside_envelope = ctx.temp_c >= PVT_TEMP_MIN_C
-            && ctx.temp_c <= PVT_TEMP_MAX_C
-            && ctx.vccint_mv >= PVT_VCCINT_MIN_MV
-            && ctx.vccint_mv <= PVT_VCCINT_MAX_MV;
+        let inside_envelope = pvt_context_inside_envelope(&ctx);
         return Ok(serde_json::json!({
             "pvt_context": {
                 "temp_c": ctx.temp_c,
@@ -11830,6 +11834,100 @@ mod tests {
         }
 
         let _ = std::fs::remove_dir_all(&dry_run_live);
+    }
+
+    /// W454 adversarial regression: a VCCINT of 1200 mV is above the documented
+    /// 1100 mV maximum and must be reported as outside the operating envelope.
+    /// This mirrors `outside_vccint_high_w454_operating_point_not_within_envelope`
+    /// in `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+    #[test]
+    fn test_pvt_context_high_vccint_outside_envelope_w454() {
+        let ctx = PvtContext {
+            temp_c: 25,
+            vccint_mv: 1200,
+            vccaux_mv: 1800,
+            process_corner: ProcessCorner::Ss,
+        };
+        assert!(
+            !pvt_context_inside_envelope(&ctx),
+            "1200 mV VCCINT must be outside the operating envelope"
+        );
+    }
+
+    /// W454 dashboard gate regression: the combined OSCFSEL + envelope check must
+    /// return false for the high-VCCINT adversarial operating point. Mirrors
+    /// `cclk_variant_and_xadc_envelope_check_outside_vccint_high_false` in Lean 4.
+    #[test]
+    fn test_cclk_variant_and_xadc_envelope_check_high_vccint_false_w454() {
+        let ctx = PvtContext {
+            temp_c: 25,
+            vccint_mv: 1200,
+            vccaux_mv: 1800,
+            process_corner: ProcessCorner::Ss,
+        };
+        for oscfsel in 0..=7_u8 {
+            assert!(
+                !cclk_variant_and_xadc_envelope_check(oscfsel, &ctx),
+                "OSCFSEL {} must fail the envelope gate at 1200 mV",
+                oscfsel
+            );
+        }
+    }
+
+    /// W454 dashboard gate regression: the combined check must return true for
+    /// the documented worst-case operating point and every documented OSCFSEL.
+    #[test]
+    fn test_cclk_variant_and_xadc_envelope_check_worst_case_true_w454() {
+        let ctx = pvt_worst_case_context();
+        for oscfsel in 0..=7_u8 {
+            assert!(
+                cclk_variant_and_xadc_envelope_check(oscfsel, &ctx),
+                "OSCFSEL {} must pass the envelope gate at the documented worst-case point",
+                oscfsel
+            );
+        }
+    }
+
+    /// W454 duty-cycle asymmetry regression: at the fastest documented OSCFSEL
+    /// (7, ~33.3 MHz, 30 ns period), any high-time between 14 ns and 16 ns
+    /// inclusive satisfies the PVT-aware raw-ns predicate at the worst-case
+    /// operating point. Mirrors `cclk_oscfsel_7_duty_asymmetry_w454` in Lean 4.
+    #[test]
+    fn test_raw_ns_oscfsel_7_duty_asymmetry_w454() {
+        let ctx = pvt_worst_case_context();
+        let period_ns = cclk_period_ns(7) as u64;
+        for high_ns in 14..=16_u64 {
+            let low_ns = period_ns - high_ns;
+            assert!(
+                raw_ns_satisfies_flash_spec_pvt(period_ns, low_ns, high_ns, &ctx),
+                "high_ns={} must satisfy the PVT-aware predicate at OSCFSEL=7",
+                high_ns
+            );
+        }
+    }
+
+    /// W454 bounded jitter regression: at every documented OSCFSEL selection,
+    /// perturbing the ideal 50 % high time by at most ±1 ns preserves the
+    /// PVT-aware raw-ns predicate at the worst-case operating point. Mirrors
+    /// `cclk_ideal_split_robust_to_1ns_jitter_w454` in Lean 4.
+    #[test]
+    fn test_raw_ns_ideal_split_1ns_jitter_w454() {
+        let ctx = pvt_worst_case_context();
+        for oscfsel in 0..=7_u8 {
+            let period_ns = cclk_period_ns(oscfsel) as u64;
+            let ideal_high = period_ns / 2;
+            for delta in [-1_i64, 0, 1] {
+                let high_ns = (ideal_high as i64 + delta) as u64;
+                let low_ns = period_ns - high_ns;
+                assert!(
+                    raw_ns_satisfies_flash_spec_pvt(period_ns, low_ns, high_ns, &ctx),
+                    "OSCFSEL {} high_ns={} (ideal±{}) must satisfy the PVT-aware predicate",
+                    oscfsel,
+                    high_ns,
+                    delta
+                );
+            }
+        }
     }
 
     /// Compare `actual` against `expected` as a strict superset: every field that

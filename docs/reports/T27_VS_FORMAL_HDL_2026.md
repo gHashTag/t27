@@ -367,6 +367,29 @@ remains the only fresh July 2026 Lean-native HDL signal, CIRCT
 `firtool-1.152.0` (2026-07-04) is still the latest public release, Clash 1.11.0
 remains a Hackage candidate, and no Lean-native ternary-FPGA competitor surfaced.
 
+**W454 closes the high-voltage adversarial envelope dimension and adds robustness
+    theorems for duty-cycle asymmetry and bounded jitter.** `TernaryFPGABoot.lean`
+    adds `OUTSIDE_VCCINT_HIGH_W454_OPERATING_POINT` (1200 mV, above the documented
+    1100 mV maximum) and proves the dashboard gate rejects it
+    (`cclk_variant_and_xadc_envelope_check_outside_vccint_high_false`), complementing
+    the W448 temperature witness and the W452 low-voltage witness. It also adds
+    `cclk_oscfsel_7_duty_asymmetry_w454` and
+    `cclk_ideal_split_robust_to_1ns_jitter_w454`, proving that even at the fastest
+    documented CCLK (~33.3 MHz, 30 ns period) the ideal 50 % split tolerates ±1 ns
+    of jitter and a moderate duty-cycle asymmetry while remaining flash-spec
+    compliant under the worst-case PVT context. Rust unit tests in
+    `cli/tri/src/fpga.rs` mirror all three adversarial/robustness properties. The
+    proposed master-merge of `gen-verilog` fixes from `master` (`701d79b3b`) was
+    investigated and rejected as insufficient: it does not close the tuple/array
+    lowering gaps that cause the 7 residual yosys smoke failures, and a blind merge
+    would risk regressing the wave-loop branch's own sub-fixes. The physical bench
+    remains blocked by the missing DLC10 cable, so the 7 residual failures stay the
+    documented baseline. No new public competitor signals appeared between the W453
+    close-out and the W454 boundary: Sparkle / Verilean remains the only fresh
+    July 2026 Lean-native HDL signal, CIRCT `firtool-1.152.0` (2026-07-04) is still
+    the latest public release, Clash 1.11.0 remains a Hackage candidate, and no
+    Lean-native ternary-FPGA competitor surfaced.
+
 ---
 
 ## Competitor matrix
