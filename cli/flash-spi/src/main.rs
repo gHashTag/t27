@@ -80,6 +80,8 @@ fn main() -> Result<()> {
     let total = bytes.len() as u64;
     let opts = FlashOpts {
         verify: !cli.no_verify,
+        no_jprogram: false,
+        bitswap: true,
         progress: Some(Box::new(move |w, t| {
             if w == t || w % (1 << 18) < 256 {
                 eprintln!("  {} / {} ({}%)", w, total, 100 * w / total.max(1));

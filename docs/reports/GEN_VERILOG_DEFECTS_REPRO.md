@@ -1,9 +1,9 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-454`  
-**Last updated:** 2026-07-01 (Wave Loop 454)  
+**Branch:** `wave-loop-455`  
+**Last updated:** 2026-07-01 (Wave Loop 455)  
 
-This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
+This document tracks the lowering defects in the `t27c gen-verilog` backend. The full fix set was originally landed on `master` (commit `701d79b3b`) and on the historical `wave-loop-383` compiler line; Wave Loop 455 ported the missing parser and backend pieces into the current `wave-loop-455` branch and cleared the 7 residual yosys smoke failures.
 
 **W430 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W430 is
 hardware-constrained and focuses on the live XADC readout path (`tri fpga
@@ -756,12 +756,69 @@ introduced.
 
 **Defect status matrix after W450:** same as after W435.
 
-## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439 / W440 / W441 / W444 / W446 / W449 / W450 / W451 / W452
+## W455 triage (2026-07-01)
+
+Wave Loop 455 selected **Variant B** of the W455 cooperation plan: instead of a
+risky blind merge of `master` commit `701d79b3b`, port the missing parser and
+backend support for tuple return types, tuple literals, `let` destructuring,
+module-level ROM arrays, and function-local arrays from the historical
+`wave-loop-383` compiler line into the current `wave-loop-455` branch.
+
+### What was ported
+
+| Feature | Source waves | W455 deliverable |
+|---|---|---|
+| Tuple return type parsing `-> (T1, T2, ...)` | W380 | `parse_type_annotation` tuple branch |
+| Tuple literals `(a, b, c)` | W380 | `parse_expr_primary` tuple branch |
+| `let (a, b, c) = expr` destructuring | W378–W379 | `parse_let_destructuring` + `gen_verilog_let_destructuring` |
+| Tuple-return function generation | W380–W381 | `gen_verilog_fn` packed result reg + tuple literal concatenation |
+| Slot-aware nested tuple-return call lowering | W381 | `gen_verilog_expr` packed temporary + slot slicing |
+| Module-level `const [N]T{...}` ROM lowering | W383 | `gen_verilog_const` ROM emission |
+| Function-local `var [N]T` array lowering | W383–W388 | `StmtLocal` per-element reg emission + numeric/variable index lowering |
+| Function-local array keyword-safe full-token escape | W384 | `_0` suffix joined before `verilog_safe_identifier` |
+
+### Result
+
+The 7 previously documented residual yosys smoke failures are **cleared**:
+
+| Spec | Previous failure mode | W455 result |
+|---|---|---|
+| `specs/igla/race/cordic.t27` | `syntax error, unexpected '='` | ✅ `yosys read_verilog -sv` passes |
+| `specs/igla/race/cordic_top.t27` | `syntax error, unexpected '='` | ✅ passes |
+| `specs/scratch/w378_let_destructuring.t27` | `syntax error, unexpected '='` | ✅ passes |
+| `specs/scratch/w379_let_destructuring_generalized.t27` | `syntax error, unexpected '='` | ✅ passes |
+| `specs/scratch/w380_tuple_return.t27` | `syntax error, unexpected '='` | ✅ passes |
+| `specs/scratch/w381_tuple_call_chain.t27` | `syntax error, unexpected '='` | ✅ passes |
+| `specs/scratch/w383_rom_array.t27` | `syntax error, unexpected '['` | ✅ passes |
+
+**Defect status matrix after W455:**
+
+| Defect | Status | Notes |
+|--------|--------|-------|
+| 1 — const order | FIXED (W370) | stable |
+| 2 / 2b / 2c — width padding + keyword escape | FIXED (W371–W374) | stable |
+| 3 — early-return if-else chaining | FIXED (W375) | stable |
+| 3b — named tuple `::` namespaces | FIXED (W380) | stable |
+| 4 — `as` / bitwise width | VERIFIED FIXED (W376) | stable |
+| 5 — struct-field reg mapping | FIXED (W377) | stable |
+| 6 — `let` destructuring + tuple return | FIXED (W455, ported from W378–W381) | all regression specs green |
+| 7 — module-level ROM arrays | FIXED (W455, ported from W383) | `w383_rom_array.t27` green |
+| 8 — function-local array variables | FIXED (W455, ported from W383–W388) | 8 regression specs green |
+| 7 residual yosys smoke failures (#1245) | **CLEARED** | 0 failures in `./scripts/tri test` |
+
+### Verification
+
+- `./scripts/tri test --json /tmp/tri_test_w455.json`: **576/576 non-smoke PASS**, **56/56 yosys smoke PASS**, **FPGA smoke gate OK**, **0 seal mismatches**, **TOTAL FAILURES: 0**, `ACCEPTABLE: yes`.
+- `t27c seal --save` was run on every spec whose generated output changed; 67 seal files were updated.
+- `cargo build --release` passes; `cli/flash-spi` workspace build restored with default `FlashOpts` fields.
+
+## Open work after W455
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.
-- **Merge `master` fix set (`701d79b3b`) into wave-loop branch** to clear the
-  7 residual yosys smoke failures.
+- **Hardware execution:** physical bench remains unavailable (DLC10 cable not
+  detected, P12 unwired); a future wave with the bench unblocked can run live
+  CCLK sweeps and mint live-fixture theorems.
 
 ---
 

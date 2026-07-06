@@ -213,6 +213,7 @@ pub struct Token {
     pub col: usize,
 }
 
+#[derive(Debug, Clone)]
 pub struct Lexer {
     source: Vec<u8>,
     pos: usize,
@@ -802,6 +803,13 @@ pub struct Parser {
     peek: Token,
 }
 
+#[derive(Clone)]
+struct ParserCheckpoint {
+    lexer: Lexer,
+    current: Token,
+    peek: Token,
+}
+
 impl Parser {
     pub fn new(mut lexer: Lexer) -> Self {
         let first = lexer.next_token();
@@ -811,6 +819,22 @@ impl Parser {
             current: first,
             peek: second,
         }
+    }
+
+    /// Save the current parser state so it can be restored later. Used for
+    /// lookahead that needs to inspect more than one token ahead.
+    fn save_state(&self) -> ParserCheckpoint {
+        ParserCheckpoint {
+            lexer: self.lexer.clone(),
+            current: self.current.clone(),
+            peek: self.peek.clone(),
+        }
+    }
+
+    fn restore_state(&mut self, checkpoint: ParserCheckpoint) {
+        self.lexer = checkpoint.lexer;
+        self.current = checkpoint.current;
+        self.peek = checkpoint.peek;
     }
 
     fn advance(&mut self) {
@@ -1210,17 +1234,34 @@ impl Parser {
                 self.expect(TokenKind::RBrace)?;
             } else if self.current.kind == TokenKind::LBracket {
                 // pub const TernaryWord = [WORD_BYTES]u8; or [_]u8{...} ** N
-                // Collect the full expression as value text
-                let mut val_text = String::new();
-                while self.current.kind != TokenKind::Semicolon
-                    && self.current.kind != TokenKind::Eof
-                {
-                    val_text.push_str(&self.current.lexeme);
-                    self.advance();
+                // W383: try to parse the bracket expression as an array literal.
+                // If it carries element children (e.g. [4]u16{...}), it is a ROM
+                // initializer and should be emitted as a Verilog memory. If it
+                // has no children (e.g. [WORD_BYTES]u8), it is a type alias and
+                // we restore the parser state and preserve the legacy text form.
+                // If parse_array_literal cannot handle the shape (e.g. ['T','R']),
+                // fall back to the legacy text collection so old specs keep parsing.
+                let save = self.save_state();
+                let array_literal_result = self.parse_array_literal();
+                let use_literal = match &array_literal_result {
+                    Ok(lit) => !lit.children.is_empty(),
+                    Err(_) => false,
+                };
+                if use_literal {
+                    decl.children.push(array_literal_result.unwrap());
+                } else {
+                    self.restore_state(save);
+                    let mut val_text = String::new();
+                    while self.current.kind != TokenKind::Semicolon
+                        && self.current.kind != TokenKind::Eof
+                    {
+                        val_text.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                    let mut val_node = Node::new(NodeKind::ExprIdentifier);
+                    val_node.name = val_text;
+                    decl.children.push(val_node);
                 }
-                let mut val_node = Node::new(NodeKind::ExprIdentifier);
-                val_node.name = val_text;
-                decl.children.push(val_node);
                 if self.current.kind == TokenKind::Semicolon {
                     self.advance();
                 }
@@ -1404,6 +1445,37 @@ impl Parser {
     fn parse_type_annotation(&mut self) -> String {
         let mut ty = String::new();
 
+        // Handle tuple type: (T1, T2, ...). Keep the raw textual form so that
+        // named tuples like (a: T, b: T) do not hang the parser and are stored
+        // as-is for backends that do not need to unpack them.
+        if self.current.kind == TokenKind::LParen {
+            ty.push('(');
+            self.advance(); // consume (
+            while self.current.kind != TokenKind::RParen
+                && self.current.kind != TokenKind::Eof
+            {
+                let before = self.current.kind;
+                let elem = self.parse_type_annotation();
+                ty.push_str(&elem);
+                if self.current.kind == TokenKind::Comma {
+                    ty.push(',');
+                    self.advance();
+                } else if self.current.kind != TokenKind::RParen {
+                    // Not a clean tuple-type element (e.g. named-field syntax);
+                    // consume the raw token so we cannot spin forever.
+                    if self.current.kind == before && elem.is_empty() {
+                        ty.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                }
+            }
+            if self.current.kind == TokenKind::RParen {
+                ty.push(')');
+                self.advance();
+            }
+            return ty;
+        }
+
         // Handle pointer prefix: *Type or *const Type
         if self.current.kind == TokenKind::Star {
             ty.push('*');
@@ -1553,8 +1625,11 @@ impl Parser {
             self.advance(); // consume !
         }
 
-        // Return type (identifier, or []T / [N]T / [][]const u8 slice/array types, or void)
-        if self.current.kind == TokenKind::Ident {
+        // Return type (identifier, tuple, or []T / [N]T / [][]const u8 slice/array types, or void)
+        if self.current.kind == TokenKind::LParen {
+            // Tuple return type: (u32, u32)
+            decl.extra_return_type = self.parse_type_annotation();
+        } else if self.current.kind == TokenKind::Ident {
             decl.extra_return_type = self.current.lexeme.clone();
             self.advance();
             // Handle generic return types like Option<Foo>
@@ -1688,6 +1763,13 @@ impl Parser {
     fn parse_body_stmt(&mut self) -> Result<Node, String> {
         // const / var declaration
         if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
+            // `let` is lexed as KwConst. Detect destructuring form `let (a, b, c) = expr;`
+            // where the next token after let/const is '('.
+            if self.current.kind == TokenKind::KwConst
+                && self.peek.kind == TokenKind::LParen
+            {
+                return self.parse_let_destructuring();
+            }
             return self.parse_local_decl();
         }
 
@@ -1822,6 +1904,48 @@ impl Parser {
             self.advance();
         }
         Ok(decl)
+    }
+
+    /// Parse `let (a, b, c) = expr;` destructuring.
+    /// `let` is lexed as KwConst, so this is reached from `parse_body_stmt` when
+    /// KwConst is followed by '('. The result is a StmtAssign whose LHS is an
+    /// ExprArrayLiteral marker node (extra_kind == "tuple") containing the
+    /// bound identifiers, and whose RHS is the initializer expression.
+    fn parse_let_destructuring(&mut self) -> Result<Node, String> {
+        let mut assign = Node::new(NodeKind::StmtAssign);
+        assign.line = self.current.line as u32;
+        self.advance(); // consume let/const
+
+        self.expect(TokenKind::LParen)?;
+
+        let mut lhs = Node::new(NodeKind::ExprArrayLiteral);
+        lhs.extra_kind = "tuple".to_string();
+
+        while self.current.kind != TokenKind::RParen
+            && self.current.kind != TokenKind::Eof
+        {
+            if self.current.kind == TokenKind::Ident {
+                let mut ident = Node::new(NodeKind::ExprIdentifier);
+                ident.name = self.current.lexeme.clone();
+                lhs.children.push(ident);
+                self.advance();
+            } else if self.current.kind == TokenKind::Comma {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+        self.expect(TokenKind::RParen)?;
+
+        self.expect(TokenKind::Equals)?;
+        let rhs = self.parse_expr()?;
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
+
+        assign.children.push(lhs);
+        assign.children.push(rhs);
+        Ok(assign)
     }
 
     /// Parse return statement
@@ -2496,12 +2620,30 @@ impl Parser {
                 })
             }
 
-            // Parenthesized expression
+            // Parenthesized expression or tuple literal
             TokenKind::LParen => {
                 self.advance(); // consume (
                 let inner = self.parse_expr()?;
-                self.expect(TokenKind::RParen)?;
-                Ok(inner)
+                if self.current.kind == TokenKind::Comma {
+                    // Tuple literal: (a, b, c). Reuse ExprArrayLiteral with a
+                    // marker so existing match sites keep compiling.
+                    let mut tuple = Node::new(NodeKind::ExprArrayLiteral);
+                    tuple.extra_kind = "tuple".to_string();
+                    tuple.children.push(inner);
+                    while self.current.kind == TokenKind::Comma {
+                        self.advance(); // consume ,
+                        if self.current.kind == TokenKind::RParen {
+                            break;
+                        }
+                        let elem = self.parse_expr()?;
+                        tuple.children.push(elem);
+                    }
+                    self.expect(TokenKind::RParen)?;
+                    Ok(tuple)
+                } else {
+                    self.expect(TokenKind::RParen)?;
+                    Ok(inner)
+                }
             }
 
             // if expression: if (cond) expr else expr
@@ -3667,6 +3809,19 @@ pub struct VerilogCodegen {
     // to skip a redundant truncation mask when the operand is a parameter that is
     // no wider than the cast target (a widening or same-width cast).
     param_widths: std::collections::HashMap<String, usize>,
+    // Return type of the function currently being lowered, used to decide
+    // whether the result register is a packed tuple.
+    current_fn_return_type: String,
+    // W378: monotonic counter for packed temporaries emitted by let
+    // destructuring lowering. Reset per function to avoid collisions.
+    let_tmp_counter: u32,
+    // W380: return types of all functions declared in the module, keyed by
+    // function name. Used by let-destructuring to infer binding widths from a
+    // callee's tuple return type.
+    fn_return_types: std::collections::HashMap<String, String>,
+    // W383: names of function-local array variables in the current function.
+    // Used by ExprIndex to rewrite `tmp[0]` into `tmp_0`.
+    local_arrays: std::collections::HashSet<String>,
 }
 
 impl VerilogCodegen {
@@ -3677,6 +3832,10 @@ impl VerilogCodegen {
             module_name: String::new(),
             current_fn_name: String::new(),
             param_widths: std::collections::HashMap::new(),
+            current_fn_return_type: String::new(),
+            let_tmp_counter: 0,
+            fn_return_types: std::collections::HashMap::new(),
+            local_arrays: std::collections::HashSet::new(),
         }
     }
 
@@ -3768,12 +3927,80 @@ impl VerilogCodegen {
         matches!(ty, "i8" | "i16" | "i32" | "i64")
     }
 
+    /// Parse an array type annotation such as "[4]u16" into (size, element_type).
+    fn parse_array_type(ty: &str) -> Option<(usize, String)> {
+        let t = ty.trim();
+        if !t.starts_with('[') {
+            return None;
+        }
+        let close = t.find(']')?;
+        let size_str = &t[1..close];
+        let size = size_str.trim().parse::<usize>().ok()?;
+        let elem = t[close + 1..].trim().to_string();
+        if elem.is_empty() {
+            return None;
+        }
+        Some((size, elem))
+    }
+
     /// Format a Verilog range declaration like [31:0]
     fn range_decl(width: u32) -> String {
         if width == 1 {
             String::new()
         } else {
             format!("[{}:0]", width - 1)
+        }
+    }
+
+    /// W380: true for simple scalar tuple types like "(u32,u32)". Named
+    /// tuples such as "(a:u32,b:u32)" are excluded; they are treated as
+    /// opaque scalar types by the Verilog backend.
+    fn is_simple_tuple_type(ty: &str) -> bool {
+        ty.starts_with('(')
+            && ty.ends_with(')')
+            && !ty.contains(':')
+            && !ty.is_empty()
+    }
+
+    /// W380: total packed bit width of a simple tuple return type such as
+    /// "(u32,u32)" or "(u16,u32,u8)". Non-tuple and named-tuple types fall
+    /// back to type_to_width.
+    fn tuple_return_width(ty: &str) -> u32 {
+        if Self::is_simple_tuple_type(ty) {
+            let inner = &ty[1..ty.len() - 1];
+            if inner.is_empty() {
+                return 0;
+            }
+            inner.split(',').map(|t| Self::type_to_width(t.trim())).sum()
+        } else {
+            Self::type_to_width(ty)
+        }
+    }
+
+    /// W380: element widths of a simple tuple return type such as
+    /// "(u16,u32,u8)". Returns an empty vector for non-tuple / named-tuple
+    /// types.
+    fn tuple_element_widths(ty: &str) -> Vec<u32> {
+        if Self::is_simple_tuple_type(ty) {
+            let inner = &ty[1..ty.len() - 1];
+            if inner.is_empty() {
+                return Vec::new();
+            }
+            inner
+                .split(',')
+                .map(|t| Self::type_to_width(t.trim()))
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// W380: a simple tuple return type is unsigned packed by default.
+    fn tuple_return_signed(ty: &str) -> bool {
+        if Self::is_simple_tuple_type(ty) {
+            false
+        } else {
+            Self::type_is_signed(ty)
         }
     }
 
@@ -3818,6 +4045,15 @@ impl VerilogCodegen {
                 NodeKind::InvariantBlock => invariants.push(decl),
                 NodeKind::BenchBlock => benches.push(decl),
                 _ => {}
+            }
+        }
+
+        // W380: pre-register function return types so let-destructuring can
+        // infer binding widths from callees regardless of declaration order.
+        for f in &functions {
+            if !f.extra_return_type.is_empty() {
+                self.fn_return_types
+                    .insert(f.name.clone(), f.extra_return_type.clone());
             }
         }
 
@@ -4092,16 +4328,56 @@ impl VerilogCodegen {
             }
         }
 
-        // Determine if this is an array constant (LUT)
-        let is_array = !node.extra_size.is_empty();
+        // Determine if this is an array constant (LUT). W383: array type
+        // annotations such as "[4]u16" also indicate an array constant.
+        let type_array = Self::parse_array_type(&node.extra_type);
+        let is_array = !node.extra_size.is_empty() || type_array.is_some();
 
         if is_array {
-            // Emit as localparam array — use initial block or parameter
-            self.write(&format!("// LUT: {} [{}]", node.name, node.extra_size));
-            self.write_line("");
-            // For array constants, emit as individual localparams for each element
-            if !node.children.is_empty() {
-                // If children represent array elements, emit them
+            // W383: array-constant lowering. If the type annotation is an array
+            // type (e.g. "[4]u16") and the initializer is an array literal, emit a
+            // synthesizable Verilog memory initialized in an initial block.
+            let safe_name = Self::verilog_safe_identifier(&node.name);
+            let has_array_literal = !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprArrayLiteral;
+
+            if let Some((array_size, elem_type)) = type_array {
+                let elem_width = Self::type_to_width(&elem_type);
+                let elem_signed = Self::type_is_signed(&elem_type);
+                let elem_signed_str = if elem_signed { "signed " } else { "" };
+                let elem_range = Self::range_decl(elem_width);
+                let elem_range_str = if elem_range.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", elem_range)
+                };
+                self.write_line(&format!("// LUT: {} [{}] {}", safe_name, array_size, elem_type)
+                );
+                self.write_indent();
+                self.write_line(&format!(
+                    "reg {}{} {} [0:{}];",
+                    elem_signed_str, elem_range_str, safe_name, array_size - 1
+                ));
+                if has_array_literal {
+                    self.write_indent();
+                    self.write_line("initial begin");
+                    self.indent();
+                    let child = &node.children[0];
+                    for (i, elem) in child.children.iter().enumerate() {
+                        if i >= array_size {
+                            break;
+                        }
+                        self.write_indent();
+                        self.write(&format!("{}[{}] = ", safe_name, i));
+                        self.gen_verilog_expr(elem);
+                        self.write_line(";");
+                    }
+                    self.dedent();
+                    self.write_indent();
+                    self.write_line("end");
+                }
+            } else if !node.children.is_empty() {
+                // Legacy extra_size path: emit as individual localparams for each element
                 let child = &node.children[0];
                 // R-CA-1 (Wave 28): array-of-struct / array-of-array initializers
                 // currently degrade into `/* array ... */` block-comments through
@@ -4227,10 +4503,53 @@ impl VerilogCodegen {
         } else {
             format!("{} ", range)
         };
-        let is_array = !node.extra_size.is_empty();
+        // W382: array type may come from the type annotation (e.g. "[4]u16") in
+        // addition to the legacy extra_size path used by array literals.
+        let type_array = Self::parse_array_type(&node.extra_type);
+        let is_array = !node.extra_size.is_empty() || type_array.is_some();
         let safe_name = Self::verilog_safe_identifier(&node.name);
 
-        if is_array {
+        if let Some((array_size, elem_type)) = type_array {
+            // W382: emit a true synthesizable Verilog memory so that indexing
+            // expressions like mem[i] resolve to memory access, not bit-select.
+            let elem_width = Self::type_to_width(&elem_type);
+            let elem_signed = Self::type_is_signed(&elem_type);
+            let elem_signed_str = if elem_signed { "signed " } else { "" };
+            let elem_range = Self::range_decl(elem_width);
+            let elem_range_str = if elem_range.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", elem_range)
+            };
+            self.write_line(&format!(
+                "reg {}{} {} [0:{}];",
+                elem_signed_str, elem_range_str, safe_name, array_size - 1
+            ));
+            if !node.children.is_empty() {
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                let child = &node.children[0];
+                if child.kind == NodeKind::ExprArrayLiteral {
+                    for (i, elem) in child.children.iter().enumerate() {
+                        if i < array_size {
+                            self.write_indent();
+                            self.write(&format!("{}[{}] = ", safe_name, i));
+                            self.gen_verilog_expr(elem);
+                            self.write_line(";");
+                        }
+                    }
+                } else {
+                    self.write_indent();
+                    self.write("// initializer: ");
+                    self.gen_verilog_expr(child);
+                    self.write_line("");
+                }
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            }
+        } else if is_array {
             self.write_line(&format!("// var: {} [{}]", node.name, node.extra_size));
             let array_size: usize = node.extra_size.parse().unwrap_or(1);
             for i in 0..array_size {
@@ -4345,6 +4664,8 @@ impl VerilogCodegen {
 
     fn gen_verilog_fn(&mut self, node: &Node) {
         self.current_fn_name = Self::verilog_safe_identifier(&node.name);
+        self.current_fn_return_type = node.extra_return_type.clone();
+        self.let_tmp_counter = 0;
         self.param_widths.clear();
         for (pname, ptype) in &node.params {
             self.param_widths
@@ -4355,13 +4676,14 @@ impl VerilogCodegen {
         self.write_line(&format!("// function: {}", node.name));
 
         // Emit as a Verilog function declaration
+        // W380: tuple return types are packed; non-tuple types keep scalar width.
         let ret_width = if !node.extra_return_type.is_empty() {
-            Self::type_to_width(&node.extra_return_type)
+            Self::tuple_return_width(&node.extra_return_type)
         } else {
             32
         };
         let ret_signed = if !node.extra_return_type.is_empty() {
-            Self::type_is_signed(&node.extra_return_type)
+            Self::tuple_return_signed(&node.extra_return_type)
         } else {
             false
         };
@@ -4447,7 +4769,9 @@ impl VerilogCodegen {
             self.write_line("endfunction");
         }
         self.current_fn_name.clear();
+        self.current_fn_return_type.clear();
         self.param_widths.clear();
+        self.local_arrays.clear();
     }
 
     /// Emit a Verilog function body statement list, rewriting the
@@ -4486,6 +4810,76 @@ impl VerilogCodegen {
                 return;
             }
             self.gen_verilog_stmt(stmt);
+        }
+    }
+
+    fn gen_verilog_let_destructuring(
+        &mut self,
+        lhs_tuple: &Node,
+        rhs: &Node,
+    ) {
+        // W379: infer binding count and per-binding width from the LHS pattern.
+        // W380: when a binding has no explicit type, try to infer its width from
+        // the callee's tuple return type so mixed-width tuples lower correctly.
+        let mut callee_return_type: Option<String> = None;
+        if rhs.kind == NodeKind::ExprCall && !rhs.name.is_empty() {
+            callee_return_type = self.fn_return_types.get(&rhs.name).cloned();
+        }
+        let tuple_widths: Vec<u32> = if let Some(ref rt) = callee_return_type {
+            Self::tuple_element_widths(rt)
+        } else {
+            Vec::new()
+        };
+
+        let bindings: Vec<(String, u32)> = lhs_tuple
+            .children
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                let name = Self::verilog_safe_identifier(&c.name,
+                );
+                let width = if !c.extra_type.is_empty() {
+                    Self::type_to_width(&c.extra_type)
+                } else if let Some(w) = tuple_widths.get(i).copied() {
+                    w
+                } else {
+                    32u32
+                };
+                (name, width)
+            })
+            .collect();
+        let tmp = Self::verilog_safe_identifier(
+            &format!("_let_tmp_{}", self.let_tmp_counter),
+        );
+        self.let_tmp_counter += 1;
+        let total_width: u32 = bindings.iter().map(|(_, w)| w).sum();
+
+        // Declare the packed temporary and evaluate the RHS call into it.
+        self.write_indent();
+        self.write_line(&format!(
+            "reg [{}:0] {}; // packed temporary for let destructuring",
+            total_width.saturating_sub(1),
+            tmp
+        ));
+        self.write_indent();
+        self.write(&format!("{} = ", tmp));
+        self.gen_verilog_expr(rhs);
+        self.write_line(";");
+
+        // Declare scalar regs and assign slices for each binding.
+        let mut cursor = total_width;
+        for (name, width) in bindings.iter() {
+            let high = cursor.saturating_sub(1);
+            let low = cursor.saturating_sub(*width);
+            self.write_indent();
+            self.write_line(&format!(
+                "reg [{}:0] {};",
+                width.saturating_sub(1),
+                name
+            ));
+            self.write_indent();
+            self.write_line(&format!("{} = {}[{}:{}];", name, tmp, high, low));
+            cursor = low;
         }
     }
 
@@ -4572,6 +4966,41 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtLocal => {
+                // W383: support function-local array variables such as
+                // `var tmp : [2]u16;`. Emit per-element regs with index access when
+                // the type annotation is an array type.
+                if let Some((array_size, elem_type)) = Self::parse_array_type(&node.extra_type
+                ) {
+                    let elem_width = Self::type_to_width(&elem_type);
+                    let elem_signed = Self::type_is_signed(&elem_type);
+                    let elem_signed_str = if elem_signed { "signed " } else { "" };
+                    let elem_range = Self::range_decl(elem_width);
+                    let elem_range_str = if elem_range.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{} ", elem_range)
+                    };
+                    let base_name = &node.name;
+                    self.local_arrays
+                        .insert(Self::verilog_safe_identifier(base_name));
+                    for i in 0..array_size {
+                        let flat_name = format!("{}_{}", base_name, i);
+                        let safe_name = Self::verilog_safe_identifier(&flat_name);
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "reg {}{} {};",
+                            elem_signed_str, elem_range_str, safe_name
+                        ));
+                    }
+                    if !node.children.is_empty() {
+                        self.write_indent();
+                        self.write(&format!("// local array initializer for {}", base_name));
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write_line("");
+                    }
+                    return;
+                }
+
                 self.write_indent();
                 let kw = "reg";
                 let width = Self::type_to_width(&node.extra_type);
@@ -4598,6 +5027,21 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtAssign => {
+                // W378/W379: detect tuple destructuring on the LHS of an
+                // assignment: `let (a, b, c) = f(...)` is parsed as a
+                // StmtAssign whose LHS is an ExprArrayLiteral with
+                // extra_kind == "tuple" containing identifier children.
+                if node.children.len() >= 2
+                    && node.children[0].kind == NodeKind::ExprArrayLiteral
+                    && node.children[0].extra_kind == "tuple"
+                    && !node.children[0].children.is_empty()
+                {
+                    self.gen_verilog_let_destructuring(
+                        &node.children[0],
+                        &node.children[1],
+                    );
+                    return;
+                }
                 self.write_indent();
                 if node.children.len() >= 2 {
                     self.gen_verilog_expr(&node.children[0]);
@@ -4924,26 +5368,59 @@ impl VerilogCodegen {
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
-                    self.gen_verilog_expr(&node.children[0]);
+                    let base = &node.children[0];
+                    let idx = &node.children[1];
+                    // W383: function-local arrays are emitted as per-element regs
+                    // (tmp_0, tmp_1, ...). If the index is a numeric literal, rewrite
+                    // the access to the flattened reg name so it synthesizes inside a
+                    // Verilog function.
+                    if base.kind == NodeKind::ExprIdentifier {
+                        let safe_base = Self::verilog_safe_identifier(&base.name);
+                        if self.local_arrays.contains(&safe_base) {
+                            if let Ok(idx_val) = idx.value.parse::<usize>() {
+                                let flat_name = format!("{}_{}", base.name, idx_val);
+                                self.write(&Self::verilog_safe_identifier(&flat_name));
+                                return;
+                            }
+                        }
+                    }
+                    self.gen_verilog_expr(base);
                     self.write("[");
-                    self.gen_verilog_expr(&node.children[1]);
+                    self.gen_verilog_expr(idx);
                     self.write("]");
                 }
             }
             NodeKind::ExprArrayLiteral => {
-                // R-CA-2 (wave-31): array literals in expression context
-                // (e.g. as function-call arguments) used to emit a
-                // comment-only token `/* array [...]{} */`, which Yosys
-                // rejects with `syntax error, unexpected ','` when the
-                // argument list reduces to whitespace + comma. We follow
-                // the precedent established by `ExprStructLit` below and
-                // emit a synthesizable scalar `0` plus an explanatory
-                // TODO comment, so the surrounding expression remains
-                // parseable Verilog.
-                self.write(&format!(
-                    "0 /* TODO: array literal [{}]{} not yet lowered to Verilog */",
-                    node.extra_size, node.extra_type
-                ));
+                if node.extra_kind == "tuple" {
+                    // W380: tuple literal in expression context. Emit as a
+                    // packed concatenation {a, b, c} so the first element
+                    // occupies the most significant bits, matching the slice
+                    // assignments generated by gen_verilog_let_destructuring.
+                    if !node.children.is_empty() {
+                        self.write("{");
+                        for (i, child) in node.children.iter().enumerate() {
+                            if i > 0 {
+                                self.write(", ");
+                            }
+                            self.gen_verilog_expr(child);
+                        }
+                        self.write("}");
+                    }
+                } else {
+                    // R-CA-2 (wave-31): array literals in expression context
+                    // (e.g. as function-call arguments) used to emit a
+                    // comment-only token `/* array [...]{} */`, which Yosys
+                    // rejects with `syntax error, unexpected ','` when the
+                    // argument list reduces to whitespace + comma. We follow
+                    // the precedent established by `ExprStructLit` below and
+                    // emit a synthesizable scalar `0` plus an explanatory
+                    // TODO comment, so the surrounding expression remains
+                    // parseable Verilog.
+                    self.write(&format!(
+                        "0 /* TODO: array literal [{}]{} not yet lowered to Verilog */",
+                        node.extra_size, node.extra_type
+                    ));
+                }
             }
             NodeKind::ExprStructLit => {
                 // Verilog has no struct literals — emit as comment + value 0
