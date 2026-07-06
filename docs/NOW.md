@@ -1,20 +1,110 @@
-# NOW — Wave Loop 462 next / Wave Loop 461 close-out (2026-07-06)
+# NOW — Wave Loop 462 close-out / Wave Loop 463 next (2026-07-07)
 
-**Last updated:** 2026-07-06
+**Last updated:** 2026-07-07
 
-## Wave Loop 462 — Next wave (to be selected from cooperation plan) (Closes #1437)
+## Wave Loop 463 — Next wave (to be selected from cooperation plan) (Closes #1439)
 
-- Branch: `wave-loop-462` (to create from W461 land commit)
-- Issue: #1437 (to create)
+- Branch: `wave-loop-463` (to create from W462 land commit)
+- Issue: #1439 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W462_2026-07-06.md`
-- Cooperation W463: (to be written at W462 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W463_2026-07-07.md`
+- Cooperation W464: (to be written at W463 close-out)
 
 ### Not started
 
-- Create issue #1437 and branch `wave-loop-462` from the W461 land commit.
-- Select one of the three W462 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W462_2026-07-06.md`.
+- Create issue #1439 and branch `wave-loop-463` from the W462 land commit.
+- Select one of the three W463 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W463_2026-07-07.md`.
+
+---
+
+## Wave Loop 462 — compiler-backend hardening: literal array arguments + void bare-call cleanup + bench-local array-parameter integration (Variant B default) (Closes #1437)
+
+- Branch: `wave-loop-462`
+- Issue: #1437
+- PR: (to open)
+- Report: `docs/reports/WAVE_LOOP_462_REPORT.md`
+- Evidence W462: `docs/reports/FPGA_LOOP_EVIDENCE_W462_2026-07-07.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W462_2026-07-06.md`
+- Cooperation W463: `docs/reports/FPGA_LOOP_COOPERATION_W463_2026-07-07.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Added `array_param_anon_roms`, `array_literal_signature_key`,
+    `array_literal_rom_name`, and `gen_verilog_anon_rom` to lower literal array
+    arguments passed to array parameters into deterministic anonymous ROMs.
+  - Extended the W461 binding pass to accept `ExprArrayLiteral` array arguments,
+    register the lowered ROM once per distinct literal, and include the ROM name
+    in the binding signature.
+  - Extended `call_array_param_signature` to compute the same ROM-name key for
+    literal array arguments, redirecting call sites to the matching clone.
+  - Registered void return type in `fn_return_types` and made
+    `dummy_reg_width_for_call` return `0` for void callees.
+  - Emitted void module-level bare calls as `task` enables inside the module
+    `always @(*)` block, skipping the dummy register.
+  - Sorted anonymous ROM emission by name to keep generated output deterministic.
+
+- `specs/scratch/w462_array_param_literal.t27`
+  - Regression spec with literal array arguments to a `[4]u16` array-parameter
+    function.
+
+- `specs/scratch/w462_void_bare_call.t27`
+  - Regression spec with a `void` function called at module scope.
+
+- `specs/scratch/w462_array_param_bench_local.t27`
+  - Regression spec exercising bench-local variable hoisting and a literal
+    array argument to an array-parameter function inside a `bench` block.
+
+- `.trinity/seals/scratch_w462_array_param_literal.json`
+- `.trinity/seals/scratch_w462_void_bare_call.json`
+- `.trinity/seals/scratch_w462_array_param_bench_local.json`
+  - Seals for the three new regression specs.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W462 competitor boundary section.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_462_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W462_2026-07-07.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W463_2026-07-07.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W462_OPERATING_POINT` — bench unavailable.
+- Nested array-parameter calls (function `f(arr)` calling `g(arr)`) — deferred to
+  W463 (Variant B default).
+- Struct-literal array arguments — deferred to W463 (Variant B default).
+- Master-merge of `gen-verilog` fix set from `master` (`701d79b3b`) — still
+  rejected as insufficient/too risky for a single wave.
+- GitHub issue #1439 and branch `wave-loop-463` — blocked on `gh` CLI
+  authentication in this environment; must be created manually.
+
+### Verification
+
+- `cargo test -p t27c --bin t27c`: **1524 passed, 0 failed, 2 ignored**.
+- `t27c gen-verilog specs/scratch/w462_array_param_literal.t27` +
+  `yosys read_verilog -sv -DSIMULATION`: **PASS**.
+- `t27c gen-verilog specs/scratch/w462_void_bare_call.t27` +
+  `yosys read_verilog -sv -DSIMULATION`: **PASS**.
+- `t27c gen-verilog specs/scratch/w462_array_param_bench_local.t27` +
+  `yosys read_verilog -sv -DSIMULATION`: **PASS**.
+- `./scripts/tri test --fast`: **ALL TESTS PASSED**
+  - Parse: 590 passed, 0 failed
+  - Typecheck: 590 passed, 0 failed
+  - Gen Zig: 590 passed, 0 failed
+  - Gen Rust: 590 passed, 0 failed
+  - Gen Verilog: 590 passed, 0 failed
+  - Gen Verilog Yosys Smoke: **70 passed, 0 failed**
+  - FPGA Board-Less Smoke Gate: **OK**
+  - Gen C: 590 passed, 0 failed
+  - Seal Verify: 590 passed, 0 failed
+  - Fixed Point: 0 divergences
+  - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes`
 
 ---
 

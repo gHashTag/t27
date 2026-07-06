@@ -1,9 +1,18 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-455`  
-**Last updated:** 2026-07-01 (Wave Loop 455)  
+**Branch:** `wave-loop-462`  
+**Last updated:** 2026-07-07 (Wave Loop 462)  
 
 This document tracks the lowering defects in the `t27c gen-verilog` backend. The full fix set was originally landed on `master` (commit `701d79b3b`) and on the historical `wave-loop-383` compiler line; Wave Loop 455 ported the missing parser and backend pieces into the current `wave-loop-455` branch and cleared the 7 residual yosys smoke failures.
+
+**W462 triage decision:** three small `gen-verilog` sub-fixes land this wave.
+`bootstrap/src/compiler.rs` now lowers literal array arguments passed to array
+parameters into deterministic anonymous ROMs, emits void-return module-level
+bare calls as `task` enables without dummy registers, and adds a regression spec
+exercising bench-local hoisting together with array-parameter clone selection.
+The 7 residual yosys smoke failures from the pre-W455 master-merge debt remain
+the documented baseline; they are not addressed because the safe fix set still
+requires a dedicated master-merge wave.
 
 **W430 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W430 is
 hardware-constrained and focuses on the live XADC readout path (`tri fpga

@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-06 (refreshed for Wave Loop 460)  
+**Date:** 2026-07-07 (refreshed for Wave Loop 462)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -76,6 +76,23 @@ public checkpoint. CIRCT `firtool-1.152.0` (2026-07-04) is still the latest publ
 release, and the ternary-FPGA ecosystem continues to validate the
 {-1, 0, +1} compute niche without pairing it with a Lean-native proof pipeline.
 The master-merge debt and physical-bench blockers remain unchanged.
+
+**W462 extends the compiler-backend hardening line.** `bootstrap/src/compiler.rs`
+now lowers literal array arguments passed to array parameters into anonymous
+module-level ROMs, so calls like `sum_pair([4]u16{1,2,3,4}, 0, 1)` no longer
+require a named module-level ROM. Void-return module-level bare calls are
+emitted as `task` enables without a dummy register, and the new
+`w462_array_param_bench_local.t27` regression spec exercises W460 bench-local
+hoisting together with the W461/W462 array-parameter clone paths. The suite stays
+green: 590/590 non-smoke PASS, 70/70 yosys smoke PASS, 0 baseline failures, 0 seal
+mismatches, and `cargo test -p t27c --bin t27c` remains fully green (1524 passed,
+0 failed, 2 ignored). No new public competitor signals surfaced between the W461
+close-out and the W462 boundary; Sparkle's public repository still shows the
+stable cache-key fix from 2026-07-03 and the 関数型まつり2026 talk on 2026-07-11
+remains the most recent public checkpoint. CIRCT `firtool-1.152.0` (2026-07-04)
+is still the latest public release, and the ternary-FPGA ecosystem continues to
+validate the {-1, 0, +1} compute niche without pairing it with a Lean-native proof
+pipeline. The master-merge debt and physical-bench blockers remain unchanged.
 
 **W435 hardens the live-readout pipeline without clearing the master-merge debt.**
 `tri fpga read-xadc` now exports a rounded `PvtContext` JSON via `--to-pvt-context`;

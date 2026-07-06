@@ -1,0 +1,7 @@
+module w462_void_bare_call;
+pub fn check_call() -> void { assert(true); }
+// W462: module-level bare call to a void function is emitted as a task
+// enable inside the always @(*) block, without a dummy register.
+check_call();
+test smoke { assert(true); }
+endmodule

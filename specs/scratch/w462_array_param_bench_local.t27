@@ -1,0 +1,19 @@
+module w462_array_param_bench_local;
+pub fn sum_pair(arr : [4]u16, i : u32, j : u32) -> u16 { return arr[i] + arr[j]; }
+
+// W462: bench-local variables (W460) and array-parameter functions (W461/W462)
+// interact here. The literal array argument inside the bench block is lowered to
+// an anonymous module-level ROM, while the bench-local indices are hoisted to
+// module scope.
+bench local_and_literal {
+    let base : u32 = 0;
+    let a : u32 = base;
+    let b : u32 = 1;
+    let got : u16 = sum_pair([4]u16{1, 2, 3, 4}, a, b);
+    assert_eq(got, 3);
+}
+
+test direct {
+    assert_eq(sum_pair([4]u16{10, 20, 30, 40}, 2, 3), 70);
+}
+endmodule

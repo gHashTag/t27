@@ -3973,6 +3973,10 @@ pub struct VerilogCodegen {
     array_param_clones: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
     // W461: per-clone array-parameter bindings. Keyed by clone name.
     array_param_clone_bindings: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+    // W462: anonymous ROMs lowered from array literals used as array-parameter
+    // arguments. Keyed by a deterministic signature; value is the array size,
+    // element type, and the ExprArrayLiteral node (for element emission).
+    array_param_anon_roms: std::collections::HashMap<String, (usize, String, Node)>,
     // W460: names of bench-local variables that have been hoisted to module scope
     // for the bench currently being emitted. Expressions inside the bench must
     // reference the prefixed hoisted name.
@@ -4002,6 +4006,7 @@ impl VerilogCodegen {
             array_param_errors: std::collections::HashMap::new(),
             array_param_clones: std::collections::HashMap::new(),
             array_param_clone_bindings: std::collections::HashMap::new(),
+            array_param_anon_roms: std::collections::HashMap::new(),
             bench_local_names: std::collections::HashSet::new(),
             bench_local_prefix: String::new(),
             toplevel_tmp_counter: 0,
@@ -4159,10 +4164,13 @@ impl VerilogCodegen {
         false
     }
 
-    /// W461: return the bit width needed for a dummy register that consumes the
-    /// result of a bare module-level function call. Uses the callee's return type
-    /// when known, otherwise falls back to 32 bits (the W459 test-block default).
-    fn dummy_reg_width_for_call(&self,
+    /// W461/W462: return the bit width needed for a dummy register that
+    /// consumes the result of a bare module-level function call. Returns 0 for
+    /// void callees so the call can be emitted as a task enable instead. Uses
+    /// the callee's return type when known, otherwise falls back to 32 bits
+    /// (the W459 test-block default).
+    fn dummy_reg_width_for_call(
+        &self,
         expr: &Node,
     ) -> u32 {
         let ret_ty = self
@@ -4170,6 +4178,9 @@ impl VerilogCodegen {
             .get(&expr.name)
             .map(String::as_str)
             .unwrap_or("u32");
+        if ret_ty == "void" {
+            return 0;
+        }
         Self::tuple_return_width(ret_ty)
     }
 
@@ -4242,6 +4253,48 @@ impl VerilogCodegen {
         Some((size, elem))
     }
 
+    /// W462: compute the canonical signature key for an ExprArrayLiteral from
+    /// its own annotation. Used for call-site clone selection; the binding pass
+    /// additionally validates size/element type match the parameter type.
+    fn array_literal_signature_key(arg: &Node) -> Option<String> {
+        if arg.kind != NodeKind::ExprArrayLiteral || arg.extra_kind == "tuple" {
+            return None;
+        }
+        let size = arg.extra_size.parse::<usize>().ok()?;
+        let elem_type = &arg.extra_type;
+        if elem_type.is_empty() {
+            return None;
+        }
+        let mut parts: Vec<String> = Vec::new();
+        parts.push("lit".to_string());
+        parts.push(size.to_string());
+        parts.push(Self::sanitize_identifier(elem_type));
+        for child in &arg.children {
+            if child.kind != NodeKind::ExprLiteral || child.value.is_empty() {
+                return None;
+            }
+            parts.push(Self::sanitize_identifier(&child.value
+            ));
+        }
+        Some(format!("_{}", parts.join("_")))
+    }
+
+    /// W462: compute a deterministic module-level ROM name for an
+    /// ExprArrayLiteral that is passed to an array parameter, validating that
+    /// the literal's declared size and element type match the parameter.
+    fn array_literal_rom_name(
+        arg: &Node,
+        expected_size: usize,
+        expected_elem_type: &str,
+    ) -> Option<String> {
+        let key = Self::array_literal_signature_key(arg)?;
+        let size = arg.extra_size.parse::<usize>().ok()?;
+        if size != expected_size || arg.extra_type != expected_elem_type {
+            return None;
+        }
+        Some(key)
+    }
+
     /// W459: recursively collect `ExprCall` nodes under `node` whose callee name
     /// matches `name`. Used to discover array-parameter call sites inside
     /// test/invariant/bench blocks as well as module-level statements.
@@ -4272,9 +4325,10 @@ impl VerilogCodegen {
         self.array_param_bindings.get(&self.current_fn_name_original)
     }
 
-    /// W461: compute the binding-signature key for a call site, given the
+    /// W461/W462: compute the binding-signature key for a call site, given the
     /// original callee name. Returns `None` if the callee has no array
-    /// parameters or the call site is not well-formed.
+    /// parameters or the call site is not well-formed. Array literals are
+    /// lowered to anonymous ROMs; the signature is the ROM name.
     fn call_array_param_signature(&self, call: &Node, callee: &str) -> Option<String> {
         let indices = self.array_param_indices.get(callee)?;
         let mut parts = Vec::new();
@@ -4282,6 +4336,11 @@ impl VerilogCodegen {
             let arg = call.children.get(*idx)?;
             if arg.kind == NodeKind::ExprIdentifier && !arg.name.is_empty() {
                 parts.push(arg.name.clone());
+            } else if arg.kind == NodeKind::ExprArrayLiteral {
+                // W462: anonymous ROM lowered by the binding pass. The
+                // signature must match the name stored there.
+                let key = Self::array_literal_signature_key(arg)?;
+                parts.push(key);
             } else {
                 return None;
             }
@@ -4401,13 +4460,16 @@ impl VerilogCodegen {
             }
         }
 
-        // W380: pre-register function return types so let-destructuring can
-        // infer binding widths from callees regardless of declaration order.
+        // W380/W462: pre-register function return types so let-destructuring
+        // and module-level bare-call lowering can inspect callees regardless of
+        // declaration order. Empty return type means void.
         for f in &functions {
-            if !f.extra_return_type.is_empty() {
-                self.fn_return_types
-                    .insert(f.name.clone(), f.extra_return_type.clone());
-            }
+            let ret = if f.extra_return_type.is_empty() {
+                "void".to_string()
+            } else {
+                f.extra_return_type.clone()
+            };
+            self.fn_return_types.insert(f.name.clone(), ret);
         }
 
         // W458/W461: resolve module-level array parameter bindings. For each
@@ -4493,15 +4555,50 @@ impl VerilogCodegen {
                 for call in &call_sites {
                     let mut sig_parts: Vec<String> = Vec::new();
                     for idx in &array_param_indices {
-                        let (pname, _ptype) = &f.params[*idx];
+                        let (pname, ptype) = &f.params[*idx];
+                        let (expected_size, expected_elem_type) =
+                            Self::parse_array_type(ptype).unwrap();
                         if let Some(arg) = call.children.get(*idx) {
                             if arg.kind == NodeKind::ExprIdentifier && !arg.name.is_empty() {
                                 sig_parts.push(arg.name.clone());
+                            } else if arg.kind == NodeKind::ExprArrayLiteral
+                                && arg.extra_kind != "tuple"
+                            {
+                                // W462: literal array argument -> lower to an
+                                // anonymous module-level ROM shared by identical
+                                // literals across call sites.
+                                if let Some(rom_name) = Self::array_literal_rom_name(
+                                    arg,
+                                    expected_size,
+                                    &expected_elem_type,
+                                ) {
+                                    if !self.array_param_anon_roms.contains_key(&rom_name) {
+                                        self.array_param_anon_roms.insert(
+                                            rom_name.clone(),
+                                            (
+                                                expected_size,
+                                                expected_elem_type.clone(),
+                                                arg.clone(),
+                                            ),
+                                        );
+                                    }
+                                    sig_parts.push(rom_name);
+                                } else {
+                                    errors.insert(
+                                        f.name.clone(),
+                                        format!(
+                                            "function {} array parameter {} must be passed a module-level array identifier or a constant array literal",
+                                            f.name, pname
+                                        ),
+                                    );
+                                    broken = true;
+                                    break;
+                                }
                             } else {
                                 errors.insert(
                                     f.name.clone(),
                                     format!(
-                                        "function {} array parameter {} must be passed a module-level array identifier",
+                                        "function {} array parameter {} must be passed a module-level array identifier or a constant array literal",
                                         f.name, pname
                                     ),
                                 );
@@ -4621,6 +4718,28 @@ impl VerilogCodegen {
             self.write_line("// -------------------------------------------------------");
             for c in &consts {
                 self.gen_verilog_const(c);
+            }
+            self.write_line("");
+        }
+
+        // Section: Anonymous ROMs lowered from array-literal arguments (W462)
+        if !self.array_param_anon_roms.is_empty() {
+            self.write_indent();
+            self.write_line("// -------------------------------------------------------");
+            self.write_indent();
+            self.write_line("// Anonymous ROMs from array-literal arguments");
+            self.write_indent();
+            self.write_line("// -------------------------------------------------------");
+            let mut roms: Vec<(String, usize, String, Node)> = self
+                .array_param_anon_roms
+                .iter()
+                .map(|(name, (size, elem_type, lit))| {
+                    (name.clone(), *size, elem_type.clone(), lit.clone())
+                })
+                .collect();
+            roms.sort_by(|a, b| a.0.cmp(&b.0));
+            for (name, size, elem_type, lit) in roms {
+                self.gen_verilog_anon_rom(&name, size, &elem_type, &lit);
             }
             self.write_line("");
         }
@@ -4757,23 +4876,30 @@ impl VerilogCodegen {
 
             let mut toplevel_tmp_names: std::collections::HashMap<usize, String> =
                 std::collections::HashMap::new();
+            let mut void_bare_call_indices: std::collections::HashSet<usize> =
+                std::collections::HashSet::new();
             for (i, stmt) in module_stmts.iter().enumerate() {
                 if Self::module_stmt_is_bare_call(stmt) {
                     let expr = stmt.children.first().unwrap();
                     let width = self.dummy_reg_width_for_call(expr);
-                    let tmp_name = format!(
-                        "_toplevel_{}_tmp",
-                        self.toplevel_tmp_counter
-                    );
-                    self.toplevel_tmp_counter += 1;
-                    let range = if width <= 1 {
-                        String::new()
+                    if width == 0 {
+                        // W462: void callee -> task enable, no dummy register.
+                        void_bare_call_indices.insert(i);
                     } else {
-                        format!("[{}:0]", width - 1)
-                    };
-                    self.write_indent();
-                    self.write_line(&format!("reg {} {};", range, tmp_name));
-                    toplevel_tmp_names.insert(i, tmp_name);
+                        let tmp_name = format!(
+                            "_toplevel_{}_tmp",
+                            self.toplevel_tmp_counter
+                        );
+                        self.toplevel_tmp_counter += 1;
+                        let range = if width <= 1 {
+                            String::new()
+                        } else {
+                            format!("[{}:0]", width - 1)
+                        };
+                        self.write_indent();
+                        self.write_line(&format!("reg {} {};", range, tmp_name));
+                        toplevel_tmp_names.insert(i, tmp_name);
+                    }
                 }
             }
 
@@ -4787,6 +4913,9 @@ impl VerilogCodegen {
                     self.write(&format!("{} = ", tmp_name));
                     self.gen_verilog_expr(expr);
                     self.write_line(";");
+                } else if void_bare_call_indices.contains(&i) {
+                    // W462: void callee already emitted as a task enable.
+                    self.gen_verilog_stmt(stmt);
                 } else {
                     self.gen_verilog_stmt(stmt);
                 }
@@ -4933,6 +5062,50 @@ impl VerilogCodegen {
         self.write_line("endmodule");
         self.write_line("");
         self.write_line("`default_nettype wire");
+    }
+
+    /// W462: emit a module-level anonymous ROM lowered from an ExprArrayLiteral
+    /// that was used as an array-parameter argument. Mirrors the const-array
+    /// ROM style from gen_verilog_const without a pragma attribute.
+    fn gen_verilog_anon_rom(
+        &mut self,
+        name: &str,
+        size: usize,
+        elem_type: &str,
+        lit: &Node,
+    ) {
+        let elem_width = Self::type_to_width(elem_type);
+        let elem_signed = Self::type_is_signed(elem_type);
+        let elem_signed_str = if elem_signed { "signed " } else { "" };
+        let elem_range = Self::range_decl(elem_width);
+        let elem_range_str = if elem_range.is_empty() {
+            String::new()
+        } else {
+            format!("{} ", elem_range)
+        };
+        let safe_name = Self::verilog_safe_identifier(name);
+        self.write_line(&format!("// LUT: {} [{}] {}", safe_name, size, elem_type)
+        );
+        self.write_indent();
+        self.write_line(&format!(
+            "reg {}{} {} [0:{}];",
+            elem_signed_str, elem_range_str, safe_name, size - 1
+        ));
+        self.write_indent();
+        self.write_line("initial begin");
+        self.indent();
+        for (i, elem) in lit.children.iter().enumerate() {
+            if i >= size {
+                break;
+            }
+            self.write_indent();
+            self.write(&format!("{}[{}] = ", safe_name, i));
+            self.gen_verilog_expr(elem);
+            self.write_line(";");
+        }
+        self.dedent();
+        self.write_indent();
+        self.write_line("end");
     }
 
     fn gen_verilog_const(&mut self, node: &Node) {
