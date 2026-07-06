@@ -22,7 +22,7 @@
 
 - Branch: `wave-loop-459`
 - Issue: #1431
-- PR: (to open after close-out)
+- PR: #1434
 - Report: `docs/reports/WAVE_LOOP_459_REPORT.md`
 - Evidence W459: `docs/reports/FPGA_LOOP_EVIDENCE_W459_2026-07-01.md`
 - Plan: `docs/reports/FPGA_LOOP_COOPERATION_W459_2026-07-01.md`

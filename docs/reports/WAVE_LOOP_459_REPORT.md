@@ -2,6 +2,7 @@
 
 **Date:** 2026-07-01
 **Issue:** #1431
+**PR:** #1434
 **Branch:** `wave-loop-459`
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 

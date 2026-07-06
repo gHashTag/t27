@@ -1796,3 +1796,7 @@
 - **Commit:** feat(igla): Wave Loop 458 — gen-verilog warning hygiene + module-level array parameters
 - **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/auth_AuthConfig.json,.trinity/seals/base_tritype-base.json,.trinity/seals/base_tritype-ops.json,.trinity/seals/boards_ArtyA7_Integration.json,.trinity/seals/boards_QMTech_A100T_Integration.json,.trinity/seals/brain_brain.json,.trinity/seals/brain_neural_gamma.json,.trinity/seals/bus_bus-pubsub.json,.trinity/seals/cloud_cloud-railway-deploy.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/compiler_Lexing.json,.trinity/seals/compiler_Parsing.json,.trinity/seals/config_config-paths.json,.trinity/seals/config_config-schema.json
 
+## 2026-07-06T14:33:59Z — wave-loop-459
+- **Commit:** feat(igla): Wave Loop 459 — array parameters from test/invariant/bench, yosys warning gate with SIMULATION define, ROM style pragma, 583/583 non-smoke PASS + 63/63 yosys smoke PASS
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/NOW.md,docs/reports/WAVE_LOOP_459_REPORT.md
+
