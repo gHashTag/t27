@@ -1,0 +1,9 @@
+module w461_bare_call_module;
+const rom : [4]u16 = [4]u16{1, 2, 3, 4};
+pub fn sum(i : u32, j : u32) -> u16 { return rom[i] + rom[j]; }
+// Module-level bare function calls are not legal Verilog-2001 (they look
+// like task enables). The backend legalizes them by declaring a module-scope
+// dummy register and assigning the call result inside an always @(*) block.
+sum(0, 1);
+test ok { assert_eq(sum(0, 1), 3); }
+endmodule

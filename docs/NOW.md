@@ -1,20 +1,102 @@
-# NOW — Wave Loop 461 next / Wave Loop 460 close-out (2026-07-06)
+# NOW — Wave Loop 462 next / Wave Loop 461 close-out (2026-07-06)
 
 **Last updated:** 2026-07-06
 
-## Wave Loop 461 — Next wave (to be selected from cooperation plan) (Closes #1435)
+## Wave Loop 462 — Next wave (to be selected from cooperation plan) (Closes #1437)
 
-- Branch: `wave-loop-461` (to create from W460 land commit)
-- Issue: #1435 (to create)
+- Branch: `wave-loop-462` (to create from W461 land commit)
+- Issue: #1437 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W461_2026-07-06.md`
-- Cooperation W462: (to be written at W461 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W462_2026-07-06.md`
+- Cooperation W463: (to be written at W462 close-out)
 
 ### Not started
 
-- Create issue #1435 and branch `wave-loop-461` from the W460 land commit.
-- Select one of the three W461 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W461_2026-07-06.md`.
+- Create issue #1437 and branch `wave-loop-462` from the W461 land commit.
+- Select one of the three W462 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W462_2026-07-06.md`.
+
+---
+
+## Wave Loop 461 — compiler-backend hardening: module-level bare calls + array-parameter multi-array cloning (Variant B default) (Closes #1435)
+
+- Branch: `wave-loop-461`
+- Issue: #1435
+- PR: (to open)
+- Report: `docs/reports/WAVE_LOOP_461_REPORT.md`
+- Evidence W461: `docs/reports/FPGA_LOOP_EVIDENCE_W461_2026-07-06.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W461_2026-07-06.md`
+- Cooperation W462: `docs/reports/FPGA_LOOP_COOPERATION_W462_2026-07-06.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Added module-level bare-call legalization: bare `StmtExpr` function calls at
+    module scope are lowered to a dummy `_toplevel_<n>_tmp` register plus an
+    `always @(*) _toplevel_<n>_tmp = fn(...);` assignment.
+  - Extended the W458/W459 array-parameter binding pass to group call sites by
+    binding signature. When multiple signatures exist, the backend emits one
+    Verilog `function` clone per signature and redirects call sites to the
+    matching clone.
+  - Added `array_param_clones`, `array_param_clone_bindings`,
+    `current_array_param_bindings`, `call_array_param_signature`, and
+    `gen_verilog_fn_clone` to support clone emission and resolution.
+  - Preserved the original function label for non-cloned functions so existing
+    seals stay stable.
+
+- `specs/scratch/w461_bare_call_module.t27`
+  - Regression spec with a module-level bare `sum(0, 1);` call and a `test` block
+    validating the result.
+
+- `specs/scratch/w461_array_param_multi_array.t27`
+  - Regression spec with two module-level ROMs (`rom_a`, `rom_b`) and a
+    `sum_pair` function called from multiple `test` blocks binding different
+    arrays.
+
+- `.trinity/seals/scratch_w461_bare_call_module.json`
+- `.trinity/seals/scratch_w461_array_param_multi_array.json`
+  - Seals for the two new regression specs.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W461 competitor boundary section.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_461_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W461_2026-07-06.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W462_2026-07-06.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W461_OPERATING_POINT` — bench unavailable.
+- Literal array arguments for array parameters — deferred to W462 (Variant B).
+- Array-parameter functions called from within other functions — deferred to
+  W462 (Variant B).
+- GitHub issue #1437 and branch `wave-loop-462` — blocked on `gh` CLI
+  authentication in this environment; must be created manually.
+
+### Verification
+
+- `cargo test -p t27c --bin t27c`: **1524 passed, 0 failed, 2 ignored**.
+- `t27c gen-verilog specs/scratch/w461_bare_call_module.t27` +
+  `yosys read_verilog -sv -DSIMULATION`: **PASS**.
+- `t27c gen-verilog specs/scratch/w461_array_param_multi_array.t27` +
+  `yosys read_verilog -sv -DSIMULATION`: **PASS**.
+- `./scripts/tri test --fast`: **ALL TESTS PASSED**
+  - Parse: 587 passed, 0 failed
+  - Typecheck: 587 passed, 0 failed
+  - Gen Zig: 587 passed, 0 failed
+  - Gen Rust: 587 passed, 0 failed
+  - Gen Verilog: 587 passed, 0 failed
+  - Gen Verilog Yosys Smoke: **67 passed, 0 failed**
+  - FPGA Board-Less Smoke Gate: **OK**
+  - Gen C: 587 passed, 0 failed
+  - Seal Verify: 587 passed, 0 failed
+  - Fixed Point: 0 divergences
+  - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes`
 
 ---
 
@@ -76,12 +158,13 @@
 - Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
 - Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
 - Live-capture `XADC_LIVE_W460_OPERATING_POINT` — bench unavailable.
-- Array-parameter support for literal array arguments or multiple different
-  bound arrays — deferred to W461 (Variant B).
-- Module-level bare function calls that ignore the return value — deferred to
-  W461 (Variant B).
-- GitHub issue #1435 and branch `wave-loop-461` — blocked on `gh` CLI
-  authentication in this environment; must be created manually.
+- Array-parameter support for multiple different bound arrays — landed in W461
+  (Variant B); literal array arguments remain deferred.
+- Module-level bare function calls that ignore the return value — landed in W461
+  (Variant B).
+- GitHub issue #1435 and branch `wave-loop-461` — created during W461 close-out;
+  issue #1437 and branch `wave-loop-462` are blocked on `gh` CLI authentication
+  in this environment and must be created manually.
 
 ### Verification
 

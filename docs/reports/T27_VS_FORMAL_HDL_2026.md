@@ -61,6 +61,22 @@ public checkpoint. CIRCT `firtool-1.152.0` (2026-07-04) is still the latest publ
 release, and the ternary-FPGA ecosystem continues to validate the
 {-1, 0, +1} compute niche without pairing it with a Lean-native proof pipeline.
 
+**W461 completes the remaining W460-deferred compiler-backend debt.**
+`bootstrap/src/compiler.rs` now legalizes bare module-level function calls by
+synthesizing a dummy register and assigning the call result inside an
+`always @(*)` block, and it removes the "all call sites must bind the same
+array" restriction by emitting one Verilog `function` clone per unique
+array-parameter binding signature. The suite stays green: 587/587 non-smoke
+PASS, 67/67 yosys smoke PASS, 0 baseline failures, 0 seal mismatches, and
+`cargo test -p t27c --bin t27c` remains fully green (1524 passed, 0 failed,
+2 ignored). No new public competitor signals surfaced between the W460 close-out
+and the W461 boundary; Sparkle's public repository still shows PR #66 merged
+2026-06-30 and the 関数型まつり2026 talk on 2026-07-11 remains the most recent
+public checkpoint. CIRCT `firtool-1.152.0` (2026-07-04) is still the latest public
+release, and the ternary-FPGA ecosystem continues to validate the
+{-1, 0, +1} compute niche without pairing it with a Lean-native proof pipeline.
+The master-merge debt and physical-bench blockers remain unchanged.
+
 **W435 hardens the live-readout pipeline without clearing the master-merge debt.**
 `tri fpga read-xadc` now exports a rounded `PvtContext` JSON via `--to-pvt-context`;
 `tri fpga measured-to-lean --json` reports the source operating point; a new

@@ -3967,6 +3967,12 @@ pub struct VerilogCodegen {
     // multiple/conflicting call sites). The function is skipped and an error
     // comment is emitted instead.
     array_param_errors: std::collections::HashMap<String, String>,
+    // W461: per-function map of array-parameter binding signature -> clone name.
+    // Used when call sites pass different module-level arrays for the same
+    // function; each unique signature gets its own Verilog function clone.
+    array_param_clones: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+    // W461: per-clone array-parameter bindings. Keyed by clone name.
+    array_param_clone_bindings: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
     // W460: names of bench-local variables that have been hoisted to module scope
     // for the bench currently being emitted. Expressions inside the bench must
     // reference the prefixed hoisted name.
@@ -3974,6 +3980,8 @@ pub struct VerilogCodegen {
     // W460: prefix applied to hoisted bench-local variable names to avoid
     // collisions between benches and module-level names.
     bench_local_prefix: String,
+    // W461: monotonic counter for module-level bare-call dummy registers.
+    toplevel_tmp_counter: u32,
 }
 
 impl VerilogCodegen {
@@ -3992,8 +4000,11 @@ impl VerilogCodegen {
             array_param_bindings: std::collections::HashMap::new(),
             array_param_indices: std::collections::HashMap::new(),
             array_param_errors: std::collections::HashMap::new(),
+            array_param_clones: std::collections::HashMap::new(),
+            array_param_clone_bindings: std::collections::HashMap::new(),
             bench_local_names: std::collections::HashSet::new(),
             bench_local_prefix: String::new(),
+            toplevel_tmp_counter: 0,
         }
     }
 
@@ -4132,6 +4143,36 @@ impl VerilogCodegen {
         }
     }
 
+    /// W461: true if a module-level statement is a bare function call whose
+    /// return value is discarded. Such calls must be emitted as an assignment to
+    /// a dummy register because Verilog-2001 does not allow bare function calls
+    /// as statements (they are interpreted as task enables and fail in yosys).
+    fn module_stmt_is_bare_call(node: &Node) -> bool {
+        if node.kind != NodeKind::StmtExpr {
+            return false;
+        }
+        if let Some(expr) = node.children.first() {
+            if expr.kind == NodeKind::ExprCall {
+                return expr.name != "assert" && expr.name != "assert_eq";
+            }
+        }
+        false
+    }
+
+    /// W461: return the bit width needed for a dummy register that consumes the
+    /// result of a bare module-level function call. Uses the callee's return type
+    /// when known, otherwise falls back to 32 bits (the W459 test-block default).
+    fn dummy_reg_width_for_call(&self,
+        expr: &Node,
+    ) -> u32 {
+        let ret_ty = self
+            .fn_return_types
+            .get(&expr.name)
+            .map(String::as_str)
+            .unwrap_or("u32");
+        Self::tuple_return_width(ret_ty)
+    }
+
     fn write(&mut self, s: &str) {
         self.output.push_str(s);
     }
@@ -4213,6 +4254,41 @@ impl VerilogCodegen {
         }
     }
 
+    /// W461: return the array-parameter bindings active for the function
+    /// currently being emitted. If the current function is a clone, bindings come
+    /// from `array_param_clone_bindings`; otherwise they come from
+    /// `array_param_bindings` keyed by the original function name.
+    fn current_array_param_bindings(
+        &self,
+    ) -> Option<&std::collections::HashMap<String, String>> {
+        if !self.current_fn_name.is_empty()
+            && self.array_param_clone_bindings.contains_key(&self.current_fn_name)
+        {
+            return self.array_param_clone_bindings.get(&self.current_fn_name);
+        }
+        if self.current_fn_name_original.is_empty() {
+            return None;
+        }
+        self.array_param_bindings.get(&self.current_fn_name_original)
+    }
+
+    /// W461: compute the binding-signature key for a call site, given the
+    /// original callee name. Returns `None` if the callee has no array
+    /// parameters or the call site is not well-formed.
+    fn call_array_param_signature(&self, call: &Node, callee: &str) -> Option<String> {
+        let indices = self.array_param_indices.get(callee)?;
+        let mut parts = Vec::new();
+        for idx in indices {
+            let arg = call.children.get(*idx)?;
+            if arg.kind == NodeKind::ExprIdentifier && !arg.name.is_empty() {
+                parts.push(arg.name.clone());
+            } else {
+                return None;
+            }
+        }
+        Some(parts.join("_"))
+    }
+
     /// Format a Verilog range declaration like [31:0]
     fn range_decl(width: u32) -> String {
         if width == 1 {
@@ -4280,6 +4356,9 @@ impl VerilogCodegen {
         } else {
             "unknown".to_string()
         };
+        // W461: reset per-module counters.
+        self.toplevel_tmp_counter = 0;
+        self.let_tmp_counter = 0;
 
         // Header
         self.write_line(
@@ -4331,12 +4410,14 @@ impl VerilogCodegen {
             }
         }
 
-        // W458: resolve module-level array parameter bindings. For each
-        // function that accepts an array parameter, inspect the single
-        // module-level call site (bare StmtExpr -> ExprCall in the module
-        // body) to determine which module-level array identifier is passed
-        // for that parameter. Multiple call sites or non-identifier
-        // arguments are recorded as errors and the function is skipped.
+        // W458/W461: resolve module-level array parameter bindings. For each
+        // function that accepts an array parameter, inspect all call sites
+        // (module-level statements and test/invariant/bench blocks). When all
+        // sites agree on the same module-level array identifier, the function
+        // body references that array directly. When sites pass different arrays,
+        // W461 creates specialized function clones, one per unique binding
+        // signature, so the same logical function can be used with multiple
+        // module-level memories.
         {
             let mut bindings: std::collections::HashMap<
                 String,
@@ -4348,6 +4429,14 @@ impl VerilogCodegen {
             > = std::collections::HashMap::new();
             let mut errors: std::collections::HashMap<String, String> =
                 std::collections::HashMap::new();
+            let mut clones: std::collections::HashMap<
+                String,
+                std::collections::HashMap<String, String>,
+            > = std::collections::HashMap::new();
+            let mut clone_bindings: std::collections::HashMap<
+                String,
+                std::collections::HashMap<String, String>,
+            > = std::collections::HashMap::new();
 
             for f in &functions {
                 let array_param_indices: Vec<usize> = f
@@ -4362,8 +4451,7 @@ impl VerilogCodegen {
                 }
 
                 // W459: collect call sites from module-level statements and from
-                // test/invariant/bench blocks. All sites must agree on the same
-                // module-level array identifier for each array parameter.
+                // test/invariant/bench blocks.
                 let mut call_sites: Vec<&Node> = Vec::new();
                 for decl in &ast.children {
                     match decl.kind {
@@ -4394,52 +4482,103 @@ impl VerilogCodegen {
                     continue;
                 }
 
-                let mut fn_bindings: std::collections::HashMap<String, String> =
-                    std::collections::HashMap::new();
+                // W461: compute a binding signature for each call site. The
+                // signature is the ordered list of module-level array names
+                // bound to the function's array parameters.
+                let mut signatures: std::collections::HashMap<
+                    String,
+                    (Vec<String>, Vec<&Node>),
+                > = std::collections::HashMap::new();
                 let mut broken = false;
-                for idx in &array_param_indices {
-                    let (pname, _ptype) = &f.params[*idx];
-                    let mut arg_names: Vec<String> = Vec::new();
-                    for call in &call_sites {
+                for call in &call_sites {
+                    let mut sig_parts: Vec<String> = Vec::new();
+                    for idx in &array_param_indices {
+                        let (pname, _ptype) = &f.params[*idx];
                         if let Some(arg) = call.children.get(*idx) {
                             if arg.kind == NodeKind::ExprIdentifier && !arg.name.is_empty() {
-                                arg_names.push(arg.name.clone());
+                                sig_parts.push(arg.name.clone());
                             } else {
-                                arg_names.push("W458_NON_ID".to_string());
+                                errors.insert(
+                                    f.name.clone(),
+                                    format!(
+                                        "function {} array parameter {} must be passed a module-level array identifier",
+                                        f.name, pname
+                                    ),
+                                );
+                                broken = true;
+                                break;
                             }
                         } else {
-                            arg_names.push("W458_MISSING".to_string());
+                            errors.insert(
+                                f.name.clone(),
+                                format!(
+                                    "function {} array parameter {} missing at call site",
+                                    f.name, pname
+                                ),
+                            );
+                            broken = true;
+                            break;
                         }
                     }
-                    let unique: std::collections::HashSet<String> =
-                        arg_names.iter().cloned().collect();
-                    if unique.len() != 1 {
-                        errors.insert(
-                            f.name.clone(),
-                            format!(
-                                "function {} array parameter {} has conflicting call-site arguments",
-                                f.name, pname
-                            ),
-                        );
-                        broken = true;
+                    if broken {
                         break;
                     }
-                    let bound = arg_names.into_iter().next().unwrap();
-                    if bound == "W458_NON_ID" || bound == "W458_MISSING" {
-                        errors.insert(
-                            f.name.clone(),
-                            format!(
-                                "function {} array parameter {} must be passed a module-level array identifier",
-                                f.name, pname
-                            ),
-                        );
-                        broken = true;
-                        break;
-                    }
-                    fn_bindings.insert(pname.clone(), bound);
+                    let sig_key = sig_parts.join("_");
+                    signatures
+                        .entry(sig_key)
+                        .or_insert_with(|| (sig_parts, Vec::new()))
+                        .1
+                        .push(*call);
                 }
-                if !broken {
+                if broken {
+                    continue;
+                }
+
+                if signatures.len() == 1 {
+                    // Fast path: all call sites agree on a single binding.
+                    let (sig_parts, _) = signatures.into_values().next().unwrap();
+                    let mut fn_bindings: std::collections::HashMap<String, String> =
+                        std::collections::HashMap::new();
+                    for (idx, pname) in array_param_indices.iter().zip(f.params.iter().map(|(n, _)| n)) {
+                        fn_bindings.insert(pname.clone(), sig_parts[*idx].clone());
+                    }
                     bindings.insert(f.name.clone(), fn_bindings);
+                    indices.insert(
+                        f.name.clone(),
+                        array_param_indices.into_iter().collect(),
+                    );
+                } else {
+                    // W461: create a clone per unique binding signature.
+                    let mut fn_clones: std::collections::HashMap<String, String> =
+                        std::collections::HashMap::new();
+                    for (sig_key, (sig_parts, _calls)) in signatures {
+                        let sanitized_clone = format!(
+                            "{}_{}",
+                            Self::sanitize_identifier(&f.name),
+                            sig_parts
+                                .iter()
+                                .map(|s| Self::sanitize_identifier(s))
+                                .collect::<Vec<_>>()
+                                .join("_")
+                        );
+                        // Store both the clone declaration name (Verilog-safe,
+                        // including keyword escapes) and the binding map under that
+                        // safe name so later lookups are exact.
+                        let safe_clone_name = Self::verilog_safe_identifier(&sanitized_clone);
+                        let mut clone_fn_bindings: std::collections::HashMap<
+                            String,
+                            String,
+                        > = std::collections::HashMap::new();
+                        for (idx, pname) in array_param_indices
+                            .iter()
+                            .zip(f.params.iter().map(|(n, _)| n))
+                        {
+                            clone_fn_bindings.insert(pname.clone(), sig_parts[*idx].clone());
+                        }
+                        fn_clones.insert(sig_key, safe_clone_name.clone());
+                        clone_bindings.insert(safe_clone_name, clone_fn_bindings);
+                    }
+                    clones.insert(f.name.clone(), fn_clones);
                     indices.insert(
                         f.name.clone(),
                         array_param_indices.into_iter().collect(),
@@ -4450,6 +4589,8 @@ impl VerilogCodegen {
             self.array_param_bindings = bindings;
             self.array_param_indices = indices;
             self.array_param_errors = errors;
+            self.array_param_clones = clones;
+            self.array_param_clone_bindings = clone_bindings;
         }
 
         // Emit top-level module
@@ -4583,11 +4724,29 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
             for f in &functions {
-                self.gen_verilog_fn(f);
+                let mut clone_names: Vec<String> = self
+                    .array_param_clones
+                    .get(&f.name)
+                    .map(|m| m.values().cloned().collect())
+                    .unwrap_or_default();
+                clone_names.sort();
+                if !clone_names.is_empty() {
+                    // W461: this function is called with multiple module-level array
+                    // bindings; emit one specialized clone per binding signature
+                    // and skip the unspecialized original.
+                    for clone_name in clone_names {
+                        self.gen_verilog_fn_clone(f, &clone_name);
+                    }
+                } else {
+                    self.gen_verilog_fn(f);
+                }
             }
         }
 
         // Section: Module-level statements (e.g. calls to array-param functions)
+        // W461: bare module-level function calls are illegal in Verilog-2001 when
+        // emitted as statements. We declare module-scope dummy registers and
+        // assign the call result into them, preserving the side effect.
         if !module_stmts.is_empty() {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
@@ -4595,11 +4754,42 @@ impl VerilogCodegen {
             self.write_line("// Module-level statements");
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
+
+            let mut toplevel_tmp_names: std::collections::HashMap<usize, String> =
+                std::collections::HashMap::new();
+            for (i, stmt) in module_stmts.iter().enumerate() {
+                if Self::module_stmt_is_bare_call(stmt) {
+                    let expr = stmt.children.first().unwrap();
+                    let width = self.dummy_reg_width_for_call(expr);
+                    let tmp_name = format!(
+                        "_toplevel_{}_tmp",
+                        self.toplevel_tmp_counter
+                    );
+                    self.toplevel_tmp_counter += 1;
+                    let range = if width <= 1 {
+                        String::new()
+                    } else {
+                        format!("[{}:0]", width - 1)
+                    };
+                    self.write_indent();
+                    self.write_line(&format!("reg {} {};", range, tmp_name));
+                    toplevel_tmp_names.insert(i, tmp_name);
+                }
+            }
+
             self.write_indent();
             self.write_line("always @(*) begin");
             self.indent();
-            for stmt in &module_stmts {
-                self.gen_verilog_stmt(stmt);
+            for (i, stmt) in module_stmts.iter().enumerate() {
+                if let Some(tmp_name) = toplevel_tmp_names.get(&i) {
+                    let expr = stmt.children.first().unwrap();
+                    self.write_indent();
+                    self.write(&format!("{} = ", tmp_name));
+                    self.gen_verilog_expr(expr);
+                    self.write_line(";");
+                } else {
+                    self.gen_verilog_stmt(stmt);
+                }
             }
             self.dedent();
             self.write_indent();
@@ -5121,8 +5311,16 @@ impl VerilogCodegen {
         }
     }
 
-    fn gen_verilog_fn(&mut self, node: &Node) {
-        self.current_fn_name = Self::verilog_safe_identifier(&node.name);
+    /// W461: emit a Verilog function/task. This is the common implementation
+    /// shared by the original function and any specialized clones created when
+    /// the same t27 function is called with different module-level arrays.
+    fn gen_verilog_fn_internal(
+        &mut self,
+        node: &Node,
+        verilog_name: &str,
+        is_clone: bool,
+    ) {
+        self.current_fn_name = Self::verilog_safe_identifier(verilog_name);
         self.current_fn_name_original = node.name.clone();
         self.current_fn_return_type = node.extra_return_type.clone();
         self.let_tmp_counter = 0;
@@ -5133,23 +5331,30 @@ impl VerilogCodegen {
         }
         self.write_line("");
         self.write_indent();
-        self.write_line(&format!("// function: {}", node.name));
+        if is_clone {
+            self.write_line(&format!("// function: {} (clone {})", node.name, verilog_name),
+            );
+        } else {
+            self.write_line(&format!("// function: {}", node.name));
+        }
 
         // W458: if this function has array parameter(s) and the binding could
         // not be resolved from the module-level call site, emit an error
-        // comment and skip the function entirely.
-        let array_param_error = self.array_param_errors.get(&node.name).cloned();
-        if let Some(err) = array_param_error {
-            self.write_indent();
-            self.write_line(&format!("// ERROR: {}", err));
-            self.write_indent();
-            self.write_line("// (skipping function due to unsupported array parameter binding)");
-            self.current_fn_name.clear();
-            self.current_fn_name_original.clear();
-            self.current_fn_return_type.clear();
-            self.param_widths.clear();
-            self.local_arrays.clear();
-            return;
+        // comment and skip the function entirely. Clones are only created when
+        // binding succeeded, so they never carry this error.
+        if !is_clone {
+            if let Some(err) = self.array_param_errors.get(&node.name).cloned() {
+                self.write_indent();
+                self.write_line(&format!("// ERROR: {}", err));
+                self.write_indent();
+                self.write_line("// (skipping function due to unsupported array parameter binding)");
+                self.current_fn_name.clear();
+                self.current_fn_name_original.clear();
+                self.current_fn_return_type.clear();
+                self.param_widths.clear();
+                self.local_arrays.clear();
+                return;
+            }
         }
 
         // Emit as a Verilog function declaration
@@ -5173,7 +5378,7 @@ impl VerilogCodegen {
             format!("{} ", range)
         };
 
-        let fn_name = Self::verilog_safe_identifier(&node.name);
+        let fn_name = Self::verilog_safe_identifier(verilog_name);
 
         // void functions → task; others → function
         if node.extra_return_type == "void" {
@@ -5196,18 +5401,18 @@ impl VerilogCodegen {
 
         self.indent();
 
-        // Emit parameters as input declarations. W458: array parameters that
-        // are bound to a module-level array are not emitted as scalar inputs;
-        // the function body references the module array by name directly.
+        // Emit parameters as input declarations. W458/W461: array parameters
+        // that are bound to a module-level array are not emitted as scalar
+        // inputs; the function body references the module array by name directly.
+        let skip_params: std::collections::HashSet<String> = self
+            .current_array_param_bindings()
+            .map_or_else(
+                std::collections::HashSet::new,
+                |b| b.keys().cloned().collect(),
+            );
         for (pname, ptype) in &node.params {
-            if Self::parse_array_type(ptype).is_some() {
-                if self
-                    .array_param_bindings
-                    .get(&node.name)
-                    .map_or(false, |b| b.contains_key(pname))
-                {
-                    continue;
-                }
+            if Self::parse_array_type(ptype).is_some() && skip_params.contains(pname) {
+                continue;
             }
             self.write_indent();
             let pw = Self::type_to_width(ptype);
@@ -5238,8 +5443,16 @@ impl VerilogCodegen {
             // Name the body block: Verilog-2001 forbids local declarations in an
             // UNNAMED begin/end (a function that declares a local `reg` inside its
             // body would need SystemVerilog otherwise).
+            // For the original function, preserve the pre-W461 label so existing
+            // seals remain stable. For clones, derive a safe label from the clone
+            // declaration name.
+            let body_label = if is_clone {
+                Self::verilog_safe_identifier(&format!("{}_body", verilog_name))
+            } else {
+                Self::verilog_safe_identifier(&format!("{}_body", &node.name))
+            };
             self.write_indent();
-            self.write_line(&format!("begin : {}_body", node.name));
+            self.write_line(&format!("begin : {}", body_label));
             self.indent();
             self.gen_verilog_fn_body(&node.children);
             self.dedent();
@@ -5261,6 +5474,20 @@ impl VerilogCodegen {
         self.current_fn_return_type.clear();
         self.param_widths.clear();
         self.local_arrays.clear();
+    }
+
+    fn gen_verilog_fn(&mut self, node: &Node) {
+        let verilog_name = Self::verilog_safe_identifier(&node.name);
+        self.gen_verilog_fn_internal(node, &verilog_name, false);
+    }
+
+    /// W461: emit a specialized clone of `node` whose array parameters are
+    /// bound according to `clone_name`.
+    fn gen_verilog_fn_clone(&mut self,
+        node: &Node,
+        clone_name: &str,
+    ) {
+        self.gen_verilog_fn_internal(node, clone_name, true);
     }
 
     /// Emit a Verilog function body statement list, rewriting the
@@ -5868,12 +6095,10 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprIdentifier => {
-                // W458: if this identifier is a function parameter bound to a
-                // module-level array, emit the module array name instead.
-                if let Some(bindings) = self
-                    .array_param_bindings
-                    .get(&self.current_fn_name_original)
-                {
+                // W458/W461: if this identifier is a function parameter bound to
+                // a module-level array (in either the original function or a
+                // clone), emit the module array name instead.
+                if let Some(bindings) = self.current_array_param_bindings() {
                     if let Some(bound) = bindings.get(&node.name) {
                         self.write(&Self::verilog_safe_identifier(bound));
                     } else {
@@ -5887,15 +6112,26 @@ impl VerilogCodegen {
                 self.write(&Self::verilog_safe_identifier(&node.name));
             }
             NodeKind::ExprCall => {
-                self.write(&Self::verilog_safe_identifier(&node.name));
+                // W461: if the callee is a function with multiple array-parameter
+                // binding signatures, redirect this call to the appropriate clone.
+                let callee_original = &node.name;
+                let mut fn_name = Self::verilog_safe_identifier(callee_original);
+                if let Some(fn_clones) = self.array_param_clones.get(callee_original) {
+                    if let Some(sig) = self.call_array_param_signature(node, callee_original) {
+                        if let Some(clone_name) = fn_clones.get(&sig) {
+                            fn_name = Self::verilog_safe_identifier(clone_name);
+                        }
+                    }
+                }
+                self.write(&fn_name);
                 self.write("(");
-                // W458: drop module-level array arguments from the emitted
+                // W458/W461: drop module-level array arguments from the emitted
                 // Verilog argument list. The function body references the bound
                 // module array by name directly, so the array value is not passed
                 // through a scalar input port.
                 let skip_indices = self
                     .array_param_indices
-                    .get(&node.name)
+                    .get(callee_original)
                     .cloned()
                     .unwrap_or_default();
                 let mut first = true;

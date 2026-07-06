@@ -1804,3 +1804,7 @@
 - **Commit:** docs(w459): record PR #1434 in NOW.md and WAVE_LOOP_459_REPORT.md
 - **Files:** .claude/plans/wave-loop-460.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json,.trinity/seals/agent_EternalMonitor.json,.trinity/seals/agent_FacultyBoard.json,.trinity/seals/agent_Handoff.json,".trinity/seals/agent_Str = \"\",.json",.trinity/seals/agent_String  # phi, trinity, gematria, evolution, safety.json
 
+## 2026-07-06T16:45:36Z — wave-loop-461
+- **Commit:** feat(igla): Wave Loop 460 — preserve let bindings, hoist bench-local vars, multi-site array params, 585/585 non-smoke PASS + 65/65 yosys smoke PASS
+- **Files:** .claude/plans/wave-loop-461.md,.trinity/seals/scratch_w461_array_param_multi_array.json,.trinity/seals/scratch_w461_bare_call_module.json,bootstrap/src/compiler.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W462_2026-07-06.md,docs/reports/FPGA_LOOP_EVIDENCE_W461_2026-07-06.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_461_REPORT.md,specs/scratch/w461_array_param_multi_array.t27,specs/scratch/w461_bare_call_module.t27
+
