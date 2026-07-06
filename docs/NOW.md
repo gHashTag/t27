@@ -2,6 +2,109 @@
 
 Last updated: 2026-07-05
 
+## Compiler — lexer accepts `let` as immutable-local synonym for `const` (Closes #1401)
+
+- Root cause of E0425 x2609 (93% of Rust codegen errors) and 1957 C-emitter sites:
+  the lexer recognized `const`/`var` but NOT `let`. tri-net specs write `let x = ...;`
+  in function bodies -> `let` tokenized as a bare `Ident` -> `parse_body_stmt`
+  (dispatches to `parse_local_decl` only for `KwConst || KwVar`, compiler.rs:1690)
+  fell through to expression parsing -> the binding was dropped entirely before every
+  backend emitter.
+- The issue diagnosis suspected the emitter -- that is INCORRECT. `gen_rust_stmt`
+  (compiler.rs:7912) and the C/Zig/Verilog `StmtLocal` branches are correct. The real
+  bug is in the lexer. A single alias line repairs Rust + C + Zig + Verilog at once,
+  because every emitter already handles `StmtLocal`.
+- Fix (additive): lexer (compiler.rs:341) `"let" => TokenKind::KwConst` -- `let` is an
+  immutable local (matches the `let` the Rust emitter already prints). Mutable local
+  stays `var`; there is no `let mut` spec form yet.
+- Tests: +3 regression tests (`test_let_binding_emitted_rust_1401`,
+  `test_let_binding_emitted_c_1401`, `test_let_is_immutable_local_1401`); replaced the
+  GAP-characterization test `let_binding_falls_back_to_todo_characterization` ->
+  `let_binding_is_lowered_1401` per its own note.
+- Status tag: [verified SW] (CI `check` job GREEN -- cargo tests ran and passed).
+  SSOT=83 untouched.
+
+## SW-conformance — gf256 promoted to strict SW-bitexact (75/0/8) (Closes #1397)
+
+- gf256 (GoldenFloat256: S1 E97 M158, BIAS=79228162514264337593543950335=2^96-1,
+  u256_software) promoted from `bitexact_selfconsistent` to strict `bitexact` in
+  `conformance/vectors/INDEX_all_formats.json`. This is the LAST selfconsistent rung.
+- INDEX totals: bitexact 74 -> 75, selfconsistent 1 -> 0, structural 8 (sum=83).
+  Horizon-A SW ceiling reached (75 bit-precise; 8 structural are terminal, no single
+  decode law; 83/83 SW-bitexact is NOT achievable).
+- Bias hold lifted: earlier NOW entries said gf256 "stays open (open bias R&D) -- do
+  NOT promote". The 2026-07-05 bias audit resolved this: the decode uses ONLY the
+  closed-form interchange bias 2^(E-1)-1 = 2^96-1 (identical rule to gf128/gf512).
+  The descriptive PHI_BIAS spec metadata is NOT part of the decode path and no
+  decoded value depends on it (red herring). Decode-definition is definitive.
+- Status tag: [verified SW]. M=158 >> 52 -> no FP lowering; every finite value is an
+  EXACT dyadic odd*2^k (analytic separation-bound, same lemma as gf128/gf512).
+- Witness chain: dyadic normalizer 2021/2021 + Fraction oracle 2021/2021 + analytic
+  separation-bound; cross-check dyadic==Fraction on 201512 representative codes
+  (seed=256) agree, abs_error=0. OOM-safe (+-2^96 exponent kept symbolic).
+- NOT on-silicon Tier-E: gf256 is u256_software, has NO RTL -> no decode-HW/compute-HW
+  cell exists for it; the Tier-E ceiling 71/83 (trinity-fpga #199) is unaffected.
+
+## SW-conformance — gf512 + gf1024 promoted to strict SW-bitexact (paired, 74/1/8) (Closes #1380)
+
+- gf512 (S1 E195 M316, BIAS=2^194-1, u512_software) and gf1024 (S1 E391 M632,
+  BIAS=2^390-1, u1024_software; lowest phi-distance in the ladder) promoted from
+  `bitexact_selfconsistent` to strict `bitexact` (paired).
+- INDEX totals: bitexact 72 -> 74, selfconsistent 3 -> 1, structural 8 (sum=83).
+- Status tag: [verified SW]. M=316/632 > 52 -> no FP lowering; every finite value
+  is an EXACT dyadic odd*2^k (parametric separation-bound, same lemma as gf96/gf128).
+- Witness chain (each format): dyadic normalizer 15/15 + Fraction oracle 15/15 +
+  analytic separation-bound; cross-check dyadic==Fraction on 201512 representative
+  codes (seed=512 / seed=1024) agree. OOM-safe (+-2^194 / +-2^390 symbolic).
+- NOT on-silicon Tier-E: HW decode/compute [REQUIRES USER ACTION] (trinity-fpga #199).
+- Remaining selfconsistent (1): gf256 (bias-open R&D, separate research).
+
+## SW-conformance — gf128 promoted to strict SW-bitexact (72/3/8) (Closes #1370)
+
+- gf128 (GoldenFloat128: S1 E49 M78, BIAS=281474976710655=2^48-1) promoted from
+  `bitexact_selfconsistent` to strict `bitexact` in `conformance/vectors/INDEX_all_formats.json`.
+- INDEX totals: bitexact 71 -> 72, selfconsistent 4 -> 3, structural 8 (sum=83).
+- Status tag: [verified SW]. Like gf96, gf128 has M=78 > 52, so binary64 CANNOT
+  hold the mantissa exactly; there is NO FP lowering and NO rounding: every finite
+  gf128 value is an exact dyadic rational odd*2^k.
+- Witness chain: TWO structurally independent exact decode paths
+  (dyadic integer normalizer `conformance/gf_wide_independent_witness.py` +
+  Fraction-significand symbolic-shift `conformance/witness/gf128/gf128_decode_ref.py`)
+  agree on all 15 pack vectors (abs_error=0) AND on a 201512-code representative
+  sweep (seed=128); + analytic separation-bound `conformance/witness/gf128/SEPARATION_BOUND.md`
+  (zero-rounding lemma over the whole 2^128 domain; exhaustive infeasible).
+- OOM-safe: the +-2^48 exponent is NEVER materialized; both paths keep the huge
+  power of two symbolic in `shift`, numerators <= ~2^80.
+- NOT on-silicon Tier-E: HW-decode / HW-compute for gf128 remain [REQUIRES USER
+  ACTION] (4/4 chain on AX7203, trinity-fpga #199).
+- Remaining selfconsistent (3): gf256, gf512, gf1024.
+
+## SW-conformance — gf96 promoted to strict SW-bitexact (71/4/8) (Closes #1366)
+
+- gf96 (GoldenFloat96: S1 E36 M59, BIAS=34359738367=2^35-1) promoted from
+  `bitexact_selfconsistent` to strict `bitexact` in
+  `conformance/vectors/INDEX_all_formats.json`.
+- INDEX totals: bitexact 70 -> 71, selfconsistent 5 -> 4, structural 8 (sum=83).
+- Status tag: [verified SW]. Unlike gf48, gf96 has M=59 > 52, so binary64 CANNOT
+  hold the mantissa exactly and there is NO FP lowering and NO rounding: every
+  finite gf96 value is an exact dyadic rational. The proof is therefore an
+  analytic zero-rounding separation-bound plus two structurally independent EXACT
+  decode paths (no RTL bit-model / iverilog needed, because there is nothing to
+  round). Witnesses pass in-sandbox:
+  (1) dyadic independent decoder 15/15 (abs_error=0);
+  (2) golden Fraction oracle 15/15 exact vs pack;
+  (3) two-path cross-check over 201512 representative codes (5-class + exponent
+      boundaries + full-mantissa edges + deep-underflow/overflow + 200k random
+      seed=96), both paths agree bit-exactly.
+- Witness chain + separation-bound lemma: `conformance/witness/gf96/README.md`
+  and `conformance/witness/gf96/SEPARATION_BOUND.md`. Memory note: the +-2^35
+  exponent means `2^(exp-BIAS)` is NEVER materialized as an integer (would OOM);
+  both paths keep the huge power symbolic (peak RSS ~14 MB).
+- NOT on-silicon Tier-E: HW-decode / HW-compute for gf96 remain [REQUIRES USER
+  ACTION] (4/4 chain on AX7203, trinity-fpga #199). encoding != compute != FPGA.
+- Remaining selfconsistent (4): gf128, gf256, gf512, gf1024.
+  gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
+
 ## SW-conformance — gf48 promoted to strict SW-bitexact (70/5/8) (Closes #1358)
 
 - gf48 (GoldenFloat48: S1 E18 M29, BIAS=131071) promoted from
@@ -18,8 +121,9 @@ Last updated: 2026-07-05
   local agent (no iverilog in sandbox) = stronger witness, not yet run.
 - NOT on-silicon Tier-E: HW-decode / HW-compute for gf48 remain [REQUIRES USER
   ACTION] (4/4 chain on AX7203, trinity-fpga #199). encoding != compute != FPGA.
-- Remaining selfconsistent (5): gf96, gf128, gf256, gf512, gf1024.
-  gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
+- Remaining selfconsistent (5 at the time of #1358): gf96, gf128, gf256, gf512,
+  gf1024. gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
+  (gf96 later promoted, see the gf96 section above -> 4 remaining.)
 
 ## Wave Loop 419 — Variant C fallback: VCD/CSV hardening, PVT monotonicity, standalone lake workflow (Closes #1357)
 
