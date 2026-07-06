@@ -1,6 +1,6 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-449`  
+**Branch:** `wave-loop-450`  
 **Last updated:** 2026-07-01 (Wave Loop 449)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
@@ -670,7 +670,21 @@ introduced.
 
 **Defect status matrix after W446:** same as after W435.
 
-## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439 / W440 / W441 / W444 / W446
+## W450 triage (2026-07-01)
+
+Wave Loop 450 selected **Variant B** of the W450 cooperation plan (quantified
+dry-run-live transaction theorem + standalone-build snapshot + `--fast` suite
+mode). Work focused on `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+(dry-run-live theorem block), `cli/tri/src/fpga.rs` (standalone smoke-gate
+snapshot test), and `bootstrap/src/main.rs` + `bootstrap/src/suite.rs` (`--fast`
+flag and isolated `fpga-smoke-gate-standalone` phase). The wave did not touch
+the `gen-verilog` backend, so the 7 residual yosys smoke failures remain
+**unchanged and re-confirmed as the baseline**. No new narrow defect was
+introduced.
+
+**Defect status matrix after W450:** same as after W435.
+
+## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435 / W438 / W439 / W440 / W441 / W444 / W446 / W449 / W450
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.

@@ -1,0 +1,411 @@
+{
+  "bit_config": {
+    "assertions": [
+      "IDCODE=0x03636093",
+      "SPI_BUSWIDTH=x1",
+      "STARTUPCLK=CCLK",
+      "OSCFSEL=0",
+      "no CRC register writes"
+    ],
+    "bitstream": "<REPO>/fpga/verilog/ternary_mac_demo_top_200t.bit",
+    "status": "ok"
+  },
+  "dry_run_sweep": {
+    "report_json": "<REPO>/build/fpga/smoke-gate-dry-run/sweep-report-smoke-gate-dry-run.json",
+    "report_md": "<REPO>/build/fpga/smoke-gate-dry-run/sweep-report-smoke-gate-dry-run.md",
+    "source": "synthetic",
+    "status": "ok",
+    "variant_count": 8
+  },
+  "passed": true,
+  "schema_version": "1.0",
+  "theorem_matrix": {
+    "corner_count": 3,
+    "oscfsel_count": 8,
+    "replay": false,
+    "source": "synthetic",
+    "status": "ok",
+    "variant_count": 24,
+    "variants": [
+      {
+        "corner": "ff",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ff_oscfsel_0.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ff.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ff_0.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ff_0.json"
+        },
+        "oscfsel": 0,
+        "period_ns": 400,
+        "sck_high_ns": 200,
+        "sck_low_ns": 200,
+        "status": "ok"
+      },
+      {
+        "corner": "ff",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ff_oscfsel_1.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ff.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ff_1.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ff_1.json"
+        },
+        "oscfsel": 1,
+        "period_ns": 238,
+        "sck_high_ns": 119,
+        "sck_low_ns": 119,
+        "status": "ok"
+      },
+      {
+        "corner": "ff",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ff_oscfsel_2.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ff.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ff_2.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ff_2.json"
+        },
+        "oscfsel": 2,
+        "period_ns": 151,
+        "sck_high_ns": 76,
+        "sck_low_ns": 75,
+        "status": "ok"
+      },
+      {
+        "corner": "ff",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ff_oscfsel_3.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ff.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ff_3.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ff_3.json"
+        },
+        "oscfsel": 3,
+        "period_ns": 100,
+        "sck_high_ns": 50,
+        "sck_low_ns": 50,
+        "status": "ok"
+      },
+      {
+        "corner": "ff",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ff_oscfsel_4.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ff.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ff_4.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ff_4.json"
+        },
+        "oscfsel": 4,
+        "period_ns": 80,
+        "sck_high_ns": 40,
+        "sck_low_ns": 40,
+        "status": "ok"
+      },
+      {
+        "corner": "ff",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ff_oscfsel_5.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ff.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ff_5.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ff_5.json"
+        },
+        "oscfsel": 5,
+        "period_ns": 59,
+        "sck_high_ns": 30,
+        "sck_low_ns": 29,
+        "status": "ok"
+      },
+      {
+        "corner": "ff",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ff_oscfsel_6.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ff.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ff_6.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ff_6.json"
+        },
+        "oscfsel": 6,
+        "period_ns": 40,
+        "sck_high_ns": 20,
+        "sck_low_ns": 20,
+        "status": "ok"
+      },
+      {
+        "corner": "ff",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ff_oscfsel_7.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ff.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ff_7.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ff_7.json"
+        },
+        "oscfsel": 7,
+        "period_ns": 30,
+        "sck_high_ns": 15,
+        "sck_low_ns": 15,
+        "status": "ok"
+      },
+      {
+        "corner": "tt",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_tt_oscfsel_0.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_tt.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_tt_0.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_tt_0.json"
+        },
+        "oscfsel": 0,
+        "period_ns": 400,
+        "sck_high_ns": 200,
+        "sck_low_ns": 200,
+        "status": "ok"
+      },
+      {
+        "corner": "tt",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_tt_oscfsel_1.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_tt.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_tt_1.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_tt_1.json"
+        },
+        "oscfsel": 1,
+        "period_ns": 238,
+        "sck_high_ns": 119,
+        "sck_low_ns": 119,
+        "status": "ok"
+      },
+      {
+        "corner": "tt",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_tt_oscfsel_2.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_tt.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_tt_2.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_tt_2.json"
+        },
+        "oscfsel": 2,
+        "period_ns": 151,
+        "sck_high_ns": 76,
+        "sck_low_ns": 75,
+        "status": "ok"
+      },
+      {
+        "corner": "tt",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_tt_oscfsel_3.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_tt.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_tt_3.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_tt_3.json"
+        },
+        "oscfsel": 3,
+        "period_ns": 100,
+        "sck_high_ns": 50,
+        "sck_low_ns": 50,
+        "status": "ok"
+      },
+      {
+        "corner": "tt",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_tt_oscfsel_4.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_tt.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_tt_4.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_tt_4.json"
+        },
+        "oscfsel": 4,
+        "period_ns": 80,
+        "sck_high_ns": 40,
+        "sck_low_ns": 40,
+        "status": "ok"
+      },
+      {
+        "corner": "tt",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_tt_oscfsel_5.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_tt.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_tt_5.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_tt_5.json"
+        },
+        "oscfsel": 5,
+        "period_ns": 59,
+        "sck_high_ns": 30,
+        "sck_low_ns": 29,
+        "status": "ok"
+      },
+      {
+        "corner": "tt",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_tt_oscfsel_6.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_tt.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_tt_6.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_tt_6.json"
+        },
+        "oscfsel": 6,
+        "period_ns": 40,
+        "sck_high_ns": 20,
+        "sck_low_ns": 20,
+        "status": "ok"
+      },
+      {
+        "corner": "tt",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_tt_oscfsel_7.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_tt.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_tt_7.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_tt_7.json"
+        },
+        "oscfsel": 7,
+        "period_ns": 30,
+        "sck_high_ns": 15,
+        "sck_low_ns": 15,
+        "status": "ok"
+      },
+      {
+        "corner": "ss",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ss_oscfsel_0.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ss.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ss_0.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ss_0.json"
+        },
+        "oscfsel": 0,
+        "period_ns": 400,
+        "sck_high_ns": 200,
+        "sck_low_ns": 200,
+        "status": "ok"
+      },
+      {
+        "corner": "ss",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ss_oscfsel_1.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ss.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ss_1.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ss_1.json"
+        },
+        "oscfsel": 1,
+        "period_ns": 238,
+        "sck_high_ns": 119,
+        "sck_low_ns": 119,
+        "status": "ok"
+      },
+      {
+        "corner": "ss",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ss_oscfsel_2.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ss.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ss_2.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ss_2.json"
+        },
+        "oscfsel": 2,
+        "period_ns": 151,
+        "sck_high_ns": 76,
+        "sck_low_ns": 75,
+        "status": "ok"
+      },
+      {
+        "corner": "ss",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ss_oscfsel_3.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ss.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ss_3.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ss_3.json"
+        },
+        "oscfsel": 3,
+        "period_ns": 100,
+        "sck_high_ns": 50,
+        "sck_low_ns": 50,
+        "status": "ok"
+      },
+      {
+        "corner": "ss",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ss_oscfsel_4.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ss.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ss_4.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ss_4.json"
+        },
+        "oscfsel": 4,
+        "period_ns": 80,
+        "sck_high_ns": 40,
+        "sck_low_ns": 40,
+        "status": "ok"
+      },
+      {
+        "corner": "ss",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ss_oscfsel_5.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ss.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ss_5.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ss_5.json"
+        },
+        "oscfsel": 5,
+        "period_ns": 59,
+        "sck_high_ns": 30,
+        "sck_low_ns": 29,
+        "status": "ok"
+      },
+      {
+        "corner": "ss",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ss_oscfsel_6.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ss.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ss_6.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ss_6.json"
+        },
+        "oscfsel": 6,
+        "period_ns": 40,
+        "sck_high_ns": 20,
+        "sck_low_ns": 20,
+        "status": "ok"
+      },
+      {
+        "corner": "ss",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_ss_oscfsel_7.lean",
+          "pvt": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_pvt_ss.json",
+          "raw_ns": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_raw_ns_ss_7.json",
+          "summary": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_summary_ss_7.json"
+        },
+        "oscfsel": 7,
+        "period_ns": 30,
+        "sck_high_ns": 15,
+        "sck_low_ns": 15,
+        "status": "ok"
+      }
+    ]
+  },
+  "validate_lean_standalone": {
+    "lean_file": "<REPO>/build/fpga/theorem-matrix-fixtures/theorem_matrix_validate_standalone_synthetic_0.lean",
+    "source": "synthetic",
+    "status": "ok"
+  },
+  "verify_lean": {
+    "expected_source": "synthetic",
+    "lean_file": "<REPO>/build/fpga/smoke-gate-dry-run/verify-lean-fixture/smoke_gate_synthetic.lean",
+    "status": "ok",
+    "summary_file": "<REPO>/build/fpga/smoke-gate-dry-run/verify-lean-fixture/summary.json"
+  },
+  "yosys_synthesis": {
+    "files": [
+      "<REPO>/fpga/verilog/ternary_mac_synth.v",
+      "<REPO>/fpga/verilog/ternary_mac_demo_top.v"
+    ],
+    "status": "ok",
+    "top": "ternary_mac_demo_top"
+  }
+}

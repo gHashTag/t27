@@ -943,7 +943,11 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *wait_seconds,
             cable,
             part,
-            *synthetic_operating_point || *verify_lean || *theorem_matrix || *dry_run_live || *validate_lean_standalone,
+            *synthetic_operating_point
+                || *verify_lean
+                || *theorem_matrix
+                || *dry_run_live
+                || *validate_lean_standalone,
             *verify_lean || *theorem_matrix || *dry_run_live || *validate_lean_standalone,
             *theorem_matrix || *dry_run_live || *validate_lean_standalone,
             *dry_run_live,
@@ -5620,12 +5624,14 @@ fn bit_config(bit: &PathBuf, extra_args: &[&str]) -> Result<String> {
         extra_args.join(" "),
         bit_str
     );
-    let output = cmd
-        .output()
-        .with_context(|| "spawn dump_bit_config.py")?;
+    let output = cmd.output().with_context(|| "spawn dump_bit_config.py")?;
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
-        bail!("dump_bit_config.py exited with {:?}: {}", output.status, err.trim());
+        bail!(
+            "dump_bit_config.py exited with {:?}: {}",
+            output.status,
+            err.trim()
+        );
     }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
@@ -6317,7 +6323,9 @@ fn smoke_gate(
             let variants = report_value
                 .get("variants")
                 .and_then(|v| v.as_array())
-                .with_context(|| format!("missing variants array in {}", dry_report_json.display()))?;
+                .with_context(|| {
+                    format!("missing variants array in {}", dry_report_json.display())
+                })?;
             if variants.len() != values.len() {
                 report["dry_run_sweep"] = serde_json::json!({
                     "status": "failed",
@@ -6482,9 +6490,15 @@ fn smoke_gate(
                     .join("fpga")
                     .join("theorem-matrix-dry-run-live")
             } else {
-                root.join("build").join("fpga").join("theorem-matrix-fixtures")
+                root.join("build")
+                    .join("fpga")
+                    .join("theorem-matrix-fixtures")
             };
-            let source = if dry_run_live { "dry_run_live" } else { "synthetic" };
+            let source = if dry_run_live {
+                "dry_run_live"
+            } else {
+                "synthetic"
+            };
             let matrix_fixture_dir = replay_fixtures
                 .cloned()
                 .unwrap_or_else(|| matrix_default_dir.clone());
@@ -6493,8 +6507,9 @@ fn smoke_gate(
                     "[smoke-gate] theorem-matrix: replaying from fixtures {}",
                     matrix_fixture_dir.display()
                 );
-                let (entries, elapsed_ms, replay_source) = replay_theorem_matrix(&matrix_fixture_dir)
-                    .with_context(|| "theorem-matrix fixture replay failed")?;
+                let (entries, elapsed_ms, replay_source) =
+                    replay_theorem_matrix(&matrix_fixture_dir)
+                        .with_context(|| "theorem-matrix fixture replay failed")?;
                 report["theorem_matrix"] =
                     build_theorem_matrix_report(&entries, elapsed_ms, true, &replay_source);
                 println!(
@@ -6511,7 +6526,7 @@ fn smoke_gate(
                 if validate_lean_standalone {
                     let validate_start = std::time::Instant::now();
                     let first = entries.first().context(
-                        "theorem-matrix validate-lean-standalone needs at least one variant"
+                        "theorem-matrix validate-lean-standalone needs at least one variant",
                     )?;
                     let fixtures = first
                         .get("fixtures")
@@ -6528,8 +6543,10 @@ fn smoke_gate(
                         .map(std::path::PathBuf::from)
                         .context("validate-lean-standalone: missing pvt fixture")?;
 
-                    let standalone_out = matrix_fixture_dir
-                        .join(format!("theorem_matrix_validate_standalone_{}_{}.lean", replay_source, 0));
+                    let standalone_out = matrix_fixture_dir.join(format!(
+                        "theorem_matrix_validate_standalone_{}_{}.lean",
+                        replay_source, 0
+                    ));
                     let m2l_result = measured_to_lean(
                         Some(&raw_ns_path),
                         None,
@@ -6573,8 +6590,9 @@ fn smoke_gate(
                         std::process::id()
                     ));
                     let _ = std::fs::remove_dir_all(&pkg_dir);
-                    std::fs::create_dir_all(&pkg_dir)
-                        .with_context(|| format!("create temp lake package {}", pkg_dir.display()))?;
+                    std::fs::create_dir_all(&pkg_dir).with_context(|| {
+                        format!("create temp lake package {}", pkg_dir.display())
+                    })?;
                     let lakefile = format!(
                         "import Lake\n\
                          open Lake DSL\n\n\
@@ -6641,7 +6659,7 @@ fn smoke_gate(
                 if validate_lean_standalone {
                     let validate_start = std::time::Instant::now();
                     let first = entries.first().context(
-                        "theorem-matrix validate-lean-standalone needs at least one variant"
+                        "theorem-matrix validate-lean-standalone needs at least one variant",
                     )?;
                     let fixtures = first
                         .get("fixtures")
@@ -6658,8 +6676,10 @@ fn smoke_gate(
                         .map(std::path::PathBuf::from)
                         .context("validate-lean-standalone: missing pvt fixture")?;
 
-                    let standalone_out = matrix_fixture_dir
-                        .join(format!("theorem_matrix_validate_standalone_{}_{}.lean", source, 0));
+                    let standalone_out = matrix_fixture_dir.join(format!(
+                        "theorem_matrix_validate_standalone_{}_{}.lean",
+                        source, 0
+                    ));
                     let m2l_result = measured_to_lean(
                         Some(&raw_ns_path),
                         None,
@@ -6703,8 +6723,9 @@ fn smoke_gate(
                         std::process::id()
                     ));
                     let _ = std::fs::remove_dir_all(&pkg_dir);
-                    std::fs::create_dir_all(&pkg_dir)
-                        .with_context(|| format!("create temp lake package {}", pkg_dir.display()))?;
+                    std::fs::create_dir_all(&pkg_dir).with_context(|| {
+                        format!("create temp lake package {}", pkg_dir.display())
+                    })?;
                     let lakefile = format!(
                         "import Lake\n\
                          open Lake DSL\n\n\
@@ -6835,7 +6856,11 @@ fn smoke_gate(
     }
 
     println!("[smoke-gate] complete (passed: {})", passed);
-    if passed { Ok(()) } else { bail!("smoke-gate did not pass all phases") }
+    if passed {
+        Ok(())
+    } else {
+        bail!("smoke-gate did not pass all phases")
+    }
 }
 
 /// Generate the 24-variant theorem matrix (3 corners x 8 OSCFSEL values) and
@@ -6852,14 +6877,18 @@ fn generate_theorem_matrix(
         let pvt_path = fixture_dir.join(format!("theorem_matrix_pvt_{}.json", corner_str));
         std::fs::write(
             &pvt_path,
-            serde_json::to_string_pretty(&pvt).with_context(|| "serialize theorem-matrix PVT context")?,
+            serde_json::to_string_pretty(&pvt)
+                .with_context(|| "serialize theorem-matrix PVT context")?,
         )
         .with_context(|| format!("write {}", pvt_path.display()))?;
 
         for oscfsel in 0u8..=7u8 {
             let period_ns = cclk_period_ns(oscfsel);
             if period_ns == 0 {
-                bail!("theorem-matrix encountered invalid CCLK period for OSCFSEL {}", oscfsel);
+                bail!(
+                    "theorem-matrix encountered invalid CCLK period for OSCFSEL {}",
+                    oscfsel
+                );
             }
             let low_ns = period_ns / 2;
             let high_ns = period_ns - low_ns;
@@ -6871,13 +6900,17 @@ fn generate_theorem_matrix(
             };
             let raw_ns_text = serde_json::to_string_pretty(&raw_ns)
                 .with_context(|| "serialize theorem-matrix raw-ns fixture")?;
-            let raw_ns_path = fixture_dir
-                .join(format!("theorem_matrix_raw_ns_{}_{}.json", corner_str, oscfsel));
+            let raw_ns_path = fixture_dir.join(format!(
+                "theorem_matrix_raw_ns_{}_{}.json",
+                corner_str, oscfsel
+            ));
             std::fs::write(&raw_ns_path, &raw_ns_text)
                 .with_context(|| format!("write {}", raw_ns_path.display()))?;
 
-            let lean_path = fixture_dir
-                .join(format!("theorem_matrix_{}_oscfsel_{}.lean", corner_str, oscfsel));
+            let lean_path = fixture_dir.join(format!(
+                "theorem_matrix_{}_oscfsel_{}.lean",
+                corner_str, oscfsel
+            ));
             let name = format!("smoke_gate_{}_oscfsel_{}", corner_str, oscfsel);
             measured_to_lean(
                 Some(&raw_ns_path),
@@ -6918,8 +6951,10 @@ fn generate_theorem_matrix(
                 &raw_ns_text,
             )
             .with_context(|| "build theorem-matrix measured-to-lean summary")?;
-            let summary_path = fixture_dir
-                .join(format!("theorem_matrix_summary_{}_{}.json", corner_str, oscfsel));
+            let summary_path = fixture_dir.join(format!(
+                "theorem_matrix_summary_{}_{}.json",
+                corner_str, oscfsel
+            ));
             std::fs::write(
                 &summary_path,
                 serde_json::to_string_pretty(&summary)
@@ -6927,17 +6962,14 @@ fn generate_theorem_matrix(
             )
             .with_context(|| format!("write {}", summary_path.display()))?;
 
-            verify_lean(&lean_path,
-                Some(&summary_path),
-                Some(source),
-                false,
-            )
-            .with_context(|| {
-                format!(
-                    "theorem-matrix verify-lean failed for corner {} OSCFSEL {}",
-                    corner_str, oscfsel
-                )
-            })?;
+            verify_lean(&lean_path, Some(&summary_path), Some(source), false).with_context(
+                || {
+                    format!(
+                        "theorem-matrix verify-lean failed for corner {} OSCFSEL {}",
+                        corner_str, oscfsel
+                    )
+                },
+            )?;
 
             if !pvt_context_inside_envelope(&pvt) {
                 bail!(
@@ -6988,12 +7020,18 @@ fn replay_theorem_matrix(
         .with_context(|| format!("parse {}", pvt_path.display()))?;
 
         for oscfsel in 0u8..=7u8 {
-            let raw_ns_path = fixture_dir
-                .join(format!("theorem_matrix_raw_ns_{}_{}.json", corner_str, oscfsel));
-            let lean_path = fixture_dir
-                .join(format!("theorem_matrix_{}_oscfsel_{}.lean", corner_str, oscfsel));
-            let summary_path = fixture_dir
-                .join(format!("theorem_matrix_summary_{}_{}.json", corner_str, oscfsel));
+            let raw_ns_path = fixture_dir.join(format!(
+                "theorem_matrix_raw_ns_{}_{}.json",
+                corner_str, oscfsel
+            ));
+            let lean_path = fixture_dir.join(format!(
+                "theorem_matrix_{}_oscfsel_{}.lean",
+                corner_str, oscfsel
+            ));
+            let summary_path = fixture_dir.join(format!(
+                "theorem_matrix_summary_{}_{}.json",
+                corner_str, oscfsel
+            ));
 
             for path in [&raw_ns_path, &lean_path, &summary_path] {
                 if !path.is_file() {
@@ -7021,7 +7059,8 @@ fn replay_theorem_matrix(
             }
             let expected_source_str = expected_source.unwrap_or("synthetic");
 
-            verify_lean(&lean_path,
+            verify_lean(
+                &lean_path,
                 Some(&summary_path),
                 Some(expected_source_str),
                 false,
@@ -7098,8 +7137,7 @@ fn normalize_fixture_paths(
                     if let Some(path_str) = value.as_str() {
                         let path = std::path::Path::new(path_str);
                         if let Ok(rel) = path.strip_prefix(fixture_dir) {
-                            *value =
-                                serde_json::Value::String(rel.to_string_lossy().to_string());
+                            *value = serde_json::Value::String(rel.to_string_lossy().to_string());
                         }
                     }
                 }
@@ -7899,11 +7937,7 @@ mod tests {
             "tri_m2l_standalone_pvt_{}.json",
             std::process::id()
         ));
-        std::fs::write(
-            &pvt_path,
-            serde_json::to_string_pretty(&pvt).unwrap(),
-        )
-        .unwrap();
+        std::fs::write(&pvt_path, serde_json::to_string_pretty(&pvt).unwrap()).unwrap();
 
         let raw_ns = MeasuredCclkRawNs {
             period_ns: 40,
@@ -7915,11 +7949,7 @@ mod tests {
             "tri_m2l_standalone_raw_ns_{}.json",
             std::process::id()
         ));
-        std::fs::write(
-            &raw_ns_path,
-            serde_json::to_string_pretty(&raw_ns).unwrap(),
-        )
-        .unwrap();
+        std::fs::write(&raw_ns_path, serde_json::to_string_pretty(&raw_ns).unwrap()).unwrap();
 
         let out_path = std::env::temp_dir().join(format!(
             "tri_m2l_standalone_out_{}.lean",
@@ -7965,10 +7995,8 @@ mod tests {
             "in-repo Trinity lakefile must exist"
         );
 
-        let pkg_dir = std::env::temp_dir().join(format!(
-            "tri_m2l_standalone_pkg_{}",
-            std::process::id()
-        ));
+        let pkg_dir =
+            std::env::temp_dir().join(format!("tri_m2l_standalone_pkg_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&pkg_dir);
         std::fs::create_dir_all(&pkg_dir).unwrap();
 
@@ -9370,7 +9398,10 @@ mod tests {
         let report = build_pvt_envelope_report(Some(&pvt)).unwrap();
         assert_eq!(report["inside_envelope"].as_bool(), Some(true));
         assert_eq!(report["envelope_check"].as_str(), Some("ok"));
-        assert_eq!(report["pvt_context"]["source"].as_str(), Some("pvt_context_file"));
+        assert_eq!(
+            report["pvt_context"]["source"].as_str(),
+            Some("pvt_context_file")
+        );
         std::fs::remove_file(&pvt).unwrap();
     }
 
@@ -10535,9 +10566,16 @@ mod tests {
             "tri_verify_lean_no_theorem_{}.lean",
             std::process::id()
         ));
-        std::fs::write(&tmp, "-- operating_point source: synthetic\n/- no theorem here -/\n").unwrap();
+        std::fs::write(
+            &tmp,
+            "-- operating_point source: synthetic\n/- no theorem here -/\n",
+        )
+        .unwrap();
         let result = verify_lean(&tmp, None, Some("synthetic"), false);
-        assert!(result.is_err(), "verify-lean should reject a file with no theorems");
+        assert!(
+            result.is_err(),
+            "verify-lean should reject a file with no theorems"
+        );
         let msg = format!("{:?}", result.unwrap_err());
         assert!(
             msg.contains("no theorem"),
@@ -10608,16 +10646,17 @@ mod tests {
     #[test]
     fn test_smoke_gate_json_synthetic_verify_lean() {
         let root = repo_root().expect("repo root");
-        let bit = root.join("fpga").join("verilog").join("ternary_mac_demo_top_200t.bit");
+        let bit = root
+            .join("fpga")
+            .join("verilog")
+            .join("ternary_mac_demo_top_200t.bit");
         if !bit.is_file() {
             println!("SKIP: demo bitstream not found at {}", bit.display());
             return;
         }
 
-        let report_path = std::env::temp_dir().join(format!(
-            "tri_smoke_gate_w439_{}.json",
-            std::process::id()
-        ));
+        let report_path =
+            std::env::temp_dir().join(format!("tri_smoke_gate_w439_{}.json", std::process::id()));
         let _ = std::fs::remove_file(&report_path);
 
         let result = smoke_gate(
@@ -10683,7 +10722,10 @@ mod tests {
     #[test]
     fn test_smoke_gate_json_synthetic_validate_lean_standalone() {
         let root = repo_root().expect("repo root");
-        let bit = root.join("fpga").join("verilog").join("ternary_mac_demo_top_200t.bit");
+        let bit = root
+            .join("fpga")
+            .join("verilog")
+            .join("ternary_mac_demo_top_200t.bit");
         if !bit.is_file() {
             println!("SKIP: demo bitstream not found at {}", bit.display());
             return;
@@ -10755,7 +10797,10 @@ mod tests {
             .get("status")
             .and_then(|s| s.as_str())
             .unwrap_or("missing");
-        assert_eq!(status, "ok", "validate_lean_standalone should have status=ok");
+        assert_eq!(
+            status, "ok",
+            "validate_lean_standalone should have status=ok"
+        );
         assert!(
             phase.get("elapsed_ms").and_then(|v| v.as_u64()).is_some(),
             "validate_lean_standalone should report elapsed_ms: {}",
@@ -10763,6 +10808,169 @@ mod tests {
         );
 
         let _ = std::fs::remove_file(&report_path);
+    }
+
+    /// Snapshot diff gate for the smoke-gate report when `--validate-lean-standalone`
+    /// is enabled.
+    ///
+    /// The first run writes
+    /// `tests/fixtures/fpga/smoke-gate/validate_lean_standalone_snapshot.json`.
+    /// Subsequent runs compare the sanitized report (repo-root and temp-dir paths
+    /// replaced by placeholders, all `elapsed_ms` fields stripped) against the
+    /// snapshot. The test is skipped when the demo bitstream or `lake` is absent.
+    #[test]
+    fn test_smoke_gate_validate_lean_standalone_matches_snapshot() {
+        let root = repo_root().expect("repo root");
+        let bit = root
+            .join("fpga")
+            .join("verilog")
+            .join("ternary_mac_demo_top_200t.bit");
+        if !bit.is_file() {
+            println!("SKIP: demo bitstream not found at {}", bit.display());
+            return;
+        }
+
+        if std::process::Command::new("lake")
+            .arg("--version")
+            .output()
+            .map_or(true, |o| !o.status.success())
+        {
+            println!("SKIP: lake not on PATH");
+            return;
+        }
+
+        let mut fixture_dir = root.clone();
+        fixture_dir.push("tests");
+        fixture_dir.push("fixtures");
+        fixture_dir.push("fpga");
+        fixture_dir.push("smoke-gate");
+        std::fs::create_dir_all(&fixture_dir).unwrap();
+
+        let report_path = std::env::temp_dir().join(format!(
+            "tri_smoke_gate_validate_standalone_snapshot_{}.json",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&report_path);
+
+        let result = smoke_gate(
+            None,
+            "ternary_mac_demo_top",
+            false,
+            false,
+            0,
+            "digilent_hs2",
+            "xc7a200tfgg676",
+            true,
+            true,
+            true,
+            false,
+            "ss",
+            None,
+            true,
+            Some(&report_path),
+        );
+
+        assert!(
+            result.is_ok(),
+            "smoke-gate validate-lean-standalone snapshot run failed: {:?}",
+            result
+        );
+        assert!(
+            report_path.is_file(),
+            "JSON report was not written to {}",
+            report_path.display()
+        );
+
+        let report: serde_json::Value =
+            serde_json::from_reader(std::fs::File::open(&report_path).unwrap()).unwrap();
+        assert_eq!(
+            report.get("passed").and_then(|v| v.as_bool()),
+            Some(true),
+            "report should show passed=true: {}",
+            report
+        );
+
+        let snapshot = sanitize_smoke_gate_report(&report, &root);
+        let expected_path = fixture_dir.join("validate_lean_standalone_snapshot.json");
+        if std::env::var("UPDATE_EXPECTED").is_ok() || !expected_path.is_file() {
+            std::fs::write(
+                &expected_path,
+                serde_json::to_string_pretty(&snapshot).expect("serialize snapshot"),
+            )
+            .expect("write validate_lean_standalone_snapshot.json");
+            println!(
+                "wrote validate_lean_standalone_snapshot.json: {}",
+                expected_path.display()
+            );
+        }
+
+        let expected_text = std::fs::read_to_string(&expected_path)
+            .expect("read validate_lean_standalone_snapshot.json");
+        let expected: serde_json::Value =
+            serde_json::from_str(&expected_text).expect("parse snapshot");
+
+        assert_report_superset(&snapshot, &expected, "smoke_gate_validate_standalone");
+
+        // Independently assert the standalone verdict and its run-dependent metric.
+        let standalone = report
+            .get("validate_lean_standalone")
+            .expect("validate_lean_standalone phase");
+        assert_eq!(
+            standalone.get("status").and_then(|s| s.as_str()),
+            Some("ok"),
+            "validate_lean_standalone must have status=ok"
+        );
+        assert!(
+            standalone
+                .get("elapsed_ms")
+                .and_then(|v| v.as_u64())
+                .is_some(),
+            "validate_lean_standalone must report elapsed_ms"
+        );
+
+        let _ = std::fs::remove_file(&report_path);
+    }
+
+    /// Strip run-dependent absolute paths and elapsed-time metrics from a
+    /// smoke-gate report so the resulting snapshot is stable across machines.
+    fn sanitize_smoke_gate_report(
+        report: &serde_json::Value,
+        repo_root: &std::path::Path,
+    ) -> serde_json::Value {
+        let temp_dir = std::env::temp_dir();
+        fn walk(
+            value: &serde_json::Value,
+            repo_root: &std::path::Path,
+            temp_dir: &std::path::Path,
+        ) -> serde_json::Value {
+            match value {
+                serde_json::Value::Object(obj) => {
+                    let mut out = serde_json::Map::new();
+                    for (key, value) in obj.iter() {
+                        if key == "elapsed_ms" {
+                            continue;
+                        }
+                        out.insert(key.clone(), walk(value, repo_root, temp_dir));
+                    }
+                    serde_json::Value::Object(out)
+                }
+                serde_json::Value::Array(arr) => serde_json::Value::Array(
+                    arr.iter().map(|v| walk(v, repo_root, temp_dir)).collect(),
+                ),
+                serde_json::Value::String(s) => {
+                    let path = std::path::Path::new(s);
+                    if let Ok(rel) = path.strip_prefix(repo_root) {
+                        serde_json::Value::String(format!("<REPO>/{}", rel.display()))
+                    } else if let Ok(rel) = path.strip_prefix(temp_dir) {
+                        serde_json::Value::String(format!("<TMP>/{}", rel.display()))
+                    } else {
+                        serde_json::Value::String(s.clone())
+                    }
+                }
+                other => other.clone(),
+            }
+        }
+        walk(report, repo_root, &temp_dir)
     }
 
     /// Unit test for the Artix-7 CCLK period helper used by the theorem matrix.
@@ -10793,19 +11001,14 @@ mod tests {
     /// emits a Lean theorem, builds a summary, and runs verify-lean on it.
     #[test]
     fn test_theorem_matrix_synthetic_fixture_and_summary() {
-        let tmp = std::env::temp_dir().join(format!(
-            "tri_theorem_matrix_test_{}",
-            std::process::id()
-        ));
+        let tmp =
+            std::env::temp_dir().join(format!("tri_theorem_matrix_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
 
         let pvt = synthetic_pvt_context(ProcessCorner::Ss);
         let pvt_path = tmp.join("pvt.json");
-        std::fs::write(
-            &pvt_path,
-            serde_json::to_string_pretty(&pvt).unwrap(),
-        ).unwrap();
+        std::fs::write(&pvt_path, serde_json::to_string_pretty(&pvt).unwrap()).unwrap();
 
         let raw_ns = MeasuredCclkRawNs {
             period_ns: 40,
@@ -10840,7 +11043,8 @@ mod tests {
             true,
             true,
             false,
-        ).expect("measured-to-lean should succeed");
+        )
+        .expect("measured-to-lean should succeed");
 
         let summary = build_measured_to_lean_summary(
             "test_matrix_ss_oscfsel_6",
@@ -10849,7 +11053,8 @@ mod tests {
             &Some(pvt.clone()),
             "synthetic",
             &raw_ns_text,
-        ).expect("build summary should succeed");
+        )
+        .expect("build summary should succeed");
         assert_eq!(
             summary
                 .get("operating_point")
@@ -10868,7 +11073,8 @@ mod tests {
         std::fs::write(
             &summary_path,
             serde_json::to_string_pretty(&summary).unwrap(),
-        ).unwrap();
+        )
+        .unwrap();
 
         verify_lean(&lean_path, Some(&summary_path), Some("synthetic"), false)
             .expect("verify-lean should pass");
@@ -10907,16 +11113,12 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
 
-        let generated = generate_theorem_matrix(
-            &tmp,
-            &serde_json::json!({}),
-            "synthetic",
-        )
-        .expect("generate theorem matrix should succeed");
+        let generated = generate_theorem_matrix(&tmp, &serde_json::json!({}), "synthetic")
+            .expect("generate theorem matrix should succeed");
         assert_eq!(generated.len(), 24, "expected 24 variants");
 
-        let (replayed, _elapsed_ms, _source) = replay_theorem_matrix(&tmp)
-            .expect("replay theorem matrix should succeed");
+        let (replayed, _elapsed_ms, _source) =
+            replay_theorem_matrix(&tmp).expect("replay theorem matrix should succeed");
         assert_eq!(replayed.len(), 24, "expected 24 replayed variants");
 
         for (gen, rep) in generated.iter().zip(replayed.iter()) {
@@ -10953,28 +11155,25 @@ mod tests {
     /// measured-to-lean and only calls verify_lean on the persisted fixtures.
     #[test]
     fn test_theorem_matrix_replay_does_not_regenerate() {
-        let tmp = std::env::temp_dir().join(format!(
-            "tri_theorem_matrix_replay_{}",
-            std::process::id()
-        ));
+        let tmp =
+            std::env::temp_dir().join(format!("tri_theorem_matrix_replay_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
 
-        generate_theorem_matrix(
-            &tmp,
-            &serde_json::json!({}),
-            "synthetic",
-        )
-        .expect("generate theorem matrix should succeed");
+        generate_theorem_matrix(&tmp, &serde_json::json!({}), "synthetic")
+            .expect("generate theorem matrix should succeed");
 
         // Corrupt the raw-ns fixture for one variant. Replay must read it and
         // still pass because verify_lean only counts theorems and checks source.
         let corrupt_path = tmp.join("theorem_matrix_raw_ns_ff_0.json");
-        let mut raw_ns: serde_json::Value = serde_json::from_str(
-            &std::fs::read_to_string(&corrupt_path).unwrap()
-        ).unwrap();
+        let mut raw_ns: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&corrupt_path).unwrap()).unwrap();
         raw_ns["source"] = serde_json::Value::String("mutated".to_string());
-        std::fs::write(&corrupt_path, serde_json::to_string_pretty(&raw_ns).unwrap()).unwrap();
+        std::fs::write(
+            &corrupt_path,
+            serde_json::to_string_pretty(&raw_ns).unwrap(),
+        )
+        .unwrap();
 
         let (replayed, _elapsed_ms, _source) = replay_theorem_matrix(&tmp)
             .expect("replay should still succeed because it does not re-parse raw_ns source into the report");
@@ -11020,8 +11219,8 @@ mod tests {
             golden.display()
         );
 
-        let (entries, elapsed_ms, _source) = replay_theorem_matrix(&golden)
-            .expect("golden fixture replay should succeed");
+        let (entries, elapsed_ms, _source) =
+            replay_theorem_matrix(&golden).expect("golden fixture replay should succeed");
         assert_eq!(
             entries.len(),
             24,
@@ -11077,8 +11276,8 @@ mod tests {
             golden.display()
         );
 
-        let (entries, elapsed_ms, source) = replay_theorem_matrix(&golden)
-            .expect("golden fixture replay should succeed");
+        let (entries, elapsed_ms, source) =
+            replay_theorem_matrix(&golden).expect("golden fixture replay should succeed");
         assert_eq!(entries.len(), 24, "expected 24 golden variants");
 
         let normalized = normalize_fixture_paths(&entries, &golden);
@@ -11093,17 +11292,16 @@ mod tests {
         if std::env::var("UPDATE_EXPECTED").is_ok() || !expected_path.is_file() {
             std::fs::write(
                 &expected_path,
-                serde_json::to_string_pretty(&snapshot_report)
-                    .expect("serialize report snapshot"),
+                serde_json::to_string_pretty(&snapshot_report).expect("serialize report snapshot"),
             )
             .expect("write expected_report.json");
             println!("wrote expected_report.json: {}", expected_path.display());
         }
 
-        let expected_text = std::fs::read_to_string(&expected_path)
-            .expect("read expected_report.json");
-        let expected: serde_json::Value = serde_json::from_str(&expected_text)
-            .expect("parse expected_report.json");
+        let expected_text =
+            std::fs::read_to_string(&expected_path).expect("read expected_report.json");
+        let expected: serde_json::Value =
+            serde_json::from_str(&expected_text).expect("parse expected_report.json");
 
         // Assert the actual report (minus the run-dependent metric) is a strict
         // superset of the expected snapshot. Every expected top-level field and
@@ -11123,8 +11321,7 @@ mod tests {
         {
             assert_eq!(
                 entry.get("envelope_check"),
-                Some(&serde_json::Value::String("ok".to_string())
-                ),
+                Some(&serde_json::Value::String("ok".to_string())),
                 "every golden variant must pass envelope check"
             );
             assert!(
@@ -11194,17 +11391,16 @@ mod tests {
         if std::env::var("UPDATE_EXPECTED").is_ok() || !expected_path.is_file() {
             std::fs::write(
                 &expected_path,
-                serde_json::to_string_pretty(&snapshot_report)
-                    .expect("serialize report snapshot"),
+                serde_json::to_string_pretty(&snapshot_report).expect("serialize report snapshot"),
             )
             .expect("write expected_report.json");
             println!("wrote expected_report.json: {}", expected_path.display());
         }
 
-        let expected_text = std::fs::read_to_string(&expected_path)
-            .expect("read expected_report.json");
-        let expected: serde_json::Value = serde_json::from_str(&expected_text)
-            .expect("parse expected_report.json");
+        let expected_text =
+            std::fs::read_to_string(&expected_path).expect("read expected_report.json");
+        let expected: serde_json::Value =
+            serde_json::from_str(&expected_text).expect("parse expected_report.json");
 
         // Assert the actual report (minus the run-dependent metric) is a strict
         // superset of the expected snapshot. Every expected top-level field and
@@ -11249,32 +11445,28 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dry_run_live);
         std::fs::create_dir_all(&dry_run_live).unwrap();
 
-        let dry_entries = generate_theorem_matrix(
-            &dry_run_live,
-            &serde_json::json!({}),
-            "dry_run_live",
-        )
-        .expect("dry-run-live theorem matrix generation should succeed");
+        let dry_entries =
+            generate_theorem_matrix(&dry_run_live, &serde_json::json!({}), "dry_run_live")
+                .expect("dry-run-live theorem matrix generation should succeed");
         assert_eq!(dry_entries.len(), 24, "expected 24 dry-run-live variants");
 
-        let (dry_replayed, dry_elapsed_ms, dry_source) = replay_theorem_matrix(&dry_run_live)
-            .expect("dry-run-live replay should succeed");
-        assert_eq!(dry_replayed.len(), 24, "expected 24 replayed dry-run-live variants");
+        let (dry_replayed, dry_elapsed_ms, dry_source) =
+            replay_theorem_matrix(&dry_run_live).expect("dry-run-live replay should succeed");
+        assert_eq!(
+            dry_replayed.len(),
+            24,
+            "expected 24 replayed dry-run-live variants"
+        );
         assert_eq!(
             dry_source, "dry_run_live",
             "dry-run-live replay should detect source=dry_run_live"
         );
 
-        let dry_report = build_theorem_matrix_report(
-            &dry_replayed,
-            dry_elapsed_ms,
-            true,
-            &dry_source,
-        );
+        let dry_report =
+            build_theorem_matrix_report(&dry_replayed, dry_elapsed_ms, true, &dry_source);
         assert_eq!(
             dry_report.get("source"),
-            Some(&serde_json::Value::String("dry_run_live".to_string())
-            ),
+            Some(&serde_json::Value::String("dry_run_live".to_string())),
             "dry-run-live report must carry source=dry_run_live"
         );
         assert_eq!(
@@ -11304,20 +11496,15 @@ mod tests {
         golden.push("golden");
 
         let (golden_replayed, golden_elapsed_ms, golden_source) =
-            replay_theorem_matrix(&golden
-            ).expect("golden fixture replay should succeed");
+            replay_theorem_matrix(&golden).expect("golden fixture replay should succeed");
         assert_eq!(golden_replayed.len(), 24, "expected 24 golden variants");
         assert_eq!(
             golden_source, "synthetic",
             "golden fixture source must remain synthetic"
         );
 
-        let golden_report = build_theorem_matrix_report(
-            &golden_replayed,
-            golden_elapsed_ms,
-            true,
-            &golden_source,
-        );
+        let golden_report =
+            build_theorem_matrix_report(&golden_replayed, golden_elapsed_ms, true, &golden_source);
 
         // Both reports must have the same structural shape (variant/corner/oscfsel
         // counts, all envelope checks ok).
@@ -11346,8 +11533,7 @@ mod tests {
             {
                 assert_eq!(
                     entry.get("envelope_check"),
-                    Some(&serde_json::Value::String("ok".to_string())
-                    ),
+                    Some(&serde_json::Value::String("ok".to_string())),
                     "every variant must pass envelope check"
                 );
                 assert!(
@@ -11369,10 +11555,7 @@ mod tests {
         context: &str,
     ) {
         match (actual, expected) {
-            (
-                serde_json::Value::Object(actual_obj),
-                serde_json::Value::Object(expected_obj),
-            ) => {
+            (serde_json::Value::Object(actual_obj), serde_json::Value::Object(expected_obj)) => {
                 for (key, expected_value) in expected_obj.iter() {
                     let actual_value = actual_obj.get(key).unwrap_or_else(|| {
                         panic!(
@@ -11387,10 +11570,7 @@ mod tests {
                     );
                 }
             }
-            (
-                serde_json::Value::Array(actual_arr),
-                serde_json::Value::Array(expected_arr),
-            ) => {
+            (serde_json::Value::Array(actual_arr), serde_json::Value::Array(expected_arr)) => {
                 assert_eq!(
                     actual_arr.len(),
                     expected_arr.len(),
@@ -11407,11 +11587,7 @@ mod tests {
                     );
                 }
             }
-            _ => assert_eq!(
-                actual, expected,
-                "{}: value mismatch",
-                context
-            ),
+            _ => assert_eq!(actual, expected, "{}: value mismatch", context),
         }
     }
 }

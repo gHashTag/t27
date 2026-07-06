@@ -549,6 +549,33 @@ parts of t27's thesis and may become relevant:
 
 ---
 
+## W450 boundary (2026-07-01)
+
+No new public competitor signals appeared between the W449 close-out and the
+W450 boundary. Sparkle/Verilean repository last pushed 2026-07-03; PR #66 (IP.Net
++ compiler perf) remains open; the FIDO2/crypto burst (PR #97–#100) remains
+merged 2026-07-04; and the README still cites 102 formal theorems. The
+関数型まつり2026 talk on 2026-07-11 remains the most recent public checkpoint.
+
+CIRCT `firtool-1.152.0` (2026-07-04) is still the latest public release. Clash
+1.11.0 remains a Hackage candidate. No new Lean-native ternary-FPGA competitor
+surfaced for the W450 boundary.
+
+t27's W450 deliverables keep the gap wide:
+- `dry_run_live_w448_all_corners_transaction_ok` adds a second quantified
+  end-to-end transaction theorem, this time over the committed W448 dry-run-live
+  fixtures, so the formal claim is anchored to fixture provenance.
+- The smoke-gate `validate_lean_standalone` report block is now
+  snapshot-protected, preventing silent schema drift in the standalone
+  lake-package build artifact.
+- `./scripts/tri test --fast` gives the suite an opt-in quick gate while the
+  default path still runs the full standalone build.
+
+The sealed spec→generated code→seal hash→physical CCLK/PVT boot-evidence loop
+remains unmatched by any public competitor.
+
+---
+
 ## Sources
 
 - Sparkle / Verilean: <https://github.com/Verilean/sparkle>

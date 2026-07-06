@@ -27,8 +27,14 @@ fn tri_exe(repo: &Path) -> anyhow::Result<PathBuf> {
     let candidates: Vec<PathBuf> = vec![
         repo.join("target").join("release").join("tri"),
         repo.join("target").join("debug").join("tri"),
-        repo.join("bootstrap").join("target").join("release").join("tri"),
-        repo.join("bootstrap").join("target").join("debug").join("tri"),
+        repo.join("bootstrap")
+            .join("target")
+            .join("release")
+            .join("tri"),
+        repo.join("bootstrap")
+            .join("target")
+            .join("debug")
+            .join("tri"),
     ];
     for p in &candidates {
         if p.is_file() {
@@ -67,7 +73,10 @@ fn load_gen_verilog_smoke_baseline(repo: &Path) -> HashSet<String> {
     let json: serde_json::Value = match serde_json::from_str(&raw) {
         Ok(j) => j,
         Err(e) => {
-            eprintln!("[suite] baseline file invalid JSON ({}); using empty baseline", e);
+            eprintln!(
+                "[suite] baseline file invalid JSON ({}); using empty baseline",
+                e
+            );
             return HashSet::new();
         }
     };
@@ -288,9 +297,18 @@ struct FpgaSmokeResult {
     yosys_synthesis_status: Option<String>,
 }
 
-fn cmd_fpga_smoke_gate(repo: &Path, validate_lean_standalone: bool) -> anyhow::Result<FpgaSmokeResult> {
-    let bit = repo.join("fpga").join("verilog").join("ternary_mac_demo_top_200t.bit");
-    let report_path = repo.join("build").join("fpga").join("smoke_gate_report.json");
+fn cmd_fpga_smoke_gate(
+    repo: &Path,
+    validate_lean_standalone: bool,
+) -> anyhow::Result<FpgaSmokeResult> {
+    let bit = repo
+        .join("fpga")
+        .join("verilog")
+        .join("ternary_mac_demo_top_200t.bit");
+    let report_path = repo
+        .join("build")
+        .join("fpga")
+        .join("smoke_gate_report.json");
 
     if !bit.is_file() {
         println!("  SKIP: demo bitstream not found at {}", bit.display());
@@ -311,7 +329,14 @@ fn cmd_fpga_smoke_gate(repo: &Path, validate_lean_standalone: bool) -> anyhow::R
     }
 
     let tri = tri_exe(repo)?;
-    run_fpga_smoke_gate(&bit, &tri, report_path, Some(repo), None, validate_lean_standalone)
+    run_fpga_smoke_gate(
+        &bit,
+        &tri,
+        report_path,
+        Some(repo),
+        None,
+        validate_lean_standalone,
+    )
 }
 
 /// Core smoke-gate consumer. Separated from `cmd_fpga_smoke_gate` so unit tests
@@ -368,7 +393,11 @@ fn parse_smoke_gate_report(report_path: &Path) -> anyhow::Result<FpgaSmokeResult
     let report: serde_json::Value = match fs::read_to_string(report_path) {
         Ok(text) => serde_json::from_str(&text)
             .with_context(|| format!("parsing smoke-gate report {}", report_path.display()))?,
-        Err(e) => anyhow::bail!("smoke-gate report missing: {}: {}", report_path.display(), e),
+        Err(e) => anyhow::bail!(
+            "smoke-gate report missing: {}: {}",
+            report_path.display(),
+            e
+        ),
     };
 
     let phase_status = |key: &str| {
@@ -433,8 +462,12 @@ fn parse_smoke_gate_report(report_path: &Path) -> anyhow::Result<FpgaSmokeResult
 fn cmd_gen_verilog_yosys_smoke(repo: &Path, rel: &str) -> anyhow::Result<()> {
     let verilog = cmd_gen_verilog_stdout(repo, rel)?;
     let tmp = std::env::temp_dir().join(format!("t27c_yosys_smoke_{}.v", rel.replace('/', "_")));
-    fs::write(&tmp, &verilog)
-        .with_context(|| format!("writing temporary Verilog for yosys smoke: {}", tmp.display()))?;
+    fs::write(&tmp, &verilog).with_context(|| {
+        format!(
+            "writing temporary Verilog for yosys smoke: {}",
+            tmp.display()
+        )
+    })?;
     let st = Command::new("yosys")
         .arg("-q")
         .arg("-p")
@@ -489,7 +522,11 @@ struct SuiteSummary {
 }
 
 /// Phases 1–6: same coverage as legacy `tests/run_all.sh`.
-pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow::Result<()> {
+pub fn run_comprehensive(
+    repo_root: &Path,
+    json_out: Option<&PathBuf>,
+    fast: bool,
+) -> anyhow::Result<()> {
     let repo = fs::canonicalize(repo_root)
         .with_context(|| format!("cannot canonicalize repo root {}", repo_root.display()))?;
 
@@ -546,7 +583,12 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
     } else {
         println!("GF16: skipped (spec not found)");
     }
-    push_phase("gf16_conformance", 1 - gf16_fail - (gf16_skipped as usize), gf16_fail, gf16_skipped as usize);
+    push_phase(
+        "gf16_conformance",
+        1 - gf16_fail - (gf16_skipped as usize),
+        gf16_fail,
+        gf16_skipped as usize,
+    );
 
     println!("--- Phase 2: Gen Zig ---");
     let (p2p, p2f) = run_phase(
@@ -607,14 +649,15 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
     summary.baseline_failures = baseline.len();
     push_phase("gen-verilog-yosys-smoke", p3bp, p3bf, p3b_skipped);
 
+    if fast {
+        println!("[suite] --fast mode: skipping the standalone lake-package build phase");
+    }
+
     println!("--- Phase 3c: FPGA Board-Less Smoke Gate ---");
-    let bit = repo
-        .join("fpga")
-        .join("verilog")
-        .join("ternary_mac_demo_top_200t.bit");
     let mut p3c_fail = 0usize;
     let mut p3c_skipped = 0usize;
-    let fpga_result = match cmd_fpga_smoke_gate(&repo, true) {
+    let validate_lean_standalone = !fast;
+    let fpga_result = match cmd_fpga_smoke_gate(&repo, validate_lean_standalone) {
         Ok(r) => {
             if r.skipped {
                 p3c_skipped = 1;
@@ -644,11 +687,48 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
             }
         }
     };
-    push_phase("fpga-smoke-gate", if fpga_result.passed { 1 } else { 0 }, p3c_fail, p3c_skipped);
+    push_phase(
+        "fpga-smoke-gate",
+        if fpga_result.passed { 1 } else { 0 },
+        p3c_fail,
+        p3c_skipped,
+    );
+
+    println!("--- Phase 3c-standalone: FPGA Standalone Lake-Package Build ---");
+    let mut p3cs_fail = 0usize;
+    let mut p3cs_skipped = 0usize;
+    if validate_lean_standalone {
+        // The standalone phase piggybacks on the smoke-gate report above. Its
+        // success is implied by the main smoke gate passing while the option is
+        // enabled, and its elapsed time is recorded separately.
+        if fpga_result.passed && fpga_result.validate_lean_standalone_status.is_some() {
+            println!(
+                "  FPGA standalone build: OK (elapsed_ms={:?})",
+                fpga_result.validate_lean_standalone_elapsed_ms
+            );
+            push_phase("fpga-smoke-gate-standalone", 1, 0, 0);
+        } else if fpga_result.skipped || fpga_result.validate_lean_standalone_status.is_none() {
+            println!("  FPGA standalone build: skipped (bitstream missing or lake unavailable)");
+            p3cs_skipped = 1;
+            push_phase("fpga-smoke-gate-standalone", 0, 0, p3cs_skipped);
+        } else {
+            eprintln!("  FPGA standalone build: failed (report indicates failure)");
+            p3cs_fail = 1;
+            push_phase("fpga-smoke-gate-standalone", 0, p3cs_fail, 0);
+        }
+    } else {
+        println!("  FPGA standalone build: skipped (--fast mode)");
+        p3cs_skipped = 1;
+        push_phase("fpga-smoke-gate-standalone", 0, 0, p3cs_skipped);
+    }
 
     println!("--- Phase 3d: FPGA Board-Less Smoke Gate Replay ---");
     let mut p3d_fail = 0usize;
     let mut p3d_skipped = 0usize;
+    let bit = repo
+        .join("fpga")
+        .join("verilog")
+        .join("ternary_mac_demo_top_200t.bit");
     let golden_fixtures = repo
         .join("tests")
         .join("fixtures")
@@ -660,9 +740,7 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
         .join("fpga")
         .join("smoke_gate_replay_report.json");
     if !bit.is_file() || !golden_fixtures.is_dir() {
-        println!(
-            "  SKIP: FPGA smoke-gate replay requires bitstream and golden fixtures"
-        );
+        println!("  SKIP: FPGA smoke-gate replay requires bitstream and golden fixtures");
         p3d_skipped = 1;
     } else {
         let tri = tri_exe(&repo).with_context(|| "locate tri binary for replay")?;
@@ -734,7 +812,18 @@ pub fn run_comprehensive(repo_root: &Path, json_out: Option<&PathBuf>) -> anyhow
 
     println!();
     println!("=== SUMMARY ===");
-    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p4f + p5f + fp_diff;
+    let total_fail = p1f
+        + p1bf
+        + gf16_fail
+        + p2f
+        + p2bf
+        + p3f
+        + p3b_fail
+        + p3c_fail
+        + p3d_fail
+        + p4f
+        + p5f
+        + fp_diff;
 
     summary.total_failures = total_fail;
     summary.passed = total_fail == 0;
@@ -1047,7 +1136,8 @@ mod tests {
 
     #[test]
     fn test_tri_exe_finds_target_debug_tri() {
-        let tmp = std::env::temp_dir().join(format!("t27_suite_tri_exe_test_{}", std::process::id()));
+        let tmp =
+            std::env::temp_dir().join(format!("t27_suite_tri_exe_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(tmp.join("target").join("debug")).unwrap();
         let fake_tri = tmp.join("target").join("debug").join("tri");
@@ -1105,10 +1195,7 @@ mod tests {
         assert_eq!(value["known_failures"].as_array().unwrap().len(), 1);
         assert_eq!(value["acceptable"].as_bool(), Some(true));
         assert_eq!(value["fpga_smoke_gate_elapsed_ms"].as_u64(), Some(42));
-        assert_eq!(
-            value["fpga_smoke_gate_replay_elapsed_ms"].as_u64(),
-            Some(7)
-        );
+        assert_eq!(value["fpga_smoke_gate_replay_elapsed_ms"].as_u64(), Some(7));
         assert_eq!(
             value["validate_lean_standalone_elapsed_ms"].as_u64(),
             Some(123)
@@ -1144,10 +1231,8 @@ mod tests {
 
     #[test]
     fn test_load_gen_verilog_smoke_baseline() {
-        let tmp = std::env::temp_dir().join(format!(
-            "t27_suite_baseline_test_{}",
-            std::process::id()
-        ));
+        let tmp =
+            std::env::temp_dir().join(format!("t27_suite_baseline_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         let docs = tmp.join("docs").join("reports");
         std::fs::create_dir_all(&docs).unwrap();
@@ -1198,58 +1283,43 @@ mod tests {
 
     #[test]
     fn test_run_fpga_smoke_gate_passes_with_good_report() {
-        let tmp = std::env::temp_dir().join(format!(
-            "t27_suite_smoke_pass_{}",
-            std::process::id()
-        ));
+        let tmp = std::env::temp_dir().join(format!("t27_suite_smoke_pass_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
         let bit = tmp.join("demo.bit");
         std::fs::File::create(&bit).unwrap();
         let report_path = tmp.join("smoke_gate_report.json");
         let fake_tri = make_fake_tri_script(&report_path, true);
-        let result = run_fpga_smoke_gate(
-            &bit,
-            &fake_tri,
-            report_path.clone(),
-            None,
-            None,
-            false,
-        )
-        .expect("smoke-gate should pass");
+        let result = run_fpga_smoke_gate(&bit, &fake_tri, report_path.clone(), None, None, false)
+            .expect("smoke-gate should pass");
         assert!(result.passed);
         assert!(!result.skipped);
         assert_eq!(result.bit_config_status.as_deref(), Some("ok"));
         assert_eq!(result.schema_version.as_deref(), Some("1.0"));
         assert_eq!(result.theorem_matrix_status.as_deref(), Some("ok"));
         assert_eq!(result.theorem_matrix_elapsed_ms, Some(42));
-        assert_eq!(result.validate_lean_standalone_status.as_deref(), Some("ok"));
+        assert_eq!(
+            result.validate_lean_standalone_status.as_deref(),
+            Some("ok")
+        );
         assert_eq!(result.validate_lean_standalone_elapsed_ms, Some(123));
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
     #[test]
     fn test_run_fpga_smoke_gate_fails_with_bad_report() {
-        let tmp = std::env::temp_dir().join(format!(
-            "t27_suite_smoke_fail_{}",
-            std::process::id()
-        ));
+        let tmp = std::env::temp_dir().join(format!("t27_suite_smoke_fail_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
         let bit = tmp.join("demo.bit");
         std::fs::File::create(&bit).unwrap();
         let report_path = tmp.join("smoke_gate_report.json");
         let fake_tri = make_fake_tri_script(&report_path, false);
-        let err = run_fpga_smoke_gate(
-            &bit,
-            &fake_tri,
-            report_path.clone(),
-            None,
-            None,
-            false,
-        )
-        .expect_err("smoke-gate should fail when report says passed=false");
-        assert!(err.to_string().contains("smoke-gate report indicates failure"));
+        let err = run_fpga_smoke_gate(&bit, &fake_tri, report_path.clone(), None, None, false)
+            .expect_err("smoke-gate should fail when report says passed=false");
+        assert!(err
+            .to_string()
+            .contains("smoke-gate report indicates failure"));
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -1265,10 +1335,8 @@ mod tests {
 
     #[test]
     fn test_parse_smoke_gate_report_schema_tolerant_without_theorem_matrix() {
-        let tmp = std::env::temp_dir().join(format!(
-            "t27_suite_smoke_schema_{}",
-            std::process::id()
-        ));
+        let tmp =
+            std::env::temp_dir().join(format!("t27_suite_smoke_schema_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
         let report_path = tmp.join("smoke_gate_report.json");

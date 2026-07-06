@@ -772,6 +772,11 @@ enum Commands {
         /// Write a machine-readable JSON summary of the suite run to this path.
         #[arg(long)]
         json: Option<PathBuf>,
+        /// Skip expensive optional phases (e.g. the standalone lake-package build
+        /// inside the FPGA smoke gate). Useful for fast local feedback; default CI
+        /// runs should not use this flag.
+        #[arg(long)]
+        fast: bool,
     },
 
     /// Validate conformance/*.json files (JSON + vector keys)
@@ -8214,7 +8219,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
         }
-        Commands::Suite { repo_root, json } => suite::run_comprehensive(&repo_root, json.as_ref())?,
+        Commands::Suite { repo_root, json, fast } => {
+            suite::run_comprehensive(&repo_root, json.as_ref(), fast)?
+        }
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
         }
@@ -8474,7 +8481,9 @@ fn main() -> anyhow::Result<()> {
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
         }
-        Commands::Suite { repo_root, json } => suite::run_comprehensive(&repo_root, json.as_ref())?,
+        Commands::Suite { repo_root, json, fast } => {
+            suite::run_comprehensive(&repo_root, json.as_ref(), fast)?
+        }
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
         }

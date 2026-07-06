@@ -2218,6 +2218,76 @@ theorem golden_w449_all_corners_transaction_ok
   · exact golden_w449_raw_ns_satisfies_flash_spec oscfsel h corner
 
 -- ============================================================================
+-- Dry-run-live W448 theorem-matrix operating point and quantified transaction
+-- theorem
+-- ============================================================================
+
+/-- The deterministic operating point used by the W448 dry-run-live theorem-matrix
+    fixtures. It matches the dry-run-live PVT context files committed under
+    `tests/fixtures/fpga/theorem-matrix/dry-run-live-w448/`: 42 °C, 1000 mV
+    VCCINT, 1800 mV VCCAUX. The process corner is left quantified so a single
+    theorem covers ff/tt/ss. -/
+def DRY_RUN_LIVE_W448_PVT_CONTEXT (corner : ProcessCorner) : PvtContext :=
+  { temp_c := (42 : Int), vccint_mv := 1000, vccaux_mv := 1800,
+    process_corner := corner }
+
+/-- The XADC operating point corresponding to `DRY_RUN_LIVE_W448_PVT_CONTEXT`. -/
+def DRY_RUN_LIVE_W448_OPERATING_POINT (corner : ProcessCorner) : XadcOperatingPoint :=
+  { temp_c := (42 : Int), vccint_mv := 1000, vccaux_mv := 1800,
+    process_corner := corner }
+
+/-- The W448 dry-run-live operating point is inside the documented operating
+    envelope for every process corner. -/
+theorem dry_run_live_w448_operating_point_within_envelope (corner : ProcessCorner) :
+  xadc_operating_point_within_envelope (DRY_RUN_LIVE_W448_OPERATING_POINT corner) := by
+  norm_num [DRY_RUN_LIVE_W448_OPERATING_POINT, xadc_operating_point_within_envelope,
+            PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- Every documented process corner is at least as fast (has no larger PVT
+    derating) as the slow-slow corner under the dry-run-live point. -/
+theorem dry_run_live_w448_process_corner_worse_than_ss (corner : ProcessCorner) :
+  corner.worse_than ProcessCorner.ss := by
+  cases corner <;> norm_num [ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+/-- For any documented OSCFSEL selection and any documented process corner, the
+    ideal raw-ns capture satisfies the PVT-aware raw-ns flash predicate under the
+    W448 dry-run-live PVT context. This reuses the worst-case theorem via the
+    XADC-envelope bridge. -/
+theorem dry_run_live_w448_raw_ns_satisfies_flash_spec
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (corner : ProcessCorner) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (DRY_RUN_LIVE_W448_PVT_CONTEXT corner) = true := by
+  intro period_ns low_ns high_ns
+  have h_env := dry_run_live_w448_operating_point_within_envelope corner
+  have h_worse := dry_run_live_w448_process_corner_worse_than_ss corner
+  simp only [DRY_RUN_LIVE_W448_PVT_CONTEXT]
+  apply xadc_envelope_implies_raw_ns_satisfies_any_in_envelope
+    (DRY_RUN_LIVE_W448_OPERATING_POINT corner) period_ns low_ns high_ns h_env h_worse
+  exact cclk_variant_raw_ns_worstcase_pvt_satisfies_flash_spec oscfsel h
+
+/-- Quantified end-to-end transaction theorem for the dry-run-live fixtures: for
+    every documented OSCFSEL selection (0..7) and every documented process
+    corner (ff/tt/ss), the ideal raw-ns capture at the W448 dry-run-live operating
+    point produces a flash-spec compliant SPI read transaction. This closes the
+    committed dry-run-live fixtures → raw-ns → PVT-context → transaction loop. -/
+theorem dry_run_live_w448_all_corners_transaction_ok
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (corner : ProcessCorner) (bits : Nat) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits)
+    = true := by
+  intro period_ns low_ns high_ns
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok _ _ _ _ (DRY_RUN_LIVE_W448_PVT_CONTEXT corner)
+  · norm_num [PVT_TEMP_MIN_C, DRY_RUN_LIVE_W448_PVT_CONTEXT]
+  · norm_num [PVT_VCCINT_MAX_MV, DRY_RUN_LIVE_W448_PVT_CONTEXT]
+  · exact dry_run_live_w448_raw_ns_satisfies_flash_spec oscfsel h corner
+
+-- ============================================================================
 -- Adversarial W448 envelope theorem: outside-envelope operating point
 -- ============================================================================
 
