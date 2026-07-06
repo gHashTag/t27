@@ -1218,12 +1218,17 @@ impl Parser {
         let pragma_value = self.current.lexeme.clone();
         self.advance();
 
-        // W457: only ram_style is supported for now; store the full attribute text
-        // so codegen can emit it verbatim.
+        // W457/W459: ram_style and rom_style are supported; store the full
+        // attribute text so codegen can emit it verbatim.
         if pragma_name == "ram_style" {
             self.pending_pragma = format!("ram_style = \"{}\"", pragma_value);
+        } else if pragma_name == "rom_style" {
+            self.pending_pragma = format!("rom_style = \"{}\"", pragma_value);
         } else {
-            return Err(format!("Unknown pragma '{}', expected 'ram_style'", pragma_name));
+            return Err(format!(
+                "Unknown pragma '{}', expected 'ram_style' or 'rom_style'",
+                pragma_name
+            ));
         }
 
         if self.current.kind == TokenKind::Semicolon {
@@ -4090,6 +4095,18 @@ impl VerilogCodegen {
         Some((size, elem))
     }
 
+    /// W459: recursively collect `ExprCall` nodes under `node` whose callee name
+    /// matches `name`. Used to discover array-parameter call sites inside
+    /// test/invariant/bench blocks as well as module-level statements.
+    fn collect_expr_calls<'n>(node: &'n Node, name: &str, out: &mut Vec<&'n Node>) {
+        if node.kind == NodeKind::ExprCall && node.name == name {
+            out.push(node);
+        }
+        for child in &node.children {
+            Self::collect_expr_calls(child, name, out);
+        }
+    }
+
     /// Format a Verilog range declaration like [31:0]
     fn range_decl(width: u32) -> String {
         if width == 1 {
@@ -4238,16 +4255,25 @@ impl VerilogCodegen {
                     continue;
                 }
 
-                // Collect module-level call sites of this function.
+                // W459: collect call sites from module-level statements and from
+                // test/invariant/bench blocks. All sites must agree on the same
+                // module-level array identifier for each array parameter.
                 let mut call_sites: Vec<&Node> = Vec::new();
                 for decl in &ast.children {
-                    if decl.kind != NodeKind::StmtExpr {
-                        continue;
-                    }
-                    if let Some(expr) = decl.children.first() {
-                        if expr.kind == NodeKind::ExprCall && expr.name == f.name {
-                            call_sites.push(expr);
+                    match decl.kind {
+                        NodeKind::StmtExpr => {
+                            if let Some(expr) = decl.children.first() {
+                                if expr.kind == NodeKind::ExprCall && expr.name == f.name {
+                                    call_sites.push(expr);
+                                }
+                            }
                         }
+                        NodeKind::TestBlock
+                        | NodeKind::InvariantBlock
+                        | NodeKind::BenchBlock => {
+                            Self::collect_expr_calls(decl, &f.name, &mut call_sites);
+                        }
+                        _ => {}
                     }
                 }
 
@@ -4255,7 +4281,7 @@ impl VerilogCodegen {
                     errors.insert(
                         f.name.clone(),
                         format!(
-                            "function {} has array parameter(s) but no module-level call site",
+                            "function {} has array parameter(s) but no call site",
                             f.name
                         ),
                     );
@@ -4634,6 +4660,11 @@ impl VerilogCodegen {
                 };
                 self.write_line(&format!("// LUT: {} [{}] {}", safe_name, array_size, elem_type)
                 );
+                // W459: emit optional ROM-style attribute (block/distributed).
+                if !node.extra_pragma.is_empty() {
+                    self.write_indent();
+                    self.write_line(&format!("(* {} *)", node.extra_pragma));
+                }
                 self.write_indent();
                 self.write_line(&format!(
                     "reg {}{} {} [0:{}];",
@@ -5205,13 +5236,46 @@ impl VerilogCodegen {
         }
     }
 
+    /// W459: true if the test block contains any bare function-call statement
+    /// (other than `assert` / `assert_eq`, which are emitted as SV assertions).
+    /// Recursively scans nested statements for calls that need a dummy result
+    /// register.
+    fn test_block_has_bare_call(node: &Node) -> bool {
+        fn scan(n: &Node) -> bool {
+            if n.kind == NodeKind::StmtExpr {
+                if let Some(expr) = n.children.first() {
+                    if expr.kind == NodeKind::ExprCall
+                        && expr.name != "assert"
+                        && expr.name != "assert_eq"
+                    {
+                        return true;
+                    }
+                }
+            }
+            n.children.iter().any(scan)
+        }
+        node.children.iter().any(scan)
+    }
+
     fn gen_verilog_test(&mut self, node: &Node) {
+        let safe_test_name = Self::sanitize_identifier(&node.name);
         self.write_indent();
         self.write_line(&format!("// test: {}", node.name));
+        // W459: declare a module-scope dummy register for consuming the return
+        // value of bare function calls in this test block. Verilog-2001 requires
+        // function-call results to be used in an expression; assigning to a
+        // local reg keeps the call legal while preserving the side effect.
+        if Self::test_block_has_bare_call(node) {
+            self.write_indent();
+            self.write_line(&format!(
+                "reg [31:0] {}_w459_tmp;",
+                safe_test_name
+            ));
+        }
         self.write_indent();
         self.write_line(&format!(
             "initial begin : {}_test",
-            Self::sanitize_identifier(&node.name)
+            safe_test_name
         ));
         self.indent();
         self.write_indent();
@@ -5226,15 +5290,56 @@ impl VerilogCodegen {
         self.write_line("end");
     }
 
-    fn gen_verilog_test_stmt(&mut self, node: &Node, _test_name: &str) {
+    fn gen_verilog_test_stmt(&mut self, node: &Node, test_name: &str) {
         match node.kind {
             NodeKind::StmtExpr => {
                 if let Some(expr) = node.children.first() {
                     if expr.kind == NodeKind::ExprCall {
-                        self.write_indent();
-                        self.write("// ");
-                        self.gen_verilog_expr(expr);
-                        self.write_line(";");
+                        // W459: emit real function calls inside test blocks.
+                        // Test blocks are wrapped in `ifndef SIMULATION`, so these
+                        // calls run only in simulation and are not synthesized.
+                        if expr.name == "assert" && !expr.children.is_empty() {
+                            // W459: `assert(cond)` is emitted as a SystemVerilog
+                            // assertion statement. The optional message argument is
+                            // ignored for smoke compatibility; the condition still
+                            // drives pass/fail semantics in simulation.
+                            self.write_indent();
+                            self.write("assert(");
+                            self.gen_verilog_expr(&expr.children[0]);
+                            self.write_line(");");
+                        } else if expr.name == "assert_eq" && expr.children.len() >= 2 {
+                            self.write_indent();
+                            self.write_line("begin");
+                            self.indent();
+                            self.write_indent();
+                            self.write("if (!(");
+                            self.gen_verilog_expr(&expr.children[0]);
+                            self.write(" == ");
+                            self.gen_verilog_expr(&expr.children[1]);
+                            self.write_line(")) begin");
+                            self.indent();
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "$display(\"[TEST] {} : FAILED\");",
+                                test_name
+                            ));
+                            self.write_indent();
+                            self.write_line("$display(\"[TEST] assertion failed\");");
+                            self.dedent();
+                            self.write_indent();
+                            self.write_line("end");
+                            self.dedent();
+                            self.write_indent();
+                            self.write_line("end");
+                        } else {
+                            self.write_indent();
+                            self.write(&format!(
+                                "{}_w459_tmp = ",
+                                Self::sanitize_identifier(test_name)
+                            ));
+                            self.gen_verilog_expr(expr);
+                            self.write_line(";");
+                        }
                     }
                 }
             }
@@ -24530,5 +24635,87 @@ mod tests_w458 {
             "generated Verilog must not contain // synthesis translate_on:\n{}",
             v
         );
+    }
+
+    mod tests_w459 {
+        use super::Compiler;
+
+        #[test]
+        fn array_param_bound_from_test_block() {
+            // W459: a function with a fixed-size array parameter called only from a
+            // test block must still resolve its module-level array binding, so the
+            // function is not skipped and the generated Verilog contains a real call
+            // inside the test initial block.
+            let src = r#"module m;
+                var mem : [4]u16 = [4]u16{0,0,0,0};
+                pub fn set(arr: [4]u16, i: u32, v: u16) { arr[i] = v; }
+                test write_read { set(mem, 1, 0xABCD); assert_eq(mem[1], 0xABCD); }
+            }"#;
+            let v = Compiler::compile_verilog(src).expect("compile should succeed");
+            // The function should be emitted (not skipped with an error comment).
+            assert!(
+                v.contains("set; // -> auto"),
+                "set should be emitted:\n{}",
+                v
+            );
+            // The test initial block should contain a real call, not a commented one.
+            assert!(
+                v.contains("set(1, 43981);"),
+                "test block should emit a real call to set:\n{}",
+                v
+            );
+            assert!(
+                !v.contains("// set(1, 43981);"),
+                "test block should not comment out the set call:\n{}",
+                v
+            );
+        }
+
+        #[test]
+        fn test_block_emits_real_function_call() {
+            // W459: a bare function call inside a test block must be emitted as a
+            // real statement, not as a comment.
+            let src = r#"module m;
+                var mem : [4]u16 = [4]u16{0,0,0,0};
+                pub fn set(i: u32, v: u16) { mem[i] = v; }
+                pub fn get(i: u32) -> u16 { return mem[i]; }
+                test write_read { set(1, 0xABCD); assert_eq(get(1), 0xABCD); }
+            }"#;
+            let v = Compiler::compile_verilog(src).expect("compile should succeed");
+            assert!(
+                v.contains("set(1, 43981);"),
+                "bare set call should be emitted as a real statement:\n{}",
+                v
+            );
+            assert!(
+                !v.contains("// set(1, 43981);"),
+                "bare set call should not be commented out:\n{}",
+                v
+            );
+            // assert_eq should also be emitted as a real check (if branch).
+            assert!(
+                v.contains("if (!("),
+                "assert_eq should emit a real comparison:\n{}",
+                v
+            );
+        }
+
+        #[test]
+        fn rom_style_block_pragma_emitted() {
+            // W459: a const array with a rom_style pragma should emit the attribute
+            // before the memory declaration.
+            let src = r#"module m;
+                pragma rom_style = "block";
+                const rom : [4]u16 = [4]u16{0x1234, 0x5678, 0x9ABC, 0xDEF0};
+                pub fn lookup(i: u32) -> u16 { return rom[i]; }
+                test first { assert_eq(lookup(0), 0x1234); }
+            }"#;
+            let v = Compiler::compile_verilog(src).expect("compile should succeed");
+            assert!(
+                v.contains("(* rom_style = \"block\" *)"),
+                "rom_style pragma should be emitted before the reg declaration:\n{}",
+                v
+            );
+        }
     }
 }

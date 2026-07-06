@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 455)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 459)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -868,6 +868,42 @@ Phase 3c-standalone stalls while `lake` downloads the `batteries` dependency fro
 The remaining Variant B targets (array parameters from test/invariant/bench
 call sites, known-warnings gate, optional ROM-style pragmas) are deferred to
 Wave Loop 459.
+
+---
+
+## W459 boundary (2026-07-01)
+
+No new public competitor signals appeared between the W458 close-out and the
+W459 boundary. **Sparkle / Verilean** remains the closest structural competitor
+with ~102 formal theorems (zero generic-∀ over ternary datapaths). CIRCT
+`firtool-1.152.0` (2026-07-04) is still the latest public release, and Clash
+1.11.0 remains a Hackage candidate.
+
+t27's W459 deliverable continues the compiler-backend hardening line inside
+Variant B: **array-parameter binding from test/invariant/bench blocks**, **real
+assertion/function-call emission inside guarded test blocks**, **a known-warnings
+yosys smoke gate**, and **ROM style pragma support** for `const [N]T`
+declarations. The binding pass now collects call sites inside `test`,
+`invariant`, and `bench` blocks, so functions with array parameters can be
+exercised from any guarded context. Test-block `assert_eq` and bare calls are no
+longer commented out; they are emitted as real Verilog inside the existing
+`` `ifndef SIMULATION `` / `` `endif `` guards. The smoke runner defines
+`SIMULATION` during yosys parsing (`read_verilog -sv -DSIMULATION`), which
+excludes test/bench bodies from synthesis and keeps the documented
+`gen_verilog_smoke_baseline.json` empty. Two scratch specs, unit tests, and
+updated seals lock in the behavior. The fast suite path is green:
+
+- `./scripts/tri test --fast`: **583/583 non-smoke PASS**, **63/63 yosys smoke PASS**,
+  FPGA smoke gate OK, 0 baseline failures, 0 seal mismatches, **TOTAL FAILURES: 0**.
+
+The default `./scripts/tri test` still cannot complete in this environment
+because Phase 3c-standalone stalls on the external `lake` download of `batteries`
+from `reservoir.lean-lang.org`; the smoke-gate report itself reports
+`passed: true`.
+
+The remaining targets (generalized multi-site array parameters, bench-block
+local-variable lowering, and the three pre-existing `let_binding` cargo-test
+failures) are deferred to Wave Loop 460.
 
 ---
 

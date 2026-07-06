@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4f3b65aa66e434eaad965abb53ab13dc9d066b942173e55eca26980f556165e9",
+  "gen_hash_rust": "sha256:4fae4263425cd170d0475a523117a1e510c452c35a5d3730b38a64dbbf3759d7",
+  "gen_hash_verilog": "sha256:a14c9c39405e79bdc391bbe5ab777436f0ef31055186ef0113b24dda4705f356",
+  "gen_hash_zig": "sha256:20807a2d26659bf3bf4c236a02ff35b94cc3aaa9f3ac40b3f08871e3e41d7702",
+  "module": "w459_rom_style_block",
+  "ring": 12,
+  "sealed_at": "2026-07-06T14:14:09Z",
+  "spec_hash": "sha256:d9c7f185eda1334a7a1d78879d00a54547457417be129db867f39f566f5da72d",
+  "spec_path": "specs/scratch/w459_rom_style_block.t27"
+}

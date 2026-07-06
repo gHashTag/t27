@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:e7087dec33a7b14d780724578cd176025908665827317a7a26bcc6f950e1fe6b",
   "gen_hash_rust": "sha256:803c2fcfc73432566ee29a35d25bdb1ef279b52888a5ed5356d042d82c2fb986",
-  "gen_hash_verilog": "sha256:1750510144670ed07d5418ed328843be10b7dadb81fdfe20b511281758940527",
+  "gen_hash_verilog": "sha256:78a67df5846579abcf928dfadb1264e6f13e3e7cb15487fe717898f930731a5e",
   "gen_hash_zig": "sha256:5b6339289ea3cde8e9cb2543a5ae0ddf126631bbb6db8efeb53e144926e7ac27",
   "module": "ToolsRegistry",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:27Z",
+  "sealed_at": "2026-07-06T14:20:05Z",
   "spec_hash": "sha256:cab8fc66cecde3418ccc54b844c04dab39b69b3e74ed717f4acf50e8b9ae5e6a",
-  "spec_path": "/Users/playra/t27/specs/tools/registry.t27"
+  "spec_path": "specs/tools/registry.t27"
 }

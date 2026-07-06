@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:f6e4645853f904dde016fc098622d683dbdb4c4c721e07ced9c145086f2f9521",
   "gen_hash_rust": "sha256:c8c098c738258313e85785ed0dad22f2e50dc5550f724d98e7b684ebe5fb40cc",
-  "gen_hash_verilog": "sha256:4764d30e77d115fe5f6b7283f9d3a24bba0a4db9399a02f51550230e8b1a6515",
+  "gen_hash_verilog": "sha256:54eaeaf2069e20092ac1604cb0960bcb6358d4b3180d3a3296f2bcf959f558f8",
   "gen_hash_zig": "sha256:15a2246f7174d43784b1c78b81cfe52f0b205b69cde5c88aa8b11be528e49d8a",
   "module": "StorageKv",
   "ring": 12,
-  "sealed_at": "2026-07-06T13:11:28Z",
+  "sealed_at": "2026-07-06T14:20:04Z",
   "spec_hash": "sha256:b642ac3ac608ff8b1f91f11ee34db4d0683115f0d648d3f7d8a3ef44a604dbdc",
-  "spec_path": "/Users/playra/t27/specs/storage/kv.t27"
+  "spec_path": "specs/storage/kv.t27"
 }
