@@ -793,6 +793,28 @@ public competitor.
 
 ---
 
+## W456 boundary (2026-07-01)
+
+No new public competitor signals appeared between the W455 close-out and the W456
+boundary. **Sparkle / Verilean** remains the closest structural competitor with
+~102 formal theorems (zero generic-∀ over ternary datapaths). CIRCT
+`firtool-1.152.0` (2026-07-04) is still the latest public release, and Clash
+1.11.0 remains a Hackage candidate.
+
+t27's W456 deliverable is a narrow but high-leverage compiler hardening step
+inside Variant B: **ROM read-only enforcement**. The typechecker now rejects
+assignments to elements of `const [N]T` arrays, closing the semantic gap where a
+module-level ROM could be written at run time. A new scratch spec and unit tests
+lock in the behavior. Full suite remains green:
+
+- `./scripts/tri test`: **577/577 non-smoke PASS**, **57/57 yosys smoke PASS**,
+  FPGA smoke gate OK, 0 seal mismatches, **TOTAL FAILURES: 0**.
+
+The remaining Variant B targets (RAM style pragmas, module-level array
+parameters, warning hygiene) are deferred to Wave Loop 457.
+
+---
+
 ## Sources
 
 - Sparkle / Verilean: <https://github.com/Verilean/sparkle>

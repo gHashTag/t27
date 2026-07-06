@@ -1776,3 +1776,7 @@
 - **Commit:** docs(reports): W452–W455 competitor boundary refresh in T27_VS_FORMAL_HDL_2026.md
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/scratch_w456_rom_readonly.json,bootstrap/src/compiler.rs,specs/scratch/w456_rom_readonly.t27
 
+## 2026-07-06T10:53:18Z — wave-loop-456
+- **Commit:** feat(igla): Wave Loop 456 — ROM read-only enforcement + regression spec
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W457_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W456_2026-07-01.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_456_REPORT.md
+

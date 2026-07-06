@@ -1,28 +1,86 @@
-# NOW — Wave Loop 456 next / Wave Loop 455 close-out (2026-07-01)
+# NOW — Wave Loop 457 next / Wave Loop 456 close-out (2026-07-01)
 
 **Last updated:** 2026-07-01
 
-## Wave Loop 456 — Next wave (to be selected from cooperation plan) (Closes #1427)
+## Wave Loop 457 — Next wave (to be selected from cooperation plan) (Closes #1428)
 
-- Branch: `wave-loop-456` (to create from W455 land commit)
-- Issue: #1427
+- Branch: `wave-loop-457` (to create from W456 land commit)
+- Issue: #1428 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W456_2026-07-01.md`
-- Cooperation W457: (to be written at W456 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W457_2026-07-01.md`
+- Cooperation W458: (to be written at W457 close-out)
 
 ### Not started
 
-- Create issue #1426 and branch `wave-loop-456` from the W455 land commit.
-- Select one of the three W456 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W456_2026-07-01.md`:
+- Create issue #1428 and branch `wave-loop-457` from the W456 land commit.
+- Select one of the three W457 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W457_2026-07-01.md`:
   - **Variant A** if the DLC10 cable + P12/relay are wired: live-capture CCLK sweep
-    and mint an `XADC_LIVE_W456_OPERATING_POINT` theorem.
-  - **Variant B (default)** with bench still blocked: continue compiler backend
-    hardening (RAM style pragmas, module-level array parameters, ROM read-only
-    enforcement, warning hygiene, new regression specs).
+    and mint an `XADC_LIVE_W457_OPERATING_POINT` theorem.
+  - **Variant B (default)** with bench still blocked: add RAM style pragma support
+    for module-level arrays (`#[ram_style("block")]` / `#[ram_style("distributed")]`),
+    with regression specs and yosys inference checks.
   - **Variant C fallback** if Variant B is blocked: extend the board-less Lean 4
-    boot-evidence lattice with synthesizability theorems, adversarial clock-jitter
+    boot-evidence lattice with synthesizability theorems, adversarial ±2 ns jitter
     envelope, and compiler-correctness bridge lemmas.
+
+---
+
+## Wave Loop 456 — ROM read-only enforcement (Variant B, narrowed scope) (Closes #1427)
+
+- Branch: `wave-loop-456`
+- Issue: #1427
+- PR: (to open after close-out)
+- Report: `docs/reports/WAVE_LOOP_456_REPORT.md`
+- Evidence W456: `docs/reports/FPGA_LOOP_EVIDENCE_W456_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W456_2026-07-01.md`
+- Cooperation W457: `docs/reports/FPGA_LOOP_COOPERATION_W457_2026-07-01.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B narrowed to ROM read-only — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - `typecheck_ast` / `check_stmt` now rejects assignments to elements of immutable
+    `const [N]T` arrays (`lut[i] = ...`) with a typecheck error.
+  - Existing immutable scalar assignment remains a warning.
+  - Added `tests_w456_rom_readonly` unit-test module:
+    - `rom_readonly_array_element_assign_is_rejected`
+    - `var_array_element_assign_still_allowed`
+
+- `specs/scratch/w456_rom_readonly.t27`
+  - New regression spec with module-level `const [4]u16` ROM and read-only lookups.
+
+- `.trinity/seals/scratch_w456_rom_readonly.json`
+  - Seal for the new regression spec.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W456 competitor boundary section.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_456_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W456_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W457_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W456_OPERATING_POINT` — bench unavailable.
+- RAM style pragmas / module-level array parameters / warning hygiene — deferred to W457.
+
+### Verification
+
+- `cargo test -p t27c --bin t27c tests_w456_rom_readonly`: **PASS** (2/2).
+- `t27c gen-verilog specs/scratch/w456_rom_readonly.t27` + `yosys read_verilog -sv; synth -top w456_rom_readonly`: **PASS**.
+- `./scripts/tri test --json /tmp/tri_test_w456.json`: **ALL TESTS PASSED**.
+  - Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C / Seal Verify:
+    577/577 PASS.
+  - Gen Verilog Yosys Smoke: **57 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**.
+  - FPGA Standalone Lake-Package Build: **OK**.
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `ACCEPTABLE: yes**.
 
 ---
 
