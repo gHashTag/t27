@@ -1,0 +1,39 @@
+module w473_module_var_struct_array_field_varidx_write;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub struct Shape {
+    pts : [3]Pt,
+}
+
+pub var shapes : [2]Shape = [2]Shape{
+    Shape{
+        .pts = [3]Pt{
+            Pt{.x = 1, .y = 2},
+            Pt{.x = 3, .y = 4},
+            Pt{.x = 5, .y = 6},
+        },
+    },
+    Shape{
+        .pts = [3]Pt{
+            Pt{.x = 7, .y = 8},
+            Pt{.x = 9, .y = 10},
+            Pt{.x = 11, .y = 12},
+        },
+    },
+};
+
+pub fn write_varidx(i : usize, j : usize) -> u32 {
+    shapes[i].pts[j].x = 100;
+    return shapes[i].pts[j].x as u32;
+}
+
+test module_var_struct_array_field_varidx_write {
+    assert_eq(write_varidx(1, 2), 100);
+    assert_eq(write_varidx(0, 0), 100);
+}
+
+endmodule

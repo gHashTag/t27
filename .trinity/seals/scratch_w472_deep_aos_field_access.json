@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:14af2108dd0c845513d2b8816267e6965617834cd98811ca5428235cb3abd30d",
+  "gen_hash_rust": "sha256:8bdc6f9d4859488f8d21c0ec1ae6357b6319d63fae558485f18596d0ef334f34",
+  "gen_hash_verilog": "sha256:c8b2a4ccf6aaa6e9ee0a9e7484daa03fed935c7351d75681e8b0284304601e42",
+  "gen_hash_zig": "sha256:ecb728e677cf67f30d265bf1be53a7b5cd0b92249b04cd7b1383df7e256d479a",
+  "module": "w472_deep_aos_field_access",
+  "ring": 12,
+  "sealed_at": "2026-07-07T22:00:39Z",
+  "spec_hash": "sha256:7454428ff61e3ea50ed1f0bc90808db61ad3c6c28b76f5a423d7d4290766cb55",
+  "spec_path": "/Users/playra/t27/specs/scratch/w472_deep_aos_field_access.t27"
+}

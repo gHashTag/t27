@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:b9e5f834f4f3b4473bc0d74d2654c0a430485e5e81137442368d0e738f68db52",
   "gen_hash_rust": "sha256:18e1e455bca80b7b63518378b550e2d7b1ca43e1191db0252b4184353c49d4c6",
-  "gen_hash_verilog": "sha256:bfd76c13d3984a60669ceeab8467eadbac33c0283e5fb2c134058236174f70ca",
+  "gen_hash_verilog": "sha256:8916cace4a3bab000e464788c397ff583d825acbe517e7f2accbf23d07a2a812",
   "gen_hash_zig": "sha256:8014b7159e6c92e2e229fd009626c201e6f619b8119899ae1b56c8b70b6ad438",
   "module": "fpga_emission",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:35Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:12009ea0e096921a249e0b661d30c42f03f8331d49595da078637b6a657d8029",
-  "spec_path": "compiler/codegen/verilog/fpga_emission.t27"
+  "spec_path": "/Users/playra/t27/compiler/codegen/verilog/fpga_emission.t27"
 }

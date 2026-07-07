@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:73a07fb0249585d78ed3290d25770b0940e0a86c4cd85622211969a5cbf4809f",
   "gen_hash_rust": "sha256:efd2075a064e83fe402633cba25438ed5cf8de8daa0ed4104f7aa73af30cdd26",
-  "gen_hash_verilog": "sha256:e0d737d4dc050aba260a909f23b16725975cc721a857aa589c81999e51693411",
+  "gen_hash_verilog": "sha256:0b712500947d5474e7443d5401ae14155c082396b8c8d003d0eabeb2d332985c",
   "gen_hash_zig": "sha256:2fdc00b146a01209e70464e42a991db79cc92ce1beea0e4c69ebcae9510627ec",
   "module": "Lexing",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:52Z",
+  "sealed_at": "2026-07-07T22:00:40Z",
   "spec_hash": "sha256:4bc5143fba34174835090dd6b44f8b82feeb5462e3c52407d60d85efb3d6988a",
-  "spec_path": "specs/compiler/lexer.t27"
+  "spec_path": "/Users/playra/t27/specs/compiler/lexer.t27"
 }

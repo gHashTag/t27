@@ -1,0 +1,52 @@
+module w472_deep_aos_field_access;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub struct Shape {
+    pts : [3]Pt,
+}
+
+pub fn make_shapes() -> [2]Shape {
+    return [2]Shape{
+        Shape{
+            .pts = [3]Pt{
+                Pt{.x = 1, .y = 2},
+                Pt{.x = 3, .y = 4},
+                Pt{.x = 5, .y = 6},
+            },
+        },
+        Shape{
+            .pts = [3]Pt{
+                Pt{.x = 7, .y = 8},
+                Pt{.x = 9, .y = 10},
+                Pt{.x = 11, .y = 12},
+            },
+        },
+    };
+}
+
+pub fn sum_returned_shapes() -> u32 {
+    let total : u32 = 0;
+    total = total + (make_shapes()[0].pts[0].x as u32);
+    total = total + (make_shapes()[0].pts[0].y as u32);
+    total = total + (make_shapes()[0].pts[1].x as u32);
+    total = total + (make_shapes()[0].pts[1].y as u32);
+    total = total + (make_shapes()[0].pts[2].x as u32);
+    total = total + (make_shapes()[0].pts[2].y as u32);
+    total = total + (make_shapes()[1].pts[0].x as u32);
+    total = total + (make_shapes()[1].pts[0].y as u32);
+    total = total + (make_shapes()[1].pts[1].x as u32);
+    total = total + (make_shapes()[1].pts[1].y as u32);
+    total = total + (make_shapes()[1].pts[2].x as u32);
+    total = total + (make_shapes()[1].pts[2].y as u32);
+    return total;
+}
+
+test deep_aos_field_access {
+    assert_eq(sum_returned_shapes(), 78);
+}
+
+endmodule

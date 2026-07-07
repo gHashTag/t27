@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:302927e174ee53abfbbc024b055b53b507a79c6ac681ef25d0b20c0b0ee11b54",
   "module": "E2eDemo",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:69729efabc127aefce11e671dcb1abc5029ecd942d0670615a9ab41e73b76fb3",
-  "spec_path": "specs/fpga/e2e_demo.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/e2e_demo.t27"
 }

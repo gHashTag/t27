@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:39504255e04dc0802ac8cc794912e21debbb583439b4f7927163c5ff99600ec4",
   "module": "w374_module_keyword",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:04019576fb98aea5fede92b2243c951e91d5dad848e685f20964d6ece960692c",
-  "spec_path": "specs/scratch/w374_module_keyword.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w374_module_keyword.t27"
 }

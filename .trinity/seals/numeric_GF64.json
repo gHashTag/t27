@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2c85646f3813ed179d80e67a58fc12c58bab1aca4c6a6a6937575e084e604cb1",
   "module": "GF64",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:49a3ef2231df6ce5d5cdeec62f6608317512b047d2c6adb620b327b04fbdcfc3",
-  "spec_path": "specs/numeric/gf64.t27"
+  "spec_path": "/Users/playra/t27/specs/numeric/gf64.t27"
 }

@@ -1,3 +1,69 @@
+## 2026-07-08 — Wave Loop 473 (gen-verilog aggregate hardening: writable nested struct-array field assignment + higher-dimensional arrays of structs)
+
+### What worked
+- Linearizing multi-dimensional outer array indices into a single field-memory dimension made `[2][3]Shape { pts : [M]Pt }` read and write correctly in both literal-index and variable-index cases.
+- Storing `module_struct_array_dims` per module-level array of structs gave a single source of truth for how many index nodes belong to the outer array vs the inner field array.
+- Rewriting `gen_verilog_try_struct_array_assign` to use the same `collect_field_index_path` collector as the read path eliminated the fragile read-as-LHS fallback and made writes symmetric with reads.
+- Running `./scripts/tri test` after each subtask and resealing incrementally kept the suite green while changing core aggregate lowering.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: added `module_struct_array_dims`, updated `gen_verilog_const` / `gen_verilog_var` to populate it, updated the W472 nested field read path to linearize outer indices, and rewrote `gen_verilog_try_struct_array_assign` to emit deep module-level assignments explicitly.
+- Added 4 scratch specs and seals: `w473_module_var_struct_array_field_write`, `w473_module_var_struct_array_field_varidx_write`, `w473_3d_module_var_struct_array`, `w473_3d_module_var_struct_array_write`.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Added `docs/reports/WAVE_LOOP_473_CLOSEOUT.md` and `docs/reports/FPGA_LOOP_COOPERATION_W474_2026-07-08.md`.
+- Added `.trinity/ring-473.md` and updated `.trinity/experience.md`.
+
+### Verification
+- `cargo test -p t27c`: 1871 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: 633/633 parse/typecheck/gen-zig/gen-rust/gen-verilog/gen-c, **113/113 yosys smoke**, FPGA smoke gate OK, standalone lake build OK, 0 seal mismatches.
+- `./scripts/tri test --fast`: 633/633 non-smoke, **113/113 yosys smoke**, 0 seal mismatches.
+
+### Patterns to reuse
+- When a source array type has multiple outer dimensions but the backend lowers it to one-dimensional per-field memories, collect the index nodes and linearize only the outer ones through `gen_verilog_multi_dim_index_expr`.
+- Share the same (root, indices, fields) collector between read and write paths so that both paths agree on index ordering and bit-slice placement.
+- Add scratch specs that exercise exactly one new aggregate shape each; the yosys smoke gate validates synthesizability.
+
+### Anti-patterns to avoid
+- Do not use a read expression as an assignment target for aggregate paths; always emit the full indexed target.
+- Do not assume the number of source dimensions matches the number of emitted memory dimensions after lowering.
+- Do not reseal only the specs you think changed; any Verilog lowering change can shift `gen_hash_verilog` for unrelated specs.
+
+---
+
+## 2026-07-08 — Wave Loop 472 (gen-verilog aggregate hardening: deep AOS field access, writable struct arrays with array fields, local 1-D scalar array variable-index)
+
+### What worked
+- Treating deeply nested returned-array field access (`make_shapes()[i].pts[j].x`) as a chain of packed-slice offsets, rather than a sequence of temporary declarations, kept the generated Verilog legal in Yosys and iverilog while still supporting variable indices at every level.
+- Adding `collect_field_index_path` and `collect_field_index_path_rooted` gave one shared way to walk mixed `ExprFieldAccess` / `ExprIndex` chains, removing the previous ad-hoc branches that each handled only one shape of path.
+- Lowering module-level writable struct arrays with array-typed fields (`var shapes : [2]Shape { pts:[3]Pt }`) into per-leaf per-element registers (`shapes_pts_0_x`, `shapes_pts_0_y`, ...) made both literal-index and variable-index read/write work through existing scalar-struct-array helpers.
+- Emitting array-of-struct literals as packed concatenations via `try_emit_array_of_struct_literal_packed` let `[2]Shape{...}` be returned from functions and assigned directly without hand-expanded per-field temporaries.
+- Avoiding unpacked memory declarations inside functions for array-typed scalar-struct parameters removed the last Yosys "Unsupported language construct in constant function" failure in the smoke gate; the same field-index path now slices the packed parameter vector directly.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: added `collect_field_index_path`, `collect_field_index_path_rooted`, `StructArrayFieldPath`, `try_resolve_struct_array_field_path`, `module_struct_array_elem_types`, `nested_array_of_struct_field_slice`, `try_emit_array_of_struct_literal_packed`, `verilog_local_raw_base`, updated scalar-struct parameter unpacking to skip array-typed fields, and reworked `ExprFieldAccess` / `ExprIndex` handling for deep field/index chains.
+- Added 3 scratch specs and seals: `w472_local_1d_scalar_array_varidx`, `w472_module_var_struct_array_field`, `w472_deep_aos_field_access`.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Added `docs/reports/WAVE_LOOP_472_CLOSEOUT.md` and `docs/reports/FPGA_LOOP_COOPERATION_W473_2026-07-08.md`.
+- Added `.trinity/ring-472.md` and updated `.trinity/experience.md`.
+
+### Verification
+- `cargo test -p t27c`: 1871 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: 629/629 parse/typecheck/gen-zig/gen-rust/gen-verilog/gen-c, **109/109 yosys smoke**, FPGA smoke gate OK, standalone lake build OK, 0 seal mismatches.
+- `./scripts/tri test --fast`: 629/629 non-smoke, **109/109 yosys smoke**, 0 seal mismatches.
+
+### Patterns to reuse
+- Walk aggregate access paths once with a single collector that returns (root, indices, fields); branch on the collected shape instead of scattering special cases across the emitter.
+- When a packed aggregate contains array-typed struct fields, compute absolute bit offsets from the outer struct width down to the leaf scalar, then slice the packed vector directly for both literal and variable indices.
+- Do not emit unpacked `reg ... [0:N-1]` memories inside functions; Yosys rejects them in evaluated contexts. Use direct packed-vector slices or hoist the memory to module scope.
+- Add one scratch spec per new aggregate shape and run the smoke gate on it before claiming the feature works; the shape is the test.
+
+### Anti-patterns to avoid
+- Do not keep adding one-off branches for `s.pts[i].x`, `arr[i].inner.a`, and `make()[i].pts[j].x`; unify them under one path collector first.
+- Do not assume a scalar struct parameter can be unpacked the same way as a module-level variable; function context restrictions differ.
+- Do not regenerate seals without resealing every spec that changed `gen_hash_verilog`; a partial reseal makes the suite red on unrelated specs.
+
+---
+
 ## 2026-07-08 — Wave Loop 471 (gen-verilog struct/array expression hardening)
 
 ### What worked

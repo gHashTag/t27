@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0e807893834e69f59d3a1b7b22c76b006e47b1116f37cd1cae23110422c166d0",
   "module": "Gf16Accel",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:5ff83b222f25bcc76c64b469ec36441be9d44750b4dc3e7d8e17a343450a9f8a",
-  "spec_path": "specs/fpga/gf16_accel.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/gf16_accel.t27"
 }

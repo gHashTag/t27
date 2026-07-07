@@ -1,0 +1,20 @@
+module top;
+
+function [7:0] pick(input [7:0] idx);
+  var buf : [4]u8 = [4]u8{10, 20, 30, 40};
+  return buf[idx];
+endfunction
+
+initial begin
+  $display("pick(0)=%0d", pick(0));
+  $display("pick(1)=%0d", pick(1));
+  $display("pick(2)=%0d", pick(2));
+  $display("pick(3)=%0d", pick(3));
+  if (pick(0) !== 10) $fatal(1, "expected 10");
+  if (pick(1) !== 20) $fatal(1, "expected 20");
+  if (pick(2) !== 30) $fatal(1, "expected 30");
+  if (pick(3) !== 40) $fatal(1, "expected 40");
+  $display("PASS");
+end
+
+endmodule

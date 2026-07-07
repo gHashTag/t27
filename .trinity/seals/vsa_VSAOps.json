@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:736640d3cc2f81ee4da5701f5392d30d3e8c3eece42ba5d170c8dfd0e330c10c",
   "module": "VSAOps",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:a4d3b2cb054407b078df6f747e1d3a669e4fa9abd0f3ffad868c5af4ee9b15f5",
-  "spec_path": "specs/vsa/ops.t27"
+  "spec_path": "/Users/playra/t27/specs/vsa/ops.t27"
 }

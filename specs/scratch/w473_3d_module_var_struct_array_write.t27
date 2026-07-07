@@ -1,0 +1,74 @@
+module w473_3d_module_var_struct_array_write;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub struct Shape {
+    pts : [3]Pt,
+}
+
+pub var grid : [2][3]Shape = [2][3]Shape{
+    [3]Shape{
+        Shape{
+            .pts = [3]Pt{
+                Pt{.x = 1, .y = 2},
+                Pt{.x = 3, .y = 4},
+                Pt{.x = 5, .y = 6},
+            },
+        },
+        Shape{
+            .pts = [3]Pt{
+                Pt{.x = 7, .y = 8},
+                Pt{.x = 9, .y = 10},
+                Pt{.x = 11, .y = 12},
+            },
+        },
+        Shape{
+            .pts = [3]Pt{
+                Pt{.x = 13, .y = 14},
+                Pt{.x = 15, .y = 16},
+                Pt{.x = 17, .y = 18},
+            },
+        },
+    },
+    [3]Shape{
+        Shape{
+            .pts = [3]Pt{
+                Pt{.x = 19, .y = 20},
+                Pt{.x = 21, .y = 22},
+                Pt{.x = 23, .y = 24},
+            },
+        },
+        Shape{
+            .pts = [3]Pt{
+                Pt{.x = 25, .y = 26},
+                Pt{.x = 27, .y = 28},
+                Pt{.x = 29, .y = 30},
+            },
+        },
+        Shape{
+            .pts = [3]Pt{
+                Pt{.x = 31, .y = 32},
+                Pt{.x = 33, .y = 34},
+                Pt{.x = 35, .y = 36},
+            },
+        },
+    },
+};
+
+pub fn write_and_read(i : usize, j : usize, k : usize) -> u32 {
+    grid[i][j].pts[k].x = 500;
+    grid[i][j].pts[k].y = 600;
+    let a : u32 = grid[i][j].pts[k].x as u32;
+    let b : u32 = grid[i][j].pts[k].y as u32;
+    return a + b;
+}
+
+test three_d_module_var_struct_array_write {
+    assert_eq(write_and_read(0, 0, 0), 1100);
+    assert_eq(write_and_read(1, 2, 1), 1100);
+}
+
+endmodule

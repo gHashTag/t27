@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a37fb5a48708806648c12dc433f61cdb995ff3ef9f706abfb8da2bdd72ae3a0e",
   "module": "Fifo",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:dc1f5cc35b718263017c6e2b2ec619da0eb7c0665907963b93900d6b6b98dcfd",
-  "spec_path": "specs/fpga/fifo.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/fifo.t27"
 }

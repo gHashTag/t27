@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:200c944935582a69909253e2ffe3440398430c5dbf9d6aff30a0ec9ba14c43a8",
   "gen_hash_rust": "sha256:4e6e6c8441e82a6825ae7b24b15ab1d90120a5b1358aa2d9131d0544a95ba77d",
-  "gen_hash_verilog": "sha256:40ce3b065c55133d562a07011f39fd814b30130846c21fcdb93a62b906f330ed",
+  "gen_hash_verilog": "sha256:07b9625f324955e3cbc5ea756ec47171c15cde25d97353a612e651566b1189f9",
   "gen_hash_zig": "sha256:b9dc0b53ccf63a908e157af2234458ea096bd3e901e3786c139e7daf74060e54",
   "module": "triformat-gfternary",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:07328f15c8f1dc835dcbbc0b743ac458b5962be9ec5f39326a53321a6485c69b",
-  "spec_path": "specs/numeric/gfternary.t27"
+  "spec_path": "/Users/playra/t27/specs/numeric/gfternary.t27"
 }

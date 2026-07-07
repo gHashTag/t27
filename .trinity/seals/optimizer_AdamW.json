@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6a5c0e6c3225d25c36b3bc96f4fe4043961e4cff2e40e44e687d915c61ea2a2d",
   "module": "AdamW",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:40Z",
   "spec_hash": "sha256:a6f6cfd8423f58f14d672d49bf6d42194d8b9fb1d145ed2c048b10f8a1d4763e",
-  "spec_path": "specs/ml/optimizer/adamw.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/optimizer/adamw.t27"
 }

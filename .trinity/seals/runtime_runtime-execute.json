@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1764fbc08566811da7b7cede555777ba0c56b3ec9397b6cee4c9b570b33f362d",
   "module": "runtime-execute",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:b0bd4e7b1ea364fe7be9e73786f868cffd64a04d512b68c1b2775124b3cb81a4",
-  "spec_path": "specs/runtime/execute.t27"
+  "spec_path": "/Users/playra/t27/specs/runtime/execute.t27"
 }

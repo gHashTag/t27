@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d5c6d1c5af52b53915691848164b60fbf1dea5322701fef47504e7bf2406af47",
   "module": "commands",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:33Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:12dccaef1d7f63586257e69d4df35e9b6214d5ab6625191abc8034daafb5613e",
-  "spec_path": "compiler/runtime/commands.t27"
+  "spec_path": "/Users/playra/t27/compiler/runtime/commands.t27"
 }

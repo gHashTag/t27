@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6826e910bb3d0f0722834b956c74b7797803d3baee43aeab4d8a5f92aaf2c5b8",
   "module": "bus-pubsub",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:c796df935c9b483af021d3805456b7c8370eb781a07159ec56f48a5c64e7919d",
-  "spec_path": "specs/bus/pubsub.t27"
+  "spec_path": "/Users/playra/t27/specs/bus/pubsub.t27"
 }

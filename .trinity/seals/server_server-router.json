@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:adb77761ca96dc37a862b13cbb7962e4177bf7ac8f58d443a8d83f9ce842bd00",
   "module": "server-router",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:f573875f99459616a5401e26a0c901796df43b8e1f00b9cf21d1cdcbcecee2f1",
-  "spec_path": "specs/server/router.t27"
+  "spec_path": "/Users/playra/t27/specs/server/router.t27"
 }

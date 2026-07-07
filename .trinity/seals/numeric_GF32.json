@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:cdae2b1cf00bf194cd08d73587b08c62e773b8eb792bc347423eb5c256e8276d",
   "module": "GF32",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:27f8eeac6179f904b13939ad3e39fffe5062b0aadf2e27ac070bb2d44d4856c3",
-  "spec_path": "specs/numeric/gf32.t27"
+  "spec_path": "/Users/playra/t27/specs/numeric/gf32.t27"
 }

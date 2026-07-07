@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4aed3ef71c8d904fdfe41a0942772d45a963280adf48c8e8b791d9986ec57a45",
   "module": "queen-task-analysis",
   "ring": 12,
-  "sealed_at": "2026-07-07T19:58:51Z",
+  "sealed_at": "2026-07-07T22:00:39Z",
   "spec_hash": "sha256:5755f819b57e64354992f86357f6b047ac61dd4d6c67afcfad005d4e28fdfbf2",
-  "spec_path": "specs/queen/task_analysis.t27"
+  "spec_path": "/Users/playra/t27/specs/queen/task_analysis.t27"
 }
