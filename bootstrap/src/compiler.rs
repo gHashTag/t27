@@ -1456,6 +1456,13 @@ impl Parser {
             self.advance();
         }
 
+        // Handle postfix array notation: Type[] (e.g., i64[], f64[])
+        if self.current.kind == TokenKind::LBracket && self.peek.kind == TokenKind::RBracket {
+            ty.push_str("[]");
+            self.advance(); // consume [
+            self.advance(); // consume ]
+        }
+
         ty
     }
 
