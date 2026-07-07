@@ -4,19 +4,19 @@
   "canonical_doc": "docs/nona-03-manifest/IGLA_IMPROVEMENT_LOOP.md",
   "last_audit": "docs/reports/IGLA_AUDIT_W470_2026-07-07.md",
   "cycle": 1,
-  "status": "triage",
+  "status": "verify",
   "metrics": {
     "open_wave_prs": 20,
     "failing_wave_branch_checks": 5,
-    "compiler_seal_drift": true,
+    "compiler_seal_drift": false,
     "unmerged_branches": 112,
-    "active_worktrees": 5,
+    "active_worktrees": 6,
     "prunable_worktrees": 2,
     "specs_without_tests_or_invariants": 176,
     "deadcode_ratio_percent": 60.6,
     "shell_scripts_newer_than_frozen": 26
   },
-  "current_needle": null,
+  "current_needle": "workflow-dupes+frozen-hash+l1-regex",
   "backlog": [
     {
       "rank": 1,
@@ -25,9 +25,9 @@
       "severity": "P0",
       "owner": "B",
       "estimated_hours": 1,
-      "issue": null,
-      "pr": null,
-      "status": "pending",
+      "issue": 1438,
+      "pr": 1439,
+      "status": "verify",
       "lie": "CI status checks may be empty shells or a no-op duplicate gate"
     },
     {
@@ -37,9 +37,9 @@
       "severity": "P0",
       "owner": "C+B",
       "estimated_hours": 2,
-      "issue": null,
-      "pr": null,
-      "status": "pending",
+      "issue": 1438,
+      "pr": 1439,
+      "status": "verify",
       "lie": "Compiler cryptographic baseline is decorative"
     },
     {
@@ -49,9 +49,9 @@
       "severity": "P1",
       "owner": "B",
       "estimated_hours": 1,
-      "issue": null,
-      "pr": null,
-      "status": "pending",
+      "issue": 1438,
+      "pr": 1439,
+      "status": "verify",
       "lie": "Issue linkage can be bypassed depending on which gate runs"
     },
     {
