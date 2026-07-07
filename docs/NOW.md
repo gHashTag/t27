@@ -12,6 +12,15 @@ Last updated: 2026-07-07
 - Completed: worktree cleanup (#1442); salvaged compiler postfix-array change to `salvage/ae9fe-postfix-array-notation`.
 - Blocked: W469 2D-struct-array Verilog lowering (#1443, blocked on `wave-loop-469`); Digilent FTDI `cli/dlc10` support (#1446, blocked on hardware access).
 
+## IGLA cycle 1 — auto-workflow hardening (Closes #1440)
+
+- PR #1441 hardens `.github/workflows/auto-merge-ready-prs.yml` and
+  `.github/workflows/brain-seal-refresh.yml` with explicit permissions,
+  L1 traceability gating, correct dry-run boolean handling, and change-detection
+  guards before `git commit`.
+- This closes issue #1440 (automated workflows could merge/commit without
+  issue linkage or review).
+
 ## Architecture — ADR-007 documents de-jure/de-facto split for generated .v in specs/ (Closes #1435)
 
 - Fact-check on HEAD 6c704801: specs/**/*.v = 61 files, gen/**/*.v = 33. Issues

@@ -8,6 +8,9 @@ on:
       - 'scripts/aggregate-experience.sh'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   refresh-brain-seals:
     runs-on: ubuntu-latest
@@ -43,10 +46,15 @@ jobs:
           path: .trinity/seals/brain_*.json
 
       - name: Commit brain seals
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config --local user.email "admin@t27.ai"
+          git config --local user.email "t27-bot@trinity.ai"
           git config --local user.name "T27 Autonomous Agent"
           git add .trinity/seals/brain_*.json
-          git diff --staged --quiet || echo "No changes to commit"
-          git commit -m "chore: refresh brain seals from experience aggregation" || echo "Nothing to commit"
+          if git diff --staged --quiet; then
+            echo "No brain seal changes to commit"
+            exit 0
+          fi
+          git commit -m "chore: refresh brain seals from experience aggregation (Refs #1440)"
           git push
