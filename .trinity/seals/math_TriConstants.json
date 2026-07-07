@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:02afb947acce5e7521c89a9e33a5c36c05f4ef45849355e27bac4db30457be11",
   "gen_hash_rust": "sha256:1e266da6d9f25b100a81dc8fb01bbbf56b99e63736939356fcbc63805344afd6",
-  "gen_hash_verilog": "sha256:b1e6a8810e1d7316f3f60391c79748f2e67a821ff843706345a0ebf2a3695556",
+  "gen_hash_verilog": "sha256:8fcad5cfb4d2830b6a6a7a1374d99bf79ef3f33ee02fb4f9c3d24d8707212450",
   "gen_hash_zig": "sha256:ba48f8d7ea6e2506d3670efdff838c75ae0fb4779ed1f7b537fd9b2498ad9e30",
   "module": "TriConstants",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:36Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:0d834a5f68bcffb08f9a5b97c8841fb39b9592f0d7d2ed156f01afb0b78da08b",
-  "spec_path": "specs/tri/math/constants.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/math/constants.t27"
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:f8e1b4efe773764c79f55107f6b7212e01f13b35f42343070e1eaa748e14e710",
   "gen_hash_rust": "sha256:d04bb39a250cabc48a90ef13781a39fe0e4eb856300394acbe359c6d61756955",
-  "gen_hash_verilog": "sha256:c029afbacef5552ed257f9dfb8c6b0034dbc39b39393e31e27f9c2f2f90df964",
+  "gen_hash_verilog": "sha256:f6dba3f4c455de98d4c936bd7a895b905cca63fd4c67f106d645b0e4cb84060e",
   "gen_hash_zig": "sha256:9de3fefb8ee44f9011df33845f41f91324f3e8e0dd609b19d034fdbe7b0fda5c",
   "module": "IGLAPilotPretraining",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:37Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:051e8c6f568d660831950ec89c3148aa9219001db41877d1606d6ad5c019c53f",
-  "spec_path": "specs/igla/training/pilot_pretraining.t27"
+  "spec_path": "/Users/playra/t27/specs/igla/training/pilot_pretraining.t27"
 }

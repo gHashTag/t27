@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9651b0f46d83d87ee130c3b35681f9ebe110f22c337ec6451b867f8dc5e65398",
   "gen_hash_rust": "sha256:9e0725bdaf3a366a9aaa89aded1a13ad198233296f0ab4583a7db9023320e7c0",
-  "gen_hash_verilog": "sha256:c2fa5eda91da6e2767c9bd5649cad2a0dc9486422c438d6e7a6007c178ccbb54",
+  "gen_hash_verilog": "sha256:452cd4a08fd862c0b2c27c2a49cd3697afe43a4e2db70af4f6d34d52a97591f3",
   "gen_hash_zig": "sha256:9e3f69af57c5840623f288ed6b3988eeecd293aae7c7e94306ed2fa6fcb59900",
   "module": "Adagrad",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:36Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:204c8939483e6bb18f55dce184335a73236072e718045cf2308a35b76525a390",
-  "spec_path": "specs/ml/optimizer/adagrad.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/optimizer/adagrad.t27"
 }

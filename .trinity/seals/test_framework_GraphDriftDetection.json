@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:dfe8dcc350f43bd2d0bca1f4bd6fa6dccbbbcf0dc3aa0f91941eae2a935825c9",
   "gen_hash_rust": "sha256:d6ebef3fe5474b73985288faf0e3dee699a120b71684aef38210b95ec97e2ad2",
-  "gen_hash_verilog": "sha256:3781e685695d8e52152dc78957a0091373132e215af0dafda2047736ca008cc1",
+  "gen_hash_verilog": "sha256:c7cfa5157cdee114b4afd696eba9ee5b3633b6f7fd0f791cf71cc5cabad53ab1",
   "gen_hash_zig": "sha256:9426ae831fe073098b2d1bdc11276f4e095fe312bfa0cc41aac8de7575bdea1d",
   "module": "GraphDriftDetection",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:33Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:a49e6be25598157a01a6e9179cbee2685f5043978aa4db8c0beb5139c33064ff",
-  "spec_path": "specs/test_framework/graph_drift_detection.t27"
+  "spec_path": "/Users/playra/t27/specs/test_framework/graph_drift_detection.t27"
 }

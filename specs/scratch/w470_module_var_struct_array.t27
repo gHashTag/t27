@@ -1,0 +1,31 @@
+module w470_module_var_struct_array;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+var mem : [4]Pt = [4]Pt{
+    Pt{.x = 1, .y = 2},
+    Pt{.x = 3, .y = 4},
+    Pt{.x = 5, .y = 6},
+    Pt{.x = 7, .y = 8},
+} with ram_style = "block";
+
+pub fn read_mem(i : u32) -> u32 {
+    return (mem[i].x as u32) + (mem[i].y as u32);
+}
+
+pub fn write_and_read(i : u32, v : u32) -> u32 {
+    mem[i] = Pt{.x = (v as u16), .y = (v as u16)};
+    return (mem[i].x as u32) + (mem[i].y as u32);
+}
+
+test module_var_struct_array {
+    assert_eq(read_mem(0), 3);
+    assert_eq(read_mem(3), 15);
+    assert_eq(write_and_read(1, 10), 20);
+    assert_eq(write_and_read(2, 5), 10);
+}
+
+endmodule

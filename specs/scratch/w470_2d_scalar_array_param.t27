@@ -1,0 +1,20 @@
+module w470_2d_scalar_array_param;
+
+pub fn sum_2d(m : [2][3]u16) -> u32 {
+    var total : u32 = 0;
+    for i in 0..2 {
+        for j in 0..3 {
+            total = total + (m[i][j] as u32);
+        }
+    }
+    return total;
+}
+
+test two_d_scalar_array_param {
+    assert_eq(sum_2d([2][3]u16{
+        [3]u16{1, 2, 3},
+        [3]u16{4, 5, 6},
+    }), 21);
+}
+
+endmodule

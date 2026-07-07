@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:e26e28d8d435eaaf2da0e763f279a07deed1843aecbb48cc593fb0f196f60a7a",
   "gen_hash_rust": "sha256:4a9f1ba0ebdc346f55320c14f7012387567fb91cc2e02ef75074c22b49a0c7d5",
-  "gen_hash_verilog": "sha256:9535a2f5123b42fb9e52c7a97f360124eed66774b1c1b551b033ea9afd7eebc4",
+  "gen_hash_verilog": "sha256:807db9ca1be095efcd5bc7768fc15ec3f346612993707528adbf4a61b7783622",
   "gen_hash_zig": "sha256:db54dd86dee805cb83a4ba78c1707452326cb610133eaa0b6f95f3f467409364",
   "module": "BoardFullXC7A100T",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:33Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:7ed0768769fcbe3216daf7c39d9e9c3955ade2228159ee79593cc91a81f9eadb",
-  "spec_path": "specs/boards/xc7a100t_full.t27"
+  "spec_path": "/Users/playra/t27/specs/boards/xc7a100t_full.t27"
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:b6b8fb1959ca87dc068e62c03b445d26f4d257a953ee58a70f54d08591c1afd3",
   "gen_hash_rust": "sha256:93147b406fab402248c3be40a99b00b4a7a7365ec733f396fdc7ba694684e220",
-  "gen_hash_verilog": "sha256:38208e4c36246053eb39a9fb02f6823bb16ee032f58f35c89f18a0470bfb0e5e",
+  "gen_hash_verilog": "sha256:098b472fc0e8e2fee5e1dfc8fec9ec3932c6aa937aa5d508e45050b24b41e19b",
   "gen_hash_zig": "sha256:87101b63eb46bbc946e4990c682e588fd72ad4625133b0d7868b3d5c98ff9995",
   "module": "Storage",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:34Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:bc0376617cd87b3e40006d71e6ea96593448eafb8942448c5bd8d5363bb37dcf",
-  "spec_path": "specs/storage/schema.t27"
+  "spec_path": "/Users/playra/t27/specs/storage/schema.t27"
 }

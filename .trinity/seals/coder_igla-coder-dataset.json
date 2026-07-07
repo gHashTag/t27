@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:e6b3bf2953062ee4c7532351b84fb1d86bdaa39a356978a72cbf1477ec8fd5f0",
   "gen_hash_rust": "sha256:380a20af6e2fda60c98609ba5aa277852be6a6f8b114d2c427a4aed981adea41",
-  "gen_hash_verilog": "sha256:043b3fb3da433cdee6a617af228c14dec6915fa00e99cd417fa4dc1f28844957",
+  "gen_hash_verilog": "sha256:c605788fe6219b9be159f4d74d47fa667319aead5c736912ce3eea6e7128c9c2",
   "gen_hash_zig": "sha256:2f51b1ff1a7f692d88754d308980bfb4d1dc9baab5428feafac7fd8aa0140436",
   "module": "igla-coder-dataset",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:37Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:9b075bf88bf087e3bbc1fea6b26d6635343e5331c48e5ca025b2a23d9b806d9a",
-  "spec_path": "specs/igla/coder/dataset.t27"
+  "spec_path": "/Users/playra/t27/specs/igla/coder/dataset.t27"
 }

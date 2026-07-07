@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:20807a2d26659bf3bf4c236a02ff35b94cc3aaa9f3ac40b3f08871e3e41d7702",
   "module": "w459_rom_style_block",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:34Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:d9c7f185eda1334a7a1d78879d00a54547457417be129db867f39f566f5da72d",
-  "spec_path": "specs/scratch/w459_rom_style_block.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w459_rom_style_block.t27"
 }

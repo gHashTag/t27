@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a54a4217b1a1353679dfce2ef5f92893d6b99284a2ae185f6ec3f3a501eeb2ad",
   "gen_hash_rust": "sha256:87997babbe70daf8d2ac6d12398be08523a5f9acbf450324f3bf4bf37ecd3845",
-  "gen_hash_verilog": "sha256:f8da61b2f3e6a0c84d0e3016634c31a3f44384f3104b5d25189fb2523826885a",
+  "gen_hash_verilog": "sha256:c6decf0b8fc78f476eae10326bef99af444ec0ef6306cac96fa89efbc98b14b9",
   "gen_hash_zig": "sha256:3a6ce784215b7dcd65c2588fcb914d1518b3517871743914c25faf3ae16d5711",
   "module": "Flatten",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:36Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:05a1e633c80c5eb5e8f7f6f24a57c741492f5cc920591b8e5db7b48d51bcf0ed",
-  "spec_path": "specs/ml/layers/flatten_layer.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/layers/flatten_layer.t27"
 }

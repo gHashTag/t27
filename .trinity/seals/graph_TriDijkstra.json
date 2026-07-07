@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:456c12f5f87a8dd7cc86be7a42160f5d845a1bcc7e709ed87afc4c9b8b3eef5e",
   "gen_hash_rust": "sha256:8a6f1d92c707ef62b56ed8bc2b765ca4f8108c2c398aaf0b931cb51968b9eb4b",
-  "gen_hash_verilog": "sha256:a9c437d01e8534134e950b1fcc0fb48cf85428bd16b7620cb1d3b80a6b61ad55",
+  "gen_hash_verilog": "sha256:f8206aa3751416e88cc268079bc44e4f695cfe3b23c384af4e8a4b09e71e9767",
   "gen_hash_zig": "sha256:8e2a0e35475e2e0d028a2f581dee8aeb53c5a48d32c97963db13e02f280b6ea1",
   "module": "TriDijkstra",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:35Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:44044c9787eb731200c48f4bdcd52daf48854b92a7273fba511aa5316ee88ad0",
-  "spec_path": "specs/tri/graph/dijkstra.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/graph/dijkstra.t27"
 }

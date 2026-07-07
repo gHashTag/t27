@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:464d38f8e8d473556d62cbb78169d635be0eae5a889a7ce0a9fdb0ffec127315",
   "gen_hash_rust": "sha256:b22b67179633799c0f6d9033b571c620b1ea3f8da4111c6d25dc5d624eee21b2",
-  "gen_hash_verilog": "sha256:1e5c827b0965526edc811c765057b68b0dbe6441326c23c3585c085c027246c3",
+  "gen_hash_verilog": "sha256:1adb8a3785bbc9b5108f537b261f719e4282b59a46b2d9263dd208534447add0",
   "gen_hash_zig": "sha256:6a5304684af54777e571a9ff90f0043c32c0eb68031de58d21cb8e09f9f413b9",
   "module": "Softmax",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:36Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:4ea7242baa7a03eeadf68af61c6d58551b24783880fa3319a2d0c34550ecdb44",
-  "spec_path": "specs/ml/activation/softmax.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/activation/softmax.t27"
 }

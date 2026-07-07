@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:8cfc643262e2944d274844e668b03eef3fff0baa5429200ee2992f1d9b4a5e2c",
   "gen_hash_rust": "sha256:86ec43273a8c618e61abbb4dd2e902f14604a0d78bcd9970deefb5fc891f5a09",
-  "gen_hash_verilog": "sha256:d46049651ab0f7b57507a39901c4d8dc3c0b933ca7b709ef43ce105dd1a84e79",
+  "gen_hash_verilog": "sha256:c421249bc48b55494dfd7a3c68252e8c755ba7fffa6d95432beeae7e4c6a0c46",
   "gen_hash_zig": "sha256:4aed3ef71c8d904fdfe41a0942772d45a963280adf48c8e8b791d9986ec57a45",
   "module": "queen-task-analysis",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:33Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:5755f819b57e64354992f86357f6b047ac61dd4d6c67afcfad005d4e28fdfbf2",
-  "spec_path": "specs/queen/task_analysis.t27"
+  "spec_path": "/Users/playra/t27/specs/queen/task_analysis.t27"
 }

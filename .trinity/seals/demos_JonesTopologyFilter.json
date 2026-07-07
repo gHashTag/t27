@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3c0eea05a0d999f92dfdcacc0adb0840e225edaea28793f6709dcfd4d8b6c12b",
   "gen_hash_rust": "sha256:cf5db2e396764b7ba4ecf4ee8722bd9976bf8a23e0960321257b71a98cdda053",
-  "gen_hash_verilog": "sha256:57124916970bd36e1b1b5bd94c548eb2cae250ec6ce1688b5c15dcc03e0ecd99",
+  "gen_hash_verilog": "sha256:b16f94cf0186bc47624ae51dba9a97cc02497ac3f0510b8ce01416f8828cdcea",
   "gen_hash_zig": "sha256:ec5632b4f408805fddfe28b0ad1a3cc97276b95e528761148b18a4564d867663",
   "module": "JonesTopologyFilter",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:33Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:851e803e01e643919c0fbe7e8e324f01638f30fc83f827412d5dab222660d1ad",
-  "spec_path": "specs/demos/jones_topology_filter.t27"
+  "spec_path": "/Users/playra/t27/specs/demos/jones_topology_filter.t27"
 }

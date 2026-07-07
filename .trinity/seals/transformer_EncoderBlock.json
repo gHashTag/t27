@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:61466fc6ddb3d798981009d13838569fd3f69461a462004054094c4c2572d472",
   "gen_hash_rust": "sha256:9f654e328dc68096d26ffc2096fb8603372f9331911d7bb132e3cf9719df93be",
-  "gen_hash_verilog": "sha256:f733341f52fedb67bd4e6d1ed8fe5455275d93a9422ed8606fa0b4f1396c47dd",
+  "gen_hash_verilog": "sha256:bb5a95c913247a4c14e4a819f30e05cbb4a6a9f354d34980051d0460651acd0b",
   "gen_hash_zig": "sha256:2520a2c1d0adfaf94800f83dc3684b397f1bbb2bb88f51b1bb55dcf1bc663bd1",
   "module": "EncoderBlock",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:36Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:c1955126a803192f0a46ca05a2be74f2ca28ddedeba7e8b9355f2ed6baa0eaef",
-  "spec_path": "specs/ml/transformer/encoder_block.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/transformer/encoder_block.t27"
 }

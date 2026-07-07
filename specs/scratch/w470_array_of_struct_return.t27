@@ -1,0 +1,27 @@
+module w470_array_of_struct_return;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn make_pts() -> [2]Pt {
+    return [2]Pt{ Pt{.x = 1, .y = 2}, Pt{.x = 3, .y = 4} };
+}
+
+pub fn sum_returned() -> u32 {
+    var pts : [2]Pt = make_pts();
+    return (pts[0].x as u32) + (pts[0].y as u32) + (pts[1].x as u32) + (pts[1].y as u32);
+}
+
+pub fn direct_returned_field() -> u32 {
+    var pts : [2]Pt = make_pts();
+    return (pts[0].x as u32);
+}
+
+test array_of_struct_return {
+    assert_eq(sum_returned(), 10);
+    assert_eq(direct_returned_field(), 1);
+}
+
+endmodule

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:293721f81253c7380402758dc2209c71e4b047825b4af7b379337a80c7a68d9d",
   "gen_hash_rust": "sha256:fc4ea25f93bf79ddde28aea51740fa08bcf77680e736ab853aec5c956f694d41",
-  "gen_hash_verilog": "sha256:7309ef6e2e9f8e61bffd12bb0f7a94466b33296d267c74b257ce3d39535eaa2b",
+  "gen_hash_verilog": "sha256:8bd84341cb49b404e24537fb04d739215217e2b2a87264651434283b27c2e81e",
   "gen_hash_zig": "sha256:910b9ebfb6adba7d85cac042ccad5f4a481fc2ebbe0747c209f03d279c7df8b2",
   "module": "BoardArtyA7",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:33Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:7b96fe0feb3e7bc3e57acad912c8ab1fba60c054d3e1305abcc27f1e0b94ddd8",
-  "spec_path": "specs/boards/arty_a7.t27"
+  "spec_path": "/Users/playra/t27/specs/boards/arty_a7.t27"
 }

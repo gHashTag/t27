@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:07139cbc0a60c55eb6b5ab4f3535ce178943bc5b57813bc851f33169b89fd092",
   "gen_hash_rust": "sha256:753bb751f7e46eaa97420cb9aee57e71729251fdeb64c583c016bab0ceee45f9",
-  "gen_hash_verilog": "sha256:24619af9a85350892f48c49265472ceaa89dae90df23631a1032f5a95c945ea0",
+  "gen_hash_verilog": "sha256:e03bf6367708d97821263cbc9aba0ff732d6a64efa519ed0595b6b5a6196092a",
   "gen_hash_zig": "sha256:522df4fca4418bc375aadc847d73e9c91416a9470041484dd719c3450442cfae",
   "module": "HuberLoss",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:36Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:dc6abda2d082a9007b050ad51b10ae119790ceecbe26b23107a08d024bf0ea29",
-  "spec_path": "specs/ml/loss/huber_loss.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/loss/huber_loss.t27"
 }

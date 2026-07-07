@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:6d52bd09de0a2cf18fe8396ad50fe47361982d32c5d5713d737cb6df55d1836a",
   "gen_hash_rust": "sha256:143943d23f94424560b884b3320ccb7988aa84faeb7852ae723a6bb139a6e7de",
-  "gen_hash_verilog": "sha256:f9545863e38b91a3f22155149d549260f4324ac43386497e9728a932e55722e7",
+  "gen_hash_verilog": "sha256:dca2b7a1db26e06daeda680ad227f71c6c33eecf9a0859092930898b30b18164",
   "gen_hash_zig": "sha256:4138f53806a6ae13e594f661df549f0b1baacf1e7290cd71b257462bd5dcead5",
   "module": "Advantage",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:36Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:7d41d9d1ab43028ea61e4c36eb6c0e40b525e6d0f456db95f0312c2d4d06fc62",
-  "spec_path": "specs/ml/rl/advantage_estimator.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/rl/advantage_estimator.t27"
 }

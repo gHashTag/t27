@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:0ad592afa7022978942f53b42c7cd9bda458acb546d0eb813840843cbc3fdaf1",
   "gen_hash_rust": "sha256:fe780a90a999b92cc2ebc61c1def9f717e04a7566f6a81fad283293d627ae6ed",
-  "gen_hash_verilog": "sha256:8f56fff067dace5779cbb6e3db035f085e5508ccb31e5f0ec6e775ed923600e0",
+  "gen_hash_verilog": "sha256:ab7b7b67b96b9824d9e180fcff7ff5bc16be455cb8afaafc929b320852266df2",
   "gen_hash_zig": "sha256:10f819f093471b05a5075564f6f5c16a4f75e474cda5877f4b5a489905d57f73",
   "module": "ExperienceSave",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:33Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:df15f1fbd549cad6bc01b0599d4765ea3d8be69eb2759ef112ca8c94c101168d",
-  "spec_path": "specs/pipeline/experience_save.t27"
+  "spec_path": "/Users/playra/t27/specs/pipeline/experience_save.t27"
 }

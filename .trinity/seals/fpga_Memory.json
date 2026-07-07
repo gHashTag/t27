@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9f3e5c0674449cf338255584255ceabd1d4750426620e82a5bcb7d5ded7e115e",
   "gen_hash_rust": "sha256:0a5d1cb593ea72adf39dc942290189bfc9d7ad239e2814d37bcee558c72390f1",
-  "gen_hash_verilog": "sha256:f27d5c17cdb29b76abf2b15ee66515a8f4f7e26d1fc15600c8b08b578f717581",
+  "gen_hash_verilog": "sha256:d798b0cc78b82b399e9f6d1f3ae0d3876185153796de50e99230862068cc1876",
   "gen_hash_zig": "sha256:90748de7f9db1dd0294442c8ebcefbdc7bf1a9c2a2ec459fa7a037137f4fee33",
   "module": "Memory",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:32Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:5847d80ee4a4f2fc5b812078febf793a17aa56e2e4ad3bd6ea158c2d218f0b84",
-  "spec_path": "specs/fpga/memory.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/memory.t27"
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:f0817b929e5ad94e0ea65adb81b7d597c29d63fca1baf959fd70c74aab16e687",
   "gen_hash_rust": "sha256:174bddb14abeee51300eee1ba5885427a836cf4163c8fcac5e87702ae9315dfe",
-  "gen_hash_verilog": "sha256:6ef4a99f4deeae19009784c628e01c22773ac3fd47fd7bebb709305e27dd230c",
+  "gen_hash_verilog": "sha256:51d0dc065890a4fb7b91641cedecd26675d8d4963a64b56bd8e97d4ff3e1f44e",
   "gen_hash_zig": "sha256:9bcfa5e8edad66e849021ab745b597071f8e988bb06b0352e54e7c1dd0544458",
   "module": "SacredAttention",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:33Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:9c6919724679ae04be00491b71d8628566db40befb37cc205d6ab69daeaeef27",
-  "spec_path": "specs/nn/attention.t27"
+  "spec_path": "/Users/playra/t27/specs/nn/attention.t27"
 }

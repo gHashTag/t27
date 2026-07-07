@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:950878a5ed17e84b18f29feadb552e9b7859c09e0dd084d81848cba0f8e708d2",
   "gen_hash_rust": "sha256:7616fcb2f6c2eb6afff5f9490a8c320a0572fe02729a5bc7a15e322ffe3346c3",
-  "gen_hash_verilog": "sha256:7f606a24a64f5d2525c45c9cb5877db40716c4c1c9d7d6fb1be5e6ee14d21942",
+  "gen_hash_verilog": "sha256:0b36d9490d2061d1f8ef7b5811f622e527c4df9cd44d8ad9b2b9004801cd58e1",
   "gen_hash_zig": "sha256:d4b75477a845ffb140fc6c7b543e99994e398d2cc1f200425c069c08f171a317",
   "module": "CrossEntropy",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:36Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:60f5f9fd2a85ea4dbfd20c2e42356184ec9e8d78ed586cafc3ec3fecf801ec44",
-  "spec_path": "specs/ml/loss/cross_entropy_loss.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/loss/cross_entropy_loss.t27"
 }

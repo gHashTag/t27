@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:52f46ab81eeceb34707f6933be0ee2e232fb39ef1af95ba24dccd1e3e6d65785",
   "gen_hash_rust": "sha256:13ed538c73226dc43820890ae46b5648a69954788df2a376e1e7d276c864fd2d",
-  "gen_hash_verilog": "sha256:3107760dcc0b27f54008cc56b1f8335d2c47ef3a41680179a334c227467a7104",
+  "gen_hash_verilog": "sha256:879c922fd0af10a51388f59bfd8870b26af46ad16980e6e7bde47ba6d1368b4a",
   "gen_hash_zig": "sha256:8964c4b730014e01e4c94a7598caab4836df6bd4d233b25e2c454132a95c468f",
   "module": "TriGraphBfs",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:35Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:5d0df89b1a1bde5f8d5fa4733b3ad09250d5600bd1d0d8f9c31966a2f1db3827",
-  "spec_path": "specs/tri/graph/graph_bfs.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/graph/graph_bfs.t27"
 }

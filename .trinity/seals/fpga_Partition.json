@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:e8adaba3b614fd57b775c5c484cede7a41a07418472ae3c94add342317f21a14",
   "gen_hash_rust": "sha256:695f2a6adbab9433261d8272a6333b0abfaaf404077a18fbf7331f2b072742e0",
-  "gen_hash_verilog": "sha256:814272f11aeef8838d0c9aea1736fb727e2d94574af4b816187d731e8e98b2ff",
+  "gen_hash_verilog": "sha256:a5ed6ebb9e9efc2f2ab8d69ad9e84732f40e017278e8739d77ec9deb8da882f7",
   "gen_hash_zig": "sha256:ac9d9fc4e8caaea8ef3e0bcccd1e31b23c7c4281275d51069bfca541fcc127db",
   "module": "Partition",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:32Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:dab0282c7d4e40a1eb25d81e743dbfac14b5ec8573beaa299f3dcfedf9c8a3fb",
-  "spec_path": "specs/fpga/partition.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/partition.t27"
 }

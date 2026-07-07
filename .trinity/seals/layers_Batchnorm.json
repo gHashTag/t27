@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:59512803704ede40e9899ffdd7ef796bac2e8dac42d68e30fb500fc0a418edcf",
   "gen_hash_rust": "sha256:7d08b25d8c39f03ab1c93b295e8e328b0a15f64515faf81d02405807700bfcf3",
-  "gen_hash_verilog": "sha256:6c7dc85fbb6c4548ac9cccc2e2e8d3741c4e18cf65e3764f1019b97b1b951464",
+  "gen_hash_verilog": "sha256:c5a95d3b9fcde4d18a14db445f467de36df0c591ffa84195d1052c76e43eb8d9",
   "gen_hash_zig": "sha256:178aa78f473dd3915495e7de92dd286428748ec7669a5543155f84f94a368918",
   "module": "Batchnorm",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:36Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:e33d06c87bbdb7128b94c03795ef3a4832b59758ca66412cd89fde649e7db5e0",
-  "spec_path": "specs/ml/layers/batchnorm_layer.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/layers/batchnorm_layer.t27"
 }

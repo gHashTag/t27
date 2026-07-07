@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9a17e2779070667b647ef8f9b78329dff7bef0722359cffb27fa324cea567685",
   "gen_hash_rust": "sha256:0251ad64df93ddac35cc89eeaf0d23115bfc31468ff107216901ad6b545a9fc9",
-  "gen_hash_verilog": "sha256:4b2b18f644f340f941dea481b6012e40c0beed3f20d95b69da5b702d60131c22",
+  "gen_hash_verilog": "sha256:d0b77fcb29861e617bc027b8091ef61d6cb861aa56104eac2eecf86b4a489334",
   "gen_hash_zig": "sha256:761b37f2cd7f0df6718f215004ed25dc3b909658d20d42a7beab8b48d1436a6b",
   "module": "igla-race-backend",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:37Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:72a7736563378e351a86a8113418da7a3f95eb5be88081a2a138b17f1f485d45",
-  "spec_path": "specs/igla/race/backend.t27"
+  "spec_path": "/Users/playra/t27/specs/igla/race/backend.t27"
 }

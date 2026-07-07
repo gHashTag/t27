@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:37a068ed7d884acfd60dbb034eb70ccd1c4150d5fa89076d185f9cfd18640d09",
   "module": "w458_array_param_write",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:34Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:6241518143fe2161691bcb7cdd1dcfc66f4a4618f0a7cddb80f62f734f9bc64d",
-  "spec_path": "specs/scratch/w458_array_param_write.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w458_array_param_write.t27"
 }

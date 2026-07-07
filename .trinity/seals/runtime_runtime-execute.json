@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:b08c5ec2f883973ac459f1930dd4307ff09e313e840069528dd39c4e32a62803",
   "gen_hash_rust": "sha256:355de9e9269093ce3cf060853baab8db3f54c29a423f5b1c88f759a42a8db7be",
-  "gen_hash_verilog": "sha256:5d5f215e1c69291c47625a5ded6bc745c952ef888b7750f838abd130bb47903b",
+  "gen_hash_verilog": "sha256:d6e7abfd7f77b84b40c7520470702501f1914d842fbfb8bd553a0093a8facac1",
   "gen_hash_zig": "sha256:1764fbc08566811da7b7cede555777ba0c56b3ec9397b6cee4c9b570b33f362d",
   "module": "runtime-execute",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:34Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:b0bd4e7b1ea364fe7be9e73786f868cffd64a04d512b68c1b2775124b3cb81a4",
-  "spec_path": "specs/runtime/execute.t27"
+  "spec_path": "/Users/playra/t27/specs/runtime/execute.t27"
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:b95d9c05d269bfda8c6f6ccc925be1955940475c91032eb57dd54b1be4c4c523",
   "gen_hash_rust": "sha256:c25b7fdf8087fd24627393001d6a3f9c5c22a97691d5b05cef13c8f601eed987",
-  "gen_hash_verilog": "sha256:260f4a3ddab9efd2e2e611406a1a9f8db1688fe7614a5f5060dbb4eca14843b6",
+  "gen_hash_verilog": "sha256:0fc7e15919eb4bd5cfdf112abcbfe1cd701f592b48d1b31ff3a44ca98f0ea00e",
   "gen_hash_zig": "sha256:f0d00c39a4a525da27ca97e2c9468d4005199b9619cd3ae5faa7fcef08dadd10",
   "module": "igla-coder-eval",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:37Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:23ca7bb91397a96d6f1d5547df1081de7307bc9186900e25f0f1615edf707ee5",
-  "spec_path": "specs/igla/coder/eval.t27"
+  "spec_path": "/Users/playra/t27/specs/igla/coder/eval.t27"
 }

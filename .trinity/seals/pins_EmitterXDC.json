@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:5ebd1facd668c9389f0bc665ac1ba360c0024635c5bdad98c7f0012124d19e1a",
   "gen_hash_rust": "sha256:8df630a44c786d6531484ecf99ae89d2cf142efb6c33de99b0ffda2800e222f8",
-  "gen_hash_verilog": "sha256:84dd6a9d2ad878836b7e67e5908dbf4e09abb8128f5f39c776ea17c62ec69837",
+  "gen_hash_verilog": "sha256:835836e5e570a01a21e0824b9e446599e9724464c85cdada731dd8c6c57da2f1",
   "gen_hash_zig": "sha256:3fac2b0303e5d9dde1bd262eb936aeb83ff52792d8f5bef2a7d1e746f7974af2",
   "module": "EmitterXDC",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:33Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:d9954ca190ee3e748ef8df7ce32bd183096f7f97003651aede1ccabe5c1b0e19",
-  "spec_path": "specs/pins/emitter_xdc.t27"
+  "spec_path": "/Users/playra/t27/specs/pins/emitter_xdc.t27"
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:36671dc1209dc4eef8e37cc81424a9c05d7a1eb953025b2bcf1dbd241c91005f",
   "gen_hash_rust": "sha256:ec09173c42b6b614e92a1b514fdad1ae319bc00ceb38de2584462bb17a68b0c2",
-  "gen_hash_verilog": "sha256:27a9ddb36267d642de0df1bb9a970ad34f123a4ef38c80347ff8437536e0dce9",
+  "gen_hash_verilog": "sha256:5f4874c8b130aba48c8bfa4577f1483bb9cf2efd230bb96a793aa8a0366757d3",
   "gen_hash_zig": "sha256:61db0dd0201e26e95aaa2f02ec6629f8af4543806f3edbfe76e6a71b335adf6f",
   "module": "Router",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:33Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:802df073593e74b8a7840556d305d079c7f318b64ab7011cfc025c04cfd5c4f3",
-  "spec_path": "specs/fpga/router.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/router.t27"
 }

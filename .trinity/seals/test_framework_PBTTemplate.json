@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:fe25d77915cce87736dbe8b51c6c9088d8a435ac8ef8e1599c9a215f31d2685d",
   "gen_hash_rust": "sha256:27cf44b965cf371c2880320a7447b02296e6a04a262da57c185f54cdb0fa9633",
-  "gen_hash_verilog": "sha256:60c0f989e4acc380b23682cd26dfc4e118a4bfc2e4f68d0a7e6fc2df3802d895",
+  "gen_hash_verilog": "sha256:5bb0f504a371921f11b30cdb08ef059f26808fcd531eca9e7eb8b6b09ccdfb7a",
   "gen_hash_zig": "sha256:998f3b109c60b3bbfec74876fe73144d4557643a9aca043e77c24aad0a4f7e4c",
   "module": "PBTTemplate",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:33Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:4df77a447e28e3e0799495cd1701dcb022b20377a83898032d2f7f7523c5dacc",
-  "spec_path": "specs/test_framework/property_test_template.t27"
+  "spec_path": "/Users/playra/t27/specs/test_framework/property_test_template.t27"
 }

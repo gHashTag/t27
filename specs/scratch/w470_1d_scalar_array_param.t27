@@ -1,0 +1,15 @@
+module w470_1d_scalar_array_param;
+
+pub fn sum_1d(m : [3]u16) -> u32 {
+    var total : u32 = 0;
+    for i in 0..3 {
+        total = total + (m[i] as u32);
+    }
+    return total;
+}
+
+test one_d_scalar_array_param {
+    assert_eq(sum_1d([3]u16{1, 2, 3}), 6);
+}
+
+endmodule

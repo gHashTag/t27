@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:c470aec8aec200c9cf78ee186e9b484e41f556d8f81abcef61cfe383b148fcda",
   "gen_hash_rust": "sha256:63adf8c6290063c397e8b6e33e8d61f8e4a65104090b93a506a8166f8857a3e0",
-  "gen_hash_verilog": "sha256:2ca3471f60933cec2a1082e1f86c4d0729b887f9ac5552e7ce864ec1f9f02a84",
+  "gen_hash_verilog": "sha256:d435d1b468bdf29ab00fe61e04786c96cde16e282575603cf3f0fbdf6746b417",
   "gen_hash_zig": "sha256:cc517fc8dba8e1513b4a6d60f9ebce8478ccf604b79dd4ba8b21d1e7e417d4d0",
   "module": "QueenLotus",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:33Z",
+  "sealed_at": "2026-07-07T18:28:23Z",
   "spec_hash": "sha256:20c7c8f2fe7691f073207b73372837c6a4fab0a0eda61491bd907063fec323e1",
-  "spec_path": "specs/queen/lotus.t27"
+  "spec_path": "/Users/playra/t27/specs/queen/lotus.t27"
 }

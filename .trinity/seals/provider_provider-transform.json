@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:8e2d285ed0884486a5015a39ad945bfdfdf1aedb40a28bec67243f7c182c5596",
   "gen_hash_rust": "sha256:c18f22cfa8d7c049f72c2ef7f9344881c855dbc26d83880f054fcb22f3677ddf",
-  "gen_hash_verilog": "sha256:07c2956b33e8168d3298d7c46c9f2ed900f9ab48e196457e16345b65858b3b8c",
+  "gen_hash_verilog": "sha256:d404f937ac403be797df31c101e6ac4c0abbdf0f5ae02eae1bc3b16777f7b375",
   "gen_hash_zig": "sha256:3896a6aea687b6ecffa5c0fd3f174988d5d17d73b4278a6f5796d9289c079828",
   "module": "provider-transform",
   "ring": 12,
-  "sealed_at": "2026-07-07T16:18:34Z",
+  "sealed_at": "2026-07-07T18:28:24Z",
   "spec_hash": "sha256:060c2f1a0244b16ace9212d31c89b0a43ce2d804c7d105ba3c84ed319526b42a",
-  "spec_path": "specs/provider/transform.t27"
+  "spec_path": "/Users/playra/t27/specs/provider/transform.t27"
 }
