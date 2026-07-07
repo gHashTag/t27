@@ -85,9 +85,10 @@
       "severity": "P0",
       "owner": "C",
       "estimated_hours": 4,
-      "issue": null,
+      "issue": 1443,
       "pr": null,
-      "status": "pending",
+      "status": "blocked",
+      "blocked_by": "wave-loop-469",
       "lie": "Latest wave work generates illegal Verilog"
     },
     {
