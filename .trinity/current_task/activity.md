@@ -1512,3 +1512,7 @@
 - **Commit:** 
 - **Files:** docs/NOW.md
 
+## 2026-07-07T12:05:53Z — igla/w470-fpga-200t
+- **Commit:** 
+- **Files:** fpga/vivado/build.tcl,fpga/vivado/build_gf16.tcl,fpga/vivado/build_gf16_matmul4x4.tcl,specs/fpga/constraints/qmtech_a100t.xdc
+
