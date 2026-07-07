@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:f9a363fe8529407c2c0a860407f531319425a26411d7f358e96558f07bbe1775",
-  "gen_hash_rust": "sha256:e6ed10615e17b7bc024df108ee4b4aa57026dec0a2a6a797cd63dfbbea2b9cf7",
-  "gen_hash_verilog": "sha256:5d157ee3feeb9c19d2db9985d842c6ec5e5293bb3ce6e9aebd2a22adb0b328bb",
-  "gen_hash_zig": "sha256:5d62b999762145e6378f5435e11999f5b33c1843ec9d25a2af661c7bf34b553e",
+  "gen_hash_c": "sha256:3154328d43b1a4b2ef82957367f58e752b816dd749beea49da7afa44d51b2934",
+  "gen_hash_rust": "sha256:36d7c48fa349bad458ebf8c0b0aee85ea55a6d4530f4400a449a699c1c6a8275",
+  "gen_hash_verilog": "sha256:d0a543797fbc6648aa7d9c5cc0694c50be777cc265dda3a4709a969e1b48df16",
+  "gen_hash_zig": "sha256:243119798b24837d125ed223c6f7d10cb32cd80fd23d5d53575e8a477a6ef6d2",
   "module": "bus-schema",
   "ring": 12,
-  "sealed_at": "2026-07-06T15:02:24Z",
+  "sealed_at": "2026-07-07T05:34:30Z",
   "spec_hash": "sha256:76f4b79cfecc890ab7a7f7bcbe9564aa9d6ecde995aedb1de20315716844ca22",
   "spec_path": "specs/bus/schema.t27"
 }

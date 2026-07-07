@@ -1,0 +1,25 @@
+module w468_local_ram_style;
+
+pub fn sum_table(idx : u32) -> u32 {
+    pragma ram_style = "distributed";
+    var lut : [4]u32 = [4]u32{10, 20, 30, 40};
+    return lut[idx];
+}
+
+pub fn sum_diag() -> u32 {
+    pragma ram_style = "block";
+    var m : [3][3]u8 = [3][3]u8{
+        [3]u8{1, 2, 3},
+        [3]u8{4, 5, 6},
+        [3]u8{7, 8, 9},
+    };
+    return (m[0][0] as u32) + (m[1][1] as u32) + (m[2][2] as u32);
+}
+
+test local_ram_style {
+    assert_eq(sum_table(0), 10);
+    assert_eq(sum_table(3), 40);
+    assert_eq(sum_diag(), 15);
+}
+
+endmodule

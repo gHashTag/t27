@@ -1,0 +1,27 @@
+module w468_2d_array;
+
+pub fn sum_diag(m : [3][3]u8) -> u32 {
+    return (m[0][0] as u32) + (m[1][1] as u32) + (m[2][2] as u32);
+}
+
+pub fn set_and_sum(i : u32, j : u32, v : u8) -> u32 {
+    var m : [3][3]u8 = [3][3]u8{
+        [3]u8{1, 2, 3},
+        [3]u8{4, 5, 6},
+        [3]u8{7, 8, 9},
+    };
+    m[i][j] = v;
+    return (m[0][0] as u32) + (m[1][1] as u32) + (m[2][2] as u32);
+}
+
+test two_d_array {
+    assert_eq(sum_diag([3][3]u8{
+        [3]u8{1, 2, 3},
+        [3]u8{4, 5, 6},
+        [3]u8{7, 8, 9},
+    }), 15);
+    assert_eq(set_and_sum(0, 0, 5), 19);
+    assert_eq(set_and_sum(2, 2, 0), 6);
+}
+
+endmodule

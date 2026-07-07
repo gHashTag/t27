@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d176c03b49ac2f75f44773bf3e98acc01699234a02b0ed23df627dd20493f7d8",
   "gen_hash_rust": "sha256:cb36336fe0e79ce8c3b5a74d8754a3923d156afc09ad456e24da5b0406079f82",
-  "gen_hash_verilog": "sha256:3539990b90c2092d54106d94a15b9d02f4e45feca7bdb6063688b5545e4277d5",
+  "gen_hash_verilog": "sha256:0175974820a1ecdbf3b333eba239c32966730cc20107012d8a2fbac01879506f",
   "gen_hash_zig": "sha256:c5d58ab56391d5d11d8a18b83fe11644a93da49ddcc5c8d0202dbe4359321c94",
   "module": "UART_Testbench",
   "ring": 12,
-  "sealed_at": "2026-07-06T15:02:25Z",
+  "sealed_at": "2026-07-07T05:34:31Z",
   "spec_hash": "sha256:379740eea2f1d1c60693f69cd89d57566017db7dcbe77484f8d2f54c97cb40b8",
   "spec_path": "specs/fpga/testbench/uart_tb.t27"
 }

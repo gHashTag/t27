@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:230801583691bfff542ba3e6ee7ed9256bda2f8cb401947dbfce50c532129344",
   "gen_hash_rust": "sha256:a42b6a273905221a5377227777553b931573817bff548ce7f5d77064167223ff",
-  "gen_hash_verilog": "sha256:a53a0b8575345da018d1456b302e5a6973ba937b0d569991cd0d570870bf7f07",
+  "gen_hash_verilog": "sha256:e9130aba20bf9956ed1e3a6797356424f4ee70a5dd38cf394ba35b8ef1691095",
   "gen_hash_zig": "sha256:c9eb45e0e682d3cfadb1ababd76f3373aad792b73f4da1155707d711b23cb499",
   "module": "Power",
   "ring": 12,
-  "sealed_at": "2026-07-06T15:02:23Z",
+  "sealed_at": "2026-07-07T05:34:31Z",
   "spec_hash": "sha256:58c646dc39ab0a74f6f1bc691f97ba3bbfed3868d1f12bf90e14a0531c1263b9",
   "spec_path": "specs/fpga/power.t27"
 }

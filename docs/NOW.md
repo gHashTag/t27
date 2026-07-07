@@ -1,20 +1,84 @@
-# NOW — Wave Loop 467 close-out / Wave Loop 468 next (2026-07-08)
+# NOW — Wave Loop 468 close-out / Wave Loop 469 next (2026-07-08)
 
 **Last updated:** 2026-07-08
 
-## Wave Loop 468 — Next wave (to be selected from cooperation plan) (Closes #1446)
+## Wave Loop 469 — Next wave (to be selected from cooperation plan) (Closes #1447)
 
-- Branch: `wave-loop-468` (to create from W467 land commit)
-- Issue: #1446 (to create)
+- Branch: `wave-loop-469` (to create from W468 land commit)
+- Issue: #1447 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W468_2026-07-08.md`
-- Cooperation W469: (to be written at W468 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W469_2026-07-08.md`
+- Cooperation W470: (to be written at W469 close-out)
 
 ### Not started
 
-- Create issue #1446 and branch `wave-loop-468` from the W467 land commit.
-- Select one of the three W468 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W468_2026-07-08.md`.
+- Create issue #1447 and branch `wave-loop-469` from the W468 land commit.
+- Select one of the three W469 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W469_2026-07-08.md`.
+
+---
+
+## Wave Loop 468 — compiler-backend hardening: struct-return function call assignment + 2D scalar local arrays + local RAM-style pragma propagation (Variant B default) (Closes #1446)
+
+- Branch: `wave-loop-468`
+- Issue: #1446
+- PR: (to open)
+- Report: `docs/reports/WAVE_LOOP_468_REPORT.md`
+- Evidence W468: `docs/reports/FPGA_LOOP_EVIDENCE_W468_2026-07-08.md`
+- Plan: `.claude/plans/wave-loop-468.md`
+- Cooperation W469: `docs/reports/FPGA_LOOP_COOPERATION_W469_2026-07-08.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Added `struct_return_width` / `struct_field_widths` and updated
+    `gen_verilog_fn_internal` so functions declared `-> Pt` emit a packed
+    Verilog function whose width matches the struct layout.
+  - Extended `ExprStructLit` to emit a packed concatenation `{y, x}` in
+    expression context (e.g. `return Pt{...}`).
+  - Added `gen_verilog_struct_return_slicing` to unpack a packed struct-return
+    call into per-field local registers.
+  - Extended struct-variable initialization / assignment paths to accept an
+    `ExprCall` RHS.
+  - Added zero-parameter function tracking and dummy `_unused` inputs / `0`
+    placeholder arguments for legal Verilog function signatures.
+  - Added multi-dimensional scalar array lowering: `[M][N]T` local arrays become
+    per-leaf scalar registers with literal-index and variable-index read/write
+    rewriting.
+  - Extended the parser to accept `pragma name = "value";` inside function
+    bodies and attached the pragma to the next local declaration.
+  - Emitted `(* {pragma} *)` attributes before local array register
+    declarations.
+  - Added `integer` loop-variable declarations to prevent yosys simplifier
+    assertions on complex function bodies.
+  - Fixed parenthesization in the 2D variable-index read ternary and write
+    if-else chain.
+
+- Regression specs:
+  - `specs/scratch/w468_struct_return_assign.t27`
+  - `specs/scratch/w468_local_2d_scalar_array.t27`
+  - `specs/scratch/w468_local_ram_style.t27`
+  - `specs/scratch/w468_2d_array.t27` (unsupported 2D array-parameter path,
+    held green by `-DSIMULATION` smoke guard)
+
+- Resealed all affected specs whose generated output changed legitimately.
+
+### Verification
+
+- `./scripts/tri test --fast`: **610/610 non-smoke PASS**, **90/90 yosys smoke PASS**,
+  FPGA smoke gate OK, 0 baseline failures, 0 seal mismatches, **TOTAL FAILURES: 0**.
+- `cargo test -p t27c --bin t27c`: **1524 passed, 0 failed, 2 ignored**.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W468_OPERATING_POINT` — bench unavailable.
+- Multi-dimensional arrays of structs (`[M][N]Pt`), module-level scalar struct
+  variables/consts, scalar struct parameters, and whole-struct comparison —
+  queued for W469.
 
 ---
 

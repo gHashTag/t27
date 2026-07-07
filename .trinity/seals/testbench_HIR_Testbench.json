@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3d077443ee2f23fb97132a59ed9cfa3a445c3f9a1295d83e67e222acd1b9232b",
   "gen_hash_rust": "sha256:ad5b95e9e8f4630d0eb49c28bf5f92c18c502c626fd27233bb39f96ea48a66eb",
-  "gen_hash_verilog": "sha256:24a6fc1664e977f6099f35f1a0f1c3797364c409f1cc54ca57242194c818bc65",
+  "gen_hash_verilog": "sha256:aeaf55e1368ea603a46d52365dcb8e2d9b55908143c83cc5879d031181d23838",
   "gen_hash_zig": "sha256:73743bcdd9375fd0941913fe197713fbf0ec27f998d920f4d15c11b835a5c58e",
   "module": "HIR_Testbench",
   "ring": 12,
-  "sealed_at": "2026-07-06T15:02:25Z",
+  "sealed_at": "2026-07-07T05:34:31Z",
   "spec_hash": "sha256:a01fd77f5b67719785f929e4631a189fbdbc932bf81bc3d131345ee1cf6744cc",
   "spec_path": "specs/fpga/testbench/hir_tb.t27"
 }

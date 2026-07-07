@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ea4bb2a7c6454f115b324f7b0f5fc4ab3a95019f4030db8b5326ecdcebeffae7",
   "module": "sandbox.https_enforce",
   "ring": 12,
-  "sealed_at": "2026-07-06T15:02:25Z",
+  "sealed_at": "2026-07-07T05:34:33Z",
   "spec_hash": "sha256:e1c387ee2e54fabfdcb363337c56c608d48108946f4b089c91a232e9fa8d0f76",
   "spec_path": "specs/sandbox/https_enforce.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d0673fafd79c2ba6772edaf8ce459f107e681176f9050efa6d29727088664ca5",
   "module": "ISAMemoryOps",
   "ring": 12,
-  "sealed_at": "2026-07-06T15:02:24Z",
+  "sealed_at": "2026-07-07T05:34:32Z",
   "spec_hash": "sha256:f7162e965fda731076f2fde81af84ec6c20d34c40b2f10a7938613d13645db5e",
   "spec_path": "specs/isa/ternary_memory.t27"
 }

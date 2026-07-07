@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:243949a6b2a30ad40eb93839270b13ae7e6a3b03a54aa4cea6617d5d65e9292b",
   "gen_hash_rust": "sha256:5b4526ef82c727f25f67727a5ba64ee22fb39eb1c4fce4b50d80d5ec6a983d8b",
-  "gen_hash_verilog": "sha256:0390fcf38c653686a2aa7e6763b71f7a03a1cd9183e84499211e36b9efa27210",
+  "gen_hash_verilog": "sha256:e22981c0b7cfa84f19218b17692ab41af2f4cba5bdd6d18f2f27bdb83e455aa0",
   "gen_hash_zig": "sha256:6260ddbd91b0cf9f08612e6a45ad08b73530bdd5a0dc5bb13c4e3eabb09e4dff",
   "module": "lsp-schema",
   "ring": 12,
-  "sealed_at": "2026-07-06T15:02:24Z",
+  "sealed_at": "2026-07-07T05:34:32Z",
   "spec_hash": "sha256:4c4543a14768e2353cf1981460c90b96fa26a9c05e049b5d504e07a9e244a0d4",
   "spec_path": "specs/lsp/schema.t27"
 }

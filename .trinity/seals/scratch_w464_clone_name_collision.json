@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:92c3fc2cad5b6f9f2fff5f2f29edbee1260c83cdadb60e1793475dc50e8549e3",
   "module": "w464_clone_name_collision",
   "ring": 12,
-  "sealed_at": "2026-07-06T18:13:12Z",
+  "sealed_at": "2026-07-07T05:34:33Z",
   "spec_hash": "sha256:73266d6d584ca17dcac8eb0d5c39b388702667a868021d745f8bb869bc084393",
   "spec_path": "specs/scratch/w464_clone_name_collision.t27"
 }

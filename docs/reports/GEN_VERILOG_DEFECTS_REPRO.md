@@ -1,9 +1,33 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-467`  
-**Last updated:** 2026-07-08 (Wave Loop 467)  
+**Branch:** `wave-loop-468`  
+**Last updated:** 2026-07-08 (Wave Loop 468)  
 
 This document tracks the lowering defects in the `t27c gen-verilog` backend. The full fix set was originally landed on `master` (commit `701d79b3b`) and on the historical `wave-loop-383` compiler line; Wave Loop 455 ported the missing parser and backend pieces into the current `wave-loop-455` branch and cleared the 7 residual yosys smoke failures.
+
+**W468 triage decision:** three `gen-verilog` backend extensions land this
+wave. `bootstrap/src/compiler.rs` now (1) lowers struct-return function calls:
+`let p : Pt = make_pt()` produces a packed `[31:0]` function result and slices it
+into per-field local registers `p_x` / `p_y`; (2) lowers 2D scalar local arrays:
+`var m : [3][3]u8` becomes nine per-leaf scalar registers (`m_0_0` ... `m_2_2`)
+with literal-index and variable-index read/write rewriting; (3) propagates
+RAM-style pragmas into local array declarations, emitting
+`(* ram_style = "..." *)` before the flattened registers. The parser was also
+extended to accept `pragma` statements inside function bodies, and loop
+variables are now declared with `integer` to avoid a yosys simplifier assertion
+on complex function bodies. Four scratch specs cover the new paths:
+`specs/scratch/w468_struct_return_assign.t27`,
+`specs/scratch/w468_local_2d_scalar_array.t27`,
+`specs/scratch/w468_local_ram_style.t27`, and
+`specs/scratch/w468_2d_array.t27` (the last documents the still-unsupported 2D
+array-parameter path and is held green by the `-DSIMULATION` smoke guard). All
+610 previously sealed specs whose generated Verilog changed legitimately were
+resealed. Full suite remains green: **610/610 non-smoke PASS**, **90/90 yosys
+smoke PASS**, 0 baseline failures, 0 seal mismatches, **TOTAL FAILURES: 0**.
+The master-merge debt and physical-bench blockers remain unchanged;
+multi-dimensional arrays of structs (`[M][N]Pt`), module-level scalar struct
+variables/consts, scalar struct parameters, and whole-struct comparison remain
+open for W469.
 
 **W467 triage decision:** four `gen-verilog` struct lowering extensions land this
 wave. `bootstrap/src/compiler.rs` now (1) decomposes whole-struct assignment by

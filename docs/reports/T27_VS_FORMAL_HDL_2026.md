@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-08 (refreshed for Wave Loop 467)  
+**Date:** 2026-07-08 (refreshed for Wave Loop 468)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -8,6 +8,20 @@ synthesis with machine-checkable correctness.
 ---
 
 ## Executive summary
+
+**Wave Loop 468 extends the `gen-verilog` compiler-backend hardening line
+without changing the formal-lead position.** `bootstrap/src/compiler.rs` now
+lowers struct-return function call assignment (`let p : Pt = make_pt()`),
+2D scalar local arrays (`var m : [3][3]u8`), and RAM-style pragma propagation
+into local arrays, while also declaring `integer` loop variables to keep complex
+function bodies yosys-clean. Trinity ships **610/610 non-smoke PASS**,
+**90/90 yosys smoke PASS**, 0 baseline failures, and `cargo test -p t27c --bin t27c`
+remains fully green (1524 passed, 0 failed, 2 ignored). No new public competitor
+signals appeared between W467 and W468; Sparkle's repository still shows the
+2026-07-04 FIDO2/crypto burst, CIRCT `firtool-1.152.0` (2026-07-04) remains the
+latest public release, and the ternary-FPGA ecosystem continues to treat
+Lean-native proof as an afterthought, leaving Trinity's proof-pipeline lead
+intact. The physical bench is still blocked by the missing DLC10 cable.
 
 The formal-HDL space is accelerating in 2026. The closest structural
 competitors to t27 are **Sparkle / Verilean** (Lean 4 native HDL), **Clash**
@@ -119,6 +133,8 @@ pipeline. The master-merge debt and physical-bench blockers remain unchanged.
 **Wave Loop 466 closes the next three `gen-verilog` struct-array gaps.** `bootstrap/src/compiler.rs` now flattens nested struct arrays (`arr[i].inner.a` → `arr_inner_a[i]`), lowers variable-index reads of local struct arrays via a priority mux over per-element per-field registers, and lowers field-wise variable-index writes via if-else chains over the same registers; it also verifies that mixed direct/indirect struct-literal array arguments continue to resolve through the array-parameter clone path. Trinity ships 602/602 non-smoke PASS, 82/82 yosys smoke PASS, 0 baseline failures, and `cargo test -p t27c --bin t27c` stays green (1524 passed, 0 failed, 2 ignored). No new public competitor signals appeared between W465 and W466; Sparkle's repository still shows only the 2026-07-03 cache-key fix and the 関数型まつり2026 talk, while CIRCT `firtool-1.152.0` (2026-07-04) remains the latest public release. The ternary-FPGA niche continues to treat Lean as an afterthought, leaving Trinity's proof-pipeline lead intact. Physical bench execution is still blocked by the missing DLC10 cable.
 
 **Wave Loop 467 closes the next four `gen-verilog` struct lowering gaps.** `bootstrap/src/compiler.rs` now decomposes whole-struct assignment by value into per-field scalar assignments for function-local struct variables (`a = b`, `a = Pt{...}`), decomposes whole-element assignment into struct arrays (`pts[idx] = Pt{...}` or `tmp[i] = another_var`) into per-field assignments with `begin ... end` grouped branches for variable-index writes on local arrays, flattens struct fields whose type is a fixed-size array into Verilog memories (`Pt { coords : [3]u8 }` → `reg [7:0] p_coords [0:2]`), and verifies that keyword field names (`reg`, `wire`) inside struct-literal array arguments flowing through the W461/W463 clone path remain yosys-clean. Trinity ships 606/606 non-smoke PASS, 86/86 yosys smoke PASS, 0 baseline failures, and `cargo test -p t27c --bin t27c` stays green (1524 passed, 0 failed, 2 ignored). No new public competitor signals appeared between W466 and W467; Sparkle's repository still shows only the 2026-07-03 cache-key fix and the 関数型まつり2026 talk, while CIRCT `firtool-1.152.0` (2026-07-04) remains the latest public release. The ternary-FPGA niche continues to treat Lean as an afterthought, leaving Trinity's proof-pipeline lead intact. Physical bench execution is still blocked by the missing DLC10 cable.
+
+**Wave Loop 468 extends the `gen-verilog` compiler-backend hardening line.** `bootstrap/src/compiler.rs` now lowers struct-return function call assignment (`let p : Pt = make_pt()`), 2D scalar local arrays (`var m : [3][3]u8`), and RAM-style pragma propagation into local arrays, and it declares loop variables explicitly to keep complex function bodies yosys-clean. Trinity ships 610/610 non-smoke PASS, 90/90 yosys smoke PASS, 0 baseline failures, and `cargo test -p t27c --bin t27c` stays green (1524 passed, 0 failed, 2 ignored). No new public competitor signals appeared between W467 and W468; Sparkle's repository still shows only the 2026-07-03 cache-key fix and the 関数型まつり2026 talk, while CIRCT `firtool-1.152.0` (2026-07-04) remains the latest public release. The ternary-FPGA niche continues to treat Lean as an afterthought, leaving Trinity's proof-pipeline lead intact. Physical bench execution is still blocked by the missing DLC10 cable.
 
 **W435 hardens the live-readout pipeline without clearing the master-merge debt.**
 `tri fpga read-xadc` now exports a rounded `PvtContext` JSON via `--to-pvt-context`;

@@ -1847,6 +1847,16 @@ impl Parser {
     /// Parse function body statements until closing brace
     fn parse_fn_body(&mut self, decl: &mut Node) -> Result<(), String> {
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            // W468: local pragmas apply to the next statement inside a function
+            // body. Parse them inline and let `parse_local_decl` pick up the
+            // pending pragma.
+            if self.current.kind == TokenKind::KwPragma {
+                if let Err(e) = self.parse_pragma() {
+                    self.recover_to_stmt_boundary();
+                    return Err(e);
+                }
+                continue;
+            }
             match self.parse_body_stmt() {
                 Ok(stmt) => decl.children.push(stmt),
                 Err(_) => {
@@ -2007,6 +2017,12 @@ impl Parser {
         // bindings as explicit local declarations (not copy-propagated away).
         decl.extra_kind = self.current.lexeme.clone();
         decl.extra_mutable = self.current.kind == TokenKind::KwVar;
+        // W468: apply any pending pragma (from a preceding `pragma ...;` statement)
+        // to this local declaration.
+        if !self.pending_pragma.is_empty() {
+            decl.extra_pragma = self.pending_pragma.clone();
+            self.pending_pragma.clear();
+        }
         self.advance(); // consume const/var/let
 
         // Name
@@ -2875,6 +2891,10 @@ impl Parser {
         let mut node = Node::new(NodeKind::ExprArrayLiteral);
         self.advance();
 
+        // W468: consume the (outermost) bracket pair and any further dimension
+        // brackets, so `[2][3]u16{...}` is parsed as a single 2D array literal
+        // with extra_size="2" and extra_type="[3]u16".
+        let mut outer_size = String::new();
         if self.current.kind == TokenKind::RBracket {
             self.advance();
         } else {
@@ -2883,14 +2903,32 @@ impl Parser {
                 bracket_content.push_str(&self.current.lexeme);
                 self.advance();
             }
-            node.extra_size = bracket_content.trim().to_string();
+            outer_size = bracket_content.trim().to_string();
+            self.expect(TokenKind::RBracket)?;
+        }
+
+        let mut full_elem_type = String::new();
+        while self.current.kind == TokenKind::LBracket {
+            self.advance();
+            let mut bracket_content = String::new();
+            while self.current.kind != TokenKind::RBracket
+                && self.current.kind != TokenKind::Eof
+            {
+                bracket_content.push_str(&self.current.lexeme);
+                self.advance();
+            }
+            full_elem_type.push('[');
+            full_elem_type.push_str(&bracket_content);
+            full_elem_type.push(']');
             self.expect(TokenKind::RBracket)?;
         }
 
         if self.current.kind == TokenKind::Ident {
-            node.extra_type = self.current.lexeme.clone();
+            full_elem_type.push_str(&self.current.lexeme);
             self.advance();
         }
+        node.extra_size = outer_size;
+        node.extra_type = full_elem_type;
 
         if self.current.kind == TokenKind::LBrace {
             self.advance();
@@ -3952,6 +3990,14 @@ pub struct VerilogCodegen {
     // function name. Used by let-destructuring to infer binding widths from a
     // callee's tuple return type.
     fn_return_types: std::collections::HashMap<String, String>,
+    // W468: names of functions declared with zero parameters (and a non-void
+    // return). Their generated Verilog function has a dummy `input _unused;`, so
+    // calls must supply a placeholder argument.
+    fn_zero_arg_functions: std::collections::HashSet<String>,
+    // W468: loop variables already declared in the current procedural block
+    // (function body or test/bench initial block). Prevents duplicate Verilog
+    // `integer` declarations when a single variable is used by multiple loops.
+    loop_vars_declared: std::collections::HashSet<String>,
     // W383: names of function-local array variables in the current function.
     // Used by ExprIndex to rewrite `tmp[0]` into `tmp_0`.
     local_arrays: std::collections::HashSet<String>,
@@ -3959,6 +4005,10 @@ pub struct VerilogCodegen {
     // keyed by the original declared name. Used to resolve indexed field access
     // on local arrays whose element type is a struct, including nested fields.
     local_array_elem_info: std::collections::HashMap<String, (usize, String)>,
+    // W468: dimensions for function-local/bench-local arrays with more than one
+    // dimension. Keyed by the original declared name. Used to rewrite multi-index
+    // access like m[i][j] into the flattened per-leaf register name.
+    local_array_dims: std::collections::HashMap<String, Vec<(usize, String)>>,
     // W466: flattened scalar leaf fields for module-level struct-array constants,
     // keyed by array name. Used to resolve field access like `arr[i].inner.a` on
     // module-level arrays of structs.
@@ -4035,8 +4085,11 @@ impl VerilogCodegen {
             current_fn_return_type: String::new(),
             let_tmp_counter: 0,
             fn_return_types: std::collections::HashMap::new(),
+            fn_zero_arg_functions: std::collections::HashSet::new(),
+            loop_vars_declared: std::collections::HashSet::new(),
             local_arrays: std::collections::HashSet::new(),
             local_array_elem_info: std::collections::HashMap::new(),
+            local_array_dims: std::collections::HashMap::new(),
             local_struct_var_types: std::collections::HashMap::new(),
             module_struct_array_fields: std::collections::HashMap::new(),
             array_param_bindings: std::collections::HashMap::new(),
@@ -4138,6 +4191,24 @@ impl VerilogCodegen {
                 );
                 return;
             }
+            // W468: bench-local multi-dimensional scalar arrays.
+            let dims = Self::parse_array_dimensions(&node.extra_type);
+            if dims.len() > 1
+                && !self
+                    .struct_fields
+                    .contains_key(&dims.last().unwrap().1)
+            {
+                let safe_base = self.verilog_local_name(&node.name);
+                self.local_arrays.insert(safe_base.clone());
+                self.local_array_dims
+                    .insert(node.name.clone(), dims.clone());
+                if !node.extra_pragma.is_empty() {
+                    self.write_indent();
+                    self.write_line(&format!("(* {} *)", node.extra_pragma));
+                }
+                self.gen_verilog_local_multi_dim_decl(&node.name, &dims);
+                return;
+            }
             let elem_width = Self::type_to_width(&elem_type);
             let elem_signed = Self::type_is_signed(&elem_type);
             let elem_signed_str = if elem_signed { "signed " } else { "" };
@@ -4179,7 +4250,23 @@ impl VerilogCodegen {
     /// declaration itself is hoisted to module scope; inside the bench
     /// `initial` block we only assign the initial value.
     fn gen_verilog_local_assign(&mut self, node: &Node) {
-        if let Some((array_size, elem_type)) = Self::parse_array_type(&node.extra_type) {
+        if let Some((array_size, _elem_type)) = Self::parse_array_type(&node.extra_type) {
+            // W468: bench-local multi-dimensional scalar array initializer.
+            let dims = Self::parse_array_dimensions(&node.extra_type);
+            if dims.len() > 1
+                && !self
+                    .struct_fields
+                    .contains_key(&dims.last().unwrap().1)
+            {
+                if !node.children.is_empty() {
+                    self.gen_verilog_local_multi_dim_init(
+                        &node.name,
+                        &dims,
+                        &node.children[0],
+                    );
+                }
+                return;
+            }
             if !node.children.is_empty()
                 && node.children[0].kind == NodeKind::ExprArrayLiteral
             {
@@ -4419,6 +4506,12 @@ impl VerilogCodegen {
         struct_name: &str,
         init: &Node,
     ) {
+        // W468: struct-return function call is packed into a temporary and sliced
+        // field-by-field.
+        if init.kind == NodeKind::ExprCall {
+            self.gen_verilog_struct_return_slicing(base_name, struct_name, init);
+            return;
+        }
         let is_struct_literal = init.kind == NodeKind::ExprStructLit;
         let is_struct_var = init.kind == NodeKind::ExprIdentifier;
         let src_base = if is_struct_var { Some(init.name.as_str()) } else { None };
@@ -4441,6 +4534,48 @@ impl VerilogCodegen {
                     literal_val,
                 );
             }
+        }
+    }
+
+    /// W468: slice a packed struct-return function-call result into the per-field
+    /// local registers of a struct variable. The temporary width and field order
+    /// match the packed struct-literal emission in ExprStructLit.
+    fn gen_verilog_struct_return_slicing(
+        &mut self,
+        base_name: &str,
+        struct_name: &str,
+        call_node: &Node,
+    ) {
+        let flat_fields =
+            Self::struct_field_widths(struct_name, &self.struct_fields);
+        if flat_fields.is_empty() {
+            return;
+        }
+        let total_width: u32 = flat_fields.iter().map(|(_, w)| w).sum();
+        let tmp = Self::verilog_safe_identifier(
+            &format!("_struct_tmp_{}", self.let_tmp_counter),
+        );
+        self.let_tmp_counter += 1;
+        self.write_indent();
+        self.write_line(&format!(
+            "reg [{}:0] {}; // packed struct return temporary",
+            total_width.saturating_sub(1),
+            tmp
+        ));
+        self.write_indent();
+        self.write(&format!("{} = ", tmp));
+        self.gen_verilog_expr(call_node);
+        self.write_line(";");
+
+        let mut cursor = total_width;
+        for (fname, width) in &flat_fields {
+            let high = cursor.saturating_sub(1);
+            let low = cursor.saturating_sub(*width);
+            let dst_flat = format!("{}_{}", base_name, fname);
+            let dst_safe = Self::verilog_safe_identifier(&dst_flat);
+            self.write_indent();
+            self.write_line(&format!("{} = {}[{}:{}];", dst_safe, tmp, high, low));
+            cursor = low;
         }
     }
 
@@ -4672,6 +4807,19 @@ impl VerilogCodegen {
             return None;
         }
         Some((size, elem))
+    }
+
+    /// W468: parse a possibly multi-dimensional array type into its dimensions,
+    /// outermost first. Each entry is (size, element type after this bracket).
+    /// For "[2][3]u16" returns [(2, "[3]u16"), (3, "u16")].
+    fn parse_array_dimensions(ty: &str) -> Vec<(usize, String)> {
+        let mut dims = Vec::new();
+        let mut rest = ty.trim().to_string();
+        while let Some((size, elem)) = Self::parse_array_type(&rest) {
+            dims.push((size, elem.clone()));
+            rest = elem;
+        }
+        dims
     }
 
     /// W462/W464: compute the canonical signature key for an ExprArrayLiteral from
@@ -4943,6 +5091,31 @@ impl VerilogCodegen {
         }
     }
 
+    /// W468: total packed bit width of a struct return type. Returns 0 for
+    /// non-struct types so callers can fall back to scalar behavior.
+    fn struct_return_width(ty: &str, struct_fields: &std::collections::HashMap<String, Vec<(String, String)>>) -> u32 {
+        if struct_fields.contains_key(ty) {
+            let mut flat = Vec::new();
+            Self::flatten_struct_fields(ty, struct_fields, "", &mut flat);
+            flat.iter().map(|(_, ftype)| Self::type_to_width(ftype)).sum()
+        } else {
+            0
+        }
+    }
+
+    /// W468: packed field widths and names of a struct return type. Returns an
+    /// empty vector for non-struct types. The order matches
+    /// flatten_struct_fields: outermost field first, MSB first.
+    fn struct_field_widths(ty: &str, struct_fields: &std::collections::HashMap<String, Vec<(String, String)>>) -> Vec<(String, u32)> {
+        if struct_fields.contains_key(ty) {
+            let mut flat = Vec::new();
+            Self::flatten_struct_fields(ty, struct_fields, "", &mut flat);
+            flat.into_iter().map(|(fname, ftype)| (fname, Self::type_to_width(&ftype))).collect()
+        } else {
+            Vec::new()
+        }
+    }
+
     /// W380: element widths of a simple tuple return type such as
     /// "(u16,u32,u8)". Returns an empty vector for non-tuple / named-tuple
     /// types.
@@ -5031,6 +5204,12 @@ impl VerilogCodegen {
                 f.extra_return_type.clone()
             };
             self.fn_return_types.insert(f.name.clone(), ret);
+            // W468: zero-parameter, non-void functions receive a dummy input in the
+            // generated Verilog function; their call sites need a matching dummy
+            // argument.
+            if f.params.is_empty() && f.extra_return_type != "void" {
+                self.fn_zero_arg_functions.insert(f.name.clone());
+            }
         }
 
         // W464: populate struct-field registry from struct declarations so the
@@ -6456,6 +6635,7 @@ impl VerilogCodegen {
         self.current_fn_name_original = node.name.clone();
         self.current_fn_return_type = node.extra_return_type.clone();
         self.let_tmp_counter = 0;
+        self.loop_vars_declared.clear();
         self.param_widths.clear();
         self.array_param_types.clear();
         for (pname, ptype) in &node.params {
@@ -6492,14 +6672,26 @@ impl VerilogCodegen {
                 self.local_struct_var_types.clear();
                 self.module_struct_array_fields.clear();
                 self.array_param_types.clear();
+                self.loop_vars_declared.clear();
                 return;
             }
         }
 
         // Emit as a Verilog function declaration
         // W380: tuple return types are packed; non-tuple types keep scalar width.
+        // W468: struct return types are also packed.
         let ret_width = if !node.extra_return_type.is_empty() {
-            Self::tuple_return_width(&node.extra_return_type)
+            let tuple_w = Self::tuple_return_width(&node.extra_return_type);
+            if tuple_w > 0 {
+                tuple_w
+            } else {
+                let struct_w = Self::struct_return_width(&node.extra_return_type, &self.struct_fields);
+                if struct_w > 0 {
+                    struct_w
+                } else {
+                    Self::type_to_width(&node.extra_return_type)
+                }
+            }
         } else {
             32
         };
@@ -6614,6 +6806,7 @@ impl VerilogCodegen {
         self.param_widths.clear();
         self.local_arrays.clear();
         self.local_array_elem_info.clear();
+        self.local_array_dims.clear();
         self.local_struct_var_types.clear();
         self.module_struct_array_fields.clear();
         self.array_param_types.clear();
@@ -6783,6 +6976,7 @@ impl VerilogCodegen {
             "initial begin : {}_test",
             safe_test_name
         ));
+        self.loop_vars_declared.clear();
         self.indent();
         self.write_indent();
         self.write_line(&format!("$display(\"[TEST] {} : starting\");", node.name));
@@ -6916,8 +7110,15 @@ impl VerilogCodegen {
         let is_literal = rhs.kind == NodeKind::ExprStructLit;
         let is_var = rhs.kind == NodeKind::ExprIdentifier
             && self.local_struct_var_types.contains_key(&rhs.name);
-        if !is_literal && !is_var {
+        let is_call = rhs.kind == NodeKind::ExprCall;
+        if !is_literal && !is_var && !is_call {
             return false;
+        }
+        // W468: struct-return function call is packed into a temporary and sliced
+        // field-by-field.
+        if is_call {
+            self.gen_verilog_struct_return_slicing(base_name, &struct_name, rhs);
+            return true;
         }
         let src_base = if is_var { Some(rhs.name.as_str()) } else { None };
         if let Some(fields) = self.struct_fields.get(&struct_name).cloned() {
@@ -7360,6 +7561,311 @@ impl VerilogCodegen {
         self.write(")");
     }
 
+    /// W468: recursively collect scalar leaf values from an array literal. Nested
+    /// array literals (row-major 2D syntax) are flattened; scalar children are kept
+    /// in order.
+    fn flatten_array_literal_values<'a>(node: &'a Node, out: &mut Vec<&'a Node>) {
+        if node.kind == NodeKind::ExprArrayLiteral {
+            for c in &node.children {
+                Self::flatten_array_literal_values(c, out);
+            }
+        } else {
+            out.push(node);
+        }
+    }
+
+    /// W468: emit the flattened per-leaf register declarations for a local
+    /// multi-dimensional scalar array such as `[2][3]u16 m`.
+    fn gen_verilog_local_multi_dim_decl(
+        &mut self,
+        base_name: &str,
+        dims: &[(usize, String)],
+    ) {
+        let leaf_type = &dims.last().unwrap().1;
+        let leaf_width = Self::type_to_width(leaf_type);
+        let leaf_signed = Self::type_is_signed(leaf_type);
+        let leaf_signed_str = if leaf_signed { "signed " } else { "" };
+        let leaf_range = Self::range_decl(leaf_width);
+        let leaf_range_str = if leaf_range.is_empty() {
+            String::new()
+        } else {
+            format!("{} ", leaf_range)
+        };
+        let safe_base = self.verilog_local_name(base_name);
+        self.emit_local_multi_dim_regs(
+            &safe_base,
+            dims,
+            0,
+            leaf_signed_str,
+            &leaf_range_str,
+        );
+    }
+
+    fn emit_local_multi_dim_regs(
+        &mut self,
+        prefix: &str,
+        dims: &[(usize, String)],
+        depth: usize,
+        signed_str: &str,
+        range_str: &str,
+    ) {
+        if depth == dims.len().saturating_sub(1) {
+            for i in 0..dims[depth].0 {
+                let flat_name = format!("{}_{}", prefix, i);
+                let safe = Self::verilog_safe_identifier(&flat_name);
+                self.write_indent();
+                self.write_line(&format!(
+                    "reg {}{} {};",
+                    signed_str, range_str, safe
+                ));
+            }
+        } else {
+            for i in 0..dims[depth].0 {
+                let next_prefix = format!("{}_{}", prefix, i);
+                self.emit_local_multi_dim_regs(
+                    &next_prefix,
+                    dims,
+                    depth + 1,
+                    signed_str,
+                    range_str,
+                );
+            }
+        }
+    }
+
+    /// W468: emit the initial-value assignments for a local multi-dimensional
+    /// scalar array. Values are consumed in row-major order from the (possibly
+    /// nested) array literal.
+    fn gen_verilog_local_multi_dim_init(
+        &mut self,
+        base_name: &str,
+        dims: &[(usize, String)],
+        init: &Node,
+    ) {
+        let mut flat_values: Vec<&Node> = Vec::new();
+        Self::flatten_array_literal_values(init, &mut flat_values);
+        let expected: usize = dims.iter().map(|(s, _)| *s).product();
+        if flat_values.len() < expected {
+            self.write_indent();
+            self.write_line(&format!(
+                "// local multi-dimensional array initializer for {} has {} values, expected {}",
+                base_name,
+                flat_values.len(),
+                expected
+            ));
+            return;
+        }
+        let safe_base = self.verilog_local_name(base_name);
+        let mut idx: usize = 0;
+        self.emit_local_multi_dim_init_assigns(
+            &safe_base,
+            dims,
+            0,
+            &flat_values,
+            &mut idx,
+        );
+    }
+
+    fn emit_local_multi_dim_init_assigns(
+        &mut self,
+        prefix: &str,
+        dims: &[(usize, String)],
+        depth: usize,
+        values: &[&Node],
+        idx: &mut usize,
+    ) {
+        if depth == dims.len().saturating_sub(1) {
+            for i in 0..dims[depth].0 {
+                let flat_name = format!("{}_{}", prefix, i);
+                let safe = Self::verilog_safe_identifier(&flat_name);
+                if let Some(v) = values.get(*idx) {
+                    self.write_indent();
+                    self.write(&format!("{} = ", safe));
+                    self.gen_verilog_expr(v);
+                    self.write_line(";");
+                }
+                *idx += 1;
+            }
+        } else {
+            for i in 0..dims[depth].0 {
+                let next_prefix = format!("{}_{}", prefix, i);
+                self.emit_local_multi_dim_init_assigns(
+                    &next_prefix,
+                    dims,
+                    depth + 1,
+                    values,
+                    idx,
+                );
+            }
+        }
+    }
+
+    /// W468: produce all Cartesian index combinations for a set of array
+    /// dimensions, in row-major order. Used to emit variable-index read muxes and
+    /// write if-else chains.
+    fn index_combinations(dims: &[(usize, String)]) -> Vec<Vec<usize>> {
+        if dims.is_empty() {
+            return vec![vec![]];
+        }
+        let size = dims[0].0;
+        let tail = Self::index_combinations(&dims[1..]);
+        let mut out = Vec::new();
+        for i in 0..size {
+            for t in &tail {
+                let mut v = vec![i];
+                v.extend(t.iter().copied());
+                out.push(v);
+            }
+        }
+        out
+    }
+
+    /// W468: resolve an ExprIndex chain like `m[i][j]` to its root local array
+    /// name and the list of index expressions (outermost first). Returns None if
+    /// the chain does not terminate in a multi-dimensional local array.
+    fn try_resolve_local_multi_dim_index<'n>(
+        &self,
+        node: &'n Node,
+    ) -> Option<(String, Vec<&'n Node>, Vec<(usize, String)>)> {
+        let mut indices: Vec<&Node> = Vec::new();
+        let mut current = node;
+        loop {
+            if current.kind != NodeKind::ExprIndex || current.children.len() < 2 {
+                return None;
+            }
+            let base = &current.children[0];
+            let idx = &current.children[1];
+            indices.push(idx);
+            if base.kind == NodeKind::ExprIdentifier {
+                let dims = self.local_array_dims.get(&base.name).cloned()?;
+                if indices.len() != dims.len() {
+                    return None;
+                }
+                indices.reverse();
+                return Some((base.name.clone(), indices, dims));
+            }
+            current = base;
+        }
+    }
+
+    /// W468: emit a read expression for a local multi-dimensional scalar array.
+    /// Literal indices resolve to a single flattened reg; variable indices produce
+    /// a nested ternary selecting among all leaf regs.
+    fn gen_verilog_local_multi_dim_read(
+        &mut self,
+        base_name: &str,
+        indices: &[&Node],
+        dims: &[(usize, String)],
+    ) {
+        let safe_base = self.verilog_local_name(base_name);
+        let all_literal = indices.iter().all(|idx| idx.value.parse::<usize>().is_ok());
+        if all_literal {
+            let mut name = safe_base;
+            for idx in indices {
+                let v = idx.value.parse::<usize>().unwrap();
+                name = format!("{}_{}", name, v);
+            }
+            self.write(&Self::verilog_safe_identifier(&name));
+            return;
+        }
+
+        let combos = Self::index_combinations(dims);
+        self.write("(");
+        for (comb_idx, comb) in combos.iter().enumerate() {
+            if comb_idx > 0 {
+                self.write(" : (");
+            } else {
+                self.write("(");
+            }
+            for (d, &i) in comb.iter().enumerate() {
+                if d > 0 {
+                    self.write(" && ");
+                }
+                self.write("(");
+                self.gen_verilog_expr(indices[d]);
+                self.write(&format!(" == {})", i));
+            }
+            self.write(") ? (");
+            let name = comb.iter().fold(safe_base.clone(), |acc, &i| {
+                format!("{}_{}", acc, i)
+            });
+            self.write(&Self::verilog_safe_identifier(&name));
+            self.write(")");
+        }
+        self.write(" : 0)");
+    }
+
+    /// W468: emit a write statement for a local multi-dimensional scalar array.
+    /// Literal indices produce a direct assignment; variable indices produce an
+    /// if/else chain selecting the matching leaf register. Returns true when the
+    /// LHS was handled.
+    fn gen_verilog_local_multi_dim_assign(
+        &mut self,
+        lhs: &Node,
+        rhs: &Node,
+    ) -> bool {
+        let (base_name, indices, dims) = match self.try_resolve_local_multi_dim_index(lhs) {
+            Some(v) => v,
+            None => return false,
+        };
+        let safe_base = self.verilog_local_name(&base_name);
+        let all_literal = indices.iter().all(|idx| idx.value.parse::<usize>().is_ok());
+        if all_literal {
+            let mut name = safe_base;
+            for idx in &indices {
+                let v = idx.value.parse::<usize>().unwrap();
+                name = format!("{}_{}", name, v);
+            }
+            let safe = Self::verilog_safe_identifier(&name);
+            self.write_indent();
+            self.write(&format!("{} = ", safe));
+            self.gen_verilog_expr(rhs);
+            self.write_line(";");
+            return true;
+        }
+
+        let combos = Self::index_combinations(&dims);
+        for (comb_idx, comb) in combos.iter().enumerate() {
+            self.write_indent();
+            if comb_idx == 0 {
+                self.write("if (");
+            } else if comb_idx + 1 < combos.len() {
+                self.write("else if (");
+            } else {
+                self.write("else");
+            }
+            if comb_idx + 1 < combos.len() {
+                for (d, &i) in comb.iter().enumerate() {
+                    if d > 0 {
+                        self.write(" && ");
+                    }
+                    self.write("(");
+                    self.gen_verilog_expr(indices[d]);
+                    self.write(&format!(" == {})", i));
+                }
+            }
+            if comb_idx + 1 < combos.len() {
+                self.write(") begin");
+            } else {
+                self.write(" begin");
+            }
+            self.write_line("");
+            self.indent();
+            let name = comb.iter().fold(safe_base.clone(), |acc, &i| {
+                format!("{}_{}", acc, i)
+            });
+            let safe = Self::verilog_safe_identifier(&name);
+            self.write_indent();
+            self.write(&format!("{} = ", safe));
+            self.gen_verilog_expr(rhs);
+            self.write_line(";");
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+        }
+        true
+    }
+
     fn gen_verilog_stmt(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprReturn => {
@@ -7414,6 +7920,34 @@ impl VerilogCodegen {
                             ));
                             self.gen_verilog_expr(&node.children[0]);
                             self.write_line("");
+                        }
+                        return;
+                    }
+                    // W468: multi-dimensional scalar arrays such as `[2][3]u16` are
+                    // flattened into per-leaf scalar registers (`m_0_0`, `m_0_1`, ...).
+                    let dims = Self::parse_array_dimensions(&node.extra_type);
+                    if dims.len() > 1
+                        && !self
+                            .struct_fields
+                            .contains_key(&dims.last().unwrap().1)
+                    {
+                        let safe_base = Self::verilog_safe_identifier(base_name);
+                        self.local_arrays.insert(safe_base.clone());
+                        self.local_array_dims
+                            .insert(base_name.clone(), dims.clone());
+                        if !node.extra_pragma.is_empty() {
+                            self.write_indent();
+                            self.write_line(
+                                &format!("(* {} *)", node.extra_pragma),
+                            );
+                        }
+                        self.gen_verilog_local_multi_dim_decl(base_name, &dims);
+                        if !node.children.is_empty() {
+                            self.gen_verilog_local_multi_dim_init(
+                                base_name,
+                                &dims,
+                                &node.children[0],
+                            );
                         }
                         return;
                     }
@@ -7517,6 +8051,16 @@ impl VerilogCodegen {
                 // or `tmp[i].inner.a = v`.
                 if node.children.len() >= 2
                     && self.gen_verilog_try_struct_array_assign(
+                        &node.children[0],
+                        &node.children[1],
+                    )
+                {
+                    return;
+                }
+                // W468: assignment to a local multi-dimensional scalar array:
+                // `m[i][j] = v`.
+                if node.children.len() >= 2
+                    && self.gen_verilog_local_multi_dim_assign(
                         &node.children[0],
                         &node.children[1],
                     )
@@ -7696,6 +8240,12 @@ impl VerilogCodegen {
 
         // Try to extract the range/iterable from children[0]
         // For range-based: for (iter_var = 0; iter_var < upper; iter_var = iter_var + 1)
+        if !self.loop_vars_declared.contains(&iter_var) {
+            self.loop_vars_declared.insert(iter_var.clone());
+            self.write_indent();
+            self.write_line(&format!("integer {};", iter_var),
+            );
+        }
         self.write_indent();
         if body_idx > 0 {
             let iterable = &node.children[0];
@@ -7723,6 +8273,11 @@ impl VerilogCodegen {
 
     fn gen_verilog_for_range_stmt(&mut self, node: &Node) {
         let var = Self::verilog_safe_identifier(&node.name);
+        if !self.loop_vars_declared.contains(&var) {
+            self.loop_vars_declared.insert(var.clone());
+            self.write_indent();
+            self.write_line(&format!("integer {};", var));
+        }
         self.write_indent();
         if node.children.len() >= 2 {
             self.write(&format!("for ({var} = "));
@@ -7835,6 +8390,16 @@ impl VerilogCodegen {
                     }
                     first = false;
                     self.gen_verilog_expr(arg);
+                }
+                // W468: zero-parameter functions are emitted with a dummy `input
+                // _unused;`. Supply a placeholder argument so the call matches the
+                // Verilog function signature.
+                if first
+                    && self
+                        .fn_zero_arg_functions
+                        .contains(callee_original)
+                {
+                    self.write("0");
                 }
                 self.write(")");
             }
@@ -8119,6 +8684,19 @@ impl VerilogCodegen {
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
+                    // W468: multi-dimensional local scalar arrays such as `m[i][j]`
+                    // are rewritten to the flattened leaf register name or to a mux
+                    // when any index is variable.
+                    if let Some((base_name, indices, dims)) =
+                        self.try_resolve_local_multi_dim_index(node)
+                    {
+                        self.gen_verilog_local_multi_dim_read(
+                            &base_name,
+                            &indices,
+                            &dims,
+                        );
+                        return;
+                    }
                     let base = &node.children[0];
                     let idx = &node.children[1];
                     // W383: function-local arrays are emitted as per-element regs
@@ -8184,7 +8762,54 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprStructLit => {
-                // Verilog has no struct literals — emit as comment + value 0
+                // W468: struct literal in an expression context (e.g. return value)
+                // is emitted as a packed concatenation of its leaf fields so that
+                // struct-return functions can be assigned to per-field registers.
+                // Non-return contexts fall back to the old placeholder.
+                if self.struct_fields.contains_key(&node.name) {
+                    let flat_fields = self
+                        .struct_fields
+                        .get(&node.name)
+                        .cloned()
+                        .unwrap_or_default();
+                    let mut leaf_values: Vec<Option<&Node>> = Vec::new();
+                    let mut all_found = true;
+                    for (fname, ftype) in &flat_fields {
+                        let val = node.children.iter().find(|f| {
+                            f.kind == NodeKind::ExprFieldAccess
+                                && f.name == *fname
+                                && !f.children.is_empty()
+                        }).map(|f| &f.children[0]);
+                        if val.is_none() && self.struct_fields.contains_key(ftype) {
+                            // The source literal specified the nested struct as a
+                            // whole rather than field-by-field; we cannot currently
+                            // pack that inline, so fall back.
+                            all_found = false;
+                            break;
+                        }
+                        leaf_values.push(val);
+                    }
+                    if all_found && !leaf_values.is_empty() {
+                        self.write("{");
+                        for (i, (val, (fname, _ftype))) in
+                            leaf_values.iter().zip(flat_fields.iter()).enumerate()
+                        {
+                            if i > 0 {
+                                self.write(", ");
+                            }
+                            if let Some(v) = val {
+                                self.gen_verilog_expr(v);
+                            } else {
+                                // Missing field: emit zero of the appropriate width.
+                                let fwidth = Self::type_to_width(_ftype);
+                                self.write(&format!("{}'b0", fwidth));
+                            }
+                        }
+                        self.write("}");
+                        return;
+                    }
+                }
+                // Fallback: Verilog has no struct literals — emit as comment + value 0
                 self.write(&format!("0 /* {} {{...}} */", node.name));
             }
             NodeKind::ExprSwitch => {

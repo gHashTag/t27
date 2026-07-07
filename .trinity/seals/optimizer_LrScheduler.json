@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:222dd858bc4ae5d90de0a90e10c9fc9423ace7beffa37947fabdc5a13b3c2b51",
   "module": "LrScheduler",
   "ring": 12,
-  "sealed_at": "2026-07-06T15:02:25Z",
+  "sealed_at": "2026-07-07T05:34:32Z",
   "spec_hash": "sha256:46e0eb2a3f596509c6a0aec1b64f2558db9c145c0865ca6b851faec29e9bf0df",
   "spec_path": "specs/ml/optimizer/lr_scheduler.t27"
 }

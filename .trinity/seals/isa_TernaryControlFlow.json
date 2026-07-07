@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d4a83990e6f6c4dacf560df1d0a3c12b704fadf837ee3e589be372b84330959a",
   "gen_hash_rust": "sha256:c3b759a4789bb5c52206bef8c03db7cd854b86b632912a749a6fd1d7cdc865d9",
-  "gen_hash_verilog": "sha256:e6b92f2c65e76a8f44b1a26dca9417388d74bd0bd23cb0725027b968ab248011",
+  "gen_hash_verilog": "sha256:2765e121b2b262af8add087e4fec5622a73919984f642b81004fba4fb6de91a2",
   "gen_hash_zig": "sha256:82e281eb35d32a45e5421fd6c5f00446ffb77932c27c120341efd556d4c637a0",
   "module": "TernaryControlFlow",
   "ring": 12,
-  "sealed_at": "2026-07-06T15:02:24Z",
+  "sealed_at": "2026-07-07T05:34:32Z",
   "spec_hash": "sha256:8062834e4f6b4192d8fbcbb7b7ec89d975853b2a1ba1f1ae508c2717f472da15",
   "spec_path": "specs/isa/ternary_control_flow.t27"
 }

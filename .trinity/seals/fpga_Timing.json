@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:fa7b39939f22ffb31c3474661b0fdc7cb997b28c929975927b471aee645cc2d1",
   "gen_hash_rust": "sha256:e5c716fa22eb3498ef145184e03cf43d1c1163840ca830feb0c3b31093f21edf",
-  "gen_hash_verilog": "sha256:77ac23705f8ecd2d690bf7cc78fcc6ca91f2164dec2fa272579ec822658b2df9",
+  "gen_hash_verilog": "sha256:6cb3405bc954013078f3223d4b943d1595ef964c31244a3dbea5d4ff5348c8d0",
   "gen_hash_zig": "sha256:c0a65f263623f8979eb30f3f4c34ef1c6926b473fa9d95db4b94680c72c1fe12",
   "module": "Timing",
   "ring": 12,
-  "sealed_at": "2026-07-06T15:02:23Z",
+  "sealed_at": "2026-07-07T05:34:31Z",
   "spec_hash": "sha256:a54d0047cea5a50fc70f0c4f93978243028d115b4578dcb5da59ca9d4bf117ed",
   "spec_path": "specs/fpga/timing.t27"
 }

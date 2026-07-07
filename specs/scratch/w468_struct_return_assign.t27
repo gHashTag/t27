@@ -1,0 +1,28 @@
+module w468_struct_return_assign;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn make_pt() -> Pt {
+    return Pt{.x = 3, .y = 4};
+}
+
+pub fn sum_made() -> u32 {
+    let p : Pt = make_pt();
+    return (p.x as u32) + (p.y as u32);
+}
+
+pub fn copy_made() -> u32 {
+    let p : Pt = make_pt();
+    let q : Pt = p;
+    return (q.x as u32) + (q.y as u32);
+}
+
+test struct_return_assign {
+    assert_eq(sum_made(), 7);
+    assert_eq(copy_made(), 7);
+}
+
+endmodule
