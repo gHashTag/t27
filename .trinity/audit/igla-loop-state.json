@@ -4,19 +4,19 @@
   "canonical_doc": "docs/nona-03-manifest/IGLA_IMPROVEMENT_LOOP.md",
   "last_audit": "docs/reports/IGLA_AUDIT_W470_2026-07-07.md",
   "cycle": 1,
-  "status": "verify",
+  "status": "in_progress",
   "metrics": {
     "open_wave_prs": 20,
     "failing_wave_branch_checks": 5,
-    "compiler_seal_drift": false,
+    "compiler_seal_drift": true,
     "unmerged_branches": 112,
-    "active_worktrees": 2,
+    "active_worktrees": 4,
     "prunable_worktrees": 0,
     "specs_without_tests_or_invariants": 176,
     "deadcode_ratio_percent": 60.6,
     "shell_scripts_newer_than_frozen": 26
   },
-  "current_needle": null,
+  "current_needle": "workflow-dupes",
   "backlog": [
     {
       "rank": 1,
@@ -27,7 +27,7 @@
       "estimated_hours": 1,
       "issue": 1438,
       "pr": 1439,
-      "status": "verify",
+      "status": "in_progress",
       "lie": "CI status checks may be empty shells or a no-op duplicate gate"
     },
     {
@@ -39,7 +39,7 @@
       "estimated_hours": 2,
       "issue": 1438,
       "pr": 1439,
-      "status": "verify",
+      "status": "in_progress",
       "lie": "Compiler cryptographic baseline is decorative"
     },
     {
@@ -51,7 +51,7 @@
       "estimated_hours": 1,
       "issue": 1438,
       "pr": 1439,
-      "status": "verify",
+      "status": "in_progress",
       "lie": "Issue linkage can be bypassed depending on which gate runs"
     },
     {
@@ -63,7 +63,7 @@
       "estimated_hours": 2,
       "issue": 1440,
       "pr": 1441,
-      "status": "verify",
+      "status": "in_progress",
       "lie": "Automated workflows can merge or commit without issue linkage or review"
     },
     {
@@ -81,14 +81,13 @@
     {
       "rank": 6,
       "id": "w469-yosys-regression",
-      "needle": "Fix gen-verilog lowering for 2D struct arrays in specs/scratch/w469_2d_struct_array_param.t27",
+      "needle": "Fix gen-verilog lowering for 2D arrays of structs in specs/scratch/w469_2d_struct_array_param.t27",
       "severity": "P0",
       "owner": "C",
       "estimated_hours": 4,
       "issue": 1443,
       "pr": null,
       "status": "blocked",
-      "blocked_by": "wave-loop-469",
       "lie": "Latest wave work generates illegal Verilog"
     },
     {
@@ -100,7 +99,7 @@
       "estimated_hours": 3,
       "issue": 1444,
       "pr": 1445,
-      "status": "verify",
+      "status": "in_progress",
       "lie": "Synthesis and reports target the wrong FPGA device"
     },
     {
@@ -113,15 +112,10 @@
       "issue": 1446,
       "pr": null,
       "status": "blocked",
-      "blocked_by": "hardware-access",
       "lie": "In-tree cable driver cannot talk to the real bench cable"
     }
   ],
   "completed": [
-    {
-      "id": "worktree-stash-cleanup",
-      "issue": 1442,
-      "summary": "Pruned 2 prunable worktrees; removed 3 stale agent worktrees; salvaged compiler postfix-array change to branch salvage/ae9fe-postfix-array-notation; archived untracked source files to local salvage directory."
-    }
+    "worktree-stash-cleanup"
   ]
 }
