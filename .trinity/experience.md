@@ -2821,3 +2821,23 @@
 - Continue documenting the exact 7 yosys smoke failure matrix each wave so the baseline is auditable.
 - Keep `docs/NOW.md`, `.trinity/current-issue.md`, and persistent memory updated in the same commit as the close-out reports.
 
+---
+
+## 2026-07-07 — Wave Loop 469 (gen-verilog struct/array hardening, W469 close-out / W470 setup)
+
+### What worked
+- Treating scalar structs as a separate lowering path (per-field regs + packed-vector expression) let module-level vars, constants, parameters, and whole-struct comparisons share the same infrastructure.
+- Adding multi-dimensional struct-array support required only two new primitives: recursive leaf-count sizing and a flattened index-chain helper; everything else reused the existing per-field register machinery.
+- Refreshing integration tests immediately after emitter format changes kept `cargo test -p t27c` green instead of letting legacy assertions drift.
+- Recertifying NMSE/FROZEN_HASH in the same wave as the compiler change preserved L6 SSOT compliance.
+
+### What was blocked
+- **Physical bench:** DLC10 cable / P12 relay still unavailable, so no live cold-POR CCLK evidence this wave.
+- **Struct fields that are arrays:** lowering is parseable but field-array values still emit TODO placeholders; full per-field memory expansion was too large for W469.
+
+### Corrective / keep-doing patterns
+- Concatenate the raw identifier base with field suffixes before applying `verilog_safe_identifier` so keyword-safe escaped names stay valid when packed.
+- Guard `flatten_struct_fields` against empty struct names and cycles; malformed generic struct declarations can otherwise infinite-loop during codegen.
+- For array parameters, remember that inner function-call sites are only propagated when the argument is an outer array-parameter identifier; literal-array placeholders must be exercised through non-array-param argument positions.
+- Install/check `ml_dtypes` before running `reseal-apply.sh`; the Python env is a common local gotcha on macOS Homebrew Python.
+

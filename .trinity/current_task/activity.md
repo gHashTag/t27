@@ -1856,3 +1856,7 @@
 - **Commit:** feat(igla): Wave Loop 468 — struct-return function assignment, 2D scalar local arrays, local RAM-style pragma propagation
 - **Files:** .claude/plans/wave-loop-469.md,.trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json,.trinity/seals/agent_EternalMonitor.json,.trinity/seals/agent_FacultyBoard.json,.trinity/seals/agent_Handoff.json,".trinity/seals/agent_Str = \"\",.json"
 
+## 2026-07-07T17:29:10Z — wave-loop-469
+- **Commit:** feat(igla): Wave Loop 469 — scalar struct constants/variables/parameters, multi-dim struct arrays, whole-struct comparison, keyword-safe packing, NMSE reseal
+- **Files:** .trinity/experience.md,.trinity/ring-469.md,docs/reports/WAVE_LOOP_469_CLOSEOUT.md
+
