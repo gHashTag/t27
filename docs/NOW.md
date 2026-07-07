@@ -1,20 +1,231 @@
-# NOW — Wave Loop 468 close-out / Wave Loop 469 next (2026-07-08)
+# NOW — Wave Loop 474 close-out / Wave Loop 475 next (2026-07-07)
 
-**Last updated:** 2026-07-08
+**Last updated:** 2026-07-07
 
-## Wave Loop 469 — Next wave (to be selected from cooperation plan) (Closes #1447)
+## Wave Loop 475 — Next wave (to be selected from cooperation plan)
 
-- Branch: `wave-loop-469` (to create from W468 land commit)
-- Issue: #1447 (to create)
+- Branch: `wave-loop-475` (to be created from W474 branch)
+- Issue: (to be opened)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W469_2026-07-08.md`
-- Cooperation W470: (to be written at W469 close-out)
+- Plan: (to be written at W475 close-out)
+- Cooperation W476: (to be written at W475 close-out)
 
 ### Not started
 
-- Create issue #1447 and branch `wave-loop-469` from the W468 land commit.
-- Select one of the three W469 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W469_2026-07-08.md`.
+- Select one of the three W475 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W475_2026-07-08.md`.
+- Default Variant B: with the bench still blocked, continue compiler-backend
+  aggregate hardening (see cooperation plan for ranked targets).
+
+---
+
+## Wave Loop 474 — compiler-backend aggregate hardening: function-local nested struct arrays + array-of-struct function-return writeback + scalar-struct equality + adversarial yosys witness (Variant B default)
+
+- Branch: `wave-loop-474`
+- Issue: (to be opened)
+- PR: (to open after close-out)
+- Report: `docs/reports/WAVE_LOOP_474_CLOSEOUT.md`
+- Cooperation W475: `docs/reports/FPGA_LOOP_COOPERATION_W475_2026-07-08.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Added function-local struct-array memory-mode lowering for arrays whose
+    element struct has array-typed fields (`local_struct_array_fields`,
+    `local_struct_array_has_array_field`,
+    `gen_verilog_local_struct_array_memory_decl`,
+    `gen_verilog_local_struct_array_memory_init`,
+    `gen_verilog_unpack_array_of_struct_call_memory`).
+  - Added memory-mode read paths for variable-index and literal-index nested
+    struct-array field access and memory-mode field assignment paths for both
+    literal and variable indices.
+  - Added scalar-struct and small array-of-struct equality lowering for `==`
+    and `!=`, packing both operands into packed concatenations before comparing.
+  - Fixed module-level array-of-struct metadata lifetime by moving the
+    `module_struct_array_*` map clear to the start of `gen_verilog`.
+  - Added `gen_verilog_module_struct_array_call_init` to unpack a function call
+    returning an array of structs into module-level per-field memories.
+  - Extended the same initializer to handle array-typed struct fields by slicing
+    the packed return vector per outer element and per inner array element.
+  - Fixed module-level array-of-struct memory widths for array-typed fields whose
+    inner struct leaf width differs from the default 32-bit fallback.
+
+- Regression specs:
+  - `specs/scratch/w474_local_nested_struct_array.t27`
+  - `specs/scratch/w474_struct_equality.t27`
+  - `specs/scratch/w474_module_aos_return_assign.t27`
+  - `specs/scratch/w474_adversarial_aos_nested.t27`
+
+- `.trinity/seals/scratch_w474_*.json` — seals for the four new specs.
+- All affected `.trinity/seals/*.json` files re-sealed to the new gen-verilog output.
+- `bootstrap/stage0/FROZEN_HASH` — refrozen after compiler changes.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W474_OPERATING_POINT` — bench unavailable.
+- Array-of-struct equality for arrays whose element struct itself has
+  array-typed fields — deferred to a future wave.
+- Whole-struct equality for nested structs with array-typed fields — deferred.
+- Master-merge of `gen-verilog` fix set from `master` (`701d79b3b`) — still
+  deferred; plan as its own small wave rather than merging opportunistically.
+
+### Verification
+
+- `cargo test -p t27c --bin t27c`: **1524 passed, 0 failed, 2 ignored**.
+- `./scripts/tri test --fast`: **ALL TESTS PASSED**
+  - Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C / Seal Verify:
+    637/637 PASS.
+  - Gen Verilog Yosys Smoke: **117 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**.
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes**.
+- Full `./scripts/tri test`: **ALL TESTS PASSED**
+  - 637/637 parse/typecheck/gen-zig/gen-rust/gen-verilog/gen-c/seal-verify PASS.
+  - Gen Verilog Yosys Smoke: **117 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**.
+  - FPGA Standalone Lake-Package Build: **OK**.
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes**.
+
+---
+
+## Wave Loop 473 — compiler-backend aggregate hardening: writable nested struct-array field assignment + higher-dimensional arrays of structs (Variant B default) (Closes #1447)
+
+- Branch: `wave-loop-473`
+- Issue: #1447
+- PR: (to open after close-out)
+- Report: `docs/reports/WAVE_LOOP_473_CLOSEOUT.md`
+- Cooperation W474: `docs/reports/FPGA_LOOP_COOPERATION_W474_2026-07-08.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Added `module_struct_array_dims: HashMap<String, Vec<(usize, String)>>` to
+    record the outer array dimensions of every module-level array of structs.
+  - Populated the registry in `gen_verilog_const` and `gen_verilog_var` after
+    registering `module_struct_array_fields` / `module_struct_array_elem_types`.
+  - Updated the W472 nested field read path to split collected index nodes into
+    outer indices, inner indices, and the leaf bit slice; outer indices are
+    linearized into the first field-memory dimension via
+    `gen_verilog_multi_dim_index_expr`.
+  - Rewrote `gen_verilog_try_struct_array_assign` to use the same
+    `collect_field_index_path` collector and emit explicit indexed targets for
+    both scalar leaf fields and array-typed nested fields, removing the fragile
+    read-as-LHS fallback.
+
+- Regression specs:
+  - `specs/scratch/w473_module_var_struct_array_field_write.t27`
+  - `specs/scratch/w473_module_var_struct_array_field_varidx_write.t27`
+  - `specs/scratch/w473_3d_module_var_struct_array.t27`
+  - `specs/scratch/w473_3d_module_var_struct_array_write.t27`
+
+- `.trinity/seals/scratch_w473_*.json` — seals for the four new specs.
+- All affected `.trinity/seals/*.json` files re-sealed to the new gen-verilog output.
+- `bootstrap/stage0/FROZEN_HASH` — refrozen after compiler changes.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W473_OPERATING_POINT` — bench unavailable.
+- Function-local arrays of structs with array-typed fields — deferred to W474.
+- Array-of-struct function returns with nested field writeback — deferred to W474.
+- Scalar-struct equality / whole-struct comparison — deferred to W474.
+- Master-merge of `gen-verilog` fix set from `master` (`701d79b3b`) — still
+  deferred; plan as its own small wave rather than merging opportunistically.
+
+### Verification
+
+- `cargo test -p t27c`: **1871 passed, 0 failed, 2 ignored**.
+- `./scripts/tri test --fast`: **ALL TESTS PASSED**
+  - Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C / Seal Verify:
+    633/633 PASS.
+  - Gen Verilog Yosys Smoke: **113 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**.
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes**.
+- Full `./scripts/tri test`: **ALL TESTS PASSED**
+  - 633/633 parse/typecheck/gen-zig/gen-rust/gen-verilog/gen-c/seal-verify PASS.
+  - Gen Verilog Yosys Smoke: **113 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**.
+  - FPGA Standalone Lake-Package Build: **OK**.
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes**.
+
+---
+
+## Wave Loop 472 — compiler-backend aggregate hardening: deep returned-array nested field access + module-level writable struct arrays with array-typed fields + local 1-D scalar array variable-index (Variant B default) (Closes #1448)
+
+- Branch: `wave-loop-472`
+- Issue: #1448
+- PR: (to open after close-out)
+- Report: `docs/reports/WAVE_LOOP_472_CLOSEOUT.md`
+- Cooperation W473: `docs/reports/FPGA_LOOP_COOPERATION_W473_2026-07-08.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Added `collect_field_index_path` / `collect_field_index_path_rooted` to walk
+    mixed `ExprFieldAccess` / `ExprIndex` chains and return `(root, indices, fields)`.
+  - Added `StructArrayFieldPath`, `try_resolve_struct_array_field_path`,
+    `module_struct_array_elem_types`, and `nested_array_of_struct_field_slice`
+    to compute absolute bit offsets across outer array → array-typed struct field
+    → leaf scalar.
+  - Added `try_emit_array_of_struct_literal_packed` to emit `[N]Struct{...}` as
+    a recursive packed concatenation of sized leaf constants.
+  - Added `verilog_local_raw_base` to keep local array element names as single
+    escaped identifiers (`buf_0` instead of `\buf _0`).
+  - Skipped unpacked-memory unpacking for array-typed scalar struct parameters
+    inside functions; the same field-index path now slices the packed parameter
+    vector directly, removing the last Yosys smoke failure.
+
+- Regression specs:
+  - `specs/scratch/w472_local_1d_scalar_array_varidx.t27`
+  - `specs/scratch/w472_module_var_struct_array_field.t27`
+  - `specs/scratch/w472_deep_aos_field_access.t27`
+
+- `.trinity/seals/scratch_w472_*.json` — seals for the three new specs.
+- All affected `.trinity/seals/*.json` files re-sealed to the new gen-verilog output.
+- `bootstrap/stage0/FROZEN_HASH` — refrozen after compiler changes.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W472_OPERATING_POINT` — bench unavailable.
+- Writable nested struct-array field assignment (`shapes[i].pts[j].x = v`) —
+  read-tested; explicit write-and-read-back deferred to W473.
+- 3-D and higher struct arrays — deferred to W473.
+- Master-merge of `gen-verilog` fix set from `master` (`701d79b3b`) — no longer
+  required; this wave closed the last gen-verilog yosys smoke failure directly.
+
+### Verification
+
+- `cargo test -p t27c`: **1871 passed, 0 failed, 2 ignored**.
+- `./scripts/tri test --fast`: **ALL TESTS PASSED**
+  - Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C / Seal Verify:
+    629/629 PASS.
+  - Gen Verilog Yosys Smoke: **109 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**.
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes`.
+- Full `./scripts/tri test`: **ALL TESTS PASSED**
+  - 629/629 parse/typecheck/gen-zig/gen-rust/gen-verilog/gen-c/seal-verify PASS.
+  - Gen Verilog Yosys Smoke: **109 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**.
+  - FPGA Standalone Lake-Package Build: **OK** (elapsed ≈ 235 s).
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes`.
+
+---
 
 ---
 
@@ -999,7 +1210,7 @@
   - FPGA Board-Less Smoke Gate: **OK**.
   - FPGA Standalone Lake-Package Build: **OK**.
   - Fixed Point: 0 divergences.
-  - **TOTAL FAILURES: 0** — `ACCEPTABLE: yes**.
+  - **TOTAL FAILURES: 0** — `ACCEPTABLE: yes.
 
 ---
 

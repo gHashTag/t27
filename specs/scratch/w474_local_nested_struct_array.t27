@@ -1,0 +1,53 @@
+module w474_local_nested_struct_array;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub struct Shape {
+    pts : [3]Pt,
+}
+
+pub fn make_shape_val(v : u16) -> Shape {
+    return Shape{
+        .pts = [3]Pt{
+            Pt{.x = v, .y = v + 1},
+            Pt{.x = v + 2, .y = v + 3},
+            Pt{.x = v + 4, .y = v + 5},
+        },
+    };
+}
+
+pub fn write_and_read_literal() -> u32 {
+    var tmp : [2][3]Shape;
+    tmp[0][0] = make_shape_val(10);
+    tmp[1][2] = make_shape_val(20);
+    tmp[0][0].pts[1].x = 100;
+    tmp[1][2].pts[2].y = 200;
+    let a : u32 = tmp[0][0].pts[1].x as u32;
+    let b : u32 = tmp[1][2].pts[2].y as u32;
+    return a + b;
+}
+
+pub fn write_and_read_varidx(i : usize, j : usize, k : usize, v : u16) -> u32 {
+    var tmp : [2][3]Shape;
+    tmp[0][0] = make_shape_val(1);
+    tmp[1][2] = make_shape_val(2);
+    tmp[i][j].pts[k].x = v;
+    tmp[i][j].pts[k].y = v + 1;
+    let a : u32 = tmp[i][j].pts[k].x as u32;
+    let b : u32 = tmp[i][j].pts[k].y as u32;
+    return a + b;
+}
+
+test local_nested_struct_array_literal {
+    assert_eq(write_and_read_literal(), 300);
+}
+
+test local_nested_struct_array_varidx {
+    assert_eq(write_and_read_varidx(1, 2, 0, 50), 101);
+    assert_eq(write_and_read_varidx(0, 0, 2, 70), 141);
+}
+
+endmodule

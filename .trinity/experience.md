@@ -1,3 +1,38 @@
+## 2026-07-07 — Wave Loop 474 (gen-verilog aggregate hardening: function-local nested struct arrays + AOS return writeback + scalar-struct equality + adversarial yosys witness)
+
+### What worked
+- Emitting function-local arrays of structs with array-typed fields as per-field unpacked memories (`local_shape_pts [0:N-1][0:2]`) kept both literal-index and variable-index nested field access legal in Yosys, instead of flattening into per-element per-field scalar registers that cannot represent a field like `pts: [3]Pt`.
+- Generalizing the array-of-struct return unpacker to memory-mode local arrays and to module-level per-field memories made `var/local = make_shapes();` work for both local and module destinations, including nested array-typed fields.
+- Packing scalar-struct and small array-of-struct operands into Verilog vectors before `==`/`!=` gave correct equality results while avoiding width-mismatch issues, as long as the element struct contains only scalar leaf fields.
+- Fixing the module-level aggregate metadata lifetime (clear maps once at the start of `gen_verilog`) prevented later functions from losing the field-memory layout of module arrays.
+- Adding an adversarial yosys-elaboration witness that combines module-level AOS return init, nested field read/write through functions, and local memory-mode AOS caught the width mismatch where `type_to_width` was being used for struct-typed inner array leaves.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: added `local_struct_array_fields`, `local_struct_array_has_array_field`, `gen_verilog_local_struct_array_memory_decl`, `gen_verilog_local_struct_array_memory_init`, `gen_verilog_unpack_array_of_struct_call_memory`, `array_of_struct_expr_type`, `array_of_struct_has_array_field`, `gen_verilog_pack_array_of_struct_expr`, `gen_verilog_module_struct_array_call_init`, fixed module-level aggregate map lifetime, and fixed array-typed struct-field memory widths to use `packed_width` for struct leaves.
+- Added 4 scratch specs and seals: `w474_local_nested_struct_array`, `w474_struct_equality`, `w474_module_aos_return_assign`, `w474_adversarial_aos_nested`.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Added `docs/reports/WAVE_LOOP_474_CLOSEOUT.md` and `docs/reports/FPGA_LOOP_COOPERATION_W475_2026-07-08.md`.
+- Added `.trinity/ring-474.md` and updated `.trinity/experience.md`.
+
+### Verification
+- `cargo test -p t27c --bin t27c`: 1524 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: 637/637 parse/typecheck/gen-zig/gen-rust/gen-verilog/gen-c, **117/117 yosys smoke**, FPGA smoke gate OK, standalone lake build OK, 0 seal mismatches.
+- `./scripts/tri test --fast`: 637/637 non-smoke, **117/117 yosys smoke**, 0 seal mismatches.
+
+### Patterns to reuse
+- When an array of structs contains array-typed fields, lower it to per-field unpacked memories with the field dimensions as inner memory dimensions, not as flat scalar registers.
+- Share the same packed-return-vector unpacker between local and module-level destinations; the destination shape differs only in whether the target is a local memory, local scalar register, or module memory.
+- Compute inner packed element widths using `packed_width` for struct leaves; `type_to_width` defaults to 32 for unknown struct names and silently corrupts memory widths.
+- Add an adversarial witness at the end of the wave that exercises the intersection of new features; integration bugs live at intersections.
+
+### Anti-patterns to avoid
+- Do not flatten an array-typed struct field into scalar registers inside a function-local array of structs.
+- Do not clear module-level aggregate metadata between function emissions.
+- Do not extend equality lowering to arrays whose element struct has array-typed fields without also teaching the packer to read multi-dimensional field memories.
+- Do not assume a single scratch spec per feature is enough; an integration witness is needed when features compose.
+
+---
+
 ## 2026-07-08 — Wave Loop 473 (gen-verilog aggregate hardening: writable nested struct-array field assignment + higher-dimensional arrays of structs)
 
 ### What worked

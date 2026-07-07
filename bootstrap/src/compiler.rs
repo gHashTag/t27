@@ -4025,6 +4025,14 @@ pub struct VerilogCodegen {
     // dimension. Keyed by the original declared name. Used to rewrite multi-index
     // access like m[i][j] into the flattened per-leaf register name.
     local_array_dims: std::collections::HashMap<String, Vec<(usize, String)>>,
+    // W474: direct fields of the element struct for each function-local/bench-local
+    // struct array that uses memory-mode lowering (element struct has an array-typed
+    // direct field). Keyed by the original declared name.
+    local_struct_array_fields: std::collections::HashMap<String, Vec<(String, String)>>,
+    // W474: true for each function-local/bench-local struct array whose element
+    // struct has at least one array-typed direct field and therefore uses memory-mode
+    // lowering. Keyed by the original declared name.
+    local_struct_array_has_array_field: std::collections::HashMap<String, bool>,
     // W466: flattened scalar leaf fields for module-level struct-array constants,
     // keyed by array name. Used to resolve field access like `arr[i].inner.a` on
     // module-level arrays of structs.
@@ -4130,6 +4138,8 @@ impl VerilogCodegen {
             local_arrays: std::collections::HashSet::new(),
             local_array_elem_info: std::collections::HashMap::new(),
             local_array_dims: std::collections::HashMap::new(),
+            local_struct_array_fields: std::collections::HashMap::new(),
+            local_struct_array_has_array_field: std::collections::HashMap::new(),
             local_struct_var_types: std::collections::HashMap::new(),
             module_scalar_struct_fields: std::collections::HashMap::new(),
             module_scalar_struct_types: std::collections::HashMap::new(),
@@ -4244,19 +4254,42 @@ impl VerilogCodegen {
             {
                 let dims = Self::parse_array_dimensions(&node.extra_type);
                 let safe_base = self.verilog_local_name(&node.name);
+                let has_array_field = Self::struct_type_has_array_field(
+                    &inner_elem_type,
+                    &self.struct_fields,
+                );
                 self.local_arrays.insert(safe_base.clone());
                 self.local_array_elem_info.insert(
                     node.name.clone(),
-                    (Self::multi_dim_struct_leaf_count(&dims), inner_elem_type),
+                    (Self::multi_dim_struct_leaf_count(&dims), inner_elem_type.clone()),
                 );
                 self.local_array_dims
                     .insert(node.name.clone(), dims.clone());
-                self.gen_verilog_local_struct_array_decl(
-                    &safe_base,
-                    &fields,
-                    &dims,
-                    &[],
-                );
+                if has_array_field {
+                    // W474: memory-mode lowering for element structs with array-
+                    // typed direct fields. The declaration is hoisted to module
+                    // scope, so emit the per-field memories there.
+                    if let Some(direct_fields) =
+                        self.struct_fields.get(&inner_elem_type).cloned()
+                    {
+                        self.local_struct_array_fields
+                            .insert(node.name.clone(), direct_fields.clone());
+                    }
+                    self.local_struct_array_has_array_field
+                        .insert(node.name.clone(), true);
+                    self.gen_verilog_local_struct_array_memory_decl(
+                        &safe_base,
+                        &inner_elem_type,
+                        &dims,
+                    );
+                } else {
+                    self.gen_verilog_local_struct_array_decl(
+                        &safe_base,
+                        &fields,
+                        &dims,
+                        &[],
+                    );
+                }
                 return;
             }
             // W468: bench-local multi-dimensional scalar arrays.
@@ -4334,18 +4367,32 @@ impl VerilogCodegen {
             {
                 // W465/W469: struct-literal array initializer for a bench-local array,
                 // including multi-dimensional arrays of structs.
-                if let Some((_, _inner_elem_type, fields)) =
+                if let Some((_, inner_elem_type, fields)) =
                     Self::local_array_elem_is_struct(&node.extra_type, &self.struct_fields)
                 {
                     let dims = Self::parse_array_dimensions(&node.extra_type);
                     let safe_base = self.verilog_local_name(&node.name);
-                    self.gen_verilog_local_struct_array_init(
-                        &safe_base,
-                        &fields,
-                        &dims,
-                        &[],
-                        &node.children[0],
+                    let has_array_field = Self::struct_type_has_array_field(
+                        &inner_elem_type,
+                        &self.struct_fields,
                     );
+                    if has_array_field {
+                        // W474: memory-mode initializer for bench-local array.
+                        self.gen_verilog_local_struct_array_memory_init(
+                            &safe_base,
+                            &inner_elem_type,
+                            &dims,
+                            &node.children[0],
+                        );
+                    } else {
+                        self.gen_verilog_local_struct_array_init(
+                            &safe_base,
+                            &fields,
+                            &dims,
+                            &[],
+                            &node.children[0],
+                        );
+                    }
                     return;
                 }
                 // W472: bench-local 1-D scalar array initializer uses the same
@@ -4647,6 +4694,100 @@ impl VerilogCodegen {
             }
             if !elem_type.starts_with('[') {
                 return None;
+            }
+        }
+    }
+
+    /// W474: true if `struct_name` has at least one direct field whose type is an
+    /// array (including an array of structs). Such element structs must use
+    /// memory-mode lowering for function-local/bench-local arrays.
+    fn struct_type_has_array_field(
+        struct_name: &str,
+        struct_fields: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> bool {
+        if struct_name.is_empty() {
+            return false;
+        }
+        struct_fields
+            .get(struct_name)
+            .map(|fs| {
+                fs.iter()
+                    .any(|(_, ftype)| !Self::parse_array_dimensions(ftype).is_empty())
+            })
+            .unwrap_or(false)
+    }
+
+    /// W474: emit unpacked memory declarations for one function-local/bench-local
+    /// array of structs whose element struct has array-typed direct fields. Each
+    /// direct field becomes one memory. Scalar direct fields become 1-D memories
+    /// holding one packed field word per outer element; array-typed fields become
+    /// memories with the outer linearized dimension followed by the field's own
+    /// dimensions.
+    fn gen_verilog_local_struct_array_memory_decl(
+        &mut self,
+        base_name: &str,
+        elem_type: &str,
+        dims: &[(usize, String)],
+    ) {
+        let outer_count: usize = dims.iter().map(|(s, _)| *s).product();
+        if let Some(fields) = self.struct_fields.get(elem_type).cloned() {
+            for (fname, ftype) in &fields {
+                let field_name_raw = format!("{}_{}", base_name, fname);
+                let field_safe = Self::verilog_safe_identifier(&field_name_raw);
+                let field_dims = Self::parse_array_dimensions(ftype);
+                if !field_dims.is_empty() {
+                    let leaf_type = Self::array_dimensions_leaf_type(&field_dims);
+                    let leaf_width = if self.struct_fields.contains_key(&leaf_type) {
+                        Self::packed_width(&leaf_type, &self.struct_fields)
+                    } else {
+                        Self::type_to_width(&leaf_type)
+                    };
+                    let leaf_signed = Self::type_is_signed(&leaf_type);
+                    let leaf_signed_str = if leaf_signed { "signed " } else { "" };
+                    let leaf_range = Self::range_decl(leaf_width);
+                    let leaf_range_str = if leaf_range.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{} ", leaf_range)
+                    };
+                    let mut dim_ranges: Vec<String> = vec![format!(
+                        "[0:{}]",
+                        outer_count.saturating_sub(1)
+                    )];
+                    dim_ranges.extend(field_dims.iter().map(|(size, _)| {
+                        format!("[0:{}]", size.saturating_sub(1))
+                    }));
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "reg {}{} {} {};",
+                        leaf_signed_str,
+                        leaf_range_str,
+                        field_safe,
+                        dim_ranges.join("")
+                    ));
+                } else {
+                    let field_width = if self.struct_fields.contains_key(ftype) {
+                        Self::packed_width(ftype, &self.struct_fields)
+                    } else {
+                        Self::type_to_width(ftype)
+                    };
+                    let field_signed = Self::type_is_signed(ftype);
+                    let field_signed_str = if field_signed { "signed " } else { "" };
+                    let field_range = Self::range_decl(field_width);
+                    let field_range_str = if field_range.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{} ", field_range)
+                    };
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "reg {}{} {} [0:{}];",
+                        field_signed_str,
+                        field_range_str,
+                        field_safe,
+                        outer_count.saturating_sub(1)
+                    ));
+                }
             }
         }
     }
@@ -5136,6 +5277,154 @@ impl VerilogCodegen {
         }
     }
 
+    /// W474: return the element struct type and dimensions if `node` denotes a
+    /// whole array-of-struct value (identifier, call, or array literal). Used to
+    /// lower `==`/`!=` on small arrays of structs to packed-vector comparisons.
+    fn array_of_struct_expr_type(
+        &self,
+        node: &Node,
+    ) -> Option<(String, Vec<(usize, String)>)> {
+        match node.kind {
+            NodeKind::ExprIdentifier => {
+                let safe_base = self.verilog_local_name(&node.name);
+                if self.local_arrays.contains(&safe_base) {
+                    let dims = self.local_array_dims.get(&node.name).cloned()?;
+                    let (_, elem_type) = self.local_array_elem_info.get(&node.name).cloned()?;
+                    if self.struct_fields.contains_key(&elem_type) {
+                        return Some((elem_type, dims));
+                    }
+                }
+                if self.module_struct_array_elem_types.contains_key(&node.name) {
+                    let elem_type = self
+                        .module_struct_array_elem_types
+                        .get(&node.name)
+                        .cloned()
+                        .unwrap_or_default();
+                    let dims = self.module_struct_array_dims.get(&node.name).cloned()?;
+                    if self.struct_fields.contains_key(&elem_type) {
+                        return Some((elem_type, dims));
+                    }
+                }
+                None
+            }
+            NodeKind::ExprCall => {
+                let ret_ty = self.fn_return_types.get(&node.name).cloned()?;
+                let dims = Self::parse_array_dimensions(&ret_ty);
+                if dims.is_empty() {
+                    return None;
+                }
+                let leaf = Self::array_dimensions_leaf_type(&dims);
+                if self.struct_fields.contains_key(&leaf) {
+                    return Some((leaf, dims));
+                }
+                None
+            }
+            NodeKind::ExprArrayLiteral => {
+                if !node.extra_type.is_empty() {
+                    let dims = Self::parse_array_dimensions(&node.extra_type);
+                    if !dims.is_empty() {
+                        let leaf = Self::array_dimensions_leaf_type(&dims);
+                        if self.struct_fields.contains_key(&leaf) {
+                            return Some((leaf, dims));
+                        }
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    /// W474: true if the flattened fields of `elem_type` include any array-typed
+    /// field. Array-of-struct equality is only lowered for scalar-struct elements.
+    fn array_of_struct_has_array_field(
+        &self,
+        elem_type: &str,
+    ) -> bool {
+        let mut flat = Vec::new();
+        Self::flatten_struct_fields(elem_type, &self.struct_fields, "", &mut flat);
+        flat.iter().any(|(_, ftype)| {
+            Self::parse_array_dimensions(ftype).len() > 1
+                || Self::parse_array_type(ftype).is_some()
+        })
+    }
+
+    /// W474: emit an array-of-struct expression as a packed vector so two arrays
+    /// can be compared with Verilog `==`/`!=`. Identifiers are packed from their
+    /// per-field storage; array literals use the existing literal packer; calls
+    /// are already packed.
+    fn gen_verilog_pack_array_of_struct_expr(
+        &mut self,
+        node: &Node,
+        elem_type: &str,
+        dims: &[(usize, String)],
+    ) {
+        if node.kind == NodeKind::ExprArrayLiteral {
+            let mut ret_ty = elem_type.to_string();
+            for (size, _) in dims.iter().rev() {
+                ret_ty = format!("[{}]{}", size, ret_ty);
+            }
+            self.gen_verilog_pack_array_of_struct_literal(node, &ret_ty);
+            return;
+        }
+        if node.kind == NodeKind::ExprIdentifier {
+            let base_name = &node.name;
+            let safe_base = self.verilog_local_name(base_name);
+            let is_local = self.local_arrays.contains(&safe_base);
+            let is_module = self.module_struct_array_elem_types.contains_key(base_name);
+            if !is_local && !is_module {
+                self.gen_verilog_expr(node);
+                return;
+            }
+            let mut flat_fields: Vec<(String, String)> = Vec::new();
+            Self::flatten_struct_fields(elem_type, &self.struct_fields, "", &mut flat_fields);
+            let combos = Self::index_combinations(dims);
+            self.write("{");
+            for (comb_idx, comb) in combos.iter().enumerate() {
+                let suffix = comb
+                    .iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<_>>()
+                    .join("_");
+                for (f_idx, (fname, _ftype)) in flat_fields.iter().enumerate() {
+                    if comb_idx > 0 || f_idx > 0 {
+                        self.write(", ");
+                    }
+                    if is_local {
+                        let flat_base = if self.bench_local_names.contains(base_name) {
+                            safe_base.clone()
+                        } else {
+                            base_name.clone()
+                        };
+                        let flat_name = format!("{}_{}_{}", flat_base, suffix, fname);
+                        self.write(&Self::verilog_safe_identifier(&flat_name));
+                    } else {
+                        let field_name_raw = format!("{}_{}", base_name, fname);
+                        let field_safe = Self::verilog_safe_identifier(&field_name_raw);
+                        let addr: usize = comb
+                            .iter()
+                            .enumerate()
+                            .map(|(k, &idx)| {
+                                let stride: usize = dims
+                                    .iter()
+                                    .skip(k + 1)
+                                    .map(|(s, _)| *s)
+                                    .product();
+                                idx * stride
+                            })
+                            .sum();
+                        self.write(&format!("{}[{}]", field_safe, addr));
+                    }
+                }
+            }
+            self.write("}");
+            return;
+        }
+        // ExprCall returning an array of structs is already packed; other
+        // expressions fall back to normal emission.
+        self.gen_verilog_expr(node);
+    }
+
     /// W471: if `field_access` is `var.field` where `var` is a scalar struct
     /// variable/constant, return `(var_name, field_name, field_type)`.
     fn scalar_struct_var_field_type(
@@ -5527,6 +5816,338 @@ impl VerilogCodegen {
                 self.write_line(";");
             }
         }
+    }
+
+    /// W474: initialize a memory-mode local array of structs from a struct-literal
+    /// array initializer. The outer dimensions are linearized into one memory
+    /// address; each direct field memory is assigned independently.
+    fn gen_verilog_local_struct_array_memory_init(
+        &mut self,
+        base_name: &str,
+        elem_type: &str,
+        dims: &[(usize, String)],
+        lit: &Node,
+    ) {
+        let combos = Self::index_combinations(dims);
+        for (linear, comb) in combos.iter().enumerate() {
+            if let Some(elem) = Self::multi_dim_array_literal_get(lit, dims, comb) {
+                if elem.kind == NodeKind::ExprStructLit {
+                    self.gen_verilog_local_struct_array_memory_elem_init(
+                        base_name,
+                        elem_type,
+                        linear,
+                        elem,
+                    );
+                }
+            }
+        }
+    }
+
+    /// W474: initialize one element of a memory-mode local struct array. Each
+    /// direct field is written into its per-field memory at the linearized outer
+    /// address. Array-typed fields are expanded element-by-element.
+    fn gen_verilog_local_struct_array_memory_elem_init(
+        &mut self,
+        base_name: &str,
+        elem_type: &str,
+        linear: usize,
+        elem: &Node,
+    ) {
+        let mut field_values: std::collections::HashMap<String, &Node> =
+            std::collections::HashMap::new();
+        for field in &elem.children {
+            if field.kind == NodeKind::ExprFieldAccess && !field.name.is_empty() {
+                if let Some(val) = field.children.first() {
+                    field_values.insert(field.name.clone(), val);
+                }
+            }
+        }
+        if let Some(fields) = self.struct_fields.get(elem_type).cloned() {
+            for (fname, ftype) in &fields {
+                let field_name_raw = format!("{}_{}", base_name, fname);
+                let field_safe = Self::verilog_safe_identifier(&field_name_raw);
+                let val = match field_values.get(fname) {
+                    Some(v) => v,
+                    None => continue,
+                };
+                let field_dims = Self::parse_array_dimensions(ftype);
+                if !field_dims.is_empty() {
+                    let dst_base = format!("{}[{}]", field_safe, linear);
+                    self.gen_verilog_array_field_init(&dst_base,
+                        &field_dims,
+                        val,
+                    );
+                } else {
+                    self.write_indent();
+                    self.write(&format!("{}[{}] = ", field_safe, linear));
+                    self.gen_verilog_expr(val);
+                    self.write_line(";");
+                }
+            }
+        }
+    }
+
+    /// W474: create a packed temporary holding a scalar-struct-return function-call
+    /// result so it can be sliced into the per-field memories of a memory-mode local
+    /// struct array. Returns the safe temporary name.
+    fn gen_verilog_local_struct_array_memory_call_tmp(
+        &mut self,
+        base_name: &str,
+        elem_type: &str,
+        call: &Node,
+    ) -> String {
+        let total_width = Self::packed_width(elem_type, &self.struct_fields);
+        let tmp = format!("_losa_tmp_{}", self.let_tmp_counter);
+        self.let_tmp_counter += 1;
+        let tmp_safe = Self::verilog_safe_identifier(&tmp);
+        self.write_indent();
+        self.write_line(&format!(
+            "reg [{}:0] {}; // local struct array {} init",
+            total_width.saturating_sub(1),
+            tmp_safe,
+            base_name
+        ),
+        );
+        self.write_indent();
+        self.write(&format!("{} = ", tmp_safe));
+        self.gen_verilog_expr(call);
+        self.write_line(";");
+        tmp_safe
+    }
+
+    /// W474: assign one element of a memory-mode local struct array from a packed
+    /// temporary holding a scalar-struct value. Each direct field is sliced out of
+    /// the packed vector and written into its per-field memory at `linear`.
+    fn gen_verilog_local_struct_array_memory_element_assign_from_packed(
+        &mut self,
+        base_name: &str,
+        elem_type: &str,
+        linear: usize,
+        packed_tmp: &str,
+    ) {
+        let struct_w = Self::packed_width(elem_type, &self.struct_fields);
+        if let Some(fields) = self.struct_fields.get(elem_type).cloned() {
+            for (fname, ftype) in &fields {
+                let field_offset =
+                    Self::packed_field_offset(elem_type, &self.struct_fields, fname);
+                let field_name_raw = format!("{}_{}", base_name, fname);
+                let field_safe = Self::verilog_safe_identifier(&field_name_raw);
+                let field_dims = Self::parse_array_dimensions(ftype);
+                if !field_dims.is_empty() {
+                    let leaf_type = Self::array_dimensions_leaf_type(&field_dims);
+                    let leaf_width = if self.struct_fields.contains_key(&leaf_type) {
+                        Self::packed_width(&leaf_type, &self.struct_fields)
+                    } else {
+                        Self::type_to_width(&leaf_type)
+                    };
+                    let inner_combos = Self::index_combinations(&field_dims);
+                    for (inner_linear, inner_comb) in
+                        inner_combos.iter().enumerate()
+                    {
+                        let inner_offset = (inner_linear as u32) * leaf_width;
+                        let high = struct_w
+                            .saturating_sub(1)
+                            .saturating_sub(field_offset + inner_offset);
+                        let low = high
+                            .saturating_sub(leaf_width.saturating_sub(1));
+                        let dst_suffix = inner_comb
+                            .iter()
+                            .map(|i| format!("[{i}]"))
+                            .collect::<String>();
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "{}[{}]{} = {}[{}:{}];",
+                            field_safe, linear, dst_suffix, packed_tmp, high,
+                            low
+                        ),
+                        );
+                    }
+                } else {
+                    let field_w = if self.struct_fields.contains_key(ftype) {
+                        Self::packed_width(ftype, &self.struct_fields)
+                    } else {
+                        Self::type_to_width(ftype)
+                    };
+                    let high = struct_w.saturating_sub(1).saturating_sub(field_offset);
+                    let low = high.saturating_sub(field_w.saturating_sub(1));
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "{}[{}] = {}[{}:{}];",
+                        field_safe, linear, packed_tmp, high, low
+                    ),
+                    );
+                }
+            }
+        }
+    }
+
+    /// W474: assign one element of a memory-mode local struct array from a struct
+    /// variable RHS. Scalar direct fields copy from `{src}_{fname}`; array-typed
+    /// direct fields copy element-by-element from `{src}_{fname}`.
+    fn gen_verilog_local_struct_array_memory_element_assign_from_var(
+        &mut self,
+        base_name: &str,
+        elem_type: &str,
+        linear: usize,
+        src_name: &str,
+    ) {
+        if let Some(fields) = self.struct_fields.get(elem_type).cloned() {
+            for (fname, ftype) in &fields {
+                let dst_field_raw = format!("{}_{}", base_name, fname);
+                let dst_field_safe =
+                    Self::verilog_safe_identifier(&dst_field_raw);
+                let src_field_raw = format!("{}_{}", src_name, fname);
+                let src_field_safe =
+                    Self::verilog_safe_identifier(&src_field_raw);
+                let field_dims = Self::parse_array_dimensions(ftype);
+                if !field_dims.is_empty() {
+                    let inner_combos = Self::index_combinations(&field_dims);
+                    for inner_comb in &inner_combos {
+                        let suffix = inner_comb
+                            .iter()
+                            .map(|i| format!("[{i}]"))
+                            .collect::<String>();
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "{}[{}]{} = {}{};",
+                            dst_field_safe, linear, suffix, src_field_safe,
+                            suffix
+                        ),
+                        );
+                    }
+                } else {
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "{}[{}] = {};",
+                        dst_field_safe, linear, src_field_safe
+                    ),
+                    );
+                }
+            }
+        }
+    }
+
+    /// W474: try to handle whole-element assignment into a memory-mode local struct
+    /// array: `tmp[i][j] = value` where value is a struct literal, struct variable,
+    /// or scalar-struct-return function call. Returns true if the destination was a
+    /// memory-mode local struct array.
+    fn gen_verilog_try_local_struct_array_memory_element_assign(
+        &mut self,
+        base_name: &str,
+        indices: &[&Node],
+        rhs: &Node,
+    ) -> bool {
+        let safe_base = self.verilog_local_name(base_name);
+        if !self.local_arrays.contains(&safe_base) {
+            return false;
+        }
+        let elem_type = match
+            self.local_array_elem_info.get(base_name).map(|(_, t)| t.clone())
+        {
+            Some(t) => t,
+            None => return false,
+        };
+        if !Self::array_element_is_struct(Some(&elem_type), &self.struct_fields) {
+            return false;
+        }
+        if !self
+            .local_struct_array_has_array_field
+            .get(base_name)
+            .copied()
+            .unwrap_or(false)
+        {
+            return false;
+        }
+        let dims = self.local_array_dims.get(base_name).cloned().unwrap_or_default();
+        let is_literal = rhs.kind == NodeKind::ExprStructLit;
+        let is_var = rhs.kind == NodeKind::ExprIdentifier;
+        let is_call = rhs.kind == NodeKind::ExprCall;
+        if !is_literal && !is_var && !is_call {
+            return false;
+        }
+
+        let all_literal =
+            indices.iter().all(|idx| idx.value.parse::<usize>().is_ok());
+        if all_literal {
+            let linear: usize = indices
+                .iter()
+                .enumerate()
+                .map(|(k, idx)| {
+                    let stride: usize =
+                        dims.iter().skip(k + 1).map(|(s, _)| *s).product();
+                    idx.value.parse::<usize>().unwrap() * stride
+                })
+                .sum();
+            if is_literal {
+                self.gen_verilog_local_struct_array_memory_elem_init(
+                    base_name, &elem_type, linear, rhs,
+                );
+            } else if is_var {
+                self.gen_verilog_local_struct_array_memory_element_assign_from_var(
+                    base_name, &elem_type, linear, &rhs.name,
+                );
+            } else {
+                let tmp = self
+                    .gen_verilog_local_struct_array_memory_call_tmp(
+                        base_name, &elem_type, rhs,
+                    );
+                self.gen_verilog_local_struct_array_memory_element_assign_from_packed(
+                    base_name, &elem_type, linear, &tmp,
+                );
+            }
+            return true;
+        }
+
+        // Variable outer indices: emit an if-else chain over all possible index
+        // combinations. For function-call RHS, hoist the packed temporary once.
+        let packed_tmp = if is_call {
+            Some(self.gen_verilog_local_struct_array_memory_call_tmp(
+                base_name, &elem_type, rhs,
+            ))
+        } else {
+            None
+        };
+        let combos = Self::index_combinations(&dims);
+        for (comb_idx, comb) in combos.iter().enumerate() {
+            self.write_indent();
+            if comb_idx == 0 {
+                self.write("if (");
+            } else if comb_idx + 1 < combos.len() {
+                self.write("else if (");
+            } else {
+                self.write("else");
+            }
+            if comb_idx + 1 < combos.len() {
+                for (d, &i) in comb.iter().enumerate() {
+                    if d > 0 {
+                        self.write(" && ");
+                    }
+                    self.write("(");
+                    self.gen_verilog_expr(indices[d]);
+                    self.write(&format!(" == {})", i));
+                }
+            }
+            self.write(" begin");
+            self.write_line("");
+            self.indent();
+            if is_literal {
+                self.gen_verilog_local_struct_array_memory_elem_init(
+                    base_name, &elem_type, comb_idx, rhs,
+                );
+            } else if is_var {
+                self.gen_verilog_local_struct_array_memory_element_assign_from_var(
+                    base_name, &elem_type, comb_idx, &rhs.name,
+                );
+            } else if let Some(ref tmp) = packed_tmp {
+                self.gen_verilog_local_struct_array_memory_element_assign_from_packed(
+                    base_name, &elem_type, comb_idx, tmp,
+                );
+            }
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+        }
+        true
     }
 
     /// W466: flatten a nested ExprFieldAccess chain whose deepest child is an
@@ -6446,6 +7067,12 @@ impl VerilogCodegen {
         // W461: reset per-module counters.
         self.toplevel_tmp_counter = 0;
         self.let_tmp_counter = 0;
+
+        // W474: module-level struct-array maps are populated once while emitting
+        // declarations and must persist across all functions in the module.
+        self.module_struct_array_fields.clear();
+        self.module_struct_array_elem_types.clear();
+        self.module_struct_array_dims.clear();
 
         // Header
         self.write_line(
@@ -7628,7 +8255,20 @@ impl VerilogCodegen {
             self.module_struct_array_elem_types
                 .insert(name.to_string(), elem_type.to_string());
             for (fname, ftype) in &flat_fields {
-                let field_width = Self::type_to_width(ftype);
+                let field_width = if !Self::parse_array_dimensions(ftype).is_empty() {
+                    let leaf = Self::array_dimensions_leaf_type(
+                        &Self::parse_array_dimensions(ftype),
+                    );
+                    if self.struct_fields.contains_key(&leaf) {
+                        Self::packed_width(&leaf, &self.struct_fields)
+                    } else {
+                        Self::type_to_width(&leaf)
+                    }
+                } else if self.struct_fields.contains_key(ftype) {
+                    Self::packed_width(ftype, &self.struct_fields)
+                } else {
+                    Self::type_to_width(ftype)
+                };
                 let field_signed = Self::type_is_signed(ftype);
                 let field_signed_str = if field_signed { "signed " } else { "" };
                 let field_range = Self::range_decl(field_width);
@@ -7767,6 +8407,11 @@ impl VerilogCodegen {
             self.write_line("");
             return;
         }
+        let is_memory_mode = self
+            .local_struct_array_has_array_field
+            .get(base_name)
+            .copied()
+            .unwrap_or(false);
         let tmp = format!("_aos_ret_tmp_{}", self.let_tmp_counter);
         self.let_tmp_counter += 1;
         self.write_indent();
@@ -7779,6 +8424,25 @@ impl VerilogCodegen {
         self.write(&format!("{} = ", tmp));
         self.gen_verilog_expr(call);
         self.write_line(";");
+
+        if is_memory_mode {
+            // W474: unpack into per-field memories using direct fields of the
+            // element struct.
+            if let Some(elem_type) = self
+                .local_array_elem_info
+                .get(base_name)
+                .map(|(_, t)| t.clone())
+            {
+                self.gen_verilog_unpack_array_of_struct_call_memory(
+                    base_name,
+                    dims,
+                    &elem_type,
+                    total_width,
+                    &tmp,
+                );
+            }
+            return;
+        }
 
         let mut cursor = total_width;
         let combos = Self::index_combinations(dims);
@@ -7800,6 +8464,216 @@ impl VerilogCodegen {
                     reg_safe, tmp, high, low
                 ));
                 cursor = low;
+            }
+        }
+    }
+
+    /// W474: unpack a packed array-of-struct function-call result into the per-
+    /// field memories of a memory-mode local struct array. `dims` are the outer
+    /// array dimensions; `elem_type` is the inner struct element type.
+    fn gen_verilog_unpack_array_of_struct_call_memory(
+        &mut self,
+        base_name: &str,
+        dims: &[(usize, String)],
+        elem_type: &str,
+        total_width: u32,
+        tmp: &str,
+    ) {
+        let struct_w = Self::packed_width(elem_type, &self.struct_fields);
+        if struct_w == 0 {
+            return;
+        }
+        let direct_fields = match self.struct_fields.get(elem_type).cloned() {
+            Some(f) => f,
+            None => return,
+        };
+        let combos = Self::index_combinations(dims);
+        for (linear, _) in combos.iter().enumerate() {
+            let outer_offset = (linear as u32) * struct_w;
+            for (fname, ftype) in &direct_fields {
+                let field_offset =
+                    Self::packed_field_offset(elem_type, &self.struct_fields, fname);
+                let field_name_raw = format!("{}_{}", base_name, fname);
+                let field_safe = Self::verilog_safe_identifier(&field_name_raw);
+                let field_dims = Self::parse_array_dimensions(ftype);
+                if !field_dims.is_empty() {
+                    let leaf_type = Self::array_dimensions_leaf_type(&field_dims);
+                    let leaf_width = if self.struct_fields.contains_key(&leaf_type) {
+                        Self::packed_width(&leaf_type, &self.struct_fields)
+                    } else {
+                        Self::type_to_width(&leaf_type)
+                    };
+                    let inner_combos = Self::index_combinations(&field_dims);
+                    for (inner_linear, inner_comb) in
+                        inner_combos.iter().enumerate()
+                    {
+                        let inner_offset = (inner_linear as u32) * leaf_width;
+                        let high = total_width
+                            .saturating_sub(1)
+                            .saturating_sub(
+                                outer_offset + field_offset + inner_offset,
+                            );
+                        let low = high
+                            .saturating_sub(leaf_width.saturating_sub(1));
+                        let dst_suffix = inner_comb
+                            .iter()
+                            .map(|i| format!("[{i}]"))
+                            .collect::<String>();
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "{}[{}]{} = {}[{}:{}];",
+                            field_safe, linear, dst_suffix, tmp, high, low
+                        ),
+                        );
+                    }
+                } else {
+                    let field_w = if self.struct_fields.contains_key(ftype) {
+                        Self::packed_width(ftype, &self.struct_fields)
+                    } else {
+                        Self::type_to_width(ftype)
+                    };
+                    let high = total_width
+                        .saturating_sub(1)
+                        .saturating_sub(outer_offset + field_offset);
+                    let low = high.saturating_sub(field_w.saturating_sub(1));
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "{}[{}] = {}[{}:{}];",
+                        field_safe, linear, tmp, high, low
+                    ),
+                    );
+                }
+            }
+        }
+    }
+
+    /// W474: initialize a module-level struct-array variable/constant from a
+    /// function call that returns an array of structs. The packed return vector is
+    /// sliced per outer element and per scalar leaf field into the per-field
+    /// memories emitted for the array. Array-typed struct fields are unpacked
+    /// element-by-element into their multi-dimensional field memories.
+    fn gen_verilog_module_struct_array_call_init(
+        &mut self,
+        base_name: &str,
+        dims: &[(usize, String)],
+        elem_type: &str,
+        call: &Node,
+    ) {
+        let ret_ty = self
+            .fn_return_types
+            .get(&call.name)
+            .cloned()
+            .unwrap_or_default();
+        let total_width = Self::array_of_struct_return_width(
+            &ret_ty,
+            &self.struct_fields,
+        );
+        if total_width == 0 {
+            self.write_indent();
+            self.write_line(&format!(
+                "// module-level struct-array initializer for {} not yet lowered",
+                base_name
+            ),
+            );
+            self.write_indent();
+            self.write(&format!("{} = ", base_name));
+            self.gen_verilog_expr(call);
+            self.write_line(";");
+            return;
+        }
+
+        let tmp = format!("_aos_init_tmp_{}", self.let_tmp_counter);
+        self.let_tmp_counter += 1;
+        self.write_indent();
+        self.write_line(&format!("reg [{}:0] {};", total_width.saturating_sub(1), tmp),
+        );
+        self.write_indent();
+        self.write(&format!("{} = ", tmp));
+        self.gen_verilog_expr(call);
+        self.write_line(";");
+
+        let mut flat_fields: Vec<(String, String)> = Vec::new();
+        Self::flatten_struct_fields(elem_type, &self.struct_fields, "", &mut flat_fields);
+        let combos = Self::index_combinations(dims);
+        for comb in &combos {
+            let addr: usize = comb
+                .iter()
+                .enumerate()
+                .map(|(k, &idx)| {
+                    let stride: usize =
+                        dims.iter().skip(k + 1).map(|(s, _)| *s).product();
+                    idx * stride
+                })
+                .sum();
+            for (fname, ftype) in &flat_fields {
+                let field_name_raw = format!("{}_{}", base_name, fname);
+                let field_safe =
+                    Self::verilog_safe_identifier(&field_name_raw);
+                let field_dims = Self::parse_array_dimensions(ftype);
+                if !field_dims.is_empty() {
+                    // W474: array-typed struct field -> destination memory is
+                    // multi-dimensional; assign each inner packed element from
+                    // the return vector.
+                    let inner_elem = Self::array_dimensions_leaf_type(&field_dims);
+                    let inner_elem_width = if self.struct_fields.contains_key(&inner_elem) {
+                        Self::packed_width(&inner_elem, &self.struct_fields)
+                    } else {
+                        Self::type_to_width(&inner_elem)
+                    };
+                    let struct_w = Self::packed_width(elem_type, &self.struct_fields);
+                    let mut field_offset: u32 = 0;
+                    let mut found = false;
+                    let mut flat_for_offset: Vec<(String, String)> = Vec::new();
+                    Self::flatten_struct_fields(
+                        elem_type,
+                        &self.struct_fields,
+                        "",
+                        &mut flat_for_offset,
+                    );
+                    for (f, ft) in &flat_for_offset {
+                        if f == fname {
+                            found = true;
+                            break;
+                        }
+                        field_offset += Self::packed_width(ft, &self.struct_fields);
+                    }
+                    if found && struct_w > 0 && inner_elem_width > 0 {
+                        let outer_offset = (addr as u32).saturating_mul(struct_w);
+                        let inner_combos = Self::index_combinations(&field_dims);
+                        for (inner_idx, inner_comb) in inner_combos.iter().enumerate() {
+                            let inner_offset =
+                                (inner_idx as u32).saturating_mul(inner_elem_width);
+                            let high = total_width
+                                .saturating_sub(1)
+                                .saturating_sub(
+                                    outer_offset + field_offset + inner_offset,
+                                );
+                            let low = high.saturating_sub(inner_elem_width.saturating_sub(1));
+                            let inner_suffix = inner_comb
+                                .iter()
+                                .map(|i| format!("[{i}]"))
+                                .collect::<String>();
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "{}[{}]{} = {}[{}:{}];",
+                                field_safe, addr, inner_suffix, tmp, high, low
+                            ));
+                        }
+                    }
+                } else if let Some((high, low)) =
+                    Self::array_of_struct_field_slice(
+                        &ret_ty,
+                        &self.struct_fields,
+                        fname,
+                        comb,
+                    )
+                {
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "{}[{}] = {}[{}:{}];",
+                        field_safe, addr, tmp, high, low
+                    ));
+                }
             }
         }
     }
@@ -7888,7 +8762,11 @@ impl VerilogCodegen {
                             // W470: array-typed struct field -> multi-dimensional
                             // unpacked memory: [outer_struct_count][field_dims...].
                             let leaf_type = Self::array_dimensions_leaf_type(&field_dims);
-                            let leaf_width = Self::type_to_width(&leaf_type);
+                            let leaf_width = if self.struct_fields.contains_key(&leaf_type) {
+                                Self::packed_width(&leaf_type, &self.struct_fields)
+                            } else {
+                                Self::type_to_width(&leaf_type)
+                            };
                             let leaf_signed = Self::type_is_signed(&leaf_type);
                             let leaf_signed_str = if leaf_signed { "signed " } else { "" };
                             let leaf_range = Self::range_decl(leaf_width);
@@ -7913,7 +8791,11 @@ impl VerilogCodegen {
                                 dim_ranges.join("")
                             ));
                         } else {
-                            let field_width = Self::type_to_width(ftype);
+                            let field_width = if self.struct_fields.contains_key(ftype) {
+                                Self::packed_width(ftype, &self.struct_fields)
+                            } else {
+                                Self::type_to_width(ftype)
+                            };
                             let field_signed = Self::type_is_signed(ftype);
                             let field_signed_str = if field_signed { "signed " } else { "" };
                             let field_range = Self::range_decl(field_width);
@@ -8229,7 +9111,11 @@ impl VerilogCodegen {
                     let field_dims = Self::parse_array_dimensions(ftype);
                     if !field_dims.is_empty() {
                         let leaf_type = Self::array_dimensions_leaf_type(&field_dims);
-                        let leaf_width = Self::type_to_width(&leaf_type);
+                        let leaf_width = if self.struct_fields.contains_key(&leaf_type) {
+                            Self::packed_width(&leaf_type, &self.struct_fields)
+                        } else {
+                            Self::type_to_width(&leaf_type)
+                        };
                         let leaf_signed = Self::type_is_signed(&leaf_type);
                         let leaf_signed_str = if leaf_signed { "signed " } else { "" };
                         let leaf_range = Self::range_decl(leaf_width);
@@ -8254,7 +9140,11 @@ impl VerilogCodegen {
                             dim_ranges.join("")
                         ));
                     } else {
-                        let field_width = Self::type_to_width(ftype);
+                        let field_width = if self.struct_fields.contains_key(ftype) {
+                            Self::packed_width(ftype, &self.struct_fields)
+                        } else {
+                            Self::type_to_width(ftype)
+                        };
                         let field_signed = Self::type_is_signed(ftype);
                         let field_signed_str = if field_signed { "signed " } else { "" };
                         let field_range = Self::range_decl(field_width);
@@ -8288,6 +9178,31 @@ impl VerilogCodegen {
                     self.dedent();
                     self.write_indent();
                     self.write_line("end");
+                }
+                // W474: module-level struct arrays may also be initialized from a
+                // function call returning an array of structs.
+                if !node.children.is_empty() && node.children[0].kind == NodeKind::ExprCall {
+                    let call = &node.children[0];
+                    if let Some(ret_ty) = self.fn_return_types.get(&call.name).cloned() {
+                        if Self::array_of_struct_return_width(
+                            &ret_ty,
+                            &self.struct_fields,
+                        ) > 0
+                        {
+                            self.write_indent();
+                            self.write_line("initial begin");
+                            self.indent();
+                            self.gen_verilog_module_struct_array_call_init(
+                                &node.name,
+                                &dims,
+                                &target_elem_type,
+                                call,
+                            );
+                            self.dedent();
+                            self.write_indent();
+                            self.write_line("end");
+                        }
+                    }
                 }
                 return;
             }
@@ -8506,10 +9421,10 @@ impl VerilogCodegen {
                 self.param_widths.clear();
                 self.local_arrays.clear();
                 self.local_array_elem_info.clear();
+                self.local_array_dims.clear();
+                self.local_struct_array_fields.clear();
+                self.local_struct_array_has_array_field.clear();
                 self.local_struct_var_types.clear();
-                self.module_struct_array_fields.clear();
-                self.module_struct_array_elem_types.clear();
-                self.module_struct_array_dims.clear();
                 self.array_param_types.clear();
                 self.loop_vars_declared.clear();
                 return;
@@ -8697,10 +9612,9 @@ impl VerilogCodegen {
         self.local_arrays.clear();
         self.local_array_elem_info.clear();
         self.local_array_dims.clear();
+        self.local_struct_array_fields.clear();
+        self.local_struct_array_has_array_field.clear();
         self.local_struct_var_types.clear();
-        self.module_struct_array_fields.clear();
-        self.module_struct_array_elem_types.clear();
-        self.module_struct_array_dims.clear();
         self.array_param_types.clear();
     }
 
@@ -9067,6 +9981,18 @@ impl VerilogCodegen {
             return false;
         }
         let base_name = &base_id.name;
+        // W474: memory-mode local struct arrays accept struct-literal, struct-
+        // variable, and scalar-struct-return function-call RHS.
+        if self
+            .local_struct_array_has_array_field
+            .get(base_name)
+            .copied()
+            .unwrap_or(false)
+        {
+            return self.gen_verilog_try_local_struct_array_memory_element_assign(
+                base_name, &[idx], rhs,
+            );
+        }
         let is_literal = rhs.kind == NodeKind::ExprStructLit;
         let is_var = rhs.kind == NodeKind::ExprIdentifier;
         if !is_literal && !is_var {
@@ -9314,6 +10240,22 @@ impl VerilogCodegen {
         indices: Vec<&Node>,
         rhs: &Node,
     ) -> bool {
+        // W474: memory-mode local struct array whole-element assignment accepts
+        // struct-literal, struct-variable, and scalar-struct-return function-call
+        // RHS.
+        if self
+            .local_struct_array_has_array_field
+            .get(base_name)
+            .copied()
+            .unwrap_or(false)
+        {
+            return self
+                .gen_verilog_try_local_struct_array_memory_element_assign(
+                    base_name,
+                    &indices,
+                    rhs,
+                );
+        }
         let is_literal = rhs.kind == NodeKind::ExprStructLit;
         let is_var = rhs.kind == NodeKind::ExprIdentifier;
         if !is_literal && !is_var {
@@ -9605,6 +10547,113 @@ impl VerilogCodegen {
                             self.gen_verilog_expr(rhs);
                             self.write_line(";");
                             return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // W474: memory-mode function-local/bench-local struct array with nested
+        // field access such as `tmp[i][j].pts[k].x = v` or scalar direct field
+        // access such as `tmp[i][j].a = v`.
+        if let Some((base_name, index_nodes, fields)) =
+            Self::collect_field_index_path(lhs)
+        {
+            let field_suffix = fields.join("_");
+            let safe_base = self.verilog_local_name(&base_name);
+            if self.local_arrays.contains(&safe_base) {
+                if let Some(elem_type) = self
+                    .local_array_elem_info
+                    .get(&base_name)
+                    .map(|(_, t)| t.clone())
+                {
+                    if self
+                        .local_struct_array_has_array_field
+                        .get(&base_name)
+                        .copied()
+                        .unwrap_or(false)
+                    {
+                        if let Some(outer_dims) =
+                            self.local_array_dims.get(&base_name).cloned()
+                        {
+                            // Array-typed struct field: emit
+                            // `base_field[linear_outer][inner...][high:low] = v`.
+                            if let Some(path) =
+                                Self::try_resolve_struct_array_field_path(
+                                    &elem_type,
+                                    &self.struct_fields,
+                                    &field_suffix,
+                                )
+                            {
+                                let expected_len =
+                                    outer_dims.len() + path.dims.len();
+                                if index_nodes.len() == expected_len {
+                                    let field_name_raw = format!(
+                                        "{}_{}",
+                                        base_name, path.outer_field
+                                    );
+                                    let field_safe =
+                                        Self::verilog_safe_identifier(
+                                            &field_name_raw,
+                                        );
+                                    self.write_indent();
+                                    self.write(&field_safe);
+                                    self.write("[");
+                                    self.gen_verilog_multi_dim_index_expr(
+                                        &index_nodes[..outer_dims.len()],
+                                        &outer_dims,
+                                    );
+                                    self.write("]");
+                                    for inner in
+                                        &index_nodes[outer_dims.len()..]
+                                    {
+                                        self.write("[");
+                                        self.gen_verilog_expr(inner);
+                                        self.write("]");
+                                    }
+                                    self.write(&format!(
+                                        "[{}:{}] = ",
+                                        path.high, path.low
+                                    ),
+                                    );
+                                    self.gen_verilog_expr(rhs);
+                                    self.write_line(";");
+                                    return true;
+                                }
+                            }
+                            // Scalar direct field: emit
+                            // `base_field[linear_outer] = v`.
+                            if let Some(direct_fields) =
+                                self.local_struct_array_fields.get(&base_name)
+                            {
+                                if direct_fields
+                                    .iter()
+                                    .any(|(f, _)| f == &field_suffix)
+                                {
+                                    if index_nodes.len() == outer_dims.len() {
+                                        let field_name_raw = format!(
+                                            "{}_{}",
+                                            base_name, field_suffix
+                                        );
+                                        let field_safe =
+                                            Self::verilog_safe_identifier(
+                                                &field_name_raw,
+                                            );
+                                        self.write_indent();
+                                        self.write(&field_safe);
+                                        self.write("[");
+                                        self.gen_verilog_multi_dim_index_expr(
+                                            &index_nodes,
+                                            &outer_dims,
+                                        );
+                                        self.write("]");
+                                        self.write(" = ");
+                                        self.gen_verilog_expr(rhs);
+                                        self.write_line(";");
+                                        return true;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -10226,54 +11275,113 @@ impl VerilogCodegen {
                     {
                         let dims = Self::parse_array_dimensions(&node.extra_type);
                         let safe_base = Self::verilog_safe_identifier(base_name);
+                        let has_array_field = Self::struct_type_has_array_field(
+                            &inner_elem_type,
+                            &self.struct_fields,
+                        );
                         self.local_arrays.insert(safe_base.clone());
                         self.local_array_elem_info
-                            .insert(base_name.clone(), (Self::multi_dim_struct_leaf_count(&dims), inner_elem_type));
+                            .insert(base_name.clone(), (Self::multi_dim_struct_leaf_count(&dims), inner_elem_type.clone()));
                         self.local_array_dims
                             .insert(base_name.clone(), dims.clone());
-                        self.gen_verilog_local_struct_array_decl(
-                            base_name,
-                            &fields,
-                            &dims,
-                            &[],
-                        );
-                        if !node.children.is_empty()
-                            && node.children[0].kind == NodeKind::ExprArrayLiteral
-                        {
-                            self.gen_verilog_local_struct_array_init(
+                        if has_array_field {
+                            // W474: memory-mode lowering for element structs with
+                            // array-typed direct fields.
+                            if let Some(direct_fields) =
+                                self.struct_fields.get(&inner_elem_type).cloned()
+                            {
+                                self.local_struct_array_fields
+                                    .insert(base_name.clone(), direct_fields.clone());
+                            }
+                            self.local_struct_array_has_array_field
+                                .insert(base_name.clone(), true);
+                            self.gen_verilog_local_struct_array_memory_decl(
+                                base_name,
+                                &inner_elem_type,
+                                &dims,
+                            );
+                            if !node.children.is_empty()
+                                && node.children[0].kind == NodeKind::ExprArrayLiteral
+                            {
+                                self.gen_verilog_local_struct_array_memory_init(
+                                    base_name,
+                                    &inner_elem_type,
+                                    &dims,
+                                    &node.children[0],
+                                );
+                            } else if !node.children.is_empty()
+                                && node.children[0].kind == NodeKind::ExprCall
+                                && !node.children[0].name.is_empty()
+                                && self
+                                    .fn_return_types
+                                    .get(&node.children[0].name)
+                                    .map_or(false, |ret_ty| {
+                                        Self::array_of_struct_return_width(
+                                            ret_ty,
+                                            &self.struct_fields,
+                                        ) > 0
+                                    })
+                            {
+                                self.gen_verilog_unpack_array_of_struct_call(
+                                    base_name,
+                                    &dims,
+                                    &fields,
+                                    &node.children[0],
+                                );
+                            } else if !node.children.is_empty() {
+                                self.write_indent();
+                                self.write(&format!(
+                                    "// local struct-array initializer for {} not yet lowered",
+                                    base_name
+                                ));
+                                self.gen_verilog_expr(&node.children[0]);
+                                self.write_line("");
+                            }
+                        } else {
+                            self.gen_verilog_local_struct_array_decl(
                                 base_name,
                                 &fields,
                                 &dims,
                                 &[],
-                                &node.children[0],
                             );
-                        } else if !node.children.is_empty()
-                            && node.children[0].kind == NodeKind::ExprCall
-                            && !node.children[0].name.is_empty()
-                            && self
-                                .fn_return_types
-                                .get(&node.children[0].name)
-                                .map_or(false, |ret_ty| {
-                                    Self::array_of_struct_return_width(
-                                        ret_ty,
-                                        &self.struct_fields,
-                                    ) > 0
-                                })
-                        {
-                            self.gen_verilog_unpack_array_of_struct_call(
-                                base_name,
-                                &dims,
-                                &fields,
-                                &node.children[0],
-                            );
-                        } else if !node.children.is_empty() {
-                            self.write_indent();
-                            self.write(&format!(
-                                "// local struct-array initializer for {} not yet lowered",
-                                base_name
-                            ));
-                            self.gen_verilog_expr(&node.children[0]);
-                            self.write_line("");
+                            if !node.children.is_empty()
+                                && node.children[0].kind == NodeKind::ExprArrayLiteral
+                            {
+                                self.gen_verilog_local_struct_array_init(
+                                    base_name,
+                                    &fields,
+                                    &dims,
+                                    &[],
+                                    &node.children[0],
+                                );
+                            } else if !node.children.is_empty()
+                                && node.children[0].kind == NodeKind::ExprCall
+                                && !node.children[0].name.is_empty()
+                                && self
+                                    .fn_return_types
+                                    .get(&node.children[0].name)
+                                    .map_or(false, |ret_ty| {
+                                        Self::array_of_struct_return_width(
+                                            ret_ty,
+                                            &self.struct_fields,
+                                        ) > 0
+                                    })
+                            {
+                                self.gen_verilog_unpack_array_of_struct_call(
+                                    base_name,
+                                    &dims,
+                                    &fields,
+                                    &node.children[0],
+                                );
+                            } else if !node.children.is_empty() {
+                                self.write_indent();
+                                self.write(&format!(
+                                    "// local struct-array initializer for {} not yet lowered",
+                                    base_name
+                                ));
+                                self.gen_verilog_expr(&node.children[0]);
+                                self.write_line("");
+                            }
                         }
                         return;
                     }
@@ -10811,11 +11919,43 @@ impl VerilogCodegen {
                             );
                             self.write(")");
                         } else {
-                            self.write("(");
-                            self.gen_verilog_expr(&node.children[0]);
-                            self.write(&format!(" {} ", node.extra_op));
-                            self.gen_verilog_expr(&node.children[1]);
-                            self.write(")");
+                            // W474: small array-of-struct equality is lowered to a
+                            // packed-vector comparison. Only scalar-struct elements
+                            // are supported here; arrays with array-typed fields
+                            // fall through to the generic path.
+                            let lhs_aos = self.array_of_struct_expr_type(&node.children[0]);
+                            let rhs_aos = self.array_of_struct_expr_type(&node.children[1]);
+                            if lhs_aos.is_some() || rhs_aos.is_some() {
+                                let (elem_type, dims) = lhs_aos.or(rhs_aos).unwrap();
+                                if !self.array_of_struct_has_array_field(&elem_type) {
+                                    let op = if node.extra_op.as_str() == "==" {
+                                        "=="
+                                    } else {
+                                        "!="
+                                    };
+                                    self.write("(");
+                                    self.gen_verilog_pack_array_of_struct_expr(
+                                        &node.children[0], &elem_type, &dims,
+                                    );
+                                    self.write(&format!(" {} ", op));
+                                    self.gen_verilog_pack_array_of_struct_expr(
+                                        &node.children[1], &elem_type, &dims,
+                                    );
+                                    self.write(")");
+                                } else {
+                                    self.write("(");
+                                    self.gen_verilog_expr(&node.children[0]);
+                                    self.write(&format!(" {} ", node.extra_op));
+                                    self.gen_verilog_expr(&node.children[1]);
+                                    self.write(")");
+                                }
+                            } else {
+                                self.write("(");
+                                self.gen_verilog_expr(&node.children[0]);
+                                self.write(&format!(" {} ", node.extra_op));
+                                self.gen_verilog_expr(&node.children[1]);
+                                self.write(")");
+                            }
                         }
                     } else {
                         // Map operators
@@ -11254,6 +12394,112 @@ impl VerilogCodegen {
                                             );
                                             self.write("]");
                                             emitted = true;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // W474: memory-mode local struct array with nested
+                            // field access. Memories support variable-index reads
+                            // directly, so no priority mux is needed.
+                            if !emitted {
+                                let safe_base =
+                                    self.verilog_local_name(&base_name);
+                                if self.local_arrays.contains(&safe_base) {
+                                    if let Some(elem_type) = self
+                                        .local_array_elem_info
+                                        .get(&base_name)
+                                        .map(|(_, t)| t.clone())
+                                    {
+                                        if self
+                                            .local_struct_array_has_array_field
+                                            .get(&base_name)
+                                            .copied()
+                                            .unwrap_or(false)
+                                        {
+                                            if let Some(outer_dims) = self
+                                                .local_array_dims
+                                                .get(&base_name)
+                                                .cloned()
+                                            {
+                                                // Array-typed struct field: emit
+                                                // `base_field[linear_outer][inner...][high:low]`.
+                                                if let Some(path) = Self::try_resolve_struct_array_field_path(
+                                                    &elem_type,
+                                                    &self.struct_fields,
+                                                    &field_suffix,
+                                                ) {
+                                                    let expected_len =
+                                                        outer_dims.len()
+                                                            + path.dims.len();
+                                                    if index_nodes.len()
+                                                        == expected_len
+                                                    {
+                                                        let field_name_raw = format!(
+                                                            "{}_{}",
+                                                            base_name,
+                                                            path.outer_field
+                                                        );
+                                                        let field_safe =
+                                                            Self::verilog_safe_identifier(
+                                                                &field_name_raw,
+                                                            );
+                                                        self.write(&field_safe);
+                                                        self.write("[");
+                                                        self.gen_verilog_multi_dim_index_expr(
+                                                            &index_nodes[..outer_dims.len()],
+                                                            &outer_dims,
+                                                        );
+                                                        self.write("]");
+                                                        for inner in
+                                                            &index_nodes[outer_dims.len()..]
+                                                        {
+                                                            self.write("[");
+                                                            self.gen_verilog_expr(inner);
+                                                            self.write("]");
+                                                        }
+                                                        self.write(&format!(
+                                                            "[{}:{}]",
+                                                            path.high, path.low
+                                                        ),
+                                                        );
+                                                        emitted = true;
+                                                    }
+                                                }
+                                                // Scalar direct field: emit
+                                                // `base_field[linear_outer]`.
+                                                if !emitted {
+                                                    if let Some(direct_fields) =
+                                                        self.local_struct_array_fields.get(&base_name)
+                                                    {
+                                                        if direct_fields.iter().any(
+                                                            |(f, _)| f == &field_suffix,
+                                                        ) {
+                                                            if index_nodes.len()
+                                                                == outer_dims.len()
+                                                            {
+                                                                let field_name_raw = format!(
+                                                                    "{}_{}",
+                                                                    base_name,
+                                                                    field_suffix
+                                                                );
+                                                                let field_safe =
+                                                                    Self::verilog_safe_identifier(
+                                                                        &field_name_raw,
+                                                                    );
+                                                                self.write(&field_safe);
+                                                                self.write("[");
+                                                                self.gen_verilog_multi_dim_index_expr(
+                                                                    &index_nodes,
+                                                                    &outer_dims,
+                                                                );
+                                                                self.write("]");
+                                                                emitted = true;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }

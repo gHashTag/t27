@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-08 (refreshed for Wave Loop 468)  
+**Date:** 2026-07-07 (refreshed for Wave Loop 474)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -993,6 +993,34 @@ from `reservoir.lean-lang.org`; the smoke-gate report itself reports
 The remaining targets (generalized multi-site array parameters, bench-block
 local-variable lowering, and the three pre-existing `let_binding` cargo-test
 failures) are deferred to Wave Loop 460.
+
+---
+
+## W474 boundary (2026-07-07)
+
+No new public competitor signals appeared between the W473 close-out and the W474
+boundary. **Sparkle / Verilean** remains the closest structural competitor with
+~102 formal theorems (zero generic-∀ over ternary datapaths). CIRCT
+`firtool-1.152.0` (2026-07-04) is still the latest public release, and Clash
+1.11.0 remains a Hackage candidate.
+
+t27's W474 deliverable continues the compiler-backend aggregate-hardening line
+inside Variant B: **function-local arrays of structs with array-typed fields**,
+**array-of-struct function-return writeback** for both local and module-level
+destinations, **scalar-struct / small array-of-struct equality**, and an
+**adversarial yosys-elaboration witness** that combines the new paths. The bench
+remains physically blocked by the missing DLC10 cable / unwired P12 relay. Four
+scratch specs, resealed NMSE seals, and a refrozen `bootstrap/stage0/FROZEN_HASH`
+lock in the behavior. The suite is green:
+
+- `./scripts/tri test --fast`: **637/637 non-smoke PASS**, **117/117 yosys smoke PASS**,
+  FPGA smoke gate OK, 0 baseline failures, 0 seal mismatches, **TOTAL FAILURES: 0**.
+- Full `./scripts/tri test`: **637/637 non-smoke PASS**, **117/117 yosys smoke PASS**,
+  FPGA smoke gate OK, standalone lake build OK, 0 seal mismatches, **TOTAL FAILURES: 0**.
+
+The remaining aggregate targets (equality for structs whose fields are arrays,
+whole-struct equality for nested structs with array-typed fields, and local AOS
+parameter passing) are deferred to Wave Loop 475.
 
 ---
 

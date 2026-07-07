@@ -1,0 +1,48 @@
+module w474_adversarial_aos_nested;
+
+struct Pt {
+    x: u8,
+    y: u8,
+}
+
+struct Shape {
+    pts: [3]Pt,
+}
+
+fn make_shapes() -> [2]Shape {
+    return [2]Shape{
+        Shape{.pts = [3]Pt{
+            Pt{.x = 1, .y = 2},
+            Pt{.x = 3, .y = 4},
+            Pt{.x = 5, .y = 6},
+        }},
+        Shape{.pts = [3]Pt{
+            Pt{.x = 7, .y = 8},
+            Pt{.x = 9, .y = 10},
+            Pt{.x = 11, .y = 12},
+        }},
+    };
+}
+
+fn get_x(i: usize, j: usize) -> u8 {
+    return shapes[i].pts[j].x;
+}
+
+fn set_x(i: usize, j: usize, v: u8) {
+    shapes[i].pts[j].x = v;
+}
+
+var shapes : [2]Shape = make_shapes();
+
+test adversarial {
+    assert_eq(get_x(0, 1), 3);
+    assert_eq(get_x(1, 2), 11);
+
+    set_x(0, 1, 42);
+    assert_eq(get_x(0, 1), 42);
+
+    set_x(1, 0, 100);
+    assert_eq(get_x(1, 0), 100);
+}
+
+endmodule

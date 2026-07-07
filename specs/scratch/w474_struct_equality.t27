@@ -1,0 +1,46 @@
+module w474_struct_equality;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn scalar_eq() -> bool {
+    var a : Pt = Pt{.x = 1, .y = 2};
+    var b : Pt = Pt{.x = 1, .y = 2};
+    var c : Pt = Pt{.x = 2, .y = 2};
+    return (a == b) && !(a == c) && (a != c) && !(a != b);
+}
+
+pub fn array_eq_literal() -> bool {
+    var a : [2]Pt;
+    a[0] = Pt{.x = 1, .y = 2};
+    a[1] = Pt{.x = 3, .y = 4};
+    var b : [2]Pt = [2]Pt{Pt{.x = 1, .y = 2}, Pt{.x = 3, .y = 4}};
+    return a == b;
+}
+
+pub fn array_neq() -> bool {
+    var a : [2]Pt;
+    a[0] = Pt{.x = 1, .y = 2};
+    a[1] = Pt{.x = 3, .y = 4};
+    var b : [2]Pt = [2]Pt{Pt{.x = 1, .y = 2}, Pt{.x = 3, .y = 5}};
+    return a != b;
+}
+
+pub fn array_eq_call() -> bool {
+    var a : [2]Pt = make_pts();
+    var b : [2]Pt = [2]Pt{Pt{.x = 10, .y = 20}, Pt{.x = 30, .y = 40}};
+    return a == b;
+}
+
+pub fn make_pts() -> [2]Pt {
+    return [2]Pt{Pt{.x = 10, .y = 20}, Pt{.x = 30, .y = 40}};
+}
+
+test scalar_struct_equality { assert(scalar_eq()); }
+test array_struct_equality_literal { assert(array_eq_literal()); }
+test array_struct_inequality { assert(array_neq()); }
+test array_struct_equality_call { assert(array_eq_call()); }
+
+endmodule

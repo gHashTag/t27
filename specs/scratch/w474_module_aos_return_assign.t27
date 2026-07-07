@@ -1,0 +1,20 @@
+module w474_module_aos_return_assign;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+var pts : [2]Pt = make_pts();
+
+pub fn make_pts() -> [2]Pt {
+    return [2]Pt{Pt{.x = 10, .y = 20}, Pt{.x = 30, .y = 40}};
+}
+
+pub fn check_pts() -> u32 {
+    return (pts[0].x as u32) + (pts[1].y as u32);
+}
+
+test module_aos_return_assign { assert_eq(check_pts(), 50); }
+
+endmodule

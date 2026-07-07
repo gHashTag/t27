@@ -1,9 +1,29 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-468`  
-**Last updated:** 2026-07-08 (Wave Loop 468)  
+**Branch:** `wave-loop-474`  
+**Last updated:** 2026-07-07 (Wave Loop 474)  
 
 This document tracks the lowering defects in the `t27c gen-verilog` backend. The full fix set was originally landed on `master` (commit `701d79b3b`) and on the historical `wave-loop-383` compiler line; Wave Loop 455 ported the missing parser and backend pieces into the current `wave-loop-455` branch and cleared the 7 residual yosys smoke failures.
+
+**W474 triage decision:** four `gen-verilog` aggregate-lowering extensions land this
+wave. `bootstrap/src/compiler.rs` now (1) emits function-local arrays of structs
+with array-typed fields as per-field unpacked memories (memory-mode lowering),
+supporting nested read/write and variable-index assignment;
+(2) unpacks packed array-of-struct function returns into local memory-mode
+arrays and into module-level per-field memories, including array-typed struct
+fields; (3) lowers scalar-struct and small array-of-struct equality by packing
+both operands into Verilog vectors before `==`/`!=`; (4) fixes the lifetime of
+module-level aggregate metadata so that later functions in the same module can
+still resolve module array layouts. Four scratch specs cover the new paths:
+`specs/scratch/w474_local_nested_struct_array.t27`,
+`specs/scratch/w474_struct_equality.t27`,
+`specs/scratch/w474_module_aos_return_assign.t27`, and
+`specs/scratch/w474_adversarial_aos_nested.t27`. All affected specs were resealed.
+Full suite remains green: **637/637 non-smoke PASS**, **117/117 yosys smoke PASS**,
+0 baseline failures, 0 seal mismatches, **TOTAL FAILURES: 0**. The physical-bench
+blockers remain unchanged; array-of-struct equality for structs whose fields are
+themselves arrays, whole-struct equality for nested structs with array-typed
+fields, and local AOS parameter passing remain open for W475.
 
 **W468 triage decision:** three `gen-verilog` backend extensions land this
 wave. `bootstrap/src/compiler.rs` now (1) lowers struct-return function calls:
