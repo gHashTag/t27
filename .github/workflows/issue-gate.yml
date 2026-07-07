@@ -33,14 +33,14 @@ jobs:
         run: |
           set -euo pipefail
           FOUND=$(echo "$PR_TITLE
-          $PR_BODY" | grep -oiE '(closes|fixes|resolves) #[0-9]+' || true)
+          $PR_BODY" | grep -oiE '(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+' || true)
 
           if [ -n "$FOUND" ]; then
             echo "✅ Issue gate passed: $FOUND"
           else
-            echo "::error::L1 TRACEABILITY violation: No 'Closes #N' found in PR title/body."
+            echo "::error::L1 TRACEABILITY violation: No issue reference found in PR title/body."
             echo "::error::Constitutional Law L1 requires all code changes to reference an issue."
-            echo "::error::Usage: Include 'Closes #N' in your PR title or body."
+            echo "::error::Usage: Include 'Closes #N', 'Fixes #N', 'Resolves #N', 'Refs #N', or 'Updates #N'."
             echo "::error::Example: 'feat(compiler): Add algorithm codegen placeholder\n\nCloses #42'"
             echo "::error::PR blocked. Please create an issue first, then reference it in your PR."
             exit 1
