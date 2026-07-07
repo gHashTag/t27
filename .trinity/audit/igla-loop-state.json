@@ -10,13 +10,13 @@
     "failing_wave_branch_checks": 5,
     "compiler_seal_drift": false,
     "unmerged_branches": 112,
-    "active_worktrees": 6,
-    "prunable_worktrees": 2,
+    "active_worktrees": 2,
+    "prunable_worktrees": 0,
     "specs_without_tests_or_invariants": 176,
     "deadcode_ratio_percent": 60.6,
     "shell_scripts_newer_than_frozen": 26
   },
-  "current_needle": "workflow-dupes+frozen-hash+l1-regex",
+  "current_needle": "auto-workflow-harden",
   "backlog": [
     {
       "rank": 1,
@@ -61,9 +61,9 @@
       "severity": "P1",
       "owner": "B+T",
       "estimated_hours": 2,
-      "issue": null,
-      "pr": null,
-      "status": "pending",
+      "issue": 1440,
+      "pr": 1441,
+      "status": "verify",
       "lie": "Automated workflows can merge or commit without issue linkage or review"
     },
     {
@@ -73,9 +73,9 @@
       "severity": "P2",
       "owner": "W",
       "estimated_hours": 1,
-      "issue": null,
+      "issue": 1442,
       "pr": null,
-      "status": "pending",
+      "status": "completed",
       "lie": "Stale worktrees hide unmerged compiler changes and consume state"
     },
     {
@@ -115,5 +115,11 @@
       "lie": "In-tree cable driver cannot talk to the real bench cable"
     }
   ],
-  "completed": []
+  "completed": [
+    {
+      "id": "worktree-stash-cleanup",
+      "issue": 1442,
+      "summary": "Pruned 2 prunable worktrees; removed 3 stale agent worktrees; salvaged compiler postfix-array change to branch salvage/ae9fe-postfix-array-notation; archived untracked source files to local salvage directory."
+    }
+  ]
 }
