@@ -1504,3 +1504,7 @@
 - **Commit:** 
 - **Files:** .trinity/audit/igla-loop-state.json
 
+## 2026-07-07T11:58:01Z — igla/w470-auto-workflow-harden
+- **Commit:** 
+- **Files:** .github/workflows/auto-merge-ready-prs.yml,.github/workflows/brain-seal-refresh.yml,scripts/auto-close-prs.sh,scripts/auto-merge.sh
+
