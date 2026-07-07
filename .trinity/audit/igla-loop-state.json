@@ -16,7 +16,7 @@
     "deadcode_ratio_percent": 60.6,
     "shell_scripts_newer_than_frozen": 26
   },
-  "current_needle": "auto-workflow-harden",
+  "current_needle": null,
   "backlog": [
     {
       "rank": 1,
@@ -98,9 +98,9 @@
       "severity": "P1",
       "owner": "K",
       "estimated_hours": 3,
-      "issue": null,
-      "pr": null,
-      "status": "pending",
+      "issue": 1444,
+      "pr": 1445,
+      "status": "verify",
       "lie": "Synthesis and reports target the wrong FPGA device"
     },
     {
@@ -110,9 +110,10 @@
       "severity": "P1",
       "owner": "K+X",
       "estimated_hours": 4,
-      "issue": null,
+      "issue": 1446,
       "pr": null,
-      "status": "pending",
+      "status": "blocked",
+      "blocked_by": "hardware-access",
       "lie": "In-tree cable driver cannot talk to the real bench cable"
     }
   ],
