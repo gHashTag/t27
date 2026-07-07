@@ -1,6 +1,16 @@
-# NOW — Wave Loop 419 close-out / Wave Loop 420 setup (2026-07-05)
+# NOW — IGLA cycle 1 + Wave Loop 469 context (2026-07-07)
 
-Last updated: 2026-07-05
+Last updated: 2026-07-07
+
+## IGLA cycle 1 — process debt needles (Refs #1438, #1440, #1442, #1444, #1446)
+
+- Charter: `docs/nona-03-manifest/IGLA_IMPROVEMENT_LOOP.md` + audit `docs/reports/IGLA_AUDIT_W470_2026-07-07.md`.
+- Open PRs:
+  - #1439: remove duplicate workflow directory, enforce `FROZEN_HASH`, unify L1 regexes.
+  - #1441: harden auto-merge and brain-seal-refresh workflows.
+  - #1445: align Vivado scripts/constraints with `HARDWARE_SSOT` XC7A200T-FGG676.
+- Completed: worktree cleanup (#1442); salvaged compiler postfix-array change to `salvage/ae9fe-postfix-array-notation`.
+- Blocked: W469 2D-struct-array Verilog lowering (#1443, blocked on `wave-loop-469`); Digilent FTDI `cli/dlc10` support (#1446, blocked on hardware access).
 
 ## Architecture — ADR-007 documents de-jure/de-facto split for generated .v in specs/ (Closes #1435)
 

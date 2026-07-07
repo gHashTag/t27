@@ -20,10 +20,10 @@ done
 
 # Fallback if the Rust binary is not yet built (e.g. fresh clone).
 COMMIT_MSG=$(git log -1 --pretty=%B HEAD)
-if ! echo "$COMMIT_MSG" | grep -qE "(Closes|Fixes|Resolves|Reference) #[0-9]+"; then
+if ! echo "$COMMIT_MSG" | grep -qiE "(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+"; then
     echo "L1 VIOLATION: Commit missing issue reference"
     echo "Commit message: $COMMIT_MSG"
-    echo "Required pattern: Closes #N | Fixes #N | Resolves #N | Reference #N"
+    echo "Required pattern: Closes #N | Fixes #N | Resolves #N | Refs #N | Updates #N"
     exit 1
 fi
 ISSUE_NUM=$(echo "$COMMIT_MSG" | grep -oE "#[0-9]+" | head -1)
