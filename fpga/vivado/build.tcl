@@ -1,4 +1,4 @@
-set part xc7a100tfgg676-1
+set part xc7a200tfgg676-1
 
 set_property SEVERITY {Warning} [get_drc_checks LUTLP-1]
 

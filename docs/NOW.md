@@ -21,6 +21,14 @@ Last updated: 2026-07-07
 - This closes issue #1440 (automated workflows could merge/commit without
   issue linkage or review).
 
+## IGLA cycle 1 — FPGA target alignment (Closes #1444)
+
+- PR #1445 aligns Vivado synthesis scripts and the constraints header with the
+  `fpga/HARDWARE_SSOT.md` canonical device: `XC7A200T-FGG676` (`xc7a200tfgg676-1`).
+- This replaces the stale `XC7A100T-FGG676` hard-coding in `fpga/vivado/build.tcl`,
+  `build_gf16.tcl`, `build_gf16_matmul4x4.tcl`, and `specs/fpga/constraints/qmtech_a100t.xdc`.
+- This closes issue #1444 (synthesis scripts targeted the wrong FPGA device).
+
 ## Architecture — ADR-007 documents de-jure/de-facto split for generated .v in specs/ (Closes #1435)
 
 - Fact-check on HEAD 6c704801: specs/**/*.v = 61 files, gen/**/*.v = 33. Issues
