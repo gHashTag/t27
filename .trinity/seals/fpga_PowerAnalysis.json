@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:4ef42f0fb981e0b5d7a4d7bcbf110c4e9b8d567e3818a1b6678ae018e7f61543",
   "gen_hash_rust": "sha256:971f15a24d2c56a6cc5e6c078e9c6f1f0a94373e84cd5025455cf9bc1795742a",
-  "gen_hash_verilog": "sha256:88b43bcfedfee449a92b28ef2e41602a3543f816517ad53cb6e083937c297b0e",
+  "gen_hash_verilog": "sha256:1c5ad1b729a439f92377513b380a7bafd50ba195be9a92a53504d5e1ff92955b",
   "gen_hash_zig": "sha256:aef17264f5e39c5954313d8374f7f14757661efc22484c1ef21d920f389802ce",
   "module": "PowerAnalysis",
   "ring": 12,
-  "sealed_at": "2026-07-07T18:28:23Z",
+  "sealed_at": "2026-07-07T19:58:51Z",
   "spec_hash": "sha256:60f9bd3929b53410b8ecc6f586991f33731ba60aa9fb1a2228b062e3ef550a16",
-  "spec_path": "/Users/playra/t27/specs/fpga/power_analysis.t27"
+  "spec_path": "specs/fpga/power_analysis.t27"
 }

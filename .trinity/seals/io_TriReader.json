@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:bb0e7842837d6f5a0bf16a48e716524093ad25a051ead7f25735d57a8583576e",
   "gen_hash_rust": "sha256:ad07beaf56a8d9ed1715466c5cd9b62abb805b86862f406d2b97ee586f7136b8",
-  "gen_hash_verilog": "sha256:d08ae5221d686443a56a5b30bb95402c3b38d1e09d49f2454c8e6e4aade7dcb7",
+  "gen_hash_verilog": "sha256:10120a3d1aa59661c69cdd5e9590278ed18c3138e8aff828f98979de48492ae0",
   "gen_hash_zig": "sha256:7e0acbd1d569fd3e23b631f3231d352ce4b77d7733008cbfb178423596be8147",
   "module": "TriReader",
   "ring": 12,
-  "sealed_at": "2026-07-07T18:28:24Z",
+  "sealed_at": "2026-07-07T19:58:51Z",
   "spec_hash": "sha256:460d9c7fa17cba1b4af999b79952e527562fc6aaa3d8b77e240647d477f854b8",
-  "spec_path": "/Users/playra/t27/specs/tri/io/reader.t27"
+  "spec_path": "specs/tri/io/reader.t27"
 }

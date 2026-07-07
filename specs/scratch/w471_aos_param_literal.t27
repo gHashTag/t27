@@ -1,0 +1,46 @@
+module w471_aos_param_literal;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn sum_pts(pts : [3]Pt) -> u32 {
+    let s : u32 = 0;
+    for i in 0..3 {
+        s = s + (pts[i].x as u32);
+        s = s + (pts[i].y as u32);
+    }
+    return s;
+}
+
+pub fn test_lit() -> u32 {
+    return sum_pts([3]Pt{
+        Pt{.x = 1, .y = 2},
+        Pt{.x = 3, .y = 4},
+        Pt{.x = 5, .y = 6},
+    });
+}
+
+pub fn test_call_twice() -> u32 {
+    return sum_pts([3]Pt{
+        Pt{.x = 1, .y = 0},
+        Pt{.x = 1, .y = 0},
+        Pt{.x = 1, .y = 0},
+    }) + sum_pts([3]Pt{
+        Pt{.x = 0, .y = 2},
+        Pt{.x = 0, .y = 2},
+        Pt{.x = 0, .y = 2},
+    });
+}
+
+test aos_param_literal {
+    assert_eq(sum_pts([3]Pt{
+        Pt{.x = 1, .y = 2},
+        Pt{.x = 3, .y = 4},
+        Pt{.x = 5, .y = 6},
+    }), 21);
+    assert_eq(test_call_twice(), 9);
+}
+
+endmodule

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:05abec97d890bf67be0471ad6d2fb1d893c23937c4d258ea8acb0eb77ba98fc0",
   "gen_hash_rust": "sha256:abb81ef38971f828ca49b09893e37dc3cae9b77af7f0bd36eddc41e6c707194f",
-  "gen_hash_verilog": "sha256:0aa5c944a6c05031009a43f97d19edcf7c652c0fde0b7a5006ff7468dfc9eda6",
+  "gen_hash_verilog": "sha256:1a54d0be660f7d66d6ec0b8a35b20422cd357b6b434cce6745540523b5b213e9",
   "gen_hash_zig": "sha256:708ae71d4221e8d62daaa7bc8a539be548c952f5465bfda07191147fd3911152",
   "module": "cloud-railway-deploy",
   "ring": 12,
-  "sealed_at": "2026-07-07T18:28:23Z",
+  "sealed_at": "2026-07-07T19:58:51Z",
   "spec_hash": "sha256:fe78e70813d0e3d95b70cbf96474baa05dc866c856d2b6cd4ab7036043071364",
-  "spec_path": "/Users/playra/t27/specs/cloud/railway_deploy.t27"
+  "spec_path": "specs/cloud/railway_deploy.t27"
 }

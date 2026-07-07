@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:522df4fca4418bc375aadc847d73e9c91416a9470041484dd719c3450442cfae",
   "module": "HuberLoss",
   "ring": 12,
-  "sealed_at": "2026-07-07T18:28:24Z",
+  "sealed_at": "2026-07-07T19:58:51Z",
   "spec_hash": "sha256:dc6abda2d082a9007b050ad51b10ae119790ceecbe26b23107a08d024bf0ea29",
-  "spec_path": "/Users/playra/t27/specs/ml/loss/huber_loss.t27"
+  "spec_path": "specs/ml/loss/huber_loss.t27"
 }

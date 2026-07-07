@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:83200f82ef1cdc4226db5a02b82ac78139348d22d6dff55088ccfe656ade1b1b",
+  "gen_hash_rust": "sha256:5f53d6513555924891eaee6966eae76f1f6ce4b36036f2d8e7f9fbcfd20b31a7",
+  "gen_hash_verilog": "sha256:e87ab235c3492014f22155589233d1da0827931393fe44e029f843c9d8352f7b",
+  "gen_hash_zig": "sha256:2d2c2bd221e3d1389e8bac1bc9236ada693754d1885c89d4495b3114924825a2",
+  "module": "w471_nested_struct_literal",
+  "ring": 12,
+  "sealed_at": "2026-07-07T20:01:07Z",
+  "spec_hash": "sha256:3a7930e6757ebbdea1c8f047a4c5dcce8eaac4d022ee56f04de1bb13172f8a46",
+  "spec_path": "specs/scratch/w471_nested_struct_literal.t27"
+}

@@ -3193,6 +3193,10 @@ impl Codegen {
         self.write("\n");
     }
 
+    fn write_str(&mut self, s: &str) {
+        self.output.push_str(s);
+    }
+
     fn indent(&mut self) {
         self.indent += 1;
     }
@@ -4026,6 +4030,7 @@ pub struct VerilogCodegen {
     array_param_clones: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
     // W461: per-clone array-parameter bindings. Keyed by clone name.
     array_param_clone_bindings: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+
     // W462: anonymous ROMs lowered from array literals used as array-parameter
     // arguments. Keyed by a deterministic signature; value is the array size,
     // element type, and the ExprArrayLiteral node (for element emission).
@@ -4048,6 +4053,11 @@ pub struct VerilogCodegen {
     // struct declared in the current module. Used to lower array literals whose
     // element type is a struct and to emit field-indexed memory accesses.
     struct_fields: std::collections::HashMap<String, Vec<(String, String)>>,
+    aos_tmp_decls: Vec<String>,
+    aos_tmp_assigns: Vec<String>,
+    aos_stmt_start: usize,
+
+
     // W464: map from the current function's parameter name to its declared type
     // string. Used to detect array-of-struct parameters and emit the right
     // field-memory index access.
@@ -4104,9 +4114,15 @@ impl VerilogCodegen {
             array_param_errors: std::collections::HashMap::new(),
             array_param_clones: std::collections::HashMap::new(),
             array_param_clone_bindings: std::collections::HashMap::new(),
+
             array_param_anon_roms: std::collections::HashMap::new(),
             array_param_propagated: std::collections::HashMap::new(),
             struct_fields: std::collections::HashMap::new(),
+            aos_tmp_decls: Vec::new(),
+            aos_tmp_assigns: Vec::new(),
+            aos_stmt_start: 0,
+
+
             array_param_types: std::collections::HashMap::new(),
             bench_local_names: std::collections::HashSet::new(),
             bench_local_prefix: String::new(),
@@ -4705,19 +4721,138 @@ impl VerilogCodegen {
             self.write("0 /* scalar struct type unknown */");
             return;
         }
-        let field_widths = Self::struct_field_widths(struct_type, &self.struct_fields);
-        self.write("{");
-        for (i, (fname, _width)) in field_widths.iter().enumerate() {
-            if i > 0 {
-                self.write(", ");
+        let fields = match self.struct_fields.get(struct_type).cloned() {
+            Some(f) => f,
+            None => {
+                self.write(&format!("0 /* scalar struct {} unknown */", struct_type));
+                return;
             }
-            // Build the raw concatenated name first, then escape it as a whole.
-            // If we escaped the base name first (e.g., \task ), appending the
-            // field suffix would create an invalid escaped identifier.
+        };
+        self.write("{");
+        let mut first = true;
+        for (fname, ftype) in &fields {
             let flat = format!("{}_{}", base_name, fname);
-            self.write(&Self::verilog_safe_identifier(&flat));
+            self.gen_verilog_pack_scalar_field(&flat, ftype, &mut first
+            );
         }
         self.write("}");
+    }
+
+    /// W471: emit one field of a scalar struct variable as part of a packed
+    /// concatenation. Array fields are emitted as `{mem[0], mem[1], ...}` so the
+    /// whole struct can be passed through a scalar function port. Nested struct
+    /// fields recurse over their per-field registers.
+    fn gen_verilog_pack_scalar_field(
+        &mut self,
+        flat_base: &str,
+        ftype: &str,
+        first: &mut bool,
+    ) {
+        let dims = Self::parse_array_dimensions(ftype);
+        if !dims.is_empty() {
+            let combos = Self::index_combinations(&dims);
+            for comb in &combos {
+                let suffix = comb.iter().map(|i| format!("[{}]", i)).collect::<Vec<_>>().join("");
+                let access = format!("{}{}", flat_base, suffix);
+                if !*first {
+                    self.write(", ");
+                }
+                *first = false;
+                self.write(&Self::verilog_safe_identifier(&access));
+            }
+            return;
+        }
+        if self.struct_fields.contains_key(ftype) {
+            // Nested struct field: recursively pack its per-field registers.
+            if !*first {
+                self.write(", ");
+            }
+            *first = false;
+            self.gen_verilog_pack_scalar_struct(flat_base, ftype);
+            return;
+        }
+        if !*first {
+            self.write(", ");
+        }
+        *first = false;
+        self.write(&Self::verilog_safe_identifier(flat_base));
+    }
+
+    /// W471: unpack one field of a packed scalar struct parameter. Array fields
+    /// become unpacked memories with one packed element per index; nested struct
+    /// fields recurse into per-field registers. `cursor` is the next high bit
+    /// position within the packed input and is decremented as fields are consumed.
+    fn gen_verilog_unpack_scalar_struct_field(
+        &mut self,
+        dst_base: &str,
+        src_name: &str,
+        ftype: &str,
+        cursor: &mut u32,
+    ) {
+        let dims = Self::parse_array_dimensions(ftype);
+        if !dims.is_empty() {
+            let elem_type = Self::array_dimensions_leaf_type(&dims);
+            let elem_width = Self::packed_width(&elem_type, &self.struct_fields);
+            let total_size: usize = dims.iter().map(|(s, _)| *s).product();
+            let elem_range = Self::range_decl(elem_width);
+            let elem_range_str = if elem_range.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", elem_range)
+            };
+            let dim_ranges: Vec<String> = dims
+                .iter()
+                .map(|(size, _)| format!("[0:{}]", size.saturating_sub(1)))
+                .collect();
+            let safe_dst = Self::verilog_safe_identifier(dst_base);
+            self.write_indent();
+            self.write_line(&format!(
+                "reg {} {} {};",
+                elem_range_str, safe_dst, dim_ranges.join("")
+            ));
+            let combos = Self::index_combinations(&dims);
+            for comb in &combos {
+                let suffix = comb.iter().map(|i| format!("[{}]", i)).collect::<Vec<_>>().join("");
+                let high = cursor.saturating_sub(1);
+                let low = cursor.saturating_sub(elem_width);
+                self.write_indent();
+                self.write_line(&format!(
+                    "{}{} = {}[{}:{}];",
+                    safe_dst, suffix, src_name, high, low
+                ));
+                *cursor = low;
+            }
+            return;
+        }
+        if self.struct_fields.contains_key(ftype) {
+            let fields = self.struct_fields.get(ftype).cloned().unwrap_or_default();
+            for (fname, ftype2) in &fields {
+                let dst_flat = format!("{}_{}", dst_base, fname);
+                self.gen_verilog_unpack_scalar_struct_field(
+                    &dst_flat,
+                    src_name,
+                    ftype2,
+                    cursor,
+                );
+            }
+            return;
+        }
+        let fwidth = Self::type_to_width(ftype);
+        let high = cursor.saturating_sub(1);
+        let low = cursor.saturating_sub(fwidth);
+        let safe_dst = Self::verilog_safe_identifier(dst_base);
+        self.write_indent();
+        self.write_line(&format!(
+            "reg [{}:0] {};",
+            fwidth.saturating_sub(1),
+            safe_dst
+        ));
+        self.write_indent();
+        self.write_line(&format!(
+            "{} = {}[{}:{}];",
+            safe_dst, src_name, high, low
+        ));
+        *cursor = low;
     }
 
     /// W470: return the struct type name if `node` denotes a scalar struct value
@@ -4761,11 +4896,199 @@ impl VerilogCodegen {
         struct_type: &str,
     ) {
         if node.kind == NodeKind::ExprIdentifier {
-            self.gen_verilog_pack_scalar_struct(&node.name, struct_type,
+            self.gen_verilog_pack_scalar_struct(
+                &node.name, struct_type,
             );
         } else {
             self.gen_verilog_expr(node);
         }
+    }
+
+    /// W471: if `field_access` is `var.field` where `var` is a scalar struct
+    /// variable/constant, return `(var_name, field_name, field_type)`.
+    fn scalar_struct_var_field_type(
+        &self,
+        field_access: &Node,
+    ) -> Option<(String, String, String)> {
+        if field_access.kind != NodeKind::ExprFieldAccess
+            || field_access.name.is_empty()
+            || field_access.children.is_empty()
+        {
+            return None;
+        }
+        let base = &field_access.children[0];
+        if base.kind != NodeKind::ExprIdentifier || base.name.is_empty() {
+            return None;
+        }
+        let struct_type = self
+            .local_struct_var_types
+            .get(&base.name)
+            .or_else(|| self.module_scalar_struct_types.get(&base.name))?
+            .clone();
+        let fields = self.struct_fields.get(&struct_type)?;
+        let ftype = fields
+            .iter()
+            .find(|(n, _)| n == &field_access.name)
+            .map(|(_, t)| t.clone())?;
+        Some((base.name.clone(), field_access.name.clone(), ftype))
+    }
+
+    /// W471: emit a struct literal as a flat packed concatenation of its leaf
+    /// scalar fields. Nested struct fields are recursively flattened, and every
+    /// leaf literal is emitted with an explicit Verilog width so iverilog does
+    /// not complain about indefinite-width concatenation operands. Returns true
+    /// if the literal was emitted successfully.
+    fn try_emit_struct_literal_packed(
+        &mut self,
+        lit: &Node,
+    ) -> bool {
+        if lit.kind != NodeKind::ExprStructLit || lit.name.is_empty() {
+            return false;
+        }
+        let fields = match self.struct_fields.get(&lit.name) {
+            Some(f) => f.clone(),
+            None => return false,
+        };
+        if fields.is_empty() {
+            return false;
+        }
+
+        self.write("{");
+        let mut first = true;
+        let mut ok = true;
+        for (fname, ftype) in &fields {
+            let val = lit.children.iter().find(|c| {
+                c.kind == NodeKind::ExprFieldAccess
+                    && c.name == *fname
+                    && !c.children.is_empty()
+            }).map(|c| &c.children[0]);
+            if !self.emit_struct_literal_leaf(ftype, val, &mut first) {
+                ok = false;
+                break;
+            }
+        }
+        if !ok {
+            return false;
+        }
+        self.write("}");
+        true
+    }
+
+    /// W471: emit one field of a struct literal into an open concatenation.
+    /// `first` tracks whether a leading comma is needed. Nested struct fields
+    /// are recursively flattened; struct-return calls are emitted as a single
+    /// packed operand.
+    fn emit_struct_literal_leaf(
+        &mut self,
+        ftype: &str,
+        val: Option<&Node>,
+        first: &mut bool,
+    ) -> bool {
+        let dims = Self::parse_array_dimensions(ftype);
+        if !dims.is_empty() {
+            let elem_type = Self::array_dimensions_leaf_type(&dims);
+            let total_size: usize = dims.iter().map(|(s, _)| *s).product();
+            let arr = match val {
+                Some(v) if v.kind == NodeKind::ExprArrayLiteral && v.extra_kind != "tuple" => v,
+                _ => return false,
+            };
+            let mut emitted = 0;
+            for elem in &arr.children {
+                if emitted >= total_size {
+                    break;
+                }
+                if self.struct_fields.contains_key(&elem_type) {
+                    if !self.emit_struct_literal_leaf(&elem_type, Some(elem), first) {
+                        return false;
+                    }
+                } else {
+                    let fwidth = Self::type_to_width(&elem_type);
+                    if !*first {
+                        self.write(", ");
+                    }
+                    *first = false;
+                    if elem.kind == NodeKind::ExprLiteral {
+                        let clean: String =
+                            elem.value.chars().filter(|c| *c != '_').collect();
+                        self.write(&format!("{}'d{}", fwidth, clean));
+                    } else {
+                        self.write("(");
+                        self.gen_verilog_expr(elem);
+                        self.write(&format!(" & {{{}{{1'b1}}}}", fwidth));
+                        self.write(")");
+                    }
+                }
+                emitted += 1;
+            }
+            for _ in emitted..total_size {
+                if !*first {
+                    self.write(", ");
+                }
+                *first = false;
+                let fwidth = Self::type_to_width(&elem_type);
+                self.write(&format!("{}'b0", fwidth));
+            }
+            return true;
+        }
+        if self.struct_fields.contains_key(ftype) {
+            let inner_fields = match self.struct_fields.get(ftype).cloned() {
+                Some(f) => f,
+                None => return false,
+            };
+            let inner_val = match val {
+                Some(v) => v,
+                None => return false,
+            };
+            // A nested struct-return call already produces a packed vector of
+            // the correct width, so emit it as one concatenation operand.
+            if inner_val.kind == NodeKind::ExprCall
+                && self.fn_return_types.get(&inner_val.name).map(|t| t == ftype).unwrap_or(false)
+            {
+                if !*first {
+                    self.write(", ");
+                }
+                *first = false;
+                self.gen_verilog_expr(inner_val);
+                return true;
+            }
+            if inner_val.kind != NodeKind::ExprStructLit || inner_val.name != ftype {
+                return false;
+            }
+            for (iname, itype) in &inner_fields {
+                let iv = inner_val.children.iter().find(|c| {
+                    c.kind == NodeKind::ExprFieldAccess
+                        && c.name == *iname
+                        && !c.children.is_empty()
+                }).map(|c| &c.children[0]);
+                if !self.emit_struct_literal_leaf(itype, iv, first) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        if !*first {
+            self.write(", ");
+        }
+        *first = false;
+        let fwidth = Self::type_to_width(ftype);
+        if let Some(v) = val {
+            if v.kind == NodeKind::ExprLiteral {
+                let clean: String = v.value.chars().filter(|c| *c != '_').collect();
+                self.write(&format!("{}'d{}", fwidth, clean));
+            } else {
+                // Non-literal leaf expression: mask/truncate to the target
+                // width so the concatenation width is known.
+                self.write("(");
+                self.gen_verilog_expr(v);
+                self.write(&format!(" & {{{}{{1'b1}}}}", fwidth));
+                self.write(")");
+            }
+        } else {
+            // Missing leaf field: emit zero of the appropriate width.
+            self.write(&format!("{}'b0", fwidth));
+        }
+        true
     }
 
     /// W469: recursively emit per-element per-field register declarations for a
@@ -5005,6 +5328,10 @@ impl VerilogCodegen {
         self.write("\n");
     }
 
+    fn write_str(&mut self, s: &str) {
+        self.output.push_str(s);
+    }
+
     fn indent(&mut self) {
         self.indent += 1;
     }
@@ -5036,6 +5363,31 @@ impl VerilogCodegen {
             "usize" => 32,
             _ => 32, // default width
         }
+    }
+
+    /// W471: total packed bit width of a t27 type, expanding arrays and structs.
+    /// Used when a scalar value (including a struct) must be carried as one packed
+    /// vector, e.g. a function argument or return value.
+    fn packed_width(
+        ty: &str,
+        struct_fields: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> u32 {
+        if ty.is_empty() {
+            return 0;
+        }
+        if let Some(dims) = Self::parse_array_dimensions(ty).get(0..1).map(|_| Self::parse_array_dimensions(ty)).filter(|d| !d.is_empty()) {
+            let size = dims[0].0 as u32;
+            let inner = Self::array_dimensions_leaf_type(&dims);
+            return size * Self::packed_width(&inner, struct_fields);
+        }
+        if let Some(fields) = struct_fields.get(ty) {
+            let mut total = 0;
+            for (_, ftype) in fields {
+                total += Self::packed_width(ftype, struct_fields);
+            }
+            return total;
+        }
+        Self::type_to_width(ty)
     }
 
     /// Map t27 type to Verilog signedness
@@ -5389,13 +5741,12 @@ impl VerilogCodegen {
         Self::type_to_width(ty)
     }
 
-    /// W468: total packed bit width of a struct return type. Returns 0 for
-    /// non-struct types so callers can fall back to scalar behavior.
+    /// W468/W471: total packed bit width of a struct return type, including
+    /// array and nested-struct fields. Returns 0 for non-struct types so callers
+    /// can fall back to scalar behavior.
     fn struct_return_width(ty: &str, struct_fields: &std::collections::HashMap<String, Vec<(String, String)>>) -> u32 {
         if !ty.is_empty() && struct_fields.contains_key(ty) {
-            let mut flat = Vec::new();
-            Self::flatten_struct_fields(ty, struct_fields, "", &mut flat);
-            flat.iter().map(|(_, ftype)| Self::type_to_width(ftype)).sum()
+            Self::packed_width(ty, struct_fields)
         } else {
             0
         }
@@ -5490,12 +5841,12 @@ impl VerilogCodegen {
         Some((high, low))
     }
 
-    /// W470: if `node` is a field access on the result of a function call that
-    /// returns an array of structs, emit the packed result sliced to the correct
-    /// field (e.g. `make_pts()[0].x` becomes `(make_pts(0))[63:48]`). Only
-    /// literal indices are handled directly; variable indices fall through so
-    /// the caller can materialize a temporary. Returns true if emission
-    /// succeeded.
+    /// W470/W471: if `node` is a field access on the result of a function call
+    /// that returns an array of structs, emit the packed result sliced to the
+    /// correct field (e.g. `make_pts()[0].x` becomes `(make_pts(0))[63:48]`).
+    /// Variable indices are handled by hoisting the packed return vector into a
+    /// local temporary and emitting a priority mux over all element/field slices.
+    /// Returns true if emission succeeded.
     fn try_emit_array_of_struct_call_field(
         &mut self,
         node: &Node,
@@ -5513,16 +5864,16 @@ impl VerilogCodegen {
             Some(t) => t,
             None => return false,
         };
-        if Self::array_of_struct_return_width(
+        let total_width = Self::array_of_struct_return_width(
             &ret_ty,
             &self.struct_fields,
-        ) == 0
-        {
+        );
+        if total_width == 0 {
             return false;
         }
-        // Collect literal indices from the ExprIndex chain. The ultimate base is
-        // the ExprCall, so flatten_index_chain (which expects an identifier base)
-        // is not applicable here.
+        // Collect indices from the ExprIndex chain. The ultimate base is the
+        // ExprCall, so flatten_index_chain (which expects an identifier base) is
+        // not applicable here.
         let mut index_nodes: Vec<&Node> = Vec::new();
         let mut current = idx_node;
         loop {
@@ -5540,26 +5891,114 @@ impl VerilogCodegen {
         let all_literal = index_nodes
             .iter()
             .all(|idx| idx.value.parse::<usize>().is_ok());
-        if !all_literal {
+        // Literal indices: emit a slice of a packed temporary (iverilog does not
+        // allow slicing a function-call result directly).
+        if all_literal {
+            let idx_vals: Vec<usize> = index_nodes
+                .iter()
+                .map(|idx| idx.value.parse::<usize>().unwrap())
+                .collect();
+            if let Some((high, low)) = Self::array_of_struct_field_slice(
+                &ret_ty,
+                &self.struct_fields,
+                &field_suffix,
+                &idx_vals,
+            ) {
+                let tmp = Self::verilog_safe_identifier(
+                    &format!("_aos_ret_tmp_{}", self.let_tmp_counter),
+                );
+                self.let_tmp_counter += 1;
+                let decl = format!(
+                    "reg [{0}:0] {1}; // W471 packed array-of-struct return temporary
+",
+                    total_width.saturating_sub(1),
+                    tmp
+                );
+                self.aos_tmp_decls.push(decl);
+                let mut assign_out = String::new();
+                std::mem::swap(&mut self.output, &mut assign_out);
+                self.write(&format!("{0} = ", tmp));
+                self.gen_verilog_expr(call_node);
+                self.write_line(";");
+                let mut assign = String::new();
+                std::mem::swap(&mut self.output, &mut assign);
+                self.output = assign_out;
+                self.aos_tmp_assigns.push(assign);
+                self.write(&format!("{0}[{1}:{2}]", tmp, high, low));
+                return true;
+            }
             return false;
         }
-        let idx_vals: Vec<usize> = index_nodes
-            .iter()
-            .map(|idx| idx.value.parse::<usize>().unwrap())
-            .collect();
-        if let Some((high, low)) = Self::array_of_struct_field_slice(
-            &ret_ty,
-            &self.struct_fields,
-            &field_suffix,
-            &idx_vals,
-        ) {
-            self.write("(");
-            self.gen_verilog_expr(call_node);
-            self.write(&format!(")[{}:{}]", high, low));
-            true
-        } else {
-            false
+        // Variable indices: materialize a packed temporary. We emit the reg
+        // declaration and assignment as a separate statement by prepending it
+        // to the current output buffer before the in-progress expression, then
+        // reference the temporary in the read expression.
+        let dims = Self::parse_array_dimensions(&ret_ty);
+        if dims.is_empty() {
+            return false;
         }
+        let tmp = Self::verilog_safe_identifier(
+            &format!("_aos_ret_tmp_{}", self.let_tmp_counter),
+        );
+        self.let_tmp_counter += 1;
+        // The temporary declaration and assignment cannot be emitted inline
+        // while building an expression. Defer the reg declaration to function
+        // scope and the assignment to just before the current statement.
+        let decl = format!(
+            "reg [{0}:0] {1}; // W471 packed array-of-struct return temporary
+",
+            total_width.saturating_sub(1),
+            tmp
+        );
+        self.aos_tmp_decls.push(decl);
+        let mut assign_out = String::new();
+        std::mem::swap(&mut self.output, &mut assign_out);
+        self.write(&format!("{0} = ", tmp));
+        self.gen_verilog_expr(call_node);
+        self.write_line(";");
+        let mut assign = String::new();
+        std::mem::swap(&mut self.output, &mut assign);
+        self.output = assign_out;
+        self.aos_tmp_assigns.push(assign);
+
+        // Build the read expression as a nested ternary priority mux over every
+        // element/field slice. No outer parentheses are added; callers already
+        // wrap binary operands, and the return-statement emitter wraps the RHS.
+        let combos = Self::index_combinations(&dims);
+        let mut first = true;
+        let mut emitted_count = 0;
+        for comb in combos.iter() {
+            if let Some((high, low)) = Self::array_of_struct_field_slice(
+                &ret_ty,
+                &self.struct_fields,
+                &field_suffix,
+                comb,
+            ) {
+                if !first {
+                    self.write(" : (");
+                }
+                self.write("(");
+                for (d, &idx_val) in comb.iter().enumerate() {
+                    if d > 0 {
+                        self.write(" && ");
+                    }
+                    self.write("(");
+                    self.gen_verilog_expr(index_nodes[d]);
+                    self.write(&format!(" == {})", idx_val));
+                }
+                self.write(&format!(") ? {0}[{1}:{2}]", tmp, high, low));
+                first = false;
+                emitted_count += 1;
+            }
+        }
+        if emitted_count == 0 {
+            return false;
+        }
+        self.write(" : 0");
+        for _ in 1..emitted_count {
+            self.write(")");
+        }
+        true
     }
 
     /// W468: packed field widths and names of a struct return type. Returns an
@@ -5732,8 +6171,11 @@ impl VerilogCodegen {
                 // propagation.
                 indices.insert(f.name.clone(), array_param_indices.clone());
 
-                // W459: collect call sites from module-level statements and from
-                // test/invariant/bench blocks.
+                // W459/W471: collect call sites from module-level statements,
+                // test/invariant/bench blocks, and function bodies. Function-body
+                // calls with array-literal arguments are treated as module-level
+                // anonymous ROM call sites so inner helper functions can pass
+                // array-of-struct literals to array-parameter callees.
                 let mut call_sites: Vec<&Node> = Vec::new();
                 for decl in &ast.children {
                     match decl.kind {
@@ -5748,6 +6190,28 @@ impl VerilogCodegen {
                         | NodeKind::InvariantBlock
                         | NodeKind::BenchBlock => {
                             Self::collect_expr_calls(decl, &f.name, &mut call_sites);
+                        }
+                        NodeKind::FnDecl => {
+                            // W471: inner calls with literal array arguments need to
+                            // be lowered to anonymous ROMs just like module-level
+                            // calls. Avoid same-array propagation calls (identifier
+                            // arguments) because those are resolved by W463.
+                            let mut inner: Vec<&Node> = Vec::new();
+                            Self::collect_expr_calls(decl, &f.name, &mut inner);
+                            for call in inner {
+                                let has_literal_arg = array_param_indices.iter().any(|idx| {
+                                    call.children
+                                        .get(*idx)
+                                        .map(|arg| {
+                                            arg.kind == NodeKind::ExprArrayLiteral
+                                                && arg.extra_kind != "tuple"
+                                        })
+                                        .unwrap_or(false)
+                                });
+                                if has_literal_arg {
+                                    call_sites.push(call);
+                                }
+                            }
                         }
                         _ => {}
                     }
@@ -7734,32 +8198,21 @@ impl VerilogCodegen {
                 self.local_struct_var_types.insert(pname.clone(), ptype.clone());
             }
         }
-        // W470: unpack each scalar struct parameter into per-field local registers
-        // so the function body can reference p_x / p_inner_a / etc. directly.
+        // W470/W471: unpack each scalar struct parameter into local registers and
+        // memories so the function body can reference p_x / p_pts[0] / etc.
         for (pname, ptype) in &scalar_struct_params_to_unpack {
             let safe_pname = Self::verilog_safe_identifier(pname);
-            let field_widths = Self::struct_field_widths(ptype, &self.struct_fields);
-            let total_width: u32 = field_widths.iter().map(|(_, w)| w).sum();
+            let total_width = Self::packed_width(ptype, &self.struct_fields);
             let mut cursor = total_width;
-            for (fname, fwidth) in &field_widths {
-                let high = cursor.saturating_sub(1);
-                let low = cursor.saturating_sub(*fwidth);
+            let fields = self.struct_fields.get(ptype).cloned().unwrap_or_default();
+            for (fname, ftype) in &fields {
                 let dst_flat = format!("{}_{}", pname, fname);
-                let dst_safe = Self::verilog_safe_identifier(&dst_flat);
-                self.write_indent();
-                self.write_line(&format!(
-                    "reg [{}:0] {};",
-                    fwidth.saturating_sub(1),
-                    dst_safe
-                ));
-                self.write_indent();
-                self.write_line(
-                    &format!(
-                        "{} = {}[{}:{}];",
-                        dst_safe, safe_pname, high, low
-                    )
+                self.gen_verilog_unpack_scalar_struct_field(
+                    &dst_flat,
+                    &safe_pname,
+                    ftype,
+                    &mut cursor,
                 );
-                cursor = low;
             }
         }
         // Verilog requires a function to have at least one input port. A
@@ -7789,7 +8242,21 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line(&format!("begin : {}", body_label));
             self.indent();
+            // W471: generate the function body into a temporary buffer so any
+            // deferred array-of-struct return temporary declarations can be
+            // emitted at function scope before the body content.
+            let mut body_output = String::new();
+            std::mem::swap(&mut self.output, &mut body_output);
             self.gen_verilog_fn_body(&node.children);
+            let mut generated_body = String::new();
+            std::mem::swap(&mut self.output, &mut generated_body);
+            self.output = body_output;
+            let aos_decls = std::mem::take(&mut self.aos_tmp_decls);
+            for decl in aos_decls {
+                self.write_indent();
+                self.write_str(&decl);
+            }
+            self.write_str(&generated_body);
             self.dedent();
             self.write_indent();
             self.write_line("end");
@@ -9191,6 +9658,10 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_stmt(&mut self, node: &Node) {
+        // W471: remember where this statement begins so any deferred
+        // array-of-struct return temporary assignments can be inserted
+        // before the statement that produced them.
+        self.aos_stmt_start = self.output.len();
         match node.kind {
             NodeKind::ExprReturn => {
                 self.write_indent();
@@ -9492,6 +9963,17 @@ impl VerilogCodegen {
                 self.gen_verilog_expr(node);
                 self.write_line(";");
             }
+        }
+        // W471: insert any deferred assignments produced by this statement
+        // before the statement's start position.
+        let aos_assigns = std::mem::take(&mut self.aos_tmp_assigns);
+        if !aos_assigns.is_empty() {
+            let tail = self.output.split_off(self.aos_stmt_start);
+            for assign in aos_assigns {
+                self.write_indent();
+                self.write_str(&assign);
+            }
+            self.write_str(&tail);
         }
     }
 
@@ -10071,6 +10553,54 @@ impl VerilogCodegen {
                                 }
                             }
                         }
+                        // W471: `s.pts[i].x` where `s` is a scalar struct variable
+                        // and `pts` is an array-of-struct field. Emit the memory
+                        // access `s_pts[i]` and slice out the requested leaf field.
+                        if !emitted && base_name.is_empty() {
+                            if let Some((var_name, field_name, ftype)) =
+                                self.scalar_struct_var_field_type(&child.children[0])
+                            {
+                                let dims = Self::parse_array_dimensions(&ftype);
+                                if !dims.is_empty() {
+                                    let elem_type =
+                                        Self::array_dimensions_leaf_type(&dims);
+                                    let flat = format!("{}_{}", var_name, field_name);
+                                    let safe =
+                                        Self::verilog_safe_identifier(&flat);
+                                    self.write(&safe);
+                                    self.write("[");
+                                    self.gen_verilog_expr(idx);
+                                    self.write("]");
+                                    if self.struct_fields.contains_key(&elem_type
+                                    ) {
+                                        let total_width = Self::packed_width(
+                                            &elem_type,
+                                            &self.struct_fields,
+                                        );
+                                        let field_widths = Self::struct_field_widths(
+                                            &elem_type,
+                                            &self.struct_fields,
+                                        );
+                                        let mut cursor = total_width;
+                                        for (fname2, fwidth) in field_widths {
+                                            if fname2 == node.name {
+                                                let high = cursor.saturating_sub(1);
+                                                let low =
+                                                    cursor.saturating_sub(fwidth);
+                                                self.write(&format!(
+                                                    "[{}:{}]",
+                                                    high, low
+                                                ));
+                                                break;
+                                            }
+                                            cursor = cursor.saturating_sub(fwidth);
+                                        }
+                                    }
+                                    emitted = true;
+                                }
+                            }
+                        }
+
                         if !emitted {
                             let flat_name = format!("{}_{}", base_name, node.name);
                             self.write(&Self::verilog_safe_identifier(
@@ -10387,6 +10917,21 @@ impl VerilogCodegen {
                             }
                         }
                     }
+                    // W471: `s.coords[i]` where `s` is a scalar struct variable and
+                    // `coords` is an array-typed field: emit `s_coords[i]`.
+                    if let Some((var_name, field_name, ftype)) =
+                        self.scalar_struct_var_field_type(base)
+                    {
+                        if Self::parse_array_dimensions(&ftype).len() > 0 {
+                            let flat = format!("{}_{}", var_name, field_name);
+                            let safe = Self::verilog_safe_identifier(&flat);
+                            self.write(&safe);
+                            self.write("[");
+                            self.gen_verilog_expr(idx);
+                            self.write("]");
+                            return;
+                        }
+                    }
                     self.gen_verilog_expr(base);
                     self.write("[");
                     self.gen_verilog_expr(idx);
@@ -10430,48 +10975,8 @@ impl VerilogCodegen {
                 // is emitted as a packed concatenation of its leaf fields so that
                 // struct-return functions can be assigned to per-field registers.
                 // Non-return contexts fall back to the old placeholder.
-                if self.struct_fields.contains_key(&node.name) {
-                    let flat_fields = self
-                        .struct_fields
-                        .get(&node.name)
-                        .cloned()
-                        .unwrap_or_default();
-                    let mut leaf_values: Vec<Option<&Node>> = Vec::new();
-                    let mut all_found = true;
-                    for (fname, ftype) in &flat_fields {
-                        let val = node.children.iter().find(|f| {
-                            f.kind == NodeKind::ExprFieldAccess
-                                && f.name == *fname
-                                && !f.children.is_empty()
-                        }).map(|f| &f.children[0]);
-                        if val.is_none() && self.struct_fields.contains_key(ftype) {
-                            // The source literal specified the nested struct as a
-                            // whole rather than field-by-field; we cannot currently
-                            // pack that inline, so fall back.
-                            all_found = false;
-                            break;
-                        }
-                        leaf_values.push(val);
-                    }
-                    if all_found && !leaf_values.is_empty() {
-                        self.write("{");
-                        for (i, (val, (fname, _ftype))) in
-                            leaf_values.iter().zip(flat_fields.iter()).enumerate()
-                        {
-                            if i > 0 {
-                                self.write(", ");
-                            }
-                            if let Some(v) = val {
-                                self.gen_verilog_expr(v);
-                            } else {
-                                // Missing field: emit zero of the appropriate width.
-                                let fwidth = Self::type_to_width(_ftype);
-                                self.write(&format!("{}'b0", fwidth));
-                            }
-                        }
-                        self.write("}");
-                        return;
-                    }
+                if self.try_emit_struct_literal_packed(node) {
+                    return;
                 }
                 // Fallback: Verilog has no struct literals — emit as comment + value 0
                 self.write(&format!("0 /* {} {{...}} */", node.name));
@@ -10620,6 +11125,10 @@ impl CCodegen {
     fn write_line(&mut self, s: &str) {
         self.write(s);
         self.write("\n");
+    }
+
+    fn write_str(&mut self, s: &str) {
+        self.output.push_str(s);
     }
 
     fn indent(&mut self) {

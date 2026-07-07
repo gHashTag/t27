@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c743af3995e9a903c2afc2f1fc8fe253f71329a8f0d0a64400455c3c94403583",
   "module": "w459_array_param_test_call",
   "ring": 12,
-  "sealed_at": "2026-07-07T18:28:24Z",
+  "sealed_at": "2026-07-07T19:58:51Z",
   "spec_hash": "sha256:343be795d13046f178faf9bb3ec72436eb11dce33f1ae776a1a252d96790207e",
-  "spec_path": "/Users/playra/t27/specs/scratch/w459_array_param_test_call.t27"
+  "spec_path": "specs/scratch/w459_array_param_test_call.t27"
 }

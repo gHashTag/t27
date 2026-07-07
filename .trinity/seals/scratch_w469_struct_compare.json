@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:2840b0d52e11275d15238c3ae22454add922f3a3a9a1b507fefcd37674c04591",
   "gen_hash_rust": "sha256:ca4724ac7f72986e2c65d6f612737d20d8ca3a327f142fa44840ab956cfa82f7",
-  "gen_hash_verilog": "sha256:bcf7a958dde1c337b1996bf77ae18c785691e6209be6beaccfde55bc3d52d304",
+  "gen_hash_verilog": "sha256:5c35ac3604973a1faa911ea1c39a736cdd35f819130e19640ead2506ab92cb37",
   "gen_hash_zig": "sha256:52d982494df12a763a9d58e4bddddbb760b101d3938abae2fab7d2aa19ef9650",
   "module": "w469_struct_compare",
   "ring": 12,
-  "sealed_at": "2026-07-07T18:28:24Z",
+  "sealed_at": "2026-07-07T19:58:51Z",
   "spec_hash": "sha256:4cfc0e16c915c03f41f84578db6aef57b3e6a7d84b4dc59349da6cb71f263f2b",
-  "spec_path": "/Users/playra/t27/specs/scratch/w469_struct_compare.t27"
+  "spec_path": "specs/scratch/w469_struct_compare.t27"
 }

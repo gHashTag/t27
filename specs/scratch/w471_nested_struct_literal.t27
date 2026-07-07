@@ -1,0 +1,29 @@
+module w471_nested_struct_literal;
+
+pub struct Inner {
+    a : u8,
+    b : u8,
+}
+
+pub struct Outer {
+    inner : Inner,
+    c : u8,
+}
+
+pub fn make_outer() -> Outer {
+    return Outer{
+        .inner = Inner{.a = 1, .b = 2},
+        .c = 3,
+    };
+}
+
+pub fn nested_sum() -> u32 {
+    let o : Outer = make_outer();
+    return (o.inner.a as u32) + (o.inner.b as u32) + (o.c as u32);
+}
+
+test nested_struct_literal {
+    assert_eq(nested_sum(), 6);
+}
+
+endmodule

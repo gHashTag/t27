@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:c0fdd0781833478ac15cbdfc6344132b24c9e6895255a8fbbf9af07b213fa657",
   "gen_hash_rust": "sha256:234730b4902ad25441a0d3bf9cce4e7fc9294d8f96b3862aeb4faed7749c2176",
-  "gen_hash_verilog": "sha256:720fb7618c64b72d8b181fad0799877f3e9da2243747fc0994af4718fae80748",
+  "gen_hash_verilog": "sha256:e15ad2e992030631ae5009e30e95a512aacc7e56c3c47300a33f25761b5f10e5",
   "gen_hash_zig": "sha256:9d21fa68c6f1c587781515f24eca6d9efb102d90a20d8a4b9c59717d8e73887b",
   "module": "HSLM",
   "ring": 12,
-  "sealed_at": "2026-07-07T18:28:23Z",
+  "sealed_at": "2026-07-07T19:58:51Z",
   "spec_hash": "sha256:f6a495ae2bf36b37ed24f0694c7e8450158d9c8bdec57786526c67a498dccb16",
-  "spec_path": "/Users/playra/t27/specs/nn/hslm.t27"
+  "spec_path": "specs/nn/hslm.t27"
 }

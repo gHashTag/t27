@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b9dc0b53ccf63a908e157af2234458ea096bd3e901e3786c139e7daf74060e54",
   "module": "triformat-gfternary",
   "ring": 12,
-  "sealed_at": "2026-07-07T18:28:24Z",
+  "sealed_at": "2026-07-07T19:58:51Z",
   "spec_hash": "sha256:07328f15c8f1dc835dcbbc0b743ac458b5962be9ec5f39326a53321a6485c69b",
-  "spec_path": "/Users/playra/t27/specs/numeric/gfternary.t27"
+  "spec_path": "specs/numeric/gfternary.t27"
 }

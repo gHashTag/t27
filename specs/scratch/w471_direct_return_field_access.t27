@@ -1,0 +1,35 @@
+module w471_direct_return_field_access;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn add_u16(i : u32, k : u32) -> u16 {
+    return ((i + k) as u16);
+}
+
+pub fn make_pts(i : u32) -> [3]Pt {
+    return [3]Pt{
+        Pt{.x = add_u16(i, 0), .y = add_u16(i, 0)},
+        Pt{.x = add_u16(i, 1), .y = add_u16(i, 1)},
+        Pt{.x = add_u16(i, 2), .y = add_u16(i, 2)},
+    };
+}
+
+pub fn direct_literal() -> u32 {
+    return (make_pts(0)[1].x as u32);
+}
+
+pub fn direct_var_idx(i : u32) -> u32 {
+    return (make_pts(1)[i].x as u32) + (make_pts(1)[i].y as u32);
+}
+
+test direct_return_field_access {
+    assert_eq(direct_literal(), 1);
+    assert_eq(direct_var_idx(0), 2);
+    assert_eq(direct_var_idx(1), 4);
+    assert_eq(direct_var_idx(2), 6);
+}
+
+endmodule

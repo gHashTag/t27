@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0f8a1215ef324f437804b0d8364c64b7d8edd5714ce885ca7fe64118662c9b17",
   "module": "w385_local_array_init",
   "ring": 12,
-  "sealed_at": "2026-07-07T18:28:24Z",
+  "sealed_at": "2026-07-07T19:58:51Z",
   "spec_hash": "sha256:42e9d730c3970ef6a97e63fe6a7be5ccad3d76e0e0bc6ecf1af44e3860f6b28a",
-  "spec_path": "/Users/playra/t27/specs/scratch/w385_local_array_init.t27"
+  "spec_path": "specs/scratch/w385_local_array_init.t27"
 }

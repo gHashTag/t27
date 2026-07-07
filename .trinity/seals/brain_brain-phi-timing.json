@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:31de12313c7955f8b609378cdade0540444cb753271acfbfe71c4540c48b77e9",
   "gen_hash_rust": "sha256:aa1887ec1a571c2df15658bcccb60072ff90c38dca3ac169bc5642c9d44812e7",
-  "gen_hash_verilog": "sha256:0a2c80e0c72fc51192c1074fb6978d168390dbdc56ae5f9b6da261fe21b62845",
+  "gen_hash_verilog": "sha256:19b9333851b19ab229e750f2433a5bb2344d53a5c56e48c15cffa27932c67ef9",
   "gen_hash_zig": "sha256:209d1e3089dc58d6c6203ab53175a2a639355365069e20eae7e9417412e5d420",
   "module": "brain-phi-timing",
   "ring": 12,
-  "sealed_at": "2026-07-07T18:28:23Z",
+  "sealed_at": "2026-07-07T19:58:51Z",
   "spec_hash": "sha256:ffd2b818210ba99175f2f20c48790f6e82cb63dc880c0bc57f0b1e263d2a54d1",
-  "spec_path": "/Users/playra/t27/specs/brain/phi_timing.t27"
+  "spec_path": "specs/brain/phi_timing.t27"
 }

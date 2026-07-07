@@ -1,3 +1,34 @@
+## 2026-07-08 — Wave Loop 471 (gen-verilog struct/array expression hardening)
+
+### What worked
+- Hoisting packed array-of-struct return vectors into deferred temporaries kept iverilog legal while still allowing direct field access like `make_pts(0)[0].x`; declarations and assignments are flushed to function scope instead of interleaving inside expressions.
+- Recursive struct-literal packing (`try_emit_struct_literal_packed` / `emit_struct_literal_leaf`) made nested struct literals and scalar struct fields that are arrays emit sized Verilog constants, avoiding indefinite-width arithmetic inside concatenations.
+- Extending the array-parameter clone-signature collection into function bodies (`NodeKind::FnDecl` inner call sweep) fixed “array parameter(s) but no call site” for helpers called inside other functions.
+- Computing `packed_width` recursively for scalar structs (including array and nested-struct fields) unified return widths, parameter widths, dummy registers, and equality packing.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: added `try_emit_struct_literal_packed`, `emit_struct_literal_leaf`, `packed_width`, `gen_verilog_pack_scalar_struct`, `gen_verilog_pack_scalar_field`, `gen_verilog_unpack_scalar_struct_field`, `scalar_struct_var_field_type`, deferred `aos_tmp_decls` / `aos_tmp_assigns` buffers, function-body array-literal call-site collection, and updated `ExprFieldAccess` / `ExprIndex` / `ExprStructLit` / `ExprReturn` / scalar-struct variable/parameter paths.
+- Added 4 scratch specs and seals: `w471_direct_return_field_access`, `w471_aos_param_literal`, `w471_nested_struct_literal`, `w471_struct_field_array`.
+- Added `docs/reports/WAVE_LOOP_471_CLOSEOUT.md` and `docs/reports/FPGA_LOOP_COOPERATION_W472_2026-07-08.md`.
+- Added `.trinity/ring-471.md` and updated `.trinity/experience.md`.
+
+### Verification
+- `cargo test -p t27c`: 1524 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: 626/626 parse/typecheck/gen-zig/gen-rust/gen-verilog/gen-c, 106/106 yosys smoke, FPGA smoke gate OK, standalone lake build OK, 0 seal mismatches.
+- `./scripts/tri test --fast`: 626/626 non-smoke, 106/106 yosys smoke, 0 seal mismatches.
+
+### Patterns to reuse
+- When an expression needs a multi-step intermediate (packed vector, priority mux), declare the intermediate in a deferred buffer and assign it at function scope; do not emit inline declarations inside expressions.
+- Flatten aggregate literals recursively to sized leaf constants; rely on explicit widths rather than Verilog's indefinite-width arithmetic.
+- Collect array-parameter call sites across the whole function body, including nested helper calls, before the binding pass emits clone signatures.
+
+### Anti-patterns to avoid
+- Do not emit `reg` declarations inline with assignments; iverilog rejects declarations after executable statements.
+- Do not slice a function-call result directly (`(make_pts(0))[63:48]`); always hoist the result into a named temporary first.
+- Do not assume a scalar struct's packed width equals the sum of scalar fields only; arrays and nested structs must be recursed.
+
+---
+
 ## 2026-07-08 — Wave Loop 470 (gen-verilog struct/array hardening)
 
 ### What worked

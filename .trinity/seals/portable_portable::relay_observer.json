@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d83e03ac5a39acc03e55967f931971c29b993481029f54b5b83bbf34cbbb7ebc",
   "gen_hash_rust": "sha256:466833a649954922c682f0afc51510408de06788ca80c38896de5eaa9c3a64c3",
-  "gen_hash_verilog": "sha256:649f9b952413c7a73ca3611969048f38203fc847df2b2ae2fece0267e3d199fb",
+  "gen_hash_verilog": "sha256:68775fe0fecfee1b2c8cb86189af94ee0ec820a8a144607b320f88b226309988",
   "gen_hash_zig": "sha256:2738099ce10cd2c589989946f8df428c66cb35a5cec27e2bcdea7579f7b51075",
   "module": "portable::relay_observer",
   "ring": 12,
-  "sealed_at": "2026-07-07T18:28:24Z",
+  "sealed_at": "2026-07-07T19:58:51Z",
   "spec_hash": "sha256:315bb887adeac016db05cd619379de5c3017199bb1eba77bffeb142427da1147",
-  "spec_path": "/Users/playra/t27/specs/portable/relay_observer.t27"
+  "spec_path": "specs/portable/relay_observer.t27"
 }
