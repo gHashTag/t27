@@ -1,0 +1,36 @@
+module w469_struct_compare_return;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn make_pt() -> Pt {
+    return Pt{.x = 3, .y = 4};
+}
+
+pub fn eq_return_to_literal() -> bool {
+    return make_pt() == Pt{.x = 3, .y = 4};
+}
+
+pub fn ne_return_to_literal() -> bool {
+    return make_pt() != Pt{.x = 5, .y = 6};
+}
+
+pub fn eq_return_to_var() -> bool {
+    var a : Pt = Pt{.x = 3, .y = 4};
+    return make_pt() == a;
+}
+
+pub fn ne_return_to_return() -> bool {
+    return make_pt() != make_pt();
+}
+
+test struct_compare_return {
+    assert(eq_return_to_literal());
+    assert(ne_return_to_literal());
+    assert(eq_return_to_var());
+    assert(!ne_return_to_return());
+}
+
+endmodule

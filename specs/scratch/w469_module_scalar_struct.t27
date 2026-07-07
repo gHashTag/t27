@@ -1,0 +1,50 @@
+module w469_module_scalar_struct;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub struct Inner {
+    a : u8,
+    b : u8,
+}
+
+pub struct Outer {
+    inner : Inner,
+    tag : u8,
+}
+
+const origin : Pt = Pt{.x = 10, .y = 20};
+var offset : Pt = Pt{.x = 1, .y = 2};
+
+pub fn read_module_const() -> u32 {
+    return (origin.x as u32) + (origin.y as u32);
+}
+
+pub fn read_module_var() -> u32 {
+    return (offset.x as u32) + (offset.y as u32);
+}
+
+pub fn assign_module_var() -> u32 {
+    offset = Pt{.x = 30, .y = 40};
+    return (offset.x as u32) + (offset.y as u32);
+}
+
+const boxed : Outer = Outer{
+    .inner = Inner{.a = 5, .b = 6},
+    .tag = 7,
+};
+
+pub fn read_nested_module_const() -> u32 {
+    return (boxed.inner.a as u32) + (boxed.inner.b as u32) + (boxed.tag as u32);
+}
+
+test module_scalar_struct {
+    assert_eq(read_module_const(), 30);
+    assert_eq(read_module_var(), 3);
+    assert_eq(assign_module_var(), 70);
+    assert_eq(read_nested_module_const(), 18);
+}
+
+endmodule

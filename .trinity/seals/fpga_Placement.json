@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9a64bc39416581acc659c281c2d4202f748033ff17179b601c7aed6590d37772",
   "gen_hash_rust": "sha256:f1a03f20c8d1d182a4c0fc829dcc5d34f9bb72e2c670a1e0e6535e3e5956c574",
-  "gen_hash_verilog": "sha256:f2989faf1cfaccdb1f9245ce0faedf6ed522044c72e0d7c18b1c84138f2a5e91",
+  "gen_hash_verilog": "sha256:95c68631a9b7346051eb3ff9d23074b8e772b2a75f7b352cef3385961fc9e4b4",
   "gen_hash_zig": "sha256:ff2df46c87061787c6cab8c399622373ebcd02a53b3717a6247369598b54e9e2",
   "module": "Placement",
   "ring": 12,
-  "sealed_at": "2026-07-07T05:34:31Z",
+  "sealed_at": "2026-07-07T16:18:33Z",
   "spec_hash": "sha256:107a9d65a33d6ab72b3a3b119cd6ab33bad72e10964c329bab4b2ca889661c96",
   "spec_path": "specs/fpga/placement.t27"
 }

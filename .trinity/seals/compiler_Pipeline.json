@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:69250c0aeae396865dc58eefe27919d83a791e3af13722d6f23cdc33b842686d",
   "gen_hash_rust": "sha256:f722f589bdd475fa6af506426c72e583029947212a5cebe57e80af62ad207bbe",
-  "gen_hash_verilog": "sha256:5428d8bd8aa77d7f56f24ce8f9557543008102d6bacc28b1817341b20c897607",
+  "gen_hash_verilog": "sha256:1f4b9f03983a81534625ced21ab2e395dee26b9a6c583be2c9b3acaf3a026019",
   "gen_hash_zig": "sha256:d64eef9e85d6e7765a3fea2d2505e2fbea17ceffbf713c6d8d5788fd0cd5d569",
   "module": "Pipeline",
   "ring": 12,
-  "sealed_at": "2026-07-07T05:34:31Z",
+  "sealed_at": "2026-07-07T16:18:33Z",
   "spec_hash": "sha256:e0d6c374bc0ec25395ed127af2cd8abdbc6fc6594b32e8fb7e4213e4b61d49e7",
   "spec_path": "specs/compiler/pipeline.t27"
 }

@@ -101,17 +101,17 @@ fn has_inline_translate_marker(src: &str) -> Option<String> {
     None
 }
 
-/// Count standalone `// synthesis translate_off` lines (i.e. the line,
-/// after trimming, equals exactly `// synthesis translate_off`).
-fn count_standalone_translate_off(src: &str) -> usize {
+/// Count standalone `` `ifndef SIMULATION `` guard lines (i.e. the line,
+/// after trimming, equals exactly `` `ifndef SIMULATION ``).
+fn count_standalone_ifndef_simulation(src: &str) -> usize {
     src.lines()
-        .filter(|l| l.trim() == "// synthesis translate_off")
+        .filter(|l| l.trim() == "`ifndef SIMULATION")
         .count()
 }
 
-fn count_standalone_translate_on(src: &str) -> usize {
+fn count_standalone_endif(src: &str) -> usize {
     src.lines()
-        .filter(|l| l.trim() == "// synthesis translate_on")
+        .filter(|l| l.trim() == "`endif")
         .count()
 }
 
@@ -133,22 +133,22 @@ fn r_tr_1_synthetic_no_inline_translate_marker() {
     }
 
     // Each of the 2 benches in the synthetic spec must be wrapped in its
-    // own standalone translate_off / translate_on pair. We also have one
-    // pair around the module-scope `integer` counter declarations from
-    // Wave 29, so we expect AT LEAST 3 of each marker (1 counter band +
-    // 1 per bench).
-    let off_count = count_standalone_translate_off(&src);
-    let on_count = count_standalone_translate_on(&src);
+    // own standalone `ifndef SIMULATION` / `endif` guard pair. We also have
+    // one guard around the module-scope `integer` counter declarations from
+    // Wave 29, so we expect AT LEAST 3 `ifndef SIMULATION` lines (1 counter
+    // band + 1 per bench) and a matching number of `endif` lines.
+    let off_count = count_standalone_ifndef_simulation(&src);
+    let on_count = count_standalone_endif(&src);
     assert!(
         off_count >= 3,
-        "Expected >= 3 standalone `// synthesis translate_off` lines, got {}.\n\
+        "Expected >= 3 standalone `` `ifndef SIMULATION `` lines, got {}.\n\
          --- emitted Verilog ---\n{}",
         off_count,
         src
     );
     assert!(
         on_count >= 3,
-        "Expected >= 3 standalone `// synthesis translate_on` lines, got {}.\n\
+        "Expected >= 3 standalone `` `endif `` lines, got {}.\n\
          --- emitted Verilog ---\n{}",
         on_count,
         src
@@ -194,17 +194,18 @@ fn r_tr_1_real_uart_spec_no_inline_translate_marker() {
     }
 
     // uart.t27 has 3 benches; with the Wave 29 counter band we expect
-    // >= 4 standalone translate_off and >= 4 standalone translate_on.
-    let off_count = count_standalone_translate_off(&src);
-    let on_count = count_standalone_translate_on(&src);
+    // >= 4 standalone `` `ifndef SIMULATION `` guards and a matching
+    // number of `` `endif `` lines.
+    let off_count = count_standalone_ifndef_simulation(&src);
+    let on_count = count_standalone_endif(&src);
     assert!(
         off_count >= 4,
-        "Expected >= 4 standalone translate_off on real uart.t27, got {}",
+        "Expected >= 4 standalone `` `ifndef SIMULATION `` lines on real uart.t27, got {}",
         off_count
     );
     assert!(
         on_count >= 4,
-        "Expected >= 4 standalone translate_on on real uart.t27, got {}",
+        "Expected >= 4 standalone `` `endif `` lines on real uart.t27, got {}",
         on_count
     );
 }

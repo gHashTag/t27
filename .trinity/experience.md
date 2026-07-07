@@ -1,3 +1,30 @@
+## 2026-07-07 — IGLA Improvement Loop cycle 1 (audit + loop charter)
+
+### What worked
+- Running IGLA as a read-only role of V+E across three dimensions (CI/process, code/spec, Lean/hardware) surfaced concrete lies quickly.
+- Positioning IGLA as a process role, not a 28th agent, avoids changing the 27-agent alphabet without an ADR.
+- Writing the audit, loop charter, and live state file in one cycle gives the next cycle an unambiguous starting point.
+
+### What changed behavior
+- Added `docs/reports/IGLA_AUDIT_W470_2026-07-07.md`: full weakness inventory ranked P0-P3.
+- Added `docs/nona-03-manifest/IGLA_IMPROVEMENT_LOOP.md`: six-phase incremental self-improvement loop (OBSERVE -> CATALOG -> TRIAGE -> FIX -> VERIFY -> LEARN).
+- Added `.trinity/audit/igla-loop-state.json`: cycle-1 metrics and ranked backlog of 8 needles.
+
+### Verification
+- All new files are English, ASCII-only, and placed under `docs/` rules (`docs/reports/` for audit, `docs/nona-03-manifest/` for loop charter).
+- `bootstrap/build.rs` language checks not triggered because no source files were modified.
+
+### Patterns to reuse
+- One cycle = one needle. Do not start multiple IGLA fixes in parallel; finish the chosen needle before triaging the next.
+- Every needle must remove at least one unenforced claim and must close a real issue (`Closes #N`).
+- Keep live loop state in `.trinity/audit/igla-loop-state.json` so the next session resumes exactly where the previous stopped.
+
+### Anti-patterns to avoid
+- Do not turn IGLA into a giant refactor; the goal is a small, reviewable fix per cycle.
+- Do not add new shell scripts to implement IGLA checks; route through `tri` / `t27c` subcommands instead.
+
+---
+
 ## 2026-07-01 — Wave Loop 454 (FPGA boot-evidence: high-VCCINT adversarial witness, duty-cycle asymmetry, bounded jitter, W454 close-out / W455 setup)
 
 ### What worked

@@ -15,6 +15,7 @@ const EXPECTED_FILES: &[&str] = &[
     "weight_bram.sv",
     "pipeline_stage2_compute.sv",
     "layer_sequencer.sv",
+    "multilayer_sequencer.sv",
     "double_buffer_ctrl.sv",
     "weight_prefetch_ctrl.sv",
     "axi_lite_slave.sv",
@@ -84,7 +85,7 @@ fn bundle_writes_exactly_eleven_files() {
     ]);
     assert!(ok);
     let count = fs::read_dir(&dir).unwrap().count();
-    assert_eq!(count, 11);
+    assert_eq!(count, 12);
     cleanup(&dir);
 }
 

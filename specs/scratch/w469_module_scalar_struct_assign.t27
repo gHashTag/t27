@@ -1,0 +1,27 @@
+module w469_module_scalar_struct_assign;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+const a : Pt = Pt{.x = 1, .y = 2};
+var b : Pt = Pt{.x = 0, .y = 0};
+
+pub fn copy_const_to_var() -> u32 {
+    b = a;
+    return (b.x as u32) + (b.y as u32);
+}
+
+pub fn copy_var_to_var() -> u32 {
+    var tmp : Pt = Pt{.x = 7, .y = 8};
+    b = tmp;
+    return (b.x as u32) + (b.y as u32);
+}
+
+test module_scalar_struct_assign {
+    assert_eq(copy_const_to_var(), 3);
+    assert_eq(copy_var_to_var(), 15);
+}
+
+endmodule

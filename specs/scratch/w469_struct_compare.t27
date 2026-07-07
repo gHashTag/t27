@@ -1,0 +1,65 @@
+module w469_struct_compare;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub struct Inner {
+    a : u8,
+    b : u8,
+}
+
+pub struct Outer {
+    inner : Inner,
+    tag : u8,
+}
+
+pub fn eq_literal() -> bool {
+    return Pt{.x = 1, .y = 2} == Pt{.x = 1, .y = 2};
+}
+
+pub fn ne_literal() -> bool {
+    return Pt{.x = 1, .y = 2} != Pt{.x = 3, .y = 4};
+}
+
+pub fn eq_var() -> bool {
+    var a : Pt = Pt{.x = 5, .y = 6};
+    var b : Pt = Pt{.x = 5, .y = 6};
+    return a == b;
+}
+
+pub fn ne_var() -> bool {
+    var a : Pt = Pt{.x = 5, .y = 6};
+    var b : Pt = Pt{.x = 5, .y = 7};
+    return a != b;
+}
+
+pub fn eq_var_literal() -> bool {
+    var a : Pt = Pt{.x = 1, .y = 2};
+    return a == Pt{.x = 1, .y = 2};
+}
+
+pub fn eq_nested() -> bool {
+    var a : Outer = Outer{.inner = Inner{.a = 1, .b = 2}, .tag = 3};
+    var b : Outer = Outer{.inner = Inner{.a = 1, .b = 2}, .tag = 3};
+    return a == b;
+}
+
+pub fn ne_nested() -> bool {
+    var a : Outer = Outer{.inner = Inner{.a = 1, .b = 2}, .tag = 3};
+    var b : Outer = Outer{.inner = Inner{.a = 1, .b = 2}, .tag = 4};
+    return a != b;
+}
+
+test struct_compare {
+    assert(eq_literal());
+    assert(ne_literal());
+    assert(eq_var());
+    assert(ne_var());
+    assert(eq_var_literal());
+    assert(eq_nested());
+    assert(ne_nested());
+}
+
+endmodule

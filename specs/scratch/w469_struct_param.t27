@@ -1,0 +1,49 @@
+module w469_struct_param;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub struct Inner {
+    a : u8,
+    b : u8,
+}
+
+pub struct Outer {
+    inner : Inner,
+    tag : u8,
+}
+
+pub fn sum_pt(p : Pt) -> u32 {
+    return (p.x as u32) + (p.y as u32);
+}
+
+pub fn sum_outer(o : Outer) -> u32 {
+    return (o.inner.a as u32) + (o.inner.b as u32) + (o.tag as u32);
+}
+
+pub fn make_pt() -> Pt {
+    return Pt{.x = 7, .y = 8};
+}
+
+pub fn call_with_literal() -> u32 {
+    return sum_pt(Pt{.x = 3, .y = 4});
+}
+
+pub fn call_with_var() -> u32 {
+    var v : Pt = Pt{.x = 5, .y = 6};
+    return sum_pt(v);
+}
+
+pub fn call_with_return() -> u32 {
+    return sum_pt(make_pt());
+}
+
+test struct_param {
+    assert_eq(call_with_literal(), 7);
+    assert_eq(call_with_var(), 11);
+    assert_eq(call_with_return(), 15);
+}
+
+endmodule

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:91794ea39447a0fbf9d7def6e735d6201936abcec0edb2853a309556e8365836",
   "gen_hash_rust": "sha256:bf03b206951f37c2cfba909c5fafee582f1b28d96d6aa2914e0027357a33719c",
-  "gen_hash_verilog": "sha256:d855c1a8bff5846f5b601a34c08f4a3d43d96b56ff662497adcc83ed1e719bce",
+  "gen_hash_verilog": "sha256:c977eb6123849b3112f3f9194e13456a7c5e0e59809d971f71726020dede628e",
   "gen_hash_zig": "sha256:b91d77e46184cb94e4d65c66d0c355d59a3c7166f860d42350fa14978403e118",
   "module": "zig_runtime",
   "ring": 12,
-  "sealed_at": "2026-07-06T15:02:26Z",
+  "sealed_at": "2026-07-07T16:18:35Z",
   "spec_hash": "sha256:5f74bbce2653a7dd3fc417ab1d7f7cce8ff7ff06339a3d9f5b4802c6dfabd4b9",
   "spec_path": "compiler/codegen/zig/runtime.t27"
 }

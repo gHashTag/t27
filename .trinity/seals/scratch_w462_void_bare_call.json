@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3d4a467f7c3a100b0e211e25e7d509bc002202ff4dc8ed33e433fcdfee8e4fb0",
   "module": "w462_void_bare_call",
   "ring": 12,
-  "sealed_at": "2026-07-07T05:34:33Z",
+  "sealed_at": "2026-07-07T16:18:34Z",
   "spec_hash": "sha256:aea21ae99a8597776d1c888f842dbfe4701aa0068475542e59a04b335fe5fd16",
   "spec_path": "specs/scratch/w462_void_bare_call.t27"
 }

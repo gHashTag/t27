@@ -40,14 +40,17 @@ use std::path::PathBuf;
 use std::process::Command;
 
 /// Minimal spec exercising the ExprArrayLiteral path in expression
-/// context (passing an array literal as a function argument).
+/// context (passing an indexed array literal as a function argument).
+/// The array literal must appear at a non-array-parameter argument
+/// position so the emitter does not drop it under the W458/W461
+/// module-level array-parameter binding pass.
 const SPEC: &str = r#"module RCA2Probe {
-    fn consume(values: [4]u32) {
+    fn consume(x: u32) {
         return
     }
 
     fn driver() {
-        consume([1, 2, 3, 4])
+        consume([1, 2, 3, 4][0]);
         return
     }
 }

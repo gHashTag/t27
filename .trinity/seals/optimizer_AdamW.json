@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:9733fcfadd827b990e0f75493607da24e36d936e4c643a8632b35081643b957b",
-  "gen_hash_rust": "sha256:a2fb125f483cfb82228b0fc47326b5031b89a76f0ab8f5d2806bdfd900a41aed",
-  "gen_hash_verilog": "sha256:b8ab8e9948028b6f8e32174330de5601c5afef14fa55c7ad65082663b79a6771",
-  "gen_hash_zig": "sha256:de454f9b2779de2c8ea2950424c3dc83cf42023548ebad0b5b965960d61ff470",
+  "gen_hash_c": "sha256:6893d047e230f847d38b2b9621f96766237b6341b5846d63670cf2bfc5fa247a",
+  "gen_hash_rust": "sha256:ab16a63640e4e114f670468c09afe2d0bee4d8758983c18de9b8f5030a66d8ec",
+  "gen_hash_verilog": "sha256:460ae6d860f8c115b4ebdcced8801efa99b0badb661e9f365158a01d513f6c2c",
+  "gen_hash_zig": "sha256:6a5c0e6c3225d25c36b3bc96f4fe4043961e4cff2e40e44e687d915c61ea2a2d",
   "module": "AdamW",
   "ring": 12,
-  "sealed_at": "2026-07-07T05:34:32Z",
+  "sealed_at": "2026-07-07T16:18:36Z",
   "spec_hash": "sha256:a6f6cfd8423f58f14d672d49bf6d42194d8b9fb1d145ed2c048b10f8a1d4763e",
   "spec_path": "specs/ml/optimizer/adamw.t27"
 }
