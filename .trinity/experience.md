@@ -1,3 +1,31 @@
+## 2026-07-08 — Wave Loop 470 (gen-verilog struct/array hardening)
+
+### What worked
+- Treating module-level writable struct arrays as an extension of the existing `module_struct_array_fields` registration path meant T4 re-used field-access and assignment lowering instead of inventing a new construct.
+- Adding a single `return_width` helper that considers tuple, scalar-struct, and array-of-struct return shapes eliminated the recurring bug where non-tuple returns were forced to 32 bits.
+- Recursing into nested `ExprArrayLiteral` children for the array-parameter clone signature made 2-D scalar array literal arguments deterministic without changing the binding-pass architecture.
+- Running `./scripts/tri test` after each subtask and resealing incrementally kept the suite green throughout the wave.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: added `return_width`, `array_of_struct_return_width`, pack/unpack helpers, recursive `array_literal_signature_key`, multi-dimensional anonymous ROM emission, module-level writable struct-array declarations, and module-level struct-array assignment/read paths.
+- Added 4 scratch specs and seals: `w470_1d_scalar_array_param`, `w470_2d_scalar_array_param`, `w470_array_of_struct_return`, `w470_module_var_struct_array`.
+- Added `docs/reports/WAVE_LOOP_470_CLOSEOUT.md` and `docs/reports/FPGA_LOOP_COOPERATION_W471_2026-07-08.md`.
+- Added `.trinity/ring-470.md` and updated `.trinity/experience.md`.
+
+### Verification
+- `cargo test -p t27c`: 1524 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: 622/622 non-smoke, 102/102 yosys smoke, 0 seal mismatches.
+
+### Patterns to reuse
+- When adding a new module-level aggregate declaration, register its flattened field list at declaration time so that later expression lowering can resolve field access and assignment uniformly.
+- Compute exact packed return widths once in a dedicated helper and use it for function result registers, dummy registers, and struct/array-of-struct returns.
+
+### Anti-patterns to avoid
+- Do not overload `tuple_return_width` for non-tuple types; a separate `return_width` helper is cleaner and harder to misuse.
+- Do not emit a single scalar memory for arrays of structs; per-field memories are required for synthesizable field access and whole-element write.
+
+---
+
 ## 2026-07-07 — IGLA Improvement Loop cycle 1 (audit + loop charter)
 
 ### What worked
