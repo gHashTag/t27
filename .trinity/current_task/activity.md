@@ -1508,3 +1508,7 @@
 - **Commit:** 
 - **Files:** .github/workflows/auto-merge-ready-prs.yml,.github/workflows/brain-seal-refresh.yml,scripts/auto-close-prs.sh,scripts/auto-merge.sh
 
+## 2026-07-07T12:14:42Z — igla/w470-auto-workflow-harden
+- **Commit:** 
+- **Files:** docs/NOW.md
+
