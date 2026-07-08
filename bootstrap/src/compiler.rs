@@ -6648,24 +6648,62 @@ fn find_first_non_local(stmts: &[Node]) -> usize {
     stmts.len()
 }
 
+// R-OPT-2: collect every identifier READ by a statement, recursing into the
+// bodies of control-flow statements. The previous version only inspected
+// top-level statements, so a local read *only* inside an `if`/`while`/`for` block
+// (e.g. `let best = 0; if (x > best) { best = f(); }`) was treated as never read
+// and wrongly deleted by dead_store_elim, leaving its uses dangling (E0425). A
+// StmtAssign's LHS target is a write, not a read, so it is deliberately excluded
+// (children[1] is the RHS) — keeping true dead-store elimination sound.
+fn collect_stmt_reads(stmt: &Node, reads: &mut std::collections::HashSet<String>) {
+    match stmt.kind {
+        NodeKind::StmtLocal if !stmt.children.is_empty() => {
+            collect_reads(&stmt.children[0], reads);
+        }
+        NodeKind::StmtAssign if stmt.children.len() >= 2 => {
+            collect_reads(&stmt.children[1], reads);
+        }
+        NodeKind::ExprReturn if !stmt.children.is_empty() => {
+            collect_reads(&stmt.children[0], reads);
+        }
+        NodeKind::StmtExpr if !stmt.children.is_empty() => {
+            collect_reads(&stmt.children[0], reads);
+        }
+        NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange => {
+            for child in &stmt.children {
+                match child.kind {
+                    // `{ ... }` block: recurse into its statements.
+                    NodeKind::Module => {
+                        for s in &child.children {
+                            collect_stmt_reads(s, reads);
+                        }
+                    }
+                    // A nested statement (e.g. `else if`): recurse.
+                    NodeKind::StmtIf
+                    | NodeKind::StmtWhile
+                    | NodeKind::StmtFor
+                    | NodeKind::StmtForRange
+                    | NodeKind::StmtLocal
+                    | NodeKind::StmtAssign
+                    | NodeKind::ExprReturn
+                    | NodeKind::StmtExpr => {
+                        collect_stmt_reads(child, reads);
+                    }
+                    // A condition / range expression: every identifier is a read.
+                    _ => {
+                        collect_reads(child, reads);
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
 fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
     for stmt in stmts.iter() {
-        match stmt.kind {
-            NodeKind::StmtLocal if !stmt.children.is_empty() => {
-                collect_reads(&stmt.children[0], &mut reads);
-            }
-            NodeKind::StmtAssign if stmt.children.len() >= 2 => {
-                collect_reads(&stmt.children[1], &mut reads);
-            }
-            NodeKind::ExprReturn if !stmt.children.is_empty() => {
-                collect_reads(&stmt.children[0], &mut reads);
-            }
-            NodeKind::StmtExpr if !stmt.children.is_empty() => {
-                collect_reads(&stmt.children[0], &mut reads);
-            }
-            _ => {}
-        }
+        collect_stmt_reads(stmt, &mut reads);
     }
     let before = stmts.len();
     stmts.retain(|s| {
