@@ -346,6 +346,11 @@ impl Lexer {
             "switch" => TokenKind::KwSwitch,
             "return" => TokenKind::KwReturn,
             "var" => TokenKind::KwVar,
+            // `let` is the documented local-binding keyword (skill: `let x: u8 = 0;`);
+            // specs use it ~30x more than `var` and reassign let-vars, so it maps to
+            // a mutable local (same as `var`) — otherwise the parser treated `let` as
+            // a bare identifier and emitted broken `let;` statements.
+            "let" => TokenKind::KwVar,
             "using" => TokenKind::KwUsing,
             "use" => TokenKind::KwUse,
             "void" => TokenKind::KwVoid,
