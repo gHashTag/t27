@@ -6348,6 +6348,26 @@ fn parse_int_value(s: &str) -> Option<i64> {
     }
 }
 
+// Does any statement (recursing into control-flow blocks) assign to `name`?
+fn stmt_assigns_to(stmt: &Node, name: &str) -> bool {
+    match stmt.kind {
+        NodeKind::StmtAssign if !stmt.children.is_empty() => {
+            let lhs = &stmt.children[0];
+            lhs.kind == NodeKind::ExprIdentifier && lhs.name == name
+        }
+        NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange => {
+            stmt.children.iter().any(|c| {
+                if c.kind == NodeKind::Module {
+                    c.children.iter().any(|s| stmt_assigns_to(s, name))
+                } else {
+                    stmt_assigns_to(c, name)
+                }
+            })
+        }
+        _ => false,
+    }
+}
+
 fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     let mut replacements: Vec<(String, String)> = Vec::new();
     for stmt in stmts.iter() {
@@ -6355,6 +6375,11 @@ fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             && stmt.children.len() == 1
             && stmt.children[0].kind == NodeKind::ExprIdentifier
             && stmt.name != stmt.children[0].name
+            // Only a single-assignment local is a sound copy: if `b` is later
+            // reassigned (`let b = x; ...; b = b >> 1;`), propagating `b -> x`
+            // corrupts post-reassignment reads AND lets dead_store drop the decl
+            // while the reassignment survives, leaving `b` undeclared (E0425).
+            && !stmts.iter().any(|s| stmt_assigns_to(s, &stmt.name))
         {
             replacements.push((stmt.name.clone(), stmt.children[0].name.clone()));
         }
