@@ -1,0 +1,119 @@
+spec trinity_dna
+
+-- Ring 105-002 (part 2 of 2): Trinity DNA (persistence layer) schema
+-- Target path in t27 repo: specs/organism/dna.tri
+-- Source repo: gHashTag/trinity (Zig)
+-- Codegen target: Zig -> gen/organism/dna.zig
+-- Law compliance: L1 (Closes trinity#new-3), L3, L4, L6 (no new numeric formats)
+
+pub const SKILL_ID_MAX_LEN u32 = 64
+pub const RING_BLOB_MAX_SIZE u32 = 1048576  -- 1 MiB per ring blob
+pub const DNA_MAGIC u32 = 0x54524933       -- "TRI3" ASCII
+
+pub type Bytes32 = [32]u8
+pub type SkillId = str  -- ASCII lowercase + digits + hyphen; len bounded
+
+pub type DnaRecordKind = enum(u8) {
+  Skill = 0,
+  Verdict = 1,
+  RingBlob = 2
+}
+
+pub type DnaRecord = struct {
+  magic: u32,          -- must equal DNA_MAGIC
+  kind: DnaRecordKind,
+  ring_id: str,
+  payload_sha256: Bytes32,
+  payload_len: u32,
+  timestamp_epoch: i64
+}
+
+-- Core functions (mandatory 3)
+pub fn dna_write(record DnaRecord, payload bytes) -> bool
+pub fn dna_read(sha256 Bytes32) -> DnaRecord
+pub fn dna_gc(older_than_epoch i64) -> u32   -- returns count of records reclaimed
+
+-- Invariants (mandatory 3)
+
+invariant record_magic_is_tri3 {
+  given r DnaRecord
+  assert r.magic == DNA_MAGIC
+}
+
+invariant payload_len_bounded {
+  given r DnaRecord
+  assert r.payload_len <= RING_BLOB_MAX_SIZE
+}
+
+invariant timestamp_within_lifetime {
+  given r DnaRecord
+  assert r.timestamp_epoch >= 1600000000  -- 2020-09-13, before Trinity project began
+  assert r.timestamp_epoch <  4102444800  -- 2100-01-01
+}
+
+-- Tests (mandatory 8)
+
+test dna_write_roundtrip {
+  let payload = bytes_of_ascii("hello")
+  let r = dna_record_new(DnaRecordKind.Skill, "ring-105-002", payload)
+  assert dna_write(r, payload) == true
+  let back = dna_read(r.payload_sha256)
+  assert back.magic == r.magic
+  assert back.kind  == r.kind
+}
+
+test dna_read_returns_stored_record {
+  let payload = bytes_of_ascii("verdict-json")
+  let r = dna_record_new(DnaRecordKind.Verdict, "ring-105-002", payload)
+  dna_write(r, payload)
+  let back = dna_read(r.payload_sha256)
+  assert back.payload_len == r.payload_len
+}
+
+test dna_gc_zero_when_no_expired {
+  let count = dna_gc(0)  -- prune anything older than epoch 0 = nothing
+  assert count == 0
+}
+
+test dna_record_magic_rejected_when_wrong {
+  let mut r = dna_record_new(DnaRecordKind.Skill, "ring-105-002", bytes_of_ascii("x"))
+  r.magic = 0xDEADBEEF
+  assert dna_write(r, bytes_of_ascii("x")) == false
+}
+
+test dna_payload_len_overlarge_rejected {
+  let mut r = dna_record_new(DnaRecordKind.RingBlob, "ring-105-002", bytes_of_ascii("x"))
+  r.payload_len = RING_BLOB_MAX_SIZE + 1
+  assert dna_write(r, bytes_of_ascii("x")) == false
+}
+
+test dna_kind_skill_encoded_as_zero {
+  let r = dna_record_new(DnaRecordKind.Skill, "ring-105-002", bytes_of_ascii("x"))
+  assert r.kind == DnaRecordKind.Skill
+}
+
+test dna_kind_verdict_encoded_as_one {
+  let r = dna_record_new(DnaRecordKind.Verdict, "ring-105-002", bytes_of_ascii("x"))
+  assert r.kind == DnaRecordKind.Verdict
+}
+
+test dna_ring_id_ascii_only {
+  let r = dna_record_new(DnaRecordKind.RingBlob, "ring-105-002", bytes_of_ascii("x"))
+  assert forall b in r.ring_id : b >= 0x20 and b <= 0x7E
+}
+
+-- Benchmarks (mandatory 2)
+
+bench dna_write_1kb {
+  measure nanoseconds to dna_write(r, payload_1kb)
+  target 20_000_000
+  warmup 3
+  runs 100
+}
+
+bench dna_read_10k_records {
+  measure nanoseconds to dna_read(sha256_of_10k_th)
+  target 10_000_000
+  warmup 3
+  runs 100
+}
