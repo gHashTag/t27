@@ -7929,12 +7929,24 @@ impl RustCodegen {
                 format!("Vec<{}>", Self::t27_type_to_rust(inner))
             }
             t if t.starts_with('[') && t.contains(']') => {
-                // [N]T format - convert to Vec
-                if let Some(bracket_end) = t.find(']') {
-                    let inner = &t[bracket_end + 1..];
-                    format!("Vec<{}>", Self::t27_type_to_rust(inner))
+                // Sized array -> Rust fixed array `[T; N]` (Copy, passes by value
+                // cleanly — a Vec here caused move/borrow + trait-bound errors).
+                // Two surface syntaxes:
+                //   Rust-style `[T; N]`  -> element BEFORE `;`, size AFTER
+                //   Zig-style  `[N]T`    -> size inside `[]`, element AFTER `]`
+                // (`[]T` slices are handled by the earlier arm as Vec<T>.)
+                // Array size must be `usize` in Rust, but t27 size consts are
+                // typed (e.g. `const MAX_FLOWS: u32`), so cast the size expression.
+                let bracket_end = t.find(']').unwrap();
+                let inside = t[1..bracket_end].trim();
+                if let Some(semi) = inside.find(';') {
+                    let elem = inside[..semi].trim();
+                    let size = inside[semi + 1..].trim();
+                    format!("[{}; ({}) as usize]", Self::t27_type_to_rust(elem), size)
                 } else {
-                    t.to_string()
+                    let size = inside;
+                    let elem = t[bracket_end + 1..].trim();
+                    format!("[{}; ({}) as usize]", Self::t27_type_to_rust(elem), size)
                 }
             }
             t => t.to_string(), // Custom type name
@@ -7998,14 +8010,12 @@ impl RustCodegen {
             }
             NodeKind::ExprEnumValue => format!("{}::{}", node.name, node.extra_field),
             NodeKind::ExprUnary => {
+                // Rust spells bitwise/logical NOT `!`, not `~`.
+                let op = if node.extra_op == "~" { "!" } else { node.extra_op.as_str() };
                 if !node.children.is_empty() {
-                    format!(
-                        "{}({})",
-                        node.extra_op,
-                        Self::expr_to_rust(&node.children[0])
-                    )
+                    format!("{}({})", op, Self::expr_to_rust(&node.children[0]))
                 } else {
-                    node.extra_op.clone()
+                    op.to_string()
                 }
             }
             NodeKind::ExprFieldAccess => {
@@ -8017,14 +8027,26 @@ impl RustCodegen {
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
+                    // Rust indices must be `usize`; t27 indices are typed ints.
                     format!(
-                        "{}[{}]",
+                        "{}[({}) as usize]",
                         Self::expr_to_rust(&node.children[0]),
                         Self::expr_to_rust(&node.children[1])
                     )
                 } else {
                     "()".to_string()
                 }
+            }
+            // Cast `expr as T`. Unlike Verilog (width-loose, drops the cast), Rust
+            // is strict, so the width MUST be emitted — otherwise the inner expr
+            // fell through to the `_ => "()"` arm and produced `() << 24` etc.
+            NodeKind::ExprCast => {
+                let inner = if node.children.is_empty() {
+                    "()".to_string()
+                } else {
+                    Self::expr_to_rust(&node.children[0])
+                };
+                format!("({} as {})", inner, Self::t27_type_to_rust(&node.extra_type))
             }
             NodeKind::ExprIf => {
                 let mut s = format!("if {} {{ ", Self::expr_to_rust(&node.children[0]));
