@@ -2588,21 +2588,39 @@ impl Parser {
         let cond = self.parse_expr()?;
         self.expect(TokenKind::RParen)?;
 
-        // Then expression
-        let then_expr = self.parse_expr()?;
+        // Then branch: either a bare expression (ternary-like `if (c) a else b`)
+        // or a brace-wrapped one (`if (c) { a } else { b }`, matching if-statement
+        // and Rust syntax). Without the brace form, `let x = if (c) { a } else { b }`
+        // silently failed to parse and the whole binding was dropped by recovery.
+        let then_expr = self.parse_if_branch()?;
 
-        // else expression
         let mut if_node = Node::new(NodeKind::ExprIf);
         if_node.children.push(cond);
         if_node.children.push(then_expr);
 
         if self.current.kind == TokenKind::KwElse {
             self.advance(); // consume 'else'
-            let else_expr = self.parse_expr()?;
+            // `else if (...)` chains fall through parse_if_branch -> parse_expr ->
+            // parse_if_expr; a plain `else { ... }` / `else expr` is a branch.
+            let else_expr = self.parse_if_branch()?;
             if_node.children.push(else_expr);
         }
 
         Ok(if_node)
+    }
+
+    /// One branch of an if-expression: an optional `{ expr }` wrapper around a
+    /// single expression, or a bare expression. The AST is identical either way
+    /// (the wrapped expression), so every backend renders both forms the same.
+    fn parse_if_branch(&mut self) -> Result<Node, String> {
+        if self.current.kind == TokenKind::LBrace {
+            self.advance(); // consume {
+            let inner = self.parse_expr()?;
+            self.expect(TokenKind::RBrace)?;
+            Ok(inner)
+        } else {
+            self.parse_expr()
+        }
     }
 
     /// Parse switch expression: switch (val) { .arm => expr, ... }
