@@ -1749,6 +1749,23 @@ impl Parser {
             return Ok(Node::new(NodeKind::StmtContinue));
         }
 
+        // In-body assertion `invariant <expr>;` used inside test/bench blocks.
+        // Parse and keep it (as a labelled StmtExpr) so recovery does not drop it
+        // and cascade into the next declaration -- the top-level `invariant name
+        // assert COND` form is parsed elsewhere and is unaffected. Test/bench
+        // bodies are not code-generated, so the wrapped expression is inert.
+        if self.current.kind == TokenKind::KwInvariant {
+            self.advance(); // consume 'invariant'
+            let cond = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
+            let mut stmt = Node::new(NodeKind::StmtExpr);
+            stmt.name = "invariant".to_string();
+            stmt.children.push(cond);
+            return Ok(stmt);
+        }
+
         // Expression or assignment
         let expr = self.parse_expr()?;
 
