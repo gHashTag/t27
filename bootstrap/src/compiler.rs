@@ -197,6 +197,9 @@ pub enum TokenKind {
     ShiftRight,
     PlusEquals,
     PlusPercent,
+    // Compound assignment |= &= ^= -= *= /= %= ; the operator char is in the
+    // lexeme (e.g. "|="). Desugared by the parser to `x = x <op> y`.
+    CompoundAssign,
 
     // Special
     Semicolon,
@@ -576,6 +579,23 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::PlusEquals,
                     lexeme: String::from("+="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            // Compound assignment `<op>=` for op in | & ^ - * / % (each `op=` only
+            // matches when the second char is `=`, so it never shadows `||`, `->`,
+            // `//`, `**`, `<=`, etc.). The operator char rides in the lexeme.
+            if two[1] == b'='
+                && matches!(two[0], b'|' | b'&' | b'^' | b'-' | b'*' | b'/' | b'%')
+            {
+                let op = two[0] as char;
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::CompoundAssign,
+                    lexeme: format!("{}=", op),
                     line: start_line,
                     col: start_col,
                 };
@@ -1758,6 +1778,26 @@ impl Parser {
             assign.extra_op = "+=".to_string();
             assign.children.push(expr);
             assign.children.push(rhs);
+            return Ok(assign);
+        }
+
+        // Compound assignment `x <op>= y` desugars to `x = x <op> y`, so no backend
+        // needs to know about it (a plain StmtAssign with a binary RHS).
+        if self.current.kind == TokenKind::CompoundAssign {
+            let op = self.current.lexeme.trim_end_matches('=').to_string(); // "|=" -> "|"
+            self.advance(); // consume <op>=
+            let rhs = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
+            let mut bin = Node::new(NodeKind::ExprBinary);
+            bin.extra_op = op;
+            bin.children.push(expr.clone());
+            bin.children.push(rhs);
+            let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.line = self.current.line as u32;
+            assign.children.push(expr);
+            assign.children.push(bin);
             return Ok(assign);
         }
 
