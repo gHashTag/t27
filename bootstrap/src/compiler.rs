@@ -795,6 +795,10 @@ pub struct Parser {
     lexer: Lexer,
     current: Token,
     peek: Token,
+    // Suppress `Ident { ... }` struct-literal parsing while reading a bare (paren-
+    // free) if/while condition, where the `{` opens the block, not a struct. Re-
+    // enabled inside parentheses/call args so `if f(Bar{..}) { }` still works.
+    no_struct_literal: bool,
 }
 
 impl Parser {
@@ -805,6 +809,7 @@ impl Parser {
             lexer,
             current: first,
             peek: second,
+            no_struct_literal: false,
         }
     }
 
@@ -1814,15 +1819,32 @@ impl Parser {
         Ok(stmt)
     }
 
+    /// Parse an if/while condition: either `(expr)` or a bare `expr`. The bare
+    /// (Zig/Rust style `if cond { }`) form stops at the `{` that opens the block.
+    /// Without it, paren-free conditions failed to parse and the whole statement
+    /// was silently dropped (see docs/PARSE_SILENT_DROP_AUDIT.md).
+    fn parse_condition(&mut self) -> Result<Node, String> {
+        if self.current.kind == TokenKind::LParen {
+            self.advance(); // consume (
+            let cond = self.parse_expr()?;
+            self.expect(TokenKind::RParen)?;
+            Ok(cond)
+        } else {
+            let saved = self.no_struct_literal;
+            self.no_struct_literal = true;
+            let cond = self.parse_expr();
+            self.no_struct_literal = saved;
+            cond
+        }
+    }
+
     /// Parse if / else if / else statement
     fn parse_if_stmt(&mut self) -> Result<Node, String> {
         let mut if_node = Node::new(NodeKind::StmtIf);
         self.advance(); // consume 'if'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // Condition: parenthesized or bare.
+        let cond = self.parse_condition()?;
         if_node.children.push(cond);
 
         // Then branch: { ... }
@@ -1881,10 +1903,8 @@ impl Parser {
         let mut while_node = Node::new(NodeKind::StmtWhile);
         self.advance(); // consume 'while'
 
-        // Condition in parentheses
-        self.expect(TokenKind::LParen)?;
-        let cond = self.parse_expr()?;
-        self.expect(TokenKind::RParen)?;
+        // Condition: parenthesized or bare.
+        let cond = self.parse_condition()?;
         while_node.children.push(cond);
 
         // Body: { ... }
@@ -2409,7 +2429,8 @@ impl Parser {
                 }
 
                 // Check for struct literal: Name{ .field = expr, ... }
-                if self.current.kind == TokenKind::LBrace {
+                // (suppressed in a bare if/while condition, where { opens a block).
+                if self.current.kind == TokenKind::LBrace && !self.no_struct_literal {
                     return self.parse_struct_literal(name);
                 }
 
