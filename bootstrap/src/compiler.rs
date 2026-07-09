@@ -8061,9 +8061,17 @@ impl RustCodegen {
                     let size = inside[semi + 1..].trim();
                     format!("[{}; ({}) as usize]", Self::t27_type_to_rust(elem), size)
                 } else {
-                    let size = inside;
-                    let elem = t[bracket_end + 1..].trim();
-                    format!("[{}; ({}) as usize]", Self::t27_type_to_rust(elem), size)
+                    let after = t[bracket_end + 1..].trim();
+                    if after.is_empty() {
+                        // `[T]` with nothing after the bracket is a SLICE of T (no
+                        // size), not a sized array -- otherwise the element `inside`
+                        // was misread as a size, e.g. `[ClockDomainPower]` becoming
+                        // the malformed `[; (ClockDomainPower) as usize]`.
+                        format!("Vec<{}>", Self::t27_type_to_rust(inside))
+                    } else {
+                        // Zig-style `[N]T`: size inside the brackets, element after.
+                        format!("[{}; ({}) as usize]", Self::t27_type_to_rust(after), inside)
+                    }
                 }
             }
             t => t.to_string(), // Custom type name
