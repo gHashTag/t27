@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f4f6b7b5cb0af0b7efbf8e252943bd0e7beddea81519a3554ad495604b000987",
   "module": "chimera",
   "ring": 12,
-  "sealed_at": "2026-07-01T18:21:00Z",
+  "sealed_at": "2026-07-09T07:25:03Z",
   "spec_hash": "sha256:be9b8ff89812a560d4a2cec43336f2e2a5cc3798a9a20f77a5331ca7a2fd4122",
   "spec_path": "specs/physics/chimera_best_gamma.t27"
 }

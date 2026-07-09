@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:6751957679f082a3eb44d86e332c6694062a365dad1223737bb4371e9754c271",
-  "gen_hash_rust": "sha256:965c9922a57366aed310a392e7063149d5cbd56dc0fdbfcea5015c2e8689d995",
-  "gen_hash_verilog": "sha256:134981399b3d60479e68d4947e7172b095731c5ded158cfd797f92c2e56303ca",
-  "gen_hash_zig": "sha256:3ab997f23356135024b1553c1a9ded76f2975b0ff4d283cc318ee6dbf86f8c07",
+  "gen_hash_c": "sha256:987b92a3be49c462fe9ec0aa39f7d95421fdfa1e18254e64237532ae88b55b5b",
+  "gen_hash_rust": "sha256:772ef9303c94b2f55e1610d1e9b8eeb7d710f63249de2e6692a8021a259a3b22",
+  "gen_hash_verilog": "sha256:d99c2f948d8a158d79e2938c1f8a754e0aa3a35f8cf9ea33506ce440b9f0aa74",
+  "gen_hash_zig": "sha256:a612e239b8821eb4408931b2ad1e3fe40f12795e90f29b3b7afd04cab2310b10",
   "module": "LucasAccumulator",
   "ring": 12,
-  "sealed_at": "2026-07-01T18:21:01Z",
+  "sealed_at": "2026-07-09T07:25:05Z",
   "spec_hash": "sha256:786f94b80c9cc8da149e371886d2c2a515bb29a289dd287d9d8c2986692e0b1e",
   "spec_path": "specs/numeric/lucas_accumulator.t27"
 }

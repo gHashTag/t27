@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:aaeb89b96e57b8239517e607c251f3112b64d730e428bdd0713a3d1ddfcb539d",
-  "gen_hash_rust": "sha256:19b5360cdf9dc38359346d70f24ebd32b0970c8b1ededafedcb07173757e8777",
-  "gen_hash_verilog": "sha256:84fd48e1059a36b0bc85b858d9fb7c5fe3519ddf2aaf66cb05eafbf64dc08f68",
-  "gen_hash_zig": "sha256:f55317d4b51d67a3d12526d51c6d379856c51d3af5818956752eba7330530950",
+  "gen_hash_c": "sha256:9b67a189dae0ce3b7da1339b72c7d56557e1ed80f38fac5660c4844396821a02",
+  "gen_hash_rust": "sha256:7b3feafa47e0dce3f786a0a38c25582a739cd9e568e9d6b3b192604be70f82bd",
+  "gen_hash_verilog": "sha256:e21f54304b83d3127e1d26d4bb92406b420fb9bb4a7f5bd278de4401180c6315",
+  "gen_hash_zig": "sha256:bbda5178ece0a39d19f1a56abb4e6db0e46a2706d9126f62bda365c6803e2157",
   "module": "Ternary_ISA_Testbench",
   "ring": 12,
-  "sealed_at": "2026-07-01T18:21:02Z",
+  "sealed_at": "2026-07-09T07:25:05Z",
   "spec_hash": "sha256:50d838b5e5138ffeb2875b3a6c831f34ba6a2953a3086db6752b1a6b490213ba",
   "spec_path": "specs/fpga/testbench/ternary_isa_tb.t27"
 }

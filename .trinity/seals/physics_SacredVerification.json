@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:b044646056a4f28862c4e3a7365fb5034f0b9b214343800569a2e6e2e8d0c9f9",
-  "gen_hash_rust": "sha256:f160bc15df128e5a271f375ec20fd7978e89e41bae9d642b59d52b6ed5edf0d9",
-  "gen_hash_verilog": "sha256:1ccad6bf2eb7ad179275866215133c0643f9731c1b7ef30c87d8f5cfad930223",
-  "gen_hash_zig": "sha256:ae68afc1d452b885372eb4821cb3c549ec80f037b5a7b7045a13b5ea2052fd95",
+  "gen_hash_c": "sha256:3b6f7633eea6c30a071fdd9933e1a442b0940da21eb17e8667438554a28fcd8f",
+  "gen_hash_rust": "sha256:f1427d2c186dd811e2004d3b7181e0b2a4b160449f7884d00b78256b2171657d",
+  "gen_hash_verilog": "sha256:48847d41850c05f39079bcd561f8ed1bd4b39b3c2ad6478b12097d170b383fdd",
+  "gen_hash_zig": "sha256:b7a298f97021f7597695f378602c28e6c34a931f6c9f06a5e17a5136521a922e",
   "module": "SacredVerification",
   "ring": 12,
-  "sealed_at": "2026-07-01T18:21:00Z",
+  "sealed_at": "2026-07-09T07:25:03Z",
   "spec_hash": "sha256:cbbe563060c147cae81b8107e5c170dd55a5d0d63943651cd2ca097f63ed3a6a",
   "spec_path": "specs/physics/sacred_verification.t27"
 }

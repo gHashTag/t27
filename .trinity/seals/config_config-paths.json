@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:24bdc76a0cd7185cc9da86be287c45203f8fec87ebda3464ad17986c34558865",
-  "gen_hash_rust": "sha256:4e0c17ec2cb46b2f178dbcdc282b5354a3006114f208053e04d27690d88c2d9d",
-  "gen_hash_verilog": "sha256:5366296b3fc911d31ed91f10f07104298bc2e05a555a745bdb4244ce66ec3165",
-  "gen_hash_zig": "sha256:52b94ecd4ac04a71e3a9a45fc2ff4ba41b27d4d1a2d980eaa1f38ec2bc6a1fd3",
+  "gen_hash_c": "sha256:aaf499272a1f17402df12367007edb74bc8a2e5d633abcf533fa0a473d7b63f3",
+  "gen_hash_rust": "sha256:9103ab6e3608db88e077806f8b003b3e93447fdfae7e7643fea47b338a402a78",
+  "gen_hash_verilog": "sha256:015e0f57b1570d89e8e69d528887426d417c4084a94898c7c80dac9ba6e516a5",
+  "gen_hash_zig": "sha256:d20a67cea8d50ed608c7e95355ddd11dc9434d6869a6389fa3d250b82a87efb8",
   "module": "config-paths",
   "ring": 12,
-  "sealed_at": "2026-07-01T18:21:01Z",
+  "sealed_at": "2026-07-09T07:25:04Z",
   "spec_hash": "sha256:b8f7c75f19267d15fbd1b8e15e1bb446357bdca35f783d8a58f012dadaa1e4cb",
   "spec_path": "specs/config/paths.t27"
 }

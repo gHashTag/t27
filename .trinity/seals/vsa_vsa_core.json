@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:a0793ad6135714a77dcd314efd6c26e13045bcc6a72d9ac4d79972d1a54bc3d7",
-  "gen_hash_rust": "sha256:5fa81c924c55f905abb29d735f95bb32acaa241d73e936b8354338b04be6392e",
-  "gen_hash_verilog": "sha256:053791794e842ad84dafba9e109f76725bfc400954e6cac3db24b15456e63c45",
-  "gen_hash_zig": "sha256:949da31fe9547ff939ea5db2c581fa6486a4f5216228a48d4105466552770a78",
+  "gen_hash_c": "sha256:fbf97f3329840f97745eff7ec687f58ed2b1f8e71bd9e594cc7fbf45753581d4",
+  "gen_hash_rust": "sha256:ae9ff2f2a1001ea5614ad9bc17bec559c6c6bdde313013842b6f74131bf05d86",
+  "gen_hash_verilog": "sha256:00aac6ea9af37c69860dc0e1328b5d8f064592686de4494a0f82fb33b0b420c1",
+  "gen_hash_zig": "sha256:3189c290894534d04f2d8395138df8c4785565ace608f4b058dba967bde04271",
   "module": "vsa_core",
   "ring": 12,
-  "sealed_at": "2026-07-01T18:21:01Z",
+  "sealed_at": "2026-07-09T07:25:04Z",
   "spec_hash": "sha256:ba96c451495ca69f7063c622fdb3e367c4b1230b31643a583ed4c543074a505a",
   "spec_path": "specs/vsa/vsa_core.t27"
 }

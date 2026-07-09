@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:755daf8f848da9ce170fcb811b02785a51d0e7da420ba33f2a48fd3eaddb8e0d",
   "module": "hslm_benchmark",
   "ring": 12,
-  "sealed_at": "2026-07-01T18:21:00Z",
+  "sealed_at": "2026-07-09T07:25:03Z",
   "spec_hash": "sha256:ce1d606c0575295faaeaea42e61495a7d7ef0011317e15396a05d08ad1148941",
   "spec_path": "specs/physics/hslm_benchmark.t27"
 }
