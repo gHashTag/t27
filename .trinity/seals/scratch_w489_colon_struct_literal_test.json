@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:afcfb272569e77d3e01ba07eb0408f036b513c246a9fc2b022ab971e24a0f1d3",
   "module": "w489_colon_struct_literal_test",
   "ring": 12,
-  "sealed_at": "2026-07-10T14:39:52Z",
+  "sealed_at": "2026-07-10T18:27:05Z",
   "spec_hash": "sha256:1298a1130b133cac76270e0b49a7b03f7f7441876115bdcc10c9816c7c1b06b6",
   "spec_path": "specs/scratch/w489_colon_struct_literal_test.t27"
 }

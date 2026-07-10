@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9ab2ceb6eafa2c060ad3a3d0d98df6c1e6aa4d59e79aad6aa48953d43b41876a",
   "gen_hash_rust": "sha256:d316a1637ff5054de44a016d99048ab0c5739b1e7e3019acd907dce95815f9ca",
-  "gen_hash_verilog": "sha256:23d83029d4f6753bff45c089db3730b647cc273dfd0eb275eab4f4f678ec72a4",
+  "gen_hash_verilog": "sha256:c350c41d84f49d39da84fae601fc9c9c52ccf0c59425773ef024e7ee5488a306",
   "gen_hash_zig": "sha256:df9c89cb40a3698748fe080528dda545248763a12e63c8e65f94dec9d53fbcc4",
   "module": "PellisPrecision",
   "ring": 12,
-  "sealed_at": "2026-07-10T14:39:51Z",
+  "sealed_at": "2026-07-10T18:27:04Z",
   "spec_hash": "sha256:64c53763dffa5d31a162ee601cb717c1694ad4915da511a406f704ba074aa6cb",
   "spec_path": "specs/math/pellis_precision_verify.t27"
 }

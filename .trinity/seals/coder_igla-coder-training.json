@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:93a7b15713fce2cae6e0993d0c982ad29185063c409a41d0a7179146c8fad4e7",
   "module": "igla-coder-training",
   "ring": 12,
-  "sealed_at": "2026-07-10T14:39:48Z",
+  "sealed_at": "2026-07-10T18:27:06Z",
   "spec_hash": "sha256:1d2d093bd5a487f1acc247fc26cadc1c7223a040643e43034771b681453d23c2",
   "spec_path": "specs/igla/coder/training.t27"
 }

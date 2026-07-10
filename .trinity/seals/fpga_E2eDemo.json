@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:7d34a3306718d786baaf2ed44be19a5c7ac1bf1bb22b4d4418a0b9501c8c82b9",
   "gen_hash_rust": "sha256:153637f403e5c2045238924ff55923283c8b9ef6f37511fd21e040127d42b618",
-  "gen_hash_verilog": "sha256:8fa2f8c2b32121a62db6386112e111f59ceb08b271d12dbbce74980ea7298a7c",
+  "gen_hash_verilog": "sha256:9b54d7715da8040b78bd5f29969d19f3504a9be6741e000648b7f3e1487a1551",
   "gen_hash_zig": "sha256:302927e174ee53abfbbc024b055b53b507a79c6ac681ef25d0b20c0b0ee11b54",
   "module": "E2eDemo",
   "ring": 12,
-  "sealed_at": "2026-07-10T14:38:45Z",
+  "sealed_at": "2026-07-10T18:26:53Z",
   "spec_hash": "sha256:69729efabc127aefce11e671dcb1abc5029ecd942d0670615a9ab41e73b76fb3",
   "spec_path": "specs/fpga/e2e_demo.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:caf3bcd83a7a4e7ed0d9371106c3b1171792633a1abf8b73591928b6902d3a93",
   "module": "w463_nested_array_param_call",
   "ring": 12,
-  "sealed_at": "2026-07-10T14:39:51Z",
+  "sealed_at": "2026-07-10T18:27:04Z",
   "spec_hash": "sha256:811e5170d88288794850565de0f0eacaf78826dd0ab61263110a4944b68fa461",
   "spec_path": "specs/scratch/w463_nested_array_param_call.t27"
 }

@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0
+// W490 witness: field access with a variable index on an array-typed field of a
+// scalar struct-returning call. The backend emits a bounded priority mux over
+// the packed temporary.
+// φ² + φ⁻² = 3 | TRINITY
+
+module w490_call_field_array_index_var;
+
+pub struct Pt {
+    x : u32,
+    coords : [3]u8,
+}
+
+pub fn make_pt(x : u32, c0 : u8, c1 : u8, c2 : u8) -> Pt {
+    return Pt{x: x, coords: [3]u8{c0, c1, c2}};
+}
+
+pub fn get_coord_var(i : usize) -> u32 {
+    // Variable index into an array-typed field of a scalar struct-return call.
+    return (make_pt(7, 1, 2, 3).coords[i]) as u32;
+}
+
+test call_field_array_index_var {
+    assert_eq(get_coord_var(0), 1);
+    assert_eq(get_coord_var(1), 2);
+    assert_eq(get_coord_var(2), 3);
+}
+
+endmodule

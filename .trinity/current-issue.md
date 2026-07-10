@@ -1,42 +1,39 @@
-# Wave Loop 490 — Next-wave selection
+# Wave Loop 491 — Next-wave selection
 
 **Date:** 2026-07-07
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
-W489 completed the colon struct-literal and struct-local lowering work that W488
-prototyped and rolled back. All non-smoke, yosys smoke, Icarus smoke, and seal
-gates are green, and the NMSE seal was refreshed.
+W490 closed the remaining expression-context lowering gaps from W489 and
+refreshed the NMSE seal.
 
 ## Goal
 
-Select and execute one of the W490 cooperation variants documented in
-`docs/reports/FPGA_LOOP_COOPERATION_W490_2026-07-07.md`.
+Select and execute one of the W491 cooperation variants documented in
+`docs/reports/FPGA_LOOP_COOPERATION_W491_2026-07-07.md`.
 
 ## Default direction
 
-Variant B will be selected at the start of W490 based on the cooperation
-variants document: continue gen-verilog struct/call lowering hardening,
-specifically imported constructors in arbitrary expression context,
-module-scope array-of-struct constants with array-typed fields, and host-only
-enum/string helper classification.
+Variant A will be selected at the start of W491 based on the cooperation
+variants document: formalize the Icarus-lowerable subset in Lean 4, now that
+the immediate gen-verilog lowering gaps are closed.
 
 ## Alternative directions
 
-See `docs/reports/FPGA_LOOP_COOPERATION_W490_2026-07-07.md` for the ranked
-Variant A (Lean formalization), Variant C (FPGA live evidence), and the fallback
-Variant B (backend hardening) proposal.
+See `docs/reports/FPGA_LOOP_COOPERATION_W491_2026-07-07.md` for the ranked
+Variant B (continue gen-verilog struct/call lowering hardening), Variant C (FPGA
+live evidence), and the fallback Variant A (Lean formalization) proposal.
 
 ## Issue Gate
 
-- Branch: `wave-loop-490` (to create from `wave-loop-489`).
+- Branch: `wave-loop-491` (to create from `wave-loop-490`).
 - Required: non-smoke tests green, yosys smoke acceptable, Icarus smoke
   acceptable (no new regressions outside baseline), seals green,
   `cargo test -p t27c --bin t27c` green.
 
 ## References
 
-- W489 close-out: `docs/reports/WAVE_LOOP_489_CLOSEOUT.md`
-- W490 cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W490_2026-07-07.md`
+- W490 close-out: `docs/reports/WAVE_LOOP_490_CLOSEOUT.md`
+- W491 cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W491_2026-07-07.md`
 
 ---
 

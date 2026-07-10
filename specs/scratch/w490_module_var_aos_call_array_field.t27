@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0
+// W490 witness: module-scope writable array-of-struct variable initialized from
+// a struct-returning call, where the element struct has an array-typed field.
+// φ² + φ⁻² = 3 | TRINITY
+
+module w490_module_var_aos_call_array_field;
+
+pub struct Pt {
+    x : u16,
+    coords : [3]u8,
+}
+
+pub fn make_pts() -> [2]Pt {
+    return [2]Pt{
+        Pt{x = 1, coords = [3]u8{1, 2, 3}},
+        Pt{x = 2, coords = [3]u8{4, 5, 6}},
+    };
+}
+
+pub var pts : [2]Pt = make_pts();
+
+pub fn sum_pts() -> u32 {
+    var total : u32 = 0;
+    for i in 0..2 {
+        total = total + (pts[i].x as u32);
+        total = total + (pts[i].coords[0] as u32);
+        total = total + (pts[i].coords[1] as u32);
+        total = total + (pts[i].coords[2] as u32);
+    }
+    return total;
+}
+
+test module_var_aos_call_array_field {
+    assert_eq(sum_pts(), 24);
+}
+
+endmodule

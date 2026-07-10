@@ -7569,6 +7569,26 @@ impl VerilogCodegen {
                         );
                     }
                 }
+                NodeKind::ExprEnumValue => {
+                    // W490: enum variants cannot lower to synthesizable Verilog.
+                    return true;
+                }
+                NodeKind::ExprLiteral => {
+                    // W490: string literals are not synthesizable.
+                    if n.extra_kind == "string" {
+                        return true;
+                    }
+                }
+                NodeKind::ExprBinary => {
+                    // W490: string concatenation via `+` is not synthesizable.
+                    if n.extra_op == "+"
+                        && n.children.iter().any(|c| {
+                            c.kind == NodeKind::ExprLiteral && c.extra_kind == "string"
+                        })
+                    {
+                        return true;
+                    }
+                }
                 _ => {}
             }
             n.children.iter().any(scan)
@@ -7602,7 +7622,7 @@ impl VerilogCodegen {
     fn compute_host_only_functions(
         functions: &[&Node],
         tests: &[&Node],
-        _invariants: &[&Node],
+        enums: &[&Node],
         benches: &[&Node],
         module_stmts: &[&Node],
     ) -> std::collections::HashSet<String> {
@@ -7610,12 +7630,33 @@ impl VerilogCodegen {
             .iter()
             .map(|f| f.name.clone())
             .collect();
+        let enum_types: std::collections::HashSet<String> = enums
+            .iter()
+            .map(|e| e.name.clone())
+            .collect();
         let mut body_unlowerable: std::collections::HashSet<String> =
             std::collections::HashSet::new();
         for f in functions {
             if f.name.ends_with("_inner")
                 || Self::fn_body_has_unlowerable_construct(f)
             {
+                body_unlowerable.insert(f.name.clone());
+                continue;
+            }
+            // W490: functions whose interface is string/enum-only are not
+            // synthesizable even if their body contains no explicit unlowerable
+            // construct, because their parameters and return value cannot be
+            // represented in Verilog-2005.
+            if f.extra_return_type == "string"
+                || enum_types.contains(&f.extra_return_type)
+            {
+                body_unlowerable.insert(f.name.clone());
+                continue;
+            }
+            let has_string_or_enum_param = f.params.iter().any(|(_, ptype)| {
+                ptype == "string" || enum_types.contains(ptype)
+            });
+            if has_string_or_enum_param {
                 body_unlowerable.insert(f.name.clone());
             }
         }
@@ -8471,7 +8512,7 @@ impl VerilogCodegen {
                 Some(v) => v,
                 None => return false,
             };
-        if root.kind != NodeKind::ExprCall || !index_nodes.is_empty() {
+        if root.kind != NodeKind::ExprCall {
             return false;
         }
         let ret_ty = match self.fn_return_types.get(&root.name).cloned() {
@@ -8481,7 +8522,7 @@ impl VerilogCodegen {
         if !self.struct_fields.contains_key(&ret_ty) {
             return false;
         }
-        // Compute the leaf field's packed offset and width.
+        // Resolve the leaf field and the path through nested structs.
         let s_width =
             Self::return_width(&ret_ty, &self.struct_fields);
         let mut current_type = ret_ty.clone();
@@ -8502,7 +8543,7 @@ impl VerilogCodegen {
                 })
                 .unwrap_or_default();
         }
-        let leaf_name = &node.name;
+        let leaf_name = fields.last().unwrap_or(&node.name);
         offset = offset.saturating_add(Self::packed_field_offset(
             &current_type,
             &self.struct_fields,
@@ -8517,12 +8558,20 @@ impl VerilogCodegen {
                     .map(|(_, t)| t.clone())
             })
             .unwrap_or_default();
-        let leaf_width =
-            Self::packed_width(&leaf_type, &self.struct_fields).max(1);
-        let high = s_width.saturating_sub(1).saturating_sub(offset);
-        let low =
-            high.saturating_sub(leaf_width.saturating_sub(1));
+        let leaf_dims = Self::parse_array_dimensions(&leaf_type);
+        let leaf_is_array = !leaf_dims.is_empty();
 
+        // Scalar fields cannot be indexed; array-typed fields require an index
+        // for every dimension.
+        if !index_nodes.is_empty() && (!leaf_is_array || index_nodes.len() != leaf_dims.len()) {
+            return false;
+        }
+        if index_nodes.is_empty() && leaf_is_array {
+            // Whole array-field access is not supported as a packed-vector expression.
+            return false;
+        }
+
+        // Materialize a packed temporary for the call result.
         let tmp = Self::verilog_safe_identifier(
             &format!("_struct_ret_tmp_{}", self.let_tmp_counter),
         );
@@ -8542,7 +8591,87 @@ impl VerilogCodegen {
         std::mem::swap(&mut self.output, &mut assign);
         self.output = assign_out;
         self.aos_tmp_assigns.push(assign);
-        self.write(&format!("{0}[{1}:{2}]", tmp, high, low));
+
+        if index_nodes.is_empty() {
+            // Scalar leaf: emit a simple bit slice of the packed temporary.
+            let leaf_width =
+                Self::packed_width(&leaf_type, &self.struct_fields).max(1);
+            let high = s_width.saturating_sub(1).saturating_sub(offset);
+            let low =
+                high.saturating_sub(leaf_width.saturating_sub(1));
+            self.write(&format!("{0}[{1}:{2}]", tmp, high, low));
+            return true;
+        }
+
+        // W490: array-typed leaf field accessed with indices. Treat the scalar
+        // struct packed value as a one-element array-of-struct so the existing
+        // field-slice helpers can compute the element position.
+        let fake_ret_ty = format!("[1]{}", ret_ty);
+        let all_literal = index_nodes
+            .iter()
+            .all(|idx| idx.value.parse::<usize>().is_ok());
+        if all_literal {
+            let mut idx_vals: Vec<usize> = vec![0];
+            for idx in index_nodes {
+                idx_vals.push(idx.value.parse::<usize>().unwrap());
+            }
+            let slice = Self::array_of_struct_field_slice(
+                &fake_ret_ty,
+                &self.struct_fields,
+                leaf_name,
+                &idx_vals,
+            );
+            if let Some((high, low)) = slice {
+                self.write(&format!("{0}[{1}:{2}]", tmp, high, low));
+                return true;
+            }
+            return false;
+        }
+
+        // Variable indices: emit a bounded priority mux over every reachable
+        // element slice, comparing each dimension expression against the current
+        // combination value.
+        let mut combined_dims: Vec<(usize, String)> = vec![(1, ret_ty.clone())];
+        combined_dims.extend(leaf_dims.iter().cloned());
+        let combos = Self::index_combinations(&combined_dims);
+        let mut first = true;
+        let mut emitted_count = 0;
+        self.write("(");
+        for comb in combos.iter() {
+            let slice = Self::array_of_struct_field_slice(
+                &fake_ret_ty,
+                &self.struct_fields,
+                leaf_name,
+                comb,
+            );
+            if let Some((high, low)) = slice {
+                if !first {
+                    self.write(" : (");
+                }
+                self.write("(");
+                for (d, &idx_val) in comb.iter().enumerate().skip(1) {
+                    if d > 1 {
+                        self.write(" && ");
+                    }
+                    self.write("(");
+                    self.gen_verilog_expr(index_nodes[d - 1]);
+                    self.write(&format!(" == {})", idx_val));
+                }
+                self.write(&format!(") ? {0}[{1}:{2}]",
+                    tmp, high, low
+                ));
+                first = false;
+                emitted_count += 1;
+            }
+        }
+        if emitted_count == 0 {
+            return false;
+        }
+        self.write(" : 0");
+        for _ in 1..emitted_count {
+            self.write(")");
+        }
+        self.write(")");
         true
     }
 
@@ -9215,7 +9344,7 @@ impl VerilogCodegen {
         self.host_only_functions = Self::compute_host_only_functions(
             &functions,
             &tests,
-            &invariants,
+            &enums,
             &benches,
             &module_stmts,
         );
@@ -16880,6 +17009,14 @@ impl VerilogCodegen {
                                 }
                             }
                         }
+                    }
+                    // W490: indexing into an array-typed field of a scalar
+                    // struct-returning call, e.g. `make_pt(a, b).coords[i]`. The
+                    // outer node is ExprIndex, so the ExprFieldAccess handler above
+                    // never sees it; collect the full path here and emit a packed
+                    // temporary slice (literal index) or priority mux (variable).
+                    if self.try_emit_scalar_struct_call_field(node) {
+                        return;
                     }
                     let base = &node.children[0];
                     let idx = &node.children[1];

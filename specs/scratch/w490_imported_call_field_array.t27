@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0
+// W490 witness: imported scalar-struct constructor used directly in field access
+// on an array-typed field. The call must be inlined as a packed concatenation
+// before the array-element slice is emitted.
+// φ² + φ⁻² = 3 | TRINITY
+
+module w490_imported_call_field_array;
+
+use w489_packed_scalar_struct_array_field::Pt;
+use w489_packed_scalar_struct_array_field::make_pt;
+
+pub fn sum_imported_field() -> u32 {
+    return (make_pt(9, 4, 5, 6).coords[1]) as u32;
+}
+
+test imported_call_field_array {
+    assert_eq(sum_imported_field(), 5);
+}
+
+endmodule

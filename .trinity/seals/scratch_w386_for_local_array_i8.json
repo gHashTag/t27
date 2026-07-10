@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4df484d6f6fd6a24e0866feebfa7a129d0ad376bb3ef91f3c38e65700a194e8d",
   "module": "w386_for_local_array_i8",
   "ring": 12,
-  "sealed_at": "2026-07-10T14:39:52Z",
+  "sealed_at": "2026-07-10T18:27:05Z",
   "spec_hash": "sha256:680e06504fc7b31ed02acd36243abf45f8aae075c204aebb0da20e9228e03306",
   "spec_path": "specs/scratch/w386_for_local_array_i8.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9fa1d895fb9def00b2cad5829745a16e5b5bf595cb282d068ba2954e69ad1ca5",
   "module": "w486_bench_array_param",
   "ring": 12,
-  "sealed_at": "2026-07-10T14:39:51Z",
+  "sealed_at": "2026-07-10T18:27:04Z",
   "spec_hash": "sha256:64820bb41a26607eb9a034b36274c4a4149a27f6c37dc1c831412a17f0f4565a",
   "spec_path": "specs/scratch/w486_bench_array_param.t27"
 }

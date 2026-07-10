@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:51be376e1d92d91e17af1fa0950f11e4484e82a0d43703d5d58ab62da6d4b7ed",
   "gen_hash_rust": "sha256:686aeed7083bd1699895836b5c972023ad2a517d5b105b680d129aad98c8a00e",
-  "gen_hash_verilog": "sha256:a7b575e81d8092d20487f8fa9c3abae9ef41c59462d5136018dd33d0459a767b",
+  "gen_hash_verilog": "sha256:d7c7b7f6dc7cd7436fdac65bb8dea633c404c60381c46ef25be48cad39d733e8",
   "gen_hash_zig": "sha256:03d41f580d5c5fca6b225b0d5f3bb5bfdf022357062ac9c1376dfb2b6ae81ab7",
   "module": "Assembler",
   "ring": 12,
-  "sealed_at": "2026-07-10T14:38:45Z",
+  "sealed_at": "2026-07-10T18:26:53Z",
   "spec_hash": "sha256:554e42402228649a53d22c401e9fdcd96a1d5e1bed47cda8e4c1be30de2c0d00",
   "spec_path": "specs/fpga/assembler.t27"
 }

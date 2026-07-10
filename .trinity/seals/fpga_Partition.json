@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:e8adaba3b614fd57b775c5c484cede7a41a07418472ae3c94add342317f21a14",
   "gen_hash_rust": "sha256:695f2a6adbab9433261d8272a6333b0abfaaf404077a18fbf7331f2b072742e0",
-  "gen_hash_verilog": "sha256:799b03ec0ac8f39f23af4b9b893470ae42f22df9d4a932d987bcdb6dd1e9f590",
+  "gen_hash_verilog": "sha256:bc35576ca5f583de474eec32706e1b6d836c1112e62f7a46b73a568e9b5600c5",
   "gen_hash_zig": "sha256:ac9d9fc4e8caaea8ef3e0bcccd1e31b23c7c4281275d51069bfca541fcc127db",
   "module": "Partition",
   "ring": 12,
-  "sealed_at": "2026-07-10T14:38:45Z",
+  "sealed_at": "2026-07-10T18:26:53Z",
   "spec_hash": "sha256:dab0282c7d4e40a1eb25d81e743dbfac14b5ec8573beaa299f3dcfedf9c8a3fb",
   "spec_path": "specs/fpga/partition.t27"
 }

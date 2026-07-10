@@ -1,3 +1,42 @@
+## 2026-07-07 — Wave Loop 490 (gen-verilog backend hardening: scalar struct-return array-field access, imported constructor expression context, module-scope AOS constants with array-typed fields, host-only enum/string helper classification)
+
+### What worked
+- Extending `try_emit_scalar_struct_call_field` to handle indexed array-typed
+  leaf fields required two changes: deriving the leaf field name from
+  `fields.last()` (not `node.name`, which is the index value for an ExprIndex
+  outer node) and dispatching the helper from the ExprIndex branch, because
+  `make_pt(...).coords[i]` parses as ExprIndex over ExprFieldAccess.
+- Treating a scalar struct packed value as a one-element array-of-struct lets
+  the existing `array_of_struct_field_slice` helper compute the exact bit
+  slice for a literal index and lets `index_combinations` drive the priority
+  mux for variable indices.
+- Imported constructor inlining already existed for local-binding and
+  argument contexts; the only missing piece was the scalar struct-return field
+  helper accepting indexed array fields in expression context.
+- Marking functions whose interface is `string` or an enum type as host-only,
+  in addition to scanning bodies for string literals and enum values, cleanly
+  removes dead-but-unparsable Verilog functions without affecting functions
+  reachable from tests/benches.
+
+### What to improve
+- The priority mux for variable array-field indices is currently generated for
+  every element combination; for very large array fields this could be
+  unwieldy. A future wave should add a size threshold and fall back to a
+  generated `case` statement or memory-mode lowering.
+- Module-scope `var` AOS initialization from imported calls was not the bug we
+  expected; the first failure was a wrong expected-value in the witness test,
+  highlighting the need to pre-compute golden values independently.
+
+### Techniques to reuse
+- When an ExprFieldAccess optimization fails for postfix index syntax, add a
+  matching dispatch in the ExprIndex branch before the generic fallback.
+- Use the fake-array trick (`[1]Struct`) to reuse array-of-struct slice math
+  for scalar struct values.
+- Combine body-scan unlowerable constructs with signature-based host-only
+  classification for robust dead-function elimination.
+
+---
+
 ## 2026-07-07 — Wave Loop 489 (gen-verilog backend hardening: colon struct-literals, struct-local deduplication/keyword escape, imported constructor inlining, array-typed fields of scalar struct locals)
 
 ### What worked

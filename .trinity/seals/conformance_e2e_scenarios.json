@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6f8e3fde85ceefa5bb9bcf2d90371d3b3cd89127bc76579de343cbeb633f5f56",
   "module": "e2e_scenarios",
   "ring": 12,
-  "sealed_at": "2026-07-10T14:39:47Z",
+  "sealed_at": "2026-07-10T18:27:02Z",
   "spec_hash": "sha256:20bbd8ea737137c7d5aaf81e7afd3087475790ec60e9c684d89172adab8bd5b7",
   "spec_path": "specs/conformance/e2e_scenarios.t27"
 }

@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: Apache-2.0
+// W490 witness: module-scope two-dimensional array-of-struct constant where the
+// element struct has an array-typed field. The backend must emit multi-dimensional
+// per-field memories and initialize them from the nested struct-literal array.
+// φ² + φ⁻² = 3 | TRINITY
+
+module w490_module_aos_const_array_field_2d;
+
+pub struct Pt {
+    x : u16,
+    coords : [3]u8,
+}
+
+const grid : [2][3]Pt = [2][3]Pt{
+    [3]Pt{
+        Pt{x = 1, coords = [3]u8{1, 2, 3}},
+        Pt{x = 2, coords = [3]u8{4, 5, 6}},
+        Pt{x = 3, coords = [3]u8{7, 8, 9}},
+    },
+    [3]Pt{
+        Pt{x = 4, coords = [3]u8{10, 11, 12}},
+        Pt{x = 5, coords = [3]u8{13, 14, 15}},
+        Pt{x = 6, coords = [3]u8{16, 17, 18}},
+    },
+};
+
+pub fn sum_grid() -> u32 {
+    var total : u32 = 0;
+    for i in 0..2 {
+        for j in 0..3 {
+            total = total + (grid[i][j].x as u32);
+            total = total + (grid[i][j].coords[0] as u32);
+            total = total + (grid[i][j].coords[1] as u32);
+            total = total + (grid[i][j].coords[2] as u32);
+        }
+    }
+    return total;
+}
+
+test module_aos_const_2d_array_field {
+    assert_eq(sum_grid(), 192);
+}
+
+endmodule

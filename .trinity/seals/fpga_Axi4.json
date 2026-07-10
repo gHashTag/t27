@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a30b29b6de7de6196fad8a70cb4941300f5f2433ffaaae0a6a757ba67ef09217",
   "gen_hash_rust": "sha256:1699a19f031620110417ba381a599ad9008ad944a89a5cbcf276345a059e7d3b",
-  "gen_hash_verilog": "sha256:e70065c54a2d3500356f9c8cf180eea21a5d5bbda4b8dd9935dd00da4678f1fb",
+  "gen_hash_verilog": "sha256:8d7d2d6d49072f204e66b3e5a1b25ac5c3d7c488c7ff39004b6e4e48e87e5564",
   "gen_hash_zig": "sha256:4acd9912217106af2f4ce7872fa26ef2769e5a44210054d9e21c9e085705037b",
   "module": "Axi4",
   "ring": 12,
-  "sealed_at": "2026-07-10T14:38:45Z",
+  "sealed_at": "2026-07-10T18:26:53Z",
   "spec_hash": "sha256:6fb6c9bd19533d03aeedfa90cc66376ec7d766d39367b478e9448997d9670c02",
   "spec_path": "specs/fpga/axi4.t27"
 }

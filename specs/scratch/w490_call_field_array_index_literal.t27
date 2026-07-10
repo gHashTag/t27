@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0
+// W490 witness: field access with a literal index on an array-typed field of a
+// scalar struct-returning call. The backend must materialize a packed temporary
+// and slice the selected array element.
+// φ² + φ⁻² = 3 | TRINITY
+
+module w490_call_field_array_index_literal;
+
+pub struct Pt {
+    x : u32,
+    coords : [3]u8,
+}
+
+pub fn make_pt(x : u32, c0 : u8, c1 : u8, c2 : u8) -> Pt {
+    return Pt{x: x, coords: [3]u8{c0, c1, c2}};
+}
+
+pub fn get_coord_literal() -> u32 {
+    // Direct field access on a scalar struct-return call with a literal index.
+    return (make_pt(7, 1, 2, 3).coords[2]) as u32;
+}
+
+pub fn get_scalar_field() -> u32 {
+    // Ensure scalar field access still works alongside array-field access.
+    return make_pt(7, 1, 2, 3).x;
+}
+
+test call_field_array_index_literal {
+    assert_eq(get_coord_literal(), 3);
+    assert_eq(get_scalar_field(), 7);
+}
+
+endmodule

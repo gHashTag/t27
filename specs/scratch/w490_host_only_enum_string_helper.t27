@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0
+// W490 witness: host-only string/enum helper must be skipped in Verilog output.
+// The helper is called only in a wildcard binding, so it is dead to all
+// synthesizable contexts and should not be emitted as a Verilog function.
+// φ² + φ⁻² = 3 | TRINITY
+
+module w490_host_only_enum_string_helper;
+
+pub const Color = enum(u8) {
+    Red,
+    Green,
+};
+
+// String helper returning a description of an enum value. Dead to Verilog.
+fn describe(c : Color) -> string {
+    if c == Color.Red {
+        return "red";
+    }
+    return "green";
+}
+
+// Wildcard binding discards the result; the call is not synthesizable.
+let _ = describe(Color.Red);
+
+test host_only_helper_skipped {
+    assert_eq(1, 1);
+}
+
+endmodule
