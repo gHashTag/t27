@@ -11031,14 +11031,96 @@ impl VerilogCodegen {
                                     self.write_line("end");
                                 }
                             } else {
-                                has_array_field = true;
+                                // W488: array-typed field -> multi-dimensional
+                                // unpacked memory [outer_count][field_dims...].
+                                let leaf_type =
+                                    Self::array_dimensions_leaf_type(&field_dims);
+                                let leaf_width = if self
+                                    .struct_fields
+                                    .contains_key(&leaf_type)
+                                {
+                                    Self::packed_width(
+                                        &leaf_type,
+                                        &self.struct_fields,
+                                    )
+                                } else {
+                                    Self::type_to_width(&leaf_type)
+                                };
+                                let leaf_signed =
+                                    Self::type_is_signed(&leaf_type);
+                                let leaf_signed_str = if leaf_signed {
+                                    "signed "
+                                } else {
+                                    ""
+                                };
+                                let leaf_range =
+                                    Self::range_decl(leaf_width);
+                                let leaf_range_str = if leaf_range.is_empty() {
+                                    String::new()
+                                } else {
+                                    format!("{} ", leaf_range)
+                                };
+                                let mut dim_ranges: Vec<String> = vec![format!(
+                                    "[0:{}]",
+                                    total_size.saturating_sub(1)
+                                )];
+                                dim_ranges.extend(field_dims.iter().map(
+                                    |(size, _)| {
+                                        format!(
+                                            "[0:{}]",
+                                            size.saturating_sub(1)
+                                        )
+                                    },
+                                ));
+                                self.write_indent();
+                                self.write_line(&format!(
+                                    "reg {}{} {} {};",
+                                    leaf_signed_str,
+                                    leaf_range_str,
+                                    safe_anon_field,
+                                    dim_ranges.join("")
+                                ));
+                                if total_size > 0 {
+                                    let inner_combos =
+                                        Self::index_combinations(&field_dims);
+                                    self.write_indent();
+                                    self.write_line("initial begin");
+                                    self.indent();
+                                    for addr in 0..total_size {
+                                        if inner_combos.is_empty() {
+                                            self.write_indent();
+                                            self.write_line(&format!(
+                                                "{}[{}] = {}[{}];",
+                                                safe_anon_field,
+                                                addr,
+                                                safe_src_field,
+                                                addr
+                                            ));
+                                        } else {
+                                            for inner in &inner_combos {
+                                                let inner_idx = inner
+                                                    .iter()
+                                                    .map(|i| i.to_string())
+                                                    .collect::<Vec<_>>()
+                                                    .join("][");
+                                                self.write_indent();
+                                                self.write_line(&format!(
+                                                    "{}[{}][{}] = {}[{}][{}];",
+                                                    safe_anon_field,
+                                                    addr,
+                                                    inner_idx,
+                                                    safe_src_field,
+                                                    addr,
+                                                    inner_idx
+                                                ));
+                                            }
+                                        }
+                                    }
+                                    self.dedent();
+                                    self.write_indent();
+                                    self.write_line("end");
+                                }
                             }
-                        }
-                        if has_array_field {
-                            self.write_indent();
-                            self.write_line(
-                                "// (AOS alias contains array-typed fields; copying those is not yet implemented)"
-                            );
                         }
                         return;
                     }
