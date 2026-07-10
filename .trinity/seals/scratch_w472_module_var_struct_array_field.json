@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2fcdba1ca50f3cae19fbadc39cf01b7375423729318715523b20f1565d8a8497",
   "module": "w472_module_var_struct_array_field",
   "ring": 12,
-  "sealed_at": "2026-07-10T02:38:58Z",
+  "sealed_at": "2026-07-10T03:12:04Z",
   "spec_hash": "sha256:cbf151dc6d9a272d00f8d750dea76dd689bf6d3ca73dbca54d7ad823ebbdbf6b",
-  "spec_path": "/Users/playra/t27/specs/scratch/w472_module_var_struct_array_field.t27"
+  "spec_path": "specs/scratch/w472_module_var_struct_array_field.t27"
 }

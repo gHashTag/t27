@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6660facd69fd2bdea607a60d005a2fc1d05cf7665cd6fe56161d144416fde6f9",
   "module": "w475_adversarial_nested_equality",
   "ring": 12,
-  "sealed_at": "2026-07-10T02:38:57Z",
+  "sealed_at": "2026-07-10T03:12:04Z",
   "spec_hash": "sha256:731eb4fc8c23c23627e2ddac077b624cee57c3bff76b52da9bbe4b80933645c3",
-  "spec_path": "/Users/playra/t27/specs/scratch/w475_adversarial_nested_equality.t27"
+  "spec_path": "specs/scratch/w475_adversarial_nested_equality.t27"
 }

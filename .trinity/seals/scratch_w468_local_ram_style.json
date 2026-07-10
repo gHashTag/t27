@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f758477946b5b769f2e64f98507bbf2c63d33c923afc6e06170dd36fcc3e9519",
   "module": "w468_local_ram_style",
   "ring": 12,
-  "sealed_at": "2026-07-10T02:38:58Z",
+  "sealed_at": "2026-07-10T03:12:04Z",
   "spec_hash": "sha256:ae07094f3fa27feff7ddfc7d1ccb67233d821662faed6230bca4b048a86cf265",
-  "spec_path": "/Users/playra/t27/specs/scratch/w468_local_ram_style.t27"
+  "spec_path": "specs/scratch/w468_local_ram_style.t27"
 }

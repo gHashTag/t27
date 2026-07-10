@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2f37f6a5aedab7f15a7266c461bbf905534dcf265355ac480e3bf47b99dda17f",
   "module": "w481_icarus_aos_param_and_imported_struct",
   "ring": 12,
-  "sealed_at": "2026-07-10T02:40:57Z",
+  "sealed_at": "2026-07-10T03:12:04Z",
   "spec_hash": "sha256:fe63cd4a85613e037de9784a24fcbc9b8786077ab399c9b8e81be650a844a231",
   "spec_path": "specs/scratch/w481_icarus_aos_param_and_imported_struct.t27"
 }

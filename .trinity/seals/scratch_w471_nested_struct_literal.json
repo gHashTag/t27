@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2d2c2bd221e3d1389e8bac1bc9236ada693754d1885c89d4495b3114924825a2",
   "module": "w471_nested_struct_literal",
   "ring": 12,
-  "sealed_at": "2026-07-10T02:38:57Z",
+  "sealed_at": "2026-07-10T03:12:03Z",
   "spec_hash": "sha256:3a7930e6757ebbdea1c8f047a4c5dcce8eaac4d022ee56f04de1bb13172f8a46",
-  "spec_path": "/Users/playra/t27/specs/scratch/w471_nested_struct_literal.t27"
+  "spec_path": "specs/scratch/w471_nested_struct_literal.t27"
 }

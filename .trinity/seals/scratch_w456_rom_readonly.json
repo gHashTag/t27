@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c5021625d0b326b5a0c0a236bc9450a5d932b8f270b0bbcf0af0d97273badcb2",
   "module": "w456_rom_readonly",
   "ring": 12,
-  "sealed_at": "2026-07-10T02:38:58Z",
+  "sealed_at": "2026-07-10T03:12:04Z",
   "spec_hash": "sha256:cc208ab94e4b406f6ce7d70051d3b1fbdb02ad644e3c10a2149c793dee126c42",
-  "spec_path": "/Users/playra/t27/specs/scratch/w456_rom_readonly.t27"
+  "spec_path": "specs/scratch/w456_rom_readonly.t27"
 }

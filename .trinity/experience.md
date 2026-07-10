@@ -3446,3 +3446,49 @@
   recursive helpers remain unsupported in Verilog.
 - The packed-offset helper assumes little-endian field order inside the packed
   vector; any future big-endian or mixed-endian target will need a layout flag.
+
+## 2026-07-07 — Wave Loop 484 (gen-verilog Icarus placeholders made functional: dynamic `.len()` / `.contains()` on strings and fixed-size arrays)
+
+### What worked
+- Splitting string-literal tracking into `module_known_string_literals`
+  (persistent across functions) and `known_string_literals` (cleared per
+  function) let module const/var strings resolve inside every function body
+  without leaking function-local names between functions.
+- Encoding string-literal receivers into the flattened method-call name
+  (`"abc".len`) was the least-invasive way to make `"abc".len()` lowerable,
+  because the parser's `flatten_field_access_name` was already dropping literal
+  receivers and producing a bare `len` call.
+- Treating `.contains(needle)` as an OR-reduction over known elements kept the
+  output synthesizable for both fixed-size scalar arrays and u8 byte buffers;
+  the only backend complication was distinguishing per-element local-array regs
+  (`arr_0`, `arr_1`) from indexed module memories (`arr[i]`).
+- Fixing the 1-D local array literal initializer by falling back to
+  `array_literal_elements` when children are empty removed a long-standing
+  uninitialized-reg warning and made local array `.len()` / `.contains()`
+  witnesses simulate correctly.
+- A global reseal after the final green run kept the seal gate honest; the
+  four Verilog-hash mismatches were all specs whose `UNSUPPORTED_ICARUS`
+  placeholders were replaced by real logic.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`
+  - `module_known_string_literals` and `known_string_literals` state.
+  - `flatten_field_access_name` string-literal receiver encoding.
+  - `try_gen_verilog_static_len` extended for known strings.
+  - `try_gen_verilog_static_contains` extended for strings, u8 arrays, and
+    local per-element arrays.
+  - `gen_verilog_local_multi_dim_init` extra-size fallback for 1-D local
+    array literals.
+- New witness specs:
+  - `specs/scratch/w484_dynamic_len.t27`
+  - `specs/scratch/w484_static_contains.t27`
+- All affected seals refreshed; total `UNSUPPORTED_ICARUS` placeholders across
+  all 658 specs is now 0.
+
+### What to watch next
+- Host-side recursive helpers and module-scope wildcard `_` bindings are the
+  next soft-failure classes preventing some IGLA/bench specs from simulating
+  cleanly under Icarus.
+- Any future dynamic method on runtime-sized containers must not silently
+  regress to a placeholder; the current gate counts `UNSUPPORTED_ICARUS`
+  occurrences and would flag a regression.

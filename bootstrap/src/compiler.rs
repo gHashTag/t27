@@ -2643,7 +2643,9 @@ impl Parser {
 
     /// Flatten a chain of ExprFieldAccess nodes into a dotted name
     /// e.g. ExprFieldAccess("expectEqual", ExprFieldAccess("testing", ExprIdentifier("std")))
-    /// becomes "std.testing.expectEqual"
+    /// becomes "std.testing.expectEqual".
+    /// W484: string-literal receivers are encoded as quoted names so method calls
+    /// like `"abc".len()` become `"abc".len` and can be lowered statically.
     fn flatten_field_access_name(expr: &Node, trailing_field: &str) -> String {
         let mut parts = vec![trailing_field.to_string()];
         let mut current = expr;
@@ -2659,6 +2661,19 @@ impl Parser {
                 }
                 NodeKind::ExprIdentifier => {
                     parts.push(current.name.clone());
+                    break;
+                }
+                NodeKind::ExprLiteral if current.extra_kind == "string" => {
+                    // Encode the string content with surrounding quotes so the
+                    // Verilog backend can recover the literal value.
+                    let escaped = current
+                        .value
+                        .replace('\\', "\\\\")
+                        .replace('"', "\\\"")
+                        .replace('\n', "\\n")
+                        .replace('\t', "\\t")
+                        .replace('\r', "\\r");
+                    parts.push(format!("\"{}\"", escaped));
                     break;
                 }
                 _ => break,
@@ -4174,6 +4189,13 @@ pub struct VerilogCodegen {
     // imports, host helpers, etc.). Field access on such a value must not emit a
     // bare `local_field` name that Icarus cannot bind.
     unsupported_call_result_locals: std::collections::HashSet<String>,
+    // W484: function-local identifiers whose initializer is a string literal.
+    // Used to lower `.len()` and `.contains()` on known strings inside the current
+    // function. Cleared at function boundaries.
+    known_string_literals: std::collections::HashMap<String, String>,
+    // W484: module-level identifiers (const/var) whose initializer is a string
+    // literal. Persists across function bodies so every function can resolve them.
+    module_known_string_literals: std::collections::HashMap<String, String>,
     // W482: function-local variables that hold a packed scalar struct value and
     // are read via field slicing. Maps local name -> struct type name.
     local_packed_struct_vars: std::collections::HashMap<String, String>,
@@ -4229,6 +4251,8 @@ impl VerilogCodegen {
             local_struct_var_types: std::collections::HashMap::new(),
             local_declared_names: std::collections::HashSet::new(),
             unsupported_call_result_locals: std::collections::HashSet::new(),
+            known_string_literals: std::collections::HashMap::new(),
+            module_known_string_literals: std::collections::HashMap::new(),
             local_packed_struct_vars: std::collections::HashMap::new(),
             module_scalar_struct_fields: std::collections::HashMap::new(),
             module_scalar_struct_types: std::collections::HashMap::new(),
@@ -10725,6 +10749,18 @@ impl VerilogCodegen {
             }
         } else {
             // Simple scalar constant
+            // W484: track module-level string constants so `.len()` / `.contains()`
+            // can resolve them at emission time.
+            if !node.children.is_empty() {
+                if let Some(sval) =
+                    Self::node_string_literal_value(&node.children[0])
+                {
+                    self.module_known_string_literals
+                        .insert(node.name.clone(), sval.clone());
+                    self.module_known_string_literals
+                        .insert(Self::verilog_safe_identifier(&node.name), sval);
+                }
+            }
             let is_float = Self::type_is_float(&node.extra_type);
             if node.extra_pub {
                 self.write("parameter ");
@@ -11064,6 +11100,18 @@ impl VerilogCodegen {
                 self.write_line("end");
             }
         } else {
+            // W484: track module-level string variables so `.len()` / `.contains()`
+            // can resolve them at emission time.
+            if !node.children.is_empty() {
+                if let Some(sval) =
+                    Self::node_string_literal_value(&node.children[0])
+                {
+                    self.module_known_string_literals
+                        .insert(node.name.clone(), sval.clone());
+                    self.module_known_string_literals
+                        .insert(safe_name.clone(), sval);
+                }
+            }
             self.write(&format!(
                 "reg {}{}{};",
                 signed_str, range_str, safe_name
@@ -11176,6 +11224,7 @@ impl VerilogCodegen {
                 self.local_struct_var_types.clear();
                 self.local_declared_names.clear();
                 self.unsupported_call_result_locals.clear();
+                self.known_string_literals.clear();
                 self.local_packed_struct_vars.clear();
                 self.array_param_types.clear();
                 self.loop_vars_declared.clear();
@@ -11382,6 +11431,7 @@ impl VerilogCodegen {
         self.local_struct_var_types.clear();
         self.local_declared_names.clear();
         self.unsupported_call_result_locals.clear();
+        self.known_string_literals.clear();
         self.local_packed_struct_vars.clear();
         self.array_param_types.clear();
     }
@@ -12842,8 +12892,19 @@ impl VerilogCodegen {
         dims: &[(usize, String)],
         init: &Node,
     ) {
-        let mut flat_values: Vec<&Node> = Vec::new();
-        Self::flatten_array_literal_values(init, &mut flat_values);
+        // W484: array literals parsed without nested children store their values in
+        // `extra_size` as a comma-separated list. Fall back to `array_literal_elements`
+        // so 1-D local array initializers lower correctly.
+        let flat_values_owned: Vec<Node>;
+        let mut flat_refs: Vec<&Node> = Vec::new();
+        let flat_values: Vec<&Node> = if init.children.is_empty() && !init.extra_size.is_empty() {
+            flat_values_owned = Self::array_literal_elements(init);
+            flat_values_owned.iter().collect()
+        } else {
+            flat_values_owned = Vec::new();
+            Self::flatten_array_literal_values(init, &mut flat_refs);
+            flat_refs
+        };
         let expected: usize = dims.iter().map(|(s, _)| *s).product();
         if flat_values.len() < expected {
             self.write_indent();
@@ -13110,6 +13171,17 @@ impl VerilogCodegen {
                 let safe_local_name = Self::verilog_safe_identifier(&node.name);
                 self.local_declared_names.insert(node.name.clone());
                 self.local_declared_names.insert(safe_local_name.clone());
+                // W484: track function-local string literals so `.len()` and
+                // `.contains()` can be resolved statically.
+                if !node.children.is_empty() {
+                    if let Some(sval) = Self::node_string_literal_value(&node.children[node.children.len() - 1])
+                    {
+                        self.known_string_literals
+                            .insert(node.name.clone(), sval.clone());
+                        self.known_string_literals
+                            .insert(safe_local_name.clone(), sval);
+                    }
+                }
                 if node.children.len() == 1
                     && node.children[0].kind == NodeKind::ExprCall
                 {
@@ -13810,8 +13882,65 @@ impl VerilogCodegen {
         None
     }
 
-    /// W479: try to emit `.len()` as a compile-time constant for arrays of known
-    /// size or string literals. Returns true if the call was handled.
+    /// W484: if `s` is a quoted string literal (e.g. `"hello"`), return the
+    /// unescaped content without the surrounding quotes. Escape sequences
+    /// `\\`, `\"`, `\n`, `\t` are decoded; other backslash sequences are kept
+    /// verbatim.
+    fn extract_string_literal_value(s: &str) -> Option<String> {
+        let bytes = s.as_bytes();
+        if bytes.len() < 2 || bytes[0] != b'"' || bytes[bytes.len() - 1] != b'"' {
+            return None;
+        }
+        let inner = &s[1..s.len() - 1];
+        let mut out = String::new();
+        let mut chars = inner.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '\\' {
+                match chars.next() {
+                    Some('n') => out.push('\n'),
+                    Some('t') => out.push('\t'),
+                    Some('r') => out.push('\r'),
+                    Some('0') => out.push('\0'),
+                    Some(other) => out.push(other),
+                    None => out.push('\\'),
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        Some(out)
+    }
+
+    /// W484: byte length of a quoted string literal (escape-aware).
+    fn string_literal_byte_len(s: &str) -> Option<usize> {
+        Self::extract_string_literal_value(s).map(|v| v.len())
+    }
+
+    /// W484: return the string value of a literal node, if it is a string literal.
+    fn node_string_literal_value(node: &Node) -> Option<String> {
+        if node.kind == NodeKind::ExprLiteral && node.extra_kind == "string" {
+            Some(node.value.clone())
+        } else {
+            None
+        }
+    }
+
+    /// W484: try to resolve the receiver of a `.len()` / `.contains()` call to a
+    /// known string value. Returns the value if the receiver is either a literal
+    /// string in the flattened method-call name, a function-local string-literal
+    /// variable, or a module-level const/var string.
+    fn resolve_string_receiver_value(&self, receiver: &str) -> Option<String> {
+        if let Some(val) = self.known_string_literals.get(receiver) {
+            return Some(val.clone());
+        }
+        if let Some(val) = self.module_known_string_literals.get(receiver) {
+            return Some(val.clone());
+        }
+        Self::extract_string_literal_value(receiver)
+    }
+
+    /// W479/W484: try to emit `.len()` as a compile-time constant for arrays of
+    /// known size or string literals/variables. Returns true if the call was handled.
     fn try_gen_verilog_static_len(&mut self, node: &Node) -> bool {
         if node.kind != NodeKind::ExprCall {
             return false;
@@ -13830,17 +13959,17 @@ impl VerilogCodegen {
             self.write(&len.to_string());
             return true;
         }
-        // String literal: emit the number of bytes/characters.
-        if receiver.starts_with('"') && receiver.ends_with('"') {
-            // The receiver was flattened into the name, so we cannot recover the
-            // literal value here; fall through to unsupported.
+        // String literal or known string variable: emit the byte length.
+        if let Some(val) = self.resolve_string_receiver_value(receiver) {
+            self.write(&format!("{}'d{}", 32, val.len()));
+            return true;
         }
         false
     }
 
-    /// W479: try to emit `.contains(needle)` for a fixed-size array of scalars.
-    /// Returns true if the call was handled. String `.contains` is intentionally
-    /// left unsupported because Verilog strings are not synthesizable in Icarus.
+    /// W479/W484: try to emit `.contains(needle)` for a fixed-size scalar array
+    /// (including u8 byte buffers) or a known string literal/variable. Returns true
+    /// if the call was handled.
     fn try_gen_verilog_static_contains(&mut self, node: &Node) -> bool {
         if node.kind != NodeKind::ExprCall {
             return false;
@@ -13853,29 +13982,51 @@ impl VerilogCodegen {
             return false;
         }
         let needle = &node.children[0];
-        // Only support fixed-size scalar arrays where the needle is a scalar.
-        // Check function-local, bench-local, and module-level scalar arrays.
+        // Known string literal/variable: emit a constant boolean.
+        if let Some(haystack) = self.resolve_string_receiver_value(receiver) {
+            if let Some(needle_val) = Self::node_string_literal_value(needle) {
+                let contains = haystack.contains(&needle_val);
+                self.write(if contains { "1'b1" } else { "1'b0" });
+                return true;
+            }
+        }
+        // Fixed-size scalar array (function-local, bench-local, module-level, or
+        // parameter). W484: include u8 arrays as byte-buffer membership checks.
         let dims = self
             .local_array_dims
             .get(receiver)
             .cloned()
-            .or_else(|| self.module_scalar_array_dims.get(receiver).cloned());
+            .or_else(|| self.module_scalar_array_dims.get(receiver).cloned())
+            .or_else(|| {
+                self.array_param_types.get(receiver).and_then(|ty| {
+                    let dims = Self::parse_array_dimensions(ty);
+                    if !dims.is_empty() {
+                        Some(dims)
+                    } else {
+                        None
+                    }
+                })
+            });
         if let Some(dims) = dims {
-            if Self::array_dimensions_leaf_type(&dims) == "u8" {
-                // u8 arrays are treated as byte buffers; do not synthesize here.
-                return false;
-            }
             if !dims.is_empty() && needle.kind != NodeKind::ExprArrayLiteral {
                 let len = dims.iter().map(|(s, _)| *s).product::<usize>();
-                // Emit an OR reduction over a generate-style expression:
-                // (arr[0] == needle) || (arr[1] == needle) || ... || (arr[len-1] == needle)
+                // W484: function-local arrays are lowered to per-element scalar
+                // registers (`arr_0`, `arr_1`, ...) rather than unpacked memories,
+                // so enumerate elements directly. Module-level and parameter arrays use
+                // indexed memory access (`arr[i]`).
                 self.write("(");
                 let safe = Self::verilog_safe_identifier(receiver);
+                let is_local_per_element = self.local_arrays.contains(&safe)
+                    || self.bench_local_names.contains(receiver);
                 for i in 0..len {
                     if i > 0 {
                         self.write(" || ");
                     }
-                    self.write(&format!("{}[{}] == ", safe, i));
+                    if is_local_per_element {
+                        self.write(&format!("{}_{} == ", safe, i));
+                    } else {
+                        self.write(&format!("{}[{}] == ", safe, i));
+                    }
                     self.gen_verilog_expr(needle);
                 }
                 self.write(")");

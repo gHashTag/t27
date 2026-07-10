@@ -1,23 +1,75 @@
-# NOW — Wave Loop 483 close-out / Wave Loop 484 next (2026-07-07)
+# NOW — Wave Loop 484 close-out / Wave Loop 485 next (2026-07-07)
 
 **Last updated:** 2026-07-07
 
-## Wave Loop 484 — Next wave (to be selected from cooperation plan)
+## Wave Loop 485 — Next wave (to be selected from cooperation plan)
 
-- Branch: `wave-loop-484` (to create from `wave-loop-483`)
+- Branch: `wave-loop-485` (to create from `wave-loop-484`)
 - Issue: (to be opened)
 - PR: (to open after close-out)
-- Plan: (to be written at W484 close-out)
-- Cooperation W485: (to be written at W484 close-out)
+- Plan: (to be written at W485 close-out)
+- Cooperation W486: (to be written at W485 close-out)
 
 ### Not started
 
-- Select one of the three W484 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W484_2026-07-07.md`.
-- Default Variant B: make the remaining `UNSUPPORTED_ICARUS` placeholders
-  functional for dynamic `.len()` / `.contains()` on fixed-size arrays and
-  string literals, host-side recursive helper shadowing in IGLA specs, and
-  module-scope wildcard `_` bindings.
+- Select one of the three W485 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W485_2026-07-07.md`.
+- Default Variant B: harden IGLA/bench lowering for host-side recursive helper
+  shadowing, module-scope wildcard `_` bindings, and bench-local array hoisting.
+
+---
+
+## Wave Loop 484 — compiler-backend Icarus placeholder hardening: dynamic `.len()` / `.contains()` on strings and fixed-size arrays (Variant B default)
+
+- Branch: `wave-loop-484`
+- Issue: #1454 (to be opened)
+- PR: (to open after close-out)
+- Plan: `.claude/plans/wave-loop-484.md`
+- Report: `docs/reports/WAVE_LOOP_484_CLOSEOUT.md`
+- Cooperation W485: `docs/reports/FPGA_LOOP_COOPERATION_W485_2026-07-07.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B default)
+
+- `bootstrap/src/compiler.rs`
+  - `module_known_string_literals` tracks module-level const/var string
+    initializers; `known_string_literals` tracks function-local string literals.
+  - `flatten_field_access_name` encodes string-literal receivers as quoted
+    dotted names so `"abc".len()` becomes `"abc".len` instead of being lost.
+  - `try_gen_verilog_static_len` now lowers `.len()` on known strings and
+    fixed-size arrays.
+  - `try_gen_verilog_static_contains` now lowers `.contains()` on known strings,
+    fixed-size scalar arrays, and u8 byte buffers; distinguishes per-element
+    local-array registers from indexed module memories.
+  - `gen_verilog_local_multi_dim_init` falls back to `array_literal_elements`
+    for 1-D local array literals stored in `extra_size`, fixing uninitialized
+    local array regs.
+
+- Witness specs
+  - `specs/scratch/w484_dynamic_len.t27` — literal, const, var, local string
+    `.len()` plus module-level and function-local fixed-size array `.len()`.
+  - `specs/scratch/w484_static_contains.t27` — literal, const, var, local string
+    `.contains()` plus module-level u8 / u32 array `.contains()`.
+
+- Seals: global reseal of every `.trinity/seals/*.json` because generated
+  Verilog changed for specs that previously emitted `UNSUPPORTED_ICARUS`
+  placeholders.
+
+### Verification
+
+- `cargo build --release`: PASS
+- `cargo test -p t27c --bin t27c`: 1525 passed, 0 failed, 2 ignored
+- `./scripts/tri test`: ALL TESTS PASSED
+  - 658 / 658 non-smoke PASS
+  - 138 / 138 yosys smoke PASS
+  - 138 / 138 Icarus smoke PASS, 0 documented baseline failures
+  - 658 / 658 seal matches
+  - 0 fixed-point divergences
+  - FPGA board-less smoke gate: OK
+  - FPGA standalone lake-package build: OK
+  - FPGA smoke gate replay: OK
+- **Total `UNSUPPORTED_ICARUS` placeholders across all 658 specs: 0.**
 
 ---
 

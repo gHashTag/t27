@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c415dcb0cd901abe0155d5719a88dba3fbef150b9bedc5e6037644ec586651b7",
   "module": "w482_aos_param_functional",
   "ring": 12,
-  "sealed_at": "2026-07-10T02:38:58Z",
+  "sealed_at": "2026-07-10T03:12:04Z",
   "spec_hash": "sha256:eafb9e8a510b5d9a80c62f260fac36d034e572126d80da9d7e59b047a926dc30",
-  "spec_path": "/Users/playra/t27/specs/scratch/w482_aos_param_functional.t27"
+  "spec_path": "specs/scratch/w482_aos_param_functional.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:495cc2d3109960228c166f57283a6a31a1616824df1aee0dc32056df4660d971",
   "module": "config-schema",
   "ring": 12,
-  "sealed_at": "2026-07-10T02:38:56Z",
+  "sealed_at": "2026-07-10T03:12:03Z",
   "spec_hash": "sha256:be6457186936be3d51890416d5440ada3e39561297380e983ae709eca28d727a",
-  "spec_path": "/Users/playra/t27/specs/config/schema.t27"
+  "spec_path": "specs/config/schema.t27"
 }

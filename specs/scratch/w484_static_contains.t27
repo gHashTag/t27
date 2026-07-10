@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: Apache-2.0
+; W484 witness: static `.contains()` lowering for strings and fixed-size arrays.
+; Covers string literals/variables, u8 byte buffers, and scalar arrays.
+; φ² + φ⁻² = 3 | TRINITY
+
+module w484_static_contains;
+
+const greeting : string = "hello world";
+var mutable_greeting : string = "test";
+
+fn string_literal_contains_present() -> bool {
+    return "hello world".contains("world");
+}
+
+fn string_literal_contains_missing() -> bool {
+    return !"hello world".contains("xyz");
+}
+
+fn string_const_contains() -> bool {
+    return greeting.contains("hello") && !greeting.contains("foo");
+}
+
+fn string_var_contains() -> bool {
+    return mutable_greeting.contains("es") && !mutable_greeting.contains("xyz");
+}
+
+fn string_local_contains() -> bool {
+    let s : string = "abc123";
+    return s.contains("123") && !s.contains("xyz");
+}
+
+var byte_buf : [4]u8 = [0x10, 0x20, 0x30, 0x40];
+var alt_byte_buf : [4]u8 = [0x01, 0x02, 0x03, 0x04];
+var hit_byte_buf : [4]u8 = [0x00, 0x30, 0x00, 0x00];
+var u32_arr : [3]u32 = [10, 20, 30];
+
+fn u8_module_contains() -> bool {
+    return byte_buf.contains(0x30);
+}
+
+fn u8_module_missing() -> bool {
+    return !alt_byte_buf.contains(0x30);
+}
+
+fn u8_module_hit() -> bool {
+    return hit_byte_buf.contains(0x30);
+}
+
+fn u32_module_contains() -> bool {
+    return u32_arr.contains(20) && !u32_arr.contains(99);
+}
+
+test static_contains_strings {
+    assert(string_literal_contains_present());
+    assert(string_literal_contains_missing());
+    assert(string_const_contains());
+    assert(string_var_contains());
+    assert(string_local_contains());
+}
+
+test static_contains_arrays {
+    assert(u8_module_contains());
+    assert(u8_module_missing());
+    assert(u8_module_hit());
+    assert(u32_module_contains());
+}
+
+invariant static_contains_sound:
+    string_literal_contains_present()
+    && string_literal_contains_missing()
+    && string_const_contains()
+    && string_var_contains()
+    && string_local_contains()
+    && u8_module_contains()
+    && u8_module_missing()
+    && u8_module_hit()
+    && u32_module_contains();
+
+endmodule

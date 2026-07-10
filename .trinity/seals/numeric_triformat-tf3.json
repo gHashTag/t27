@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6ffea4e5b02611806155c964de5d1bd4afc5479293bbcee5faebdc8fffcc0007",
   "module": "triformat-tf3",
   "ring": 12,
-  "sealed_at": "2026-07-10T02:38:58Z",
+  "sealed_at": "2026-07-10T03:12:04Z",
   "spec_hash": "sha256:fd487ae8a72c2bb8db20ec41e9d56b0ca480f27c86d9a5b85ee5fe04e31479b9",
-  "spec_path": "/Users/playra/t27/specs/numeric/tf3.t27"
+  "spec_path": "specs/numeric/tf3.t27"
 }

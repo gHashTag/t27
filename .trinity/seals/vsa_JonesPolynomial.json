@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:cb06f3a4f396bf7f432c304030761e58010bd819aea957c2dd13c298dccad5e4",
   "module": "JonesPolynomial",
   "ring": 12,
-  "sealed_at": "2026-07-10T02:38:57Z",
+  "sealed_at": "2026-07-10T03:12:03Z",
   "spec_hash": "sha256:5ac8e89ba6c06b5af475ad7481d193448d5b047bc9f0405f38724d02c04f5063",
-  "spec_path": "/Users/playra/t27/specs/vsa/jones_polynomial.t27"
+  "spec_path": "specs/vsa/jones_polynomial.t27"
 }

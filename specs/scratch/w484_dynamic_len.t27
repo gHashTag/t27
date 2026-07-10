@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: Apache-2.0
+; W484 witness: dynamic `.len()` lowering for known strings and arrays.
+; Covers string literals, module-level string constants/variables, function-local
+; string variables, and fixed-size array parameters.
+; φ² + φ⁻² = 3 | TRINITY
+
+module w484_dynamic_len;
+
+const greeting : string = "hello";
+var mutable_greeting : string = "world";
+
+fn literal_len() -> u32 {
+    return "abc".len();
+}
+
+fn const_len() -> u32 {
+    return greeting.len();
+}
+
+fn var_len() -> u32 {
+    return mutable_greeting.len();
+}
+
+fn local_len() -> u32 {
+    let s : string = "0123456789";
+    return s.len();
+}
+
+var byte_buf : [4]u8 = [0x10, 0x20, 0x30, 0x40];
+var u32_arr : [3]u32 = [1, 2, 3];
+
+fn module_u32_len() -> u32 {
+    return u32_arr.len();
+}
+
+fn module_u8_len() -> u32 {
+    return byte_buf.len();
+}
+
+fn local_array_len() -> u32 {
+    let arr : [3]u32 = [10, 20, 30];
+    return arr.len();
+}
+
+test dynamic_len_strings {
+    assert_eq(literal_len(), 3);
+    assert_eq(const_len(), 5);
+    assert_eq(var_len(), 5);
+    assert_eq(local_len(), 10);
+}
+
+test dynamic_len_arrays {
+    assert_eq(module_u32_len(), 3);
+    assert_eq(module_u8_len(), 4);
+    assert_eq(local_array_len(), 3);
+}
+
+invariant dynamic_len_sound:
+    literal_len() == 3
+    && const_len() == 5
+    && var_len() == 5
+    && local_len() == 10
+    && module_u32_len() == 3
+    && module_u8_len() == 4
+    && local_array_len() == 3;
+
+endmodule
