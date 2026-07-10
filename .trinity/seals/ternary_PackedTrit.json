@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:7f8a46887f797b108864c926f7178847342f9a58aa44288f325603e17d7ad00b",
   "gen_hash_rust": "sha256:e37fc930bfdfc37df93e1c9823ba59a28efadce5bb8aecdf786c4ce929784326",
-  "gen_hash_verilog": "sha256:1c39755e9e463af5f290a4e20c8f6834de393f4479cae0f891c3668ac5e898ec",
+  "gen_hash_verilog": "sha256:fa631fa735d9ca279f8c5fb86483725503ea7b922e5936a80eeb480651fad155",
   "gen_hash_zig": "sha256:c1233821582fd861300832cb770b0ccffd6cf25f1aefbcac464ac1b8adbf3744",
   "module": "PackedTrit",
   "ring": 12,
-  "sealed_at": "2026-07-10T03:12:02Z",
+  "sealed_at": "2026-07-10T04:20:42Z",
   "spec_hash": "sha256:01abf020304a8dc0ce0df51ec4596f8d0e743cfce6785505b8414b7aca0c65b3",
   "spec_path": "specs/ternary/packed_trit.t27"
 }

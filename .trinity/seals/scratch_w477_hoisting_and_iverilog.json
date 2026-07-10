@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:188a90c5a1584718d2139cbc6dce370689133e4e7523af2023dcf8bdb8574972",
   "module": "w477_hoisting_and_iverilog",
   "ring": 12,
-  "sealed_at": "2026-07-10T03:12:03Z",
+  "sealed_at": "2026-07-10T04:20:44Z",
   "spec_hash": "sha256:8880698f0732684f8b73ea80247a2cdf3e50d7602d2083731885c4ab1ed6f828",
   "spec_path": "specs/scratch/w477_hoisting_and_iverilog.t27"
 }

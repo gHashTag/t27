@@ -1,3 +1,79 @@
+## 2026-07-07 — Wave Loop 485 (gen-verilog Icarus soft-failure hardening: host-side helper shadowing, wildcard `_` bindings, bench-local array hoisting witness)
+
+### What worked
+- Treating host-side proof helpers as *erasable* before Verilog emission, rather
+  than emitting them and replacing calls with placeholders, eliminated a whole
+  class of noisy generated code and prevented simulation-time assertion failures.
+- Seeding the host-only reachability analysis from module statements **plus**
+  emitted `test` and `bench` blocks kept helpers called by runtime tests intact;
+  the first attempt seeded only module statements and incorrectly erased helpers
+  used in Icarus test blocks.
+- A fixed-point classification over `must_emit` and `host_only` handles
+  transitive helper chains: if helper A is dead and calls dead helper B, both are
+  skipped; if A is reachable from a test, both are emitted.
+- Wildcard `_` bindings are safe when they always create anonymous packed
+  temporaries (or comment no-ops for host-only calls) and never emit a named
+  `_` identifier, which would collide with subsequent wildcards.
+- Keeping the Icarus smoke gate at **0 baseline failures** after adding new
+  scratch specs required moving all host-helper assertions into invariants and
+  having tests assert only synthesizable functions.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`
+  - `host_only_functions` per-module state.
+  - `compute_host_only_functions` with tests/benches/module-stmt reachability.
+  - `collect_all_expr_calls`, `fn_body_has_unlowerable_construct`,
+    `fn_body_calls_host_only`.
+  - Host-only skip in `gen_verilog_fn_internal`.
+  - Host-only call handling in `gen_verilog_expr` (statement comment no-op,
+    expression sized-zero placeholder).
+  - Wildcard `_` handling in `gen_verilog_stmt` (anonymous packed temporary).
+  - Module-scope wildcard skip in `gen_verilog_const`.
+- New witness specs:
+  - `specs/scratch/w485_host_helper_shadow.t27`
+  - `specs/scratch/w485_wildcard_binding.t27`
+  - `specs/scratch/w485_bench_local_array_hoist.t27`
+- Global reseal of `.trinity/seals/*.json` because generated Verilog changed for
+  specs with host-only helpers or wildcard bindings.
+- Added `docs/reports/WAVE_LOOP_485_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W486_2026-07-07.md`.
+- Updated `.trinity/current-issue.md`, `.trinity/ring-485.md`,
+  `.trinity/experience.md`, and memory.
+
+### Verification
+- `cargo build --release`: PASS.
+- `cargo test -p t27c --bin t27c`: 1525 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: ALL TESTS PASSED
+  - 661/661 non-smoke PASS.
+  - 141/141 yosys smoke PASS.
+  - 141/141 Icarus smoke PASS, 0 documented baseline failures.
+  - 661/661 seal matches.
+  - 0 fixed-point divergences.
+  - FPGA board-less smoke gate: OK.
+  - FPGA standalone lake-package build: OK.
+  - FPGA smoke gate replay: OK.
+- **Total `UNSUPPORTED_ICARUS` placeholders across all 661 specs: 0.**
+
+### Patterns to reuse
+- When a function is used only in host-side proof/invariant contexts, erase it
+  from the Verilog target rather than emitting and then placeholder-replacing it.
+- Seed reachability analysis from *all* emitted Verilog contexts (module
+  statements, tests, benches), not just module-level logic.
+- Wildcard bindings should never produce a named `_` reg; use anonymous
+  temporaries or comment no-ops.
+- Global reseal is expected after any change that affects generated Verilog for
+  many specs.
+
+### Anti-patterns to avoid
+- Do not classify loops or other synthesizable constructs as automatically
+  unlowerable; that breaks existing code generation tests.
+- Do not assert the Verilog value of a host-only helper in a `test` block;
+  invariants are the right place for host-only correctness proofs.
+- Do not reseal only the failing specs after a global gen change; reseal
+  everything and rerun the full suite.
+
+---
+
 ## 2026-07-07 — Wave Loop 483 (gen-verilog Icarus placeholder hardening: imported struct-return calls)
 
 ### What worked

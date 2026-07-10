@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c1d413d8c87efa7616724763d4d297b46eb30bee3c1aa7238fcf24a14ec96528",
   "module": "w480_icarus_scope_and_wildcard",
   "ring": 12,
-  "sealed_at": "2026-07-10T03:12:03Z",
+  "sealed_at": "2026-07-10T04:20:44Z",
   "spec_hash": "sha256:61188e4a7567d1064360f524f9431072f102e29644b2a2ab9f5d8b78bfdb27a4",
   "spec_path": "specs/scratch/w480_icarus_scope_and_wildcard.t27"
 }

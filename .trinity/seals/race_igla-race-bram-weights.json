@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:05c634dfec353e6e9cf8c4fadd0425564e0637be952119a52b1e6f120e9e3fb0",
   "gen_hash_rust": "sha256:06592fb9200e523f7c2862189c72d81c5c67c0d1fa91105842b754ad691aa987",
-  "gen_hash_verilog": "sha256:9d9bd5cce9b4d47a22ad60660eea7272f2f050a31012821ebca3f1adcb5339fd",
+  "gen_hash_verilog": "sha256:d11f9f17f04a8165cb0f25107a643faecaba27df2b9fefa6bbfeebfa2233146b",
   "gen_hash_zig": "sha256:75fba879009bd0396c7f13688971cc4da7b9ffdd45dfa3a395c955fe5f635a3d",
   "module": "igla-race-bram-weights",
   "ring": 12,
-  "sealed_at": "2026-07-10T03:12:05Z",
+  "sealed_at": "2026-07-10T04:20:45Z",
   "spec_hash": "sha256:3fc72c05498549b82cdcebc4a13f67538623ff5aafdef939c3625aeeab05dd65",
   "spec_path": "specs/igla/race/bram_weights.t27"
 }

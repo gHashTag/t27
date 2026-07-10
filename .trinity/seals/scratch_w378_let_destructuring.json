@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2bc599b2e8dff853df2290c2b6f3a1c2bf09266d28e225c3456c38d7e5cdfbf2",
   "module": "w378_let_destructuring",
   "ring": 12,
-  "sealed_at": "2026-07-10T03:12:04Z",
+  "sealed_at": "2026-07-10T04:20:44Z",
   "spec_hash": "sha256:e7b3ed233b548c98db11d957731068956a26a08a1468f291319518a3a529ccb2",
   "spec_path": "specs/scratch/w378_let_destructuring.t27"
 }

@@ -4226,6 +4226,9 @@ pub struct VerilogCodegen {
     bench_local_prefix: String,
     // W461: monotonic counter for module-level bare-call dummy registers.
     toplevel_tmp_counter: u32,
+    // W485: functions that are host-only/proof-only and must not be emitted to
+    // Verilog. Populated during the pre-pass after fn_return_types is known.
+    host_only_functions: std::collections::HashSet<String>,
 }
 
 impl VerilogCodegen {
@@ -4282,6 +4285,7 @@ impl VerilogCodegen {
             aos_tmp_decls: Vec::new(),
             aos_tmp_assigns: Vec::new(),
             aos_stmt_start: 0,
+            host_only_functions: std::collections::HashSet::new(),
 
 
             array_param_types: std::collections::HashMap::new(),
@@ -7454,6 +7458,169 @@ impl VerilogCodegen {
         }
     }
 
+    /// W485: recursively collect every `ExprCall` under `node`, regardless of
+    /// callee name. Used to discover whether a function is reachable from
+    /// synthesizable contexts.
+    fn collect_all_expr_calls<'n>(node: &'n Node, out: &mut Vec<&'n Node>) {
+        if node.kind == NodeKind::ExprCall {
+            out.push(node);
+        }
+        for child in &node.children {
+            Self::collect_all_expr_calls(child, out);
+        }
+    }
+
+    /// W485: return true if `node` contains constructs that cannot lower to
+    /// synthesizable Verilog: direct or indirect recursion, dynamic string/array
+    /// method calls, namespace-qualified calls, or unsupported builtin calls.
+    fn fn_body_has_unlowerable_construct(node: &Node) -> bool {
+        fn scan(n: &Node) -> bool {
+            match n.kind {
+                NodeKind::ExprCall => {
+                    let name = &n.name;
+                    if name.contains("::") {
+                        return true;
+                    }
+                    if let Some((_, method)) = VerilogCodegen::method_call_split(name) {
+                        if method == "len" || method == "contains" {
+                            return true;
+                        }
+                    }
+                    if name.starts_with("@") {
+                        return matches!(
+                            name.as_str(),
+                            "@intCast" | "@min" | "@mod" | "@max" | "@abs" | "@clz"
+                                | "@ctz" | "@popCount" | "@byteSwap" | "@bitReverse"
+                        );
+                    }
+                }
+                _ => {}
+            }
+            n.children.iter().any(scan)
+        }
+        node.children.iter().any(scan)
+    }
+
+    /// W485: true if `node` contains a direct call to any function whose name is
+    /// in `host_only`.
+    fn fn_body_calls_host_only(
+        node: &Node,
+        host_only: &std::collections::HashSet<String>,
+    ) -> bool {
+        fn scan(n: &Node, host_only: &std::collections::HashSet<String>) -> bool {
+            if n.kind == NodeKind::ExprCall && host_only.contains(&n.name) {
+                return true;
+            }
+            n.children.iter().any(|c| scan(c, host_only))
+        }
+        node.children.iter().any(|c| scan(c, host_only))
+    }
+
+    /// W485: compute the set of host-only functions. A function is host-only when
+    /// it is not reachable from any Verilog-emitted context (module-level
+    /// statements, test blocks, bench blocks, or other non-host-only functions)
+    /// AND either its body contains constructs that cannot lower to
+    /// synthesizable Verilog or it calls another host-only function. Functions
+    /// used only in host-side invariants/proofs are therefore skipped, while
+    /// functions called from emitted tests/benches/module logic are always
+    /// emitted so that Icarus simulation and yosys benches remain intact.
+    fn compute_host_only_functions(
+        functions: &[&Node],
+        tests: &[&Node],
+        _invariants: &[&Node],
+        benches: &[&Node],
+        module_stmts: &[&Node],
+    ) -> std::collections::HashSet<String> {
+        let function_names: std::collections::HashSet<String> = functions
+            .iter()
+            .map(|f| f.name.clone())
+            .collect();
+        let mut body_unlowerable: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        for f in functions {
+            if f.name.ends_with("_inner")
+                || Self::fn_body_has_unlowerable_construct(f)
+            {
+                body_unlowerable.insert(f.name.clone());
+            }
+        }
+
+        let mut host_only: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+
+        loop {
+            // Functions reachable from any emitted Verilog context through
+            // functions that are not yet host-only must be emitted.
+            let mut must_emit: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
+            for stmt in module_stmts {
+                let mut calls: Vec<&Node> = Vec::new();
+                Self::collect_all_expr_calls(stmt, &mut calls);
+                for call in calls {
+                    if function_names.contains(&call.name) {
+                        must_emit.insert(call.name.clone());
+                    }
+                }
+            }
+            for test in tests {
+                let mut calls: Vec<&Node> = Vec::new();
+                Self::collect_all_expr_calls(test, &mut calls);
+                for call in calls {
+                    if function_names.contains(&call.name) {
+                        must_emit.insert(call.name.clone());
+                    }
+                }
+            }
+            for bench in benches {
+                let mut calls: Vec<&Node> = Vec::new();
+                Self::collect_all_expr_calls(bench, &mut calls);
+                for call in calls {
+                    if function_names.contains(&call.name) {
+                        must_emit.insert(call.name.clone());
+                    }
+                }
+            }
+            loop {
+                let mut changed = false;
+                for f in functions {
+                    if host_only.contains(&f.name) || !must_emit.contains(&f.name) {
+                        continue;
+                    }
+                    let mut calls: Vec<&Node> = Vec::new();
+                    Self::collect_all_expr_calls(f, &mut calls);
+                    for call in calls {
+                        if function_names.contains(&call.name)
+                            && must_emit.insert(call.name.clone())
+                        {
+                            changed = true;
+                        }
+                    }
+                }
+                if !changed {
+                    break;
+                }
+            }
+
+            // Add functions that are dead to emitted Verilog and either
+            // unlowerable or call a host-only helper.
+            let mut new_host_only = host_only.clone();
+            for f in functions {
+                if must_emit.contains(&f.name) {
+                    continue;
+                }
+                if body_unlowerable.contains(&f.name)
+                    || Self::fn_body_calls_host_only(f, &host_only)
+                {
+                    new_host_only.insert(f.name.clone());
+                }
+            }
+            if new_host_only == host_only {
+                return host_only;
+            }
+            host_only = new_host_only;
+        }
+    }
+
     /// W463: recursively scan a function body for calls to other array-parameter
     /// functions where the argument is one of the outer function's array
     /// parameters. Returns a list of (call node, callee name, map of callee
@@ -8633,6 +8800,19 @@ impl VerilogCodegen {
                 self.fn_zero_arg_functions.insert(f.name.clone());
             }
         }
+
+        // W485: identify host-only/proof-only functions that should not be emitted
+        // to Verilog. A function is host-only if its body contains constructs that
+        // cannot lower to synthesizable Verilog and every call site is inside a
+        // non-synthesizable context (another host-only function, or an expression
+        // whose result is bound to wildcard `_`).
+        self.host_only_functions = Self::compute_host_only_functions(
+            &functions,
+            &tests,
+            &invariants,
+            &benches,
+            &module_stmts,
+        );
 
         // W464: populate struct-field registry from struct declarations so the
         // array-literal binding pass and ROM emission can handle arrays of
@@ -10431,6 +10611,21 @@ impl VerilogCodegen {
     fn gen_verilog_const(&mut self, node: &Node) {
         self.write_indent();
 
+        // W485: module-level wildcard `_` declarations discard their initializer.
+        // Do not emit a Verilog parameter/reg for `_`; multiple wildcard bindings
+        // would otherwise collide as duplicate identifiers.
+        if node.name == "_" {
+            self.write_line(&format!(
+                "// let _ = ... discarded at module scope ({})",
+                if node.children.is_empty() {
+                    "no initializer"
+                } else {
+                    "initializer present"
+                }
+            ));
+            return;
+        }
+
         if node.extra_mutable {
             self.gen_verilog_var(node);
             return;
@@ -11200,6 +11395,35 @@ impl VerilogCodegen {
             );
         } else {
             self.write_line(&format!("// function: {}", node.name));
+        }
+
+        // W485: host-only/proof-only functions (recursive helpers, string
+        // manipulators, etc.) are not emitted to Verilog. They are used only in
+        // host-side tests/invariants/benches, so skipping them avoids noisy
+        // sized-zero placeholders and simulation-time failures.
+        if !is_clone && self.host_only_functions.contains(&node.name) {
+            self.write_indent();
+            self.write_line(&format!(
+                "// (host-only function '{}' skipped - not synthesizable)",
+                node.name
+            ));
+            self.current_fn_name.clear();
+            self.current_fn_name_original.clear();
+            self.current_fn_return_type.clear();
+            self.param_widths.clear();
+            self.local_arrays.clear();
+            self.local_array_elem_info.clear();
+            self.local_array_dims.clear();
+            self.local_struct_array_fields.clear();
+            self.local_struct_array_has_array_field.clear();
+            self.local_struct_var_types.clear();
+            self.local_declared_names.clear();
+            self.unsupported_call_result_locals.clear();
+            self.known_string_literals.clear();
+            self.local_packed_struct_vars.clear();
+            self.array_param_types.clear();
+            self.loop_vars_declared.clear();
+            return;
         }
 
         // W458: if this function has array parameter(s) and the binding could
@@ -13164,6 +13388,49 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtLocal => {
+                // W485: module/function-scope wildcard `_` bindings discard the
+                // initializer value. If the initializer is a host-only or
+                // namespace-qualified call, emit a comment and do not create a
+                // placeholder reg. Otherwise, evaluate the initializer into an
+                // anonymous packed temporary so the call's side effects are
+                // preserved without inventing a named local.
+                if node.name == "_" {
+                    if !node.children.is_empty() {
+                        let init = &node.children[node.children.len() - 1];
+                        let is_host_or_ns_call = init.kind == NodeKind::ExprCall
+                            && (init.name.contains("::")
+                                || self.call_is_host_only(&init.name));
+                        if is_host_or_ns_call {
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "// let _ = ... discarded ({})",
+                                init.name
+                            ));
+                            return;
+                        }
+                        let width = if init.kind == NodeKind::ExprCall {
+                            self.verilog_call_result_width(&init.name)
+                        } else {
+                            Self::type_to_width(&node.extra_type).max(32)
+                        };
+                        let tmp = Self::verilog_safe_identifier(
+                            &format!("_wildcard_tmp_{}", self.let_tmp_counter),
+                        );
+                        self.let_tmp_counter += 1;
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "reg [{}:0] {}; // wildcard binding temporary",
+                            width.saturating_sub(1),
+                            tmp
+                        ));
+                        self.write_indent();
+                        self.write(&format!("{} = ", tmp));
+                        self.gen_verilog_expr(init);
+                        self.write_line(";");
+                    }
+                    return;
+                }
+
                 // W481: record every function-local name that gets a declaration.
                 // This lets field-access fallbacks distinguish declared locals from
                 // names dropped by parser recovery or initialized from unsupported
@@ -14036,6 +14303,12 @@ impl VerilogCodegen {
         false
     }
 
+    /// W485: true if `callee` names a function that was classified as host-only
+    /// and therefore is not emitted as a Verilog function/task.
+    fn call_is_host_only(&self, callee: &str) -> bool {
+        self.host_only_functions.contains(callee)
+    }
+
     /// W480: emit a sized zero placeholder for an unsupported method/call so that
     /// the Icarus gate produces a single classified failure instead of a cascade
     /// of syntax errors. A 32-bit default avoids "indefinite width" errors when the
@@ -14168,17 +14441,33 @@ impl VerilogCodegen {
                         }
                     }
                 }
+                // W485: if the callee is a host-only helper, do not emit a
+                // placeholder in statement context; the call is intentionally not
+                // synthesizable and has no side effects in Verilog. Expression
+                // context still needs a placeholder value.
+                if self.call_is_host_only(callee_original) {
+                    if self.stmt_context {
+                        self.write(&format!(
+                            "/* host-only call '{}' skipped */",
+                            callee_original
+                        ));
+                        return;
+                    }
+                    // Fall through to the normal unsupported-call placeholder below
+                    // so the expression gets a sized zero value.
+                }
+
                 // W480: if the resolved callee is not a function/task actually
                 // emitted in this module (host-side helper, namespace-qualified
                 // import, or function skipped due to unsupported bindings), emit a
                 // sized zero placeholder so Icarus classifies one failure instead of
                 // cascading with "No function named ..." or syntax errors.
-                if !self.emitted_functions.contains(&fn_name) {
+                if !self.emitted_functions.contains(&fn_name) || self.call_is_host_only(callee_original) {
                     // W483: inline imported scalar-struct constructors whose body is a
                     // single struct literal. Emit the packed concatenation directly
                     // so the result can be assigned to a packed local or passed as a
                     // scalar struct argument.
-                    if !self.stmt_context {
+                    if !self.stmt_context && !self.call_is_host_only(callee_original) {
                         if let Some((ret_ty, fields)) =
                             self.imported_struct_return_literals.get(callee_original)
                         {
@@ -14198,6 +14487,8 @@ impl VerilogCodegen {
                     if self.stmt_context {
                         let reason = if callee_original.contains("::") {
                             "namespace call"
+                        } else if self.call_is_host_only(callee_original) {
+                            "host-only function skipped"
                         } else {
                             "host-side function not emitted"
                         };
@@ -14210,6 +14501,8 @@ impl VerilogCodegen {
                     let width = self.verilog_call_result_width(callee_original);
                     let reason = if callee_original.contains("::") {
                         "namespace call"
+                    } else if self.call_is_host_only(callee_original) {
+                        "host-only function skipped"
                     } else {
                         "host-side function not emitted"
                     };

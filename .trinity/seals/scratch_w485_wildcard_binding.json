@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4f5256dc5e64950c5a338f1a4fbde7d40abe7c04df02f410ed045e3d81b09c70",
+  "gen_hash_rust": "sha256:ba15f19cb7222fe5611c9d691f6891678a3deabf9e03281a6f869c5954549798",
+  "gen_hash_verilog": "sha256:65a6fe9162ac97575fd7efefdb112ef2a84083687fda7185af72a59ca3231611",
+  "gen_hash_zig": "sha256:609e76eb4e50a960174202f09ef05df23a24db915ac86b376e2ff1207b4cc1ab",
+  "module": "w485_wildcard_binding",
+  "ring": 12,
+  "sealed_at": "2026-07-10T04:20:44Z",
+  "spec_hash": "sha256:1d76110ce4d833a1a8ffa11610b3605100c9ad7e0d3ee6eadc80a2f96ef32567",
+  "spec_path": "specs/scratch/w485_wildcard_binding.t27"
+}

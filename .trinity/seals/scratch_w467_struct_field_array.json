@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7a26c35b6402634a4a461c13b98a4829debfb7d833f0b8c8e0f1a151659fac08",
   "module": "w467_struct_field_array",
   "ring": 12,
-  "sealed_at": "2026-07-10T03:12:03Z",
+  "sealed_at": "2026-07-10T04:20:44Z",
   "spec_hash": "sha256:1bd2a521609daa8ceec53c8b77e45390c3a1592513786f81a939e6d0854c39a3",
   "spec_path": "specs/scratch/w467_struct_field_array.t27"
 }

@@ -1,39 +1,39 @@
-# Wave Loop 485 — next-wave selection
+# Wave Loop 486 — next-wave selection
 
 **Date:** 2026-07-07
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
-W484 made all remaining `UNSUPPORTED_ICARUS` placeholders functional:
+W485 hardened the Icarus/Verilog backend for the next soft-failure classes:
 
-- Dynamic `.len()` / `.contains()` on known strings and fixed-size arrays now
-  lower to real, synthesizable Verilog.
-- String-literal receivers are preserved in the flattened method-call name so
-  `"abc".len()` resolves statically.
-- Function-local 1-D array literals initialize per-element registers correctly.
-- The Icarus smoke gate remains at **0 documented baseline failures**.
+- Host-side recursive/proof-only helpers are now detected and skipped during
+  Verilog generation.
+- Module-scope and function-scope wildcard `_` bindings no longer emit duplicate
+  identifiers or sized-zero assignments.
+- A regression witness for bench-local array hoisting was added and passes both
+  yosys and Icarus smoke.
 
-Verification at W484 close-out:
+Verification at W485 close-out:
 
-- 658 / 658 non-smoke PASS.
-- 138 / 138 yosys smoke PASS.
-- 138 / 138 Icarus smoke PASS, **0 documented baseline failures**.
-- 658 / 658 seal matches.
+- 661 / 661 non-smoke PASS.
+- 141 / 141 yosys smoke PASS, 0 failures.
+- 141 / 141 Icarus smoke PASS, 0 documented baseline failures.
+- 661 / 661 seal matches.
 - `cargo test -p t27c --bin t27c` 1525 / 0 / 2.
-- **Total `UNSUPPORTED_ICARUS` placeholders across all 658 specs: 0.**
+- **Total `UNSUPPORTED_ICARUS` placeholders across all 661 specs: 0.**
 
 ## Goal
 
-Select and execute one of the W485 cooperation variants documented in
-`docs/reports/FPGA_LOOP_COOPERATION_W485_2026-07-07.md`.
+Select and execute one of the W486 cooperation variants documented in
+`docs/reports/FPGA_LOOP_COOPERATION_W486_2026-07-07.md`.
 
 ## Default direction
 
 **Variant B (default):** continue hardening the Icarus/Verilog backend for the
-next soft-failure classes now that sized-zero placeholders are gone:
+remaining soft-failure classes after W485:
 
-- host-side recursive helper shadowing in IGLA specs,
-- module-scope wildcard `_` bindings,
-- bench-local array declarations that cross function boundaries.
+- bench-local fixed-size arrays crossing function boundaries,
+- module-scope wildcard `_` bindings with struct/array literal initializers,
+- imported namespace helper erasure.
 
 ## Alternative directions
 
@@ -44,12 +44,12 @@ next soft-failure classes now that sized-zero placeholders are gone:
 
 ## Issue Gate
 
-- Branch: `wave-loop-485` (to create from `wave-loop-484`).
+- Branch: `wave-loop-486` (to create from `wave-loop-485`).
 - Required: non-smoke tests green, yosys smoke acceptable, Icarus smoke
   acceptable (no new regressions outside baseline), seals green,
   `cargo test -p t27c --bin t27c` green.
 
 ## References
 
-- W484 close-out: `docs/reports/WAVE_LOOP_484_CLOSEOUT.md`
-- W485 cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W485_2026-07-07.md`
+- W485 close-out: `docs/reports/WAVE_LOOP_485_CLOSEOUT.md`
+- W486 cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W486_2026-07-07.md`

@@ -1,21 +1,73 @@
-# NOW — Wave Loop 484 close-out / Wave Loop 485 next (2026-07-07)
+# NOW — Wave Loop 485 close-out / Wave Loop 486 next (2026-07-07)
 
 **Last updated:** 2026-07-07
 
-## Wave Loop 485 — Next wave (to be selected from cooperation plan)
+## Wave Loop 486 — Next wave (to be selected from cooperation plan)
 
-- Branch: `wave-loop-485` (to create from `wave-loop-484`)
-- Issue: (to be opened)
+- Branch: `wave-loop-486` (to create from `wave-loop-485`)
+- Issue: #1456 (to be opened)
 - PR: (to open after close-out)
-- Plan: (to be written at W485 close-out)
-- Cooperation W486: (to be written at W485 close-out)
+- Plan: (to be written at W486 close-out)
+- Cooperation W487: (to be written at W486 close-out)
 
 ### Not started
 
-- Select one of the three W485 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W485_2026-07-07.md`.
-- Default Variant B: harden IGLA/bench lowering for host-side recursive helper
-  shadowing, module-scope wildcard `_` bindings, and bench-local array hoisting.
+- Select one of the three W486 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W486_2026-07-07.md`.
+- Default Variant B: continue IGLA/bench lowering hardening for bench-local
+  arrays crossing function boundaries, module-scope wildcard literals, and
+  imported namespace helper erasure.
+
+---
+
+## Wave Loop 485 — compiler-backend Icarus soft-failure hardening: host-side helper shadowing, wildcard `_` bindings, bench-local array hoisting witness (Variant B default)
+
+- Branch: `wave-loop-485`
+- Issue: #1455 (to be opened)
+- PR: (to open after close-out)
+- Plan: `.claude/plans/wave-loop-485.md`
+- Report: `docs/reports/WAVE_LOOP_485_CLOSEOUT.md`
+- Cooperation W486: `docs/reports/FPGA_LOOP_COOPERATION_W486_2026-07-07.md`
+
+### What landed (Variant B default)
+
+- `bootstrap/src/compiler.rs`
+  - `host_only_functions` set and `compute_host_only_functions` detect functions
+    that are dead to emitted Verilog contexts and contain unlowerable constructs.
+  - `collect_all_expr_calls`, `fn_body_has_unlowerable_construct`,
+    `fn_body_calls_host_only` scan function bodies for recursive helpers,
+    dynamic string/array methods, namespace calls, and unsupported builtins.
+  - host-only skip in `gen_verilog_fn_internal`.
+  - host-only call handling in `gen_verilog_expr` (statement-context comment
+    no-op, expression-context sized-zero placeholder).
+  - wildcard `_` handling in `gen_verilog_stmt` (anonymous packed temporary).
+  - module-scope wildcard skip in `gen_verilog_const`.
+
+- Witness specs
+  - `specs/scratch/w485_host_helper_shadow.t27` — recursive helper used only in
+    invariants; synthesizable function exercised in test and bench.
+  - `specs/scratch/w485_wildcard_binding.t27` — module/function-scope wildcard
+    bindings for host-only and emitted calls.
+  - `specs/scratch/w485_bench_local_array_hoist.t27` — bench-local fixed-size
+    array hoisted to module scope and used directly inside the bench.
+
+- Seals: global reseal of every `.trinity/seals/*.json` because generated Verilog
+  changed for specs with host-only helpers or wildcard bindings.
+
+### Verification
+
+- `cargo build --release`: PASS
+- `cargo test -p t27c --bin t27c`: 1525 passed, 0 failed, 2 ignored
+- `./scripts/tri test`: ALL TESTS PASSED
+  - 661 / 661 non-smoke PASS
+  - 141 / 141 yosys smoke PASS
+  - 141 / 141 Icarus smoke PASS, 0 documented baseline failures
+  - 661 / 661 seal matches
+  - 0 fixed-point divergences
+  - FPGA board-less smoke gate: OK
+  - FPGA standalone lake-package build: OK
+  - FPGA smoke gate replay: OK
+- **Total `UNSUPPORTED_ICARUS` placeholders across all 661 specs: 0.**
 
 ---
 

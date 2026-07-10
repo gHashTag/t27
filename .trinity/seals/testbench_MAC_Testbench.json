@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a3f87f3f7cca702b0719e1db83378e553ff6142c7abad0ebc9a1d748f121f8cf",
   "gen_hash_rust": "sha256:07469a7187f0e805a00a5d02cb3b72ff78f80b7157d4eb1b57609f6cee0e82a1",
-  "gen_hash_verilog": "sha256:73f385007d9f9c84e3c0f1e2de39bb387c295de049bbc8adf37b8ac4f73b9e34",
+  "gen_hash_verilog": "sha256:e0f99b8bbddea65ad2fc6219c6e1257d9ad7efbc1bffdcc900eca2cd7b806857",
   "gen_hash_zig": "sha256:d3347b13c8decb3105c6807de2db707363b8c9dc46157b178abe5fbbe0a41557",
   "module": "MAC_Testbench",
   "ring": 12,
-  "sealed_at": "2026-07-10T03:12:04Z",
+  "sealed_at": "2026-07-10T04:20:42Z",
   "spec_hash": "sha256:2eade0fba9b90159413821a1a7dc079d197b1fd7d849c6825e4cfee8feda6d51",
   "spec_path": "specs/fpga/testbench/mac_tb.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6ac688dfc467dcf2f3b65ef1c033712cbeb5f1b676940e3b59dc86e3de883309",
   "module": "igla-race-systolic-ternary",
   "ring": 12,
-  "sealed_at": "2026-07-10T03:12:05Z",
+  "sealed_at": "2026-07-10T04:20:45Z",
   "spec_hash": "sha256:e5d3abe21161cf461a1619d154fb334e0531a9d78f8b423c971f91260640bb81",
   "spec_path": "specs/igla/race/systolic_ternary.t27"
 }
