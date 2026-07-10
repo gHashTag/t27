@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8887d0ef94f167261990010d33d8f3fcdd82e45919de07ef1d8d3db71c6baccf",
   "module": "FPGA_Bridge",
   "ring": 12,
-  "sealed_at": "2026-07-10T00:19:09Z",
+  "sealed_at": "2026-07-10T02:38:51Z",
   "spec_hash": "sha256:4ea3568a8b7752c4f0ad9d83de08ec7d632dbe7d3f6cc2158f5eaef16becb1f8",
-  "spec_path": "specs/fpga/bridge.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/bridge.t27"
 }

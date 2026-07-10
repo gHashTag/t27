@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0
+; W482 witness: imported scalar struct parameter lowering.
+; gen-verilog loads the imported struct layout from the supplier spec and
+; destructures the packed parameter into per-field wires.
+; φ² + 1/φ² = 3 | TRINITY
+
+module w482_imported_struct_param;
+
+use scratch::w481_struct_supplier;
+
+fn score(m : w481_struct_supplier::Metric) -> u32 {
+    return m.value * m.scale;
+}
+
+test imported_struct_param_functional {
+    assert_eq(score(w481_struct_supplier::Metric{.value = 3, .scale = 7}), 21);
+    assert_eq(score(w481_struct_supplier::Metric{.value = 6, .scale = 8}), 48);
+}
+
+invariant imported_struct_param_positive {
+    score(w481_struct_supplier::Metric{.value = 2, .scale = 2}) == 4
+}
+
+bench imported_struct_param_bench {
+    assert_eq(score(w481_struct_supplier::Metric{.value = 5, .scale = 5}), 25);
+}
+
+endmodule

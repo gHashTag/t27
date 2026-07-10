@@ -1916,3 +1916,31 @@
 - **Commit:** feat(gen-verilog): Wave Loop 474 — function-local nested struct arrays, AOS return writeback, scalar-struct equality, adversarial yosys witness
 - **Files:** .claude/plans/wave-loop-470.md,.claude/plans/wave-loop-472.md,.claude/plans/wave-loop-474.md,.claude/plans/wave-loop-475.md,.claude/plans/wave-loop-476.md,.claude/plans/wave-loop-477.md,.claude/plans/wave-loop-478.md,.claude/plans/wave-loop-479.md,.claude/plans/wave-loop-480.md,.claude/plans/wave-loop-481.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/experience.md,.trinity/ring-472.md,.trinity/ring-475.md,.trinity/ring-476.md,.trinity/ring-477.md,.trinity/ring-478.md,.trinity/ring-480.md,.trinity/ring-481.md
 
+## 2026-07-10T02:08:56Z — wave-loop-482
+- **Commit:** feat(gen-verilog): Wave Loop 481 — Icarus Verilog baseline cleared via unresolved field-access placeholders + f32 cast preservation, 652/652 non-smoke PASS + 132/132 yosys smoke PASS + 132/132 Icarus smoke PASS + cargo test 1525/0/2\n\nCloses #1451\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .claude/plans/wave-loop-482.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/ring-482.md,.trinity/seals/base_tritype-base.json,.trinity/seals/base_tritype-ops.json,.trinity/seals/brain_brain-phi-timing.json,.trinity/seals/brain_brain-unified-state.json,.trinity/seals/bus_bus-pubsub.json,.trinity/seals/bus_bus-schema.json,.trinity/seals/compiler_Lexing.json,.trinity/seals/compiler_Optimization.json,.trinity/seals/compiler_Parsing.json,.trinity/seals/config_config-migrate.json,.trinity/seals/config_config-paths.json,.trinity/seals/config_config-schema.json,.trinity/seals/fpga_VcdConformanceCompare.json,.trinity/seals/lsp_lsp-client.json
+
+## 2026-07-10T02:09:59Z — wave-loop-482
+- **Commit:** feat(gen-verilog): Wave Loop 482 — imported scalar struct params, same-file AOS params, struct-return packed locals functional; 655/655 + 135/135 yosys + 135/135 Icarus + 1525/0/2
+- **Files:** 
+
+## 2026-07-10T02:10:09Z — wave-loop-482
+- **Commit:** feat(gen-verilog): Wave Loop 482 — imported scalar struct params, same-file AOS params, struct-return packed locals functional; 655/655 + 135/135 yosys + 135/135 Icarus + 1525/0/2
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,.trinity/ring-482.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W483_2026-07-10.md,docs/reports/WAVE_LOOP_482_CLOSEOUT.md
+
+## 2026-07-10T02:10:21Z — wave-loop-482
+- **Commit:** feat(gen-verilog): Wave Loop 482 — imported scalar struct params, same-file AOS params, struct-return packed locals functional; 655/655 + 135/135 yosys + 135/135 Icarus + 1525/0/2
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-10T02:45:19Z — wave-loop-483
+- **Commit:** feat(gen-verilog): Wave Loop 482 — imported scalar struct params, same-file AOS params, struct-return packed locals functional; 655/655 + 135/135 yosys + 135/135 Icarus + 1525/0/2
+- **Files:** .claude/worktrees/igla-w470,.claude/worktrees/igla-w470-auto,.claude/worktrees/igla-w470-fpga-200t,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/ring-483.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json
+
+## 2026-07-10T02:46:48Z — wave-loop-483
+- **Commit:** feat(gen-verilog): Wave Loop 483 — imported struct-return call lowering, W482/W483 packed-local comment, global reseal, W484 cooperation variants
+- **Files:** .claude/plans/wave-loop-482.md,.claude/plans/wave-loop-483.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/ring-482.md,.trinity/ring-483.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json
+
+## 2026-07-10T02:47:01Z — wave-loop-483
+- **Commit:** feat(gen-verilog): Wave Loop 483 — imported struct-return call lowering, global reseal, W484 cooperation variants
+- **Files:** docs/reports/FPGA_LOOP_COOPERATION_W483_2026-07-10.md,docs/reports/WAVE_LOOP_482_CLOSEOUT.md,specs/scratch/w482_aos_param_functional.t27,specs/scratch/w482_imported_struct_param.t27,specs/scratch/w482_struct_return_local_decl.t27
+

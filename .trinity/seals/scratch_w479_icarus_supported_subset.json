@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ec90acc6d879475c63a28ff0c5ba82eda74ccfe7bc281114a232d5d4914a5d99",
   "module": "w479_icarus_supported_subset",
   "ring": 12,
-  "sealed_at": "2026-07-10T00:19:14Z",
+  "sealed_at": "2026-07-10T02:38:57Z",
   "spec_hash": "sha256:5665786a9d6e27e4e3900682669209ff09c1e44562db1e025dd821a5001379bd",
-  "spec_path": "specs/scratch/w479_icarus_supported_subset.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w479_icarus_supported_subset.t27"
 }

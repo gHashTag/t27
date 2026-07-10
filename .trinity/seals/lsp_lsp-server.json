@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:5a07d16ae0cc012fac313ff85bc1008996eeb025d65dd186bd1d38a6a39bdf7b",
   "gen_hash_rust": "sha256:b5128db472ae814bccad58c9e099ff6dc4971465a32cebf7eb88da4ccaffb7ae",
-  "gen_hash_verilog": "sha256:0696a9820a4fc9a2ea4dc928b175e87439e9e396200debbbd8e3aa9fe566b902",
+  "gen_hash_verilog": "sha256:7de0d0c66cc20556f11ab91e584065932fa51a1d9aac78494c59c3a9751fde5e",
   "gen_hash_zig": "sha256:9748e22d5b9fa08621d71c37faf961ebc3682297278afbba3a50b35f6d282ac8",
   "module": "lsp-server",
   "ring": 12,
-  "sealed_at": "2026-07-10T00:19:14Z",
+  "sealed_at": "2026-07-10T02:38:57Z",
   "spec_hash": "sha256:350126a286467b29f140c9e9b1f67c37c33af5715618ec5b6d7a8c6f27bd33bc",
-  "spec_path": "specs/lsp/server.t27"
+  "spec_path": "/Users/playra/t27/specs/lsp/server.t27"
 }

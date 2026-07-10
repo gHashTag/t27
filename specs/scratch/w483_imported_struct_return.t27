@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0
+; W483 witness: imported struct-return call lowering.
+; gen-verilog loads the imported struct layout from the supplier spec and
+; declares a packed local for the imported struct-return result.
+; φ² + φ⁻² = 3 | TRINITY
+
+module w483_imported_struct_return;
+
+use scratch::w481_struct_supplier;
+
+fn double_metric(m : w481_struct_supplier::Metric) -> u32 {
+    return m.value * 2;
+}
+
+fn imported_total() -> u32 {
+    let m : w481_struct_supplier::Metric = w481_struct_supplier::make_metric();
+    return double_metric(m);
+}
+
+/// Adversarial: multiple imported struct-return calls in the same function.
+fn imported_total_twice() -> u32 {
+    let a = w481_struct_supplier::make_metric();
+    let b = w481_struct_supplier::make_metric();
+    return double_metric(a) + double_metric(b);
+}
+
+test imported_struct_return_functional {
+    assert_eq(imported_total(), 20);
+}
+
+test imported_struct_return_adversarial {
+    assert_eq(imported_total_twice(), 40);
+}
+
+endmodule

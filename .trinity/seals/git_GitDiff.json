@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c7e30a92587839429e0fa90bb9594bd25f399e6e088909895b035a4d4fe9495e",
   "module": "GitDiff",
   "ring": 12,
-  "sealed_at": "2026-07-10T00:19:13Z",
+  "sealed_at": "2026-07-10T02:38:55Z",
   "spec_hash": "sha256:074ceffdcdbb20f87faac69aa7920aeb54effef4b4ce543dd215c0c51fd96270",
-  "spec_path": "specs/git/diff.t27"
+  "spec_path": "/Users/playra/t27/specs/git/diff.t27"
 }

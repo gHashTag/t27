@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:8306c09911059e04d9bbb69bfe8894e948cf9a901d991fc864c332d8598ba9aa",
   "gen_hash_rust": "sha256:d6873fc0670564e9fc7082f32774e043c4e86bded324b6b2b82c40de73195b95",
-  "gen_hash_verilog": "sha256:ba2c2511e028612f62cc246476a5f71f6fc6d0e37a5b2ee597bba9c68f37bd25",
+  "gen_hash_verilog": "sha256:19cd3a0dfe7b711af0be72fff52c82f0af8e51e317381bc680218fcb11af1bb1",
   "gen_hash_zig": "sha256:ec3b0cba9162ccd0637f6d8c71062a8104abc1708e98b69c14163fc6011399fb",
   "module": "server-http",
   "ring": 12,
-  "sealed_at": "2026-07-10T00:19:14Z",
+  "sealed_at": "2026-07-10T02:38:57Z",
   "spec_hash": "sha256:b99a4a370a7660d821a5630a5e83b60efc678fb0818bde4692a17c57bcc45f8b",
-  "spec_path": "specs/server/http.t27"
+  "spec_path": "/Users/playra/t27/specs/server/http.t27"
 }

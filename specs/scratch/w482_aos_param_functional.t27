@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: Apache-2.0
+; W482 witness: sized array-of-struct parameter with variable-index field access.
+; gen-verilog lowers the parameter into per-field memories and indexes them.
+; φ² + 1/φ² = 3 | TRINITY
+
+module w482_aos_param_functional;
+
+struct Cell {
+    value : u32,
+    flag : u32,
+}
+
+fn sum_values(cells : [4]Cell, idx : u32) -> u32 {
+    if (idx >= 4) {
+        return 0;
+    }
+    return cells[idx].value + sum_values(cells, idx + 1);
+}
+
+fn sum_flags(cells : [4]Cell, idx : u32) -> u32 {
+    if (idx >= 4) {
+        return 0;
+    }
+    return cells[idx].flag + sum_flags(cells, idx + 1);
+}
+
+const data : [4]Cell = [4]Cell{
+    Cell{.value = 1, .flag = 10},
+    Cell{.value = 2, .flag = 20},
+    Cell{.value = 3, .flag = 30},
+    Cell{.value = 4, .flag = 40},
+};
+
+test aos_param_functional {
+    assert_eq(sum_values(data, 0), 10);
+    assert_eq(sum_flags(data, 0), 100);
+}
+
+invariant aos_param_first_value {
+    sum_values([4]Cell{
+        Cell{.value = 5, .flag = 0},
+        Cell{.value = 0, .flag = 0},
+        Cell{.value = 0, .flag = 0},
+        Cell{.value = 0, .flag = 0},
+    }, 0) == 5
+}
+
+bench aos_param_bench {
+    assert_eq(sum_values(data, 0), 10);
+    assert_eq(sum_flags(data, 0), 100);
+}
+
+endmodule

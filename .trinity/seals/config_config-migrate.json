@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:aa63a1d62c371ad3a3c15a015af49903a4f58530c0e7857052fa4c9f8ba89c72",
   "gen_hash_rust": "sha256:eff7df7d6efc0009ad4fdd6de776ec97439f90f3c20a4708dcacfe91e2234243",
-  "gen_hash_verilog": "sha256:ce6c8c212fd7c319709a6609b454555dc0cba0ea42252cdd961300da1dcf5895",
+  "gen_hash_verilog": "sha256:513d6d4959107c6fefaf3c2771844b56dbbdc8ebb564d84c36919a4d5d181668",
   "gen_hash_zig": "sha256:618a51ea082dfbcb7d004632de34a9f5a10616c81a9cbdb2d80f5ab63bed1e68",
   "module": "config-migrate",
   "ring": 12,
-  "sealed_at": "2026-07-10T00:19:13Z",
+  "sealed_at": "2026-07-10T02:38:56Z",
   "spec_hash": "sha256:727efa1d6127c74538d09d298db43a9f02c622507541c51d0659b078dee2fb48",
-  "spec_path": "specs/config/migrate.t27"
+  "spec_path": "/Users/playra/t27/specs/config/migrate.t27"
 }

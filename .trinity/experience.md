@@ -1,3 +1,61 @@
+## 2026-07-07 — Wave Loop 483 (gen-verilog Icarus placeholder hardening: imported struct-return calls)
+
+### What worked
+- Reusing the W82 imported-struct-layout discovery (`imported_struct_fields` merged
+  into `struct_fields` under `module::Struct` keys) meant imported struct-return
+  calls needed no new width/offset math.
+- Adding a dedicated map `imported_struct_return_literals` for inlinable imported
+  constructors kept the `ExprCall` fallback path simple: either inline as a packed
+  struct literal or fall through to the existing sized-zero placeholder.
+- Declaring the local as a packed `reg [W-1:0]` via the existing W82 `StmtLocal`
+  branch meant field-access slicing (`r.value`) worked without changes.
+- Updating `w481_icarus_aos_param_and_imported_struct.t27` to assert the real
+  constructor value turned a former placeholder into a regression test.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`
+  - `imported_struct_return_literals` per-module state.
+  - `load_imported_struct_return_literals` imported-spec parser.
+  - `imported_struct_return_call` now consults the inlinable-constructor map.
+  - `ExprCall` unsupported-call path inlines mapped imported constructors before
+    emitting a placeholder.
+- `bootstrap/src/main.rs`
+  - Removed stale duplicate match arms for `ValidateSeals` and `TernaryEncode`.
+- New / updated witness specs:
+  - `specs/scratch/w483_imported_struct_return.t27`
+  - `specs/scratch/w481_icarus_aos_param_and_imported_struct.t27`
+- Global reseal of `.trinity/seals/*.json` because the generated Verilog comment
+  for packed scalar struct locals changed from `W482` to `W482/W483`.
+- Added `docs/reports/WAVE_LOOP_483_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W484_2026-07-07.md`.
+- Updated `.trinity/current-issue.md`, `.trinity/ring-483.md`,
+  `.trinity/experience.md`, and memory.
+
+### Verification
+- `cargo test -p t27c --bin t27c`: 1525 passed; 0 failed; 2 ignored.
+- `./scripts/tri test --fast`: ALL TESTS PASSED
+  - 656/656 non-smoke PASS
+  - 136/136 yosys smoke PASS
+  - 136/136 Icarus smoke PASS, 0 documented baseline failures
+  - 0 seal mismatches.
+
+### Patterns to reuse
+- When a placeholder can be replaced by a pure, parameter-less constructor body,
+  load that body at module parse time and inline it at the call site; do not
+  try to lower the imported function as a separate Verilog task.
+- Reuse existing packed-slicing infrastructure by ensuring the imported struct
+  type is present in the same `struct_fields` registry as same-file structs.
+- Changing a generated comment is a global seal change; plan for a full reseal.
+
+### Anti-patterns to avoid
+- Do not declare a packed local for an imported struct-return call unless the RHS
+  can actually be emitted; otherwise field accesses will slice a zero placeholder
+  and silently produce wrong values.
+- Do not leave "unsupported" comments in specs after the construct becomes
+  functional; update the test to assert the real value.
+
+---
+
 ## 2026-07-10 — Wave Loop 481 (gen-verilog Icarus baseline cleared: unresolved field-access placeholders + f32 cast preservation)
 
 ### What worked
@@ -3340,3 +3398,51 @@
 - The remaining 4 failures are honest backend limitations: imported struct parameters, array-of-struct parameter destructure, and struct-return field access on unsupported calls. These need a focused AOS/return lowering pass, not ad-hoc patches.
 - Statement-context unsupported calls must stay no-ops; future sized-placeholder work should not regress this.
 - Any new dynamic method or host-side helper must emit a classified placeholder so the Icarus gate remains honest.
+
+## 2026-07-10 — Wave Loop 482 (gen-verilog Icarus placeholders made functional: imported scalar struct params, same-file AOS params, struct-return locals)
+
+### What worked
+- Loading imported struct layouts from the imported `.t27` spec and merging them
+  into `struct_fields` under `module::Struct` keys let the existing scalar-struct
+  parameter unpack path handle imported parameters without a dedicated backend
+  rewrite.
+- Declaring same-file struct-return locals as a single packed `reg [W-1:0]` and
+  emitting field reads as slices (`r[high:low]`) replaced the W481 zero
+  placeholder with real values for the most common struct-return usage.
+- Adding a top-level `ExprFieldAccess` handler that walks a collected nested
+  field path and accumulates packed offsets handled `o.inner.a` correctly in one
+  place, instead of duplicating offset math across the simple-identifier and
+  array-index branches.
+- Updating `field_access_base_is_unresolved` to recognize imported scalar struct
+  parameters and packed scalar struct locals as resolved kept the placeholder
+  gate honest while allowing the new functional paths.
+- Resealing immediately after the emitter change kept the seal gate green; the
+  39 Verilog-hash mismatches were all expected after a compiler change.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`
+  - `local_packed_struct_vars` per-function state and `StmtLocal` packed-local
+    declaration branch.
+  - `imported_struct_fields` and `load_imported_struct_fields` for cross-file
+    struct layout discovery.
+  - `same_file_struct_return_call` helper.
+  - Top-level `ExprFieldAccess` handler for packed scalar struct locals,
+    including nested paths.
+  - Simple-identifier `ExprFieldAccess` fallback updated to emit packed slices.
+  - `gen_verilog_struct_field_assign` copies scalar fields from packed source
+    locals by slicing.
+- New witness specs:
+  - `specs/scratch/w482_imported_struct_param.t27`
+  - `specs/scratch/w482_struct_return_local_decl.t27`
+  - `specs/scratch/w482_aos_param_functional.t27`
+- Updated `specs/scratch/w481_icarus_aos_param_and_imported_struct.t27` to assert
+  real imported struct parameter values.
+- All affected seals refreshed.
+
+### What to watch next
+- Cross-file struct-return calls still produce placeholders; they need the same
+  packed-result treatment extended across module boundaries.
+- Dynamic `.len()` / `.contains()` on runtime-sized strings/arrays and host-side
+  recursive helpers remain unsupported in Verilog.
+- The packed-offset helper assumes little-endian field order inside the packed
+  vector; any future big-endian or mixed-endian target will need a layout flag.

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a25edc36775c669703fcb7de8001ec66791949acca6f172f2f37b48d84c72a3a",
   "gen_hash_rust": "sha256:f485906afe1c5d3d376e6715bb7fd0501edcf8d2d45d910fdbe8b251f7dbccf9",
-  "gen_hash_verilog": "sha256:c9d4eab4feb215174fe38188a7f1ee5aaa7ab44b88d0c067794ede6ca8ed6906",
+  "gen_hash_verilog": "sha256:f0fa84e8ddbeaf259c79780ddaf290d8d7dd584f9b20da6811b7aec772c2823e",
   "gen_hash_zig": "sha256:d858e6ff5bfe3e8b192b357ca0f2cabcd92c053c2c3918f4fb5bec6bd940b6f7",
   "module": "git_commands",
   "ring": 12,
-  "sealed_at": "2026-07-09T23:33:59Z",
+  "sealed_at": "2026-07-10T02:38:51Z",
   "spec_hash": "sha256:54eae5c75d362784b366bac2e49e59f8f8f8a75339bdf2022afd3157340338bb",
   "spec_path": "/Users/playra/t27/compiler/cli/git.t27"
 }

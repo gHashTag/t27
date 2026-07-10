@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ed75d69a4f91dda1de3ce97699e43ff87179dd8e34a6e20cca9ad998ead4aa26",
   "module": "w474_struct_equality",
   "ring": 12,
-  "sealed_at": "2026-07-10T00:19:14Z",
+  "sealed_at": "2026-07-10T02:38:57Z",
   "spec_hash": "sha256:04f33cdc6cb128ca9611bbbd7873c6ee75ce5df8e509789489852b5cd3b04f5a",
-  "spec_path": "specs/scratch/w474_struct_equality.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w474_struct_equality.t27"
 }

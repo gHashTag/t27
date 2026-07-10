@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:dc9ed173be141e6e54aa22d5d7f22b373f7120b1141506776c4567216a8d674e",
   "module": "skill_registry",
   "ring": 12,
-  "sealed_at": "2026-07-09T23:33:59Z",
+  "sealed_at": "2026-07-10T02:38:51Z",
   "spec_hash": "sha256:5f728426aef91bf0b1c1935aeeee839f27380d0adb70862480edc18dabfab716",
   "spec_path": "/Users/playra/t27/compiler/skill/registry.t27"
 }

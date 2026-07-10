@@ -1,22 +1,124 @@
-# NOW — Wave Loop 478 close-out / Wave Loop 479 next (2026-07-07)
+# NOW — Wave Loop 483 close-out / Wave Loop 484 next (2026-07-07)
 
 **Last updated:** 2026-07-07
 
-## Wave Loop 479 — Next wave (to be selected from cooperation plan)
+## Wave Loop 484 — Next wave (to be selected from cooperation plan)
 
-- Branch: `wave-loop-479` (to create from `wave-loop-478`)
+- Branch: `wave-loop-484` (to create from `wave-loop-483`)
 - Issue: (to be opened)
 - PR: (to open after close-out)
-- Plan: (to be written at W479 close-out)
-- Cooperation W480: (to be written at W479 close-out)
+- Plan: (to be written at W484 close-out)
+- Cooperation W485: (to be written at W484 close-out)
 
 ### Not started
 
-- Select one of the three W479 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W479_2026-07-08.md`.
-- Default Variant B: with the bench still blocked, close or document the
-  remaining 20 Icarus failures in `igla/coder` and `igla/race` caused by dynamic
-  string/array methods.
+- Select one of the three W484 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W484_2026-07-07.md`.
+- Default Variant B: make the remaining `UNSUPPORTED_ICARUS` placeholders
+  functional for dynamic `.len()` / `.contains()` on fixed-size arrays and
+  string literals, host-side recursive helper shadowing in IGLA specs, and
+  module-scope wildcard `_` bindings.
+
+---
+
+## Wave Loop 483 — compiler-backend Icarus placeholder hardening: imported struct-return calls (Variant B default)
+
+- Branch: `wave-loop-483`
+- Issue: #1453 (to be opened)
+- PR: (to open after close-out)
+- Report: `docs/reports/WAVE_LOOP_483_CLOSEOUT.md`
+- Cooperation W484: `docs/reports/FPGA_LOOP_COOPERATION_W484_2026-07-07.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - `imported_struct_return_literals` map keyed by `module::fn`, storing the
+    fully-qualified struct type and ordered scalar struct-literal initializer
+    nodes for imported zero-argument constructors.
+  - `load_imported_struct_return_literals` parses imported `.t27` specs and
+    recognizes functions whose body is exactly `return Struct { ... };`.
+  - `imported_struct_return_call` uses the new map so `StmtLocal` declares a
+    packed `reg [W-1:0]` for locals initialized by imported struct-returning
+    calls.
+  - The `ExprCall` unsupported-call path inlines mapped imported constructors as
+    packed concatenations before falling back to a sized-zero placeholder.
+  - Existing field-access slicing on packed scalar struct locals works for
+    imported struct types because their layouts are already merged into
+    `struct_fields` under `module::Struct` keys.
+
+- Witness specs
+  - `specs/scratch/w483_imported_struct_return.t27` exercises a packed local
+    initialized from `w481_struct_supplier::make_metric()` and an adversarial
+    test with two independent imported constructor calls.
+  - `specs/scratch/w481_icarus_aos_param_and_imported_struct.t27` updated to
+    assert the real value of an imported struct-return field access.
+
+- Seals: global reseal of every `.trinity/seals/*.json` because the generated
+  Verilog comment for packed scalar struct locals changed from `W482` to
+  `W482/W483`.
+
+### Verification
+
+- `cargo build --release`: PASS
+- `cargo test -p t27c --bin t27c`: 1525 passed, 0 failed, 2 ignored
+- `./scripts/tri test --fast`: ACCEPTABLE
+  - 656 / 656 non-smoke PASS
+  - 136 / 136 yosys smoke PASS
+  - 136 / 136 Icarus smoke PASS, 0 documented baseline failures
+  - 656 / 656 seal matches
+  - 0 fixed-point divergences
+  - FPGA board-less smoke gate: OK
+  - FPGA standalone lake-package build: skipped (--fast)
+  - FPGA smoke gate replay: OK
+
+---
+
+## Wave Loop 482 — compiler-backend Icarus placeholder hardening: imported scalar struct params, same-file AOS params, struct-return packed locals (Variant B default)
+
+- Branch: `wave-loop-482`
+- Issue: #1452 (to be opened)
+- PR: (to open after close-out)
+- Report: `docs/reports/WAVE_LOOP_482_CLOSEOUT.md`
+- Cooperation W483: `docs/reports/FPGA_LOOP_COOPERATION_W483_2026-07-10.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - `local_packed_struct_vars` and a `StmtLocal` branch that declares a packed
+    `reg [W-1:0]` for locals initialized by same-file scalar struct-returning
+    calls.
+  - `imported_struct_fields` and `load_imported_struct_fields` to parse imported
+    `.t27` specs and merge their struct layouts into `struct_fields`.
+  - `same_file_struct_return_call` helper.
+  - Top-level `ExprFieldAccess` handler for packed scalar struct locals,
+    including nested struct paths (`o.inner.a`).
+  - Updated `field_access_base_is_unresolved` to treat imported scalar struct
+    parameters and packed scalar struct locals as resolved.
+  - `gen_verilog_struct_field_assign` copies scalar fields from packed source
+    locals via slices.
+
+- Witness specs
+  - `specs/scratch/w482_imported_struct_param.t27`
+  - `specs/scratch/w482_struct_return_local_decl.t27`
+  - `specs/scratch/w482_aos_param_functional.t27`
+  - `specs/scratch/w481_icarus_aos_param_and_imported_struct.t27` updated to
+    assert real imported struct parameter values.
+
+- Seals: global reseal of every `.trinity/seals/*.json` because generated
+  Verilog changed for all specs.
+
+### Verification
+
+- `cargo test -p t27c --bin t27c`: 1525 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: ALL TESTS PASSED
+  - 655/655 non-smoke PASS
+  - 135/135 yosys smoke PASS
+  - 135/135 Icarus smoke PASS, 0 documented baseline failures
+  - 0 seal mismatches.
 
 ---
 
