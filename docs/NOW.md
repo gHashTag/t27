@@ -1,6 +1,15 @@
 # NOW — IGLA cycle 1 + Wave Loop 469 context (2026-07-07)
 
-Last updated: 2026-07-07
+Last updated: 2026-07-10
+
+## Rust/C codegen fixes (Closes #1455, Refs #1457)
+
+- PR #1456: removed the AST optimizer from the Rust and C source backends
+  (`compile_rust`/`compile_c`) so they emit faithful code; the optimizer was
+  dropping reassigned mutable locals (E0425) and const-inlining `let`.
+- Array/index codegen: `[T; N]` -> `[T; N as usize]` (was `Vec<>`), non-literal
+  indices cast to `usize`. t27c suite 1494/1 (pre-existing Verilog HIR fail).
+  Downstream gHashTag/tri-net regenerates with 2609 E0425 -> 0.
 
 ## IGLA cycle 1 — process debt needles (Refs #1438, #1440, #1442, #1444, #1446)
 
