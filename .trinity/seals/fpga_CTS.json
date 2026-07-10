@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:09d387b4635c3406cad301db8ba5f941689a76b2dd56d2ba773240760581dab2",
   "gen_hash_rust": "sha256:9a2a22869ef3f8a0fc0d0ed7573f36f8aa588294d2b289c53fffb68c87061369",
-  "gen_hash_verilog": "sha256:e5bc0302756c248c833e30a79c9b34b517d24071623b9b03e269fd37275dcd10",
+  "gen_hash_verilog": "sha256:634200271ef68dcc95bf4244b159ff273501d34eff99d46aec2e27a4d2ddcb3e",
   "gen_hash_zig": "sha256:ace68bc29655cb5818e7805555624da9a09c70e7e63fa61ac3942289926fd55b",
   "module": "CTS",
   "ring": 12,
-  "sealed_at": "2026-07-10T05:25:23Z",
+  "sealed_at": "2026-07-10T06:27:12Z",
   "spec_hash": "sha256:84753bf2bec3f9c744cac4ce527210e87fd55d1843aecc8f533e52e25641cbea",
-  "spec_path": "/Users/playra/t27/specs/fpga/cts.t27"
+  "spec_path": "specs/fpga/cts.t27"
 }

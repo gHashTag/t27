@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0
+// W487 witness: bench-local 2-D scalar array passed as a packed-vector
+// array parameter with both variable-index and literal-index access.
+// φ² + φ⁻² = 3 | TRINITY
+
+module w487_bench_2d_array_param;
+
+fn sum2d(a: [2][3]u32, i: u32, j: u32) -> u32 {
+    return a[i][j] + a[0][0];
+}
+
+bench bench_2d_array_param {
+    let data : [2][3]u32 = [2][3]u32{1, 2, 3, 4, 5, 6};
+    let s : u32 = sum2d(data, 1, 2);
+    assert_eq(s, 7);
+}
+
+endmodule

@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0
+// W487 witness: bench-local array of structs passed as a packed-vector
+// array parameter with variable-index field access.
+// φ² + φ⁻² = 3 | TRINITY
+
+module w487_bench_aos_array_param;
+
+struct Pt {
+    x: u32,
+    y: u32,
+}
+
+fn sum_pt(pts: [4]Pt, i: u32) -> u32 {
+    return pts[i].x + pts[i].y;
+}
+
+bench bench_aos_array_param {
+    let data : [4]Pt = [4]Pt{Pt{x=1, y=2}, Pt{x=3, y=4}, Pt{x=5, y=6}, Pt{x=7, y=8}};
+    let s : u32 = sum_pt(data, 2);
+    assert_eq(s, 11);
+}
+
+endmodule

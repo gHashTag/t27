@@ -1,3 +1,79 @@
+## 2026-07-07 — Wave Loop 487 (gen-verilog Icarus soft-failure hardening: module-scope wildcard struct-literal bindings, wildcard array aliases, 2-D/struct bench-local arrays crossing function boundaries)
+
+### What worked
+- Reusing the existing scalar-struct constant lowering path by re-emitting an
+  anonymous node (`_wildcard_struct_{n}`) keeps the change small and avoids
+  inventing a named `_` reg.
+- Recording scalar-array dimensions in the const-array path lets module-scope
+  wildcard aliases copy 2-D scalar memories element-by-element.
+- Arrays of structs already publish their flattened fields and dimensions; a
+  second wildcard alias lookup emits per-field anonymous memories and copies them
+  linearly.
+- Bench-local 2-D scalar arrays and arrays of structs cross function boundaries
+  through the existing `__local__` packed-vector clone and element-width slicing
+  inside the callee; the only missing piece was fresh witness specs.
+- Non-synthesizable struct-literal leaves (`string`, `f32`, `bool`) must be
+  emitted as width-correct placeholders (`'b0`, `'b1`/`'b0`) so the surrounding
+  packed concatenation remains legal Verilog.
+- A parser change that exposes too many existing specs to new backend paths should
+  be rolled back and parked for a dedicated wave with full lowerer support.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`
+  - `gen_verilog_const` wildcard struct-literal branch and AOS alias branch.
+  - `gen_verilog_const` scalar-array dimension recording for 2-D const arrays.
+  - Function declaration collection de-duplicates top-level function names.
+  - `emit_struct_literal_leaf` handles `string`/`f32` zero placeholders and boolean
+    literals.
+- New witness specs:
+  - `specs/scratch/w487_wildcard_module_literal.t27`
+  - `specs/scratch/w487_wildcard_module_scalar_2d_alias.t27`
+  - `specs/scratch/w487_wildcard_module_aos_alias.t27`
+  - `specs/scratch/w487_bench_2d_array_param.t27`
+  - `specs/scratch/w487_bench_aos_array_param.t27`
+- Repaired existing witness:
+  - `specs/scratch/w486_wildcard_module_literal.t27` (field separator and typed
+    module-level array constant so the Verilog backend can lower the call).
+- Global reseal of `.trinity/seals/*.json`, `bootstrap/stage0/FROZEN_HASH`, and
+  `repro/numerics/nmse_manifest.json` because `bootstrap/src/compiler.rs`
+  changed.
+- Added `docs/reports/WAVE_LOOP_487_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W488_2026-07-07.md`.
+- Updated `.trinity/current-issue.md`, `.trinity/experience.md`, and memory.
+
+### Verification
+- `cargo build --release`: PASS.
+- `cargo test -p t27c --bin t27c`: 1525 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: ALL TESTS PASSED
+  - 672/672 non-smoke PASS.
+  - 152/152 yosys smoke PASS.
+  - 152/152 Icarus smoke PASS, 0 documented baseline failures.
+  - 672/672 seal matches.
+  - 0 fixed-point divergences.
+  - FPGA board-less smoke gate: OK.
+  - FPGA standalone lake-package build: OK.
+  - FPGA smoke gate replay: OK.
+- **Total `UNSUPPORTED_ICARUS` placeholders across all 672 specs: 0.**
+
+### Patterns to reuse
+- Anonymous re-emission is the safest way to extend wildcard lowering: create a
+  uniquely named node and call the existing path rather than inlining new
+  emission logic.
+- Multi-dimensional scalar array lowering should flatten initialization with
+  `flatten_array_literal_values` and `index_combinations` to avoid nested-loop
+  bugs.
+- When a parser broadening surfaces regressions in existing specs, revert it and
+  keep the work scoped to specs that already parse correctly.
+
+### Anti-patterns to avoid
+- Do not emit `string` or `f32` values as Verilog based constants; they are not
+  synthesizable.
+- Do not emit boolean literals as `{width}'dtrue`; use `{width}'b1`.
+- Do not rely on a global `emitted_functions` set for per-module de-duplication;
+  collect a local `seen` set during declaration scanning.
+
+---
+
 ## 2026-07-07 — Wave Loop 486 (gen-verilog Icarus soft-failure hardening: bench-local arrays crossing function boundaries, namespace helper erasure, module-scope wildcard array literals)
 
 ### What worked

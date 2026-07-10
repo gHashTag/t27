@@ -20,12 +20,15 @@ fn use_arr(a: [4]u32) -> u32 {
 }
 
 ; Module-scope wildcard bindings whose values are intentionally discarded.
-let _ = Pt { x: 1, y: 2 };
+let _ = Pt { x = 1, y = 2 };
 let _ = [1, 2, 3, 4];
 
+; Named module-level array so the array-parameter call is lowerable to Verilog.
+const test_arr : [4]u32 = [4]u32{10, 20, 30, 40};
+
 test wildcard_literals_pass {
-    assert_eq(use_pt(Pt { x: 5, y: 7 }), 12);
-    assert_eq(use_arr([10, 20, 30, 40]), 100);
+    assert_eq(use_pt(Pt { x = 5, y = 7 }), 12);
+    assert_eq(use_arr(test_arr), 100);
 }
 
 endmodule

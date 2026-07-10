@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e5c15a27fdd0462514a54f85a37e613aee8d0047b34a73c8fe1a4341ac1499b9",
-  "gen_hash_rust": "sha256:b1680e2f2b29d6c3dc424279fa5a2cddcd47692ca4e2d92c9594a9886cbb6bfd",
-  "gen_hash_verilog": "sha256:aab9e9a1f487297c308f021d1c010c595fec9b60bbfdf3fd78d47071022170eb",
-  "gen_hash_zig": "sha256:f87afca9b133c9bb0b6f93fedf1a9574008da9040a770bd6b6cca87731a23813",
+  "gen_hash_c": "sha256:e4344cc31fe1d59aedc04fd0c4bbcfec3f4bf1f4f799187e17b1b4687b2f6bc4",
+  "gen_hash_rust": "sha256:f719a30a1236926c66e19bc8a2f340446da1687d412024bc77ef5d6271015661",
+  "gen_hash_verilog": "sha256:42a06039b554f539b1ae00e98d8e541080f2e4eb9bd6c159087fe8732fa1b109",
+  "gen_hash_zig": "sha256:0bd0fee797c0c9c6c607ebe6a63d65803dc46e8dd3fb8de2282d61b84062ceea",
   "module": "w486_wildcard_module_literal",
   "ring": 12,
-  "sealed_at": "2026-07-10T05:25:25Z",
-  "spec_hash": "sha256:65138f89c10dd04025af7713e6cf14c9588fe77da3dc2d4a8890c31cdcea58d1",
-  "spec_path": "/Users/playra/t27/specs/scratch/w486_wildcard_module_literal.t27"
+  "sealed_at": "2026-07-10T06:27:12Z",
+  "spec_hash": "sha256:d207cf10b2550ee200d5bc10e5a5c3c3542c8c56ea03b22ad4b7ab080772e742",
+  "spec_path": "specs/scratch/w486_wildcard_module_literal.t27"
 }

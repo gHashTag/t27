@@ -6190,17 +6190,24 @@ impl VerilogCodegen {
                         self.write(", ");
                     }
                     *first = false;
-                    if elem.kind == NodeKind::ExprLiteral {
+                    // Non-synthesizable element types become zero placeholders.
+                    if elem_type == "string" || elem_type.starts_with('f') {
+                        self.write(&format!("{}'b0", fwidth));
+                    } else if elem.kind == NodeKind::ExprLiteral {
                         let clean: String =
                             elem.value.chars().filter(|c| *c != '_').collect();
-                        if clean.starts_with('-') {
-                            self.write(&format!("{}'({})", fwidth, clean));
+                        if clean == "true" {
+                            self.write(&format!("{}'b1", fwidth));
+                        } else if clean == "false" {
+                            self.write(&format!("{}'b0", fwidth));
+                        } else if clean.starts_with('-') {
+                            self.write(&format!("-{}'d{}", fwidth, &clean[1..]));
                         } else {
                             self.write(&format!("{}'d{}", fwidth, clean));
                         }
                     } else {
-                        // W478: use a SystemVerilog width cast so Icarus does not
-                        // complain about an indefinite-width concatenation operand.
+                        // W478: SystemVerilog width cast for indefinite-width
+                        // concatenation operands.
                         self.write(&format!("{}'(", fwidth));
                         self.gen_verilog_expr(elem);
                         self.write(")");
@@ -6260,11 +6267,24 @@ impl VerilogCodegen {
         }
         *first = false;
         let fwidth = Self::type_to_width(ftype);
+        // Non-synthesizable leaf types (string, f32) cannot appear as packed
+        // vector operands. Emit a width-correct zero placeholder so the
+        // surrounding concatenation remains legal Verilog-2005.
+        if ftype == "string" || ftype.starts_with('f') {
+            self.write(&format!("{}'b0", fwidth));
+            return true;
+        }
         if let Some(v) = val {
             if v.kind == NodeKind::ExprLiteral {
                 let clean: String = v.value.chars().filter(|c| *c != '_').collect();
-                if clean.starts_with('-') {
-                    self.write(&format!("{}'({})", fwidth, clean));
+                if clean == "true" {
+                    self.write(&format!("{}'b1", fwidth));
+                } else if clean == "false" {
+                    self.write(&format!("{}'b0", fwidth));
+                } else if clean.starts_with('-') {
+                    // W487: unary minus on a sized constant is legal
+                    // Verilog-2005 and avoids the SystemVerilog static cast.
+                    self.write(&format!("-{}'d{}", fwidth, &clean[1..]));
                 } else {
                     self.write(&format!("{}'d{}", fwidth, clean));
                 }
@@ -8885,6 +8905,8 @@ impl VerilogCodegen {
         let mut enums: Vec<&Node> = Vec::new();
         let mut structs: Vec<&Node> = Vec::new();
         let mut functions: Vec<&Node> = Vec::new();
+        let mut function_names_seen: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
         let mut tests: Vec<&Node> = Vec::new();
         let mut invariants: Vec<&Node> = Vec::new();
         let mut benches: Vec<&Node> = Vec::new();
@@ -8897,7 +8919,14 @@ impl VerilogCodegen {
                 NodeKind::ConstDecl => consts.push(decl),
                 NodeKind::EnumDecl => enums.push(decl),
                 NodeKind::StructDecl => structs.push(decl),
-                NodeKind::FnDecl => functions.push(decl),
+                // W487: duplicate top-level function names are not legal
+                // Verilog. Keep the first declaration and ignore later
+                // redeclarations in the same module.
+                NodeKind::FnDecl => {
+                    if function_names_seen.insert(decl.name.clone()) {
+                        functions.push(decl);
+                    }
+                }
                 NodeKind::TestBlock => tests.push(decl),
                 NodeKind::InvariantBlock => invariants.push(decl),
                 NodeKind::BenchBlock => benches.push(decl),
@@ -10837,6 +10866,23 @@ impl VerilogCodegen {
                 ));
                 return self.gen_verilog_const(&anon_node);
             }
+            // W487: struct literal initializer: emit an anonymous scalar struct
+            // constant so the existing per-field register lowering is reused.
+            if init.kind == NodeKind::ExprStructLit {
+                let anon_name = format!(
+                    "_wildcard_struct_{}",
+                    self.let_tmp_counter
+                );
+                self.let_tmp_counter += 1;
+                let mut anon_node = node.clone();
+                anon_node.name = anon_name;
+                anon_node.extra_type = init.name.clone();
+                self.write_line(&format!(
+                    "// let _ = ... emitted as anonymous struct {}",
+                    Self::verilog_safe_identifier(&anon_node.name)
+                ));
+                return self.gen_verilog_const(&anon_node);
+            }
             // Reference to a module-level array: emit an anonymous unpacked memory
             // and copy the source array element-by-element in an initial block.
             if init.kind == NodeKind::ExprIdentifier {
@@ -10847,8 +10893,10 @@ impl VerilogCodegen {
                         self.let_tmp_counter
                     );
                     self.let_tmp_counter += 1;
-                    let safe_anon = Self::verilog_safe_identifier(&anon_name);
-                    let safe_src = Self::verilog_safe_identifier(&init.name);
+                    let safe_anon = Self::verilog_safe_identifier(
+                        &anon_name);
+                    let safe_src = Self::verilog_safe_identifier(
+                        &init.name);
                     let total_size = dims.iter().map(|(s, _)| *s).product::<usize>();
                     let elem_width = Self::type_to_width(&elem_type);
                     let elem_signed = Self::type_is_signed(&elem_type);
@@ -10891,6 +10939,109 @@ impl VerilogCodegen {
                     self.write_indent();
                     self.write_line("end");
                     return;
+                }
+                // W487: module-scope alias to an array of structs. Emit one anonymous
+                // per-field memory and copy element-by-element from the source.
+                if let Some(fields) =
+                    self.module_struct_array_fields.get(&init.name).cloned()
+                {
+                    if let Some(src_dims) =
+                        self.module_struct_array_dims.get(&init.name).cloned()
+                    {
+                        let total_size = src_dims
+                            .iter()
+                            .map(|(s, _)| *s)
+                            .product::<usize>();
+                        let anon_name = format!(
+                            "_wildcard_copy_{}",
+                            self.let_tmp_counter
+                        );
+                        self.let_tmp_counter += 1;
+                        let safe_anon_base =
+                            Self::verilog_safe_identifier(&anon_name);
+                        let safe_src_base =
+                            Self::verilog_safe_identifier(&init.name);
+                        self.write_line(&format!(
+                            "// let _ = {} emitted as anonymous AOS copy {}",
+                            init.name, safe_anon_base
+                        ));
+                        let mut has_array_field = false;
+                        for (fname, ftype) in &fields {
+                            let field_dims =
+                                Self::parse_array_dimensions(ftype);
+                            let safe_src_field =
+                                Self::verilog_safe_identifier(
+                                    &format!("{}_{}", init.name, fname)
+                                );
+                            let safe_anon_field =
+                                Self::verilog_safe_identifier(
+                                    &format!("{}_{}", anon_name, fname)
+                                );
+                            if field_dims.is_empty() {
+                                let field_width = if self
+                                    .struct_fields
+                                    .contains_key(ftype)
+                                {
+                                    Self::packed_width(
+                                        ftype,
+                                        &self.struct_fields,
+                                    )
+                                } else {
+                                    Self::type_to_width(ftype)
+                                };
+                                let field_signed =
+                                    Self::type_is_signed(ftype);
+                                let field_signed_str = if field_signed {
+                                    "signed "
+                                } else {
+                                    ""
+                                };
+                                let field_range =
+                                    Self::range_decl(field_width);
+                                let field_range_str = if field_range.is_empty()
+                                {
+                                    String::new()
+                                } else {
+                                    format!("{} ", field_range)
+                                };
+                                self.write_indent();
+                                self.write_line(&format!(
+                                    "reg {}{} {} [0:{}];",
+                                    field_signed_str,
+                                    field_range_str,
+                                    safe_anon_field,
+                                    total_size.saturating_sub(1)
+                                ));
+                                if total_size > 0 {
+                                    self.write_indent();
+                                    self.write_line("initial begin");
+                                    self.indent();
+                                    for addr in 0..total_size {
+                                        self.write_indent();
+                                        self.write_line(&format!(
+                                            "{}[{}] = {}[{}];",
+                                            safe_anon_field,
+                                            addr,
+                                            safe_src_field,
+                                            addr
+                                        ));
+                                    }
+                                    self.dedent();
+                                    self.write_indent();
+                                    self.write_line("end");
+                                }
+                            } else {
+                                has_array_field = true;
+                            }
+                        }
+                        if has_array_field {
+                            self.write_indent();
+                            self.write_line(
+                                "// (AOS alias contains array-typed fields; copying those is not yet implemented)"
+                            );
+                        }
+                        return;
+                    }
                 }
             }
             self.write_line("// let _ = ... discarded at module scope (unsupported initializer)");
@@ -11051,45 +11202,121 @@ impl VerilogCodegen {
                     return;
                 }
 
-                let elem_width = Self::type_to_width(&elem_type);
-                let elem_signed = Self::type_is_signed(&elem_type);
-                let elem_signed_str = if elem_signed { "signed " } else { "" };
-                let elem_range = Self::range_decl(elem_width);
-                let elem_range_str = if elem_range.is_empty() {
-                    String::new()
-                } else {
-                    format!("{} ", elem_range)
-                };
-                self.write_line(&format!("// LUT: {} [{}] {}", safe_name, array_size, elem_type)
-                );
-                // W459: emit optional ROM-style attribute (block/distributed).
-                if !node.extra_pragma.is_empty() {
-                    self.write_indent();
-                    self.write_line(&format!("(* {} *)", node.extra_pragma));
-                }
-                self.write_indent();
-                self.write_line(&format!(
-                    "reg {}{} {} [0:{}];",
-                    elem_signed_str, elem_range_str, safe_name, array_size - 1
-                ));
-                if has_array_literal {
-                    self.write_indent();
-                    self.write_line("initial begin");
-                    self.indent();
-                    let child = &node.children[0];
-                    let elements = Self::array_literal_elements(child);
-                    for (i, elem) in elements.iter().enumerate() {
-                        if i >= array_size {
-                            break;
-                        }
+                // W487: remember dimensions so module-scope wildcard aliases can
+                // copy this array element-by-element.
+                let dims = Self::parse_array_dimensions(&node.extra_type);
+                self.module_scalar_array_dims
+                    .insert(node.name.clone(), dims.clone());
+                // W470: if the element type is itself an array, emit a single
+                // unpacked memory with all dimensions and initialize each scalar
+                // leaf. Otherwise use the existing 1-D memory path.
+                let elem_is_array = Self::parse_array_type(&elem_type).is_some();
+                if elem_is_array {
+                    let leaf_type = Self::array_dimensions_leaf_type(&dims);
+                    let leaf_width = Self::type_to_width(&leaf_type);
+                    let leaf_signed = Self::type_is_signed(&leaf_type);
+                    let leaf_signed_str = if leaf_signed { "signed " } else { "" };
+                    let leaf_range = Self::range_decl(leaf_width);
+                    let leaf_range_str = if leaf_range.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{} ", leaf_range)
+                    };
+                    let dims_str = dims
+                        .iter()
+                        .map(|(s, _)| format!("[0:{}]", s.saturating_sub(1)))
+                        .collect::<Vec<_>>()
+                        .join("");
+                    let dims_label = dims
+                        .iter()
+                        .map(|(s, _)| s.to_string())
+                        .collect::<Vec<_>>()
+                        .join("][");
+                    self.write_line(&format!(
+                        "// LUT: {} [{}] {}",
+                        safe_name, dims_label, leaf_type
+                    ));
+                    if !node.extra_pragma.is_empty() {
                         self.write_indent();
-                        self.write(&format!("{}[{}] = ", safe_name, i));
-                        self.gen_verilog_expr(elem);
-                        self.write_line(";");
+                        self.write_line(&format!("(* {} *)", node.extra_pragma));
                     }
-                    self.dedent();
                     self.write_indent();
-                    self.write_line("end");
+                    self.write_line(&format!(
+                        "reg {}{} {} {};",
+                        leaf_signed_str, leaf_range_str, safe_name, dims_str
+                    ));
+                    if has_array_literal {
+                        self.write_indent();
+                        self.write_line("initial begin");
+                        self.indent();
+                        let child = &node.children[0];
+                        let mut flat_refs: Vec<&Node> = Vec::new();
+                        Self::flatten_array_literal_values(
+                            child,
+                            &mut flat_refs,
+                        );
+                        let combos = Self::index_combinations(&dims);
+                        for (addr, combo) in combos.iter().enumerate() {
+                            if addr >= flat_refs.len() {
+                                break;
+                            }
+                            let idx_str = combo
+                                .iter()
+                                .map(|i| format!("[{}]", i))
+                                .collect::<Vec<_>>()
+                                .join("");
+                            self.write_indent();
+                            self.write(&format!("{}{} = ", safe_name, idx_str));
+                            self.gen_verilog_expr(flat_refs[addr]);
+                            self.write_line(";");
+                        }
+                        self.dedent();
+                        self.write_indent();
+                        self.write_line("end");
+                    }
+                } else {
+                    let elem_width = Self::type_to_width(&elem_type);
+                    let elem_signed = Self::type_is_signed(&elem_type);
+                    let elem_signed_str = if elem_signed { "signed " } else { "" };
+                    let elem_range = Self::range_decl(elem_width);
+                    let elem_range_str = if elem_range.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{} ", elem_range)
+                    };
+                    self.write_line(&format!(
+                        "// LUT: {} [{}] {}",
+                        safe_name, array_size, elem_type
+                    ));
+                    // W459: emit optional ROM-style attribute (block/distributed).
+                    if !node.extra_pragma.is_empty() {
+                        self.write_indent();
+                        self.write_line(&format!("(* {} *)", node.extra_pragma));
+                    }
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "reg {}{} {} [0:{}];",
+                        elem_signed_str, elem_range_str, safe_name, array_size - 1
+                    ));
+                    if has_array_literal {
+                        self.write_indent();
+                        self.write_line("initial begin");
+                        self.indent();
+                        let child = &node.children[0];
+                        let elements = Self::array_literal_elements(child);
+                        for (i, elem) in elements.iter().enumerate() {
+                            if i >= array_size {
+                                break;
+                            }
+                            self.write_indent();
+                            self.write(&format!("{}[{}] = ", safe_name, i));
+                            self.gen_verilog_expr(elem);
+                            self.write_line(";");
+                        }
+                        self.dedent();
+                        self.write_indent();
+                        self.write_line("end");
+                    }
                 }
             } else if !node.children.is_empty() {
                 // Legacy extra_size path: emit as individual localparams for each element

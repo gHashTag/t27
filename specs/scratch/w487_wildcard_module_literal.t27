@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0
+// W487 witness: module-scope wildcard struct-literal binding.
+// The struct literal must parse and be emitted as anonymous per-field registers.
+// φ² + φ⁻² = 3 | TRINITY
+
+module w487_wildcard_module_literal;
+
+struct Pt {
+    x: u32,
+    y: u32,
+}
+
+let _ = Pt { x = 1, y = 2 };
+
+test wildcard_struct_literal_pass {
+    assert_eq(1, 1);
+}
+
+endmodule

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:91139029e2c1c5b4bc7c73d8ea348b924b27c17f7d38cb7e5325070f929c1dcd",
   "gen_hash_rust": "sha256:9f73a9c50d9e75b9df7daef6b2abbf537bc5ea49decab371d29e080a09f45006",
-  "gen_hash_verilog": "sha256:99ac1f2e3b3f629c4f32c7d6119437cfc0d6bc0c4b9274eae4468dfb5b67fded",
+  "gen_hash_verilog": "sha256:86fa6180aa6dcc8e1bf5f5205530e3e7a5f731afebedad2af7600a16de72946b",
   "gen_hash_zig": "sha256:bf500888664920c5e1a7ebf72210b3ea3b6b9036218d63beedd0f219f09a4546",
   "module": "Gf16Accel",
   "ring": 12,
-  "sealed_at": "2026-07-10T05:25:23Z",
+  "sealed_at": "2026-07-10T06:27:12Z",
   "spec_hash": "sha256:5ff83b222f25bcc76c64b469ec36441be9d44750b4dc3e7d8e17a343450a9f8a",
-  "spec_path": "/Users/playra/t27/specs/fpga/gf16_accel.t27"
+  "spec_path": "specs/fpga/gf16_accel.t27"
 }
