@@ -1992,3 +1992,11 @@
 - **Commit:** feat(igla): Wave Loop 488 — wildcard array-of-struct aliases with array-typed element fields; colon struct-literal prototype deferred to W489\n\n- Extend gen_verilog_const AOS alias branch to emit multi-dimensional per-field\n  memories and copy array-typed element fields element-by-element.\n- Add witness specs/scratch/w488_wildcard_aos_array_field_alias.t27.\n- Attempt colon-style struct-literal parser + test-block struct-local emission;\n  rolled back because it exposed latent duplicate-declaration / keyword-name\n  collisions in igla/ specs that need a dedicated lowering pass.\n- NMSE reseal: FROZEN_HASH and nmse_manifest*.json refreshed.\n- Add W488 close-out report and W489 cooperation variants; update NOW.md,\n  current-issue.md, and experience.md.\n\nCloses #1458\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-10T09:36:54Z — wave-loop-489
+- **Commit:** chore(trinity): record W488 session log and commit count (final)\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-10T09:36:56Z — wave-loop-489
+- **Commit:** chore(trinity): record W488 session log and commit count (post-push)\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
