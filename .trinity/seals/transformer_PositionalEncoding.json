@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:c166f9fb5b2049aed3b7abf0580f63552098a0b42907b8715530bff8378af427",
   "gen_hash_rust": "sha256:446bb54f35725f4545c0422586a814496a28f4ff9cca45c6e1693bf970981727",
-  "gen_hash_verilog": "sha256:08bb60fb84f1fdd1525808271c8d39dde032f5978c16ef20d2622c5e6319a9e3",
+  "gen_hash_verilog": "sha256:fb9ad3ab998312bfd4196824f7fc7b6f2a9a77a87b2797643960ca038e5916f1",
   "gen_hash_zig": "sha256:95468e13572af84642d4fbd04178d2e5629bec5990beac844a178b25dc9fc580",
   "module": "PositionalEncoding",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:47Z",
+  "sealed_at": "2026-07-10T05:25:24Z",
   "spec_hash": "sha256:22b7fd16cc3e23432ab550205a19de7e72f9f80efb73a000a1c9ce56b3c136b6",
-  "spec_path": "specs/ml/transformer/positional_enc.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/transformer/positional_enc.t27"
 }

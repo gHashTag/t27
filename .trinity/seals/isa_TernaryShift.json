@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:12c5173b54246f308cc28d245f5fbd058a33bd9562e5a1c8d8c5b8b4eb4531e5",
   "gen_hash_rust": "sha256:36a3f22e0d446cd9a69ab40c9f49a88ae783b72aa4b1c37a90c4fa21acc14a7b",
-  "gen_hash_verilog": "sha256:8d5b672e37cefe5da7d63a53f920ae01f6c869f1eaeb5760ad1006b1659b65c3",
+  "gen_hash_verilog": "sha256:59dfaff5386d38e71bc09e465cfedcecc1228a52c1eb4c4b1818117f88a2f812",
   "gen_hash_zig": "sha256:ab7d07d4cb278805704a2eae6cd7a09ebbd68ee1eacb90cc630b2e7e68e2139d",
   "module": "TernaryShift",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:43Z",
+  "sealed_at": "2026-07-10T05:25:24Z",
   "spec_hash": "sha256:f3c137216cf4a9131b60f44dc249b3df311276ac91d365fe4aa0f87848269237",
-  "spec_path": "specs/isa/ternary_shift.t27"
+  "spec_path": "/Users/playra/t27/specs/isa/ternary_shift.t27"
 }

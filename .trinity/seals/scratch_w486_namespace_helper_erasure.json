@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:c8a591c65974a2e12ad89e850d4bdaa4d7a01dfbc366e9a4c211babd90f4795e",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:d1dc8ddd4468a5d12df76f024a5b5710cdd36857627038c86d97600f1762ee3e",
+  "gen_hash_zig": "sha256:cc33e0eef4b63a2614846e80907a05ff96e87e8d05c4521cf9ee4d2bfdbd43b4",
+  "module": "w486_namespace_helper_erasure",
+  "ring": 12,
+  "sealed_at": "2026-07-10T05:25:25Z",
+  "spec_hash": "sha256:e1cf945533c06e6d020ec44c11222171bc2b6d2ba1f1e08a8e98e4d54344183f",
+  "spec_path": "/Users/playra/t27/specs/scratch/w486_namespace_helper_erasure.t27"
+}

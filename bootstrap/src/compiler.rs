@@ -4229,6 +4229,15 @@ pub struct VerilogCodegen {
     // W485: functions that are host-only/proof-only and must not be emitted to
     // Verilog. Populated during the pre-pass after fn_return_types is known.
     host_only_functions: std::collections::HashSet<String>,
+    // W486: namespace-qualified calls (e.g. module::helper) that are dead to
+    // synthesizable Verilog contexts. Treated like host-only functions at call
+    // sites so they produce a clean statement-context comment and a sized-zero
+    // expression placeholder instead of an UNSUPPORTED_ICARUS classification.
+    host_only_namespace_calls: std::collections::HashSet<String>,
+    // W486: array parameters in the function currently being emitted that are
+    // passed as packed vectors (local/bench-local array arguments). Indexing
+    // into such a parameter must slice the packed vector, not select a single bit.
+    current_local_packed_array_params: std::collections::HashSet<String>,
 }
 
 impl VerilogCodegen {
@@ -4286,6 +4295,8 @@ impl VerilogCodegen {
             aos_tmp_assigns: Vec::new(),
             aos_stmt_start: 0,
             host_only_functions: std::collections::HashSet::new(),
+            host_only_namespace_calls: std::collections::HashSet::new(),
+            current_local_packed_array_params: std::collections::HashSet::new(),
 
 
             array_param_types: std::collections::HashMap::new(),
@@ -5776,6 +5787,35 @@ impl VerilogCodegen {
 
             let mut flat_fields: Vec<(String, String)> = Vec::new();
             Self::flatten_struct_fields(elem_type, &self.struct_fields, "", &mut flat_fields);
+
+            // W486: scalar local/bench-local arrays passed as packed-vector array
+            // parameters. Flatten the element registers in reverse declaration order
+            // so element 0 ends up in the LSBs of the packed input.
+            if flat_fields.is_empty() {
+                self.write("{");
+                let mut first = true;
+                for comb in combos.iter().rev() {
+                    let suffix = comb
+                        .iter()
+                        .map(|i| i.to_string())
+                        .collect::<Vec<_>>()
+                        .join("_");
+                    if !first {
+                        self.write(", ");
+                    }
+                    first = false;
+                    let flat_base = if self.bench_local_names.contains(base_name) {
+                        safe_base.clone()
+                    } else {
+                        base_name.clone()
+                    };
+                    let elem_name = format!("{}_{}", flat_base, suffix);
+                    self.write(&Self::verilog_safe_identifier(&elem_name));
+                }
+                self.write("}");
+                return;
+            }
+
             self.write("{");
             for (comb_idx, comb) in combos.iter().enumerate() {
                 let suffix = comb
@@ -7621,6 +7661,89 @@ impl VerilogCodegen {
         }
     }
 
+    /// W486: collect every namespace-qualified ExprCall under `node`, but skip
+    /// whole subtrees rooted at wildcard `let _ = ...;` bindings. This lets
+    /// calls that are dead to Verilog because their result is discarded avoid
+    /// being classified as synthesizable call sites.
+    fn collect_qualified_calls_skipping_wildcards(
+        node: &Node,
+        out: &mut std::collections::HashSet<String>,
+    ) {
+        fn scan(
+            n: &Node,
+            out: &mut std::collections::HashSet<String>,
+            skip: bool,
+        ) {
+            if skip {
+                return;
+            }
+            if n.kind == NodeKind::ExprCall && n.name.contains("::") {
+                out.insert(n.name.clone());
+            }
+            let child_skip = if n.kind == NodeKind::StmtLocal && n.name == "_" {
+                true
+            } else {
+                skip
+            };
+            for c in &n.children {
+                scan(c, out, child_skip);
+            }
+        }
+        scan(node, out, false);
+    }
+
+    /// W486: compute the set of namespace-qualified calls that are dead to
+    /// synthesizable Verilog contexts. A qualified call is host-only when it is
+    /// used only in invariants, host-only functions, or wildcard statements,
+    /// and never in module-level const/var declarations, bare statements, test
+    /// blocks, bench blocks, or non-host-only functions (wildcard bindings
+    /// inside those contexts are excluded).
+    fn compute_host_only_namespace_calls(
+        functions: &[&Node],
+        tests: &[&Node],
+        invariants: &[&Node],
+        benches: &[&Node],
+        module_stmts: &[&Node],
+        consts: &[&Node],
+        host_only_functions: &std::collections::HashSet<String>,
+    ) -> std::collections::HashSet<String> {
+        let mut synth_qualified: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        let mut all_qualified: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+
+        for c in consts {
+            Self::collect_qualified_calls_skipping_wildcards(*c, &mut synth_qualified);
+            Self::collect_qualified_calls_skipping_wildcards(*c, &mut all_qualified);
+        }
+        for stmt in module_stmts {
+            Self::collect_qualified_calls_skipping_wildcards(*stmt, &mut synth_qualified);
+            Self::collect_qualified_calls_skipping_wildcards(*stmt, &mut all_qualified);
+        }
+        for test in tests {
+            Self::collect_qualified_calls_skipping_wildcards(*test, &mut synth_qualified);
+            Self::collect_qualified_calls_skipping_wildcards(*test, &mut all_qualified);
+        }
+        for bench in benches {
+            Self::collect_qualified_calls_skipping_wildcards(*bench, &mut synth_qualified);
+            Self::collect_qualified_calls_skipping_wildcards(*bench, &mut all_qualified);
+        }
+        for inv in invariants {
+            Self::collect_qualified_calls_skipping_wildcards(*inv, &mut all_qualified);
+        }
+        for f in functions {
+            let mut calls: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
+            Self::collect_qualified_calls_skipping_wildcards(f, &mut calls);
+            all_qualified.extend(calls.iter().cloned());
+            if !host_only_functions.contains(&f.name) {
+                synth_qualified.extend(calls);
+            }
+        }
+
+        all_qualified.difference(&synth_qualified).cloned().collect()
+    }
+
     /// W463: recursively scan a function body for calls to other array-parameter
     /// functions where the argument is one of the outer function's array
     /// parameters. Returns a list of (call node, callee name, map of callee
@@ -8813,6 +8936,15 @@ impl VerilogCodegen {
             &benches,
             &module_stmts,
         );
+        self.host_only_namespace_calls = Self::compute_host_only_namespace_calls(
+            &functions,
+            &tests,
+            &invariants,
+            &benches,
+            &module_stmts,
+            &consts,
+            &self.host_only_functions,
+        );
 
         // W464: populate struct-field registry from struct declarations so the
         // array-literal binding pass and ROM emission can handle arrays of
@@ -8912,6 +9044,32 @@ impl VerilogCodegen {
                     module_array_names.insert(c.name.clone());
                 }
             }
+            // W486: bench-local array identifiers that are hoisted to module scope.
+            // They are not module-level arrays, but they can be passed as packed-
+            // vector arguments to array-parameter functions using the same local-
+            // packed path as function-local arrays.
+            let mut bench_local_array_names: std::collections::HashMap<
+                String,
+                std::collections::HashSet<String>,
+            > = std::collections::HashMap::new();
+            for decl in &ast.children {
+                if decl.kind != NodeKind::BenchBlock {
+                    continue;
+                }
+                let bench_name = decl.name.clone();
+                let mut locals: Vec<&Node> = Vec::new();
+                self.collect_bench_locals(decl, &mut locals);
+                let mut names: std::collections::HashSet<String> =
+                    std::collections::HashSet::new();
+                for local in locals {
+                    if Self::parse_array_type(&local.extra_type).is_some() {
+                        names.insert(local.name.clone());
+                    }
+                }
+                if !names.is_empty() {
+                    bench_local_array_names.insert(bench_name, names);
+                }
+            }
 
             for f in &functions {
                 let array_param_indices: Vec<usize> = f
@@ -8952,30 +9110,38 @@ impl VerilogCodegen {
                         .insert(f.name.clone(), fn_array_names);
                 }
 
-                // W459/W471: collect call sites from module-level statements,
+                // W459/W471/W486: collect call sites from module-level statements,
                 // test/invariant/bench blocks, and function bodies. Function-body
                 // calls with array-literal arguments are treated as module-level
                 // anonymous ROM call sites so inner helper functions can pass
                 // array-of-struct literals to array-parameter callees.
-                // Each entry is (call node, optional containing FnDecl) so the
-                // binding pass can detect function-local array arguments.
-                let mut call_sites: Vec<(&Node, Option<&Node>)> = Vec::new();
+                // Each entry is (call node, optional containing FnDecl, optional
+                // bench name) so the binding pass can detect function-local and
+                // bench-local array arguments.
+                let mut call_sites: Vec<(&Node, Option<&Node>, Option<String>)
+                > = Vec::new();
                 for decl in &ast.children {
                     match decl.kind {
                         NodeKind::StmtExpr => {
                             if let Some(expr) = decl.children.first() {
                                 if expr.kind == NodeKind::ExprCall && expr.name == f.name {
-                                    call_sites.push((expr, None));
+                                    call_sites.push((expr, None, None));
                                 }
                             }
                         }
-                        NodeKind::TestBlock
-                        | NodeKind::InvariantBlock
-                        | NodeKind::BenchBlock => {
+                        NodeKind::TestBlock | NodeKind::InvariantBlock => {
                             let mut inner: Vec<&Node> = Vec::new();
                             Self::collect_expr_calls(decl, &f.name, &mut inner);
                             for call in inner {
-                                call_sites.push((call, None));
+                                call_sites.push((call, None, None));
+                            }
+                        }
+                        NodeKind::BenchBlock => {
+                            let bench_name = decl.name.clone();
+                            let mut inner: Vec<&Node> = Vec::new();
+                            Self::collect_expr_calls(decl, &f.name, &mut inner);
+                            for call in inner {
+                                call_sites.push((call, None, Some(bench_name.clone())));
                             }
                         }
                         NodeKind::FnDecl => {
@@ -9028,7 +9194,7 @@ impl VerilogCodegen {
                                     || has_local_array_arg
                                     || has_module_array_arg
                                 {
-                                    call_sites.push((call, Some(decl)));
+                                    call_sites.push((call, Some(decl), None));
                                 }
                             }
                         }
@@ -9055,7 +9221,7 @@ impl VerilogCodegen {
                     (Vec<String>, Vec<&Node>),
                 > = std::collections::HashMap::new();
                 let mut broken = false;
-                for (call, containing_fn) in &call_sites {
+                for (call, containing_fn, bench_name) in &call_sites {
                     let mut sig_parts: Vec<String> = Vec::new();
                     for idx in &array_param_indices {
                         let (pname, ptype) = &f.params[*idx];
@@ -9063,13 +9229,20 @@ impl VerilogCodegen {
                             Self::parse_array_type(ptype).unwrap();
                         if let Some(arg) = call.children.get(*idx) {
                             if arg.kind == NodeKind::ExprIdentifier && !arg.name.is_empty() {
-                                // W475: function-local array variables are not bound
-                                // by name to a module memory; instead they are passed
-                                // as a packed-vector input. Use a common marker so all
-                                // local-array call sites share one clone.
+                                // W475/W486: function-local and bench-local array
+                                // variables are not bound by name to a module memory;
+                                // instead they are passed as a packed-vector input. Use
+                                // a common marker so all local-array call sites share
+                                // one clone.
                                 let is_local_array = containing_fn.map_or(false, |fn_node| {
                                     Self::is_fn_local_array(fn_node, &arg.name)
                                 });
+                                let is_bench_local_array =
+                                    bench_name.as_ref().map_or(false, |bname| {
+                                        bench_local_array_names
+                                            .get(bname)
+                                            .map_or(false, |set| set.contains(&arg.name))
+                                    });
                                 // W476: module-level arrays of structs whose element type
                                 // has array-typed fields are also passed as packed-vector
                                 // inputs. Simple scalar-struct arrays keep the direct
@@ -9077,12 +9250,16 @@ impl VerilogCodegen {
                                 // the parameter remain valid.
                                 let is_module_aos_with_array_field =
                                     !is_local_array
+                                        && !is_bench_local_array
                                         && module_array_names.contains(&arg.name)
                                         && Self::struct_type_has_array_field(
                                             &expected_elem_type,
                                             &self.struct_fields,
                                         );
-                                if is_local_array || is_module_aos_with_array_field {
+                                if is_local_array
+                                    || is_bench_local_array
+                                    || is_module_aos_with_array_field
+                                {
                                     sig_parts.push("__local__".to_string());
                                 } else {
                                     sig_parts.push(arg.name.clone());
@@ -9819,6 +9996,8 @@ impl VerilogCodegen {
             // import/clone lowering; emit only the first occurrence to avoid
             // duplicate module-scope counter and named initial-block errors in
             // Icarus Verilog.
+            let mut emitted_counter_names: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
             let mut emitted_bench_names: std::collections::HashSet<String> =
                 std::collections::HashSet::new();
             // Module-scope counter declarations (R-VD-1 fix).
@@ -9826,7 +10005,7 @@ impl VerilogCodegen {
             self.write_line("`ifndef SIMULATION");
             for b in &benches {
                 let bench_name = Self::sanitize_identifier(&b.name);
-                if !emitted_bench_names.insert(bench_name.clone()) {
+                if !emitted_counter_names.insert(bench_name.clone()) {
                     continue;
                 }
                 let counter = format!("_bench_{}_cycles", bench_name);
@@ -10611,18 +10790,110 @@ impl VerilogCodegen {
     fn gen_verilog_const(&mut self, node: &Node) {
         self.write_indent();
 
-        // W485: module-level wildcard `_` declarations discard their initializer.
-        // Do not emit a Verilog parameter/reg for `_`; multiple wildcard bindings
-        // would otherwise collide as duplicate identifiers.
+        // W485/W486: module-level wildcard `_` declarations must not emit a named
+        // `_` identifier. When the initializer is an array literal, emit an
+        // anonymous ROM so the lowering path is exercised; when it is a reference
+        // to a module-level array, emit an anonymous copy memory. Host-only or
+        // namespace-qualified calls remain as comments.
         if node.name == "_" {
-            self.write_line(&format!(
-                "// let _ = ... discarded at module scope ({})",
-                if node.children.is_empty() {
-                    "no initializer"
+            if node.children.is_empty() {
+                self.write_line("// let _ = ... discarded at module scope (no initializer)");
+                return;
+            }
+            let init = &node.children[node.children.len() - 1];
+            let is_host_or_ns_call = init.kind == NodeKind::ExprCall
+                && (init.name.contains("::") || self.call_is_host_only(&init.name));
+            if is_host_or_ns_call {
+                self.write_line(&format!(
+                    "// let _ = ... discarded at module scope ({})",
+                    init.name
+                ));
+                return;
+            }
+            // Array literal: re-emit under an anonymous name so the existing
+            // scalar/struct ROM lowering path is reused. Reconstruct the array
+            // type annotation from the literal's bracket size and element type.
+            if init.kind == NodeKind::ExprArrayLiteral {
+                let anon_name = format!(
+                    "_wildcard_lit_{}",
+                    self.let_tmp_counter
+                );
+                self.let_tmp_counter += 1;
+                let mut anon_node = node.clone();
+                anon_node.name = anon_name;
+                let array_type = if init.extra_size.is_empty() {
+                    if init.children.is_empty() {
+                        init.extra_type.clone()
+                    } else {
+                        format!("[{}]{}", init.children.len(), init.extra_type)
+                    }
                 } else {
-                    "initializer present"
+                    format!("[{}]{}", init.extra_size, init.extra_type)
+                };
+                anon_node.extra_type = array_type;
+                self.write_line(&format!(
+                    "// let _ = ... emitted as anonymous ROM {}",
+                    Self::verilog_safe_identifier(&anon_node.name)
+                ));
+                return self.gen_verilog_const(&anon_node);
+            }
+            // Reference to a module-level array: emit an anonymous unpacked memory
+            // and copy the source array element-by-element in an initial block.
+            if init.kind == NodeKind::ExprIdentifier {
+                if let Some(dims) = self.module_scalar_array_dims.get(&init.name).cloned() {
+                    let elem_type = Self::array_dimensions_leaf_type(&dims);
+                    let anon_name = format!(
+                        "_wildcard_copy_{}",
+                        self.let_tmp_counter
+                    );
+                    self.let_tmp_counter += 1;
+                    let safe_anon = Self::verilog_safe_identifier(&anon_name);
+                    let safe_src = Self::verilog_safe_identifier(&init.name);
+                    let total_size = dims.iter().map(|(s, _)| *s).product::<usize>();
+                    let elem_width = Self::type_to_width(&elem_type);
+                    let elem_signed = Self::type_is_signed(&elem_type);
+                    let elem_signed_str = if elem_signed { "signed " } else { "" };
+                    let elem_range = Self::range_decl(elem_width);
+                    let elem_range_str = if elem_range.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{} ", elem_range)
+                    };
+                    self.write_line(&format!(
+                        "// let _ = {} emitted as anonymous memory {}",
+                        init.name, safe_anon
+                    ));
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "reg {}{} {} [0:{}];",
+                        elem_signed_str,
+                        elem_range_str,
+                        safe_anon,
+                        total_size.saturating_sub(1)
+                    ));
+                    self.write_indent();
+                    self.write_line("initial begin");
+                    self.indent();
+                    let combos = Self::index_combinations(&dims);
+                    for (dst_addr, comb) in combos.iter().enumerate() {
+                        let src_idx = comb
+                            .iter()
+                            .map(|i| i.to_string())
+                            .collect::<Vec<_>>()
+                            .join("][");
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "{}[{}] = {}[{}];",
+                            safe_anon, dst_addr, safe_src, src_idx
+                        ));
+                    }
+                    self.dedent();
+                    self.write_indent();
+                    self.write_line("end");
+                    return;
                 }
-            ));
+            }
+            self.write_line("// let _ = ... discarded at module scope (unsupported initializer)");
             return;
         }
 
@@ -11382,6 +11653,7 @@ impl VerilogCodegen {
         self.loop_vars_declared.clear();
         self.param_widths.clear();
         self.array_param_types.clear();
+        self.current_local_packed_array_params.clear();
         for (pname, ptype) in &node.params {
             self.param_widths
                 .insert(pname.clone(), Self::type_to_width(ptype) as usize);
@@ -11423,6 +11695,7 @@ impl VerilogCodegen {
             self.local_packed_struct_vars.clear();
             self.array_param_types.clear();
             self.loop_vars_declared.clear();
+            self.current_local_packed_array_params.clear();
             return;
         }
 
@@ -11554,6 +11827,12 @@ impl VerilogCodegen {
             };
             let safe_pname = Self::verilog_safe_identifier(pname);
             self.write_line(&format!("input {}{}{};", ps_str, pr_str, safe_pname));
+            // W486: record scalar array parameters that are emitted as packed
+            // vector inputs so indexing inside the body slices the vector.
+            if is_array {
+                self.current_local_packed_array_params
+                    .insert(pname.clone());
+            }
             if is_struct {
                 scalar_struct_params_to_unpack.push((pname.clone(), ptype.clone()));
                 self.local_struct_var_types.insert(pname.clone(), ptype.clone());
@@ -11658,6 +11937,7 @@ impl VerilogCodegen {
         self.known_string_literals.clear();
         self.local_packed_struct_vars.clear();
         self.array_param_types.clear();
+        self.current_local_packed_array_params.clear();
     }
 
     fn gen_verilog_fn(&mut self, node: &Node) {
@@ -14303,10 +14583,12 @@ impl VerilogCodegen {
         false
     }
 
-    /// W485: true if `callee` names a function that was classified as host-only
-    /// and therefore is not emitted as a Verilog function/task.
+    /// W485/W486: true if `callee` names a function that was classified as
+    /// host-only, or a namespace-qualified call that is dead to synthesizable
+    /// Verilog contexts, and therefore is not emitted as a Verilog function/task.
     fn call_is_host_only(&self, callee: &str) -> bool {
         self.host_only_functions.contains(callee)
+            || self.host_only_namespace_calls.contains(callee)
     }
 
     /// W480: emit a sized zero placeholder for an unsupported method/call so that
@@ -15912,6 +16194,86 @@ impl VerilogCodegen {
                             self.gen_verilog_expr(idx);
                             self.write("]");
                             return;
+                        }
+                    }
+                    // W486: array parameters passed as packed vectors must be
+                    // sliced by element width, not indexed as a memory. Compute
+                    // the linear element offset from the index chain and emit a
+                    // packed slice `param[linear*W +: W]`.
+                    if let Some((root_id, indices)) = Self::flatten_index_chain(node) {
+                        if root_id.kind == NodeKind::ExprIdentifier
+                            && self.current_local_packed_array_params
+                                .contains(&root_id.name)
+                        {
+                            if let Some(ptype) =
+                                self.array_param_types.get(&root_id.name)
+                            {
+                                let dims = Self::parse_array_dimensions(ptype);
+                                if !dims.is_empty()
+                                    && indices.len() == dims.len()
+                                {
+                                    let elem_type =
+                                        Self::array_dimensions_leaf_type(&dims);
+                                    let elem_width = Self::type_to_width(&elem_type);
+                                    let safe_param = Self::verilog_safe_identifier(
+                                        &root_id.name,
+                                    );
+                                    self.write(&format!(
+                                        "{}[(", safe_param
+                                    ));
+                                    let all_literal = indices
+                                        .iter()
+                                        .all(|i| i.value.parse::<usize>().is_ok());
+                                    if all_literal {
+                                        let mut linear: usize = 0;
+                                        for (d, idx_node) in indices.iter().enumerate()
+                                        {
+                                            let idx_val = idx_node
+                                                .value
+                                                .parse::<usize>()
+                                                .unwrap();
+                                            let stride = dims
+                                                .iter()
+                                                .skip(d + 1)
+                                                .map(|(s, _)| *s)
+                                                .product::<usize>();
+                                            linear += idx_val * stride;
+                                        }
+                                        self.write(&linear.to_string());
+                                    } else {
+                                        let mut first = true;
+                                        for (d, idx_node) in indices.iter().enumerate()
+                                        {
+                                            if !first {
+                                                self.write(" + ");
+                                            }
+                                            first = false;
+                                            let stride = dims
+                                                .iter()
+                                                .skip(d + 1)
+                                                .map(|(s, _)| *s)
+                                                .product::<usize>();
+                                            if stride > 1 {
+                                                self.write("(");
+                                            }
+                                            self.gen_verilog_expr(idx_node);
+                                            if stride > 1 {
+                                                self.write(&format!(
+                                                    " * {}", stride
+                                                ));
+                                            }
+                                            if stride > 1 {
+                                                self.write(")");
+                                            }
+                                        }
+                                    }
+                                    self.write(&format!(
+                                        ") * {} +:{}]",
+                                        elem_width, elem_width
+                                    ));
+                                    return;
+                                }
+                            }
                         }
                     }
                     self.gen_verilog_expr(base);

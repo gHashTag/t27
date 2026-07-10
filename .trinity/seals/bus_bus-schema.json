@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3154328d43b1a4b2ef82957367f58e752b816dd749beea49da7afa44d51b2934",
   "gen_hash_rust": "sha256:36d7c48fa349bad458ebf8c0b0aee85ea55a6d4530f4400a449a699c1c6a8275",
-  "gen_hash_verilog": "sha256:69d03aeae9c529c51d93542f843c127f7075a3f9ec53fa75c7c900c3631b9d6c",
+  "gen_hash_verilog": "sha256:7e2526bf492c12e6c38e2a4c432a20df82b7e2cf09c4591d2ae8de460a69236f",
   "gen_hash_zig": "sha256:243119798b24837d125ed223c6f7d10cb32cd80fd23d5d53575e8a477a6ef6d2",
   "module": "bus-schema",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:43Z",
+  "sealed_at": "2026-07-10T05:25:23Z",
   "spec_hash": "sha256:76f4b79cfecc890ab7a7f7bcbe9564aa9d6ecde995aedb1de20315716844ca22",
-  "spec_path": "specs/bus/schema.t27"
+  "spec_path": "/Users/playra/t27/specs/bus/schema.t27"
 }

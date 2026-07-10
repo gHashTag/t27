@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:0fcf280a3fc9cd29b75d208cfdf5f74b3640a38b8f195a3854af262bcd9a7406",
   "gen_hash_rust": "sha256:e9132666fee98641034b67b581905fe458ab08718e919a78a2ec5cc2f6d354da",
-  "gen_hash_verilog": "sha256:86018dc3a149ee62a12f501153f2a8ce5c95d4f511387acf07d2534def0f5893",
+  "gen_hash_verilog": "sha256:a2409fcbe05e77e3d2040b4ba5b437ebf6b3246a62fda8ff72a50b359667b18e",
   "gen_hash_zig": "sha256:e5bff29d642dab324ff1bba9a589e440677d1ee04adc007b5ad7212a5c2a9100",
   "module": "P2Brain",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:39Z",
+  "sealed_at": "2026-07-10T05:25:25Z",
   "spec_hash": "sha256:29b58480f94ecc32197ca8ca2c20f330caf65df4d36a079bf42a2cd0765dd6dd",
-  "spec_path": "specs/physics/p2_brain_physics.t27"
+  "spec_path": "/Users/playra/t27/specs/physics/p2_brain_physics.t27"
 }

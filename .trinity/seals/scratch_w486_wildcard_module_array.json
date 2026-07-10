@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:cca5b2f3369d39da886b869ec1d1963027dcf9d175b8b1fa78f81bbb20f57cad",
+  "gen_hash_rust": "sha256:6816d9207311352fb46b0f15444cd43d91d5e83b571caba66ad57d60919079d4",
+  "gen_hash_verilog": "sha256:a2dbb212087a1ae2695dd8327321d7d3aa38a5fec44bc4f7197e2e789e77408e",
+  "gen_hash_zig": "sha256:1ee2928f742d58d03567cc31044064203b5cb5cd4a5c61b52caff2007d7ea2b8",
+  "module": "w486_wildcard_module_array",
+  "ring": 12,
+  "sealed_at": "2026-07-10T05:25:25Z",
+  "spec_hash": "sha256:085d20d3f31fe9b6c379ba72a37047873c92161ecd878acff11a4df79c368b56",
+  "spec_path": "/Users/playra/t27/specs/scratch/w486_wildcard_module_array.t27"
+}

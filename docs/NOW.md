@@ -1,22 +1,95 @@
-# NOW — Wave Loop 485 close-out / Wave Loop 486 next (2026-07-07)
+# NOW — Wave Loop 486 close-out / Wave Loop 487 next (2026-07-07)
 
 **Last updated:** 2026-07-07
 
-## Wave Loop 486 — Next wave (to be selected from cooperation plan)
+## Wave Loop 487 — Next wave (to be selected from cooperation plan)
 
-- Branch: `wave-loop-486` (to create from `wave-loop-485`)
-- Issue: #1456 (to be opened)
+- Branch: `wave-loop-487` (to create from `wave-loop-486`)
+- Issue: #1457 (to be opened)
 - PR: (to open after close-out)
-- Plan: (to be written at W486 close-out)
-- Cooperation W487: (to be written at W486 close-out)
+- Plan: `.claude/plans/wave-loop-487.md` (to be written at W487 start)
+- Cooperation W488: (to be written at W487 close-out)
 
 ### Not started
 
-- Select one of the three W486 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W486_2026-07-07.md`.
-- Default Variant B: continue IGLA/bench lowering hardening for bench-local
-  arrays crossing function boundaries, module-scope wildcard literals, and
-  imported namespace helper erasure.
+- Select one of the three W487 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W487_2026-07-07.md`.
+- Default Variant B: continue IGLA/bench lowering hardening for module-scope
+  wildcard struct-literal bindings, module-scope wildcard array aliases, and
+  2-D / struct bench-local arrays crossing function boundaries.
+
+---
+
+## Wave Loop 486 — compiler-backend Icarus soft-failure hardening: bench-local arrays crossing function boundaries, namespace helper erasure, module-scope wildcard array literals (Variant B default)
+
+- Branch: `wave-loop-486`
+- Issue: #1456
+- PR: (to open after close-out)
+- Plan: `.claude/plans/wave-loop-486.md`
+- Report: `docs/reports/WAVE_LOOP_486_CLOSEOUT.md`
+- Cooperation W487: `docs/reports/FPGA_LOOP_COOPERATION_W487_2026-07-07.md`
+
+### What landed (Variant B default)
+
+- `bootstrap/src/compiler.rs`
+  - Bench-local fixed-size arrays cross function boundaries through a shared
+    `__local__` packed-vector clone. The binding pass pre-collects bench-local
+    array names per bench and resolves bench-local array arguments to the
+    `__local__` signature.
+  - Scalar packed-vector packing in `gen_verilog_pack_array_of_struct_expr`
+    concatenates bench-local element registers at the call site.
+  - `current_local_packed_array_params` tracks array parameters emitted as
+    packed-vector inputs; `ExprIndex` slices them by element width.
+  - Fixed bench initial-block emission bug by splitting the reused
+    `emitted_bench_names` set into counter and initial-block sets.
+  - `host_only_namespace_calls` set and
+    `compute_host_only_namespace_calls` erase namespace-qualified helpers that
+    are dead to synthesizable contexts.
+  - `collect_qualified_calls_skipping_wildcards` treats wildcard `let _ = ...;`
+    subtrees as dead code during classification.
+  - Module-scope wildcard array-literal bindings now emit anonymous ROMs by
+    re-entering the normal const-array path with a reconstructed array type and
+    an anonymous name.
+
+- Witness specs
+  - `specs/scratch/w486_bench_array_param.t27` — bench-local `[4]u32` passed to
+    an array-parameter function and asserted in a bench.
+  - `specs/scratch/w486_helper_module.t27` — imported helper used only in
+    host-side contexts.
+  - `specs/scratch/w486_namespace_helper_erasure.t27` — namespace-qualified
+    helper erased from Verilog emission.
+  - `specs/scratch/w486_wildcard_module_array.t27` — module-scope wildcard
+    array-literal emits an anonymous ROM.
+  - `specs/scratch/w486_wildcard_module_array_copy.t27` — module-scope wildcard
+    array alias degrades safely to a comment.
+  - `specs/scratch/w486_wildcard_module_literal.t27` — documents the parser-blocked
+    module-scope struct-literal wildcard limitation.
+
+- Seals: global reseal of every `.trinity/seals/*.json` because generated
+  Verilog changed for specs with namespace calls, wildcard arrays, and
+  bench-local array parameters.
+
+### Verification
+
+- `cargo build --release`: PASS
+- `cargo test -p t27c --bin t27c`: 1525 passed, 0 failed, 2 ignored
+- `./scripts/tri test`: ALL TESTS PASSED
+  - 667 / 667 non-smoke PASS
+  - 147 / 147 yosys smoke PASS
+  - 147 / 147 Icarus smoke PASS, 0 documented baseline failures
+  - 667 / 667 seal matches
+  - 0 fixed-point divergences
+  - FPGA board-less smoke gate: OK
+  - FPGA standalone lake-package build: OK
+  - FPGA smoke gate replay: OK
+- **Total `UNSUPPORTED_ICARUS` placeholders across all 667 specs: 0.**
+
+### Known limitations
+
+- Module-scope struct-literal wildcard bindings (`let _ = Pt{...};`) are
+  parser-blocked; subsequent declarations are dropped from the AST.
+- Module-scope wildcard array aliases currently degrade to a comment instead of
+  an anonymous copy memory.
 
 ---
 

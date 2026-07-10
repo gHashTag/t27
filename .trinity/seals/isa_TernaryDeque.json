@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:03c43998210fcf80d680d6065bd96bf9c3e69cc56fbb614f2d0ea9725c88f38b",
   "gen_hash_rust": "sha256:5aba0296b91783cccba412eeb3d59e5f3f4a996012ce04f8301a99fb10232eba",
-  "gen_hash_verilog": "sha256:f04919f4ae6d610a738c8e73e5197e9fdfbe98563081122f9ffa9d359aeafd49",
+  "gen_hash_verilog": "sha256:74d870714a754a6129bf7acd46189962826c55af13dd0270c949b8f90a476e0e",
   "gen_hash_zig": "sha256:a1943eb212285294059c66ebb6646bf5fa7c6295d9d917a14070d9ac87ad1ba7",
   "module": "TernaryDeque",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:42Z",
+  "sealed_at": "2026-07-10T05:25:24Z",
   "spec_hash": "sha256:9bf8a5d8a946630ba9aa0dea52bb3e2c0a5d52c6ca35b1613e77c07668c19dcc",
-  "spec_path": "specs/isa/ternary_deque.t27"
+  "spec_path": "/Users/playra/t27/specs/isa/ternary_deque.t27"
 }

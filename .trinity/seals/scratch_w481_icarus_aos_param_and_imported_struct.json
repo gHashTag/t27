@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:feb298816b22f84c048d9ad9334d3290e7dd834d1b780b96cede490b8f8e5733",
   "gen_hash_rust": "sha256:bd9220ad1eb4d685f483f57c8abddff9221d64792a2be3ff59761fda4d5bc591",
-  "gen_hash_verilog": "sha256:b8e7b444b4629aadd31cbcb80d289ad3ed2387ee61e0ca8d57be1eedf464b22d",
+  "gen_hash_verilog": "sha256:9db9e94113fb886436b60de5c810488091ea446fd8ec9d9ba059b5f72ca5b38e",
   "gen_hash_zig": "sha256:2f37f6a5aedab7f15a7266c461bbf905534dcf265355ac480e3bf47b99dda17f",
   "module": "w481_icarus_aos_param_and_imported_struct",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:44Z",
+  "sealed_at": "2026-07-10T05:25:25Z",
   "spec_hash": "sha256:fe63cd4a85613e037de9784a24fcbc9b8786077ab399c9b8e81be650a844a231",
-  "spec_path": "specs/scratch/w481_icarus_aos_param_and_imported_struct.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w481_icarus_aos_param_and_imported_struct.t27"
 }

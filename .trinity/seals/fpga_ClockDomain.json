@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:ec1e934656d7ed34f1b34c3f6a7dda21365c7adc844a9dcad91d08952bf05716",
   "gen_hash_rust": "sha256:8a38f4f4ccb46e532aeb9fbba21293707a6ba01e5fc680a4ce4f5932ca21dc87",
-  "gen_hash_verilog": "sha256:229544fe23d7b1d8b98de55eb5b434f12a109ed7e9ee7508a20644b19b58c87f",
+  "gen_hash_verilog": "sha256:a727b905761e1ac1b35980ffc28ba72f694646df4f04339ab9a0c0b02ea1054e",
   "gen_hash_zig": "sha256:b65ee4c8fbd5f1dff6100cfa357301acfc9dbc4a570736c0e2f87e0bf8e817b5",
   "module": "ClockDomain",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:38Z",
+  "sealed_at": "2026-07-10T05:25:23Z",
   "spec_hash": "sha256:2b8c2d7f2d556e30e925e8412b70667b19ac8dd137bd696545d364bc3ef7aa60",
-  "spec_path": "specs/fpga/clock_domain.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/clock_domain.t27"
 }

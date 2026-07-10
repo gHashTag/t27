@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:b87b8a4cf4aaf57197097c177b9a5dd2824478139f8c15ce08e1c78e7971cb74",
   "gen_hash_rust": "sha256:4c2882ab61027eb072a462eedc9696c7e618a8a57ca227ea59dbf21eaeee5e2b",
-  "gen_hash_verilog": "sha256:aa1bdc0000277c7b190d085d180af456216f157cf677f17846cd3de06c295b51",
+  "gen_hash_verilog": "sha256:83fc9155323da90a0caf4019f0600204d302e0f007de5b4c4e9e64ffeb63b16c",
   "gen_hash_zig": "sha256:552856c46c6993d9502cbab15abe46d0a0be2e9b0ddd934b6e908dd69000bf06",
   "module": "LayerNorm",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:48Z",
+  "sealed_at": "2026-07-10T05:25:24Z",
   "spec_hash": "sha256:094222aaee6baf1f769008f2adc84ef15355ff58c9313e44285f16cdda26ae18",
-  "spec_path": "specs/ml/transformer/norm.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/transformer/norm.t27"
 }

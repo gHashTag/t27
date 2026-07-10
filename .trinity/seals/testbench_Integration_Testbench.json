@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:0a9a74ef81224525ebe73ed1d73dc8b1237266aae9d081cf4bb73bde14341d40",
   "gen_hash_rust": "sha256:eb736b434d47a95f16d481d8232b4584cf7c54f6d659939c5216246f0767e04b",
-  "gen_hash_verilog": "sha256:6d5e9f219d4c5e1ed4d0176ee54cca1363f61206b5b6f83ad97f6ea33e6ca1a2",
+  "gen_hash_verilog": "sha256:4dd0dd553988b6ae252293a092ed154c83f4a47f68aaebe8b4e733586e563cc1",
   "gen_hash_zig": "sha256:f9a077c88267120259e7f52605eb9ec2763970d73f59832e4f101b619360db87",
   "module": "Integration_Testbench",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:42Z",
+  "sealed_at": "2026-07-10T05:25:23Z",
   "spec_hash": "sha256:cad3992fa6893a5467a5e01b6a63be0fa42916e661d32aa8a25412c627835b7c",
-  "spec_path": "specs/fpga/testbench/integration_tb.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/testbench/integration_tb.t27"
 }

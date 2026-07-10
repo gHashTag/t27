@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0
+; W486 witness: bench-local fixed-size arrays passed as function parameters.
+; A bench declares a local [4]u32 array and calls a function that takes a [4]u32
+; parameter. The hoisted module-level registers must be packed into a vector
+; and passed to the function clone.
+; φ² + φ⁻² = 3 | TRINITY
+
+module w486_bench_array_param;
+
+fn sum_array(a: [4]u32) -> u32 {
+    return a[0] + a[1] + a[2] + a[3];
+}
+
+test direct_call_passes {
+    assert_eq(sum_array([4]u32{1, 2, 3, 4}), 10);
+}
+
+bench bench_array_param {
+    let data : [4]u32 = [4]u32{1, 2, 3, 4};
+    let s : u32 = sum_array(data);
+    assert_eq(s, 10);
+}
+
+endmodule

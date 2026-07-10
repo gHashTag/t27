@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:52ef327d930bbc3372b2f6a68c3bff648bade512f5589e6097b5d64d27be8c3b",
   "gen_hash_rust": "sha256:40773fe4555ee1f741f714cada2e6291fa2033fd653b4e03c77d61f3f0d63db8",
-  "gen_hash_verilog": "sha256:a1ed6dc137355d3c0c0b3d7c543d0675e25472cc1d9c7194839cc61715c157b4",
+  "gen_hash_verilog": "sha256:f95de55ffb96e7b346e558baabf6ff79c374bd35d522ea9c2670f553df24d99b",
   "gen_hash_zig": "sha256:72b2d7d155326fea2a9bf1230e168c5a0ff2dac807945141bbb87fff45870cec",
   "module": "LrScheduler",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:47Z",
+  "sealed_at": "2026-07-10T05:25:24Z",
   "spec_hash": "sha256:46e0eb2a3f596509c6a0aec1b64f2558db9c145c0865ca6b851faec29e9bf0df",
-  "spec_path": "specs/ml/optimizer/lr_scheduler.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/optimizer/lr_scheduler.t27"
 }

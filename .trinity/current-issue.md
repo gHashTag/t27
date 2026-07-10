@@ -1,39 +1,40 @@
-# Wave Loop 486 — next-wave selection
+# Wave Loop 487 — next-wave selection
 
 **Date:** 2026-07-07
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
-W485 hardened the Icarus/Verilog backend for the next soft-failure classes:
+W486 hardened the Icarus/Verilog backend for the next soft-failure classes:
 
-- Host-side recursive/proof-only helpers are now detected and skipped during
-  Verilog generation.
-- Module-scope and function-scope wildcard `_` bindings no longer emit duplicate
-  identifiers or sized-zero assignments.
-- A regression witness for bench-local array hoisting was added and passes both
-  yosys and Icarus smoke.
+- Bench-local fixed-size arrays now cross function boundaries through a shared
+  packed-vector `__local__` clone and correct element-width slicing inside the
+  callee.
+- Imported namespace-qualified helpers used only in host-side contexts are erased
+  cleanly instead of producing `UNSUPPORTED_ICARUS` placeholders.
+- Module-scope wildcard `_` bindings with array-literal initializers emit
+  anonymous ROMs; struct-literal wildcards remain parser-blocked.
 
-Verification at W485 close-out:
+Verification at W486 close-out:
 
-- 661 / 661 non-smoke PASS.
-- 141 / 141 yosys smoke PASS, 0 failures.
-- 141 / 141 Icarus smoke PASS, 0 documented baseline failures.
-- 661 / 661 seal matches.
+- 667 / 667 non-smoke PASS.
+- 147 / 147 yosys smoke PASS, 0 failures.
+- 147 / 147 Icarus smoke PASS, 0 documented baseline failures.
+- 667 / 667 seal matches.
 - `cargo test -p t27c --bin t27c` 1525 / 0 / 2.
-- **Total `UNSUPPORTED_ICARUS` placeholders across all 661 specs: 0.**
+- **Total `UNSUPPORTED_ICARUS` placeholders across all 667 specs: 0.**
 
 ## Goal
 
-Select and execute one of the W486 cooperation variants documented in
-`docs/reports/FPGA_LOOP_COOPERATION_W486_2026-07-07.md`.
+Select and execute one of the W487 cooperation variants documented in
+`docs/reports/FPGA_LOOP_COOPERATION_W487_2026-07-07.md`.
 
 ## Default direction
 
 **Variant B (default):** continue hardening the Icarus/Verilog backend for the
-remaining soft-failure classes after W485:
+remaining lowering gaps after W486:
 
-- bench-local fixed-size arrays crossing function boundaries,
-- module-scope wildcard `_` bindings with struct/array literal initializers,
-- imported namespace helper erasure.
+- module-scope wildcard struct-literal bindings (`let _ = Pt{...};`),
+- module-scope wildcard array aliases (`let _ = existing_array;`),
+- 2-D / struct bench-local arrays crossing function boundaries.
 
 ## Alternative directions
 
@@ -44,12 +45,12 @@ remaining soft-failure classes after W485:
 
 ## Issue Gate
 
-- Branch: `wave-loop-486` (to create from `wave-loop-485`).
+- Branch: `wave-loop-487` (to create from `wave-loop-486`).
 - Required: non-smoke tests green, yosys smoke acceptable, Icarus smoke
   acceptable (no new regressions outside baseline), seals green,
   `cargo test -p t27c --bin t27c` green.
 
 ## References
 
-- W485 close-out: `docs/reports/WAVE_LOOP_485_CLOSEOUT.md`
-- W486 cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W486_2026-07-07.md`
+- W486 close-out: `docs/reports/WAVE_LOOP_486_CLOSEOUT.md`
+- W487 cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W487_2026-07-07.md`

@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0
+// W486 witness: module-scope wildcard binding with array-literal initializer.
+// The array must not be emitted under the invalid identifier `_`; it should
+// become an anonymous ROM or packed temporary.
+
+module w486_wildcard_module_array;
+
+let _ = [4]u32{1, 2, 3, 4};
+
+test smoke_passes {
+    assert_eq(1, 1);
+}
+
+endmodule

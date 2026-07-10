@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a6cbb15203eb128f6557dadd44fed8528eb5e91c2eca2c23e87fa18688f00f44",
   "gen_hash_rust": "sha256:6625807c6c3c16c7ff36cf80d9eb10aae843d50f8dba18b5643d16284934b752",
-  "gen_hash_verilog": "sha256:9c04e16312c19c148f783b6d957cb7bd8b1bfb15d9e07330fb2e738785e99365",
+  "gen_hash_verilog": "sha256:8516e3759e46a72f5f0217a15e7894fc7c226dfdfd528c2476c935f869a4364c",
   "gen_hash_zig": "sha256:1eff707fa6b0df5d797b56dae4c727d3e8d5e8dbaa6a4a8905de5890960d7abf",
   "module": "MultiHeadAttention",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:47Z",
+  "sealed_at": "2026-07-10T05:25:24Z",
   "spec_hash": "sha256:6aa15bf01126f3f32e79fe5e29db38af084adfb7cce50123c60f12b0450ede6f",
-  "spec_path": "specs/ml/transformer/multi_head_attn.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/transformer/multi_head_attn.t27"
 }

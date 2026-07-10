@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:9837e02c3a7ab759fd2c9d2167d49a6509a93a8323b5cbf120340a5729c8074f",
+  "gen_hash_rust": "sha256:2b0eada5beb4eba19428eb2ccd1967ccc16568857e3c50f5e089f5e9456aca6b",
+  "gen_hash_verilog": "sha256:a61908b0e2351813f50054bf35368d522992a52f7a1553512c8e51cbbe72a5df",
+  "gen_hash_zig": "sha256:37a8d3dca8bc886797000053a14ebac58c64833e6736ae6c9cfc24d329186105",
+  "module": "w486_helper_module",
+  "ring": 12,
+  "sealed_at": "2026-07-10T05:25:25Z",
+  "spec_hash": "sha256:8b33a99dfca10be4d439d7bbe93b310a08941fdb67740d4a37f332d1551282de",
+  "spec_path": "/Users/playra/t27/specs/scratch/w486_helper_module.t27"
+}

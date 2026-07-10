@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0
+; W486 witness: module-scope wildcard `_` bindings with struct and array
+; literal initializers must create anonymous packed temporaries without
+; emitting a named `_` reg.
+; φ² + φ⁻² = 3 | TRINITY
+
+module w486_wildcard_module_literal;
+
+struct Pt {
+    x: u32,
+    y: u32,
+}
+
+fn use_pt(p: Pt) -> u32 {
+    return p.x + p.y;
+}
+
+fn use_arr(a: [4]u32) -> u32 {
+    return a[0] + a[1] + a[2] + a[3];
+}
+
+; Module-scope wildcard bindings whose values are intentionally discarded.
+let _ = Pt { x: 1, y: 2 };
+let _ = [1, 2, 3, 4];
+
+test wildcard_literals_pass {
+    assert_eq(use_pt(Pt { x: 5, y: 7 }), 12);
+    assert_eq(use_arr([10, 20, 30, 40]), 100);
+}
+
+endmodule

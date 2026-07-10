@@ -1,3 +1,84 @@
+## 2026-07-07 — Wave Loop 486 (gen-verilog Icarus soft-failure hardening: bench-local arrays crossing function boundaries, namespace helper erasure, module-scope wildcard array literals)
+
+### What worked
+- Carrying the containing bench name through the array-parameter binding pass
+  lets bench-local arrays reuse the same `__local__` packed-vector clone that
+  function-local arrays already used.
+- Splitting `emitted_bench_names` into separate counter and initial-block sets
+  fixed a long-standing bug where every bench `initial` block was skipped.
+- Scalar packed-vector array parameters must be sliced by element width inside
+  the callee; treating the packed input as an unpacked memory selects single
+  bits and corrupts arithmetic.
+- Namespace-qualified calls are cleanly erased when they are dead to
+  synthesizable contexts; scanning const/var declarations as synthesizable
+  contexts avoids misclassifying values used in module-level initializers.
+- Module-scope wildcard array literals can be emitted as anonymous ROMs by
+  reconstructing the array type from the literal and re-entering the normal
+  const-array emission path with an anonymous name.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`
+  - Bench-local array name pre-collection and bench-name tuple in the
+    array-parameter binding pass.
+  - Scalar packed-vector packing in `gen_verilog_pack_array_of_struct_expr`.
+  - Packed-vector element-width slicing for scalar array parameters in
+    `gen_verilog_expr` `ExprIndex`.
+  - `current_local_packed_array_params` per-function state.
+  - `host_only_namespace_calls` set, `compute_host_only_namespace_calls`, and
+    `collect_qualified_calls_skipping_wildcards`.
+  - Module-scope wildcard array-literal anonymous ROM emission in
+    `gen_verilog_const`.
+- New witness specs:
+  - `specs/scratch/w486_bench_array_param.t27`
+  - `specs/scratch/w486_helper_module.t27`
+  - `specs/scratch/w486_namespace_helper_erasure.t27`
+  - `specs/scratch/w486_wildcard_module_array.t27`
+  - `specs/scratch/w486_wildcard_module_array_copy.t27`
+  - `specs/scratch/w486_wildcard_module_literal.t27`
+- Global reseal of `.trinity/seals/*.json` because generated Verilog changed for
+  specs with namespace calls, wildcard arrays, and bench-local array parameters.
+- Added `docs/reports/WAVE_LOOP_486_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W487_2026-07-07.md`.
+- Updated `.trinity/current-issue.md`, `.trinity/ring-486.md`,
+  `.trinity/experience.md`, and memory.
+
+### Verification
+- `cargo build --release`: PASS.
+- `cargo test -p t27c --bin t27c`: 1525 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: ALL TESTS PASSED
+  - 667/667 non-smoke PASS.
+  - 147/147 yosys smoke PASS.
+  - 147/147 Icarus smoke PASS, 0 documented baseline failures.
+  - 667/667 seal matches.
+  - 0 fixed-point divergences.
+  - FPGA board-less smoke gate: OK.
+  - FPGA standalone lake-package build: OK.
+  - FPGA smoke gate replay: OK.
+- **Total `UNSUPPORTED_ICARUS` placeholders across all 667 specs: 0.**
+
+### Patterns to reuse
+- When extending local-array lowering to a new scope (bench-local), carry the
+  scope name through the pre-pass so the existing packed-vector machinery can
+  be reused.
+- Packed-vector array parameters need explicit element-width slicing in the
+  callee; do not rely on Verilog indexing semantics for packed vectors.
+- Qualified calls that are dead to synthesis should be classified and skipped
+  using the same statement/expression placeholder logic as unqualified
+  host-only functions.
+- Wildcard bindings should never produce a named `_` reg; anonymous ROMs or
+  comment no-ops are safe.
+
+### Anti-patterns to avoid
+- Do not forget that module-level const/var declarations are synthesizable
+  contexts for namespace-call classification, unlike invariants and host-only
+  functions.
+- Do not reuse the same `HashSet` across two different emission loops with
+  different semantics.
+- Do not reseal only the failing specs after a global gen change; reseal
+  everything and rerun the full suite.
+
+---
+
 ## 2026-07-07 — Wave Loop 485 (gen-verilog Icarus soft-failure hardening: host-side helper shadowing, wildcard `_` bindings, bench-local array hoisting witness)
 
 ### What worked

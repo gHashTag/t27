@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0
+// W486 witness: helper module imported only into host-side contexts.
+
+module w486_helper_module;
+
+/// Host-side helper: returns a u32 value. Not synthesizable when used only in
+/// invariants/wildcards of the importing module.
+pub fn helper_value() -> u32 {
+    return 42;
+}
+
+endmodule

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:8e62c61271b03c739e3757d74775b57180b516fea46b681ff444330856f70002",
   "gen_hash_rust": "sha256:563ad5ece9ca3f9b830d514b34fd053455bb4658f88ffda5bfb6b9c7408f1aec",
-  "gen_hash_verilog": "sha256:ea48aa173e7189a1f56966d189c5aaa8fc963df0361afdedeefab0d2eb647621",
+  "gen_hash_verilog": "sha256:8a89083ebf6416d934a40b6b1ca48058c3553ac7350de01af3e0ca844c185b65",
   "gen_hash_zig": "sha256:31c42507bf22a2efd99e8a367f812acd103529968dee1772937855d8e8271d32",
   "module": "CrossOpt",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:38Z",
+  "sealed_at": "2026-07-10T05:25:23Z",
   "spec_hash": "sha256:febf87624d67aa679c451ceba324033bcca3e9bd351a150bdd57a3e38e79122f",
-  "spec_path": "specs/fpga/crossopt.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/crossopt.t27"
 }

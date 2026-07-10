@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0
+// W486 witness: namespace-qualified helper used only in host-side contexts is
+// erased cleanly instead of producing an UNSUPPORTED_ICARUS placeholder.
+
+module w486_namespace_helper_erasure;
+
+use scratch::w486_helper_module::helper_value;
+
+/// Host-side invariant exercises the imported helper. Synthesizable Verilog
+/// must not emit this call.
+invariant only_host {
+    assert scratch::w486_helper_module::helper_value() == 42;
+}
+
+test smoke_passes {
+    assert_eq(1, 1);
+}
+
+bench smoke_bench {
+    assert_eq(2, 2);
+}
+
+endmodule

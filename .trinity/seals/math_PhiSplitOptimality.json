@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3b452dea121dd8bf4cba7590424edaac9eb2b9381c5858c5cb0cf6f0b29e317a",
   "gen_hash_rust": "sha256:5c13d20a05f93e265dfdd5cb895cd391632340825466bb5a572185102c378352",
-  "gen_hash_verilog": "sha256:84d39da5e147910dcd7d49ef8373a0ad177d202fc58a6dae3c15a614b1cef2d8",
+  "gen_hash_verilog": "sha256:900dc30a301722b8649c16989587bdfa01d38521ba23c2690e7d717fb9196665",
   "gen_hash_zig": "sha256:f3aeed5ed95f84a0ae14d4dfd9d67fe79a1b5aa04976a80068a6e706637d296d",
   "module": "PhiSplitOptimality",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:43Z",
+  "sealed_at": "2026-07-10T05:25:24Z",
   "spec_hash": "sha256:d64704f431557636dda3ce15185ce4e96b0bf102dd3cbd806b3c6b8911e28091",
-  "spec_path": "specs/math/phi_split_optimality.t27"
+  "spec_path": "/Users/playra/t27/specs/math/phi_split_optimality.t27"
 }
