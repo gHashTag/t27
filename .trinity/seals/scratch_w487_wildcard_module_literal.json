@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c52709b9abf1f7e51be4862399e0d31874274cc29f8e0a94507c32015250c974",
   "module": "w487_wildcard_module_literal",
   "ring": 12,
-  "sealed_at": "2026-07-10T06:27:13Z",
+  "sealed_at": "2026-07-10T14:39:51Z",
   "spec_hash": "sha256:a8e8ae373258eb9e36ab0e39c96dc8eeca7f05866724453704d36d608d47b9b0",
   "spec_path": "specs/scratch/w487_wildcard_module_literal.t27"
 }

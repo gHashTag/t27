@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:563fbe4d36d80a0906e6f79cfe149e4fc87cc8077cf9c5dfa73c4d75c8cbe202",
   "gen_hash_rust": "sha256:d41b074cc07473ecc9dbe9d12784063e7946698ed2fb63fd96647cd67de4c953",
-  "gen_hash_verilog": "sha256:8fd94baee992fbe42651823119e860c573ea88752c4cd843af1b30cb97194755",
+  "gen_hash_verilog": "sha256:22f096efdc09fa62520fac3b7eaa07dca9ecbfe638e801d4728bb90904e7cf35",
   "gen_hash_zig": "sha256:cb75918380b7c7d9c6acd85eaf6c0f01fe0cd0a0ae5b923cd2ac444a679d13c7",
   "module": "sandbox.session_timeout",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:45Z",
+  "sealed_at": "2026-07-10T14:39:52Z",
   "spec_hash": "sha256:7fe03e3d8f098653484085d3fda151da0344f8b33845d45a46b20c56dd6f283e",
   "spec_path": "specs/sandbox/session_timeout.t27"
 }

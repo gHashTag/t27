@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/scratch/w489_packed_scalar_struct_array_field.t27
+// Witness: struct-return call bound to an untyped local where the struct has an
+// array-typed field. Must emit per-field memories, not an illegal packed slice.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w489_packed_scalar_struct_array_field;
+
+pub struct Pt {
+    x : u32,
+    coords : [3]u8,
+}
+
+pub fn make_pt(x : u32, c0 : u8, c1 : u8, c2 : u8) -> Pt {
+    return Pt{x: x, coords: [3]u8{c0, c1, c2}};
+}
+
+pub fn sum_coords_packed() -> u32 {
+    // No explicit type annotation: backend previously created a packed reg and
+    // then emitted illegal `p[...][i]` for the array field. W489 emits per-field
+    // memories instead.
+    let p = make_pt(7, 1, 2, 3);
+    return p.x + (p.coords[0] as u32) + (p.coords[1] as u32) + (p.coords[2] as u32);
+}
+
+test packed_scalar_array_field {
+    assert_eq(sum_coords_packed(), 7 + 1 + 2 + 3);
+}
+
+endmodule

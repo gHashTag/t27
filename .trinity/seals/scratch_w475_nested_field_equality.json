@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:f951943165641075602d642a14b169ef6220a5b76d5a75b523ea5476058edeed",
   "gen_hash_rust": "sha256:6ce5191accc5a6343f758ca75d80f63a0a18a1df742bd4234e2bffc91a609037",
-  "gen_hash_verilog": "sha256:d9e8314c3ff77f3d5b5f31cc52b1de49474179517bf7140b65c945d5b528d444",
+  "gen_hash_verilog": "sha256:f62246f202e3839cc4617cf743c85f5ef69813715b03eb4553d6207447229791",
   "gen_hash_zig": "sha256:0cfd89fc9f1496e80e2f36252185082aee021f112f4be14f1ae6034f1d6ef3bf",
   "module": "w475_nested_field_equality",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:44Z",
+  "sealed_at": "2026-07-10T14:39:51Z",
   "spec_hash": "sha256:06b9380af1880db940dbb687b3041a3f2887ee5b9f8faf3021273c7338034daf",
   "spec_path": "specs/scratch/w475_nested_field_equality.t27"
 }

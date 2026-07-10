@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/scratch/w489_local_struct_duplicate_decl.t27
+// Witness: redeclaring the same struct local name does not duplicate reg declarations.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w489_local_struct_duplicate_decl;
+
+pub struct Pair {
+    a : u32,
+    b : u32,
+}
+
+pub fn redeclare_in_function() -> u32 {
+    var p : Pair = Pair{a: 1, b: 2};
+    p = Pair{a: 3, b: 4};
+    return p.a + p.b;
+}
+
+test duplicate_decl_function {
+    assert_eq(redeclare_in_function(), 7);
+}
+
+// W489: same source name declared twice in one test block. The second declaration
+// must reuse the already-emitted per-field registers and only re-initialize.
+test duplicate_decl_test {
+    var p : Pair = Pair{a: 10, b: 20};
+    p = Pair{a: 30, b: 40};
+    assert_eq(p.a + p.b, 70);
+}
+
+endmodule

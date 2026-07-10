@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1f189209fb6823c02868b261c214bb5eba102aeba02183a795a7f0d82fc4bb05",
   "module": "w381_tuple_call_chain",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:44Z",
+  "sealed_at": "2026-07-10T14:39:51Z",
   "spec_hash": "sha256:abcd07e0310f16e042345bba21ce5f11a92ac2ae85b640a05c9c6e47d485779c",
   "spec_path": "specs/scratch/w381_tuple_call_chain.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:609e76eb4e50a960174202f09ef05df23a24db915ac86b376e2ff1207b4cc1ab",
   "module": "w485_wildcard_binding",
   "ring": 12,
-  "sealed_at": "2026-07-10T05:25:25Z",
+  "sealed_at": "2026-07-10T14:39:51Z",
   "spec_hash": "sha256:1d76110ce4d833a1a8ffa11610b3605100c9ad7e0d3ee6eadc80a2f96ef32567",
-  "spec_path": "/Users/playra/t27/specs/scratch/w485_wildcard_binding.t27"
+  "spec_path": "specs/scratch/w485_wildcard_binding.t27"
 }

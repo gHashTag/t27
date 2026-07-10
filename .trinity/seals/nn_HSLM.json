@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:19527ecf21dc7b3f13dfd744c810aceee26d01be3b6353894bd2c730b49492ce",
   "module": "HSLM",
   "ring": 12,
-  "sealed_at": "2026-07-10T05:25:24Z",
+  "sealed_at": "2026-07-10T14:39:49Z",
   "spec_hash": "sha256:f6a495ae2bf36b37ed24f0694c7e8450158d9c8bdec57786526c67a498dccb16",
-  "spec_path": "/Users/playra/t27/specs/nn/hslm.t27"
+  "spec_path": "specs/nn/hslm.t27"
 }

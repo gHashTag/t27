@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:dbceca9b25b1553c9c4f20521539b90099a0d10f699dc640861b9b98395517b4",
   "module": "w474_adversarial_aos_nested",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:44Z",
+  "sealed_at": "2026-07-10T14:39:51Z",
   "spec_hash": "sha256:e1f049f557de165e32ba7badb7ca6dde70ab6016b176de2181b9bb0c64dd4a08",
   "spec_path": "specs/scratch/w474_adversarial_aos_nested.t27"
 }

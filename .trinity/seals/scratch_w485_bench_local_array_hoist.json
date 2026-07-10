@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c93ca5c761fc09b41ef5e53e30e9b0158707d90090d0f274e0152eb88e0e6913",
   "module": "w485_bench_local_array_hoist",
   "ring": 12,
-  "sealed_at": "2026-07-10T05:25:25Z",
+  "sealed_at": "2026-07-10T14:39:51Z",
   "spec_hash": "sha256:cd94e7733fa2f2be9fd0873d0c9b3ebde66cc7b21619f2c1465c4a69bebc08b7",
-  "spec_path": "/Users/playra/t27/specs/scratch/w485_bench_local_array_hoist.t27"
+  "spec_path": "specs/scratch/w485_bench_local_array_hoist.t27"
 }

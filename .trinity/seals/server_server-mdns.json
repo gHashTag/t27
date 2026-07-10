@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:7aa4c2537bf07a6017468149dcc2bc5c9b0c76ae4804a34f46313bd1fbb65210",
   "gen_hash_rust": "sha256:e3dac287f1b1acc943b7e33e9e448f4c237f2f8a0dd17f38201b58c4f73e5bbe",
-  "gen_hash_verilog": "sha256:93cfb3b365e657984cc7676dd0432b2d74b08c9e29dd7fc60544bd610bc92285",
+  "gen_hash_verilog": "sha256:6cf824c0991354c52bcb858559728d251c3d720cb0e52dc1a0bd0eb733255a25",
   "gen_hash_zig": "sha256:9501bfed310dd09f151a621ab9a37ca8c598baf0f92bd0ad4a1f0db6d2ef8fd7",
   "module": "server-mdns",
   "ring": 12,
-  "sealed_at": "2026-07-10T05:25:25Z",
+  "sealed_at": "2026-07-10T14:39:50Z",
   "spec_hash": "sha256:76a39f4c7d0e78833ccaedd7533f74b68e8350453f0198b2c1cf370138a5419e",
-  "spec_path": "/Users/playra/t27/specs/server/mdns.t27"
+  "spec_path": "specs/server/mdns.t27"
 }

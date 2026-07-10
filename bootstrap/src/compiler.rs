@@ -2904,10 +2904,12 @@ impl Parser {
                     String::new()
                 };
             } else if self.current.kind == TokenKind::Ident {
-                // Allow field = expr without dot prefix
+                // Allow field = expr or field: expr without dot prefix
                 let n = self.current.lexeme.clone();
-                // Peek: only treat as field init if followed by '='
-                if self.peek.kind == TokenKind::Equals {
+                // Peek: only treat as field init if followed by '=' or ':'
+                if self.peek.kind == TokenKind::Equals
+                    || self.peek.kind == TokenKind::Colon
+                {
                     field_name = n;
                     self.advance(); // consume field name
                 } else {
@@ -2917,8 +2919,10 @@ impl Parser {
                 break;
             }
 
-            if self.current.kind == TokenKind::Equals {
-                self.advance(); // consume =
+            if self.current.kind == TokenKind::Equals
+                || self.current.kind == TokenKind::Colon
+            {
+                self.advance(); // consume = or :
             }
 
             let val = self.parse_expr()?;
@@ -4160,13 +4164,14 @@ pub struct VerilogCodegen {
     // imported spec's struct declarations so gen-verilog can lower imported
     // scalar struct parameters without a full cross-file lowering pass.
     imported_struct_fields: std::collections::HashMap<String, Vec<(String, String)>>,
-    // W483: imported functions whose body is a single scalar struct literal.
-    // fq_fn_name -> (fq_struct_type, ordered field initializer nodes). Used to
-    // inline imported constructors at the call site instead of emitting an
-    // unsupported-call placeholder.
+    // W483/W489: imported functions whose body is a single scalar struct literal.
+    // fq_fn_name -> (fq_struct_type, parameter names, ordered field initializer
+    // nodes). Used to inline imported constructors at the call site instead of
+    // emitting an unsupported-call placeholder. Parameter names are substituted
+    // with the actual call arguments before inlining.
     imported_struct_return_literals: std::collections::HashMap<
         String,
-        (String, Vec<(String, Node)>),
+        (String, Vec<String>, Vec<(String, Node)>),
     >,
     aos_tmp_decls: Vec<String>,
     aos_tmp_assigns: Vec<String>,
@@ -4185,6 +4190,10 @@ pub struct VerilogCodegen {
     // far. Used to detect references to locals that were dropped by parser recovery
     // or to locals initialized from unsupported calls.
     local_declared_names: std::collections::HashSet<String>,
+    // W489: struct-local base names whose per-field reg/memory declarations have
+    // already been emitted in the current scope. Separate from local_declared_names
+    // because that set is populated before the struct-local declaration path runs.
+    local_struct_var_declared_names: std::collections::HashSet<String>,
     // W481: locals whose initializer is an unsupported call (namespace-qualified
     // imports, host helpers, etc.). Field access on such a value must not emit a
     // bare `local_field` name that Icarus cannot bind.
@@ -4262,6 +4271,7 @@ impl VerilogCodegen {
             local_struct_array_has_array_field: std::collections::HashMap::new(),
             local_struct_var_types: std::collections::HashMap::new(),
             local_declared_names: std::collections::HashSet::new(),
+            local_struct_var_declared_names: std::collections::HashSet::new(),
             unsupported_call_result_locals: std::collections::HashSet::new(),
             known_string_literals: std::collections::HashMap::new(),
             module_known_string_literals: std::collections::HashMap::new(),
@@ -5216,7 +5226,12 @@ impl VerilogCodegen {
         ));
         self.write_indent();
         self.write(&format!("{} = ", tmp));
-        self.gen_verilog_expr(call_node);
+        // W489: imported scalar-struct constructors are not emitted as functions,
+        // so inline the packed concatenation at the call site instead of emitting
+        // an unsupported-call placeholder.
+        if !self.try_emit_imported_struct_return_call(call_node) {
+            self.gen_verilog_expr(call_node);
+        }
         self.write_line(";");
 
         let mut cursor = total_width;
@@ -8444,6 +8459,93 @@ impl VerilogCodegen {
         true
     }
 
+    /// W489: field access directly on a scalar struct-returning function call,
+    /// e.g. `make_pt(a, b).x`. Materialize a packed temporary at function/test
+    /// scope and emit a field slice of that temporary.
+    fn try_emit_scalar_struct_call_field(
+        &mut self,
+        node: &Node,
+    ) -> bool {
+        let (root, index_nodes, fields) =
+            match Self::collect_field_index_path_rooted(node) {
+                Some(v) => v,
+                None => return false,
+            };
+        if root.kind != NodeKind::ExprCall || !index_nodes.is_empty() {
+            return false;
+        }
+        let ret_ty = match self.fn_return_types.get(&root.name).cloned() {
+            Some(t) => t,
+            None => return false,
+        };
+        if !self.struct_fields.contains_key(&ret_ty) {
+            return false;
+        }
+        // Compute the leaf field's packed offset and width.
+        let s_width =
+            Self::return_width(&ret_ty, &self.struct_fields);
+        let mut current_type = ret_ty.clone();
+        let mut offset: u32 = 0;
+        for field_name in fields.iter().take(fields.len().saturating_sub(1)) {
+            offset = offset.saturating_add(Self::packed_field_offset(
+                &current_type,
+                &self.struct_fields,
+                field_name,
+            ));
+            current_type = self
+                .struct_fields
+                .get(&current_type)
+                .and_then(|fs| {
+                    fs.iter()
+                        .find(|(n, _)| n == field_name)
+                        .map(|(_, t)| t.clone())
+                })
+                .unwrap_or_default();
+        }
+        let leaf_name = &node.name;
+        offset = offset.saturating_add(Self::packed_field_offset(
+            &current_type,
+            &self.struct_fields,
+            leaf_name,
+        ));
+        let leaf_type = self
+            .struct_fields
+            .get(&current_type)
+            .and_then(|fs| {
+                fs.iter()
+                    .find(|(n, _)| n == leaf_name)
+                    .map(|(_, t)| t.clone())
+            })
+            .unwrap_or_default();
+        let leaf_width =
+            Self::packed_width(&leaf_type, &self.struct_fields).max(1);
+        let high = s_width.saturating_sub(1).saturating_sub(offset);
+        let low =
+            high.saturating_sub(leaf_width.saturating_sub(1));
+
+        let tmp = Self::verilog_safe_identifier(
+            &format!("_struct_ret_tmp_{}", self.let_tmp_counter),
+        );
+        self.let_tmp_counter += 1;
+        let decl = format!(
+            "reg [{0}:0] {1}; // W489 scalar struct-return temporary\n",
+            s_width.saturating_sub(1),
+            tmp
+        );
+        self.aos_tmp_decls.push(decl);
+        let mut assign_out = String::new();
+        std::mem::swap(&mut self.output, &mut assign_out);
+        self.write(&format!("{0} = ", tmp));
+        self.gen_verilog_expr(root);
+        self.write_line(";");
+        let mut assign = String::new();
+        std::mem::swap(&mut self.output, &mut assign);
+        self.output = assign_out;
+        self.aos_tmp_assigns.push(assign);
+        self.write(&format!("{0}[{1}:{2}]", tmp, high, low));
+        true
+    }
+
     /// W475: field access on a function parameter that is passed as a packed
     /// vector because the call site supplied a function-local array argument.
     /// `pts[i].x` is lowered to a bit slice of the packed input `pts` (or to a
@@ -8645,7 +8747,74 @@ impl VerilogCodegen {
                 }
             }
         }
+        // W489: use declarations may omit the `specs/` subdirectory prefix (e.g.
+        // `use w489_packed_scalar_struct_array_field::Pt` where the file lives in
+        // `specs/scratch/`). Fall back to a recursive filename search under the
+        // specs tree, matching the last path segment.
+        let target_name = use_value
+            .rsplit("::")
+            .next()
+            .unwrap_or(use_value);
+        let specs_dirs = [
+            std::path::PathBuf::from("specs"),
+            std::path::PathBuf::from("../specs"),
+        ];
+        for dir in &specs_dirs {
+            if let Some(path) = Self::find_spec_file(dir, target_name) {
+                if let Ok(source) = std::fs::read_to_string(&path) {
+                    let lexer = Lexer::new(&source);
+                    let mut parser = Parser::new(lexer);
+                    if let Ok(ast) = parser.parse() {
+                        return Some(ast);
+                    }
+                }
+            }
+        }
         None
+    }
+
+    /// W489: recursively search `dir` for a file named `{name}.t27`.
+    fn find_spec_file(dir: &std::path::Path, name: &str) -> Option<std::path::PathBuf> {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Some(found) = Self::find_spec_file(&path, name) {
+                        return Some(found);
+                    }
+                } else if path
+                    .file_stem()
+                    .map_or(false, |s| s == name)
+                    && path.extension().map_or(false, |e| e == "t27")
+                {
+                    return Some(path);
+                }
+            }
+        }
+        None
+    }
+
+    /// W489: resolve a use-declaration value to the module path that should be
+    /// loaded. If the full path names a spec file, use it; otherwise strip the
+    /// trailing item segment and try again. Returns None if no candidate exists.
+    fn resolve_use_module_path(use_value: &str) -> Option<String> {
+        if use_value.is_empty() {
+            return None;
+        }
+        let mut path = use_value.to_string();
+        loop {
+            if Self::load_imported_spec(&path).is_some() {
+                return Some(path);
+            }
+            if let Some((prefix, _)) = path.rsplit_once("::") {
+                if prefix.is_empty() {
+                    return None;
+                }
+                path = prefix.to_string();
+            } else {
+                return None;
+            }
+        }
     }
 
     fn load_imported_struct_fields(
@@ -8701,22 +8870,29 @@ impl VerilogCodegen {
         }
     }
 
-    /// W483: load imported functions whose entire body is a single `return`
-    /// statement returning a scalar struct literal. These calls are not emitted
-    /// as Verilog functions, but their result can be inlined at the call site as
-    /// a packed concatenation so Icarus can simulate the value.
+    /// W483/W489: load imported functions whose entire body is a single
+    /// `return` statement returning a scalar struct literal. These calls are not
+    /// emitted as Verilog functions, but their result can be inlined at the call
+    /// site as a packed concatenation so Icarus can simulate the value.
+    /// Parameterized constructors are supported: parameter names are stored and
+    /// substituted with the actual call arguments at the call site.
     fn load_imported_struct_return_literals(
         use_value: &str,
         imported_struct_fields: &std::collections::HashMap<
             String,
             Vec<(String, String)>,
         >,
-    ) -> Option<std::collections::HashMap<String, (String, Vec<(String, Node)>)>> {
+    ) -> Option<
+        std::collections::HashMap<
+            String,
+            (String, Vec<String>, Vec<(String, Node)>),
+        >,
+    > {
         let ast = Self::load_imported_spec(use_value)?;
         let module_name = ast.name.clone();
         let mut result = std::collections::HashMap::new();
         for decl in &ast.children {
-            if decl.kind != NodeKind::FnDecl || !decl.params.is_empty() {
+            if decl.kind != NodeKind::FnDecl {
                 continue;
             }
             let ret_ty = if decl.extra_return_type.is_empty() {
@@ -8759,6 +8935,12 @@ impl VerilogCodegen {
             if lit.kind != NodeKind::ExprStructLit || lit.children.is_empty() {
                 continue;
             }
+            // Collect parameter names so call-site arguments can be substituted.
+            let params: Vec<String> = decl
+                .params
+                .iter()
+                .map(|(n, _)| n.clone())
+                .collect();
             // Reorder initializers to match the struct declaration order so the
             // packed concatenation has the correct bit layout.
             let mut ordered = Vec::new();
@@ -8780,13 +8962,85 @@ impl VerilogCodegen {
                 continue;
             }
             let fq_name = format!("{}::{}", module_name, decl.name);
-            result.insert(fq_name, (fq_ret.clone(), ordered));
+            result.insert(fq_name, (fq_ret.clone(), params, ordered));
         }
         if result.is_empty() {
             None
         } else {
             Some(result)
         }
+    }
+
+    /// W489: deep-clone `node` and replace every parameter identifier with the
+    /// corresponding call argument so an imported constructor literal can be
+    /// inlined with the actual argument expressions.
+    fn substitute_imported_params(
+        node: &Node,
+        params: &[String],
+        args: &[Node],
+    ) -> Node {
+        let mut cloned = node.clone();
+        Self::substitute_imported_params_mut(&mut cloned,
+            params,
+            args,
+        );
+        cloned
+    }
+
+    fn substitute_imported_params_mut(
+        node: &mut Node,
+        params: &[String],
+        args: &[Node],
+    ) {
+        if node.kind == NodeKind::ExprIdentifier {
+            if let Some(pos) = params.iter().position(|p| p == &node.name) {
+                if pos < args.len() {
+                    *node = args[pos].clone();
+                    return;
+                }
+            }
+        }
+        for child in &mut node.children {
+            Self::substitute_imported_params_mut(child, params, args);
+        }
+    }
+
+    /// W489: if `node` is a call to an imported scalar-struct constructor whose
+    /// body is a single struct literal, inline the call as a packed concatenation
+    /// by substituting the actual arguments for the imported parameters. This is
+    /// used both in expression context and in statement contexts such as
+    /// assignments to struct locals.
+    fn try_emit_imported_struct_return_call(
+        &mut self,
+        node: &Node,
+    ) -> bool {
+        if node.kind != NodeKind::ExprCall {
+            return false;
+        }
+        let callee = &node.name;
+        if Self::method_call_split(callee).is_some() {
+            return false;
+        }
+        let (ret_ty, params, fields) = match self.imported_struct_return_literals.get(callee) {
+            Some(entry) => entry.clone(),
+            None => return false,
+        };
+        if node.children.len() != params.len() {
+            return false;
+        }
+        let mut lit = Node::new(NodeKind::ExprStructLit);
+        lit.name = ret_ty.clone();
+        for (fname, val) in &fields {
+            let mut field = Node::new(NodeKind::ExprFieldAccess);
+            field.name = fname.clone();
+            field.children.push(Self::substitute_imported_params(
+                val,
+                &params,
+                &node.children,
+            ));
+            lit.children.push(field);
+        }
+        self.try_emit_struct_literal_packed(&lit)
     }
 
     /// W481: true if `base_name` is an identifier whose field accesses are known
@@ -8996,8 +9250,14 @@ impl VerilogCodegen {
         self.imported_struct_return_literals.clear();
         for decl in &ast.children {
             if decl.kind == NodeKind::UseDecl {
+                // W489: a use declaration may name a module (e.g. `use a::b`) or a
+                // specific item inside a module (e.g. `use a::b::Pt`). The loaders
+                // need the module path. Use the full path if it resolves to a spec
+                // file; otherwise drop the trailing item segment until one does.
+                let use_module_path = Self::resolve_use_module_path(&decl.value)
+                    .unwrap_or_else(|| decl.value.clone());
                 if let Some(mappings) =
-                    Self::load_imported_struct_fields(&decl.value)
+                    Self::load_imported_struct_fields(&use_module_path)
                 {
                     for (fq_name, fields) in mappings {
                         self.imported_struct_fields
@@ -9008,7 +9268,7 @@ impl VerilogCodegen {
                 // W483: also load imported function return types so cross-file
                 // struct-return calls can be recognized.
                 if let Some(fn_rets) =
-                    Self::load_imported_fn_return_types(&decl.value)
+                    Self::load_imported_fn_return_types(&use_module_path)
                 {
                     for (fq_name, ret_ty) in fn_rets {
                         self.fn_return_types.insert(fq_name, ret_ty);
@@ -9017,12 +9277,30 @@ impl VerilogCodegen {
                 // W483: load imported constructors that can be inlined as packed
                 // struct literals at the call site.
                 if let Some(lits) = Self::load_imported_struct_return_literals(
-                    &decl.value,
+                    &use_module_path,
                     &self.imported_struct_fields,
                 ) {
                     for (fq_name, entry) in lits {
+                        // W489: imported functions can be called by their unqualified
+                        // name when a `use` declaration brings them into scope. Store
+                        // the constructor under both the fully-qualified and the
+                        // unqualified keys so call-site lookups succeed regardless of
+                        // how the caller wrote the call.
                         self.imported_struct_return_literals
-                            .insert(fq_name, entry);
+                            .insert(fq_name.clone(), entry.clone());
+                        let ret_ty = entry.0.clone();
+                        if let Some(short) = fq_name.split("::").last() {
+                            if !short.is_empty() && short != fq_name {
+                                self.imported_struct_return_literals
+                                    .insert(short.to_string(), entry.clone());
+                                // W489: also make the unqualified return type visible
+                                // to struct-type inference, but do not shadow a same-file
+                                // function of the same name.
+                                self.fn_return_types
+                                    .entry(short.to_string())
+                                    .or_insert(ret_ty);
+                            }
+                        }
                     }
                 }
             }
@@ -11999,6 +12277,7 @@ impl VerilogCodegen {
             self.local_struct_array_has_array_field.clear();
             self.local_struct_var_types.clear();
             self.local_declared_names.clear();
+            self.local_struct_var_declared_names.clear();
             self.unsupported_call_result_locals.clear();
             self.known_string_literals.clear();
             self.local_packed_struct_vars.clear();
@@ -12029,6 +12308,7 @@ impl VerilogCodegen {
                 self.local_struct_array_has_array_field.clear();
                 self.local_struct_var_types.clear();
                 self.local_declared_names.clear();
+                self.local_struct_var_declared_names.clear();
                 self.unsupported_call_result_locals.clear();
                 self.known_string_literals.clear();
                 self.local_packed_struct_vars.clear();
@@ -12242,6 +12522,7 @@ impl VerilogCodegen {
         self.local_struct_array_has_array_field.clear();
         self.local_struct_var_types.clear();
         self.local_declared_names.clear();
+        self.local_struct_var_declared_names.clear();
         self.unsupported_call_result_locals.clear();
         self.known_string_literals.clear();
         self.local_packed_struct_vars.clear();
@@ -12427,11 +12708,39 @@ impl VerilogCodegen {
             safe_test_name
         ));
         self.loop_vars_declared.clear();
+        // W489: each test block is its own procedural scope for local
+        // declarations. Clear function-local bookkeeping so declarations inside
+        // this test are emitted fresh and do not leak into other tests.
+        self.local_declared_names.clear();
+        self.local_struct_var_declared_names.clear();
+        self.local_struct_var_types.clear();
+        self.local_packed_struct_vars.clear();
+        self.local_arrays.clear();
+        self.local_array_elem_info.clear();
+        self.local_array_dims.clear();
+        self.local_struct_array_fields.clear();
+        self.local_struct_array_has_array_field.clear();
+        self.unsupported_call_result_locals.clear();
+        self.known_string_literals.clear();
+        self.current_local_packed_array_params.clear();
         self.indent();
+        // W489: remember the position right after the `begin` line and its
+        // indentation so any deferred struct-return temporary declarations can
+        // be hoisted to the top of the test block body.
+        let test_decl_insert_pos = self.output.len();
         self.write_indent();
         self.write_line(&format!("$display(\"[TEST] {} : starting\");", node.name));
         for child in &node.children {
             self.gen_verilog_test_stmt(child, &node.name, false);
+        }
+        // W489: flush deferred reg declarations at the top of the test body.
+        let test_decls = std::mem::take(&mut self.aos_tmp_decls);
+        if !test_decls.is_empty() {
+            let tail = self.output.split_off(test_decl_insert_pos);
+            for decl in test_decls {
+                self.write_str(&decl);
+            }
+            self.write_str(&tail);
         }
         self.write_indent();
         self.write_line(&format!("$display(\"[TEST] {} : PASSED\");", node.name));
@@ -12446,6 +12755,9 @@ impl VerilogCodegen {
         test_name: &str,
         hoist_locals: bool,
     ) {
+        // W471/W489: remember where this test statement begins so deferred
+        // struct-return temporary assignments can be inserted before it.
+        self.aos_stmt_start = self.output.len();
         match node.kind {
             NodeKind::StmtExpr => {
                 if let Some(expr) = node.children.first() {
@@ -12492,8 +12804,9 @@ impl VerilogCodegen {
                     // the initial-value assignment inside the procedural block.
                     self.gen_verilog_local_assign(node);
                 } else {
-                    self.write_indent();
-                    self.write("// ");
+                    // W489: test blocks are wrapped in a named `initial begin/end`
+                    // scope, so local declarations can be emitted directly instead
+                    // of being half-commented.
                     self.gen_verilog_stmt(node);
                 }
             }
@@ -12501,8 +12814,7 @@ impl VerilogCodegen {
                 if hoist_locals {
                     self.gen_verilog_stmt(node);
                 } else {
-                    self.write_indent();
-                    self.write("// ");
+                    // W489: emit real assignments inside the named test scope.
                     self.gen_verilog_stmt(node);
                 }
             }
@@ -12510,6 +12822,17 @@ impl VerilogCodegen {
                 self.write_indent();
                 self.write_line(&format!("// (stmt: {:?})", node.kind));
             }
+        }
+        // W471/W489: flush any deferred struct-return temporary assignments
+        // produced by this test statement.
+        let aos_assigns = std::mem::take(&mut self.aos_tmp_assigns);
+        if !aos_assigns.is_empty() {
+            let tail = self.output.split_off(self.aos_stmt_start);
+            for assign in aos_assigns {
+                self.write_indent();
+                self.write_str(&assign);
+            }
+            self.write_str(&tail);
         }
     }
 
@@ -14020,13 +14343,9 @@ impl VerilogCodegen {
                     return;
                 }
 
-                // W481: record every function-local name that gets a declaration.
-                // This lets field-access fallbacks distinguish declared locals from
-                // names dropped by parser recovery or initialized from unsupported
-                // calls.
+                // W489: compute the keyword-safe name early; individual declaration
+                // paths will record it in the appropriate declared-name sets.
                 let safe_local_name = Self::verilog_safe_identifier(&node.name);
-                self.local_declared_names.insert(node.name.clone());
-                self.local_declared_names.insert(safe_local_name.clone());
                 // W484: track function-local string literals so `.len()` and
                 // `.contains()` can be resolved statically.
                 if !node.children.is_empty() {
@@ -14044,11 +14363,18 @@ impl VerilogCodegen {
                     let call = &node.children[0];
                     let callee = &call.name;
                     let callee_safe = Self::verilog_safe_identifier(callee);
-                    let is_unsupported = callee.contains("::")
-                        || Self::method_call_split(callee)
-                            .map_or(false, |(_, m)| m == "len" || m == "contains")
-                        || (!callee.is_empty()
-                            && !self.emitted_functions.contains(&callee_safe));
+                    let is_struct_return_call = self
+                        .same_file_struct_return_call(call)
+                        .is_some()
+                        || self
+                            .imported_struct_return_call(call)
+                            .is_some();
+                    let is_unsupported = !is_struct_return_call
+                        && (callee.contains("::")
+                            || Self::method_call_split(callee)
+                                .map_or(false, |(_, m)| m == "len" || m == "contains")
+                            || (!callee.is_empty()
+                                && !self.emitted_functions.contains(&callee_safe)));
                     if is_unsupported {
                         self.unsupported_call_result_locals
                             .insert(node.name.clone());
@@ -14056,6 +14382,20 @@ impl VerilogCodegen {
                             .insert(safe_local_name.clone());
                     }
                 }
+
+                // W489: infer the local type from a struct-literal or struct-return
+                // initializer when there is no explicit type annotation. This lets
+                // `let p = Pt{...}` take the per-field struct-local path instead of
+                // falling back to an untyped scalar reg.
+                let inferred_struct_type = if node.extra_type.is_empty()
+                    && !node.children.is_empty()
+                {
+                    self.scalar_struct_expr_type(
+                        &node.children[node.children.len() - 1],
+                    )
+                } else {
+                    None
+                };
 
                 // W383/W465: support function-local array variables such as
                 // `var tmp : [2]u16;` and `var pts : [3]Pt;`. Emit per-element regs
@@ -14256,19 +14596,56 @@ impl VerilogCodegen {
                     if let Some(struct_type) = struct_type {
                         let base_name = &node.name;
                         let safe_name = Self::verilog_safe_identifier(base_name);
-                        let width = Self::return_width(
-                            struct_type.as_str(),
+                        // W489: do not re-emit the packed reg or per-field regs if
+                        // this struct-return local was already declared in scope.
+                        // W489: deduplicate declarations using the keyword-safe
+                        // name, because base_name and safe_name are often identical
+                        // and inserting both would always mark the first declaration
+                        // as already-declared.
+                        let already_declared = !self
+                            .local_struct_var_declared_names
+                            .insert(safe_name.clone())
+                            || !self.local_declared_names.insert(safe_name.clone());
+                        // Record the original name too for field-access resolution.
+                        self.local_declared_names.insert(base_name.clone());
+                        // W489: structs with array-typed fields cannot be stored as
+                        // a single packed vector because field access would require
+                        // illegal packed-vector slicing. Emit per-field regs/memories
+                        // instead and copy element-by-element from the packed return.
+                        if Self::struct_type_has_array_field(
+                            &struct_type,
                             &self.struct_fields,
-                        );
+                        ) {
+                            self.local_struct_var_types
+                                .insert(base_name.clone(), struct_type.clone());
+                            if !already_declared {
+                                self.gen_verilog_local_struct_var_decl(
+                                    base_name,
+                                    &struct_type,
+                                );
+                            }
+                            self.gen_verilog_struct_return_slicing(
+                                base_name,
+                                &struct_type,
+                                &node.children[0],
+                            );
+                            return;
+                        }
                         self.local_packed_struct_vars
                             .insert(base_name.clone(), struct_type.clone());
-                        self.write_indent();
-                        self.write_line(&format!(
-                            "reg [{0}:0] {1}; // W482/W483 packed scalar struct local ({2})",
-                            width.saturating_sub(1),
-                            safe_name,
-                            struct_type
-                        ));
+                        if !already_declared {
+                            let width = Self::return_width(
+                                struct_type.as_str(),
+                                &self.struct_fields,
+                            );
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "reg [{0}:0] {1}; // W482/W483 packed scalar struct local ({2})",
+                                width.saturating_sub(1),
+                                safe_name,
+                                struct_type
+                            ));
+                        }
                         self.write_indent();
                         self.write(&safe_name);
                         self.write(" = ");
@@ -14281,49 +14658,72 @@ impl VerilogCodegen {
                 // W467: local struct variable (not an array). Emit per-field
                 // registers/memories and initialize from a struct literal or
                 // another struct variable.
-                if !node.extra_type.is_empty()
-                    && self.struct_fields.contains_key(&node.extra_type)
-                {
+                let local_struct_type = if !node.extra_type.is_empty() {
+                    Some(&node.extra_type)
+                } else {
+                    inferred_struct_type.as_ref()
+                };
+                if let Some(struct_type) = local_struct_type {
+                    if self.struct_fields.contains_key(struct_type) {
                     let base_name = &node.name;
                     self.local_struct_var_types
-                        .insert(base_name.clone(), node.extra_type.clone());
-                    self.gen_verilog_local_struct_var_decl(
-                        base_name,
-                        &node.extra_type,
-                    );
+                        .insert(base_name.clone(), struct_type.clone());
+                    let safe_base = Self::verilog_safe_identifier(base_name);
+                    // W489: deduplicate using the keyword-safe name only; the
+                    // original name is also recorded for field-access resolution.
+                    let already_declared = !self
+                        .local_struct_var_declared_names
+                        .insert(safe_base.clone())
+                        || !self.local_declared_names.insert(safe_base.clone());
+                    self.local_declared_names.insert(base_name.clone());
+                    if !already_declared {
+                        self.gen_verilog_local_struct_var_decl(
+                            base_name,
+                            struct_type,
+                        );
+                    }
                     if !node.children.is_empty() {
                         self.gen_verilog_local_struct_var_init(
                             base_name,
-                            &node.extra_type,
+                            struct_type,
                             &node.children[0],
                         );
                     }
                     return;
+                    }
                 }
 
-                self.write_indent();
-                let kw = "reg";
-                let width = Self::type_to_width(&node.extra_type);
-                let signed = Self::type_is_signed(&node.extra_type);
-                let signed_str = if signed { "signed " } else { "" };
-                let range = Self::range_decl(width);
-                let range_str = if range.is_empty() {
-                    String::new()
-                } else {
-                    format!("{} ", range)
-                };
                 let safe_name = Self::verilog_safe_identifier(&node.name);
-
-                self.write(&format!("{} {}{}{};", kw, signed_str, range_str, safe_name));
-                if !node.children.is_empty() {
+                // W489: deduplicate using the keyword-safe name only; the original
+                // name is also recorded for field-access resolution.
+                let already_declared = !self
+                    .local_declared_names
+                    .insert(safe_name.clone())
+                    || !self
+                        .local_struct_var_declared_names
+                        .insert(safe_name.clone());
+                self.local_declared_names.insert(node.name.clone());
+                if !already_declared {
+                    self.write_indent();
+                    let kw = "reg";
+                    let width = Self::type_to_width(&node.extra_type);
+                    let signed = Self::type_is_signed(&node.extra_type);
+                    let signed_str = if signed { "signed " } else { "" };
+                    let range = Self::range_decl(width);
+                    let range_str = if range.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{} ", range)
+                    };
+                    self.write(&format!("{} {}{}{};", kw, signed_str, range_str, safe_name));
                     self.write_line("");
+                }
+                if !node.children.is_empty() {
                     self.write_indent();
                     self.write(&safe_name);
                     self.write(" = ");
                     self.gen_verilog_expr(&node.children[0]);
                     self.write_line(";");
-                } else {
-                    self.write_line("");
                 }
             }
             NodeKind::StmtAssign => {
@@ -14678,11 +15078,11 @@ impl VerilogCodegen {
         None
     }
 
-    /// W483: if `expr` is a call to an imported constructor whose body is a
-    /// single scalar struct literal, return the fully-qualified struct type name.
-    /// The callee is not emitted, but it can be inlined at the call site as a
-    /// packed concatenation. We declare a packed local and lower field accesses
-    /// via slicing, just like a same-file struct-return call.
+    /// W483/W489: if `expr` is a call to an imported constructor whose body is
+    /// a single scalar struct literal, return the fully-qualified struct type
+    /// name. The callee is not emitted, but it can be inlined at the call site
+    /// as a packed concatenation. We declare a packed local and lower field
+    /// accesses via slicing, just like a same-file struct-return call.
     fn imported_struct_return_call(
         &self,
         expr: &Node,
@@ -14691,13 +15091,13 @@ impl VerilogCodegen {
             return None;
         }
         let callee = &expr.name;
-        if !callee.contains("::") {
-            return None;
-        }
         if Self::method_call_split(callee).is_some() {
             return None;
         }
-        let (ret_ty, _) = self.imported_struct_return_literals.get(callee)?;
+        let (ret_ty, params, _) = self.imported_struct_return_literals.get(callee)?;
+        if expr.children.len() != params.len() {
+            return None;
+        }
         let width = Self::return_width(ret_ty, &self.struct_fields);
         if width > 0 {
             Some(ret_ty.clone())
@@ -14974,6 +15374,18 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprIdentifier => {
+                // W489: identifiers containing `::` are enum variants or other
+                // non-synthesizable qualified names. They cannot be emitted as
+                // Verilog identifiers, so produce a sized zero placeholder.
+                if node.name.contains("::") {
+                    let width = Self::type_to_width(&node.extra_type).max(1);
+                    self.write(&format!(
+                        "{}'b0 /* qualified identifier {} */",
+                        width,
+                        Self::verilog_safe_identifier(&node.name)
+                    ));
+                    return;
+                }
                 // W458/W461: if this identifier is a function parameter bound to
                 // a module-level array (in either the original function or a
                 // clone), emit the module array name instead.
@@ -14994,7 +15406,15 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprEnumValue => {
-                self.write(&Self::verilog_safe_identifier(&node.name));
+                // W489: enum variants are not synthesizable. Emit a sized zero
+                // placeholder so they do not produce illegal `Enum::Variant`
+                // identifiers in Verilog expressions or concatenations.
+                let width = Self::type_to_width(&node.extra_type).max(1);
+                self.write(&format!(
+                    "{}'b0 /* enum value {} */",
+                    width,
+                    Self::verilog_safe_identifier(&node.name)
+                ));
             }
             NodeKind::ExprCall => {
                 // W479: static lowering for synthesizable method calls before
@@ -15058,22 +15478,14 @@ impl VerilogCodegen {
                     // single struct literal. Emit the packed concatenation directly
                     // so the result can be assigned to a packed local or passed as a
                     // scalar struct argument.
-                    if !self.stmt_context && !self.call_is_host_only(callee_original) {
-                        if let Some((ret_ty, fields)) =
-                            self.imported_struct_return_literals.get(callee_original)
-                        {
-                            let mut lit = Node::new(NodeKind::ExprStructLit);
-                            lit.name = ret_ty.clone();
-                            for (fname, val) in fields {
-                                let mut field = Node::new(NodeKind::ExprFieldAccess);
-                                field.name = fname.clone();
-                                field.children.push(val.clone());
-                                lit.children.push(field);
-                            }
-                            if self.try_emit_struct_literal_packed(&lit) {
-                                return;
-                            }
-                        }
+                    // W483/W489: inline imported scalar-struct constructors whose
+                    // body is a single struct literal. Emit the packed concatenation
+                    // directly so the result can be assigned to a packed local or
+                    // passed as a scalar struct argument.
+                    if !self.call_is_host_only(callee_original)
+                        && self.try_emit_imported_struct_return_call(node)
+                    {
+                        return;
                     }
                     if self.stmt_context {
                         let reason = if callee_original.contains("::") {
@@ -15348,6 +15760,11 @@ impl VerilogCodegen {
                 // W470: field access on a function call returning an array of structs
                 // is lowered to a slice of the packed return vector.
                 if self.try_emit_array_of_struct_call_field(node) {
+                    return;
+                }
+                // W489: field access directly on a scalar struct-returning call
+                // (e.g. `make_pt(a, b).x`) materializes a packed temporary.
+                if self.try_emit_scalar_struct_call_field(node) {
                     return;
                 }
                 // W475: field access on a packed-vector array parameter whose call
@@ -16607,6 +17024,22 @@ impl VerilogCodegen {
                             }
                             if Self::is_plain_decimal_literal(child) {
                                 self.write(&format!("32'd{}", child.value));
+                            } else if child.kind == NodeKind::ExprIdentifier {
+                                // W489: tuple element is a per-field struct local;
+                                // pack it from its per-field registers so the
+                                // concatenation operand has a defined value.
+                                if let Some(struct_type) = self
+                                    .local_struct_var_types
+                                    .get(&child.name)
+                                    .cloned()
+                                {
+                                    self.gen_verilog_pack_scalar_struct(
+                                        &child.name,
+                                        &struct_type,
+                                    );
+                                } else {
+                                    self.gen_verilog_expr(child);
+                                }
                             } else {
                                 self.gen_verilog_expr(child);
                             }

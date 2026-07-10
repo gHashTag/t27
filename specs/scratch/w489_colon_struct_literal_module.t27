@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/scratch/w489_colon_struct_literal_module.t27
+// Witness: module-level colon-style struct literal with a keyword field name.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w489_colon_struct_literal_module;
+
+pub struct Pt {
+    x : u32,
+    y : u32,
+}
+
+pub struct Box {
+    reg : u32,   // Verilog keyword as field name
+    pt  : Pt,
+}
+
+pub const origin : Pt = Pt{x: 1, y: 2};
+pub const box1   : Box = Box{reg: 10, pt: Pt{x: 3, y: 4}};
+
+pub fn sum_box(b : Box) -> u32 {
+    return (b.reg as u64) + (b.pt.x as u64) + (b.pt.y as u64);
+}
+
+test colon_module {
+    assert_eq(sum_box(box1), 17);
+}
+
+endmodule

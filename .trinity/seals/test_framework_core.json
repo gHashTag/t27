@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e4942475927a3a9dff7c1c6e2939b36c5815fc37c6fd6998ab55be4436526d41",
   "module": "core",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:38Z",
+  "sealed_at": "2026-07-10T14:38:45Z",
   "spec_hash": "sha256:040cc64e7d77017fc0e16281217f34c787680f281ce6c4446eddef7358d98934",
   "spec_path": "specs/test_framework/core.t27"
 }

@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/scratch/w489_local_struct_keyword_name.t27
+// Witness: local struct variable names that are Verilog keywords must lower safely.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w489_local_struct_keyword_name;
+
+pub struct Pair {
+    a : u32,
+    b : u32,
+}
+
+pub fn sum_with_keyword_names() -> u32 {
+    let assign = Pair{a: 1, b: 2};
+    let body   = Pair{a: 3, b: 4};
+    let initial = Pair{a: 5, b: 6};
+    return assign.a + body.b + initial.a + initial.b;
+}
+
+test keyword_struct_locals {
+    assert_eq(sum_with_keyword_names(), 1 + 4 + 5 + 6);
+}
+
+endmodule

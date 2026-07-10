@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:03ca011d4245662c5dfcfd236b7211969e351dab784319e65817d3bee34bba66",
   "module": "w478_icarus_struct_array",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:44Z",
+  "sealed_at": "2026-07-10T14:39:52Z",
   "spec_hash": "sha256:1512140b835e26c889768daa803bee24793f2c21ec619429d25c7d331de10a09",
   "spec_path": "specs/scratch/w478_icarus_struct_array.t27"
 }

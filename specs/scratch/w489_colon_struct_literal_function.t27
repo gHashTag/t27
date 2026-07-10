@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/scratch/w489_colon_struct_literal_function.t27
+// Witness: function returns a colon-style struct literal; caller uses typed local.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w489_colon_struct_literal_function;
+
+pub struct Pt {
+    x : u32,
+    y : u32,
+}
+
+pub fn make_pt(x : u32, y : u32) -> Pt {
+    return Pt{x: x, y: y};
+}
+
+pub fn sum_xy(x : u32, y : u32) -> u32 {
+    var p : Pt = Pt{x: x, y: y};
+    return p.x + p.y;
+}
+
+pub fn return_colon(a : u32, b : u32) -> u32 {
+    return make_pt(a, b).x + make_pt(a, b).y;
+}
+
+test colon_function {
+    assert_eq(sum_xy(3, 4), 7);
+    assert_eq(return_colon(5, 6), 11);
+}
+
+endmodule

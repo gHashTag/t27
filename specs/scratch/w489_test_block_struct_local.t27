@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/scratch/w489_test_block_struct_local.t27
+// Witness: test block declares a struct local with a colon literal and uses it
+// in assertions. Previously the declaration was half-commented in the Verilog.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w489_test_block_struct_local;
+
+pub struct Pt {
+    x : u32,
+    y : u32,
+}
+
+pub fn make_pt(x : u32, y : u32) -> Pt {
+    return Pt{x: x, y: y};
+}
+
+test struct_local_in_test {
+    var p : Pt = Pt{x: 8, y: 9};
+    p.x = 10;
+    assert_eq(p.x + p.y, 19);
+}
+
+test struct_return_in_test {
+    let p = make_pt(2, 3);
+    assert_eq(p.x + p.y, 5);
+}
+
+endmodule

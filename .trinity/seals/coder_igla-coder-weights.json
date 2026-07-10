@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:34be073480a0411a24ecf7f0ffc51a07ec08b80a42f4fd84e3b8fda5729d6247",
-  "gen_hash_rust": "sha256:75b985a14f3e992bb63a826fc2baf267b7ac7b5fcb1f185def4b16bdf905dec7",
-  "gen_hash_verilog": "sha256:8131beddfea40037f5ca6a600e1b406e340cd62d3bc4999504168a9f7e99afa2",
-  "gen_hash_zig": "sha256:2753501af7cd11d2e5018398668f8399d53f50ba48337269a432f342cd2cc696",
+  "gen_hash_c": "sha256:c144e337aa9f849b71252d738dbb85ad8b2b50ddcb6c309f3f9e5826840f3d47",
+  "gen_hash_rust": "sha256:2acc9e51827a541cf0dad865bdcbb2fdabd4d73d32f3f3db169ab8d14b0f180b",
+  "gen_hash_verilog": "sha256:c663288718e034fdd07aea4a76e344a6d01b1b31b189a9530cbfbd00ccde15ad",
+  "gen_hash_zig": "sha256:e3c1b6d5c249148f02fefe804840b5d47bc9a7108dac542571e6017f030ea3a4",
   "module": "igla-coder-weights",
   "ring": 12,
-  "sealed_at": "2026-07-10T04:20:45Z",
+  "sealed_at": "2026-07-10T14:39:48Z",
   "spec_hash": "sha256:d81f3b7c133af29f407986a65952f476d28e533cf3930d518919b35ac923a005",
   "spec_path": "specs/igla/coder/weights.t27"
 }

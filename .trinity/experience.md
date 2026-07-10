@@ -1,3 +1,92 @@
+## 2026-07-07 — Wave Loop 489 (gen-verilog backend hardening: colon struct-literals, struct-local deduplication/keyword escape, imported constructor inlining, array-typed fields of scalar struct locals)
+
+### What worked
+- Fixing the W488 rollback items in a single wave required three coordinated
+  changes: a deduplication/escape pass for function-local struct variables, a
+  branch for array-typed fields of scalar struct locals, and re-enabling the
+  colon struct-literal parser.
+- Tracking the keyword-safe name in `local_struct_var_declared_names` prevents
+  duplicate `reg` declarations for same-name struct locals inside functions.
+- For struct-return calls whose type contains an array-typed field, emitting
+  per-field memories and slicing a packed temporary keeps both yosys and Icarus
+  legal.
+- `resolve_use_module_path` makes imported constructor inlining work for
+  `use module::Item;` imports, not just module-only imports.
+- Storing imported constructors under their unqualified name lets call sites use
+  the short name brought into scope by `use`.
+- Enum variants and other `::`-containing identifiers in expression context must
+  become sized zero placeholders in synthesizable Verilog; relying on the
+  parser to keep them as bare names breaks Icarus.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`
+  - `parse_struct_literal` accepts colon field separators.
+  - `local_struct_var_declared_names` deduplicates struct-local declarations
+    and avoids the base/safe-name double-insert bug.
+  - Scalar struct-return locals with array-typed fields take the per-field
+    memory path via `gen_verilog_local_struct_var_decl` and
+    `gen_verilog_struct_return_slicing`.
+  - Imported constructor inlining resolves module paths from item imports and
+    registers unqualified aliases.
+  - `gen_verilog_test` flushes deferred struct-return temporary assignments
+    inside named test scopes.
+  - `try_emit_scalar_struct_call_field` lowers field access on scalar
+    struct-return calls.
+  - `gen_verilog_expr` emits zero placeholders for enum values and qualified
+    identifiers.
+- New witness specs:
+  - `specs/scratch/w489_colon_struct_literal_module.t27`
+  - `specs/scratch/w489_colon_struct_literal_function.t27`
+  - `specs/scratch/w489_colon_struct_literal_test.t27`
+  - `specs/scratch/w489_local_struct_keyword_name.t27`
+  - `specs/scratch/w489_local_struct_duplicate_decl.t27`
+  - `specs/scratch/w489_packed_scalar_struct_array_field.t27`
+  - `specs/scratch/w489_imported_struct_return_array_field.t27`
+  - `specs/scratch/w489_test_block_struct_local.t27`
+- Global reseal of `.trinity/seals/*.json`, `bootstrap/stage0/FROZEN_HASH`, and
+  `repro/numerics/nmse_manifest*.json` because `bootstrap/src/compiler.rs`
+  changed.
+- Added `docs/reports/WAVE_LOOP_489_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W490_2026-07-07.md`.
+- Updated `.trinity/current-issue.md`, `docs/NOW.md`, `.trinity/experience.md`,
+  and persistent memory.
+
+### Verification
+- `cargo build --release`: PASS.
+- `cargo test -p t27c --bin t27c`: 1525 passed; 0 failed; 2 ignored.
+- `./scripts/tri test --fast`: ALL TESTS PASSED
+  - 681/681 non-smoke PASS.
+  - 161/161 yosys smoke PASS.
+  - 161/161 Icarus smoke PASS, 0 documented baseline failures.
+  - 681/681 seal matches.
+  - 0 fixed-point divergences.
+  - FPGA board-less smoke gate replay: OK.
+- **Total `UNSUPPORTED_ICARUS` placeholders across all 681 specs: 0.**
+- NMSE reseal: FROZEN_HASH and manifests refreshed.
+
+### Patterns to reuse
+- When deduplicating local declarations, use the keyword-safe form as the
+  unique key; base and safe names are often identical, so inserting both causes
+  false-positive "already declared" checks.
+- For imported constructors, store both fully-qualified and unqualified keys so
+  call sites can use either naming style.
+- Resolve use-declaration module paths by trying the full value first, then
+  stripping the trailing item segment, rather than always stripping the last
+  segment.
+- Enum variants and `::`-qualified names in synthesizable expressions should be
+  width-correct zero placeholders, not emitted as identifiers.
+
+### Anti-patterns to avoid
+- Do not emit a single packed `reg` for a scalar struct local that has
+  array-typed fields; packed-vector slicing of an unpacked array is illegal in
+  Verilog-2005.
+- Do not mark struct-return locals as unsupported just because their initializer
+  call is not emitted; the inliner may still provide a value.
+- Do not rely on `callee.contains("::")` to distinguish imported constructors;
+  `use` declarations can bring them into scope as unqualified names.
+
+---
+
 ## 2026-07-07 — Wave Loop 488 (gen-verilog backend hardening: wildcard array-of-struct aliases with array-typed fields; colon struct-literal prototype rolled back)
 
 ### What worked

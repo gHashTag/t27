@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/scratch/w489_imported_struct_return_array_field.t27
+// Witness: imported constructor returning a struct with an array-typed field,
+// bound to a packed scalar local in the importing module.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w489_imported_struct_return_array_field;
+
+use w489_packed_scalar_struct_array_field::Pt;
+use w489_packed_scalar_struct_array_field::make_pt;
+
+pub fn sum_imported() -> u32 {
+    let p = make_pt(9, 4, 5, 6);
+    return p.x + (p.coords[0] as u32) + (p.coords[1] as u32) + (p.coords[2] as u32);
+}
+
+test imported_array_field {
+    assert_eq(sum_imported(), 9 + 4 + 5 + 6);
+}
+
+endmodule

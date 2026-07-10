@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3928410c568ac6c12140be8907c9fd19f1f09f01b3222a95616903c21e3f39ac",
   "gen_hash_rust": "sha256:635bc8cbbbc0450657addd4ca15995799dc4909a6a584ebc27485b76b034d0ca",
-  "gen_hash_verilog": "sha256:d3056e15afe7f3095864c283b5d79c57d3ab070ad8eefadec5e6d8b41cfd7936",
+  "gen_hash_verilog": "sha256:02cd3dbc72e72cf4cfa58e8a9819928faf95631f534cd98674186805cf63917f",
   "gen_hash_zig": "sha256:56923e3e106b8295099f7630723590f5a9309916c9a492e1fa019eb21161d0ae",
   "module": "GF4",
   "ring": 12,
-  "sealed_at": "2026-07-10T05:25:25Z",
+  "sealed_at": "2026-07-10T14:39:52Z",
   "spec_hash": "sha256:778a670987f99f11947e4b8ea72cf4916a1dcbf8caa7dd709576fbdf17fd19ed",
-  "spec_path": "/Users/playra/t27/specs/numeric/gf4.t27"
+  "spec_path": "specs/numeric/gf4.t27"
 }
