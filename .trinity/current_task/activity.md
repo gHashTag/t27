@@ -1956,3 +1956,15 @@
 - **Commit:** chore(trinity): record W484 session log and commit count
 - **Files:** .claude/plans/wave-loop-485.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/ring-485.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json
 
+## 2026-07-10T04:36:46Z — wave-loop-485
+- **Commit:** feat(gen-verilog): Wave Loop 485 — host-side recursive helper shadowing, wildcard '_' bindings, bench-local array hoisting witness, 661/661 non-smoke PASS + 141/141 yosys smoke PASS + 141/141 Icarus smoke PASS + cargo test 1525/0/2
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-10T04:37:16Z — wave-loop-485
+- **Commit:** chore(trinity): record W485 session log and commit count
+- **Files:** .claude/plans/wave-loop-485.md
+
+## 2026-07-10T04:37:20Z — wave-loop-485
+- **Commit:** docs(w485): mark acceptance criteria complete and update counts to 661/141
+- **Files:** .claude/plans/wave-loop-485.md,.trinity/current_task/activity.md
+

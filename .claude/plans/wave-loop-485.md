@@ -108,15 +108,15 @@ failures), 658 / 658 seal matches, `cargo test -p t27c --bin t27c` green.
 
 ## Acceptance criteria
 
-- [ ] `specs/scratch/w485_host_helper_shadow.t27` parses, typechecks, generates
+- [x] `specs/scratch/w485_host_helper_shadow.t27` parses, typechecks, generates
       Verilog, and passes yosys + Icarus smoke.
-- [ ] `specs/scratch/w485_wildcard_binding.t27` passes the same gates.
-- [ ] `specs/scratch/w485_bench_local_array_hoist.t27` passes the same gates.
-- [ ] `./scripts/tri test` reports 658 / 658 non-smoke PASS, 138 / 138 yosys
-      smoke PASS, 138 / 138 Icarus smoke PASS, 0 documented baseline failures.
-- [ ] 658 / 658 seal matches.
-- [ ] `cargo test -p t27c --bin t27c` 1525 / 0 / 2.
-- [ ] Zero `UNSUPPORTED_ICARUS` placeholders across all specs.
+- [x] `specs/scratch/w485_wildcard_binding.t27` passes the same gates.
+- [x] `specs/scratch/w485_bench_local_array_hoist.t27` passes the same gates.
+- [x] `./scripts/tri test` reports 661 / 661 non-smoke PASS, 141 / 141 yosys
+      smoke PASS, 141 / 141 Icarus smoke PASS, 0 documented baseline failures.
+- [x] 661 / 661 seal matches.
+- [x] `cargo test -p t27c --bin t27c` 1525 / 0 / 2.
+- [x] Zero `UNSUPPORTED_ICARUS` placeholders across all specs.
 
 ## References
 
