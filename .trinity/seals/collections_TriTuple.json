@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:46a87722f376e54c3f570ca21556d0cba7351ab43b4f845eec612b70665d4797",
   "gen_hash_rust": "sha256:90358c7aaa6b7376b1f09c9989f14fc648f4f5dd3819e8cb10888271cb81cfcb",
-  "gen_hash_verilog": "sha256:77c5f38aae2cb606984d4567d8dd124ed133142a0cfd2f41dff4b52b05113656",
+  "gen_hash_verilog": "sha256:f3e19f77947652ba9ac895bb1f6b5a3a165fdcfed462cfff78ecd5395d5094da",
   "gen_hash_zig": "sha256:b57db3805f5ae17fd40039ce8117e502afdcbd23c5f7355addf3966092b7d2d4",
   "module": "TriTuple",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:40Z",
+  "sealed_at": "2026-07-10T00:19:16Z",
   "spec_hash": "sha256:8fc1e6d391ef81cb63d49bc1d38dc95d6a20bc819fd8da94b111dac89e57990a",
-  "spec_path": "/Users/playra/t27/specs/tri/collections/tuple.t27"
+  "spec_path": "specs/tri/collections/tuple.t27"
 }

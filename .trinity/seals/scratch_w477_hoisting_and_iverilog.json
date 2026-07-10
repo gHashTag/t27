@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:ccb76af9873e133df6327f12af683b70b45e8e0415dde29e26da0219c8362ec1",
+  "gen_hash_rust": "sha256:53e4dd5b425ea307474d24a6ed3cb524e5d49538cb4471751da6a6e0db01f52c",
+  "gen_hash_verilog": "sha256:d680103d1b26576c1ee1fe68684c8ae5c2ab0d80b306166cc32693cd5298ed72",
+  "gen_hash_zig": "sha256:188a90c5a1584718d2139cbc6dce370689133e4e7523af2023dcf8bdb8574972",
+  "module": "w477_hoisting_and_iverilog",
+  "ring": 12,
+  "sealed_at": "2026-07-10T00:19:14Z",
+  "spec_hash": "sha256:8880698f0732684f8b73ea80247a2cdf3e50d7602d2083731885c4ab1ed6f828",
+  "spec_path": "specs/scratch/w477_hoisting_and_iverilog.t27"
+}

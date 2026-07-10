@@ -1,0 +1,81 @@
+module w478_icarus_struct_array;
+
+pub struct Pt {
+    x : u8,
+    y : u8,
+}
+
+pub struct Shape {
+    pts : [3]Pt,
+}
+
+pub struct Cell {
+    coords : [2][3]u8,
+}
+
+pub var grid : [2]Shape = [2]Shape {
+    Shape {
+        pts = [3]Pt {
+            Pt { x = 1, y = 2 },
+            Pt { x = 3, y = 4 },
+            Pt { x = 5, y = 6 }
+        }
+    },
+    Shape {
+        pts = [3]Pt {
+            Pt { x = 7, y = 8 },
+            Pt { x = 9, y = 10 },
+            Pt { x = 11, y = 12 }
+        }
+    }
+};
+
+pub fn make_shapes(v: u8) -> [2]Shape {
+    return [2]Shape {
+        Shape {
+            pts = [3]Pt {
+                Pt { x = v,     y = v + 1 },
+                Pt { x = v + 2, y = v + 3 },
+                Pt { x = v + 4, y = v + 5 }
+            }
+        },
+        Shape {
+            pts = [3]Pt {
+                Pt { x = v + 10, y = v + 11 },
+                Pt { x = v + 12, y = v + 13 },
+                Pt { x = v + 14, y = v + 15 }
+            }
+        }
+    };
+}
+
+pub fn local_aos_copy() -> bool {
+    var a : [2]Shape = make_shapes(0);
+    var b : [2]Shape = make_shapes(1);
+    a = b;
+    return a == b;
+}
+
+pub fn sum_array_param(cells : [2]Cell) -> u32 {
+    return (cells[0].coords[0][0] as u32)
+         + (cells[1].coords[1][2] as u32);
+}
+
+pub fn varidx_packed_param(shapes : [2]Shape, i : u8) -> u8 {
+    return shapes[i].pts[1].x;
+}
+
+const cell_data : [2]Cell = [2]Cell {
+    Cell { .coords = [2][3]u8{ [3]u8{1, 2, 3}, [3]u8{4, 5, 6} } },
+    Cell { .coords = [2][3]u8{ [3]u8{7, 8, 9}, [3]u8{10, 11, 12} } },
+};
+
+test icarus_local_aos_copy   { assert(local_aos_copy()); }
+test icarus_array_param      { assert_eq(sum_array_param(cell_data), 13); }
+test icarus_varidx_param     { assert_eq(varidx_packed_param(grid, 1), 9); }
+test icarus_module_element   { assert_eq(grid[1].pts[2].y, 12); }
+
+invariant icarus_struct_array_sound:
+    local_aos_copy() && (sum_array_param(cell_data) == 13);
+
+endmodule

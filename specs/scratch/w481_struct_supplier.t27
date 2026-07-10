@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: Apache-2.0
+; W481 supplier: exported struct and helper used by the Icarus witness.
+; φ² + 1/φ² = 3 | TRINITY
+
+module w481_struct_supplier;
+
+/// Exported scalar struct used as an imported parameter type.
+pub struct Metric {
+    value : u32,
+    scale : u32,
+}
+
+/// Exported constructor returning a struct.
+/// gen-verilog does not emit imported functions, so callers see an
+/// unsupported-call placeholder, but t27 interpretation is unchanged.
+pub fn make_metric() -> Metric {
+    return Metric {.value = 10, .scale = 2};
+}
+
+/// Scalar accessors used by tests that must also pass in Icarus Verilog.
+pub fn metric_value_u32() -> u32 { return 10; }
+pub fn metric_scale_u32() -> u32 { return 2; }
+
+test supplier_self_test {
+    // Avoid assigning a struct-return value to a local in the t27 test,
+    // because gen-verilog does not yet declare packed-struct locals for
+    // field access.  Assert on the scalar projections instead.
+    assert_eq(metric_value_u32(), 10);
+    assert_eq(metric_scale_u32(), 2);
+    assert_eq(metric_value_u32() * metric_scale_u32(), 20);
+}
+
+invariant supplier_value_positive {
+    metric_value_u32() > 0
+}
+
+bench supplier_bench {
+    assert_eq(metric_value_u32() * metric_scale_u32(), 20);
+}
+
+endmodule

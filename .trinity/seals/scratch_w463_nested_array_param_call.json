@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:f8845f8504481db86f972ad1f9b2bdb6af6afa676d165817a523e0ab06d20b19",
   "gen_hash_rust": "sha256:668e3eff5ad3ccd6f22ad509ff9e269f647323fa920cb4e7c9a54fc14fea4d3d",
-  "gen_hash_verilog": "sha256:a61e556afe9aff309179a7369d38c29bdb240c14da01226557eb3b9b877fecfd",
+  "gen_hash_verilog": "sha256:2e235bd9d1b92f6a1ecdfd3af2b8f4e249ea943b98deeef778dd6282cfcc12eb",
   "gen_hash_zig": "sha256:caf3bcd83a7a4e7ed0d9371106c3b1171792633a1abf8b73591928b6902d3a93",
   "module": "w463_nested_array_param_call",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:14Z",
   "spec_hash": "sha256:811e5170d88288794850565de0f0eacaf78826dd0ab61263110a4944b68fa461",
-  "spec_path": "/Users/playra/t27/specs/scratch/w463_nested_array_param_call.t27"
+  "spec_path": "specs/scratch/w463_nested_array_param_call.t27"
 }

@@ -34,10 +34,8 @@ test two_d_struct_array {
     assert_eq(sum_2d_literal(), 28);
     assert_eq(sum_2d_varidx(0, 0), 3);
     assert_eq(sum_2d_varidx(1, 2), 23);
-    assert_eq(set_and_sum_2d(0, 0, 0), 15);
-    assert_eq(set_and_sum_2d(1, 2, 0), 15);
-    assert_eq(set_and_sum_2d(0, 0, 100), 300);
-    assert_eq(set_and_sum_2d(1, 2, 100), 300);
+    assert_eq(set_and_sum_2d(0, 0), 323);
+    assert_eq(set_and_sum_2d(1, 2), 303);
 }
 
 endmodule

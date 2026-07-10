@@ -1,0 +1,31 @@
+// W480 witness: exercises Icarus Verilog compile-time fixes.
+// - braced block expressions in `if` branches
+// - wildcard discard assignment `_ = expr;`
+// - calls to functions that gen-verilog drops (string helpers)
+module w480_icarus_scope_and_wildcard;
+
+/// String helper is defined at the t27 level but not emitted as Verilog.
+fn host_label(s: string) -> string {
+    return s;
+}
+
+/// Uses a braced if-expression, a wildcard discard, and a dropped helper call.
+fn classify(value: u32, threshold: u32) -> u32 {
+    _ = host_label("ignored");
+    let flag = if (value >= threshold) { 1 } else { 0 };
+    return flag;
+}
+
+test block_expr_and_wildcard {
+    assert_eq(classify(7, 5), 1);
+    assert_eq(classify(3, 5), 0);
+}
+
+invariant wildcard_no_side_effect {
+    classify(0, 1) == 0
+}
+
+bench classify_bench {
+    let x = classify(10, 5);
+    assert_eq(x, 1);
+}

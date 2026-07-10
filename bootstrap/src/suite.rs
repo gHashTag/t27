@@ -60,23 +60,34 @@ fn load_gen_verilog_smoke_baseline(repo: &Path) -> HashSet<String> {
         .join("docs")
         .join("reports")
         .join("gen_verilog_smoke_baseline.json");
-    let raw = match fs::read_to_string(&path) {
+    load_baseline_from_path(&path, "[suite] yosys baseline file")
+}
+
+/// W479: load the set of spec paths documented as pre-existing Icarus Verilog
+/// `gen-verilog` smoke failures.
+fn load_gen_verilog_iverilog_smoke_baseline(repo: &Path) -> HashSet<String> {
+    let path = repo
+        .join("docs")
+        .join("reports")
+        .join("gen_verilog_iverilog_smoke_baseline.json");
+    load_baseline_from_path(
+        &path,
+        "[suite] iverilog baseline file",
+    )
+}
+
+fn load_baseline_from_path(path: &Path, label: &str) -> HashSet<String> {
+    let raw = match fs::read_to_string(path) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!(
-                "[suite] baseline file not readable ({}); using empty baseline",
-                e
-            );
+            eprintln!("{} not readable ({}); using empty baseline", label, e);
             return HashSet::new();
         }
     };
     let json: serde_json::Value = match serde_json::from_str(&raw) {
         Ok(j) => j,
         Err(e) => {
-            eprintln!(
-                "[suite] baseline file invalid JSON ({}); using empty baseline",
-                e
-            );
+            eprintln!("{} invalid JSON ({}); using empty baseline", label, e);
             return HashSet::new();
         }
     };
@@ -241,6 +252,14 @@ fn yosys_available() -> bool {
         .arg("-q")
         .arg("-p")
         .arg("echo on")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+fn iverilog_available() -> bool {
+    Command::new("iverilog")
+        .arg("-V")
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
@@ -682,6 +701,50 @@ fn cmd_gen_verilog_yosys_smoke(repo: &Path, rel: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// W477: compile generated Verilog with Icarus Verilog and run the resulting
+/// simulation. Test blocks are left enabled (no `SIMULATION` define) so that
+/// `assert(cond) else $fatal(...)` actually executes and aborts on failure.
+fn cmd_gen_verilog_iverilog_smoke(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let verilog = cmd_gen_verilog_stdout(repo, rel)?;
+    let base = format!("t27c_iverilog_smoke_{}", rel.replace('/', "_"));
+    let v_path = std::env::temp_dir().join(format!("{}.v", base));
+    let vvp_path = std::env::temp_dir().join(format!("{}.vvp", base));
+    fs::write(&v_path, &verilog).with_context(|| {
+        format!(
+            "writing temporary Verilog for iverilog smoke: {}",
+            v_path.display()
+        )
+    })?;
+
+    let compile = Command::new("iverilog")
+        .arg("-g2005-sv")
+        .arg("-o")
+        .arg(&vvp_path)
+        .arg(&v_path)
+        .output()
+        .context("spawning iverilog for gen-verilog smoke")?;
+    if !compile.status.success() {
+        let err = String::from_utf8_lossy(&compile.stderr);
+        anyhow::bail!("iverilog rejected generated Verilog: {}", err.trim());
+    }
+
+    let run = Command::new("vvp")
+        .arg(&vvp_path)
+        .output()
+        .context("spawning vvp for gen-verilog smoke")?;
+    if !run.status.success() {
+        let out = String::from_utf8_lossy(&run.stdout);
+        let err = String::from_utf8_lossy(&run.stderr);
+        anyhow::bail!(
+            "iverilog simulation failed for {}:\nstdout:{}\nstderr:{}",
+            rel,
+            out,
+            err
+        );
+    }
+    Ok(())
+}
+
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 struct SuitePhaseSummary {
@@ -719,6 +782,11 @@ struct SuiteSummary {
     /// Number of failures documented as the current baseline in
     /// `docs/reports/gen_verilog_smoke_baseline.json`.
     baseline_failures: usize,
+    /// W479: specs that failed in the `gen-verilog-iverilog-smoke` phase, if any.
+    iverilog_known_failures: Vec<String>,
+    /// W479: number of failures documented as the current baseline in
+    /// `docs/reports/gen_verilog_iverilog_smoke_baseline.json`.
+    iverilog_baseline_failures: usize,
     total_failures: usize,
     /// True when no failures were observed at all.
     passed: bool,
@@ -853,6 +921,35 @@ pub fn run_comprehensive(
     p3b_fail = p3bf;
     summary.baseline_failures = baseline.len();
     push_phase("gen-verilog-yosys-smoke", p3bp, p3bf, p3b_skipped);
+
+    println!("--- Phase 3b-iverilog: Gen Verilog Icarus Smoke ---");
+    let mut p3b_i_fail = 0usize;
+    let mut p3b_i_skipped = 0usize;
+    let iverilog_baseline = load_gen_verilog_iverilog_smoke_baseline(&repo);
+    if iverilog_available() {
+        let mut iverilog_targets = specs_scratch.clone();
+        for rel in igla_clean_specs() {
+            iverilog_targets.push(repo.join(&rel));
+        }
+        iverilog_targets.sort();
+        iverilog_targets.dedup();
+        let (p3b_ip, p3b_if, iverilog_failures) = run_phase_with_failures(
+            &repo,
+            "gen-verilog-iverilog-smoke",
+            cmd_gen_verilog_iverilog_smoke,
+            &iverilog_targets,
+        )?;
+        println!("Gen Verilog Icarus Smoke: {} passed, {} failed", p3b_ip, p3b_if);
+        p3b_i_fail = p3b_if;
+        summary.iverilog_known_failures = iverilog_failures;
+        push_phase("gen-verilog-iverilog-smoke", p3b_ip, p3b_if, 0);
+    } else {
+        println!("Icarus Verilog not available; skipping gen-verilog iverilog smoke gate");
+        p3b_i_skipped = 1;
+        summary.iverilog_baseline_failures = 0;
+        push_phase("gen-verilog-iverilog-smoke", 0, 0, p3b_i_skipped);
+    }
+    summary.iverilog_baseline_failures = iverilog_baseline.len();
 
     if fast {
         println!("[suite] --fast mode: skipping the standalone lake-package build phase");
@@ -1022,6 +1119,7 @@ pub fn run_comprehensive(
         + p2bf
         + p3f
         + p3b_fail
+        + p3b_i_fail
         + p3c_fail
         + p3d_fail
         + p4f
@@ -1030,9 +1128,16 @@ pub fn run_comprehensive(
 
     summary.total_failures = total_fail;
     summary.passed = total_fail == 0;
-    let known_set: HashSet<String> = summary.known_failures.iter().cloned().collect();
-    let non_baseline_failures = total_fail.saturating_sub(summary.known_failures.len());
-    summary.acceptable = known_set.is_subset(&baseline) && non_baseline_failures == 0;
+    let mut known_set: HashSet<String> = summary.known_failures.iter().cloned().collect();
+    known_set.extend(summary.iverilog_known_failures.iter().cloned());
+    let baseline_set: HashSet<String> = baseline
+        .union(&iverilog_baseline)
+        .cloned()
+        .collect();
+    let known_baseline_count = summary.known_failures.len()
+        + summary.iverilog_known_failures.len();
+    let non_baseline_failures = total_fail.saturating_sub(known_baseline_count);
+    summary.acceptable = known_set.is_subset(&baseline_set) && non_baseline_failures == 0;
 
     println!("Parse failures:           {}", p1f);
     println!("Typecheck fails:          {}", p1bf);
@@ -1041,12 +1146,17 @@ pub fn run_comprehensive(
     println!("Gen Rust failures:        {}", p2bf);
     println!("Gen Verilog fails:        {}", p3f);
     println!("Gen Verilog smoke fails:  {}", p3b_fail);
+    println!("Gen Verilog Icarus fails: {}", p3b_i_fail);
     println!("FPGA smoke fails:         {}", p3c_fail);
     println!("Gen C failures:           {}", p4f);
     println!("Seal mismatches:          {}", p5f);
     println!("FP divergences:           {}", fp_diff);
-    println!("TOTAL FAILURES:    {}", total_fail);
-    println!("BASELINE FAILURES: {}", summary.baseline_failures);
+    println!("TOTAL FAILURES:           {}", total_fail);
+    println!("YOSYS BASELINE FAILURES:  {}", summary.baseline_failures);
+    println!(
+        "ICARUS BASELINE FAILURES: {}",
+        summary.iverilog_baseline_failures
+    );
     println!(
         "ACCEPTABLE:        {} (known failures match baseline, no other failures)",
         if summary.acceptable { "yes" } else { "no" }
@@ -1388,6 +1498,8 @@ mod tests {
             validate_lean_standalone_elapsed_ms: Some(123),
             known_failures: vec!["specs/scratch/a.t27".to_string()],
             baseline_failures: 2,
+            iverilog_known_failures: vec![],
+            iverilog_baseline_failures: 0,
             total_failures: 2,
             passed: false,
             acceptable: true,
@@ -1426,6 +1538,8 @@ mod tests {
             validate_lean_standalone_elapsed_ms: None,
             known_failures: vec![],
             baseline_failures: 0,
+            iverilog_known_failures: vec![],
+            iverilog_baseline_failures: 0,
             total_failures: 0,
             passed: false,
             acceptable: true,
@@ -1487,6 +1601,25 @@ mod tests {
         assert!(set.contains("specs/a.t27"));
         assert!(set.contains("specs/b.t27"));
         assert_eq!(set.len(), 2);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_load_gen_verilog_iverilog_smoke_baseline() {
+        let tmp =
+            std::env::temp_dir().join(format!("t27_suite_iverilog_baseline_test_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        let docs = tmp.join("docs").join("reports");
+        std::fs::create_dir_all(&docs).unwrap();
+        let baseline_path = docs.join("gen_verilog_iverilog_smoke_baseline.json");
+        std::fs::write(
+            &baseline_path,
+            r#"{"expected_failures": ["specs/igla/coder/benchmark.t27"]}"#,
+        )
+        .unwrap();
+        let set = load_gen_verilog_iverilog_smoke_baseline(&tmp);
+        assert!(set.contains("specs/igla/coder/benchmark.t27"));
+        assert_eq!(set.len(), 1);
         let _ = std::fs::remove_dir_all(&tmp);
     }
 

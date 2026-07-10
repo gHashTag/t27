@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d0b6fd797455f413b35a56aa3f3798d0c2caa819ed9f3926b6d6eac8d04d79d5",
   "gen_hash_rust": "sha256:de8f29b6a7739936be9c5a3f1d593d689f02ec0c3d04eedddb170b487e25da3c",
-  "gen_hash_verilog": "sha256:b86394cdf451f1c9d98c79a6bc792eefe4c9102ac8a890da3835065000275c4f",
+  "gen_hash_verilog": "sha256:34fdb4055991fa8e5c19059d6098a507b37506f013eb6a40fa080857b7a3eab1",
   "gen_hash_zig": "sha256:f5fa91f1c0189697a51e151e9b7a028a9a867f01ba8d5effe35d6942cb09698f",
   "module": "RadixEconomy",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:14Z",
   "spec_hash": "sha256:b580bb708977e0fb9e03cdc156551262ce5596f534e44d31e14d66d7ca9e83b5",
-  "spec_path": "/Users/playra/t27/specs/math/radix_economy.t27"
+  "spec_path": "specs/math/radix_economy.t27"
 }

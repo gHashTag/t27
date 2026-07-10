@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:61bb40e80b02cc94fb7b9dc2e8b9bd51854b82f63c0be3fb4c9f37974f0d6aa0",
   "gen_hash_rust": "sha256:462c901d9f99c79944a6d813736d9f0ef2fa6a163708d1a2079b776a8624eda6",
-  "gen_hash_verilog": "sha256:5e50a0343b03a2049da9f66489a2dcbafe29c40b9f01be89d0c0f6f5a99c8cb9",
+  "gen_hash_verilog": "sha256:5752fb33b77b92c7e5c01ac32f4dfa1b8fbb990af685e0fafcc356c8579dedb8",
   "gen_hash_zig": "sha256:830078b332cd782ef1a38b8458ca89ab968d232968040a282259f069fd898556",
   "module": "Routes",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:14Z",
   "spec_hash": "sha256:16dbd9fb40f949a3534c28495f0d68f83ddd460d22f52a89ea70ff33e4c1ee7b",
-  "spec_path": "/Users/playra/t27/specs/server/routes.t27"
+  "spec_path": "specs/server/routes.t27"
 }

@@ -1,0 +1,84 @@
+module w476_adversarial_aggregate_tail;
+
+pub struct Pt {
+    x : u8,
+    y : u8,
+}
+
+pub struct Shape {
+    pts : [3]Pt,
+}
+
+var grid : [2]Shape = [2]Shape {
+    Shape {
+        pts = [3]Pt {
+            Pt { x = 1, y = 2 },
+            Pt { x = 3, y = 4 },
+            Pt { x = 5, y = 6 }
+        }
+    },
+    Shape {
+        pts = [3]Pt {
+            Pt { x = 7,  y = 8 },
+            Pt { x = 9,  y = 10 },
+            Pt { x = 11, y = 12 }
+        }
+    }
+};
+
+pub fn make_shapes(v: u8) -> [2]Shape {
+    return [2]Shape {
+        Shape {
+            pts = [3]Pt {
+                Pt { x = v,     y = v + 1 },
+                Pt { x = v + 2, y = v + 3 },
+                Pt { x = v + 4, y = v + 5 }
+            }
+        },
+        Shape {
+            pts = [3]Pt {
+                Pt { x = v + 10, y = v + 11 },
+                Pt { x = v + 12, y = v + 13 },
+                Pt { x = v + 14, y = v + 15 }
+            }
+        }
+    };
+}
+
+pub fn use_shape(s: Shape) -> u8 {
+    return s.pts[0].x + s.pts[2].y;
+}
+
+pub fn use_grid(g: [2]Shape) -> u8 {
+    var i : u8 = 0;
+    return g[i].pts[1].x + g[i + 1].pts[0].y;
+}
+
+pub fn adversarial_copy_and_param() -> bool {
+    var b : [2]Shape = make_shapes(0);
+    var c : [2]Shape = b;
+    return (c == b) && (use_grid(c) == 13);
+}
+
+pub fn adversarial_module_element_copy() -> bool {
+    var other_grid : [2]Shape = grid;
+    var i : u8 = 0;
+    grid[i] = other_grid[i + 1];
+    return (grid[0].pts[0].x == 7) && (use_shape(grid[0]) == 19);
+}
+
+pub fn adversarial_variable_index() -> bool {
+    var b : [2]Shape = make_shapes(1);
+    var c : [2]Shape = b;
+    var i : u8 = 1;
+    return (c[i].pts[2].y == 16) && (use_shape(c[i]) == 27);
+}
+
+test adversarial_copy_and_param { assert(adversarial_copy_and_param()); }
+test adversarial_module_element_copy { assert(adversarial_module_element_copy()); }
+test adversarial_variable_index { assert(adversarial_variable_index()); }
+
+invariant adversarial_aggregate_tail_sound:
+    adversarial_copy_and_param() && adversarial_module_element_copy();
+
+endmodule

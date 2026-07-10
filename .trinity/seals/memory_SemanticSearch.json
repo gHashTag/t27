@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:13ed85d6a467792e6c9178c9c55a61826865a8c575a48dd98858c87fbc598ad4",
   "gen_hash_rust": "sha256:25a835926d7bfeac0fd2cb41365eb137f9f5e7677fefd9ee72afbe52dfac8632",
-  "gen_hash_verilog": "sha256:e8a8ae8869dca1d8c651a3a3f53b781627e86d53de256a16d6594989f558414d",
+  "gen_hash_verilog": "sha256:b9dd71c1e7171225ea491aacdfd867795acad3d248dd87374c03725325e6c71d",
   "gen_hash_zig": "sha256:2d8540795094d9fc477c8f263854387697958b6fd9dda3cfbdfd7b2d74e1d2ef",
   "module": "SemanticSearch",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:13Z",
   "spec_hash": "sha256:513b6a22de6436f9269e7422c67954b6836990fa5ddeb147df0c992e698e56ee",
-  "spec_path": "/Users/playra/t27/specs/memory/semantic_search.t27"
+  "spec_path": "specs/memory/semantic_search.t27"
 }

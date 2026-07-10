@@ -1,0 +1,53 @@
+module w475_local_aos_param;
+
+pub struct Pt {
+    x : u8,
+    y : u8,
+}
+
+pub fn sum_pts(pts: [3]Pt) -> u16 {
+    var total : u16 = pts[0].x + pts[1].x + pts[2].x;
+    return total;
+}
+
+pub fn sum_pts_y(pts: [3]Pt) -> u16 {
+    var total : u16 = pts[0].y + pts[1].y + pts[2].y;
+    return total;
+}
+
+pub fn local_aos_param_call() -> bool {
+    var local_pts : [3]Pt = [3]Pt {
+        Pt { x = 1, y = 2 },
+        Pt { x = 3, y = 4 },
+        Pt { x = 5, y = 6 }
+    };
+    var total : u16 = sum_pts(local_pts);
+    return total == 9;
+}
+
+pub fn local_aos_param_call_y() -> bool {
+    var local_pts : [3]Pt = [3]Pt {
+        Pt { x = 10, y = 20 },
+        Pt { x = 30, y = 40 },
+        Pt { x = 50, y = 60 }
+    };
+    var total : u16 = sum_pts_y(local_pts);
+    return total == 120;
+}
+
+pub fn local_aos_param_call_twice() -> bool {
+    var local_pts : [3]Pt = [3]Pt {
+        Pt { x = 1, y = 2 },
+        Pt { x = 3, y = 4 },
+        Pt { x = 5, y = 6 }
+    };
+    var total_x : u16 = sum_pts(local_pts);
+    var total_y : u16 = sum_pts_y(local_pts);
+    return (total_x == 9) && (total_y == 12);
+}
+
+test local_aos_param_call { assert(local_aos_param_call()); }
+test local_aos_param_call_y { assert(local_aos_param_call_y()); }
+test local_aos_param_call_twice { assert(local_aos_param_call_twice()); }
+
+endmodule

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:371b2b9a96a442a6f8b7371416e04e2b5a549441c4a24d45f03f88f287cb00b6",
   "gen_hash_rust": "sha256:98ae7c4280a38550120f5f2b52766e73740511e71fb8c4bd942f88c7d487d09c",
-  "gen_hash_verilog": "sha256:e1ac6eac38674a9795b85c86b74e626a7782dc057ce6245c4b07a3c4acc56a8f",
+  "gen_hash_verilog": "sha256:bdffb4a20961a2235a2746bd5a3b38d0c6cfe0436734d12beacac19f8205231c",
   "gen_hash_zig": "sha256:6a5d44f4d13ddcb5d41b361112bd17146f33b8a069a8b3875ec5d48b20194b90",
   "module": "TriSet",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:40Z",
+  "sealed_at": "2026-07-10T00:19:16Z",
   "spec_hash": "sha256:8f0a689a5d11faccd87687158f9883028c6f3694c6d278958b2772bafc901a2b",
-  "spec_path": "/Users/playra/t27/specs/tri/collections/set.t27"
+  "spec_path": "specs/tri/collections/set.t27"
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:dac27e1994e4628ebef914ad675c09d8b773b5bff12def8de23a395f862adfd0",
   "gen_hash_rust": "sha256:e8c4e3dd4c44ba21d10befc0256c9a7c21d5387654e65912b6a3e94f64e9c56a",
-  "gen_hash_verilog": "sha256:61da0d1cf6127a45b083453ffd0ab73fdb7e22661fdf432d610c156b3a6abe22",
+  "gen_hash_verilog": "sha256:32ac988eafad69a07f2e9bd6b35d22699b4edc51570d7c1b4938d2aadf1fb02f",
   "gen_hash_zig": "sha256:dbb7b5b166595de1bc812fe1055ba628dd7f00fd4d9bdc47997585a50dfcfc1a",
   "module": "w457_ram_style_block",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:14Z",
   "spec_hash": "sha256:3c2d0592eb9365a7c38cdf068203b5c58609aa2101fbd892f51ae73b476da01d",
-  "spec_path": "/Users/playra/t27/specs/scratch/w457_ram_style_block.t27"
+  "spec_path": "specs/scratch/w457_ram_style_block.t27"
 }

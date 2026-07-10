@@ -1,0 +1,31 @@
+module w479_icarus_supported_subset;
+
+/// Witness for the Icarus-supported t27 subset closed in Wave Loop 479:
+/// - array `.len()` on fixed-size module-level arrays
+/// - `.contains(needle)` on fixed-size module-level scalar arrays
+/// No dynamic strings, no recursive helpers, no unsupported method calls.
+
+var arr : [4]u32 = [1, 2, 3, 4];
+
+pub fn len_demo() -> u32 {
+    return arr.len();
+}
+
+pub fn contains_demo() -> bool {
+    return arr.contains(3);
+}
+
+pub fn contains_missing() -> bool {
+    return !arr.contains(5);
+}
+
+test supported_subset {
+    assert_eq(len_demo(), 4);
+    assert(contains_demo());
+    assert(contains_missing());
+}
+
+invariant supported_subset_sound:
+    len_demo() == 4 && contains_demo() && contains_missing();
+
+endmodule

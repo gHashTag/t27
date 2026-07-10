@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:365b351d48f48b895ff520bf23f876bef2a97f8134a84e40273444c190f21a61",
   "gen_hash_rust": "sha256:6a63cef4cf7b0b982422172e4aeca38ff7e1b1f695dc01a6f08c8bff7eaec8de",
-  "gen_hash_verilog": "sha256:093e6384152b81ca05a4b3a2eea6f922e77b1915e075d6ade83e1a6f275cdfc1",
+  "gen_hash_verilog": "sha256:da7035254988635d35d0c652a939139b202394743c08e9ded0f0adee3b49f9e9",
   "gen_hash_zig": "sha256:dc9ed173be141e6e54aa22d5d7f22b373f7120b1141506776c4567216a8d674e",
   "module": "skill_registry",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-09T23:33:59Z",
   "spec_hash": "sha256:5f728426aef91bf0b1c1935aeeee839f27380d0adb70862480edc18dabfab716",
   "spec_path": "/Users/playra/t27/compiler/skill/registry.t27"
 }

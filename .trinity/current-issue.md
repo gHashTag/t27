@@ -1,19 +1,40 @@
-# Wave Loop 475 — Next wave (to be selected from cooperation plan)
+# Wave Loop 482 — next-wave selection
+
+**Date:** 2026-07-10  
+**Anchor:** φ² + φ⁻² = 3 | TRINITY
+
+W481 closed the remaining Icarus baseline:
+
+- `f32` cast target preservation,
+- `field_access_base_is_unresolved` helper,
+- sized zero placeholders for unresolved field accesses,
+- local/unsupported-call-result tracking,
+- witness specs `specs/scratch/w481_struct_supplier.t27` and `specs/scratch/w481_icarus_aos_param_and_imported_struct.t27`,
+- 652/652 non-smoke PASS, 0 yosys smoke failures, **0 documented Icarus baseline failures**, 0 seal mismatches after reseal, `cargo test -p t27c --bin t27c` 1525/0/2.
 
 ## Goal
 
-Select one of the three W475 cooperation variants and close the wave with a green suite, updated seals, and the standard close-out artifacts (report, evidence, next-wave cooperation plan).
+Select and execute one of the W482 cooperation variants documented in `docs/reports/FPGA_LOOP_COOPERATION_W482_2026-07-10.md`.
 
-## Scope
-- **Variant A:** if the DLC10 cable is found and P12/relay are wired, run a live cold-POR CCLK sweep on the Wukong XC7A100T board, persist fixtures under `tests/fixtures/fpga/theorem-matrix/live-w475/`, and mint an `XADC_LIVE_W475_OPERATING_POINT` theorem in `proofs/lean4/Trinity/TernaryFPGABoot.lean` plus matching Rust unit tests.
-- **Variant B (default):** with the bench still blocked, continue compiler-backend aggregate hardening: array-of-struct equality for arrays whose element struct has array-typed fields, whole-struct equality for nested structs with array-typed fields, function-local arrays of structs passed as array parameters, and an additional adversarial yosys-elaboration witness.
-- **Variant C (fallback):** if Variant B is blocked by a scope/refactor that cannot be completed safely in one wave, add Lean 4 synthesizability / correctness lemmas for the per-field memory model, array-of-struct return round-trip, and an adversarial yosys-elaboration witness for new W475 scratch specs.
+## Default direction
+
+**Variant B (default):** make the W481 placeholders functional for the most common AOS / imported-struct / struct-return classes:
+
+- read imported struct layouts from seals so imported scalar struct parameters destructure into real wires,
+- generalize same-file AOS parameter lowering to handle variable-index element field access,
+- declare packed locals for same-file struct-return results so field slices read real values.
+
+## Alternative directions
+
+- **Variant A:** formalize the Icarus-supported t27 subset as a Lean 4 predicate, with a lowering-preservation lemma and `tri test` wiring.
+- **Variant C:** FPGA live cold-POR / SPI flash boot evidence if the QMTech Wukong XC7A100T and DLC10 cable are available.
 
 ## Issue Gate
-- Branch: `wave-loop-475` (to be created from `wave-loop-474`).
-- Required: ≥637/637 non-smoke PASS (or acceptable baseline), smoke gate acceptable, seals green, Lean build succeeds.
+
+- Branch: `wave-loop-482` (to create from `wave-loop-481`).
+- Required: non-smoke tests green, yosys smoke acceptable, Icarus smoke acceptable (no new regressions outside baseline), seals green, `cargo test -p t27c --bin t27c` green.
 
 ## References
-- `docs/reports/WAVE_LOOP_474_CLOSEOUT.md`
-- `docs/reports/FPGA_LOOP_COOPERATION_W475_2026-07-08.md`
-- Parent wave: #1447
+
+- W481 close-out: `docs/reports/WAVE_LOOP_481_CLOSEOUT.md`
+- W482 cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W482_2026-07-10.md`

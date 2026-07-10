@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:5f2cdc859c250dffe9ba84ec00ec750152ad3b14a5abfb2d171d558ff15ea6c1",
   "gen_hash_rust": "sha256:3badabd05302a697d05ee89c59f62b2e128edba4642fb52080e129e24783229d",
-  "gen_hash_verilog": "sha256:95583fc93b25097d8c7f475c7601d2f45f1ba1753914ea750c8d09b9a5c67e2d",
+  "gen_hash_verilog": "sha256:655a9eff1fd7f28214a8fef04e281385e50128276c63073e6bf1aa4cbbba9200",
   "gen_hash_zig": "sha256:2d2320576a2bc7fa17bf7f44c62186c7c1c2bc37c04b2556496ab96f6d4048ac",
   "module": "testgen",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-09T23:33:59Z",
   "spec_hash": "sha256:90ecdf71b4e1d4648700ac2ce35b3ea1872e2252d248c8386bac6f9ec704217e",
   "spec_path": "/Users/playra/t27/compiler/codegen/testgen.t27"
 }

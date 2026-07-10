@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:4691f09e854fb6eab4dd7646fb10e15d9f0fb2fd91bf9a94f3764b1b0c5fa885",
-  "gen_hash_rust": "sha256:7e55d4c3f6b41a4ea38c7cb0d39e4f950378827f7fe98b832d06b31bee0c863c",
-  "gen_hash_verilog": "sha256:59077c8b7d901e299a05efd58161867df439a5c6fb9c889eff81988702a41c4f",
-  "gen_hash_zig": "sha256:86188b496736f78966032bfadd16e32bf2715af47e3b7d16af825b2924e464d9",
+  "gen_hash_c": "sha256:641c23eac2edd7d25a808168356ddca5f2d657036025dfbaa35cd07a4b9c9f39",
+  "gen_hash_rust": "sha256:fd5fc6986b9db57f2d407e450a99d1aed45ea0401db5b81199d0e9cc035cb8b6",
+  "gen_hash_verilog": "sha256:b5e5a316aa9c96290e0c45cca6894ebf4394cc2a625325c34bfd1f457cc8e5d8",
+  "gen_hash_zig": "sha256:954dbc2061a61fdac680e2275e031fdc91d594a000c508246d48ef30755b3e6a",
   "module": "w382_ram_lowering",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
-  "spec_hash": "sha256:d7d831634985a6c7a7a4b6982d3c4c1cd26e2198b07566ac5304cbaf60e1b26c",
-  "spec_path": "/Users/playra/t27/specs/scratch/w382_ram_lowering.t27"
+  "sealed_at": "2026-07-10T00:19:14Z",
+  "spec_hash": "sha256:53f790353a1849d26a1547564d32e59d53e7814c85aa33193ff98a04af52e45b",
+  "spec_path": "specs/scratch/w382_ram_lowering.t27"
 }

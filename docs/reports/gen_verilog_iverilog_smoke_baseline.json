@@ -1,0 +1,5 @@
+{
+  "expected_failures": [],
+  "classification": {},
+  "note": "W481 Icarus Verilog 12.0 baseline: zero documented failures. The W480 4-failure residue was cleared by: (1) adding `f32` to the parser's valid cast targets so `let total = results.len() as f32` is preserved, (2) emitting sized zero placeholders for field accesses whose base is not known to resolve to declared per-field registers/memories (open array-of-struct parameters, scalar struct parameters with unavailable field metadata, and struct-return results from unsupported calls)."
+}

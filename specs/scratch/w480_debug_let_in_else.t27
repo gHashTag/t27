@@ -1,0 +1,9 @@
+fn booth_mul_u32_inner(a: u32, b: u32, acc: u32) -> u32 {
+    if (b == 0) { return acc; }
+    let new_acc = if (b % 2 == 1) { acc + a } else { acc };
+    return booth_mul_u32_inner(a << 1, b >> 1, new_acc);
+}
+
+test minimal {
+    assert_eq(booth_mul_u32_inner(3, 5, 0), 15);
+}

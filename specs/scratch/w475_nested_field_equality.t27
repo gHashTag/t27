@@ -1,0 +1,139 @@
+module w475_nested_field_equality;
+
+pub struct Pt {
+    x : u8,
+    y : u8,
+}
+
+pub struct Shape {
+    pts : [3]Pt,
+}
+
+pub fn eq_shape(a: Shape, b: Shape) -> bool {
+    return a == b;
+}
+
+pub fn ne_shape(a: Shape, b: Shape) -> bool {
+    return a != b;
+}
+
+pub fn make_shape(v: u8) -> Shape {
+    return Shape {
+        pts = [3]Pt {
+            Pt { x = v,     y = v + 1 },
+            Pt { x = v + 2, y = v + 3 },
+            Pt { x = v + 4, y = v + 5 }
+        }
+    };
+}
+
+pub fn make_shapes(v: u8) -> [2]Shape {
+    return [2]Shape {
+        Shape {
+            pts = [3]Pt {
+                Pt { x = v,     y = v + 1 },
+                Pt { x = v + 2, y = v + 3 },
+                Pt { x = v + 4, y = v + 5 }
+            }
+        },
+        Shape {
+            pts = [3]Pt {
+                Pt { x = v + 10, y = v + 11 },
+                Pt { x = v + 12, y = v + 13 },
+                Pt { x = v + 14, y = v + 15 }
+            }
+        }
+    };
+}
+
+pub fn scalar_nested_struct_eq() -> bool {
+    var s1 : Shape = Shape {
+        pts = [3]Pt {
+            Pt { x = 1, y = 2 },
+            Pt { x = 3, y = 4 },
+            Pt { x = 5, y = 6 }
+        }
+    };
+    var s2 : Shape = Shape {
+        pts = [3]Pt {
+            Pt { x = 1, y = 2 },
+            Pt { x = 3, y = 4 },
+            Pt { x = 5, y = 6 }
+        }
+    };
+    return eq_shape(s1, s2);
+}
+
+pub fn scalar_nested_struct_ne() -> bool {
+    var s1 : Shape = Shape {
+        pts = [3]Pt {
+            Pt { x = 1, y = 2 },
+            Pt { x = 3, y = 4 },
+            Pt { x = 5, y = 6 }
+        }
+    };
+    var s2 : Shape = make_shape(0);
+    return ne_shape(s1, s2);
+}
+
+pub fn aos_nested_field_eq() -> bool {
+    var a : [2]Shape = [2]Shape {
+        Shape {
+            pts = [3]Pt {
+                Pt { x = 1, y = 2 },
+                Pt { x = 3, y = 4 },
+                Pt { x = 5, y = 6 }
+            }
+        },
+        Shape {
+            pts = [3]Pt {
+                Pt { x = 7,  y = 8 },
+                Pt { x = 9,  y = 10 },
+                Pt { x = 11, y = 12 }
+            }
+        }
+    };
+    return a == a;
+}
+
+pub fn aos_nested_field_ne() -> bool {
+    var a : [2]Shape = [2]Shape {
+        Shape {
+            pts = [3]Pt {
+                Pt { x = 1, y = 2 },
+                Pt { x = 3, y = 4 },
+                Pt { x = 5, y = 6 }
+            }
+        },
+        Shape {
+            pts = [3]Pt {
+                Pt { x = 7,  y = 8 },
+                Pt { x = 9,  y = 10 },
+                Pt { x = 11, y = 12 }
+            }
+        }
+    };
+    var b : [2]Shape = make_shapes(1);
+    return a != b;
+}
+
+pub fn function_return_scalar_nested_eq() -> bool {
+    var s1 : Shape = make_shape(0);
+    var s2 : Shape = make_shape(0);
+    return eq_shape(s1, s2);
+}
+
+pub fn function_return_aos_nested_eq() -> bool {
+    var a : [2]Shape = make_shapes(5);
+    var b : [2]Shape = make_shapes(5);
+    return a == b;
+}
+
+test scalar_nested_struct_eq { assert(scalar_nested_struct_eq()); }
+test scalar_nested_struct_ne { assert(scalar_nested_struct_ne()); }
+test aos_nested_field_eq { assert(aos_nested_field_eq()); }
+test aos_nested_field_ne { assert(aos_nested_field_ne()); }
+test function_return_scalar_nested_eq { assert(function_return_scalar_nested_eq()); }
+test function_return_aos_nested_eq { assert(function_return_aos_nested_eq()); }
+
+endmodule

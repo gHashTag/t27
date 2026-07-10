@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:be4d878a4b27423447f4b5c6029793fcd83e701178331513292cb56c22d6d1ae",
-  "gen_hash_rust": "sha256:c0dfd3e46d15df0914d017d1bea4f00b2f9927aadaf1630aee7fc71a8847edf3",
-  "gen_hash_verilog": "sha256:338845e22464b8919394796a936bbf844429adcbd7740ae8e6a7b2386692f152",
-  "gen_hash_zig": "sha256:b38ca13db3d7daa4b9878672fc1c2abe20aae474f70d1610660021b8807a5c82",
+  "gen_hash_c": "sha256:7e87f8829d654265ca2c233d41e0218e9b594daab3087e560c2b67c9813e501c",
+  "gen_hash_rust": "sha256:a5da00e27983a365d2dbe270abc94ca27ad80d6e2a8d467d1fb7ff30ddd29822",
+  "gen_hash_verilog": "sha256:5d96ceab9f78754866598ff7dd3395065bca3231307105d795c2581edae6e874",
+  "gen_hash_zig": "sha256:ffb3a9a0813e94e11e69f3fd0ab86245042a333cea01b824422adb92e45b23dd",
   "module": "enrichment::youtube_transcript",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:10Z",
   "spec_hash": "sha256:40135abe16b0c52525aea008d3168e85920797f3d2a16df2e4d2d16ccb8e94a0",
-  "spec_path": "/Users/playra/t27/specs/enrichment/youtube_transcript.t27"
+  "spec_path": "specs/enrichment/youtube_transcript.t27"
 }

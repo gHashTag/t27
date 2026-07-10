@@ -1,0 +1,30 @@
+module w477_hoisting_and_iverilog;
+
+pub fn hoisting_interleaved() -> bool {
+    // Scalar before array, assignment between declarations.
+    var flag : u8 = 0;
+    var a : [3]u16 = [3]u16 { 10, 20, 30 };
+    flag = 1;
+    var b : [3]u16 = a;
+    var sum : u16 = 0;
+    // Loop variable declared after statements.
+    for i in 0..3 {
+        sum = sum + b[i];
+    }
+    return (flag == 1) && (sum == 60);
+}
+
+pub fn hoisting_varidx_and_eq() -> bool {
+    var a : [3]u16 = [3]u16 { 10, 20, 30 };
+    var b : [3]u16 = a;
+    var idx : u8 = 1;
+    return (b[idx] == 20) && (b[0] == 10);
+}
+
+test hoisting_interleaved { assert(hoisting_interleaved()); }
+test hoisting_varidx_and_eq { assert(hoisting_varidx_and_eq()); }
+
+invariant hoisting_and_iverilog_sound:
+    hoisting_interleaved() && hoisting_varidx_and_eq();
+
+endmodule

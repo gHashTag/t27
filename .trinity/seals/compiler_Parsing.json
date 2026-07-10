@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:c7e4a226c17f1cfc6d66dbe249d189a14a2ff0efaab10dd3cf3331a94fac4c7a",
-  "gen_hash_rust": "sha256:fd1d25053daf6f849e9aa7115c1391b57cb433a0c4870a1dfdb650253579740a",
-  "gen_hash_verilog": "sha256:6a9ba5c22347786f63e688edc8a542c2bf73eeb4fd41d357227c212c475e997d",
-  "gen_hash_zig": "sha256:cb8fca669cdc1969674f41e0c321c8258423c2d78902a0aaffa0a9ce404dac3b",
+  "gen_hash_c": "sha256:e074b73b4eeb16e8c32abe99fcfde07f5cbddd774cd740a0943404af8fc9bef9",
+  "gen_hash_rust": "sha256:cb28266f1a39245fb955e255787d3c2e74807b6c812d8ec8478fed05bdc03613",
+  "gen_hash_verilog": "sha256:787bade52598b77aa03fbcd72db6fbba6f04ea6e3dc95cfe8cea319ee71aeff9",
+  "gen_hash_zig": "sha256:4433377a62569b2378e3cbb6fafaee2993291978c3fb65ac2c9937f658fb4bcc",
   "module": "Parsing",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:10Z",
   "spec_hash": "sha256:9710236bed076291b4c6b4892a2f2b9ff11d0d6cf33d22ac29622580a409a56e",
-  "spec_path": "/Users/playra/t27/specs/compiler/parser.t27"
+  "spec_path": "specs/compiler/parser.t27"
 }

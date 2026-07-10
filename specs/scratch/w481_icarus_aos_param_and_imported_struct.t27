@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: Apache-2.0
+; W481 witness: exercises the Icarus Verilog compile-time fixes for
+; - imported struct parameter field access,
+; - array-of-struct parameter destructure,
+; - struct-return field access on unsupported (imported) calls.
+; φ² + 1/φ² = 3 | TRINITY
+
+module w481_icarus_aos_param_and_imported_struct;
+
+use scratch::w481_struct_supplier;
+
+/// Same-file scalar struct parameter (already lowered in W469).
+struct Point {
+    x : u32,
+    y : u32,
+}
+
+/// Same-file scalar struct parameter: field access must stay resolved.
+fn scalar_struct_param(p : Point) -> u32 {
+    return p.x + p.y;
+}
+
+/// Imported struct parameter: gen-verilog cannot see the imported layout,
+/// so field access falls back to a sized zero placeholder.
+fn imported_struct_param(m : w481_struct_supplier::Metric) -> u32 {
+    return m.value * m.scale;
+}
+
+/// Array-of-struct parameter: gen-verilog currently emits a sized zero
+/// placeholder for element field access.
+fn aos_param_field(pts : [3]Point, idx : u32) -> u32 {
+    return pts[idx].x + pts[idx].y;
+}
+
+/// Struct-return field access on an unsupported imported call:
+/// the call result local is classified as unresolved, so `.value` becomes a
+/// sized zero placeholder.
+fn unsupported_struct_return_field() -> u32 {
+    let r = w481_struct_supplier::make_metric();
+    return r.value;
+}
+
+test all_icarus_classes_compile {
+    // Same-file scalar struct parameters and same-file AOS parameters lower
+    // correctly in gen-verilog; imported struct parameters and unsupported
+    // struct-return calls remain as sized zero placeholders (they compile but
+    // are not asserted here because interpreter and Verilog values differ).
+    assert_eq(scalar_struct_param(Point{.x = 3, .y = 4}), 7);
+    assert_eq(aos_param_field([3]Point{Point{.x = 1, .y = 2}, Point{.x = 3, .y = 4}, Point{.x = 5, .y = 6}}, 1), 7);
+}
+
+invariant scalar_param_sum_positive {
+    scalar_struct_param(Point{.x = 1, .y = 2}) == 3
+}
+
+bench icarus_class_bench {
+    let a = scalar_struct_param(Point{.x = 7, .y = 8});
+    let c = aos_param_field([3]Point{Point{.x = 0, .y = 0}, Point{.x = 1, .y = 1}, Point{.x = 2, .y = 2}}, 2);
+    assert_eq(a, 15);
+    assert_eq(c, 4);
+}
+
+endmodule

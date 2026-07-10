@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:0d12748241fc86fb1745de4243ef6388ef4a04296b0d495d46ac4e893a8a4f60",
   "gen_hash_rust": "sha256:0e806f0353fc944f60477a3019c53862a3d6e79dbac097b1f2160033500f68ce",
-  "gen_hash_verilog": "sha256:9794bd7e23a088f63c87d2f0d357befcd8fc0b1995d59fb84f29352c6d4aa748",
+  "gen_hash_verilog": "sha256:08fce2ae032f8e44fcfd63ccb3d30cd6e7c0ca6a6485aab2a7000541ae762097",
   "gen_hash_zig": "sha256:f6bb87e917f975d9000b6d977a87266f890a822f724112a1cdd42f50b0d051ab",
   "module": "depin.prove",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:15Z",
   "spec_hash": "sha256:b705492899feafbf3edaeec380ca7c5f3fc252230d57b3450f792954d97eeff6",
-  "spec_path": "/Users/playra/t27/specs/depin/prove.t27"
+  "spec_path": "specs/depin/prove.t27"
 }

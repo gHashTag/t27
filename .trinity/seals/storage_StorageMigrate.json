@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:6b70c073aab1c03d732c5620f2b109e6fcce32a275932a431f5b065641cb0f5f",
   "gen_hash_rust": "sha256:fcbeb9f63f8c73eb57a7b198a30563eacd6ee9204703790c3121c76c3d5de5d0",
-  "gen_hash_verilog": "sha256:e41d25229b393b9398f1a08f534023269619d9653ef3b3927867f4b7685d1e1e",
+  "gen_hash_verilog": "sha256:fe05dd53339fcaaa28f7ea6ffb3efd6118052f1fb52389ee7387d4c6c94651a6",
   "gen_hash_zig": "sha256:531316b023c0d5929a3ff385a35889e02ec7021bf7f33896cada5e078744fd60",
   "module": "StorageMigrate",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:14Z",
   "spec_hash": "sha256:0c9df6b8d11987d2a35866be3131c1144bedbbdb25b3d2f04921005907ddb3d4",
-  "spec_path": "/Users/playra/t27/specs/storage/migrate.t27"
+  "spec_path": "specs/storage/migrate.t27"
 }

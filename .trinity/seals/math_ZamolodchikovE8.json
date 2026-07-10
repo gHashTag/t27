@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:ace22c8301f220af94d889ffef699873e95aa40706066454ac216999f814faf0",
   "gen_hash_rust": "sha256:7d60c0d0a309b94d5c1746c2ee94657f5b6d9757f2a6c43d1f3af84af524c434",
-  "gen_hash_verilog": "sha256:5fa84b7902cc12c43e8827bef5721bba80531b89cefb817fec05b9e256c0c994",
+  "gen_hash_verilog": "sha256:41f0506778febb0c537790d922aa5afab48f8424aae31eed2666edbb69a466e7",
   "gen_hash_zig": "sha256:6815ee8c4adc55eb75d919d086f60b868f433cac679692dfecd720dcf3a84297",
   "module": "ZamolodchikovE8",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:14Z",
   "spec_hash": "sha256:3d88a091a5210e2926d3c3fd42ad80683724c8e7ba3277313fb8bd15ae1b8423",
-  "spec_path": "/Users/playra/t27/specs/math/zamolodchikov_e8.t27"
+  "spec_path": "specs/math/zamolodchikov_e8.t27"
 }

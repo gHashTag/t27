@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:cd20454158fc96e745f5c988666691746469c0ccea42929ee3aa6cf11bec28d4",
   "gen_hash_rust": "sha256:4866a3833e28e643292b5c3f48e5f4f7d299444e343066f060ff38c19052d200",
-  "gen_hash_verilog": "sha256:59f0294adedb5460e3802880136f94f27b4981acc108462a37da293f1f4c9f2c",
+  "gen_hash_verilog": "sha256:496356c2a2364fa1124d17907db5c2461c6a0ac6a344f6c9d0cd84958fb08d56",
   "gen_hash_zig": "sha256:d3800cc5ed250afd87ea18aa11776ba1d147f9d89207ee2ecaa172b57c39b182",
   "module": "trilexer",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-09T23:33:59Z",
   "spec_hash": "sha256:4ac60464bbd27dff67d448f27d90e180b69e11b224c84483e249a05e3565c4f1",
   "spec_path": "/Users/playra/t27/compiler/parser/lexer.t27"
 }

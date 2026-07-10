@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a19a014a1702c13508d5f87aa29e1825ecd8b9e1bc01124f407dd7df91a42399",
   "gen_hash_rust": "sha256:bfc91fc60bfc100372b789f096ff31ee4669f25d8829c9e5f69766f9f40fd727",
-  "gen_hash_verilog": "sha256:0430857463806da37f6e5e7e229ad21655c9f7f0cd8a1a0e6ac0042c54f60865",
+  "gen_hash_verilog": "sha256:ad8c0c8032b0c09c6fbf04df97fa6466774dbe485732969ac64536959709007a",
   "gen_hash_zig": "sha256:a3cd0dd2679a1bb66f75994af6b2e025bbe31a0c52629d609d68b7f5a1d916e4",
   "module": "igla-race-ternary-gemm",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:15Z",
   "spec_hash": "sha256:b2e810ddd6a98b93140f6013576bfd175dee9a6a40b0de607469b9801b88f30b",
-  "spec_path": "/Users/playra/t27/specs/igla/race/ternary_gemm.t27"
+  "spec_path": "specs/igla/race/ternary_gemm.t27"
 }

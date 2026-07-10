@@ -12,11 +12,14 @@ test ram_write_read {
     assert_eq(write_read(), 0xABCD);
 }
 
-test ram_distinct_addresses {
+fn write_distinct() -> bool {
     mem[2] = 0xBEEF;
     mem[3] = 0xCAFE;
-    assert_eq(mem[2], 0xBEEF);
-    assert_eq(mem[3], 0xCAFE);
+    return (mem[2] == 0xBEEF) && (mem[3] == 0xCAFE);
+}
+
+test ram_distinct_addresses {
+    assert(write_distinct());
 }
 
 endmodule

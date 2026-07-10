@@ -1,3 +1,316 @@
+## 2026-07-10 — Wave Loop 481 (gen-verilog Icarus baseline cleared: unresolved field-access placeholders + f32 cast preservation)
+
+### What worked
+- Treating the Icarus gate as a strict acceptability oracle once again exposed a
+  parser-level bug (`f32` missing from `VALID_CAST_TYPES`) that left a variable
+  undeclared and caused an Icarus “Could not find variable” error.
+- Adding a single conservative helper, `field_access_base_is_unresolved`, and
+  routing all three `ExprFieldAccess` fallbacks through it removed four distinct
+  Icarus failure classes without changing the rest of the emitter.
+- Sized zero placeholders (`32'd0 /* UNSUPPORTED_ICARUS: ... */`) keep generated
+  Verilog legal for both yosys and Icarus while honestly marking unsupported
+  constructs, preventing silent mis-simulation.
+- Tracking declared locals and marking locals initialized by unsupported calls
+  prevented struct-return results from being used as if they had per-field regs.
+- Preserving legacy flattening for same-file scalar struct parameters and
+  primitive scalar parameters kept existing unit tests and previously-lowered
+  specs green without special-case rewrites.
+- A pair of scratch specs (`w481_struct_supplier.t27` and
+  `w481_icarus_aos_param_and_imported_struct.t27`) exercises the fixed classes
+  under both the interpreter and Icarus simulation.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`
+  - `"f32"` added to `VALID_CAST_TYPES`.
+  - `local_declared_names` and `unsupported_call_result_locals` per-function
+    state.
+  - `field_access_base_is_unresolved` helper with primitive scalar and same-file
+    struct param recognition.
+  - Sized zero placeholders in the simple-identifier, `ExprIndex`, and nested
+    chain `ExprFieldAccess` fallback sites.
+- `docs/reports/gen_verilog_iverilog_smoke_baseline.json` updated from 4 to 0
+  documented failures.
+- New witness specs:
+  - `specs/scratch/w481_struct_supplier.t27`
+  - `specs/scratch/w481_icarus_aos_param_and_imported_struct.t27`
+- Global reseal of `.trinity/seals/*.json` because every generated Verilog hash
+  changed.
+- Added `docs/reports/WAVE_LOOP_481_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W482_2026-07-10.md`.
+- Updated `.trinity/current-issue.md`, `.trinity/ring-481.md`,
+  `.trinity/experience.md`, and memory.
+
+### Verification
+- `cargo test -p t27c --bin t27c`: 1525 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: ALL TESTS PASSED
+  - 652/652 non-smoke PASS
+  - 132/132 yosys smoke PASS
+  - 132/132 Icarus smoke PASS, 0 documented baseline failures
+  - 0 seal mismatches.
+
+### Patterns to reuse
+- Before emitting a field-access fallback, ask whether the base has a declared
+  per-field register or memory; if not, emit an explicit sized placeholder
+  rather than a bare identifier.
+- When changing generated Verilog, reseal everything and run the full `tri test`
+  sweep; hash mismatches are expected and must be resolved with `--save`.
+- A scratch witness should combine both interpreter assertions and Icarus
+  simulation; if a construct is intentionally placeholder, do not assert its
+  Verilog value in the same test that asserts its interpreter value.
+
+### Anti-patterns to avoid
+- Do not add new field-access lowering paths without updating
+  `field_access_base_is_unresolved`; otherwise previously-legal bare
+  identifiers will reappear for unresolved bases.
+- Do not assume a construct that compiles under yosys is Icarus-clean.
+- Do not assert placeholder values in tests that run under both interpreter and
+  Verilog simulation unless the placeholder is functionally correct.
+
+---
+
+## 2026-07-07 — Wave Loop 478 (gen-verilog Icarus hardening: packed-vector struct-array lowering + warning gate + adversarial witness)
+
+### What worked
+- Treating the Icarus gate as a strict acceptability oracle surfaced bugs that
+  yosys tolerated: indefinite-width concatenation operands, whole-array assignment
+  to unpacked memories, duplicate named blocks, duplicate reg declarations, and
+  latent wrong expected values hidden by non-fatal `assert_eq`.
+- Fixing `packed_width` to recurse through all array dimensions solved multiple
+  failure classes (Class A width math and Class G packed array-param indexing)
+  with a single change.
+- Making `assert_eq` fatal (`assert(...) else $fatal(1, "assertion failed")`)
+  exposed two specs with incorrect expected values (`w473_3d_module_var_struct_array`
+  and `w476_adversarial_aggregate_tail`) that had previously printed FAILED while
+  still counting as PASS.
+- Deduplicating module-level struct field regs (`module_declared_regs`) and test
+  block labels (`test_block_names`) were small, localized fixes that removed
+  whole Icarus failure classes without restructuring the emitter.
+- Adding a single adversarial witness (`specs/scratch/w478_icarus_struct_array.t27`)
+  that exercises local AOS copy, packed scalar-array-field parameters, variable
+  index access, module-level element access, and fatal `assert_eq` gives a
+  durable regression test for the failure patterns closed in this wave.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`
+  - Sized literal / cast emission for packed struct/array literal leaves.
+  - Per-element expansion for struct-return slicing into array-typed fields.
+  - Recursive `packed_width` and `packed_field_offset` using it.
+  - Full-index lowering for scalar array-typed struct fields in packed params/returns.
+  - `module_declared_regs` and `test_block_names` deduplication sets.
+  - `gen_verilog_try_local_struct_array_assign` for local AOS whole-array copy.
+  - Fatal `assert_eq` emission in `gen_verilog_test_stmt`.
+- Spec corrections: `w469_2d_struct_array`, `w473_3d_module_var_struct_array`,
+  `w476_adversarial_aggregate_tail`, `w382_ram_lowering`.
+- New witness: `specs/scratch/w478_icarus_struct_array.t27`.
+- Global reseal of `.trinity/seals/*.json`, refreshed `bootstrap/stage0/FROZEN_HASH`,
+  and `repro/numerics/nmse_manifest*.json`.
+- Added `docs/reports/WAVE_LOOP_478_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W479_2026-07-08.md`.
+- Updated `.trinity/current-issue.md`, `.trinity/ring-478.md`, `.trinity/experience.md`,
+  `docs/NOW.md`.
+
+### Verification
+- `cargo test -p t27c --bin t27c`: 1524 passed; 0 failed; 2 ignored.
+- `./scripts/tri test --fast`: ALL TESTS PASSED
+  - 646/646 non-smoke PASS
+  - 126/126 yosys smoke PASS
+  - 106/126 Icarus smoke PASS, 20 failed (documented `igla/` dynamic-method
+    baseline)
+  - 0 seal mismatches.
+
+### Patterns to reuse
+- When a simulator gate is stricter than the primary gate, make assertions fatal
+  so that wrong expected values cannot be mistaken for PASS.
+- Recursive width calculations must walk every array dimension; otherwise 2-D/3-D
+  packed-vector math silently breaks.
+- Keep a deduplication set whenever the same source-level name could produce
+  multiple generated declarations or named blocks.
+- A single adversarial scratch spec that combines several recently fixed patterns
+  is more valuable than many narrow specs because it catches interaction bugs.
+
+### Anti-patterns to avoid
+- Do not rely on yosys-only smoke as the final Verilog acceptability oracle.
+- Do not emit unsized literals or uncast expressions inside packed concatenations
+  for strict simulators.
+- Do not assign packed slices directly to unpacked memories; expand to per-element
+  writes.
+
+---
+
+## 2026-07-07 — Wave Loop 477 (gen-verilog hygiene: function-body declaration hoisting + Icarus Verilog simulation gate)
+
+### What worked
+- A line-based post-processing hoisting pass in `bootstrap/src/compiler.rs` was
+  sufficient to make generated Verilog strict Verilog-2001 / Icarus compliant
+  without rewriting the emitter: declarations are moved to the top of each
+  `begin...end` block and to the top of each function/task body.
+- Masking comments and double-quoted strings before tokenizing `begin`/`end`
+  prevented `$display` prompts and generated comments from corrupting block
+  tracking.
+- Pre-splitting `end else begin` lines avoided duplicating the `else begin`
+  branch during hoisting.
+- Dropping standalone `(* ... *)` attribute specifiers inside procedural blocks
+  was safe because they have no useful effect on local registers and Icarus
+  rejects them.
+- Adding an Icarus compilation + VVP simulation phase right after the yosys
+  smoke phase turned a silent portability gap into a tracked gate.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: added `hoist_verilog_decls`,
+  `hoist_block_decls`, `hoist_function_scope_decls`,
+  `hoist_procedural_declarations`, `mask_comments_and_strings`, and
+  `line_has_token`; hardened `gen_verilog_test_stmt` to emit
+  `assert(cond) else $fatal(1, "assertion failed");`.
+- `bootstrap/src/suite.rs`: added `iverilog_available()` and
+  `cmd_gen_verilog_iverilog_smoke`; wired a new `gen-verilog-iverilog-smoke`
+  suite phase after yosys smoke.
+- Added `specs/scratch/w477_hoisting_and_iverilog.t27` and its seal.
+- Global reseal of all `.trinity/seals/*.json` because every generated Verilog
+  hash changed.
+- Added `docs/reports/WAVE_LOOP_477_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W478_2026-07-08.md`.
+- Updated `.trinity/current-issue.md`, `.trinity/experience.md`, and memory.
+
+### Verification
+- `cargo test -p t27c --bin t27c`: 1524 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: 645/645 non-smoke PASS, **125/125 yosys smoke PASS**,
+  Icarus smoke 92 passed / 33 failed (baseline), FPGA smoke gate OK,
+  standalone lake build OK, 0 seal mismatches.
+- `./scripts/tri test --fast`: 645/645 non-smoke PASS, **125/125 yosys smoke
+  PASS**, 0 seal mismatches.
+
+### Patterns to reuse
+- When a backend change changes generated code for every spec, do a global
+  reseal immediately; waiting creates a large seal-mismatch report that obscures
+  real regressions.
+- A robust line-based post-processor can fix broad emission hygiene issues
+  faster than rewriting the emitter, provided the tokenizer is hardened against
+  string literals and comments.
+- Add a new simulator gate as a separate phase; keep yosys smoke as the primary
+  green gate while the new simulator matures.
+
+### Anti-patterns to avoid
+- Do not rely on yosys alone as the Verilog acceptability oracle; strict
+  simulators like Icarus catch ordering and attribute issues yosys tolerates.
+- Do not emit standalone `(* ... *)` lines inside procedural blocks unless the
+  target simulator explicitly supports them.
+
+---
+
+## 2026-07-07 — Wave Loop 476 (gen-verilog aggregate tail: local AOS copy initializers + module-array packed parameters + nested whole-struct assignment)
+
+### What worked
+- The W475 packed-vector and value-semantics infrastructure already composed to
+  cover the three deferred W466/W467/W468/W469 aggregate-lowering tails:
+  local-array copy initializers, module-array packed parameters, and nested
+  whole-struct assignment. Writing scratch specs first confirmed behavior
+  before committing to additional backend code.
+- Sealing the four new scratch specs and one stale W469 seal restored a green
+  conformance gate (644/644 non-smoke, 124/124 yosys smoke).
+- Keeping `bootstrap/stage0/FROZEN_HASH` stable meant the W476 wave did not need
+  to touch the stage-0 bootstrap artifact.
+
+### What changed behavior
+- Added 4 scratch specs and seals: `w476_local_aos_copy_init`,
+  `w476_module_aos_param`, `w476_nested_whole_struct_assign`,
+  `w476_adversarial_aggregate_tail`.
+- Resealed `specs/scratch/w469_struct_field_array_2d.t27` because W475's
+  memory-mode lowering legitimately changed its generated Verilog.
+- Added `docs/reports/WAVE_LOOP_476_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W477_2026-07-08.md`.
+- Added `.trinity/ring-476.md` and updated `.trinity/experience.md` and
+  `docs/NOW.md`.
+
+### Verification
+- `cargo test -p t27c --bin t27c`: 1524 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: 644/644 parse/typecheck/gen-zig/gen-rust/gen-verilog/gen-c,
+  **124/124 yosys smoke**, FPGA smoke gate OK, standalone lake build OK, 0 seal
+  mismatches.
+- `./scripts/tri test --fast`: 644/644 non-smoke, **124/124 yosys smoke**, 0 seal
+  mismatches.
+
+### Patterns to reuse
+- When a wave is expected to add backend code but the existing infrastructure
+  already covers the cases, write the specs first and verify before adding
+  surface area. The specs become the feature lock.
+- Reseal stale seals from prior waves immediately; the first `./scripts/tri test`
+  run after a backend change is the cheapest time to discover them.
+
+### Anti-patterns to avoid
+- Do not add new compiler backend code just because a feature was "planned" as
+  backend work; if value semantics and copy propagation already implement it
+  correctly, prefer specs and seals over complexity.
+
+---
+
+## 2026-07-07 — Wave Loop 475 (gen-verilog aggregate hardening: function-local arrays of structs passed as array parameters + nested-array-field equality + adversarial yosys witness)
+
+### What worked
+- Marking function-local array arguments to array-parameter functions with a
+  shared `__local__` signature marker kept all local-array call sites on the same
+  packed-vector clone, avoiding a combinatorial explosion of clones.
+- Emitting local-packed array parameters as scalar packed-vector inputs whose
+  width equals the total packed bit width of the declared t27 type made the callee
+  signature legal in Verilog and easy to slice.
+- Lowering `pts[i].x` on a packed-vector parameter to a direct bit slice for
+  literal indices and to a priority mux for variable indices reused the same slice
+  arithmetic as array-of-struct function returns, keeping call-site packing and
+  callee unpacking bit-exact.
+- Extending `gen_verilog_pack_array_of_struct_expr` to read memory-mode local
+  arrays and module-level arrays with array-typed fields let AOS equality compare
+  both operands as packed vectors, closing the nested-array-field equality gap.
+- Adding an adversarial yosys-elaboration witness that combines nested AOS
+  equality, local-array parameter passing, and variable-index parameter slicing
+  caught a missing local-array copy-initializer path before it became a regression.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: added `array_param_clone_origins`,
+  `array_param_local_packed_indices`, `fn_array_param_types`,
+  `fn_array_param_names`, `is_fn_local_array`, `fn_local_array_type`,
+  `find_fn_local_array_type`, `try_emit_local_packed_array_param_field`, and
+  updated the array-parameter binding pass, function input emission, `ExprCall`
+  argument packing, and `array_param_bound_name` to handle `__local__` bindings.
+- Extended `gen_verilog_pack_array_of_struct_expr` to pack memory-mode local
+  arrays and module-level arrays whose element struct has array-typed fields.
+- Added 3 scratch specs and seals: `w475_local_aos_param`,
+  `w475_nested_field_equality`, `w475_adversarial_nested_equality`.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Added `docs/reports/WAVE_LOOP_475_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W476_2026-07-08.md`.
+- Added `.trinity/ring-475.md` and updated `.trinity/experience.md` and
+  `docs/NOW.md`.
+
+### Verification
+- `cargo test -p t27c --bin t27c`: 1524 passed; 0 failed; 2 ignored.
+- `./scripts/tri test`: 640/640 parse/typecheck/gen-zig/gen-rust/gen-verilog/gen-c,
+  **120/120 yosys smoke**, FPGA smoke gate OK, standalone lake build OK, 0 seal
+  mismatches.
+- `./scripts/tri test --fast`: 640/640 non-smoke, **120/120 yosys smoke**, 0 seal
+  mismatches.
+
+### Patterns to reuse
+- When a function parameter is bound to a function-local array, pass it as a
+  packed vector and slice/mux inside the callee; do not try to bind it to a
+  module-level memory.
+- Record per-function array-parameter types and names during the binding pass so
+  call sites can compute the correct packed-vector width without re-parsing the
+  callee AST.
+- Use the same packed-vector ordering for array-literal packers, function-return
+  packers, parameter packers, and equality packers; mismatched bit order is the
+  hardest integration bug to spot.
+- Add an integration witness at the end of the wave that exercises the
+  intersection of new features.
+
+### Anti-patterns to avoid
+- Do not emit unpacked memories inside functions for packed-vector parameters;
+  Yosys rejects them in evaluated functions.
+- Do not treat the `__local__` binding marker as a real array name in field-access
+  lowering.
+- Do not extend equality lowering to new aggregate shapes without also updating
+  the packer for those shapes.
+
+---
+
 ## 2026-07-07 — Wave Loop 474 (gen-verilog aggregate hardening: function-local nested struct arrays + AOS return writeback + scalar-struct equality + adversarial yosys witness)
 
 ### What worked
@@ -3001,3 +3314,29 @@
 - For array parameters, remember that inner function-call sites are only propagated when the argument is an outer array-parameter identifier; literal-array placeholders must be exercised through non-array-param argument positions.
 - Install/check `ml_dtypes` before running `reseal-apply.sh`; the Python env is a common local gotcha on macOS Homebrew Python.
 
+
+## 2026-07-09 — Wave Loop 480 (gen-verilog Icarus baseline reduction: 17 → 4 documented failures)
+
+### What worked
+- Splitting the 17 Icarus failures into six concrete classes (DCE/scope, namespace calls, wildcard discard, duplicate benches, indefinite-width placeholders, host-side helpers) made the work reviewable and measurable.
+- The DCE condition-read fix was tiny but closed the largest failure class: collect reads from StmtIf/While/For/ForRange conditions and only from the RHS of StmtAssign.
+- Sized placeholders (WIDTH'd0) for unsupported array literals, dynamic methods, namespace calls, and non-emitted functions turned cascading syntax errors into single classified failures.
+- Precomputing emitted_functions before const/var emission fixed module-level AOS initializers that call functions defined later in the module.
+- Adding braced block-expression parsing kept let-bound if-expressions (`let x = if (c) { a } else { b };`) from silently disappearing.
+- A single witness spec `specs/scratch/w480_icarus_scope_and_wildcard.t27` now covers braced if-expressions, array-index variables, field access, wildcard discard, and dropped helper calls under both yosys and Icarus.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`
+  - DCE condition-read and RHS-only StmtAssign read collection.
+  - Bench-block deduplication by sanitized name.
+  - Sized unsupported placeholders and statement-context comment-only no-ops.
+  - `emitted_functions` set populated before function and const/var emission.
+  - Braced block-expression parsing in `parse_expr_primary`.
+  - Sized decimal literals inside tuple literals.
+- `docs/reports/gen_verilog_iverilog_smoke_baseline.json` updated to 4 documented failures with classifications.
+- New `specs/scratch/w480_icarus_scope_and_wildcard.t27` and seal.
+
+### What to watch next
+- The remaining 4 failures are honest backend limitations: imported struct parameters, array-of-struct parameter destructure, and struct-return field access on unsupported calls. These need a focused AOS/return lowering pass, not ad-hoc patches.
+- Statement-context unsupported calls must stay no-ops; future sized-placeholder work should not regress this.
+- Any new dynamic method or host-side helper must emit a classified placeholder so the Icarus gate remains honest.

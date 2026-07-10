@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:014b973f4cdfc1c1fc03deb1634fd52b095049bc6763a8fda2e19b5cdadd3582",
-  "gen_hash_rust": "sha256:ed47c25c4dcdbb326c565372e652acfd2fc7708088ce7af885c67b537975abb5",
-  "gen_hash_verilog": "sha256:6779e60302589d7364bd81d8a6bdf5f39f2a694551fd5301d67900b7fb37adff",
-  "gen_hash_zig": "sha256:17011b799b5892c25e8a2316e574cea958429452e6704278ee32200327743c14",
+  "gen_hash_c": "sha256:1453ce3b4215e85261c3f75be4ad1f6dfbf382b267cb0cbdeb1378a32b6d05e9",
+  "gen_hash_rust": "sha256:3e0a422563e6b0d39fc61706741ec02c832df8df2119ff23423060a5f258d8c7",
+  "gen_hash_verilog": "sha256:6f6e1472e6cbdc2a620db602e55d6b444bef55dc8d9941bcf4c5a995b82124e5",
+  "gen_hash_zig": "sha256:bfd1c963bc1b755f6c9fef26d137300de68034b1828f27a7eadfd3c4fce190c3",
   "module": "tritype-ops",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:13Z",
   "spec_hash": "sha256:0f04243af98395a8acc9fcd92aa75ff507130b56b1047c142963b38931d74463",
-  "spec_path": "/Users/playra/t27/specs/base/ops.t27"
+  "spec_path": "specs/base/ops.t27"
 }

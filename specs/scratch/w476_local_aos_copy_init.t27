@@ -1,0 +1,57 @@
+module w476_local_aos_copy_init;
+
+pub struct Pt {
+    x : u8,
+    y : u8,
+}
+
+pub struct Shape {
+    pts : [3]Pt,
+}
+
+pub fn make_shapes(v: u8) -> [2]Shape {
+    return [2]Shape {
+        Shape {
+            pts = [3]Pt {
+                Pt { x = v,     y = v + 1 },
+                Pt { x = v + 2, y = v + 3 },
+                Pt { x = v + 4, y = v + 5 }
+            }
+        },
+        Shape {
+            pts = [3]Pt {
+                Pt { x = v + 10, y = v + 11 },
+                Pt { x = v + 12, y = v + 13 },
+                Pt { x = v + 14, y = v + 15 }
+            }
+        }
+    };
+}
+
+pub fn local_aos_copy_init_eq() -> bool {
+    var b : [2]Shape = make_shapes(1);
+    var c : [2]Shape = b;
+    return c == b;
+}
+
+pub fn local_aos_copy_init_read() -> bool {
+    var b : [2]Shape = make_shapes(2);
+    var c : [2]Shape = b;
+    return (c[0].pts[1].x == 4) && (c[1].pts[2].y == 17);
+}
+
+pub fn local_aos_copy_init_both_ways() -> bool {
+    var a : [2]Shape = make_shapes(0);
+    var b : [2]Shape = a;
+    var c : [2]Shape = b;
+    return (a == b) && (b == c);
+}
+
+test local_aos_copy_init_eq { assert(local_aos_copy_init_eq()); }
+test local_aos_copy_init_read { assert(local_aos_copy_init_read()); }
+test local_aos_copy_init_both_ways { assert(local_aos_copy_init_both_ways()); }
+
+invariant local_aos_copy_init_sound:
+    local_aos_copy_init_eq() && local_aos_copy_init_read();
+
+endmodule

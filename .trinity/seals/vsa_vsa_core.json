@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:c2e9d7d5075093931be6c03449e05de96ab153880434fbb50f882ab371719a1b",
-  "gen_hash_rust": "sha256:5fa81c924c55f905abb29d735f95bb32acaa241d73e936b8354338b04be6392e",
-  "gen_hash_verilog": "sha256:55b2b4496c44dc3586fadeb45c9c918af501558f4e927729226e4522e9dd618c",
-  "gen_hash_zig": "sha256:3d14111b79baf200e29fd14638352a45677b2616870777d2249cff58ebd1d1f0",
+  "gen_hash_c": "sha256:a847f744e4572f554db96411ec7d4605dab6411787b0fdf90225de5a8bf7b493",
+  "gen_hash_rust": "sha256:e8072a405c89863eeed2fb8e28284d2bc743b6205a24073638ce8345afbe88f1",
+  "gen_hash_verilog": "sha256:68cca5c609780f5b8841a4fa3381d40d641b0cd1396a2cc1ceeac2aeec160eac",
+  "gen_hash_zig": "sha256:ddc77072881220163e31809b5a0f3cf0c34a03125bbdf324afe4fc783811efba",
   "module": "vsa_core",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:13Z",
   "spec_hash": "sha256:ba96c451495ca69f7063c622fdb3e367c4b1230b31643a583ed4c543074a505a",
-  "spec_path": "/Users/playra/t27/specs/vsa/vsa_core.t27"
+  "spec_path": "specs/vsa/vsa_core.t27"
 }

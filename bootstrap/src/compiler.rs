@@ -2558,6 +2558,9 @@ impl Parser {
         let base = self.current.lexeme.clone();
         const VALID_CAST_TYPES: &[&str] = &[
             "bool", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "usize",
+            // W481: `as f32` appears in igla/coder/eval.t27 for pass_at_k score
+            // computation. Allow the cast so the parser preserves the local binding.
+            "f32",
         ];
         if !VALID_CAST_TYPES.contains(&base.as_str()) {
             return Err(format!(
@@ -2823,6 +2826,25 @@ impl Parser {
 
             // Array literal: [_]Type{ values } or [N]Type{ values }
             TokenKind::LBracket => self.parse_array_literal(),
+
+            // W480: braced block expression. Used by igla/ specs to write
+            // `let x = if (cond) { a } else { b };`. The block is parsed as the
+            // single expression inside the braces; this is enough for the
+            // if-expression branches that the Icarus smoke baseline exercises.
+            TokenKind::LBrace => {
+                self.advance(); // consume {
+                let expr = if self.current.kind == TokenKind::RBrace {
+                    Node {
+                        kind: NodeKind::ExprLiteral,
+                        value: "0".to_string(),
+                        ..Default::default()
+                    }
+                } else {
+                    self.parse_expr()?
+                };
+                self.expect(TokenKind::RBrace)?;
+                Ok(expr)
+            }
 
             _ => Err(format!(
                 "Unexpected token in expression: {:?} ('{}') at line {}:{}",
@@ -4025,6 +4047,10 @@ pub struct VerilogCodegen {
     // dimension. Keyed by the original declared name. Used to rewrite multi-index
     // access like m[i][j] into the flattened per-leaf register name.
     local_array_dims: std::collections::HashMap<String, Vec<(usize, String)>>,
+    // W479: dimensions for module-level scalar (non-struct) arrays, keyed by the
+    // declared variable/constant name. Used to statically lower `.len()` on
+    // module-level array identifiers.
+    module_scalar_array_dims: std::collections::HashMap<String, Vec<(usize, String)>>,
     // W474: direct fields of the element struct for each function-local/bench-local
     // struct array that uses memory-mode lowering (element struct has an array-typed
     // direct field). Keyed by the original declared name.
@@ -4064,6 +4090,34 @@ pub struct VerilogCodegen {
     array_param_clones: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
     // W461: per-clone array-parameter bindings. Keyed by clone name.
     array_param_clone_bindings: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+    // W475: per-clone original function name. Used to recover parameter metadata
+    // for clones created by either direct binding or W463 propagation.
+    array_param_clone_origins: std::collections::HashMap<String, String>,
+    // W475: per-function/clone set of argument indices that are array parameters
+    // bound to function-local packed-vector temporaries. These indices are emitted
+    // as packed-vector inputs on the Verilog function and are passed explicitly
+    // at call sites, rather than being dropped like module-level array bindings.
+    array_param_local_packed_indices: std::collections::HashMap<String, std::collections::HashSet<usize>>,
+    // W475: per-function map of array-parameter name -> declared t27 type. Used at
+    // call sites to compute packed-vector widths for local-packed arguments.
+    fn_array_param_types: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+    // W475: per-function ordered list of array-parameter names. Order matches
+    // array_param_indices so call sites can map a positional argument index back to
+    // the declared parameter name and type.
+    fn_array_param_names: std::collections::HashMap<String, Vec<String>>,
+
+    // W480: names of Verilog functions/tasks actually emitted in this module.
+    // Calls to functions that are not emitted (host-side helpers, namespace-qualified
+    // imports, or functions dropped due to unsupported parameter bindings) are
+    // replaced by a sized zero placeholder so the Icarus smoke gate classifies a
+    // single failure instead of cascading syntax errors.
+    emitted_functions: std::collections::HashSet<String>,
+
+    // W480: true while a bare expression statement (StmtExpr) is being lowered.
+    // Unsupported calls in statement position do not need a sized placeholder, so
+    // we emit a comment-only no-op to keep the generated Verilog syntactically
+    // valid for both Yosys and Icarus.
+    stmt_context: bool,
 
     // W462: anonymous ROMs lowered from array literals used as array-parameter
     // arguments. Keyed by a deterministic signature; value is the array size,
@@ -4100,6 +4154,14 @@ pub struct VerilogCodegen {
     // type. Used to decompose whole-struct assignment into per-field scalar/memory
     // assignments.
     local_struct_var_types: std::collections::HashMap<String, String>,
+    // W481: all local (function-scope) variable names that have been declared so
+    // far. Used to detect references to locals that were dropped by parser recovery
+    // or to locals initialized from unsupported calls.
+    local_declared_names: std::collections::HashSet<String>,
+    // W481: locals whose initializer is an unsupported call (namespace-qualified
+    // imports, host helpers, etc.). Field access on such a value must not emit a
+    // bare `local_field` name that Icarus cannot bind.
+    unsupported_call_result_locals: std::collections::HashSet<String>,
     // W469: flattened scalar leaf fields for module-level scalar struct variables
     // and constants, keyed by variable name. Used to resolve field access on
     // module-level scalar structs and to lower whole-struct assignment/comparison.
@@ -4107,6 +4169,14 @@ pub struct VerilogCodegen {
     // W470: struct type name for each module-level scalar struct variable/constant.
     // Enables whole-struct assignment lowering between module-level scalar structs.
     module_scalar_struct_types: std::collections::HashMap<String, String>,
+    // W478: module-level reg/memory identifiers already declared, so the "Registers
+    // (from struct declarations)" block does not re-emit per-field regs already
+    // declared for module-level scalar struct constants/variables.
+    module_declared_regs: std::collections::HashSet<String>,
+    // W478: test block labels already emitted in this module. Duplicate test names
+    // in the source spec would otherwise produce duplicate `begin : name_test`
+    // labels that Icarus rejects.
+    test_block_names: std::collections::HashSet<String>,
     // W469: scalar struct parameters of the current function, keyed by parameter
     // name. Each entry lists the flattened leaf fields (name, type) in MSB-first order.
     scalar_struct_params: std::collections::HashMap<String, Vec<(String, String)>>,
@@ -4138,11 +4208,16 @@ impl VerilogCodegen {
             local_arrays: std::collections::HashSet::new(),
             local_array_elem_info: std::collections::HashMap::new(),
             local_array_dims: std::collections::HashMap::new(),
+            module_scalar_array_dims: std::collections::HashMap::new(),
             local_struct_array_fields: std::collections::HashMap::new(),
             local_struct_array_has_array_field: std::collections::HashMap::new(),
             local_struct_var_types: std::collections::HashMap::new(),
+            local_declared_names: std::collections::HashSet::new(),
+            unsupported_call_result_locals: std::collections::HashSet::new(),
             module_scalar_struct_fields: std::collections::HashMap::new(),
             module_scalar_struct_types: std::collections::HashMap::new(),
+            module_declared_regs: std::collections::HashSet::new(),
+            test_block_names: std::collections::HashSet::new(),
             scalar_struct_params: std::collections::HashMap::new(),
             module_struct_array_fields: std::collections::HashMap::new(),
             module_struct_array_elem_types: std::collections::HashMap::new(),
@@ -4152,6 +4227,12 @@ impl VerilogCodegen {
             array_param_errors: std::collections::HashMap::new(),
             array_param_clones: std::collections::HashMap::new(),
             array_param_clone_bindings: std::collections::HashMap::new(),
+            array_param_clone_origins: std::collections::HashMap::new(),
+            array_param_local_packed_indices: std::collections::HashMap::new(),
+            fn_array_param_types: std::collections::HashMap::new(),
+            fn_array_param_names: std::collections::HashMap::new(),
+            emitted_functions: std::collections::HashSet::new(),
+            stmt_context: false,
 
             array_param_anon_roms: std::collections::HashMap::new(),
             array_param_propagated: std::collections::HashMap::new(),
@@ -4171,6 +4252,15 @@ impl VerilogCodegen {
     fn sanitize_identifier(name: &str) -> String {
         name.replace('-', "_")
             .replace(|c: char| !c.is_alphanumeric() && c != '_', "_")
+    }
+
+    /// W480: true for a non-negative decimal integer literal node. Used to emit
+    /// a sized Verilog form inside concatenations.
+    fn is_plain_decimal_literal(node: &Node) -> bool {
+        node.kind == NodeKind::ExprLiteral
+            && !node.value.is_empty()
+            && node.value.chars().all(|c| c.is_ascii_digit() || c == '_')
+            && node.value.chars().any(|c| c.is_ascii_digit())
     }
 
     /// Verilog-2001 reserved keywords. If a user identifier collides with one,
@@ -4631,6 +4721,27 @@ impl VerilogCodegen {
         }
     }
 
+    /// W478: strip a leading chain of `ExprIndex` nodes and return the base
+    /// expression plus the indices in source order. For `a[0].b[1][2]` starting
+    /// at the outermost `a[0].b[1][2]` node, returns (`a[0].b`, [1, 2]).
+    fn unwrap_trailing_indices<'n>(
+        node: &'n Node,
+    ) -> Option<(&'n Node,
+        Vec<&'n Node>,
+    )> {
+        let mut cur = node;
+        let mut indices_rev: Vec<&Node> = Vec::new();
+        while cur.kind == NodeKind::ExprIndex && cur.children.len() >= 2 {
+            indices_rev.push(&cur.children[1]);
+            cur = &cur.children[0];
+        }
+        if indices_rev.is_empty() {
+            return None;
+        }
+        let mut indices: Vec<&Node> = indices_rev.into_iter().rev().collect();
+        Some((cur, indices))
+    }
+
     /// W472: same as `collect_field_index_path_rooted`, but returns the root
     /// identifier name as a `String`. Returns `None` if the root is not an
     /// identifier.
@@ -4990,12 +5101,19 @@ impl VerilogCodegen {
         struct_name: &str,
         call_node: &Node,
     ) {
-        let flat_fields =
-            Self::struct_field_widths(struct_name, &self.struct_fields);
-        if flat_fields.is_empty() {
+        let mut flat_with_type: Vec<(String, String, u32)> = Vec::new();
+        {
+            let mut flat: Vec<(String, String)> = Vec::new();
+            Self::flatten_struct_fields(struct_name, &self.struct_fields, "", &mut flat);
+            for (fname, ftype) in flat {
+                let width = Self::packed_width(&ftype, &self.struct_fields);
+                flat_with_type.push((fname, ftype, width));
+            }
+        }
+        if flat_with_type.is_empty() {
             return;
         }
-        let total_width: u32 = flat_fields.iter().map(|(_, w)| w).sum();
+        let total_width: u32 = flat_with_type.iter().map(|(_, _, w)| w).sum();
         let tmp = Self::verilog_safe_identifier(
             &format!("_struct_tmp_{}", self.let_tmp_counter),
         );
@@ -5012,13 +5130,37 @@ impl VerilogCodegen {
         self.write_line(";");
 
         let mut cursor = total_width;
-        for (fname, width) in &flat_fields {
+        for (fname, ftype, width) in &flat_with_type {
             let high = cursor.saturating_sub(1);
             let low = cursor.saturating_sub(*width);
             let dst_flat = format!("{}_{}", base_name, fname);
             let dst_safe = Self::verilog_safe_identifier(&dst_flat);
-            self.write_indent();
-            self.write_line(&format!("{} = {}[{}:{}];", dst_safe, tmp, high, low));
+            let field_dims = Self::parse_array_dimensions(ftype);
+            if field_dims.is_empty() {
+                self.write_indent();
+                self.write_line(
+                    &format!("{} = {}[{}:{}];", dst_safe, tmp, high, low));
+            } else {
+                // W478: an array-typed field is stored as an unpacked memory, so
+                // expand the packed slice into one assignment per element.
+                let leaf_type = Self::array_dimensions_leaf_type(&field_dims);
+                let elem_width =
+                    Self::packed_width(&leaf_type, &self.struct_fields);
+                let combos = Self::index_combinations(&field_dims);
+                for (e, comb) in combos.iter().enumerate() {
+                    let e_high = high - (e as u32) * elem_width;
+                    let e_low = e_high + 1 - elem_width;
+                    let suffix = comb
+                        .iter()
+                        .map(|i| i.to_string())
+                        .collect::<Vec<_>>()
+                        .join("][");
+                    self.write_indent();
+                    self.write_line(
+                        &format!("{}[{}] = {}[{}:{}];", dst_safe, suffix, tmp, e_high, e_low)
+                    );
+                }
+            }
             cursor = low;
         }
     }
@@ -5260,18 +5402,69 @@ impl VerilogCodegen {
         }
     }
 
-    /// W470: emit a scalar struct expression as a packed vector. Identifiers are
-    /// packed from their per-field registers; other expressions (struct literals
-    /// or struct-return calls) are emitted normally and are already packed.
+    /// W476: return the struct type name if `node` is an indexed element of an
+    /// array of structs, e.g. `shapes_a[0]` or `grid[i][j]`.
+    fn scalar_struct_indexed_element_type(
+        &self,
+        node: &Node,
+    ) -> Option<String> {
+        if node.kind != NodeKind::ExprIndex {
+            return None;
+        }
+        let (base_id, _indices) = Self::flatten_index_chain(node)?;
+        if base_id.kind != NodeKind::ExprIdentifier {
+            return None;
+        }
+        let (elem_type, _dims) = self.array_of_struct_expr_type(&base_id)?;
+        if !self.struct_fields.contains_key(&elem_type) {
+            return None;
+        }
+        Some(elem_type)
+    }
+
+    /// W470/W475: emit a scalar struct expression as a packed vector.
+    /// Identifiers that are function parameters are already packed vectors, so
+    /// they are emitted directly. Other identifiers are packed from their
+    /// per-field registers. Struct literals and struct-return calls are emitted
+    /// normally and are already packed.
     fn gen_verilog_pack_scalar_struct_expr(
         &mut self,
         node: &Node,
         struct_type: &str,
     ) {
         if node.kind == NodeKind::ExprIdentifier {
-            self.gen_verilog_pack_scalar_struct(
-                &node.name, struct_type,
-            );
+            if self.array_param_types.contains_key(&node.name) {
+                // Function parameters of scalar struct type are passed as a single
+                // packed vector; do not try to reassemble them from per-field
+                // registers (array-typed fields are not unpacked inside functions).
+                self.write(&Self::verilog_safe_identifier(&node.name));
+            } else {
+                self.gen_verilog_pack_scalar_struct(
+                    &node.name, struct_type,
+                );
+            }
+        } else if node.kind == NodeKind::ExprIndex {
+            // W476: indexed element of a struct array packed as a scalar struct.
+            if let Some((base_id, indices)) = Self::flatten_index_chain(node) {
+                if base_id.kind == NodeKind::ExprIdentifier {
+                    if let Some((elem_type, dims)) =
+                        self.array_of_struct_expr_type(&base_id)
+                    {
+                        if elem_type == struct_type
+                            && self.struct_fields.contains_key(&elem_type)
+                        {
+                            self.gen_verilog_pack_struct_array_element(
+                                &base_id.name,
+                                &indices,
+                                &elem_type,
+                                &dims,
+                            );
+                            return;
+                        }
+                    }
+                }
+            }
+            self.gen_verilog_expr(node);
         } else {
             self.gen_verilog_expr(node);
         }
@@ -5360,12 +5553,9 @@ impl VerilogCodegen {
         dims: &[(usize, String)],
     ) {
         if node.kind == NodeKind::ExprArrayLiteral {
-            let mut ret_ty = elem_type.to_string();
-            for (size, _) in dims.iter().rev() {
-                ret_ty = format!("[{}]{}", size, ret_ty);
+            if self.try_emit_array_of_struct_literal_packed(node) {
+                return;
             }
-            self.gen_verilog_pack_array_of_struct_literal(node, &ret_ty);
-            return;
         }
         if node.kind == NodeKind::ExprIdentifier {
             let base_name = &node.name;
@@ -5376,9 +5566,137 @@ impl VerilogCodegen {
                 self.gen_verilog_expr(node);
                 return;
             }
+            let combos = Self::index_combinations(dims);
+
+            // W475: memory-mode local struct arrays (element struct has array-typed
+            // direct fields) are stored as per-field unpacked memories with both
+            // outer-dim and inner-dim indices. Pack the whole value by concatenating
+            // every indexed memory word in declaration order.
+            if is_local
+                && self
+                    .local_struct_array_has_array_field
+                    .get(base_name)
+                    .copied()
+                    .unwrap_or(false)
+            {
+                let direct_fields: Vec<(String, String)> = self
+                    .local_struct_array_fields
+                    .get(base_name)
+                    .cloned()
+                    .unwrap_or_default();
+                if !direct_fields.is_empty() {
+                    self.write("{");
+                    let mut first = true;
+                    for comb in &combos {
+                        let outer_idx = comb
+                            .iter()
+                            .map(|i| i.to_string())
+                            .collect::<Vec<_>>()
+                            .join("][");
+                        for (fname, ftype) in &direct_fields {
+                            let field_name_raw = format!("{}_{}", safe_base, fname);
+                            let field_safe = Self::verilog_safe_identifier(
+                                &field_name_raw);
+                            let field_dims = Self::parse_array_dimensions(ftype);
+                            if field_dims.is_empty() {
+                                if !first {
+                                    self.write(", ");
+                                }
+                                first = false;
+                                self.write(&format!("{}[{}]", field_safe, outer_idx));
+                            } else {
+                                let inner_combos = Self::index_combinations(&field_dims);
+                                for inner in &inner_combos {
+                                    if !first {
+                                        self.write(", ");
+                                    }
+                                    first = false;
+                                    let inner_idx = inner
+                                        .iter()
+                                        .map(|i| i.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join("][");
+                                    self.write(&format!(
+                                        "{}[{}][{}]",
+                                        field_safe, outer_idx, inner_idx
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    self.write("}");
+                    return;
+                }
+            }
+
+            // W475: module-level struct arrays whose element struct has array-typed
+            // flattened fields are stored as per-field memories with a linear outer
+            // address plus inner-dim indices. Pack them by expanding those inner
+            // dimensions.
+            if is_module {
+                let module_fields: Vec<(String, String)> = self
+                    .module_struct_array_fields
+                    .get(base_name)
+                    .cloned()
+                    .unwrap_or_default();
+                if module_fields
+                    .iter()
+                    .any(|(_, ftype)| !Self::parse_array_dimensions(ftype).is_empty())
+                {
+                    self.write("{");
+                    let mut first = true;
+                    for comb in &combos {
+                        let addr: usize = comb
+                            .iter()
+                            .enumerate()
+                            .map(|(k, &idx)| {
+                                let stride: usize = dims
+                                    .iter()
+                                    .skip(k + 1)
+                                    .map(|(s, _)| *s)
+                                    .product();
+                                idx * stride
+                            })
+                            .sum();
+                        for (fname, ftype) in &module_fields {
+                            let field_name_raw = format!("{}_{}", base_name, fname);
+                            let field_safe =
+                                Self::verilog_safe_identifier(&field_name_raw);
+                            let field_dims = Self::parse_array_dimensions(ftype);
+                            if field_dims.is_empty() {
+                                if !first {
+                                    self.write(", ");
+                                }
+                                first = false;
+                                self.write(&format!("{}[{}]", field_safe, addr));
+                            } else {
+                                let inner_combos = Self::index_combinations(
+                                    &field_dims);
+                                for inner in &inner_combos {
+                                    if !first {
+                                        self.write(", ");
+                                    }
+                                    first = false;
+                                    let inner_idx = inner
+                                        .iter()
+                                        .map(|i| i.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join("][");
+                                    self.write(&format!(
+                                        "{}[{}][{}]",
+                                        field_safe, addr, inner_idx
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    self.write("}");
+                    return;
+                }
+            }
+
             let mut flat_fields: Vec<(String, String)> = Vec::new();
             Self::flatten_struct_fields(elem_type, &self.struct_fields, "", &mut flat_fields);
-            let combos = Self::index_combinations(dims);
             self.write("{");
             for (comb_idx, comb) in combos.iter().enumerate() {
                 let suffix = comb
@@ -5423,6 +5741,171 @@ impl VerilogCodegen {
         // ExprCall returning an array of structs is already packed; other
         // expressions fall back to normal emission.
         self.gen_verilog_expr(node);
+    }
+
+    /// W476: emit a single element of a struct array as a packed vector. The base
+    /// may be a module-level array or a local/bench-local memory-mode array. Used
+    /// when an indexed array element is passed to a scalar struct parameter.
+    fn gen_verilog_pack_struct_array_element(
+        &mut self,
+        base_name: &str,
+        index_nodes: &[&Node],
+        elem_type: &str,
+        dims: &[(usize, String)],
+    ) {
+        let fields: Vec<(String, String)> = if let Some(f) =
+            self.module_struct_array_fields.get(base_name)
+        {
+            f.clone()
+        } else if let Some(f) = self.local_struct_array_fields.get(base_name) {
+            f.clone()
+        } else {
+            Vec::new()
+        };
+        if fields.is_empty() {
+            self.write("0 /* struct-array element pack failed */");
+            return;
+        }
+        let outer_combos = Self::index_combinations(dims);
+        let all_literal = index_nodes
+            .iter()
+            .all(|idx| idx.value.parse::<usize>().is_ok());
+        if all_literal {
+            let outer_addr: usize = index_nodes
+                .iter()
+                .enumerate()
+                .map(|(k, idx)| {
+                    let stride: usize =
+                        dims.iter().skip(k + 1).map(|(s, _)| *s).product();
+                    idx.value.parse::<usize>().unwrap() * stride
+                })
+                .sum();
+            self.write("{");
+            let mut first = true;
+            for (fname, ftype) in &fields {
+                let field_name_raw = format!("{}_{}", base_name, fname);
+                let field_safe = Self::verilog_safe_identifier(&field_name_raw);
+                let field_dims = Self::parse_array_dimensions(ftype);
+                if field_dims.is_empty() {
+                    if !first {
+                        self.write(", ");
+                    }
+                    first = false;
+                    self.write(&format!("{}[{}]", field_safe, outer_addr));
+                } else {
+                    let inner_combos = Self::index_combinations(&field_dims);
+                    for inner in &inner_combos {
+                        if !first {
+                            self.write(", ");
+                        }
+                        first = false;
+                        let inner_idx = inner
+                            .iter()
+                            .map(|i| i.to_string())
+                            .collect::<Vec<_>>()
+                            .join("][");
+                        self.write(&format!(
+                            "{}[{}][{}]",
+                            field_safe, outer_addr, inner_idx
+                        ));
+                    }
+                }
+            }
+            self.write("}");
+            return;
+        }
+        // Variable outer indices: priority mux over every possible element.
+        self.write("(");
+        let mut first = true;
+        for comb in &outer_combos {
+            let outer_addr: usize = comb
+                .iter()
+                .enumerate()
+                .map(|(k, &idx)| {
+                    let stride: usize =
+                        dims.iter().skip(k + 1).map(|(s, _)| *s).product();
+                    idx * stride
+                })
+                .sum();
+            if !first {
+                self.write(" : ");
+            }
+            first = false;
+            self.write("(");
+            for (d, &idx_val) in comb.iter().enumerate() {
+                if d > 0 {
+                    self.write(" && ");
+                }
+                self.write("(");
+                self.gen_verilog_expr(index_nodes[d]);
+                self.write(&format!(" == {})", idx_val));
+            }
+            self.write(") ? {");
+            let mut inner_first = true;
+            for (fname, ftype) in &fields {
+                let field_name_raw = format!("{}_{}", base_name, fname);
+                let field_safe = Self::verilog_safe_identifier(
+                    &field_name_raw,
+                );
+                let field_dims = Self::parse_array_dimensions(ftype);
+                if field_dims.is_empty() {
+                    if !inner_first {
+                        self.write(", ");
+                    }
+                    inner_first = false;
+                    self.write(&format!("{}[{}]", field_safe, outer_addr));
+                } else {
+                    let inner_combos = Self::index_combinations(&field_dims);
+                    for inner in &inner_combos {
+                        if !inner_first {
+                            self.write(", ");
+                        }
+                        inner_first = false;
+                        let inner_idx = inner
+                            .iter()
+                            .map(|i| i.to_string())
+                            .collect::<Vec<_>>()
+                            .join("][");
+                        self.write(&format!(
+                            "{}[{}][{}]",
+                            field_safe, outer_addr, inner_idx
+                        ));
+                    }
+                }
+            }
+            self.write("}");
+        }
+        self.write(" : 0)");
+    }
+
+    /// W476: emit a single element of a struct array as a packed temporary register
+    /// and return the safe temporary name. Used when an indexed array element is
+    /// assigned to another struct-array element or initialized into a scalar
+    /// struct variable.
+    fn gen_verilog_pack_struct_array_element_to_temp(
+        &mut self,
+        base_name: &str,
+        index_nodes: &[&Node],
+        elem_type: &str,
+        dims: &[(usize, String)],
+    ) -> String {
+        let total_width = Self::packed_width(elem_type, &self.struct_fields);
+        let tmp = format!("_aos_elem_tmp_{}", self.let_tmp_counter);
+        self.let_tmp_counter += 1;
+        let tmp_safe = Self::verilog_safe_identifier(&tmp);
+        self.write_indent();
+        self.write_line(&format!(
+            "reg [{}:0] {}; // struct-array element temp",
+            total_width.saturating_sub(1),
+            tmp_safe
+        ));
+        self.write_indent();
+        self.write(&format!("{} = ", tmp_safe));
+        self.gen_verilog_pack_struct_array_element(
+            base_name, index_nodes, elem_type, dims,
+        );
+        self.write_line(";");
+        tmp_safe
     }
 
     /// W471: if `field_access` is `var.field` where `var` is a scalar struct
@@ -5591,11 +6074,16 @@ impl VerilogCodegen {
                     if elem.kind == NodeKind::ExprLiteral {
                         let clean: String =
                             elem.value.chars().filter(|c| *c != '_').collect();
-                        self.write(&format!("{}'d{}", fwidth, clean));
+                        if clean.starts_with('-') {
+                            self.write(&format!("{}'({})", fwidth, clean));
+                        } else {
+                            self.write(&format!("{}'d{}", fwidth, clean));
+                        }
                     } else {
-                        self.write("(");
+                        // W478: use a SystemVerilog width cast so Icarus does not
+                        // complain about an indefinite-width concatenation operand.
+                        self.write(&format!("{}'(", fwidth));
                         self.gen_verilog_expr(elem);
-                        self.write(&format!(" & {{{}{{1'b1}}}}", fwidth));
                         self.write(")");
                     }
                 }
@@ -5656,13 +6144,16 @@ impl VerilogCodegen {
         if let Some(v) = val {
             if v.kind == NodeKind::ExprLiteral {
                 let clean: String = v.value.chars().filter(|c| *c != '_').collect();
-                self.write(&format!("{}'d{}", fwidth, clean));
+                if clean.starts_with('-') {
+                    self.write(&format!("{}'({})", fwidth, clean));
+                } else {
+                    self.write(&format!("{}'d{}", fwidth, clean));
+                }
             } else {
-                // Non-literal leaf expression: mask/truncate to the target
-                // width so the concatenation width is known.
-                self.write("(");
+                // W478: use a SystemVerilog width cast so Icarus does not
+                // complain about an indefinite-width concatenation operand.
+                self.write(&format!("{}'(", fwidth));
                 self.gen_verilog_expr(v);
-                self.write(&format!(" & {{{}{{1'b1}}}}", fwidth));
                 self.write(")");
             }
         } else {
@@ -6027,6 +6518,169 @@ impl VerilogCodegen {
         }
     }
 
+    /// W476: emit a copy initializer from another local array of structs.
+    /// `dst_base` is the new local array; `src_base` is the source local array
+    /// identifier. Handles both memory-mode and register-mode local struct arrays.
+    fn gen_verilog_local_struct_array_copy_init(
+        &mut self,
+        dst_base: &str,
+        src_base: &str,
+        elem_type: &str,
+        dims: &[(usize, String)],
+    ) {
+        // W476: source may be another local struct array or a module-level
+        // struct array. Gather the source element type, dimensions, and field list.
+        let (src_elem_type, src_fields) = if let Some(info) =
+            self.local_array_elem_info.get(src_base)
+        {
+            let fields = self
+                .local_struct_array_fields
+                .get(src_base)
+                .cloned()
+                .unwrap_or_default();
+            (info.1.clone(), fields)
+        } else if let Some(src_type) =
+            self.module_struct_array_elem_types.get(src_base)
+        {
+            let fields = self
+                .module_struct_array_fields
+                .get(src_base)
+                .cloned()
+                .unwrap_or_default();
+            (src_type.clone(), fields)
+        } else {
+            self.write_indent();
+            self.write(&format!(
+                "// local struct-array initializer for {} not yet lowered (source {} not a local or module array)",
+                dst_base, src_base
+            ));
+            self.write_line("");
+            return;
+        };
+        if src_elem_type != elem_type {
+            self.write_indent();
+            self.write(&format!(
+                "// local struct-array initializer for {} not yet lowered (element type mismatch)",
+                dst_base
+            ));
+            self.write_line("");
+            return;
+        }
+        let is_memory_mode = self
+            .local_struct_array_has_array_field
+            .get(dst_base)
+            .copied()
+            .unwrap_or(false);
+        if is_memory_mode {
+            let direct_fields = self
+                .local_struct_array_fields
+                .get(dst_base)
+                .cloned()
+                .unwrap_or_default();
+            let outer_count: usize = dims.iter().map(|(s, _)| *s).product();
+            for (fname, ftype) in &direct_fields {
+                let dst_field_raw = format!("{}_{}", dst_base, fname);
+                let dst_field_safe = Self::verilog_safe_identifier(&dst_field_raw);
+                let src_field_raw = format!("{}_{}", src_base, fname);
+                let src_field_safe = Self::verilog_safe_identifier(&src_field_raw);
+                let field_dims = Self::parse_array_dimensions(ftype);
+                if field_dims.is_empty() {
+                    for addr in 0..outer_count {
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "{}[{}] = {}[{}];",
+                            dst_field_safe, addr, src_field_safe, addr
+                        ));
+                    }
+                } else {
+                    let inner_combos = Self::index_combinations(&field_dims);
+                    for addr in 0..outer_count {
+                        for inner in &inner_combos {
+                            let inner_suffix = inner
+                                .iter()
+                                .map(|i| format!("[{i}]"))
+                                .collect::<String>();
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "{}[{}]{} = {}[{}]{};",
+                                dst_field_safe, addr, inner_suffix,
+                                src_field_safe, addr, inner_suffix
+                            ));
+                        }
+                    }
+                }
+            }
+        } else {
+            // W476: register-mode local arrays cannot yet be initialized from a
+            // module-level struct array source because the source is stored in
+            // per-field unpacked memories, not per-element per-field registers.
+            if self.module_struct_array_elem_types.contains_key(src_base) {
+                self.write_indent();
+                self.write(&format!(
+                    "// local struct-array initializer for {} not yet lowered (register-mode from module source)",
+                    dst_base
+                ));
+                self.write_line("");
+                return;
+            }
+            let mut flat_fields: Vec<(String, String)> = Vec::new();
+            Self::flatten_struct_fields(elem_type, &self.struct_fields, "", &mut flat_fields);
+            let combos = Self::index_combinations(dims);
+            for comb in &combos {
+                let suffix = comb
+                    .iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<_>>()
+                    .join("_");
+                for (fname, _ftype) in &flat_fields {
+                    let dst_flat = format!("{}_{}_{}", dst_base, suffix, fname);
+                    let dst_flat_safe = Self::verilog_safe_identifier(&dst_flat);
+                    let src_flat = format!("{}_{}_{}", src_base, suffix, fname);
+                    let src_flat_safe = Self::verilog_safe_identifier(&src_flat);
+                    self.write_indent();
+                    self.write_line(&format!("{} = {};", dst_flat_safe, src_flat_safe));
+                }
+            }
+        }
+    }
+
+    /// W478: emit a whole-array assignment between two local arrays of structs,
+    /// e.g. `a = b`. Expands into per-element per-field copies for both memory-mode
+    /// and register-mode local struct-array lowering.
+    fn gen_verilog_try_local_struct_array_assign(
+        &mut self,
+        lhs: &Node,
+        rhs: &Node,
+    ) -> bool {
+        if lhs.kind != NodeKind::ExprIdentifier {
+            return false;
+        }
+        let base_name = &lhs.name;
+        let elem_type = match
+            self.local_array_elem_info.get(base_name).map(|(_, t)| t.clone())
+        {
+            Some(t) => t,
+            None => return false,
+        };
+        if !Self::array_element_is_struct(Some(&elem_type), &self.struct_fields) {
+            return false;
+        }
+        let dims = match self.local_array_dims.get(base_name).cloned() {
+            Some(d) => d,
+            None => return false,
+        };
+        if rhs.kind == NodeKind::ExprIdentifier {
+            self.gen_verilog_local_struct_array_copy_init(
+                base_name,
+                &rhs.name,
+                &elem_type,
+                &dims,
+            );
+            return true;
+        }
+        false
+    }
+
     /// W474: try to handle whole-element assignment into a memory-mode local struct
     /// array: `tmp[i][j] = value` where value is a struct literal, struct variable,
     /// or scalar-struct-return function call. Returns true if the destination was a
@@ -6062,8 +6716,40 @@ impl VerilogCodegen {
         let is_literal = rhs.kind == NodeKind::ExprStructLit;
         let is_var = rhs.kind == NodeKind::ExprIdentifier;
         let is_call = rhs.kind == NodeKind::ExprCall;
+        let mut indexed_tmp: Option<String> = None;
         if !is_literal && !is_var && !is_call {
-            return false;
+            // W476: RHS may be an indexed element of another struct array. Pack it
+            // once and assign field-by-field from the temporary.
+            if rhs.kind == NodeKind::ExprIndex {
+                if let Some((base_id, inner_indices)) =
+                    Self::flatten_index_chain(rhs)
+                {
+                    if base_id.kind == NodeKind::ExprIdentifier {
+                        if let Some((src_elem_type, src_dims)) =
+                            self.array_of_struct_expr_type(&base_id)
+                        {
+                            if src_elem_type == elem_type
+                                && Self::array_element_is_struct(
+                                    Some(&src_elem_type),
+                                    &self.struct_fields,
+                                )
+                            {
+                                indexed_tmp = Some(
+                                    self.gen_verilog_pack_struct_array_element_to_temp(
+                                        &base_id.name,
+                                        &inner_indices,
+                                        &src_elem_type,
+                                        &src_dims,
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            if indexed_tmp.is_none() {
+                return false;
+            }
         }
 
         let all_literal =
@@ -6086,6 +6772,10 @@ impl VerilogCodegen {
                 self.gen_verilog_local_struct_array_memory_element_assign_from_var(
                     base_name, &elem_type, linear, &rhs.name,
                 );
+            } else if let Some(ref tmp) = indexed_tmp {
+                self.gen_verilog_local_struct_array_memory_element_assign_from_packed(
+                    base_name, &elem_type, linear, tmp,
+                );
             } else {
                 let tmp = self
                     .gen_verilog_local_struct_array_memory_call_tmp(
@@ -6105,19 +6795,20 @@ impl VerilogCodegen {
                 base_name, &elem_type, rhs,
             ))
         } else {
-            None
+            indexed_tmp
         };
         let combos = Self::index_combinations(&dims);
         for (comb_idx, comb) in combos.iter().enumerate() {
             self.write_indent();
             if comb_idx == 0 {
-                self.write("if (");
+                self.write("if ");
             } else if comb_idx + 1 < combos.len() {
-                self.write("else if (");
+                self.write("else if ");
             } else {
                 self.write("else");
             }
             if comb_idx + 1 < combos.len() {
+                self.write("(");
                 for (d, &i) in comb.iter().enumerate() {
                     if d > 0 {
                         self.write(" && ");
@@ -6126,6 +6817,7 @@ impl VerilogCodegen {
                     self.gen_verilog_expr(indices[d]);
                     self.write(&format!(" == {})", i));
                 }
+                self.write(")");
             }
             self.write(" begin");
             self.write_line("");
@@ -6240,6 +6932,236 @@ impl VerilogCodegen {
         }
     }
 
+    /// W477: move all `reg`/`integer`/attribute declarations inside procedural
+    /// `begin...end` blocks to the top of their block. Icarus Verilog and strict
+    /// Verilog-2001 parsers reject declarations that appear after executable
+    /// statements in a procedural block.
+    fn hoist_procedural_declarations(&mut self) {
+        let src = std::mem::take(&mut self.output);
+        let first = Self::hoist_verilog_decls(&src);
+        self.output = Self::hoist_function_scope_decls(&first);
+    }
+
+    fn hoist_verilog_decls(src: &str) -> String {
+        // Pre-split lines like `end else begin` into `end` and `else begin` so
+        // the stack parser sees them as two separate delimiters. This avoids
+        // duplicating the boundary line when one block ends and another begins
+        // on the same line.
+        let mut lines: Vec<String> = Vec::new();
+        for line in src.lines() {
+            let masked = Self::mask_comments_and_strings(line);
+            let code = masked.as_str();
+            let leading = code.len() - code.trim_start().len();
+            let trimmed = code.trim_start();
+            if (trimmed.starts_with("end ") || trimmed == "end")
+                && Self::line_has_token(&masked, "begin")
+            {
+                let split = leading + 3; // byte index just after the `end` token
+                let first = line[..split].to_string();
+                let rest = format!(
+                    "{}{}",
+                    &line[..leading],
+                    code[split..].trim_start()
+                );
+                lines.push(first);
+                lines.push(rest);
+            } else {
+                lines.push(line.to_string());
+            }
+        }
+
+        let mut stack: Vec<Vec<String>> = Vec::new();
+        let mut current: Vec<String> = Vec::new();
+        for line in lines {
+            let has_begin = Self::line_has_token(&line, "begin");
+            let has_end = Self::line_has_token(&line, "end");
+            if has_end && !has_begin {
+                // Close the current block, hoist its declarations, and return
+                // the transformed block to its parent.
+                current.push(line);
+                let finished = std::mem::take(&mut current);
+                let mut parent = stack.pop().unwrap_or_default();
+                let hoisted = Self::hoist_block_decls(finished);
+                parent.extend(hoisted);
+                current = parent;
+            } else if has_begin {
+                // Enter a new procedural block.
+                stack.push(std::mem::take(&mut current));
+                current.push(line);
+            } else {
+                current.push(line);
+            }
+        }
+        // Drain any leftover stack (should be empty for well-formed output).
+        for mut block in stack.into_iter() {
+            block.extend(std::mem::take(&mut current));
+            current = block;
+        }
+        let mut out = current.join("\n");
+        if src.ends_with('\n') && !out.ends_with('\n') {
+            out.push('\n');
+        }
+        out
+    }
+
+    fn hoist_block_decls(block: Vec<String>) -> Vec<String> {
+        if block.len() < 2 {
+            return block;
+        }
+        let begin = block[0].clone();
+        let end = block[block.len() - 1].clone();
+        let mut decls: Vec<String> = Vec::new();
+        let mut rest: Vec<String> = Vec::new();
+        for line in &block[1..block.len() - 1] {
+            let masked = Self::mask_comments_and_strings(line);
+            let code = masked.trim();
+            if code.starts_with("(*") {
+                // Icarus Verilog rejects standalone attribute specifiers inside
+                // procedural blocks, and they have no useful effect on per-element
+                // local registers, so drop them.
+                continue;
+            }
+            if Self::is_decl_line(line) {
+                decls.push(line.clone());
+            } else {
+                rest.push(line.clone());
+            }
+        }
+        let mut out = Vec::with_capacity(block.len());
+        out.push(begin);
+        out.extend(decls);
+        out.extend(rest);
+        out.push(end);
+        out
+    }
+
+    /// W477: hoist `reg`/`integer` declarations that appear between function/task
+    /// inputs and the function's `begin...end` body so they precede any
+    /// executable statement. Icarus Verilog rejects declarations after
+    /// statements even at function scope, not just inside `begin` blocks.
+    fn hoist_function_scope_decls(src: &str) -> String {
+        let lines: Vec<String> = src.lines().map(|s| s.to_string()).collect();
+        let mut out: Vec<String> = Vec::with_capacity(lines.len());
+        let mut i = 0;
+        while i < lines.len() {
+            let line = &lines[i];
+            let masked = Self::mask_comments_and_strings(line);
+            let code = masked.trim_start();
+            let is_function =
+                code.starts_with("function ") || code == "function";
+            let is_task = code.starts_with("task ") || code == "task";
+            if !is_function && !is_task {
+                out.push(line.clone());
+                i += 1;
+                continue;
+            }
+            // Find the matching endfunction/endtask, tracking nested begin/end.
+            let start = i;
+            let mut j = i + 1;
+            let mut depth = 0usize;
+            while j < lines.len() {
+                let inner = &lines[j];
+                let inner_masked = Self::mask_comments_and_strings(inner);
+                if Self::line_has_token(&inner_masked, "begin") {
+                    depth += 1;
+                }
+                if depth > 0 && Self::line_has_token(&inner_masked, "end") {
+                    depth -= 1;
+                }
+                if depth == 0
+                    && (Self::line_has_token(&inner_masked, "endfunction")
+                        || Self::line_has_token(&inner_masked, "endtask"))
+                {
+                    break;
+                }
+                j += 1;
+            }
+            let end = j.min(lines.len() - 1);
+
+            // Reorder: header + inputs, then function-scope declarations, then rest.
+            let mut decls: Vec<String> = Vec::new();
+            let mut rest: Vec<String> = Vec::new();
+            for k in start..=end {
+                let l = &lines[k];
+                let m = Self::mask_comments_and_strings(l);
+                let c = m.trim_start();
+                let is_header = k == start;
+                let is_input = c.starts_with("input ");
+                if is_header || is_input {
+                    out.push(l.clone());
+                } else if Self::is_decl_line(l) {
+                    decls.push(l.clone());
+                } else {
+                    rest.push(l.clone());
+                }
+            }
+            out.extend(decls);
+            out.extend(rest);
+            i = end + 1;
+        }
+        let mut result = out.join("\n");
+        if src.ends_with('\n') && !result.ends_with('\n') {
+            result.push('\n');
+        }
+        result
+    }
+
+    fn is_decl_line(line: &str) -> bool {
+        let masked = Self::mask_comments_and_strings(line);
+        let code = masked.trim();
+        code.starts_with("reg ") || code.starts_with("integer ")
+    }
+
+    /// W477: replace Verilog comments and string literals with spaces so that
+    /// tokens like `begin` or `end` inside string data are not mistaken for
+    /// procedural block boundaries.
+    fn mask_comments_and_strings(line: &str) -> String {
+        let mut out = String::with_capacity(line.len());
+        let mut in_comment = false;
+        let mut in_string = false;
+        let mut chars = line.chars().peekable();
+        while let Some(c) = chars.next() {
+            if in_comment {
+                out.push(' ');
+                continue;
+            }
+            if in_string {
+                if c == '\\' {
+                    out.push(' ');
+                    if chars.next().is_some() {
+                        out.push(' ');
+                    }
+                } else if c == '"' {
+                    in_string = false;
+                    out.push(' ');
+                } else {
+                    out.push(' ');
+                }
+                continue;
+            }
+            if c == '/' && chars.peek() == Some(&'/') {
+                in_comment = true;
+                out.push(' ');
+                chars.next();
+                out.push(' ');
+                continue;
+            }
+            if c == '"' {
+                in_string = true;
+                out.push(' ');
+                continue;
+            }
+            out.push(c);
+        }
+        out
+    }
+
+    fn line_has_token(line: &str, token: &str) -> bool {
+        let masked = Self::mask_comments_and_strings(line);
+        masked.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '\\')
+            .any(|w| w == token)
+    }
+
     pub fn into_string(self) -> String {
         self.output
     }
@@ -6267,10 +7189,9 @@ impl VerilogCodegen {
         if ty.is_empty() {
             return 0;
         }
-        if let Some(dims) = Self::parse_array_dimensions(ty).get(0..1).map(|_| Self::parse_array_dimensions(ty)).filter(|d| !d.is_empty()) {
-            let size = dims[0].0 as u32;
-            let inner = Self::array_dimensions_leaf_type(&dims);
-            return size * Self::packed_width(&inner, struct_fields);
+        // W478: recursively expand every array dimension, not just the outermost.
+        if let Some((size, elem)) = Self::parse_array_type(ty) {
+            return (size as u32) * Self::packed_width(&elem, struct_fields);
         }
         if let Some(fields) = struct_fields.get(ty) {
             let mut total = 0;
@@ -6335,6 +7256,32 @@ impl VerilogCodegen {
             return 0;
         }
         dims.iter().map(|(s, _)| *s).product()
+    }
+
+    /// W479: an array literal may carry its values in `extra_size` (module-level
+    /// `const` / `var` initializers) instead of child `ExprLiteral` nodes. Return
+    /// scalar element literals that can be passed to `gen_verilog_expr`,
+    /// preserving source order.
+    fn array_literal_elements(node: &Node) -> Vec<Node> {
+        if node.kind != NodeKind::ExprArrayLiteral {
+            return Vec::new();
+        }
+        if !node.children.is_empty() {
+            return node.children.clone();
+        }
+        if !node.extra_size.is_empty() {
+            return node
+                .extra_size
+                .split(',')
+                .map(|s| {
+                    let mut lit = Node::new(NodeKind::ExprLiteral);
+                    lit.value = s.trim().to_string();
+                    lit
+                })
+                .filter(|lit| !lit.value.is_empty())
+                .collect();
+        }
+        Vec::new()
     }
 
     /// W462/W464/W470: compute the canonical signature key for an ExprArrayLiteral
@@ -6471,6 +7418,40 @@ impl VerilogCodegen {
         }
     }
 
+    /// W475: return true if `name` is declared as a function-local array variable
+    /// inside `fn_node` (a FnDecl). Used to decide whether an identifier argument
+    /// to an array-parameter callee can be passed as a packed vector.
+    fn is_fn_local_array(fn_node: &Node, name: &str) -> bool {
+        Self::fn_local_array_type(fn_node, name).is_some()
+    }
+
+    /// W475: return the array type string if `name` is a function-local array
+    /// variable declared inside `fn_node`.
+    fn fn_local_array_type(fn_node: &Node, name: &str) -> Option<String> {
+        let mut result: Option<String> = None;
+        Self::find_fn_local_array_type(fn_node, name, &mut result);
+        result
+    }
+
+    fn find_fn_local_array_type(
+        node: &Node,
+        name: &str,
+        out: &mut Option<String>,
+    ) {
+        if node.kind == NodeKind::StmtLocal && node.name == name {
+            if Self::parse_array_type(&node.extra_type).is_some() {
+                *out = Some(node.extra_type.clone());
+                return;
+            }
+        }
+        for child in &node.children {
+            Self::find_fn_local_array_type(child, name, out);
+            if out.is_some() {
+                return;
+            }
+        }
+    }
+
     /// W461: return the array-parameter bindings active for the function
     /// currently being emitted. If the current function is a clone, bindings come
     /// from `array_param_clone_bindings`; otherwise they come from
@@ -6495,7 +7476,27 @@ impl VerilogCodegen {
     /// module memory.
     fn array_param_bound_name(&self, pname: &str) -> Option<String> {
         let bindings = self.current_array_param_bindings()?;
-        bindings.get(pname).cloned()
+        let bound = bindings.get(pname).cloned()?;
+        // W475: local-packed array parameters are passed as a scalar packed
+        // vector, not bound to a module-level array, so they do not resolve to a
+        // bound memory name.
+        if bound == "__local__" {
+            return None;
+        }
+        Some(bound)
+    }
+
+    /// W475: true if `pname` is an array parameter of the current function and
+    /// is passed as a packed vector because the call site supplied a
+    /// function-local array argument.
+    fn array_param_is_local_packed(&self, pname: &str) -> bool {
+        if let Some(bindings) = self.current_array_param_bindings() {
+            bindings.get(pname).map_or(false, |b| b == "__local__")
+        } else {
+            // W478: when no module-level binding map exists for this function, an
+            // array parameter is lowered as a local packed vector by default.
+            self.array_param_types.contains_key(pname)
+        }
     }
 
     /// W464: true if `elem_type` is a declared struct type.
@@ -6559,7 +7560,11 @@ impl VerilogCodegen {
         for idx in indices {
             let arg = call.children.get(*idx)?;
             if arg.kind == NodeKind::ExprIdentifier && !arg.name.is_empty() {
-                let name = if let Some(bindings) = current_bindings {
+                let safe_base = self.verilog_local_name(&arg.name);
+                let is_local_array = self.local_arrays.contains(&safe_base);
+                let name = if is_local_array {
+                    "__local__".to_string()
+                } else if let Some(bindings) = current_bindings {
                     bindings.get(&arg.name).cloned().unwrap_or_else(|| arg.name.clone())
                 } else {
                     arg.name.clone()
@@ -6691,15 +7696,15 @@ impl VerilogCodegen {
         if !struct_fields.contains_key(&leaf) {
             return None;
         }
-        if indices.len() != dims.len() {
+        if indices.len() < dims.len() {
             return None;
         }
-        for (i, &idx) in indices.iter().enumerate() {
+        for (i, &idx) in indices[..dims.len()].iter().enumerate() {
             if idx >= dims[i].0 {
                 return None;
             }
         }
-        let struct_w = Self::struct_return_width(&leaf, struct_fields);
+        let struct_w = Self::packed_width(&leaf, struct_fields);
         if struct_w == 0 {
             return None;
         }
@@ -6710,17 +7715,52 @@ impl VerilogCodegen {
         let mut found = false;
         for (fname, ftype) in &flat_fields {
             if fname == field_suffix {
-                field_width = Self::type_to_width(ftype);
+                let f_dims = Self::parse_array_dimensions(ftype);
+                if f_dims.is_empty() {
+                    // Scalar leaf field: no inner indices allowed.
+                    if indices.len() != dims.len() {
+                        return None;
+                    }
+                    field_width = Self::packed_width(ftype, struct_fields);
+                } else {
+                    // W478: scalar array-typed field. The remaining indices select
+                    // one element inside the packed field.
+                    let inner_count = f_dims.len();
+                    if indices.len() != dims.len() + inner_count {
+                        return None;
+                    }
+                    let inner_indices = &indices[dims.len()..];
+                    for (j, &idx) in inner_indices.iter().enumerate() {
+                        if idx >= f_dims[j].0 {
+                            return None;
+                        }
+                    }
+                    let inner_leaf = Self::array_dimensions_leaf_type(&f_dims);
+                    field_width = Self::packed_width(&inner_leaf,
+                        struct_fields,
+                    );
+                    let mut remaining: u32 = f_dims
+                        .iter()
+                        .map(|(s, _)| *s as u32)
+                        .product::<u32>()
+                        .saturating_mul(field_width);
+                    for (j, (size, _)) in f_dims.iter().enumerate() {
+                        let step = remaining / (*size as u32);
+                        field_offset +=
+                            (inner_indices[j] as u32) * step;
+                        remaining = step;
+                    }
+                }
                 found = true;
                 break;
             }
-            field_offset += Self::type_to_width(ftype);
+            field_offset += Self::packed_width(ftype, struct_fields);
         }
         if !found {
             return None;
         }
         let mut combo_idx: usize = 0;
-        for (i, &idx) in indices.iter().enumerate() {
+        for (i, &idx) in indices[..dims.len()].iter().enumerate() {
             combo_idx = combo_idx * dims[i].0 + idx;
         }
         let total_size: u32 = dims.iter().map(|(s, _)| *s as u32).product();
@@ -6833,7 +7873,7 @@ impl VerilogCodegen {
         Self::flatten_struct_fields(struct_type, struct_fields, "", &mut flat);
         let mut cursor: u32 = 0;
         for (fname, ftype) in flat {
-            let width = Self::type_to_width(&ftype);
+            let width = Self::packed_width(&ftype, struct_fields);
             if fname == leaf_field {
                 return cursor;
             }
@@ -6900,12 +7940,11 @@ impl VerilogCodegen {
                     &idx_vals,
                 )
             } else {
-                let outer_vals = &idx_vals[..dims.len()];
                 Self::array_of_struct_field_slice(
                     &ret_ty,
                     &self.struct_fields,
                     &field_suffix,
-                    outer_vals,
+                    &idx_vals,
                 )
             };
             if let Some((high, low)) = slice {
@@ -6963,8 +8002,8 @@ impl VerilogCodegen {
         self.aos_tmp_assigns.push(assign);
 
         // Build the read expression as a nested ternary priority mux over every
-        // element/field slice. No outer parentheses are added; callers already
-        // wrap binary operands, and the return-statement emitter wraps the RHS.
+        // element/field slice. Wrap the whole mux in parentheses so it is safe
+        // as an operand in binary expressions such as `a + b`.
         let (combos, nested_combos) = if let Some(ref path) = nested_path {
             let mut combined = dims.clone();
             combined.extend(path.dims.iter().cloned());
@@ -6974,6 +8013,7 @@ impl VerilogCodegen {
         };
         let mut first = true;
         let mut emitted_count = 0;
+        self.write("(");
         for comb in combos.iter() {
             let slice = if nested_combos {
                 Self::nested_array_of_struct_field_slice(
@@ -7015,6 +8055,146 @@ impl VerilogCodegen {
         for _ in 1..emitted_count {
             self.write(")");
         }
+        self.write(")");
+        true
+    }
+
+    /// W475: field access on a function parameter that is passed as a packed
+    /// vector because the call site supplied a function-local array argument.
+    /// `pts[i].x` is lowered to a bit slice of the packed input `pts` (or to a
+    /// priority mux when the index is not a literal).
+    fn try_emit_local_packed_array_param_field(
+        &mut self,
+        node: &Node,
+    ) -> bool {
+        let (root, index_nodes, fields) =
+            match Self::collect_field_index_path_rooted(node) {
+                Some(v) => v,
+                None => return false,
+            };
+        if root.kind != NodeKind::ExprIdentifier {
+            return false;
+        }
+        let pname = &root.name;
+        if !self.array_param_is_local_packed(pname) {
+            return false;
+        }
+        let ptype = match self.array_param_types.get(pname).cloned() {
+            Some(t) => t,
+            None => return false,
+        };
+        let total_width = Self::packed_width(
+            &ptype,
+            &self.struct_fields,
+        );
+        if total_width == 0 {
+            return false;
+        }
+        let dims = Self::parse_array_dimensions(&ptype);
+        if dims.is_empty() || index_nodes.len() < dims.len() {
+            return false;
+        }
+        let safe_param = Self::verilog_safe_identifier(pname);
+        let field_suffix = fields.join("_");
+        let leaf = Self::array_dimensions_leaf_type(&dims);
+        let nested_path = Self::try_resolve_struct_array_field_path(
+            &leaf,
+            &self.struct_fields,
+            &field_suffix,
+        );
+        let all_literal = index_nodes
+            .iter()
+            .all(|idx| idx.value.parse::<usize>().is_ok());
+        if all_literal {
+            let idx_vals: Vec<usize> = index_nodes
+                .iter()
+                .map(|idx| idx.value.parse::<usize>().unwrap())
+                .collect();
+            let slice = if nested_path.is_some() {
+                Self::nested_array_of_struct_field_slice(
+                    &ptype,
+                    &self.struct_fields,
+                    &field_suffix,
+                    &idx_vals,
+                )
+            } else {
+                Self::array_of_struct_field_slice(
+                    &ptype,
+                    &self.struct_fields,
+                    &field_suffix,
+                    &idx_vals,
+                )
+            };
+            if let Some((high, low)) = slice {
+                self.write(&format!(
+                    "{}[{}:{}]",
+                    safe_param, high, low
+                ));
+                return true;
+            }
+            return false;
+        }
+
+        // Variable indices: priority mux over every reachable slice.
+        let (combos, nested_combos) = if let Some(ref path) = nested_path {
+            let mut combined = dims.clone();
+            combined.extend(path.dims.iter().cloned());
+            (Self::index_combinations(&combined), true)
+        } else {
+            (Self::index_combinations(&dims), false)
+        };
+        if combos.is_empty() {
+            return false;
+        }
+        let mut first = true;
+        let mut emitted_count = 0;
+        self.write("(");
+        for comb in combos.iter() {
+            let slice = if nested_combos {
+                Self::nested_array_of_struct_field_slice(
+                    &ptype,
+                    &self.struct_fields,
+                    &field_suffix,
+                    comb,
+                )
+            } else {
+                let outer_vals = &comb[..dims.len()];
+                Self::array_of_struct_field_slice(
+                    &ptype,
+                    &self.struct_fields,
+                    &field_suffix,
+                    outer_vals,
+                )
+            };
+            if let Some((high, low)) = slice {
+                if !first {
+                    self.write(" : (");
+                }
+                self.write("(");
+                for (d, &idx_val) in comb.iter().enumerate() {
+                    if d > 0 {
+                        self.write(" && ");
+                    }
+                    self.write("(");
+                    self.gen_verilog_expr(index_nodes[d]);
+                    self.write(&format!(" == {})", idx_val));
+                }
+                self.write(&format!(
+                    ") ? {}[{}:{}]",
+                    safe_param, high, low
+                ));
+                first = false;
+                emitted_count += 1;
+            }
+        }
+        if emitted_count == 0 {
+            return false;
+        }
+        self.write(" : 0");
+        for _ in 1..emitted_count {
+            self.write(")");
+        }
+        self.write(")");
         true
     }
 
@@ -7025,7 +8205,7 @@ impl VerilogCodegen {
         if !ty.is_empty() && struct_fields.contains_key(ty) {
             let mut flat = Vec::new();
             Self::flatten_struct_fields(ty, struct_fields, "", &mut flat);
-            flat.into_iter().map(|(fname, ftype)| (fname, Self::type_to_width(&ftype))).collect()
+            flat.into_iter().map(|(fname, ftype)| (fname, Self::packed_width(&ftype, struct_fields))).collect()
         } else {
             Vec::new()
         }
@@ -7058,6 +8238,79 @@ impl VerilogCodegen {
         }
     }
 
+    /// W481: true if `base_name` is an identifier whose field accesses are known
+    /// to resolve to declared per-field registers or memories. Field-access
+    /// fallbacks on unknown bases (e.g. open array-of-struct parameters, scalar
+    /// struct parameters whose type fields are not available, locals initialized
+    /// from unsupported calls, or locals dropped by parser recovery) must not
+    /// emit a bare `base_field` name that Icarus cannot bind.
+    fn field_access_base_is_unresolved(&self, base_name: &str) -> bool {
+        // Local initialized from an unsupported call: its only usable value is the
+        // placeholder scalar already assigned to it.
+        if self.unsupported_call_result_locals.contains(base_name) {
+            return true;
+        }
+        // Current function parameter: array parameters and unresolved struct
+        // parameters produce unbound per-field names; scalar parameters keep the
+        // legacy flat-name behavior (e.g. keyword-safe `task_prompt`).
+        if let Some(ptype) = self.array_param_types.get(base_name) {
+            if Self::parse_array_type(ptype).is_some() || ptype.starts_with('[') {
+                return true;
+            }
+            if self.struct_fields.contains_key(ptype) {
+                // Known scalar struct parameters are unpacked into per-field regs
+                // and recorded in local_struct_var_types; if we reach here, the
+                // struct fields are unavailable.
+                return false;
+            }
+            if !Self::is_primitive_scalar_type(ptype) {
+                return true;
+            }
+            return false;
+        }
+        // Known local or module-level struct-like names.
+        if self.local_struct_var_types.contains_key(base_name)
+            || self.module_scalar_struct_types.contains_key(base_name)
+        {
+            return false;
+        }
+        let safe_base = self.verilog_local_name(base_name);
+        if self.local_arrays.contains(&safe_base) {
+            return false;
+        }
+        if self.module_struct_array_fields.contains_key(base_name)
+            || self.module_struct_array_elem_types.contains_key(base_name)
+        {
+            return false;
+        }
+        if self.array_param_bound_name(base_name).is_some() {
+            return false;
+        }
+        // Any other identifier (declared local of unknown/primitive type, a name
+        // dropped by parser recovery, or a reference to an undeclared imported
+        // type) does not have per-field storage available. Emit a placeholder.
+        true
+    }
+
+    fn is_primitive_scalar_type(ty: &str) -> bool {
+        matches!(
+            ty,
+            "bool"
+                | "u8"
+                | "i8"
+                | "u16"
+                | "i16"
+                | "u32"
+                | "i32"
+                | "u64"
+                | "i64"
+                | "usize"
+                | "f32"
+                | "f64"
+                | "string"
+        )
+    }
+
     pub fn gen_verilog(&mut self, ast: &Node) {
         self.module_name = if !ast.name.is_empty() {
             Self::sanitize_identifier(&ast.name)
@@ -7073,6 +8326,7 @@ impl VerilogCodegen {
         self.module_struct_array_fields.clear();
         self.module_struct_array_elem_types.clear();
         self.module_struct_array_dims.clear();
+        self.module_scalar_array_dims.clear();
 
         // Header
         self.write_line(
@@ -7171,11 +8425,26 @@ impl VerilogCodegen {
                 String,
                 std::collections::HashMap<String, String>,
             > = std::collections::HashMap::new();
+            let mut clone_origins: std::collections::HashMap<String, String> =
+                std::collections::HashMap::new();
+            let mut local_packed: std::collections::HashMap<
+                String,
+                std::collections::HashSet<usize>,
+            > = std::collections::HashMap::new();
             // W464: track generated clone names so two different binding
             // signatures cannot produce the same Verilog function name after
             // sanitization.
             let mut used_clone_names: std::collections::HashSet<String> =
                 std::collections::HashSet::new();
+            // W476: module-level array identifiers that can be passed to array
+            // parameters. `var` module arrays are represented as ConstDecl nodes.
+            let mut module_array_names: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
+            for c in &consts {
+                if Self::parse_array_type(&c.extra_type).is_some() {
+                    module_array_names.insert(c.name.clone());
+                }
+            }
 
             for f in &functions {
                 let array_param_indices: Vec<usize> = f
@@ -7194,31 +8463,60 @@ impl VerilogCodegen {
                 // propagation.
                 indices.insert(f.name.clone(), array_param_indices.clone());
 
+                // W475: record the declared t27 type and ordered names of every
+                // array parameter so call sites can pack local-array arguments into
+                // the correct packed vector width.
+                {
+                    let mut fn_array_types: std::collections::HashMap<
+                        String,
+                        String,
+                    > = std::collections::HashMap::new();
+                    let mut fn_array_names: Vec<String> = Vec::new();
+                    for (pname, ptype) in &f.params {
+                        if Self::parse_array_type(ptype).is_some() {
+                            fn_array_types
+                                .insert(pname.clone(), ptype.clone());
+                            fn_array_names.push(pname.clone());
+                        }
+                    }
+                    self.fn_array_param_types
+                        .insert(f.name.clone(), fn_array_types);
+                    self.fn_array_param_names
+                        .insert(f.name.clone(), fn_array_names);
+                }
+
                 // W459/W471: collect call sites from module-level statements,
                 // test/invariant/bench blocks, and function bodies. Function-body
                 // calls with array-literal arguments are treated as module-level
                 // anonymous ROM call sites so inner helper functions can pass
                 // array-of-struct literals to array-parameter callees.
-                let mut call_sites: Vec<&Node> = Vec::new();
+                // Each entry is (call node, optional containing FnDecl) so the
+                // binding pass can detect function-local array arguments.
+                let mut call_sites: Vec<(&Node, Option<&Node>)> = Vec::new();
                 for decl in &ast.children {
                     match decl.kind {
                         NodeKind::StmtExpr => {
                             if let Some(expr) = decl.children.first() {
                                 if expr.kind == NodeKind::ExprCall && expr.name == f.name {
-                                    call_sites.push(expr);
+                                    call_sites.push((expr, None));
                                 }
                             }
                         }
                         NodeKind::TestBlock
                         | NodeKind::InvariantBlock
                         | NodeKind::BenchBlock => {
-                            Self::collect_expr_calls(decl, &f.name, &mut call_sites);
+                            let mut inner: Vec<&Node> = Vec::new();
+                            Self::collect_expr_calls(decl, &f.name, &mut inner);
+                            for call in inner {
+                                call_sites.push((call, None));
+                            }
                         }
                         NodeKind::FnDecl => {
-                            // W471: inner calls with literal array arguments need to
-                            // be lowered to anonymous ROMs just like module-level
-                            // calls. Avoid same-array propagation calls (identifier
-                            // arguments) because those are resolved by W463.
+                            // W471/W475: inner calls with literal array arguments are
+                            // lowered to anonymous ROMs just like module-level calls.
+                            // Inner calls with identifier arguments that denote
+                            // function-local array variables are also collected so they
+                            // can be passed as packed-vector inputs.
                             let mut inner: Vec<&Node> = Vec::new();
                             Self::collect_expr_calls(decl, &f.name, &mut inner);
                             for call in inner {
@@ -7231,8 +8529,39 @@ impl VerilogCodegen {
                                         })
                                         .unwrap_or(false)
                                 });
-                                if has_literal_arg {
-                                    call_sites.push(call);
+                                let has_local_array_arg = array_param_indices.iter().any(|idx| {
+                                    call.children
+                                        .get(*idx)
+                                        .map(|arg| {
+                                            arg.kind == NodeKind::ExprIdentifier
+                                                && !arg.name.is_empty()
+                                                && Self::is_fn_local_array(decl, &arg.name)
+                                        })
+                                        .unwrap_or(false)
+                                });
+                                // W476: collect inner calls that pass a module-level array
+                                // identifier so the array parameter can be bound directly.
+                                let has_module_array_arg =
+                                    array_param_indices.iter().any(|idx| {
+                                        call.children
+                                            .get(*idx)
+                                            .map(|arg| {
+                                                arg.kind == NodeKind::ExprIdentifier
+                                                    && !arg.name.is_empty()
+                                                    && module_array_names.contains(
+                                                        &arg.name,
+                                                    )
+                                                    && !Self::is_fn_local_array(
+                                                        decl, &arg.name
+                                                    )
+                                            })
+                                            .unwrap_or(false)
+                                    });
+                                if has_literal_arg
+                                    || has_local_array_arg
+                                    || has_module_array_arg
+                                {
+                                    call_sites.push((call, Some(decl)));
                                 }
                             }
                         }
@@ -7259,7 +8588,7 @@ impl VerilogCodegen {
                     (Vec<String>, Vec<&Node>),
                 > = std::collections::HashMap::new();
                 let mut broken = false;
-                for call in &call_sites {
+                for (call, containing_fn) in &call_sites {
                     let mut sig_parts: Vec<String> = Vec::new();
                     for idx in &array_param_indices {
                         let (pname, ptype) = &f.params[*idx];
@@ -7267,7 +8596,30 @@ impl VerilogCodegen {
                             Self::parse_array_type(ptype).unwrap();
                         if let Some(arg) = call.children.get(*idx) {
                             if arg.kind == NodeKind::ExprIdentifier && !arg.name.is_empty() {
-                                sig_parts.push(arg.name.clone());
+                                // W475: function-local array variables are not bound
+                                // by name to a module memory; instead they are passed
+                                // as a packed-vector input. Use a common marker so all
+                                // local-array call sites share one clone.
+                                let is_local_array = containing_fn.map_or(false, |fn_node| {
+                                    Self::is_fn_local_array(fn_node, &arg.name)
+                                });
+                                // W476: module-level arrays of structs whose element type
+                                // has array-typed fields are also passed as packed-vector
+                                // inputs. Simple scalar-struct arrays keep the direct
+                                // module-binding path so variable-index assignments to
+                                // the parameter remain valid.
+                                let is_module_aos_with_array_field =
+                                    !is_local_array
+                                        && module_array_names.contains(&arg.name)
+                                        && Self::struct_type_has_array_field(
+                                            &expected_elem_type,
+                                            &self.struct_fields,
+                                        );
+                                if is_local_array || is_module_aos_with_array_field {
+                                    sig_parts.push("__local__".to_string());
+                                } else {
+                                    sig_parts.push(arg.name.clone());
+                                }
                             } else if arg.kind == NodeKind::ExprArrayLiteral
                                 && arg.extra_kind != "tuple"
                             {
@@ -7345,7 +8697,14 @@ impl VerilogCodegen {
                         std::collections::HashMap::new();
                     for (pos, idx) in array_param_indices.iter().enumerate() {
                         let pname = &f.params[*idx].0;
-                        fn_bindings.insert(pname.clone(), sig_parts[pos].clone());
+                        let bound = sig_parts[pos].clone();
+                        fn_bindings.insert(pname.clone(), bound.clone());
+                        if bound == "__local__" {
+                            local_packed
+                                .entry(f.name.clone())
+                                .or_default()
+                                .insert(*idx);
+                        }
                     }
                     bindings.insert(f.name.clone(), fn_bindings);
                 } else {
@@ -7371,10 +8730,18 @@ impl VerilogCodegen {
                         > = std::collections::HashMap::new();
                         for (pos, idx) in array_param_indices.iter().enumerate() {
                             let pname = &f.params[*idx].0;
-                            clone_fn_bindings.insert(pname.clone(), sig_parts[pos].clone());
+                            let bound = sig_parts[pos].clone();
+                            clone_fn_bindings.insert(pname.clone(), bound.clone());
+                            if bound == "__local__" {
+                                local_packed
+                                    .entry(safe_clone_name.clone())
+                                    .or_default()
+                                    .insert(*idx);
+                            }
                         }
                         fn_clones.insert(sig_key, safe_clone_name.clone());
-                        clone_bindings.insert(safe_clone_name, clone_fn_bindings);
+                        clone_bindings.insert(safe_clone_name.clone(), clone_fn_bindings);
+                        clone_origins.insert(safe_clone_name.clone(), f.name.clone());
                     }
                     clones.insert(f.name.clone(), fn_clones);
                 }
@@ -7581,7 +8948,16 @@ impl VerilogCodegen {
                     if all_sigs.len() == 1 {
                         // Single signature: emit the original function with the
                         // resolved binding.
-                        let (_, (sig_parts, b, _)) = all_sigs.into_iter().next().unwrap();
+                        let (_, (_sig_parts, b, _)) = all_sigs.into_iter().next().unwrap();
+                        for idx in &g_indices {
+                            let pname = &g_node.params[*idx].0;
+                            if b.get(pname).map(|v| v == "__local__").unwrap_or(false) {
+                                local_packed
+                                    .entry(g_name.clone())
+                                    .or_default()
+                                    .insert(*idx);
+                            }
+                        }
                         bindings.insert(g_name.clone(), b);
                     } else {
                         // W461/W464: Multiple signatures: emit clones. Sort
@@ -7598,8 +8974,18 @@ impl VerilogCodegen {
                                 &sig_parts,
                                 &mut used_clone_names,
                             );
-                            g_clones.insert(sig_key, safe_clone_name.clone());
-                            clone_bindings.insert(safe_clone_name, b);
+                            g_clones.insert(sig_key.clone(), safe_clone_name.clone());
+                            clone_bindings.insert(safe_clone_name.clone(), b.clone());
+                            clone_origins.insert(safe_clone_name.clone(), g_name.clone());
+                            for idx in &g_indices {
+                                let pname = &g_node.params[*idx].0;
+                                if b.get(pname).map(|v| v == "__local__").unwrap_or(false) {
+                                    local_packed
+                                        .entry(safe_clone_name.clone())
+                                        .or_default()
+                                        .insert(*idx);
+                                }
+                            }
                         }
                         clones.insert(g_name.clone(), g_clones);
                     }
@@ -7610,11 +8996,49 @@ impl VerilogCodegen {
                 }
             }
 
+            // W475: recompute local-packed indices from the final binding state so
+            // propagation and re-resolution are reflected accurately.
+            local_packed.clear();
+            for (fname, b) in &bindings {
+                if let Some(f) = functions.iter().find(|f| f.name == *fname) {
+                    if let Some(idxs) = indices.get(fname) {
+                        for idx in idxs {
+                            let pname = &f.params[*idx].0;
+                            if b.get(pname).map(|v| v == "__local__").unwrap_or(false) {
+                                local_packed
+                                    .entry(fname.clone())
+                                    .or_default()
+                                    .insert(*idx);
+                            }
+                        }
+                    }
+                }
+            }
+            for (clone_name, b) in &clone_bindings {
+                if let Some(orig) = clone_origins.get(clone_name) {
+                    if let Some(f) = functions.iter().find(|f| f.name == *orig) {
+                        if let Some(idxs) = indices.get(orig) {
+                            for idx in idxs {
+                                let pname = &f.params[*idx].0;
+                                if b.get(pname).map(|v| v == "__local__").unwrap_or(false) {
+                                    local_packed
+                                        .entry(clone_name.clone())
+                                        .or_default()
+                                        .insert(*idx);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             self.array_param_bindings = bindings;
             self.array_param_indices = indices;
             self.array_param_errors = errors;
             self.array_param_clones = clones;
             self.array_param_clone_bindings = clone_bindings;
+            self.array_param_clone_origins = clone_origins;
+            self.array_param_local_packed_indices = local_packed;
         }
 
         // Emit top-level module
@@ -7634,6 +9058,30 @@ impl VerilogCodegen {
         self.write_line("");
 
         self.indent();
+
+        // W480: precompute the set of function/clone names that will actually be
+        // emitted, so forward references to functions defined later in the same
+        // module are recognized and not replaced by a placeholder. This must
+        // happen before module-level const/var initializers are emitted, because
+        // those initializers may call functions (e.g. AOS init helpers).
+        if !functions.is_empty() {
+            for f in &functions {
+                let clones: Vec<String> = self
+                    .array_param_clones
+                    .get(&f.name)
+                    .map(|m| m.values().cloned().collect())
+                    .unwrap_or_default();
+                if !clones.is_empty() {
+                    for clone_name in &clones {
+                        self.emitted_functions
+                            .insert(Self::verilog_safe_identifier(clone_name));
+                    }
+                } else if self.array_param_errors.get(&f.name).is_none() {
+                    self.emitted_functions
+                        .insert(Self::verilog_safe_identifier(&f.name));
+                }
+            }
+        }
 
         // Section: Parameters from const declarations
         if !consts.is_empty() {
@@ -7723,6 +9171,7 @@ impl VerilogCodegen {
         self.write_indent();
         self.write_line("endfunction");
         self.write_line("");
+        self.emitted_functions.insert("__mul_noop".to_string());
 
         // Section: Struct → register/signal declarations
         if !structs.is_empty() {
@@ -7899,24 +9348,32 @@ impl VerilogCodegen {
             self.write_line("// Benchmark blocks (simulation only)");
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
+            // W480: multiple bench blocks can target the same function after
+            // import/clone lowering; emit only the first occurrence to avoid
+            // duplicate module-scope counter and named initial-block errors in
+            // Icarus Verilog.
+            let mut emitted_bench_names: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
             // Module-scope counter declarations (R-VD-1 fix).
             self.write_indent();
             self.write_line("`ifndef SIMULATION");
             for b in &benches {
-                let counter = format!(
-                    "_bench_{}_cycles",
-                    Self::sanitize_identifier(&b.name)
-                );
+                let bench_name = Self::sanitize_identifier(&b.name);
+                if !emitted_bench_names.insert(bench_name.clone()) {
+                    continue;
+                }
+                let counter = format!("_bench_{}_cycles", bench_name);
                 self.write_indent();
                 self.write_line(&format!("integer {} = 0;", counter));
             }
             self.write_indent();
             self.write_line("`endif");
             for b in &benches {
-                let counter = format!(
-                    "_bench_{}_cycles",
-                    Self::sanitize_identifier(&b.name)
-                );
+                let bench_name = Self::sanitize_identifier(&b.name);
+                if !emitted_bench_names.insert(bench_name.clone()) {
+                    continue;
+                }
+                let counter = format!("_bench_{}_cycles", bench_name);
 
                 // W460: hoist all bench-local variable declarations to module scope
                 // so they are declared outside the procedural `initial` block.
@@ -7989,6 +9446,12 @@ impl VerilogCodegen {
         self.write_line("endmodule");
         self.write_line("");
         self.write_line("`default_nettype wire");
+
+        // W477: ensure procedural blocks declare all `reg`/`integer`/attribute
+        // declarations before any executable statement. This is a no-op when the
+        // generated Verilog is already declaration-clean, and fixes Icarus
+        // Verilog's strict declaration-before-use requirement otherwise.
+        self.hoist_procedural_declarations();
     }
 
     /// W466: recursively initialize one element of a struct-array ROM. Nested
@@ -8861,7 +10324,8 @@ impl VerilogCodegen {
                     self.write_line("initial begin");
                     self.indent();
                     let child = &node.children[0];
-                    for (i, elem) in child.children.iter().enumerate() {
+                    let elements = Self::array_literal_elements(child);
+                    for (i, elem) in elements.iter().enumerate() {
                         if i >= array_size {
                             break;
                         }
@@ -8980,6 +10444,7 @@ impl VerilogCodegen {
                     "reg {}{} {};",
                     field_signed_str, field_range_str, field_safe
                 ));
+                self.module_declared_regs.insert(field_safe);
             }
             if !node.children.is_empty() {
                 self.write_indent();
@@ -9208,6 +10673,10 @@ impl VerilogCodegen {
             }
             // W382: emit a true synthesizable Verilog memory so that indexing
             // expressions like mem[i] resolve to memory access, not bit-select.
+            // W479: remember the dimensions so `.len()` on this module-level scalar
+            // array can be lowered to a constant.
+            self.module_scalar_array_dims
+                .insert(node.name.clone(), dims.clone());
             let elem_width = Self::type_to_width(&elem_type);
             let elem_signed = Self::type_is_signed(&elem_type);
             let elem_signed_str = if elem_signed { "signed " } else { "" };
@@ -9230,7 +10699,8 @@ impl VerilogCodegen {
                 self.indent();
                 let child = &node.children[0];
                 if child.kind == NodeKind::ExprArrayLiteral {
-                    for (i, elem) in child.children.iter().enumerate() {
+                    let elements = Self::array_literal_elements(child);
+                    for (i, elem) in elements.iter().enumerate() {
                         if i < array_size {
                             self.write_indent();
                             self.write(&format!("{}[{}] = ", safe_name, i));
@@ -9251,6 +10721,11 @@ impl VerilogCodegen {
         } else if is_array {
             self.write_line(&format!("// var: {} [{}]", node.name, node.extra_size));
             let array_size: usize = node.extra_size.parse().unwrap_or(1);
+            // W479: legacy 1-D module-level scalar array.
+            self.module_scalar_array_dims.insert(
+                node.name.clone(),
+                vec![(array_size, "u8".to_string())],
+            );
             for i in 0..array_size {
                 self.write_indent();
                 self.write_line(&format!(
@@ -9264,7 +10739,8 @@ impl VerilogCodegen {
                 self.indent();
                 let child = &node.children[0];
                 if child.kind == NodeKind::ExprArrayLiteral {
-                    for (i, elem) in child.children.iter().enumerate() {
+                    let elements = Self::array_literal_elements(child);
+                    for (i, elem) in elements.iter().enumerate() {
                         if i < array_size {
                             self.write_indent();
                             self.write(&format!("{}_{} = ", safe_name, i));
@@ -9306,10 +10782,12 @@ impl VerilogCodegen {
                     format!("{} ", frange)
                 };
                 let fsigned_str = if fsigned { "signed " } else { "" };
+                let field_name = format!("{}_{}", safe_name, fname);
                 self.write_line(&format!(
-                    "reg {}{} {}_{};",
-                    fsigned_str, frange_str, safe_name, fname
+                    "reg {}{} {};",
+                    fsigned_str, frange_str, field_name
                 ));
+                self.module_declared_regs.insert(field_name);
             }
             if !node.children.is_empty() {
                 self.write_indent();
@@ -9370,7 +10848,15 @@ impl VerilogCodegen {
             // W470: use the same dimension-aware field declaration as local scalar
             // struct variables so module-level struct field regs match the emitted
             // field-access names.
+            // W478: skip fields already declared for a module-level scalar struct
+            // constant/variable to avoid duplicate reg declarations.
+            let flat_name = format!("{}_{}", reg_prefix, field.name);
+            let safe_name = Self::verilog_safe_identifier(&flat_name);
+            if self.module_declared_regs.contains(&safe_name) {
+                continue;
+            }
             self.gen_verilog_struct_field_decl(reg_prefix, &field.name, &field.extra_type);
+            self.module_declared_regs.insert(safe_name);
         }
     }
 
@@ -9425,6 +10911,8 @@ impl VerilogCodegen {
                 self.local_struct_array_fields.clear();
                 self.local_struct_array_has_array_field.clear();
                 self.local_struct_var_types.clear();
+                self.local_declared_names.clear();
+                self.unsupported_call_result_locals.clear();
                 self.array_param_types.clear();
                 self.loop_vars_declared.clear();
                 return;
@@ -9457,6 +10945,7 @@ impl VerilogCodegen {
         };
 
         let fn_name = Self::verilog_safe_identifier(verilog_name);
+        self.emitted_functions.insert(fn_name.clone());
 
         // void functions → task; others → function
         if node.extra_return_type == "void" {
@@ -9482,11 +10971,18 @@ impl VerilogCodegen {
         // Emit parameters as input declarations. W458/W461: array parameters
         // that are bound to a module-level array are not emitted as scalar
         // inputs; the function body references the module array by name directly.
+        // W475: array parameters bound to a function-local packed vector are
+        // emitted as a scalar input whose width is the total packed bit width.
         let skip_params: std::collections::HashSet<String> = self
             .current_array_param_bindings()
             .map_or_else(
                 std::collections::HashSet::new,
-                |b| b.keys().cloned().collect(),
+                |b| {
+                    b.iter()
+                        .filter(|(_, v)| *v != "__local__")
+                        .map(|(k, _)| k.clone())
+                        .collect()
+                },
             );
         let mut scalar_struct_params_to_unpack: Vec<(String, String)> = Vec::new();
         for (pname, ptype) in &node.params {
@@ -9496,13 +10992,18 @@ impl VerilogCodegen {
             self.write_indent();
             // W470: scalar struct parameters are passed as a packed vector whose
             // width is the exact sum of the flattened leaf-field widths.
+            // W475: array parameters passed as packed vectors use the total
+            // packed width (size * element width, recursively).
             let is_struct = self.struct_fields.contains_key(ptype);
+            let is_array = Self::parse_array_type(ptype).is_some();
             let pw = if is_struct {
                 Self::struct_return_width(ptype, &self.struct_fields)
+            } else if is_array {
+                Self::packed_width(ptype, &self.struct_fields)
             } else {
                 Self::type_to_width(ptype)
             };
-            let ps = if is_struct {
+            let ps = if is_struct || is_array {
                 false
             } else {
                 Self::type_is_signed(ptype)
@@ -9615,6 +11116,8 @@ impl VerilogCodegen {
         self.local_struct_array_fields.clear();
         self.local_struct_array_has_array_field.clear();
         self.local_struct_var_types.clear();
+        self.local_declared_names.clear();
+        self.unsupported_call_result_locals.clear();
         self.array_param_types.clear();
     }
 
@@ -9763,7 +11266,21 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_test(&mut self, node: &Node) {
-        let safe_test_name = Self::sanitize_identifier(&node.name);
+        let mut safe_test_name = Self::sanitize_identifier(&node.name);
+        // W478: deduplicate test block labels when the source spec contains
+        // multiple test blocks with the same name.
+        if self.test_block_names.contains(&safe_test_name) {
+            let mut suffix = 2u32;
+            loop {
+                let candidate = format!("{}_{}", safe_test_name, suffix);
+                if !self.test_block_names.contains(&candidate) {
+                    safe_test_name = candidate;
+                    break;
+                }
+                suffix += 1;
+            }
+        }
+        self.test_block_names.insert(safe_test_name.clone());
         self.write_indent();
         self.write_line(&format!("// test: {}", node.name));
         // W459: declare a module-scope dummy register for consuming the return
@@ -9772,10 +11289,9 @@ impl VerilogCodegen {
         // local reg keeps the call legal while preserving the side effect.
         if Self::test_block_has_bare_call(node) {
             self.write_indent();
-            self.write_line(&format!(
-                "reg [31:0] {}_w459_tmp;",
-                safe_test_name
-            ));
+            self.write_line(
+                &format!("reg [31:0] {}_w459_tmp;", safe_test_name)
+            );
         }
         self.write_indent();
         self.write_line(&format!(
@@ -9810,38 +11326,26 @@ impl VerilogCodegen {
                         // Test blocks are wrapped in `ifndef SIMULATION`, so these
                         // calls run only in simulation and are not synthesized.
                         if expr.name == "assert" && !expr.children.is_empty() {
-                            // W459: `assert(cond)` is emitted as a SystemVerilog
-                            // assertion statement. The optional message argument is
-                            // ignored for smoke compatibility; the condition still
-                            // drives pass/fail semantics in simulation.
+                            // W477: `assert(cond)` is emitted as a SystemVerilog
+                            // assertion that aborts simulation on failure. Icarus
+                            // Verilog treats a bare `assert(cond);` as a non-fatal
+                            // error (it prints a message but exits 0), so we add an
+                            // explicit `$fatal` else clause for a reliable failure
+                            // exit code.
                             self.write_indent();
                             self.write("assert(");
                             self.gen_verilog_expr(&expr.children[0]);
-                            self.write_line(");");
+                            self.write_line(") else $fatal(1, \"assertion failed\");");
                         } else if expr.name == "assert_eq" && expr.children.len() >= 2 {
+                            // W478: `assert_eq(a, b)` is emitted as a fatal
+                            // SystemVerilog equality assertion so Icarus simulation
+                            // fails with a non-zero exit code on mismatch.
                             self.write_indent();
-                            self.write_line("begin");
-                            self.indent();
-                            self.write_indent();
-                            self.write("if (!(");
+                            self.write("assert((");
                             self.gen_verilog_expr(&expr.children[0]);
                             self.write(" == ");
                             self.gen_verilog_expr(&expr.children[1]);
-                            self.write_line(")) begin");
-                            self.indent();
-                            self.write_indent();
-                            self.write_line(&format!(
-                                "$display(\"[TEST] {} : FAILED\");",
-                                test_name
-                            ));
-                            self.write_indent();
-                            self.write_line("$display(\"[TEST] assertion failed\");");
-                            self.dedent();
-                            self.write_indent();
-                            self.write_line("end");
-                            self.dedent();
-                            self.write_indent();
-                            self.write_line("end");
+                            self.write_line(")) else $fatal(1, \"assertion failed\");");
                         } else {
                             self.write_indent();
                             self.write(&format!(
@@ -9954,6 +11458,76 @@ impl VerilogCodegen {
         true
     }
 
+    /// W476: assign one element of a memory-mode struct array (module-level,
+    /// array-parameter bound, or local memory-mode) from a packed temporary.
+    /// `field_prefix` is the per-field memory base name; `leaf_fields` are the
+    /// flattened fields in packed order; `idx` is the outer index expression;
+    /// `packed_tmp` is the source packed vector; `total_width` is its bit width.
+    fn gen_verilog_struct_array_memory_element_assign_from_packed(
+        &mut self,
+        field_prefix: &str,
+        leaf_fields: &[(String, String)],
+        idx: &Node,
+        packed_tmp: &str,
+        total_width: u32,
+    ) {
+        let mut offset: u32 = 0;
+        for (fname, ftype) in leaf_fields {
+            let field_name_raw = format!("{}_{}", field_prefix, fname);
+            let field_safe = Self::verilog_safe_identifier(&field_name_raw);
+            let field_dims = Self::parse_array_dimensions(ftype);
+            if !field_dims.is_empty() {
+                let inner_leaf_type =
+                    Self::array_dimensions_leaf_type(&field_dims);
+                let inner_width = if self
+                    .struct_fields
+                    .contains_key(&inner_leaf_type)
+                {
+                    Self::packed_width(&inner_leaf_type,
+                        &self.struct_fields)
+                } else {
+                    Self::type_to_width(&inner_leaf_type)
+                };
+                let inner_combos = Self::index_combinations(&field_dims);
+                for (inner_idx, _) in inner_combos.iter().enumerate() {
+                    let high = total_width
+                        .saturating_sub(1)
+                        .saturating_sub(offset);
+                    let low = high.saturating_sub(
+                        inner_width.saturating_sub(1),
+                    );
+                    self.write_indent();
+                    self.write(&format!("{}[", field_safe));
+                    self.gen_verilog_expr(idx);
+                    self.write_line(&format!(
+                        "][{}] = {}[{}:{}];",
+                        inner_idx, packed_tmp, high, low
+                    ));
+                    offset = offset.saturating_add(inner_width);
+                }
+            } else {
+                let field_width = if self.struct_fields.contains_key(ftype) {
+                    Self::packed_width(ftype, &self.struct_fields)
+                } else {
+                    Self::type_to_width(ftype)
+                };
+                let high = total_width
+                    .saturating_sub(1)
+                    .saturating_sub(offset);
+                let low =
+                    high.saturating_sub(field_width.saturating_sub(1));
+                self.write_indent();
+                self.write(&format!("{}[", field_safe));
+                self.gen_verilog_expr(idx);
+                self.write_line(&format!(
+                    "] = {}[{}:{}];",
+                    packed_tmp, high, low
+                ));
+                offset = offset.saturating_add(field_width);
+            }
+        }
+    }
+
     /// W467: emit a whole-element assignment into a struct array when the LHS is
     /// an indexed array (`pts[idx]` or `tmp[i]`) and the RHS is a struct literal
     /// or a struct variable. Returns true if the assignment was handled.
@@ -9995,8 +11569,43 @@ impl VerilogCodegen {
         }
         let is_literal = rhs.kind == NodeKind::ExprStructLit;
         let is_var = rhs.kind == NodeKind::ExprIdentifier;
+        let mut packed_tmp: Option<(String, u32)> = None;
         if !is_literal && !is_var {
-            return false;
+            // W476: RHS may be an indexed element of another struct array. Pack it
+            // into a temporary packed vector so the destination element can be
+            // written field-by-field.
+            if rhs.kind == NodeKind::ExprIndex {
+                if let Some((base_id, indices)) =
+                    Self::flatten_index_chain(rhs)
+                {
+                    if base_id.kind == NodeKind::ExprIdentifier {
+                        if let Some((elem_type, dims)) =
+                            self.array_of_struct_expr_type(&base_id)
+                        {
+                            if Self::array_element_is_struct(
+                                Some(&elem_type),
+                                &self.struct_fields,
+                            ) {
+                                let tmp = self
+                                    .gen_verilog_pack_struct_array_element_to_temp(
+                                        &base_id.name,
+                                        &indices,
+                                        &elem_type,
+                                        &dims,
+                                    );
+                                let total_width = Self::packed_width(
+                                    &elem_type,
+                                    &self.struct_fields,
+                                );
+                                packed_tmp = Some((tmp, total_width));
+                            }
+                        }
+                    }
+                }
+            }
+            if packed_tmp.is_none() {
+                return false;
+            }
         }
 
         // Determine the element struct type and the flattened leaf fields.
@@ -10089,6 +11698,17 @@ impl VerilogCodegen {
             } else {
                 base_name.clone()
             };
+            // W476: indexed element RHS -> copy from packed temporary.
+            if let Some((ref tmp, total_width)) = packed_tmp {
+                self.gen_verilog_struct_array_memory_element_assign_from_packed(
+                    &field_prefix,
+                    &leaf_fields,
+                    idx,
+                    tmp,
+                    total_width,
+                );
+                return true;
+            }
             for (fname, ftype) in &leaf_fields {
                 let field_name_raw = format!("{}_{}", field_prefix, fname);
                 let field_safe = Self::verilog_safe_identifier(&field_name_raw);
@@ -10889,50 +12509,6 @@ impl VerilogCodegen {
         }
     }
 
-    /// W470: emit a packed concatenation for an array literal whose element type
-    /// is a struct. Flattened leaf fields are concatenated MSB-first, element 0
-    /// occupying the most significant bits. Nested struct fields and
-    /// multi-dimensional arrays of structs are supported.
-    fn gen_verilog_pack_array_of_struct_literal(
-        &mut self,
-        lit: &Node,
-        ret_ty: &str,
-    ) {
-        let dims = Self::parse_array_dimensions(ret_ty);
-        let leaf_type = Self::array_dimensions_leaf_type(&dims);
-        let mut flat_fields: Vec<(String, String)> = Vec::new();
-        Self::flatten_struct_fields(&leaf_type, &self.struct_fields, "", &mut flat_fields);
-        let mut flat_values: Vec<&Node> = Vec::new();
-        Self::flatten_array_literal_values(lit, &mut flat_values);
-        self.write("{");
-        for (i, elem) in flat_values.iter().enumerate() {
-            if i > 0 {
-                self.write(", ");
-            }
-            if elem.kind == NodeKind::ExprStructLit {
-                for (j, (fname, ftype)) in flat_fields.iter().enumerate() {
-                    if j > 0 {
-                        self.write(", ");
-                    }
-                    let val = elem.children.iter().find(|f| {
-                        f.kind == NodeKind::ExprFieldAccess
-                            && f.name == *fname
-                            && !f.children.is_empty()
-                    }).map(|f| &f.children[0]);
-                    if let Some(v) = val {
-                        self.gen_verilog_expr(v);
-                    } else {
-                        let fwidth = Self::type_to_width(ftype);
-                        self.write(&format!("{}'b0", fwidth));
-                    }
-                }
-            } else {
-                self.write("0");
-            }
-        }
-        self.write("}");
-    }
-
     /// W468: emit the flattened per-leaf register declarations for a local
     /// multi-dimensional scalar array such as `[2][3]u16 m`.
     fn gen_verilog_local_multi_dim_decl(
@@ -11250,10 +12826,11 @@ impl VerilogCodegen {
                         ) > 0
                         && node.children[0].kind == NodeKind::ExprArrayLiteral
                     {
-                        self.gen_verilog_pack_array_of_struct_literal(
+                        if !self.try_emit_array_of_struct_literal_packed(
                             &node.children[0],
-                            &ret_ty,
-                        );
+                        ) {
+                            self.gen_verilog_expr(&node.children[0]);
+                        }
                     } else {
                         self.gen_verilog_expr(&node.children[0]);
                     }
@@ -11261,6 +12838,32 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtLocal => {
+                // W481: record every function-local name that gets a declaration.
+                // This lets field-access fallbacks distinguish declared locals from
+                // names dropped by parser recovery or initialized from unsupported
+                // calls.
+                let safe_local_name = Self::verilog_safe_identifier(&node.name);
+                self.local_declared_names.insert(node.name.clone());
+                self.local_declared_names.insert(safe_local_name.clone());
+                if node.children.len() == 1
+                    && node.children[0].kind == NodeKind::ExprCall
+                {
+                    let call = &node.children[0];
+                    let callee = &call.name;
+                    let callee_safe = Self::verilog_safe_identifier(callee);
+                    let is_unsupported = callee.contains("::")
+                        || Self::method_call_split(callee)
+                            .map_or(false, |(_, m)| m == "len" || m == "contains")
+                        || (!callee.is_empty()
+                            && !self.emitted_functions.contains(&callee_safe));
+                    if is_unsupported {
+                        self.unsupported_call_result_locals
+                            .insert(node.name.clone());
+                        self.unsupported_call_result_locals
+                            .insert(safe_local_name.clone());
+                    }
+                }
+
                 // W383/W465: support function-local array variables such as
                 // `var tmp : [2]u16;` and `var pts : [3]Pt;`. Emit per-element regs
                 // (per-field regs for struct element types) with index access when
@@ -11327,6 +12930,18 @@ impl VerilogCodegen {
                                     &dims,
                                     &fields,
                                     &node.children[0],
+                                );
+                            } else if !node.children.is_empty()
+                                && node.children[0].kind == NodeKind::ExprIdentifier
+                                && !node.children[0].name.is_empty()
+                            {
+                                // W476: copy initializer from another local array of
+                                // structs, e.g. `var c : [2]Shape = b;`.
+                                self.gen_verilog_local_struct_array_copy_init(
+                                    base_name,
+                                    &node.children[0].name,
+                                    &inner_elem_type,
+                                    &dims,
                                 );
                             } else if !node.children.is_empty() {
                                 self.write_indent();
@@ -11485,10 +13100,31 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtAssign => {
+                // W480: wildcard discard assignment `_ = expr` has no Verilog
+                // target. Synthesizable functions have no side effects, so we
+                // can safely drop the assignment; emit a comment for traceability.
+                if node.children.len() >= 2
+                    && node.children[0].kind == NodeKind::ExprIdentifier
+                    && node.children[0].name == "_"
+                {
+                    self.write_indent();
+                    self.write_line("// wildcard discard assignment dropped");
+                    return;
+                }
                 // W467: whole-struct assignment to a local struct variable:
                 // `a = b` or `a = Pt{...}`.
                 if node.children.len() >= 2
                     && self.gen_verilog_try_struct_var_assign(
+                        &node.children[0],
+                        &node.children[1],
+                    )
+                {
+                    return;
+                }
+                // W478: whole-array assignment between local arrays of structs:
+                // `a = b`.
+                if node.children.len() >= 2
+                    && self.gen_verilog_try_local_struct_array_assign(
                         &node.children[0],
                         &node.children[1],
                     )
@@ -11575,7 +13211,12 @@ impl VerilogCodegen {
             NodeKind::StmtExpr => {
                 self.write_indent();
                 if !node.children.is_empty() {
+                    // W480: a bare expression statement (e.g. a call to a host-side
+                    // helper that is not emitted) does not need a sized placeholder;
+                    // signal this to gen_verilog_expr so it can emit a no-op comment.
+                    self.stmt_context = true;
                     self.gen_verilog_expr(&node.children[0]);
+                    self.stmt_context = false;
                 }
                 self.write_line(";");
             }
@@ -11767,6 +13408,157 @@ impl VerilogCodegen {
         self.write_line("end");
     }
 
+    /// W479: split a flattened method-call name like `text.len` or `arr.contains`
+    /// into the receiver identifier and the method name. Returns None if the name
+    /// does not contain a dot.
+    fn method_call_split(name: &str) -> Option<(&str, &str)> {
+        let dot = name.rfind('.')?;
+        let receiver = &name[..dot];
+        let method = &name[dot + 1..];
+        if receiver.is_empty() || method.is_empty() {
+            return None;
+        }
+        Some((receiver, method))
+    }
+
+    /// W479: compute the total element count for a statically-known array.
+    /// Checks function parameters, function-local arrays, module-level scalar arrays,
+    /// and module-level struct arrays.
+    fn static_array_len(&self, receiver: &str) -> Option<usize> {
+        // Function parameter of array type.
+        if let Some(ty) = self.array_param_types.get(receiver) {
+            let dims = Self::parse_array_dimensions(ty);
+            if !dims.is_empty() {
+                return Some(dims.iter().map(|(s, _)| *s).product());
+            }
+        }
+        // Function-local / bench-local array.
+        if let Some(dims) = self.local_array_dims.get(receiver) {
+            if !dims.is_empty() {
+                return Some(dims.iter().map(|(s, _)| *s).product());
+            }
+        }
+        // Module-level scalar array.
+        if let Some(dims) = self.module_scalar_array_dims.get(receiver) {
+            if !dims.is_empty() {
+                return Some(dims.iter().map(|(s, _)| *s).product());
+            }
+        }
+        // Module-level array of structs.
+        if let Some(dims) = self.module_struct_array_dims.get(receiver) {
+            if !dims.is_empty() {
+                return Some(dims.iter().map(|(s, _)| *s).product());
+            }
+        }
+        None
+    }
+
+    /// W479: try to emit `.len()` as a compile-time constant for arrays of known
+    /// size or string literals. Returns true if the call was handled.
+    fn try_gen_verilog_static_len(&mut self, node: &Node) -> bool {
+        if node.kind != NodeKind::ExprCall {
+            return false;
+        }
+        let (receiver, method) = match Self::method_call_split(&node.name) {
+            Some(rm) if rm.1 == "len" => rm,
+            _ => return false,
+        };
+        if !node.children.is_empty() {
+            // `.len()` takes no arguments; any arguments means it is not the
+            // array-length method we recognize.
+            return false;
+        }
+        // Array of statically known size: emit the total element count.
+        if let Some(len) = self.static_array_len(receiver) {
+            self.write(&len.to_string());
+            return true;
+        }
+        // String literal: emit the number of bytes/characters.
+        if receiver.starts_with('"') && receiver.ends_with('"') {
+            // The receiver was flattened into the name, so we cannot recover the
+            // literal value here; fall through to unsupported.
+        }
+        false
+    }
+
+    /// W479: try to emit `.contains(needle)` for a fixed-size array of scalars.
+    /// Returns true if the call was handled. String `.contains` is intentionally
+    /// left unsupported because Verilog strings are not synthesizable in Icarus.
+    fn try_gen_verilog_static_contains(&mut self, node: &Node) -> bool {
+        if node.kind != NodeKind::ExprCall {
+            return false;
+        }
+        let (receiver, method) = match Self::method_call_split(&node.name) {
+            Some(rm) if rm.1 == "contains" => rm,
+            _ => return false,
+        };
+        if node.children.len() != 1 {
+            return false;
+        }
+        let needle = &node.children[0];
+        // Only support fixed-size scalar arrays where the needle is a scalar.
+        // Check function-local, bench-local, and module-level scalar arrays.
+        let dims = self
+            .local_array_dims
+            .get(receiver)
+            .cloned()
+            .or_else(|| self.module_scalar_array_dims.get(receiver).cloned());
+        if let Some(dims) = dims {
+            if Self::array_dimensions_leaf_type(&dims) == "u8" {
+                // u8 arrays are treated as byte buffers; do not synthesize here.
+                return false;
+            }
+            if !dims.is_empty() && needle.kind != NodeKind::ExprArrayLiteral {
+                let len = dims.iter().map(|(s, _)| *s).product::<usize>();
+                // Emit an OR reduction over a generate-style expression:
+                // (arr[0] == needle) || (arr[1] == needle) || ... || (arr[len-1] == needle)
+                self.write("(");
+                let safe = Self::verilog_safe_identifier(receiver);
+                for i in 0..len {
+                    if i > 0 {
+                        self.write(" || ");
+                    }
+                    self.write(&format!("{}[{}] == ", safe, i));
+                    self.gen_verilog_expr(needle);
+                }
+                self.write(")");
+                return true;
+            }
+        }
+        false
+    }
+
+    /// W480: emit a sized zero placeholder for an unsupported method/call so that
+    /// the Icarus gate produces a single classified failure instead of a cascade
+    /// of syntax errors. A 32-bit default avoids "indefinite width" errors when the
+    /// placeholder appears inside a concatenation.
+    fn gen_verilog_unsupported_method(&mut self, node: &Node, reason: &str) {
+        if self.stmt_context {
+            self.write(&format!(
+                "/* UNSUPPORTED_ICARUS: {} ({}) */",
+                reason, node.name
+            ));
+            return;
+        }
+        let width = self.verilog_call_result_width(&node.name);
+        self.write(&format!(
+            "{}'d0 /* UNSUPPORTED_ICARUS: {} ({}) */",
+            width, reason, node.name
+        ));
+    }
+
+    /// W480: determine the bit width to use for a placeholder that replaces a call
+    /// whose target is not emitted. Use the callee's known return type when
+    /// available; otherwise default to 32 bits.
+    fn verilog_call_result_width(&self, callee: &str) -> u32 {
+        if let Some(ret) = self.fn_return_types.get(callee) {
+            if !ret.is_empty() {
+                return Self::packed_width(ret, &self.struct_fields).max(1);
+            }
+        }
+        32
+    }
+
     fn gen_verilog_expr(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprLiteral => {
@@ -11813,9 +13605,15 @@ impl VerilogCodegen {
                 // W458/W461: if this identifier is a function parameter bound to
                 // a module-level array (in either the original function or a
                 // clone), emit the module array name instead.
+                // W475: local-packed array parameters are passed as a packed
+                // vector input; emit the parameter's own safe name.
                 if let Some(bindings) = self.current_array_param_bindings() {
                     if let Some(bound) = bindings.get(&node.name) {
-                        self.write(&Self::verilog_safe_identifier(bound));
+                        if bound == "__local__" {
+                            self.write(&Self::verilog_safe_identifier(&node.name));
+                        } else {
+                            self.write(&Self::verilog_safe_identifier(bound));
+                        }
                     } else {
                         self.write(&self.verilog_local_name(&node.name));
                     }
@@ -11827,6 +13625,30 @@ impl VerilogCodegen {
                 self.write(&Self::verilog_safe_identifier(&node.name));
             }
             NodeKind::ExprCall => {
+                // W479: static lowering for synthesizable method calls before
+                // falling back to the generic function-call path.
+                if self.try_gen_verilog_static_len(node) {
+                    return;
+                }
+                if self.try_gen_verilog_static_contains(node) {
+                    return;
+                }
+                // W479: detect and clearly mark unsupported dynamic method calls
+                // so the Icarus gate classifies the failure instead of cascading.
+                if let Some((receiver, method)) = Self::method_call_split(&node.name) {
+                    let is_string_method =
+                        method == "len" || method == "contains";
+                    if is_string_method {
+                        self.gen_verilog_unsupported_method(
+                            node,
+                            "dynamic string/array method",
+                        );
+                        return;
+                    }
+                    // Other method calls (e.g. struct methods) may still be valid;
+                    // only intercept the known-unsupported patterns above.
+                    let _ = receiver; // receiver is kept for future classification
+                }
                 // W461: if the callee is a function with multiple array-parameter
                 // binding signatures, redirect this call to the appropriate clone.
                 let callee_original = &node.name;
@@ -11838,28 +13660,109 @@ impl VerilogCodegen {
                         }
                     }
                 }
+                // W480: if the resolved callee is not a function/task actually
+                // emitted in this module (host-side helper, namespace-qualified
+                // import, or function skipped due to unsupported bindings), emit a
+                // sized zero placeholder so Icarus classifies one failure instead of
+                // cascading with "No function named ..." or syntax errors.
+                if !self.emitted_functions.contains(&fn_name) {
+                    if self.stmt_context {
+                        let reason = if callee_original.contains("::") {
+                            "namespace call"
+                        } else {
+                            "host-side function not emitted"
+                        };
+                        self.write(&format!(
+                            "/* UNSUPPORTED_ICARUS: {} ({}) */",
+                            reason, callee_original
+                        ));
+                        return;
+                    }
+                    let width = self.verilog_call_result_width(callee_original);
+                    let reason = if callee_original.contains("::") {
+                        "namespace call"
+                    } else {
+                        "host-side function not emitted"
+                    };
+                    self.write(&format!(
+                        "{}'d0 /* UNSUPPORTED_ICARUS: {} ({}) */",
+                        width, reason, callee_original
+                    ));
+                    return;
+                }
                 self.write(&fn_name);
                 self.write("(");
                 // W458/W461: drop module-level array arguments from the emitted
                 // Verilog argument list. The function body references the bound
                 // module array by name directly, so the array value is not passed
                 // through a scalar input port.
+                // W475: array arguments passed as packed-vector inputs because the
+                // call site supplied a function-local array are emitted explicitly.
                 let skip_indices = self
                     .array_param_indices
+                    .get(callee_original)
+                    .cloned()
+                    .unwrap_or_default();
+                let local_packed_indices = self
+                    .array_param_local_packed_indices
+                    .get(&fn_name)
+                    .cloned()
+                    .unwrap_or_default();
+                let fn_array_names = self
+                    .fn_array_param_names
+                    .get(callee_original)
+                    .cloned()
+                    .unwrap_or_default();
+                let fn_array_types = self
+                    .fn_array_param_types
                     .get(callee_original)
                     .cloned()
                     .unwrap_or_default();
                 let mut first = true;
                 for (i, arg) in node.children.iter().enumerate() {
                     if skip_indices.contains(&i) {
+                        if !local_packed_indices.contains(&i) {
+                            continue;
+                        }
+                        // W475: pack the function-local array argument into a
+                        // packed vector whose width matches the callee's array
+                        // parameter type.
+                        if let Some(pos) = skip_indices
+                            .iter()
+                            .position(|idx| *idx == i)
+                        {
+                            if let Some(pname) = fn_array_names.get(pos) {
+                                if let Some(ptype) =
+                                    fn_array_types.get(pname)
+                                {
+                                    let dims =
+                                        Self::parse_array_dimensions(ptype);
+                                    let elem_type =
+                                        Self::array_dimensions_leaf_type(
+                                            &dims,
+                                        );
+                                    if !dims.is_empty() {
+                                        if !first {
+                                            self.write(", ");
+                                        }
+                                        first = false;
+                                        self.gen_verilog_pack_array_of_struct_expr(
+                                            arg, &elem_type, &dims,
+                                        );
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
                         continue;
                     }
                     if !first {
                         self.write(", ");
                     }
                     first = false;
-                    // W470: scalar struct variables passed as function arguments must
-                    // be packed into a concatenation matching the callee's input width.
+                    // W470/W476: scalar struct arguments must be packed. Identifier
+                    // arguments are packed from per-field registers; indexed struct-array
+                    // elements are packed from per-field memories.
                     if arg.kind == NodeKind::ExprIdentifier {
                         if let Some(ty) = self.local_struct_var_types.get(&arg.name).cloned() {
                             self.gen_verilog_pack_scalar_struct(&arg.name, &ty);
@@ -11868,6 +13771,31 @@ impl VerilogCodegen {
                         } else {
                             self.gen_verilog_expr(arg);
                         }
+                    } else if arg.kind == NodeKind::ExprIndex {
+                        // W476: scalar struct parameter passed an indexed element of a
+                        // module-level or local struct array. Pack the element's
+                        // per-field memories into the callee's expected width.
+                        if let Some((ref base_id, ref indices)) =
+                            Self::flatten_index_chain(arg)
+                        {
+                            if base_id.kind == NodeKind::ExprIdentifier {
+                                let base = &base_id.name;
+                                if let Some((elem_type, dims)) =
+                                    self.array_of_struct_expr_type(base_id)
+                                {
+                                    if Self::array_element_is_struct(
+                                        Some(&elem_type),
+                                        &self.struct_fields,
+                                    ) {
+                                        self.gen_verilog_pack_struct_array_element(
+                                            base, indices, &elem_type, &dims,
+                                        );
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                        self.gen_verilog_expr(arg);
                     } else {
                         self.gen_verilog_expr(arg);
                     }
@@ -11900,8 +13828,20 @@ impl VerilogCodegen {
                         // packed vector comparison so that scalar struct variables
                         // (which are emitted as per-field registers) can be compared
                         // against struct literals or other struct variables.
-                        let lhs_ty = self.scalar_struct_expr_type(&node.children[0]);
-                        let rhs_ty = self.scalar_struct_expr_type(&node.children[1]);
+                        let lhs_ty = self
+                            .scalar_struct_expr_type(&node.children[0])
+                            .or_else(|| {
+                                self.scalar_struct_indexed_element_type(
+                                    &node.children[0],
+                                )
+                            });
+                        let rhs_ty = self
+                            .scalar_struct_expr_type(&node.children[1])
+                            .or_else(|| {
+                                self.scalar_struct_indexed_element_type(
+                                    &node.children[1],
+                                )
+                            });
                         if lhs_ty.is_some() || rhs_ty.is_some() {
                             let ty = lhs_ty.or(rhs_ty).unwrap();
                             let op = if node.extra_op.as_str() == "==" {
@@ -11919,36 +13859,28 @@ impl VerilogCodegen {
                             );
                             self.write(")");
                         } else {
-                            // W474: small array-of-struct equality is lowered to a
-                            // packed-vector comparison. Only scalar-struct elements
-                            // are supported here; arrays with array-typed fields
-                            // fall through to the generic path.
+                            // W474/W475: small array-of-struct equality is lowered
+                            // to a packed-vector comparison. The packer handles both
+                            // scalar-struct elements and memory-mode arrays whose
+                            // element struct has array-typed fields.
                             let lhs_aos = self.array_of_struct_expr_type(&node.children[0]);
                             let rhs_aos = self.array_of_struct_expr_type(&node.children[1]);
                             if lhs_aos.is_some() || rhs_aos.is_some() {
                                 let (elem_type, dims) = lhs_aos.or(rhs_aos).unwrap();
-                                if !self.array_of_struct_has_array_field(&elem_type) {
-                                    let op = if node.extra_op.as_str() == "==" {
-                                        "=="
-                                    } else {
-                                        "!="
-                                    };
-                                    self.write("(");
-                                    self.gen_verilog_pack_array_of_struct_expr(
-                                        &node.children[0], &elem_type, &dims,
-                                    );
-                                    self.write(&format!(" {} ", op));
-                                    self.gen_verilog_pack_array_of_struct_expr(
-                                        &node.children[1], &elem_type, &dims,
-                                    );
-                                    self.write(")");
+                                let op = if node.extra_op.as_str() == "==" {
+                                    "=="
                                 } else {
-                                    self.write("(");
-                                    self.gen_verilog_expr(&node.children[0]);
-                                    self.write(&format!(" {} ", node.extra_op));
-                                    self.gen_verilog_expr(&node.children[1]);
-                                    self.write(")");
-                                }
+                                    "!="
+                                };
+                                self.write("(");
+                                self.gen_verilog_pack_array_of_struct_expr(
+                                    &node.children[0], &elem_type, &dims,
+                                );
+                                self.write(&format!(" {} ", op));
+                                self.gen_verilog_pack_array_of_struct_expr(
+                                    &node.children[1], &elem_type, &dims,
+                                );
+                                self.write(")");
                             } else {
                                 self.write("(");
                                 self.gen_verilog_expr(&node.children[0]);
@@ -12003,6 +13935,11 @@ impl VerilogCodegen {
                 // W470: field access on a function call returning an array of structs
                 // is lowered to a slice of the packed return vector.
                 if self.try_emit_array_of_struct_call_field(node) {
+                    return;
+                }
+                // W475: field access on a packed-vector array parameter whose call
+                // site supplied a function-local array argument.
+                if self.try_emit_local_packed_array_param_field(node) {
                     return;
                 }
                 if !node.children.is_empty() {
@@ -12334,9 +14271,19 @@ impl VerilogCodegen {
                         }
 
                         if !emitted {
-                            let flat_name = format!("{}_{}", base_name, node.name);
-                            self.write(&Self::verilog_safe_identifier(
-                                &flat_name));
+                            // W481: only emit a flat `base_field` name when the base
+                            // is known to resolve to declared per-field storage.
+                            // Unknown AOS parameters get a sized placeholder.
+                            if self.field_access_base_is_unresolved(&base_name) {
+                                self.write(&format!(
+                                    "32'd0 /* UNSUPPORTED_ICARUS: unresolved field access {}.{} */",
+                                    base_name, node.name
+                                ));
+                            } else {
+                                let flat_name = format!("{}_{}", base_name, node.name);
+                                self.write(&Self::verilog_safe_identifier(
+                                    &flat_name));
+                            }
                         }
                     } else if child.kind == NodeKind::ExprFieldAccess
                         || (child.kind == NodeKind::ExprIndex
@@ -12360,8 +14307,11 @@ impl VerilogCodegen {
                             let is_multi = index_nodes.len() > 1;
                             let idx = index_nodes.first().copied();
 
-                            // W470: multi-dimensional array parameter bound to a
-                            // module-level struct array with nested field access.
+                            // W470/W476: multi-dimensional array parameter bound to a
+                            // module-level struct array with nested field access. When
+                            // the field suffix traverses an array-typed field, emit the
+                            // per-field memory with a linear outer address and inner
+                            // indices plus a constant bit slice.
                             if is_multi {
                                 if let Some(bound) =
                                     self.array_param_bound_name(&base_name)
@@ -12379,21 +14329,61 @@ impl VerilogCodegen {
                                             Some(&leaf_type),
                                             &self.struct_fields,
                                         ) {
-                                            let field_name_raw = format!(
-                                                "{}_{}",
-                                                bound, field_suffix
-                                            );
-                                            let field_safe =
-                                                Self::verilog_safe_identifier(
-                                                    &field_name_raw,
+                                            if let Some(path) =
+                                                Self::try_resolve_struct_array_field_path(
+                                                    &leaf_type,
+                                                    &self.struct_fields,
+                                                    &field_suffix,
+                                                )
+                                            {
+                                                let expected_len =
+                                                    dims.len() + path.dims.len();
+                                                if index_nodes.len() == expected_len {
+                                                    let field_name_raw = format!(
+                                                        "{}_{}",
+                                                        bound, path.outer_field
+                                                    );
+                                                    let field_safe = Self::verilog_safe_identifier(
+                                                        &field_name_raw,
+                                                    );
+                                                    self.write(&field_safe);
+                                                    self.write("[");
+                                                    self.gen_verilog_multi_dim_index_expr(
+                                                        &index_nodes[..dims.len()],
+                                                        &dims,
+                                                    );
+                                                    self.write("]");
+                                                    for inner in
+                                                        &index_nodes[dims.len()..]
+                                                    {
+                                                        self.write("[");
+                                                        self.gen_verilog_expr(inner);
+                                                        self.write("]");
+                                                    }
+                                                    self.write(&format!(
+                                                        "[{}:{}]",
+                                                        path.high, path.low
+                                                    ));
+                                                    emitted = true;
+                                                }
+                                            }
+                                            if !emitted {
+                                                let field_name_raw = format!(
+                                                    "{}_{}",
+                                                    bound, field_suffix
                                                 );
-                                            self.write(&field_safe);
-                                            self.write("[");
-                                            self.gen_verilog_multi_dim_index_expr(
-                                                &index_nodes, &dims,
-                                            );
-                                            self.write("]");
-                                            emitted = true;
+                                                let field_safe =
+                                                    Self::verilog_safe_identifier(
+                                                        &field_name_raw,
+                                                    );
+                                                self.write(&field_safe);
+                                                self.write("[");
+                                                self.gen_verilog_multi_dim_index_expr(
+                                                    &index_nodes, &dims,
+                                                );
+                                                self.write("]");
+                                                emitted = true;
+                                            }
                                         }
                                     }
                                 }
@@ -12734,13 +14724,41 @@ impl VerilogCodegen {
                             }
                         }
                         if !emitted {
-                            self.gen_verilog_expr(child);
-                            self.write("_");
-                            self.write(&node.name);
+                            // W481: unresolved nested field access (e.g. open AOS
+                            // parameter element access). Emit a placeholder instead
+                            // of a malformed `base[idx]_field` expression.
+                            if let Some((base_name, _, _)) =
+                                Self::collect_field_index_path(node)
+                            {
+                                if self.field_access_base_is_unresolved(&base_name) {
+                                    self.write(&format!(
+                                        "32'd0 /* UNSUPPORTED_ICARUS: unresolved field access {}.{} */",
+                                        base_name, node.name
+                                    ));
+                                } else {
+                                    self.gen_verilog_expr(child);
+                                    self.write("_");
+                                    self.write(&node.name);
+                                }
+                            } else {
+                                self.gen_verilog_expr(child);
+                                self.write("_");
+                                self.write(&node.name);
+                            }
                         }
                     } else if child.kind == NodeKind::ExprIdentifier {
-                        let flat_name = format!("{}_{}", child.name, node.name);
-                        self.write(&Self::verilog_safe_identifier(&flat_name));
+                        // W481: only emit a flat `base_field` name when the base is
+                        // known to resolve to declared per-field storage. Unknown
+                        // scalar struct / open AOS parameters get a sized placeholder.
+                        if self.field_access_base_is_unresolved(&child.name) {
+                            self.write(&format!(
+                                "32'd0 /* UNSUPPORTED_ICARUS: unresolved field access {}.{} */",
+                                child.name, node.name
+                            ));
+                        } else {
+                            let flat_name = format!("{}_{}", child.name, node.name);
+                            self.write(&Self::verilog_safe_identifier(&flat_name));
+                        }
                     } else {
                         self.gen_verilog_expr(child);
                         self.write("_");
@@ -12783,6 +14801,71 @@ impl VerilogCodegen {
                                         self.write("]");
                                     }
                                     return;
+                                }
+                            }
+                        }
+                    }
+                    // W478: indexing into an array-typed field of a packed local
+                    // array-of-struct parameter, e.g. `pts[0].coords[0][0]`. Peel the
+                    // trailing ExprIndex chain, collect the field path below it, and
+                    // emit one packed-vector scalar slice.
+                    if let Some((base_node, trailing_indices)) =
+                        Self::unwrap_trailing_indices(node)
+                    {
+                        if base_node.kind == NodeKind::ExprFieldAccess {
+                            if let Some((root_id, outer_indices, fields)) =
+                                Self::collect_field_index_path_rooted(base_node)
+                            {
+                                if root_id.kind == NodeKind::ExprIdentifier
+                                    && self.array_param_is_local_packed(
+                                        &root_id.name,
+                                    )
+                                {
+                                    if let Some(ptype) =
+                                        self.array_param_types.get(&root_id.name)
+                                    {
+                                        let all_literal = outer_indices
+                                            .iter()
+                                            .chain(trailing_indices.iter())
+                                            .all(|idx| {
+                                                idx.value.parse::<usize>().is_ok()
+                                            });
+                                        if all_literal {
+                                            let mut idx_vals: Vec<usize> =
+                                                outer_indices
+                                                    .iter()
+                                                    .map(|idx| {
+                                                        idx.value
+                                                            .parse::<usize>()
+                                                            .unwrap()
+                                                    })
+                                                    .collect();
+                                            idx_vals.extend(
+                                                trailing_indices.iter().map(|idx| {
+                                                    idx.value.parse::<usize>().unwrap()
+                                                }),
+                                            );
+                                            let field_suffix = fields.join("_");
+                                            if let Some((high, low)) =
+                                                Self::array_of_struct_field_slice(
+                                                    ptype,
+                                                    &self.struct_fields,
+                                                    &field_suffix,
+                                                    &idx_vals,
+                                                )
+                                            {
+                                                let safe_param =
+                                                    Self::verilog_safe_identifier(
+                                                        &root_id.name,
+                                                    );
+                                                self.write(&format!(
+                                                    "{}[{}:{}]",
+                                                    safe_param, high, low
+                                                ));
+                                                return;
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -12840,13 +14923,19 @@ impl VerilogCodegen {
                     // packed concatenation {a, b, c} so the first element
                     // occupies the most significant bits, matching the slice
                     // assignments generated by gen_verilog_let_destructuring.
+                    // W480: size plain integer literals inside the concatenation so
+                    // Icarus does not report an indefinite-width operand.
                     if !node.children.is_empty() {
                         self.write("{");
                         for (i, child) in node.children.iter().enumerate() {
                             if i > 0 {
                                 self.write(", ");
                             }
-                            self.gen_verilog_expr(child);
+                            if Self::is_plain_decimal_literal(child) {
+                                self.write(&format!("32'd{}", child.value));
+                            } else {
+                                self.gen_verilog_expr(child);
+                            }
                         }
                         self.write("}");
                     }
@@ -12856,17 +14945,14 @@ impl VerilogCodegen {
                     // elements so it can be returned from functions and sliced.
                 } else {
                     // R-CA-2 (wave-31): array literals in expression context
-                    // (e.g. as function-call arguments) used to emit a
-                    // comment-only token `/* array [...]{} */`, which Yosys
-                    // rejects with `syntax error, unexpected ','` when the
-                    // argument list reduces to whitespace + comma. We follow
-                    // the precedent established by `ExprStructLit` below and
-                    // emit a synthesizable scalar `0` plus an explanatory
-                    // TODO comment, so the surrounding expression remains
-                    // parseable Verilog.
+                    // used to emit a comment-only token, which Yosys rejected.
+                    // W480: emit a sized zero placeholder so the literal can sit
+                    // inside packed concatenations without triggering Icarus's
+                    // "Concatenation operand has indefinite width" error.
+                    let width = Self::packed_width(&node.extra_type, &self.struct_fields).max(1);
                     self.write(&format!(
-                        "0 /* TODO: array literal [{}]{} not yet lowered to Verilog */",
-                        node.extra_size, node.extra_type
+                        "{}'d0 /* TODO: array literal [{}]{} not yet lowered to Verilog */",
+                        width, node.extra_size, node.extra_type
                     ));
                 }
             }
@@ -14383,6 +16469,21 @@ fn collect_refs_in(node: &Node, refs: &mut std::collections::HashSet<String>) {
     if node.kind == NodeKind::ExprIdentifier {
         refs.insert(node.name.clone());
     }
+    // W479: method-style calls like `arr.len()` are parsed into an ExprCall
+    // whose name is `arr.len`; the receiver identifier is not a child node.
+    // Count the receiver as a reference so dead-local elimination does not
+    // drop the variable whose method is being invoked.
+    if node.kind == NodeKind::ExprCall {
+        if let Some((receiver, _method)) = node.name.rfind('.').map(|dot| {
+            (&node.name[..dot],
+                &node.name[dot + 1..],
+            )
+        }) {
+            if !receiver.is_empty() {
+                refs.insert(receiver.to_string());
+            }
+        }
+    }
     for child in &node.children {
         collect_refs_in(child, refs);
     }
@@ -14796,11 +16897,16 @@ fn find_first_non_local(stmts: &[Node]) -> usize {
 fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
     for stmt in stmts.iter() {
+        // W480: collect reads from every statement kind that can reference a
+        // variable, not only local initializers / assignment RHS / returns.
+        // StmtIf, StmtWhile, StmtFor, and StmtForRange conditions were missing,
+        // so locals used only in a condition were incorrectly deleted.
         match stmt.kind {
             NodeKind::StmtLocal if !stmt.children.is_empty() => {
                 collect_reads(&stmt.children[0], &mut reads);
             }
             NodeKind::StmtAssign if stmt.children.len() >= 2 => {
+                // Only the RHS is a read; the LHS is the write target.
                 collect_reads(&stmt.children[1], &mut reads);
             }
             NodeKind::ExprReturn if !stmt.children.is_empty() => {
@@ -14808,6 +16914,12 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             }
             NodeKind::StmtExpr if !stmt.children.is_empty() => {
                 collect_reads(&stmt.children[0], &mut reads);
+            }
+            NodeKind::StmtIf
+            | NodeKind::StmtWhile
+            | NodeKind::StmtFor
+            | NodeKind::StmtForRange => {
+                collect_reads(stmt, &mut reads);
             }
             _ => {}
         }
@@ -14923,6 +17035,18 @@ fn replace_iter_var(node: &mut Node, var: &str, val: i64) {
 fn collect_reads(node: &Node, reads: &mut std::collections::HashSet<String>) {
     if node.kind == NodeKind::ExprIdentifier {
         reads.insert(node.name.clone());
+    }
+    // W479: method-style calls like `arr.len()` are parsed into an ExprCall
+    // whose name is `arr.len`; the receiver identifier is not a child node.
+    // Count the receiver as a read so dead-store elimination does not drop the
+    // local variable whose method is being invoked.
+    if node.kind == NodeKind::ExprCall {
+        if let Some(dot) = node.name.rfind('.') {
+            let receiver = &node.name[..dot];
+            if !receiver.is_empty() {
+                reads.insert(receiver.to_string());
+            }
+        }
     }
     for child in &node.children {
         collect_reads(child, reads);
@@ -15161,6 +17285,15 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
             fn collect_reads(node: &Node, reads: &mut std::collections::HashSet<String>) {
                 if node.kind == NodeKind::ExprIdentifier {
                     reads.insert(node.name.clone());
+                }
+                // W479: count method-call receivers as reads (see global collect_reads).
+                if node.kind == NodeKind::ExprCall {
+                    if let Some(dot) = node.name.rfind('.') {
+                        let receiver = &node.name[..dot];
+                        if !receiver.is_empty() {
+                            reads.insert(receiver.to_string());
+                        }
+                    }
                 }
                 for child in &node.children {
                     collect_reads(child, reads);
@@ -31691,9 +33824,9 @@ mod tests_w458 {
                 "bare set call should not be commented out:\n{}",
                 v
             );
-            // assert_eq should also be emitted as a real check (if branch).
+            // W478: assert_eq should be emitted as a fatal SV assertion.
             assert!(
-                v.contains("if (!("),
+                v.contains("assert(("),
                 "assert_eq should emit a real comparison:\n{}",
                 v
             );
@@ -31718,3 +33851,4 @@ mod tests_w458 {
         }
     }
 }
+

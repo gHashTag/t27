@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:fd07734dc757193cc9ca140078d25339cf492b9b5dae616df776015472fa4d93",
   "gen_hash_rust": "sha256:d8ffe45b28c9f08ae6779a52c10231261fe32bdd9695a1a6267766e82818a033",
-  "gen_hash_verilog": "sha256:a1c1bdc47a9a8d6668a18de4d6c1ef8309fc25317735cccd7f7a6e2dfcba81b3",
+  "gen_hash_verilog": "sha256:e843e248bd82660e9ee600916103b9c1ba2fb689a5c35f55ead0a4fcd05e58fc",
   "gen_hash_zig": "sha256:5d6ce627fa039672894a3149ef9b33134cdc03105d19188d50690e2768032f6d",
   "module": "GFCompetitive",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:15Z",
   "spec_hash": "sha256:8deff6f95e04a674b0b6677969b4a46c704f13ec0ac17816ce356230eae6b487",
-  "spec_path": "/Users/playra/t27/specs/numeric/gf_competitive.t27"
+  "spec_path": "specs/numeric/gf_competitive.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:962400c732109508997dd82bb357a46311448f9c21748f16a783600569d07f83",
   "module": "TriOption",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:40Z",
+  "sealed_at": "2026-07-10T00:19:16Z",
   "spec_hash": "sha256:f4c734a4a68e2c20c6ff6824ee431d2ea1912898dc36072c2ee1229fbe79a688",
-  "spec_path": "/Users/playra/t27/specs/tri/collections/option.t27"
+  "spec_path": "specs/tri/collections/option.t27"
 }

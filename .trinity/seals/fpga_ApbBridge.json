@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:74b6f4c0b4ee336d1770ecf0f7561e8e708cc0729bd2c88d0d1a161a62d24e1e",
-  "gen_hash_rust": "sha256:882448e12e08823b5688f8ed82749b2c329cc910a89a322b9d88b974ec403029",
-  "gen_hash_verilog": "sha256:92a77a0b2c0ca32c3af4523557c760df80556f412adc64ed904d7098674a0a7b",
-  "gen_hash_zig": "sha256:30bd9693564c009cd2dfb644005d34d9de4eab487d61620cc70b3039bd7a1c99",
+  "gen_hash_c": "sha256:cddaeccd6b92937d6e14b576968abc9dd5d6eb7ee156eb28341f2f508ecdf0eb",
+  "gen_hash_rust": "sha256:5efe975b1cab2026ff2ed10110e8f69f0b992d1ef117cc4efec3f59a4e5a523d",
+  "gen_hash_verilog": "sha256:62db4399639c73bd63f89add9a1b6fa55d8e4a6fcb1307e63da15f01b4d1dd74",
+  "gen_hash_zig": "sha256:743abf4b41f45596ce66183cd037e0e60337881c057d59706d184ae8ba548b3b",
   "module": "ApbBridge",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:10Z",
   "spec_hash": "sha256:b5d5ab2b04d04b08a4f307d4744cde9b0c95e7aa000f971bf648f33ca50717ca",
-  "spec_path": "/Users/playra/t27/specs/fpga/apb_bridge.t27"
+  "spec_path": "specs/fpga/apb_bridge.t27"
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:65096fef43e27ff318d3b7e946b844871669a5ed304a01f34027033e46e1e582",
   "gen_hash_rust": "sha256:649e155fbe1e1f7d43e2ec046547f51ee3499320a24f578f57d5875633ffd4d1",
-  "gen_hash_verilog": "sha256:242f25c1c5f4abf0dbf3319284830761d1b1d94bf1f6fabc44eb586695745164",
+  "gen_hash_verilog": "sha256:6eeb1ca70d4923c50487e8100499c5065770a969c105b23366c6c57d19d3cf54",
   "gen_hash_zig": "sha256:cc278d59cf3e4631690d08bd7ec376778ab0b3a57a5273653637867eb2ca032b",
   "module": "NotebookLM",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:13Z",
   "spec_hash": "sha256:5aaadc46b3e93b09bd9f4a5542010c102ddd404455b503f5e380581740304fbf",
-  "spec_path": "/Users/playra/t27/specs/memory/notebooklm.t27"
+  "spec_path": "specs/memory/notebooklm.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:2fdc258b89f12f080f4c04ab7b0a3da606ba396dea7a6ba4ad2dbea88211852f",
+  "gen_hash_c": "sha256:788f4b132dfc0f8f74c27893fa56176ba007bae82024eb498d0a845959fc2f95",
   "gen_hash_rust": "sha256:0325ed9d27cb3ea91fff8f68c2151f286c505d5b9cdc9da2acc9a775c52482ee",
-  "gen_hash_verilog": "sha256:b9099860fa861ec714457481a5c4d3151a093eefbf4e19b5c4a3dbbe901c6986",
-  "gen_hash_zig": "sha256:75d758de6a4130efcf2743dc8b49711c8ac7e791071164501d5ec91af5a119de",
+  "gen_hash_verilog": "sha256:561f4fede108b6f5f23bbf768d62fec8fa26596583d54de73d22437c762d3c2e",
+  "gen_hash_zig": "sha256:b590c204f8d6779d33a22711cbd95efff215a45eaa0ab3dbf374558c3c16d9bb",
   "module": "w469_2d_struct_array",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
-  "spec_hash": "sha256:1cc3f1d8f57b447533d15e06d96a20cf7fcdcb4b80076d0e36ccaa406500dffa",
-  "spec_path": "/Users/playra/t27/specs/scratch/w469_2d_struct_array.t27"
+  "sealed_at": "2026-07-10T00:19:14Z",
+  "spec_hash": "sha256:417a357b57c5964e66a59063c1538a958a982862fef37f091eea7f0f0d0f6065",
+  "spec_path": "specs/scratch/w469_2d_struct_array.t27"
 }

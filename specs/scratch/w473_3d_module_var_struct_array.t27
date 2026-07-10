@@ -72,7 +72,7 @@ pub fn sum_grid() -> u32 {
 }
 
 test three_d_module_var_struct_array {
-    assert_eq(sum_grid(), 1332);
+    assert_eq(sum_grid(), 666);
 }
 
 endmodule

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:1c501c7e331f564f6b0e9c3f7b30d7972e2f6352ea63f88599c9025af03e48f6",
   "gen_hash_rust": "sha256:6bb88c647d3ea3a5846f0befa6e744afe07c716e9f56b7bf0f7e4655aa9e66a2",
-  "gen_hash_verilog": "sha256:abb7bc625cea6e3373a67fd29f3ae9fd20b2cc4d47b969572ae916cb58b9cb88",
+  "gen_hash_verilog": "sha256:78a1e52983e03ded66f8cb9391a7ac14ba5f60168b4141aa08960fa707001f44",
   "gen_hash_zig": "sha256:1a771b618f0a353ba66254e2abd67f6762c0dd59249526218f979cd3ea7384e7",
   "module": "w383_rom_array",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:14Z",
   "spec_hash": "sha256:d31bb55a2c7a2aaf9c40c0f491700024ebc8e55f5a2b1827d4a13c046bf7303d",
-  "spec_path": "/Users/playra/t27/specs/scratch/w383_rom_array.t27"
+  "spec_path": "specs/scratch/w383_rom_array.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:446ebe2646150d541867a71da2008a29893cf4477d728fbf3e4a5662ed33928c",
+  "gen_hash_c": "sha256:e2ad61674d956fe7a5e4fe3e9897e1439003f27fa367b2b230e147131cc5b92b",
   "gen_hash_rust": "sha256:825074c8a312a51d4c024fb49dac59c652ddcce19603745f620c7c6bdf05de04",
-  "gen_hash_verilog": "sha256:a30305f0c24b85674eaaea114e8f6b71dae744fcca45412fe8a655f755eac961",
-  "gen_hash_zig": "sha256:9d2b8c8f8f4724b8714f8ce1c503163108883662103d03603e2d39c033531275",
+  "gen_hash_verilog": "sha256:9b62ab279fb4eefffa7662064799bca24e6fc2580d2926cc92c615c65c5cd2ef",
+  "gen_hash_zig": "sha256:ae08230a82778a55ed9314f3ec4f59a273f08ef32fae6814a5cdf0e0c4cccb7a",
   "module": "Shell",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:13Z",
   "spec_hash": "sha256:56b874c34544fb9ad47cd27602987b647db0860b631c1d937bbd4366803012c6",
-  "spec_path": "/Users/playra/t27/specs/shell/schema.t27"
+  "spec_path": "specs/shell/schema.t27"
 }

@@ -1,0 +1,56 @@
+module w476_module_aos_param;
+
+pub struct Pt {
+    x : u8,
+    y : u8,
+}
+
+pub struct Shape {
+    pts : [3]Pt,
+}
+
+const grid : [2]Shape = [2]Shape {
+    Shape {
+        pts = [3]Pt {
+            Pt { x = 1, y = 2 },
+            Pt { x = 3, y = 4 },
+            Pt { x = 5, y = 6 }
+        }
+    },
+    Shape {
+        pts = [3]Pt {
+            Pt { x = 7,  y = 8 },
+            Pt { x = 9,  y = 10 },
+            Pt { x = 11, y = 12 }
+        }
+    }
+};
+
+pub fn use_shape(s: Shape) -> u8 {
+    return s.pts[0].x + s.pts[1].y;
+}
+
+pub fn use_grid(g: [2]Shape) -> u8 {
+    return g[0].pts[2].x + g[1].pts[0].y;
+}
+
+pub fn module_aos_scalar_param() -> bool {
+    return use_shape(grid[0]) == 5;
+}
+
+pub fn module_aos_array_param() -> bool {
+    return use_grid(grid) == 13;
+}
+
+pub fn module_aos_both_params() -> bool {
+    return (use_shape(grid[1]) == 17) && (use_grid(grid) == 13);
+}
+
+test module_aos_scalar_param { assert(module_aos_scalar_param()); }
+test module_aos_array_param { assert(module_aos_array_param()); }
+test module_aos_both_params { assert(module_aos_both_params()); }
+
+invariant module_aos_param_sound:
+    module_aos_scalar_param() && module_aos_array_param();
+
+endmodule

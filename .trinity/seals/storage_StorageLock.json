@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:42ff27bd5422b6277d08360353e46de111e69ddc381d746fb8215b390829afed",
   "gen_hash_rust": "sha256:bde0a603e2d3c5643d3de76300d9b76026d20b5fa6d39c662f8c9ff69e881df8",
-  "gen_hash_verilog": "sha256:0b1c868464b823815cff72c9ed8f9d3a07a0bc82bfba32a4c3563f2f0fa48d4c",
+  "gen_hash_verilog": "sha256:e7ae22ba801e3385e7d995db831db47e1fc72c555251963ba6020d46d29084ed",
   "gen_hash_zig": "sha256:dc74bb58b52216ff299cbf947267a5bef949f70ecc91594198360568746fd37c",
   "module": "StorageLock",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:14Z",
   "spec_hash": "sha256:c01972f697f0ed72a1460bcdeac50f61e867a1424edcf5b0c44250d94ed1f29a",
-  "spec_path": "/Users/playra/t27/specs/storage/lock.t27"
+  "spec_path": "specs/storage/lock.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:031ba2c6894e1d365b5c9820c6fff003779050f83f29b79dbea1249717a5b486",
-  "gen_hash_rust": "sha256:59d09bfa57b46cfca8a59e7da92f0ad15cc1059dc7334d4afdb46b7eca828f19",
-  "gen_hash_verilog": "sha256:5efca0e8163a3a085366f1632775b711dd8e0556dda774f073bacbd1c8db2a70",
-  "gen_hash_zig": "sha256:adb77761ca96dc37a862b13cbb7962e4177bf7ac8f58d443a8d83f9ce842bd00",
+  "gen_hash_c": "sha256:ab32f0a8b75609acc92054a12ed3cff53e50f22abc6d96edb88c12f59882efbf",
+  "gen_hash_rust": "sha256:9a167c9bc047b856ad2a822d2cd6e27f742e117455289dc8f61e0344a73da8b4",
+  "gen_hash_verilog": "sha256:22b68be5bcb9801e653c8ec7fafd542c9343c92d048bf6d82c710b25a15ea237",
+  "gen_hash_zig": "sha256:793078f0ec6796f73fe0daa69a99438f8db1f651ea6b2ed87735cca88ea1c696",
   "module": "server-router",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:14Z",
   "spec_hash": "sha256:f573875f99459616a5401e26a0c901796df43b8e1f00b9cf21d1cdcbcecee2f1",
-  "spec_path": "/Users/playra/t27/specs/server/router.t27"
+  "spec_path": "specs/server/router.t27"
 }

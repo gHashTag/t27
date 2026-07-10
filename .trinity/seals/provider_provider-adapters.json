@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:a134aa8d6c143ee6dd9495f746d4276a316f510819681a0c77c25f023246e978",
-  "gen_hash_rust": "sha256:81e836812512f9b7de5137fb9021abf88a3978fe297ec86424cab1b1ccf1835d",
-  "gen_hash_verilog": "sha256:c6148311a0252f5bb85510900b03d20d8c663142178960a0b3ef053b54a39d01",
-  "gen_hash_zig": "sha256:4526b9badd5efcc28dc29b04de35cba6df29087f9192073b1386aa1611006b3d",
+  "gen_hash_c": "sha256:a1d8711b2b55817396e8b7e6d2fa7e059e5b80b0a386993c877961e85fca81d2",
+  "gen_hash_rust": "sha256:883250040566e5da6b494f3f50098df3236a59d6b381dee4d630289c7a71bf0a",
+  "gen_hash_verilog": "sha256:ee2dde2fef14e66d5fc24ac860d69a468d336c0de88f7ebce1ae7b89156a112c",
+  "gen_hash_zig": "sha256:dca289be55b11f72642983a45a47cfbcecee3758e2ffb14ed72c37c3b2a5d408",
   "module": "provider-adapters",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:14Z",
   "spec_hash": "sha256:1d2c8d2ce2773082a7e989f499de40c1dfd323677126d87853a231850ef6e25e",
-  "spec_path": "/Users/playra/t27/specs/provider/adapters.t27"
+  "spec_path": "specs/provider/adapters.t27"
 }

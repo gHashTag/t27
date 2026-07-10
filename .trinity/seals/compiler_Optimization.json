@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:ea63d769049cf00283b50229aac371cdc99bc830575eafcef2ba81877a0f6088",
-  "gen_hash_rust": "sha256:6c8babe3d2262feb64736d2b379a9ba6bdac8dba7d45c2620e0ac51d3558ef8d",
-  "gen_hash_verilog": "sha256:54385d354ba06806405681c3662d4853ee290686311a5be99490c6d4a2959ac6",
-  "gen_hash_zig": "sha256:d6cbeed2ab718a399da388833a3955f6e4dfad5983a7555a39e2506bb0e81766",
+  "gen_hash_c": "sha256:31ca73d74e60406eef3786ed9933096a3049591ef8e4f8027c4fea3b1718ab0b",
+  "gen_hash_rust": "sha256:6e2cd1ab34638d0ccbeb4f3591fdeb1bc1e9a84aa9f9c30d61332534693a2f30",
+  "gen_hash_verilog": "sha256:9614ecf56b92b8b740651c3c9514fd002974dc581f6a3100e22661527f35614e",
+  "gen_hash_zig": "sha256:458e520fc9b696092d6b8919441829b52311c91f60372e04233a45706d446a70",
   "module": "Optimization",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-10T00:19:10Z",
   "spec_hash": "sha256:98ba1a67d94856b42f06d5db6c3c2a8499bcf955d74c5543c9cb630797815d4a",
-  "spec_path": "/Users/playra/t27/specs/compiler/optimizer.t27"
+  "spec_path": "specs/compiler/optimizer.t27"
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:1da2067804eebf3598b9230d7cdb874f8842fd93e294a22a8d10a681ba52995b",
   "gen_hash_rust": "sha256:15b216df03b3bb1ca4e9447cb2d309ed20cb8b8d325d9fce68cc23b80adfa6a0",
-  "gen_hash_verilog": "sha256:7b37485dc26fac1833ed43c68080e0adacf16e21574e58ed3eaf83fb79bd2d30",
+  "gen_hash_verilog": "sha256:7db383bac1d957c4adbeb3ae28a08daddf0123914282e0a9a3082a36f1898962",
   "gen_hash_zig": "sha256:dbceca9b25b1553c9c4f20521539b90099a0d10f699dc640861b9b98395517b4",
   "module": "w474_adversarial_aos_nested",
   "ring": 12,
-  "sealed_at": "2026-07-07T23:20:33Z",
+  "sealed_at": "2026-07-10T00:19:14Z",
   "spec_hash": "sha256:e1f049f557de165e32ba7badb7ca6dde70ab6016b176de2181b9bb0c64dd4a08",
   "spec_path": "specs/scratch/w474_adversarial_aos_nested.t27"
 }

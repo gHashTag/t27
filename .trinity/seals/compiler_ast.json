@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:eaf75db19e8953470a773b81d54f8569c9a8cb7e8a4d2322f27e82b93f0863eb",
   "gen_hash_rust": "sha256:81a9c247a86b21d13184587c94741ecf4ad3aef9ed98c360333362612483dec2",
-  "gen_hash_verilog": "sha256:433e9021c6552976fa8fc6ceb4d419b66d0337894f5a8639f187843970e80e20",
+  "gen_hash_verilog": "sha256:3ac4b6f4a7d278aaa330bbfb082a313aa1384e917cb4587c7b1bd205c28fd270",
   "gen_hash_zig": "sha256:0402bc887c3034b3b2722922137a423a48e95d12f47a8ce8b214f44b555a3ca6",
   "module": "ast",
   "ring": 12,
-  "sealed_at": "2026-07-07T22:00:39Z",
+  "sealed_at": "2026-07-09T23:33:59Z",
   "spec_hash": "sha256:bad7df989e4846ba870b131cc6b2d051ab08e4b86cd06c4538c9e7c3d8f2b816",
   "spec_path": "/Users/playra/t27/compiler/ast.t27"
 }
