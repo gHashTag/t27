@@ -1,3 +1,57 @@
+## 2026-07-13 — Wave Loop 496 (generic structural equivalence theorem attempt for the Icarus-lowerable scalar subset in Lean 4)
+
+### What worked
+- Defining a **pure-combinational subset predicate** (`Expr.isCombinational`,
+  `Stmt.isCombinational`, `Function.isCombinational`, `Module.isCombinational`)
+  cleanly isolates the fragment that the generic theorem can cover without
+  modeling `ifThenElse` / `forLoop` operationally.
+- Adding a **custom nested-induction principle** for `Expr` in
+  `AstInduction.lean` solves the "nested inductive type" blocker that prevents
+  Lean's default `induction` tactic from descending through `List Expr` and
+  `List (String × Expr)` sub-trees.
+- Stating a **valuation equivalence invariant** (`Valuation.equiv`) gives a
+  precise relation between t27 and Verilog states that can be preserved through
+  statement evaluation and parameter binding.
+- Attempting the structural proof over the existing evaluator **confirmed the
+  expected root cause**: the `partial` mutual definitions in `Semantics.lean` are
+  computable but opaque to proofs, so generic induction over them is impossible
+  without totalization.
+- `native_decide` witness theorems from W495 stay green as regression tests,
+  confirming that the model and emitter still agree on the representative
+  corpus while the generic theorem is deferred.
+
+### What to improve
+- The **generic theorem** (`module_value_equiv_statement`) still contains a
+  `sorry`. The path forward is to introduce a **fuel-based total evaluator** for
+  the combinational subset, prove the theorem on that total evaluator, and
+  bridge it to the existing partial evaluator with `native_decide` on concrete
+  witnesses.
+- **Partial mutual definitions are not proof-transparent.** Future semantic models
+  should be written total from the start, or with an explicit fuel/well-founded
+  parameter, when they are intended to support generic proofs.
+- **Conditionals and loops** remain outside the modeled operational semantics.
+  Either the generic theorem must restrict the subset further, or the evaluator
+  must add a guarded semantics for those statements.
+- `Expr.typeOf` is still a heuristic helper. A fully generic expression
+  equivalence lemma may eventually need a valuation-based type environment,
+  although the current type-derived widths may be sufficient for the
+  combinational subset.
+- The **local AOS element boundary**
+  (`w493_local_aos_element_field_not_lowerable.t27`) remains the single
+  documented Icarus baseline and the fastest way to grow the witness set.
+
+### Techniques to reuse
+- Build custom recursors from auto-generated `rec` principles for nested
+  inductive types before attempting structural proofs.
+- Restrict the lowerable subset with explicit combinational predicates when the
+  operational semantics does not yet cover control flow.
+- State valuation invariants as pointwise equality (`∀ x, v1 x = v2 x`); they
+  compose well with the function-update style used by both evaluators.
+- Prove generic theorems on total evaluators; use `native_decide` bridge lemmas
+  to connect total and partial evaluators on concrete modules.
+
+---
+
 ## 2026-07-13 — Wave Loop 495 (semantic equivalence for function calls and W493 witnesses in Lean 4)
 
 ### What worked

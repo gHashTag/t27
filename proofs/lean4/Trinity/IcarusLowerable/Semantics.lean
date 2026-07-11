@@ -40,6 +40,10 @@ structure Value where
 /-- Look up a variable in a valuation. -/
 def Valuation := String → Option Value
 
+/-- Two valuations are equivalent when they agree on every identifier. -/
+def Valuation.equiv (v1 v2 : Valuation) : Prop :=
+  ∀ x, v1 x = v2 x
+
 /-- Helper: concatenate two values. -/
 def Value.concat (a b : Value) : Value :=
   ⟨a.width + b.width, BitVec.append a.bits b.bits⟩

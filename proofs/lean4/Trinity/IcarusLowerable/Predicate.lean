@@ -136,6 +136,40 @@ mutual
     | .bareCall e => e.isLowerable env
 end
 
+/-- True when an expression is purely combinational (no placeholder nodes). -/
+partial def Expr.isCombinational : Expr → Bool
+  | .boolLit _ => true
+  | .intLit _ => true
+  | .identifier _ => true
+  | .binop _ lhs rhs => lhs.isCombinational && rhs.isCombinational
+  | .unop _ e => e.isCombinational
+  | .fieldAccess base _ => base.isCombinational
+  | .index base idx => base.isCombinational && idx.isCombinational
+  | .call _ args => args.all (·.isCombinational)
+  | .structLit _ fields => fields.all (·.2.isCombinational)
+  | .arrayLit _ elems => elems.all (·.isCombinational)
+  | _ => false
+
+/-- True when a statement is purely combinational: no conditionals or loops. -/
+partial def Stmt.isCombinational : Stmt → Bool
+  | .assign lhs rhs => lhs.isCombinational && rhs.isCombinational
+  | .varDecl _ _ init => init.all (·.isCombinational)
+  | .constDecl _ _ init => init.all (·.isCombinational)
+  | .return_ e => e.all (·.isCombinational)
+  | .bareCall e => e.isCombinational
+  | _ => false
+
+/-- True when a function body is purely combinational. -/
+def Function.isCombinational (fn : Function) : Bool :=
+  fn.body.all Stmt.isCombinational
+
+/-- True when a module is purely combinational. -/
+def Module.isCombinational (env : Env) (m : Module) : Bool :=
+  m.globals.all Stmt.isCombinational
+  && m.functions.all (fun f => (Env.isReachable env f.name) → f.isCombinational)
+  && m.tests.all Function.isCombinational
+  && m.benches.all Function.isCombinational
+
 /-- Inferred t27 type for the lowerable subset.  Identifiers are typed from the
     environment; function-call types come from the callee's return type or the
     constructor map. -/
