@@ -71,7 +71,7 @@ def Ty.isLeafLowerable : Ty → Bool
 
 /-- Is the given operator a lowerable numeric/bitwise/boolean operator? -/
 def opIsLowerable (op : String) : Bool :=
-  ["+", "-", "*", "/", "%", "&", "|", "^", "<<", ">>", "==", "!=", "<", "<=", ">", ">=", "&&", "||", "!"].contains op
+  ["+", "-", "*", "/", "%", "&", "|", "^", "<<", ">>", "==", "!=", "<", "<=", ">", ">=", "&&", "||", "!", "and", "or"].contains op
 
 mutual
   /-- Lowerability of an expression in synthesizable context. -/

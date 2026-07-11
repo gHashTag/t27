@@ -71,6 +71,10 @@ bootstrap/.trinity/
 .trinity/current_task/session_log.jsonl
 .trinity/gate_bypasses.log
 
+# W492: generated Lean completeness import, regenerated on demand by
+# `t27c lean-lowerable` / `tri verify --lean-lowerable`.
+proofs/lean4/Trinity/IcarusLowerable/Completeness.lean
+
 # Vivado Docker build secrets (token + installer)
 docker/wi_authentication_key
 docker/FPGAs_AdaptiveSoCs_Unified_SDI_*.bin

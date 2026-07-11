@@ -1,12 +1,17 @@
 {
   "expected_failures": [
-    "specs/scratch/w491_nested_struct_return_field_not_lowerable.t27"
+    "specs/scratch/w491_nested_struct_return_field_not_lowerable.t27",
+    "specs/scratch/w492_predicate_rejects_nested_return_field.t27"
   ],
   "classification": {
     "specs/scratch/w491_nested_struct_return_field_not_lowerable.t27": {
       "category": "NestedStructLiteralField",
       "note": "W491 adversarial witness: struct-literal field initialized from a struct-typed parameter lowers to malformed Verilog and is rejected by iverilog."
+    },
+    "specs/scratch/w492_predicate_rejects_nested_return_field.t27": {
+      "category": "NestedStructReturnField",
+      "note": "W492 adversarial witness: direct field access on a nested struct returned from a call emits an UNSUPPORTED_ICARUS placeholder and is rejected by iverilog."
     }
   },
-  "note": "W491 Icarus Verilog 12.0 baseline: one documented adversarial witness. The W480 4-failure residue was cleared by: (1) adding `f32` to the parser's valid cast targets so `let total = results.len() as f32` is preserved, (2) emitting sized zero placeholders for field accesses whose base is not known to resolve to declared per-field registers/memories (open array-of-struct parameters, scalar struct parameters with unavailable field metadata, and struct-return results from unsupported calls)."
+  "note": "W492 Icarus Verilog 12.0 baseline: two documented adversarial witnesses. The W491 residue (w491_nested_struct_return_field_not_lowerable) remains; W492 adds a nested-struct-return field-access boundary case."
 }

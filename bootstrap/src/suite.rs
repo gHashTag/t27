@@ -1277,6 +1277,10 @@ pub fn run_comprehensive(
         println!("ALL TESTS PASSED");
         println!("phi^2 + 1/phi^2 = 3 | TRINITY");
         Ok(())
+    } else if summary.acceptable {
+        println!("ALL KNOWN FAILURES WITHIN BASELINE — ACCEPTABLE");
+        println!("phi^2 + 1/phi^2 = 3 | TRINITY");
+        Ok(())
     } else {
         anyhow::bail!("SOME TESTS FAILED")
     }

@@ -143,4 +143,48 @@ Relevance: the FPGA side of t27 already has PVT-envelope theorems in `lake/`;
 
 ---
 
+## 5. W492 update — soundness and completeness import
+
+Wave Loop 492 extended the W491 predicate into a machine-checked soundness
+claim: the predicate now guarantees that the modeled Verilog output contains no
+`UNSUPPORTED_ICARUS` or `// TODO: implement` placeholders.  The proof uses a
+shallow Verilog AST, a pure emitter model from the simplified t27 AST, and a
+`native_decide` soundness theorem in
+`proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`.  The current Icarus-passing
+corpus is mechanically imported into `Completeness.lean` and each included spec is
+proved lowerable.
+
+### 5.1 Additional precedents for W492
+
+**The Essence of Verilog**  
+- Chen, Li, et al., OOPSLA 2023 ([paper](https://cs.nju.edu.cn/yueli/papers/oopsla2023.pdf))  
+- A modern operational semantics for Verilog validated against Icarus.  
+- Relevance: W492 does not model full Verilog semantics, but it adopts the same
+  Icarus-as-oracle discipline for the synthesizable subset.
+
+**Revamping Verilog Semantics for Foundational Verification**  
+- Choi et al., POPL 2025 ([DOI 10.1145/3763084](https://doi.org/10.1145/3763084))  
+- A Coq/Rocq foundational semantics for the synthesizable Verilog subset.  
+- Relevance: shows that small, well-scoped semantics are sufficient for compiler
+  contracts.
+
+**Automated Translation Validation of a Compiler for Statically Scheduled Accelerators**  
+- Melchert, Jackson, FMCAD 2025 ([PDF](https://repositum.tuwien.at/bitstream/20.500.12708/219556/1/Melchert%20Jackson%20-%202025%20-%20Automated%20Translation%20Validation%20of%20a%20Compiler%20for...pdf))  
+- SMT-based translation validation down to Verilog RTL using Yosys to lift RTL
+  into an SMT transition system.  
+- Relevance: a precedent for machine-checked backend validation; W492 uses a
+  lighter predicate-based approach, but the same Yosys/SMT path is the next step.
+
+### 5.2 Takeaways for W492
+
+1. A **shallow emitter model** is enough to prove the first meaningful soundness
+   property: no placeholder stubs in lowerable output.  
+2. **Mechanical corpus import** (`t27c lean-lowerable`) prevents the predicate
+   from silently losing coverage.  
+3. The W493 default should either push the proof toward **semantic equivalence**
+   (Melchert-style SMT translation validation) or close the remaining backend gaps
+   that the soundness proof exposed.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

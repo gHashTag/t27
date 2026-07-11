@@ -18,6 +18,16 @@ cmd="${1:-}"
 if [[ "$cmd" == "test" || "$cmd" == "suite" ]]; then
     # Forward everything after the subcommand to t27c suite, including --json.
     exec "$T27C" suite --repo-root "$REPO_ROOT" "${@:2}"
+elif [[ "$cmd" == "verify" ]]; then
+    subcmd="${2:-}"
+    if [[ "$subcmd" == "--lean-lowerable" || "$subcmd" == "lean-lowerable" ]]; then
+        # W492: regenerate and verify the Lean 4 completeness import.
+        exec "$T27C" lean-lowerable --repo-root "$REPO_ROOT" "${@:3}"
+    else
+        echo "tri verify: unknown subcommand ${subcmd:-(none)}" >&2
+        echo "Usage: tri verify --lean-lowerable" >&2
+        exit 1
+    fi
 else
     exec "$T27C" "$@"
 fi

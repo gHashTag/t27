@@ -784,8 +784,9 @@ enum Commands {
         icarus_lowerable: bool,
     },
 
-    /// W491: classify whether a .t27 spec can be lowered to Icarus Verilog.
-    /// Prints a JSON verdict when --json is given.
+    /// W491/W492: classify whether a .t27 spec can be lowered to Icarus Verilog.
+    /// Prints a JSON verdict when --json is given, or a Lean 4 model when
+    /// --emit-lean-model is given.
     #[command(name = "icarus-lowerable")]
     IcarusLowerable {
         /// Input .t27 spec file path
@@ -793,6 +794,22 @@ enum Commands {
         /// Emit machine-readable JSON instead of a human-readable summary.
         #[arg(long)]
         json: bool,
+        /// Emit a Lean 4 `Env` and `Module` definition for the lowerability proof.
+        #[arg(long)]
+        emit_lean_model: bool,
+    },
+
+    /// W492: regenerate the Lean 4 completeness import for the current
+    /// Icarus-passing corpus and build it.  This gate fails if any exported
+    /// lowerable spec is rejected by the Icarus-lowerability predicate in Lean.
+    #[command(name = "lean-lowerable")]
+    LeanLowerable {
+        /// Repository root (default: current directory)
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+        /// Output path for the generated completeness file.
+        #[arg(long, default_value = "proofs/lean4/Trinity/IcarusLowerable/Completeness.lean")]
+        output: PathBuf,
     },
 
     /// Validate conformance/*.json files (JSON + vector keys)
@@ -2945,6 +2962,16 @@ fn run_icarus_lowerable(input_path: &str, json: bool) -> anyhow::Result<()> {
             println!("  host-only functions: {}", result.host_only_functions.join(", "));
         }
     }
+    Ok(())
+}
+
+fn run_lean_lowerable(repo_root: &Path, output: &Path) -> anyhow::Result<()> {
+    let repo_root_str = repo_root.to_string_lossy().to_string();
+    let output_str = output.to_string_lossy().to_string();
+    compiler::generate_lean_lowerable_completeness(&repo_root_str,
+        &output_str,
+    )
+    .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
 }
 
@@ -8268,8 +8295,19 @@ async fn main() -> anyhow::Result<()> {
         Commands::Suite { repo_root, json, fast, icarus_lowerable } => {
             suite::run_comprehensive(&repo_root, json.as_ref(), fast, icarus_lowerable)?
         }
-        Commands::IcarusLowerable { input, json } => {
-            run_icarus_lowerable(&input, json)?
+        Commands::IcarusLowerable { input, json, emit_lean_model } => {
+            if emit_lean_model {
+                let source = std::fs::read_to_string(&input)
+                    .map_err(|e| anyhow::anyhow!("failed to read {}: {}", input, e))?;
+                let model = compiler::emit_lean_model(&source, &input)
+                    .map_err(|e| anyhow::anyhow!("failed to emit Lean model: {}", e))?;
+                println!("{}", model);
+            } else {
+                run_icarus_lowerable(&input, json)?
+            }
+        }
+        Commands::LeanLowerable { repo_root, output } => {
+            run_lean_lowerable(&repo_root, &output)?
         }
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
@@ -8533,8 +8571,19 @@ fn main() -> anyhow::Result<()> {
         Commands::Suite { repo_root, json, fast, icarus_lowerable } => {
             suite::run_comprehensive(&repo_root, json.as_ref(), fast, icarus_lowerable)?
         }
-        Commands::IcarusLowerable { input, json } => {
-            run_icarus_lowerable(&input, json)?
+        Commands::IcarusLowerable { input, json, emit_lean_model } => {
+            if emit_lean_model {
+                let source = std::fs::read_to_string(&input)
+                    .map_err(|e| anyhow::anyhow!("failed to read {}: {}", input, e))?;
+                let model = compiler::emit_lean_model(&source, &input)
+                    .map_err(|e| anyhow::anyhow!("failed to emit Lean model: {}", e))?;
+                println!("{}", model);
+            } else {
+                run_icarus_lowerable(&input, json)?
+            }
+        }
+        Commands::LeanLowerable { repo_root, output } => {
+            run_lean_lowerable(&repo_root, &output)?
         }
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?

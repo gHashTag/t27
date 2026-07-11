@@ -18505,10 +18505,16 @@ pub struct IcarusLowerabilityResult {
 /// functions whose interface or body is not synthesizable are marked host-only,
 /// namespace-qualified calls that reach synthesizable contexts are violations,
 /// and the generated Verilog is scanned for `UNSUPPORTED_ICARUS` / `TODO:`
-/// fallbacks.  As a final cross-check, the generated Verilog is compiled with
-/// `iverilog -g2005-sv` and run with `vvp`; a spec is only lowerable when this
-/// smoke pass succeeds and no placeholders remain.
-pub fn compute_icarus_lowerable(source: &str, spec_path: &str) -> IcarusLowerabilityResult {
+/// fallbacks.  When `run_smoke` is true, the generated Verilog is compiled with
+/// `iverilog -g2005-sv` and run with `vvp` as a final cross-check.  The
+/// standalone `compute_icarus_lowerable` wrapper keeps the smoke enabled for the
+/// user-facing gate; the completeness generator calls this internal variant with
+/// `run_smoke = false` to avoid re-running the Icarus simulator on every spec.
+pub fn compute_icarus_lowerable_internal(
+    source: &str,
+    spec_path: &str,
+    run_smoke: bool,
+) -> IcarusLowerabilityResult {
     let ast = match Compiler::parse_ast(source) {
         Ok(a) => a,
         Err(e) => {
@@ -18714,9 +18720,11 @@ pub fn compute_icarus_lowerable(source: &str, spec_path: &str) -> IcarusLowerabi
         }
     }
 
-    // Icarus syntax/runtime cross-check.
+    // Icarus syntax/runtime cross-check.  Skipped when the caller only needs the
+    // static classifier for the Lean completeness generator.
     let mut smoke_ran = false;
     let mut smoke_violations: Vec<IcarusLowerabilityViolation> = Vec::new();
+    if run_smoke {
     if let Some(verilog) = verilog_output.as_ref() {
         let sanitized: String = spec_path
             .chars()
@@ -18790,6 +18798,7 @@ pub fn compute_icarus_lowerable(source: &str, spec_path: &str) -> IcarusLowerabi
         }
         let _ = std::fs::remove_dir_all(&tmp_dir);
     }
+    }
 
     // When Icarus is available, the smoke pass is the ground truth for
     // lowerability.  Marker / static findings are only surfaced when smoke fails
@@ -18834,6 +18843,18 @@ pub fn compute_icarus_lowerable(source: &str, spec_path: &str) -> IcarusLowerabi
         violations: all_violations,
         host_only_functions: host_only_vec,
     }
+}
+
+/// W491: user-facing classifier with the Icarus smoke pass enabled.
+pub fn compute_icarus_lowerable(source: &str, spec_path: &str) -> IcarusLowerabilityResult {
+    compute_icarus_lowerable_internal(source, spec_path, true)
+}
+
+/// W492: fast classifier used by the Lean completeness generator.  It reuses the
+/// same static analysis and Verilog-marker scan, but skips the `iverilog`/`vvp`
+/// smoke pass because the suite already validates smoke/classifier agreement.
+pub fn compute_icarus_lowerable_fast(source: &str, spec_path: &str) -> IcarusLowerabilityResult {
+    compute_icarus_lowerable_internal(source, spec_path, false)
 }
 
 /// W491: AST walker that flags constructs the Verilog emitter cannot lower when
@@ -18996,6 +19017,903 @@ impl<'a> IcarusAnalyzer<'a> {
             location: format!("line {}", node.line),
         });
     }
+}
+
+// ============================================================================
+// W492: Lean Icarus-lowerability model exporter
+// ============================================================================
+
+/// Derive a valid Lean identifier prefix from a spec path.  Nested directories
+/// are flattened with underscores; the leading `specs/` prefix and `.t27`
+/// extension are stripped.
+fn lean_model_module_name(spec_path: &str) -> String {
+    let mut s = spec_path.replace('\\', "/");
+    if let Some(rest) = s.strip_prefix("specs/") {
+        s = rest.to_string();
+    }
+    if let Some(rest) = s.strip_suffix(".t27") {
+        s = rest.to_string();
+    }
+    s.replace('/', "_").replace('-', "_")
+}
+
+/// Emit a Lean 4 model (`Env` + `Module`) for the Icarus-lowerability predicate.
+/// The model mirrors the simplified t27 AST used in
+/// `proofs/lean4/Trinity/IcarusLowerable/`.
+pub fn emit_lean_model(source: &str, spec_path: &str) -> Result<String, String> {
+    let ast = Compiler::parse_ast(source)?;
+
+    // Collect top-level declarations exactly as `compute_icarus_lowerable` does.
+    let mut consts: Vec<&Node> = Vec::new();
+    let mut enums: Vec<&Node> = Vec::new();
+    let mut structs: Vec<&Node> = Vec::new();
+    let mut functions: Vec<&Node> = Vec::new();
+    let mut function_names_seen: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+    let mut tests: Vec<&Node> = Vec::new();
+    let mut invariants: Vec<&Node> = Vec::new();
+    let mut benches: Vec<&Node> = Vec::new();
+    let mut module_stmts: Vec<&Node> = Vec::new();
+
+    for decl in &ast.children {
+        match decl.kind {
+            NodeKind::ConstDecl => consts.push(decl),
+            NodeKind::EnumDecl => enums.push(decl),
+            NodeKind::StructDecl => structs.push(decl),
+            NodeKind::FnDecl => {
+                if function_names_seen.insert(decl.name.clone()) {
+                    functions.push(decl);
+                }
+            }
+            NodeKind::TestBlock => tests.push(decl),
+            NodeKind::InvariantBlock => invariants.push(decl),
+            NodeKind::BenchBlock => benches.push(decl),
+            NodeKind::StmtExpr | NodeKind::StmtAssign => module_stmts.push(decl),
+            _ => {}
+        }
+    }
+
+    // Build struct-field registry (same as classifier).
+    let mut struct_fields: std::collections::HashMap<String, Vec<(String, String)>> =
+        std::collections::HashMap::new();
+    for s in &structs {
+        let fields: Vec<(String, String)> = s
+            .children
+            .iter()
+            .map(|f| (f.name.clone(), f.extra_type.clone()))
+            .collect();
+        struct_fields.insert(s.name.clone(), fields);
+    }
+    for decl in &ast.children {
+        if decl.kind == NodeKind::UseDecl {
+            let use_module_path = VerilogCodegen::resolve_use_module_path(&decl.value)
+                .unwrap_or_else(|| decl.value.clone());
+            if let Some(mappings) = VerilogCodegen::load_imported_struct_fields(&use_module_path) {
+                for (fq_name, fields) in mappings {
+                    struct_fields.insert(fq_name, fields);
+                }
+            }
+        }
+    }
+
+    // Function return-type registry.
+    let mut fn_return_types: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    for f in &functions {
+        let ret = if f.extra_return_type.is_empty() {
+            "void".to_string()
+        } else {
+            f.extra_return_type.clone()
+        };
+        fn_return_types.insert(f.name.clone(), ret);
+    }
+    for decl in &ast.children {
+        if decl.kind == NodeKind::UseDecl {
+            let use_module_path = VerilogCodegen::resolve_use_module_path(&decl.value)
+                .unwrap_or_else(|| decl.value.clone());
+            if let Some(fn_rets) = VerilogCodegen::load_imported_fn_return_types(&use_module_path) {
+                for (fq_name, ret) in fn_rets {
+                    fn_return_types.insert(fq_name.clone(), ret.clone());
+                    if let Some(short) = fq_name.split("::").last() {
+                        fn_return_types.entry(short.to_string()).or_insert(ret);
+                    }
+                }
+            }
+        }
+    }
+
+    let enum_types: std::collections::HashSet<String> =
+        enums.iter().map(|e| e.name.clone()).collect();
+    let host_only_functions = VerilogCodegen::compute_host_only_functions(
+        &functions,
+        &tests,
+        &enums,
+        &benches,
+        &module_stmts,
+    );
+
+    // Constructor map: function name → struct name, for structs with a matching
+    // function name in the module.  This is a best-effort heuristic; imported
+    // constructors are added from imports below.
+    let mut constructors: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    for s in &structs {
+        // t27 convention: a constructor function often has the same name as the
+        // struct or a snake_case variant.  We record any function whose return
+        // type matches the struct name as a constructor.
+        for f in &functions {
+            if f.extra_return_type == s.name {
+                constructors.insert(f.name.clone(), s.name.clone());
+            }
+        }
+    }
+    // Imported constructors: any imported item whose return type is a known struct.
+    let mut imports_map: std::collections::HashMap<String, (String, String)> =
+        std::collections::HashMap::new();
+    for decl in &ast.children {
+        if decl.kind == NodeKind::UseDecl {
+            let path = decl.value.clone();
+            let item_name = decl.name.clone();
+            let resolved = VerilogCodegen::resolve_use_module_path(&path)
+                .unwrap_or_else(|| path.clone());
+            imports_map.insert(item_name.clone(), (resolved.clone(), item_name.clone()));
+            let fq = path.clone();
+            if let Some(ret) = fn_return_types.get(&fq).or_else(|| fn_return_types.get(&item_name)) {
+                if struct_fields.contains_key(ret) {
+                    constructors.insert(item_name.clone(), ret.clone());
+                }
+            }
+        }
+    }
+
+    // Reachable set: functions called from tests/benches/module logic.
+    let mut reachable: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut collect_reachable = |n: &Node| {
+        let mut calls: Vec<&Node> = Vec::new();
+        VerilogCodegen::collect_all_expr_calls(n, &mut calls);
+        for call in calls {
+            reachable.insert(call.name.clone());
+        }
+    };
+    for stmt in &module_stmts {
+        collect_reachable(stmt);
+    }
+    for test in &tests {
+        collect_reachable(test);
+    }
+    for bench in &benches {
+        collect_reachable(bench);
+    }
+    loop {
+        let mut changed = false;
+        for f in &functions {
+            if !reachable.contains(&f.name) {
+                continue;
+            }
+            let mut calls: Vec<&Node> = Vec::new();
+            VerilogCodegen::collect_all_expr_calls(f, &mut calls);
+            for call in calls {
+                if reachable.insert(call.name.clone()) {
+                    changed = true;
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+
+    let module_name = lean_model_module_name(spec_path);
+    let env_name = format!("{}_env", module_name);
+    let mod_name = format!("{}_module", module_name);
+
+    let emitter = LeanModelEmitter {
+        struct_fields: &struct_fields,
+        enum_types: &enum_types,
+        constructors: &constructors,
+        imports: &imports_map,
+        host_only: &host_only_functions,
+        reachable: &reachable,
+    };
+
+    let mut out = String::new();
+    out.push_str("import Trinity.IcarusLowerable.Predicate\n");
+    out.push_str("import Trinity.IcarusLowerable.Emitter\n");
+    out.push_str("import Trinity.IcarusLowerable.Soundness\n");
+    out.push_str("open Trinity.IcarusLowerable\n\n");
+    out.push_str(&format!(
+        "def {} : Env := {{\n",
+        env_name
+    ));
+    out.push_str(&format!(
+        "  structs := {},\n",
+        emitter.lean_structs(&structs)
+    ));
+    out.push_str(&format!(
+        "  constructors := {},\n",
+        emitter.lean_constructors()
+    ));
+    out.push_str(&format!(
+        "  enums := {},\n",
+        emitter.lean_enums(&enums)
+    ));
+    out.push_str(&format!(
+        "  imports := {},\n",
+        emitter.lean_imports()
+    ));
+    out.push_str(&format!(
+        "  hostOnly := {},\n",
+        emitter.lean_host_only()
+    ));
+    out.push_str(&format!(
+        "  reachable := {}\n",
+        emitter.lean_reachable(&functions)
+    ));
+    out.push_str("}\n\n");
+
+    out.push_str(&format!(
+        "def {} : Module := {{\n",
+        mod_name
+    ));
+    out.push_str(&format!("  name := \"{}\",\n", emitter.lean_escape_string(&module_name)));
+    out.push_str(&format!(
+        "  imports := {},\n",
+        emitter.lean_module_imports(&ast)
+    ));
+    out.push_str(&format!(
+        "  globals := {},\n",
+        emitter.lean_stmts(&consts)
+    ));
+    out.push_str(&format!(
+        "  functions := {},\n",
+        emitter.lean_functions(&functions)
+    ));
+    out.push_str(&format!(
+        "  tests := {},\n",
+        emitter.lean_functions(&tests)
+    ));
+    out.push_str(&format!(
+        "  benches := {}\n",
+        emitter.lean_functions(&benches)
+    ));
+    out.push_str("}\n");
+
+    Ok(out)
+}
+
+struct LeanModelEmitter<'a> {
+    struct_fields: &'a std::collections::HashMap<String, Vec<(String, String)>>,
+    enum_types: &'a std::collections::HashSet<String>,
+    constructors: &'a std::collections::HashMap<String, String>,
+    imports: &'a std::collections::HashMap<String, (String, String)>,
+    host_only: &'a std::collections::HashSet<String>,
+    reachable: &'a std::collections::HashSet<String>,
+}
+
+impl<'a> LeanModelEmitter<'a> {
+    fn lean_escape_string(&self, s: &str) -> String {
+        let mut out = String::new();
+        for c in s.chars() {
+            if c == '\\' {
+                out.push('\\');
+                out.push('\\');
+            } else if c == '"' {
+                out.push('\\');
+                out.push('"');
+            } else {
+                out.push(c);
+            }
+        }
+        out
+    }
+
+    fn lean_string_list(&self, items: &[String]) -> String {
+        let parts: Vec<String> = items
+            .iter()
+            .map(|s| {
+                let mut part = String::new();
+                part.push('"');
+                part.push_str(&self.lean_escape_string(s));
+                part.push('"');
+                part
+            })
+            .collect();
+        format!("[{}]", parts.join(", "))
+    }
+
+    fn lean_structs(&self, structs: &[&Node]) -> String {
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut entries: Vec<String> = Vec::new();
+        for s in structs {
+            seen.insert(s.name.clone());
+            let fields: Vec<String> = s
+                .children
+                .iter()
+                .map(|f| {
+                    format!(
+                        "(\"{}\", {})",
+                        self.lean_escape_string(&f.name),
+                        self.lean_ty(&f.extra_type)
+                    )
+                })
+                .collect();
+            entries.push(format!(
+                "(\"{}\", [{}])",
+                self.lean_escape_string(&s.name),
+                fields.join(", ")
+            ));
+        }
+        // Imported structs may be referenced by fully-qualified names in this
+        // spec (e.g. `w481_struct_supplier::Metric`).  Include their layouts so
+        // the predicate can validate field access.
+        for (name, fields) in self.struct_fields.iter() {
+            if seen.contains(name) {
+                continue;
+            }
+            seen.insert(name.clone());
+            let fields_str: Vec<String> = fields
+                .iter()
+                .map(|(n, t)| {
+                    format!(
+                        "(\"{}\", {})",
+                        self.lean_escape_string(n),
+                        self.lean_ty(t)
+                    )
+                })
+                .collect();
+            entries.push(format!(
+                "(\"{}\", [{}])",
+                self.lean_escape_string(name),
+                fields_str.join(", ")
+            ));
+        }
+        format!("[{}]", entries.join(", "))
+    }
+
+    fn lean_constructors(&self) -> String {
+        let entries: Vec<String> = self
+            .constructors
+            .iter()
+            .map(|(ctor, sname)| {
+                format!(
+                    "(\"{}\", \"{}\")",
+                    self.lean_escape_string(ctor),
+                    self.lean_escape_string(sname)
+                )
+            })
+            .collect();
+        format!("[{}]", entries.join(", "))
+    }
+
+    fn lean_enums(&self, enums: &[&Node]) -> String {
+        let names: Vec<String> = enums
+            .iter()
+            .map(|e| format!("\"{}\"", self.lean_escape_string(&e.name)))
+            .collect();
+        format!("[{}]", names.join(", "))
+    }
+
+    fn lean_imports(&self) -> String {
+        let entries: Vec<String> = self
+            .imports
+            .iter()
+            .map(|(name, (path, item))| {
+                format!(
+                    "(\"{}\", (\"{}\", \"{}\"))",
+                    self.lean_escape_string(name),
+                    self.lean_escape_string(path),
+                    self.lean_escape_string(item)
+                )
+            })
+            .collect();
+        format!("[{}]", entries.join(", "))
+    }
+
+    fn lean_host_only(&self) -> String {
+        let names: Vec<String> = self
+            .host_only
+            .iter()
+            .map(|s| format!("\"{}\"", self.lean_escape_string(s)))
+            .collect();
+        format!("[{}]", names.join(", "))
+    }
+
+    fn lean_reachable(&self, functions: &[&Node]) -> String {
+        let names: Vec<String> = self
+            .reachable
+            .iter()
+            .map(|s| format!("\"{}\"", self.lean_escape_string(s)))
+            .collect();
+        format!("[{}]", names.join(", "))
+    }
+
+    fn lean_module_imports(&self, ast: &Node) -> String {
+        let entries: Vec<String> = ast
+            .children
+            .iter()
+            .filter(|d| d.kind == NodeKind::UseDecl)
+            .map(|d| {
+                let item = format!("\"{}\"", self.lean_escape_string(&d.name));
+                format!(
+                    "{{ path := \"{}\", items := [{}] }}",
+                    self.lean_escape_string(&d.value),
+                    item
+                )
+            })
+            .collect();
+        format!("[{}]", entries.join(", "))
+    }
+
+    fn lean_stmts(&self, stmts: &[&Node]) -> String {
+        let parts: Vec<String> = stmts.iter().map(|s| self.lean_stmt(s)).collect();
+        format!("[{}]", parts.join(", "))
+    }
+
+    fn lean_functions(&self, fns: &[&Node]) -> String {
+        let parts: Vec<String> = fns.iter().map(|f| self.lean_function(f)).collect();
+        format!("[{}]", parts.join(", "))
+    }
+
+    fn lean_ty(&self, ty: &str) -> String {
+        let t = ty.trim();
+        let inner = if t.is_empty() {
+            ".u32".to_string()
+        } else {
+            match t {
+                "bool" => ".bool".to_string(),
+                "u8" => ".u8".to_string(),
+                "u16" => ".u16".to_string(),
+                "u32" => ".u32".to_string(),
+                "u64" => ".u64".to_string(),
+                "i8" => ".i8".to_string(),
+                "i16" => ".i16".to_string(),
+                "i32" => ".i32".to_string(),
+                "i64" => ".i64".to_string(),
+                "f32" => ".f32".to_string(),
+                "string" => ".string".to_string(),
+                _ => {
+                    if let Some((size, elem)) = Self::parse_array_type(t) {
+                        format!(".array {} {}", size, self.lean_ty(&elem))
+                    } else if self.enum_types.contains(t) {
+                        format!(".enum \"{}\"", self.lean_escape_string(t))
+                    } else {
+                        // Treat unknown names as structs; the predicate uses struct
+                        // layout from Env to refine field access.
+                        format!(".struct \"{}\"", self.lean_escape_string(t))
+                    }
+                }
+            }
+        };
+        format!("({})", inner)
+    }
+
+    fn parse_array_type(ty: &str) -> Option<(usize, String)> {
+        let t = ty.trim();
+        if !t.starts_with('[') {
+            return None;
+        }
+        let close = t.find(']')?;
+        let size_str = &t[1..close];
+        let size = size_str.trim().parse::<usize>().ok()?;
+        let elem = t[close + 1..].trim().to_string();
+        if elem.is_empty() {
+            return None;
+        }
+        Some((size, elem))
+    }
+
+    fn lean_expr(&self, node: &Node) -> String {
+        let inner = match node.kind {
+            NodeKind::ExprLiteral => {
+                match node.extra_kind.as_str() {
+                    "bool" => {
+                        if node.value == "true" {
+                            ".boolLit true".to_string()
+                        } else {
+                            ".boolLit false".to_string()
+                        }
+                    }
+                    "string" => format!(
+                        ".stringLit \"{}\"",
+                        self.lean_escape_string(&node.value)
+                    ),
+                    "f32" => format!(
+                        ".f32Lit \"{}\"",
+                        self.lean_escape_string(&node.value)
+                    ),
+                    _ => {
+                        // Numeric literal.  Parenthesize the value so negative
+                        // literals parse unambiguously in Lean dot notation.
+                        if let Ok(n) = node.value.parse::<i64>() {
+                            format!(".intLit ({})", n)
+                        } else {
+                            format!(".intLit (0)")
+                        }
+                    }
+                }
+            }
+            NodeKind::ExprIdentifier => {
+                format!(".identifier \"{}\"", self.lean_escape_string(&node.name))
+            }
+            NodeKind::ExprEnumValue => {
+                format!(
+                    ".enumVal \"{}\" \"{}\"",
+                    self.lean_escape_string(&node.extra_type),
+                    self.lean_escape_string(&node.name)
+                )
+            }
+            NodeKind::ExprCall => {
+                let args: Vec<String> = node
+                    .children
+                    .iter()
+                    .map(|c| self.lean_expr(c))
+                    .collect();
+                format!(
+                    ".call \"{}\" [{}]",
+                    self.lean_escape_string(&node.name),
+                    args.join(", ")
+                )
+            }
+            NodeKind::ExprBinary => {
+                let lhs = self.lean_expr(&node.children[0]);
+                let rhs = self.lean_expr(&node.children[1]);
+                format!(
+                    ".binop \"{}\" {} {}",
+                    self.lean_escape_string(&node.extra_op),
+                    lhs,
+                    rhs
+                )
+            }
+            NodeKind::ExprUnary => {
+                let e = self.lean_expr(&node.children[0]);
+                format!(
+                    ".unop \"{}\" {}",
+                    self.lean_escape_string(&node.extra_op),
+                    e
+                )
+            }
+            NodeKind::ExprFieldAccess => {
+                let base = self.lean_expr(&node.children[0]);
+                format!(
+                    ".fieldAccess {} \"{}\"",
+                    base,
+                    self.lean_escape_string(&node.name)
+                )
+            }
+            NodeKind::ExprIndex => {
+                let base = self.lean_expr(&node.children[0]);
+                let idx = self.lean_expr(&node.children[1]);
+                format!(".index {} {}", base, idx)
+            }
+            NodeKind::ExprStructLit => {
+                let fields: Vec<String> = node
+                    .children
+                    .iter()
+                    .map(|f| {
+                        let val = f.children.first().map_or(
+                            ".unsupportedIcarus \"empty field\"".to_string(),
+                            |v| self.lean_expr(v)
+                        );
+                        format!(
+                            "(\"{}\", {})",
+                            self.lean_escape_string(&f.name),
+                            val
+                        )
+                    })
+                    .collect();
+                format!(
+                    ".structLit \"{}\" [{}]",
+                    self.lean_escape_string(&node.name),
+                    fields.join(", ")
+                )
+            }
+            NodeKind::ExprArrayLiteral => {
+                let elems: Vec<String> = node
+                    .children
+                    .iter()
+                    .map(|e| self.lean_expr(e))
+                    .collect();
+                let ty = self.lean_ty(&node.extra_type);
+                format!(".arrayLit {} [{}]", ty, elems.join(", "))
+            }
+            NodeKind::ExprReturn => {
+                if node.children.is_empty() {
+                    ".unsupportedIcarus \"empty return\"".to_string()
+                } else {
+                    self.lean_expr(&node.children[0])
+                }
+            }
+            _ => {
+                format!(
+                    ".unsupportedIcarus \"unmapped kind {}\"",
+                    self.lean_escape_string(&format!("{:?}", node.kind))
+                )
+            }
+        };
+        format!("({})", inner)
+    }
+
+    fn lean_stmt(&self, node: &Node) -> String {
+        match node.kind {
+            NodeKind::StmtLocal => {
+                let init = node.children.first().map(|c| self.lean_expr(c));
+                let init_str = match init {
+                    Some(e) => format!("(some {})", e),
+                    None => "none".to_string(),
+                };
+                let ty = self.lean_ty(&node.extra_type);
+                format!(
+                    ".varDecl \"{}\" {} {}",
+                    self.lean_escape_string(&node.name),
+                    ty,
+                    init_str
+                )
+            }
+            NodeKind::ConstDecl => {
+                let init = node.children.first().map(|c| self.lean_expr(c));
+                let init_str = match init {
+                    Some(e) => format!("(some {})", e),
+                    None => "none".to_string(),
+                };
+                let ty = self.lean_ty(&node.extra_type);
+                format!(
+                    ".constDecl \"{}\" {} {}",
+                    self.lean_escape_string(&node.name),
+                    ty,
+                    init_str
+                )
+            }
+            NodeKind::StmtAssign => {
+                let lhs = self.lean_expr(&node.children[0]);
+                let rhs = self.lean_expr(&node.children[1]);
+                format!(".assign {} {}", lhs, rhs)
+            }
+            NodeKind::StmtExpr => {
+                let e = node.children.first().map(|c| self.lean_expr(c));
+                match e {
+                    Some(expr) => format!(".bareCall {}", expr),
+                    None => ".bareCall (.unsupportedIcarus \"empty\")".to_string(),
+                }
+            }
+            NodeKind::ExprReturn => {
+                let e = node.children.first().map(|c| self.lean_expr(c));
+                match e {
+                    Some(expr) => format!(".return_ (some {})", expr),
+                    None => ".return_ none".to_string(),
+                }
+            }
+            NodeKind::StmtIf => {
+                let cond = self.lean_expr(&node.children[0]);
+                let then_body: Vec<String> = node
+                    .children
+                    .get(1)
+                    .map(|m| m.children.iter().map(|c| self.lean_stmt(c)).collect())
+                    .unwrap_or_default();
+                let else_body: Vec<String> = node
+                    .children
+                    .get(2)
+                    .map(|m| m.children.iter().map(|c| self.lean_stmt(c)).collect())
+                    .unwrap_or_default();
+                format!(
+                    ".ifThenElse {} [{}] [{}]",
+                    cond,
+                    then_body.join(", "),
+                    else_body.join(", ")
+                )
+            }
+            NodeKind::StmtForRange => {
+                // t27 for-range AST: [start_expr, end_expr, Module name=body ...].
+                // Use the end bound as the range expression and the module's
+                // children as the loop body.
+                let range = node
+                    .children
+                    .get(1)
+                    .map(|c| self.lean_expr(c))
+                    .unwrap_or_else(|| ".unsupportedIcarus \"missing range\"".to_string());
+                let body: Vec<String> = node
+                    .children
+                    .last()
+                    .map(|m| m.children.iter().map(|c| self.lean_stmt(c)).collect())
+                    .unwrap_or_default();
+                format!(
+                    ".forLoop \"{}\" {} [{}]",
+                    self.lean_escape_string(&node.name),
+                    range,
+                    body.join(", ")
+                )
+            }
+            _ => {
+                format!(
+                    ".bareCall (.unsupportedIcarus \"unmapped stmt {}\")",
+                    self.lean_escape_string(&format!("{:?}", node.kind))
+                )
+            }
+        }
+    }
+
+    fn lean_function(&self, node: &Node) -> String {
+        let params: Vec<String> = node
+            .params
+            .iter()
+            .map(|(n, t)| {
+                format!(
+                    "(\"{}\", {})",
+                    self.lean_escape_string(n),
+                    self.lean_ty(t)
+                )
+            })
+            .collect();
+        let ret = if node.extra_return_type.is_empty() {
+            "none".to_string()
+        } else {
+            format!("(some {})", self.lean_ty(&node.extra_return_type))
+        };
+        let body: Vec<String> = node
+            .children
+            .iter()
+            .map(|c| self.lean_stmt(c))
+            .collect();
+        format!(
+            "{{ name := \"{}\", params := [{}], ret := {}, body := [{}] }}",
+            self.lean_escape_string(&node.name),
+            params.join(", "),
+            ret,
+            body.join(", ")
+        )
+    }
+}
+
+/// W492: collect every `.t27` file recursively under `dir`, but skip
+/// `specs/scratch/` witnesses.  Those are intentionally boundary/witness specs
+/// and are verified separately, not in the corpus completeness import.
+fn collect_t27_specs(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) -> Result<(), String> {
+    if !dir.is_dir() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(dir).map_err(|e| format!("read_dir {}: {}", dir.display(), e))? {
+        let entry = entry.map_err(|e| format!("dir entry: {}", e))?;
+        let path = entry.path();
+        if path.is_dir() {
+            if path.file_name().map_or(false, |n| n == "scratch") {
+                continue;
+            }
+            collect_t27_specs(&path, out)?;
+        } else if path.extension().map_or(false, |ext| ext == "t27") {
+            out.push(path);
+        }
+    }
+    Ok(())
+}
+
+/// W492: regenerate `proofs/lean4/Trinity/IcarusLowerable/Completeness.lean` from
+/// the current corpus and verify it with `lake env lean`.
+///
+/// For every spec that the full Icarus classifier marks as lowerable, this
+/// function emits a Lean `Env` + `Module` and a `native_decide` theorem proving
+/// that the predicate accepts the exported model.  Specs whose model still
+/// contains unmodeled placeholders or string/enum/f32 constructs are skipped,
+/// so the file proves a conservative, fully-modeled subset of the corpus.
+pub fn generate_lean_lowerable_completeness(
+    repo_root: &str,
+    output_path: &str,
+) -> Result<(), String> {
+    let repo = std::path::Path::new(repo_root);
+    let specs_dir = repo.join("specs");
+
+    let mut specs: Vec<std::path::PathBuf> = Vec::new();
+    collect_t27_specs(&specs_dir, &mut specs)?;
+    specs.sort();
+    specs.dedup();
+
+    let mut lowerable: Vec<(String, String, String, String)> = Vec::new();
+    let mut skipped: usize = 0;
+    for spec in &specs {
+        let rel = spec
+            .strip_prefix(repo)
+            .map_err(|_| format!("spec {} is outside repo {}", spec.display(), repo.display()))?;
+        let rel_str = rel.to_string_lossy().replace('\\', "/");
+        let source = std::fs::read_to_string(spec)
+            .map_err(|e| format!("read {}: {}", spec.display(), e))?;
+        // Use the full classifier (including the Icarus smoke pass) so the
+        // completeness file only claims lowerability for specs that actually
+        // compile and run under Icarus.
+        let result = compute_icarus_lowerable(&source, &rel_str);
+        if result.verdict != "lowerable" {
+            skipped += 1;
+            continue;
+        }
+        let model_src = emit_lean_model(&source, &rel_str)?;
+        // Skip specs whose exported model still contains placeholders or
+        // conservative non-lowerable types (string/enum/f32) that the predicate
+        // rejects.  These are exporter/predicate gaps to close in future waves.
+        if model_src.contains(".unsupportedIcarus ")
+            || model_src.contains(".unsupported ")
+            || model_src.contains(".todo ")
+            || model_src.contains(".string")
+            || model_src.contains(".enum")
+            || model_src.contains(".f32")
+        {
+            skipped += 1;
+            continue;
+        }
+        let module_name = lean_model_module_name(&rel_str);
+        let env_name = format!("{}_env", module_name);
+        let module_def_name = format!("{}_module", module_name);
+
+        // Strip the per-model import header; the completeness file has one global
+        // import/open block at the top.
+        let body: Vec<&str> = model_src
+            .lines()
+            .filter(|line| !(line.starts_with("import ") || line.starts_with("open ")))
+            .collect();
+        let model_body = body.join("\n");
+
+        lowerable.push((model_body, module_name, env_name, module_def_name));
+    }
+
+    let mut out = String::new();
+    out.push_str("import Trinity.IcarusLowerable.Predicate\n");
+    out.push_str("import Trinity.IcarusLowerable.Emitter\n");
+    out.push_str("import Trinity.IcarusLowerable.Soundness\n");
+    out.push_str("open Trinity.IcarusLowerable\n\n");
+
+    for (model_body, _, _, _) in &lowerable {
+        out.push_str(model_body);
+        out.push('\n');
+    }
+
+    for (_, module_name, env_name, module_def_name) in &lowerable {
+        out.push_str(&format!(
+            "theorem {module_name}_lowerable : Module.isLowerable {env_name} {module_def_name} = true := by native_decide\n"
+        ));
+    }
+
+    let abs_output = if std::path::Path::new(output_path).is_absolute() {
+        std::path::PathBuf::from(output_path)
+    } else {
+        repo.join(output_path)
+    };
+    if let Some(parent) = abs_output.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("create dir {}: {}", parent.display(), e))?;
+    }
+    std::fs::write(&abs_output, out)
+        .map_err(|e| format!("write {}: {}", abs_output.display(), e))?;
+
+    println!(
+        "W492: wrote {} lowerable specs (skipped {} with unmodeled placeholders) to {}",
+        lowerable.len(),
+        skipped,
+        abs_output.display()
+    );
+
+    let lean_dir = repo.join("proofs/lean4");
+    // `lake env lean` needs a path relative to the lake package root.  Resolve
+    // both paths so the relative computation is not confused by `.` prefixes.
+    let abs_output_canon = std::fs::canonicalize(&abs_output)
+        .map_err(|e| format!("canonicalize {}: {}", abs_output.display(), e))?;
+    let lean_dir_canon = std::fs::canonicalize(&lean_dir)
+        .map_err(|e| format!("canonicalize {}: {}", lean_dir.display(), e))?;
+    let lean_output = abs_output_canon
+        .strip_prefix(&lean_dir_canon)
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|_| abs_output_canon.clone());
+    let status = std::process::Command::new("lake")
+        .arg("env")
+        .arg("lean")
+        .arg(&lean_output)
+        .current_dir(&lean_dir_canon)
+        .status()
+        .map_err(|e| format!("failed to run lake env lean: {}", e))?;
+    if !status.success() {
+        return Err(format!(
+            "lake env lean failed on {} (see errors above)",
+            abs_output.display()
+        ));
+    }
+
+    println!("W492: lean-lowerable completeness gate passed");
+    Ok(())
 }
 
 // ============================================================================

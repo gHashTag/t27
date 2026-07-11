@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0
+; W492 soundness-boundary witness.
+; This spec is Icarus-lowerable and its exported Lean model contains no
+; unsupported placeholders, so it serves as a positive regression test for the
+; soundness theorem: lowerability implies a placeholder-free modeled Verilog.
+; φ² + 1/φ² = 3 | TRINITY
+
+module w492_soundness_boundary;
+
+struct Pt {
+    x : u32,
+    y : u32,
+}
+
+fn make_pt(a : u32, b : u32) -> Pt {
+    return Pt { .x = a, .y = b };
+}
+
+fn sum(p : Pt) -> u32 {
+    return p.x + p.y;
+}
+
+test soundness_boundary_ok {
+    assert_eq(sum(make_pt(3, 4)), 7);
+}

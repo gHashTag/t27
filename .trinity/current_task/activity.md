@@ -2020,3 +2020,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 491 — Icarus-lowerability classifier + Lean 4 predicate + adversarial witnesses
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-11T11:43:44Z — wave-loop-492
+- **Commit:** chore(trinity): set W492 current-issue placeholder
+- **Files:** .claude/plans/wave-loop-492.md,.gitignore,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w492_predicate_rejects_nested_return_field.json,.trinity/seals/scratch_w492_soundness_boundary.json,bootstrap/src/compiler.rs,bootstrap/src/main.rs,bootstrap/src/suite.rs,bootstrap/stage0/FROZEN_HASH,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W493_2026-07-12.md,docs/reports/T27_VS_FORMAL_HDL_2026-07-11.md,docs/reports/WAVE_LOOP_492_CLOSEOUT.md,docs/reports/gen_verilog_iverilog_smoke_baseline.json,docs/reports/gen_verilog_smoke_baseline.json,proofs/lean4/Trinity/IcarusLowerable/Emitter.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,proofs/lean4/Trinity/IcarusLowerable/Verilog.lean
+
