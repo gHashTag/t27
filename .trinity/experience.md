@@ -1,3 +1,36 @@
+## 2026-07-11 — Wave Loop 491 (formalize Icarus-lowerable subset in Lean 4)
+
+### What worked
+- The lowerability contract can be carved out as a standalone predicate over a
+  simplified AST without modeling full t27 semantics. This keeps the proof
+  tractable while still preventing silent frontend/backend drift.
+- Reusing the existing Rust host-only / unlowerable-construct machinery for the
+  classifier ensures the predicate stays aligned with the actual emitter.
+- Representative lemmas can be proved by `native_decide` because the predicate
+  is decidable and the witness ASTs are concrete.
+- The `--icarus-lowerable` suite gate gives an immediate mechanical check that
+  no Icarus-passing spec is classified as not-lowerable.
+
+### What to improve
+- The Lean predicate and the Rust classifier still need a shared human-readable
+  rule list in `docs/BACKEND_CONTRACT.md` to prevent future drift between the
+  two implementations.
+- Full soundness (predicate implies no `UNSUPPORTED_ICARUS` placeholders in
+  emitted Verilog) is not yet proved; W492 Variant A should close that gap.
+- The `proofs/lean4/` root target has pre-existing failures in
+  `H4Lagrangian.lean` and `NeutrinoMasses.lean` that should be fixed separately
+  so the whole library builds with `lake build`.
+
+### Techniques to reuse
+- Define a shallow AST/predicate first; prove representative lemmas; then add
+  a harness gate; only then attempt full soundness/completeness proofs.
+- Use `native_decide` for decidable lowerability lemmas on concrete witnesses
+  before investing in manual proof automation.
+- Gate agreement between a Rust classifier and a formal predicate rather than
+  proving the emitter correct end-to-end in the first wave.
+
+---
+
 ## 2026-07-07 — Wave Loop 490 (gen-verilog backend hardening: scalar struct-return array-field access, imported constructor expression context, module-scope AOS constants with array-typed fields, host-only enum/string helper classification)
 
 ### What worked

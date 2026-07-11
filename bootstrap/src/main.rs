@@ -777,6 +777,22 @@ enum Commands {
         /// runs should not use this flag.
         #[arg(long)]
         fast: bool,
+        /// W491: after the Icarus smoke phase, run the Icarus-lowerability
+        /// classifier on every smoke target and fail if smoke results disagree
+        /// with the classifier verdict.
+        #[arg(long)]
+        icarus_lowerable: bool,
+    },
+
+    /// W491: classify whether a .t27 spec can be lowered to Icarus Verilog.
+    /// Prints a JSON verdict when --json is given.
+    #[command(name = "icarus-lowerable")]
+    IcarusLowerable {
+        /// Input .t27 spec file path
+        input: String,
+        /// Emit machine-readable JSON instead of a human-readable summary.
+        #[arg(long)]
+        json: bool,
     },
 
     /// Validate conformance/*.json files (JSON + vector keys)
@@ -2898,6 +2914,36 @@ fn run_parse(input_path: &str) -> anyhow::Result<()> {
     match compiler::Compiler::parse_ast(&source) {
         Ok(ast) => println!("{:#?}", ast),
         Err(e) => anyhow::bail!("Parse error: {}", e),
+    }
+    Ok(())
+}
+
+fn run_icarus_lowerable(input_path: &str, json: bool) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+    let rel = path
+        .strip_prefix(std::env::current_dir()?)
+        .ok()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| input_path.to_string());
+
+    let result = compiler::compute_icarus_lowerable(&source, &rel);
+    if json {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    } else {
+        println!("{}: {}", result.spec, result.verdict);
+        if let Some(reason) = &result.reason {
+            println!("  reason: {}", reason);
+        }
+        if !result.violations.is_empty() {
+            println!("  violations:");
+            for v in &result.violations {
+                println!("    - {} {} at {}", v.kind, v.name, v.location);
+            }
+        }
+        if !result.host_only_functions.is_empty() {
+            println!("  host-only functions: {}", result.host_only_functions.join(", "));
+        }
     }
     Ok(())
 }
@@ -8219,8 +8265,11 @@ async fn main() -> anyhow::Result<()> {
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
         }
-        Commands::Suite { repo_root, json, fast } => {
-            suite::run_comprehensive(&repo_root, json.as_ref(), fast)?
+        Commands::Suite { repo_root, json, fast, icarus_lowerable } => {
+            suite::run_comprehensive(&repo_root, json.as_ref(), fast, icarus_lowerable)?
+        }
+        Commands::IcarusLowerable { input, json } => {
+            run_icarus_lowerable(&input, json)?
         }
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
@@ -8481,8 +8530,11 @@ fn main() -> anyhow::Result<()> {
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
         }
-        Commands::Suite { repo_root, json, fast } => {
-            suite::run_comprehensive(&repo_root, json.as_ref(), fast)?
+        Commands::Suite { repo_root, json, fast, icarus_lowerable } => {
+            suite::run_comprehensive(&repo_root, json.as_ref(), fast, icarus_lowerable)?
+        }
+        Commands::IcarusLowerable { input, json } => {
+            run_icarus_lowerable(&input, json)?
         }
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?

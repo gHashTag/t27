@@ -1,6 +1,7 @@
 //! Repository-wide test orchestration (replaces legacy `tests/*.sh` runners).
 //! Invoked as `t27c suite` from the repository root (or `tri test`).
 
+use crate::compiler;
 use anyhow::Context;
 use chrono::Local;
 use std::collections::HashSet;
@@ -787,6 +788,18 @@ struct SuiteSummary {
     /// W479: number of failures documented as the current baseline in
     /// `docs/reports/gen_verilog_iverilog_smoke_baseline.json`.
     iverilog_baseline_failures: usize,
+    /// W491: number of specs classified as lowerable by the Icarus-lowerability gate.
+    icarus_lowerable_count: usize,
+    /// W491: number of specs classified as not-lowerable by the Icarus-lowerability gate.
+    icarus_not_lowerable_count: usize,
+    /// W491: number of Icarus smoke tests that passed.
+    icarus_smoke_pass: usize,
+    /// W491: number of Icarus smoke tests that failed.
+    icarus_smoke_fail: usize,
+    /// W491: number of specs whose smoke result disagrees with the classifier verdict.
+    icarus_disagreements: usize,
+    /// W491: specs whose smoke result disagrees with the classifier verdict.
+    icarus_disagreement_specs: Vec<String>,
     total_failures: usize,
     /// True when no failures were observed at all.
     passed: bool,
@@ -799,6 +812,7 @@ pub fn run_comprehensive(
     repo_root: &Path,
     json_out: Option<&PathBuf>,
     fast: bool,
+    icarus_lowerable: bool,
 ) -> anyhow::Result<()> {
     let repo = fs::canonicalize(repo_root)
         .with_context(|| format!("cannot canonicalize repo root {}", repo_root.display()))?;
@@ -950,6 +964,75 @@ pub fn run_comprehensive(
         push_phase("gen-verilog-iverilog-smoke", 0, 0, p3b_i_skipped);
     }
     summary.iverilog_baseline_failures = iverilog_baseline.len();
+
+    // W491: optional Icarus-lowerability gate. Run the classifier on every spec
+    // that was smoke-tested with Icarus and record any disagreement.
+    summary.icarus_lowerable_count = 0;
+    summary.icarus_not_lowerable_count = 0;
+    summary.icarus_smoke_pass = 0;
+    summary.icarus_smoke_fail = 0;
+    summary.icarus_disagreements = 0;
+    if icarus_lowerable {
+        println!("--- Phase 3b-iverilog-lowerable: Icarus Lowerability Gate ---");
+        let mut targets: Vec<PathBuf> = specs_scratch.clone();
+        for rel in igla_clean_specs() {
+            targets.push(repo.join(&rel));
+        }
+        targets.sort();
+        targets.dedup();
+        let smoke_failures: HashSet<String> = summary
+            .iverilog_known_failures
+            .iter()
+            .cloned()
+            .collect();
+        for target in &targets {
+            let rel = match rel_arg(&repo, target) {
+                Ok(r) => r,
+                Err(_) => continue,
+            };
+            let source = match fs::read_to_string(target) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            let result = compiler::compute_icarus_lowerable(&source, &rel);
+            let smoke_pass = !smoke_failures.contains(&rel);
+            let lowerable = result.verdict == "lowerable";
+            if lowerable {
+                summary.icarus_lowerable_count += 1;
+            } else {
+                summary.icarus_not_lowerable_count += 1;
+            }
+            if smoke_pass {
+                summary.icarus_smoke_pass += 1;
+            } else {
+                summary.icarus_smoke_fail += 1;
+            }
+            if smoke_pass != lowerable {
+                summary.icarus_disagreements += 1;
+                summary.icarus_disagreement_specs.push(rel.clone());
+                eprintln!(
+                    "ICARUS LOWERABILITY DISAGREEMENT: {} smoke={} classifier={}",
+                    rel,
+                    if smoke_pass { "PASS" } else { "FAIL" },
+                    result.verdict
+                );
+            }
+        }
+        println!(
+            "Icarus Lowerability Gate: {} lowerable, {} not_lowerable, smoke {} pass / {} fail, {} disagreements",
+            summary.icarus_lowerable_count,
+            summary.icarus_not_lowerable_count,
+            summary.icarus_smoke_pass,
+            summary.icarus_smoke_fail,
+            summary.icarus_disagreements
+        );
+        if !summary.icarus_disagreement_specs.is_empty() {
+            eprintln!(
+                "Disagreement specs: {}",
+                summary.icarus_disagreement_specs.join(", ")
+            );
+        }
+    }
 
     if fast {
         println!("[suite] --fast mode: skipping the standalone lake-package build phase");
@@ -1124,7 +1207,8 @@ pub fn run_comprehensive(
         + p3d_fail
         + p4f
         + p5f
-        + fp_diff;
+        + fp_diff
+        + summary.icarus_disagreements;
 
     summary.total_failures = total_fail;
     summary.passed = total_fail == 0;
@@ -1151,6 +1235,24 @@ pub fn run_comprehensive(
     println!("Gen C failures:           {}", p4f);
     println!("Seal mismatches:          {}", p5f);
     println!("FP divergences:           {}", fp_diff);
+    if icarus_lowerable {
+        println!(
+            "Icarus lowerable:         {}",
+            summary.icarus_lowerable_count
+        );
+        println!(
+            "Icarus not lowerable:     {}",
+            summary.icarus_not_lowerable_count
+        );
+        println!(
+            "Icarus smoke pass/fail:   {}/{}",
+            summary.icarus_smoke_pass, summary.icarus_smoke_fail
+        );
+        println!(
+            "Icarus disagreements:     {}",
+            summary.icarus_disagreements
+        );
+    }
     println!("TOTAL FAILURES:           {}", total_fail);
     println!("YOSYS BASELINE FAILURES:  {}", summary.baseline_failures);
     println!(
@@ -1500,6 +1602,12 @@ mod tests {
             baseline_failures: 2,
             iverilog_known_failures: vec![],
             iverilog_baseline_failures: 0,
+            icarus_lowerable_count: 0,
+            icarus_not_lowerable_count: 0,
+            icarus_smoke_pass: 0,
+            icarus_smoke_fail: 0,
+            icarus_disagreements: 0,
+            icarus_disagreement_specs: vec![],
             total_failures: 2,
             passed: false,
             acceptable: true,
@@ -1540,6 +1648,12 @@ mod tests {
             baseline_failures: 0,
             iverilog_known_failures: vec![],
             iverilog_baseline_failures: 0,
+            icarus_lowerable_count: 0,
+            icarus_not_lowerable_count: 0,
+            icarus_smoke_pass: 0,
+            icarus_smoke_fail: 0,
+            icarus_disagreements: 0,
+            icarus_disagreement_specs: vec![],
             total_failures: 0,
             passed: false,
             acceptable: true,

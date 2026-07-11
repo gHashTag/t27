@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: Apache-2.0
+// W491 witness: a string-return helper that is host-only. The call site is a
+// discarded wildcard binding, so the Verilog emitter skips it and Icarus smoke
+// passes, but the classifier must still identify the helper as host-only.
+// φ² + φ⁻² = 3 | TRINITY
+
+module w491_host_only_rejected;
+
+pub const Color = enum(u8) {
+    Red,
+    Green,
+};
+
+// String helper: not representable in Verilog-2005. Classified host-only.
+fn describe(c : Color) -> string {
+    if c == Color::Red {
+        return "red";
+    }
+    return "green";
+}
+
+// Host-only call site: result is discarded, so Verilog skips it cleanly.
+let _ = describe(Color::Red);
+
+test host_only_rejected {
+    assert_eq(1, 1);
+}
+
+endmodule

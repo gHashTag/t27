@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:6b9bc48f1202954aa829706bb0f208689bd1b86b55147e79312a357a4d633a45",
+  "gen_hash_rust": "sha256:3536315eff728488282871a0eac9b35e219372503bed55545f36548306cb7d21",
+  "gen_hash_verilog": "sha256:3e9b7099d19d66049e53fb7aac6b1179710fd2687be3f2b9e2fe6e3fa1ad30b6",
+  "gen_hash_zig": "sha256:5eb73ce24bf3047d81cb4ec9a3eeed75d678af962f74a505bafcdd3873bfc083",
+  "module": "w491_host_only_rejected",
+  "ring": 12,
+  "sealed_at": "2026-07-11T05:27:46Z",
+  "spec_hash": "sha256:dc2eb1a18daab6a74b80f4c26ed1fd59429615ee7124df075caaf406e04be4af",
+  "spec_path": "specs/scratch/w491_host_only_rejected.t27"
+}

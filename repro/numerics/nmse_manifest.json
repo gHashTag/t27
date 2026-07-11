@@ -13,7 +13,7 @@
   "bf16_subnormal_policy": "ieee",
   "bf16_impl": "ml_dtypes.bfloat16 0.5.4",
   "fp16_impl": "numpy.float16 2.4.2",
-  "seal": "11c7e816f3f4c066c0556c3d8f7b2280a8697e404dfa6b6dd33f1bbe4f1547e8",
+  "seal": "c02dc3da0896d7420b03561943d15c60817fdc60443a6cbb1f5acd3fc8090d21",
   "seal_note": "live seal source matches FROZEN_HASH; sealed run; host-only measurement, NOT a silicon certifying claim (protocol section 8)",
   "L5_identity_witness": {
     "phi2_eq_phi_plus_1": 0.0,
@@ -25,7 +25,7 @@
     "python": "3.14.6",
     "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O"
   },
-  "timestamp": "2026-07-10T18:25:22.864091+00:00",
+  "timestamp": "2026-07-11T05:40:10.980761+00:00",
   "headline": "ratio_GF16_over_BF16 is the protocol headline; <1 means GF16 closer to reference.",
   "results": {
     "D_NORM": {

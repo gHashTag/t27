@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0
+// W491 witness: a nested struct-return call where the outer field is itself a
+// struct returned by an inner call. The current Icarus backend emits a
+// placeholder for the inner struct argument, so the classifier should report
+// not_lowerable.
+// φ² + φ⁻² = 3 | TRINITY
+
+module w491_nested_struct_return_field_not_lowerable;
+
+pub struct Inner {
+    y : u32,
+}
+
+pub struct Outer {
+    x : Inner,
+}
+
+pub fn make_inner(a : u32) -> Inner {
+    return Inner { y: a + 1 };
+}
+
+pub fn make_outer(inner : Inner) -> Outer {
+    // Struct-literal field initialized from a scalar-struct parameter. The
+    // backend currently emits a malformed expression for this pattern.
+    return Outer { x: inner };
+}
+
+pub fn get_y() -> u32 {
+    return make_outer(make_inner(5)).x.y;
+}
+
+test nested_struct_return_field {
+    assert_eq(get_y(), 6);
+}
+
+endmodule

@@ -1,6 +1,8 @@
 {
-  "branch": "wave-loop-455",
-  "description": "Residual gen-verilog yosys smoke failures tracked in issue #1245. Wave Loop 455 cleared the tuple-return, let-destructuring, and ROM/function-local-array lowering gaps, so this baseline is now empty. The file is kept as a schema/conformance artifact.",
-  "expected_failures": [],
+  "branch": "wave-loop-491",
+  "description": "Residual gen-verilog yosys smoke failures tracked in issue #1245. Wave Loop 455 cleared the tuple-return, let-destructuring, and ROM/function-local-array lowering gaps. Wave Loop 491 adds one documented adversarial witness (nested struct-literal field initialized from a struct-typed parameter) that the current Verilog emitter lowers to malformed syntax.",
+  "expected_failures": [
+    "specs/scratch/w491_nested_struct_return_field_not_lowerable.t27"
+  ],
   "source": "docs/reports/GEN_VERILOG_DEFECTS_REPRO.md"
 }

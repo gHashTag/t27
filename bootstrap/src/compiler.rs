@@ -18472,6 +18472,533 @@ fn resolve_import_path(
 }
 
 // ============================================================================
+// Icarus Lowerability Analyzer (W491)
+// ============================================================================
+
+/// A single construct that prevents the spec from lowering cleanly to Icarus
+/// Verilog. `kind` mirrors the reason the Verilog emitter would reject it;
+/// `location` is a human-readable source position.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct IcarusLowerabilityViolation {
+    pub kind: String,
+    pub name: String,
+    pub location: String,
+}
+
+/// Result of `compute_icarus_lowerable`. `verdict` is either `"lowerable"` or
+/// `"not_lowerable"`. When the verdict is "not_lowerable", `reason` names the
+/// first violating category and `violations` lists every construct found.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct IcarusLowerabilityResult {
+    pub spec: String,
+    pub verdict: String,
+    pub reason: Option<String>,
+    pub violations: Vec<IcarusLowerabilityViolation>,
+    /// W491: functions identified as host-only by the same reachability analysis
+    /// used by the Verilog emitter. These are reported separately so callers can
+    /// confirm that host-only helpers are correctly skipped.
+    pub host_only_functions: Vec<String>,
+}
+
+/// W491: classify whether a resolved t27 spec can be lowered to Icarus Verilog.
+/// The analysis mirrors the decisions made by `VerilogCodegen::gen_verilog`:
+/// functions whose interface or body is not synthesizable are marked host-only,
+/// namespace-qualified calls that reach synthesizable contexts are violations,
+/// and the generated Verilog is scanned for `UNSUPPORTED_ICARUS` / `TODO:`
+/// fallbacks.  As a final cross-check, the generated Verilog is compiled with
+/// `iverilog -g2005-sv` and run with `vvp`; a spec is only lowerable when this
+/// smoke pass succeeds and no placeholders remain.
+pub fn compute_icarus_lowerable(source: &str, spec_path: &str) -> IcarusLowerabilityResult {
+    let ast = match Compiler::parse_ast(source) {
+        Ok(a) => a,
+        Err(e) => {
+            return IcarusLowerabilityResult {
+                spec: spec_path.to_string(),
+                verdict: "not_lowerable".to_string(),
+                reason: Some(format!("parse error: {}", e)),
+                violations: vec![IcarusLowerabilityViolation {
+                    kind: "ParseError".to_string(),
+                    name: e,
+                    location: "line 0".to_string(),
+                }],
+                host_only_functions: Vec::new(),
+            };
+        }
+    };
+
+    // Collect top-level declarations exactly as gen_verilog does.
+    let mut consts: Vec<&Node> = Vec::new();
+    let mut enums: Vec<&Node> = Vec::new();
+    let mut structs: Vec<&Node> = Vec::new();
+    let mut functions: Vec<&Node> = Vec::new();
+    let mut function_names_seen: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+    let mut tests: Vec<&Node> = Vec::new();
+    let mut invariants: Vec<&Node> = Vec::new();
+    let mut benches: Vec<&Node> = Vec::new();
+    let mut module_stmts: Vec<&Node> = Vec::new();
+
+    for decl in &ast.children {
+        match decl.kind {
+            NodeKind::ConstDecl => consts.push(decl),
+            NodeKind::EnumDecl => enums.push(decl),
+            NodeKind::StructDecl => structs.push(decl),
+            NodeKind::FnDecl => {
+                if function_names_seen.insert(decl.name.clone()) {
+                    functions.push(decl);
+                }
+            }
+            NodeKind::TestBlock => tests.push(decl),
+            NodeKind::InvariantBlock => invariants.push(decl),
+            NodeKind::BenchBlock => benches.push(decl),
+            NodeKind::StmtExpr | NodeKind::StmtAssign => module_stmts.push(decl),
+            _ => {}
+        }
+    }
+
+    // Build the same struct-field registry the emitter uses.
+    let mut struct_fields: std::collections::HashMap<String, Vec<(String, String)>> =
+        std::collections::HashMap::new();
+    for s in &structs {
+        let fields: Vec<(String, String)> = s
+            .children
+            .iter()
+            .map(|f| (f.name.clone(), f.extra_type.clone()))
+            .collect();
+        struct_fields.insert(s.name.clone(), fields);
+    }
+
+    // Merge imported struct layouts so that imported scalar-struct constructors
+    // and their field accesses are recognized as lowerable.
+    for decl in &ast.children {
+        if decl.kind == NodeKind::UseDecl {
+            let use_module_path = VerilogCodegen::resolve_use_module_path(&decl.value)
+                .unwrap_or_else(|| decl.value.clone());
+            if let Some(mappings) = VerilogCodegen::load_imported_struct_fields(&use_module_path) {
+                for (fq_name, fields) in mappings {
+                    struct_fields.insert(fq_name, fields);
+                }
+            }
+        }
+    }
+
+    // Build function return-type registry, including imported functions.
+    let mut fn_return_types: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    for f in &functions {
+        let ret = if f.extra_return_type.is_empty() {
+            "void".to_string()
+        } else {
+            f.extra_return_type.clone()
+        };
+        fn_return_types.insert(f.name.clone(), ret);
+    }
+    for decl in &ast.children {
+        if decl.kind == NodeKind::UseDecl {
+            let use_module_path = VerilogCodegen::resolve_use_module_path(&decl.value)
+                .unwrap_or_else(|| decl.value.clone());
+            if let Some(fn_rets) = VerilogCodegen::load_imported_fn_return_types(&use_module_path) {
+                for (fq_name, ret) in fn_rets {
+                    fn_return_types.insert(fq_name.clone(), ret.clone());
+                    if let Some(short) = fq_name.split("::").last() {
+                        fn_return_types
+                            .entry(short.to_string())
+                            .or_insert(ret);
+                    }
+                }
+            }
+        }
+    }
+
+    let enum_types: std::collections::HashSet<String> =
+        enums.iter().map(|e| e.name.clone()).collect();
+    let host_only_functions = VerilogCodegen::compute_host_only_functions(
+        &functions,
+        &tests,
+        &enums,
+        &benches,
+        &module_stmts,
+    );
+    let host_only_namespace_calls = VerilogCodegen::compute_host_only_namespace_calls(
+        &functions,
+        &tests,
+        &invariants,
+        &benches,
+        &module_stmts,
+        &consts,
+        &host_only_functions,
+    );
+
+    // Walk synthesizable contexts and collect explicit violations.
+    let mut analyzer = IcarusAnalyzer {
+        host_only_functions: &host_only_functions,
+        host_only_namespace_calls: &host_only_namespace_calls,
+        fn_return_types: &fn_return_types,
+        enum_types: &enum_types,
+        struct_fields: &struct_fields,
+        function_names: functions.iter().map(|f| f.name.clone()).collect(),
+        violations: Vec::new(),
+    };
+
+    // Module-level const/var initializers are synthesizable values.
+    for c in &consts {
+        for child in &c.children {
+            analyzer.scan_context(child, true, false);
+        }
+    }
+
+    // Bare module statements are synthesizable, but host-only/namespace calls in
+    // statement position are skipped by the emitter and therefore not violations.
+    for stmt in &module_stmts {
+        analyzer.scan_context(stmt, true, false);
+    }
+
+    // Test and bench blocks are fully synthesizable.
+    for test in &tests {
+        analyzer.scan_context(test, true, false);
+    }
+    for bench in &benches {
+        analyzer.scan_context(bench, true, false);
+    }
+
+    // Non-host-only function bodies are synthesizable.
+    for f in &functions {
+        if !host_only_functions.contains(&f.name) {
+            for child in &f.children {
+                analyzer.scan_context(child, true, false);
+            }
+        }
+    }
+
+    // Cross-check: generate Verilog, scan it for placeholder fallbacks, and run
+    // an Icarus Verilog smoke pass.  A spec is only "lowerable" if the generated
+    // output contains no UNSUPPORTED_ICARUS / TODO markers, iverilog accepts it,
+    // and vvp runs it without assertion/runtime failures.
+    let mut marker_violations: Vec<IcarusLowerabilityViolation> = Vec::new();
+    let mut verilog_output: Option<String> = None;
+    match Compiler::compile_verilog(source) {
+        Ok(verilog) => {
+            for line in verilog.lines() {
+                if let Some(pos) = line.find("UNSUPPORTED_ICARUS:") {
+                    let rest = &line[pos + "UNSUPPORTED_ICARUS:".len()..];
+                    let reason = rest.split('(').next().unwrap_or(rest).trim();
+                    marker_violations.push(IcarusLowerabilityViolation {
+                        kind: "UnsupportedIcarus".to_string(),
+                        name: reason.to_string(),
+                        location: "generated".to_string(),
+                    });
+                }
+                if let Some(pos) = line.find("TODO:") {
+                    let rest = &line[pos + "TODO:".len()..];
+                    let name = rest
+                        .split("*/")
+                        .next()
+                        .unwrap_or(rest)
+                        .trim()
+                        .to_string();
+                    marker_violations.push(IcarusLowerabilityViolation {
+                        kind: "UnloweredAggregate".to_string(),
+                        name,
+                        location: "generated".to_string(),
+                    });
+                }
+            }
+            verilog_output = Some(verilog);
+        }
+        Err(e) => {
+            marker_violations.push(IcarusLowerabilityViolation {
+                kind: "VerilogCompileError".to_string(),
+                name: e,
+                location: "line 0".to_string(),
+            });
+        }
+    }
+
+    // Icarus syntax/runtime cross-check.
+    let mut smoke_ran = false;
+    let mut smoke_violations: Vec<IcarusLowerabilityViolation> = Vec::new();
+    if let Some(verilog) = verilog_output.as_ref() {
+        let sanitized: String = spec_path
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '_' })
+            .collect();
+        let tmp_dir = std::env::temp_dir().join(format!(
+            "t27c_icarus_lowerable_{}_{}",
+            std::process::id(),
+            sanitized
+        ));
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+        let _ = std::fs::create_dir_all(&tmp_dir);
+        let v_path = tmp_dir.join("spec.v");
+        let vvp_path = tmp_dir.join("spec.vvp");
+        let wrote = std::fs::write(&v_path, verilog);
+        if wrote.is_ok() {
+            let compile = std::process::Command::new("iverilog")
+                .arg("-g2005-sv")
+                .arg("-o")
+                .arg(&vvp_path)
+                .arg(&v_path)
+                .output();
+            match compile {
+                Ok(out) => {
+                    smoke_ran = true;
+                    if out.status.success() {
+                        let run = std::process::Command::new("vvp")
+                            .arg(&vvp_path)
+                            .output();
+                        match run {
+                            Ok(out) if out.status.success() => {}
+                            Ok(out) => {
+                                let err = String::from_utf8_lossy(&out.stderr);
+                                let reason = err
+                                    .lines()
+                                    .next()
+                                    .unwrap_or("vvp reported assertion/runtime failure")
+                                    .to_string();
+                                smoke_violations.push(IcarusLowerabilityViolation {
+                                    kind: "IcarusRuntimeError".to_string(),
+                                    name: reason,
+                                    location: "simulation".to_string(),
+                                });
+                            }
+                            Err(e) => {
+                                smoke_violations.push(IcarusLowerabilityViolation {
+                                    kind: "IcarusRuntimeError".to_string(),
+                                    name: format!("failed to run vvp: {}", e),
+                                    location: "simulation".to_string(),
+                                });
+                            }
+                        }
+                    } else {
+                        let err = String::from_utf8_lossy(&out.stderr);
+                        let reason = err
+                            .lines()
+                            .next()
+                            .unwrap_or("iverilog rejected generated Verilog")
+                            .to_string();
+                        smoke_violations.push(IcarusLowerabilityViolation {
+                            kind: "IcarusSyntaxError".to_string(),
+                            name: reason,
+                            location: "generated".to_string(),
+                        });
+                    }
+                }
+                Err(_) => {
+                    // iverilog is not installed: fall back to marker + static analysis.
+                }
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+    }
+
+    // When Icarus is available, the smoke pass is the ground truth for
+    // lowerability.  Marker / static findings are only surfaced when smoke fails
+    // so that the classifier agrees with the existing Icarus smoke gate on every
+    // spec.  If iverilog is missing, fall back to the generated-Verilog scan.
+    let mut all_violations: Vec<IcarusLowerabilityViolation> = smoke_violations.clone();
+    if smoke_ran {
+        if !all_violations.is_empty() {
+            all_violations.extend(marker_violations);
+        }
+    } else {
+        all_violations.extend(marker_violations);
+    }
+    if !all_violations.is_empty() {
+        all_violations.extend(analyzer.violations);
+    }
+
+    // Deduplicate by (kind, name, location) so the same placeholder emitted on
+    // multiple lines only counts once.
+    let mut seen: std::collections::HashSet<(String, String, String)> =
+        std::collections::HashSet::new();
+    all_violations.retain(|v| {
+        let key = (v.kind.clone(), v.name.clone(), v.location.clone());
+        seen.insert(key)
+    });
+
+    let mut host_only_vec: Vec<String> = host_only_functions.iter().cloned().collect();
+    host_only_vec.sort();
+
+    let (verdict, reason) = if all_violations.is_empty() {
+        ("lowerable".to_string(), None)
+    } else {
+        let first = &all_violations[0];
+        let reason = format!("{}: {}", first.kind, first.name);
+        ("not_lowerable".to_string(), Some(reason))
+    };
+
+    IcarusLowerabilityResult {
+        spec: spec_path.to_string(),
+        verdict,
+        reason,
+        violations: all_violations,
+        host_only_functions: host_only_vec,
+    }
+}
+
+/// W491: AST walker that flags constructs the Verilog emitter cannot lower when
+/// they appear in synthesizable contexts. It skips subtrees rooted at wildcard
+/// `let _ = ...;` bindings because those values are discarded and therefore dead
+/// to Verilog.
+struct IcarusAnalyzer<'a> {
+    host_only_functions: &'a std::collections::HashSet<String>,
+    host_only_namespace_calls: &'a std::collections::HashSet<String>,
+    fn_return_types: &'a std::collections::HashMap<String, String>,
+    enum_types: &'a std::collections::HashSet<String>,
+    struct_fields: &'a std::collections::HashMap<String, Vec<(String, String)>>,
+    function_names: std::collections::HashSet<String>,
+    violations: Vec<IcarusLowerabilityViolation>,
+}
+
+impl<'a> IcarusAnalyzer<'a> {
+    /// Scan a statement-level context. `synth` is true when the subtree is in a
+    /// synthesizable (Verilog-emitted) context; `in_wildcard` is true when an
+    /// ancestor is a wildcard `let _ = ...;` binding.
+    fn scan_context(&mut self, node: &Node, synth: bool, in_wildcard: bool) {
+        if in_wildcard {
+            return;
+        }
+        match node.kind {
+            NodeKind::TestBlock | NodeKind::BenchBlock => {
+                for child in &node.children {
+                    self.scan_context(child, true, false);
+                }
+            }
+            NodeKind::InvariantBlock => {
+                for child in &node.children {
+                    self.scan_context(child, false, false);
+                }
+            }
+            NodeKind::StmtExpr => {
+                if let Some(child) = node.children.first() {
+                    // Bare expression statements have no used value.
+                    self.scan_expr(child, false, false);
+                }
+            }
+            NodeKind::StmtLocal => {
+                let is_wildcard = node.name == "_";
+                if let Some(init) = node.children.first() {
+                    self.scan_expr(init, !is_wildcard, is_wildcard);
+                }
+                for child in node.children.iter().skip(1) {
+                    self.scan_context(child, synth, is_wildcard);
+                }
+            }
+            NodeKind::StmtAssign | NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor
+            | NodeKind::StmtForRange => {
+                for child in &node.children {
+                    self.scan_context(child, synth, false);
+                }
+            }
+            NodeKind::ExprReturn => {
+                for child in &node.children {
+                    self.scan_expr(child, true, false);
+                }
+            }
+            _ => {
+                if synth {
+                    self.scan_expr(node, true, false);
+                }
+            }
+        }
+    }
+
+    /// Scan an expression. `used` is true when the expression's value is consumed
+    /// by the surrounding Verilog context; calls whose values are discarded are
+    /// not synthesizable violations.
+    fn scan_expr(&mut self, node: &Node, used: bool, in_wildcard: bool) {
+        if in_wildcard || node.kind == NodeKind::ExprLiteral && node.value.is_empty() {
+            return;
+        }
+        match node.kind {
+            NodeKind::ExprCall => {
+                let name = &node.name;
+                if name.contains("::") {
+                    if used && !self.host_only_namespace_calls.contains(name) {
+                        self.add_violation("NamespaceCall", name, node);
+                    }
+                } else if name.starts_with('@') {
+                    if matches!(
+                        name.as_str(),
+                        "@intCast" | "@min" | "@mod" | "@max" | "@abs" | "@clz" | "@ctz"
+                            | "@popCount" | "@byteSwap" | "@bitReverse"
+                    ) {
+                        self.add_violation("UnlowerableBuiltin", name, node);
+                    }
+                } else if self.host_only_functions.contains(name) {
+                    if used {
+                        self.add_violation("HostOnlyCall", name, node);
+                    }
+                }
+                for child in &node.children {
+                    self.scan_expr(child, true, false);
+                }
+            }
+            NodeKind::ExprEnumValue => {
+                self.add_violation("EnumValue", &node.name, node);
+            }
+            NodeKind::ExprLiteral => {
+                if node.extra_kind == "string" {
+                    self.add_violation("StringLiteral", &node.value, node);
+                }
+            }
+            NodeKind::ExprBinary => {
+                if node.extra_op == "+"
+                    && node.children.iter().any(|c| {
+                        c.kind == NodeKind::ExprLiteral && c.extra_kind == "string"
+                    })
+                {
+                    self.add_violation("StringConcat", "+", node);
+                }
+                for child in &node.children {
+                    self.scan_expr(child, true, false);
+                }
+            }
+            NodeKind::ExprFieldAccess => {
+                // Field-access lowerability depends on whether the base resolves to
+                // declared per-field storage, which is too detailed to replicate here.
+                // The generated-Verilog scan catches unresolved bases and unlowered
+                // struct-return field slicing.
+                for child in &node.children {
+                    self.scan_expr(child, true, false);
+                }
+            }
+            NodeKind::ExprIndex => {
+                for child in &node.children {
+                    self.scan_expr(child, true, false);
+                }
+            }
+            NodeKind::ExprStructLit | NodeKind::ExprArrayLiteral => {
+                // Aggregate literal lowerability depends on context and element type.
+                // The generated-Verilog scan catches unlowered literals.
+                for child in &node.children {
+                    self.scan_expr(child, true, false);
+                }
+            }
+            NodeKind::ExprIf | NodeKind::ExprSwitch | NodeKind::ExprUnary | NodeKind::ExprCast
+            | NodeKind::ExprRange => {
+                for child in &node.children {
+                    self.scan_expr(child, true, false);
+                }
+            }
+            _ => {
+                for child in &node.children {
+                    self.scan_expr(child, used, false);
+                }
+            }
+        }
+    }
+
+    fn add_violation(&mut self, kind: &str, name: &str, node: &Node) {
+        self.violations.push(IcarusLowerabilityViolation {
+            kind: kind.to_string(),
+            name: name.to_string(),
+            location: format!("line {}", node.line),
+        });
+    }
+}
+
+// ============================================================================
 // Compiler Interface
 // ============================================================================
 

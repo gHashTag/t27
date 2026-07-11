@@ -1,19 +1,34 @@
-# NOW — Wave Loop 490 close-out / Wave Loop 491 next (2026-07-07)
+# NOW — Wave Loop 491 in progress / Wave Loop 492 next (2026-07-11)
 
-**Last updated:** 2026-07-07
+**Last updated:** 2026-07-11
 
-## Wave Loop 491 — Next wave (to be selected from cooperation plan)
+---
 
-- Branch: `wave-loop-491` (to create from `wave-loop-490`)
-- Issue: #1461 (to be opened)
+## Wave Loop 491 — Formalize the Icarus-lowerable subset in Lean 4 (Variant A)
+
+- Branch: `wave-loop-491`
+- Issue: #1461 (to create)
 - PR: (to open after close-out)
-- Plan: `.claude/plans/wave-loop-491.md` (to be written at W491 start)
+- Plan: `.claude/plans/wave-loop-491.md`
+- Research snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026-07-11.md`
 - Cooperation W492: (to be written at W491 close-out)
 
-### Not started
+### In progress
 
-- Select one of the three W491 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W491_2026-07-07.md`.
+- `proofs/lean4/Trinity/IcarusLowerable/{Ast,Predicate,Lemmas}.lean` — simplified
+  t27 AST, `IsIcarusLowerable` predicate, and representative lowerability lemmas.
+- `t27c icarus-lowerable --json` classifier + `--icarus-lowerable` suite gate.
+- `specs/scratch/w491_*.t27` adversarial boundary witnesses.
+
+### Target gate
+
+- 687 / 687 non-smoke PASS (681 base + 6 W490 scratch witnesses + new W491 witnesses).
+- 167 / 167 yosys smoke PASS, 0 failures.
+- 166 / 166 Icarus smoke PASS, 0 documented baseline failures.
+- 687 / 687 seal matches.
+- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
+- Zero `UNSUPPORTED_ICARUS` placeholders.
+- `t27c suite --repo-root . --fast --icarus-lowerable`: zero disagreements.
 
 ---
 
@@ -35,14 +50,6 @@
 - `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
 - Zero `UNSUPPORTED_ICARUS` placeholders across all specs.
 - NMSE reseal: FROZEN_HASH and manifests refreshed.
-
-### Note
-
-W490 closed the expression-context gaps left by W489: indexed field access on
-scalar struct-return calls, imported constructor calls used directly in
-expressions with array-typed fields, and host-only classification for string/enum
-helpers. The default next direction is Variant A: formalize the Icarus-lowerable
-subset in Lean 4.
 
 ---
 

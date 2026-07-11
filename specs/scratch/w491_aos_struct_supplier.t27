@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0
+// W491 positive-witness supplier: scalar struct used by an imported AOS constant.
+// φ² + φ⁻² = 3 | TRINITY
+
+module w491_aos_struct_supplier;
+
+pub struct Point {
+    x: u32,
+    y: u32,
+}
+
+test supplier_ok {
+    let p = Point { x: 7, y: 8 };
+    assert_eq(p.x + p.y, 15);
+}
+
+endmodule

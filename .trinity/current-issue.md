@@ -1,39 +1,57 @@
-# Wave Loop 491 — Next-wave selection
+# Wave Loop 491 — Formalize the Icarus-lowerable subset in Lean 4
 
-**Date:** 2026-07-07
+**Issue:** #1461 (to create)  
+**Branch:** `wave-loop-491`  
+**Variant:** A (default) from `docs/reports/FPGA_LOOP_COOPERATION_W491_2026-07-07.md`  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
-W490 closed the remaining expression-context lowering gaps from W489 and
-refreshed the NMSE seal.
+---
+
+## Problem statement
+
+After W490 the t27 → Icarus path is functionally complete for the current spec
+set, but the contract that keeps it complete is implicit in
+`bootstrap/src/compiler.rs`. The rules that decide lowerability are encoded in
+`fn_body_has_unlowerable_construct`, `compute_host_only_functions`, and ad-hoc
+checks inside the Verilog emitter. A future frontend feature can therefore
+silently drift past what the backend can emit.
 
 ## Goal
 
-Select and execute one of the W491 cooperation variants documented in
-`docs/reports/FPGA_LOOP_COOPERATION_W491_2026-07-07.md`.
+Lock the lowerability contract into a machine-checkable form:
 
-## Default direction
+1. Define a simplified t27 AST and an `IsIcarusLowerable` predicate in the
+   existing `proofs/lean4/` formalization.
+2. Add a Rust `t27c icarus-lowerable --json` classifier that exports the same
+   verdict the emitter uses internally.
+3. Add a `--icarus-lowerable` suite gate that ensures no spec passes Icarus
+   smoke unless the classifier agrees it is lowerable.
+4. Prove representative lemmas in Lean 4 for the four W490 lowerability classes.
 
-Variant A will be selected at the start of W491 based on the cooperation
-variants document: formalize the Icarus-lowerable subset in Lean 4, now that
-the immediate gen-verilog lowering gaps are closed.
+## Acceptance criteria
 
-## Alternative directions
+- `lake build Trinity.IcarusLowerable.*` succeeds.
+- `cargo build --release` succeeds.
+- `cargo test -p t27c --bin t27c` passes (1525 / 0 / 2).
+- `./scripts/tri test --fast` reports 687/687 non-smoke PASS, 167/167 yosys smoke
+  PASS, 166/166 Icarus smoke PASS, 0 `UNSUPPORTED_ICARUS` placeholders.
+- `./target/release/t27c suite --repo-root . --fast --icarus-lowerable` reports
+  zero disagreements between smoke results and lowerability verdicts.
+- New `specs/scratch/w491_*.t27` witnesses exercise the lowerability boundary.
+- Close-out report and W492 cooperation variants are written.
 
-See `docs/reports/FPGA_LOOP_COOPERATION_W491_2026-07-07.md` for the ranked
-Variant B (continue gen-verilog struct/call lowering hardening), Variant C (FPGA
-live evidence), and the fallback Variant A (Lean formalization) proposal.
+## Research backing
 
-## Issue Gate
+- Sparkle / Verilean (Lean 4 HDL compiler with Icarus validation).
+- CktFormalizer (arXiv:2605.07782) — 95–100% backend realizability via
+  synthesizable-subset discipline.
+- Lööw & Myreen, HOL4 proof-producing Verilog translator.
+- FIRRTL spec and SystemVerilog ABI.
+- Recent ternary RTL-to-netlist flows (Park et al. IEEE Access 2025; Li et al.
+  CJE 2025).
 
-- Branch: `wave-loop-491` (to create from `wave-loop-490`).
-- Required: non-smoke tests green, yosys smoke acceptable, Icarus smoke
-  acceptable (no new regressions outside baseline), seals green,
-  `cargo test -p t27c --bin t27c` green.
-
-## References
-
-- W490 close-out: `docs/reports/WAVE_LOOP_490_CLOSEOUT.md`
-- W491 cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W491_2026-07-07.md`
+See `docs/reports/T27_VS_FORMAL_HDL_2026-07-11.md` for the full research
+snapshot.
 
 ---
 

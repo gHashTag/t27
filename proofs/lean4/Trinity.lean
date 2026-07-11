@@ -10,3 +10,6 @@ import Trinity.TernaryMac
 import Trinity.TernaryGemm
 import Trinity.TernaryInference
 import Trinity.TernaryFPGABoot
+import Trinity.IcarusLowerable.Ast
+import Trinity.IcarusLowerable.Predicate
+import Trinity.IcarusLowerable.Lemmas
