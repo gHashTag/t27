@@ -2036,3 +2036,7 @@
 - **Commit:** docs(w494): Wave Loop 494 plan — Variant A semantic equivalence for the Icarus-lowerable scalar subset
 - **Files:** .claude/plans/wave-loop-494.md,.trinity/current-issue.md,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W495_2026-07-13.md,docs/reports/WAVE_LOOP_494_CLOSEOUT.md,proofs/lean4/Trinity.lean,proofs/lean4/Trinity/IcarusLowerable/Semantics.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean
 
+## 2026-07-11T12:51:36Z — wave-loop-494
+- **Commit:** feat(lean4): Wave Loop 494 — scalar bit-vector semantics for t27 and shallow Verilog, representative value-preservation theorem, W495 cooperation variants
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
