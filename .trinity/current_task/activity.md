@@ -2048,3 +2048,7 @@
 - **Commit:** feat(lean4): Wave Loop 495 — semantic equivalence for function calls and W493 witnesses
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-11T13:06:28Z — wave-loop-496
+- **Commit:** chore(trinity): record W494/W495 session log and commit count
+- **Files:** .trinity/current-issue.md
+
