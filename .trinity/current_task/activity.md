@@ -2052,3 +2052,7 @@
 - **Commit:** chore(trinity): record W494/W495 session log and commit count
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-11T13:06:45Z — wave-loop-496
+- **Commit:** docs(w496): Wave Loop 496 next-wave pointer and acceptance criteria
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
