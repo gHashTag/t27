@@ -2044,3 +2044,7 @@
 - **Commit:** chore(trinity): record W493/W494 session log and commit count
 - **Files:** .claude/plans/wave-loop-495.md,.trinity/current-issue.md,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W496_2026-07-13.md,docs/reports/WAVE_LOOP_495_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Ast.lean,proofs/lean4/Trinity/IcarusLowerable/Emitter.lean,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Semantics.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,proofs/lean4/Trinity/IcarusLowerable/Verilog.lean
 
+## 2026-07-11T13:05:56Z — wave-loop-495
+- **Commit:** feat(lean4): Wave Loop 495 — semantic equivalence for function calls and W493 witnesses
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
