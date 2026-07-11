@@ -2016,3 +2016,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 490 — scalar struct-return array-field access, imported constructor expression context, module-scope AOS constants with array-typed fields, host-only enum/string helper classification
 - **Files:** .claude/plans/wave-loop-491.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w491_aos_struct_supplier.json,.trinity/seals/scratch_w491_host_only_rejected.json,.trinity/seals/scratch_w491_module_aos_const_imported_call.json,.trinity/seals/scratch_w491_nested_struct_return_field_not_lowerable.json,bootstrap/src/compiler.rs,bootstrap/src/main.rs,bootstrap/src/suite.rs,bootstrap/stage0/FROZEN_HASH,docs/BACKEND_CONTRACT.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W492_2026-07-11.md,docs/reports/T27_VS_FORMAL_HDL_2026-07-11.md,docs/reports/WAVE_LOOP_491_CLOSEOUT.md,docs/reports/gen_verilog_iverilog_smoke_baseline.json,docs/reports/gen_verilog_smoke_baseline.json
 
+## 2026-07-11T05:43:20Z — wave-loop-492
+- **Commit:** feat(gen-verilog): Wave Loop 491 — Icarus-lowerability classifier + Lean 4 predicate + adversarial witnesses
+- **Files:** .trinity/current-issue.md
+
