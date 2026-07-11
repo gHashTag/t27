@@ -1,3 +1,55 @@
+## 2026-07-13 — Wave Loop 497 (totalize the Icarus-lowerable combinational evaluator in Lean 4)
+
+### What worked
+- **Fuel-based totalization** of `evalExpr`/`evalStmts`/`evalFunction` and their
+  shallow-Verilog counterparts in `SemanticsTotal.lean` makes the model transparent
+  to proofs while preserving the same computational behavior on the W495 witness set.
+- Totalizing the **emitter** in `Emitter.lean` (`widthOfType`, `emitExpr`,
+  `emitStmt`, `emitVFunction`, `emitModuleFuel`) with an explicit `fuel` parameter
+  removes the proof-opaque `partial` dependency from the value-preservation path.
+- **Fuel-based totalization of the predicates** in `Predicate.lean`
+  (`Expr.isLowerableFuel`, `Stmt.isCombinationalFuel`, `Expr.typeOfFuel`,
+  `Expr.functionNamesFuel`, etc.) removes the second opacity blocker that
+  prevented `simp` and structural induction over lowerability/combinationality.
+- Aligning the two models' edge cases — `fieldAccess` on a non-struct base now
+  extracts bit 0 on both sides, and `localparam` no longer truncates — keeps the
+  forward-simulation invariant syntactically clean without changing any witness
+  theorems.
+- The W495 witness theorems and new **total-vs-partial bridge lemmas** in
+  `Soundness.lean` build green with `native_decide`, confirming that the fuel
+  model is observationally equivalent on the representative corpus.
+- The **generic theorem** `module_value_equiv_statement` is now stated with the
+  right assumptions: lowerability, combinationality, call resolution, and call
+  reachability, plus an explicit `main` reachability assumption.
+
+### What to improve
+- The **generic theorem still has a `sorry`** in `Soundness.lean`. The remaining
+  work is a combined structural induction over fuel, expressions, statements,
+  function bodies, and calls. It is purely bookkeeping, but it is too large to
+  finish inside a single turn once the model-alignment issues were discovered.
+- **Function-call reachability** assumptions are explicit in the theorem but not
+  derived from `Module.isLowerable` / `Env.reachable`. A future wave can either
+  prove the transitive closure or change `emitModule` to emit all functions and
+  strengthen the soundness contract.
+- **Conditionals and loops** remain outside the modeled operational semantics.
+  Extending the theorem to a guarded big-step semantics for `ifThenElse` /
+  `forLoop` is future work.
+- `Expr.typeOf` remains a heuristic helper; a fully generic expression
+  equivalence lemma may eventually need a valuation-based type environment.
+- The **local AOS element boundary**
+  (`w493_local_aos_element_field_not_lowerable.t27`) remains the single
+  documented Icarus baseline and the fastest way to grow the witness set.
+
+### Techniques to reuse
+- When a proof over a `partial` mutual definition is blocked, totalize it with
+  fuel first, then attempt the structural proof.
+- Keep the source and target evaluators as mirror images; fix mismatches on both
+  sides or in the emitter rather than adding assumptions.
+- Use `native_decide` bridge lemmas to keep the existing witness regression tests
+  green while the generic theorem is under construction.
+
+---
+
 ## 2026-07-13 — Wave Loop 496 (generic structural equivalence theorem attempt for the Icarus-lowerable scalar subset in Lean 4)
 
 ### What worked

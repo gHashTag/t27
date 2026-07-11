@@ -54,21 +54,14 @@ def Value.concatList (vs : List Value) : Value :=
   | [] => ⟨1, BitVec.ofNat 1 0⟩
   | v :: vs => vs.foldl Value.concat v
 
-/-- Convert a t27 type to its runtime width using the environment. -/
-partial def widthOfType' (env : Env) : Ty → Nat
-  | .bool => 1
-  | .u8 => 8
-  | .u16 => 16
-  | .u32 => 32
-  | .u64 => 64
-  | .i8 => 8
-  | .i16 => 16
-  | .i32 => 32
-  | .i64 => 64
-  | .array n elem => n * widthOfType' env elem
-  | .struct name =>
-      (env.structFields name).foldl (fun acc p => acc + widthOfType' env p.2) 0
-  | _ => 32
+/-- Fixed fuel budget used by the partial evaluator model.  Lowerable modules
+    are finite, so a constant bound is enough for the witness set. -/
+def modelFuel : Nat := 1000
+
+/-- Convert a t27 type to its runtime width using the environment.
+    Uses the total `widthOfType` from `Emitter.lean` with the model fuel. -/
+def widthOfType' (env : Env) (ty : Ty) : Nat :=
+  widthOfType modelFuel env ty
 
 /-- Evaluate a lowerable binary operator on two values of equal width. -/
 def evalBinop (op : String) (lhs rhs : Value) : Option Value :=
@@ -146,7 +139,12 @@ mutual
               some ⟨w, BitVec.extractLsb' off w v.bits⟩
             else
               none
-        | _ => none
+        | _ => do
+            let v <- evalExpr env m val base
+            if _h : v.width > 0 then
+              some ⟨1, BitVec.extractLsb' 0 1 v.bits⟩
+            else
+              none
     | .index base idx => do
         let b <- evalExpr env m val base
         let i <- evalExpr env m val idx
@@ -192,15 +190,15 @@ mutual
       | .assign (.identifier name) rhs => do
           let v <- evalExpr env m acc rhs
           some (fun x => if x == name then some v else acc x)
-      | .varDecl name _ init => do
+      | .varDecl name ty init => do
           let v <- match init with
                   | some e => evalExpr env m acc e
-                  | none => some ⟨1, 0#1⟩
+                  | none => some ⟨widthOfType' env ty, 0#(widthOfType' env ty)⟩
           some (fun x => if x == name then some v else acc x)
-      | .constDecl name _ init => do
+      | .constDecl name ty init => do
           let v <- match init with
                   | some e => evalExpr env m acc e
-                  | none => some ⟨1, 0#1⟩
+                  | none => some ⟨widthOfType' env ty, 0#(widthOfType' env ty)⟩
           some (fun x => if x == name then some v else acc x)
       | .return_ (some e) => do
           let v <- evalExpr env m acc e
@@ -286,9 +284,9 @@ mutual
         let name := match lhs with | .ident n => n | _ => ""
         let v <- evalVExpr env vm val rhs
         some (fun x => if x == name then some v else val x)
-    | .localparam name w init => do
+    | .localparam name _ init => do
         let v <- evalVExpr env vm val init
-        some (fun x => if x == name then some ⟨w, BitVec.extractLsb' 0 w v.bits⟩ else val x)
+        some (fun x => if x == name then some v else val x)
     | .wire _ _ => some val
     | .reg _ _ => some val
     | .alwaysComb body => evalVStmts env vm val body

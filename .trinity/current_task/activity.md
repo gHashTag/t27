@@ -2060,3 +2060,7 @@
 - **Commit:** chore(trinity): record W495/W496 session log and commit count
 - **Files:** .claude/plans/wave-loop-496.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W497_2026-07-13.md,docs/reports/WAVE_LOOP_496_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/AstInduction.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Semantics.lean
 
+## 2026-07-11T20:24:43Z — wave-loop-497
+- **Commit:** docs(lean4): Wave Loop 496 — proof scaffolding for generic Icarus equivalence, partial-evaluator blocker documented, W497 variants
+- **Files:** .claude/plans/wave-loop-497.md,.trinity/current-issue.md,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W498_2026-07-13.md,docs/reports/WAVE_LOOP_497_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Emitter.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Semantics.lean,proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean
+
