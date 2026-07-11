@@ -2028,3 +2028,7 @@
 - **Commit:** feat(igla): Wave Loop 492 — Lean 4 soundness of Icarus-lowerable subset, 253-spec completeness import, tri verify --lean-lowerable gate, acceptable-run exit fix, NMSE reseal
 - **Files:** .claude/plans/wave-loop-493.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json,.trinity/seals/agent_EternalMonitor.json,.trinity/seals/agent_FacultyBoard.json,.trinity/seals/agent_Handoff.json
 
+## 2026-07-11T12:39:19Z — wave-loop-494
+- **Commit:** feat(gen-verilog): Wave Loop 493 — close W491/W492 adversarial baseline witnesses, struct-literal fields from scalar-struct identifiers, placeholder cleanup, W494 cooperation variants
+- **Files:** .claude/plans/wave-loop-494.md
+
