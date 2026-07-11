@@ -1,17 +1,12 @@
 {
   "expected_failures": [
-    "specs/scratch/w491_nested_struct_return_field_not_lowerable.t27",
-    "specs/scratch/w492_predicate_rejects_nested_return_field.t27"
+    "specs/scratch/w493_local_aos_element_field_not_lowerable.t27"
   ],
   "classification": {
-    "specs/scratch/w491_nested_struct_return_field_not_lowerable.t27": {
-      "category": "NestedStructLiteralField",
-      "note": "W491 adversarial witness: struct-literal field initialized from a struct-typed parameter lowers to malformed Verilog and is rejected by iverilog."
-    },
-    "specs/scratch/w492_predicate_rejects_nested_return_field.t27": {
-      "category": "NestedStructReturnField",
-      "note": "W492 adversarial witness: direct field access on a nested struct returned from a call emits an UNSUPPORTED_ICARUS placeholder and is rejected by iverilog."
+    "specs/scratch/w493_local_aos_element_field_not_lowerable.t27": {
+      "category": "LocalArrayOfStructElementField",
+      "note": "W493 adversarial witness: struct-literal field initialized from an indexed local array-of-struct element. Non-memory-mode local arrays of structs are unpacked into per-element per-field registers, so packing an indexed element inside a struct-literal concatenation is not yet lowered and emits an UNSUPPORTED_ICARUS placeholder."
     }
   },
-  "note": "W492 Icarus Verilog 12.0 baseline: two documented adversarial witnesses. The W491 residue (w491_nested_struct_return_field_not_lowerable) remains; W492 adds a nested-struct-return field-access boundary case."
+  "note": "W493 Icarus Verilog 12.0 baseline: one documented adversarial witness. Wave Loop 493 closed the W491 nested-struct-literal-field-from-identifier gap and the W492 nested-struct-return-field-access gap; the remaining boundary is local-array-of-struct elements used as whole struct values."
 }

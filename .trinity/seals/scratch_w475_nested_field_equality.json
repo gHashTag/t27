@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0cfd89fc9f1496e80e2f36252185082aee021f112f4be14f1ae6034f1d6ef3bf",
   "module": "w475_nested_field_equality",
   "ring": 12,
-  "sealed_at": "2026-07-10T18:27:04Z",
+  "sealed_at": "2026-07-11T12:28:56Z",
   "spec_hash": "sha256:06b9380af1880db940dbb687b3041a3f2887ee5b9f8faf3021273c7338034daf",
   "spec_path": "specs/scratch/w475_nested_field_equality.t27"
 }

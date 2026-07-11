@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0
+// W492 positive witness: nested struct-return field access lowered to a packed
+// vector slice. The previous adversarial version used indented `;` comments that
+// the lexer treated as semicolons and left the function body empty; with `//`
+// comments the path is fully supported.
+// φ² + 1/φ² = 3 | TRINITY
+
+module w492_nested_return_field_positive;
+
+struct Inner {
+    v : u32,
+}
+
+struct Outer {
+    inner : Inner,
+}
+
+fn make_outer() -> Outer {
+    return Outer { .inner = Inner { .v = 5 } };
+}
+
+fn get_v() -> u32 {
+    // Direct field access on a nested struct returned from a call.
+    return make_outer().inner.v;
+}
+
+test nested_return_field {
+    assert_eq(get_v(), 5);
+}
+
+endmodule

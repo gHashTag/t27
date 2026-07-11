@@ -5538,9 +5538,11 @@ impl VerilogCodegen {
         struct_type: &str,
     ) {
         if node.kind == NodeKind::ExprIdentifier {
-            if self.array_param_types.contains_key(&node.name) {
-                // Function parameters of scalar struct type are passed as a single
-                // packed vector; do not try to reassemble them from per-field
+            if self.array_param_types.contains_key(&node.name)
+                || self.local_packed_struct_vars.contains_key(&node.name)
+            {
+                // Function parameters and packed scalar-struct locals are stored as
+                // a single packed vector; do not try to reassemble them from per-field
                 // registers (array-typed fields are not unpacked inside functions).
                 self.write(&Self::verilog_safe_identifier(&node.name));
             } else {
@@ -6091,7 +6093,10 @@ impl VerilogCodegen {
             return false;
         }
 
-        self.write("{");
+        // W493: build the concatenation in a temporary buffer so a partially
+        // lowerable struct literal does not leave an unclosed `{` in the output.
+        let mut concat = String::new();
+        std::mem::swap(&mut self.output, &mut concat);
         let mut first = true;
         let mut ok = true;
         for (fname, ftype) in &fields {
@@ -6105,9 +6110,14 @@ impl VerilogCodegen {
                 break;
             }
         }
+        let mut built = String::new();
+        std::mem::swap(&mut self.output, &mut built);
+        self.output = concat;
         if !ok {
             return false;
         }
+        self.write("{");
+        self.write_str(&built);
         self.write("}");
         true
     }
@@ -6259,6 +6269,47 @@ impl VerilogCodegen {
                 }
                 *first = false;
                 self.gen_verilog_expr(inner_val);
+                return true;
+            }
+            // W493: scalar-struct identifiers (parameters, locals, and module-level
+            // constants/variables) have already been lowered to a packed vector, so
+            // emit them as a single concatenation operand.
+            let is_packed_struct_identifier = inner_val.kind == NodeKind::ExprIdentifier
+                && (self
+                    .local_struct_var_types
+                    .get(&inner_val.name)
+                    .map(|t| t == ftype)
+                    .unwrap_or(false)
+                    || self
+                        .local_packed_struct_vars
+                        .get(&inner_val.name)
+                        .map(|t| t == ftype)
+                        .unwrap_or(false)
+                    || self
+                        .module_scalar_struct_types
+                        .get(&inner_val.name)
+                        .map(|t| t == ftype)
+                        .unwrap_or(false));
+            // W493: module-level arrays of structs are lowered to flat memories, so a
+            // literal-index element can be packed as one operand. Local non-memory-mode
+            // arrays of structs are not handled here (they remain a documented baseline
+            // boundary).
+            let is_module_aos_element = inner_val.kind == NodeKind::ExprIndex
+                && self
+                    .scalar_struct_indexed_element_type(inner_val)
+                    .map(|t| t == ftype)
+                    .unwrap_or(false)
+                && Self::flatten_index_chain(inner_val)
+                    .map(|(base_id, _indices)| {
+                        self.module_struct_array_fields.contains_key(&base_id.name)
+                    })
+                    .unwrap_or(false);
+            if is_packed_struct_identifier || is_module_aos_element {
+                if !*first {
+                    self.write(", ");
+                }
+                *first = false;
+                self.gen_verilog_pack_scalar_struct_expr(inner_val, ftype);
                 return true;
             }
             if inner_val.kind != NodeKind::ExprStructLit || inner_val.name != ftype {
@@ -17208,8 +17259,14 @@ impl VerilogCodegen {
                 if self.try_emit_struct_literal_packed(node) {
                     return;
                 }
-                // Fallback: Verilog has no struct literals — emit as comment + value 0
-                self.write(&format!("0 /* {} {{...}} */", node.name));
+                // Fallback: Verilog has no struct literals. Emit a sized-zero
+                // placeholder with an UNSUPPORTED_ICARUS marker so the
+                // Icarus-lowerability classifier agrees with the smoke failure.
+                let width = Self::packed_width(&node.name, &self.struct_fields).max(1);
+                self.write(&format!(
+                    "{}'d0 /* UNSUPPORTED_ICARUS: {} struct literal not lowered */",
+                    width, node.name
+                ));
             }
             NodeKind::ExprSwitch => {
                 // Emit as nested ternary: (expr == val1) ? res1 : (expr == val2) ? res2 : default

@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: Apache-2.0
+// W493 positive witness: struct-literal field initialized from a module-level
+// scalar-struct constant. The backend packs the per-field registers into one
+// concatenation operand.
+// φ² + 1/φ² = 3 | TRINITY
+
+module w493_module_scalar_struct_field_lowerable;
+
+pub struct Inner {
+    y : u32,
+}
+
+pub struct Outer {
+    x : Inner,
+}
+
+const INNER_CONST : Inner = Inner { y: 7 };
+
+pub fn make_outer() -> Outer {
+    return Outer { x: INNER_CONST };
+}
+
+pub fn get_y() -> u32 {
+    return make_outer().x.y;
+}
+
+test module_scalar_struct_field {
+    assert_eq(get_y(), 7);
+}
+
+endmodule

@@ -1,3 +1,52 @@
+## 2026-07-13 — Wave Loop 493 (gen-verilog backend hardening: struct-literal fields from scalar-struct identifiers, placeholder cleanup, local AOS element boundary)
+
+### What worked
+- The two documented adversarial witnesses from W491/W492 were closed:
+  - W491 (`struct-literal field from scalar-struct parameter`) was a genuine
+    emitter gap in `emit_struct_literal_leaf`; fixed by emitting packed-vector
+    identifiers as single concatenation operands.
+  - W492 (`nested-struct-return field access`) was a false alarm caused by
+    indented `;` comments being tokenized as `Semicolon`, which triggered
+    parser recovery and dropped the function body.
+- Extending the same identifier-operand path to cover packed local scalar
+  struct vars (`local_packed_struct_vars`) and module-level scalar-struct
+  constants (`module_scalar_struct_types`) fixed related positive witnesses
+  without extra code complexity.
+- Module-level arrays of structs, which are lowered to flat memories, can now
+  supply a literal-index element as a struct-literal field value through the
+  existing `gen_verilog_pack_scalar_struct_expr` path.
+- Refactoring `try_emit_struct_literal_packed` to buffer its concatenation and
+  only commit on success prevents malformed unclosed `{` output. The fallback
+  now emits a sized-zero `UNSUPPORTED_ICARUS:` marker, so the classifier and
+  smoke gate agree.
+- Updating the yosys/Icarus baseline JSON files keeps the suite green while
+  documenting the new boundary.
+
+### What to improve
+- `Completeness.lean` stayed at 253 specs: the newly-lowerable witnesses were
+  offset by specs that were previously misclassified because the old fallback
+  had no classifier-visible marker. Future waves should treat a stable, honest
+  count as preferable to a larger, agreement-prone count.
+- Local non-memory-mode arrays of structs are unpacked into per-element
+  per-field registers, making indexed-element packing inside a struct literal
+  the next concrete gap. This requires either memory-mode lowering for local
+  AOS or a register-mode element-packing helper.
+- The Lean predicate did not need changes for the fixed patterns, but the
+  exporter/model still skips 294 Icarus-passing specs. Closing exporter gaps
+  remains the fastest way to grow the modeled subset.
+
+### Techniques to reuse
+- Always verify that an adversarial witness parses correctly before blaming the
+  lowerer; comment-syntax issues can mimic lowering bugs.
+- Every unsupported fallback in generated Verilog should carry an
+  `UNSUPPORTED_ICARUS:` or `TODO:` marker so the classifier and smoke gate stay
+  aligned.
+- Scalar-struct values have three storage shapes (packed parameter, packed
+  local reg, per-field module constant); each needs an explicit packed-vector
+  emission rule when used as a whole value.
+
+---
+
 ## 2026-07-12 — Wave Loop 492 (soundness of the Icarus-lowerable subset in Lean 4)
 
 ### What worked

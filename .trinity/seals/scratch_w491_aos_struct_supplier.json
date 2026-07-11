@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:de6a4c9f5ca8ed6de8e3216e9143bc3351931cdce6e78dbefacf7b7a775b4263",
   "module": "w491_aos_struct_supplier",
   "ring": 12,
-  "sealed_at": "2026-07-11T05:27:45Z",
+  "sealed_at": "2026-07-11T12:28:56Z",
   "spec_hash": "sha256:9bb760b22de00274f53ebbf08dcccebc4f55c4657ccbf93ad6ef29e885ef39a5",
   "spec_path": "specs/scratch/w491_aos_struct_supplier.t27"
 }
