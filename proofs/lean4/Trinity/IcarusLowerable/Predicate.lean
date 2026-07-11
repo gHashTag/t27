@@ -28,6 +28,8 @@ structure Env where
   hostOnly : List String
   /-- Names of functions reachable from tests/benches/module logic. -/
   reachable : List String
+  /-- Module-level variable / constant name → type. -/
+  vars : List (String × Ty) := []
   deriving Repr
 
 def Env.structFields (env : Env) (name : String) : List (String × Ty) :=
@@ -46,6 +48,9 @@ def Env.isHostOnly (env : Env) (name : String) : Bool :=
 
 def Env.isReachable (env : Env) (name : String) : Bool :=
   env.reachable.contains name
+
+def Env.varType (env : Env) (name : String) : Option Ty :=
+  (env.vars.find? (fun p => p.1 == name)).map (·.2)
 
 /-- Builtins that the Verilog backend does not yet lower. -/
 def unlowerableBuiltins : List String :=
@@ -130,6 +135,41 @@ mutual
     | .return_ e => e.all (fun x => x.isLowerable env)
     | .bareCall e => e.isLowerable env
 end
+
+/-- Inferred t27 type for the lowerable subset.  Identifiers are typed from the
+    environment; function-call types come from the callee's return type or the
+    constructor map. -/
+partial def Expr.typeOf (env : Env) (m : Module) : Expr → Option Ty
+  | .boolLit _ => some .bool
+  | .intLit _ => some .u32
+  | .identifier name => env.varType name
+  | .binop op lhs _ =>
+      if ["==", "!=", "<", "<=", ">", ">=", "&&", "||"].contains op then some .bool
+      else Expr.typeOf env m lhs
+  | .unop _ e => Expr.typeOf env m e
+  | .fieldAccess base field => do
+      let ty ← Expr.typeOf env m base
+      match ty with
+      | .struct sname =>
+          let fields := env.structFields sname
+          let f ← fields.find? (fun p => p.1 == field)
+          some f.2
+      | _ => none
+  | .index base _ => do
+      let ty ← Expr.typeOf env m base
+      match ty with
+      | .array _ elem => some elem
+      | _ => none
+  | .call name _ =>
+      match env.structForConstructor name with
+      | some sname => some (.struct sname)
+      | none =>
+          match m.findFunction name with
+          | some fn => fn.ret
+          | none => none
+  | .structLit name _ => some (.struct name)
+  | .arrayLit ty _ => some ty
+  | _ => none
 
 /-- A function is lowerable when reachable and its body/interface are lowerable. -/
 def Function.isLowerable (env : Env) (fn : Function) : Bool :=

@@ -18,7 +18,7 @@ inductive VExpr
   | ident (name : String)
   | binop (op : String) (lhs rhs : VExpr)
   | unop (op : String) (e : VExpr)
-  | index (base : VExpr) (idx : VExpr)
+  | index (base : VExpr) (idx : VExpr) (elemWidth : Nat)
   | slice (base : VExpr) (hi lo : Nat)
   | concat (parts : List VExpr)
   | call (name : String) (args : List VExpr)
@@ -37,11 +37,20 @@ inductive VStmt
   | taskCall (name : String) (args : List VExpr)
   deriving Repr, BEq, Nonempty
 
+/-- A Verilog function definition. -/
+structure VFunction where
+  name : String
+  params : List (String × Nat)
+  retWidth : Nat
+  body : List VStmt
+  deriving Repr, BEq, Nonempty
+
 /-- A Verilog module. Ports are (name, width, direction). -/
 structure VModule where
   name : String
   ports : List (String × Nat × String)
   items : List VStmt
+  functions : List VFunction
   deriving Repr, BEq, Nonempty
 
 /-- True when the expression contains an unsupported or todo placeholder. -/
@@ -50,7 +59,7 @@ def VExpr.hasPlaceholder : VExpr → Bool
   | .todo _ => true
   | .binop _ lhs rhs => lhs.hasPlaceholder || rhs.hasPlaceholder
   | .unop _ e => e.hasPlaceholder
-  | .index base idx => base.hasPlaceholder || idx.hasPlaceholder
+  | .index base idx _ => base.hasPlaceholder || idx.hasPlaceholder
   | .slice base _ _ => base.hasPlaceholder
   | .concat parts => exprListHasPlaceholder parts
   | .call _ args => exprListHasPlaceholder args
@@ -73,8 +82,13 @@ where
     | [] => false
     | s :: ss => s.hasPlaceholder || stmtListHasPlaceholder ss
 
+/-- True when the function body contains a placeholder. -/
+def VFunction.hasPlaceholder (f : VFunction) : Bool :=
+  VStmt.hasPlaceholder.stmtListHasPlaceholder f.body
+
 /-- True when the module contains an unsupported or todo placeholder. -/
 def VModule.hasPlaceholder (v : VModule) : Bool :=
   VStmt.hasPlaceholder.stmtListHasPlaceholder v.items
+  || v.functions.any (fun f => f.hasPlaceholder)
 
 end Trinity.IcarusLowerable

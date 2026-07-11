@@ -1,3 +1,50 @@
+## 2026-07-13 — Wave Loop 495 (semantic equivalence for function calls and W493 witnesses in Lean 4)
+
+### What worked
+- Adding **Verilog function definitions** (`VFunction`) to the shallow AST is the
+  minimal change needed to make `evalVExpr` resolve `.call` nodes. Once the
+  emitter stores function bodies, inlining them in the evaluator mirrors the t27
+  evaluator and the real compiler's combinational function lowering.
+- Threading the **module `m`** through `emitExpr` lets the emitter derive field
+  slices and index element widths from the callee's return type, not just from
+  constructor names. This closes the gap for `make_outer(make_inner(5)).x.y`.
+- A small **type-inference helper** (`Expr.typeOf`) in `Predicate.lean`, plus a
+  `vars` field in `Env`, is enough to derive array element widths for both t27
+  and Verilog index nodes without a full type checker.
+- Evaluating **module-level items before the named function** in `evalVModule`
+  and `evalModuleFunction` gives the correct semantics for module constants and
+  array-of-struct ROMs used inside function bodies.
+- `native_decide` again proves all four W493 witness equivalences automatically,
+  confirming that the model and the emitter agree on packed-vector layout,
+  function inlining, and field slicing.
+
+### What to improve
+- The **generic equivalence theorem** (`module_value_equiv_statement`) is stated
+  but proved only by `sorry`. A structural proof needs an induction over the
+  lowerable expression grammar, which in turn needs a precise statement about
+  statement-list preservation under the current partial valuations.
+- **Conditionals and loops** are emitted as `alwaysComb`/`initial` blocks but not
+  evaluated semantically; they are outside the current combinational model. The
+  generic theorem will need to either restrict the lowerable subset further or
+  add a guarded operational semantics for those statements.
+- The `Expr.typeOf` helper is **partial and heuristic** (e.g., it does not track
+  local variable types inside function bodies). It is sufficient for the witness
+  set but will need a proper valuation-based type environment for broader
+  coverage.
+- The **local AOS element boundary** (`w493_local_aos_element_field_not_lowerable`)
+  remains the single documented Icarus baseline. Closing it is the fastest way to
+  grow the lowerable corpus and the equivalence witness set.
+
+### Techniques to reuse
+- Model function calls by inlining in both source and target evaluators; the
+  shallow AST should store function definitions so both sides can resolve calls.
+- Derive bit widths in the emitter from the same type-inference function used
+  by the evaluator to keep slicing and indexing aligned.
+- Prove the generic theorem last: first establish a representative witness set
+  with `native_decide`, then generalize.
+
+---
+
 ## 2026-07-13 — Wave Loop 494 (semantic equivalence for the Icarus-lowerable scalar subset in Lean 4)
 
 ### What worked

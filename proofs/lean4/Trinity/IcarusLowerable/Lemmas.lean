@@ -184,4 +184,196 @@ theorem string_helper_not_lowerable :
   ¬ Module.isLowerable stringHelperEnv stringHelperModule := by
   native_decide
 
+/- W495 witness environments and modules. -/
+
+/-- Environment for W493 nested-struct field from scalar-struct identifier. -/
+def w493NestedIdentifierEnv : Env := {
+  structs := [("Inner", [("y", .u32)]), ("Outer", [("x", .struct "Inner")])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["make_inner", "make_outer", "get_y"]
+}
+
+def w493NestedIdentifierMakeInner : Function := {
+  name := "make_inner",
+  params := [("a", .u32)],
+  ret := some (.struct "Inner"),
+  body := [.return_ (some (.structLit "Inner" [("y", .binop "+" (.identifier "a") (.intLit 1))]))]
+}
+
+def w493NestedIdentifierMakeOuter : Function := {
+  name := "make_outer",
+  params := [("inner", .struct "Inner")],
+  ret := some (.struct "Outer"),
+  body := [.return_ (some (.structLit "Outer" [("x", .identifier "inner")]))]
+}
+
+def w493NestedIdentifierGetY : Function := {
+  name := "get_y",
+  params := [],
+  ret := some .u32,
+  body := [
+    .return_ (some
+      (.fieldAccess
+        (.fieldAccess
+          (.call "make_outer" [.call "make_inner" [.intLit 5]])
+          "x")
+        "y"))
+  ]
+}
+
+def w493NestedIdentifierModule : Module := {
+  name := "w493_nested_struct_field_from_identifier_lowerable",
+  imports := [],
+  globals := [],
+  functions := [w493NestedIdentifierMakeInner, w493NestedIdentifierMakeOuter, w493NestedIdentifierGetY],
+  tests := [],
+  benches := []
+}
+
+/-- Environment for W493 local scalar-struct variable used as struct-literal field. -/
+def w493LocalScalarEnv : Env := {
+  structs := [("Inner", [("y", .u32)]), ("Outer", [("x", .struct "Inner")])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["make_inner", "make_outer", "get_y"]
+}
+
+def w493LocalScalarMakeInner : Function := {
+  name := "make_inner",
+  params := [("a", .u32)],
+  ret := some (.struct "Inner"),
+  body := [.return_ (some (.structLit "Inner" [("y", .binop "+" (.identifier "a") (.intLit 1))]))]
+}
+
+def w493LocalScalarMakeOuter : Function := {
+  name := "make_outer",
+  params := [],
+  ret := some (.struct "Outer"),
+  body := [
+    .varDecl "inner" (.struct "Inner") (some (.call "make_inner" [.intLit 5])),
+    .return_ (some (.structLit "Outer" [("x", .identifier "inner")]))
+  ]
+}
+
+def w493LocalScalarGetY : Function := {
+  name := "get_y",
+  params := [],
+  ret := some .u32,
+  body := [
+    .return_ (some
+      (.fieldAccess
+        (.fieldAccess
+          (.call "make_outer" [])
+          "x")
+        "y"))
+  ]
+}
+
+def w493LocalScalarModule : Module := {
+  name := "w493_local_scalar_struct_field_lowerable",
+  imports := [],
+  globals := [],
+  functions := [w493LocalScalarMakeInner, w493LocalScalarMakeOuter, w493LocalScalarGetY],
+  tests := [],
+  benches := []
+}
+
+/-- Environment for W493 module-level scalar-struct constant used as struct-literal
+    field. -/
+def w493ModuleScalarEnv : Env := {
+  structs := [("Inner", [("y", .u32)]), ("Outer", [("x", .struct "Inner")])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["make_outer", "get_y"],
+  vars := [("INNER_CONST", .struct "Inner")]
+}
+
+def w493ModuleScalarConst : Stmt :=
+  .constDecl "INNER_CONST" (.struct "Inner") (some (.structLit "Inner" [("y", .intLit 7)]))
+
+def w493ModuleScalarMakeOuter : Function := {
+  name := "make_outer",
+  params := [],
+  ret := some (.struct "Outer"),
+  body := [.return_ (some (.structLit "Outer" [("x", .identifier "INNER_CONST")]))]
+}
+
+def w493ModuleScalarGetY : Function := {
+  name := "get_y",
+  params := [],
+  ret := some .u32,
+  body := [
+    .return_ (some
+      (.fieldAccess
+        (.fieldAccess
+          (.call "make_outer" [])
+          "x")
+        "y"))
+  ]
+}
+
+def w493ModuleScalarModule : Module := {
+  name := "w493_module_scalar_struct_field_lowerable",
+  imports := [],
+  globals := [w493ModuleScalarConst],
+  functions := [w493ModuleScalarMakeOuter, w493ModuleScalarGetY],
+  tests := [],
+  benches := []
+}
+
+/-- Environment for W493 literal-index module-level array-of-struct element used
+    as struct-literal field. -/
+def w493ModuleAosEnv : Env := {
+  structs := [("Inner", [("y", .u32)]), ("Outer", [("x", .struct "Inner")])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["make_outer", "get_y"],
+  vars := [("CHOICES", .array 2 (.struct "Inner"))]
+}
+
+def w493ModuleAosConst : Stmt :=
+  .constDecl "CHOICES" (.array 2 (.struct "Inner"))
+    (some (.arrayLit (.array 2 (.struct "Inner"))
+      [.structLit "Inner" [("y", .intLit 1)],
+       .structLit "Inner" [("y", .intLit 2)]]))
+
+def w493ModuleAosMakeOuter : Function := {
+  name := "make_outer",
+  params := [],
+  ret := some (.struct "Outer"),
+  body := [.return_ (some (.structLit "Outer" [("x", .index (.identifier "CHOICES") (.intLit 0))]))]
+}
+
+def w493ModuleAosGetY : Function := {
+  name := "get_y",
+  params := [],
+  ret := some .u32,
+  body := [
+    .return_ (some
+      (.fieldAccess
+        (.fieldAccess
+          (.call "make_outer" [])
+          "x")
+        "y"))
+  ]
+}
+
+def w493ModuleAosModule : Module := {
+  name := "w493_module_aos_element_field_lowerable",
+  imports := [],
+  globals := [w493ModuleAosConst],
+  functions := [w493ModuleAosMakeOuter, w493ModuleAosGetY],
+  tests := [],
+  benches := []
+}
+
 end Trinity.IcarusLowerable
