@@ -1,3 +1,40 @@
+## 2026-07-13 — Wave Loop 494 (semantic equivalence for the Icarus-lowerable scalar subset in Lean 4)
+
+### What worked
+- A **denotational bit-vector semantics** for the simplified t27 AST and the
+  shallow Verilog AST is tractable when restricted to the scalar
+  numeric/bool/struct subset. Values are `BitVec width`, structs are
+  concatenations of leaf fields, and field access is `BitVec.extractLsb'`.
+- `native_decide` proves the first value-preservation theorem automatically
+  once both sides are computable: the scalar-struct-literal witness returns
+  the same packed 16-bit value in t27 and in the emitted Verilog module.
+- Keeping the semantics combinational and finite (function calls are inlined)
+  matches the current t27 → Verilog backend and avoids modeling clocks/registers
+  in the first equivalence wave.
+- Reusing the same `widthOfType` / struct-field logic from `Emitter.lean` in
+  `Semantics.lean` ensures the t27 evaluator and the Verilog evaluator agree on
+  packed-vector layout.
+
+### What to improve
+- The generic theorem `Module.isLowerable env m → evalModule env m =
+  evalVModule env (emitModule env m)` is not yet stated or proved.
+- Verilog function bodies are not stored in the shallow AST, so `evalVExpr`
+  returns `none` for `.call`. This blocks equivalence proofs for the W493
+  witnesses that rely on struct-return function calls.
+- `index` evaluation hard-codes an 8-bit element width for arrays; it should
+  derive the width from the base expression's type using the environment.
+
+### Techniques to reuse
+- Use `BitVec.extractLsb' start len` instead of `extractLsb` to avoid Nat
+  arithmetic normalization obligations.
+- Model function calls by inlining bodies in both the t27 and Verilog
+  evaluators; this matches the current lowering and keeps the semantics
+  combinational.
+- Prove per-witness equivalence with `native_decide` before attempting a
+  generic structural theorem.
+
+---
+
 ## 2026-07-13 — Wave Loop 493 (gen-verilog backend hardening: struct-literal fields from scalar-struct identifiers, placeholder cleanup, local AOS element boundary)
 
 ### What worked

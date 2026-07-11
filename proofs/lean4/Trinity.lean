@@ -13,3 +13,5 @@ import Trinity.TernaryFPGABoot
 import Trinity.IcarusLowerable.Ast
 import Trinity.IcarusLowerable.Predicate
 import Trinity.IcarusLowerable.Lemmas
+import Trinity.IcarusLowerable.Semantics
+import Trinity.IcarusLowerable.Soundness

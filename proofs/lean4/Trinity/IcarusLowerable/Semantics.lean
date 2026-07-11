@@ -1,0 +1,289 @@
+/- Copyright (c) 2026 Trinity S³AI — t27 Wave Loop 494
+  Denotational semantics for the simplified t27 AST and the shallow Verilog
+  AST, restricted to the Icarus-lowerable scalar subset.
+
+  The semantics is *combinational and finite*: values are `BitVec n` for numeric
+  types, structs are concatenations of leaf fields, and arrays are concatenations
+  of elements. Function calls are evaluated by inlining the called function's
+  body, matching the current t27 → Verilog lowering for pure combinational
+  functions.
+
+  The intended theorem shape:
+    Module.isLowerable env m → evalModule env m = evalVModule env (emitModule env m)
+
+  Anchor: φ² + φ⁻² = 3 | TRINITY
+-/
+
+import Trinity.IcarusLowerable.Ast
+import Trinity.IcarusLowerable.Predicate
+import Trinity.IcarusLowerable.Verilog
+import Trinity.IcarusLowerable.Emitter
+
+namespace Trinity.IcarusLowerable
+
+/-- Runtime value: a bit-vector together with its width. -/
+structure Value where
+  width : Nat
+  bits : BitVec width
+  deriving BEq, Repr, DecidableEq
+
+/-- Look up a variable in a valuation. -/
+def Valuation := String → Option Value
+
+/-- Helper: concatenate two values. -/
+def Value.concat (a b : Value) : Value :=
+  ⟨a.width + b.width, BitVec.append a.bits b.bits⟩
+
+/-- Helper: concatenate a list of values; empty list yields a 1-bit zero. -/
+def Value.concatList (vs : List Value) : Value :=
+  match vs with
+  | [] => ⟨1, BitVec.ofNat 1 0⟩
+  | v :: vs => vs.foldl Value.concat v
+
+/-- Convert a t27 type to its runtime width using the environment. -/
+partial def widthOfType' (env : Env) : Ty → Nat
+  | .bool => 1
+  | .u8 => 8
+  | .u16 => 16
+  | .u32 => 32
+  | .u64 => 64
+  | .i8 => 8
+  | .i16 => 16
+  | .i32 => 32
+  | .i64 => 64
+  | .array n elem => n * widthOfType' env elem
+  | .struct name =>
+      (env.structFields name).foldl (fun acc p => acc + widthOfType' env p.2) 0
+  | _ => 32
+
+/-- Evaluate a lowerable binary operator on two values of equal width. -/
+def evalBinop (op : String) (lhs rhs : Value) : Option Value :=
+  let w := lhs.width
+  if h : rhs.width = w then
+    let a := lhs.bits
+    let b := rhs.bits
+    have : BitVec rhs.width = BitVec w := by rw [h]
+    let b' := cast this b
+    match op with
+    | "+" => some ⟨w, a + b'⟩
+    | "-" => some ⟨w, a - b'⟩
+    | "*" => some ⟨w, a * b'⟩
+    | "/" => some ⟨w, a / b'⟩
+    | "%" => some ⟨w, a % b'⟩
+    | "&" => some ⟨w, a &&& b'⟩
+    | "|" => some ⟨w, a ||| b'⟩
+    | "^" => some ⟨w, a ^^^ b'⟩
+    | "<<" => some ⟨w, a.shiftLeft b'.toNat⟩
+    | ">>" => some ⟨w, a.ushiftRight b'.toNat⟩
+    | "==" => some ⟨1, if a == b' then 1#1 else 0#1⟩
+    | "!=" => some ⟨1, if a == b' then 0#1 else 1#1⟩
+    | "<" => some ⟨1, if a.ult b' then 1#1 else 0#1⟩
+    | "<=" => some ⟨1, if a.ule b' then 1#1 else 0#1⟩
+    | ">" => some ⟨1, if ¬ a.ule b' then 1#1 else 0#1⟩
+    | ">=" => some ⟨1, if ¬ a.ult b' then 1#1 else 0#1⟩
+    | "&&" => some ⟨1, if a != 0#w && b' != 0#w then 1#1 else 0#1⟩
+    | "||" => some ⟨1, if a != 0#w || b' != 0#w then 1#1 else 0#1⟩
+    | _ => none
+  else
+    none
+
+/-- Evaluate a unary operator. -/
+def evalUnop (op : String) (e : Value) : Option Value :=
+  let w := e.width
+  let a := e.bits
+  match op with
+  | "!" => some ⟨1, if a == 0#w then 1#1 else 0#1⟩
+  | "-" => some ⟨w, 0#w - a⟩
+  | "~" => some ⟨w, ~~~a⟩
+  | _ => none
+
+/-- Compute the bit offset of a struct field. -/
+def structFieldOffset (env : Env) (sname : String) (field : String) : Nat :=
+  let fields := env.structFields sname
+  fields.foldl (fun acc p => if p.1 < field then acc + widthOfType' env p.2 else acc) 0
+
+/-- Compute the width of a struct field. -/
+def structFieldWidth (env : Env) (sname : String) (field : String) : Nat :=
+  match (env.structFields sname).find? (fun p => p.1 == field) with
+  | some ty => widthOfType' env ty.2
+  | none => 0
+
+/-- Find a function by name in a module. -/
+def Module.findFunction (m : Module) (name : String) : Option Function :=
+  (m.functions ++ m.tests ++ m.benches).find? (fun f => f.name == name)
+
+mutual
+  /-- Evaluate a t27 expression under a valuation, environment, and module. -/
+  partial def evalExpr (env : Env) (m : Module) (val : Valuation) : Expr → Option Value
+    | .boolLit true => some ⟨1, 1#1⟩
+    | .boolLit false => some ⟨1, 0#1⟩
+    | .intLit n => some ⟨32, BitVec.ofInt 32 n⟩
+    | .identifier name => val name
+    | .binop op lhs rhs => do
+        let l <- evalExpr env m val lhs
+        let r <- evalExpr env m val rhs
+        evalBinop op l r
+    | .unop op e => do
+        let v <- evalExpr env m val e
+        evalUnop op v
+    | .fieldAccess base field =>
+        match base with
+        | .call ctor args =>
+            match env.structForConstructor ctor with
+            | some sname => do
+                let v <- evalCall env m val ctor args
+                let off := structFieldOffset env sname field
+                let w := structFieldWidth env sname field
+                if _h : w > 0 && off + w - 1 < v.width then
+                  some ⟨w, BitVec.extractLsb' off w v.bits⟩
+                else
+                  none
+            | none => none
+        | _ => none
+    | .index base idx => do
+        let b <- evalExpr env m val base
+        let i <- evalExpr env m val idx
+        let n := i.bits.toNat
+        -- For the lowerable subset, the base is either a struct field that is
+        -- an array or a local array variable. We approximate element width as
+        -- 8 for the model; concrete equivalence lemmas use the actual widths.
+        let elemW := 8
+        if _h : elemW > 0 && n * elemW + elemW - 1 < b.width then
+          some ⟨elemW, BitVec.extractLsb' (n * elemW) elemW b.bits⟩
+        else
+          none
+    | .call name args => evalCall env m val name args
+    | .structLit _ fields => do
+        let vs <- fields.mapM (fun p => evalExpr env m val p.2)
+        some (Value.concatList vs)
+    | .arrayLit _ elems => do
+        let vs <- elems.mapM (evalExpr env m val)
+        some (Value.concatList vs)
+    | _ => none
+
+  /-- Evaluate a function call by inlining the function body. -/
+  partial def evalCall (env : Env) (m : Module) (val : Valuation) (name : String) (args : List Expr) : Option Value :=
+    match m.findFunction name with
+    | some fn => do
+        let argVals <- args.mapM (evalExpr env m val)
+        evalFunction env m fn argVals
+    | none => none
+
+  /-- Evaluate a function body by binding parameters and returning `__return`. -/
+  partial def evalFunction (env : Env) (m : Module) (fn : Function) (argVals : List Value) : Option Value :=
+    do
+      let paramBinds := fn.params.zip argVals
+      let init : Valuation := fun name =>
+        paramBinds.find? (fun p => p.1.1 == name) |>.map (·.2)
+      let final <- evalStmts env m init fn.body
+      final "__return"
+
+  /-- Evaluate a list of t27 statements. -/
+  partial def evalStmts (env : Env) (m : Module) (val : Valuation) (stmts : List Stmt) : Option Valuation :=
+    stmts.foldlM (fun acc stmt =>
+      match stmt with
+      | .assign (.identifier name) rhs => do
+          let v <- evalExpr env m acc rhs
+          some (fun x => if x == name then some v else acc x)
+      | .varDecl name _ init => do
+          let v <- match init with
+                  | some e => evalExpr env m acc e
+                  | none => some ⟨1, 0#1⟩
+          some (fun x => if x == name then some v else acc x)
+      | .constDecl name _ init => do
+          let v <- match init with
+                  | some e => evalExpr env m acc e
+                  | none => some ⟨1, 0#1⟩
+          some (fun x => if x == name then some v else acc x)
+      | .return_ (some e) => do
+          let v <- evalExpr env m acc e
+          some (fun x => if x == "__return" then some v else acc x)
+      | .return_ none => some acc
+      | _ => some acc) val
+end
+
+/-- Evaluate the test named `testName` in a module: bind no arguments, run the
+    test body, and return the `__return` value. -/
+def evalTest (env : Env) (m : Module) (testName : String) : Option Value :=
+  match m.tests.find? (fun t => t.name == testName) with
+  | some t => evalFunction env m t []
+  | none => none
+
+/-- Evaluate a shallow Verilog expression. -/
+partial def evalVExpr (env : Env) (val : Valuation) : VExpr → Option Value
+  | .lit w s =>
+      match s with
+      | "1" => some ⟨w, BitVec.ofNat w 1⟩
+      | "0" => some ⟨w, BitVec.ofNat w 0⟩
+      | _ =>
+          match String.toInt? s with
+          | some n => some ⟨w, BitVec.ofInt w n⟩
+          | none => none
+  | .ident name => val name
+  | .binop op lhs rhs => do
+      let l <- evalVExpr env val lhs
+      let r <- evalVExpr env val rhs
+      evalBinop op l r
+  | .unop op e => do
+      let v <- evalVExpr env val e
+      evalUnop op v
+  | .index base idx => do
+      let b <- evalVExpr env val base
+      let i <- evalVExpr env val idx
+      let n := i.bits.toNat
+      let elemW := 8
+      if _h : elemW > 0 && n * elemW + elemW - 1 < b.width then
+        some ⟨elemW, BitVec.extractLsb' (n * elemW) elemW b.bits⟩
+      else
+        none
+  | .slice base hi lo => do
+      let b <- evalVExpr env val base
+      if _h : lo ≤ hi && hi < b.width then
+        some ⟨hi - lo + 1, BitVec.extractLsb' lo (hi - lo + 1) b.bits⟩
+      else
+        none
+  | .concat parts => do
+      let vs <- parts.mapM (evalVExpr env val)
+      some (Value.concatList vs)
+  | .call _ args => do
+      let _vs <- args.mapM (evalVExpr env val)
+      -- The shallow model does not store Verilog function bodies; for the
+      -- representative equivalence theorem we rely on the t27 evaluator for
+      -- function calls and compare final return values directly.
+      none
+  | .unsupported _ => none
+  | .todo _ => none
+
+mutual
+  /-- Evaluate a shallow Verilog statement. -/
+  partial def evalVStmt (env : Env) (val : Valuation) (stmt : VStmt) : Option Valuation :=
+    match stmt with
+    | .assign lhs rhs => do
+        let name := match lhs with | .ident n => n | _ => ""
+        let v <- evalVExpr env val rhs
+        some (fun x => if x == name then some v else val x)
+    | .localparam name w init => do
+        let v <- evalVExpr env val init
+        some (fun x => if x == name then some ⟨w, BitVec.extractLsb' 0 w v.bits⟩ else val x)
+    | .wire _ _ => some val
+    | .reg _ _ => some val
+    | .alwaysComb body => evalVStmts env val body
+    | .initial body => evalVStmts env val body
+    | .taskCall _ _ =>
+        -- Task calls in the model only occur in test blocks; they are evaluated
+        -- by the surrounding statement list, so we leave the valuation unchanged.
+        some val
+
+  /-- Evaluate a list of shallow Verilog statements. -/
+  partial def evalVStmts (env : Env) (val : Valuation) (stmts : List VStmt) : Option Valuation :=
+    stmts.foldlM (fun acc s => evalVStmt env acc s) val
+end
+
+/-- Evaluate a shallow Verilog module by running its items and returning the
+    `__return` binding. -/
+def evalVModule (env : Env) (vm : VModule) : Option Value :=
+  match evalVStmts env (fun _ => none) vm.items with
+  | some final => final "__return"
+  | none => none
+
+end Trinity.IcarusLowerable

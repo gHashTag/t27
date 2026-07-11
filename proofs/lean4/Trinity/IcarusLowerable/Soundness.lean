@@ -16,6 +16,7 @@ import Trinity.IcarusLowerable.Predicate
 import Trinity.IcarusLowerable.Verilog
 import Trinity.IcarusLowerable.Emitter
 import Trinity.IcarusLowerable.Lemmas
+import Trinity.IcarusLowerable.Semantics
 
 namespace Trinity.IcarusLowerable
 
@@ -53,6 +54,14 @@ theorem var_index_sound :
   Module.isSound varIndexEnv varIndexModule := by
   unfold Module.isSound
   intro h
+  native_decide
+
+/-- W494: value preservation for the scalar-struct-literal witness.
+    The t27 module and the emitted shallow Verilog module compute the same
+    packed bit-vector value for the `main` function return. -/
+theorem scalar_struct_value_equiv :
+  evalFunction scalarStructEnv scalarStructModule scalarStructMain []
+    = evalVModule scalarStructEnv (emitModule scalarStructEnv scalarStructModule) := by
   native_decide
 
 end Trinity.IcarusLowerable

@@ -2032,3 +2032,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 493 — close W491/W492 adversarial baseline witnesses, struct-literal fields from scalar-struct identifiers, placeholder cleanup, W494 cooperation variants
 - **Files:** .claude/plans/wave-loop-494.md
 
+## 2026-07-11T12:50:56Z — wave-loop-494
+- **Commit:** docs(w494): Wave Loop 494 plan — Variant A semantic equivalence for the Icarus-lowerable scalar subset
+- **Files:** .claude/plans/wave-loop-494.md,.trinity/current-issue.md,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W495_2026-07-13.md,docs/reports/WAVE_LOOP_494_CLOSEOUT.md,proofs/lean4/Trinity.lean,proofs/lean4/Trinity/IcarusLowerable/Semantics.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean
+

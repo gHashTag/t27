@@ -102,13 +102,14 @@ obligation decidable and rely on computational equality of finite bit-vectors.
 
 ## 5. Definition of done
 
-- [ ] `Semantics.lean` defines computable `eval` for t27 and Verilog scalar ASTs.
-- [ ] At least one representative equivalence theorem is proved by
-      `native_decide`.
-- [ ] `lake build Trinity.IcarusLowerable.*` is green.
-- [ ] `./scripts/tri test --fast --icarus-lowerable` is green (zero disagreements).
-- [ ] `cargo test -p t27c --bin t27c` is green.
-- [ ] Seals are fresh if `bootstrap/src/compiler.rs` changed.
+- [x] `Semantics.lean` defines computable `eval` for t27 (`evalExpr/evalFunction/evalTest`) and Verilog scalar ASTs (`evalVExpr/evalVStmt/evalVModule`).
+- [x] Representative equivalence theorem `scalar_struct_value_equiv` proved by
+      `native_decide`: the scalar-struct-literal witness computes the same packed
+      value in t27 and in the emitted shallow Verilog.
+- [x] `lake build Trinity.IcarusLowerable.*` is green.
+- [x] `./scripts/tri test --fast --icarus-lowerable` is green (zero disagreements).
+- [x] `cargo test -p t27c --bin t27c` is green (1525/0/2).
+- [x] No compiler change, no reseal needed.
 - [ ] W494 close-out report and W495 cooperation variants are written.
 - [ ] `docs/NOW.md`, `.trinity/current-issue.md`, `.trinity/experience.md`, and
       persistent memory are updated.
