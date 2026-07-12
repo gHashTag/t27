@@ -1,71 +1,61 @@
-# Wave Loop 499 — Make `module_value_equiv` unconditional for all lowerable modules
+# Wave Loop 500 — Close the last documented Icarus baseline
 
-**Issue:** #1459  
-**Branch:** `wave-loop-499`  
+**Issue:** #1458  
+**Branch:** `wave-loop-500`  
 **Status:** closed  
-**Variant:** A (scoped) — remove `Module.callsResolved` / `Module.callsReachable`
-preconditions by emitting every **non-host-only** function unconditionally in
-`emitModuleFuel`, then re-prove `module_value_equiv_statement` without
-call-closure assumptions.
+**Variant:** A (scoped) — lower local register-mode arrays-of-struct element access
+for Icarus Verilog by re-packing indexed elements into packed vectors.
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
 ---
 
 ## Goal
 
-W498 proved the generic structural equivalence theorem under the assumptions
-that the module is call-resolved, call-reachable, and has a reachable `main`.
-Wave Loop 499 hardened that result so the theorem holds for every lowerable,
-combinational module whose `main` is not host-only, independent of reachability.
-The mechanism is to change `emitModuleFuel` to emit every non-host-only
-function as a `VFunction`, which makes function lookup unconditional.
-Host-only helpers and host-side test/bench blocks remain outside the
-Icarus synthesizable model.
+Wave Loop 499 left one documented Icarus baseline failure:
+`w493_local_aos_element_field_not_lowerable.t27`. The spec indexed a local
+array of scalar structs inside a struct literal:
+
+```t27
+pub fn make_outer(i : u32) -> Outer {
+    let choices : [2]Inner = make_choices();
+    return Outer { x: choices[i] };
+}
+```
+
+The local array is lowered in **register mode**: each element's fields become
+per-element registers (`choices_0_y`, `choices_1_y`). The struct-literal leaf
+emitter did not recognize a local register-mode array-of-struct element, so it
+fell back to an `UNSUPPORTED_ICARUS` placeholder. Wave Loop 500 closes that
+gap, making the spec lowerable and renaming the witness to reflect its new
+status.
 
 ---
 
 ## What changed
 
-- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`
-  - `Function.isLowerable` now skips host-only helpers and removes the
-    reachability shortcut.
-  - `Module.isLowerable` checks only globals and `m.functions`.
-  - `Function.isCombinational` / `Module.isCombinational` follow the same
-    host-only-aware, emitted-only model.
-  - Added `Module.emittedFunctions`, `Module.hasEmittedFunctionNamed`,
-    `Module.hasUniqueFunctionNames`, and the `callContext` family of
-    predicates (`Expr.callContext`, `Stmt.callContext`,
-    `Stmt.callContextList`, `Module.callContext`).
-  - Kept `Module.callsResolved` / `Module.callsReachable` as documentation
-    but they are no longer used by the generic theorem.
+- `bootstrap/src/compiler.rs`
+  - `gen_verilog_pack_struct_array_element` now detects register-mode local
+    arrays of structs via `local_struct_array_fields` +
+    `local_struct_array_has_array_field == false`.
+  - For register mode it flattens the element struct fields and emits the
+    per-element per-field registers (`base_idx_flatfield`) instead of the
+    memory-style `base_field[addr]`.
+  - For variable outer indices it keeps the priority mux over all possible
+    element positions, but the fallback zero is now sized (`{N{1'b0}}`) to avoid
+    the Icarus "Concatenation operand has indefinite width" error.
+  - Existing memory-mode local AOS and module-level AOS paths are unchanged.
 
-- `proofs/lean4/Trinity/IcarusLowerable/Ast.lean`
-  - `Module.findFunction` searches only `m.functions`.
+- `specs/scratch/w493_local_aos_element_field_lowerable.t27`
+  - Renamed from `w493_local_aos_element_field_not_lowerable.t27`.
+  - Updated module name, comments, and test block to document that the
+    boundary is now closed.
 
-- `proofs/lean4/Trinity/IcarusLowerable/Emitter.lean`
-  - `emitModuleFuel` now emits `Module.emittedFunctions env m` and no longer
-    includes test/bench bodies in `VModule.items`.
+- `.trinity/seals/scratch_w493_local_aos_element_field_lowerable.json`
+  - New seal for the renamed, now-lowerable witness.
 
-- `proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean`
-  - Removed the `callsResolved` / `callsReachable` section variables.
-  - Added `Module.hasUniqueFunctionNames` and `Module.callContext` to the
-    generic forward-simulation proof.
-  - Rewrote `Module.isCombinational_function_body`,
-    `emit_function_lookup`, and the `.call` branch to work with the
-    emitted-function-only model.
-  - Added helper lemmas for emitted-function lookup and uniqueness.
-
-- `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`
-  - `module_value_equiv_statement` now assumes lowerability,
-    combinationality, unique function names, the module-level call-context
-    invariant, and that `main` is not host-only.
-
-- `specs/scratch/w499_unconditional_function_emission.t27`
-  - New adversarial witness with two unreachable functions where one calls the
-    other.
-
-- `.trinity/seals/scratch_w499_unconditional_function_emission.json`
-  - Seal for the new witness.
+- `.trinity/seals/scratch_w476_adversarial_aggregate_tail.json`
+- `.trinity/seals/scratch_w476_nested_whole_struct_assign.json`
+  - Resealed because the sized zero fallback changed their generated Verilog.
 
 ---
 
@@ -73,34 +63,33 @@ Icarus synthesizable model.
 
 - `lake build Trinity.IcarusLowerable.Soundness`: green, zero `sorry` in
   IcarusLowerable modules.
-- `./scripts/tri verify --lean-lowerable`: passed (W492 completeness gate).
+- `./scripts/tri verify --lean-lowerable`: passed (253 lowerable specs
+  exported, 0 disagreements).
 - `./scripts/tri test`:
   - 698 / 698 non-smoke PASS.
   - 178 / 178 yosys smoke PASS, 0 baseline failures.
-  - 177 / 178 Icarus smoke PASS (1 documented baseline failure:
-    `specs/scratch/w493_local_aos_element_field_not_lowerable.t27`).
+  - 178 / 178 Icarus smoke PASS, **0 documented baseline failures**.
   - 698 / 698 seal matches.
   - FPGA board-less smoke gate / replay: OK.
+  - Standalone lake-package build: OK.
   - Gen C / Fixed Point: clean.
 - `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
 
 ---
 
-## Residual boundary
+## Residual boundaries
 
-- The single documented Icarus baseline (`w493_local_aos_element_field_not_lowerable.t27`)
-  remains unchanged; it is intentionally outside the lowerable subset.
-- The generic theorem still requires `main` to be non-host-only. This is
-  realistic for synthesizable entry points and can be addressed in a future
-  wave by either proving the negation from the call context or parameterizing
-  the theorem over an arbitrary emitted function.
+- The generic theorem still assumes `main` is not host-only.
+- Conditionals and loops remain outside the modeled operational semantics.
+- Register-mode re-packing is for scalar-struct elements; array-typed direct
+  fields continue to use memory-mode lowering.
 
 ---
 
-## Close-out artifact
+## Close-out artifacts
 
-- `docs/reports/WAVE_LOOP_499_CLOSEOUT.md`
-- `docs/reports/FPGA_LOOP_COOPERATION_W500_2026-07-13.md`
+- `docs/reports/WAVE_LOOP_500_CLOSEOUT.md`
+- `docs/reports/FPGA_LOOP_COOPERATION_W501_2026-07-13.md`
 
 ---
 

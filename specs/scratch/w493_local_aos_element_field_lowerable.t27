@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-// W493 adversarial witness: struct-literal field initialized from an indexed
-// local array-of-struct element. Non-memory-mode local arrays of structs are
-// unpacked into per-element per-field registers, so packing an indexed element
-// inside a struct-literal concatenation is not yet lowered. The generated
-// Verilog contains an UNSUPPORTED_ICARUS placeholder.
+// W493/W500 positive witness: struct-literal field initialized from an indexed
+// local array-of-struct element. Local non-memory-mode arrays of structs are
+// unpacked into per-element per-field registers, and indexed elements are now
+// re-packed into packed vectors for use as struct-literal operands.
 // φ² + 1/φ² = 3 | TRINITY
 
-module w493_local_aos_element_field_not_lowerable;
+module w493_local_aos_element_field_lowerable;
 
 pub struct Inner {
     y : u32,

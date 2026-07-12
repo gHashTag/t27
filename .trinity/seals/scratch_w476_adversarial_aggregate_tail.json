@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:b00c5f7879f70b29aae392a552f99fced08a6c319768b1a0079f7f535a60a555",
   "gen_hash_rust": "sha256:4987ee99b5a65f3e15604b6e0d4aef92e4de17878097f554667df71cd198c1c4",
-  "gen_hash_verilog": "sha256:11765c6f885987d8c78727babe3d1ccd4604d59d6e6d453423db652dd60c4d00",
+  "gen_hash_verilog": "sha256:1ca923753b2f5ab52d68e393ee9318526d9448f45b646e20903dc5ac60d8e51f",
   "gen_hash_zig": "sha256:2edacff00de8c3480b040488d236dbafca26d543c25abdd97b70d14da0173647",
   "module": "w476_adversarial_aggregate_tail",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:56Z",
+  "sealed_at": "2026-07-12T11:03:08Z",
   "spec_hash": "sha256:7a5c98edc95f5ff2112616de6d1aabe0e9a6457b09041614416ba9eceb5ab30c",
   "spec_path": "specs/scratch/w476_adversarial_aggregate_tail.t27"
 }

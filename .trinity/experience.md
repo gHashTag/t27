@@ -1,3 +1,30 @@
+## 2026-07-13 — Wave Loop 500 (close the last documented Icarus baseline: local register-mode array-of-struct element re-packing)
+
+### Verification (final)
+- `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in IcarusLowerable modules.
+- `./scripts/tri verify --lean-lowerable`: passed (W492 completeness gate), 253 lowerable specs exported.
+- `./scripts/tri test`: 698 / 698 non-smoke PASS, 178 / 178 yosys smoke PASS (0 baseline failures), 178 / 178 Icarus smoke PASS (0 documented baselines), 698 / 698 seal matches, FPGA board-less smoke gate / replay OK, standalone lake-package build OK, Gen C / Fixed Point clean.
+- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
+
+### What worked
+- **Register-mode local arrays of structs** are unpacked into per-element per-field registers (`base_0_field`, `base_1_field`, …). When one element is used as a struct-literal operand, it must be re-packed into a packed vector.
+- **Detecting register mode in `gen_verilog_pack_struct_array_element`** lets the emitter choose the correct naming convention: for register mode emit `base_idx_flatfield`, for memory/module mode keep `base_field[addr]`.
+- **Emitting a sized zero fallback** (`{N{1'b0}}`) for the variable-index priority mux avoids the Icarus error "Concatenation operand has indefinite width" that unsized `0` produces.
+- **Flattening the element struct fields at pack time** keeps the packed-vector bit ordering consistent with the per-element register declarations, even for nested scalar structs.
+- **Renaming the adversarial witness** from `w493_local_aos_element_field_not_lowerable.t27` to `w493_local_aos_element_field_lowerable.t27` documents that the boundary is now closed.
+
+### What to improve
+- The theorem still assumes the entry function (`main`) is not host-only.
+- **Conditionals and loops** remain outside the modeled operational semantics.
+- The register-mode re-packing path currently covers scalar-struct elements; array-typed direct fields still use memory-mode lowering.
+
+### Techniques to reuse
+- When the same logical value has multiple physical storage layouts (memory-mode vs. register-mode), branch in the packer rather than trying to unify naming conventions.
+- Always emit sized constants inside concatenations and ternary fallback arms to keep Icarus width inference deterministic.
+- Flatten struct fields at the point of packing so the packed-vector bit order matches the register/memory declaration order.
+
+---
+
 ## 2026-07-13 — Wave Loop 499 (make `module_value_equiv` unconditional for all lowerable modules)
 
 ### Verification (final)
@@ -15,7 +42,7 @@
 
 ### What to improve
 - The theorem still assumes the entry function (`main`) is not host-only.
-- The **local AOS element boundary** (`w493_local_aos_element_field_not_lowerable.t27`) remains the single documented Icarus baseline.
+- The **local AOS element boundary** (`w493_local_aos_element_field_not_lowerable.t27`) was the single documented Icarus baseline; closed in Wave Loop 500 and renamed to `w493_local_aos_element_field_lowerable.t27`.
 - **Conditionals and loops** remain outside the modeled operational semantics.
 
 ### Techniques to reuse

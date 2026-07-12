@@ -2076,3 +2076,7 @@
 - **Commit:** feat(icarus-lowerable): Wave Loop 499 — unconditional function emission, drop callsResolved/callsReachable, 698/698 PASS + 178/178 yosys + 177/178 Icarus (1 baseline)
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-12T11:39:09Z — wave-loop-500
+- **Commit:** chore(trinity): record W499 session log and commit count
+- **Files:** .claude/plans/wave-loop-500.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w476_adversarial_aggregate_tail.json,.trinity/seals/scratch_w476_nested_whole_struct_assign.json,.trinity/seals/scratch_w493_local_aos_element_field_lowerable.json,.trinity/seals/scratch_w493_local_aos_element_field_not_lowerable.json,bootstrap/src/compiler.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W501_2026-07-13.md,docs/reports/WAVE_LOOP_500_CLOSEOUT.md,specs/scratch/w493_local_aos_element_field_lowerable.t27
+

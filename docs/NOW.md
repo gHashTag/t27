@@ -1,70 +1,70 @@
-# NOW — Wave Loop 499 in progress / W500 next (2026-07-13)
+# NOW — Wave Loop 500 in progress / W501 next (2026-07-13)
 
 **Last updated:** 2026-07-13
 
 ---
 
-## Wave Loop 499 — Make `module_value_equiv` unconditional for all lowerable modules (Variant A in progress)
+## Wave Loop 500 — Close the last documented Icarus baseline (Variant A in progress)
 
-- Branch: `wave-loop-499`
-- Issue: #1469
-- Plan: `.claude/plans/wave-loop-499.md` (to create)
-- Cooperation W500: `docs/reports/FPGA_LOOP_COOPERATION_W500_2026-07-13.md` (to create)
+- Branch: `wave-loop-500`
+- Issue: #1458
+- Plan: `.claude/plans/wave-loop-500.md`
+- Cooperation W501: `docs/reports/FPGA_LOOP_COOPERATION_W501_2026-07-13.md` (to create)
 
 ### In progress
 
-- Change `emitModuleFuel` to emit every function/test/bench into
-  `VModule.functions`.
-- Remove `Module.callsResolved` and `Module.callsReachable` assumptions from
-  `module_value_equiv_statement`.
-- Add adversarial witness with unreachable functions that contain calls.
+- Detect register-mode local arrays of structs in
+  `gen_verilog_pack_struct_array_element`.
+- Re-pack indexed local register-mode AOS elements as packed vectors using
+  per-element per-field registers (`base_idx_flatfield`).
+- Emit a sized zero fallback (`{N{1'b0}}`) in the variable-index priority mux.
+- Rename the adversarial witness to `w493_local_aos_element_field_lowerable.t27`
+  and reseal.
 - Run verification gates:
   - `lake build Trinity.IcarusLowerable.Soundness`
-  - `./scripts/tri test --fast`
+  - `./scripts/tri verify --lean-lowerable`
+  - `./scripts/tri test`
   - `cargo test -p t27c --bin t27c`
 
 ---
 
-## Wave Loop 498 — Complete the generic structural equivalence theorem (closed)
+## Wave Loop 499 — Make `module_value_equiv` unconditional for all lowerable modules (closed)
 
-- Branch: `wave-loop-498`
-- Issue: #1468
-- Plan: `.claude/plans/wave-loop-498.md`
-- Report: `docs/reports/WAVE_LOOP_498_CLOSEOUT.md`
-- Cooperation W499: `docs/reports/FPGA_LOOP_COOPERATION_W499_2026-07-13.md`
+- Branch: `wave-loop-499`
+- Issue: #1459
+- Plan: `.claude/plans/wave-loop-499.md`
+- Report: `docs/reports/WAVE_LOOP_499_CLOSEOUT.md`
+- Cooperation W500: `docs/reports/FPGA_LOOP_COOPERATION_W500_2026-07-13.md`
 
 ### Verification
 
 - `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in
   IcarusLowerable modules.
-- `./scripts/tri test --fast`:
-  - 697 / 697 non-smoke PASS.
-  - 177 / 177 yosys smoke PASS, 0 baseline failures.
-  - 176 / 177 Icarus smoke PASS, 1 documented baseline failure
+- `./scripts/tri verify --lean-lowerable`: passed.
+- `./scripts/tri test`:
+  - 698 / 698 non-smoke PASS.
+  - 178 / 178 yosys smoke PASS, 0 baseline failures.
+  - 177 / 178 Icarus smoke PASS, 1 documented baseline failure
     (`specs/scratch/w493_local_aos_element_field_not_lowerable.t27`).
-  - 697 / 697 seal matches.
-  - 0 Icarus lowerability disagreements.
+  - 698 / 698 seal matches.
+  - FPGA board-less smoke gate / replay: OK.
 - `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
-- NMSE seal: unchanged (no `bootstrap/src/compiler.rs` change).
 
 ### Deliverables
 
-- Fuel-based total evaluator in `SemanticsTotal.lean`.
-- Total emitter model in `Emitter.lean` with fuel-threaded `widthOfType` and
-  emission functions.
-- Forward-simulation invariant in `Equivalence.lean` covering all combinational
-  expression and statement forms.
-- `module_value_equiv_statement` proved via `module_value_equiv_proved` in
-  `Soundness.lean`.
-- `native_decide` bridge lemmas connecting total and partial evaluators on the
-  W495 witness set.
+- `emitModuleFuel` emits every non-host-only function as a `VFunction`.
+- `Module.callsResolved` / `Module.callsReachable` removed from the generic
+  theorem assumptions.
+- `Module.hasUniqueFunctionNames` and `Module.callContext` added as
+  well-formedness invariants.
+- New adversarial witness `w499_unconditional_function_emission.t27`.
 
 ### Residual boundaries
 
-- The theorem still assumes `Module.hasUniqueFunctionNames`.
+- The theorem still assumes `main` is not host-only.
+- The local AOS element boundary was the single documented Icarus baseline
+  (closed by W500).
 - Conditionals and loops remain outside the modeled operational semantics.
-- `Expr.typeOf` remains a heuristic helper.
-- The local AOS element boundary remains the single documented Icarus baseline.
 
 ---
 

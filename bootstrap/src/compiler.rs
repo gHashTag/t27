@@ -4440,6 +4440,16 @@ impl VerilogCodegen {
                         &dims,
                     );
                 } else {
+                    // W500: register-mode local arrays of structs still need the
+                    // field list for re-packing indexed elements into packed vectors.
+                    if let Some(direct_fields) =
+                        self.struct_fields.get(&inner_elem_type).cloned()
+                    {
+                        self.local_struct_array_fields
+                            .insert(node.name.clone(), direct_fields.clone());
+                    }
+                    self.local_struct_array_has_array_field
+                        .insert(node.name.clone(), false);
                     self.gen_verilog_local_struct_array_decl(
                         &safe_base,
                         &fields,
@@ -5879,9 +5889,10 @@ impl VerilogCodegen {
         self.gen_verilog_expr(node);
     }
 
-    /// W476: emit a single element of a struct array as a packed vector. The base
-    /// may be a module-level array or a local/bench-local memory-mode array. Used
-    /// when an indexed array element is passed to a scalar struct parameter.
+    /// W476/W500: emit a single element of a struct array as a packed vector. The
+    /// base may be a module-level array, a local/bench-local memory-mode array, or
+    /// a local/bench-local register-mode array. Used when an indexed array element
+    /// is passed to a scalar struct parameter or used as a struct-literal field.
     fn gen_verilog_pack_struct_array_element(
         &mut self,
         base_name: &str,
@@ -5889,9 +5900,19 @@ impl VerilogCodegen {
         elem_type: &str,
         dims: &[(usize, String)],
     ) {
-        let fields: Vec<(String, String)> = if let Some(f) =
-            self.module_struct_array_fields.get(base_name)
-        {
+        let is_register_mode = self
+            .local_struct_array_fields
+            .contains_key(base_name)
+            && !self
+                .local_struct_array_has_array_field
+                .get(base_name)
+                .copied()
+                .unwrap_or(false);
+        let fields: Vec<(String, String)> = if is_register_mode {
+            let mut flat = Vec::new();
+            Self::flatten_struct_fields(elem_type, &self.struct_fields, "", &mut flat);
+            flat
+        } else if let Some(f) = self.module_struct_array_fields.get(base_name) {
             f.clone()
         } else if let Some(f) = self.local_struct_array_fields.get(base_name) {
             f.clone()
@@ -5902,6 +5923,7 @@ impl VerilogCodegen {
             self.write("0 /* struct-array element pack failed */");
             return;
         }
+        let total_width = Self::packed_width(elem_type, &self.struct_fields);
         let outer_combos = Self::index_combinations(dims);
         let all_literal = index_nodes
             .iter()
@@ -5919,7 +5941,17 @@ impl VerilogCodegen {
             self.write("{");
             let mut first = true;
             for (fname, ftype) in &fields {
-                let field_name_raw = format!("{}_{}", base_name, fname);
+                let field_name_raw = if is_register_mode {
+                    let raw_base = self.verilog_local_raw_base(base_name);
+                    let suffix: String = index_nodes
+                        .iter()
+                        .map(|idx| idx.value.clone())
+                        .collect::<Vec<_>>()
+                        .join("_");
+                    format!("{}_{}_{}", raw_base, suffix, fname)
+                } else {
+                    format!("{}_{}", base_name, fname)
+                };
                 let field_safe = Self::verilog_safe_identifier(&field_name_raw);
                 let field_dims = Self::parse_array_dimensions(ftype);
                 if field_dims.is_empty() {
@@ -5927,7 +5959,11 @@ impl VerilogCodegen {
                         self.write(", ");
                     }
                     first = false;
-                    self.write(&format!("{}[{}]", field_safe, outer_addr));
+                    if is_register_mode {
+                        self.write(&field_safe);
+                    } else {
+                        self.write(&format!("{}[{}]", field_safe, outer_addr));
+                    }
                 } else {
                     let inner_combos = Self::index_combinations(&field_dims);
                     for inner in &inner_combos {
@@ -5979,7 +6015,17 @@ impl VerilogCodegen {
             self.write(") ? {");
             let mut inner_first = true;
             for (fname, ftype) in &fields {
-                let field_name_raw = format!("{}_{}", base_name, fname);
+                let field_name_raw = if is_register_mode {
+                    let raw_base = self.verilog_local_raw_base(base_name);
+                    let suffix: String = comb
+                        .iter()
+                        .map(|idx| idx.to_string())
+                        .collect::<Vec<_>>()
+                        .join("_");
+                    format!("{}_{}_{}", raw_base, suffix, fname)
+                } else {
+                    format!("{}_{}", base_name, fname)
+                };
                 let field_safe = Self::verilog_safe_identifier(
                     &field_name_raw,
                 );
@@ -5989,7 +6035,11 @@ impl VerilogCodegen {
                         self.write(", ");
                     }
                     inner_first = false;
-                    self.write(&format!("{}[{}]", field_safe, outer_addr));
+                    if is_register_mode {
+                        self.write(&field_safe);
+                    } else {
+                        self.write(&format!("{}[{}]", field_safe, outer_addr));
+                    }
                 } else {
                     let inner_combos = Self::index_combinations(&field_dims);
                     for inner in &inner_combos {
@@ -6011,7 +6061,7 @@ impl VerilogCodegen {
             }
             self.write("}");
         }
-        self.write(" : 0)");
+        self.write(&format!(" : {{{}{{1'b0}}}})", total_width));
     }
 
     /// W476: emit a single element of a struct array as a packed temporary register
@@ -6291,9 +6341,9 @@ impl VerilogCodegen {
                         .map(|t| t == ftype)
                         .unwrap_or(false));
             // W493: module-level arrays of structs are lowered to flat memories, so a
-            // literal-index element can be packed as one operand. Local non-memory-mode
-            // arrays of structs are not handled here (they remain a documented baseline
-            // boundary).
+            // literal-index element can be packed as one operand. W500: local
+            // register-mode arrays of structs (scalar-struct elements) can also be
+            // re-packed into a single concatenation operand.
             let is_module_aos_element = inner_val.kind == NodeKind::ExprIndex
                 && self
                     .scalar_struct_indexed_element_type(inner_val)
@@ -6304,7 +6354,23 @@ impl VerilogCodegen {
                         self.module_struct_array_fields.contains_key(&base_id.name)
                     })
                     .unwrap_or(false);
-            if is_packed_struct_identifier || is_module_aos_element {
+            let is_local_register_aos_element = inner_val.kind == NodeKind::ExprIndex
+                && self
+                    .scalar_struct_indexed_element_type(inner_val)
+                    .map(|t| t == ftype)
+                    .unwrap_or(false)
+                && Self::flatten_index_chain(inner_val)
+                    .map(|(base_id, _indices)| {
+                        let safe_base = self.verilog_local_name(&base_id.name);
+                        self.local_arrays.contains(&safe_base)
+                            && !self
+                                .local_struct_array_has_array_field
+                                .get(&base_id.name)
+                                .copied()
+                                .unwrap_or(false)
+                    })
+                    .unwrap_or(false);
+            if is_packed_struct_identifier || is_module_aos_element || is_local_register_aos_element {
                 if !*first {
                     self.write(", ");
                 }
@@ -14666,6 +14732,16 @@ impl VerilogCodegen {
                                 self.write_line("");
                             }
                         } else {
+                            // W500: register-mode local arrays of structs still need
+                            // the field list for re-packing indexed elements.
+                            if let Some(direct_fields) =
+                                self.struct_fields.get(&inner_elem_type).cloned()
+                            {
+                                self.local_struct_array_fields
+                                    .insert(base_name.clone(), direct_fields.clone());
+                            }
+                            self.local_struct_array_has_array_field
+                                .insert(base_name.clone(), false);
                             self.gen_verilog_local_struct_array_decl(
                                 base_name,
                                 &fields,
