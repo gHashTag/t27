@@ -1,3 +1,31 @@
+## 2026-07-12 — Wave Loop 503 (extend Icarus equivalence proof to sequential constructs)
+
+### Verification (final)
+- `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in IcarusLowerable modules.
+- `./scripts/tri verify --lean-lowerable`: passed (W492 completeness gate), 253 lowerable specs exported, 0 disagreements.
+- `./scripts/tri test`: 705 / 705 non-smoke PASS, 185 / 185 yosys smoke PASS (0 baseline failures), 185 / 185 Icarus smoke PASS (0 documented baselines), 705 / 705 seal matches, FPGA board-less smoke gate / replay OK, standalone lake-package build OK, Gen C / Fixed Point clean.
+- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
+
+### What worked
+- **Modeling `ifThenElse` and bounded `forLoop` in the shallow Verilog AST** (`Verilog.lean`) and total evaluators (`SemanticsTotal.lean`) gives both sides a shared operational semantics.
+- **Extending the emitter** (`Emitter.lean`) so `emitStmt` produces real `if`/`for` nodes keeps the model aligned with generated code.
+- **Broadening the predicate** (`Predicate.lean`) lets `ifThenElse` pass as combinational when its components are combinational, while `forLoop` remains lowerable-but-not-combinational.
+- **The generic `module_value_equiv_statement` theorem now covers `ifThenElse`** via an `all_equiv` induction case; `forLoop` is handled by a concrete `native_decide` witness because the combinational predicate still rejects loops.
+- **Two scratch witnesses** (`w503_if_return.t27`, `w503_for_accumulator.t27`) plus saved seals give the smoke gate regression coverage for the new constructs.
+
+### What to improve
+- **Bounded `forLoop` is not yet in the generic theorem**; a fuel-based loop invariant in `Equivalence.lean` is the next step.
+- **`while` and `switch`** remain outside the modeled subset.
+- Array-typed direct fields still use memory-mode lowering.
+- The theorem still requires the chosen function to be emitted (non-host-only).
+
+### Techniques to reuse
+- Add a new control-flow construct in this order: AST constructor → total evaluator on both sides → partial evaluator → emitter → predicate → equivalence case → witness theorem.
+- Use a structural `isCombinationalList'` helper in a mutual block when the predicate needs to recurse over statement lists with termination checking.
+- Keep generic proofs structural; use `native_decide` for concrete witnesses that fall outside the generic subset.
+
+---
+
 ## 2026-07-13 — Wave Loop 502 (harden Icarus lowerability gate with adversarial non-main witnesses)
 
 ### Verification (final)
