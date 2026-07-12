@@ -673,4 +673,175 @@ def w504ForSumModule : Module := {
   benches := []
 }
 
+/- W505 witness environments and modules: adversarial sequential constructs. -/
+
+/-- W505-A: environment for nested `ifThenElse` with four return arms. -/
+def w505NestedIfEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["classify"]
+}
+
+def w505NestedIfClassify : Function := {
+  name := "classify",
+  params := [("x", .u32)],
+  ret := some .u32,
+  body := [
+    .ifThenElse (.binop "<" (.identifier "x") (.intLit 5))
+      [
+        .ifThenElse (.binop "<" (.identifier "x") (.intLit 2))
+          [.return_ (some (.intLit 1))]
+          [.return_ (some (.intLit 2))]
+      ]
+      [
+        .ifThenElse (.binop "<" (.identifier "x") (.intLit 8))
+          [.return_ (some (.intLit 3))]
+          [.return_ (some (.intLit 4))]
+      ]
+  ]
+}
+
+def w505NestedIfModule : Module := {
+  name := "w505_nested_if",
+  imports := [],
+  globals := [],
+  functions := [w505NestedIfClassify],
+  tests := [],
+  benches := []
+}
+
+/-- W505-B: environment for `ifThenElse` inside a bounded `forLoop`. -/
+def w505IfInForEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["conditional_sum"]
+}
+
+def w505IfInForConditionalSum : Function := {
+  name := "conditional_sum",
+  params := [("x", .u32), ("y", .u32), ("z", .u32)],
+  ret := some .u32,
+  body := [
+    .varDecl "acc" .u32 (some (.intLit 0)),
+    .forLoop "i" (.intLit 4) [
+      .ifThenElse (.binop ">" (.identifier "x") (.identifier "y"))
+        [.assign (.identifier "acc") (.binop "+" (.identifier "acc") (.identifier "z"))]
+        [.assign (.identifier "acc") (.binop "+" (.identifier "acc") (.intLit 1))]
+    ],
+    .return_ (some (.identifier "acc"))
+  ]
+}
+
+def w505IfInForModule : Module := {
+  name := "w505_if_in_for",
+  imports := [],
+  globals := [],
+  functions := [w505IfInForConditionalSum],
+  tests := [],
+  benches := []
+}
+
+/-- W505-C: environment for bounded `forLoop` whose range is a parameter. -/
+def w505ForVarRangeEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["sum_range"]
+}
+
+def w505ForVarRangeSumRange : Function := {
+  name := "sum_range",
+  params := [("n", .u32)],
+  ret := some .u32,
+  body := [
+    .varDecl "acc" .u32 (some (.intLit 0)),
+    .forLoop "i" (.identifier "n") [
+      .assign (.identifier "acc") (.binop "+" (.identifier "acc") (.identifier "i"))
+    ],
+    .return_ (some (.identifier "acc"))
+  ]
+}
+
+def w505ForVarRangeModule : Module := {
+  name := "w505_for_var_range",
+  imports := [],
+  globals := [],
+  functions := [w505ForVarRangeSumRange],
+  tests := [],
+  benches := []
+}
+
+/-- W505-D: environment for bounded `forLoop` used to compute a return value. -/
+def w505ForReturnEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["factorial"]
+}
+
+def w505ForReturnFactorial : Function := {
+  name := "factorial",
+  params := [("n", .u32)],
+  ret := some .u32,
+  body := [
+    .varDecl "acc" .u32 (some (.intLit 1)),
+    .forLoop "i" (.binop "+" (.identifier "n") (.intLit 1)) [
+      .assign (.identifier "acc") (.binop "*" (.identifier "acc") (.identifier "i"))
+    ],
+    .return_ (some (.identifier "acc"))
+  ]
+}
+
+def w505ForReturnModule : Module := {
+  name := "w505_for_return",
+  imports := [],
+  globals := [],
+  functions := [w505ForReturnFactorial],
+  tests := [],
+  benches := []
+}
+
+/-- W505-E: environment for bounded `forLoop` with a locally-declared loop body variable. -/
+def w505ForLocalVarInitEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["fill_init"]
+}
+
+def w505ForLocalVarInitFillInit : Function := {
+  name := "fill_init",
+  params := [("n", .u32)],
+  ret := some .u32,
+  body := [
+    .varDecl "table" .u32 (some (.intLit 0)),
+    .forLoop "i" (.identifier "n") [
+      .varDecl "slot" .u32 (some (.binop "*" (.identifier "i") (.intLit 7))),
+      .assign (.identifier "table") (.binop "+" (.identifier "table") (.identifier "slot"))
+    ],
+    .return_ (some (.identifier "table"))
+  ]
+}
+
+def w505ForLocalVarInitModule : Module := {
+  name := "w505_for_local_var_init",
+  imports := [],
+  globals := [],
+  functions := [w505ForLocalVarInitFillInit],
+  tests := [],
+  benches := []
+}
+
 end Trinity.IcarusLowerable

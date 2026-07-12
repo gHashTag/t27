@@ -1,0 +1,16 @@
+pub fn conditional_sum(x : u32, y : u32, z : u32) -> u32 {
+    var acc : u32 = 0;
+    for i in 0..4 {
+        if (x > y) {
+            acc = acc + z;
+        } else {
+            acc = acc + 1;
+        }
+    }
+    return acc;
+}
+
+test conditional_sum_test {
+    assert_eq(conditional_sum(3, 2, 5), 20); // 3>2 so +5 each iteration = 20
+    assert_eq(conditional_sum(1, 2, 5), 4);  // 1<=2 so +1 each iteration = 4
+}

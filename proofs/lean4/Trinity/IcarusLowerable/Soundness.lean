@@ -395,4 +395,144 @@ theorem w504_for_sum_value_equiv :
   exact module_value_equiv_proved_sequential w504ForSumEnv w504ForSumModule
     hlowerable hunique hseq hctx "sum_n" w504ForSumSumN [⟨32, BitVec.ofNat 32 5⟩] hfind hhost
 
+/- W505 theorems: adversarial sequential witnesses. -/
+
+/-- W505-A: nested `ifThenElse` witness is lowerable. -/
+theorem w505_nested_if_lowerable :
+  Module.isLowerable w505NestedIfEnv w505NestedIfModule := by
+  native_decide
+
+/-- W505-A: nested if-return witness is sequential. -/
+theorem w505_nested_if_sequential :
+  Module.isSequential w505NestedIfEnv w505NestedIfModule := by
+  native_decide
+
+/-- W505-A: value preservation for `classify(9)`. -/
+theorem w505_nested_if_value_equiv :
+  evalModuleFunctionTotal defaultFuel w505NestedIfEnv w505NestedIfModule "classify" [⟨32, BitVec.ofNat 32 9⟩] =
+  evalVModuleTotal defaultFuel w505NestedIfEnv (emitModule w505NestedIfEnv w505NestedIfModule) "classify" [⟨32, BitVec.ofNat 32 9⟩] := by
+  have hlowerable : Module.isLowerable w505NestedIfEnv w505NestedIfModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w505NestedIfModule := by
+    simp [Module.hasUniqueFunctionNames, w505NestedIfModule, w505NestedIfClassify]
+  have hseq : Module.isSequential w505NestedIfEnv w505NestedIfModule := by native_decide
+  have hctx : Module.callContext w505NestedIfEnv w505NestedIfModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w505NestedIfEnv, w505NestedIfModule, w505NestedIfClassify]
+  have hfind : w505NestedIfModule.findFunction "classify" = some w505NestedIfClassify := by
+    simp [Module.findFunction, w505NestedIfModule, w505NestedIfClassify]
+  have hhost : ¬ Env.isHostOnly w505NestedIfEnv w505NestedIfClassify.name := by
+    simp [Env.isHostOnly, w505NestedIfEnv, w505NestedIfClassify]
+  exact module_value_equiv_proved_sequential w505NestedIfEnv w505NestedIfModule
+    hlowerable hunique hseq hctx "classify" w505NestedIfClassify [⟨32, BitVec.ofNat 32 9⟩] hfind hhost
+
+/-- W505-B: `ifThenElse` inside a bounded `forLoop` is lowerable. -/
+theorem w505_if_in_for_lowerable :
+  Module.isLowerable w505IfInForEnv w505IfInForModule := by
+  native_decide
+
+/-- W505-B: conditional accumulation inside a loop is sequential. -/
+theorem w505_if_in_for_sequential :
+  Module.isSequential w505IfInForEnv w505IfInForModule := by
+  native_decide
+
+/-- W505-B: value preservation for `conditional_sum(3,2,5)`. -/
+theorem w505_if_in_for_value_equiv :
+  evalModuleFunctionTotal defaultFuel w505IfInForEnv w505IfInForModule "conditional_sum"
+    [⟨32, BitVec.ofNat 32 3⟩, ⟨32, BitVec.ofNat 32 2⟩, ⟨32, BitVec.ofNat 32 5⟩] =
+  evalVModuleTotal defaultFuel w505IfInForEnv (emitModule w505IfInForEnv w505IfInForModule) "conditional_sum"
+    [⟨32, BitVec.ofNat 32 3⟩, ⟨32, BitVec.ofNat 32 2⟩, ⟨32, BitVec.ofNat 32 5⟩] := by
+  have hlowerable : Module.isLowerable w505IfInForEnv w505IfInForModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w505IfInForModule := by
+    simp [Module.hasUniqueFunctionNames, w505IfInForModule, w505IfInForConditionalSum]
+  have hseq : Module.isSequential w505IfInForEnv w505IfInForModule := by native_decide
+  have hctx : Module.callContext w505IfInForEnv w505IfInForModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w505IfInForEnv, w505IfInForModule, w505IfInForConditionalSum]
+  have hfind : w505IfInForModule.findFunction "conditional_sum" = some w505IfInForConditionalSum := by
+    simp [Module.findFunction, w505IfInForModule, w505IfInForConditionalSum]
+  have hhost : ¬ Env.isHostOnly w505IfInForEnv w505IfInForConditionalSum.name := by
+    simp [Env.isHostOnly, w505IfInForEnv, w505IfInForConditionalSum]
+  exact module_value_equiv_proved_sequential w505IfInForEnv w505IfInForModule
+    hlowerable hunique hseq hctx "conditional_sum" w505IfInForConditionalSum
+    [⟨32, BitVec.ofNat 32 3⟩, ⟨32, BitVec.ofNat 32 2⟩, ⟨32, BitVec.ofNat 32 5⟩] hfind hhost
+
+/-- W505-C: bounded `forLoop` with a parameter range is lowerable. -/
+theorem w505_for_var_range_lowerable :
+  Module.isLowerable w505ForVarRangeEnv w505ForVarRangeModule := by
+  native_decide
+
+/-- W505-C: parameter-range loop is sequential. -/
+theorem w505_for_var_range_sequential :
+  Module.isSequential w505ForVarRangeEnv w505ForVarRangeModule := by
+  native_decide
+
+/-- W505-C: value preservation for `sum_range(5)`. -/
+theorem w505_for_var_range_value_equiv :
+  evalModuleFunctionTotal defaultFuel w505ForVarRangeEnv w505ForVarRangeModule "sum_range" [⟨32, BitVec.ofNat 32 5⟩] =
+  evalVModuleTotal defaultFuel w505ForVarRangeEnv (emitModule w505ForVarRangeEnv w505ForVarRangeModule) "sum_range" [⟨32, BitVec.ofNat 32 5⟩] := by
+  have hlowerable : Module.isLowerable w505ForVarRangeEnv w505ForVarRangeModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w505ForVarRangeModule := by
+    simp [Module.hasUniqueFunctionNames, w505ForVarRangeModule, w505ForVarRangeSumRange]
+  have hseq : Module.isSequential w505ForVarRangeEnv w505ForVarRangeModule := by native_decide
+  have hctx : Module.callContext w505ForVarRangeEnv w505ForVarRangeModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w505ForVarRangeEnv, w505ForVarRangeModule, w505ForVarRangeSumRange]
+  have hfind : w505ForVarRangeModule.findFunction "sum_range" = some w505ForVarRangeSumRange := by
+    simp [Module.findFunction, w505ForVarRangeModule, w505ForVarRangeSumRange]
+  have hhost : ¬ Env.isHostOnly w505ForVarRangeEnv w505ForVarRangeSumRange.name := by
+    simp [Env.isHostOnly, w505ForVarRangeEnv, w505ForVarRangeSumRange]
+  exact module_value_equiv_proved_sequential w505ForVarRangeEnv w505ForVarRangeModule
+    hlowerable hunique hseq hctx "sum_range" w505ForVarRangeSumRange [⟨32, BitVec.ofNat 32 5⟩] hfind hhost
+
+/-- W505-D: bounded `forLoop` returning a computed value is lowerable. -/
+theorem w505_for_return_lowerable :
+  Module.isLowerable w505ForReturnEnv w505ForReturnModule := by
+  native_decide
+
+/-- W505-D: factorial-style loop is sequential. -/
+theorem w505_for_return_sequential :
+  Module.isSequential w505ForReturnEnv w505ForReturnModule := by
+  native_decide
+
+/-- W505-D: value preservation for `factorial(5)`. -/
+theorem w505_for_return_value_equiv :
+  evalModuleFunctionTotal defaultFuel w505ForReturnEnv w505ForReturnModule "factorial" [⟨32, BitVec.ofNat 32 5⟩] =
+  evalVModuleTotal defaultFuel w505ForReturnEnv (emitModule w505ForReturnEnv w505ForReturnModule) "factorial" [⟨32, BitVec.ofNat 32 5⟩] := by
+  have hlowerable : Module.isLowerable w505ForReturnEnv w505ForReturnModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w505ForReturnModule := by
+    simp [Module.hasUniqueFunctionNames, w505ForReturnModule, w505ForReturnFactorial]
+  have hseq : Module.isSequential w505ForReturnEnv w505ForReturnModule := by native_decide
+  have hctx : Module.callContext w505ForReturnEnv w505ForReturnModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w505ForReturnEnv, w505ForReturnModule, w505ForReturnFactorial]
+  have hfind : w505ForReturnModule.findFunction "factorial" = some w505ForReturnFactorial := by
+    simp [Module.findFunction, w505ForReturnModule, w505ForReturnFactorial]
+  have hhost : ¬ Env.isHostOnly w505ForReturnEnv w505ForReturnFactorial.name := by
+    simp [Env.isHostOnly, w505ForReturnEnv, w505ForReturnFactorial]
+  exact module_value_equiv_proved_sequential w505ForReturnEnv w505ForReturnModule
+    hlowerable hunique hseq hctx "factorial" w505ForReturnFactorial [⟨32, BitVec.ofNat 32 5⟩] hfind hhost
+
+/-- W505-E: bounded `forLoop` with a local body variable is lowerable. -/
+theorem w505_for_local_var_init_lowerable :
+  Module.isLowerable w505ForLocalVarInitEnv w505ForLocalVarInitModule := by
+  native_decide
+
+/-- W505-E: loop with local body variable is sequential. -/
+theorem w505_for_local_var_init_sequential :
+  Module.isSequential w505ForLocalVarInitEnv w505ForLocalVarInitModule := by
+  native_decide
+
+/-- W505-E: value preservation for `fill_init(4)`. -/
+theorem w505_for_local_var_init_value_equiv :
+  evalModuleFunctionTotal defaultFuel w505ForLocalVarInitEnv w505ForLocalVarInitModule "fill_init" [⟨32, BitVec.ofNat 32 4⟩] =
+  evalVModuleTotal defaultFuel w505ForLocalVarInitEnv (emitModule w505ForLocalVarInitEnv w505ForLocalVarInitModule) "fill_init" [⟨32, BitVec.ofNat 32 4⟩] := by
+  have hlowerable : Module.isLowerable w505ForLocalVarInitEnv w505ForLocalVarInitModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w505ForLocalVarInitModule := by
+    simp [Module.hasUniqueFunctionNames, w505ForLocalVarInitModule, w505ForLocalVarInitFillInit]
+  have hseq : Module.isSequential w505ForLocalVarInitEnv w505ForLocalVarInitModule := by native_decide
+  have hctx : Module.callContext w505ForLocalVarInitEnv w505ForLocalVarInitModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w505ForLocalVarInitEnv, w505ForLocalVarInitModule, w505ForLocalVarInitFillInit]
+  have hfind : w505ForLocalVarInitModule.findFunction "fill_init" = some w505ForLocalVarInitFillInit := by
+    simp [Module.findFunction, w505ForLocalVarInitModule, w505ForLocalVarInitFillInit]
+  have hhost : ¬ Env.isHostOnly w505ForLocalVarInitEnv w505ForLocalVarInitFillInit.name := by
+    simp [Env.isHostOnly, w505ForLocalVarInitEnv, w505ForLocalVarInitFillInit]
+  exact module_value_equiv_proved_sequential w505ForLocalVarInitEnv w505ForLocalVarInitModule
+    hlowerable hunique hseq hctx "fill_init" w505ForLocalVarInitFillInit [⟨32, BitVec.ofNat 32 4⟩] hfind hhost
+
 end Trinity.IcarusLowerable

@@ -1,0 +1,24 @@
+pub fn classify(x : u32) -> u32 {
+    if (x < 5) {
+        if (x < 2) {
+            return 1;
+        } else {
+            return 2;
+        }
+    } else {
+        if (x < 8) {
+            return 3;
+        } else {
+            return 4;
+        }
+    }
+}
+
+test classify_test {
+    assert_eq(classify(0), 1);
+    assert_eq(classify(1), 1);
+    assert_eq(classify(3), 2);
+    assert_eq(classify(5), 3);
+    assert_eq(classify(7), 3);
+    assert_eq(classify(9), 4);
+}

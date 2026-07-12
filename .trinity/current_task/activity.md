@@ -2136,3 +2136,7 @@
 - **Commit:** chore(trinity): W504 final commit count
 - **Files:** .trinity/experience.md
 
+## 2026-07-12T16:00:16Z — wave-loop-505
+- **Commit:** docs(w504): experience log for sequential forLoop equivalence theorem
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/scratch_w505_for_local_var_init.json,.trinity/seals/scratch_w505_for_return.json,.trinity/seals/scratch_w505_for_var_range.json,.trinity/seals/scratch_w505_if_in_for.json,.trinity/seals/scratch_w505_nested_if.json,docs/reports/FPGA_LOOP_COOPERATION_W506_2026-07-07.md,docs/reports/WAVE_LOOP_505_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/scratch/w505_for_local_var_init.t27,specs/scratch/w505_for_return.t27,specs/scratch/w505_for_var_range.t27,specs/scratch/w505_if_in_for.t27,specs/scratch/w505_nested_if.t27
+

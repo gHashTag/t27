@@ -1,0 +1,14 @@
+pub fn sum_range(n : u32) -> u32 {
+    var acc : u32 = 0;
+    for i in 0..n {
+        acc = acc + i;
+    }
+    return acc;
+}
+
+test sum_range_test {
+    assert_eq(sum_range(0), 0);
+    assert_eq(sum_range(1), 0);
+    assert_eq(sum_range(5), 10);
+    assert_eq(sum_range(10), 45);
+}

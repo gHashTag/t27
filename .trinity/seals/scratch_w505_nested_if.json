@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:816f93dd94aa352d426d95250e3f879cf0d5307807543705ae4f4be1dfa40cf4",
+  "gen_hash_rust": "sha256:f2f39611168fbf80bbe2d472736f31c1f7ba6e62e293e705b6e3368003dbc662",
+  "gen_hash_verilog": "sha256:9a3793c275c7bc8e28e51d8c9c9d34984d515c424f396993d5ff87e94a408323",
+  "gen_hash_zig": "sha256:3495660435540c5dfb0133468ebe079cb88da2ae43d1410af0126dc1c721d50d",
+  "module": "w505_nested_if",
+  "ring": 12,
+  "sealed_at": "2026-07-12T15:34:28Z",
+  "spec_hash": "sha256:3ad364de4c154b0b3058f5a4652cc969875daabe6a5e06602989e46e0879bf74",
+  "spec_path": "/Users/playra/t27/specs/scratch/w505_nested_if.t27"
+}

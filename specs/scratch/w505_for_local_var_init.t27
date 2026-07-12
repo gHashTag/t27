@@ -1,0 +1,14 @@
+pub fn fill_init(n : u32) -> u32 {
+    var table : u32 = 0;
+    for i in 0..n {
+        var slot : u32 = i * 7;
+        table = table + slot;
+    }
+    return table;
+}
+
+test fill_init_test {
+    assert_eq(fill_init(0), 0);
+    assert_eq(fill_init(3), 21);  // 0*7 + 1*7 + 2*7
+    assert_eq(fill_init(4), 42);  // 0*7 + 1*7 + 2*7 + 3*7
+}
