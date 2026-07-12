@@ -2192,3 +2192,7 @@
 - **Commit:** docs(w506): decomposed plan and session state\n\nCloses #1475\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
 - **Files:** .trinity/seals/scratch_w506_switch_enum_dispatch.json,proofs/lean4/Trinity/IcarusLowerable/Ast.lean,proofs/lean4/Trinity/IcarusLowerable/AstInduction.lean,proofs/lean4/Trinity/IcarusLowerable/Emitter.lean,proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Semantics.lean,proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,proofs/lean4/Trinity/IcarusLowerable/Verilog.lean,specs/scratch/w506_switch_enum_dispatch.t27
 
+## 2026-07-12T23:19:52Z — wave-loop-507
+- **Commit:** feat(icarus): Wave Loop 506 — model switch expressions and statements in the Icarus-lowerable subset
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_COOPERATION_W507_2026-07-07.md,docs/reports/WAVE_LOOP_506_CLOSEOUT.md
+
