@@ -2064,3 +2064,7 @@
 - **Commit:** docs(lean4): Wave Loop 496 — proof scaffolding for generic Icarus equivalence, partial-evaluator blocker documented, W497 variants
 - **Files:** .claude/plans/wave-loop-497.md,.trinity/current-issue.md,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W498_2026-07-13.md,docs/reports/WAVE_LOOP_497_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Emitter.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Semantics.lean,proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean
 
+## 2026-07-12T08:45:34Z — wave-loop-498
+- **Commit:** feat(lean-icarus): W497 — fuel-totalize predicates in Predicate.lean, scaffold generic theorem, 697/697 non-smoke PASS + 177/177 yosys + 176/177 Icarus (1 baseline) + cargo 1525/0/2
+- **Files:** .claude/plans/wave-loop-498.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W499_2026-07-13.md,docs/reports/WAVE_LOOP_498_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/AstInduction.lean,proofs/lean4/Trinity/IcarusLowerable/Emitter.lean,proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Semantics.lean,proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,proofs/lean4/Trinity/IcarusLowerable/Verilog.lean
+

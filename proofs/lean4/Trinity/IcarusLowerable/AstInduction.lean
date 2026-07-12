@@ -78,4 +78,41 @@ theorem List.find?_mem {α : Type} {p : α → Bool} {xs : List α} {x : α}
     · simp [heq]
     · simp [ih hfind]
 
+/-- The element returned by a successful `List.find?` satisfies the predicate. -/
+theorem List.find?_some {α : Type} {p : α → Bool} {xs : List α} {x : α}
+    (h : xs.find? p = some x) : p x = true := by
+  induction xs with
+  | nil => simp at h
+  | cons y ys ih =>
+    simp at h
+    rcases h with (⟨hp, heq⟩ | ⟨hp, hfind⟩)
+    · simp [heq] at hp
+      exact hp
+    · exact ih hfind
+
 end Trinity.IcarusLowerable
+
+namespace List
+
+/-- If `x` is in `xs` and satisfies the predicate `p`, then `find? p xs` returns
+    `some x` (or some other satisfying element earlier in the list). -/
+theorem find?_mem_eq {α : Type} {p : α → Bool} {xs : List α} {x : α}
+    (hmem : x ∈ xs) (hp : p x = true) :
+    ∃ y, xs.find? p = some y := by
+  induction xs with
+  | nil => simp at hmem
+  | cons z zs ih =>
+      have h : x = z ∨ x ∈ zs := List.mem_cons.mp hmem
+      cases h with
+      | inl heq =>
+          rw [heq] at hp
+          exact ⟨z, by simp [hp]⟩
+      | inr hmem =>
+          cases hz : p z with
+          | true => exact ⟨z, by simp [hz]⟩
+          | false =>
+              have : ∃ y, zs.find? p = some y := ih hmem
+              rcases this with ⟨y, hy⟩
+              exact ⟨y, by simp [hz, hy]⟩
+
+end List

@@ -21,6 +21,7 @@ import Trinity.IcarusLowerable.Lemmas
 import Trinity.IcarusLowerable.Semantics
 import Trinity.IcarusLowerable.SemanticsTotal
 import Trinity.IcarusLowerable.AstInduction
+import Trinity.IcarusLowerable.Equivalence
 
 namespace Trinity.IcarusLowerable
 
@@ -139,24 +140,20 @@ theorem w493_nested_identifier_total_partial_bridge :
 
 /-- Generic value-preservation theorem for the Icarus-lowerable combinational
     subset.  Under the standard well-formedness assumptions (lowerability,
-    combinationality, and reachability closure), the fuel-based total t27
-    evaluator and the emitted shallow-Verilog evaluator return the same packed
-    bit-vector value for the `main` function. -/
+    combinationality, call resolution/reachability, and global call context),
+    the fuel-based total t27 evaluator and the emitted shallow-Verilog evaluator
+    return the same packed bit-vector value for the `main` function. -/
 theorem module_value_equiv_statement (env : Env) (m : Module)
     (h : Module.isLowerable env m)
     (hcomb : Module.isCombinational env m)
     (hresolved : Module.callsResolved env m)
     (hreach : Module.callsReachable env m)
+    (hglobalsCtx : Stmt.callContextList env m m.globals)
     (hmainReach : Env.isReachable env "main")
     (mainFn : Function)
     (hm : m.findFunction "main" = some mainFn) :
     evalModuleFunctionTotal defaultFuel env m "main" [] =
     evalVModuleTotal defaultFuel env (emitModule env m) "main" := by
-  -- The proof requires a combined induction over fuel for expressions, statements,
-  -- statement lists, function bodies, and calls under the lowerability/combinational
-  -- assumptions. The model has been aligned (fieldAccess fallback, localparam width)
-  -- so the two evaluators are structurally mirror images; the remaining work is to
-  -- formalize the forward-simulation argument.
-  sorry
+  exact module_value_equiv_proved env m h hcomb hresolved hreach hglobalsCtx hmainReach mainFn hm
 
 end Trinity.IcarusLowerable

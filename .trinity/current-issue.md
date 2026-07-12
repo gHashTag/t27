@@ -1,58 +1,55 @@
-# Wave Loop 498 — Complete the generic structural equivalence theorem for the Icarus-lowerable combinational subset
+# Wave Loop 499 — Make `module_value_equiv` unconditional for all lowerable modules
 
-**Issue:** #1468
-**Branch:** `wave-loop-498`
-**Variant:** A (scoped) — finish the forward-simulation proof of
-`module_value_equiv_statement`, then relax reachability/closure assumptions if
-possible
+**Issue:** #1469
+**Branch:** `wave-loop-499`
+**Variant:** A (scoped) — remove `Module.callsResolved` / `Module.callsReachable`
+preconditions by emitting **all** functions/tests/benches in `emitModuleFuel`, then
+re-prove `module_value_equiv_statement` without call-closure assumptions.
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
 ---
 
 ## Goal
 
-Close the remaining `sorry` in `Soundness.lean` by proving
-`module_value_equiv_statement` for all lowerable, combinational,
-call-closed modules. W497 totalized the predicates in `Predicate.lean` and the
-evaluators in `SemanticsTotal.lean`, so the only remaining blocker is the
-bookkeeping-heavy combined fuel/AST structural induction.
+W498 proved the generic structural equivalence theorem under the assumptions
+that the module is call-resolved, call-reachable, and has a reachable `main`.
+Wave Loop 499 hardens that result so the theorem holds for **every**
+lowerable, combinational module, independent of reachability. The mechanism is
+to change `emitModuleFuel` to emit every function, test, and bench as a
+`VFunction`, which makes function lookup unconditional.
 
 ---
 
 ## Why now
 
-W497 removed the architectural proof-opacity blocker (`partial` mutual
-definitions) by rewriting the lowerability/combinationality predicates with
-explicit `fuel` and by introducing a fuel-based total evaluator. The generic
-theorem is now stated with the right assumptions, but its body is still a
-`sorry`. Closing it makes the Icarus-lowerable track the first reusable formal
-contract in the t27 → Verilog path.
+A theorem that needs a separate reachability proof is harder to reuse in the
+`gen-verilog` pipeline and in downstream translation-validation gates. Removing
+the assumptions now gives a clean, one-shot contract: any spec that passes the
+lowerability/combinationality classifier is bit-vector equivalent to its emitted
+shallow-Verilog module.
 
 ---
 
 ## Scope
 
-1. Prove a combined fuel/AST structural induction covering:
-   - expressions (`boolLit`, `intLit`, `identifier`, `binop`, `unop`,
-     `fieldAccess`, `index`, `call`, `structLit`, `arrayLit`) under the
-     lowerability/combinational assumptions;
-   - statements (`assign`, `varDecl`, `constDecl`, `return_ (some e)`,
-     `bareCall`) and statement lists;
-   - function inlining and module globals;
-   - the named `main` function.
-2. Discharge the integer-literal string-roundtrip side condition
-   (`String.toInt? (toString n) = some n`).
-3. (Optional, if the core proof finishes early) derive `Module.callsResolved`
-   and `Module.callsReachable` from `Module.isLowerable` plus a well-formed
-   `Env.reachable` list, or change `emitModule` to emit all functions.
-4. Keep all W495/W497 witness theorems and bridge lemmas green.
+1. Change `emitModuleFuel` to place **all** `m.functions`, `m.tests`, and
+   `m.benches` into `VModule.functions`.
+2. Update `VModule.hasPlaceholder` and the Icarus smoke-gate consumer so
+   unreachable functions do not create false-positive placeholder mismatches.
+3. Strengthen `emit_function_lookup` to need no `Env.isReachable` hypothesis.
+4. Update `module_value_equiv_statement` / `module_value_equiv_proved` in
+   `Equivalence.lean` and `Soundness.lean` to drop `callsResolved` and
+   `callsReachable`.
+5. Add an adversarial scratch spec that contains unreachable functions with
+   calls that previously would have violated `Module.callsReachable`.
+6. Keep all verification gates green and document any new residual boundary.
 
 ---
 
 ## Acceptance
 
-- `lake build Trinity.IcarusLowerable.Soundness` is green with **zero `sorry`**
-  in IcarusLowerable modules.
+- `lake build Trinity.IcarusLowerable.Soundness` green with **zero `sorry`** in
+  IcarusLowerable modules.
 - `./scripts/tri test --fast` keeps:
   - 697 / 697 non-smoke PASS.
   - 177 / 177 yosys smoke PASS, 0 baseline failures.
@@ -60,7 +57,7 @@ contract in the t27 → Verilog path.
   - 697 / 697 seal matches.
   - 0 Icarus lowerability disagreements.
 - `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
-- Close-out report `docs/reports/WAVE_LOOP_498_CLOSEOUT.md` and three W499
+- Close-out report `docs/reports/WAVE_LOOP_499_CLOSEOUT.md` and three W500
   cooperation variants are written.
 
 ---

@@ -1,3 +1,34 @@
+## 2026-07-13 — Wave Loop 498 (complete the generic structural equivalence theorem in Lean 4)
+
+### Verification (final)
+- `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in IcarusLowerable modules.
+- `./scripts/tri test --fast`: 697 / 697 non-smoke PASS, 177 / 177 yosys smoke PASS (0 baseline failures), 176 / 177 Icarus smoke PASS (1 documented baseline), 697 / 697 seal matches, 0 Icarus lowerability disagreements.
+- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
+
+### What worked
+- **Recursive AST call-context predicates** (`Expr.callContext`, `Stmt.callContextList`) are much easier to inherit for reachable function bodies than trying to derive expression-level `functionNames` subset properties manually.
+- **Freezing the emitted module at `defaultFuel`** while the evaluator fuel decreases avoids the fuel/emission mismatch that blocked earlier proof attempts: every sub-expression evaluation sees the same `VModule`.
+- **Static combinationality** (`Expr.isCombinational`, `Stmt.isCombinationalList`) is the right invariant hypothesis for a fuel induction, because structural combinationality is preserved across sub-terms regardless of the current fuel.
+- **Function-call inlining** in the `.call` case reduces to the statement-list induction hypothesis once the emitted callee is located via `emit_function_lookup` and the argument-bound valuations are shown equivalent.
+- `List.mapM` congruence is best proved via the non-tail-recursive `List.mapM'` reduction lemmas (`List.mapM'_eq_mapM`, `List.mapM'_cons`, `List.mapM_map`) because `List.mapM` itself is a tail-recursive loop.
+- `native_decide` bridge lemmas on the W495/W497 witness set stay green, confirming the model alignment while the generic proof is under construction.
+
+### What to improve
+- The theorem still assumes `Module.callsResolved`, `Module.callsReachable`, and `Module.hasUniqueFunctionNames`. W499 Variant A can remove the first two by emitting all functions.
+- **Conditionals and loops** remain outside the modeled operational semantics; a guarded big-step semantics is future work.
+- `Expr.typeOf` remains a heuristic helper; broader equivalence proofs may eventually need a valuation-based type environment.
+- The **local AOS element boundary**
+  (`w493_local_aos_element_field_not_lowerable.t27`) remains the single documented
+  Icarus baseline and the fastest way to grow the witness set.
+
+### Techniques to reuse
+- When a fuel/AST induction needs to relate source and target programs, freeze the emitted target program at the maximum fuel and let the evaluator fuel decrease.
+- Define recursive AST predicates for contexts (reachability, resolvedness) and inherit them from global module properties via structural induction on the body.
+- Use static subset predicates as invariant hypotheses, not fuel-local ones, unless the proof specifically needs the fuel budget.
+- Keep source and target evaluators as mirror images; fix mismatches on both sides or in the emitter rather than adding assumptions.
+
+---
+
 ## 2026-07-13 — Wave Loop 497 (totalize the Icarus-lowerable combinational evaluator in Lean 4)
 
 ### What worked

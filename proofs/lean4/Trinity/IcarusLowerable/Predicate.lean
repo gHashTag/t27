@@ -211,7 +211,8 @@ def Expr.isCombinationalFieldListFuel (fuel : Nat) (fs : List (String × Expr)) 
 def Stmt.isCombinationalFuel (fuel : Nat) (s : Stmt) : Bool :=
   match fuel, s with
   | 0, _ => false
-  | fuel+1, .assign lhs rhs => lhs.isCombinationalFuel fuel && rhs.isCombinationalFuel fuel
+  | fuel+1, .assign (.identifier _) rhs => rhs.isCombinationalFuel fuel
+  | fuel+1, .assign _ _ => false
   | fuel+1, .varDecl _ _ (some e) => e.isCombinationalFuel fuel
   | fuel+1, .varDecl _ _ none => false
   | fuel+1, .constDecl _ _ (some e) => e.isCombinationalFuel fuel
@@ -311,13 +312,77 @@ def Stmt.functionNamesListFuel (fuel : Nat) (ss : List Stmt) : List String :=
   | fuel+1, [] => []
   | fuel+1, s::ss => s.functionNamesFuel fuel ++ Stmt.functionNamesListFuel fuel ss
 
+/-- Helper: combinationality of a list of statements, fuel-threaded. -/
+def Stmt.isCombinationalListFuel (fuel : Nat) (ss : List Stmt) : Bool :=
+  match fuel, ss with
+  | 0, _ => false
+  | fuel+1, [] => true
+  | fuel+1, s::ss => s.isCombinationalFuel fuel && Stmt.isCombinationalListFuel fuel ss
+
 end
 
-/-- Wrapper: lowerability with the default predicate fuel. -/
+-- Structural (fuel-independent) call-name extraction.  This is the model used by
+-- the generic equivalence proof; the fuel-threaded variants above remain the
+-- implementation of the Rust lowerability classifier.
+
+mutual
+  /-- Structural function names in an expression. -/
+  @[simp]
+  def Expr.functionNames' : Expr → List String
+    | .call name args => name :: Expr.functionNamesList' args
+    | .binop _ lhs rhs => lhs.functionNames' ++ rhs.functionNames'
+    | .unop _ e => e.functionNames'
+    | .fieldAccess base _ => base.functionNames'
+    | .index base idx => base.functionNames' ++ idx.functionNames'
+    | .structLit _ fields => Expr.functionNamesFieldList' fields
+    | .arrayLit _ elems => Expr.functionNamesList' elems
+    | .len base => base.functionNames'
+    | .contains base item => base.functionNames' ++ item.functionNames'
+    | _ => []
+
+  /-- Structural function names in a list of expressions. -/
+  @[simp]
+  def Expr.functionNamesList' (es : List Expr) : List String :=
+    match es with
+    | [] => []
+    | e :: es => e.functionNames' ++ Expr.functionNamesList' es
+
+  /-- Structural function names in a list of struct-literal fields. -/
+  @[simp]
+  def Expr.functionNamesFieldList' (fs : List (String × Expr)) : List String :=
+    match fs with
+    | [] => []
+    | f :: fs => f.2.functionNames' ++ Expr.functionNamesFieldList' fs
+end
+
+/-- Structural function names in a statement. -/
+def Stmt.functionNames' : Stmt → List String
+  | .assign _ rhs => rhs.functionNames'
+  | .varDecl _ _ (some e) => e.functionNames'
+  | .varDecl _ _ none => []
+  | .constDecl _ _ (some e) => e.functionNames'
+  | .constDecl _ _ none => []
+  | .ifThenElse cond then_ else_ =>
+      cond.functionNames' ++ then_.flatMap Stmt.functionNames' ++ else_.flatMap Stmt.functionNames'
+  | .forLoop _ range body =>
+      range.functionNames' ++ body.flatMap Stmt.functionNames'
+  | .return_ (some e) => e.functionNames'
+  | .return_ none => []
+  | .bareCall e => e.functionNames'
+
+/-- Wrapper: expression lowerability with the default predicate fuel. -/
 def Expr.isLowerable (env : Env) (e : Expr) : Bool := e.isLowerableFuel predicateFuel env
+
+/-- Wrapper: structural expression function names. -/
+@[simp]
+def Expr.functionNames (e : Expr) : List String := e.functionNames'
 
 /-- Wrapper: statement lowerability with the default predicate fuel. -/
 def Stmt.isLowerable (env : Env) (s : Stmt) : Bool := s.isLowerableFuel predicateFuel env
+
+/-- Wrapper: structural statement function names. -/
+@[simp]
+def Stmt.functionNames (s : Stmt) : List String := s.functionNames'
 
 /-- A function is lowerable when reachable and its body/interface are lowerable. -/
 def Function.isLowerable (env : Env) (fn : Function) : Bool :=
@@ -339,11 +404,69 @@ def Module.isLowerable (env : Env) (m : Module) : Bool :=
 def lowerabilityVerdict (env : Env) (m : Module) : String :=
   if Module.isLowerable env m then "lowerable" else "not_lowerable"
 
-/-- Wrapper: expression combinationality with the default predicate fuel. -/
-def Expr.isCombinational (e : Expr) : Bool := e.isCombinationalFuel predicateFuel
+-- Structural (fuel-independent) combinationality predicates.  These are used
+-- as the static invariant in the generic equivalence proof; the fuel-based
+-- predicates below remain the total semantic model.
 
-/-- Wrapper: statement combinationality with the default predicate fuel. -/
-def Stmt.isCombinational (s : Stmt) : Bool := s.isCombinationalFuel predicateFuel
+mutual
+  /-- Structural combinationality for expressions. -/
+  @[simp]
+  def Expr.isCombinational' : Expr → Bool
+    | .boolLit _ => true
+    | .intLit _ => true
+    | .identifier _ => true
+    | .binop _ lhs rhs => lhs.isCombinational' && rhs.isCombinational'
+    | .unop _ e => e.isCombinational'
+    | .fieldAccess base _ => base.isCombinational'
+    | .index base idx => base.isCombinational' && idx.isCombinational'
+    | .call _ args => Expr.isCombinationalList' args
+    | .structLit _ fields => Expr.isCombinationalFieldList' fields
+    | .arrayLit _ elems => Expr.isCombinationalList' elems
+    | _ => false
+
+  /-- Structural combinationality for a list of expressions. -/
+  @[simp]
+  def Expr.isCombinationalList' : List Expr → Bool
+    | [] => true
+    | e :: es => e.isCombinational' && Expr.isCombinationalList' es
+
+  /-- Structural combinationality for a list of struct-literal fields. -/
+  @[simp]
+  def Expr.isCombinationalFieldList' : List (String × Expr) → Bool
+    | [] => true
+    | f :: fs => f.2.isCombinational' && Expr.isCombinationalFieldList' fs
+end
+
+/-- Structural combinationality for statements. -/
+@[simp]
+def Stmt.isCombinational' : Stmt → Bool
+  | .assign (.identifier _) rhs => rhs.isCombinational'
+  | .varDecl _ _ (some e) => e.isCombinational'
+  | .constDecl _ _ (some e) => e.isCombinational'
+  | .return_ (some e) => e.isCombinational'
+  | .bareCall e => e.isCombinational'
+  | _ => false
+
+/-- Wrapper: structural expression combinationality. -/
+@[simp]
+def Expr.isCombinational (e : Expr) : Bool := e.isCombinational'
+
+/-- Wrapper: combinationality of an expression list. -/
+@[simp]
+def Expr.isCombinationalList (es : List Expr) : Bool := Expr.isCombinationalList' es
+
+/-- Wrapper: combinationality of a struct-literal field list. -/
+@[simp]
+def Expr.isCombinationalFieldList (fs : List (String × Expr)) : Bool :=
+  Expr.isCombinationalFieldList' fs
+
+/-- Wrapper: structural statement combinationality. -/
+@[simp]
+def Stmt.isCombinational (s : Stmt) : Bool := s.isCombinational'
+
+/-- Wrapper: combinationality of a statement list. -/
+@[simp]
+def Stmt.isCombinationalList (ss : List Stmt) : Bool := ss.all Stmt.isCombinational'
 
 /-- True when a function body is purely combinational. -/
 def Function.isCombinational (fn : Function) : Bool :=
@@ -358,9 +481,6 @@ def Module.isCombinational (env : Env) (m : Module) : Bool :=
 
 /-- Wrapper: type inference with the default predicate fuel. -/
 def Expr.typeOf (env : Env) (m : Module) (e : Expr) : Option Ty := e.typeOfFuel predicateFuel env m
-
-/-- Wrapper: statement function names with the default predicate fuel. -/
-def Stmt.functionNames (s : Stmt) : List String := s.functionNamesFuel predicateFuel
 
 def Function.functionNames (fn : Function) : List String :=
   fn.body.flatMap Stmt.functionNames

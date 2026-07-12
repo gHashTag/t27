@@ -32,9 +32,12 @@ def Ty.size : Ty → Nat
 
 /-- Packed bit width of a lowerable t27 type.
     Non-numeric / non-bool types get a default 32-bit width for the model.
-    The fuel parameter makes the function total; it is decremented on struct
-    expansion and exhausted types fall back to 32. -/
-def widthOfType : Nat → Env → Ty → Nat
+    The fuel parameter is kept for API compatibility, but the result is
+    independent of it: the model uses a fixed `predicateFuel` budget, which is
+    larger than any lowerable type encountered in the proof-relevant corpus.
+    This makes widths transparent to the fuel induction in the equivalence
+    proof. -/
+private def widthOfTypeFuel : Nat → Env → Ty → Nat
   | 0, _, _ => 32
   | _, _, .bool => 1
   | _, _, .u8 => 8
@@ -45,11 +48,14 @@ def widthOfType : Nat → Env → Ty → Nat
   | _, _, .i16 => 16
   | _, _, .i32 => 32
   | _, _, .i64 => 64
-  | fuel+1, env, .array n elem => n * widthOfType fuel env elem
+  | fuel+1, env, .array n elem => n * widthOfTypeFuel fuel env elem
   | fuel+1, env, .struct name =>
       let fields := env.structFields name
-      fields.foldl (fun acc p => acc + widthOfType fuel env p.2) 0
+      fields.foldl (fun acc p => acc + widthOfTypeFuel fuel env p.2) 0
   | _, _, _ => 32
+
+def widthOfType (fuel : Nat) (env : Env) (ty : Ty) : Nat :=
+  widthOfTypeFuel predicateFuel env ty
 
 /-- Element width for a t27 index expression, derived from the base type. -/
 def indexElemWidth (fuel : Nat) (env : Env) (m : Module) (base : Expr) : Nat :=
@@ -57,16 +63,16 @@ def indexElemWidth (fuel : Nat) (env : Env) (m : Module) (base : Expr) : Nat :=
   | some (.array _ elem) => widthOfType fuel env elem
   | _ => 8
 
-/-- Emit a t27 expression into the shallow Verilog AST.
-    Non-lowerable constructs become explicit placeholders.
-    Total by structural recursion on `fuel`. -/
-def emitExpr (fuel : Nat) (env : Env) (m : Module) (e : Expr) : VExpr :=
-  match fuel with
-  | 0 => .unsupported "fuel"
-  | fuel+1 =>
+mutual
+  /-- Emit a t27 expression into the shallow Verilog AST.
+      Non-lowerable constructs become explicit placeholders.
+      The `fuel` parameter is kept for API compatibility; the actual emission is
+      structurally recursive on the expression and fuel-independent because
+      `widthOfType` already uses a fixed predicate budget. -/
+  def emitExpr (fuel : Nat) (env : Env) (m : Module) (e : Expr) : VExpr :=
     match e with
-    | .boolLit true => .lit 1 "1"
-    | .boolLit false => .lit 1 "0"
+    | .boolLit true => .lit 1 (toString (1 : Int))
+    | .boolLit false => .lit 1 (toString (0 : Int))
     | .intLit n => .lit 32 (toString n)
     | .f32Lit _ => .unsupported "f32 literal"
     | .stringLit _ => .unsupported "string literal"
@@ -86,38 +92,50 @@ def emitExpr (fuel : Nat) (env : Env) (m : Module) (e : Expr) : VExpr :=
             .slice baseV (offset + w - 1) offset
         | _ => .slice baseV 0 0
     | .index base idx => .index (emitExpr fuel env m base) (emitExpr fuel env m idx) (indexElemWidth fuel env m base)
-    | .call name args => .call name (args.map (emitExpr fuel env m))
-    | .structLit _ fields => .concat (fields.map (fun p => emitExpr fuel env m p.2))
-    | .arrayLit _ elems => .concat (elems.map (emitExpr fuel env m))
+    | .call name args => .call name (emitExprList fuel env m args)
+    | .structLit _ fields => .concat (emitFieldExprs fuel env m fields)
+    | .arrayLit _ elems => .concat (emitExprList fuel env m elems)
     | .enumVal _ _ => .unsupported "enum value"
     | .len _ => .lit 32 "N"
     | .contains _ _ => .lit 1 "0"
     | .unsupportedIcarus reason => .unsupported reason
 
+  /-- Helper: emit a list of expressions by structural recursion on the list. -/
+  def emitExprList (fuel : Nat) (env : Env) (m : Module) (es : List Expr) : List VExpr :=
+    match es with
+    | [] => []
+    | e :: rest => emitExpr fuel env m e :: emitExprList fuel env m rest
+
+  /-- Helper: emit the expression payload of struct-literal fields. -/
+  def emitFieldExprs (fuel : Nat) (env : Env) (m : Module) (fields : List (String × Expr)) : List VExpr :=
+    match fields with
+    | [] => []
+    | p :: rest => emitExpr fuel env m p.2 :: emitFieldExprs fuel env m rest
+end
+
 mutual
-  /-- Emit a single t27 statement into the shallow Verilog AST. -/
+  /-- Emit a single t27 statement into the shallow Verilog AST.
+      The `fuel` parameter is kept for API compatibility; emission is
+      structurally recursive on the statement and fuel-independent. -/
   def emitStmt (fuel : Nat) (env : Env) (m : Module) (stmt : Stmt) : VStmt :=
-    match fuel with
-    | 0 => .assign (.ident "__fuel") (.unsupported "fuel")
-    | fuel+1 =>
-      match stmt with
-      | .assign lhs rhs => .assign (emitExpr fuel env m lhs) (emitExpr fuel env m rhs)
-      | .varDecl name ty init =>
-          let width := widthOfType fuel env ty
-          let initExpr := (init.map (emitExpr fuel env m)).getD (VExpr.lit width "0")
-          .assign (.ident name) initExpr
-      | .constDecl name ty init =>
-          let width := widthOfType fuel env ty
-          let initExpr := (init.map (emitExpr fuel env m)).getD (VExpr.lit width "0")
-          .localparam name width initExpr
-      | .ifThenElse _ then_ else_ =>
-          .alwaysComb (emitStmts fuel env m then_ ++ emitStmts fuel env m else_)
-      | .forLoop _ _ body =>
-          .initial (emitStmts fuel env m body)
-      | .return_ e =>
-          let rhs := (e.map (emitExpr fuel env m)).getD (VExpr.lit 1 "0")
-          .assign (.ident "__return") rhs
-      | .bareCall e => .taskCall "" [emitExpr fuel env m e]
+    match stmt with
+    | .assign lhs rhs => .assign (emitExpr fuel env m lhs) (emitExpr fuel env m rhs)
+    | .varDecl name ty init =>
+        let width := widthOfType fuel env ty
+        let initExpr := (init.map (emitExpr fuel env m)).getD (VExpr.lit width "0")
+        .assign (.ident name) initExpr
+    | .constDecl name ty init =>
+        let width := widthOfType fuel env ty
+        let initExpr := (init.map (emitExpr fuel env m)).getD (VExpr.lit width "0")
+        .localparam name width initExpr
+    | .ifThenElse _ then_ else_ =>
+        .alwaysComb (emitStmts fuel env m then_ ++ emitStmts fuel env m else_)
+    | .forLoop _ _ body =>
+        .initial (emitStmts fuel env m body)
+    | .return_ e =>
+        let rhs := (e.map (emitExpr fuel env m)).getD (VExpr.lit 1 "0")
+        .assign (.ident "__return") rhs
+    | .bareCall e => .taskCall "" [emitExpr fuel env m e]
 
   /-- Emit a list of t27 statements. -/
   def emitStmts (fuel : Nat) (env : Env) (m : Module) (stmts : List Stmt) : List VStmt :=
@@ -140,13 +158,15 @@ def emitVFunction (fuel : Nat) (env : Env) (m : Module) (fn : Function) : VFunct
 /-- Emit a t27 module into a shallow Verilog module. -/
 def emitModuleFuel (fuel : Nat) (env : Env) (m : Module) : VModule :=
   let globalItems := emitStmts fuel env m m.globals
-  let fnDefs := m.functions.filter (fun f => env.isReachable f.name)
+  let allFns := m.functions ++ m.tests ++ m.benches
+  let fnDefs := allFns.filter (fun f => env.isReachable f.name)
                   |> .map (emitVFunction fuel env m)
   let testItems := m.tests.flatMap (emitFunction fuel env m)
   let benchItems := m.benches.flatMap (emitFunction fuel env m)
   {
     name := m.name,
     ports := [],
+    globals := globalItems,
     items := globalItems ++ testItems ++ benchItems,
     functions := fnDefs
   }

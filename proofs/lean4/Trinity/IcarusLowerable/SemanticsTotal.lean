@@ -26,7 +26,7 @@ def structFieldOffsetTotal (fuel : Nat) (env : Env) (sname : String) (field : St
 def structFieldWidthTotal (fuel : Nat) (env : Env) (sname : String) (field : String) : Nat :=
   match (env.structFields sname).find? (fun p => p.1 == field) with
   | some ty => widthOfType fuel env ty.2
-  | none => 0
+  | none => 1
 
 mutual
   /-- Total t27 expression evaluator (fuel-based). -/
@@ -52,8 +52,9 @@ mutual
               let v <- evalExprTotal fuel env m val base
               let off := structFieldOffsetTotal fuel env sname field
               let w := structFieldWidthTotal fuel env sname field
-              if _h : w > 0 && off + w - 1 < v.width then
-                some ⟨w, BitVec.extractLsb' off w v.bits⟩
+              let hi := off + w - 1
+              if _h : off ≤ hi && hi < v.width then
+                some ⟨hi - off + 1, BitVec.extractLsb' off (hi - off + 1) v.bits⟩
               else
                 none
           | _ => do
@@ -73,7 +74,12 @@ mutual
             some ⟨elemW, BitVec.extractLsb' (n * elemW) elemW b.bits⟩
           else
             none
-      | .call name args => evalCallTotal fuel env m val name args
+      | .call name args =>
+          match m.findFunction name with
+          | some fn => do
+              let argVals <- args.mapM (evalExprTotal fuel env m val)
+              evalFunctionTotal fuel env m fn argVals val
+          | none => none
       | .structLit _ fields => do
           let vs <- fields.mapM (fun p => evalExprTotal fuel env m val p.2)
           some (Value.concatList vs)
@@ -81,17 +87,6 @@ mutual
           let vs <- elems.mapM (evalExprTotal fuel env m val)
           some (Value.concatList vs)
       | _ => none
-
-  /-- Total function-call evaluator. -/
-  def evalCallTotal (fuel : Nat) (env : Env) (m : Module) (val : Valuation) (name : String) (args : List Expr) : Option Value :=
-    match fuel with
-    | 0 => none
-    | fuel+1 =>
-      match m.findFunction name with
-      | some fn => do
-          let argVals <- args.mapM (evalExprTotal fuel env m val)
-          evalFunctionTotal fuel env m fn argVals val
-      | none => none
 
   /-- Total function-body evaluator. -/
   def evalFunctionTotal (fuel : Nat) (env : Env) (m : Module) (fn : Function) (argVals : List Value) (base : Valuation) : Option Value :=
@@ -158,13 +153,9 @@ mutual
     | fuel+1 =>
       match e with
       | .lit w s =>
-          match s with
-          | "1" => some ⟨w, BitVec.ofNat w 1⟩
-          | "0" => some ⟨w, BitVec.ofNat w 0⟩
-          | _ =>
-              match String.toInt? s with
-              | some n => some ⟨w, BitVec.ofInt w n⟩
-              | none => none
+          match String.toInt? s with
+          | some n => some ⟨w, BitVec.ofInt w n⟩
+          | none => none
       | .ident name => val name
       | .binop op lhs rhs => do
           let l <- evalVExprTotal fuel env vm val lhs
@@ -242,7 +233,7 @@ end
 
 /-- Total shallow-Verilog module evaluator. -/
 def evalVModuleTotal (fuel : Nat) (env : Env) (vm : VModule) (fnName : String) : Option Value :=
-  match evalVStmtsTotal fuel env vm (fun _ => none) vm.items with
+  match evalVStmtsTotal fuel env vm (fun _ => none) vm.globals with
   | some initVal =>
       match vm.functions.find? (fun f => f.name == fnName) with
       | some fn => evalVFunctionTotal fuel env vm fn [] initVal

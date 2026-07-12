@@ -45,10 +45,14 @@ structure VFunction where
   body : List VStmt
   deriving Repr, BEq, Nonempty
 
-/-- A Verilog module. Ports are (name, width, direction). -/
+/-- A Verilog module. Ports are (name, width, direction).
+    `globals` are module-level declarations that are evaluated before any named
+    function is called; `items` are test/bench/initial blocks that do not affect
+    function evaluation in this shallow model. -/
 structure VModule where
   name : String
   ports : List (String × Nat × String)
+  globals : List VStmt
   items : List VStmt
   functions : List VFunction
   deriving Repr, BEq, Nonempty
@@ -88,7 +92,8 @@ def VFunction.hasPlaceholder (f : VFunction) : Bool :=
 
 /-- True when the module contains an unsupported or todo placeholder. -/
 def VModule.hasPlaceholder (v : VModule) : Bool :=
-  VStmt.hasPlaceholder.stmtListHasPlaceholder v.items
+  VStmt.hasPlaceholder.stmtListHasPlaceholder v.globals
+  || VStmt.hasPlaceholder.stmtListHasPlaceholder v.items
   || v.functions.any (fun f => f.hasPlaceholder)
 
 end Trinity.IcarusLowerable

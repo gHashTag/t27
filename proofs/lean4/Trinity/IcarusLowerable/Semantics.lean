@@ -38,7 +38,7 @@ structure Value where
   deriving BEq, Repr, DecidableEq
 
 /-- Look up a variable in a valuation. -/
-def Valuation := String → Option Value
+abbrev Valuation := String → Option Value
 
 /-- Two valuations are equivalent when they agree on every identifier. -/
 def Valuation.equiv (v1 v2 : Valuation) : Prop :=
@@ -301,10 +301,11 @@ mutual
     stmts.foldlM (fun acc s => evalVStmt env vm acc s) val
 end
 
-/-- Evaluate a shallow Verilog module by running its items (globals / test
-    initial blocks) and then the named function. -/
+/-- Evaluate a shallow Verilog module by running its globals and then the named
+    function. Test/bench items are not evaluated before a function call in this
+    model, matching `evalModuleFunction` on the t27 side. -/
 def evalVModule (env : Env) (vm : VModule) (fnName : String) : Option Value :=
-  match evalVStmts env vm (fun _ => none) vm.items with
+  match evalVStmts env vm (fun _ => none) vm.globals with
   | some initVal =>
       match vm.functions.find? (fun f => f.name == fnName) with
       | some fn => evalVFunction env vm fn [] initVal
