@@ -359,12 +359,40 @@ theorem w503_for_accumulator_lowerable :
   Module.isLowerable w503ForAccumulatorEnv w503ForAccumulatorModule := by
   native_decide
 
-/-- W503-B: direct value preservation for `sum_three`.  The generic theorem does
-    not apply because the body contains a `forLoop`, but the total evaluators on
+/-- W503-B: direct value preservation for `sum_three`.  The total evaluators on
     both sides agree by computation. -/
 theorem w503_for_accumulator_sum_three_value_equiv :
   evalModuleFunctionTotal defaultFuel w503ForAccumulatorEnv w503ForAccumulatorModule "sum_three" [] =
   evalVModuleTotal defaultFuel w503ForAccumulatorEnv (emitModule w503ForAccumulatorEnv w503ForAccumulatorModule) "sum_three" [] := by
   native_decide
+
+/-- W504-A: the bounded for-loop with parameter witness is lowerable. -/
+theorem w504_for_sum_lowerable :
+  Module.isLowerable w504ForSumEnv w504ForSumModule := by
+  native_decide
+
+/-- W504-A: the bounded for-loop with parameter witness is sequential. -/
+theorem w504_for_sum_sequential :
+  Module.isSequential w504ForSumEnv w504ForSumModule := by
+  native_decide
+
+/-- W504-A: generic sequential value preservation for `sum_n(5)`.  This is the
+    first witness whose equivalence follows directly from `module_value_equiv_proved_sequential`
+    rather than from a native-decide computation of the full loop. -/
+theorem w504_for_sum_value_equiv :
+  evalModuleFunctionTotal defaultFuel w504ForSumEnv w504ForSumModule "sum_n" [⟨32, BitVec.ofNat 32 5⟩] =
+  evalVModuleTotal defaultFuel w504ForSumEnv (emitModule w504ForSumEnv w504ForSumModule) "sum_n" [⟨32, BitVec.ofNat 32 5⟩] := by
+  have hlowerable : Module.isLowerable w504ForSumEnv w504ForSumModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w504ForSumModule := by
+    simp [Module.hasUniqueFunctionNames, w504ForSumModule, w504ForSumSumN]
+  have hseq : Module.isSequential w504ForSumEnv w504ForSumModule := by native_decide
+  have hctx : Module.callContext w504ForSumEnv w504ForSumModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w504ForSumEnv, w504ForSumModule, w504ForSumSumN]
+  have hfind : w504ForSumModule.findFunction "sum_n" = some w504ForSumSumN := by
+    simp [Module.findFunction, w504ForSumModule, w504ForSumSumN]
+  have hhost : ¬ Env.isHostOnly w504ForSumEnv w504ForSumSumN.name := by
+    simp [Env.isHostOnly, w504ForSumEnv, w504ForSumSumN]
+  exact module_value_equiv_proved_sequential w504ForSumEnv w504ForSumModule
+    hlowerable hunique hseq hctx "sum_n" w504ForSumSumN [⟨32, BitVec.ofNat 32 5⟩] hfind hhost
 
 end Trinity.IcarusLowerable

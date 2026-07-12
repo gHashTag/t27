@@ -1,0 +1,11 @@
+pub fn sum_n(n : u32) -> u32 {
+    var acc : u32 = 0;
+    for i in 0..n {
+        acc = acc + i;
+    }
+    return acc;
+}
+
+test sum_n_test {
+    assert_eq(sum_n(5), 10);
+}

@@ -502,6 +502,133 @@ def Module.isCombinational (env : Env) (m : Module) : Bool :=
   m.globals.all Stmt.isCombinational
   && m.functions.all (Function.isCombinational env)
 
+-- Structural sequential predicates: same as combinational, but bounded
+-- `forLoop` is allowed when its range and body are sequential.
+
+mutual
+  /-- Structural sequentiality for statements. -/
+  @[simp]
+  def Stmt.isSequential' : Stmt → Bool
+    | .assign (.identifier _) rhs => rhs.isCombinational'
+    | .varDecl _ _ (some e) => e.isCombinational'
+    | .constDecl _ _ (some e) => e.isCombinational'
+    | .ifThenElse cond then_ else_ =>
+        cond.isCombinational' && Stmt.isSequentialList' then_ && Stmt.isSequentialList' else_
+    | .forLoop _ range body =>
+        range.isCombinational' && Stmt.isSequentialList' body
+    | .return_ (some e) => e.isCombinational'
+    | .bareCall e => e.isCombinational'
+    | _ => false
+
+  /-- Structural sequentiality for a list of statements. -/
+  @[simp]
+  def Stmt.isSequentialList' : List Stmt → Bool
+    | [] => true
+    | s :: ss => s.isSequential' && Stmt.isSequentialList' ss
+end
+
+/-- Wrapper: structural statement sequentiality. -/
+@[simp]
+def Stmt.isSequential (s : Stmt) : Bool := s.isSequential'
+
+/-- Wrapper: sequentiality of a statement list. -/
+@[simp]
+def Stmt.isSequentialList (ss : List Stmt) : Bool := ss.all Stmt.isSequential'
+
+/-- True when a function body is sequential (combinational or bounded-loop). -/
+def Function.isSequential (env : Env) (fn : Function) : Bool :=
+  if Env.isHostOnly env fn.name then true
+  else fn.body.all Stmt.isSequential
+
+/-- True when a module is sequential: globals and emitted functions contain only
+    combinational or bounded-loop statements. -/
+def Module.isSequential (env : Env) (m : Module) : Bool :=
+  m.globals.all Stmt.isSequential
+  && m.functions.all (Function.isSequential env)
+
+/-- Combinational statement lists (primed form) are also sequential. -/
+@[simp]
+theorem Stmt.isCombinationalList_implies_isSequentialList' :
+    ∀ (ss : List Stmt), Stmt.isCombinationalList' ss = true → Stmt.isSequentialList' ss = true
+  | [], _ => rfl
+  | s :: ss, h => by
+      have h1 : s.isCombinational' = true := by simp at h; exact h.1
+      have h2 : Stmt.isCombinationalList' ss = true := by simp at h; exact h.2
+      have hs : s.isSequential' = true := by
+        cases s with
+        | assign lhs rhs =>
+            cases lhs <;> simp at h1 ⊢ <;> try { exact h1 } <;> contradiction
+        | varDecl _ _ init =>
+            cases init <;> simp at h1 ⊢ <;> try { exact h1 } <;> contradiction
+        | constDecl _ _ init =>
+            cases init <;> simp at h1 ⊢ <;> try { exact h1 } <;> contradiction
+        | ifThenElse cond then_ else_ =>
+            simp at h1 ⊢
+            have h1_1 := h1.1.1
+            have h1_2 := h1.1.2
+            have h1_3 := h1.2
+            constructor
+            · constructor
+              · exact h1_1
+              · exact Stmt.isCombinationalList_implies_isSequentialList' then_ h1_2
+            · exact Stmt.isCombinationalList_implies_isSequentialList' else_ h1_3
+        | forLoop _ _ _ =>
+            simp at h1
+            all_goals contradiction
+        | return_ e =>
+            cases e <;> simp at h1 ⊢ <;> try { exact h1 } <;> contradiction
+        | bareCall e =>
+            simp at h1 ⊢
+            exact h1
+      simp [hs, Stmt.isCombinationalList_implies_isSequentialList' ss h2]
+termination_by ss => sizeOf ss
+
+/-- Combinational statements are also sequential. -/
+@[simp]
+theorem Stmt.isCombinational_implies_isSequential (s : Stmt)
+    (h : Stmt.isCombinational s = true) : Stmt.isSequential s = true := by
+  have h_list : Stmt.isSequentialList' [s] = true := by
+    apply Stmt.isCombinationalList_implies_isSequentialList'
+    simp [Stmt.isCombinational] at h ⊢
+    exact h
+  simp at h_list ⊢
+  exact h_list
+
+/-- Combinational statement lists (wrapper form) are also sequential. -/
+@[simp]
+theorem Stmt.isCombinationalList_implies_isSequentialList (ss : List Stmt)
+    (h : Stmt.isCombinationalList ss = true) : Stmt.isSequentialList ss = true := by
+  simp only [Stmt.isCombinationalList, Stmt.isSequentialList, List.all_eq_true] at h ⊢
+  intro s hs
+  exact Stmt.isCombinational_implies_isSequential s (h s hs)
+
+/-- Combinational functions are also sequential. -/
+@[simp]
+theorem Function.isCombinational_implies_isSequential (env : Env) (fn : Function)
+    (h : Function.isCombinational env fn = true) : Function.isSequential env fn = true := by
+  simp only [Function.isCombinational, Function.isSequential] at h ⊢
+  by_cases hhost : Env.isHostOnly env fn.name = true
+  · simp only [if_pos hhost] at h ⊢
+  · simp only [if_neg hhost] at h ⊢
+    simp only [List.all_eq_true] at h ⊢
+    intro s hs
+    apply Stmt.isCombinational_implies_isSequential
+    exact h s hs
+
+/-- Combinational modules are also sequential. -/
+@[simp]
+theorem Module.isCombinational_implies_isSequential (env : Env) (m : Module)
+    (h : Module.isCombinational env m = true) : Module.isSequential env m = true := by
+  simp only [Module.isCombinational, Module.isSequential, Bool.and_eq_true,
+    List.all_eq_true] at h ⊢
+  constructor
+  · intro s hs
+    apply Stmt.isCombinational_implies_isSequential
+    exact h.1 s hs
+  · intro fn hfn
+    apply Function.isCombinational_implies_isSequential
+    exact h.2 fn hfn
+
 /-- Wrapper: type inference with the default predicate fuel. -/
 def Expr.typeOf (env : Env) (m : Module) (e : Expr) : Option Ty := e.typeOfFuel predicateFuel env m
 

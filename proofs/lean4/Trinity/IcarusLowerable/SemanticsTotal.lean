@@ -99,7 +99,9 @@ mutual
       let final <- evalStmtsTotal fuel env m init fn.body
       final "__return"
 
-  /-- Helper: execute a t27 for-loop body `n` times, binding `var` to `i`, `i+1`, ... -/
+  /-- Helper: execute a t27 for-loop body `n` times, binding `var` to `i`, `i+1`, ...
+      W504: each iteration consumes one fuel unit so that the `all_equiv`
+      induction hypothesis at the smaller fuel covers the loop body. -/
   def evalForLoopTotal (fuel : Nat) (env : Env) (m : Module) (val : Valuation) (var : String) (i : Nat) (n : Nat) (body : List Stmt) : Option Valuation :=
     match fuel with
     | 0 => none
@@ -108,8 +110,8 @@ mutual
       | 0 => some val
       | n+1 => do
           let loopVal := fun x => if x == var then some ⟨32, BitVec.ofNat 32 i⟩ else val x
-          let val' <- evalStmtsTotal (fuel + 1) env m loopVal body
-          evalForLoopTotal (fuel + 1) env m val' var (i + 1) n body
+          let val' <- evalStmtsTotal fuel env m loopVal body
+          evalForLoopTotal fuel env m val' var (i + 1) n body
 
   /-- Total statement evaluator. -/
   def evalStmtTotal (fuel : Nat) (env : Env) (m : Module) (val : Valuation) (stmt : Stmt) : Option Valuation :=
@@ -219,7 +221,9 @@ mutual
       let final <- evalVStmtsTotal fuel env vm init fn.body
       final "__return"
 
-  /-- Helper: execute a shallow-Verilog for-loop body `n` times, binding `var` to `i`, `i+1`, ... -/
+  /-- Helper: execute a shallow-Verilog for-loop body `n` times, binding `var` to `i`, `i+1`, ...
+      W504: each iteration consumes one fuel unit so that the `all_equiv`
+      induction hypothesis at the smaller fuel covers the loop body. -/
   def evalVForLoopTotal (fuel : Nat) (env : Env) (vm : VModule) (val : Valuation) (var : String) (i : Nat) (n : Nat) (body : List VStmt) : Option Valuation :=
     match fuel with
     | 0 => none
@@ -228,8 +232,8 @@ mutual
       | 0 => some val
       | n+1 => do
           let loopVal := fun x => if x == var then some ⟨32, BitVec.ofNat 32 i⟩ else val x
-          let val' <- evalVStmtsTotal (fuel + 1) env vm loopVal body
-          evalVForLoopTotal (fuel + 1) env vm val' var (i + 1) n body
+          let val' <- evalVStmtsTotal fuel env vm loopVal body
+          evalVForLoopTotal fuel env vm val' var (i + 1) n body
 
   /-- Total shallow-Verilog statement evaluator. -/
   def evalVStmtTotal (fuel : Nat) (env : Env) (vm : VModule) (val : Valuation) (stmt : VStmt) : Option Valuation :=

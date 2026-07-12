@@ -641,4 +641,36 @@ def w503ForAccumulatorModule : Module := {
   benches := []
 }
 
+/-- W504: environment for the bounded for-loop with parameter witness. -/
+def w504ForSumEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["sum_n"]
+}
+
+def w504ForSumSumN : Function := {
+  name := "sum_n",
+  params := [("n", .u32)],
+  ret := some .u32,
+  body := [
+    .varDecl "acc" .u32 (some (.intLit 0)),
+    .forLoop "i" (.identifier "n") [
+      .assign (.identifier "acc") (.binop "+" (.identifier "acc") (.identifier "i"))
+    ],
+    .return_ (some (.identifier "acc"))
+  ]
+}
+
+def w504ForSumModule : Module := {
+  name := "w504_for_sum",
+  imports := [],
+  globals := [],
+  functions := [w504ForSumSumN],
+  tests := [],
+  benches := []
+}
+
 end Trinity.IcarusLowerable

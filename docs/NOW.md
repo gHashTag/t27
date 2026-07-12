@@ -1,24 +1,73 @@
-# NOW — Wave Loop 504 in progress (2026-07-12)
+# NOW — Wave Loop 505 in progress (2026-07-07)
 
-**Last updated:** 2026-07-12
+**Last updated:** 2026-07-07
 
 ---
 
-## Wave Loop 504 — Next step for Icarus sequential equivalence (in progress)
+## Wave Loop 505 — Harden Icarus sequential equivalence boundary (in progress)
 
-- Branch: `wave-loop-504` (to create)
-- Issue: #1473 (placeholder — GH_TOKEN unavailable)
-- Cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W504_2026-07-12.md`
+- Branch: `wave-loop-505` (to create)
+- Issue: #1474 (placeholder — GH_TOKEN unavailable)
+- Cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W505_2026-07-07.md`
 
 ### Goal
 
-Choose among the three W504 cooperation variants and land the next extension of
-the Icarus equivalence proof.  Likely priorities:
+Choose among the three W505 cooperation variants and continue the Icarus
+structural-equivalence line after W504.  Likely priorities:
 
-1. Close the `forLoop` gap in the generic equivalence theorem (Variant A).
-2. Harden the new sequential-construct boundary with adversarial witnesses
-   (Variant B).
-3. Expand the modeled subset to `while` and `switch` (Variant C).
+1. Stress the new sequential `if` / `for` boundary with adversarial witnesses
+   (Variant A).
+2. Model `switch` statements for enum / trit dispatch (Variant B).
+3. Model bounded `while` loops and unify the loop invariant (Variant C).
+
+---
+
+## Wave Loop 504 — Extend generic Icarus equivalence theorem to bounded `forLoop` (closed)
+
+- Branch: `wave-loop-504`
+- Issue: #1473
+- Plan: `.claude/plans/wave-loop-504.md`
+- Report: `docs/reports/WAVE_LOOP_504_CLOSEOUT.md`
+- Cooperation W505: `docs/reports/FPGA_LOOP_COOPERATION_W505_2026-07-07.md`
+
+### Deliverables
+
+- Defined the **sequential** subset: combinational statements plus bounded
+  `forLoop` whose range and body are sequential.
+- Proved combinationality implies sequentiality for statements, functions, and
+  modules in `Predicate.lean`.
+- Aligned loop fuel consumption so each iteration evaluates the body and
+  recurses at the smaller fuel in `SemanticsTotal.lean`.
+- Generalized `all_equiv` in `Equivalence.lean` to sequential modules and added a
+  dedicated `P_forLoop` predicate; proved the `Stmt.forLoop` case.
+- Added sequential main theorems `module_value_equiv_proved_sequential` and
+  `module_value_equiv_main_sequential`; kept combinational corollaries as
+  wrappers.
+- Added scratch witness:
+  - `specs/scratch/w504_for_sum.t27` — bounded `for` with a parameter `n`.
+- Added W504 witness environments/modules in `Lemmas.lean` and lowerability /
+  sequential / value-preservation theorems in `Soundness.lean`.
+
+### Verification
+
+- `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in
+  IcarusLowerable modules.
+- `./scripts/tri verify --lean-lowerable`: passed, 259 lowerable specs, 0
+  disagreements.
+- `./scripts/tri test`:
+  - 706 / 706 non-smoke PASS.
+  - 186 / 186 yosys smoke PASS, 0 baseline failures.
+  - 186 / 186 Icarus smoke PASS, 0 documented baseline failures.
+  - 706 / 706 seal matches.
+  - FPGA board-less smoke gate / replay: OK.
+  - Standalone lake-package build: OK.
+- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
+
+### Residual boundaries
+
+- `while` and `switch` remain outside the modeled operational semantics.
+- Array-typed direct fields still use memory-mode lowering.
+- The theorem still requires the chosen function to be emitted (non-host-only).
 
 ---
 
@@ -63,8 +112,10 @@ the Icarus equivalence proof.  Likely priorities:
 ### Residual boundaries
 
 - Bounded `forLoop` is modeled and lowerable, but not yet covered by the generic
-  `module_value_equiv_statement` theorem.
+  `module_value_equiv_statement` theorem (closed by W504).
 - `while` and `switch` remain outside the modeled operational semantics.
+- Array-typed direct fields still use memory-mode lowering.
+- The theorem still requires the chosen function to be emitted (non-host-only).
 
 ---
 

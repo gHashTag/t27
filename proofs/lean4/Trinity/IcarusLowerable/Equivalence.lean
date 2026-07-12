@@ -774,6 +774,78 @@ theorem isCombinationalList_tail {s ss}
   simp [Stmt.isCombinationalList] at h ⊢
   exact h.2
 
+/-- Wrapper and primed sequential list forms coincide. -/
+theorem isSequentialList'_eq (ss : List Stmt) :
+    Stmt.isSequentialList' ss = Stmt.isSequentialList ss := by
+  induction ss with
+  | nil => simp [Stmt.isSequentialList', Stmt.isSequentialList]
+  | cons s ss ih =>
+      simp [Stmt.isSequentialList', Stmt.isSequentialList, ih]
+
+theorem isSequential_assign {lhs rhs}
+    (h : Stmt.isSequential (Stmt.assign lhs rhs)) :
+    ∃ name, lhs = Expr.identifier name ∧ Expr.isCombinational rhs := by
+  cases lhs with
+  | identifier name =>
+      use name
+      simp [Stmt.isSequential] at h ⊢
+      exact h
+  | _ =>
+      simp [Stmt.isSequential] at h
+      all_goals contradiction
+
+theorem isSequential_varDecl {name ty e}
+    (h : Stmt.isSequential (Stmt.varDecl name ty (some e))) :
+    Expr.isCombinational e := by
+  simp [Stmt.isSequential] at h ⊢
+  exact h
+
+theorem isSequential_constDecl {name ty e}
+    (h : Stmt.isSequential (Stmt.constDecl name ty (some e))) :
+    Expr.isCombinational e := by
+  simp [Stmt.isSequential] at h ⊢
+  exact h
+
+theorem isSequential_return {e}
+    (h : Stmt.isSequential (Stmt.return_ (some e))) :
+    Expr.isCombinational e := by
+  simp [Stmt.isSequential] at h ⊢
+  exact h
+
+theorem isSequential_bareCall {e}
+    (h : Stmt.isSequential (Stmt.bareCall e)) :
+    Expr.isCombinational e := by
+  simp [Stmt.isSequential] at h ⊢
+  exact h
+
+theorem isSequential_ifThenElse {cond then_ else_}
+    (h : Stmt.isSequential (Stmt.ifThenElse cond then_ else_)) :
+    Expr.isCombinational cond
+    ∧ Stmt.isSequentialList then_
+    ∧ Stmt.isSequentialList else_ := by
+  simp only [Stmt.isSequential, Expr.isCombinational, Stmt.isSequential', Stmt.isSequentialList,
+    isSequentialList'_eq, Bool.and_eq_true, and_assoc] at h ⊢
+  exact h
+
+theorem isSequential_forLoop {var range body}
+    (h : Stmt.isSequential (Stmt.forLoop var range body)) :
+    Expr.isCombinational range ∧ Stmt.isSequentialList body := by
+  simp only [Stmt.isSequential, Expr.isCombinational, Stmt.isSequential', Stmt.isSequentialList,
+    isSequentialList'_eq, Bool.and_eq_true] at h ⊢
+  exact h
+
+theorem isSequentialList_head {s ss}
+    (h : Stmt.isSequentialList (s :: ss)) :
+    Stmt.isSequential s := by
+  simp [Stmt.isSequentialList, Stmt.isSequential] at h ⊢
+  exact h.1
+
+theorem isSequentialList_tail {s ss}
+    (h : Stmt.isSequentialList (s :: ss)) :
+    Stmt.isSequentialList ss := by
+  simp [Stmt.isSequentialList] at h ⊢
+  exact h.2
+
 end Stmt
 
 /-- If a statement occurs in a function body, every name in the statement also
@@ -799,6 +871,21 @@ theorem Module.isCombinational_function_body {env : Env} {m : Module} {fn : Func
   specialize h_funcs fn hfn
   rw [if_neg hhost] at h_funcs
   simp only [Stmt.isCombinational, List.all_iff] at h_funcs ⊢
+  exact h_funcs
+
+/-- `Module.isSequential` implies that any emitted (non-host-only) function body
+    in the module is sequential. -/
+theorem Module.isSequential_function_body {env : Env} {m : Module} {fn : Function}
+    (hseq : Module.isSequential env m)
+    (hfn : fn ∈ m.functions)
+    (hhost : ¬ Env.isHostOnly env fn.name) :
+    Stmt.isSequentialList fn.body := by
+  simp only [Module.isSequential, Function.isSequential, Stmt.isSequentialList,
+    Stmt.isSequential, Bool.and_eq_true, List.all_iff] at hseq ⊢
+  have h_funcs := hseq.2
+  specialize h_funcs fn hfn
+  rw [if_neg hhost] at h_funcs
+  simp only [Stmt.isSequential, List.all_iff] at h_funcs ⊢
   exact h_funcs
 
 /-- Parameter lookup on the t27 side and on the emitted Verilog side agree:
@@ -1335,7 +1422,6 @@ section EquivProof
 
 variable (env₀ : Env) (m₀ : Module)
 variable (vm0 : VModule)
-variable (hcomb₀ : Module.isCombinational env₀ m₀)
 variable (hctx₀ : Module.callContext env₀ m₀)
 variable (hunique₀ : Module.hasUniqueFunctionNames m₀)
 
@@ -1353,7 +1439,7 @@ def P_stmt (fuel : Nat) : Prop :=
   ∀ (val : Valuation) (s : Stmt) (vs : VStmt)
     (heq : emitStmt defaultFuel env₀ m₀ s = vs)
     (hcc : Stmt.callContext env₀ m₀ s)
-    (hcomb : Stmt.isCombinational s)
+    (hseq : Stmt.isSequential s)
     (hval : Valuation.equiv val val),
     evalStmtTotal fuel env₀ m₀ val s = evalVStmtTotal fuel env₀ vm0 val vs
 
@@ -1362,7 +1448,7 @@ def P_stmts (fuel : Nat) : Prop :=
   ∀ (val : Valuation) (ss : List Stmt) (vss : List VStmt)
     (heq : emitStmts defaultFuel env₀ m₀ ss = vss)
     (hcc : Stmt.callContextList env₀ m₀ ss)
-    (hcomb : Stmt.isCombinationalList ss)
+    (hseq : Stmt.isSequentialList ss)
     (hval : Valuation.equiv val val),
     evalStmtsTotal fuel env₀ m₀ val ss = evalVStmtsTotal fuel env₀ vm0 val vss
 
@@ -1371,45 +1457,64 @@ def P_function (fuel : Nat) : Prop :=
   ∀ (base : Valuation) (fn : Function) (vfn : VFunction) (argVals : List Value)
     (heq : emitVFunction defaultFuel env₀ m₀ fn = vfn)
     (hcc : Stmt.callContextList env₀ m₀ fn.body)
-    (hcomb : Stmt.isCombinationalList fn.body)
+    (hseq : Stmt.isSequentialList fn.body)
     (hbase : Valuation.equiv base base),
     evalFunctionTotal fuel env₀ m₀ fn argVals base =
     evalVFunctionTotal fuel env₀ vm0 vfn argVals base
+
+/-- Forward-simulation predicate for bounded `forLoop` bodies at fuel `fuel`.
+    The loop is treated as a separate predicate because it recurses on `n`,
+    but each iteration steps down to the smaller fuel used by the statement
+    induction hypothesis. -/
+def P_forLoop (fuel : Nat) : Prop :=
+  ∀ (val : Valuation) (var : String) (i n : Nat) (body : List Stmt) (vbody : List VStmt)
+    (heq : emitStmts defaultFuel env₀ m₀ body = vbody)
+    (hcc : Stmt.callContextList env₀ m₀ body)
+    (hseq : Stmt.isSequentialList body)
+    (hval : Valuation.equiv val val),
+    evalForLoopTotal fuel env₀ m₀ val var i n body =
+    evalVForLoopTotal fuel env₀ vm0 val var i n vbody
 
 /-- Combined forward-simulation invariant.  The proof is a single induction on
     fuel; at `fuel + 1` every recursive sub-evaluation happens at the smaller
     fuel `fuel`, which is exactly what the induction hypothesis covers. -/
 theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
-    (hcomb₀ : Module.isCombinational env₀ m₀)
+    (hseq₀ : Module.isSequential env₀ m₀)
     (hctx₀ : Module.callContext env₀ m₀)
     (hunique₀ : Module.hasUniqueFunctionNames m₀)
     (fuel : Nat) :
     P_expr env₀ m₀ vm0 fuel ∧
     P_stmt env₀ m₀ vm0 fuel ∧
     P_stmts env₀ m₀ vm0 fuel ∧
-    P_function env₀ m₀ vm0 fuel := by
+    P_function env₀ m₀ vm0 fuel ∧
+    P_forLoop env₀ m₀ vm0 fuel := by
   induction fuel with
   | zero =>
       constructor
-      · intro val e ve heq hcc hcomb hval
+      · intro val e ve heq hcc hseq hval
         rw [← heq]
         cases e <;> unfold evalExprTotal evalVExprTotal <;> rfl
       constructor
-      · intro val s vs heq hcc hcomb hval
+      · intro val s vs heq hcc hseq hval
         rw [← heq]
         cases s
         all_goals
           simp [evalStmtTotal, evalVStmtTotal, evalForLoopTotal_zero, evalVForLoopTotal_zero]
       constructor
-      · intro val ss vss heq hcc hcomb hval
+      · intro val ss vss heq hcc hseq hval
         rw [← heq]
         cases ss <;> unfold evalStmtsTotal evalVStmtsTotal <;> rfl
-      · intro base fn vfn argVals heq hcc hcomb hbase
+      constructor
+      · intro base fn vfn argVals heq hcc hseq hbase
         rw [← heq]
         unfold evalFunctionTotal evalVFunctionTotal
         rfl
+      · -- P_forLoop 0
+        intro val var i n body vbody heq hcc hseq hval
+        rw [← heq]
+        simp [evalForLoopTotal_zero, evalVForLoopTotal_zero]
   | succ fuel ih =>
-      rcases ih with ⟨ih_expr, ih_stmt, ih_stmts, ih_fn⟩
+      rcases ih with ⟨ih_expr, ih_stmt, ih_stmts, ih_fn, ih_loop⟩
       constructor
       · -- P_expr (fuel + 1)
         intro val e ve heq hcc_e hcomb_e hval
@@ -1552,10 +1657,10 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
                 apply Option.bind_congr_ext h_args; intro argVals
                 have hcc_body : Stmt.callContextList env₀ m₀ fn.body :=
                   hctx₀.2 fn (Module.findFunction_mem hfn) hhost
-                have hcomb_body :=
-                  Module.isCombinational_function_body hcomb₀
+                have hseq_body :=
+                  Module.isSequential_function_body hseq₀
                     (Module.findFunction_mem hfn) hhost
-                apply ih_fn val fn (emitVFunction defaultFuel env₀ m₀ fn) argVals rfl hcc_body hcomb_body
+                apply ih_fn val fn (emitVFunction defaultFuel env₀ m₀ fn) argVals rfl hcc_body hseq_body
                   (Valuation.equiv_refl val)
         | structLit name fields =>
             have hcc_fields := Expr.callContext_structLit hcc_e
@@ -1595,11 +1700,11 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
             all_goals contradiction
       constructor
       · -- P_stmt (fuel + 1)
-        intro val s vs heq hcc_s hcomb_s hval
+        intro val s vs heq hcc_s hseq_s hval
         rw [← heq]
         cases s with
         | assign lhs rhs =>
-            rcases Stmt.isCombinational_assign hcomb_s with ⟨name, rfl, hcomb_r⟩
+            rcases Stmt.isSequential_assign hseq_s with ⟨name, rfl, hcomb_r⟩
             have hcc_r := Stmt.callContext_assign hcc_s
             simp only [emitStmt_default_assign, emitExpr_default_identifier,
               evalStmtTotal_succ_assign_ident, evalVStmtTotal_succ_assign_ident]
@@ -1613,10 +1718,10 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
         | varDecl name ty init =>
             cases init with
             | none =>
-                simp [Stmt.isCombinational] at hcomb_s
+                simp [Stmt.isSequential] at hseq_s
             | some e =>
                 have hcc_e := Stmt.callContext_varDecl hcc_s
-                have hcomb_e := Stmt.isCombinational_varDecl hcomb_s
+                have hcomb_e := Stmt.isSequential_varDecl hseq_s
                 simp only [emitStmt_default_varDecl_some,
                   evalStmtTotal_succ_varDecl_some, evalVStmtTotal_succ_assign_ident]
                 have h_e := ih_expr val e (emitExpr defaultFuel env₀ m₀ e) rfl hcc_e hcomb_e hval
@@ -1629,10 +1734,10 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
         | constDecl name ty init =>
             cases init with
             | none =>
-                simp [Stmt.isCombinational] at hcomb_s
+                simp [Stmt.isSequential] at hseq_s
             | some e =>
                 have hcc_e := Stmt.callContext_constDecl hcc_s
-                have hcomb_e := Stmt.isCombinational_constDecl hcomb_s
+                have hcomb_e := Stmt.isSequential_constDecl hseq_s
                 simp only [emitStmt_default_constDecl_some,
                   evalStmtTotal_succ_constDecl_some, evalVStmtTotal_succ_localparam]
                 have h_e := ih_expr val e (emitExpr defaultFuel env₀ m₀ e) rfl hcc_e hcomb_e hval
@@ -1645,10 +1750,10 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
         | return_ e =>
             cases e with
             | none =>
-                simp [Stmt.isCombinational] at hcomb_s
+                simp [Stmt.isSequential] at hseq_s
             | some e =>
                 have hcc_e := Stmt.callContext_return hcc_s
-                have hcomb_e := Stmt.isCombinational_return hcomb_s
+                have hcomb_e := Stmt.isSequential_return hseq_s
                 simp only [emitStmt_default_return_some,
                   evalStmtTotal_succ_return_some, evalVStmtTotal_succ_assign_ident]
                 have h_e := ih_expr val e (emitExpr defaultFuel env₀ m₀ e) rfl hcc_e hcomb_e hval
@@ -1660,16 +1765,16 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
                 simp [Valuation.set_eq]
                 try { by_cases h : x == "__return"; simp [h] }
         | bareCall e =>
-            have hcomb_e := Stmt.isCombinational_bareCall hcomb_s
+            have hcomb_e := Stmt.isSequential_bareCall hseq_s
             have hcc_e := Stmt.callContext_bareCall hcc_s
             simp [emitStmt_default_bareCall,
               evalStmtTotal_succ_bareCall, evalVStmtTotal_succ_taskCall]
             -- The t27 bare-call semantics ignores `e`, matching the Verilog
             -- task-call semantics, so no expression IH is needed.
         | ifThenElse cond then_ else_ =>
-            have hcomb_cond := (Stmt.isCombinational_ifThenElse hcomb_s).1
-            have hcomb_then := (Stmt.isCombinational_ifThenElse hcomb_s).2.1
-            have hcomb_else := (Stmt.isCombinational_ifThenElse hcomb_s).2.2
+            have hcomb_cond := (Stmt.isSequential_ifThenElse hseq_s).1
+            have hcomb_then := (Stmt.isSequential_ifThenElse hseq_s).2.1
+            have hcomb_else := (Stmt.isSequential_ifThenElse hseq_s).2.2
             have hcc_cond := (Stmt.callContext_ifThenElse hcc_s).1
             have hcc_then := (Stmt.callContext_ifThenElse hcc_s).2.1
             have hcc_else := (Stmt.callContext_ifThenElse hcc_s).2.2
@@ -1682,12 +1787,22 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
             split
             · exact ih_stmts val then_ (emitStmts defaultFuel env₀ m₀ then_) rfl hcc_then hcomb_then hval
             · exact ih_stmts val else_ (emitStmts defaultFuel env₀ m₀ else_) rfl hcc_else hcomb_else hval
-        | _ =>
-            simp [Stmt.isCombinational] at hcomb_s
-            all_goals contradiction
+        | forLoop var range body =>
+            have hcomb_range := (Stmt.isSequential_forLoop hseq_s).1
+            have hseq_body := (Stmt.isSequential_forLoop hseq_s).2
+            have hcc_range := (Stmt.callContext_forLoop hcc_s).1
+            have hcc_body := (Stmt.callContext_forLoop hcc_s).2
+            simp only [emitStmt_default_forLoop,
+              evalStmtTotal_succ_forLoop, evalVStmtTotal_succ_forLoop]
+            have h_range := ih_expr val range (emitExpr defaultFuel env₀ m₀ range) rfl hcc_range hcomb_range hval
+            rw [h_range]
+            apply Option.bind_congr_ext rfl
+            intro r
+            exact ih_loop val var 0 r.bits.toNat body
+              (emitStmts defaultFuel env₀ m₀ body) rfl hcc_body hseq_body hval
       constructor
       · -- P_stmts (fuel + 1)
-        intro val ss vss heq hcc_ss hcomb_ss hval
+        intro val ss vss heq hcc_ss hseq_ss hval
         rw [← heq]
         cases ss with
         | nil =>
@@ -1695,16 +1810,17 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
         | cons s ss =>
             have hcc_s := Stmt.callContext_list_mem (s := s) hcc_ss (by simp)
             have hcc_ss' := Stmt.callContext_list_tail hcc_ss
-            have hcomb_s := Stmt.isCombinationalList_head (s := s) hcomb_ss
-            have hcomb_ss' := Stmt.isCombinationalList_tail hcomb_ss
+            have hseq_s := Stmt.isSequentialList_head (s := s) hseq_ss
+            have hseq_ss' := Stmt.isSequentialList_tail hseq_ss
             simp only [evalStmtsTotal_succ_cons, evalVStmtsTotal_succ_cons, emitStmts_default_cons]
-            have h_s := ih_stmt val s (emitStmt defaultFuel env₀ m₀ s) rfl hcc_s hcomb_s hval
+            have h_s := ih_stmt val s (emitStmt defaultFuel env₀ m₀ s) rfl hcc_s hseq_s hval
             rw [h_s]
             apply Option.bind_congr_ext rfl
             intro val'
-            exact ih_stmts val' ss (emitStmts defaultFuel env₀ m₀ ss) rfl hcc_ss' hcomb_ss' (Valuation.equiv_refl val')
+            exact ih_stmts val' ss (emitStmts defaultFuel env₀ m₀ ss) rfl hcc_ss' hseq_ss' (Valuation.equiv_refl val')
+      constructor
       · -- P_function (fuel + 1)
-        intro base fn vfn argVals heq hcc_fn hcomb_fn hbase
+        intro base fn vfn argVals heq hcc_fn hseq_fn hbase
         rw [← heq]
         simp only [evalFunctionTotal_succ, evalVFunctionTotal_succ, emitVFunction]
         have hinit :
@@ -1720,8 +1836,26 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
           (fun name =>
             ((fn.params.map (fun p => (p.1, widthOfType defaultFuel env₀ p.2))).zip argVals).find?
               (fun p => p.1.1 == name) |>.map (·.2) |>.orElse (fun _ => base name))
-          fn.body (emitStmts defaultFuel env₀ m₀ fn.body) rfl hcc_fn hcomb_fn
+          fn.body (emitStmts defaultFuel env₀ m₀ fn.body) rfl hcc_fn hseq_fn
           (Valuation.equiv_refl _)]
+      · -- P_forLoop (fuel + 1)
+        intro val var i n body vbody heq hcc hseq hval
+        rw [← heq]
+        cases n with
+        | zero =>
+            simp [evalForLoopTotal, evalVForLoopTotal]
+        | succ n =>
+            simp only [evalForLoopTotal, evalVForLoopTotal]
+            have h_body := ih_stmts
+              (fun x => if x == var then some ⟨32, BitVec.ofNat 32 i⟩ else val x)
+              body (emitStmts defaultFuel env₀ m₀ body) rfl hcc hseq
+              (Valuation.equiv_refl _)
+            rw [h_body]
+            apply Option.bind_congr_ext rfl
+            intro val'
+            exact ih_loop val' var (i + 1) n body
+              (emitStmts defaultFuel env₀ m₀ body) rfl hcc hseq
+              (Valuation.equiv_refl val')
 
 end EquivProof
 
@@ -1767,11 +1901,19 @@ theorem module_value_equiv_proved (env : Env) (m : Module)
     evalVModuleTotal defaultFuel env (emitModule env m) fnName args := by
   let vm := emitModuleFuel defaultFuel env m
   have hvm : vm = emitModule env m := by simp [emitModule, vm]
+  have hseq : Module.isSequential env m := Module.isCombinational_implies_isSequential env m hcomb
   have hcomb_globals : Stmt.isCombinationalList m.globals := by
-    simp only [Module.isCombinational, Bool.and_eq_true] at hcomb
-    simpa [Stmt.isCombinationalList, Stmt.isCombinational] using hcomb.1
+    have h : ∀ s, s ∈ m.globals → Stmt.isCombinational s = true := by
+      simp only [Module.isCombinational, Bool.and_eq_true, List.all_eq_true] at hcomb
+      exact hcomb.1
+    simp only [Stmt.isCombinationalList, Stmt.isCombinational, List.all_eq_true]
+    exact h
+  have hseq_globals : Stmt.isSequentialList m.globals :=
+    Stmt.isCombinationalList_implies_isSequentialList m.globals hcomb_globals
   have hcomb_fn : Stmt.isCombinationalList fn.body :=
     Module.isCombinational_function_body hcomb (Module.findFunction_mem hm) hhost
+  have hseq_fn : Stmt.isSequentialList fn.body :=
+    Stmt.isCombinationalList_implies_isSequentialList fn.body hcomb_fn
   have hhost_eq : (Env.isHostOnly env fn.name) = false := by
     simp only [Bool.not_eq_true] at hhost ⊢
     exact hhost
@@ -1785,17 +1927,81 @@ theorem module_value_equiv_proved (env : Env) (m : Module)
     exact emit_function_lookup defaultFuel env m fnName fn hunique hm hmem_emitted
   rw [← hvm]
   rw [evalModuleFunctionTotal_bind, evalVModuleTotal_bind]
-  have h_globals := (all_equiv env m vm (by rfl) hcomb hctx hunique defaultFuel).2.2.1
+  have h_globals := (all_equiv env m vm (by rfl) hseq hctx hunique defaultFuel).2.2.1
     (fun _ => none) m.globals
-    (emitStmts defaultFuel env m m.globals) rfl hctx.1 hcomb_globals (fun _ => rfl)
+    (emitStmts defaultFuel env m m.globals) rfl hctx.1 hseq_globals (fun _ => rfl)
   rw [h_globals]
   apply Option.bind_congr_ext rfl
   intro initVal
   rw [hm, hlookup]
-  apply (all_equiv env m vm (by rfl) hcomb hctx hunique defaultFuel).2.2.2 initVal fn
+  apply (all_equiv env m vm (by rfl) hseq hctx hunique defaultFuel).2.2.2.1 initVal fn
     (emitVFunction defaultFuel env m fn) args rfl
-    (hctx.2 fn (Module.findFunction_mem hm) hhost) hcomb_fn
+    (hctx.2 fn (Module.findFunction_mem hm) hhost) hseq_fn
     (Valuation.equiv_refl initVal)
+
+/-- Sequential variant: same conclusion from the weaker `Module.isSequential`
+    hypothesis.  This is the theorem `Soundness.lean` uses for modules that
+    contain bounded `forLoop` bodies. -/
+theorem module_value_equiv_proved_sequential (env : Env) (m : Module)
+    (_h : Module.isLowerable env m)
+    (hunique : Module.hasUniqueFunctionNames m)
+    (hseq : Module.isSequential env m)
+    (hctx : Module.callContext env m)
+    (fnName : String)
+    (fn : Function)
+    (args : List Value)
+    (hm : m.findFunction fnName = some fn)
+    (hhost : ¬ Env.isHostOnly env fn.name) :
+    evalModuleFunctionTotal defaultFuel env m fnName args =
+    evalVModuleTotal defaultFuel env (emitModule env m) fnName args := by
+  let vm := emitModuleFuel defaultFuel env m
+  have hvm : vm = emitModule env m := by simp [emitModule, vm]
+  have hseq_globals : Stmt.isSequentialList m.globals := by
+    have h : ∀ s, s ∈ m.globals → Stmt.isSequential s = true := by
+      simp only [Module.isSequential, Bool.and_eq_true, List.all_eq_true] at hseq
+      exact hseq.1
+    simp only [Stmt.isSequentialList, Stmt.isSequential, List.all_eq_true]
+    exact h
+  have hseq_fn : Stmt.isSequentialList fn.body :=
+    Module.isSequential_function_body hseq (Module.findFunction_mem hm) hhost
+  have hhost_eq : (Env.isHostOnly env fn.name) = false := by
+    simp only [Bool.not_eq_true] at hhost ⊢
+    exact hhost
+  have hmem_emitted : fn ∈ Module.emittedFunctions env m := by
+    simp only [Module.emittedFunctions, List.mem_filter]
+    exact ⟨Module.findFunction_mem hm, by simp [hhost_eq]⟩
+  have hlookup :
+    List.find? (fun f => f.name == fnName) vm.functions =
+    some (emitVFunction defaultFuel env m fn) := by
+    rw [hvm]
+    exact emit_function_lookup defaultFuel env m fnName fn hunique hm hmem_emitted
+  rw [← hvm]
+  rw [evalModuleFunctionTotal_bind, evalVModuleTotal_bind]
+  have h_globals := (all_equiv env m vm (by rfl) hseq hctx hunique defaultFuel).2.2.1
+    (fun _ => none) m.globals
+    (emitStmts defaultFuel env m m.globals) rfl hctx.1 hseq_globals (fun _ => rfl)
+  rw [h_globals]
+  apply Option.bind_congr_ext rfl
+  intro initVal
+  rw [hm, hlookup]
+  apply (all_equiv env m vm (by rfl) hseq hctx hunique defaultFuel).2.2.2.1 initVal fn
+    (emitVFunction defaultFuel env m fn) args rfl
+    (hctx.2 fn (Module.findFunction_mem hm) hhost) hseq_fn
+    (Valuation.equiv_refl initVal)
+
+/-- Convenience corollary for the common `main` entry point (sequential). -/
+theorem module_value_equiv_main_sequential (env : Env) (m : Module)
+    (_h : Module.isLowerable env m)
+    (hunique : Module.hasUniqueFunctionNames m)
+    (hseq : Module.isSequential env m)
+    (hctx : Module.callContext env m)
+    (mainFn : Function)
+    (args : List Value)
+    (hm : m.findFunction "main" = some mainFn)
+    (hmain : ¬ Env.isHostOnly env mainFn.name) :
+    evalModuleFunctionTotal defaultFuel env m "main" args =
+    evalVModuleTotal defaultFuel env (emitModule env m) "main" args := by
+  exact module_value_equiv_proved_sequential env m _h hunique hseq hctx "main" mainFn args hm hmain
 
 /-- Convenience corollary for the common `main` entry point. -/
 theorem module_value_equiv_main (env : Env) (m : Module)

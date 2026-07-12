@@ -2120,3 +2120,7 @@
 - **Commit:** chore(trinity): W503 final commit count and session log
 - **Files:** .claude/plans/wave-loop-503.md
 
+## 2026-07-12T15:23:26Z — wave-loop-504
+- **Commit:** docs(w503): add decomposed plan for Wave Loop 503
+- **Files:** .claude/plans/wave-loop-504.md,.claude/plans/wave-loop-505.md,.trinity/current-issue.md,.trinity/seals/scratch_w504_for_sum.json,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W505_2026-07-07.md,docs/reports/WAVE_LOOP_504_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/scratch/w504_for_sum.t27
+
