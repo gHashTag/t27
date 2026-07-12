@@ -1,0 +1,11 @@
+pub fn leaf() -> u32 { return 7; }
+pub fn mid() -> u32 { return leaf(); }
+pub fn top() -> u32 { return mid(); }
+pub fn main() -> u32 { return top(); }
+
+test non_main_chain_leaf {
+    assert_eq(leaf(), 7);
+    assert_eq(mid(), 7);
+    assert_eq(top(), 7);
+    assert_eq(main(), 7);
+}

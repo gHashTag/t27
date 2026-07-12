@@ -1,57 +1,64 @@
-# Wave Loop 501 — Generalize `module_value_equiv` beyond `main`
+# Wave Loop 502 — Harden Icarus lowerability gate with adversarial non-main witnesses
 
-**Issue:** #1470  
-**Branch:** `wave-loop-501`  
+**Issue:** #1471  
+**Branch:** `wave-loop-502`  
 **Status:** closed  
-**Variant:** A (scoped) — remove the hard-coded `main` entry-point assumption
-from the generic Icarus structural-equivalence theorem, so value preservation
-holds for any emitted (non-host-only) function in a lowerable combinational
-module.
+**Variant:** B (defensive) — grow the Icarus-lowerable witness corpus with
+adversarial non-`main` entry points and prove each witness with a
+`native_decide` equivalence theorem.
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
 ---
 
 ## Goal
 
-Wave Loop 500 closed the last documented Icarus baseline and left the generic
-structural-equivalence theorem with one remaining entry-point assumption:
-`module_value_equiv_statement` was hard-coded to the function named `"main"` and
-required `main` to be non-host-only.  Wave Loop 501 removed that restriction by
-parameterizing the theorem over any emitted function name.
+Wave Loop 501 removed the hard-coded `main` assumption from the generic
+structural-equivalence theorem.  Wave Loop 502 stressed the resulting boundary
+by adding four hand-crafted adversarial witnesses that exercise non-`main`
+functions under the classifier, the smoke gate, and the Lean soundness contract.
 
-The change makes the theorem usable for generated host code or test harnesses
-that call module helpers directly, without forcing every verification goal to be
-wrapped in a `main` function.
+The wave also generalized the theorem one step further: it now accepts an
+arbitrary list of argument values, so value preservation can be stated for
+emitted functions that take parameters (e.g., a scalar-struct helper).
 
 ---
 
 ## What changed
 
+- `proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean`
+  - `evalVModuleTotal` now takes an explicit `args : List Value` parameter and
+    forwards it to the emitted function, matching `evalModuleFunctionTotal`.
+
 - `proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean`
-  - `module_value_equiv_proved` is now parameterized by `fnName : String` and
-    `fn : Function` instead of hard-coding `"main"`.
-  - The proof derives lookup of the emitted `VFunction` for `fnName` and
-    applies the fuel/AST forward-simulation invariant to `fn.body`.
-  - Added `module_value_equiv_main` as a convenience corollary.
+  - `module_value_equiv_proved` is now parameterized by `args : List Value`.
+  - `module_value_equiv_main` carries the same `args` parameter.
+  - `evalVModuleTotal_bind` is updated accordingly.
 
 - `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`
-  - `module_value_equiv_statement` is now the generalized theorem.
-  - `module_value_equiv_main_statement` is the `main` corollary.
-  - Added `w501_non_main_entry_lowerable` and
-    `w501_non_main_entry_value_equiv`, applying the generalized theorem to the
-    non-`main` function `get_y`.
+  - `module_value_equiv_statement` and `module_value_equiv_main_statement` now
+    accept `args`.
+  - Added W502 lowerability and value-equivalence theorems:
+    - `w502_non_main_called_from_emitted_value_equiv` for `caller`,
+    - `w502_non_main_chain_leaf_value_equiv` for `leaf`,
+    - `w502_non_main_helper_struct_param_value_equiv` for `helper` with a
+      scalar struct argument,
+    - `w502_multiple_non_main_entries_a_value_equiv` / `_b_value_equiv` for `a`
+      and `b`.
 
 - `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`
-  - Added the W501 witness environment/module: `w501NonMainEnv`,
-    `w501NonMainModule`, `w501NonMainMakePt`, `w501NonMainGetY`,
-    `w501NonMainMain`.
+  - Added W502 witness environments and modules.
 
-- `specs/scratch/w501_non_main_entry_function.t27`
-  - Regression spec matching the Lean witness; test block checks both `get_y()`
-    and `main()`.
+- `specs/scratch/w502_*.t27`
+  - Four regression `.t27` specs covering the adversarial shapes.
 
-- `.trinity/seals/scratch_w501_non_main_entry_function.json`
-  - Seal for the new witness.
+- `.trinity/seals/scratch_w502_*.json`
+  - Seals for the four new witness specs.
+
+- `docs/reports/WAVE_LOOP_502_CLOSEOUT.md`
+  - Close-out report.
+
+- `docs/reports/FPGA_LOOP_COOPERATION_W503_2026-07-13.md`
+  - Three W503 cooperation variants.
 
 ---
 
@@ -59,12 +66,13 @@ wrapped in a `main` function.
 
 - `lake build Trinity.IcarusLowerable.Soundness`: green, zero `sorry` in
   IcarusLowerable modules.
-- `./scripts/tri verify --lean-lowerable`: passed, 254 lowerable specs.
+- `./scripts/tri verify --lean-lowerable`: passed, 253 lowerable specs, 0
+  disagreements.
 - `./scripts/tri test`:
-  - 699 / 699 non-smoke PASS.
-  - 179 / 179 yosys smoke PASS, 0 baseline failures.
-  - 179 / 179 Icarus smoke PASS, 0 documented baseline failures.
-  - 699 / 699 seal matches.
+  - 703 / 703 non-smoke PASS.
+  - 183 / 183 yosys smoke PASS, 0 baseline failures.
+  - 183 / 183 Icarus smoke PASS, 0 documented baseline failures.
+  - 703 / 703 seal matches.
   - FPGA board-less smoke gate / replay: OK.
   - Standalone lake-package build: OK.
   - Gen C / Fixed Point: clean.
@@ -75,16 +83,15 @@ wrapped in a `main` function.
 ## Residual boundaries
 
 - Conditionals and loops remain outside the modeled operational semantics.
-- The theorem still requires the chosen function to be emitted (non-host-only),
-  which is exactly the `Module.emittedFunctions` contract.
 - Array-typed direct fields continue to use memory-mode lowering.
+- The theorem still requires the chosen function to be emitted (non-host-only).
 
 ---
 
 ## Close-out artifacts
 
-- `docs/reports/WAVE_LOOP_501_CLOSEOUT.md`
-- `docs/reports/FPGA_LOOP_COOPERATION_W502_2026-07-13.md`
+- `docs/reports/WAVE_LOOP_502_CLOSEOUT.md`
+- `docs/reports/FPGA_LOOP_COOPERATION_W503_2026-07-13.md`
 
 ---
 

@@ -1,6 +1,28 @@
-# NOW — Wave Loop 501 closed / W502 next (2026-07-13)
+# NOW — Wave Loop 502 closed / W503 next (2026-07-13)
 
 **Last updated:** 2026-07-13
+
+---
+
+## Wave Loop 502 — Harden Icarus lowerability gate with adversarial non-main witnesses (closed)
+
+- Branch: `wave-loop-502`
+- Issue: #1471
+- Plan: `.claude/plans/wave-loop-502.md`
+- Report: `docs/reports/WAVE_LOOP_502_CLOSEOUT.md`
+- Cooperation W503: `docs/reports/FPGA_LOOP_COOPERATION_W503_2026-07-13.md`
+
+### Deliverables
+
+- Added four adversarial scratch witnesses that stress non-`main` entry points:
+  `w502_non_main_called_from_emitted.t27`, `w502_non_main_chain_leaf.t27`,
+  `w502_non_main_helper_struct_param.t27`, `w502_multiple_non_main_entries.t27`.
+- Proved lowerability and value preservation for a non-`main` function in each
+  witness, including a helper that takes a scalar struct parameter.
+- Generalized `module_value_equiv_proved` / `module_value_equiv_statement` to
+  accept an arbitrary `args : List Value`, extending W501's entry-point
+  generalization to functions with parameters.
+- Kept the Icarus smoke gate at 0 documented baseline failures.
 
 ---
 

@@ -1575,11 +1575,12 @@ theorem evalModuleFunctionTotal_bind (fuel : Nat) (env : Env) (m : Module) (fnNa
   cases evalStmtsTotal fuel env m (fun _ => none) m.globals <;> cases m.findFunction fnName <;> rfl
 
 /-- `evalVModuleTotal` as a single `Option.bind` chain. -/
-theorem evalVModuleTotal_bind (fuel : Nat) (env : Env) (vm : VModule) (fnName : String) :
-    evalVModuleTotal fuel env vm fnName =
+theorem evalVModuleTotal_bind (fuel : Nat) (env : Env) (vm : VModule) (fnName : String)
+    (args : List Value) :
+    evalVModuleTotal fuel env vm fnName args =
     (evalVStmtsTotal fuel env vm (fun _ => none) vm.globals).bind (fun initVal =>
       (List.find? (fun f => f.name == fnName) vm.functions).bind (fun fn =>
-        evalVFunctionTotal fuel env vm fn [] initVal)) := by
+        evalVFunctionTotal fuel env vm fn args initVal)) := by
   unfold evalVModuleTotal
   cases evalVStmtsTotal fuel env vm (fun _ => none) vm.globals <;>
     cases List.find? (fun f => f.name == fnName) vm.functions <;> rfl
@@ -1598,10 +1599,11 @@ theorem module_value_equiv_proved (env : Env) (m : Module)
     (hctx : Module.callContext env m)
     (fnName : String)
     (fn : Function)
+    (args : List Value)
     (hm : m.findFunction fnName = some fn)
     (hhost : ¬ Env.isHostOnly env fn.name) :
-    evalModuleFunctionTotal defaultFuel env m fnName [] =
-    evalVModuleTotal defaultFuel env (emitModule env m) fnName := by
+    evalModuleFunctionTotal defaultFuel env m fnName args =
+    evalVModuleTotal defaultFuel env (emitModule env m) fnName args := by
   let vm := emitModuleFuel defaultFuel env m
   have hvm : vm = emitModule env m := by simp [emitModule, vm]
   have hcomb_globals : Stmt.isCombinationalList m.globals := by
@@ -1630,7 +1632,7 @@ theorem module_value_equiv_proved (env : Env) (m : Module)
   intro initVal
   rw [hm, hlookup]
   apply (all_equiv env m vm (by rfl) hcomb hctx hunique defaultFuel).2.2.2 initVal fn
-    (emitVFunction defaultFuel env m fn) [] rfl
+    (emitVFunction defaultFuel env m fn) args rfl
     (hctx.2 fn (Module.findFunction_mem hm) hhost) hcomb_fn
     (Valuation.equiv_refl initVal)
 
@@ -1641,11 +1643,12 @@ theorem module_value_equiv_main (env : Env) (m : Module)
     (hcomb : Module.isCombinational env m)
     (hctx : Module.callContext env m)
     (mainFn : Function)
+    (args : List Value)
     (hm : m.findFunction "main" = some mainFn)
     (hmain : ¬ Env.isHostOnly env mainFn.name) :
-    evalModuleFunctionTotal defaultFuel env m "main" [] =
-    evalVModuleTotal defaultFuel env (emitModule env m) "main" := by
-  exact module_value_equiv_proved env m _h hunique hcomb hctx "main" mainFn hm hmain
+    evalModuleFunctionTotal defaultFuel env m "main" args =
+    evalVModuleTotal defaultFuel env (emitModule env m) "main" args := by
+  exact module_value_equiv_proved env m _h hunique hcomb hctx "main" mainFn args hm hmain
 
 end FuelFacts
 

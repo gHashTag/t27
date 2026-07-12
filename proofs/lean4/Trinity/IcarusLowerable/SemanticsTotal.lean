@@ -232,11 +232,11 @@ mutual
 end
 
 /-- Total shallow-Verilog module evaluator. -/
-def evalVModuleTotal (fuel : Nat) (env : Env) (vm : VModule) (fnName : String) : Option Value :=
+def evalVModuleTotal (fuel : Nat) (env : Env) (vm : VModule) (fnName : String) (args : List Value) : Option Value :=
   match evalVStmtsTotal fuel env vm (fun _ => none) vm.globals with
   | some initVal =>
       match vm.functions.find? (fun f => f.name == fnName) with
-      | some fn => evalVFunctionTotal fuel env vm fn [] initVal
+      | some fn => evalVFunctionTotal fuel env vm fn args initVal
       | none => none
   | none => none
 

@@ -417,4 +417,166 @@ def w501NonMainModule : Module := {
   benches := []
 }
 
+/- W502 witness environments and modules. -/
+
+/-- W502-A: a non-`main` function called from another emitted function. -/
+def w502NonMainCalledFromEmittedEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["helper", "caller", "main"]
+}
+
+def w502NonMainCalledFromEmittedHelper : Function := {
+  name := "helper",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.intLit 1))]
+}
+
+def w502NonMainCalledFromEmittedCaller : Function := {
+  name := "caller",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.call "helper" []))]
+}
+
+def w502NonMainCalledFromEmittedMain : Function := {
+  name := "main",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.call "caller" []))]
+}
+
+def w502NonMainCalledFromEmittedModule : Module := {
+  name := "w502_non_main_called_from_emitted",
+  imports := [],
+  globals := [],
+  functions := [w502NonMainCalledFromEmittedHelper, w502NonMainCalledFromEmittedCaller, w502NonMainCalledFromEmittedMain],
+  tests := [],
+  benches := []
+}
+
+/-- W502-B: chain of three emitted functions ending in a non-`main` leaf. -/
+def w502NonMainChainLeafEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["leaf", "mid", "top", "main"]
+}
+
+def w502NonMainChainLeafLeaf : Function := {
+  name := "leaf",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.intLit 7))]
+}
+
+def w502NonMainChainLeafMid : Function := {
+  name := "mid",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.call "leaf" []))]
+}
+
+def w502NonMainChainLeafTop : Function := {
+  name := "top",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.call "mid" []))]
+}
+
+def w502NonMainChainLeafMain : Function := {
+  name := "main",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.call "top" []))]
+}
+
+def w502NonMainChainLeafModule : Module := {
+  name := "w502_non_main_chain_leaf",
+  imports := [],
+  globals := [],
+  functions := [w502NonMainChainLeafLeaf, w502NonMainChainLeafMid, w502NonMainChainLeafTop, w502NonMainChainLeafMain],
+  tests := [],
+  benches := []
+}
+
+/-- W502-C: helper taking a scalar struct parameter. -/
+def w502NonMainHelperStructParamEnv : Env := {
+  structs := [("Pt", [("x", .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["helper", "main"]
+}
+
+def w502NonMainHelperStructParamHelper : Function := {
+  name := "helper",
+  params := [("p", .struct "Pt")],
+  ret := some .u32,
+  body := [.return_ (some (.fieldAccess (.identifier "p") "x"))]
+}
+
+def w502NonMainHelperStructParamMain : Function := {
+  name := "main",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.call "helper" [.structLit "Pt" [("x", .intLit 5)]]))]
+}
+
+def w502NonMainHelperStructParamModule : Module := {
+  name := "w502_non_main_helper_struct_param",
+  imports := [],
+  globals := [],
+  functions := [w502NonMainHelperStructParamHelper, w502NonMainHelperStructParamMain],
+  tests := [],
+  benches := []
+}
+
+/-- W502-D: module with multiple non-`main` entry points. -/
+def w502MultipleNonMainEntriesEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["a", "b", "main"]
+}
+
+def w502MultipleNonMainEntriesA : Function := {
+  name := "a",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.intLit 11))]
+}
+
+def w502MultipleNonMainEntriesB : Function := {
+  name := "b",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.intLit 13))]
+}
+
+def w502MultipleNonMainEntriesMain : Function := {
+  name := "main",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.binop "+" (.call "a" []) (.call "b" [])))]
+}
+
+def w502MultipleNonMainEntriesModule : Module := {
+  name := "w502_multiple_non_main_entries",
+  imports := [],
+  globals := [],
+  functions := [w502MultipleNonMainEntriesA, w502MultipleNonMainEntriesB, w502MultipleNonMainEntriesMain],
+  tests := [],
+  benches := []
+}
+
 end Trinity.IcarusLowerable

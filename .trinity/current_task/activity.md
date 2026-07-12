@@ -2088,3 +2088,11 @@
 - **Commit:** feat(lean4): Wave Loop 501 — generalize Icarus structural-equivalence theorem beyond hard-coded main, non-main witness, 699/699 PASS + 179/179 yosys + 179/179 Icarus (0 baselines) + cargo 1525/0/2 + lake build green
 - **Files:** docs/NOW.md
 
+## 2026-07-12T12:51:04Z — wave-loop-501
+- **Commit:** feat(lean4): Wave Loop 501 — generalize Icarus structural-equivalence theorem beyond hard-coded main, non-main witness, 699/699 PASS + 179/179 yosys + 179/179 Icarus (0 baselines) + cargo 1525/0/2 + lake build green
+- **Files:** .claude/plans/wave-loop-502.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w502_multiple_non_main_entries.json,.trinity/seals/scratch_w502_non_main_called_from_emitted.json,.trinity/seals/scratch_w502_non_main_chain_leaf.json,.trinity/seals/scratch_w502_non_main_helper_struct_param.json,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W503_2026-07-13.md,docs/reports/WAVE_LOOP_502_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/scratch/w502_multiple_non_main_entries.t27,specs/scratch/w502_non_main_called_from_emitted.t27,specs/scratch/w502_non_main_chain_leaf.t27,specs/scratch/w502_non_main_helper_struct_param.t27
+
+## 2026-07-12T12:51:38Z — wave-loop-501
+- **Commit:** feat(lean4): Wave Loop 502 — adversarial non-main witnesses + args generalization, 703/703 PASS + 183/183 yosys + 183/183 Icarus (0 baselines) + cargo 1525/0/2 + lake build green
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+

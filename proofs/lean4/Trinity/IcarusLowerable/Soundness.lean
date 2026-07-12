@@ -127,7 +127,7 @@ theorem scalar_struct_total_partial_t27_bridge :
 /-- W497 bridge: the total and partial Verilog evaluators agree on the
     scalar-struct witness. -/
 theorem scalar_struct_total_partial_v_bridge :
-  evalVModuleTotal defaultFuel scalarStructEnv (emitModule scalarStructEnv scalarStructModule) "main" =
+  evalVModuleTotal defaultFuel scalarStructEnv (emitModule scalarStructEnv scalarStructModule) "main" [] =
   evalVModule scalarStructEnv (emitModule scalarStructEnv scalarStructModule) "main" := by
   native_decide
 
@@ -150,11 +150,12 @@ theorem module_value_equiv_statement (env : Env) (m : Module)
     (hctx : Module.callContext env m)
     (fnName : String)
     (fn : Function)
+    (args : List Value)
     (hm : m.findFunction fnName = some fn)
     (hhost : ¬ Env.isHostOnly env fn.name) :
-    evalModuleFunctionTotal defaultFuel env m fnName [] =
-    evalVModuleTotal defaultFuel env (emitModule env m) fnName := by
-  exact module_value_equiv_proved env m h hunique hcomb hctx fnName fn hm hhost
+    evalModuleFunctionTotal defaultFuel env m fnName args =
+    evalVModuleTotal defaultFuel env (emitModule env m) fnName args := by
+  exact module_value_equiv_proved env m h hunique hcomb hctx fnName fn args hm hhost
 
 /-- Convenience corollary: the original `main`-specific shape of the theorem. -/
 theorem module_value_equiv_main_statement (env : Env) (m : Module)
@@ -163,11 +164,12 @@ theorem module_value_equiv_main_statement (env : Env) (m : Module)
     (hcomb : Module.isCombinational env m)
     (hctx : Module.callContext env m)
     (mainFn : Function)
+    (args : List Value)
     (hm : m.findFunction "main" = some mainFn)
     (hmain : ¬ Env.isHostOnly env mainFn.name) :
-    evalModuleFunctionTotal defaultFuel env m "main" [] =
-    evalVModuleTotal defaultFuel env (emitModule env m) "main" := by
-  exact module_value_equiv_main env m h hunique hcomb hctx mainFn hm hmain
+    evalModuleFunctionTotal defaultFuel env m "main" args =
+    evalVModuleTotal defaultFuel env (emitModule env m) "main" args := by
+  exact module_value_equiv_main env m h hunique hcomb hctx mainFn args hm hmain
 
 /-- W501: the non-main-entry witness is lowerable. -/
 theorem w501_non_main_entry_lowerable :
@@ -179,7 +181,7 @@ theorem w501_non_main_entry_lowerable :
     rather than on the `main` entry point. -/
 theorem w501_non_main_entry_value_equiv :
   evalModuleFunctionTotal defaultFuel w501NonMainEnv w501NonMainModule "get_y" [] =
-  evalVModuleTotal defaultFuel w501NonMainEnv (emitModule w501NonMainEnv w501NonMainModule) "get_y" := by
+  evalVModuleTotal defaultFuel w501NonMainEnv (emitModule w501NonMainEnv w501NonMainModule) "get_y" [] := by
   have hlowerable : Module.isLowerable w501NonMainEnv w501NonMainModule := by native_decide
   have hunique : Module.hasUniqueFunctionNames w501NonMainModule := by
     simp [Module.hasUniqueFunctionNames, w501NonMainModule, w501NonMainMakePt, w501NonMainGetY, w501NonMainMain]
@@ -192,6 +194,119 @@ theorem w501_non_main_entry_value_equiv :
   have hhost : ¬ Env.isHostOnly w501NonMainEnv w501NonMainGetY.name := by
     simp [Env.isHostOnly, w501NonMainEnv, w501NonMainGetY]
   exact module_value_equiv_statement w501NonMainEnv w501NonMainModule
-    hlowerable hunique hcomb hctx "get_y" w501NonMainGetY hfind hhost
+    hlowerable hunique hcomb hctx "get_y" w501NonMainGetY [] hfind hhost
+
+/-- W502-A: the non-main-called-from-emitted witness is lowerable. -/
+theorem w502_non_main_called_from_emitted_lowerable :
+  Module.isLowerable w502NonMainCalledFromEmittedEnv w502NonMainCalledFromEmittedModule := by
+  native_decide
+
+/-- W502-A: value preservation for the non-`main` function `caller`, which calls
+    another emitted function `helper`. -/
+theorem w502_non_main_called_from_emitted_value_equiv :
+  evalModuleFunctionTotal defaultFuel w502NonMainCalledFromEmittedEnv w502NonMainCalledFromEmittedModule "caller" [] =
+  evalVModuleTotal defaultFuel w502NonMainCalledFromEmittedEnv (emitModule w502NonMainCalledFromEmittedEnv w502NonMainCalledFromEmittedModule) "caller" [] := by
+  have hlowerable : Module.isLowerable w502NonMainCalledFromEmittedEnv w502NonMainCalledFromEmittedModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w502NonMainCalledFromEmittedModule := by
+    simp [Module.hasUniqueFunctionNames, w502NonMainCalledFromEmittedModule, w502NonMainCalledFromEmittedHelper, w502NonMainCalledFromEmittedCaller, w502NonMainCalledFromEmittedMain]
+  have hcomb : Module.isCombinational w502NonMainCalledFromEmittedEnv w502NonMainCalledFromEmittedModule := by native_decide
+  have hctx : Module.callContext w502NonMainCalledFromEmittedEnv w502NonMainCalledFromEmittedModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w502NonMainCalledFromEmittedEnv, w502NonMainCalledFromEmittedModule, w502NonMainCalledFromEmittedHelper, w502NonMainCalledFromEmittedCaller, w502NonMainCalledFromEmittedMain]
+    all_goals native_decide
+  have hfind : w502NonMainCalledFromEmittedModule.findFunction "caller" = some w502NonMainCalledFromEmittedCaller := by
+    simp [Module.findFunction, w502NonMainCalledFromEmittedModule, w502NonMainCalledFromEmittedHelper, w502NonMainCalledFromEmittedCaller, w502NonMainCalledFromEmittedMain]
+  have hhost : ¬ Env.isHostOnly w502NonMainCalledFromEmittedEnv w502NonMainCalledFromEmittedCaller.name := by
+    simp [Env.isHostOnly, w502NonMainCalledFromEmittedEnv, w502NonMainCalledFromEmittedCaller]
+  exact module_value_equiv_statement w502NonMainCalledFromEmittedEnv w502NonMainCalledFromEmittedModule
+    hlowerable hunique hcomb hctx "caller" w502NonMainCalledFromEmittedCaller [] hfind hhost
+
+/-- W502-B: the chain-leaf witness is lowerable. -/
+theorem w502_non_main_chain_leaf_lowerable :
+  Module.isLowerable w502NonMainChainLeafEnv w502NonMainChainLeafModule := by
+  native_decide
+
+/-- W502-B: value preservation for the non-`main` leaf function `leaf` at the end
+    of a three-function emitted chain. -/
+theorem w502_non_main_chain_leaf_value_equiv :
+  evalModuleFunctionTotal defaultFuel w502NonMainChainLeafEnv w502NonMainChainLeafModule "leaf" [] =
+  evalVModuleTotal defaultFuel w502NonMainChainLeafEnv (emitModule w502NonMainChainLeafEnv w502NonMainChainLeafModule) "leaf" [] := by
+  have hlowerable : Module.isLowerable w502NonMainChainLeafEnv w502NonMainChainLeafModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w502NonMainChainLeafModule := by
+    simp [Module.hasUniqueFunctionNames, w502NonMainChainLeafModule, w502NonMainChainLeafLeaf, w502NonMainChainLeafMid, w502NonMainChainLeafTop, w502NonMainChainLeafMain]
+  have hcomb : Module.isCombinational w502NonMainChainLeafEnv w502NonMainChainLeafModule := by native_decide
+  have hctx : Module.callContext w502NonMainChainLeafEnv w502NonMainChainLeafModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w502NonMainChainLeafEnv, w502NonMainChainLeafModule, w502NonMainChainLeafLeaf, w502NonMainChainLeafMid, w502NonMainChainLeafTop, w502NonMainChainLeafMain]
+    all_goals native_decide
+  have hfind : w502NonMainChainLeafModule.findFunction "leaf" = some w502NonMainChainLeafLeaf := by
+    simp [Module.findFunction, w502NonMainChainLeafModule, w502NonMainChainLeafLeaf, w502NonMainChainLeafMid, w502NonMainChainLeafTop, w502NonMainChainLeafMain]
+  have hhost : ¬ Env.isHostOnly w502NonMainChainLeafEnv w502NonMainChainLeafLeaf.name := by
+    simp [Env.isHostOnly, w502NonMainChainLeafEnv, w502NonMainChainLeafLeaf]
+  exact module_value_equiv_statement w502NonMainChainLeafEnv w502NonMainChainLeafModule
+    hlowerable hunique hcomb hctx "leaf" w502NonMainChainLeafLeaf [] hfind hhost
+
+/-- W502-C: the scalar-struct-param helper witness is lowerable. -/
+theorem w502_non_main_helper_struct_param_lowerable :
+  Module.isLowerable w502NonMainHelperStructParamEnv w502NonMainHelperStructParamModule := by
+  native_decide
+
+/-- W502-C: value preservation for the non-`main` helper `helper` that takes a
+    scalar struct parameter. -/
+theorem w502_non_main_helper_struct_param_value_equiv :
+  evalModuleFunctionTotal defaultFuel w502NonMainHelperStructParamEnv w502NonMainHelperStructParamModule "helper" [⟨32, BitVec.ofInt 32 5⟩] =
+  evalVModuleTotal defaultFuel w502NonMainHelperStructParamEnv (emitModule w502NonMainHelperStructParamEnv w502NonMainHelperStructParamModule) "helper" [⟨32, BitVec.ofInt 32 5⟩] := by
+  have hlowerable : Module.isLowerable w502NonMainHelperStructParamEnv w502NonMainHelperStructParamModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w502NonMainHelperStructParamModule := by
+    simp [Module.hasUniqueFunctionNames, w502NonMainHelperStructParamModule, w502NonMainHelperStructParamHelper, w502NonMainHelperStructParamMain]
+  have hcomb : Module.isCombinational w502NonMainHelperStructParamEnv w502NonMainHelperStructParamModule := by native_decide
+  have hctx : Module.callContext w502NonMainHelperStructParamEnv w502NonMainHelperStructParamModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w502NonMainHelperStructParamEnv, w502NonMainHelperStructParamModule, w502NonMainHelperStructParamHelper, w502NonMainHelperStructParamMain]
+    all_goals native_decide
+  have hfind : w502NonMainHelperStructParamModule.findFunction "helper" = some w502NonMainHelperStructParamHelper := by
+    simp [Module.findFunction, w502NonMainHelperStructParamModule, w502NonMainHelperStructParamHelper, w502NonMainHelperStructParamMain]
+  have hhost : ¬ Env.isHostOnly w502NonMainHelperStructParamEnv w502NonMainHelperStructParamHelper.name := by
+    simp [Env.isHostOnly, w502NonMainHelperStructParamEnv, w502NonMainHelperStructParamHelper]
+  exact module_value_equiv_statement w502NonMainHelperStructParamEnv w502NonMainHelperStructParamModule
+    hlowerable hunique hcomb hctx "helper" w502NonMainHelperStructParamHelper [⟨32, BitVec.ofInt 32 5⟩] hfind hhost
+
+/-- W502-D: the multiple-non-main-entries witness is lowerable. -/
+theorem w502_multiple_non_main_entries_lowerable :
+  Module.isLowerable w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule := by
+  native_decide
+
+/-- W502-D: value preservation for the non-`main` entry point `a`. -/
+theorem w502_multiple_non_main_entries_a_value_equiv :
+  evalModuleFunctionTotal defaultFuel w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule "a" [] =
+  evalVModuleTotal defaultFuel w502MultipleNonMainEntriesEnv (emitModule w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule) "a" [] := by
+  have hlowerable : Module.isLowerable w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w502MultipleNonMainEntriesModule := by
+    simp [Module.hasUniqueFunctionNames, w502MultipleNonMainEntriesModule, w502MultipleNonMainEntriesA, w502MultipleNonMainEntriesB, w502MultipleNonMainEntriesMain]
+  have hcomb : Module.isCombinational w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule := by native_decide
+  have hctx : Module.callContext w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w502MultipleNonMainEntriesEnv, w502MultipleNonMainEntriesModule, w502MultipleNonMainEntriesA, w502MultipleNonMainEntriesB, w502MultipleNonMainEntriesMain]
+    all_goals native_decide
+  have hfind : w502MultipleNonMainEntriesModule.findFunction "a" = some w502MultipleNonMainEntriesA := by
+    simp [Module.findFunction, w502MultipleNonMainEntriesModule, w502MultipleNonMainEntriesA, w502MultipleNonMainEntriesB, w502MultipleNonMainEntriesMain]
+  have hhost : ¬ Env.isHostOnly w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesA.name := by
+    simp [Env.isHostOnly, w502MultipleNonMainEntriesEnv, w502MultipleNonMainEntriesA]
+  exact module_value_equiv_statement w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule
+    hlowerable hunique hcomb hctx "a" w502MultipleNonMainEntriesA [] hfind hhost
+
+/-- W502-D: value preservation for the non-`main` entry point `b`. -/
+theorem w502_multiple_non_main_entries_b_value_equiv :
+  evalModuleFunctionTotal defaultFuel w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule "b" [] =
+  evalVModuleTotal defaultFuel w502MultipleNonMainEntriesEnv (emitModule w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule) "b" [] := by
+  have hlowerable : Module.isLowerable w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w502MultipleNonMainEntriesModule := by
+    simp [Module.hasUniqueFunctionNames, w502MultipleNonMainEntriesModule, w502MultipleNonMainEntriesA, w502MultipleNonMainEntriesB, w502MultipleNonMainEntriesMain]
+  have hcomb : Module.isCombinational w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule := by native_decide
+  have hctx : Module.callContext w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w502MultipleNonMainEntriesEnv, w502MultipleNonMainEntriesModule, w502MultipleNonMainEntriesA, w502MultipleNonMainEntriesB, w502MultipleNonMainEntriesMain]
+    all_goals native_decide
+  have hfind : w502MultipleNonMainEntriesModule.findFunction "b" = some w502MultipleNonMainEntriesB := by
+    simp [Module.findFunction, w502MultipleNonMainEntriesModule, w502MultipleNonMainEntriesA, w502MultipleNonMainEntriesB, w502MultipleNonMainEntriesMain]
+  have hhost : ¬ Env.isHostOnly w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesB.name := by
+    simp [Env.isHostOnly, w502MultipleNonMainEntriesEnv, w502MultipleNonMainEntriesB]
+  exact module_value_equiv_statement w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule
+    hlowerable hunique hcomb hctx "b" w502MultipleNonMainEntriesB [] hfind hhost
 
 end Trinity.IcarusLowerable

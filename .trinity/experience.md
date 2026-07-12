@@ -1,8 +1,34 @@
+## 2026-07-13 — Wave Loop 502 (harden Icarus lowerability gate with adversarial non-main witnesses)
+
+### Verification (final)
+- `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in IcarusLowerable modules.
+- `./scripts/tri verify --lean-lowerable`: passed (W492 completeness gate), 253 lowerable specs exported, 0 disagreements.
+- `./scripts/tri test`: 703 / 703 non-smoke PASS, 183 / 183 yosys smoke PASS (0 baseline failures), 183 / 183 Icarus smoke PASS (0 documented baselines), 703 / 703 seal matches, FPGA board-less smoke gate / replay OK, standalone lake-package build OK, Gen C / Fixed Point clean.
+- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
+
+### What worked
+- **Adversarial witness coverage for non-`main` entry points** closes the gap left by W501. Four scratch specs exercise a helper called from an emitted function, a three-function chain ending in a non-main leaf, a helper with a scalar-struct parameter, and multiple non-main entry points.
+- **Generalizing the theorem to `args : List Value`** is the natural next step after generalizing the function name. `all_equiv` already supports arbitrary argument lists; only the module-level wrappers hard-coded `[]`.
+- **Proving each witness with `module_value_equiv_statement`** rather than `native_decide` alone keeps the generic contract exercised.
+- **Scratch specs are excluded from the W492 completeness import** by design (`collect_t27_specs` skips `specs/scratch`), so they add regression coverage without bloating the main-corpus completeness file.
+
+### What to improve
+- **Conditionals and loops** remain outside the modeled operational semantics.
+- **Array-typed direct fields** still use memory-mode lowering; extending register-mode re-packing to array-typed fields is future work.
+- The theorem still requires the chosen function to be emitted (non-host-only), which is exactly the `Module.emittedFunctions` contract.
+
+### Techniques to reuse
+- When a theorem wrapper fixes a list/vector argument to a default value, check whether the underlying invariant already supports the general case before adding a new witness workaround.
+- Use `simp [concrete definitions]` + `native_decide` for well-formedness preconditions that are not `Decidable`.
+- Keep scratch witnesses small and in `specs/scratch` so they exercise boundaries without affecting the main-corpus completeness gate.
+
+---
+
 ## 2026-07-13 — Wave Loop 501 (generalize `module_value_equiv` beyond `main`)
 
 ### Verification (final)
 - `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in IcarusLowerable modules.
-- `./scripts/tri verify --lean-lowerable`: passed (W492 completeness gate), 254 lowerable specs exported.
+- `./scripts/tri verify --lean-lowerable`: passed (W492 completeness gate), 253 lowerable specs exported.
 - `./scripts/tri test`: 699 / 699 non-smoke PASS, 179 / 179 yosys smoke PASS (0 baseline failures), 179 / 179 Icarus smoke PASS (0 documented baselines), 699 / 699 seal matches, FPGA board-less smoke gate / replay OK, standalone lake-package build OK, Gen C / Fixed Point clean.
 - `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
 

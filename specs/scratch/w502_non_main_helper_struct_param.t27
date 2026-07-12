@@ -1,0 +1,9 @@
+pub struct Pt { x : u32 }
+
+pub fn helper(p : Pt) -> u32 { return p.x; }
+pub fn main() -> u32 { return helper(Pt { x: 5 }); }
+
+test non_main_helper_struct_param {
+    assert_eq(helper(Pt { x: 5 }), 5);
+    assert_eq(main(), 5);
+}
