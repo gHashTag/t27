@@ -1,61 +1,57 @@
-# Wave Loop 500 — Close the last documented Icarus baseline
+# Wave Loop 501 — Generalize `module_value_equiv` beyond `main`
 
-**Issue:** #1458  
-**Branch:** `wave-loop-500`  
+**Issue:** #1470  
+**Branch:** `wave-loop-501`  
 **Status:** closed  
-**Variant:** A (scoped) — lower local register-mode arrays-of-struct element access
-for Icarus Verilog by re-packing indexed elements into packed vectors.
+**Variant:** A (scoped) — remove the hard-coded `main` entry-point assumption
+from the generic Icarus structural-equivalence theorem, so value preservation
+holds for any emitted (non-host-only) function in a lowerable combinational
+module.
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
 ---
 
 ## Goal
 
-Wave Loop 499 left one documented Icarus baseline failure:
-`w493_local_aos_element_field_not_lowerable.t27`. The spec indexed a local
-array of scalar structs inside a struct literal:
+Wave Loop 500 closed the last documented Icarus baseline and left the generic
+structural-equivalence theorem with one remaining entry-point assumption:
+`module_value_equiv_statement` was hard-coded to the function named `"main"` and
+required `main` to be non-host-only.  Wave Loop 501 removed that restriction by
+parameterizing the theorem over any emitted function name.
 
-```t27
-pub fn make_outer(i : u32) -> Outer {
-    let choices : [2]Inner = make_choices();
-    return Outer { x: choices[i] };
-}
-```
-
-The local array is lowered in **register mode**: each element's fields become
-per-element registers (`choices_0_y`, `choices_1_y`). The struct-literal leaf
-emitter did not recognize a local register-mode array-of-struct element, so it
-fell back to an `UNSUPPORTED_ICARUS` placeholder. Wave Loop 500 closes that
-gap, making the spec lowerable and renaming the witness to reflect its new
-status.
+The change makes the theorem usable for generated host code or test harnesses
+that call module helpers directly, without forcing every verification goal to be
+wrapped in a `main` function.
 
 ---
 
 ## What changed
 
-- `bootstrap/src/compiler.rs`
-  - `gen_verilog_pack_struct_array_element` now detects register-mode local
-    arrays of structs via `local_struct_array_fields` +
-    `local_struct_array_has_array_field == false`.
-  - For register mode it flattens the element struct fields and emits the
-    per-element per-field registers (`base_idx_flatfield`) instead of the
-    memory-style `base_field[addr]`.
-  - For variable outer indices it keeps the priority mux over all possible
-    element positions, but the fallback zero is now sized (`{N{1'b0}}`) to avoid
-    the Icarus "Concatenation operand has indefinite width" error.
-  - Existing memory-mode local AOS and module-level AOS paths are unchanged.
+- `proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean`
+  - `module_value_equiv_proved` is now parameterized by `fnName : String` and
+    `fn : Function` instead of hard-coding `"main"`.
+  - The proof derives lookup of the emitted `VFunction` for `fnName` and
+    applies the fuel/AST forward-simulation invariant to `fn.body`.
+  - Added `module_value_equiv_main` as a convenience corollary.
 
-- `specs/scratch/w493_local_aos_element_field_lowerable.t27`
-  - Renamed from `w493_local_aos_element_field_not_lowerable.t27`.
-  - Updated module name, comments, and test block to document that the
-    boundary is now closed.
+- `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`
+  - `module_value_equiv_statement` is now the generalized theorem.
+  - `module_value_equiv_main_statement` is the `main` corollary.
+  - Added `w501_non_main_entry_lowerable` and
+    `w501_non_main_entry_value_equiv`, applying the generalized theorem to the
+    non-`main` function `get_y`.
 
-- `.trinity/seals/scratch_w493_local_aos_element_field_lowerable.json`
-  - New seal for the renamed, now-lowerable witness.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`
+  - Added the W501 witness environment/module: `w501NonMainEnv`,
+    `w501NonMainModule`, `w501NonMainMakePt`, `w501NonMainGetY`,
+    `w501NonMainMain`.
 
-- `.trinity/seals/scratch_w476_adversarial_aggregate_tail.json`
-- `.trinity/seals/scratch_w476_nested_whole_struct_assign.json`
-  - Resealed because the sized zero fallback changed their generated Verilog.
+- `specs/scratch/w501_non_main_entry_function.t27`
+  - Regression spec matching the Lean witness; test block checks both `get_y()`
+    and `main()`.
+
+- `.trinity/seals/scratch_w501_non_main_entry_function.json`
+  - Seal for the new witness.
 
 ---
 
@@ -63,13 +59,12 @@ status.
 
 - `lake build Trinity.IcarusLowerable.Soundness`: green, zero `sorry` in
   IcarusLowerable modules.
-- `./scripts/tri verify --lean-lowerable`: passed (253 lowerable specs
-  exported, 0 disagreements).
+- `./scripts/tri verify --lean-lowerable`: passed, 254 lowerable specs.
 - `./scripts/tri test`:
-  - 698 / 698 non-smoke PASS.
-  - 178 / 178 yosys smoke PASS, 0 baseline failures.
-  - 178 / 178 Icarus smoke PASS, **0 documented baseline failures**.
-  - 698 / 698 seal matches.
+  - 699 / 699 non-smoke PASS.
+  - 179 / 179 yosys smoke PASS, 0 baseline failures.
+  - 179 / 179 Icarus smoke PASS, 0 documented baseline failures.
+  - 699 / 699 seal matches.
   - FPGA board-less smoke gate / replay: OK.
   - Standalone lake-package build: OK.
   - Gen C / Fixed Point: clean.
@@ -79,17 +74,17 @@ status.
 
 ## Residual boundaries
 
-- The generic theorem still assumes `main` is not host-only.
 - Conditionals and loops remain outside the modeled operational semantics.
-- Register-mode re-packing is for scalar-struct elements; array-typed direct
-  fields continue to use memory-mode lowering.
+- The theorem still requires the chosen function to be emitted (non-host-only),
+  which is exactly the `Module.emittedFunctions` contract.
+- Array-typed direct fields continue to use memory-mode lowering.
 
 ---
 
 ## Close-out artifacts
 
-- `docs/reports/WAVE_LOOP_500_CLOSEOUT.md`
-- `docs/reports/FPGA_LOOP_COOPERATION_W501_2026-07-13.md`
+- `docs/reports/WAVE_LOOP_501_CLOSEOUT.md`
+- `docs/reports/FPGA_LOOP_COOPERATION_W502_2026-07-13.md`
 
 ---
 

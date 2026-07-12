@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0
+// W501 witness: the generic Icarus equivalence theorem is now stated for any
+// emitted function, not just `main`. This module exercises the non-`main`
+// function `get_y` as the value-preservation target.
+// φ² + 1/φ² = 3 | TRINITY
+
+module w501_non_main_entry_function;
+
+pub struct Pt {
+    x : u32,
+}
+
+pub fn make_pt() -> Pt {
+    return Pt { x: 42 };
+}
+
+pub fn get_y() -> u32 {
+    return make_pt().x;
+}
+
+pub fn main() -> u32 {
+    return get_y();
+}
+
+test non_main_entry {
+    assert_eq(get_y(), 42);
+    assert_eq(main(), 42);
+}
+
+endmodule

@@ -1,12 +1,5 @@
 {
-  "expected_failures": [
-    "specs/scratch/w493_local_aos_element_field_not_lowerable.t27"
-  ],
-  "classification": {
-    "specs/scratch/w493_local_aos_element_field_not_lowerable.t27": {
-      "category": "LocalArrayOfStructElementField",
-      "note": "W493 adversarial witness: struct-literal field initialized from an indexed local array-of-struct element. Non-memory-mode local arrays of structs are unpacked into per-element per-field registers, so packing an indexed element inside a struct-literal concatenation is not yet lowered and emits an UNSUPPORTED_ICARUS placeholder."
-    }
-  },
-  "note": "W493 Icarus Verilog 12.0 baseline: one documented adversarial witness. Wave Loop 493 closed the W491 nested-struct-literal-field-from-identifier gap and the W492 nested-struct-return-field-access gap; the remaining boundary is local-array-of-struct elements used as whole struct values."
+  "expected_failures": [],
+  "classification": {},
+  "note": "Icarus Verilog 12.0 baseline: 0 documented failures. Wave Loop 500 closed the last local-array-of-struct element boundary (renamed witness to w493_local_aos_element_field_lowerable.t27), and Wave Loop 501 added the w501_non_main_entry_function.t27 regression witness without introducing any new Icarus baseline."
 }

@@ -1587,38 +1587,39 @@ theorem evalVModuleTotal_bind (fuel : Nat) (env : Env) (vm : VModule) (fnName : 
 /-- Wrapper that exposes the generic equivalence theorem in the shape required
     by `Soundness.lean`.
 
-    W499: the emitter no longer filters by reachability, so the only remaining
-    well-formedness assumptions are combinationality, the call-context
-    invariant for globals and for the `main` body, and unique function names
-    (the latter guards the `find?` lookup used by both sides). -/
+    W501: the theorem is parameterized over any emitted function name, not just
+    `main`.  The only remaining well-formedness assumptions are lowerability,
+    combinationality, unique function names, the module-level call-context
+    invariant, and the fact that the chosen function is not a host-only helper. -/
 theorem module_value_equiv_proved (env : Env) (m : Module)
     (_h : Module.isLowerable env m)
     (hunique : Module.hasUniqueFunctionNames m)
     (hcomb : Module.isCombinational env m)
     (hctx : Module.callContext env m)
-    (mainFn : Function)
-    (hm : m.findFunction "main" = some mainFn)
-    (hmain : ¬ Env.isHostOnly env mainFn.name) :
-    evalModuleFunctionTotal defaultFuel env m "main" [] =
-    evalVModuleTotal defaultFuel env (emitModule env m) "main" := by
+    (fnName : String)
+    (fn : Function)
+    (hm : m.findFunction fnName = some fn)
+    (hhost : ¬ Env.isHostOnly env fn.name) :
+    evalModuleFunctionTotal defaultFuel env m fnName [] =
+    evalVModuleTotal defaultFuel env (emitModule env m) fnName := by
   let vm := emitModuleFuel defaultFuel env m
   have hvm : vm = emitModule env m := by simp [emitModule, vm]
   have hcomb_globals : Stmt.isCombinationalList m.globals := by
     simp only [Module.isCombinational, Bool.and_eq_true] at hcomb
     simpa [Stmt.isCombinationalList, Stmt.isCombinational] using hcomb.1
-  have hcomb_main : Stmt.isCombinationalList mainFn.body :=
-    Module.isCombinational_function_body hcomb (Module.findFunction_mem hm) hmain
-  have hhost_eq : (Env.isHostOnly env mainFn.name) = false := by
-    simp only [Bool.not_eq_true] at hmain ⊢
-    exact hmain
-  have hmem_emitted : mainFn ∈ Module.emittedFunctions env m := by
+  have hcomb_fn : Stmt.isCombinationalList fn.body :=
+    Module.isCombinational_function_body hcomb (Module.findFunction_mem hm) hhost
+  have hhost_eq : (Env.isHostOnly env fn.name) = false := by
+    simp only [Bool.not_eq_true] at hhost ⊢
+    exact hhost
+  have hmem_emitted : fn ∈ Module.emittedFunctions env m := by
     simp only [Module.emittedFunctions, List.mem_filter]
     exact ⟨Module.findFunction_mem hm, by simp [hhost_eq]⟩
   have hlookup :
-    List.find? (fun f => f.name == "main") vm.functions =
-    some (emitVFunction defaultFuel env m mainFn) := by
+    List.find? (fun f => f.name == fnName) vm.functions =
+    some (emitVFunction defaultFuel env m fn) := by
     rw [hvm]
-    exact emit_function_lookup defaultFuel env m "main" mainFn hunique hm hmem_emitted
+    exact emit_function_lookup defaultFuel env m fnName fn hunique hm hmem_emitted
   rw [← hvm]
   rw [evalModuleFunctionTotal_bind, evalVModuleTotal_bind]
   have h_globals := (all_equiv env m vm (by rfl) hcomb hctx hunique defaultFuel).2.2.1
@@ -1628,10 +1629,23 @@ theorem module_value_equiv_proved (env : Env) (m : Module)
   apply Option.bind_congr_ext rfl
   intro initVal
   rw [hm, hlookup]
-  apply (all_equiv env m vm (by rfl) hcomb hctx hunique defaultFuel).2.2.2 initVal mainFn
-    (emitVFunction defaultFuel env m mainFn) [] rfl
-    (hctx.2 mainFn (Module.findFunction_mem hm) hmain) hcomb_main
+  apply (all_equiv env m vm (by rfl) hcomb hctx hunique defaultFuel).2.2.2 initVal fn
+    (emitVFunction defaultFuel env m fn) [] rfl
+    (hctx.2 fn (Module.findFunction_mem hm) hhost) hcomb_fn
     (Valuation.equiv_refl initVal)
+
+/-- Convenience corollary for the common `main` entry point. -/
+theorem module_value_equiv_main (env : Env) (m : Module)
+    (_h : Module.isLowerable env m)
+    (hunique : Module.hasUniqueFunctionNames m)
+    (hcomb : Module.isCombinational env m)
+    (hctx : Module.callContext env m)
+    (mainFn : Function)
+    (hm : m.findFunction "main" = some mainFn)
+    (hmain : ¬ Env.isHostOnly env mainFn.name) :
+    evalModuleFunctionTotal defaultFuel env m "main" [] =
+    evalVModuleTotal defaultFuel env (emitModule env m) "main" := by
+  exact module_value_equiv_proved env m _h hunique hcomb hctx "main" mainFn hm hmain
 
 end FuelFacts
 

@@ -376,4 +376,45 @@ def w493ModuleAosModule : Module := {
   benches := []
 }
 
+/-- W501: environment for a module whose equivalence property is stated for a
+    non-`main` emitted function. -/
+def w501NonMainEnv : Env := {
+  structs := [("Pt", [("x", .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["main", "get_y", "make_pt"]
+}
+
+def w501NonMainMakePt : Function := {
+  name := "make_pt",
+  params := [],
+  ret := some (.struct "Pt"),
+  body := [.return_ (some (.structLit "Pt" [("x", .intLit 42)]))]
+}
+
+def w501NonMainGetY : Function := {
+  name := "get_y",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.fieldAccess (.call "make_pt" []) "x"))]
+}
+
+def w501NonMainMain : Function := {
+  name := "main",
+  params := [],
+  ret := some .u32,
+  body := [.return_ (some (.call "get_y" []))]
+}
+
+def w501NonMainModule : Module := {
+  name := "w501_non_main_entry_function",
+  imports := [],
+  globals := [],
+  functions := [w501NonMainMakePt, w501NonMainGetY, w501NonMainMain],
+  tests := [],
+  benches := []
+}
+
 end Trinity.IcarusLowerable

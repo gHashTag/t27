@@ -1,3 +1,29 @@
+## 2026-07-13 — Wave Loop 501 (generalize `module_value_equiv` beyond `main`)
+
+### Verification (final)
+- `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in IcarusLowerable modules.
+- `./scripts/tri verify --lean-lowerable`: passed (W492 completeness gate), 254 lowerable specs exported.
+- `./scripts/tri test`: 699 / 699 non-smoke PASS, 179 / 179 yosys smoke PASS (0 baseline failures), 179 / 179 Icarus smoke PASS (0 documented baselines), 699 / 699 seal matches, FPGA board-less smoke gate / replay OK, standalone lake-package build OK, Gen C / Fixed Point clean.
+- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
+
+### What worked
+- **Parameterizing the theorem over `fnName : String`** removes the last entry-point assumption. The proof is otherwise unchanged because `all_equiv` was already fully generic.
+- **Keeping a `main` corollary** (`module_value_equiv_main`) preserves the original API and all existing callers.
+- **A non-main witness** (`w501_non_main_entry_function`) with functions `make_pt`, `get_y`, and `main` proves value preservation for `get_y` directly, using the generalized theorem rather than `native_decide` alone.
+- **Proving `Module.hasUniqueFunctionNames` and `Module.callContext`** for the witness by `simp` + concrete reduction is simpler than adding generic `Decidable` instances for those predicates.
+
+### What to improve
+- **Conditionals and loops** remain outside the modeled operational semantics.
+- The theorem still requires the chosen function to be emitted (non-host-only), which is exactly the `Module.emittedFunctions` contract.
+- Array-typed direct fields continue to use memory-mode lowering.
+
+### Techniques to reuse
+- When a theorem wrapper carries a syntactic restriction that the underlying invariant does not need, generalize the wrapper and add a narrow corollary for backward compatibility.
+- Use `native_decide` for `Bool`-valued lowerability/combinationality goals and `simp` + concrete reduction for `Prop`-valued well-formedness predicates.
+- Add a witness whose theorem statement exercises the new generalized contract directly, not just through a `main` wrapper.
+
+---
+
 ## 2026-07-13 — Wave Loop 500 (close the last documented Icarus baseline: local register-mode array-of-struct element re-packing)
 
 ### Verification (final)
@@ -14,7 +40,7 @@
 - **Renaming the adversarial witness** from `w493_local_aos_element_field_not_lowerable.t27` to `w493_local_aos_element_field_lowerable.t27` documents that the boundary is now closed.
 
 ### What to improve
-- The theorem still assumes the entry function (`main`) is not host-only.
+- The theorem still assumed the entry function (`main`) is not host-only; closed in Wave Loop 501.
 - **Conditionals and loops** remain outside the modeled operational semantics.
 - The register-mode re-packing path currently covers scalar-struct elements; array-typed direct fields still use memory-mode lowering.
 
@@ -41,7 +67,7 @@
 - **Reusing `Module.findFunction` on `m.functions` only** keeps tests/benches out of the synthesizable call graph while preserving the host-side harness behavior.
 
 ### What to improve
-- The theorem still assumes the entry function (`main`) is not host-only.
+- The theorem still assumed the entry function (`main`) is not host-only; closed in Wave Loop 501.
 - The **local AOS element boundary** (`w493_local_aos_element_field_not_lowerable.t27`) was the single documented Icarus baseline; closed in Wave Loop 500 and renamed to `w493_local_aos_element_field_lowerable.t27`.
 - **Conditionals and loops** remain outside the modeled operational semantics.
 

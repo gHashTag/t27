@@ -2080,3 +2080,11 @@
 - **Commit:** chore(trinity): record W499 session log and commit count
 - **Files:** .claude/plans/wave-loop-500.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w476_adversarial_aggregate_tail.json,.trinity/seals/scratch_w476_nested_whole_struct_assign.json,.trinity/seals/scratch_w493_local_aos_element_field_lowerable.json,.trinity/seals/scratch_w493_local_aos_element_field_not_lowerable.json,bootstrap/src/compiler.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W501_2026-07-13.md,docs/reports/WAVE_LOOP_500_CLOSEOUT.md,specs/scratch/w493_local_aos_element_field_lowerable.t27
 
+## 2026-07-12T12:13:10Z — wave-loop-501
+- **Commit:** feat(gen-verilog): Wave Loop 500 — close last documented Icarus baseline by re-packing local register-mode AOS elements, 698/698 PASS + 178/178 yosys + 178/178 Icarus (0 baselines) + cargo 1525/0/2
+- **Files:** .claude/plans/wave-loop-501.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w501_non_main_entry_function.json,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W502_2026-07-13.md,docs/reports/WAVE_LOOP_501_CLOSEOUT.md,docs/reports/gen_verilog_iverilog_smoke_baseline.json,proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/scratch/w501_non_main_entry_function.t27
+
+## 2026-07-12T12:13:49Z — wave-loop-501
+- **Commit:** feat(lean4): Wave Loop 501 — generalize Icarus structural-equivalence theorem beyond hard-coded main, non-main witness, 699/699 PASS + 179/179 yosys + 179/179 Icarus (0 baselines) + cargo 1525/0/2 + lake build green
+- **Files:** docs/NOW.md
+

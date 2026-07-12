@@ -139,12 +139,25 @@ theorem w493_nested_identifier_total_partial_bridge :
   native_decide
 
 /-- Generic value-preservation theorem for the Icarus-lowerable combinational
-    subset.  W499: with unconditional function emission, the only remaining
-    assumptions are lowerability, combinationality, unique function names, the
-    module-level call-context invariant, and the fact that `main` is not a
-    host-only helper.  The obsolete `callsResolved`/`callsReachable` preconditions
-    have been removed. -/
+    subset.  W501: generalized to any emitted function name, not just `main`.
+    The only remaining assumptions are lowerability, combinationality, unique
+    function names, the module-level call-context invariant, and the fact that
+    the chosen function is not a host-only helper. -/
 theorem module_value_equiv_statement (env : Env) (m : Module)
+    (h : Module.isLowerable env m)
+    (hunique : Module.hasUniqueFunctionNames m)
+    (hcomb : Module.isCombinational env m)
+    (hctx : Module.callContext env m)
+    (fnName : String)
+    (fn : Function)
+    (hm : m.findFunction fnName = some fn)
+    (hhost : ¬ Env.isHostOnly env fn.name) :
+    evalModuleFunctionTotal defaultFuel env m fnName [] =
+    evalVModuleTotal defaultFuel env (emitModule env m) fnName := by
+  exact module_value_equiv_proved env m h hunique hcomb hctx fnName fn hm hhost
+
+/-- Convenience corollary: the original `main`-specific shape of the theorem. -/
+theorem module_value_equiv_main_statement (env : Env) (m : Module)
     (h : Module.isLowerable env m)
     (hunique : Module.hasUniqueFunctionNames m)
     (hcomb : Module.isCombinational env m)
@@ -154,6 +167,31 @@ theorem module_value_equiv_statement (env : Env) (m : Module)
     (hmain : ¬ Env.isHostOnly env mainFn.name) :
     evalModuleFunctionTotal defaultFuel env m "main" [] =
     evalVModuleTotal defaultFuel env (emitModule env m) "main" := by
-  exact module_value_equiv_proved env m h hunique hcomb hctx mainFn hm hmain
+  exact module_value_equiv_main env m h hunique hcomb hctx mainFn hm hmain
+
+/-- W501: the non-main-entry witness is lowerable. -/
+theorem w501_non_main_entry_lowerable :
+  Module.isLowerable w501NonMainEnv w501NonMainModule := by
+  native_decide
+
+/-- W501: value preservation for the non-`main` function `get_y`. This exercises
+    the generalized `module_value_equiv_statement` directly on an emitted helper
+    rather than on the `main` entry point. -/
+theorem w501_non_main_entry_value_equiv :
+  evalModuleFunctionTotal defaultFuel w501NonMainEnv w501NonMainModule "get_y" [] =
+  evalVModuleTotal defaultFuel w501NonMainEnv (emitModule w501NonMainEnv w501NonMainModule) "get_y" := by
+  have hlowerable : Module.isLowerable w501NonMainEnv w501NonMainModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w501NonMainModule := by
+    simp [Module.hasUniqueFunctionNames, w501NonMainModule, w501NonMainMakePt, w501NonMainGetY, w501NonMainMain]
+  have hcomb : Module.isCombinational w501NonMainEnv w501NonMainModule := by native_decide
+  have hctx : Module.callContext w501NonMainEnv w501NonMainModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w501NonMainEnv, w501NonMainModule, w501NonMainMakePt, w501NonMainGetY, w501NonMainMain]
+    all_goals native_decide
+  have hfind : w501NonMainModule.findFunction "get_y" = some w501NonMainGetY := by
+    simp [Module.findFunction, w501NonMainModule, w501NonMainMakePt, w501NonMainGetY, w501NonMainMain]
+  have hhost : ¬ Env.isHostOnly w501NonMainEnv w501NonMainGetY.name := by
+    simp [Env.isHostOnly, w501NonMainEnv, w501NonMainGetY]
+  exact module_value_equiv_statement w501NonMainEnv w501NonMainModule
+    hlowerable hunique hcomb hctx "get_y" w501NonMainGetY hfind hhost
 
 end Trinity.IcarusLowerable
