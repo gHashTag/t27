@@ -2100,3 +2100,7 @@
 - **Commit:** feat(lean4): Wave Loop 502 — adversarial non-main witnesses + args generalization, 703/703 PASS + 183/183 yosys + 183/183 Icarus (0 baselines) + cargo 1525/0/2 + lake build green
 - **Files:** .trinity/seals/scratch_w503_for_accumulator.json,.trinity/seals/scratch_w503_if_return.json,proofs/lean4/Trinity/IcarusLowerable/Emitter.lean,proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Semantics.lean,proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,proofs/lean4/Trinity/IcarusLowerable/Verilog.lean,specs/scratch/w503_for_accumulator.t27,specs/scratch/w503_if_return.t27
 
+## 2026-07-12T14:02:03Z — wave-loop-503
+- **Commit:** feat(igla): W503 sequential constructs — ifThenElse/forLoop semantics, emitter, predicate, equivalence, witnesses, seals
+- **Files:** .trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W504_2026-07-12.md,docs/reports/WAVE_LOOP_503_CLOSEOUT.md
+

@@ -1,6 +1,70 @@
-# NOW — Wave Loop 502 closed / W503 next (2026-07-13)
+# NOW — Wave Loop 504 in progress (2026-07-12)
 
-**Last updated:** 2026-07-13
+**Last updated:** 2026-07-12
+
+---
+
+## Wave Loop 504 — Next step for Icarus sequential equivalence (in progress)
+
+- Branch: `wave-loop-504` (to create)
+- Issue: #1473 (placeholder — GH_TOKEN unavailable)
+- Cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W504_2026-07-12.md`
+
+### Goal
+
+Choose among the three W504 cooperation variants and land the next extension of
+the Icarus equivalence proof.  Likely priorities:
+
+1. Close the `forLoop` gap in the generic equivalence theorem (Variant A).
+2. Harden the new sequential-construct boundary with adversarial witnesses
+   (Variant B).
+3. Expand the modeled subset to `while` and `switch` (Variant C).
+
+---
+
+## Wave Loop 503 — Extend Icarus equivalence proof to sequential constructs (closed)
+
+- Branch: `wave-loop-503`
+- Issue: #1472
+- Plan: `.claude/plans/wave-loop-503.md`
+- Report: `docs/reports/WAVE_LOOP_503_CLOSEOUT.md`
+- Cooperation W504: `docs/reports/FPGA_LOOP_COOPERATION_W504_2026-07-12.md`
+
+### Deliverables
+
+- Added `ifThenElse` and bounded `forLoop` to the t27 and shallow-Verilog
+  operational semantics.
+- Added `ifThenElse` / `forLoop` constructors to `Verilog.lean`.
+- Updated `Emitter.lean` to emit real sequential constructs.
+- Broadened `Predicate.lean` so `ifThenElse` is combinational when its parts
+  are; `forLoop` is lowerable but remains non-combinational.
+- Extended `all_equiv` in `Equivalence.lean` with the `ifThenElse` case.
+- Added scratch witnesses:
+  - `w503_if_return.t27` — conditional return of a numeric literal,
+  - `w503_for_accumulator.t27` — bounded `for` summing into a local variable.
+- Added W503 witness environments/modules in `Lemmas.lean` and
+  lowerability/value-preservation theorems in `Soundness.lean`.
+
+### Verification
+
+- `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in
+  IcarusLowerable modules.
+- `./scripts/tri verify --lean-lowerable`: passed, 253 lowerable specs, 0
+  disagreements.
+- `./scripts/tri test`:
+  - 705 / 705 non-smoke PASS.
+  - 185 / 185 yosys smoke PASS, 0 baseline failures.
+  - 185 / 185 Icarus smoke PASS, 0 documented baseline failures.
+  - 705 / 705 seal matches.
+  - FPGA board-less smoke gate / replay: OK.
+  - Standalone lake-package build: OK.
+- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
+
+### Residual boundaries
+
+- Bounded `forLoop` is modeled and lowerable, but not yet covered by the generic
+  `module_value_equiv_statement` theorem.
+- `while` and `switch` remain outside the modeled operational semantics.
 
 ---
 
@@ -79,31 +143,8 @@
 ### Residual boundaries
 
 - The theorem still assumed `main` is not host-only (closed by W501).
-- Conditionals and loops remain outside the modeled operational semantics.
-
----
-
-## Wave Loop 497 — Totalize the Icarus-lowerable combinational evaluator and scaffold the generic structural equivalence theorem (Variant A)
-
-- Branch: `wave-loop-497`
-- Issue: #1467
-- Plan: `.claude/plans/wave-loop-497.md`
-- Report: `docs/reports/WAVE_LOOP_497_CLOSEOUT.md`
-- Cooperation W498: `docs/reports/FPGA_LOOP_COOPERATION_W498_2026-07-13.md`
-
-### Verification
-
-- `lake build Trinity.IcarusLowerable.Soundness`: green.
-  - One remaining `sorry` in `module_value_equiv_statement` in
-    `Trinity/IcarusLowerable/Soundness.lean` closed by W498.
-- `./scripts/tri test --fast`:
-  - 697 / 697 non-smoke PASS.
-  - 177 / 177 yosys smoke PASS, 0 baseline failures.
-  - 176 / 177 Icarus smoke PASS, 1 documented baseline failure.
-  - 697 / 697 seal matches.
-  - 0 Icarus lowerability disagreements.
-- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
-- NMSE seal: unchanged.
+- Conditionals and loops remain outside the modeled operational semantics
+  (targeted by W503).
 
 ---
 
