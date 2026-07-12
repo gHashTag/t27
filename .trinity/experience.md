@@ -1,3 +1,30 @@
+## 2026-07-07 — Wave Loop 504 (generic equivalence theorem for bounded `forLoop`)
+
+### Verification (final)
+- `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in IcarusLowerable modules.
+- `./scripts/tri verify --lean-lowerable`: passed (W492 completeness gate), 259 lowerable specs exported, 0 disagreements.
+- `./scripts/tri test`: 706 / 706 non-smoke PASS, 186 / 186 yosys smoke PASS (0 baseline failures), 186 / 186 Icarus smoke PASS (0 documented baselines), 706 / 706 seal matches, FPGA board-less smoke gate / replay OK, standalone lake-package build OK, Gen C / Fixed Point clean.
+- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
+
+### What worked
+- **Defining a sequential predicate as a strict superset of combinational** (`Predicate.lean`) lets the existing W501–W503 theorems remain valid while `forLoop` becomes admissible.
+- **Proving combinationality implies sequentiality** for statements, statement lists, functions, and modules gives a smooth upgrade path and avoids duplicating implication proofs.
+- **Aligning loop evaluators to consume fuel per iteration** (`SemanticsTotal.lean`) is essential: the body evaluation and the next iteration both recurse at the smaller fuel, so the outer fuel induction justifies the loop case.
+- **Adding a dedicated `P_forLoop` predicate to `all_equiv`** (`Equivalence.lean`) factors the loop induction out of the statement case and makes the proof mirror the evaluator structure.
+- **Applying the generic sequential theorem to a real witness** (`w504_for_sum.t27`) is the first time a bounded-loop spec is proved by `module_value_equiv_proved_sequential` rather than `native_decide`.
+
+### What to improve
+- **`while` and `switch`** remain outside the modeled subset; they need AST constructors, evaluators, emitter support, and predicate/equivalence cases.
+- Array-typed direct fields still use memory-mode lowering.
+- The theorem still requires the chosen function to be emitted (non-host-only).
+
+### Techniques to reuse
+- When generalizing a generic theorem to a new construct, introduce a predicate that is a strict superset of the old one and prove the old implies the new; old corollaries can then wrap the new theorem.
+- For fuel-based loops, make both the body and the recursive step use the smaller fuel; add a separate predicate to the combined invariant so the loop case has a clean induction target.
+- Keep the witness theorem direct (`module_value_equiv_proved_sequential`) once the generic theorem covers the construct; reserve `native_decide` for constructs still outside the generic subset.
+
+---
+
 ## 2026-07-12 — Wave Loop 503 (extend Icarus equivalence proof to sequential constructs)
 
 ### Verification (final)
