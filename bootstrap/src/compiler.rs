@@ -6464,6 +6464,56 @@ fn stmt_assigns_to(stmt: &Node, name: &str) -> bool {
     }
 }
 
+/// Collect all local names that are reassigned anywhere in a statement list.
+/// This includes:
+/// - Simple assignments: `x = expr` → x is mutable
+/// - Index assignments: `arr[i] = expr` → arr is mutable (Rust requires `let mut`)
+/// - Field assignments: `s.f = expr` → s is mutable
+/// Recurses into if/while/for bodies.
+fn collect_mutable_names(stmts: &[Node], set: &mut std::collections::HashSet<String>) {
+    for stmt in stmts {
+        collect_mutable_names_one(stmt, set);
+    }
+}
+
+fn collect_mutable_names_one(stmt: &Node, set: &mut std::collections::HashSet<String>) {
+    match stmt.kind {
+        NodeKind::StmtAssign if !stmt.children.is_empty() => {
+            let lhs = &stmt.children[0];
+            // Simple identifier: `x = expr`
+            if lhs.kind == NodeKind::ExprIdentifier {
+                set.insert(lhs.name.clone());
+            }
+            // Index assignment: `arr[i] = expr` → arr needs mut
+            // The LHS is ExprIndex with children[0] = base identifier
+            if lhs.kind == NodeKind::ExprIndex && !lhs.children.is_empty() {
+                let base = &lhs.children[0];
+                if base.kind == NodeKind::ExprIdentifier {
+                    set.insert(base.name.clone());
+                }
+            }
+            // Field assignment: `s.f = expr` → s needs mut
+            if lhs.kind == NodeKind::ExprFieldAccess && !lhs.children.is_empty() {
+                let base = &lhs.children[0];
+                if base.kind == NodeKind::ExprIdentifier {
+                    set.insert(base.name.clone());
+                }
+            }
+        }
+        NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange => {
+            // Recurse into condition + body blocks
+            for c in &stmt.children {
+                if c.kind == NodeKind::Module {
+                    collect_mutable_names(&c.children, set);
+                } else {
+                    collect_mutable_names_one(c, set);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
 fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     let mut replacements: Vec<(String, String)> = Vec::new();
     for stmt in stmts.iter() {
@@ -7590,6 +7640,10 @@ fn resolve_type_str(s: &str) -> TypeInfo {
 pub struct RustCodegen {
     output: String,
     indent: usize,
+    /// Names of locals that are reassigned in the current function body
+    /// (via simple assignment `x = ...` or index assignment `arr[i] = ...`).
+    /// Used to infer `let mut` for locals declared with `let`.
+    mut_names: std::collections::HashSet<String>,
 }
 
 #[allow(dead_code)]
@@ -7598,6 +7652,7 @@ impl RustCodegen {
         RustCodegen {
             output: String::new(),
             indent: 0,
+            mut_names: std::collections::HashSet::new(),
         }
     }
 
@@ -7807,6 +7862,10 @@ impl RustCodegen {
             matches!(c.kind, NodeKind::ExprReturn | NodeKind::StmtExpr | NodeKind::StmtLocal | NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange)
         });
 
+        // Infer which locals need `let mut`: scan body for any assignment.
+        self.mut_names.clear();
+        collect_mutable_names(&node.children, &mut self.mut_names);
+
         if has_body {
             self.output.push('\n');
             self.indent += 1;
@@ -7827,7 +7886,7 @@ impl RustCodegen {
                         }
                     }
                     NodeKind::StmtLocal => {
-                        let mutable = child.extra_mutable;
+                        let mutable = child.extra_mutable || self.mut_names.contains(&child.name);
                         let kw = if mutable { "let mut" } else { "let" };
                         let var_name = &child.name;
                         let typ = Self::t27_type_to_rust(&child.extra_type);
@@ -7968,7 +8027,7 @@ impl RustCodegen {
                 }
             }
             NodeKind::StmtLocal => {
-                let kw = if stmt.extra_mutable { "let mut" } else { "let" };
+                let kw = if stmt.extra_mutable || self.mut_names.contains(&stmt.name) { "let mut" } else { "let" };
                 let typ = Self::t27_type_to_rust(&stmt.extra_type);
                 if stmt.children.is_empty() {
                     if stmt.extra_type.is_empty() {
