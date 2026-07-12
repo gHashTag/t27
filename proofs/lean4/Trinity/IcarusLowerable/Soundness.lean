@@ -309,4 +309,62 @@ theorem w502_multiple_non_main_entries_b_value_equiv :
   exact module_value_equiv_statement w502MultipleNonMainEntriesEnv w502MultipleNonMainEntriesModule
     hlowerable hunique hcomb hctx "b" w502MultipleNonMainEntriesB [] hfind hhost
 
+/-- W503-A: the conditional-return witness is lowerable. -/
+theorem w503_if_return_lowerable :
+  Module.isLowerable w503IfReturnEnv w503IfReturnModule := by
+  native_decide
+
+/-- W503-A: the conditional-return witness is combinational, so the generic
+    equivalence theorem applies. -/
+theorem w503_if_return_combinational :
+  Module.isCombinational w503IfReturnEnv w503IfReturnModule := by
+  native_decide
+
+/-- W503-A: value preservation for `pick(true)`. -/
+theorem w503_if_return_pick_true_value_equiv :
+  evalModuleFunctionTotal defaultFuel w503IfReturnEnv w503IfReturnModule "pick" [⟨1, BitVec.ofNat 1 1⟩] =
+  evalVModuleTotal defaultFuel w503IfReturnEnv (emitModule w503IfReturnEnv w503IfReturnModule) "pick" [⟨1, BitVec.ofNat 1 1⟩] := by
+  have hlowerable : Module.isLowerable w503IfReturnEnv w503IfReturnModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w503IfReturnModule := by
+    simp [Module.hasUniqueFunctionNames, w503IfReturnModule, w503IfReturnPick]
+  have hcomb : Module.isCombinational w503IfReturnEnv w503IfReturnModule := by native_decide
+  have hctx : Module.callContext w503IfReturnEnv w503IfReturnModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w503IfReturnEnv, w503IfReturnModule, w503IfReturnPick]
+  have hfind : w503IfReturnModule.findFunction "pick" = some w503IfReturnPick := by
+    simp [Module.findFunction, w503IfReturnModule, w503IfReturnPick]
+  have hhost : ¬ Env.isHostOnly w503IfReturnEnv w503IfReturnPick.name := by
+    simp [Env.isHostOnly, w503IfReturnEnv, w503IfReturnPick]
+  exact module_value_equiv_statement w503IfReturnEnv w503IfReturnModule
+    hlowerable hunique hcomb hctx "pick" w503IfReturnPick [⟨1, BitVec.ofNat 1 1⟩] hfind hhost
+
+/-- W503-A: value preservation for `pick(false)`. -/
+theorem w503_if_return_pick_false_value_equiv :
+  evalModuleFunctionTotal defaultFuel w503IfReturnEnv w503IfReturnModule "pick" [⟨1, BitVec.ofNat 1 0⟩] =
+  evalVModuleTotal defaultFuel w503IfReturnEnv (emitModule w503IfReturnEnv w503IfReturnModule) "pick" [⟨1, BitVec.ofNat 1 0⟩] := by
+  have hlowerable : Module.isLowerable w503IfReturnEnv w503IfReturnModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w503IfReturnModule := by
+    simp [Module.hasUniqueFunctionNames, w503IfReturnModule, w503IfReturnPick]
+  have hcomb : Module.isCombinational w503IfReturnEnv w503IfReturnModule := by native_decide
+  have hctx : Module.callContext w503IfReturnEnv w503IfReturnModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w503IfReturnEnv, w503IfReturnModule, w503IfReturnPick]
+  have hfind : w503IfReturnModule.findFunction "pick" = some w503IfReturnPick := by
+    simp [Module.findFunction, w503IfReturnModule, w503IfReturnPick]
+  have hhost : ¬ Env.isHostOnly w503IfReturnEnv w503IfReturnPick.name := by
+    simp [Env.isHostOnly, w503IfReturnEnv, w503IfReturnPick]
+  exact module_value_equiv_statement w503IfReturnEnv w503IfReturnModule
+    hlowerable hunique hcomb hctx "pick" w503IfReturnPick [⟨1, BitVec.ofNat 1 0⟩] hfind hhost
+
+/-- W503-B: the bounded for-loop accumulator witness is lowerable. -/
+theorem w503_for_accumulator_lowerable :
+  Module.isLowerable w503ForAccumulatorEnv w503ForAccumulatorModule := by
+  native_decide
+
+/-- W503-B: direct value preservation for `sum_three`.  The generic theorem does
+    not apply because the body contains a `forLoop`, but the total evaluators on
+    both sides agree by computation. -/
+theorem w503_for_accumulator_sum_three_value_equiv :
+  evalModuleFunctionTotal defaultFuel w503ForAccumulatorEnv w503ForAccumulatorModule "sum_three" [] =
+  evalVModuleTotal defaultFuel w503ForAccumulatorEnv (emitModule w503ForAccumulatorEnv w503ForAccumulatorModule) "sum_three" [] := by
+  native_decide
+
 end Trinity.IcarusLowerable

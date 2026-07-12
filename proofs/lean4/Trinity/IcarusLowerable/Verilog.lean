@@ -34,6 +34,8 @@ inductive VStmt
   | reg (name : String) (width : Nat)
   | alwaysComb (body : List VStmt)
   | initial (body : List VStmt)
+  | ifThenElse (cond : VExpr) (then_ else_ : List VStmt)
+  | forLoop (var : String) (range : VExpr) (body : List VStmt)
   | taskCall (name : String) (args : List VExpr)
   deriving Repr, BEq, Nonempty
 
@@ -79,6 +81,9 @@ def VStmt.hasPlaceholder : VStmt → Bool
   | .localparam _ _ init => init.hasPlaceholder
   | .alwaysComb body => stmtListHasPlaceholder body
   | .initial body => stmtListHasPlaceholder body
+  | .ifThenElse cond then_ else_ =>
+      cond.hasPlaceholder || stmtListHasPlaceholder then_ || stmtListHasPlaceholder else_
+  | .forLoop _ range body => range.hasPlaceholder || stmtListHasPlaceholder body
   | .taskCall _ args => VExpr.hasPlaceholder.exprListHasPlaceholder args
   | _ => false
 where

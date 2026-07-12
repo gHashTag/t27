@@ -99,6 +99,18 @@ mutual
       let final <- evalStmtsTotal fuel env m init fn.body
       final "__return"
 
+  /-- Helper: execute a t27 for-loop body `n` times, binding `var` to `i`, `i+1`, ... -/
+  def evalForLoopTotal (fuel : Nat) (env : Env) (m : Module) (val : Valuation) (var : String) (i : Nat) (n : Nat) (body : List Stmt) : Option Valuation :=
+    match fuel with
+    | 0 => none
+    | fuel+1 =>
+      match n with
+      | 0 => some val
+      | n+1 => do
+          let loopVal := fun x => if x == var then some ⟨32, BitVec.ofNat 32 i⟩ else val x
+          let val' <- evalStmtsTotal (fuel + 1) env m loopVal body
+          evalForLoopTotal (fuel + 1) env m val' var (i + 1) n body
+
   /-- Total statement evaluator. -/
   def evalStmtTotal (fuel : Nat) (env : Env) (m : Module) (val : Valuation) (stmt : Stmt) : Option Valuation :=
     match fuel with
@@ -118,6 +130,13 @@ mutual
                   | some e => evalExprTotal fuel env m val e
                   | none => some ⟨widthOfType fuel env ty, 0#(widthOfType fuel env ty)⟩
           some (fun x => if x == name then some v else val x)
+      | .ifThenElse cond then_ else_ => do
+          let c <- evalExprTotal fuel env m val cond
+          if c.bits.toNat > 0 then evalStmtsTotal fuel env m val then_
+          else evalStmtsTotal fuel env m val else_
+      | .forLoop var range body => do
+          let r <- evalExprTotal fuel env m val range
+          evalForLoopTotal fuel env m val var 0 r.bits.toNat body
       | .return_ (some e) => do
           let v <- evalExprTotal fuel env m val e
           some (fun x => if x == "__return" then some v else val x)
@@ -200,6 +219,18 @@ mutual
       let final <- evalVStmtsTotal fuel env vm init fn.body
       final "__return"
 
+  /-- Helper: execute a shallow-Verilog for-loop body `n` times, binding `var` to `i`, `i+1`, ... -/
+  def evalVForLoopTotal (fuel : Nat) (env : Env) (vm : VModule) (val : Valuation) (var : String) (i : Nat) (n : Nat) (body : List VStmt) : Option Valuation :=
+    match fuel with
+    | 0 => none
+    | fuel+1 =>
+      match n with
+      | 0 => some val
+      | n+1 => do
+          let loopVal := fun x => if x == var then some ⟨32, BitVec.ofNat 32 i⟩ else val x
+          let val' <- evalVStmtsTotal (fuel + 1) env vm loopVal body
+          evalVForLoopTotal (fuel + 1) env vm val' var (i + 1) n body
+
   /-- Total shallow-Verilog statement evaluator. -/
   def evalVStmtTotal (fuel : Nat) (env : Env) (vm : VModule) (val : Valuation) (stmt : VStmt) : Option Valuation :=
     match fuel with
@@ -217,6 +248,13 @@ mutual
       | .reg _ _ => some val
       | .alwaysComb body => evalVStmtsTotal fuel env vm val body
       | .initial body => evalVStmtsTotal fuel env vm val body
+      | .ifThenElse cond then_ else_ => do
+          let c <- evalVExprTotal fuel env vm val cond
+          if c.bits.toNat > 0 then evalVStmtsTotal fuel env vm val then_
+          else evalVStmtsTotal fuel env vm val else_
+      | .forLoop var range body => do
+          let r <- evalVExprTotal fuel env vm val range
+          evalVForLoopTotal fuel env vm val var 0 r.bits.toNat body
       | .taskCall _ _ => some val
 
   /-- Total shallow-Verilog statement-list evaluator. -/

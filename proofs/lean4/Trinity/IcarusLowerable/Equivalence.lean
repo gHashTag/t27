@@ -602,6 +602,24 @@ theorem functionNames_bareCall {e} :
     (Stmt.bareCall e).functionNames = e.functionNames := by
   simp [Stmt.functionNames]
 
+@[simp]
+theorem stmt_functionNames_eq (s : Stmt) : s.functionNames = s.functionNames' := by rfl
+
+@[simp]
+theorem expr_functionNames_eq (e : Expr) : e.functionNames = e.functionNames' := by rfl
+
+@[simp]
+theorem functionNames_ifThenElse {cond then_ else_} :
+    (Stmt.ifThenElse cond then_ else_).functionNames' =
+    cond.functionNames' ++ then_.flatMap Stmt.functionNames' ++ else_.flatMap Stmt.functionNames' := by
+  simp [Stmt.functionNames']
+
+@[simp]
+theorem functionNames_forLoop {var range body} :
+    (Stmt.forLoop var range body).functionNames' =
+    range.functionNames' ++ body.flatMap Stmt.functionNames' := by
+  simp [Stmt.functionNames']
+
 theorem callContext_assign {env m lhs rhs}
     (h : Stmt.callContext env m (Stmt.assign lhs rhs)) :
     Expr.callContext env m rhs := by
@@ -631,6 +649,49 @@ theorem callContext_bareCall {env m e}
     Expr.callContext env m e := by
   intro x hx
   exact h x (by simpa using hx)
+
+theorem callContext_ifThenElse {env m cond then_ else_}
+    (h : Stmt.callContext env m (Stmt.ifThenElse cond then_ else_)) :
+    Expr.callContext env m cond
+    ∧ Stmt.callContextList env m then_
+    ∧ Stmt.callContextList env m else_ := by
+  simp only [Stmt.callContext, stmt_functionNames_eq] at h
+  constructor
+  · intro x hx
+    rw [expr_functionNames_eq] at hx
+    have hmem : x ∈ (Stmt.ifThenElse cond then_ else_).functionNames' := by
+      simp [functionNames_ifThenElse, hx]
+    exact h x hmem
+  constructor
+  · intro s hs x hx
+    rw [stmt_functionNames_eq] at hx
+    have hmem : x ∈ (Stmt.ifThenElse cond then_ else_).functionNames' := by
+      simp [functionNames_ifThenElse]
+      exact Or.inr (Or.inl ⟨s, hs, hx⟩)
+    exact h x hmem
+  · intro s hs x hx
+    rw [stmt_functionNames_eq] at hx
+    have hmem : x ∈ (Stmt.ifThenElse cond then_ else_).functionNames' := by
+      simp [functionNames_ifThenElse]
+      exact Or.inr (Or.inr ⟨s, hs, hx⟩)
+    exact h x hmem
+
+theorem callContext_forLoop {env m var range body}
+    (h : Stmt.callContext env m (Stmt.forLoop var range body)) :
+    Expr.callContext env m range ∧ Stmt.callContextList env m body := by
+  simp only [Stmt.callContext, stmt_functionNames_eq] at h
+  constructor
+  · intro x hx
+    rw [expr_functionNames_eq] at hx
+    have hmem : x ∈ (Stmt.forLoop var range body).functionNames' := by
+      simp [functionNames_forLoop, hx]
+    exact h x hmem
+  · intro s hs x hx
+    rw [stmt_functionNames_eq] at hx
+    have hmem : x ∈ (Stmt.forLoop var range body).functionNames' := by
+      simp [functionNames_forLoop]
+      exact Or.inr ⟨s, hs, hx⟩
+    exact h x hmem
 
 theorem callContext_list_mem {env m} {ss : List Stmt} {s : Stmt}
     (h : Stmt.callContextList env m ss) (hs : s ∈ ss) :
@@ -678,6 +739,28 @@ theorem isCombinational_bareCall {e}
     Expr.isCombinational e := by
   simp [Stmt.isCombinational] at h ⊢
   exact h
+
+theorem isCombinationalList'_eq (ss : List Stmt) :
+    Stmt.isCombinationalList' ss = Stmt.isCombinationalList ss := by
+  induction ss with
+  | nil => simp [Stmt.isCombinationalList', Stmt.isCombinationalList]
+  | cons s ss ih =>
+      simp [Stmt.isCombinationalList', Stmt.isCombinationalList, ih]
+
+theorem isCombinational_ifThenElse {cond then_ else_}
+    (h : Stmt.isCombinational (Stmt.ifThenElse cond then_ else_)) :
+    Expr.isCombinational cond
+    ∧ Stmt.isCombinationalList then_
+    ∧ Stmt.isCombinationalList else_ := by
+  simp only [Stmt.isCombinational, Expr.isCombinational, Stmt.isCombinational', isCombinationalList'_eq,
+    Bool.and_eq_true, and_assoc] at h ⊢
+  exact h
+
+theorem isCombinational_forLoop {var range body}
+    (h : Stmt.isCombinational (Stmt.forLoop var range body)) :
+    Expr.isCombinational range ∧ Stmt.isCombinationalList body := by
+  simp only [Stmt.isCombinational, Expr.isCombinational] at h
+  contradiction
 
 theorem isCombinationalList_head {s ss}
     (h : Stmt.isCombinationalList (s :: ss)) :
@@ -852,6 +935,18 @@ theorem emitStmt_default_return_some (env m) (e : Expr) :
   conv => lhs; unfold emitStmt
   simp [Option.map_some, Option.getD_some]
 
+theorem emitStmt_default_ifThenElse (env m) (cond : Expr) (then_ else_ : List Stmt) :
+    emitStmt defaultFuel env m (Stmt.ifThenElse cond then_ else_) =
+    VStmt.ifThenElse (emitExpr defaultFuel env m cond)
+      (emitStmts defaultFuel env m then_)
+      (emitStmts defaultFuel env m else_) := by
+  conv => lhs; unfold emitStmt; rfl
+
+theorem emitStmt_default_forLoop (env m) (var : String) (range : Expr) (body : List Stmt) :
+    emitStmt defaultFuel env m (Stmt.forLoop var range body) =
+    VStmt.forLoop var (emitExpr defaultFuel env m range) (emitStmts defaultFuel env m body) := by
+  conv => lhs; unfold emitStmt; rfl
+
 theorem emitStmt_default_bareCall (env m) (e : Expr) :
     emitStmt defaultFuel env m (Stmt.bareCall e) =
     VStmt.taskCall "" [emitExpr defaultFuel env m e] := by
@@ -878,11 +973,19 @@ section EvalEq
 /-- At zero fuel all expression evaluators return `none`. -/
 theorem evalExprTotal_zero {env m val e} :
     evalExprTotal 0 env m val e = none := by
-  rfl
+  cases e <;> simp [evalExprTotal]
 
 theorem evalVExprTotal_zero {env vm val e} :
     evalVExprTotal 0 env vm val e = none := by
-  rfl
+  cases e <;> simp [evalVExprTotal]
+
+theorem evalForLoopTotal_zero {env m val var i n body} :
+    evalForLoopTotal 0 env m val var i n body = none := by
+  simp [evalForLoopTotal]
+
+theorem evalVForLoopTotal_zero {env vm val var i n body} :
+    evalVForLoopTotal 0 env vm val var i n body = none := by
+  simp [evalVForLoopTotal]
 
 /-- At positive fuel a boolean literal reduces to a one-bit value. -/
 theorem evalExprTotal_succ_boolLit (fuel env m) (b : Bool) (val : Valuation) :
@@ -1134,6 +1237,25 @@ theorem evalStmtTotal_succ_return_some (fuel env m) (e : Expr) (val : Valuation)
     | none => simp [h, evalStmtTotal, Option.bind]
     | some rv => simp [h, evalStmtTotal, Option.bind]
 
+theorem evalStmtTotal_succ_ifThenElse (fuel env m) (cond : Expr) (then_ else_ : List Stmt) (val : Valuation) :
+    evalStmtTotal (fuel + 1) env m val (Stmt.ifThenElse cond then_ else_) =
+    (evalExprTotal fuel env m val cond).bind (fun c =>
+      if c.bits.toNat > 0 then evalStmtsTotal fuel env m val then_
+      else evalStmtsTotal fuel env m val else_) := by
+    cases h : evalExprTotal fuel env m val cond with
+    | none => simp [h, evalStmtTotal, Option.bind]
+    | some c =>
+        simp [h, evalStmtTotal, Option.bind]
+        try { split; rfl }
+
+theorem evalStmtTotal_succ_forLoop (fuel env m) (var : String) (range : Expr) (body : List Stmt) (val : Valuation) :
+    evalStmtTotal (fuel + 1) env m val (Stmt.forLoop var range body) =
+    (evalExprTotal fuel env m val range).bind (fun r =>
+      evalForLoopTotal fuel env m val var 0 r.bits.toNat body) := by
+    cases h : evalExprTotal fuel env m val range with
+    | none => simp [h, evalStmtTotal, Option.bind]
+    | some r => simp [h, evalStmtTotal, Option.bind]
+
 theorem evalStmtTotal_succ_bareCall (fuel env m) (e : Expr) (val : Valuation) :
     evalStmtTotal (fuel + 1) env m val (Stmt.bareCall e) = some val := by
     simp [evalStmtTotal]
@@ -1168,6 +1290,27 @@ theorem evalVStmtTotal_succ_localparam (fuel env vm) (name : String) (w : Nat) (
     cases h : evalVExprTotal fuel env vm val e with
     | none => simp [h, evalVStmtTotal, Option.bind, Valuation.set_eq]
     | some rv => simp [h, evalVStmtTotal, Option.bind, Valuation.set_eq]
+
+theorem evalVStmtTotal_succ_ifThenElse (fuel env vm) (cond : VExpr) (then_ else_ : List VStmt)
+    (val : Valuation) :
+    evalVStmtTotal (fuel + 1) env vm val (VStmt.ifThenElse cond then_ else_) =
+    (evalVExprTotal fuel env vm val cond).bind (fun c =>
+      if c.bits.toNat > 0 then evalVStmtsTotal fuel env vm val then_
+      else evalVStmtsTotal fuel env vm val else_) := by
+    cases h : evalVExprTotal fuel env vm val cond with
+    | none => simp [h, evalVStmtTotal, Option.bind]
+    | some c =>
+        simp [h, evalVStmtTotal, Option.bind]
+        try { split; rfl }
+
+theorem evalVStmtTotal_succ_forLoop (fuel env vm) (var : String) (range : VExpr) (body : List VStmt)
+    (val : Valuation) :
+    evalVStmtTotal (fuel + 1) env vm val (VStmt.forLoop var range body) =
+    (evalVExprTotal fuel env vm val range).bind (fun r =>
+      evalVForLoopTotal fuel env vm val var 0 r.bits.toNat body) := by
+    cases h : evalVExprTotal fuel env vm val range with
+    | none => simp [h, evalVStmtTotal, Option.bind]
+    | some r => simp [h, evalVStmtTotal, Option.bind]
 
 theorem evalVStmtTotal_succ_taskCall (fuel env vm) (name : String) (args : List VExpr)
     (val : Valuation) :
@@ -1254,7 +1397,9 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
       constructor
       · intro val s vs heq hcc hcomb hval
         rw [← heq]
-        cases s <;> unfold evalStmtTotal evalVStmtTotal <;> rfl
+        cases s
+        all_goals
+          simp [evalStmtTotal, evalVStmtTotal, evalForLoopTotal_zero, evalVForLoopTotal_zero]
       constructor
       · intro val ss vss heq hcc hcomb hval
         rw [← heq]
@@ -1521,6 +1666,22 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
               evalStmtTotal_succ_bareCall, evalVStmtTotal_succ_taskCall]
             -- The t27 bare-call semantics ignores `e`, matching the Verilog
             -- task-call semantics, so no expression IH is needed.
+        | ifThenElse cond then_ else_ =>
+            have hcomb_cond := (Stmt.isCombinational_ifThenElse hcomb_s).1
+            have hcomb_then := (Stmt.isCombinational_ifThenElse hcomb_s).2.1
+            have hcomb_else := (Stmt.isCombinational_ifThenElse hcomb_s).2.2
+            have hcc_cond := (Stmt.callContext_ifThenElse hcc_s).1
+            have hcc_then := (Stmt.callContext_ifThenElse hcc_s).2.1
+            have hcc_else := (Stmt.callContext_ifThenElse hcc_s).2.2
+            simp only [emitStmt_default_ifThenElse,
+              evalStmtTotal_succ_ifThenElse, evalVStmtTotal_succ_ifThenElse]
+            have h_cond := ih_expr val cond (emitExpr defaultFuel env₀ m₀ cond) rfl hcc_cond hcomb_cond hval
+            rw [h_cond]
+            apply Option.bind_congr_ext rfl
+            intro c
+            split
+            · exact ih_stmts val then_ (emitStmts defaultFuel env₀ m₀ then_) rfl hcc_then hcomb_then hval
+            · exact ih_stmts val else_ (emitStmts defaultFuel env₀ m₀ else_) rfl hcc_else hcomb_else hval
         | _ =>
             simp [Stmt.isCombinational] at hcomb_s
             all_goals contradiction

@@ -277,6 +277,16 @@ mutual
       let final <- evalVStmts env vm init fn.body
       final "__return"
 
+
+  /-- Helper: execute a shallow-Verilog for-loop body `n` times, binding `var` to `i`, `i+1`, ... -/
+  partial def evalVForLoop (env : Env) (vm : VModule) (val : Valuation) (var : String) (i : Nat) (n : Nat) (body : List VStmt) : Option Valuation :=
+    match n with
+    | 0 => some val
+    | n+1 => do
+        let loopVal := fun x => if x == var then some ⟨32, BitVec.ofNat 32 i⟩ else val x
+        let val' <- evalVStmts env vm loopVal body
+        evalVForLoop env vm val' var (i + 1) n body
+
   /-- Evaluate a shallow Verilog statement. -/
   partial def evalVStmt (env : Env) (vm : VModule) (val : Valuation) (stmt : VStmt) : Option Valuation :=
     match stmt with
@@ -291,6 +301,13 @@ mutual
     | .reg _ _ => some val
     | .alwaysComb body => evalVStmts env vm val body
     | .initial body => evalVStmts env vm val body
+    | .ifThenElse cond then_ else_ => do
+        let c <- evalVExpr env vm val cond
+        if c.bits.toNat > 0 then evalVStmts env vm val then_
+        else evalVStmts env vm val else_
+    | .forLoop var range body => do
+        let r <- evalVExpr env vm val range
+        evalVForLoop env vm val var 0 r.bits.toNat body
     | .taskCall _ _ =>
         -- Task calls in the model only occur in test blocks; they are evaluated
         -- by the surrounding statement list, so we leave the valuation unchanged.

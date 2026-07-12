@@ -1,0 +1,11 @@
+pub fn sum_three() -> u32 {
+    var acc : u32 = 0;
+    for i in 0..3 {
+        acc = acc + 1;
+    }
+    return acc;
+}
+
+test for_accumulator {
+    assert_eq(sum_three(), 3);
+}

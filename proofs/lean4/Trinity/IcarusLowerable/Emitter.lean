@@ -54,7 +54,7 @@ private def widthOfTypeFuel : Nat → Env → Ty → Nat
       fields.foldl (fun acc p => acc + widthOfTypeFuel fuel env p.2) 0
   | _, _, _ => 32
 
-def widthOfType (fuel : Nat) (env : Env) (ty : Ty) : Nat :=
+def widthOfType (_fuel : Nat) (env : Env) (ty : Ty) : Nat :=
   widthOfTypeFuel predicateFuel env ty
 
 /-- Element width for a t27 index expression, derived from the base type. -/
@@ -128,10 +128,10 @@ mutual
         let width := widthOfType fuel env ty
         let initExpr := (init.map (emitExpr fuel env m)).getD (VExpr.lit width "0")
         .localparam name width initExpr
-    | .ifThenElse _ then_ else_ =>
-        .alwaysComb (emitStmts fuel env m then_ ++ emitStmts fuel env m else_)
-    | .forLoop _ _ body =>
-        .initial (emitStmts fuel env m body)
+    | .ifThenElse cond then_ else_ =>
+        .ifThenElse (emitExpr fuel env m cond) (emitStmts fuel env m then_) (emitStmts fuel env m else_)
+    | .forLoop var range body =>
+        .forLoop var (emitExpr fuel env m range) (emitStmts fuel env m body)
     | .return_ e =>
         let rhs := (e.map (emitExpr fuel env m)).getD (VExpr.lit 1 "0")
         .assign (.ident "__return") rhs

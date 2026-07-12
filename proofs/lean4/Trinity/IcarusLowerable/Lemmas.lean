@@ -579,4 +579,66 @@ def w502MultipleNonMainEntriesModule : Module := {
   benches := []
 }
 
+/-- W503: environment for the conditional-return witness. -/
+def w503IfReturnEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["pick"]
+}
+
+def w503IfReturnPick : Function := {
+  name := "pick",
+  params := [("flag", .bool)],
+  ret := some .u32,
+  body := [
+    .ifThenElse (.identifier "flag")
+      [.return_ (some (.intLit 7))]
+      [.return_ (some (.intLit 11))]
+  ]
+}
+
+def w503IfReturnModule : Module := {
+  name := "w503_if_return",
+  imports := [],
+  globals := [],
+  functions := [w503IfReturnPick],
+  tests := [],
+  benches := []
+}
+
+/-- W503: environment for the bounded for-loop accumulator witness. -/
+def w503ForAccumulatorEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["sum_three"]
+}
+
+def w503ForAccumulatorSumThree : Function := {
+  name := "sum_three",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "acc" .u32 (some (.intLit 0)),
+    .forLoop "i" (.intLit 3) [
+      .assign (.identifier "acc") (.binop "+" (.identifier "acc") (.intLit 1))
+    ],
+    .return_ (some (.identifier "acc"))
+  ]
+}
+
+def w503ForAccumulatorModule : Module := {
+  name := "w503_for_accumulator",
+  imports := [],
+  globals := [],
+  functions := [w503ForAccumulatorSumThree],
+  tests := [],
+  benches := []
+}
+
 end Trinity.IcarusLowerable

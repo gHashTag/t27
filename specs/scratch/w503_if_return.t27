@@ -1,0 +1,12 @@
+pub fn pick(flag : bool) -> u32 {
+    if (flag) {
+        return 7;
+    } else {
+        return 11;
+    }
+}
+
+test if_return {
+    assert_eq(pick(true), 7);
+    assert_eq(pick(false), 11);
+}

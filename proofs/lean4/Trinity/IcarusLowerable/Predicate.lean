@@ -217,7 +217,8 @@ def Stmt.isCombinationalFuel (fuel : Nat) (s : Stmt) : Bool :=
   | fuel+1, .varDecl _ _ none => false
   | fuel+1, .constDecl _ _ (some e) => e.isCombinationalFuel fuel
   | fuel+1, .constDecl _ _ none => false
-  | fuel+1, .ifThenElse _ _ _ => false
+  | fuel+1, .ifThenElse cond then_ else_ =>
+      cond.isCombinationalFuel fuel && Stmt.isCombinationalListFuel fuel then_ && Stmt.isCombinationalListFuel fuel else_
   | fuel+1, .forLoop _ _ _ => false
   | fuel+1, .return_ (some e) => e.isCombinationalFuel fuel
   | fuel+1, .return_ none => false
@@ -447,15 +448,26 @@ mutual
     | f :: fs => f.2.isCombinational' && Expr.isCombinationalFieldList' fs
 end
 
-/-- Structural combinationality for statements. -/
-@[simp]
-def Stmt.isCombinational' : Stmt → Bool
-  | .assign (.identifier _) rhs => rhs.isCombinational'
-  | .varDecl _ _ (some e) => e.isCombinational'
-  | .constDecl _ _ (some e) => e.isCombinational'
-  | .return_ (some e) => e.isCombinational'
-  | .bareCall e => e.isCombinational'
-  | _ => false
+mutual
+  /-- Structural combinationality for statements. -/
+  @[simp]
+  def Stmt.isCombinational' : Stmt → Bool
+    | .assign (.identifier _) rhs => rhs.isCombinational'
+    | .varDecl _ _ (some e) => e.isCombinational'
+    | .constDecl _ _ (some e) => e.isCombinational'
+    | .ifThenElse cond then_ else_ =>
+        cond.isCombinational' && Stmt.isCombinationalList' then_ && Stmt.isCombinationalList' else_
+    | .forLoop _ _ _ => false
+    | .return_ (some e) => e.isCombinational'
+    | .bareCall e => e.isCombinational'
+    | _ => false
+
+  /-- Structural combinationality for a list of statements. -/
+  @[simp]
+  def Stmt.isCombinationalList' : List Stmt → Bool
+    | [] => true
+    | s :: ss => s.isCombinational' && Stmt.isCombinationalList' ss
+end
 
 /-- Wrapper: structural expression combinationality. -/
 @[simp]
