@@ -86,7 +86,33 @@ mutual
       | .arrayLit _ elems => do
           let vs <- elems.mapM (evalExprTotal fuel env m val)
           some (Value.concatList vs)
+      | .enumVal enum variant => do
+          let n := env.enumValue enum variant |>.getD 0
+          some ⟨32, BitVec.ofInt 32 n⟩
+      | .switch disc cases default =>
+          evalSwitchCasesTotal (fuel + 1) env m val disc default cases
       | _ => none
+  termination_by (fuel, sizeOf e)
+
+  /-- Switch-case walker.  It mirrors the emitted nested ternary `disc == tag ? res : ...`.
+      The emitted Verilog consumes one fuel level for the ternary and one for the
+      `==` comparison, so each case needs two fuel levels.  The discriminant and tag
+      are therefore evaluated at `fuel - 2`, the result and the tail at `fuel - 1`. -/
+  def evalSwitchCasesTotal (fuel : Nat) (env : Env) (m : Module) (val : Valuation)
+      (disc : Expr) (default : Expr) (cs : List (Expr × Expr)) : Option Value :=
+    match cs with
+    | [] => evalExprTotal fuel env m val default
+    | (tag, res) :: rest =>
+        match fuel with
+        | 0 => none
+        | 1 => none
+        | fuel+2 => do
+            let d <- evalExprTotal fuel env m val disc
+            let t <- evalExprTotal fuel env m val tag
+            let eq <- evalBinop "==" d t
+            if eq.bits.toNat > 0 then evalExprTotal (fuel+1) env m val res
+            else evalSwitchCasesTotal (fuel+1) env m val disc default rest
+  termination_by (fuel, sizeOf cs + sizeOf disc + sizeOf default)
 
   /-- Total function-body evaluator. -/
   def evalFunctionTotal (fuel : Nat) (env : Env) (m : Module) (fn : Function) (argVals : List Value) (base : Valuation) : Option Value :=
@@ -98,6 +124,7 @@ mutual
         paramBinds.find? (fun p => p.1.1 == name) |>.map (·.2) |>.orElse (fun _ => base name)
       let final <- evalStmtsTotal fuel env m init fn.body
       final "__return"
+  termination_by (fuel, 0)
 
   /-- Helper: execute a t27 for-loop body `n` times, binding `var` to `i`, `i+1`, ...
       W504: each iteration consumes one fuel unit so that the `all_equiv`
@@ -112,6 +139,22 @@ mutual
           let loopVal := fun x => if x == var then some ⟨32, BitVec.ofNat 32 i⟩ else val x
           let val' <- evalStmtsTotal fuel env m loopVal body
           evalForLoopTotal fuel env m val' var (i + 1) n body
+  termination_by (fuel, n)
+
+  /-- Helper: execute a t27 switch statement by matching the discriminant value
+      against each case tag and running the first matching body (or the default).
+      W506: the discriminant is evaluated once by the caller at the statement fuel;
+      tags and chosen bodies are evaluated at the same smaller fuel. -/
+  def evalSwitchStmtCasesTotal (fuel : Nat) (env : Env) (m : Module) (val : Valuation)
+      (discV : Value) (default : List Stmt) (cs : List (Expr × List Stmt)) : Option Valuation :=
+    match cs with
+    | [] => evalStmtsTotal fuel env m val default
+    | (tag, body) :: rest => do
+        let t <- evalExprTotal fuel env m val tag
+        let eq <- evalBinop "==" discV t
+        if eq.bits.toNat > 0 then evalStmtsTotal fuel env m val body
+        else evalSwitchStmtCasesTotal fuel env m val discV default rest
+  termination_by (fuel, sizeOf cs + sizeOf default)
 
   /-- Total statement evaluator. -/
   def evalStmtTotal (fuel : Nat) (env : Env) (m : Module) (val : Valuation) (stmt : Stmt) : Option Valuation :=
@@ -139,11 +182,15 @@ mutual
       | .forLoop var range body => do
           let r <- evalExprTotal fuel env m val range
           evalForLoopTotal fuel env m val var 0 r.bits.toNat body
+      | .switch disc cases default => do
+          let d <- evalExprTotal fuel env m val disc
+          evalSwitchStmtCasesTotal fuel env m val d default cases
       | .return_ (some e) => do
           let v <- evalExprTotal fuel env m val e
           some (fun x => if x == "__return" then some v else val x)
       | .return_ none => some val
       | _ => some val
+  termination_by (fuel, sizeOf stmt)
 
   /-- Total statement-list evaluator. -/
   def evalStmtsTotal (fuel : Nat) (env : Env) (m : Module) (val : Valuation) (stmts : List Stmt) : Option Valuation :=
@@ -155,6 +202,7 @@ mutual
       | stmt :: rest => do
           let val' <- evalStmtTotal fuel env m val stmt
           evalStmtsTotal fuel env m val' rest
+  termination_by (fuel, sizeOf stmts)
 end
 
 /-- Total module evaluator: globals, then named function. -/
@@ -207,8 +255,13 @@ mutual
           match vm.functions.find? (fun f => f.name == name) with
           | some fn => evalVFunctionTotal fuel env vm fn argVals val
           | none => none
+      | .ternary cond then_ else_ => do
+          let c <- evalVExprTotal fuel env vm val cond
+          if c.bits.toNat > 0 then evalVExprTotal fuel env vm val then_
+          else evalVExprTotal fuel env vm val else_
       | .unsupported _ => none
       | .todo _ => none
+  termination_by (fuel, sizeOf e)
 
   /-- Total shallow-Verilog function-body evaluator. -/
   def evalVFunctionTotal (fuel : Nat) (env : Env) (vm : VModule) (fn : VFunction) (argVals : List Value) (base : Valuation) : Option Value :=
@@ -220,6 +273,7 @@ mutual
         paramBinds.find? (fun p => p.1.1 == name) |>.map (·.2) |>.orElse (fun _ => base name)
       let final <- evalVStmtsTotal fuel env vm init fn.body
       final "__return"
+  termination_by (fuel, 0)
 
   /-- Helper: execute a shallow-Verilog for-loop body `n` times, binding `var` to `i`, `i+1`, ...
       W504: each iteration consumes one fuel unit so that the `all_equiv`
@@ -234,6 +288,22 @@ mutual
           let loopVal := fun x => if x == var then some ⟨32, BitVec.ofNat 32 i⟩ else val x
           let val' <- evalVStmtsTotal fuel env vm loopVal body
           evalVForLoopTotal fuel env vm val' var (i + 1) n body
+  termination_by (fuel, n)
+
+  /-- Helper: execute a shallow-Verilog switch statement by matching the
+      discriminant value against each case tag and running the first matching body
+      (or the default).  Fuel accounting mirrors the t27 side. -/
+  def evalVSwitchStmtCasesTotal (fuel : Nat) (env : Env) (vm : VModule) (val : Valuation)
+      (discV : Value) (default : List VStmt) (cs : List (VExpr × List VStmt)) : Option Valuation :=
+    match cs with
+    | [] => evalVStmtsTotal fuel env vm val default
+    | (tag, body) :: rest => do
+        let t <- evalVExprTotal fuel env vm val tag
+        let eq <- evalBinop "==" discV t
+        if eq.bits.toNat > 0 then evalVStmtsTotal fuel env vm val body
+        else evalVSwitchStmtCasesTotal fuel env vm val discV default rest
+  termination_by (fuel, sizeOf cs + sizeOf default)
+  decreasing_by all_goals simp_wf <;> simp [sizeOf] <;> try { omega }
 
   /-- Total shallow-Verilog statement evaluator. -/
   def evalVStmtTotal (fuel : Nat) (env : Env) (vm : VModule) (val : Valuation) (stmt : VStmt) : Option Valuation :=
@@ -259,7 +329,11 @@ mutual
       | .forLoop var range body => do
           let r <- evalVExprTotal fuel env vm val range
           evalVForLoopTotal fuel env vm val var 0 r.bits.toNat body
+      | .switch disc cases default => do
+          let d <- evalVExprTotal fuel env vm val disc
+          evalVSwitchStmtCasesTotal fuel env vm val d default cases
       | .taskCall _ _ => some val
+  termination_by (fuel, sizeOf stmt)
 
   /-- Total shallow-Verilog statement-list evaluator. -/
   def evalVStmtsTotal (fuel : Nat) (env : Env) (vm : VModule) (val : Valuation) (stmts : List VStmt) : Option Valuation :=
@@ -271,6 +345,7 @@ mutual
       | stmt :: rest => do
           let val' <- evalVStmtTotal fuel env vm val stmt
           evalVStmtsTotal fuel env vm val' rest
+  termination_by (fuel, sizeOf stmts)
 end
 
 /-- Total shallow-Verilog module evaluator. -/
@@ -281,5 +356,24 @@ def evalVModuleTotal (fuel : Nat) (env : Env) (vm : VModule) (fnName : String) (
       | some fn => evalVFunctionTotal fuel env vm fn args initVal
       | none => none
   | none => none
+
+/-- Verilog ternary-case walker.  It mirrors the emitted `switch` nested-ternary
+    and consumes the same fuel levels as `evalSwitchCasesTotal`: the discriminant
+    and tag are evaluated at `fuel - 2`, the result and tail at `fuel - 1`. -/
+def evalVTernaryCasesTotal (fuel : Nat) (env : Env) (vm : VModule) (val : Valuation)
+    (disc : VExpr) (default : VExpr) (cases : List (VExpr × VExpr)) : Option Value :=
+  match cases with
+  | [] => evalVExprTotal fuel env vm val default
+  | (tag, res) :: rest =>
+      match fuel with
+      | 0 => none
+      | 1 => none
+      | fuel+2 => do
+          let d <- evalVExprTotal fuel env vm val disc
+          let t <- evalVExprTotal fuel env vm val tag
+          let eq <- evalBinop "==" d t
+          if eq.bits.toNat > 0 then evalVExprTotal (fuel+1) env vm val res
+          else evalVTernaryCasesTotal (fuel+1) env vm val disc default rest
+  termination_by (fuel, sizeOf cases)
 
 end Trinity.IcarusLowerable

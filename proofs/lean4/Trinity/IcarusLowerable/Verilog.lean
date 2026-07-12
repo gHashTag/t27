@@ -22,6 +22,7 @@ inductive VExpr
   | slice (base : VExpr) (hi lo : Nat)
   | concat (parts : List VExpr)
   | call (name : String) (args : List VExpr)
+  | ternary (cond then_ else_ : VExpr)
   | unsupported (reason : String)
   | todo (stub : String)
   deriving Repr, BEq, Nonempty
@@ -35,6 +36,7 @@ inductive VStmt
   | alwaysComb (body : List VStmt)
   | initial (body : List VStmt)
   | ifThenElse (cond : VExpr) (then_ else_ : List VStmt)
+  | switch (disc : VExpr) (cases : List (VExpr × List VStmt)) (default : List VStmt)
   | forLoop (var : String) (range : VExpr) (body : List VStmt)
   | taskCall (name : String) (args : List VExpr)
   deriving Repr, BEq, Nonempty
@@ -69,6 +71,8 @@ def VExpr.hasPlaceholder : VExpr → Bool
   | .slice base _ _ => base.hasPlaceholder
   | .concat parts => exprListHasPlaceholder parts
   | .call _ args => exprListHasPlaceholder args
+  | .ternary cond then_ else_ =>
+      cond.hasPlaceholder || then_.hasPlaceholder || else_.hasPlaceholder
   | _ => false
 where
   exprListHasPlaceholder : List VExpr → Bool
@@ -83,6 +87,10 @@ def VStmt.hasPlaceholder : VStmt → Bool
   | .initial body => stmtListHasPlaceholder body
   | .ifThenElse cond then_ else_ =>
       cond.hasPlaceholder || stmtListHasPlaceholder then_ || stmtListHasPlaceholder else_
+  | .switch disc cases default =>
+      disc.hasPlaceholder ||
+      switchCaseListHasPlaceholder cases ||
+      stmtListHasPlaceholder default
   | .forLoop _ range body => range.hasPlaceholder || stmtListHasPlaceholder body
   | .taskCall _ args => VExpr.hasPlaceholder.exprListHasPlaceholder args
   | _ => false
@@ -90,6 +98,11 @@ where
   stmtListHasPlaceholder : List VStmt → Bool
     | [] => false
     | s :: ss => s.hasPlaceholder || stmtListHasPlaceholder ss
+  switchCaseListHasPlaceholder : List (VExpr × List VStmt) → Bool
+    | [] => false
+    | p :: ps =>
+        p.1.hasPlaceholder || stmtListHasPlaceholder p.2 ||
+        switchCaseListHasPlaceholder ps
 
 /-- True when the function body contains a placeholder. -/
 def VFunction.hasPlaceholder (f : VFunction) : Bool :=

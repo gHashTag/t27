@@ -183,6 +183,17 @@ mutual
       let final <- evalStmts env m init fn.body
       final "__return"
 
+  /-- Helper: execute a t27 switch statement in the partial evaluator. -/
+  partial def evalSwitchStmtCases (env : Env) (m : Module) (val : Valuation)
+      (discV : Value) (default : List Stmt) (cs : List (Expr × List Stmt)) : Option Valuation :=
+    match cs with
+    | [] => evalStmts env m val default
+    | (tag, body) :: rest => do
+        let t <- evalExpr env m val tag
+        let eq <- evalBinop "==" discV t
+        if eq.bits.toNat > 0 then evalStmts env m val body
+        else evalSwitchStmtCases env m val discV default rest
+
   /-- Evaluate a list of t27 statements. -/
   partial def evalStmts (env : Env) (m : Module) (val : Valuation) (stmts : List Stmt) : Option Valuation :=
     stmts.foldlM (fun acc stmt =>
@@ -204,6 +215,9 @@ mutual
           let v <- evalExpr env m acc e
           some (fun x => if x == "__return" then some v else acc x)
       | .return_ none => some acc
+      | .switch disc cases default => do
+          let d <- evalExpr env m acc disc
+          evalSwitchStmtCases env m acc d default cases
       | _ => some acc) val
 end
 
@@ -264,6 +278,9 @@ mutual
         match vm.functions.find? (fun f => f.name == name) with
         | some fn => evalVFunction env vm fn argVals val
         | none => none
+    | .ternary cond then_ else_ => do
+        let c <- evalVExpr env vm val cond
+        if c.bits.toNat > 0 then evalVExpr env vm val then_ else evalVExpr env vm val else_
     | .unsupported _ => none
     | .todo _ => none
 
@@ -287,6 +304,17 @@ mutual
         let val' <- evalVStmts env vm loopVal body
         evalVForLoop env vm val' var (i + 1) n body
 
+  /-- Helper: execute a shallow-Verilog switch statement in the partial evaluator. -/
+  partial def evalVSwitchStmtCases (env : Env) (vm : VModule) (val : Valuation)
+      (discV : Value) (default : List VStmt) (cs : List (VExpr × List VStmt)) : Option Valuation :=
+    match cs with
+    | [] => evalVStmts env vm val default
+    | (tag, body) :: rest => do
+        let t <- evalVExpr env vm val tag
+        let eq <- evalBinop "==" discV t
+        if eq.bits.toNat > 0 then evalVStmts env vm val body
+        else evalVSwitchStmtCases env vm val discV default rest
+
   /-- Evaluate a shallow Verilog statement. -/
   partial def evalVStmt (env : Env) (vm : VModule) (val : Valuation) (stmt : VStmt) : Option Valuation :=
     match stmt with
@@ -308,6 +336,9 @@ mutual
     | .forLoop var range body => do
         let r <- evalVExpr env vm val range
         evalVForLoop env vm val var 0 r.bits.toNat body
+    | .switch disc cases default => do
+        let d <- evalVExpr env vm val disc
+        evalVSwitchStmtCases env vm val d default cases
     | .taskCall _ _ =>
         -- Task calls in the model only occur in test blocks; they are evaluated
         -- by the surrounding statement list, so we leave the valuation unchanged.

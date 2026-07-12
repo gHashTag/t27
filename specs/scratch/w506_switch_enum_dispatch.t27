@@ -1,0 +1,22 @@
+pub enum OpKind {
+    add,
+    sub,
+    mul,
+    div,
+}
+
+pub fn op_kind_code(kind : OpKind) -> u32 {
+    var code : u32 = 0;
+    switch (kind) {
+        .add => { code = 1; },
+        .sub => { code = 2; },
+        .mul => { code = 3; },
+    }
+    return code;
+}
+
+test op_kind_dispatch {
+    assert_eq(op_kind_code(.add), 1);
+    assert_eq(op_kind_code(.sub), 2);
+    assert_eq(op_kind_code(.mul), 3);
+}

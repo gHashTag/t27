@@ -39,6 +39,7 @@ inductive Expr
   | enumVal (enum : String) (variant : String)
   | len (base : Expr)
   | contains (base : Expr) (item : Expr)
+  | switch (disc : Expr) (cases : List (Expr × Expr)) (default : Expr)
   | unsupportedIcarus (reason : String)
   deriving BEq, Repr
 
@@ -49,6 +50,7 @@ inductive Stmt
   | constDecl (name : String) (ty : Ty) (init : Option Expr)
   | ifThenElse (cond : Expr) (then_ else_ : List Stmt)
   | forLoop (var : String) (range : Expr) (body : List Stmt)
+  | switch (disc : Expr) (cases : List (Expr × List Stmt)) (default : List Stmt)
   | return_ (e : Option Expr)
   | bareCall (e : Expr)
   deriving BEq, Repr

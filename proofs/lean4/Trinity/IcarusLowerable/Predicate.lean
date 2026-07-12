@@ -22,6 +22,10 @@ structure Env where
   constructors : List (String × String)
   /-- Declared enum type names. -/
   enums : List String
+  /-- Enum localparam name → integer value.  The name is emitted as
+      `EnumName_variant` by the Verilog backend, so the model stores the same
+      qualified key to evaluate `Expr.enumVal`. -/
+  enumValues : List (String × Int) := []
   /-- Imported item name → (module path, item name). -/
   imports : List (String × (String × String))
   /-- Names of functions classified host-only. -/
@@ -42,6 +46,9 @@ def Env.structForConstructor (env : Env) (ctor : String) : Option String :=
 
 def Env.isEnum (env : Env) (name : String) : Bool :=
   env.enums.contains name
+
+def Env.enumValue (env : Env) (enum : String) (variant : String) : Option Int :=
+  (env.enumValues.find? (fun p => p.1 == enum ++ "_" ++ variant)).map (·.2)
 
 def Env.isHostOnly (env : Env) (name : String) : Bool :=
   env.hostOnly.contains name
@@ -126,9 +133,14 @@ def Expr.isLowerableFuel (fuel : Nat) (env : Env) (e : Expr) : Bool :=
       Expr.isLowerableListFuel fuel env args
   | fuel+1, env, .structLit _ fields => Expr.isLowerableFieldListFuel fuel env fields
   | fuel+1, env, .arrayLit ty elems => ty.isLowerable && Expr.isLowerableListFuel fuel env elems
-  | fuel+1, env, .enumVal _ _ => false
+  | fuel+1, env, .enumVal enum variant =>
+      env.enums.contains enum && (env.enumValue enum variant).isSome
   | fuel+1, env, .len base => base.isLowerableFuel fuel env
   | fuel+1, env, .contains base item => base.isLowerableFuel fuel env && item.isLowerableFuel fuel env
+  | fuel+1, env, .switch disc cases default =>
+      disc.isLowerableFuel fuel env &&
+      Expr.isLowerableSwitchCaseListFuel fuel env cases &&
+      default.isLowerableFuel fuel env
   | fuel+1, env, .unsupportedIcarus _ => false
 
 /-- Helper: lowerability of a list of expressions, fuel-threaded. -/
@@ -145,6 +157,25 @@ def Expr.isLowerableFieldListFuel (fuel : Nat) (env : Env) (fs : List (String ×
   | fuel+1, env, [] => true
   | fuel+1, env, p::ps => p.2.isLowerableFuel fuel env && Expr.isLowerableFieldListFuel fuel env ps
 
+/-- Helper: lowerability of a switch case list, fuel-threaded. -/
+def Expr.isLowerableSwitchCaseListFuel (fuel : Nat) (env : Env) (cs : List (Expr × Expr)) : Bool :=
+  match fuel, env, cs with
+  | 0, _, _ => false
+  | fuel+1, env, [] => true
+  | fuel+1, env, (tag, res)::cs =>
+      tag.isLowerableFuel fuel env && res.isLowerableFuel fuel env &&
+      Expr.isLowerableSwitchCaseListFuel fuel env cs
+
+/-- Helper: lowerability of a statement switch case list, fuel-threaded. -/
+def Stmt.isLowerableSwitchCaseListFuel (fuel : Nat) (env : Env) (cs : List (Expr × List Stmt)) : Bool :=
+  match fuel, env, cs with
+  | 0, _, _ => false
+  | fuel+1, env, [] => true
+  | fuel+1, env, (tag, body)::cs =>
+      tag.isLowerableFuel fuel env &&
+      Stmt.isLowerableListFuel fuel env body &&
+      Stmt.isLowerableSwitchCaseListFuel fuel env cs
+
 /-- Lowerability of a statement in synthesizable context.  Total and transparent
     by structural recursion on an explicit `fuel` parameter. -/
 def Stmt.isLowerableFuel (fuel : Nat) (env : Env) (s : Stmt) : Bool :=
@@ -157,6 +188,10 @@ def Stmt.isLowerableFuel (fuel : Nat) (env : Env) (s : Stmt) : Bool :=
       cond.isLowerableFuel fuel env &&
       Stmt.isLowerableListFuel fuel env then_ &&
       Stmt.isLowerableListFuel fuel env else_
+  | fuel+1, env, .switch disc cases default =>
+      disc.isLowerableFuel fuel env &&
+      Stmt.isLowerableSwitchCaseListFuel fuel env cases &&
+      Stmt.isLowerableListFuel fuel env default
   | fuel+1, env, .forLoop _ range body =>
       range.isLowerableFuel fuel env && Stmt.isLowerableListFuel fuel env body
   | fuel+1, env, .return_ e => e.all (fun x => x.isLowerableFuel fuel env)
@@ -184,9 +219,13 @@ def Expr.isCombinationalFuel (fuel : Nat) (e : Expr) : Bool :=
   | fuel+1, .call _ args => Expr.isCombinationalListFuel fuel args
   | fuel+1, .structLit _ fields => Expr.isCombinationalFieldListFuel fuel fields
   | fuel+1, .arrayLit _ elems => Expr.isCombinationalListFuel fuel elems
-  | fuel+1, .enumVal _ _ => false
+  | fuel+1, .enumVal _ _ => true
   | fuel+1, .len _ => false
   | fuel+1, .contains _ _ => false
+  | fuel+1, .switch disc cases default =>
+      disc.isCombinationalFuel fuel &&
+      Expr.isCombinationalSwitchCaseListFuel fuel cases &&
+      default.isCombinationalFuel fuel
   | fuel+1, .unsupportedIcarus _ => false
   | fuel+1, .f32Lit _ => false
   | fuel+1, .stringLit _ => false
@@ -205,6 +244,25 @@ def Expr.isCombinationalFieldListFuel (fuel : Nat) (fs : List (String × Expr)) 
   | fuel+1, [] => true
   | fuel+1, p::ps => p.2.isCombinationalFuel fuel && Expr.isCombinationalFieldListFuel fuel ps
 
+/-- Helper: combinationality of a switch case list, fuel-threaded. -/
+def Expr.isCombinationalSwitchCaseListFuel (fuel : Nat) (cs : List (Expr × Expr)) : Bool :=
+  match fuel, cs with
+  | 0, _ => false
+  | fuel+1, [] => true
+  | fuel+1, (tag, res)::cs =>
+      tag.isCombinationalFuel fuel && res.isCombinationalFuel fuel &&
+      Expr.isCombinationalSwitchCaseListFuel fuel cs
+
+/-- Helper: combinationality of a statement switch case list, fuel-threaded. -/
+def Stmt.isCombinationalSwitchCaseListFuel (fuel : Nat) (cs : List (Expr × List Stmt)) : Bool :=
+  match fuel, cs with
+  | 0, _ => false
+  | fuel+1, [] => true
+  | fuel+1, (tag, body)::cs =>
+      tag.isCombinationalFuel fuel &&
+      Stmt.isCombinationalListFuel fuel body &&
+      Stmt.isCombinationalSwitchCaseListFuel fuel cs
+
 /-- True when a statement is purely combinational: no conditionals, no loops,
     no uninitialized declarations, and no bare `return_` without a value.
     Total and transparent by fuel-threaded structural recursion. -/
@@ -219,6 +277,10 @@ def Stmt.isCombinationalFuel (fuel : Nat) (s : Stmt) : Bool :=
   | fuel+1, .constDecl _ _ none => false
   | fuel+1, .ifThenElse cond then_ else_ =>
       cond.isCombinationalFuel fuel && Stmt.isCombinationalListFuel fuel then_ && Stmt.isCombinationalListFuel fuel else_
+  | fuel+1, .switch disc cases default =>
+      disc.isCombinationalFuel fuel &&
+      Stmt.isCombinationalSwitchCaseListFuel fuel cases &&
+      Stmt.isCombinationalListFuel fuel default
   | fuel+1, .forLoop _ _ _ => false
   | fuel+1, .return_ (some e) => e.isCombinationalFuel fuel
   | fuel+1, .return_ none => false
@@ -253,6 +315,8 @@ def Expr.typeOfFuel (fuel : Nat) (env : Env) (m : Module) (e : Expr) : Option Ty
       | none => (m.findFunction name).bind (·.ret)
   | fuel+1, env, m, .structLit name _ => some (.struct name)
   | fuel+1, env, m, .arrayLit ty _ => some ty
+  | fuel+1, env, m, .enumVal _ _ => some .u32
+  | fuel+1, env, m, .switch _ _ default => default.typeOfFuel fuel env m
   | fuel+1, env, m, _ => none
 
 /-- Names of functions called inside an expression (constructor / imported /
@@ -270,6 +334,11 @@ def Expr.functionNamesFuel (fuel : Nat) (e : Expr) : List String :=
   | fuel+1, .arrayLit _ elems => Expr.functionNamesListFuel fuel elems
   | fuel+1, .len base => base.functionNamesFuel fuel
   | fuel+1, .contains base item => base.functionNamesFuel fuel ++ item.functionNamesFuel fuel
+  | fuel+1, .enumVal _ _ => []
+  | fuel+1, .switch disc cases default =>
+      disc.functionNamesFuel fuel ++
+      Expr.functionNamesSwitchCaseListFuel fuel cases ++
+      default.functionNamesFuel fuel
   | fuel+1, _ => []
 
 /-- Helper: function names in a list of expressions, fuel-threaded. -/
@@ -286,6 +355,25 @@ def Expr.functionNamesFieldListFuel (fuel : Nat) (fs : List (String × Expr)) : 
   | fuel+1, [] => []
   | fuel+1, p::ps => p.2.functionNamesFuel fuel ++ Expr.functionNamesFieldListFuel fuel ps
 
+/-- Helper: function names in a switch case list, fuel-threaded. -/
+def Expr.functionNamesSwitchCaseListFuel (fuel : Nat) (cs : List (Expr × Expr)) : List String :=
+  match fuel, cs with
+  | 0, _ => []
+  | fuel+1, [] => []
+  | fuel+1, (tag, res)::cs =>
+      tag.functionNamesFuel fuel ++ res.functionNamesFuel fuel ++
+      Expr.functionNamesSwitchCaseListFuel fuel cs
+
+/-- Helper: function names in a statement switch case list, fuel-threaded. -/
+def Stmt.functionNamesSwitchCaseListFuel (fuel : Nat) (cs : List (Expr × List Stmt)) : List String :=
+  match fuel, cs with
+  | 0, _ => []
+  | fuel+1, [] => []
+  | fuel+1, (tag, body)::cs =>
+      tag.functionNamesFuel fuel ++
+      Stmt.functionNamesListFuel fuel body ++
+      Stmt.functionNamesSwitchCaseListFuel fuel cs
+
 /-- Names of functions called inside a statement.  Total and transparent by
     fuel-threaded structural recursion. -/
 def Stmt.functionNamesFuel (fuel : Nat) (s : Stmt) : List String :=
@@ -300,6 +388,10 @@ def Stmt.functionNamesFuel (fuel : Nat) (s : Stmt) : List String :=
       cond.functionNamesFuel fuel ++
       Stmt.functionNamesListFuel fuel then_ ++
       Stmt.functionNamesListFuel fuel else_
+  | fuel+1, .switch disc cases default =>
+      disc.functionNamesFuel fuel ++
+      Stmt.functionNamesSwitchCaseListFuel fuel cases ++
+      Stmt.functionNamesListFuel fuel default
   | fuel+1, .forLoop _ range body =>
       range.functionNamesFuel fuel ++ Stmt.functionNamesListFuel fuel body
   | fuel+1, .return_ (some e) => e.functionNamesFuel fuel
@@ -337,6 +429,9 @@ mutual
     | .index base idx => base.functionNames' ++ idx.functionNames'
     | .structLit _ fields => Expr.functionNamesFieldList' fields
     | .arrayLit _ elems => Expr.functionNamesList' elems
+    | .enumVal _ _ => []
+    | .switch disc cases default =>
+        disc.functionNames' ++ Expr.functionNamesSwitchCaseList' cases ++ default.functionNames'
     | .len base => base.functionNames'
     | .contains base item => base.functionNames' ++ item.functionNames'
     | _ => []
@@ -354,22 +449,49 @@ mutual
     match fs with
     | [] => []
     | f :: fs => f.2.functionNames' ++ Expr.functionNamesFieldList' fs
+
+  /-- Structural function names in a switch case list. -/
+  @[simp]
+  def Expr.functionNamesSwitchCaseList' (cs : List (Expr × Expr)) : List String :=
+    match cs with
+    | [] => []
+    | (tag, res) :: cs => tag.functionNames' ++ res.functionNames' ++ Expr.functionNamesSwitchCaseList' cs
 end
 
-/-- Structural function names in a statement. -/
-def Stmt.functionNames' : Stmt → List String
-  | .assign _ rhs => rhs.functionNames'
-  | .varDecl _ _ (some e) => e.functionNames'
-  | .varDecl _ _ none => []
-  | .constDecl _ _ (some e) => e.functionNames'
-  | .constDecl _ _ none => []
-  | .ifThenElse cond then_ else_ =>
-      cond.functionNames' ++ then_.flatMap Stmt.functionNames' ++ else_.flatMap Stmt.functionNames'
-  | .forLoop _ range body =>
-      range.functionNames' ++ body.flatMap Stmt.functionNames'
-  | .return_ (some e) => e.functionNames'
-  | .return_ none => []
-  | .bareCall e => e.functionNames'
+-- Structural function names in a statement.
+mutual
+  /-- Structural function names in a statement. -/
+  @[simp]
+  def Stmt.functionNames' : Stmt → List String
+    | .assign _ rhs => rhs.functionNames'
+    | .varDecl _ _ (some e) => e.functionNames'
+    | .varDecl _ _ none => []
+    | .constDecl _ _ (some e) => e.functionNames'
+    | .constDecl _ _ none => []
+    | .ifThenElse cond then_ else_ =>
+        cond.functionNames' ++ Stmt.functionNamesList' then_ ++ Stmt.functionNamesList' else_
+    | .switch disc cases default =>
+        disc.functionNames' ++
+        Stmt.functionNamesSwitchCaseList' cases ++
+        Stmt.functionNamesList' default
+    | .forLoop _ range body =>
+        range.functionNames' ++ Stmt.functionNamesList' body
+    | .return_ (some e) => e.functionNames'
+    | .return_ none => []
+    | .bareCall e => e.functionNames'
+
+  @[simp]
+  def Stmt.functionNamesList' (ss : List Stmt) : List String :=
+    match ss with
+    | [] => []
+    | s :: ss => s.functionNames' ++ Stmt.functionNamesList' ss
+
+  @[simp]
+  def Stmt.functionNamesSwitchCaseList' (cs : List (Expr × List Stmt)) : List String :=
+    match cs with
+    | [] => []
+    | (tag, body) :: cs => tag.functionNames' ++ Stmt.functionNamesList' body ++ Stmt.functionNamesSwitchCaseList' cs
+end
 
 /-- Wrapper: expression lowerability with the default predicate fuel. -/
 def Expr.isLowerable (env : Env) (e : Expr) : Bool := e.isLowerableFuel predicateFuel env
@@ -433,6 +555,9 @@ mutual
     | .call _ args => Expr.isCombinationalList' args
     | .structLit _ fields => Expr.isCombinationalFieldList' fields
     | .arrayLit _ elems => Expr.isCombinationalList' elems
+    | .enumVal _ _ => true
+    | .switch disc cases default =>
+        disc.isCombinational' && Expr.isCombinationalSwitchCaseList' cases && default.isCombinational'
     | _ => false
 
   /-- Structural combinationality for a list of expressions. -/
@@ -446,6 +571,14 @@ mutual
   def Expr.isCombinationalFieldList' : List (String × Expr) → Bool
     | [] => true
     | f :: fs => f.2.isCombinational' && Expr.isCombinationalFieldList' fs
+
+  /-- Structural combinationality for a switch case list. -/
+  @[simp]
+  def Expr.isCombinationalSwitchCaseList' : List (Expr × Expr) → Bool
+    | [] => true
+    | (tag, res) :: cs =>
+        tag.isCombinational' && res.isCombinational' &&
+        Expr.isCombinationalSwitchCaseList' cs
 end
 
 mutual
@@ -457,10 +590,22 @@ mutual
     | .constDecl _ _ (some e) => e.isCombinational'
     | .ifThenElse cond then_ else_ =>
         cond.isCombinational' && Stmt.isCombinationalList' then_ && Stmt.isCombinationalList' else_
+    | .switch disc cases default =>
+        disc.isCombinational' &&
+        Stmt.isCombinationalSwitchCaseList' cases &&
+        Stmt.isCombinationalList' default
     | .forLoop _ _ _ => false
     | .return_ (some e) => e.isCombinational'
     | .bareCall e => e.isCombinational'
     | _ => false
+
+  /-- Structural combinationality for a statement switch case list. -/
+  @[simp]
+  def Stmt.isCombinationalSwitchCaseList' : List (Expr × List Stmt) → Bool
+    | [] => true
+    | (tag, body) :: cs =>
+        tag.isCombinational' && Stmt.isCombinationalList' body &&
+        Stmt.isCombinationalSwitchCaseList' cs
 
   /-- Structural combinationality for a list of statements. -/
   @[simp]
@@ -514,11 +659,23 @@ mutual
     | .constDecl _ _ (some e) => e.isCombinational'
     | .ifThenElse cond then_ else_ =>
         cond.isCombinational' && Stmt.isSequentialList' then_ && Stmt.isSequentialList' else_
+    | .switch disc cases default =>
+        disc.isCombinational' &&
+        Stmt.isSequentialSwitchCaseList' cases &&
+        Stmt.isSequentialList' default
     | .forLoop _ range body =>
         range.isCombinational' && Stmt.isSequentialList' body
     | .return_ (some e) => e.isCombinational'
     | .bareCall e => e.isCombinational'
     | _ => false
+
+  /-- Structural sequentiality for a statement switch case list. -/
+  @[simp]
+  def Stmt.isSequentialSwitchCaseList' : List (Expr × List Stmt) → Bool
+    | [] => true
+    | (tag, body) :: cs =>
+        tag.isCombinational' && Stmt.isSequentialList' body &&
+        Stmt.isSequentialSwitchCaseList' cs
 
   /-- Structural sequentiality for a list of statements. -/
   @[simp]
@@ -546,7 +703,24 @@ def Module.isSequential (env : Env) (m : Module) : Bool :=
   m.globals.all Stmt.isSequential
   && m.functions.all (Function.isSequential env)
 
-/-- Combinational statement lists (primed form) are also sequential. -/
+-- Combinational statement lists (primed form) and switch case lists are also
+-- sequential.  The two theorems are mutually recursive because a switch case
+-- body is a statement list and a statement list may contain a switch.
+mutual
+@[simp]
+theorem Stmt.isCombinationalSwitchCaseList_implies_isSequentialSwitchCaseList' :
+    ∀ (cs : List (Expr × List Stmt)),
+      Stmt.isCombinationalSwitchCaseList' cs = true →
+      Stmt.isSequentialSwitchCaseList' cs = true
+  | [], _ => rfl
+  | (tag, body) :: cs, h => by
+      have h1 : tag.isCombinational' = true := by simp at h; exact h.1.1
+      have h2 : Stmt.isCombinationalList' body = true := by simp at h; exact h.1.2
+      have h3 : Stmt.isCombinationalSwitchCaseList' cs = true := by simp at h; exact h.2
+      simp [h1, Stmt.isCombinationalList_implies_isSequentialList' body h2,
+        Stmt.isCombinationalSwitchCaseList_implies_isSequentialSwitchCaseList' cs h3]
+  termination_by cs => sizeOf cs
+
 @[simp]
 theorem Stmt.isCombinationalList_implies_isSequentialList' :
     ∀ (ss : List Stmt), Stmt.isCombinationalList' ss = true → Stmt.isSequentialList' ss = true
@@ -572,6 +746,16 @@ theorem Stmt.isCombinationalList_implies_isSequentialList' :
               · exact h1_1
               · exact Stmt.isCombinationalList_implies_isSequentialList' then_ h1_2
             · exact Stmt.isCombinationalList_implies_isSequentialList' else_ h1_3
+        | switch disc cases default =>
+            simp at h1 ⊢
+            have h1_1 := h1.1.1
+            have h1_2 := h1.1.2
+            have h1_3 := h1.2
+            constructor
+            · constructor
+              · exact h1_1
+              · exact Stmt.isCombinationalSwitchCaseList_implies_isSequentialSwitchCaseList' cases h1_2
+            · exact Stmt.isCombinationalList_implies_isSequentialList' default h1_3
         | forLoop _ _ _ =>
             simp at h1
             all_goals contradiction
@@ -581,7 +765,8 @@ theorem Stmt.isCombinationalList_implies_isSequentialList' :
             simp at h1 ⊢
             exact h1
       simp [hs, Stmt.isCombinationalList_implies_isSequentialList' ss h2]
-termination_by ss => sizeOf ss
+  termination_by ss => sizeOf ss
+end
 
 /-- Combinational statements are also sequential. -/
 @[simp]

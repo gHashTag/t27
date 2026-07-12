@@ -34,6 +34,8 @@ theorem Expr.induction_on_lists {P : Expr → Prop}
     (enumVal : ∀ e v, P (Expr.enumVal e v))
     (len : ∀ base, P base → P (Expr.len base))
     (contains : ∀ base item, P base → P item → P (Expr.contains base item))
+    (switch : ∀ disc cases default,
+        P disc → (∀ p ∈ cases, P p.1 ∧ P p.2) → P default → P (Expr.switch disc cases default))
     (unsupportedIcarus : ∀ r, P (Expr.unsupportedIcarus r))
     : ∀ e, P e := by
   intro e
@@ -41,12 +43,16 @@ theorem Expr.induction_on_lists {P : Expr → Prop}
     (motive_1 := P)
     (motive_2 := fun args => ∀ e ∈ args, P e)
     (motive_3 := fun fields => ∀ p ∈ fields, P p.2)
-    (motive_4 := fun p => P p.2)
+    (motive_4 := fun cases => ∀ p ∈ cases, P p.1 ∧ P p.2)
+    (motive_5 := fun p : String × Expr => P p.2)
+    (motive_6 := fun p : Expr × Expr => P p.1 ∧ P p.2)
     boolLit intLit f32Lit stringLit identifier binop unop fieldAccess index
     (fun _ _ ih => call _ _ ih)
     (fun _ _ ih => structLit _ _ ih)
     (fun _ _ ih => arrayLit _ _ ih)
-    enumVal len contains unsupportedIcarus
+    enumVal len contains
+    (fun _ _ _ ih1 ih2 ih3 => switch _ _ _ ih1 ih2 ih3)
+    unsupportedIcarus
     (by simp)
     (fun head tail ih1 ih2 e he => by
       rcases List.mem_cons.mp he with (rfl | he')
@@ -57,7 +63,13 @@ theorem Expr.induction_on_lists {P : Expr → Prop}
       rcases List.mem_cons.mp hp with (rfl | hp')
       · exact ih1
       · exact ih2 p hp')
+    (by simp)
+    (fun head tail ih1 ih2 p hp => by
+      rcases List.mem_cons.mp hp with (rfl | hp')
+      · exact ih1
+      · exact ih2 p hp')
     (fun _ _ ih => ih)
+    (fun _ _ ih1 ih2 => ⟨ih1, ih2⟩)
     e
 
 /-- `List.all` is equivalent to the universal quantifier over list membership. -/

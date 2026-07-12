@@ -44,6 +44,13 @@ theorem Option.bind_congr_ext {α β} {oa ob : Option α} {f g : α → Option �
   | none => simp
   | some a => simp [hf a]
 
+/-- Associativity of `Option.bind`. -/
+theorem Option.bind_assoc {α β γ} (x : Option α) (f : α → Option β) (g : β → Option γ) :
+    (x.bind f).bind g = x.bind (fun a => (f a).bind g) := by
+  cases x with
+  | none => simp
+  | some a => simp
+
 /-- The integer-literal string roundtrip used by the Verilog evaluator. -/
 theorem Int.toInt?_toString (n : Int) : String.toInt? (toString n) = some n := by
   rw [Int.toString_eq_repr]
@@ -548,6 +555,150 @@ theorem isCombinational_arrayLit {ty elems}
   intro a ha
   exact isCombinationalList'_mem h a ha
 
+/-- A member of a combinational switch case list is combinational. -/
+theorem isCombinationalSwitchCaseList'_mem {cases : List (Expr × Expr)}
+    (h : Expr.isCombinationalSwitchCaseList' cases = true) :
+    ∀ (tag res : Expr), (tag, res) ∈ cases → Expr.isCombinational' tag ∧ Expr.isCombinational' res := by
+  induction cases with
+  | nil =>
+      intro tag res he
+      simp at he
+  | cons c cs ih =>
+      simp [Bool.and_eq_true, Expr.isCombinationalSwitchCaseList'] at h ⊢
+      intro tag res he
+      rcases he with (rfl | he)
+      · tauto
+      · exact ih (by tauto) tag res he
+
+/-- A member of a switch case list also occurs in the combined function-name set. -/
+theorem functionNamesSwitchCaseList'_mem {cases : List (Expr × Expr)} {p : Expr × Expr} {x : String}
+    (hp : p ∈ cases) (hx : x ∈ p.1.functionNames') :
+    x ∈ Expr.functionNamesSwitchCaseList' cases := by
+  induction cases with
+  | nil =>
+      simp at hp
+  | cons c cs ih =>
+      rcases List.mem_cons.mp hp with (rfl | hp)
+      · simp [hx]
+      · simp [ih hp]
+
+/-- A member of a switch case list also occurs in the combined function-name set. -/
+theorem functionNamesSwitchCaseList'_mem_res {cases : List (Expr × Expr)} {p : Expr × Expr} {x : String}
+    (hp : p ∈ cases) (hx : x ∈ p.2.functionNames') :
+    x ∈ Expr.functionNamesSwitchCaseList' cases := by
+  induction cases with
+  | nil =>
+      simp at hp
+  | cons c cs ih =>
+      rcases List.mem_cons.mp hp with (rfl | hp)
+      · simp [hx]
+      · simp [ih hp]
+
+/-- The function-name list of a switch-case suffix is contained in the list for
+    the suffix with one more case at the front. -/
+theorem functionNamesSwitchCaseList'_subset_cons {cases : List (Expr × Expr)} {c : Expr × Expr} :
+    Expr.functionNamesSwitchCaseList' cases ⊆ Expr.functionNamesSwitchCaseList' (c :: cases) := by
+  induction cases with
+  | nil =>
+      intro x hx
+      simp at hx
+  | cons d ds ih =>
+      intro x hx
+      simp [Expr.functionNamesSwitchCaseList'] at hx ⊢
+      rcases hx with (hx | hx | hx)
+      · simp [hx]
+      · simp [hx]
+      · have h1 := ih hx
+        simp [Expr.functionNamesSwitchCaseList'] at h1 ⊢
+        rcases h1 with (h1 | h1 | h1)
+        all_goals simp [h1]
+
+/-- A switch expression's call-context decomposes into its discriminant, every
+    tag/result arm, and the default expression. -/
+theorem callContext_switch {env m disc cases default}
+    (h : Expr.callContext env m (Expr.switch disc cases default)) :
+    Expr.callContext env m disc
+    ∧ (∀ p ∈ cases, Expr.callContext env m p.1 ∧ Expr.callContext env m p.2)
+    ∧ Expr.callContext env m default := by
+  simp only [Expr.callContext, Expr.functionNames, Expr.functionNames'] at h ⊢
+  constructor
+  · intro x hx
+    apply h x
+    simp [hx]
+  constructor
+  · intro p hp
+    constructor
+    · intro x hx
+      apply h x
+      have hmem := functionNamesSwitchCaseList'_mem hp hx
+      simp [hmem]
+    · intro x hx
+      apply h x
+      have hmem := functionNamesSwitchCaseList'_mem_res hp hx
+      simp [hmem]
+  · intro x hx
+    apply h x
+    simp [hx]
+
+/-- Tail of a switch expression retains call context: every name reachable in the
+    smaller switch is also reachable in the original. -/
+theorem callContext_switch_tail {env m disc c cs default}
+    (h : Expr.callContext env m (Expr.switch disc (c :: cs) default)) :
+    Expr.callContext env m (Expr.switch disc cs default) := by
+  simp only [Expr.callContext, Expr.functionNames, Expr.functionNames'] at h ⊢
+  intro x hx
+  apply h x
+  simp only [Expr.functionNames, Expr.functionNames', Expr.functionNamesSwitchCaseList', List.mem_append] at hx ⊢
+  cases cs with
+  | nil => tauto
+  | cons d ds => tauto
+
+/-- Decompose combinationality of a switch expression.  Empty case lists are
+    combinational, so the nil branch is reachable. -/
+theorem isCombinational_switch {disc cases default}
+    (h : Expr.isCombinational (Expr.switch disc cases default)) :
+    Expr.isCombinational disc
+    ∧ (∀ p ∈ cases, Expr.isCombinational p.1 ∧ Expr.isCombinational p.2)
+    ∧ Expr.isCombinational default := by
+  cases cases with
+  | nil =>
+      simp [Expr.isCombinational, Expr.isCombinational', Bool.and_eq_true] at h ⊢
+      tauto
+  | cons c cs =>
+      rcases c with ⟨tag, res⟩
+      simp [Expr.isCombinational, Expr.isCombinational', Expr.isCombinationalSwitchCaseList',
+        Bool.and_eq_true] at h
+      constructor
+      · exact h.1.1
+      constructor
+      · intro p hp
+        cases hp
+        case head =>
+          constructor
+          · exact h.1.2.1.1
+          · exact h.1.2.1.2
+        case tail hp =>
+          have hmem := Expr.isCombinationalSwitchCaseList'_mem h.1.2.2 p.1 p.2 hp
+          simp [Expr.isCombinational, Expr.isCombinational'] at *
+          constructor
+          · tauto
+          · tauto
+      · exact h.2
+
+/-- Tail of a switch expression retains combinationality. -/
+theorem isCombinational_switch_tail {disc c cs default}
+    (h : Expr.isCombinational (Expr.switch disc (c :: cs) default)) :
+    Expr.isCombinational (Expr.switch disc cs default) := by
+  cases cs with
+  | nil =>
+      simp [Expr.isCombinational, Expr.isCombinational', Expr.isCombinationalSwitchCaseList',
+        Bool.and_eq_true] at h ⊢
+      tauto
+  | cons d ds =>
+      simp [Expr.isCombinational, Expr.isCombinational', Expr.isCombinationalSwitchCaseList',
+        Bool.and_eq_true] at h ⊢
+      tauto
+
 end Expr
 
 namespace Stmt
@@ -608,17 +759,57 @@ theorem stmt_functionNames_eq (s : Stmt) : s.functionNames = s.functionNames' :=
 @[simp]
 theorem expr_functionNames_eq (e : Expr) : e.functionNames = e.functionNames' := by rfl
 
+theorem functionNamesList'_eq (ss : List Stmt) :
+    Stmt.functionNamesList' ss = ss.flatMap Stmt.functionNames' := by
+  induction ss with
+  | nil => simp [Stmt.functionNamesList']
+  | cons s ss ih => simp [Stmt.functionNamesList', ih]
+
+@[simp]
+theorem functionNamesSwitchCaseList'_eq (cs : List (Expr × List Stmt)) :
+    Stmt.functionNamesSwitchCaseList' cs =
+    cs.flatMap (fun p => p.1.functionNames' ++ p.2.flatMap Stmt.functionNames') := by
+  induction cs with
+  | nil => simp [Stmt.functionNamesSwitchCaseList']
+  | cons p cs ih =>
+      rcases p with ⟨tag, body⟩
+      simp [Stmt.functionNamesSwitchCaseList', functionNamesList'_eq, ih]
+
 @[simp]
 theorem functionNames_ifThenElse {cond then_ else_} :
     (Stmt.ifThenElse cond then_ else_).functionNames' =
     cond.functionNames' ++ then_.flatMap Stmt.functionNames' ++ else_.flatMap Stmt.functionNames' := by
-  simp [Stmt.functionNames']
+  simp [Stmt.functionNames', functionNamesList'_eq]
 
 @[simp]
 theorem functionNames_forLoop {var range body} :
     (Stmt.forLoop var range body).functionNames' =
     range.functionNames' ++ body.flatMap Stmt.functionNames' := by
-  simp [Stmt.functionNames']
+  simp [Stmt.functionNames', functionNamesList'_eq]
+
+@[simp]
+theorem functionNames'_switch {disc cases default} :
+    (Stmt.switch disc cases default).functionNames' =
+    disc.functionNames' ++
+    cases.flatMap (fun p => p.1.functionNames' ++ p.2.flatMap Stmt.functionNames') ++
+    default.flatMap Stmt.functionNames' := by
+  simp [Stmt.functionNames', functionNamesList'_eq, functionNamesSwitchCaseList'_eq]
+
+@[simp]
+theorem functionNames_switch {disc cases default} :
+    (Stmt.switch disc cases default).functionNames =
+    disc.functionNames ++
+    cases.flatMap (fun p => p.1.functionNames ++ p.2.flatMap Stmt.functionNames) ++
+    default.flatMap Stmt.functionNames := by
+  rw [stmt_functionNames_eq, functionNames'_switch]
+  have h_body_fun : Stmt.functionNames' = Stmt.functionNames := by
+    funext s
+    rw [stmt_functionNames_eq]
+  have h_cases : ∀ p : Expr × List Stmt, p.1.functionNames' ++ p.2.flatMap Stmt.functionNames' =
+                   p.1.functionNames ++ p.2.flatMap Stmt.functionNames := by
+    intro p
+    rw [expr_functionNames_eq, h_body_fun]
+  simp [h_cases, h_body_fun, expr_functionNames_eq]
 
 theorem callContext_assign {env m lhs rhs}
     (h : Stmt.callContext env m (Stmt.assign lhs rhs)) :
@@ -660,20 +851,26 @@ theorem callContext_ifThenElse {env m cond then_ else_}
   · intro x hx
     rw [expr_functionNames_eq] at hx
     have hmem : x ∈ (Stmt.ifThenElse cond then_ else_).functionNames' := by
-      simp [functionNames_ifThenElse, hx]
+      rw [functionNames_ifThenElse]
+      apply List.mem_append_left (List.flatMap Stmt.functionNames' else_)
+      apply List.mem_append_left (List.flatMap Stmt.functionNames' then_)
+      exact hx
     exact h x hmem
   constructor
   · intro s hs x hx
     rw [stmt_functionNames_eq] at hx
     have hmem : x ∈ (Stmt.ifThenElse cond then_ else_).functionNames' := by
-      simp [functionNames_ifThenElse]
-      exact Or.inr (Or.inl ⟨s, hs, hx⟩)
+      rw [functionNames_ifThenElse]
+      apply List.mem_append_left (List.flatMap Stmt.functionNames' else_)
+      apply List.mem_append_right cond.functionNames'
+      exact List.mem_flatMap_of_mem hs hx
     exact h x hmem
   · intro s hs x hx
     rw [stmt_functionNames_eq] at hx
     have hmem : x ∈ (Stmt.ifThenElse cond then_ else_).functionNames' := by
-      simp [functionNames_ifThenElse]
-      exact Or.inr (Or.inr ⟨s, hs, hx⟩)
+      rw [functionNames_ifThenElse]
+      apply List.mem_append_right (cond.functionNames' ++ List.flatMap Stmt.functionNames' then_)
+      exact List.mem_flatMap_of_mem hs hx
     exact h x hmem
 
 theorem callContext_forLoop {env m var range body}
@@ -684,14 +881,58 @@ theorem callContext_forLoop {env m var range body}
   · intro x hx
     rw [expr_functionNames_eq] at hx
     have hmem : x ∈ (Stmt.forLoop var range body).functionNames' := by
-      simp [functionNames_forLoop, hx]
+      rw [functionNames_forLoop]
+      apply List.mem_append_left (List.flatMap Stmt.functionNames' body)
+      exact hx
     exact h x hmem
   · intro s hs x hx
     rw [stmt_functionNames_eq] at hx
     have hmem : x ∈ (Stmt.forLoop var range body).functionNames' := by
-      simp [functionNames_forLoop]
-      exact Or.inr ⟨s, hs, hx⟩
+      rw [functionNames_forLoop]
+      apply List.mem_append_right range.functionNames'
+      exact List.mem_flatMap_of_mem hs hx
     exact h x hmem
+
+theorem callContext_switch {env m disc cases default}
+    (h : Stmt.callContext env m (Stmt.switch disc cases default)) :
+    Expr.callContext env m disc
+    ∧ (∀ p ∈ cases, Expr.callContext env m p.1 ∧ Stmt.callContextList env m p.2)
+    ∧ Stmt.callContextList env m default := by
+  simp only [Stmt.callContext, stmt_functionNames_eq, functionNames'_switch,
+    expr_functionNames_eq] at h ⊢
+  constructor
+  · intro x hx
+    rw [expr_functionNames_eq] at hx
+    apply h x
+    apply List.mem_append_left (default.flatMap Stmt.functionNames')
+    apply List.mem_append_left (cases.flatMap (fun p => p.1.functionNames' ++ p.2.flatMap Stmt.functionNames'))
+    exact hx
+  constructor
+  · intro p hp
+    constructor
+    · intro x hx
+      rw [expr_functionNames_eq] at hx
+      apply h x
+      apply List.mem_append_left (default.flatMap Stmt.functionNames')
+      apply List.mem_append_right disc.functionNames'
+      apply List.mem_flatMap_of_mem hp
+      apply List.mem_append_left (p.2.flatMap Stmt.functionNames')
+      exact hx
+    · intro s hs x hx
+      rw [stmt_functionNames_eq] at hx
+      apply h x
+      apply List.mem_append_left (default.flatMap Stmt.functionNames')
+      apply List.mem_append_right disc.functionNames'
+      apply List.mem_flatMap_of_mem hp
+      apply List.mem_append_right p.1.functionNames'
+      apply List.mem_flatMap_of_mem hs
+      exact hx
+  · intro s hs x hx
+    rw [stmt_functionNames_eq] at hx
+    apply h x
+    apply List.mem_append_right (disc.functionNames' ++ cases.flatMap (fun p => p.1.functionNames' ++ p.2.flatMap Stmt.functionNames'))
+    apply List.mem_flatMap_of_mem hs
+    exact hx
 
 theorem callContext_list_mem {env m} {ss : List Stmt} {s : Stmt}
     (h : Stmt.callContextList env m ss) (hs : s ∈ ss) :
@@ -761,6 +1002,42 @@ theorem isCombinational_forLoop {var range body}
     Expr.isCombinational range ∧ Stmt.isCombinationalList body := by
   simp only [Stmt.isCombinational, Expr.isCombinational] at h
   contradiction
+
+/-- A member of a combinational switch case list is combinational. -/
+theorem isCombinationalSwitchCaseList'_mem {cases : List (Expr × List Stmt)}
+    (h : Stmt.isCombinationalSwitchCaseList' cases = true) :
+    ∀ (tag : Expr) (body : List Stmt), (tag, body) ∈ cases →
+      Expr.isCombinational' tag ∧ Stmt.isCombinationalList' body := by
+  induction cases with
+  | nil =>
+      intro tag body he
+      simp at he
+  | cons c cs ih =>
+      intro tag body he
+      rcases c with ⟨tag0, body0⟩
+      simp [Bool.and_eq_true] at h
+      rcases List.mem_cons.mp he with (⟨rfl, rfl⟩ | he')
+      · simp [h.1.1, h.1.2]
+      · exact ih (by tauto) tag body he'
+
+/-- Decompose combinationality of a switch statement. -/
+theorem isCombinational_switch {disc cases default}
+    (h : Stmt.isCombinational (Stmt.switch disc cases default)) :
+    Expr.isCombinational disc
+    ∧ (∀ p ∈ cases, Expr.isCombinational p.1 ∧ Stmt.isCombinationalList p.2)
+    ∧ Stmt.isCombinationalList default := by
+  simp only [Stmt.isCombinational, Expr.isCombinational, Stmt.isCombinational', Bool.and_eq_true] at h ⊢
+  constructor
+  · exact h.1.1
+  constructor
+  · intro p hp
+    rcases p with ⟨tag, body⟩
+    constructor
+    · exact (isCombinationalSwitchCaseList'_mem h.1.2 tag body hp).1
+    · rw [← isCombinationalList'_eq body]
+      exact (isCombinationalSwitchCaseList'_mem h.1.2 tag body hp).2
+  · rw [← isCombinationalList'_eq default]
+    exact h.2
 
 theorem isCombinationalList_head {s ss}
     (h : Stmt.isCombinationalList (s :: ss)) :
@@ -833,6 +1110,42 @@ theorem isSequential_forLoop {var range body}
   simp only [Stmt.isSequential, Expr.isCombinational, Stmt.isSequential', Stmt.isSequentialList,
     isSequentialList'_eq, Bool.and_eq_true] at h ⊢
   exact h
+
+/-- A member of a sequential switch case list is sequential. -/
+theorem isSequentialSwitchCaseList'_mem {cases : List (Expr × List Stmt)}
+    (h : Stmt.isSequentialSwitchCaseList' cases = true) :
+    ∀ (tag : Expr) (body : List Stmt), (tag, body) ∈ cases →
+      Expr.isCombinational' tag ∧ Stmt.isSequentialList' body := by
+  induction cases with
+  | nil =>
+      intro tag body he
+      simp at he
+  | cons c cs ih =>
+      intro tag body he
+      rcases c with ⟨tag0, body0⟩
+      simp [Bool.and_eq_true] at h
+      rcases List.mem_cons.mp he with (⟨rfl, rfl⟩ | he')
+      · simp [h.1.1, h.1.2]
+      · exact ih (by tauto) tag body he'
+
+/-- Decompose sequentiality of a switch statement. -/
+theorem isSequential_switch {disc cases default}
+    (h : Stmt.isSequential (Stmt.switch disc cases default)) :
+    Expr.isCombinational disc
+    ∧ (∀ p ∈ cases, Expr.isCombinational p.1 ∧ Stmt.isSequentialList p.2)
+    ∧ Stmt.isSequentialList default := by
+  simp only [Stmt.isSequential, Expr.isCombinational, Stmt.isSequential', Bool.and_eq_true] at h ⊢
+  constructor
+  · exact h.1.1
+  constructor
+  · intro p hp
+    rcases p with ⟨tag, body⟩
+    constructor
+    · exact (isSequentialSwitchCaseList'_mem h.1.2 tag body hp).1
+    · rw [← isSequentialList'_eq body]
+      exact (isSequentialSwitchCaseList'_mem h.1.2 tag body hp).2
+  · rw [← isSequentialList'_eq default]
+    exact h.2
 
 theorem isSequentialList_head {s ss}
     (h : Stmt.isSequentialList (s :: ss)) :
@@ -979,6 +1292,57 @@ theorem emitExpr_default_arrayLit (env m) (ty : Ty) (elems : List Expr) :
     VExpr.concat (emitExprList defaultFuel env m elems) := by
   unfold emitExpr; rfl
 
+theorem emitExpr_default_enumVal (env m) (enum variant : String) :
+    emitExpr defaultFuel env m (Expr.enumVal enum variant) =
+    VExpr.lit 32 (toString (env.enumValue enum variant |>.getD 0)) := by
+  unfold emitExpr; rfl
+
+/-- The outer emission of a `switch` expands to the local recursive helper.
+    Isolating this rewrite prevents `unfold emitExpr` from touching the right-hand
+    side of equivalence theorems. -/
+theorem emitExpr_switch_eq (fuel env m) (disc default : Expr)
+    (cases : List (Expr × Expr)) :
+    emitExpr fuel env m (Expr.switch disc cases default) =
+    (let discV := emitExpr fuel env m disc
+     let defaultV := emitExpr fuel env m default
+     emitExpr.go fuel env m discV defaultV cases) := by
+  conv =>
+    pattern (emitExpr _ _ _ (Expr.switch _ _ _))
+    unfold emitExpr
+
+/-- The local `emitExpr.go` helper is exactly the nested ternary fold used by the
+    total evaluator's switch congruence lemmas. -/
+theorem emitExpr.go_foldr (fuel env m) (discV defv : VExpr)
+    (cases : List (Expr × Expr)) :
+    emitExpr.go fuel env m discV defv cases =
+    cases.foldr (init := defv)
+      (fun (tag, res) acc =>
+        VExpr.ternary
+          (VExpr.binop "==" discV (emitExpr fuel env m tag))
+          (emitExpr fuel env m res)
+          acc) := by
+  induction cases with
+  | nil =>
+      simp [emitExpr.go]
+  | cons c cs ih =>
+      rcases c with ⟨tag, res⟩
+      simp [emitExpr.go, List.foldr_cons, ih]
+      all_goals try { rfl }
+
+/-- Default-fuel emission of a `switch` expression is the nested ternary fold
+    over the emitted discriminant and default. -/
+theorem emitExpr_default_switch (env m) (disc : Expr) (cases : List (Expr × Expr))
+    (default : Expr) :
+    emitExpr defaultFuel env m (Expr.switch disc cases default) =
+    cases.foldr (init := emitExpr defaultFuel env m default)
+      (fun (tag, res) acc =>
+        VExpr.ternary
+          (VExpr.binop "==" (emitExpr defaultFuel env m disc) (emitExpr defaultFuel env m tag))
+          (emitExpr defaultFuel env m res)
+          acc) := by
+  rw [emitExpr_switch_eq, emitExpr.go_foldr]
+  all_goals try { rfl }
+
 /-! The structural list helpers coincide with the usual `List.map` formulation,
     which is what the total evaluator's congruence lemmas expect. -/
 
@@ -1028,6 +1392,24 @@ theorem emitStmt_default_ifThenElse (env m) (cond : Expr) (then_ else_ : List St
       (emitStmts defaultFuel env m then_)
       (emitStmts defaultFuel env m else_) := by
   conv => lhs; unfold emitStmt; rfl
+
+theorem emitSwitchCases_eq_map (fuel env m) (cases : List (Expr × List Stmt)) :
+    emitSwitchCases fuel env m cases =
+    cases.map (fun p => (emitExpr fuel env m p.1, emitStmts fuel env m p.2)) := by
+  induction cases with
+  | nil => simp [emitSwitchCases]
+  | cons c cs ih =>
+      rcases c with ⟨tag, body⟩
+      simp [emitSwitchCases, ih]
+
+theorem emitStmt_default_switch (env m) (disc : Expr) (cases : List (Expr × List Stmt))
+    (default : List Stmt) :
+    emitStmt defaultFuel env m (Stmt.switch disc cases default) =
+    VStmt.switch (emitExpr defaultFuel env m disc)
+      (cases.map (fun p => (emitExpr defaultFuel env m p.1, emitStmts defaultFuel env m p.2)))
+      (emitStmts defaultFuel env m default) := by
+  conv => lhs; unfold emitStmt
+  rw [emitSwitchCases_eq_map]
 
 theorem emitStmt_default_forLoop (env m) (var : String) (range : Expr) (body : List Stmt) :
     emitStmt defaultFuel env m (Stmt.forLoop var range body) =
@@ -1197,6 +1579,36 @@ theorem evalExprTotal_succ_arrayLit (fuel env m) (ty : Ty) (elems : List Expr) (
       some (Value.concatList vs)) := by
   conv => lhs; unfold evalExprTotal; dsimp only [Option.bind]; rfl
 
+theorem evalExprTotal_succ_enumVal (fuel env m) (enum variant : String) (val : Valuation) :
+    evalExprTotal (fuel + 1) env m val (Expr.enumVal enum variant) =
+    some ⟨32, BitVec.ofInt 32 (env.enumValue enum variant |>.getD 0)⟩ := by
+  conv => lhs; unfold evalExprTotal; dsimp only [Option.bind]; rfl
+
+/-- A `switch` expression is evaluated by the switch-case walker at the same
+    fuel. -/
+theorem evalExprTotal_succ_switch (fuel env m) (disc : Expr) (cases : List (Expr × Expr))
+    (default : Expr) (val : Valuation) :
+    evalExprTotal (fuel + 1) env m val (Expr.switch disc cases default) =
+    evalSwitchCasesTotal (fuel + 1) env m val disc default cases := by
+  conv => lhs; unfold evalExprTotal; dsimp only [Option.bind]; rfl
+
+/-- The switch-case walker is definitionally equal to evaluating the `switch`
+    expression.  Used to re-associate the emitted nested ternary. -/
+theorem evalExprTotal_eq_switch (fuel env m) (disc : Expr) (cases : List (Expr × Expr))
+    (default : Expr) (val : Valuation) :
+    evalExprTotal fuel env m val (Expr.switch disc cases default) =
+    evalSwitchCasesTotal fuel env m val disc default cases := by
+  cases fuel with
+  | zero =>
+      cases cases with
+      | nil => simp [evalExprTotal, evalSwitchCasesTotal]
+      | cons c cs =>
+          simp [evalExprTotal]
+          unfold evalSwitchCasesTotal
+          simp
+  | succ fuel =>
+      simp [evalExprTotal]
+
 /-! Verilog expression evaluator reductions. -/
 
 theorem evalVExprTotal_succ_lit (fuel env vm) (w : Nat) (s : String) (val : Valuation) :
@@ -1269,6 +1681,67 @@ theorem evalVExprTotal_succ_concat (fuel env vm) (es : List VExpr) (val : Valuat
       let vs ← es.mapM (evalVExprTotal fuel env vm val)
       some (Value.concatList vs)) := by
   conv => lhs; unfold evalVExprTotal; dsimp only [Option.bind]; rfl
+
+/-- At positive fuel a ternary expression reduces to the condition evaluation
+    followed by the chosen branch. -/
+theorem evalVExprTotal_succ_ternary (fuel env vm) (cond then_ else_ : VExpr) (val : Valuation) :
+    evalVExprTotal (fuel + 1) env vm val (VExpr.ternary cond then_ else_) =
+    (do
+      let c ← evalVExprTotal fuel env vm val cond
+      if c.bits.toNat > 0 then evalVExprTotal fuel env vm val then_
+      else evalVExprTotal fuel env vm val else_) := by
+  conv => lhs; unfold evalVExprTotal; dsimp only [Option.bind]; rfl
+
+/-- The nested ternary emitted for a `switch` evaluates to the same value as the
+    Verilog ternary-case walker.  The proof mirrors the fuel bookkeeping of the
+    two definitions. -/
+theorem evalVExprTotal_foldr_ternary_cases (fuel env m vm) (disc default : Expr)
+    (cases : List (Expr × Expr)) (val : Valuation) :
+    evalVExprTotal fuel env vm val
+      (cases.foldr (init := emitExpr defaultFuel env m default)
+        (fun p acc =>
+          (VExpr.binop "==" (emitExpr defaultFuel env m disc) (emitExpr defaultFuel env m p.1)).ternary
+            (emitExpr defaultFuel env m p.2) acc)) =
+    evalVTernaryCasesTotal fuel env vm val
+      (emitExpr defaultFuel env m disc)
+      (emitExpr defaultFuel env m default)
+      (cases.map (fun p => (emitExpr defaultFuel env m p.1, emitExpr defaultFuel env m p.2))) := by
+  revert cases
+  induction fuel using Nat.strong_induction_on with
+  | h fuel ih_fuel =>
+      intro cases
+      cases cases with
+      | nil =>
+          simp [evalVTernaryCasesTotal]
+      | cons c cs =>
+          rcases c with ⟨tag, res⟩
+          cases fuel with
+          | zero =>
+              simp [evalVExprTotal, evalVTernaryCasesTotal]
+          | succ fuel =>
+              cases fuel with
+              | zero =>
+                  simp [evalVExprTotal, evalVTernaryCasesTotal]
+              | succ fuel =>
+                  simp [List.foldr_cons, List.map_cons, evalVTernaryCasesTotal]
+                  rw [evalVExprTotal_succ_ternary]
+                  rw [evalVExprTotal_succ_binop]
+                  cases h1 : evalVExprTotal fuel env vm val (emitExpr defaultFuel env m disc) with
+                  | none =>
+                      simp [h1, evalVExprTotal, evalVTernaryCasesTotal]
+                  | some d =>
+                      cases h2 : evalVExprTotal fuel env vm val (emitExpr defaultFuel env m tag) with
+                      | none =>
+                          simp [h1, h2, evalVExprTotal, evalVTernaryCasesTotal]
+                      | some t =>
+                          cases h3 : evalBinop "==" d t with
+                          | none =>
+                              simp [h1, h2, h3, evalVExprTotal, evalVTernaryCasesTotal]
+                          | some eq =>
+                              simp only [h1, h2, h3, Bind.bind, Option.bind]
+                              split_ifs
+                              · rfl
+                              · exact ih_fuel (fuel + 1) (by omega) cs
 
 /-! Function and statement evaluator reductions. -/
 
@@ -1343,6 +1816,15 @@ theorem evalStmtTotal_succ_forLoop (fuel env m) (var : String) (range : Expr) (b
     | none => simp [h, evalStmtTotal, Option.bind]
     | some r => simp [h, evalStmtTotal, Option.bind]
 
+theorem evalStmtTotal_succ_switch (fuel env m) (disc : Expr) (cases : List (Expr × List Stmt))
+    (default : List Stmt) (val : Valuation) :
+    evalStmtTotal (fuel + 1) env m val (Stmt.switch disc cases default) =
+    (evalExprTotal fuel env m val disc).bind (fun d =>
+      evalSwitchStmtCasesTotal fuel env m val d default cases) := by
+    cases h : evalExprTotal fuel env m val disc with
+    | none => simp [h, evalStmtTotal, Option.bind]
+    | some d => simp [h, evalStmtTotal, Option.bind]
+
 theorem evalStmtTotal_succ_bareCall (fuel env m) (e : Expr) (val : Valuation) :
     evalStmtTotal (fuel + 1) env m val (Stmt.bareCall e) = some val := by
     simp [evalStmtTotal]
@@ -1398,6 +1880,15 @@ theorem evalVStmtTotal_succ_forLoop (fuel env vm) (var : String) (range : VExpr)
     cases h : evalVExprTotal fuel env vm val range with
     | none => simp [h, evalVStmtTotal, Option.bind]
     | some r => simp [h, evalVStmtTotal, Option.bind]
+
+theorem evalVStmtTotal_succ_switch (fuel env vm) (disc : VExpr) (cases : List (VExpr × List VStmt))
+    (default : List VStmt) (val : Valuation) :
+    evalVStmtTotal (fuel + 1) env vm val (VStmt.switch disc cases default) =
+    (evalVExprTotal fuel env vm val disc).bind (fun d =>
+      evalVSwitchStmtCasesTotal fuel env vm val d default cases) := by
+    cases h : evalVExprTotal fuel env vm val disc with
+    | none => simp [h, evalVStmtTotal, Option.bind]
+    | some d => simp [h, evalVStmtTotal, Option.bind]
 
 theorem evalVStmtTotal_succ_taskCall (fuel env vm) (name : String) (args : List VExpr)
     (val : Valuation) :
@@ -1475,6 +1966,355 @@ def P_forLoop (fuel : Nat) : Prop :=
     evalForLoopTotal fuel env₀ m₀ val var i n body =
     evalVForLoopTotal fuel env₀ vm0 val var i n vbody
 
+/-- Forward-simulation predicate for switch case bodies at fuel `fuel`.  Each case
+    body is a statement list; the case walker needs to know that the chosen body
+    evaluates the same way on both sides. -/
+def P_switchCases (fuel : Nat) : Prop :=
+  ∀ (val : Valuation) (d : Value)
+    (default : List Stmt) (cases : List (Expr × List Stmt))
+    (defaultV : List VStmt) (casesV : List (VExpr × List VStmt))
+    (heq_default : emitStmts defaultFuel env₀ m₀ default = defaultV)
+    (heq_cases : casesV = cases.map (fun p =>
+      (emitExpr defaultFuel env₀ m₀ p.1, emitStmts defaultFuel env₀ m₀ p.2)))
+    (hcc_default : Stmt.callContextList env₀ m₀ default)
+    (hcc_cases : ∀ p ∈ cases, Expr.callContext env₀ m₀ p.1 ∧ Stmt.callContextList env₀ m₀ p.2)
+    (hseq_default : Stmt.isSequentialList default)
+    (hseq_cases : ∀ p ∈ cases, Expr.isCombinational p.1 ∧ Stmt.isSequentialList p.2)
+    (hval : Valuation.equiv val val)
+    (ih_expr : ∀ (e : Expr) (ve : VExpr), emitExpr defaultFuel env₀ m₀ e = ve →
+      Expr.callContext env₀ m₀ e → Expr.isCombinational e → evalExprTotal fuel env₀ m₀ val e =
+      evalVExprTotal fuel env₀ vm0 val ve)
+    (ih_stmts : ∀ (ss : List Stmt) (vss : List VStmt), emitStmts defaultFuel env₀ m₀ ss = vss →
+      Stmt.callContextList env₀ m₀ ss → Stmt.isSequentialList ss →
+      evalStmtsTotal fuel env₀ m₀ val ss = evalVStmtsTotal fuel env₀ vm0 val vss),
+    evalSwitchStmtCasesTotal fuel env₀ m₀ val d default cases =
+    evalVSwitchStmtCasesTotal fuel env₀ vm0 val d defaultV casesV
+
+/-- The switch-case walkers agree when each tag evaluates the same way on both
+    sides and each body list evaluates the same way.  The proof is by induction on
+    the case list; the chosen case is the same on both sides because the tag
+    equality tests agree. -/
+theorem P_switchCases_holds (fuel : Nat) (val : Valuation) (d : Value)
+    (default : List Stmt) (cases : List (Expr × List Stmt))
+    (defaultV : List VStmt)
+    (heq_default : emitStmts defaultFuel env₀ m₀ default = defaultV)
+    (hcc_default : Stmt.callContextList env₀ m₀ default)
+    (hcc_cases : ∀ p ∈ cases, Expr.callContext env₀ m₀ p.1 ∧ Stmt.callContextList env₀ m₀ p.2)
+    (hseq_default : Stmt.isSequentialList default)
+    (hseq_cases : ∀ p ∈ cases, Expr.isCombinational p.1 ∧ Stmt.isSequentialList p.2)
+    (hval : Valuation.equiv val val)
+    (ih_expr : ∀ (e : Expr) (ve : VExpr), emitExpr defaultFuel env₀ m₀ e = ve →
+      Expr.callContext env₀ m₀ e → Expr.isCombinational e → evalExprTotal fuel env₀ m₀ val e =
+      evalVExprTotal fuel env₀ vm0 val ve)
+    (ih_stmts : ∀ (ss : List Stmt) (vss : List VStmt), emitStmts defaultFuel env₀ m₀ ss = vss →
+      Stmt.callContextList env₀ m₀ ss → Stmt.isSequentialList ss →
+      evalStmtsTotal fuel env₀ m₀ val ss = evalVStmtsTotal fuel env₀ vm0 val vss) :
+    evalSwitchStmtCasesTotal fuel env₀ m₀ val d default cases =
+    evalVSwitchStmtCasesTotal fuel env₀ vm0 val d defaultV
+      (cases.map (fun p => (emitExpr defaultFuel env₀ m₀ p.1, emitStmts defaultFuel env₀ m₀ p.2))) := by
+  induction cases with
+  | nil =>
+      simp [evalSwitchStmtCasesTotal, evalVSwitchStmtCasesTotal]
+      exact ih_stmts default defaultV heq_default hcc_default hseq_default
+  | cons c cs ih =>
+      rcases c with ⟨tag, body⟩
+      simp [evalSwitchStmtCasesTotal, evalVSwitchStmtCasesTotal]
+      have htag : evalExprTotal fuel env₀ m₀ val tag =
+                evalVExprTotal fuel env₀ vm0 val (emitExpr defaultFuel env₀ m₀ tag) := by
+        apply ih_expr tag (emitExpr defaultFuel env₀ m₀ tag) rfl
+        · exact (hcc_cases ⟨tag, body⟩ (by simp)).1
+        · exact (hseq_cases ⟨tag, body⟩ (by simp)).1
+      rw [htag]
+      apply Option.bind_congr_ext rfl
+      intro t
+      apply Option.bind_congr_ext rfl
+      intro eq
+      split_ifs with hmatch
+      · exact ih_stmts body (emitStmts defaultFuel env₀ m₀ body) rfl
+          (hcc_cases ⟨tag, body⟩ (by simp)).2
+          (hseq_cases ⟨tag, body⟩ (by simp)).2
+      · have hcc_tail : ∀ p ∈ cs, Expr.callContext env₀ m₀ p.1 ∧ Stmt.callContextList env₀ m₀ p.2 := by
+          intro p hp
+          exact hcc_cases p (by simp [hp])
+        have hseq_tail : ∀ p ∈ cs, Expr.isCombinational p.1 ∧ Stmt.isSequentialList p.2 := by
+          intro p hp
+          exact hseq_cases p (by simp [hp])
+        exact ih hcc_tail hseq_tail
+
+/-- `P_expr` at a successor fuel follows from the strong induction hypothesis at
+    all smaller fuels by structural induction on the expression.  This is needed
+    for the empty `switch` case, where the default sub-expression is evaluated at
+    the current fuel rather than a smaller one. -/
+theorem P_expr_succ (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
+    (hseq₀ : Module.isSequential env₀ m₀)
+    (hctx₀ : Module.callContext env₀ m₀)
+    (hunique₀ : Module.hasUniqueFunctionNames m₀)
+    (fuel : Nat)
+    (ih : ∀ k, k ≤ fuel →
+      P_expr env₀ m₀ vm0 k ∧
+      P_stmt env₀ m₀ vm0 k ∧
+      P_stmts env₀ m₀ vm0 k ∧
+      P_function env₀ m₀ vm0 k ∧
+      P_forLoop env₀ m₀ vm0 k)
+    (val : Valuation) (e : Expr) (ve : VExpr)
+    (heq : emitExpr defaultFuel env₀ m₀ e = ve)
+    (hcc : Expr.callContext env₀ m₀ e)
+    (hcomb : Expr.isCombinational e)
+    (hval : Valuation.equiv val val) :
+    evalExprTotal (fuel + 1) env₀ m₀ val e =
+    evalVExprTotal (fuel + 1) env₀ vm0 val ve := by
+  rw [← heq]
+  induction e using Expr.induction_on_lists with
+  | boolLit b =>
+      cases b
+      · simp [evalExprTotal_succ_boolLit, evalVExprTotal_succ_lit, evalVExprTotal_lit_toString, emitExpr_default_boolLit]
+      · simp [evalExprTotal_succ_boolLit, evalVExprTotal_succ_lit, evalVExprTotal_lit_toString, emitExpr_default_boolLit]
+  | intLit n =>
+      simp [evalExprTotal_succ_intLit, evalVExprTotal_succ_lit, evalVExprTotal_lit_toString, emitExpr_default_intLit]
+  | f32Lit s =>
+      simp [Expr.isCombinational] at hcomb
+      all_goals contradiction
+  | stringLit s =>
+      simp [Expr.isCombinational] at hcomb
+      all_goals contradiction
+  | identifier name =>
+      simp [evalExprTotal_succ_identifier, evalVExprTotal_succ_ident, emitExpr_default_identifier, hval name]
+  | binop op l r hl hr =>
+      have hcc_l := (Expr.callContext_binop hcc).1
+      have hcc_r := (Expr.callContext_binop hcc).2
+      have hcomb_l := (Expr.isCombinational_binop hcomb).1
+      have hcomb_r := (Expr.isCombinational_binop hcomb).2
+      have h_l := (ih fuel (by omega)).1 val l (emitExpr defaultFuel env₀ m₀ l) rfl hcc_l hcomb_l hval
+      have h_r := (ih fuel (by omega)).1 val r (emitExpr defaultFuel env₀ m₀ r) rfl hcc_r hcomb_r hval
+      simp only [evalExprTotal_succ_binop, evalVExprTotal_succ_binop, emitExpr_default_binop]
+      rw [h_l, h_r]
+  | unop op e h_e =>
+      have hcc_e := Expr.callContext_unop hcc
+      have hcomb_e := Expr.isCombinational_unop hcomb
+      have h_e' := (ih fuel (by omega)).1 val e (emitExpr defaultFuel env₀ m₀ e) rfl hcc_e hcomb_e hval
+      simp only [evalExprTotal_succ_unop, evalVExprTotal_succ_unop, emitExpr_default_unop]
+      rw [h_e']
+  | fieldAccess base field h_b =>
+      have hcc_b := Expr.callContext_fieldAccess hcc
+      have hcomb_b := Expr.isCombinational_fieldAccess hcomb
+      have h_b' := (ih fuel (by omega)).1 val base (emitExpr defaultFuel env₀ m₀ base) rfl hcc_b hcomb_b hval
+      cases hty : Expr.typeOf env₀ m₀ base with
+      | some ty =>
+          cases ty with
+          | struct sname =>
+              simp only [hty, evalExprTotal_succ_fieldAccess, evalVExprTotal_succ_slice, emitExpr_default_fieldAccess]
+              apply Option.bind_congr_ext h_b'; intro baseV
+              generalize hfind : List.find? (fun p => p.1 == field) (env₀.structFields sname) = found at *
+              cases found with
+              | some ty =>
+                  simp (config := { zeta := true }) only [hfind, structFieldOffsetTotal, structFieldWidthTotal, widthOfType, widthOfType_fuel_independent]
+                  split_ifs <;> try { conv => lhs; rw [hfind] } <;>
+                    try { simp_all [offset_le_add_sub_one, slice_width_eq] }
+                  all_goals try { rfl }
+              | none =>
+                  simp (config := { zeta := true }) only [hfind, structFieldOffsetTotal, structFieldWidthTotal, widthOfType, widthOfType_fuel_independent]
+                  split_ifs <;> try { conv => lhs; rw [hfind] } <;>
+                    try { simp_all [offset_le_add_sub_one, slice_width_eq] }
+                  all_goals try { rfl }
+          | _ =>
+              simp only [hty, evalExprTotal_succ_fieldAccess, evalVExprTotal_succ_slice, emitExpr_default_fieldAccess]
+              rw [h_b']
+              apply Option.bind_congr_ext rfl; intro baseV
+              simp
+      | none =>
+          simp only [hty, evalExprTotal_succ_fieldAccess, evalVExprTotal_succ_slice, emitExpr_default_fieldAccess]
+          rw [h_b']
+          apply Option.bind_congr_ext rfl; intro baseV
+          simp
+  | index base idx h_b h_i =>
+      have hcc_b := (Expr.callContext_index hcc).1
+      have hcc' := (Expr.callContext_index hcc).2
+      have hcomb_b := (Expr.isCombinational_index hcomb).1
+      have hcomb' := (Expr.isCombinational_index hcomb).2
+      have h_b' := (ih fuel (by omega)).1 val base (emitExpr defaultFuel env₀ m₀ base) rfl hcc_b hcomb_b hval
+      have h_i' := (ih fuel (by omega)).1 val idx (emitExpr defaultFuel env₀ m₀ idx) rfl hcc' hcomb' hval
+      cases hty : Expr.typeOf env₀ m₀ base with
+      | some ty =>
+          cases ty with
+          | array n elem =>
+              simp only [evalExprTotal_succ_index, evalVExprTotal_succ_index, emitExpr_default_index]
+              rw [hty, h_b', h_i']
+              apply Option.bind_congr_ext rfl; intro baseV
+              apply Option.bind_congr_ext rfl; intro idxV
+              have hiw : indexElemWidth defaultFuel env₀ m₀ base = widthOfType defaultFuel env₀ elem :=
+                indexElemWidth_eq defaultFuel env₀ m₀ base hty
+              rw [hiw, widthOfType_fuel_independent]
+              all_goals try { split <;> rfl }
+          | _ =>
+              simp only [evalExprTotal_succ_index, evalVExprTotal_succ_index, emitExpr_default_index]
+              rw [hty, h_b', h_i']
+              apply Option.bind_congr_ext rfl; intro baseV
+              apply Option.bind_congr_ext rfl; intro idxV
+              have hw : indexElemWidth defaultFuel env₀ m₀ base = 8 := by
+                simp [indexElemWidth, hty]
+              simp [hty, hw]
+              all_goals rw [hw]
+              all_goals try { split <;> rfl }
+      | none =>
+          simp only [evalExprTotal_succ_index, evalVExprTotal_succ_index, emitExpr_default_index]
+          rw [hty, h_b', h_i']
+          apply Option.bind_congr_ext rfl; intro baseV
+          apply Option.bind_congr_ext rfl; intro idxV
+          have hw : indexElemWidth defaultFuel env₀ m₀ base = 8 := by
+            simp [indexElemWidth, hty]
+          simp [hty, hw]
+          all_goals rw [hw]
+          all_goals try { split <;> rfl }
+  | call name args h_args =>
+      have hcc_call := Expr.callContext_call hcc
+      have hcomb_args := Expr.isCombinational_call hcomb
+      have hargs_ctx := hcc_call.2.2.2
+      simp only [evalExprTotal_succ_call, evalVExprTotal_succ_call, emitExpr_default_call]
+      cases hfn : m₀.findFunction name with
+      | none =>
+          rcases Module.findFunction_of_hasEmittedFunctionNamed hcc_call.2.2.1
+            with ⟨fn, hfn', heq_name⟩
+          rw [hfn] at hfn'
+          contradiction
+      | some fn =>
+          have hfn_name : fn.name = name := Module.findFunction_name hfn
+          have hhost : ¬ Env.isHostOnly env₀ fn.name := by
+            rw [hfn_name]
+            exact hcc_call.2.1
+          have hmem_emitted : fn ∈ Module.emittedFunctions env₀ m₀ :=
+            Module.hasEmittedFunctionNamed_findFunction hunique₀ hcc_call.2.2.1 fn hfn
+          have hlookup :
+            List.find? (fun f => f.name == name) vm0.functions =
+            some (emitVFunction defaultFuel env₀ m₀ fn) := by
+            rw [hvm0]
+            exact emit_function_lookup defaultFuel env₀ m₀ name fn hunique₀ hfn hmem_emitted
+          rw [hlookup]
+          rw [emitExprList_eq_map]
+          have h_args :
+            args.mapM (evalExprTotal fuel env₀ m₀ val) =
+            (args.map (emitExpr defaultFuel env₀ m₀)).mapM (evalVExprTotal fuel env₀ vm0 val) := by
+            have h_eta : args.mapM (evalExprTotal fuel env₀ m₀ val) =
+              List.mapM (fun a => evalExprTotal fuel env₀ m₀ val a) args := by rfl
+            rw [h_eta]
+            rw [List.mapM_map]
+            apply List.mapM_congr'
+            intro a ha
+            exact (ih fuel (by omega)).1 val a (emitExpr defaultFuel env₀ m₀ a) rfl
+              (hargs_ctx a ha) (hcomb_args a ha) hval
+          apply Option.bind_congr_ext h_args; intro argVals
+          have hcc_body : Stmt.callContextList env₀ m₀ fn.body :=
+            hctx₀.2 fn (Module.findFunction_mem hfn) hhost
+          have hseq_body :=
+            Module.isSequential_function_body hseq₀
+              (Module.findFunction_mem hfn) hhost
+          apply (ih fuel (by omega)).2.2.2.1 val fn (emitVFunction defaultFuel env₀ m₀ fn) argVals rfl hcc_body hseq_body
+            (Valuation.equiv_refl val)
+  | structLit name fields h_fields =>
+      have hcc_fields := Expr.callContext_structLit hcc
+      have hcomb_fields := Expr.isCombinational_structLit hcomb
+      simp only [evalExprTotal_succ_structLit, evalVExprTotal_succ_concat, emitExpr_default_structLit]
+      rw [emitFieldExprs_eq_map]
+      have h_fields' :
+        List.mapM (fun p => evalExprTotal fuel env₀ m₀ val p.2) fields =
+        List.mapM (fun ve => evalVExprTotal fuel env₀ vm0 val ve)
+          (fields.map (fun p => emitExpr defaultFuel env₀ m₀ p.2)) := by
+        rw [List.mapM_map]
+        apply List.mapM_congr'
+        intro p hp
+        exact (ih fuel (by omega)).1 val p.2 (emitExpr defaultFuel env₀ m₀ p.2) rfl
+          (hcc_fields p hp) (hcomb_fields p.1 p.2 hp) hval
+      apply Option.bind_congr_ext h_fields'; intro vs
+      rfl
+  | arrayLit ty elems h_elems =>
+      have hcc_elems := Expr.callContext_arrayLit hcc
+      have hcomb_elems := Expr.isCombinational_arrayLit hcomb
+      simp only [evalExprTotal_succ_arrayLit, evalVExprTotal_succ_concat, emitExpr_default_arrayLit]
+      rw [emitExprList_eq_map]
+      have h_elems' :
+        List.mapM (fun a => evalExprTotal fuel env₀ m₀ val a) elems =
+        List.mapM (fun ve => evalVExprTotal fuel env₀ vm0 val ve)
+          (elems.map (emitExpr defaultFuel env₀ m₀)) := by
+        rw [List.mapM_map]
+        apply List.mapM_congr'
+        intro a ha
+        exact (ih fuel (by omega)).1 val a (emitExpr defaultFuel env₀ m₀ a) rfl
+          (hcc_elems a ha) (hcomb_elems a ha) hval
+      apply Option.bind_congr_ext h_elems'; intro vs
+      rfl
+  | enumVal enum variant =>
+      rw [evalExprTotal_succ_enumVal, emitExpr_default_enumVal, evalVExprTotal_lit_toString]
+  | len base h_b =>
+      simp [Expr.isCombinational] at hcomb
+      all_goals contradiction
+  | contains base item h_b h_i =>
+      simp [Expr.isCombinational] at hcomb
+      all_goals contradiction
+  | switch disc cases default h_disc h_cases h_default =>
+      have hcc_s := Expr.callContext_switch hcc
+      have hcomb_s := Expr.isCombinational_switch hcomb
+      simp only [evalExprTotal_succ_switch, emitExpr_default_switch]
+      rw [evalVExprTotal_foldr_ternary_cases]
+      cases cases with
+      | nil =>
+          have heq_default : emitExpr defaultFuel env₀ m₀ default = ve := by
+            rw [← heq]
+            rw [emitExpr_default_switch]
+            all_goals rfl
+          simp [evalSwitchCasesTotal, evalVTernaryCasesTotal]
+          exact h_default heq_default hcc_s.2.2 hcomb_s.2.2
+      | cons c cs =>
+          rcases c with ⟨tag, res⟩
+          have hcc_tag : Expr.callContext env₀ m₀ tag := by
+            apply (hcc_s.2.1 ⟨tag, res⟩ (by simp)).1
+          have hcc_res : Expr.callContext env₀ m₀ res := by
+            apply (hcc_s.2.1 ⟨tag, res⟩ (by simp)).2
+          have hcomb_tag : Expr.isCombinational tag := by
+            apply (hcomb_s.2.1 ⟨tag, res⟩ (by simp)).1
+          have hcomb_res : Expr.isCombinational res := by
+            apply (hcomb_s.2.1 ⟨tag, res⟩ (by simp)).2
+          have hcc_tail : Expr.callContext env₀ m₀ (Expr.switch disc cs default) :=
+            Expr.callContext_switch_tail hcc
+          have hcomb_tail : Expr.isCombinational (Expr.switch disc cs default) :=
+            Expr.isCombinational_switch_tail hcomb
+          cases fuel with
+          | zero =>
+              simp [evalSwitchCasesTotal, evalVTernaryCasesTotal]
+          | succ fuel =>
+              have h_disc := (ih fuel (by omega)).1 val disc
+                (emitExpr defaultFuel env₀ m₀ disc) rfl hcc_s.1 hcomb_s.1 hval
+              have h_tag := (ih fuel (by omega)).1 val tag
+                (emitExpr defaultFuel env₀ m₀ tag) rfl hcc_tag hcomb_tag hval
+              have h_res := (ih (fuel + 1) (by omega)).1 val res
+                (emitExpr defaultFuel env₀ m₀ res) rfl hcc_res hcomb_res hval
+              have h_tail := (ih (fuel + 1) (by omega)).1 val
+                (Expr.switch disc cs default)
+                (emitExpr defaultFuel env₀ m₀ (Expr.switch disc cs default)) rfl
+                hcc_tail hcomb_tail hval
+              have h_tail_cases :
+                evalSwitchCasesTotal (fuel + 1) env₀ m₀ val disc default cs =
+                evalVTernaryCasesTotal (fuel + 1) env₀ vm0 val
+                  (emitExpr defaultFuel env₀ m₀ disc)
+                  (emitExpr defaultFuel env₀ m₀ default)
+                  (cs.map (fun c =>
+                    (emitExpr defaultFuel env₀ m₀ c.1, emitExpr defaultFuel env₀ m₀ c.2))) := by
+                rw [← evalExprTotal_eq_switch (fuel + 1) env₀ m₀ disc cs default val]
+                rw [h_tail]
+                rw [emitExpr_default_switch]
+                exact evalVExprTotal_foldr_ternary_cases (fuel + 1) env₀ m₀ vm0 disc default cs val
+              simp [evalSwitchCasesTotal, evalVTernaryCasesTotal]
+              rw [h_disc]
+              apply Option.bind_congr_ext rfl; intro d
+              rw [h_tag]
+              apply Option.bind_congr_ext rfl; intro t
+              apply Option.bind_congr_ext rfl; intro eq
+              split_ifs with hmatch
+              · exact h_res
+              · exact h_tail_cases
+  | unsupportedIcarus r =>
+      simp [Expr.isCombinational] at hcomb
+      all_goals contradiction
+
+
 /-- Combined forward-simulation invariant.  The proof is a single induction on
     fuel; at `fuel + 1` every recursive sub-evaluation happens at the smaller
     fuel `fuel`, which is exactly what the induction hypothesis covers. -/
@@ -1488,216 +2328,51 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
     P_stmts env₀ m₀ vm0 fuel ∧
     P_function env₀ m₀ vm0 fuel ∧
     P_forLoop env₀ m₀ vm0 fuel := by
-  induction fuel with
-  | zero =>
-      constructor
-      · intro val e ve heq hcc hseq hval
-        rw [← heq]
-        cases e <;> unfold evalExprTotal evalVExprTotal <;> rfl
-      constructor
-      · intro val s vs heq hcc hseq hval
-        rw [← heq]
-        cases s
-        all_goals
-          simp [evalStmtTotal, evalVStmtTotal, evalForLoopTotal_zero, evalVForLoopTotal_zero]
-      constructor
-      · intro val ss vss heq hcc hseq hval
-        rw [← heq]
-        cases ss <;> unfold evalStmtsTotal evalVStmtsTotal <;> rfl
-      constructor
-      · intro base fn vfn argVals heq hcc hseq hbase
-        rw [← heq]
-        unfold evalFunctionTotal evalVFunctionTotal
-        rfl
-      · -- P_forLoop 0
-        intro val var i n body vbody heq hcc hseq hval
-        rw [← heq]
-        simp [evalForLoopTotal_zero, evalVForLoopTotal_zero]
-  | succ fuel ih =>
-      rcases ih with ⟨ih_expr, ih_stmt, ih_stmts, ih_fn, ih_loop⟩
+  induction fuel using Nat.strong_induction_on with
+  | h fuel ih =>
+      cases fuel with
+      | zero =>
+          constructor
+          · intro val e ve heq hcc hseq hval
+            rw [← heq]
+            cases e <;> unfold evalExprTotal evalVExprTotal <;> rfl
+          constructor
+          · intro val s vs heq hcc hseq hval
+            rw [← heq]
+            cases s
+            all_goals
+              simp [evalStmtTotal, evalVStmtTotal, evalForLoopTotal_zero, evalVForLoopTotal_zero]
+          constructor
+          · intro val ss vss heq hcc hseq hval
+            rw [← heq]
+            cases ss <;> unfold evalStmtsTotal evalVStmtsTotal <;> rfl
+          constructor
+          · intro base fn vfn argVals heq hcc hseq hbase
+            rw [← heq]
+            unfold evalFunctionTotal evalVFunctionTotal
+            rfl
+          · -- P_forLoop 0
+            intro val var i n body vbody heq hcc hseq hval
+            rw [← heq]
+            simp [evalForLoopTotal_zero, evalVForLoopTotal_zero]
+      | succ fuel =>
+      have h_ih : ∀ k, k ≤ fuel →
+          P_expr env₀ m₀ vm0 k ∧
+          P_stmt env₀ m₀ vm0 k ∧
+          P_stmts env₀ m₀ vm0 k ∧
+          P_function env₀ m₀ vm0 k ∧
+          P_forLoop env₀ m₀ vm0 k := by
+        intro k hk
+        exact ih k (by omega)
+      have ih_expr := (h_ih fuel (by omega)).1
+      have ih_stmt := (h_ih fuel (by omega)).2.1
+      have ih_stmts := (h_ih fuel (by omega)).2.2.1
+      have ih_fn := (h_ih fuel (by omega)).2.2.2.1
+      have ih_loop := (h_ih fuel (by omega)).2.2.2.2
       constructor
       · -- P_expr (fuel + 1)
         intro val e ve heq hcc_e hcomb_e hval
-        rw [← heq]
-        cases e with
-        | boolLit b =>
-            cases b
-            · simp [evalExprTotal_succ_boolLit, evalVExprTotal_succ_lit, evalVExprTotal_lit_toString, emitExpr_default_boolLit]
-            · simp [evalExprTotal_succ_boolLit, evalVExprTotal_succ_lit, evalVExprTotal_lit_toString, emitExpr_default_boolLit]
-        | intLit n =>
-            simp [evalExprTotal_succ_intLit, evalVExprTotal_succ_lit, evalVExprTotal_lit_toString, emitExpr_default_intLit]
-        | identifier name =>
-            simp [evalExprTotal_succ_identifier, evalVExprTotal_succ_ident, emitExpr_default_identifier, hval name]
-        | binop op lhs rhs =>
-            have hcc_l := (Expr.callContext_binop hcc_e).1
-            have hcc_r := (Expr.callContext_binop hcc_e).2
-            have hcomb_l := (Expr.isCombinational_binop hcomb_e).1
-            have hcomb_r := (Expr.isCombinational_binop hcomb_e).2
-            have h_l := ih_expr val lhs (emitExpr defaultFuel env₀ m₀ lhs) rfl hcc_l hcomb_l hval
-            have h_r := ih_expr val rhs (emitExpr defaultFuel env₀ m₀ rhs) rfl hcc_r hcomb_r hval
-            simp only [evalExprTotal_succ_binop, evalVExprTotal_succ_binop, emitExpr_default_binop]
-            rw [h_l, h_r]
-        | unop op e =>
-            have hcc_e := Expr.callContext_unop hcc_e
-            have hcomb_e := Expr.isCombinational_unop hcomb_e
-            have h_e := ih_expr val e (emitExpr defaultFuel env₀ m₀ e) rfl hcc_e hcomb_e hval
-            simp only [evalExprTotal_succ_unop, evalVExprTotal_succ_unop, emitExpr_default_unop]
-            rw [h_e]
-        | fieldAccess base field =>
-            have hcc_b := Expr.callContext_fieldAccess hcc_e
-            have hcomb_b := Expr.isCombinational_fieldAccess hcomb_e
-            have h_b := ih_expr val base (emitExpr defaultFuel env₀ m₀ base) rfl hcc_b hcomb_b hval
-            -- The emitted expression is a match on `typeOf base`; split first so
-            -- the Verilog slice reduction applies.
-            cases hty : Expr.typeOf env₀ m₀ base with
-            | some ty =>
-                cases ty with
-                | struct sname =>
-                    simp only [hty, evalExprTotal_succ_fieldAccess, evalVExprTotal_succ_slice, emitExpr_default_fieldAccess]
-                    apply Option.bind_congr_ext h_b; intro baseV
-                    generalize hfind : List.find? (fun p => p.1 == field) (env₀.structFields sname) = found at *
-                    cases found with
-                    | some ty =>
-                        simp (config := { zeta := true }) only [hfind, structFieldOffsetTotal, structFieldWidthTotal, widthOfType, widthOfType_fuel_independent]
-                        split_ifs <;> try { conv => lhs; rw [hfind] } <;>
-                          try { simp_all [offset_le_add_sub_one, slice_width_eq] };
-                          all_goals try { rfl }
-                    | none =>
-                        simp (config := { zeta := true }) only [hfind, structFieldOffsetTotal, structFieldWidthTotal, widthOfType, widthOfType_fuel_independent]
-                        split_ifs <;> try { conv => lhs; rw [hfind] } <;>
-                          try { simp_all [offset_le_add_sub_one, slice_width_eq] };
-                          all_goals try { rfl }
-                | _ =>
-                    simp only [hty, evalExprTotal_succ_fieldAccess, evalVExprTotal_succ_slice, emitExpr_default_fieldAccess]
-                    rw [h_b]
-                    apply Option.bind_congr_ext rfl; intro baseV
-                    simp
-            | none =>
-                simp only [hty, evalExprTotal_succ_fieldAccess, evalVExprTotal_succ_slice, emitExpr_default_fieldAccess]
-                rw [h_b]
-                apply Option.bind_congr_ext rfl; intro baseV
-                simp
-        | index base idx =>
-            have hcc_b := (Expr.callContext_index hcc_e).1
-            have hcc_i := (Expr.callContext_index hcc_e).2
-            have hcomb_b := (Expr.isCombinational_index hcomb_e).1
-            have hcomb_i := (Expr.isCombinational_index hcomb_e).2
-            have h_b := ih_expr val base (emitExpr defaultFuel env₀ m₀ base) rfl hcc_b hcomb_b hval
-            have h_i := ih_expr val idx (emitExpr defaultFuel env₀ m₀ idx) rfl hcc_i hcomb_i hval
-            cases hty : Expr.typeOf env₀ m₀ base with
-            | some ty =>
-                cases ty with
-                | array n elem =>
-                    simp only [evalExprTotal_succ_index, evalVExprTotal_succ_index, emitExpr_default_index]
-                    rw [hty, h_b, h_i]
-                    apply Option.bind_congr_ext rfl; intro baseV
-                    apply Option.bind_congr_ext rfl; intro idxV
-                    have hiw : indexElemWidth defaultFuel env₀ m₀ base = widthOfType defaultFuel env₀ elem :=
-                      indexElemWidth_eq defaultFuel env₀ m₀ base hty
-                    rw [hiw, widthOfType_fuel_independent]
-                    all_goals try { split <;> rfl }
-                | _ =>
-                    simp only [evalExprTotal_succ_index, evalVExprTotal_succ_index, emitExpr_default_index]
-                    rw [hty, h_b, h_i]
-                    apply Option.bind_congr_ext rfl; intro baseV
-                    apply Option.bind_congr_ext rfl; intro idxV
-                    have hw : indexElemWidth defaultFuel env₀ m₀ base = 8 := by
-                      simp [indexElemWidth, hty]
-                    simp [hty, hw]
-                    all_goals rw [hw]
-                    all_goals try { split <;> rfl }
-            | none =>
-                simp only [evalExprTotal_succ_index, evalVExprTotal_succ_index, emitExpr_default_index]
-                rw [hty, h_b, h_i]
-                apply Option.bind_congr_ext rfl; intro baseV
-                apply Option.bind_congr_ext rfl; intro idxV
-                have hw : indexElemWidth defaultFuel env₀ m₀ base = 8 := by
-                  simp [indexElemWidth, hty]
-                simp [hty, hw]
-                all_goals rw [hw]
-                all_goals try { split <;> rfl }
-        | call name args =>
-            have hcc_call := Expr.callContext_call hcc_e
-            have hcomb_args := Expr.isCombinational_call hcomb_e
-            have hargs_ctx := hcc_call.2.2.2
-            simp only [evalExprTotal_succ_call, evalVExprTotal_succ_call, emitExpr_default_call]
-            cases hfn : m₀.findFunction name with
-            | none =>
-                -- The call-context predicate guarantees the name is present.
-                rcases Module.findFunction_of_hasEmittedFunctionNamed hcc_call.2.2.1
-                  with ⟨fn, hfn', heq_name⟩
-                rw [hfn] at hfn'
-                contradiction
-            | some fn =>
-                have hfn_name : fn.name = name := Module.findFunction_name hfn
-                have hhost : ¬ Env.isHostOnly env₀ fn.name := by
-                  rw [hfn_name]
-                  exact hcc_call.2.1
-                have hmem_emitted : fn ∈ Module.emittedFunctions env₀ m₀ :=
-                  Module.hasEmittedFunctionNamed_findFunction hunique₀ hcc_call.2.2.1 fn hfn
-                have hlookup :
-                  List.find? (fun f => f.name == name) vm0.functions =
-                  some (emitVFunction defaultFuel env₀ m₀ fn) := by
-                  rw [hvm0]
-                  exact emit_function_lookup defaultFuel env₀ m₀ name fn hunique₀ hfn hmem_emitted
-                rw [hlookup]
-                rw [emitExprList_eq_map]
-                -- Argument lists evaluate identically by the expression IH.
-                have h_args :
-                  args.mapM (evalExprTotal fuel env₀ m₀ val) =
-                  (args.map (emitExpr defaultFuel env₀ m₀)).mapM (evalVExprTotal fuel env₀ vm0 val) := by
-                  have h_eta : args.mapM (evalExprTotal fuel env₀ m₀ val) =
-                    List.mapM (fun a => evalExprTotal fuel env₀ m₀ val a) args := by rfl
-                  rw [h_eta]
-                  rw [List.mapM_map]
-                  apply List.mapM_congr'
-                  intro a ha
-                  exact ih_expr val a (emitExpr defaultFuel env₀ m₀ a) rfl
-                    (hargs_ctx a ha) (hcomb_args a ha) hval
-                apply Option.bind_congr_ext h_args; intro argVals
-                have hcc_body : Stmt.callContextList env₀ m₀ fn.body :=
-                  hctx₀.2 fn (Module.findFunction_mem hfn) hhost
-                have hseq_body :=
-                  Module.isSequential_function_body hseq₀
-                    (Module.findFunction_mem hfn) hhost
-                apply ih_fn val fn (emitVFunction defaultFuel env₀ m₀ fn) argVals rfl hcc_body hseq_body
-                  (Valuation.equiv_refl val)
-        | structLit name fields =>
-            have hcc_fields := Expr.callContext_structLit hcc_e
-            have hcomb_fields := Expr.isCombinational_structLit hcomb_e
-            simp only [evalExprTotal_succ_structLit, evalVExprTotal_succ_concat, emitExpr_default_structLit]
-            rw [emitFieldExprs_eq_map]
-            have h_fields :
-              List.mapM (fun p => evalExprTotal fuel env₀ m₀ val p.2) fields =
-              List.mapM (fun ve => evalVExprTotal fuel env₀ vm0 val ve)
-                (fields.map (fun p => emitExpr defaultFuel env₀ m₀ p.2)) := by
-              rw [List.mapM_map]
-              apply List.mapM_congr'
-              intro p hp
-              exact ih_expr val p.2 (emitExpr defaultFuel env₀ m₀ p.2) rfl
-                (hcc_fields p hp) (hcomb_fields p.1 p.2 hp) hval
-            apply Option.bind_congr_ext h_fields; intro vs
-            rfl
-        | arrayLit ty elems =>
-            have hcc_elems := Expr.callContext_arrayLit hcc_e
-            have hcomb_elems := Expr.isCombinational_arrayLit hcomb_e
-            simp only [evalExprTotal_succ_arrayLit, evalVExprTotal_succ_concat, emitExpr_default_arrayLit]
-            rw [emitExprList_eq_map]
-            have h_elems :
-              List.mapM (fun a => evalExprTotal fuel env₀ m₀ val a) elems =
-              List.mapM (fun ve => evalVExprTotal fuel env₀ vm0 val ve)
-                (elems.map (emitExpr defaultFuel env₀ m₀)) := by
-              rw [List.mapM_map]
-              apply List.mapM_congr'
-              intro a ha
-              exact ih_expr val a (emitExpr defaultFuel env₀ m₀ a) rfl
-                (hcc_elems a ha) (hcomb_elems a ha) hval
-            apply Option.bind_congr_ext h_elems; intro vs
-            rfl
-        | _ =>
-            -- Non-lowerable expression forms are excluded by combinationality.
-            simp [Expr.isCombinational] at hcomb_e
-            all_goals contradiction
+        exact P_expr_succ env₀ m₀ vm0 hvm0 hseq₀ hctx₀ hunique₀ fuel h_ih val e ve heq hcc_e hcomb_e hval
       constructor
       · -- P_stmt (fuel + 1)
         intro val s vs heq hcc_s hseq_s hval
@@ -1787,6 +2462,23 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
             split
             · exact ih_stmts val then_ (emitStmts defaultFuel env₀ m₀ then_) rfl hcc_then hcomb_then hval
             · exact ih_stmts val else_ (emitStmts defaultFuel env₀ m₀ else_) rfl hcc_else hcomb_else hval
+        | switch disc cases default =>
+            have hcomb_disc := (Stmt.isSequential_switch hseq_s).1
+            have hseq_cases := (Stmt.isSequential_switch hseq_s).2.1
+            have hseq_default := (Stmt.isSequential_switch hseq_s).2.2
+            have hcc_disc := (Stmt.callContext_switch hcc_s).1
+            have hcc_cases := (Stmt.callContext_switch hcc_s).2.1
+            have hcc_default := (Stmt.callContext_switch hcc_s).2.2
+            simp only [emitStmt_default_switch,
+              evalStmtTotal_succ_switch, evalVStmtTotal_succ_switch]
+            have h_disc := ih_expr val disc (emitExpr defaultFuel env₀ m₀ disc) rfl hcc_disc hcomb_disc hval
+            rw [h_disc]
+            apply Option.bind_congr_ext rfl
+            intro d
+            exact P_switchCases_holds env₀ m₀ vm0 fuel val d default cases
+              (emitStmts defaultFuel env₀ m₀ default) rfl hcc_default hcc_cases hseq_default hseq_cases hval
+              (fun e ve heq hcc hcomb => ih_expr val e ve heq hcc hcomb hval)
+              (fun ss vss heq hcc hseq => ih_stmts val ss vss heq hcc hseq hval)
         | forLoop var range body =>
             have hcomb_range := (Stmt.isSequential_forLoop hseq_s).1
             have hseq_body := (Stmt.isSequential_forLoop hseq_s).2

@@ -535,4 +535,36 @@ theorem w505_for_local_var_init_value_equiv :
   exact module_value_equiv_proved_sequential w505ForLocalVarInitEnv w505ForLocalVarInitModule
     hlowerable hunique hseq hctx "fill_init" w505ForLocalVarInitFillInit [⟨32, BitVec.ofNat 32 4⟩] hfind hhost
 
+
+/-- W506: statement-level scalar switch dispatch is lowerable. -/
+theorem w506_switch_lowerable :
+  Module.isLowerable w506SwitchEnv w506SwitchModule := by
+  native_decide
+
+/-- W506: statement-level scalar switch dispatch is sequential. -/
+theorem w506_switch_sequential :
+  Module.isSequential w506SwitchEnv w506SwitchModule := by
+  native_decide
+
+/-- W506: value preservation for `main(1)` via the generic sequential
+    equivalence theorem.  The source `switch` and the emitted Verilog `case`
+    compute the same `u32` result. -/
+theorem w506_switch_value_equiv :
+  evalModuleFunctionTotal defaultFuel w506SwitchEnv w506SwitchModule "main"
+    [⟨32, BitVec.ofNat 32 1⟩] =
+  evalVModuleTotal defaultFuel w506SwitchEnv (emitModule w506SwitchEnv w506SwitchModule) "main"
+    [⟨32, BitVec.ofNat 32 1⟩] := by
+  have hlowerable : Module.isLowerable w506SwitchEnv w506SwitchModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w506SwitchModule := by
+    simp [Module.hasUniqueFunctionNames, w506SwitchModule, w506SwitchMain]
+  have hseq : Module.isSequential w506SwitchEnv w506SwitchModule := by native_decide
+  have hctx : Module.callContext w506SwitchEnv w506SwitchModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w506SwitchEnv, w506SwitchModule, w506SwitchMain]
+  have hfind : w506SwitchModule.findFunction "main" = some w506SwitchMain := by
+    simp [Module.findFunction, w506SwitchModule, w506SwitchMain]
+  have hhost : ¬ Env.isHostOnly w506SwitchEnv w506SwitchMain.name := by
+    simp [Env.isHostOnly, w506SwitchEnv, w506SwitchMain]
+  exact module_value_equiv_proved_sequential w506SwitchEnv w506SwitchModule
+    hlowerable hunique hseq hctx "main" w506SwitchMain [⟨32, BitVec.ofNat 32 1⟩] hfind hhost
+
 end Trinity.IcarusLowerable

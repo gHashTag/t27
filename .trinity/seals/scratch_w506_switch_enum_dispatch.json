@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4947fead1a8e078cf8af5afa9b630c65f5442fdd7a48d96473a58a5cc60b416f",
+  "gen_hash_rust": "sha256:b3b2aa9cf8465f1834bdbe7089279da9667b2b48258975010f8f6c3fa887e7b1",
+  "gen_hash_verilog": "sha256:f437d7e96580abbdd0881e47a446dbee5bcf289d5e05812863cc7d3deb7307c0",
+  "gen_hash_zig": "sha256:fa72c5ef9caa9e3e1ad5cc471363cacb5b13236419d0782c9ab9256e39c1943c",
+  "module": "w506_switch_enum_dispatch",
+  "ring": 12,
+  "sealed_at": "2026-07-12T23:08:00Z",
+  "spec_hash": "sha256:818e440c80a51dd0a6bd11d08604224a60695c50ad953dd403a65a1cd56d92b3",
+  "spec_path": "/Users/playra/t27/specs/scratch/w506_switch_enum_dispatch.t27"
+}

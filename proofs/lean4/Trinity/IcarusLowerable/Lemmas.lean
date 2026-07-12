@@ -844,4 +844,42 @@ def w505ForLocalVarInitModule : Module := {
   benches := []
 }
 
+
+/-- W506: environment for statement-level `switch` dispatch on a scalar. -/
+def w506SwitchEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["main"]
+}
+
+/-- W506: function that uses `Stmt.switch` to dispatch on a `u32` parameter. -/
+def w506SwitchMain : Function := {
+  name := "main",
+  params := [("sel", .u32)],
+  ret := some .u32,
+  body := [
+    .varDecl "r" .u32 (some (.intLit 0)),
+    .switch (.identifier "sel")
+      [
+        (.intLit 0, [.assign (.identifier "r") (.intLit 10)]),
+        (.intLit 1, [.assign (.identifier "r") (.intLit 20)])
+      ]
+      [.assign (.identifier "r") (.intLit 99)],
+    .return_ (some (.identifier "r"))
+  ]
+}
+
+/-- W506: module containing the statement-level switch witness. -/
+def w506SwitchModule : Module := {
+  name := "w506_switch",
+  imports := [],
+  globals := [],
+  functions := [w506SwitchMain],
+  tests := [],
+  benches := []
+}
+
 end Trinity.IcarusLowerable

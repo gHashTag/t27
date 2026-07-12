@@ -95,9 +95,27 @@ mutual
     | .call name args => .call name (emitExprList fuel env m args)
     | .structLit _ fields => .concat (emitFieldExprs fuel env m fields)
     | .arrayLit _ elems => .concat (emitExprList fuel env m elems)
-    | .enumVal _ _ => .unsupported "enum value"
+    | .enumVal enum variant =>
+        -- The shallow model emits the numeric value directly as a literal.
+        -- The Rust backend declares `EnumName_variant` localparams and uses
+        -- those identifiers, which evaluates to the same constant in any context
+        -- where the localparam is visible.
+        let n := env.enumValue enum variant |>.getD 0
+        .lit 32 (toString n)
     | .len _ => .lit 32 "N"
     | .contains _ _ => .lit 1 "0"
+    | .switch disc cases default =>
+        let discV := emitExpr fuel env m disc
+        let defaultV := emitExpr fuel env m default
+        let rec go (cs : List (Expr × Expr)) : VExpr :=
+          match cs with
+          | [] => defaultV
+          | (tag, res) :: rest =>
+              .ternary
+                (.binop "==" discV (emitExpr fuel env m tag))
+                (emitExpr fuel env m res)
+                (go rest)
+        go cases
     | .unsupportedIcarus reason => .unsupported reason
 
   /-- Helper: emit a list of expressions by structural recursion on the list. -/
@@ -130,16 +148,32 @@ mutual
         .localparam name width initExpr
     | .ifThenElse cond then_ else_ =>
         .ifThenElse (emitExpr fuel env m cond) (emitStmts fuel env m then_) (emitStmts fuel env m else_)
+    | .switch disc cases default =>
+        .switch (emitExpr fuel env m disc)
+          (emitSwitchCases fuel env m cases)
+          (emitStmts fuel env m default)
     | .forLoop var range body =>
         .forLoop var (emitExpr fuel env m range) (emitStmts fuel env m body)
     | .return_ e =>
         let rhs := (e.map (emitExpr fuel env m)).getD (VExpr.lit 1 "0")
         .assign (.ident "__return") rhs
     | .bareCall e => .taskCall "" [emitExpr fuel env m e]
+  termination_by (fuel, sizeOf stmt)
 
   /-- Emit a list of t27 statements. -/
   def emitStmts (fuel : Nat) (env : Env) (m : Module) (stmts : List Stmt) : List VStmt :=
     stmts.map (emitStmt fuel env m)
+  termination_by (fuel, sizeOf stmts)
+
+  /-- Emit the (tag, body) pairs of a statement-level switch.  Each case body is
+      emitted by a call to `emitStmts`; the `decreasing_by` tactic proves that the
+      case list is larger than any nested statement list. -/
+  def emitSwitchCases (fuel : Nat) (env : Env) (m : Module) (cases : List (Expr × List Stmt)) : List (VExpr × List VStmt) :=
+    match cases with
+    | [] => []
+    | p :: ps => (emitExpr fuel env m p.1, emitStmts fuel env m p.2) :: emitSwitchCases fuel env m ps
+  termination_by (fuel, sizeOf cases)
+  decreasing_by all_goals cases p <;> simp_wf <;> simp [sizeOf] <;> omega
 end
 
 /-- Emit a t27 function body. -/
