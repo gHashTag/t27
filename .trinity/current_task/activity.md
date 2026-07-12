@@ -2072,3 +2072,7 @@
 - **Commit:** feat(lean-icarus): W498 — prove generic structural equivalence theorem module_value_equiv_statement, zero sorry in IcarusLowerable
 - **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w499_unconditional_function_emission.json,docs/reports/FPGA_LOOP_COOPERATION_W500_2026-07-13.md,docs/reports/WAVE_LOOP_499_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Ast.lean,proofs/lean4/Trinity/IcarusLowerable/Emitter.lean,proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/scratch/w499_unconditional_function_emission.t27
 
+## 2026-07-12T10:10:35Z — wave-loop-499
+- **Commit:** feat(icarus-lowerable): Wave Loop 499 — unconditional function emission, drop callsResolved/callsReachable, 698/698 PASS + 178/178 yosys + 177/178 Icarus (1 baseline)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
