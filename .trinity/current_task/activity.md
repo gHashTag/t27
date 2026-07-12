@@ -2124,3 +2124,7 @@
 - **Commit:** docs(w503): add decomposed plan for Wave Loop 503
 - **Files:** .claude/plans/wave-loop-504.md,.claude/plans/wave-loop-505.md,.trinity/current-issue.md,.trinity/seals/scratch_w504_for_sum.json,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W505_2026-07-07.md,docs/reports/WAVE_LOOP_504_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/scratch/w504_for_sum.t27
 
+## 2026-07-12T15:24:06Z — wave-loop-505
+- **Commit:** feat(igla): Wave Loop 504 — generic equivalence theorem for bounded forLoop, sequential predicate, fuel-aligned loop evaluators, W504 witness
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
