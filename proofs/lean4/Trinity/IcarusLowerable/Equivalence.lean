@@ -25,19 +25,10 @@ namespace Trinity.IcarusLowerable
 set_option linter.unusedSimpArgs false
 set_option linter.unreachableTactic false
 set_option linter.unusedTactic false
+set_option linter.unusedVariables false
+set_option linter.unnecessarySeqFocus false
 
 /- φ² + φ⁻² = 3 | TRINITY -/
-
-/-- Context predicate: every function name occurring in an expression is both
-    reachable in the environment and resolvable in the module. -/
-def Expr.callContext (env : Env) (m : Module) (e : Expr) : Prop :=
-  ∀ x ∈ e.functionNames, Env.isReachable env x ∧ Module.hasFunctionNamed m x
-
-def Stmt.callContext (env : Env) (m : Module) (s : Stmt) : Prop :=
-  ∀ x ∈ s.functionNames, Env.isReachable env x ∧ Module.hasFunctionNamed m x
-
-def Stmt.callContextList (env : Env) (m : Module) (ss : List Stmt) : Prop :=
-  ∀ s ∈ ss, Stmt.callContext env m s
 
 /-- Congruence for `Option.bind`. -/
 theorem Option.bind_congr {α β : Type u} {oa ob : Option α} (h : oa = ob)
@@ -187,8 +178,8 @@ theorem evalVFunctionTotal_empty_args (fuel : Nat) (env : Env) (vm : VModule)
 /-- Membership from a successful `Module.findFunction`. -/
 theorem Module.findFunction_mem {m : Module} {name : String} {fn : Function}
     (h : m.findFunction name = some fn) :
-    fn ∈ m.functions ++ m.tests ++ m.benches := by
-  have h1 : (m.functions ++ m.tests ++ m.benches).find? (fun f => f.name == name) = some fn := by
+    fn ∈ m.functions := by
+  have h1 : m.functions.find? (fun f => f.name == name) = some fn := by
     rwa [Module.findFunction] at h
   exact List.mem_of_find?_eq_some h1
 
@@ -196,7 +187,7 @@ theorem Module.findFunction_mem {m : Module} {name : String} {fn : Function}
 theorem Module.findFunction_name {m : Module} {name : String} {fn : Function}
     (h : m.findFunction name = some fn) :
     fn.name = name := by
-  have h1 : (m.functions ++ m.tests ++ m.benches).find? (fun f => f.name == name) = some fn := by
+  have h1 : m.functions.find? (fun f => f.name == name) = some fn := by
     rwa [Module.findFunction] at h
   have hp := List.find?_some h1
   simpa using hp
@@ -223,22 +214,87 @@ private theorem find?_some_of_mem {α} {p : α → Bool} {l : List α} {a : α}
         rcases hex with ⟨b, hb, hpb⟩
         use b; simp [hx, hb]; exact hpb
 
-/-- If a module has a function named `name`, `Module.findFunction` returns it. -/
-theorem Module.findFunction_of_hasFunctionNamed {m : Module} {name : String}
-    (h : Module.hasFunctionNamed m name) :
-    ∃ fn, m.findFunction name = some fn ∧ fn.name = name := by
-  simp only [Module.hasFunctionNamed, List.any_eq_true, List.mem_append] at h
+/-- If a module has an emitted function named `name`, such a function exists in
+    the emitted set. -/
+theorem Module.hasEmittedFunctionNamed_exists {env : Env} {m : Module} {name : String}
+    (h : Module.hasEmittedFunctionNamed env m name) :
+    ∃ fn, fn ∈ Module.emittedFunctions env m ∧ fn.name = name := by
+  simp only [Module.hasEmittedFunctionNamed, Module.emittedFunctions, List.any_eq_true] at h
   rcases h with ⟨fn, hmem, heq⟩
-  rcases hmem with ((hfn | hfn) | hfn)
-  all_goals
-    have hmem_all : fn ∈ m.functions ++ m.tests ++ m.benches := by simp [hfn]
-    have hpred : (fn.name == name) = true := by simp [heq]
-    simp only [Module.findFunction]
-    have ⟨fn', hfind, hfn'_p⟩ := find?_some_of_mem (p := fun f => f.name == name) hmem_all hpred
-    use fn'
-    constructor
-    · exact hfind
-    · exact LawfulBEq.eq_of_beq hfn'_p
+  exact ⟨fn, hmem, LawfulBEq.eq_of_beq heq⟩
+
+/-- If a module has an emitted function named `name`, `Module.findFunction`
+    returns it.  Emitted functions are always in `m.functions`, so we never need to
+    search tests/benches. -/
+theorem Module.findFunction_of_hasEmittedFunctionNamed {env : Env} {m : Module} {name : String}
+    (h : Module.hasEmittedFunctionNamed env m name) :
+    ∃ fn, m.findFunction name = some fn ∧ fn.name = name := by
+  rcases Module.hasEmittedFunctionNamed_exists h with ⟨fn, hmem, heq⟩
+  have hmem_fn : fn ∈ m.functions := List.mem_of_mem_filter hmem
+  have hpred : (fn.name == name) = true := by
+    simp [heq]
+  have ⟨fn', hfind, hfn'_p⟩ := find?_some_of_mem (p := fun f => f.name == name) hmem_fn hpred
+  use fn'
+  constructor
+  · exact hfind
+  · exact LawfulBEq.eq_of_beq hfn'_p
+
+/-- An emitted function is also a function in the broader module sense. -/
+theorem Module.hasEmittedFunctionNamed_impl_hasFunctionNamed {env : Env} {m : Module} {name : String}
+    (h : Module.hasEmittedFunctionNamed env m name) :
+    Module.hasFunctionNamed m name := by
+  simp only [Module.hasEmittedFunctionNamed, Module.emittedFunctions, List.any_eq_true] at h
+  rcases h with ⟨fn, hmem, heq⟩
+  have hmem_fn : fn ∈ m.functions := List.mem_of_mem_filter hmem
+  have hmem_all : fn ∈ m.functions ++ m.tests ++ m.benches := by
+    simp only [List.mem_append]
+    exact Or.inl (Or.inl hmem_fn)
+  simp only [Module.hasFunctionNamed, List.any_eq_true]
+  exact ⟨fn, hmem_all, heq⟩
+
+/-- In a module with unique function names, two functions with the same name are
+    equal. -/
+theorem Module.unique_function_name {m : Module}
+    (hunique : Module.hasUniqueFunctionNames m)
+    {fn1 fn2 : Function}
+    (h1 : fn1 ∈ m.functions)
+    (h2 : fn2 ∈ m.functions)
+    (heq : fn1.name = fn2.name) :
+    fn1 = fn2 := by
+  have h1' : fn1 ∈ m.functions ++ m.tests ++ m.benches := by
+    simp only [List.mem_append]
+    exact Or.inl (Or.inl h1)
+  have h2' : fn2 ∈ m.functions ++ m.tests ++ m.benches := by
+    simp only [List.mem_append]
+    exact Or.inl (Or.inl h2)
+  simp only [Module.hasUniqueFunctionNames] at hunique
+  exact List.inj_on_of_nodup_map hunique h1' h2' heq
+
+/-- If a module has an emitted function named `name` and `findFunction` resolves
+    `name` to `fn`, then `fn` is in the emitted set.  Uniqueness guarantees the
+    resolvable function is the same one that satisfied `hasEmittedFunctionNamed`. -/
+theorem Module.hasEmittedFunctionNamed_findFunction {env : Env} {m : Module} {name : String}
+    (hunique : Module.hasUniqueFunctionNames m)
+    (h : Module.hasEmittedFunctionNamed env m name)
+    (fn : Function) (hm : m.findFunction name = some fn) :
+    fn ∈ Module.emittedFunctions env m := by
+  rcases Module.hasEmittedFunctionNamed_exists h with ⟨fn', hmem', heq_name'⟩
+  have hmem_fn' : fn' ∈ m.functions := List.mem_of_mem_filter hmem'
+  have hfn' : m.findFunction name = some fn' := by
+    have hpred : (fn'.name == name) = true := by simp [heq_name']
+    rcases find?_some_of_mem (p := fun f => f.name == name) hmem_fn' hpred
+      with ⟨fn'', hfind, hfn''_p⟩
+    have heq'' : fn'' = fn' := by
+      have heq''_name : fn''.name = name := LawfulBEq.eq_of_beq hfn''_p
+      have heq'_name : fn'.name = name := LawfulBEq.eq_of_beq hpred
+      apply Module.unique_function_name hunique
+        (List.mem_of_find?_eq_some hfind) hmem_fn'
+      exact heq''_name.trans heq'_name.symm
+    rw [heq''] at hfind
+    exact hfind
+  rw [hm] at hfn'
+  have heq : fn = fn' := by injection hfn'
+  exact heq.symm ▸ hmem'
 
 /-- The emitted Verilog function keeps the original name. -/
 theorem emitVFunction_name (fuel : Nat) (env : Env) (m : Module) (fn : Function) :
@@ -246,88 +302,84 @@ theorem emitVFunction_name (fuel : Nat) (env : Env) (m : Module) (fn : Function)
   simp [emitVFunction]
 
 /-- `List.find?` over the emitted function list returns the emitted version of
-    the first reachable function whose name matches. -/
-theorem find?_filter_map_emit (fuel : Nat) (env : Env) (m : Module)
+    the first function whose name matches.  W499: every function is emitted, so
+    the reachability filter is gone. -/
+theorem find?_map_emit (fuel : Nat) (env : Env) (m : Module)
     (fs : List Function) (name : String) (fn : Function)
-    (h : List.find? (fun f => f.name == name) fs = some fn)
-    (hreached : Env.isReachable env fn.name = true) :
+    (h : List.find? (fun f => f.name == name) fs = some fn) :
     List.find? (fun f => f.name == name)
-      (List.map (emitVFunction fuel env m)
-        (List.filter (fun f => env.isReachable f.name) fs)) =
+      (List.map (emitVFunction fuel env m) fs) =
     some (emitVFunction fuel env m fn) := by
   induction fs with
   | nil =>
       simp at h
   | cons f fs ih =>
       let g := emitVFunction fuel env m
-      let rest := List.map g (List.filter (fun f => env.isReachable f.name) fs)
       by_cases hname : (f.name == name) = true
       · -- `f` is the first name match, so it equals `fn`.
         have h_eq : f = fn := by
           simp [hname] at h
           exact h
-        by_cases hr : env.isReachable f.name = true
-        · -- `f` is reachable, so it appears first in the emitted list.
-          have hlist : List.map g (List.filter (fun f => env.isReachable f.name) (f :: fs)) = g f :: rest := by
-            simp [hr]
-            rfl
-          have hfn_name : f.name = name := LawfulBEq.eq_of_beq hname
-          rw [hlist]
+        have hfn_name : f.name = name := LawfulBEq.eq_of_beq hname
+        have hfind : List.find? (fun f => f.name == name) (List.map g (f :: fs)) =
+          some (g fn) := by
+          rw [List.map_cons]
           have hhead : ((g f).name == name) = true := by
             rw [emitVFunction_name, hfn_name]
             simp
-          have h_eq2 : g f = g fn := by rw [h_eq]
-          have hfind : List.find? (fun f => f.name == name) (g f :: rest) = some (g f) := by
-            simp [hhead]
-          rw [hfind, h_eq2]
-        · -- `f` matches the name but is unreachable: contradicts `fn` reachable.
-          rw [h_eq] at hr
-          contradiction
-      · -- `f` does not match the name, so the emitted head is skipped if present.
+          simp only [List.find?, hhead]
+          rw [show g f = g fn by rw [h_eq]]
+        exact hfind
+      · -- `f` does not match the name, so the emitted head is skipped.
         have htail : List.find? (fun f => f.name == name) fs = some fn := by
           simp [hname] at h
           exact h
-        by_cases hr : env.isReachable f.name = true
-        · -- `f` is emitted but its name does not match.
-          have hlist : List.map g (List.filter (fun f => env.isReachable f.name) (f :: fs)) = g f :: rest := by
-            simp [hr]
-            rfl
-          have hfn_ne : f.name ≠ name := by
-            intro hbad
-            have hbeq : (f.name == name) = true := by
-              rw [hbad]
-              simp
-            simp [hbeq] at hname
-          rw [hlist]
-          have hbeq_false : (f.name == name) = false := by
-            cases h : (f.name == name) <;> simp_all
+        have hfn_ne : f.name ≠ name := by
+          intro hbad
+          have hbeq : (f.name == name) = true := by
+            rw [hbad]
+            simp
+          simp [hbeq] at hname
+        have hbeq_false : (f.name == name) = false := by
+          cases h : (f.name == name) <;> simp_all
+        have hfind : List.find? (fun f => f.name == name) (List.map g (f :: fs)) =
+          List.find? (fun f => f.name == name) (List.map g fs) := by
+          rw [List.map_cons]
           have hhead : ((g f).name == name) = false := by
             rw [emitVFunction_name, hbeq_false]
-          simp [hhead]
-          exact ih htail
-        · -- `f` is not emitted at all.
-          have hlist : List.map g (List.filter (fun f => env.isReachable f.name) (f :: fs)) = rest := by
-            simp [hr]
-            rfl
-          rw [hlist]
-          exact ih htail
+          simp only [List.find?, hhead]
+        rw [hfind]
+        exact ih htail
 
 /-- The Verilog module emitted from a lowerable module contains the emitted
-    version of any reachable function that can be found in the t27 module. -/
+    version of any non-host-only function that can be found in the t27 module. -/
 theorem emit_function_lookup (fuel : Nat) (env : Env) (m : Module) (name : String)
-    (hreached : Env.isReachable env name = true)
     (fn : Function)
-    (hm : m.findFunction name = some fn) :
+    (hunique : Module.hasUniqueFunctionNames m)
+    (hm : m.findFunction name = some fn)
+    (hfn : fn ∈ Module.emittedFunctions env m) :
     List.find? (fun f => f.name == name)
       (emitModuleFuel fuel env m).functions =
     some (emitVFunction fuel env m fn) := by
-  have hmem : List.find? (fun f => f.name == name)
-    (m.functions ++ m.tests ++ m.benches) = some fn := by
-    rwa [Module.findFunction] at hm
   have hfn_name : fn.name = name := Module.findFunction_name hm
+  have hpred : (fn.name == name) = true := by simp [hfn_name]
+  have ⟨fn', hfind, hfn'_p⟩ := find?_some_of_mem (p := fun f => f.name == name)
+    hfn hpred
+  have hfn'_mem : fn' ∈ Module.emittedFunctions env m :=
+    List.mem_of_find?_eq_some hfind
+  have h_eq : fn' = fn := by
+    have heq_name : fn'.name = fn.name := by
+      rw [LawfulBEq.eq_of_beq hfn'_p, hfn_name]
+    exact Module.unique_function_name hunique
+      (List.mem_of_mem_filter hfn'_mem)
+      (List.mem_of_mem_filter hfn)
+      heq_name
+  have hmem : List.find? (fun f => f.name == name)
+    (Module.emittedFunctions env m) = some fn := by
+    rw [h_eq] at hfind
+    exact hfind
   simp only [emitModuleFuel, hfn_name]
-  exact find?_filter_map_emit fuel env m (m.functions ++ m.tests ++ m.benches)
-    name fn hmem (by rwa [hfn_name])
+  exact find?_map_emit fuel env m (Module.emittedFunctions env m) name fn hmem
 
 namespace Expr
 
@@ -382,12 +434,19 @@ theorem callContext_index {env m base idx}
 
 theorem callContext_call {env m name args}
     (h : Expr.callContext env m (Expr.call name args)) :
-    Env.isReachable env name = true ∧ Module.hasFunctionNamed m name = true ∧
-    ∀ a ∈ args, Expr.callContext env m a := by
+    Env.isReachable env name = true
+    ∧ ¬ Env.isHostOnly env name
+    ∧ Module.hasEmittedFunctionNamed env m name = true
+    ∧ ∀ a ∈ args, Expr.callContext env m a := by
+  have h1 := (h name (by simp)).1
+  have h2 := (h name (by simp)).2.1
+  have h3 := (h name (by simp)).2.2
   constructor
-  · apply (h name (by simp)).1
+  · exact h1
   constructor
-  · apply (h name (by simp)).2
+  · exact h2
+  constructor
+  · exact h3
   · intro a ha x hx
     apply h x
     simp
@@ -643,48 +702,21 @@ theorem Function.functionNames_mem {fn : Function} {s : Stmt} {x : String}
   rw [List.mem_flatMap]
   exact ⟨s, hs, hx⟩
 
-/-- From global call resolution/reachability, every reachable function body
-    satisfies the call-context predicate. -/
-theorem Module.callContext_body {env : Env} {m : Module} {fn : Function}
-    (hresolved : Module.callsResolved env m)
-    (hreach : Module.callsReachable env m)
-    (hfn : fn ∈ m.functions ++ m.tests ++ m.benches)
-    (hreached : Env.isReachable env fn.name = true) :
-    Stmt.callContextList env m fn.body := by
-  have hr : ∀ x ∈ fn.functionNames, Env.isReachable env x = true := by
-    simp only [Module.callsReachable, Function.functionNames, List.all_eq_true] at hreach
-    have hthis := hreach fn hfn
-    rw [if_pos hreached] at hthis
-    simp only [Function.functionNames, List.all_eq_true] at hthis
-    exact hthis
-  have hd : ∀ x ∈ fn.functionNames, Module.hasFunctionNamed m x = true := by
-    simp only [Module.callsResolved, Function.functionNames, List.all_eq_true] at hresolved
-    have hthis := hresolved fn hfn
-    rw [if_pos hreached] at hthis
-    simp only [Function.functionNames, List.all_eq_true] at hthis
-    exact hthis
-  intro s hs x hx
-  have hmem : x ∈ fn.functionNames := Function.functionNames_mem hs hx
-  exact ⟨hr x hmem, hd x hmem⟩
-
-/-- `Module.isCombinational` implies that any reachable function body is
-    combinational. -/
+/-- `Module.isCombinational` implies that any emitted (non-host-only) function
+    body in the module is combinational.  Host-only helpers and host-side
+    tests/benches are not part of the synthesizable model. -/
 theorem Module.isCombinational_function_body {env : Env} {m : Module} {fn : Function}
     (hcomb : Module.isCombinational env m)
-    (hfn : fn ∈ m.functions ++ m.tests ++ m.benches)
-    (hreach : Env.isReachable env fn.name = true) :
+    (hfn : fn ∈ m.functions)
+    (hhost : ¬ Env.isHostOnly env fn.name) :
     Stmt.isCombinationalList fn.body := by
   simp only [Module.isCombinational, Function.isCombinational, Stmt.isCombinationalList,
-    Bool.and_eq_true, List.all_iff] at hcomb ⊢
-  have h_funcs := hcomb.1.1.2
-  have h_tests := hcomb.1.2
-  have h_benches := hcomb.2
-  rcases List.mem_append.mp hfn with (hfn | hfn)
-  · rcases List.mem_append.mp hfn with (hfn | hfn)
-    · have hfn_c := h_funcs fn hfn
-      simpa [hreach] using hfn_c
-    · exact h_tests fn hfn
-  · exact h_benches fn hfn
+    Stmt.isCombinational, Bool.and_eq_true, List.all_iff] at hcomb ⊢
+  have h_funcs := hcomb.2
+  specialize h_funcs fn hfn
+  rw [if_neg hhost] at h_funcs
+  simp only [Stmt.isCombinational, List.all_iff] at h_funcs ⊢
+  exact h_funcs
 
 /-- Parameter lookup on the t27 side and on the emitted Verilog side agree:
     the Verilog side only adds a width annotation to each parameter name; the
@@ -1161,8 +1193,8 @@ section EquivProof
 variable (env₀ : Env) (m₀ : Module)
 variable (vm0 : VModule)
 variable (hcomb₀ : Module.isCombinational env₀ m₀)
-variable (hresolved₀ : Module.callsResolved env₀ m₀)
-variable (hreach₀ : Module.callsReachable env₀ m₀)
+variable (hctx₀ : Module.callContext env₀ m₀)
+variable (hunique₀ : Module.hasUniqueFunctionNames m₀)
 
 /-- Forward-simulation predicate for expressions at fuel `fuel`. -/
 def P_expr (fuel : Nat) : Prop :=
@@ -1206,8 +1238,8 @@ def P_function (fuel : Nat) : Prop :=
     fuel `fuel`, which is exactly what the induction hypothesis covers. -/
 theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
     (hcomb₀ : Module.isCombinational env₀ m₀)
-    (hresolved₀ : Module.callsResolved env₀ m₀)
-    (hreach₀ : Module.callsReachable env₀ m₀)
+    (hctx₀ : Module.callContext env₀ m₀)
+    (hunique₀ : Module.hasUniqueFunctionNames m₀)
     (fuel : Nat) :
     P_expr env₀ m₀ vm0 fuel ∧
     P_stmt env₀ m₀ vm0 fuel ∧
@@ -1337,21 +1369,27 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
         | call name args =>
             have hcc_call := Expr.callContext_call hcc_e
             have hcomb_args := Expr.isCombinational_call hcomb_e
-            have hreach := hcc_call.1
-            have hargs_ctx := hcc_call.2.2
+            have hargs_ctx := hcc_call.2.2.2
             simp only [evalExprTotal_succ_call, evalVExprTotal_succ_call, emitExpr_default_call]
             cases hfn : m₀.findFunction name with
             | none =>
                 -- The call-context predicate guarantees the name is present.
-                rcases Module.findFunction_of_hasFunctionNamed hcc_call.2.1 with ⟨fn, hfn', heq_name⟩
+                rcases Module.findFunction_of_hasEmittedFunctionNamed hcc_call.2.2.1
+                  with ⟨fn, hfn', heq_name⟩
                 rw [hfn] at hfn'
                 contradiction
             | some fn =>
+                have hfn_name : fn.name = name := Module.findFunction_name hfn
+                have hhost : ¬ Env.isHostOnly env₀ fn.name := by
+                  rw [hfn_name]
+                  exact hcc_call.2.1
+                have hmem_emitted : fn ∈ Module.emittedFunctions env₀ m₀ :=
+                  Module.hasEmittedFunctionNamed_findFunction hunique₀ hcc_call.2.2.1 fn hfn
                 have hlookup :
                   List.find? (fun f => f.name == name) vm0.functions =
                   some (emitVFunction defaultFuel env₀ m₀ fn) := by
                   rw [hvm0]
-                  exact emit_function_lookup defaultFuel env₀ m₀ name hreach fn hfn
+                  exact emit_function_lookup defaultFuel env₀ m₀ name fn hunique₀ hfn hmem_emitted
                 rw [hlookup]
                 rw [emitExprList_eq_map]
                 -- Argument lists evaluate identically by the expression IH.
@@ -1367,15 +1405,11 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
                   exact ih_expr val a (emitExpr defaultFuel env₀ m₀ a) rfl
                     (hargs_ctx a ha) (hcomb_args a ha) hval
                 apply Option.bind_congr_ext h_args; intro argVals
-                have hreached_fn : env₀.isReachable fn.name = true := by
-                  rw [Module.findFunction_name hfn]
-                  exact hreach
-                have hcc_body :=
-                  Module.callContext_body hresolved₀ hreach₀
-                    (Module.findFunction_mem hfn) hreached_fn
+                have hcc_body : Stmt.callContextList env₀ m₀ fn.body :=
+                  hctx₀.2 fn (Module.findFunction_mem hfn) hhost
                 have hcomb_body :=
                   Module.isCombinational_function_body hcomb₀
-                    (Module.findFunction_mem hfn) hreached_fn
+                    (Module.findFunction_mem hfn) hhost
                 apply ih_fn val fn (emitVFunction defaultFuel env₀ m₀ fn) argVals rfl hcc_body hcomb_body
                   (Valuation.equiv_refl val)
         | structLit name fields =>
@@ -1551,44 +1585,52 @@ theorem evalVModuleTotal_bind (fuel : Nat) (env : Env) (vm : VModule) (fnName : 
     cases List.find? (fun f => f.name == fnName) vm.functions <;> rfl
 
 /-- Wrapper that exposes the generic equivalence theorem in the shape required
-    by `Soundness.lean`. -/
+    by `Soundness.lean`.
+
+    W499: the emitter no longer filters by reachability, so the only remaining
+    well-formedness assumptions are combinationality, the call-context
+    invariant for globals and for the `main` body, and unique function names
+    (the latter guards the `find?` lookup used by both sides). -/
 theorem module_value_equiv_proved (env : Env) (m : Module)
     (_h : Module.isLowerable env m)
+    (hunique : Module.hasUniqueFunctionNames m)
     (hcomb : Module.isCombinational env m)
-    (hresolved : Module.callsResolved env m)
-    (hreach : Module.callsReachable env m)
-    (hglobalsCtx : Stmt.callContextList env m m.globals)
-    (hmainReach : Env.isReachable env "main")
+    (hctx : Module.callContext env m)
     (mainFn : Function)
-    (hm : m.findFunction "main" = some mainFn) :
+    (hm : m.findFunction "main" = some mainFn)
+    (hmain : ¬ Env.isHostOnly env mainFn.name) :
     evalModuleFunctionTotal defaultFuel env m "main" [] =
     evalVModuleTotal defaultFuel env (emitModule env m) "main" := by
   let vm := emitModuleFuel defaultFuel env m
   have hvm : vm = emitModule env m := by simp [emitModule, vm]
   have hcomb_globals : Stmt.isCombinationalList m.globals := by
     simp only [Module.isCombinational, Bool.and_eq_true] at hcomb
-    simpa [Stmt.isCombinationalList, Stmt.isCombinational] using hcomb.1.1.1
-  have hcc_main : Stmt.callContextList env m mainFn.body :=
-    Module.callContext_body hresolved hreach (Module.findFunction_mem hm)
-      (by rw [Module.findFunction_name hm]; exact hmainReach)
+    simpa [Stmt.isCombinationalList, Stmt.isCombinational] using hcomb.1
   have hcomb_main : Stmt.isCombinationalList mainFn.body :=
-    Module.isCombinational_function_body hcomb (Module.findFunction_mem hm)
-      (by rw [Module.findFunction_name hm]; exact hmainReach)
+    Module.isCombinational_function_body hcomb (Module.findFunction_mem hm) hmain
+  have hhost_eq : (Env.isHostOnly env mainFn.name) = false := by
+    simp only [Bool.not_eq_true] at hmain ⊢
+    exact hmain
+  have hmem_emitted : mainFn ∈ Module.emittedFunctions env m := by
+    simp only [Module.emittedFunctions, List.mem_filter]
+    exact ⟨Module.findFunction_mem hm, by simp [hhost_eq]⟩
   have hlookup :
     List.find? (fun f => f.name == "main") vm.functions =
-    some (emitVFunction defaultFuel env m mainFn) :=
-    emit_function_lookup defaultFuel env m "main" hmainReach mainFn hm
+    some (emitVFunction defaultFuel env m mainFn) := by
+    rw [hvm]
+    exact emit_function_lookup defaultFuel env m "main" mainFn hunique hm hmem_emitted
   rw [← hvm]
   rw [evalModuleFunctionTotal_bind, evalVModuleTotal_bind]
-  have h_globals := (all_equiv env m vm (by rfl) hcomb hresolved hreach defaultFuel).2.2.1
+  have h_globals := (all_equiv env m vm (by rfl) hcomb hctx hunique defaultFuel).2.2.1
     (fun _ => none) m.globals
-    (emitStmts defaultFuel env m m.globals) rfl hglobalsCtx hcomb_globals (fun _ => rfl)
+    (emitStmts defaultFuel env m m.globals) rfl hctx.1 hcomb_globals (fun _ => rfl)
   rw [h_globals]
   apply Option.bind_congr_ext rfl
   intro initVal
   rw [hm, hlookup]
-  apply (all_equiv env m vm (by rfl) hcomb hresolved hreach defaultFuel).2.2.2 initVal mainFn
-    (emitVFunction defaultFuel env m mainFn) [] rfl hcc_main hcomb_main
+  apply (all_equiv env m vm (by rfl) hcomb hctx hunique defaultFuel).2.2.2 initVal mainFn
+    (emitVFunction defaultFuel env m mainFn) [] rfl
+    (hctx.2 mainFn (Module.findFunction_mem hm) hmain) hcomb_main
     (Valuation.equiv_refl initVal)
 
 end FuelFacts

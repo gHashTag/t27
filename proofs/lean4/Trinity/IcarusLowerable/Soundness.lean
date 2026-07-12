@@ -139,21 +139,21 @@ theorem w493_nested_identifier_total_partial_bridge :
   native_decide
 
 /-- Generic value-preservation theorem for the Icarus-lowerable combinational
-    subset.  Under the standard well-formedness assumptions (lowerability,
-    combinationality, call resolution/reachability, and global call context),
-    the fuel-based total t27 evaluator and the emitted shallow-Verilog evaluator
-    return the same packed bit-vector value for the `main` function. -/
+    subset.  W499: with unconditional function emission, the only remaining
+    assumptions are lowerability, combinationality, unique function names, the
+    module-level call-context invariant, and the fact that `main` is not a
+    host-only helper.  The obsolete `callsResolved`/`callsReachable` preconditions
+    have been removed. -/
 theorem module_value_equiv_statement (env : Env) (m : Module)
     (h : Module.isLowerable env m)
+    (hunique : Module.hasUniqueFunctionNames m)
     (hcomb : Module.isCombinational env m)
-    (hresolved : Module.callsResolved env m)
-    (hreach : Module.callsReachable env m)
-    (hglobalsCtx : Stmt.callContextList env m m.globals)
-    (hmainReach : Env.isReachable env "main")
+    (hctx : Module.callContext env m)
     (mainFn : Function)
-    (hm : m.findFunction "main" = some mainFn) :
+    (hm : m.findFunction "main" = some mainFn)
+    (hmain : ¬ Env.isHostOnly env mainFn.name) :
     evalModuleFunctionTotal defaultFuel env m "main" [] =
     evalVModuleTotal defaultFuel env (emitModule env m) "main" := by
-  exact module_value_equiv_proved env m h hcomb hresolved hreach hglobalsCtx hmainReach mainFn hm
+  exact module_value_equiv_proved env m h hunique hcomb hctx mainFn hm hmain
 
 end Trinity.IcarusLowerable

@@ -1,0 +1,24 @@
+module w499_unconditional_function_emission;
+
+// W499 adversarial witness: two functions that are not reachable from the test
+// entry point, where one calls the other.  Under unconditional function
+// emission every function is lowered into the generated Verilog, so the module
+// still has no placeholders and the test still passes.
+
+pub fn unreachable_a() -> u8 {
+    return unreachable_b();
+}
+
+pub fn unreachable_b() -> u8 {
+    return 1;
+}
+
+pub fn main() -> u8 {
+    return 2;
+}
+
+test smoke {
+    assert(main() == 2);
+}
+
+endmodule

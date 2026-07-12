@@ -1,3 +1,31 @@
+## 2026-07-13 — Wave Loop 499 (make `module_value_equiv` unconditional for all lowerable modules)
+
+### Verification (final)
+- `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in IcarusLowerable modules.
+- `./scripts/tri verify --lean-lowerable`: passed (W492 completeness gate).
+- `./scripts/tri test`: 698 / 698 non-smoke PASS, 178 / 178 yosys smoke PASS (0 baseline failures), 177 / 178 Icarus smoke PASS (1 documented baseline), 698 / 698 seal matches, FPGA board-less smoke gate/replay OK, Gen C / Fixed Point clean.
+- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
+
+### What worked
+- **Emitting every non-host-only function unconditionally** removes the need for a static reachability closure in the generic theorem, exactly like CompCert's Unusedglob observation.
+- **Host-only-aware predicates** (`Function.isLowerable`, `Function.isCombinational`) cleanly separate synthesizable functions from host-side helpers without letting helpers leak into the emitted Verilog.
+- **The `callContext` family** (`Expr.callContext`, `Stmt.callContextList`, `Module.callContext`) is a much simpler invariant than the old `callsResolved`/`callsReachable` pair: it only talks about the functions that are actually emitted.
+- **Unique function names** are a small, realistic well-formedness assumption that makes `List.find?` lookups deterministic on both sides.
+- **Reusing `Module.findFunction` on `m.functions` only** keeps tests/benches out of the synthesizable call graph while preserving the host-side harness behavior.
+
+### What to improve
+- The theorem still assumes the entry function (`main`) is not host-only.
+- The **local AOS element boundary** (`w493_local_aos_element_field_not_lowerable.t27`) remains the single documented Icarus baseline.
+- **Conditionals and loops** remain outside the modeled operational semantics.
+
+### Techniques to reuse
+- When reachability assumptions clutter a translation-validation proof, consider emitting all candidate definitions and proving evaluation ignores unreachable ones.
+- Keep predicates aligned with the actual emitted subset, not with the full AST or the host harness.
+- Freeze the emitted target module at `defaultFuel` and let evaluator fuel decrease independently.
+- Use static structural predicates as induction invariants.
+
+---
+
 ## 2026-07-13 — Wave Loop 498 (complete the generic structural equivalence theorem in Lean 4)
 
 ### Verification (final)

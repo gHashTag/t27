@@ -77,8 +77,9 @@ structure Module where
   benches : List Function
   deriving BEq, Repr
 
-/-- Find a function/test/bench by name in a module. -/
+/-- Find a declared function by name in a module.  Tests and benches are not
+    function-call targets and are looked up separately. -/
 def Module.findFunction (m : Module) (name : String) : Option Function :=
-  (m.functions ++ m.tests ++ m.benches).find? (fun f => f.name == name)
+  m.functions.find? (fun f => f.name == name)
 
 end Trinity.IcarusLowerable

@@ -142,7 +142,7 @@ mutual
     stmts.map (emitStmt fuel env m)
 end
 
-/-- Emit a t27 function body (only reachable functions are kept by the caller). -/
+/-- Emit a t27 function body. -/
 def emitFunction (fuel : Nat) (env : Env) (m : Module) (fn : Function) : List VStmt :=
   emitStmts fuel env m fn.body
 
@@ -155,19 +155,20 @@ def emitVFunction (fuel : Nat) (env : Env) (m : Module) (fn : Function) : VFunct
     body := emitStmts fuel env m fn.body
   }
 
-/-- Emit a t27 module into a shallow Verilog module. -/
+/-- Emit a t27 module into a shallow Verilog module.
+    W499: every non-host-only function is emitted as a `VFunction` so that the
+    equivalence theorem needs no reachability assumption.  Host-only helpers
+    and host-side test/bench blocks are not part of the Icarus synthesizable
+    model and are omitted from the emitted module. -/
 def emitModuleFuel (fuel : Nat) (env : Env) (m : Module) : VModule :=
   let globalItems := emitStmts fuel env m m.globals
-  let allFns := m.functions ++ m.tests ++ m.benches
-  let fnDefs := allFns.filter (fun f => env.isReachable f.name)
-                  |> .map (emitVFunction fuel env m)
-  let testItems := m.tests.flatMap (emitFunction fuel env m)
-  let benchItems := m.benches.flatMap (emitFunction fuel env m)
+  let emittedFns := Module.emittedFunctions env m
+  let fnDefs := emittedFns.map (emitVFunction fuel env m)
   {
     name := m.name,
     ports := [],
     globals := globalItems,
-    items := globalItems ++ testItems ++ benchItems,
+    items := globalItems,
     functions := fnDefs
   }
 

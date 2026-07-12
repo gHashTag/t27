@@ -384,25 +384,35 @@ def Stmt.isLowerable (env : Env) (s : Stmt) : Bool := s.isLowerableFuel predicat
 @[simp]
 def Stmt.functionNames (s : Stmt) : List String := s.functionNames'
 
-/-- A function is lowerable when reachable and its body/interface are lowerable. -/
+/-- A function is lowerable when its interface and body are lowerable.
+    W499: every non-host-only function is checked.  Host-only helpers are not
+    part of the emitted Icarus Verilog, so they do not need to be lowerable.
+    The obsolete reachability shortcut has been removed. -/
 def Function.isLowerable (env : Env) (fn : Function) : Bool :=
-  let interfaceOK := fn.params.all (fun p => p.2.isLowerable) && fn.ret.all (·.isLowerable)
-  if !Env.isReachable env fn.name then
-    true  -- unreachable functions do not need to be lowerable
+  if Env.isHostOnly env fn.name then true
   else
+    let interfaceOK := fn.params.all (fun p => p.2.isLowerable) && fn.ret.all (·.isLowerable)
     interfaceOK && fn.body.all (Stmt.isLowerable env)
 
-/-- A module is lowerable when all reachable functions and global synthesizable parts are lowerable. -/
+/-- A module is lowerable when all globals and emitted functions are lowerable.
+    W499: reachability no longer gates lowerability because every non-host-only
+    function is emitted unconditionally.  Tests and benches are not part of the
+    Icarus synthesizable model, so they are not checked here. -/
 def Module.isLowerable (env : Env) (m : Module) : Bool :=
   let globalLowerable := m.globals.all (Stmt.isLowerable env)
   let fnsLowerable := m.functions.all (Function.isLowerable env)
-  let testsLowerable := m.tests.all (Function.isLowerable env)
-  let benchesLowerable := m.benches.all (Function.isLowerable env)
-  globalLowerable && fnsLowerable && testsLowerable && benchesLowerable
+  globalLowerable && fnsLowerable
 
 /-- Standalone verdict for a module under a given environment. -/
 def lowerabilityVerdict (env : Env) (m : Module) : String :=
   if Module.isLowerable env m then "lowerable" else "not_lowerable"
+
+/-- W499: the generic equivalence theorem needs function names to be unique so
+    that `List.find?` on both the source module and the emitted Verilog module
+    resolves to the same function.  Duplicates would still map together, but
+    uniqueness is part of the well-formedness contract. -/
+def Module.hasUniqueFunctionNames (m : Module) : Prop :=
+  List.Nodup ((m.functions ++ m.tests ++ m.benches).map Function.name)
 
 -- Structural (fuel-independent) combinationality predicates.  These are used
 -- as the static invariant in the generic equivalence proof; the fuel-based
@@ -469,15 +479,16 @@ def Stmt.isCombinational (s : Stmt) : Bool := s.isCombinational'
 def Stmt.isCombinationalList (ss : List Stmt) : Bool := ss.all Stmt.isCombinational'
 
 /-- True when a function body is purely combinational. -/
-def Function.isCombinational (fn : Function) : Bool :=
-  fn.body.all Stmt.isCombinational
+def Function.isCombinational (env : Env) (fn : Function) : Bool :=
+  if Env.isHostOnly env fn.name then true
+  else fn.body.all Stmt.isCombinational
 
-/-- True when a module is purely combinational. -/
+/-- True when a module is purely combinational.  Only globals and emitted
+    functions matter for the synthesizable equivalence theorem; tests/benches
+    are handled by the host-side harness and are not part of the Icarus model. -/
 def Module.isCombinational (env : Env) (m : Module) : Bool :=
   m.globals.all Stmt.isCombinational
-  && m.functions.all (fun f => if Env.isReachable env f.name then f.isCombinational else true)
-  && m.tests.all Function.isCombinational
-  && m.benches.all Function.isCombinational
+  && m.functions.all (Function.isCombinational env)
 
 /-- Wrapper: type inference with the default predicate fuel. -/
 def Expr.typeOf (env : Env) (m : Module) (e : Expr) : Option Ty := e.typeOfFuel predicateFuel env m
@@ -488,6 +499,33 @@ def Function.functionNames (fn : Function) : List String :=
 /-- True when the module contains a function/test/bench with the given name. -/
 def Module.hasFunctionNamed (m : Module) (name : String) : Bool :=
   (m.functions ++ m.tests ++ m.benches).any (fun f => f.name == name)
+
+/-- The functions that are actually emitted into shallow Verilog. -/
+def Module.emittedFunctions (env : Env) (m : Module) : List Function :=
+  m.functions.filter (fun f => !Env.isHostOnly env f.name)
+
+/-- True when the module contains an emitted (non-host-only) function with the
+    given name. -/
+def Module.hasEmittedFunctionNamed (env : Env) (m : Module) (name : String) : Bool :=
+  (Module.emittedFunctions env m).any (fun f => f.name == name)
+
+/-- Context predicate: every function name occurring in an expression is
+    reachable in the environment, not host-only, and resolvable to an emitted
+    function. -/
+def Expr.callContext (env : Env) (m : Module) (e : Expr) : Prop :=
+  ∀ x ∈ e.functionNames,
+    Env.isReachable env x
+    ∧ ¬ Env.isHostOnly env x
+    ∧ Module.hasEmittedFunctionNamed env m x
+
+def Stmt.callContext (env : Env) (m : Module) (s : Stmt) : Prop :=
+  ∀ x ∈ s.functionNames,
+    Env.isReachable env x
+    ∧ ¬ Env.isHostOnly env x
+    ∧ Module.hasEmittedFunctionNamed env m x
+
+def Stmt.callContextList (env : Env) (m : Module) (ss : List Stmt) : Prop :=
+  ∀ s ∈ ss, Stmt.callContext env m s
 
 /-- True when every call inside every reachable function resolves to a function
     actually present in the module.  This is a strong but realistic assumption
@@ -509,5 +547,14 @@ def Module.callsReachable (env : Env) (m : Module) : Bool :=
     if Env.isReachable env f.name then
       f.functionNames.all (fun name => Env.isReachable env name)
     else true)
+
+/-- W499 replacement for the reachability bookkeeping: the module's globals
+    and every emitted function body satisfy the call-context invariant, i.e.
+    every function name that appears is actually present in the module and is
+    reachable in the environment.  Host-only helpers and host-side tests/benches
+    are not part of the synthesizable model and are skipped. -/
+def Module.callContext (env : Env) (m : Module) : Prop :=
+  Stmt.callContextList env m m.globals
+  ∧ ∀ fn ∈ m.functions, ¬ Env.isHostOnly env fn.name → Stmt.callContextList env m fn.body
 
 end Trinity.IcarusLowerable

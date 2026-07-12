@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:02f0ef15e4c5f285e57838bb9fc33b06e7072f45bfca6eb0b72f5fbaadac9ae1",
+  "gen_hash_rust": "sha256:4f13b64cd824b4a908c5913d7b1bd525013f3a1bf2bb8c0b1de675ce54156f88",
+  "gen_hash_verilog": "sha256:06dc22fac1b4c64d294b6d8893ce377c26f8c99ae6dd403af2bb8544c7a4fbc9",
+  "gen_hash_zig": "sha256:7cc51812b6a7973836ea6e7fec7d883ecccdfcc3e1c5b7a5fd7fdbee76e4c1d3",
+  "module": "w499_unconditional_function_emission",
+  "ring": 12,
+  "sealed_at": "2026-07-12T09:14:57Z",
+  "spec_hash": "sha256:7b900e098137dbcd2eeed13dda5ce98f6e0fff4fd6d376dc8bc474e675911d17",
+  "spec_path": "/Users/playra/t27/specs/scratch/w499_unconditional_function_emission.t27"
+}
