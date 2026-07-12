@@ -2140,3 +2140,7 @@
 - **Commit:** docs(w504): experience log for sequential forLoop equivalence theorem
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/scratch_w505_for_local_var_init.json,.trinity/seals/scratch_w505_for_return.json,.trinity/seals/scratch_w505_for_var_range.json,.trinity/seals/scratch_w505_if_in_for.json,.trinity/seals/scratch_w505_nested_if.json,docs/reports/FPGA_LOOP_COOPERATION_W506_2026-07-07.md,docs/reports/WAVE_LOOP_505_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/scratch/w505_for_local_var_init.t27,specs/scratch/w505_for_return.t27,specs/scratch/w505_for_var_range.t27,specs/scratch/w505_if_in_for.t27,specs/scratch/w505_nested_if.t27
 
+## 2026-07-12T16:00:39Z — wave-loop-505
+- **Commit:** feat(icarus-lowerable): Wave Loop 505 — adversarial sequential witnesses, nested if/for lowerability + value-preservation theorems, 711/711 non-smoke PASS + 191/191 yosys smoke PASS + 191/191 Icarus smoke PASS + 1525/0/2 cargo test
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
