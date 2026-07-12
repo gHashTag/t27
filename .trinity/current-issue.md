@@ -1,7 +1,7 @@
-# Wave Loop 505 — Harden Icarus sequential equivalence boundary
+# Wave Loop 506 — Model `switch` statements for enum / trit dispatch
 
-**Issue:** #1474 (placeholder — GitHub token still failing)  
-**Branch:** `wave-loop-505` (to create)  
+**Issue:** #1475 (placeholder — GitHub token still failing)  
+**Branch:** `wave-loop-506`  
 **Status:** setup  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
@@ -9,26 +9,28 @@
 
 ## Goal
 
-Choose one of the three W505 cooperation variants and continue the Icarus
-structural-equivalence line after W504.  The natural default is **Variant A**:
-stress the new sequential `if` / `for` boundary with adversarial witnesses so
-that the classifier, emitter, and generic equivalence theorem stay aligned.
+Execute **Variant B** from the W506 cooperation plan: add `switch` statements to the Icarus-lowerable operational semantics, the shallow Verilog model, the emitter, the lowerability predicate, and the generic equivalence theorem. Target at least one enum-dispatch scratch witness that passes both the classifier and Icarus smoke and has a value-preservation theorem.
 
 ---
 
 ## Scope
 
-1. Review `docs/reports/FPGA_LOOP_COOPERATION_W505_2026-07-07.md`.
-2. Pick the variant for W505.
-3. Write the decomposed plan to `.claude/plans/wave-loop-505.md`.
-4. Implement, verify, and land.
-5. Produce close-out report and W506 cooperation variants.
+1. Review `docs/reports/FPGA_LOOP_COOPERATION_W506_2026-07-07.md` and `docs/reports/WAVE_LOOP_505_CLOSEOUT.md`.
+2. Extend `proofs/lean4/Trinity/IcarusLowerable/Ast.lean` with a `switch` statement and case/default arms.
+3. Extend `proofs/lean4/Trinity/IcarusLowerable/Verilog.lean` with `VStmt.switch`.
+4. Extend `proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean` with total evaluators for `Stmt.switch` and `VStmt.switch`.
+5. Extend `proofs/lean4/Trinity/IcarusLowerable/Emitter.lean` to emit procedural `case` / `default`.
+6. Extend `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean` so `switch` is sequential lowerable when its discriminant is combinational and every arm is sequential.
+7. Extend `proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean` with the `switch` case in `all_equiv`.
+8. Add scratch witness `w506_switch_enum_dispatch.t27` (and optionally `w506_switch_trit.t27`) with tests.
+9. Add environments/modules in `Lemmas.lean` and lowerability/sequentiality/value-preservation theorems in `Soundness.lean`.
+10. Run `./scripts/tri test`, `./scripts/tri verify --lean-lowerable`, and `lake build Trinity.IcarusLowerable.Soundness`.
 
 ---
 
-## Residual boundaries from W504
+## Residual boundaries from W505
 
-- `while` and `switch` remain outside the modeled operational semantics.
+- `while` remains outside the modeled operational semantics.
 - Array-typed direct fields still use memory-mode lowering.
 - The theorem still requires the chosen function to be emitted (non-host-only).
 

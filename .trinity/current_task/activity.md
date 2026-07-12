@@ -4,6 +4,10 @@
 - **Commit:** chore(trinity): rebase W506 onto W505 stack
 - **Files:** .trinity/current_task/activity.md,.trinity/current_task/.commit_count
 
+## 2026-07-07T00:01:00Z — wave-loop-506
+- **Commit:** docs(w506): Wave Loop 506 current issue and NOW.md setup
+- **Files:** .trinity/current-issue.md,.trinity/current_task/activity.md,docs/NOW.md
+
 ## 2026-07-04T20:35:00Z — wave-loop-412
 - **Commit:** feat(igla): Wave Loop 412 — measured-to-lean standalone + raw-ns + PVT context (Closes #1332)
 - **Files:** docs/reports/WAVE_LOOP_412_REPORT.md,docs/reports/FPGA_LOOP_EVIDENCE_W412_2026-07-04.md,docs/reports/FPGA_LOOP_COOPERATION_W413_2026-07-04.md,docs/NOW.md,docs/BRANCHING_MODEL.md,fpga/HARDWARE_SSOT.md,cli/tri/src/fpga.rs,proofs/lean4/Trinity/TernaryFPGABoot.lean,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/*.json
