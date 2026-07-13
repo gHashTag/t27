@@ -9035,6 +9035,10 @@ impl VerilogCodegen {
                         return None;
                     }
                     field_width = Self::packed_width(ftype, struct_fields);
+                } else if indices.len() == dims.len() {
+                    // W517: reading the whole array-typed direct field as a packed
+                    // vector, e.g. `arr[i].coords` where `coords : [3]u32`.
+                    field_width = Self::packed_width(ftype, struct_fields);
                 } else {
                     // W478: scalar array-typed field. The remaining indices select
                     // one element inside the packed field.
@@ -9545,6 +9549,134 @@ impl VerilogCodegen {
         }
         self.write(")");
         true
+    }
+
+    /// W517: indexing directly into an array-typed function return, e.g.
+    /// `read_aos_coords(arr, i)[2]`. The call result is a packed vector, so
+    /// materialize a packed temporary and emit the correct element slice.
+    fn try_emit_array_return_call_index(&mut self, node: &Node) -> bool {
+        let (call_node, indices) = match Self::index_chain_rooted_at_call(node) {
+            Some(v) => v,
+            None => return false,
+        };
+        let ret_ty = match self.fn_return_types.get(&call_node.name).cloned() {
+            Some(t) => t,
+            None => return false,
+        };
+        let dims = Self::parse_array_dimensions(&ret_ty);
+        if dims.is_empty() || indices.len() != dims.len() {
+            return false;
+        }
+        let total_width = Self::packed_width(&ret_ty, &self.struct_fields).max(1);
+        let elem_type = Self::array_dimensions_leaf_type(&dims);
+        let elem_width = Self::packed_width(&elem_type, &self.struct_fields).max(1);
+        let array_len: u32 = dims.iter().map(|(s, _)| *s as u32).product();
+
+        // Materialize a packed temporary for the call result.
+        let tmp = Self::verilog_safe_identifier(
+            &format!("_arr_ret_tmp_{}", self.let_tmp_counter),
+        );
+        self.let_tmp_counter += 1;
+        let decl = format!(
+            "reg [{0}:0] {1}; // W517 array-return call temporary\n",
+            total_width.saturating_sub(1),
+            tmp
+        );
+        self.aos_tmp_decls.push(decl);
+        let mut assign_out = String::new();
+        std::mem::swap(&mut self.output, &mut assign_out);
+        self.write(&format!("{0} = ", tmp));
+        self.gen_verilog_expr(call_node);
+        self.write_line(";");
+        let mut assign = String::new();
+        std::mem::swap(&mut self.output, &mut assign);
+        self.output = assign_out;
+        self.aos_tmp_assigns.push(assign);
+
+        let all_literal = indices
+            .iter()
+            .all(|idx| idx.value.parse::<usize>().is_ok());
+        if all_literal {
+            let mut linear: u32 = 0;
+            for (d, idx_node) in indices.iter().enumerate() {
+                let idx_val = idx_node.value.parse::<usize>().unwrap() as u32;
+                let stride = dims
+                    .iter()
+                    .skip(d + 1)
+                    .map(|(s, _)| *s as u32)
+                    .product::<u32>();
+                linear = linear.saturating_add(idx_val * stride);
+            }
+            if linear >= array_len {
+                self.write(&format!("{}'b0", elem_width));
+                return true;
+            }
+            let high = total_width
+                .saturating_sub(1)
+                .saturating_sub(linear * elem_width);
+            let low = high.saturating_sub(elem_width.saturating_sub(1));
+            self.write(&format!("{}[{}:{}]", tmp, high, low));
+            return true;
+        }
+
+        // Variable indices: bounded priority mux over every element slice.
+        let mut first = true;
+        self.write("(");
+        for i in 0..array_len {
+            let high = total_width
+                .saturating_sub(1)
+                .saturating_sub(i * elem_width);
+            let low = high.saturating_sub(elem_width.saturating_sub(1));
+            if !first {
+                self.write(" : (");
+            }
+            first = false;
+            self.write("(");
+            let mut cond_first = true;
+            for (d, idx_node) in indices.iter().enumerate() {
+                let size = dims[d].0 as u32;
+                let stride_after = dims
+                    .iter()
+                    .skip(d + 1)
+                    .map(|(s, _)| *s as u32)
+                    .product::<u32>();
+                let idx_val = (i / stride_after) % size;
+                if !cond_first {
+                    self.write(" && ");
+                }
+                cond_first = false;
+                self.write("(");
+                self.gen_verilog_expr(idx_node);
+                self.write(&format!(" == {})", idx_val));
+            }
+            self.write(&format!(") ? {}[{}:{}] : 0", tmp, high, low));
+        }
+        self.write(")");
+        for _ in 1..array_len {
+            self.write(")");
+        }
+        true
+    }
+
+    /// W517 helper: peel a chain of ExprIndex nodes and return the root ExprCall
+    /// with indices outermost-first.
+    fn index_chain_rooted_at_call<'n>(
+        node: &'n Node,
+    ) -> Option<(&'n Node, Vec<&'n Node>)> {
+        let mut indices: Vec<&Node> = Vec::new();
+        let mut current = node;
+        loop {
+            if current.kind != NodeKind::ExprIndex || current.children.len() < 2 {
+                return None;
+            }
+            indices.push(&current.children[1]);
+            let base = &current.children[0];
+            if base.kind == NodeKind::ExprCall {
+                indices.reverse();
+                return Some((base, indices));
+            }
+            current = base;
+        }
     }
 
     /// W475: field access on a function parameter that is passed as a packed
@@ -10715,22 +10847,20 @@ impl VerilogCodegen {
                                             .get(bname)
                                             .map_or(false, |set| set.contains(&arg.name))
                                     });
-                                // W476: module-level arrays of structs whose element type
-                                // has array-typed fields are also passed as packed-vector
-                                // inputs. Simple scalar-struct arrays keep the direct
-                                // module-binding path so variable-index assignments to
-                                // the parameter remain valid.
-                                let is_module_aos_with_array_field =
-                                    !is_local_array
-                                        && !is_bench_local_array
-                                        && module_array_names.contains(&arg.name)
-                                        && Self::struct_type_has_array_field(
-                                            &expected_elem_type,
-                                            &self.struct_fields,
-                                        );
+                                // W517: any array-of-structs whose element type has an
+                                // array-typed direct field must be passed as a packed-vector
+                                // input. The direct module-binding path assumes per-field
+                                // memories (e.g. `arr_coords`) that do not exist for packed
+                                // AOS, and the function-local/test-local/bench-local path
+                                // already uses the packed-vector form.
+                                let elem_has_array_field =
+                                    Self::struct_type_has_array_field(
+                                        &expected_elem_type,
+                                        &self.struct_fields,
+                                    );
                                 if is_local_array
                                     || is_bench_local_array
-                                    || is_module_aos_with_array_field
+                                    || elem_has_array_field
                                 {
                                     sig_parts.push("__local__".to_string());
                                 } else {
@@ -11530,6 +11660,7 @@ impl VerilogCodegen {
                     "initial begin : {}_bench",
                     Self::sanitize_identifier(&b.name)
                 ));
+                let bench_decl_insert_pos = self.output.len();
                 self.indent();
                 self.write_indent();
                 self.write_line(&format!("$display(\"[BENCH] {} : starting\");", b.name));
@@ -11539,6 +11670,18 @@ impl VerilogCodegen {
                     self.gen_verilog_test_stmt(child, &b.name, true);
                     self.write_indent();
                     self.write_line(&format!("{} = {} + 1;", counter, counter));
+                }
+                // W517: flush deferred expression temporaries (e.g. array-return
+                // call temporaries) to the top of this bench initial block.
+                let bench_decls = std::mem::take(&mut self.aos_tmp_decls);
+                if !bench_decls.is_empty() {
+                    let tail = self.output.split_off(bench_decl_insert_pos);
+                    let decl_indent = "    ".repeat(self.indent as usize);
+                    for decl in bench_decls {
+                        self.write_str(&decl_indent);
+                        self.write_str(&decl);
+                    }
+                    self.write_str(&tail);
                 }
                 self.write_indent();
                 self.write_line(&format!(
@@ -14142,7 +14285,9 @@ impl VerilogCodegen {
         let test_decls = std::mem::take(&mut self.aos_tmp_decls);
         if !test_decls.is_empty() {
             let tail = self.output.split_off(test_decl_insert_pos);
+            let decl_indent = "    ".repeat(self.indent as usize);
             for decl in test_decls {
+                self.write_str(&decl_indent);
                 self.write_str(&decl);
             }
             self.write_str(&tail);
@@ -19076,6 +19221,12 @@ impl VerilogCodegen {
                     // never sees it; collect the full path here and emit a packed
                     // temporary slice (literal index) or priority mux (variable).
                     if self.try_emit_scalar_struct_call_field(node) {
+                        return;
+                    }
+                    // W517: indexing directly into an array-typed function return,
+                    // e.g. `read_aos_coords(arr, i)[2]`. Materialize the packed
+                    // return value in a temporary and slice out the requested element.
+                    if self.try_emit_array_return_call_index(node) {
                         return;
                     }
                     let base = &node.children[0];

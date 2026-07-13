@@ -1,0 +1,44 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w517_module_aos_array_field_read.t27
+; W517 witness: whole-array-field read from a packed array-of-structs parameter
+; when the argument is a module-level constant. Exercises the pre-pass
+; classification that routes AOS-with-array-field arguments through the
+; __local__ packed-vector clone.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w517_module_aos_array_field_read;
+
+pub struct S {
+    tag    : u32,
+    coords : [3]u32
+}
+
+const module_arr : [2]S = [2]S{
+    S{.tag = 1, .coords = [10, 20, 30]},
+    S{.tag = 2, .coords = [40, 50, 60]}
+};
+
+fn read_aos_coords(arr : [2]S, i : u8) -> [3]u32 {
+    return arr[i].coords;
+}
+
+test w517_module_aos_array_field_read_basic {
+    var c0 : [3]u32 = read_aos_coords(module_arr, 0);
+    assert_eq(c0[0], 10);
+    assert_eq(c0[1], 20);
+    assert_eq(c0[2], 30);
+    var c1 : [3]u32 = read_aos_coords(module_arr, 1);
+    assert_eq(c1[0], 40);
+    assert_eq(c1[1], 50);
+    assert_eq(c1[2], 60);
+    assert_eq(read_aos_coords(module_arr, 0)[2], 30);
+}
+
+invariant w517_module_aos_array_field_read_nonneg:
+    read_aos_coords(module_arr, 1)[0] >= 40;
+
+bench w517_module_aos_array_field_read_latency {
+    assert_eq(read_aos_coords(module_arr, 1)[2], 60);
+}
+
+endmodule

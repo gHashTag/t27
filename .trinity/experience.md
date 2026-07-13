@@ -1,5 +1,38 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-07 — Wave Loop 517 (packed AOS parameter whole-array-field reads)
+
+### What worked
+- Routing **all** AOS parameters whose element type has an array-typed field
+  through the `__local__` packed-vector clone path eliminated the broken
+  per-field-memory assumption (`arr_coords[i]`) at module-level call sites.
+- Adding a whole-field branch to `array_of_struct_field_slice` for the
+  `indices.len() == dims.len()` case made `return arr[i].coords` produce the
+  correct `[N*W-1:0]` packed slice for AOS parameters.
+- Materializing array-typed function returns into a packed temporary before
+  indexing (`f(...)[2]`) kept Icarus happy, because Icarus rejects part-selects
+  directly on function-call expressions.
+- Hoisting deferred expression temporaries to the top of bench `initial` blocks
+  mirrored the existing test-block behavior and avoided declaration-after-use
+  errors.
+- Creating a second witness with a **module-level** AOS argument caught the
+  pre-pass classification change that the first (local/bench-local) witness did
+  not exercise.
+- Running `t27c gen-verilog` and `iverilog -g2012` on a tiny hand-written
+  reproduction confirmed the root cause (`f()[2]` syntax error) before modifying
+  the backend.
+
+### Anti-pattern / lesson
+- Do not let call-return expressions be indexed directly in the generic ExprIndex
+  fallback. If the return type is a packed vector, always lower the index to a
+  slice of a temporary or to a packed-vector element expression that the target
+  simulator accepts.
+- A single witness per feature is not enough when the feature crosses binding
+  boundaries (local vs. module-level call sites). Add at least one witness per
+  binding shape.
+
+---
+
 ## 2026-07-07 — Wave Loop 516 (whole-array-field reads from packed scalar structs / AOS)
 
 ### What worked
