@@ -1,0 +1,39 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w516_module_scalar_struct_array_field_read.t27
+; W516 witness: whole-array-field read from a module-level packed scalar struct
+; with a fixed-size scalar array field.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w516_module_scalar_struct_array_field_read;
+
+struct Pt {
+    coords : [3]u32,
+    tag    : u32
+}
+
+var g_p : Pt = Pt{.coords = [1, 2, 3], .tag = 10};
+
+fn read_module_coords() -> [3]u32 {
+    return g_p.coords;
+}
+
+fn module_coords_sum() -> u32 {
+    var c : [3]u32 = g_p.coords;
+    return c[0] + c[1] + c[2];
+}
+
+test w516_module_scalar_struct_array_field_read_basic {
+    var c : [3]u32 = read_module_coords();
+    assert_eq(c[0], 1);
+    assert_eq(c[1], 2);
+    assert_eq(c[2], 3);
+}
+
+invariant w516_module_scalar_struct_array_field_read_nonneg:
+    module_coords_sum() == 6;
+
+bench w516_module_scalar_struct_array_field_read_latency {
+    assert_eq(module_coords_sum(), 6);
+}
+
+endmodule

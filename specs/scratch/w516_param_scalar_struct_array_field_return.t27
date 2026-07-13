@@ -1,0 +1,36 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w516_param_scalar_struct_array_field_return.t27
+; W516 witness: return a whole array-typed field from a scalar struct parameter.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w516_param_scalar_struct_array_field_return;
+
+struct Pt {
+    coords : [3]u32,
+    tag    : u32
+}
+
+fn read_param_coords(p : Pt) -> [3]u32 {
+    return p.coords;
+}
+
+fn param_coords_sum(p : Pt) -> u32 {
+    var c : [3]u32 = p.coords;
+    return c[0] + c[1] + c[2];
+}
+
+test w516_param_scalar_struct_array_field_return_basic {
+    var c : [3]u32 = read_param_coords(Pt{.coords = [7, 8, 9], .tag = 5});
+    assert_eq(c[0], 7);
+    assert_eq(c[1], 8);
+    assert_eq(c[2], 9);
+}
+
+invariant w516_param_scalar_struct_array_field_return_nonneg:
+    param_coords_sum(Pt{.coords = [7, 8, 9], .tag = 5}) == 24;
+
+bench w516_param_scalar_struct_array_field_return_latency {
+    assert_eq(param_coords_sum(Pt{.coords = [7, 8, 9], .tag = 5}), 24);
+}
+
+endmodule

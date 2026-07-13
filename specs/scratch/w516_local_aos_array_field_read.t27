@@ -1,0 +1,47 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w516_local_aos_array_field_read.t27
+; W516 witness: whole-array-field read from a packed function-local
+; array-of-structs element. The outer index is variable, so this exercises
+; the variable-outer-index packed AOS slice path for a field whose width is
+; the full scalar array field rather than a single element.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w516_local_aos_array_field_read;
+
+pub struct S {
+    tag    : u32,
+    coords : [3]u32
+}
+
+fn read_aos_coords(i : u8) -> [3]u32 {
+    let arr : [2]S = [2]S{
+        S{.tag = 1, .coords = [10, 20, 30]},
+        S{.tag = 2, .coords = [40, 50, 60]}
+    };
+    return arr[i].coords;
+}
+
+fn scalar_s_sum(p : S) -> u32 {
+    var c : [3]u32 = p.coords;
+    return c[0] + c[1] + c[2];
+}
+
+test w516_local_aos_array_field_read_basic {
+    var c0 : [3]u32 = read_aos_coords(0);
+    assert_eq(c0[0], 10);
+    assert_eq(c0[1], 20);
+    assert_eq(c0[2], 30);
+    var c1 : [3]u32 = read_aos_coords(1);
+    assert_eq(c1[0], 40);
+    assert_eq(c1[1], 50);
+    assert_eq(c1[2], 60);
+}
+
+invariant w516_local_aos_array_field_read_nonneg:
+    scalar_s_sum(S{.tag = 2, .coords = [40, 50, 60]}) == 150;
+
+bench w516_local_aos_array_field_read_latency {
+    assert_eq(scalar_s_sum(S{.tag = 2, .coords = [40, 50, 60]}), 150);
+}
+
+endmodule

@@ -4832,6 +4832,32 @@ impl VerilogCodegen {
         None
     }
 
+    /// W516: compute the [high:low] bit slice of a top-level field inside a packed
+    /// struct value. Unlike `packed_field_slice`, this works for array-typed fields
+    /// because it uses `packed_width` for each field. Fields are packed MSB-first.
+    fn packed_array_field_slice(
+        struct_type: &str,
+        struct_fields: &std::collections::HashMap<String, Vec<(String, String)>>,
+        field_name: &str,
+    ) -> Option<(u32, u32)> {
+        let fields = struct_fields.get(struct_type)?;
+        let total_width: u32 = fields
+            .iter()
+            .map(|(_, ft)| Self::packed_width(ft, struct_fields))
+            .sum();
+        let mut cursor: u32 = total_width;
+        for (fname, ftype) in fields {
+            let width = Self::packed_width(ftype, struct_fields);
+            let high = cursor.saturating_sub(1);
+            let low = cursor.saturating_sub(width);
+            if fname == field_name {
+                return Some((high, low));
+            }
+            cursor = low;
+        }
+        None
+    }
+
     /// W472: return the declared type of a flattened leaf field inside a struct.
     /// Used when resolving dotted paths that traverse array-typed fields.
     fn leaf_field_type(
@@ -5175,6 +5201,15 @@ impl VerilogCodegen {
             };
             w.max(1)
         };
+        let field_total_width: u32 = if field_dims.is_empty() {
+            leaf_width
+        } else {
+            field_dims
+                .iter()
+                .map(|(s, _)| *s as u32)
+                .product::<u32>()
+                .saturating_mul(leaf_width)
+        };
         let all_inner_literal = inner_indices
             .iter()
             .all(|idx| idx.value.parse::<usize>().is_ok());
@@ -5184,34 +5219,36 @@ impl VerilogCodegen {
         self.write("]");
         if all_inner_literal && (field_dims.is_empty() || !inner_indices.is_empty()) {
             let mut inner_offset: u32 = 0;
-            if !field_dims.is_empty() {
-                let mut remaining: u32 = field_dims
-                    .iter()
-                    .map(|(s, _)| *s as u32)
-                    .product::<u32>()
-                    .saturating_mul(leaf_width);
-                for (i, (size, _)) in field_dims.iter().enumerate() {
-                    let idx_val = inner_indices
-                        .get(i)
-                        .and_then(|idx| idx.value.parse::<usize>().ok())
-                        .unwrap_or(0) as u32;
-                    let step = remaining / (*size as u32);
-                    inner_offset = inner_offset.saturating_add(idx_val.saturating_mul(step));
-                    remaining = step;
+            let slice_width = if inner_indices.is_empty() {
+                field_total_width
+            } else {
+                if !field_dims.is_empty() {
+                    let mut remaining: u32 = field_total_width;
+                    for (i, (size, _)) in field_dims.iter().enumerate() {
+                        let idx_val = inner_indices
+                            .get(i)
+                            .and_then(|idx| idx.value.parse::<usize>().ok())
+                            .unwrap_or(0) as u32;
+                        let step = remaining / (*size as u32);
+                        inner_offset = inner_offset.saturating_add(idx_val.saturating_mul(step));
+                        remaining = step;
+                    }
                 }
-            }
+                leaf_width
+            };
             let high = s_width
                 .saturating_sub(1)
                 .saturating_sub(field_offset)
                 .saturating_sub(inner_offset);
-            let low = high.saturating_sub(leaf_width.saturating_sub(1));
+            let low = high.saturating_sub(slice_width.saturating_sub(1));
             self.write(&format!("[{}:{}]", high, low));
         } else {
             // Variable inner indices: emit a downward part-select anchored at the
             // field's MSB with a variable base.
             let field_high = s_width.saturating_sub(1).saturating_sub(field_offset);
             if inner_indices.is_empty() {
-                self.write(&format!("[{}:{}]", field_high, field_high.saturating_sub(leaf_width.saturating_sub(1))));
+                let low = field_high.saturating_sub(field_total_width.saturating_sub(1));
+                self.write(&format!("[{}:{}]", field_high, low));
             } else {
                 self.write("[(");
                 self.write(&field_high.to_string());
@@ -5970,6 +6007,96 @@ impl VerilogCodegen {
             self.gen_verilog_expr(node);
         } else {
             self.gen_verilog_expr(node);
+        }
+    }
+
+    /// W516: emit a fixed-size scalar array literal as a packed concatenation,
+    /// e.g. `[1, 2, 3]` → `{32'd1, 32'd2, 32'd3}`. Elements appear in index
+    /// order with element 0 as the most-significant slice.
+    fn gen_verilog_pack_scalar_array_literal(
+        &mut self,
+        node: &Node,
+        ret_ty: &str,
+    ) {
+        let dims = Self::parse_array_dimensions(ret_ty);
+        let leaf_type =
+            Self::array_dimensions_leaf_type(&dims);
+        let elem_width = Self::type_to_width(&leaf_type).max(1);
+        let total_count: usize =
+            dims.iter().map(|(s, _)| *s).product();
+        self.write("{");
+        if node.children.is_empty() && !node.extra_size.is_empty() {
+            let values: Vec<&str> =
+                node.extra_size.split(',').collect();
+            for (k, v) in values.iter().take(total_count).enumerate() {
+                if k > 0 {
+                    self.write(", ");
+                }
+                self.write(&format!(
+                    "{}'d{}",
+                    elem_width,
+                    v.trim()
+                ));
+            }
+        } else {
+            let mut flat_refs: Vec<&Node> = Vec::new();
+            Self::flatten_array_literal_values(node, &mut flat_refs);
+            for (k, elem) in flat_refs.iter().take(total_count).enumerate() {
+                if k > 0 {
+                    self.write(", ");
+                }
+                self.gen_verilog_expr(elem);
+            }
+        }
+        self.write("}");
+    }
+
+    /// W516: recursively emit the element register names of a function-local
+    /// scalar array as a packed concatenation, with element (0,0,...) as MSB.
+    fn gen_verilog_pack_local_scalar_array(
+        &mut self,
+        base_name: &str,
+        dims: &[(usize, String)],
+    ) {
+        let raw_base = self.verilog_local_raw_base(base_name);
+        self.write("{");
+        let mut first = true;
+        self.emit_local_scalar_array_concat(
+            &raw_base, dims, 0, &mut first,
+        );
+        self.write("}");
+    }
+
+    fn emit_local_scalar_array_concat(
+        &mut self,
+        prefix: &str,
+        dims: &[(usize, String)],
+        depth: usize,
+        first: &mut bool,
+    ) {
+        if depth == dims.len().saturating_sub(1) {
+            for i in 0..dims[depth].0 {
+                let flat_name =
+                    format!("{}_{}", prefix, i);
+                let safe =
+                    Self::verilog_safe_identifier(&flat_name);
+                if !*first {
+                    self.write(", ");
+                }
+                *first = false;
+                self.write(&safe);
+            }
+        } else {
+            for i in 0..dims[depth].0 {
+                let next_prefix =
+                    format!("{}_{}", prefix, i);
+                self.emit_local_scalar_array_concat(
+                    &next_prefix,
+                    dims,
+                    depth + 1,
+                    first,
+                );
+            }
         }
     }
 
@@ -8083,6 +8210,23 @@ impl VerilogCodegen {
         Self::type_to_width(ty)
     }
 
+    /// W516: true for fixed-size scalar arrays such as "[3]u32" whose element
+    /// type is not a struct and whose packed width exceeds a single scalar.
+    fn is_scalar_array_type(
+        ty: &str,
+        struct_fields: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> bool {
+        let dims = Self::parse_array_dimensions(ty);
+        if dims.is_empty() {
+            return false;
+        }
+        let leaf = Self::array_dimensions_leaf_type(&dims);
+        if struct_fields.contains_key(&leaf) {
+            return false;
+        }
+        Self::packed_width(ty, struct_fields) > Self::type_to_width(ty)
+    }
+
     /// Map t27 type to Verilog signedness
     fn type_is_signed(ty: &str) -> bool {
         matches!(ty, "i8" | "i16" | "i32" | "i64")
@@ -8802,7 +8946,9 @@ impl VerilogCodegen {
         if arr_struct_w > 0 {
             return arr_struct_w;
         }
-        Self::type_to_width(ty)
+        // W516: fixed-size scalar arrays (e.g. [3]u32) are returned as one packed
+        // vector whose width is the total element count times the leaf width.
+        Self::packed_width(ty, struct_fields)
     }
 
     /// W468/W471: total packed bit width of a struct return type, including
@@ -15393,6 +15539,161 @@ impl VerilogCodegen {
         }
     }
 
+    /// W516: recursively emit per-element assignments for a local scalar array
+    /// initialized from a contiguous packed field slice. `field_high` is the MSB
+    /// index of the whole field inside `base_reg`; elements are sliced downward.
+    fn emit_packed_scalar_array_field_init_assigns(
+        &mut self,
+        prefix: &str,
+        dims: &[(usize, String)],
+        depth: usize,
+        base_reg: &str,
+        field_high: u32,
+        elem_width: u32,
+        idx: &mut usize,
+    ) {
+        if depth == dims.len().saturating_sub(1) {
+            for i in 0..dims[depth].0 {
+                let flat_name = format!("{}_{}", prefix, i);
+                let safe = Self::verilog_safe_identifier(&flat_name);
+                let high = field_high.saturating_sub((*idx as u32) * elem_width);
+                let low = high.saturating_sub(elem_width.saturating_sub(1));
+                self.write_indent();
+                self.write_line(&format!("{} = {}[{}:{}];", safe, base_reg, high, low));
+                *idx += 1;
+            }
+        } else {
+            for i in 0..dims[depth].0 {
+                let next_prefix = format!("{}_{}", prefix, i);
+                self.emit_packed_scalar_array_field_init_assigns(
+                    &next_prefix,
+                    dims,
+                    depth + 1,
+                    base_reg,
+                    field_high,
+                    elem_width,
+                    idx,
+                );
+            }
+        }
+    }
+
+    /// W516: emit per-element assignments for a local scalar array initialized
+    /// from an array-typed field of a packed scalar struct or a packed AOS
+    /// element. Returns true if the initializer was recognized and emitted.
+    fn gen_verilog_packed_array_field_init(
+        &mut self,
+        base_name: &str,
+        dims: &[(usize, String)],
+        init: &Node,
+    ) -> bool {
+        let (root, outer_indices, fields) =
+            match Self::collect_field_index_path_rooted(init) {
+                Some(v) => v,
+                None => return false,
+            };
+        if root.kind != NodeKind::ExprIdentifier || fields.len() != 1 {
+            return false;
+        }
+        let field_name = &fields[0];
+        let root_name = &root.name;
+
+        // Case 1: local/module packed scalar struct.
+        if let Some(struct_type) = self
+            .local_packed_struct_vars
+            .get(root_name)
+            .or_else(|| self.module_packed_struct_vars.get(root_name))
+            .cloned()
+        {
+            let field_type = match self
+                .struct_fields
+                .get(&struct_type)
+                .and_then(|fs| fs.iter().find(|(n, _)| n == field_name).map(|(_, t)| t.clone()))
+            {
+                Some(t) => t,
+                None => return false,
+            };
+            let field_dims = Self::parse_array_dimensions(&field_type);
+            if field_dims != *dims {
+                return false;
+            }
+            let (field_high, _field_low) =
+                match Self::packed_array_field_slice(&struct_type, &self.struct_fields, field_name)
+                {
+                    Some(v) => v,
+                    None => return false,
+                };
+            let elem_width = Self::type_to_width(&dims.last().unwrap().1).max(1);
+            let raw_base = self.verilog_local_raw_base(base_name);
+            let mut idx: usize = 0;
+            self.emit_packed_scalar_array_field_init_assigns(
+                &raw_base,
+                dims,
+                0,
+                &Self::verilog_safe_identifier(root_name),
+                field_high,
+                elem_width,
+                &mut idx,
+            );
+            return true;
+        }
+
+        // Case 2: packed AOS element.
+        if let Some(elem_type) = self
+            .local_packed_struct_array_elem_type
+            .get(root_name)
+            .or_else(|| self.module_packed_struct_array_elem_type.get(root_name))
+            .cloned()
+        {
+            let field_type = match self
+                .struct_fields
+                .get(&elem_type)
+                .and_then(|fs| fs.iter().find(|(n, _)| n == field_name).map(|(_, t)| t.clone()))
+            {
+                Some(t) => t,
+                None => return false,
+            };
+            let field_dims = Self::parse_array_dimensions(&field_type);
+            if field_dims != *dims {
+                return false;
+            }
+            let field_width = Self::packed_width(&field_type, &self.struct_fields).max(1);
+            let elem_width = Self::type_to_width(&dims.last().unwrap().1).max(1);
+            let tmp = Self::verilog_safe_identifier(
+                &format!("_w516_field_tmp_{}", self.let_tmp_counter),
+            );
+            self.let_tmp_counter += 1;
+            // Declaration will be hoisted to the top of the function by
+            // `hoist_block_decls`.
+            self.write_indent();
+            self.write_line(&format!("reg [{}:0] {};", field_width.saturating_sub(1), tmp));
+            self.write_indent();
+            self.write(&format!("{} = ", tmp));
+            self.emit_packed_aos_field_slice(
+                root_name,
+                &elem_type,
+                field_name,
+                &outer_indices,
+                &[],
+            );
+            self.write_line(";");
+            let raw_base = self.verilog_local_raw_base(base_name);
+            let mut idx: usize = 0;
+            self.emit_packed_scalar_array_field_init_assigns(
+                &raw_base,
+                dims,
+                0,
+                &tmp,
+                field_width.saturating_sub(1),
+                elem_width,
+                &mut idx,
+            );
+            return true;
+        }
+
+        false
+    }
+
     /// W468: emit the initial-value assignments for a local multi-dimensional
     /// scalar array. Values are consumed in row-major order from the (possibly
     /// nested) array literal.
@@ -15402,6 +15703,66 @@ impl VerilogCodegen {
         dims: &[(usize, String)],
         init: &Node,
     ) {
+        // W516: whole-array-field reads from packed scalar structs / AOS.
+        if self.gen_verilog_packed_array_field_init(base_name, dims, init) {
+            return;
+        }
+        // W516: local scalar array initialized from a call returning a fixed-size
+        // scalar array (e.g. `var c : [3]u32 = read_coords(...)`). Evaluate the
+        // call into a packed temporary and unpack it into per-element registers.
+        if init.kind == NodeKind::ExprCall
+            && !init.name.is_empty()
+        {
+            let ret_ty = self
+                .fn_return_types
+                .get(&init.name)
+                .cloned()
+                .unwrap_or_default();
+            if Self::is_scalar_array_type(&ret_ty,
+                &self.struct_fields,
+            ) {
+                let total_count: usize =
+                    dims.iter().map(|(s, _)| *s).product();
+                let leaf_type =
+                    dims.last().map(|(_, t)| t.clone()).unwrap_or_default();
+                let elem_width =
+                    Self::type_to_width(&leaf_type).max(1);
+                let total_width =
+                    (total_count as u32) * elem_width;
+                let tmp = Self::verilog_safe_identifier(
+                    &format!(
+                        "_{}_call_tmp_{}",
+                        base_name,
+                        self.let_tmp_counter
+                    ),
+                );
+                self.let_tmp_counter += 1;
+                self.write_indent();
+                self.write_line(
+                    &format!(
+                        "reg [{}:0] {}; // W516 packed scalar array call temporary",
+                        total_width.saturating_sub(1),
+                        tmp
+                    ),
+                );
+                self.write_indent();
+                self.write(&format!("{} = ", tmp));
+                self.gen_verilog_expr(init);
+                self.write_line(";");
+                let raw_base = self.verilog_local_raw_base(base_name);
+                let mut idx: usize = 0;
+                self.emit_packed_scalar_array_field_init_assigns(
+                    &raw_base,
+                    dims,
+                    0,
+                    &tmp,
+                    total_width.saturating_sub(1),
+                    elem_width,
+                    &mut idx,
+                );
+                return;
+            }
+        }
         // W484: array literals parsed without nested children store their values in
         // `extra_size` as a comma-separated list. Fall back to `array_literal_elements`
         // so 1-D local array initializers lower correctly.
@@ -15839,12 +16200,17 @@ impl VerilogCodegen {
                     self.write(&format!("{} = ", fn_name));
                     // W470: array-of-struct returns are packed into a single vector.
                     let ret_ty = self.current_fn_return_type.clone();
-                    if !ret_ty.is_empty()
+                    let is_aos_return = !ret_ty.is_empty()
                         && Self::array_of_struct_return_width(
                             &ret_ty,
                             &self.struct_fields,
-                        ) > 0
-                    {
+                        ) > 0;
+                    let is_scalar_array_return = !ret_ty.is_empty()
+                        && Self::is_scalar_array_type(
+                            &ret_ty,
+                            &self.struct_fields,
+                        );
+                    if is_aos_return {
                         if node.children[0].kind == NodeKind::ExprArrayLiteral {
                             if !self.try_emit_array_of_struct_literal_packed(
                                 &node.children[0],
@@ -15869,6 +16235,29 @@ impl VerilogCodegen {
                             }
                         } else {
                             self.gen_verilog_expr(&node.children[0]);
+                        }
+                    } else if is_scalar_array_return {
+                        // W516: fixed-size scalar array returns are packed vectors.
+                        let child = &node.children[0];
+                        if child.kind == NodeKind::ExprArrayLiteral {
+                            self.gen_verilog_pack_scalar_array_literal(
+                                child, &ret_ty,
+                            );
+                        } else if child.kind == NodeKind::ExprIdentifier {
+                            let safe_name =
+                                Self::verilog_safe_identifier(&child.name,
+                                );
+                            if self.local_arrays.contains(&safe_name) {
+                                let dims =
+                                    Self::parse_array_dimensions(&ret_ty);
+                                self.gen_verilog_pack_local_scalar_array(
+                                    &child.name, &dims,
+                                );
+                            } else {
+                                self.gen_verilog_expr(child);
+                            }
+                        } else {
+                            self.gen_verilog_expr(child);
                         }
                     } else {
                         self.gen_verilog_expr(&node.children[0]);
