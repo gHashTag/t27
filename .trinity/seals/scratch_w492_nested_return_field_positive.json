@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b86b14cece6887dd90a50506f29b8c7f554fc3ed82897898ad1a4a4ed45ac77d",
   "module": "w492_nested_return_field_positive",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:56Z",
+  "sealed_at": "2026-07-13T09:00:35Z",
   "spec_hash": "sha256:66cdd33e1ab149a39ecf06ee7b07ba4cc51c1330eaadc6b45dd42312a0a9ae07",
   "spec_path": "specs/scratch/w492_nested_return_field_positive.t27"
 }

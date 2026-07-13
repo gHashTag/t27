@@ -1,0 +1,34 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w511_module_array_field_copy.t27
+; W511 witness: whole-struct assignment between two module-level scalar structs
+; with array-typed fields, using packed-vector copy.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w511_module_array_field_copy;
+
+struct Pt {
+    coords : [3]u32
+}
+
+var g_src : Pt = Pt{.coords = [7, 8, 9]};
+var g_dst : Pt = Pt{.coords = [0, 0, 0]};
+
+fn copy_and_check(i : u8) -> u32 {
+    g_dst = g_src;
+    return g_dst.coords[i];
+}
+
+test w511_module_array_field_copy_basic {
+    assert_eq(copy_and_check(0), 7);
+    assert_eq(copy_and_check(1), 8);
+    assert_eq(copy_and_check(2), 9);
+}
+
+invariant w511_module_array_field_copy_invariant:
+    copy_and_check(1) == 8;
+
+bench w511_module_array_field_copy_latency {
+    assert_eq(copy_and_check(1), 8);
+}
+
+endmodule

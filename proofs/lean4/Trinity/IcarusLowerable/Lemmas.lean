@@ -998,4 +998,839 @@ def w507WhileNestedModule : Module := {
   benches := []
 }
 
+/- W508 witness environments and modules: `break`/`continue` in bounded loops. -/
+
+/-- W508-A: environment for the `break` inside a `while` loop witness. -/
+def w508BreakSearchEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["find_target"]
+}
+
+/-- W508-A: function that breaks out of a `while` loop when a target is found. -/
+def w508BreakSearchFindTarget : Function := {
+  name := "find_target",
+  params := [("target", .u32)],
+  ret := some .u32,
+  body := [
+    .varDecl "arr" (.array 5 .u32)
+      (some (.arrayLit (.array 5 .u32) [.intLit 3, .intLit 7, .intLit 1, .intLit 9, .intLit 2])),
+    .varDecl "i" .u32 (some (.intLit 0)),
+    .varDecl "found" .u32 (some (.intLit 5)),
+    .whileLoop (.binop "<" (.identifier "i") (.intLit 5)) [
+      .ifThenElse (.binop "==" (.index (.identifier "arr") (.identifier "i")) (.identifier "target"))
+        [.assign (.identifier "found") (.identifier "i"), .break]
+        [],
+      .assign (.identifier "i") (.binop "+" (.identifier "i") (.intLit 1))
+    ],
+    .return_ (some (.identifier "found"))
+  ]
+}
+
+/-- W508-A: module containing the while-break witness. -/
+def w508BreakSearchModule : Module := {
+  name := "w508_break_search",
+  imports := [],
+  globals := [],
+  functions := [w508BreakSearchFindTarget],
+  tests := [],
+  benches := []
+}
+
+/-- W508-B: environment for the `continue` inside a `for` loop witness. -/
+def w508ContinueSumEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["sum_odd"]
+}
+
+/-- W508-B: function that skips even iterations with `continue`. -/
+def w508ContinueSumSumOdd : Function := {
+  name := "sum_odd",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "acc" .u32 (some (.intLit 0)),
+    .forLoop "i" (.intLit 10) [
+      .ifThenElse (.binop "==" (.binop "%" (.identifier "i") (.intLit 2)) (.intLit 0))
+        [.continue]
+        [],
+      .assign (.identifier "acc") (.binop "+" (.identifier "acc") (.identifier "i"))
+    ],
+    .return_ (some (.identifier "acc"))
+  ]
+}
+
+/-- W508-B: module containing the for-continue witness. -/
+def w508ContinueSumModule : Module := {
+  name := "w508_continue_sum",
+  imports := [],
+  globals := [],
+  functions := [w508ContinueSumSumOdd],
+  tests := [],
+  benches := []
+}
+
+/-- W508-C: environment for the `break` out of a nested loop witness. -/
+def w508BreakNestedEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["find_pair"]
+}
+
+/-- W508-C: function that breaks from an inner `while` loop nested in a `for`. -/
+def w508BreakNestedFindPair : Function := {
+  name := "find_pair",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "result" .u32 (some (.intLit 0)),
+    .forLoop "i" (.intLit 5) [
+      .varDecl "j" .u32 (some (.intLit 0)),
+      .whileLoop (.binop "<" (.identifier "j") (.intLit 5)) [
+        .ifThenElse (.binop "==" (.binop "+" (.binop "*" (.identifier "i") (.intLit 5)) (.identifier "j")) (.intLit 13))
+          [.assign (.identifier "result") (.identifier "j"), .break]
+          [],
+        .assign (.identifier "j") (.binop "+" (.identifier "j") (.intLit 1))
+      ]
+    ],
+    .return_ (some (.identifier "result"))
+  ]
+}
+
+/-- W508-C: module containing the nested-break witness. -/
+def w508BreakNestedModule : Module := {
+  name := "w508_break_nested",
+  imports := [],
+  globals := [],
+  functions := [w508BreakNestedFindPair],
+  tests := [],
+  benches := []
+}
+
+/-- W508-A: a `break` inside a bounded `while` loop is lowerable. -/
+theorem w508_break_search_lowerable :
+  Module.isLowerable w508BreakSearchEnv w508BreakSearchModule := by
+  native_decide
+
+/-- W508-B: a `continue` inside a bounded `for` loop is lowerable. -/
+theorem w508_continue_sum_lowerable :
+  Module.isLowerable w508ContinueSumEnv w508ContinueSumModule := by
+  native_decide
+
+/-- W508-C: a `break` from a nested `while` loop is lowerable. -/
+theorem w508_break_nested_lowerable :
+  Module.isLowerable w508BreakNestedEnv w508BreakNestedModule := by
+  native_decide
+
+/- W509 witness environments and modules: direct lowering of array-typed
+   struct fields as packed vectors. -/
+
+/-- W509-A: environment for a local scalar struct with an array-typed field. -/
+def w509ArrayFieldDirectEnv : Env := {
+  structs := [("Pt", [("coords", .array 3 .u8), ("tag", .u8)]),
+              ("Pt2", [("grid", .array 2 (.array 3 .u8)), ("tag", .u8)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["sum_local_pt", "sum_2d_local_pt"]
+}
+
+/-- W509-A: sum the elements of a 1-D array field of a local struct variable. -/
+def w509ArrayFieldDirectSumLocalPt : Function := {
+  name := "sum_local_pt",
+  params := [],
+  ret := some .u8,
+  body := [
+    .varDecl "p" (.struct "Pt")
+      (some (.structLit "Pt" [
+        ("coords", .arrayLit (.array 3 .u8) [.intLit 1, .intLit 2, .intLit 3]),
+        ("tag", .intLit 7)
+      ])),
+    .varDecl "s" .u8 (some (.intLit 0)),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.fieldAccess (.identifier "p") "coords") (.intLit 0))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.fieldAccess (.identifier "p") "coords") (.intLit 1))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.fieldAccess (.identifier "p") "coords") (.intLit 2))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.fieldAccess (.identifier "p") "tag")),
+    .return_ (some (.identifier "s"))
+  ]
+}
+
+/-- W509-A: sum selected elements of a 2-D array field of a local struct variable. -/
+def w509ArrayFieldDirectSum2DLocalPt : Function := {
+  name := "sum_2d_local_pt",
+  params := [],
+  ret := some .u8,
+  body := [
+    .varDecl "p" (.struct "Pt2")
+      (some (.structLit "Pt2" [
+        ("grid", .arrayLit (.array 2 (.array 3 .u8)) [
+          .arrayLit (.array 3 .u8) [.intLit 1, .intLit 2, .intLit 3],
+          .arrayLit (.array 3 .u8) [.intLit 4, .intLit 5, .intLit 6]
+        ]),
+        ("tag", .intLit 1)
+      ])),
+    .varDecl "s" .u8 (some (.intLit 0)),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "p") "grid") (.intLit 0)) (.intLit 0))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "p") "grid") (.intLit 0)) (.intLit 2))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "p") "grid") (.intLit 1)) (.intLit 1))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.fieldAccess (.identifier "p") "tag")),
+    .return_ (some (.identifier "s"))
+  ]
+}
+
+def w509ArrayFieldDirectModule : Module := {
+  name := "w509_array_field_direct",
+  imports := [],
+  globals := [],
+  functions := [w509ArrayFieldDirectSumLocalPt, w509ArrayFieldDirectSum2DLocalPt],
+  tests := [],
+  benches := []
+}
+
+/-- W509-A: local scalar struct with 1-D and 2-D array fields is lowerable. -/
+theorem w509_array_field_direct_lowerable :
+  Module.isLowerable w509ArrayFieldDirectEnv w509ArrayFieldDirectModule := by
+  native_decide
+
+/-- W509-B: environment for a scalar struct with an array-typed field passed as a
+    packed-vector parameter. -/
+def w509ArrayFieldParamEnv : Env := {
+  structs := [("Pt", [("coords", .array 3 .u8), ("tag", .u8)]),
+              ("Pt2", [("grid", .array 2 (.array 3 .u8)), ("tag", .u8)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["sum_pt", "sum_2d_pt"]
+}
+
+/-- W509-B: sum the elements of an array field received as a packed struct param. -/
+def w509ArrayFieldParamSumPt : Function := {
+  name := "sum_pt",
+  params := [("p", .struct "Pt")],
+  ret := some .u8,
+  body := [
+    .varDecl "s" .u8 (some (.intLit 0)),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.fieldAccess (.identifier "p") "coords") (.intLit 0))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.fieldAccess (.identifier "p") "coords") (.intLit 1))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.fieldAccess (.identifier "p") "coords") (.intLit 2))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.fieldAccess (.identifier "p") "tag")),
+    .return_ (some (.identifier "s"))
+  ]
+}
+
+/-- W509-B: sum selected elements of a 2-D array field received as a packed struct param. -/
+def w509ArrayFieldParamSum2DPt : Function := {
+  name := "sum_2d_pt",
+  params := [("p", .struct "Pt2")],
+  ret := some .u8,
+  body := [
+    .varDecl "s" .u8 (some (.intLit 0)),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "p") "grid") (.intLit 0)) (.intLit 0))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "p") "grid") (.intLit 0)) (.intLit 2))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "p") "grid") (.intLit 1)) (.intLit 1))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.fieldAccess (.identifier "p") "tag")),
+    .return_ (some (.identifier "s"))
+  ]
+}
+
+def w509ArrayFieldParamModule : Module := {
+  name := "w509_array_field_param",
+  imports := [],
+  globals := [],
+  functions := [w509ArrayFieldParamSumPt, w509ArrayFieldParamSum2DPt],
+  tests := [],
+  benches := []
+}
+
+/-- W509-B: packed-vector passing of a scalar struct with array-typed fields is
+    lowerable. -/
+theorem w509_array_field_param_lowerable :
+  Module.isLowerable w509ArrayFieldParamEnv w509ArrayFieldParamModule := by
+  native_decide
+
+/-- W509-C: environment for a scalar struct with an array-typed field returned from
+    a function as a packed vector. -/
+def w509ArrayFieldReturnEnv : Env := {
+  structs := [("Pt", [("coords", .array 3 .u8), ("tag", .u8)]),
+              ("Pt2", [("grid", .array 2 (.array 3 .u8)), ("tag", .u8)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["make_pt", "sum_returned_pt", "make_pt2", "sum_returned_pt2"]
+}
+
+/-- W509-C: construct and return a scalar struct with a 1-D array field. -/
+def w509ArrayFieldReturnMakePt : Function := {
+  name := "make_pt",
+  params := [("x", .u8), ("y", .u8), ("z", .u8), ("t", .u8)],
+  ret := some (.struct "Pt"),
+  body := [
+    .return_ (some (.structLit "Pt" [
+      ("coords", .arrayLit (.array 3 .u8) [.identifier "x", .identifier "y", .identifier "z"]),
+      ("tag", .identifier "t")
+    ]))
+  ]
+}
+
+/-- W509-C: read the array field of a returned struct. -/
+def w509ArrayFieldReturnSumReturnedPt : Function := {
+  name := "sum_returned_pt",
+  params := [],
+  ret := some .u8,
+  body := [
+    .varDecl "p" (.struct "Pt")
+      (some (.call "make_pt" [.intLit 1, .intLit 2, .intLit 3, .intLit 7])),
+    .varDecl "s" .u8 (some (.intLit 0)),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.fieldAccess (.identifier "p") "coords") (.intLit 0))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.fieldAccess (.identifier "p") "coords") (.intLit 1))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.fieldAccess (.identifier "p") "coords") (.intLit 2))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.fieldAccess (.identifier "p") "tag")),
+    .return_ (some (.identifier "s"))
+  ]
+}
+
+/-- W509-C: construct and return a scalar struct with a 2-D array field. -/
+def w509ArrayFieldReturnMakePt2 : Function := {
+  name := "make_pt2",
+  params := [("a", .u8), ("b", .u8), ("t", .u8)],
+  ret := some (.struct "Pt2"),
+  body := [
+    .return_ (some (.structLit "Pt2" [
+      ("grid", .arrayLit (.array 2 (.array 3 .u8)) [
+        .arrayLit (.array 3 .u8) [.identifier "a", .binop "+" (.identifier "a") (.intLit 1), .binop "+" (.identifier "a") (.intLit 2)],
+        .arrayLit (.array 3 .u8) [.identifier "b", .binop "+" (.identifier "b") (.intLit 1), .binop "+" (.identifier "b") (.intLit 2)]
+      ]),
+      ("tag", .identifier "t")
+    ]))
+  ]
+}
+
+/-- W509-C: read the 2-D array field of a returned struct. -/
+def w509ArrayFieldReturnSumReturnedPt2 : Function := {
+  name := "sum_returned_pt2",
+  params := [],
+  ret := some .u8,
+  body := [
+    .varDecl "p" (.struct "Pt2")
+      (some (.call "make_pt2" [.intLit 1, .intLit 4, .intLit 2])),
+    .varDecl "s" .u8 (some (.intLit 0)),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "p") "grid") (.intLit 0)) (.intLit 0))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "p") "grid") (.intLit 0)) (.intLit 2))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "p") "grid") (.intLit 1)) (.intLit 1))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.fieldAccess (.identifier "p") "tag")),
+    .return_ (some (.identifier "s"))
+  ]
+}
+
+def w509ArrayFieldReturnModule : Module := {
+  name := "w509_array_field_return",
+  imports := [],
+  globals := [],
+  functions := [w509ArrayFieldReturnMakePt, w509ArrayFieldReturnSumReturnedPt,
+                w509ArrayFieldReturnMakePt2, w509ArrayFieldReturnSumReturnedPt2],
+  tests := [],
+  benches := []
+}
+
+/-- W509-C: returning a scalar struct with array-typed fields as a packed vector is
+    lowerable. -/
+theorem w509_array_field_return_lowerable :
+  Module.isLowerable w509ArrayFieldReturnEnv w509ArrayFieldReturnModule := by
+  native_decide
+
+/- W510 witness environments and modules: element-level writes into packed
+   scalar-array fields of local struct variables. -/
+
+/-- W510-A: environment for a variable-index write into a 1-D scalar-array field. -/
+def w510ArrayFieldWriteVarIndexEnv : Env := {
+  structs := [("Pt", [("coords", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["write_and_read"],
+  vars := [("p", .struct "Pt")]
+}
+
+/-- W510-A: write a variable-index element of a packed 1-D array field and read it back. -/
+def w510ArrayFieldWriteVarIndexFn : Function := {
+  name := "write_and_read",
+  params := [("i", .u8)],
+  ret := some .u32,
+  body := [
+    .varDecl "p" (.struct "Pt")
+      (some (.structLit "Pt" [
+        ("coords", .arrayLit (.array 3 .u32) [.intLit 10, .intLit 20, .intLit 30])
+      ])),
+    .assign
+      (.index (.fieldAccess (.identifier "p") "coords") (.identifier "i"))
+      (.intLit 99),
+    .return_ (some
+      (.index (.fieldAccess (.identifier "p") "coords") (.identifier "i")))
+  ]
+}
+
+def w510ArrayFieldWriteVarIndexModule : Module := {
+  name := "w510_array_field_write_var_index",
+  imports := [],
+  globals := [],
+  functions := [w510ArrayFieldWriteVarIndexFn],
+  tests := [],
+  benches := []
+}
+
+/-- W510-A: variable-index write into a packed 1-D array field is lowerable. -/
+theorem w510_array_field_write_var_index_lowerable :
+  Module.isLowerable w510ArrayFieldWriteVarIndexEnv w510ArrayFieldWriteVarIndexModule := by
+  native_decide
+
+/-- W510-B: environment for a variable-index sub-array (row) write into a 2-D
+    scalar-array field. -/
+def w510ArrayFieldWrite2DSliceEnv : Env := {
+  structs := [("Grid", [("cells", .array 3 (.array 4 .u32))])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["write_row"],
+  vars := [("g", .struct "Grid")]
+}
+
+/-- W510-B: write a whole row of a packed 2-D array field with a variable outer
+    index, then sum the row. -/
+def w510ArrayFieldWrite2DSliceFn : Function := {
+  name := "write_row",
+  params := [("i", .u8)],
+  ret := some .u32,
+  body := [
+    .varDecl "g" (.struct "Grid")
+      (some (.structLit "Grid" [
+        ("cells", .arrayLit (.array 3 (.array 4 .u32)) [
+          .arrayLit (.array 4 .u32) [.intLit 1, .intLit 2, .intLit 3, .intLit 4],
+          .arrayLit (.array 4 .u32) [.intLit 5, .intLit 6, .intLit 7, .intLit 8],
+          .arrayLit (.array 4 .u32) [.intLit 9, .intLit 10, .intLit 11, .intLit 12]
+        ])
+      ])),
+    .assign
+      (.index (.fieldAccess (.identifier "g") "cells") (.identifier "i"))
+      (.arrayLit (.array 4 .u32) [.intLit 0, .intLit 0, .intLit 0, .intLit 0]),
+    .varDecl "s" .u32 (some (.intLit 0)),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "g") "cells") (.identifier "i")) (.intLit 0))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "g") "cells") (.identifier "i")) (.intLit 1))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "g") "cells") (.identifier "i")) (.intLit 2))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "g") "cells") (.identifier "i")) (.intLit 3))),
+    .return_ (some (.identifier "s"))
+  ]
+}
+
+def w510ArrayFieldWrite2DSliceModule : Module := {
+  name := "w510_array_field_write_2d_slice",
+  imports := [],
+  globals := [],
+  functions := [w510ArrayFieldWrite2DSliceFn],
+  tests := [],
+  benches := []
+}
+
+/-- W510-B: variable-index row write into a packed 2-D array field is lowerable. -/
+theorem w510_array_field_write_2d_slice_lowerable :
+  Module.isLowerable w510ArrayFieldWrite2DSliceEnv w510ArrayFieldWrite2DSliceModule := by
+  native_decide
+
+/-- W510-C: environment for a struct-return that has had an array-field element
+    mutated in place. -/
+def w510ArrayFieldWriteReturnCopyEnv : Env := {
+  structs := [("Pt", [("coords", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["mutate", "check"],
+  vars := [("p", .struct "Pt")]
+}
+
+/-- W510-C: mutate a packed array field of a local struct and return the struct. -/
+def w510ArrayFieldWriteReturnCopyMutate : Function := {
+  name := "mutate",
+  params := [],
+  ret := some (.struct "Pt"),
+  body := [
+    .varDecl "p" (.struct "Pt")
+      (some (.structLit "Pt" [
+        ("coords", .arrayLit (.array 3 .u32) [.intLit 1, .intLit 2, .intLit 3])
+      ])),
+    .assign
+      (.index (.fieldAccess (.identifier "p") "coords") (.intLit 1))
+      (.intLit 42),
+    .return_ (some (.identifier "p"))
+  ]
+}
+
+/-- W510-C: read the mutated element from the returned packed struct. -/
+def w510ArrayFieldWriteReturnCopyCheck : Function := {
+  name := "check",
+  params := [],
+  ret := some .u32,
+  body := [
+    .return_ (some
+      (.index (.fieldAccess (.call "mutate" []) "coords") (.intLit 1)))
+  ]
+}
+
+def w510ArrayFieldWriteReturnCopyModule : Module := {
+  name := "w510_array_field_write_return_copy",
+  imports := [],
+  globals := [],
+  functions := [w510ArrayFieldWriteReturnCopyMutate, w510ArrayFieldWriteReturnCopyCheck],
+  tests := [],
+  benches := []
+}
+
+/-- W510-C: in-place mutation of a packed array field before struct return is
+    lowerable. -/
+theorem w510_array_field_write_return_copy_lowerable :
+  Module.isLowerable w510ArrayFieldWriteReturnCopyEnv w510ArrayFieldWriteReturnCopyModule := by
+  native_decide
+
+/- W511 witness environments and modules: module-level scalar structs with
+   fixed-size scalar array fields are lowered to packed vectors, matching the
+   W509/W510 function-local and parameter/return cases. -/
+
+/-- W511-A: environment for a module-level packed scalar struct var with a 1-D
+    array-typed field. -/
+def w511ModuleArrayFieldReadEnv : Env := {
+  structs := [("Pt", [("coords", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["read_coord"],
+  vars := [("g_p", .struct "Pt")]
+}
+
+/-- W511-A: read a variable-index element of a module-level packed array field. -/
+def w511ModuleArrayFieldReadCoord : Function := {
+  name := "read_coord",
+  params := [("i", .u8)],
+  ret := some .u32,
+  body := [
+    .return_ (some
+      (.index (.fieldAccess (.identifier "g_p") "coords") (.identifier "i")))
+  ]
+}
+
+def w511ModuleArrayFieldReadModule : Module := {
+  name := "w511_module_array_field_read",
+  imports := [],
+  globals := [
+    .varDecl "g_p" (.struct "Pt")
+      (some (.structLit "Pt" [
+        ("coords", .arrayLit (.array 3 .u32) [.intLit 10, .intLit 20, .intLit 30])
+      ]))
+  ],
+  functions := [w511ModuleArrayFieldReadCoord],
+  tests := [],
+  benches := []
+}
+
+/-- W511-A: module-level packed scalar struct var with a 1-D array field is
+    lowerable. -/
+theorem w511_module_array_field_read_lowerable :
+  Module.isLowerable w511ModuleArrayFieldReadEnv w511ModuleArrayFieldReadModule := by
+  native_decide
+
+/-- W511-B: environment for a module-level packed scalar struct var with a 2-D
+    array-typed field initialized from a struct literal. -/
+def w511ModuleArrayFieldInitEnv : Env := {
+  structs := [("Grid", [("cells", .array 3 (.array 4 .u32))])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["sum_row"],
+  vars := [("g_g", .struct "Grid")]
+}
+
+/-- W511-B: sum a row of a module-level packed 2-D array field. -/
+def w511ModuleArrayFieldInitSumRow : Function := {
+  name := "sum_row",
+  params := [("i", .u8)],
+  ret := some .u32,
+  body := [
+    .varDecl "s" .u32 (some (.intLit 0)),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "g_g") "cells") (.identifier "i")) (.intLit 0))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "g_g") "cells") (.identifier "i")) (.intLit 1))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "g_g") "cells") (.identifier "i")) (.intLit 2))),
+    .assign (.identifier "s") (.binop "+" (.identifier "s")
+      (.index (.index (.fieldAccess (.identifier "g_g") "cells") (.identifier "i")) (.intLit 3))),
+    .return_ (some (.identifier "s"))
+  ]
+}
+
+def w511ModuleArrayFieldInitModule : Module := {
+  name := "w511_module_array_field_init",
+  imports := [],
+  globals := [
+    .varDecl "g_g" (.struct "Grid")
+      (some (.structLit "Grid" [
+        ("cells", .arrayLit (.array 3 (.array 4 .u32)) [
+          .arrayLit (.array 4 .u32) [.intLit 1, .intLit 2, .intLit 3, .intLit 4],
+          .arrayLit (.array 4 .u32) [.intLit 5, .intLit 6, .intLit 7, .intLit 8],
+          .arrayLit (.array 4 .u32) [.intLit 9, .intLit 10, .intLit 11, .intLit 12]
+        ])
+      ]))
+  ],
+  functions := [w511ModuleArrayFieldInitSumRow],
+  tests := [],
+  benches := []
+}
+
+/-- W511-B: module-level packed scalar struct var with a 2-D array field is
+    lowerable. -/
+theorem w511_module_array_field_init_lowerable :
+  Module.isLowerable w511ModuleArrayFieldInitEnv w511ModuleArrayFieldInitModule := by
+  native_decide
+
+/-- W511-C: environment for whole-struct copy between module-level packed scalar
+    struct vars. -/
+def w511ModuleArrayFieldCopyEnv : Env := {
+  structs := [("Pt", [("coords", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["copy_and_check"],
+  vars := [("g_src", .struct "Pt"), ("g_dst", .struct "Pt")]
+}
+
+/-- W511-C: copy one module-level packed struct var to another, then read back an
+    array element. -/
+def w511ModuleArrayFieldCopyAndCheck : Function := {
+  name := "copy_and_check",
+  params := [("i", .u8)],
+  ret := some .u32,
+  body := [
+    .assign (.identifier "g_dst") (.identifier "g_src"),
+    .return_ (some
+      (.index (.fieldAccess (.identifier "g_dst") "coords") (.identifier "i")))
+  ]
+}
+
+def w511ModuleArrayFieldCopyModule : Module := {
+  name := "w511_module_array_field_copy",
+  imports := [],
+  globals := [
+    .varDecl "g_src" (.struct "Pt")
+      (some (.structLit "Pt" [
+        ("coords", .arrayLit (.array 3 .u32) [.intLit 7, .intLit 8, .intLit 9])
+      ])),
+    .varDecl "g_dst" (.struct "Pt") none
+  ],
+  functions := [w511ModuleArrayFieldCopyAndCheck],
+  tests := [],
+  benches := []
+}
+
+/-- W511-C: whole-struct assignment between module-level packed scalar struct
+    vars is lowerable. -/
+theorem w511_module_array_field_copy_lowerable :
+  Module.isLowerable w511ModuleArrayFieldCopyEnv w511ModuleArrayFieldCopyModule := by
+  native_decide
+
+/- W512 witness environments and modules: arrays of structs whose element struct
+   has fixed-size scalar array fields, emitted as packed vectors per element. -/
+
+/-- W512-A: environment for reading scalar and array-typed fields of a packed AOS
+    parameter. -/
+def w512AosReadEnv : Env := {
+  structs := [("S", [("tag", .u32), ("vals", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["read_tag", "read_val"]
+}
+
+/-- W512-A: read the scalar field of a packed AOS element. -/
+def w512AosReadTag : Function := {
+  name := "read_tag",
+  params := [("arr", .array 2 (.struct "S")), ("i", .u8)],
+  ret := some .u32,
+  body := [
+    .return_ (some
+      (.fieldAccess
+        (.index (.identifier "arr") (.identifier "i"))
+        "tag"))
+  ]
+}
+
+/-- W512-A: read an element of an array-typed field inside a packed AOS element. -/
+def w512AosReadVal : Function := {
+  name := "read_val",
+  params := [("arr", .array 2 (.struct "S")), ("i", .u8), ("j", .u8)],
+  ret := some .u32,
+  body := [
+    .return_ (some
+      (.index
+        (.fieldAccess
+          (.index (.identifier "arr") (.identifier "i"))
+          "vals")
+        (.identifier "j")))
+  ]
+}
+
+def w512AosReadModule : Module := {
+  name := "w512_aos_read",
+  imports := [],
+  globals := [],
+  functions := [w512AosReadTag, w512AosReadVal],
+  tests := [],
+  benches := []
+}
+
+/-- W512-B: environment for writing a scalar field of a packed AOS local variable
+    and reading it back.  The shallow model treats assignments to non-identifier
+    LHS as no-ops, so the value-preservation theorem checks that both sides agree
+    on the same (initial) value, matching the W510 element-write witnesses. -/
+def w512AosWriteEnv : Env := {
+  structs := [("S", [("tag", .u32), ("vals", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["overwrite_and_read"]
+}
+
+/-- W512-B: declare a packed AOS local, assign to arr[0].tag, and read it back. -/
+def w512AosWriteOverwriteAndRead : Function := {
+  name := "overwrite_and_read",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "arr" (.array 2 (.struct "S"))
+      (some (.arrayLit (.array 2 (.struct "S")) [
+        .structLit "S" [
+          ("tag", .intLit 1),
+          ("vals", .arrayLit (.array 3 .u32) [.intLit 10, .intLit 20, .intLit 30])
+        ],
+        .structLit "S" [
+          ("tag", .intLit 2),
+          ("vals", .arrayLit (.array 3 .u32) [.intLit 40, .intLit 50, .intLit 60])
+        ]
+      ])),
+    .assign
+      (.fieldAccess (.index (.identifier "arr") (.intLit 0)) "tag")
+      (.intLit 7),
+    .return_ (some
+      (.fieldAccess (.index (.identifier "arr") (.intLit 0)) "tag"))
+  ]
+}
+
+def w512AosWriteModule : Module := {
+  name := "w512_aos_write",
+  imports := [],
+  globals := [],
+  functions := [w512AosWriteOverwriteAndRead],
+  tests := [],
+  benches := []
+}
+
+/-- W512-C: environment for returning an array of structs from a function and
+    reading an array-typed field of one element. -/
+def w512AosReturnEnv : Env := {
+  structs := [("S", [("tag", .u32), ("vals", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["make_arr", "read_returned"]
+}
+
+/-- W512-C: construct and return a packed array of structs. -/
+def w512AosReturnMakeArr : Function := {
+  name := "make_arr",
+  params := [],
+  ret := some (.array 2 (.struct "S")),
+  body := [
+    .return_ (some (.arrayLit (.array 2 (.struct "S")) [
+      .structLit "S" [
+        ("tag", .intLit 1),
+        ("vals", .arrayLit (.array 3 .u32) [.intLit 10, .intLit 20, .intLit 30])
+      ],
+      .structLit "S" [
+        ("tag", .intLit 2),
+        ("vals", .arrayLit (.array 3 .u32) [.intLit 40, .intLit 50, .intLit 60])
+      ]
+    ]))
+  ]
+}
+
+/-- W512-C: read arr[1].vals[2] from the returned packed AOS. -/
+def w512AosReturnReadReturned : Function := {
+  name := "read_returned",
+  params := [],
+  ret := some .u32,
+  body := [
+    .return_ (some
+      (.index
+        (.fieldAccess
+          (.index (.call "make_arr" []) (.intLit 1))
+          "vals")
+        (.intLit 2)))
+  ]
+}
+
+def w512AosReturnModule : Module := {
+  name := "w512_aos_return",
+  imports := [],
+  globals := [],
+  functions := [w512AosReturnMakeArr, w512AosReturnReadReturned],
+  tests := [],
+  benches := []
+}
+
 end Trinity.IcarusLowerable

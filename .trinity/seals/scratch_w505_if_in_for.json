@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b1f19348365e6f846264cfd8d7b76849a5d6080b60aac33ad1a447355adfadc7",
   "module": "w505_if_in_for",
   "ring": 12,
-  "sealed_at": "2026-07-12T15:34:28Z",
+  "sealed_at": "2026-07-13T09:00:35Z",
   "spec_hash": "sha256:105143103eb82f44e40497fbe6bd875ba71d8620a974586ecea9d5e075dfcfe2",
-  "spec_path": "/Users/playra/t27/specs/scratch/w505_if_in_for.t27"
+  "spec_path": "specs/scratch/w505_if_in_for.t27"
 }

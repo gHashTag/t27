@@ -1,0 +1,36 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w511_module_array_field_init.t27
+; W511 witness: initialize a module-level scalar struct variable from a struct
+; literal whose array-typed field is lowered as a packed vector.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w511_module_array_field_init;
+
+struct Grid {
+    cells : [3][4]u32
+}
+
+var g_g : Grid = Grid{.cells = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]};
+
+fn sum_row(i : u8) -> u32 {
+    var s : u32 = 0;
+    for j in 0..4 {
+        s = s + g_g.cells[i][j];
+    }
+    return s;
+}
+
+test w511_module_array_field_init_basic {
+    assert_eq(sum_row(0), 10);   // 1+2+3+4
+    assert_eq(sum_row(1), 26);   // 5+6+7+8
+    assert_eq(sum_row(2), 42);   // 9+10+11+12
+}
+
+invariant w511_module_array_field_init_invariant:
+    sum_row(1) == 26;
+
+bench w511_module_array_field_init_latency {
+    assert_eq(sum_row(1), 26);
+}
+
+endmodule

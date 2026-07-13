@@ -54,6 +54,21 @@ def Value.concatList (vs : List Value) : Value :=
   | [] => ⟨1, BitVec.ofNat 1 0⟩
   | v :: vs => vs.foldl Value.concat v
 
+/-- Helper: replace the bit slice `[off .. off+new.width-1]` of `old` with `new`,
+    leaving all other bits unchanged.  Returns `none` if the slice does not fit. -/
+def Value.replaceSlice (old new : Value) (off : Nat) : Option Value :=
+  if _h : off + new.width ≤ old.width then
+    let highW := old.width - off - new.width
+    let highBits := BitVec.extractLsb' (off + new.width) highW old.bits
+    let lowBits := BitVec.extractLsb' 0 off old.bits
+    let combined := highBits ++ new.bits ++ lowBits
+    have h : highW + new.width + off = old.width := by
+      simp [highW]
+      omega
+    some ⟨old.width, BitVec.cast h combined⟩
+  else
+    none
+
 /-- Fixed fuel budget used by the partial evaluator model.  Lowerable modules
     are finite, so a constant bound is enough for the witness set. -/
 def modelFuel : Nat := 1000
@@ -339,6 +354,13 @@ mutual
     | .switch disc cases default => do
         let d <- evalVExpr env vm val disc
         evalVSwitchStmtCases env vm val d default cases
+    | .break =>
+        -- The partial/combinational model ignores control-flow flags; the
+        -- fuel-based total semantics in `SemanticsTotal.lean` is the proof-relevant
+        -- model for bounded loops with `break`/`continue`.
+        some val
+    | .continue =>
+        some val
     | .whileLoop _ _ =>
         -- The partial/combinational model does not execute loops; the fuel-based
         -- total semantics in `SemanticsTotal.lean` is the proof-relevant model.

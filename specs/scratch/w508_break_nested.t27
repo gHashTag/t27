@@ -1,0 +1,23 @@
+module w508_break_nested;
+
+pub fn find_pair() -> u32 {
+    var result : u32 = 0;
+    for i in 0..5 {
+        var j : u32 = 0;
+        while (j < 5) {
+            if (i * 5 + j == 13) {
+                result = j;
+                break;
+            }
+            j = j + 1;
+        }
+    }
+    return result;
+}
+
+test break_nested {
+    // i=2, j=3 gives 2*5+3 = 13
+    assert_eq(find_pair(), 3);
+}
+
+endmodule

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7cc51812b6a7973836ea6e7fec7d883ecccdfcc3e1c5b7a5fd7fdbee76e4c1d3",
   "module": "w499_unconditional_function_emission",
   "ring": 12,
-  "sealed_at": "2026-07-12T09:14:57Z",
+  "sealed_at": "2026-07-13T09:00:35Z",
   "spec_hash": "sha256:7b900e098137dbcd2eeed13dda5ce98f6e0fff4fd6d376dc8bc474e675911d17",
-  "spec_path": "/Users/playra/t27/specs/scratch/w499_unconditional_function_emission.t27"
+  "spec_path": "specs/scratch/w499_unconditional_function_emission.t27"
 }

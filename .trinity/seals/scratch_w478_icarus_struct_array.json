@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d6e1a2de97d6b8090d080c01059e2c693c344c04f50b5a42380b013919b3e90a",
   "gen_hash_rust": "sha256:7d02fdd44f7e5c8611a7f2feeef23b8a458876b7af1d6e49874e09035574aefe",
-  "gen_hash_verilog": "sha256:8a92ff2715b041b41b0dc93028f3f32bb07d3d6e109a44180b25c8d3a572df17",
+  "gen_hash_verilog": "sha256:3d9e4acb57a337d5bc26dea8eb3d007a5f98b27670ded6ca4922bac960b1d830",
   "gen_hash_zig": "sha256:03ca011d4245662c5dfcfd236b7211969e351dab784319e65817d3bee34bba66",
   "module": "w478_icarus_struct_array",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:57Z",
+  "sealed_at": "2026-07-13T09:47:49Z",
   "spec_hash": "sha256:1512140b835e26c889768daa803bee24793f2c21ec619429d25c7d331de10a09",
   "spec_path": "specs/scratch/w478_icarus_struct_array.t27"
 }

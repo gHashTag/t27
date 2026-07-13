@@ -1,0 +1,38 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w512_aos_array_field_return.t27
+; W512 witness: function returning an array of packed scalar structs and
+; element-wise copy of returned array into a bench-local packed AOS.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w512_aos_array_field_return;
+
+pub struct S {
+    tag : u32,
+    vals : [3]u32,
+}
+
+fn make_arr() -> [2]S {
+    return [2]S{
+        S{.tag = 1, .vals = [10, 20, 30]},
+        S{.tag = 2, .vals = [40, 50, 60]},
+    };
+}
+
+fn read_tag(arr : [2]S, i : u8) -> u32 {
+    return arr[i].tag;
+}
+
+fn read_val(arr : [2]S, i : u8, j : u8) -> u32 {
+    return arr[i].vals[j];
+}
+
+bench w512_aos_array_field_return_bench {
+    let arr : [2]S = make_arr();
+    arr[1].vals[1] = 77;
+    assert_eq(read_tag(arr, 0), 1);
+    assert_eq(read_tag(arr, 1), 2);
+    assert_eq(read_val(arr, 0, 0), 10);
+    assert_eq(read_val(arr, 1, 1), 77);
+}
+
+endmodule

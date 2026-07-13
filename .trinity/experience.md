@@ -1,5 +1,265 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-07 — Wave Loop 511 (module-level scalar structs with array-typed fields)
+
+### What worked
+- Reusing the W509/W510 packed-vector layout (`packed_width` / `packed_field_offset`)
+  for module-level `const`/`var` instances kept the backend change small and
+  bit-exact with locals/params/returns.
+- Tracking module-level packed scalar struct identifiers in
+  `module_packed_struct_vars` let the existing field-read and element-write paths
+  consult one extra map instead of duplicating slice/offset arithmetic.
+- Skipping per-field register declarations in `gen_verilog_struct` for packable
+  scalar struct types avoided duplicate `reg` declarations and kept the emitted
+  module clean.
+- The shallow Lean model already evaluates module globals before the function body
+  and already supports `VExpr.slice` / `VExpr.index` on identifier roots, so no new
+  Verilog AST construct was needed for the read/init witnesses.
+- Using the generic `module_value_equiv_proved_sequential` theorem for the read and
+  2-D init witnesses kept the proof style consistent with W504–W509.
+- Falling back to direct `native_decide` for the whole-struct copy witness handled
+  the uninitialized module-level `g_dst` gracefully while still proving value
+  preservation.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `module_packed_struct_vars` and per-module cleanup.
+  - `gen_verilog_struct` returns early for packable scalar struct types.
+  - `gen_verilog_const` / `gen_verilog_var` emit a packed `localparam` / `reg`
+    for packable scalar structs, initialized from `try_emit_struct_literal_packed`.
+  - Packed read/write paths check both `local_packed_struct_vars` and
+    `module_packed_struct_vars`.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`: added W511 witness
+  environments, modules, and `Module.isLowerable` theorems.
+- `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`: added W511 sequential/
+  value-preservation theorems; copy witness uses direct `native_decide`.
+- `specs/scratch/w511_module_array_field_*.t27`: three new scratch witnesses.
+- `docs/reports/WAVE_LOOP_511_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W512_2026-07-07.md`: close-out and
+  next-wave cooperation variants.
+- `docs/NOW.md` and `.trinity/current-issue.md`: updated for W512 setup.
+
+### Patterns to reuse
+- Extend packed-vector lowering one storage class at a time; reuse the same
+  MSB-first width/offset utilities so every site is bit-compatible.
+- Add a dedicated map for each storage class (local vs. module) rather than
+  overloading an existing map with prefixes or flags.
+- When a module-level declaration is uninitialized, document the generic theorem
+  gap and prove the witness directly by computation.
+- Run individual Icarus and yosys checks on the new scratch specs while the full
+  suite runs; it gives fast feedback and catches syntax issues before the suite
+  finishes.
+
+### Anti-patterns to avoid
+- Do not add a redundant helper that duplicates an existing path; the first W511
+  attempt added a ternary-chain read helper, but the existing W509 `-:` slice path
+  already handled module-level reads once the map lookup was extended.
+- Do not assume module-level declarations are initialized; the sequentiality
+  predicate rejects uninitialized `varDecl` globals, so choose the proof strategy
+  accordingly.
+- Do not forget to clear per-module maps in `gen_verilog`; stale entries from a
+  previous module cause wrong field-read lowering.
+
+## 2026-07-07 — Wave Loop 510 (element-level writes into packed array-typed struct fields)
+
+### What worked
+- Adding `Value.replaceSlice` to the shallow model gave a clean, total semantics
+  for writing into a packed-vector slice without changing the existing
+  identifier-assignment path.
+- Computing lvalue offset/width in a dedicated helper (`assignTargetOffsetWidth` /
+  `assignVTargetOffsetWidth`) kept the `evalStmtTotal` / `evalVStmtTotal` cases
+  readable and matched the Rust backend's offset arithmetic.
+- Using `u32` array elements in the scratch witnesses avoided a model limitation
+  where integer literals always evaluate to 32-bit values, while the packed
+  slices still work for any scalar leaf type in the backend.
+- Direct `native_decide` value-equivalence proofs were pragmatic for W510 because
+  the generic `module_value_equiv_proved_sequential` theorem's sequentiality
+  predicate only accepts identifier LHS assignments; the lowerability theorems
+  still pass through the predicate.
+- Handling the empty-children / `extra_size` scalar array literal corner case in
+  the assignment emitter kept the fix local and avoided a risky parser change.
+
+### What changed behavior
+- `proofs/lean4/Trinity/IcarusLowerable/Semantics.lean`: added `Value.replaceSlice`.
+- `proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean`: added
+  `assignTargetOffsetWidth`, `assignVTargetOffsetWidth`, and non-identifier LHS
+  assignment cases in both t27 and Verilog total evaluators.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`: added W510 witness
+  environments, modules, and `Module.isLowerable` theorems.
+- `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`: added W510
+  value-equivalence theorems via `native_decide`.
+- `bootstrap/src/compiler.rs`: added
+  `try_gen_verilog_packed_scalar_struct_array_field_assign` for constant- and
+  variable-index writes into array-typed fields of packed scalar struct locals,
+  including scalar array literal RHS handling from `extra_size`.
+- `specs/scratch/w510_array_field_write_*.t27`: three new scratch witnesses.
+- Resealed `specs/compiler/lexer.t27`, `specs/compiler/stdlib.t27`,
+  `specs/scratch/w467_struct_field_array.t27`, and the three W510 scratch specs.
+- `docs/reports/WAVE_LOOP_510_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W511_2026-07-07.md`: close-out and
+  next-wave cooperation variants.
+- `docs/NOW.md` and `.trinity/current-issue.md`: updated for W511 setup.
+
+### Patterns to reuse
+- When the generic theorem does not cover a new construct, prove a small set of
+  representative witnesses directly and document the residual theorem gap
+  explicitly rather than silently relying on a weaker proof.
+- Model bit-vector slice updates as a replace-slice helper; it separates the
+  bit-manipulation reasoning from the statement-evaluation recursion.
+- Reuse `u32` in Lean witnesses when the model's integer literal width is fixed;
+  the generated backend still works for the original 8/16-bit specs.
+- Check both `children` and `extra_size` for array literal AST nodes; the t27
+  parser stores literal values in different fields depending on context.
+
+### Anti-patterns to avoid
+- Do not extend the generic equivalence theorem before the model, predicate,
+  and backend agree on the surface syntax; the W510 generic extension was
+  deferred because the sequentiality predicate still restricts LHS to
+  identifiers.
+- Do not assume an array literal AST node always has children; always fall back
+  to `extra_size` and validate the element count.
+- Do not forget to reseal compiler specs (`lexer.t27`, `stdlib.t27`) after a
+  codegen change; their generated Verilog hashes change even when the spec text
+  is unchanged.
+
+## 2026-07-07 — Wave Loop 509 (direct lowering of array-typed struct fields)
+
+### What worked
+- The shallow Verilog model already treated array-typed struct fields as packed
+  vectors (`VExpr.slice` + nested `VExpr.index`), so the equivalence proof needed
+  no new deep structural change once the predicate accepted the type.
+- Updating `Predicate.lean` first (`Ty.isLowerable` / `Ty.isLeafLowerable`
+  recursive array cases) let the Lean lowerability gate pass before the Rust
+  backend change landed, avoiding a classifier/predicate disagreement window.
+- Delegating the large `bootstrap/src/compiler.rs` packed-vector backend change to
+  a dedicated Creator Agent kept the Queen session free for Lean model/witness
+  alignment and final integration.
+- For witness modules with multiple functions, adding a local `Decidable`
+  instance for `Module.callContext` allowed `native_decide` to discharge the
+  call-context obligations cleanly.
+- Keeping the proof witnesses narrower than the scratch specs (reads/params/returns
+  only, no element-write LHS) let us reuse `module_value_equiv_proved_sequential`
+  without extending the generic assignment case.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `scalar_struct_can_lower_array_field_to_packed` guard.
+  - `gen_verilog_local_struct_var_decl` and struct-return local handling now
+    emit/assign one packed vector for scalar structs with scalar-array fields.
+  - `emit_struct_literal_leaf` concatenates array-typed field literals in
+    MSB-first order.
+  - `ExprIndex` lowering emits packed slices for array-typed fields of packed
+    scalar struct locals.
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`: recursive array cases in
+  `Ty.isLowerable` and `Ty.isLeafLowerable`.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`: W509 direct/param/return
+  witness environments and modules.
+- `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`: W509 lowerability /
+  sequentiality / value-preservation theorems plus a `Module.callContext`
+  `Decidable` instance.
+- `specs/scratch/w509_array_field_*.t27` and their seals: new scratch witnesses
+  demonstrating packed-vector direct/param/return array-field access.
+- `docs/reports/WAVE_LOOP_509_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W510_2026-07-07.md`: close-out and next-wave
+  cooperation variants.
+- `docs/NOW.md` and `.trinity/current-issue.md`: updated for W510 setup.
+- Branch `wave-loop-510` created from `wave-loop-509`.
+
+### Patterns to reuse
+- When a backend/model mismatch exists, check whether the *model* already
+  supports the construct structurally; often the proof side is smaller than the
+  emitter side.
+- Add a `Decidable` instance for `Module.callContext` when witness modules grow
+  beyond one function; otherwise `simp` leaves large quantified goals.
+- Keep witness theorems one step narrower than the user-facing specs if the
+  generic theorem does not yet cover every surface syntax; document the
+  residual boundary clearly rather than over-extending the proof.
+- Reseal the whole repository after any Verilog layout change; codegen-only
+  changes alter `gen_hash_verilog` for every spec that touches the affected path.
+
+### Anti-patterns to avoid
+- Do not let the Rust backend lower a construct that the Lean predicate rejects
+  (or vice versa); run `./scripts/tri verify --lean-lowerable` before declaring
+  the boundary closed.
+- Do not try to merge a worktree branch that also touched docs/experience files;
+  copy only the intended implementation files to avoid unrelated merge
+  conflicts.
+- Avoid hand-optimizing the packed layout independently of `packed_width` /
+  `packed_field_offset`; the model and the backend must agree bit-for-bit.
+
+## 2026-07-07 — Wave Loop 508 (`break` / `continue` in bounded loops)
+
+### What worked
+- Modeling `break` / `continue` with **sentinel exit flags** (`__break`, `__continue`,
+  `__return`) threaded through `evalStmtsTotal` kept the semantics purely functional
+  and matched the CakeML/CompCert fuel-based big-step style used for W504/W507.
+- Reusing the same flag discipline in the **shallow Verilog model** meant the
+  generic equivalence theorem only needed to align flag consumption/clearing, not
+  a new control-flow algebra.
+- Adding **loop-context validation** to the Lean predicate *and* the Rust classifier
+  (`fn_body_has_unlowerable_construct`) ensures `break`/`continue` outside loops are
+  rejected consistently, preventing classifier/semantic disagreements.
+- Emitting **portable flag-based Verilog** (`__break_flag_n` / `__skip_flag_n` +
+  per-statement guards) avoids relying on SystemVerilog `break`/`continue` or
+  `disable`, neither of which is accepted by the Icarus/yosys gate.
+- Adding a **negative witness** (`w508BreakOutsideLoopBad`) alongside the three
+  positive witnesses proves the loop-context gate actually rejects invalid programs.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `fn_body_has_unlowerable_construct` tracks loop depth and rejects
+    `break`/`continue` outside loops.
+  - Verilog code generation emits per-loop break/skip flags and guards
+    loop-body statements with them.
+- `proofs/lean4/Trinity/IcarusLowerable/Ast.lean`: added `Stmt.break` and
+  `Stmt.continue`.
+- `proofs/lean4/Trinity/IcarusLowerable/Verilog.lean`: added `VStmt.break` and
+  `VStmt.continue`.
+- `proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean`: added sentinel-flag
+  helpers and threaded exit flags through statement-list / loop / return
+  evaluation.
+- `proofs/lean4/Trinity/IcarusLowerable/Semantics.lean`: added partial-model
+  catch-all cases for `break`/`continue`.
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`: added
+  `Stmt.hasValidLoopControlFuel` and included it in `Module.isLowerable`.
+- `proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean`: added
+  `break`/`continue`/`return` reduction lemmas and updated `P_stmt` / `P_stmts` /
+  `P_forLoop` / `P_whileLoop` proofs.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` / `Soundness.lean`: added
+  W508 witness modules and lowerability / sequentiality / value-preservation /
+  negative theorems.
+- `specs/scratch/w508_*.t27` and `.trinity/seals/scratch_w508_*.json`: new scratch
+  witnesses and seals; all seals were regenerated after the codegen change.
+- `docs/reports/WAVE_LOOP_508_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W509_2026-07-07.md`: close-out and next-wave
+  cooperation variants.
+- `docs/NOW.md` and `.trinity/current-issue.md`: updated for W509 setup.
+- Branch `wave-loop-509` created from `wave-loop-508`.
+
+### Patterns to reuse
+- When adding control-flow constructs that affect the **rest of a statement list**,
+  thread a small exit-flag valuation rather than refactoring the result algebra;
+  it minimizes changes to the generic equivalence theorem.
+- Keep the **backend emission and the formal model aligned** by sharing the same
+  flag names and clearing discipline; the Icarus smoke gate then validates that
+  the actual generated Verilog behaves like the shallow model.
+- For constructs rejected by synthesis tools (`break`/`continue`/`disable`), encode
+  their effect with **explicit registers and guards** accepted by the entire
+  tool-chain.
+- Add a **negative theorem** whenever a well-formedness predicate is introduced,
+  to prove the gate is not vacuously true.
+
+### Anti-patterns to avoid
+- Do not assume the existing Verilog backend already emits a newly-modeled
+  construct correctly; W508 required replacing placeholder `disable fork;` /
+  `/* continue */;` output with a real flag encoding.
+- Do not add a nested `mutual` block inside an existing fuel-threaded `mutual`;
+  Lean rejects it. Extend the existing `mutual` block instead.
+- Do not use `| break =>` or `| .break =>` in `cases` when `break` is a reserved
+  token; use `| «break» =>` / `| «continue» =>`.
+- Do not skip resealing after a codegen change; even loop-only specs need fresh
+  `gen_hash_verilog` seals.
+
 ## 2026-07-07 — Wave Loop 507 (bounded `while` loops in Icarus-lowerable model)
 
 ### What worked

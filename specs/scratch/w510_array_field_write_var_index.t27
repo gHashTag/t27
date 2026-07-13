@@ -1,0 +1,30 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w510_array_field_write_var_index.t27
+; W510 witness: variable-index element write into a packed scalar-array field
+; of a local scalar struct variable.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w510_array_field_write_var_index;
+
+struct Pt {
+    coords : [3]u32,
+};
+
+fn write_and_read(i : u8) -> u32 {
+    var p : Pt = Pt{.coords = [10, 20, 30]};
+    p.coords[i] = 99;
+    return p.coords[i];
+}
+
+test w510_var_index_basic {
+    assert_eq(write_and_read(0), 99);
+    assert_eq(write_and_read(1), 99);
+    assert_eq(write_and_read(2), 99);
+}
+
+invariant w510_var_index_invariant:
+    write_and_read(1) == 99;
+
+bench w510_var_index_latency { assert_eq(write_and_read(1), 99); }
+
+endmodule

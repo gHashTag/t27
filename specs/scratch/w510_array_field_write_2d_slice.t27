@@ -1,0 +1,35 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w510_array_field_write_2d_slice.t27
+; W510 witness: variable-index sub-array (row) write into a 2-D scalar-array
+; field of a local scalar struct variable.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w510_array_field_write_2d_slice;
+
+struct Grid {
+    cells : [3][4]u32,
+};
+
+fn write_row(i : u8) -> u32 {
+    var g : Grid = Grid{.cells = [3][4]u32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}};
+    g.cells[i] = [0, 0, 0, 0];
+    var s : u32 = 0;
+    s = s + g.cells[i][0];
+    s = s + g.cells[i][1];
+    s = s + g.cells[i][2];
+    s = s + g.cells[i][3];
+    return s;
+}
+
+test w510_2d_slice_basic {
+    assert_eq(write_row(0), 0);
+    assert_eq(write_row(1), 0);
+    assert_eq(write_row(2), 0);
+}
+
+invariant w510_2d_slice_invariant:
+    write_row(1) == 0;
+
+bench w510_2d_slice_latency { assert_eq(write_row(1), 0); }
+
+endmodule

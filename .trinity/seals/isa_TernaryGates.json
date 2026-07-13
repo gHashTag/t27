@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:84bd32417589f29cb5b5a06c8aff93ab4a679870c470e27d59b9cd3f30f8de9f",
   "gen_hash_rust": "sha256:078f29025c595625b1fcc09eeb633bcc6e0aec49f5c8f0584f7e816692af87b0",
-  "gen_hash_verilog": "sha256:7da68f36ef380b58d820c6ada04acc4ca08d1a713495a1e8e354f1d5ec74ce54",
+  "gen_hash_verilog": "sha256:68225caa143a8c94aa0ec16092e0dd4e9d0fefa86a3e0b9f66f38a031c94059f",
   "gen_hash_zig": "sha256:4bceb049dd4ee8d758efd49127a119fabd46edff3cbed16affd7df7455311d5c",
   "module": "TernaryGates",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:54Z",
+  "sealed_at": "2026-07-13T09:00:34Z",
   "spec_hash": "sha256:308bcfff79d85fe7073c2e0c83baa4e6cfec444d5302f97e92ab5b004ae23a62",
   "spec_path": "specs/isa/ternary_gates.t27"
 }

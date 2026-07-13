@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:518e4769172e62bbc9e795abb0a67141482726b6a0b919c45e6d690c67b0609f",
   "module": "w470_2d_scalar_array_param",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:57Z",
+  "sealed_at": "2026-07-13T09:00:35Z",
   "spec_hash": "sha256:dcbb7dd5d15f6063a63d42c5064d1673b08dba343fcd2644eb8a922d90805dff",
   "spec_path": "specs/scratch/w470_2d_scalar_array_param.t27"
 }

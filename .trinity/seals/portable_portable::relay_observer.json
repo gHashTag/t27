@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d581e9a02b43b9f2c4c0e47a3a9bafdf5d4650b510301e423a0e014c0e4594a6",
   "module": "portable::relay_observer",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:55Z",
+  "sealed_at": "2026-07-13T09:00:34Z",
   "spec_hash": "sha256:315bb887adeac016db05cd619379de5c3017199bb1eba77bffeb142427da1147",
   "spec_path": "specs/portable/relay_observer.t27"
 }

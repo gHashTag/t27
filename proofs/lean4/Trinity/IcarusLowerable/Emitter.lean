@@ -156,6 +156,8 @@ mutual
         .forLoop var (emitExpr fuel env m range) (emitStmts fuel env m body)
     | .whileLoop cond body =>
         .whileLoop (emitExpr fuel env m cond) (emitStmts fuel env m body)
+    | .break => .break
+    | .continue => .continue
     | .return_ e =>
         let rhs := (e.map (emitExpr fuel env m)).getD (VExpr.lit 1 "0")
         .assign (.ident "__return") rhs

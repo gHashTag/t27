@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3495660435540c5dfb0133468ebe079cb88da2ae43d1410af0126dc1c721d50d",
   "module": "w505_nested_if",
   "ring": 12,
-  "sealed_at": "2026-07-12T15:34:28Z",
+  "sealed_at": "2026-07-13T09:00:35Z",
   "spec_hash": "sha256:3ad364de4c154b0b3058f5a4652cc969875daabe6a5e06602989e46e0879bf74",
-  "spec_path": "/Users/playra/t27/specs/scratch/w505_nested_if.t27"
+  "spec_path": "specs/scratch/w505_nested_if.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a03fbe3f22e19f5f0045884f465d77e1cdd506ef387825e0822a7e82b5240c39",
   "module": "w485_host_helper_shadow",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:57Z",
+  "sealed_at": "2026-07-13T09:00:35Z",
   "spec_hash": "sha256:70f2b1b271bc7105d910c12f50234b58a06c45bac7c9ee0e6d2a6408e4ee7d69",
   "spec_path": "specs/scratch/w485_host_helper_shadow.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:fc21d42481f7d2e79c26a6e7356595888db76b7442941f96d70ebf8e7875c8c7",
   "module": "w504_for_sum",
   "ring": 12,
-  "sealed_at": "2026-07-12T15:03:23Z",
+  "sealed_at": "2026-07-13T09:00:35Z",
   "spec_hash": "sha256:f6f7df8e36973554b4cf1a3d7e75b09ffadf0c5f7e8053a7655735a1544f0437",
   "spec_path": "specs/scratch/w504_for_sum.t27"
 }

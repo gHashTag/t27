@@ -71,14 +71,14 @@ def Ty.isNumeric : Ty → Bool
 /-- Types that are lowerable in synthesizable Icarus contexts. -/
 def Ty.isLowerable : Ty → Bool
   | .bool | .u8 | .u16 | .u32 | .u64 | .i8 | .i16 | .i32 | .i64 => true
-  | .array _ elem => elem.isLowerable
+  | .array n elem => n > 0 && elem.isLowerable
   | .struct _ => true   -- struct lowerability is checked per-field when used
   | .f32 | .string | .enum _ => false
 
 /-- Leaf-field lowerability: used when a struct is actually packed/sliced. -/
 def Ty.isLeafLowerable : Ty → Bool
   | .bool | .u8 | .u16 | .u32 | .u64 | .i8 | .i16 | .i32 | .i64 => true
-  | .array _ elem => elem.isLeafLowerable
+  | .array n elem => n > 0 && elem.isLeafLowerable
   | .f32 | .string | .enum _ | .struct _ => false
 
 /-- Is the given operator a lowerable numeric/bitwise/boolean operator? -/
@@ -196,6 +196,8 @@ def Stmt.isLowerableFuel (fuel : Nat) (env : Env) (s : Stmt) : Bool :=
       range.isLowerableFuel fuel env && Stmt.isLowerableListFuel fuel env body
   | fuel+1, env, .whileLoop cond body =>
       cond.isLowerableFuel fuel env && Stmt.isLowerableListFuel fuel env body
+  | fuel+1, env, .break => true
+  | fuel+1, env, .continue => true
   | fuel+1, env, .return_ e => e.all (fun x => x.isLowerableFuel fuel env)
   | fuel+1, env, .bareCall e => e.isLowerableFuel fuel env
 
@@ -205,6 +207,57 @@ def Stmt.isLowerableListFuel (fuel : Nat) (env : Env) (ss : List Stmt) : Bool :=
   | 0, _, _ => false
   | fuel+1, env, [] => true
   | fuel+1, env, s::ss => s.isLowerableFuel fuel env && Stmt.isLowerableListFuel fuel env ss
+
+/-- Contextual validity of `break`/`continue`: they may only appear inside a loop
+    body.  The predicate is fuel-threaded for transparency and mutually recursive
+    over statement lists and switch-case lists.  A `break`/`continue` outside any
+    loop makes the whole statement invalid. -/
+  def Stmt.hasValidLoopControlFuel (fuel : Nat) (inLoop : Bool) (s : Stmt) : Bool :=
+    match fuel, s with
+    | 0, _ => false
+    | fuel+1, .break => inLoop
+    | fuel+1, .continue => inLoop
+    | fuel+1, .ifThenElse _ then_ else_ =>
+        Stmt.hasValidLoopControlListFuel fuel inLoop then_ &&
+        Stmt.hasValidLoopControlListFuel fuel inLoop else_
+    | fuel+1, .switch _ cases default =>
+        Stmt.hasValidLoopControlSwitchCaseListFuel fuel inLoop cases &&
+        Stmt.hasValidLoopControlListFuel fuel inLoop default
+    | fuel+1, .forLoop _ _ body =>
+        Stmt.hasValidLoopControlListFuel fuel true body
+    | fuel+1, .whileLoop _ body =>
+        Stmt.hasValidLoopControlListFuel fuel true body
+    | fuel+1, _ => true
+
+  def Stmt.hasValidLoopControlListFuel (fuel : Nat) (inLoop : Bool) (ss : List Stmt) : Bool :=
+    match fuel, ss with
+    | 0, _ => false
+    | fuel+1, [] => true
+    | fuel+1, s::ss =>
+        s.hasValidLoopControlFuel fuel inLoop &&
+        Stmt.hasValidLoopControlListFuel fuel inLoop ss
+
+  def Stmt.hasValidLoopControlSwitchCaseListFuel (fuel : Nat) (inLoop : Bool)
+      (cs : List (Expr × List Stmt)) : Bool :=
+    match fuel, cs with
+    | 0, _ => false
+    | fuel+1, [] => true
+    | fuel+1, (_, body)::cs =>
+        Stmt.hasValidLoopControlListFuel fuel inLoop body &&
+        Stmt.hasValidLoopControlSwitchCaseListFuel fuel inLoop cs
+
+/-- Wrapper: loop-control validity with the default predicate fuel and no
+    surrounding loop. -/
+def Stmt.hasValidLoopControl (s : Stmt) : Bool := s.hasValidLoopControlFuel predicateFuel false
+
+/-- True when a function body only uses `break`/`continue` inside loops. -/
+def Function.hasValidLoopControl (env : Env) (fn : Function) : Bool :=
+  if Env.isHostOnly env fn.name then true else fn.body.all Stmt.hasValidLoopControl
+
+/-- True when an entire module satisfies the loop-control invariant. -/
+def Module.hasValidLoopControl (env : Env) (m : Module) : Bool :=
+  m.globals.all Stmt.hasValidLoopControl
+  && m.functions.all (Function.hasValidLoopControl env)
 
 /-- True when an expression is purely combinational (no placeholder nodes).
     Total and transparent by fuel-threaded structural recursion. -/
@@ -285,6 +338,8 @@ def Stmt.isCombinationalFuel (fuel : Nat) (s : Stmt) : Bool :=
       Stmt.isCombinationalListFuel fuel default
   | fuel+1, .forLoop _ _ _ => false
   | fuel+1, .whileLoop _ _ => false
+  | fuel+1, .break => false
+  | fuel+1, .continue => false
   | fuel+1, .return_ (some e) => e.isCombinationalFuel fuel
   | fuel+1, .return_ none => false
   | fuel+1, .bareCall e => e.isCombinationalFuel fuel
@@ -399,6 +454,8 @@ def Stmt.functionNamesFuel (fuel : Nat) (s : Stmt) : List String :=
       range.functionNamesFuel fuel ++ Stmt.functionNamesListFuel fuel body
   | fuel+1, .whileLoop cond body =>
       cond.functionNamesFuel fuel ++ Stmt.functionNamesListFuel fuel body
+  | fuel+1, .break => []
+  | fuel+1, .continue => []
   | fuel+1, .return_ (some e) => e.functionNamesFuel fuel
   | fuel+1, .return_ none => []
   | fuel+1, .bareCall e => e.functionNamesFuel fuel
@@ -483,6 +540,8 @@ mutual
         range.functionNames' ++ Stmt.functionNamesList' body
     | .whileLoop cond body =>
         cond.functionNames' ++ Stmt.functionNamesList' body
+    | .break => []
+    | .continue => []
     | .return_ (some e) => e.functionNames'
     | .return_ none => []
     | .bareCall e => e.functionNames'
@@ -524,14 +583,17 @@ def Function.isLowerable (env : Env) (fn : Function) : Bool :=
     let interfaceOK := fn.params.all (fun p => p.2.isLowerable) && fn.ret.all (·.isLowerable)
     interfaceOK && fn.body.all (Stmt.isLowerable env)
 
-/-- A module is lowerable when all globals and emitted functions are lowerable.
-    W499: reachability no longer gates lowerability because every non-host-only
-    function is emitted unconditionally.  Tests and benches are not part of the
-    Icarus synthesizable model, so they are not checked here. -/
+/-- A module is lowerable when all globals and emitted functions are lowerable
+    and `break`/`continue` only occur inside loop bodies.  W499: reachability no
+    longer gates lowerability because every non-host-only function is emitted
+    unconditionally.  Tests and benches are not part of the Icarus synthesizable
+    model, so they are not checked here. -/
 def Module.isLowerable (env : Env) (m : Module) : Bool :=
   let globalLowerable := m.globals.all (Stmt.isLowerable env)
   let fnsLowerable := m.functions.all (Function.isLowerable env)
-  globalLowerable && fnsLowerable
+  let globalsValid := m.globals.all Stmt.hasValidLoopControl
+  let fnsValid := m.functions.all (Function.hasValidLoopControl env)
+  globalLowerable && fnsLowerable && globalsValid && fnsValid
 
 /-- Standalone verdict for a module under a given environment. -/
 def lowerabilityVerdict (env : Env) (m : Module) : String :=
@@ -675,6 +737,8 @@ mutual
         range.isCombinational' && Stmt.isSequentialList' body
     | .whileLoop cond body =>
         cond.isCombinational' && Stmt.isSequentialList' body
+    | .break => true
+    | .continue => true
     | .return_ (some e) => e.isCombinational'
     | .bareCall e => e.isCombinational'
     | _ => false
@@ -766,6 +830,12 @@ theorem Stmt.isCombinationalList_implies_isSequentialList' :
               · exact h1_1
               · exact Stmt.isCombinationalSwitchCaseList_implies_isSequentialSwitchCaseList' cases h1_2
             · exact Stmt.isCombinationalList_implies_isSequentialList' default h1_3
+        | «break» =>
+            simp at h1
+            all_goals contradiction
+        | «continue» =>
+            simp at h1
+            all_goals contradiction
         | forLoop _ _ _ =>
             simp at h1
             all_goals contradiction

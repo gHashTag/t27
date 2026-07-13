@@ -39,6 +39,8 @@ inductive VStmt
   | switch (disc : VExpr) (cases : List (VExpr × List VStmt)) (default : List VStmt)
   | forLoop (var : String) (range : VExpr) (body : List VStmt)
   | whileLoop (cond : VExpr) (body : List VStmt)
+  | break
+  | continue
   | taskCall (name : String) (args : List VExpr)
   deriving Repr, BEq, Nonempty
 

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:07012ff3bf1b57605252223aeefb27d67de5d1f7984cea7925d0cb660d3d3155",
   "module": "w469_module_scalar_struct_assign",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:56Z",
+  "sealed_at": "2026-07-13T09:00:35Z",
   "spec_hash": "sha256:f46948d3a3f74748e5a7017c063aedda640e7d2bbbca4624d4873b44d7b21491",
   "spec_path": "specs/scratch/w469_module_scalar_struct_assign.t27"
 }

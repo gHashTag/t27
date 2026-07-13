@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:37a8d3dca8bc886797000053a14ebac58c64833e6736ae6c9cfc24d329186105",
   "module": "w486_helper_module",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:57Z",
+  "sealed_at": "2026-07-13T09:00:35Z",
   "spec_hash": "sha256:8b33a99dfca10be4d439d7bbe93b310a08941fdb67740d4a37f332d1551282de",
   "spec_path": "specs/scratch/w486_helper_module.t27"
 }

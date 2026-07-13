@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:793078f0ec6796f73fe0daa69a99438f8db1f651ea6b2ed87735cca88ea1c696",
   "module": "server-router",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:56Z",
+  "sealed_at": "2026-07-13T09:00:35Z",
   "spec_hash": "sha256:f573875f99459616a5401e26a0c901796df43b8e1f00b9cf21d1cdcbcecee2f1",
   "spec_path": "specs/server/router.t27"
 }

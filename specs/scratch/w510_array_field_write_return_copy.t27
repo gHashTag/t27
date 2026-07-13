@@ -1,0 +1,32 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w510_array_field_write_return_copy.t27
+; W510 witness: mutate a packed scalar-array field of a local struct variable
+; and return the whole struct; the caller verifies the packed vector.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w510_array_field_write_return_copy;
+
+struct Pt {
+    coords : [3]u32,
+};
+
+fn mutate() -> Pt {
+    var p : Pt = Pt{.coords = [1, 2, 3]};
+    p.coords[1] = 42;
+    return p;
+}
+
+fn check() -> u32 {
+    return mutate().coords[1];
+}
+
+test w510_return_copy_basic {
+    assert_eq(check(), 42);
+}
+
+invariant w510_return_copy_invariant:
+    check() == 42;
+
+bench w510_return_copy_latency { assert_eq(check(), 42); }
+
+endmodule

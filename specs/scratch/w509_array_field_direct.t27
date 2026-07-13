@@ -1,0 +1,50 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w509_array_field_direct.t27
+; W509 witness: direct lowering of a fixed-size scalar array field of a
+; local struct variable as a contiguous packed vector.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w509_array_field_direct;
+
+struct Pt {
+    coords : [3]u8,
+    tag : u8,
+};
+
+struct Pt2 {
+    grid : [2][3]u8,
+    tag : u8,
+};
+
+fn sum_local_pt() -> u16 {
+    var p : Pt = Pt{.coords = [1, 2, 3], .tag = 7};
+    var s : u16 = 0;
+    s = s + (p.coords[0] as u16);
+    s = s + (p.coords[1] as u16);
+    s = s + (p.coords[2] as u16);
+    s = s + (p.tag as u16);
+    p.coords[1] = 5;
+    s = s + (p.coords[1] as u16);
+    return s;
+}
+
+fn sum_2d_local_pt() -> u16 {
+    var p : Pt2 = Pt2{.grid = [2][3]u8{1, 2, 3, 4, 5, 6}, .tag = 1};
+    var s : u16 = 0;
+    s = s + (p.grid[0][0] as u16);
+    s = s + (p.grid[0][2] as u16);
+    s = s + (p.grid[1][1] as u16);
+    s = s + (p.tag as u16);
+    p.grid[1][2] = 9;
+    s = s + (p.grid[1][2] as u16);
+    return s;
+}
+
+test w509_array_field_direct_basic { assert_eq(sum_local_pt(), 18); assert_eq(sum_2d_local_pt(), 19); }
+
+invariant w509_array_field_direct_nonneg:
+    sum_local_pt() >= 0;
+
+bench w509_array_field_direct_latency { assert_eq(sum_local_pt(), 18); }
+
+endmodule

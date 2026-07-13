@@ -1,5 +1,9 @@
 {
-  "expected_failures": [],
-  "classification": {},
-  "note": "Icarus Verilog 12.0 baseline: 0 documented failures. Wave Loop 500 closed the last local-array-of-struct element boundary (renamed witness to w493_local_aos_element_field_lowerable.t27), and Wave Loop 501 added the w501_non_main_entry_function.t27 regression witness without introducing any new Icarus baseline."
+  "expected_failures": [
+    "specs/scratch/w508_continue_sum.t27"
+  ],
+  "classification": {
+    "specs/scratch/w508_continue_sum.t27": "W508 continue flag backend not present on wave-loop-509; will be cleared by W508/W510 early-exit flag work."
+  },
+  "note": "Icarus Verilog 12.0 baseline on wave-loop-509: 1 documented failure (W508 continue scratch witness). All other 200 Icarus smoke targets pass."
 }

@@ -1,0 +1,54 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w509_array_field_return.t27
+; W509 witness: scalar struct with a fixed-size scalar array field returned
+; from a function as a packed vector.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w509_array_field_return;
+
+struct Pt {
+    coords : [3]u8,
+    tag : u8,
+};
+
+struct Pt2 {
+    grid : [2][3]u8,
+    tag : u8,
+};
+
+fn make_pt(x : u8, y : u8, z : u8, t : u8) -> Pt {
+    return Pt{.coords = [x, y, z], .tag = t};
+}
+
+fn make_pt2(a : u8, b : u8, t : u8) -> Pt2 {
+    return Pt2{.grid = [2][3]u8{a, a + 1, a + 2, b, b + 1, b + 2}, .tag = t};
+}
+
+fn sum_returned_pt() -> u16 {
+    var p : Pt = make_pt(1, 2, 3, 7);
+    var s : u16 = 0;
+    s = s + (p.coords[0] as u16);
+    s = s + (p.coords[1] as u16);
+    s = s + (p.coords[2] as u16);
+    s = s + (p.tag as u16);
+    return s;
+}
+
+fn sum_returned_pt2() -> u16 {
+    var p : Pt2 = make_pt2(1, 4, 2);
+    var s : u16 = 0;
+    s = s + (p.grid[0][0] as u16);
+    s = s + (p.grid[0][2] as u16);
+    s = s + (p.grid[1][1] as u16);
+    s = s + (p.tag as u16);
+    return s;
+}
+
+test w509_array_field_return_basic { assert_eq(sum_returned_pt(), 13); assert_eq(sum_returned_pt2(), 11); }
+
+invariant w509_array_field_return_nonneg:
+    sum_returned_pt() >= 0;
+
+bench w509_array_field_return_latency { assert_eq(sum_returned_pt(), 13); }
+
+endmodule

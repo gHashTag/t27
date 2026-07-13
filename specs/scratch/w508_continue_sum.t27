@@ -1,0 +1,19 @@
+module w508_continue_sum;
+
+pub fn sum_odd() -> u32 {
+    var acc : u32 = 0;
+    for i in 0..10 {
+        if (i % 2 == 0) {
+            continue;
+        }
+        acc = acc + i;
+    }
+    return acc;
+}
+
+test continue_sum {
+    // 1 + 3 + 5 + 7 + 9 = 25
+    assert_eq(sum_odd(), 25);
+}
+
+endmodule

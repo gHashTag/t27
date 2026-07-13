@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9977f4aeee35b616a0de567d032364f73ac7963d25f9755fe2e6b149c6db9554",
   "gen_hash_rust": "sha256:4fd0752e86c1c7638ba456af501f0c9190894ea5a01a2ea5a6a7e2dd19148964",
-  "gen_hash_verilog": "sha256:5804d7d55ea6cb89445238c218444b131d9e3d7e7934e8bd42d0cef01c15de5a",
+  "gen_hash_verilog": "sha256:822aff6de8e62800ce53bc0c8e52c7663651a8d1eeaa5ea88be535a402dd8fd9",
   "gen_hash_zig": "sha256:e3a536688d143f43a6a64594d929d6387f5472b19220cbf60c06e4d59ccfd2ab",
   "module": "w488_wildcard_aos_array_field_alias",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:56Z",
+  "sealed_at": "2026-07-13T09:47:49Z",
   "spec_hash": "sha256:a6254c59bc9784ba99bf98a6ee40ed829d29f9025d5579b4e188337013b40ff4",
   "spec_path": "specs/scratch/w488_wildcard_aos_array_field_alias.t27"
 }

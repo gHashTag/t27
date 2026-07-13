@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5eb73ce24bf3047d81cb4ec9a3eeed75d678af962f74a505bafcdd3873bfc083",
   "module": "w491_host_only_rejected",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:56Z",
+  "sealed_at": "2026-07-13T09:00:35Z",
   "spec_hash": "sha256:dc2eb1a18daab6a74b80f4c26ed1fd59429615ee7124df075caaf406e04be4af",
   "spec_path": "specs/scratch/w491_host_only_rejected.t27"
 }

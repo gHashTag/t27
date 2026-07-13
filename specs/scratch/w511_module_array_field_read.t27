@@ -1,0 +1,32 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w511_module_array_field_read.t27
+; W511 witness: read a fixed-size scalar array field of a module-level scalar
+; struct variable inside a function.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w511_module_array_field_read;
+
+struct Pt {
+    coords : [3]u32
+}
+
+var g_p : Pt = Pt{.coords = [10, 20, 30]};
+
+fn read_coord(i : u8) -> u32 {
+    return g_p.coords[i];
+}
+
+test w511_module_array_field_read_basic {
+    assert_eq(read_coord(0), 10);
+    assert_eq(read_coord(1), 20);
+    assert_eq(read_coord(2), 30);
+}
+
+invariant w511_module_array_field_read_invariant:
+    read_coord(1) == 20;
+
+bench w511_module_array_field_read_latency {
+    assert_eq(read_coord(1), 20);
+}
+
+endmodule

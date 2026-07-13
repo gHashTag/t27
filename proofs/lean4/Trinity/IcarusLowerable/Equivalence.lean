@@ -1465,6 +1465,14 @@ theorem emitStmt_default_bareCall (env m) (e : Expr) :
     VStmt.taskCall "" [emitExpr defaultFuel env m e] := by
   conv => lhs; unfold emitStmt; rfl
 
+theorem emitStmt_default_break (env m) :
+    emitStmt defaultFuel env m Stmt.break = VStmt.break := by
+  conv => lhs; unfold emitStmt; rfl
+
+theorem emitStmt_default_continue (env m) :
+    emitStmt defaultFuel env m Stmt.continue = VStmt.continue := by
+  conv => lhs; unfold emitStmt; rfl
+
 theorem emitStmts_default_cons (env m) (s : Stmt) (ss : List Stmt) :
     emitStmts defaultFuel env m (s :: ss) =
     emitStmt defaultFuel env m s :: emitStmts defaultFuel env m ss := by
@@ -1844,10 +1852,22 @@ theorem evalStmtTotal_succ_constDecl_some (fuel env m) (name : String) (ty : Ty)
 theorem evalStmtTotal_succ_return_some (fuel env m) (e : Expr) (val : Valuation) :
     evalStmtTotal (fuel + 1) env m val (Stmt.return_ (some e)) =
     (evalExprTotal fuel env m val e).bind (fun rv =>
-      some (fun x => if x == "__return" then some rv else val x)) := by
+      some (setFlag val returnFlag rv)) := by
     cases h : evalExprTotal fuel env m val e with
     | none => simp [h, evalStmtTotal, Option.bind]
-    | some rv => simp [h, evalStmtTotal, Option.bind]
+    | some rv =>
+        simp [h, evalStmtTotal, Option.bind, setFlag, returnFlag]
+        try { funext x; simp }
+
+theorem evalStmtTotal_succ_break (fuel env m) (val : Valuation) :
+    evalStmtTotal (fuel + 1) env m val Stmt.break =
+    some (setFlag val breakFlag ⟨1, 1#1⟩) := by
+    simp [evalStmtTotal, Option.bind]
+
+theorem evalStmtTotal_succ_continue (fuel env m) (val : Valuation) :
+    evalStmtTotal (fuel + 1) env m val Stmt.continue =
+    some (setFlag val continueFlag ⟨1, 1#1⟩) := by
+    simp [evalStmtTotal, Option.bind]
 
 theorem evalStmtTotal_succ_ifThenElse (fuel env m) (cond : Expr) (then_ else_ : List Stmt) (val : Valuation) :
     evalStmtTotal (fuel + 1) env m val (Stmt.ifThenElse cond then_ else_) =
@@ -1888,11 +1908,14 @@ theorem evalStmtTotal_succ_bareCall (fuel env m) (e : Expr) (val : Valuation) :
 
 theorem evalStmtsTotal_succ_cons (fuel env m) (s : Stmt) (ss : List Stmt) (val : Valuation) :
     evalStmtsTotal (fuel + 1) env m val (s :: ss) =
-    (evalStmtTotal fuel env m val s).bind (fun val' =>
+    if hasExitFlag val then some val
+    else (evalStmtTotal fuel env m val s).bind (fun val' =>
       evalStmtsTotal fuel env m val' ss) := by
-    cases h : evalStmtTotal fuel env m val s with
-    | none => simp [h, evalStmtsTotal, Option.bind]
-    | some val' => simp [h, evalStmtsTotal, Option.bind]
+    by_cases h : hasExitFlag val
+    · simp [h, evalStmtsTotal]
+    · cases h' : evalStmtTotal fuel env m val s with
+      | none => simp [h, h', evalStmtsTotal, Option.bind]
+      | some val' => simp [h, h', evalStmtsTotal, Option.bind]
 
 theorem evalStmtsTotal_succ_nil (fuel env m) (val : Valuation) :
     evalStmtsTotal (fuel + 1) env m val [] = some val := by
@@ -1958,13 +1981,26 @@ theorem evalVStmtTotal_succ_taskCall (fuel env vm) (name : String) (args : List 
     evalVStmtTotal (fuel + 1) env vm val (VStmt.taskCall name args) = some val := by
     simp [evalVStmtTotal]
 
+theorem evalVStmtTotal_succ_break (fuel env vm) (val : Valuation) :
+    evalVStmtTotal (fuel + 1) env vm val VStmt.break =
+    some (setFlag val breakFlag ⟨1, 1#1⟩) := by
+    simp [evalVStmtTotal, Option.bind]
+
+theorem evalVStmtTotal_succ_continue (fuel env vm) (val : Valuation) :
+    evalVStmtTotal (fuel + 1) env vm val VStmt.continue =
+    some (setFlag val continueFlag ⟨1, 1#1⟩) := by
+    simp [evalVStmtTotal, Option.bind]
+
 theorem evalVStmtsTotal_succ_cons (fuel env vm) (s : VStmt) (ss : List VStmt) (val : Valuation) :
     evalVStmtsTotal (fuel + 1) env vm val (s :: ss) =
-    (evalVStmtTotal fuel env vm val s).bind (fun val' =>
+    if hasExitFlag val then some val
+    else (evalVStmtTotal fuel env vm val s).bind (fun val' =>
       evalVStmtsTotal fuel env vm val' ss) := by
-    cases h : evalVStmtTotal fuel env vm val s with
-    | none => simp [h, evalVStmtsTotal, Option.bind]
-    | some val' => simp [h, evalVStmtsTotal, Option.bind]
+    by_cases h : hasExitFlag val
+    · simp [h, evalVStmtsTotal]
+    · cases h' : evalVStmtTotal fuel env vm val s with
+      | none => simp [h, h', evalVStmtsTotal, Option.bind]
+      | some val' => simp [h, h', evalVStmtsTotal, Option.bind]
 
 theorem evalVStmtsTotal_succ_nil (fuel env vm) (val : Valuation) :
     evalVStmtsTotal (fuel + 1) env vm val [] = some val := by
@@ -2524,7 +2560,7 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
                 intro rv
                 apply congr_arg some
                 funext x
-                simp [Valuation.set_eq]
+                simp [Valuation.set_eq, setFlag, returnFlag]
                 try { by_cases h : x == "__return"; simp [h] }
         | bareCall e =>
             have hcomb_e := Stmt.isSequential_bareCall hseq_s
@@ -2589,6 +2625,10 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
             exact ih_while val cond body
               (emitExpr defaultFuel env₀ m₀ cond) (emitStmts defaultFuel env₀ m₀ body)
               rfl rfl hcc_cond hcc_body hcomb_cond hseq_body hval
+        | «break» =>
+            simp only [emitStmt_default_break, evalStmtTotal_succ_break, evalVStmtTotal_succ_break]
+        | «continue» =>
+            simp only [emitStmt_default_continue, evalStmtTotal_succ_continue, evalVStmtTotal_succ_continue]
       constructor
       · -- P_stmts (fuel + 1)
         intro val ss vss heq hcc_ss hseq_ss hval
@@ -2604,9 +2644,11 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
             simp only [evalStmtsTotal_succ_cons, evalVStmtsTotal_succ_cons, emitStmts_default_cons]
             have h_s := ih_stmt val s (emitStmt defaultFuel env₀ m₀ s) rfl hcc_s hseq_s hval
             rw [h_s]
-            apply Option.bind_congr_ext rfl
-            intro val'
-            exact ih_stmts val' ss (emitStmts defaultFuel env₀ m₀ ss) rfl hcc_ss' hseq_ss' (Valuation.equiv_refl val')
+            split_ifs with hexit
+            · rfl
+            · apply Option.bind_congr_ext rfl
+              intro val'
+              exact ih_stmts val' ss (emitStmts defaultFuel env₀ m₀ ss) rfl hcc_ss' hseq_ss' (Valuation.equiv_refl val')
       constructor
       · -- P_function (fuel + 1)
         intro base fn vfn argVals heq hcc_fn hseq_fn hbase
@@ -2643,9 +2685,11 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
             rw [h_body]
             apply Option.bind_congr_ext rfl
             intro val'
-            exact ih_loop val' var (i + 1) n body
-              (emitStmts defaultFuel env₀ m₀ body) rfl hcc hseq
-              (Valuation.equiv_refl val')
+            split_ifs with hexit
+            · rfl
+            · exact ih_loop (clearLoopFlags val') var (i + 1) n body
+                (emitStmts defaultFuel env₀ m₀ body) rfl hcc hseq
+                (Valuation.equiv_refl _)
       · -- P_whileLoop (fuel + 1)
         intro val cond body vcond vbody heq_cond heq_body hcc_cond hcc_body hcomb_cond hseq_body hval
         rw [← heq_cond, ← heq_body]
@@ -2659,9 +2703,11 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
           rw [h_body]
           apply Option.bind_congr_ext rfl
           intro val'
-          exact ih_while val' cond body
-            (emitExpr defaultFuel env₀ m₀ cond) (emitStmts defaultFuel env₀ m₀ body)
-            rfl rfl hcc_cond hcc_body hcomb_cond hseq_body (Valuation.equiv_refl val')
+          split_ifs with hexit
+          · rfl
+          · exact ih_while (clearLoopFlags val') cond body
+              (emitExpr defaultFuel env₀ m₀ cond) (emitStmts defaultFuel env₀ m₀ body)
+              rfl rfl hcc_cond hcc_body hcomb_cond hseq_body (Valuation.equiv_refl _)
         · rfl
 
 end EquivProof

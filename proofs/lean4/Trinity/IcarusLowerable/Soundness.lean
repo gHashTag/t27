@@ -654,4 +654,431 @@ theorem w507_while_nested_value_equiv :
   exact module_value_equiv_proved_sequential w507WhileNestedEnv w507WhileNestedModule
     hlowerable hunique hseq hctx "nested_sum" w507WhileNestedNestedSum [] hfind hhost
 
+/- W508 theorems: `break`/`continue` in bounded loops. -/
+
+/-- W508-A: the while-loop break witness is sequential. -/
+theorem w508_break_search_sequential :
+  Module.isSequential w508BreakSearchEnv w508BreakSearchModule := by
+  native_decide
+
+/-- W508-A: value preservation for `find_target(1)` (returns index 2). -/
+theorem w508_break_search_value_equiv :
+  evalModuleFunctionTotal defaultFuel w508BreakSearchEnv w508BreakSearchModule "find_target"
+    [⟨32, BitVec.ofNat 32 1⟩] =
+  evalVModuleTotal defaultFuel w508BreakSearchEnv (emitModule w508BreakSearchEnv w508BreakSearchModule) "find_target"
+    [⟨32, BitVec.ofNat 32 1⟩] := by
+  have hlowerable : Module.isLowerable w508BreakSearchEnv w508BreakSearchModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w508BreakSearchModule := by
+    simp [Module.hasUniqueFunctionNames, w508BreakSearchModule, w508BreakSearchFindTarget]
+  have hseq : Module.isSequential w508BreakSearchEnv w508BreakSearchModule := by native_decide
+  have hctx : Module.callContext w508BreakSearchEnv w508BreakSearchModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w508BreakSearchEnv, w508BreakSearchModule, w508BreakSearchFindTarget]
+  have hfind : w508BreakSearchModule.findFunction "find_target" = some w508BreakSearchFindTarget := by
+    simp [Module.findFunction, w508BreakSearchModule, w508BreakSearchFindTarget]
+  have hhost : ¬ Env.isHostOnly w508BreakSearchEnv w508BreakSearchFindTarget.name := by
+    simp [Env.isHostOnly, w508BreakSearchEnv, w508BreakSearchFindTarget]
+  exact module_value_equiv_proved_sequential w508BreakSearchEnv w508BreakSearchModule
+    hlowerable hunique hseq hctx "find_target" w508BreakSearchFindTarget [⟨32, BitVec.ofNat 32 1⟩] hfind hhost
+
+/-- W508-B: the for-loop continue witness is sequential. -/
+theorem w508_continue_sum_sequential :
+  Module.isSequential w508ContinueSumEnv w508ContinueSumModule := by
+  native_decide
+
+/-- W508-B: value preservation for `sum_odd()` (returns 25). -/
+theorem w508_continue_sum_value_equiv :
+  evalModuleFunctionTotal defaultFuel w508ContinueSumEnv w508ContinueSumModule "sum_odd" [] =
+  evalVModuleTotal defaultFuel w508ContinueSumEnv (emitModule w508ContinueSumEnv w508ContinueSumModule) "sum_odd" [] := by
+  have hlowerable : Module.isLowerable w508ContinueSumEnv w508ContinueSumModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w508ContinueSumModule := by
+    simp [Module.hasUniqueFunctionNames, w508ContinueSumModule, w508ContinueSumSumOdd]
+  have hseq : Module.isSequential w508ContinueSumEnv w508ContinueSumModule := by native_decide
+  have hctx : Module.callContext w508ContinueSumEnv w508ContinueSumModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w508ContinueSumEnv, w508ContinueSumModule, w508ContinueSumSumOdd]
+  have hfind : w508ContinueSumModule.findFunction "sum_odd" = some w508ContinueSumSumOdd := by
+    simp [Module.findFunction, w508ContinueSumModule, w508ContinueSumSumOdd]
+  have hhost : ¬ Env.isHostOnly w508ContinueSumEnv w508ContinueSumSumOdd.name := by
+    simp [Env.isHostOnly, w508ContinueSumEnv, w508ContinueSumSumOdd]
+  exact module_value_equiv_proved_sequential w508ContinueSumEnv w508ContinueSumModule
+    hlowerable hunique hseq hctx "sum_odd" w508ContinueSumSumOdd [] hfind hhost
+
+/-- W508-C: the nested break witness is sequential. -/
+theorem w508_break_nested_sequential :
+  Module.isSequential w508BreakNestedEnv w508BreakNestedModule := by
+  native_decide
+
+/-- W508-C: value preservation for `find_pair()` (returns 3). -/
+theorem w508_break_nested_value_equiv :
+  evalModuleFunctionTotal defaultFuel w508BreakNestedEnv w508BreakNestedModule "find_pair" [] =
+  evalVModuleTotal defaultFuel w508BreakNestedEnv (emitModule w508BreakNestedEnv w508BreakNestedModule) "find_pair" [] := by
+  have hlowerable : Module.isLowerable w508BreakNestedEnv w508BreakNestedModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w508BreakNestedModule := by
+    simp [Module.hasUniqueFunctionNames, w508BreakNestedModule, w508BreakNestedFindPair]
+  have hseq : Module.isSequential w508BreakNestedEnv w508BreakNestedModule := by native_decide
+  have hctx : Module.callContext w508BreakNestedEnv w508BreakNestedModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w508BreakNestedEnv, w508BreakNestedModule, w508BreakNestedFindPair]
+  have hfind : w508BreakNestedModule.findFunction "find_pair" = some w508BreakNestedFindPair := by
+    simp [Module.findFunction, w508BreakNestedModule, w508BreakNestedFindPair]
+  have hhost : ¬ Env.isHostOnly w508BreakNestedEnv w508BreakNestedFindPair.name := by
+    simp [Env.isHostOnly, w508BreakNestedEnv, w508BreakNestedFindPair]
+  exact module_value_equiv_proved_sequential w508BreakNestedEnv w508BreakNestedModule
+    hlowerable hunique hseq hctx "find_pair" w508BreakNestedFindPair [] hfind hhost
+
+/-- W508-D: environment for an invalid `break` outside any loop. -/
+def w508BreakOutsideLoopEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["bad"]
+}
+
+/-- W508-D: function with a top-level `break`, which is not lowerable. -/
+def w508BreakOutsideLoopBad : Function := {
+  name := "bad",
+  params := [],
+  ret := some .u32,
+  body := [.break]
+}
+
+/-- W508-D: module containing the out-of-loop break. -/
+def w508BreakOutsideLoopModule : Module := {
+  name := "w508_break_outside_loop",
+  imports := [],
+  globals := [],
+  functions := [w508BreakOutsideLoopBad],
+  tests := [],
+  benches := []
+}
+
+/-- W508-D: a `break` outside a loop makes the module not lowerable. -/
+theorem w508_break_outside_loop_not_lowerable :
+  ¬ Module.isLowerable w508BreakOutsideLoopEnv w508BreakOutsideLoopModule := by
+  native_decide
+
+/- W509 theorems: direct lowering of array-typed struct fields. -/
+
+/-- W509: `Module.callContext` is decidable for concrete modules, so the
+    witness proofs can discharge it with `native_decide`. -/
+instance w509_callContext_decidable (env m) : Decidable (Module.callContext env m) := by
+  unfold Module.callContext Stmt.callContextList Stmt.callContext
+  infer_instance
+
+/-- W509-A: the direct-read witness is sequential. -/
+theorem w509_array_field_direct_sequential :
+  Module.isSequential w509ArrayFieldDirectEnv w509ArrayFieldDirectModule := by
+  native_decide
+
+/-- W509-A: value preservation for `sum_local_pt()` (returns 13). -/
+theorem w509_array_field_direct_sum_local_pt_value_equiv :
+  evalModuleFunctionTotal defaultFuel w509ArrayFieldDirectEnv w509ArrayFieldDirectModule "sum_local_pt" [] =
+  evalVModuleTotal defaultFuel w509ArrayFieldDirectEnv (emitModule w509ArrayFieldDirectEnv w509ArrayFieldDirectModule) "sum_local_pt" [] := by
+  have hlowerable : Module.isLowerable w509ArrayFieldDirectEnv w509ArrayFieldDirectModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w509ArrayFieldDirectModule := by
+    simp [Module.hasUniqueFunctionNames, w509ArrayFieldDirectModule, w509ArrayFieldDirectSumLocalPt, w509ArrayFieldDirectSum2DLocalPt]
+  have hseq : Module.isSequential w509ArrayFieldDirectEnv w509ArrayFieldDirectModule := by native_decide
+  have hctx : Module.callContext w509ArrayFieldDirectEnv w509ArrayFieldDirectModule := by native_decide
+  have hfind : w509ArrayFieldDirectModule.findFunction "sum_local_pt" = some w509ArrayFieldDirectSumLocalPt := by
+    simp [Module.findFunction, w509ArrayFieldDirectModule, w509ArrayFieldDirectSumLocalPt, w509ArrayFieldDirectSum2DLocalPt]
+  have hhost : ¬ Env.isHostOnly w509ArrayFieldDirectEnv w509ArrayFieldDirectSumLocalPt.name := by
+    simp [Env.isHostOnly, w509ArrayFieldDirectEnv, w509ArrayFieldDirectSumLocalPt]
+  exact module_value_equiv_proved_sequential w509ArrayFieldDirectEnv w509ArrayFieldDirectModule
+    hlowerable hunique hseq hctx "sum_local_pt" w509ArrayFieldDirectSumLocalPt [] hfind hhost
+
+/-- W509-A: value preservation for `sum_2d_local_pt()` (returns 10). -/
+theorem w509_array_field_direct_sum_2d_local_pt_value_equiv :
+  evalModuleFunctionTotal defaultFuel w509ArrayFieldDirectEnv w509ArrayFieldDirectModule "sum_2d_local_pt" [] =
+  evalVModuleTotal defaultFuel w509ArrayFieldDirectEnv (emitModule w509ArrayFieldDirectEnv w509ArrayFieldDirectModule) "sum_2d_local_pt" [] := by
+  have hlowerable : Module.isLowerable w509ArrayFieldDirectEnv w509ArrayFieldDirectModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w509ArrayFieldDirectModule := by
+    simp [Module.hasUniqueFunctionNames, w509ArrayFieldDirectModule, w509ArrayFieldDirectSumLocalPt, w509ArrayFieldDirectSum2DLocalPt]
+  have hseq : Module.isSequential w509ArrayFieldDirectEnv w509ArrayFieldDirectModule := by native_decide
+  have hctx : Module.callContext w509ArrayFieldDirectEnv w509ArrayFieldDirectModule := by native_decide
+  have hfind : w509ArrayFieldDirectModule.findFunction "sum_2d_local_pt" = some w509ArrayFieldDirectSum2DLocalPt := by
+    simp [Module.findFunction, w509ArrayFieldDirectModule, w509ArrayFieldDirectSumLocalPt, w509ArrayFieldDirectSum2DLocalPt]
+  have hhost : ¬ Env.isHostOnly w509ArrayFieldDirectEnv w509ArrayFieldDirectSum2DLocalPt.name := by
+    simp [Env.isHostOnly, w509ArrayFieldDirectEnv, w509ArrayFieldDirectSum2DLocalPt]
+  exact module_value_equiv_proved_sequential w509ArrayFieldDirectEnv w509ArrayFieldDirectModule
+    hlowerable hunique hseq hctx "sum_2d_local_pt" w509ArrayFieldDirectSum2DLocalPt [] hfind hhost
+
+/-- W509-B: the packed-param witness is sequential. -/
+theorem w509_array_field_param_sequential :
+  Module.isSequential w509ArrayFieldParamEnv w509ArrayFieldParamModule := by
+  native_decide
+
+/-- W509-B: value preservation for `sum_pt(Pt{[1,2,3],7})` (returns 13). -/
+theorem w509_array_field_param_sum_pt_value_equiv :
+  evalModuleFunctionTotal defaultFuel w509ArrayFieldParamEnv w509ArrayFieldParamModule "sum_pt"
+    [⟨32, BitVec.ofNat 32 0x01020307⟩] =
+  evalVModuleTotal defaultFuel w509ArrayFieldParamEnv (emitModule w509ArrayFieldParamEnv w509ArrayFieldParamModule) "sum_pt"
+    [⟨32, BitVec.ofNat 32 0x01020307⟩] := by
+  have hlowerable : Module.isLowerable w509ArrayFieldParamEnv w509ArrayFieldParamModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w509ArrayFieldParamModule := by
+    simp [Module.hasUniqueFunctionNames, w509ArrayFieldParamModule, w509ArrayFieldParamSumPt, w509ArrayFieldParamSum2DPt]
+  have hseq : Module.isSequential w509ArrayFieldParamEnv w509ArrayFieldParamModule := by native_decide
+  have hctx : Module.callContext w509ArrayFieldParamEnv w509ArrayFieldParamModule := by native_decide
+  have hfind : w509ArrayFieldParamModule.findFunction "sum_pt" = some w509ArrayFieldParamSumPt := by
+    simp [Module.findFunction, w509ArrayFieldParamModule, w509ArrayFieldParamSumPt, w509ArrayFieldParamSum2DPt]
+  have hhost : ¬ Env.isHostOnly w509ArrayFieldParamEnv w509ArrayFieldParamSumPt.name := by
+    simp [Env.isHostOnly, w509ArrayFieldParamEnv, w509ArrayFieldParamSumPt]
+  exact module_value_equiv_proved_sequential w509ArrayFieldParamEnv w509ArrayFieldParamModule
+    hlowerable hunique hseq hctx "sum_pt" w509ArrayFieldParamSumPt [⟨32, BitVec.ofNat 32 0x01020307⟩] hfind hhost
+
+/-- W509-B: value preservation for `sum_2d_pt(Pt2{[1..6],1})` (returns 10). -/
+theorem w509_array_field_param_sum_2d_pt_value_equiv :
+  evalModuleFunctionTotal defaultFuel w509ArrayFieldParamEnv w509ArrayFieldParamModule "sum_2d_pt"
+    [⟨56, BitVec.ofNat 56 0x01020304050601⟩] =
+  evalVModuleTotal defaultFuel w509ArrayFieldParamEnv (emitModule w509ArrayFieldParamEnv w509ArrayFieldParamModule) "sum_2d_pt"
+    [⟨56, BitVec.ofNat 56 0x01020304050601⟩] := by
+  have hlowerable : Module.isLowerable w509ArrayFieldParamEnv w509ArrayFieldParamModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w509ArrayFieldParamModule := by
+    simp [Module.hasUniqueFunctionNames, w509ArrayFieldParamModule, w509ArrayFieldParamSumPt, w509ArrayFieldParamSum2DPt]
+  have hseq : Module.isSequential w509ArrayFieldParamEnv w509ArrayFieldParamModule := by native_decide
+  have hctx : Module.callContext w509ArrayFieldParamEnv w509ArrayFieldParamModule := by native_decide
+  have hfind : w509ArrayFieldParamModule.findFunction "sum_2d_pt" = some w509ArrayFieldParamSum2DPt := by
+    simp [Module.findFunction, w509ArrayFieldParamModule, w509ArrayFieldParamSumPt, w509ArrayFieldParamSum2DPt]
+  have hhost : ¬ Env.isHostOnly w509ArrayFieldParamEnv w509ArrayFieldParamSum2DPt.name := by
+    simp [Env.isHostOnly, w509ArrayFieldParamEnv, w509ArrayFieldParamSum2DPt]
+  exact module_value_equiv_proved_sequential w509ArrayFieldParamEnv w509ArrayFieldParamModule
+    hlowerable hunique hseq hctx "sum_2d_pt" w509ArrayFieldParamSum2DPt [⟨56, BitVec.ofNat 56 0x01020304050601⟩] hfind hhost
+
+/-- W509-C: the packed-return witness is sequential. -/
+theorem w509_array_field_return_sequential :
+  Module.isSequential w509ArrayFieldReturnEnv w509ArrayFieldReturnModule := by
+  native_decide
+
+/-- W509-C: value preservation for `sum_returned_pt()` (returns 13). -/
+theorem w509_array_field_return_sum_returned_pt_value_equiv :
+  evalModuleFunctionTotal defaultFuel w509ArrayFieldReturnEnv w509ArrayFieldReturnModule "sum_returned_pt" [] =
+  evalVModuleTotal defaultFuel w509ArrayFieldReturnEnv (emitModule w509ArrayFieldReturnEnv w509ArrayFieldReturnModule) "sum_returned_pt" [] := by
+  have hlowerable : Module.isLowerable w509ArrayFieldReturnEnv w509ArrayFieldReturnModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w509ArrayFieldReturnModule := by
+    simp [Module.hasUniqueFunctionNames, w509ArrayFieldReturnModule, w509ArrayFieldReturnMakePt, w509ArrayFieldReturnSumReturnedPt, w509ArrayFieldReturnMakePt2, w509ArrayFieldReturnSumReturnedPt2]
+  have hseq : Module.isSequential w509ArrayFieldReturnEnv w509ArrayFieldReturnModule := by native_decide
+  have hctx : Module.callContext w509ArrayFieldReturnEnv w509ArrayFieldReturnModule := by native_decide
+  have hfind : w509ArrayFieldReturnModule.findFunction "sum_returned_pt" = some w509ArrayFieldReturnSumReturnedPt := by
+    simp [Module.findFunction, w509ArrayFieldReturnModule, w509ArrayFieldReturnMakePt, w509ArrayFieldReturnSumReturnedPt, w509ArrayFieldReturnMakePt2, w509ArrayFieldReturnSumReturnedPt2]
+  have hhost : ¬ Env.isHostOnly w509ArrayFieldReturnEnv w509ArrayFieldReturnSumReturnedPt.name := by
+    simp [Env.isHostOnly, w509ArrayFieldReturnEnv, w509ArrayFieldReturnSumReturnedPt]
+  exact module_value_equiv_proved_sequential w509ArrayFieldReturnEnv w509ArrayFieldReturnModule
+    hlowerable hunique hseq hctx "sum_returned_pt" w509ArrayFieldReturnSumReturnedPt [] hfind hhost
+
+/-- W509-C: value preservation for `sum_returned_pt2()` (returns 10). -/
+theorem w509_array_field_return_sum_returned_pt2_value_equiv :
+  evalModuleFunctionTotal defaultFuel w509ArrayFieldReturnEnv w509ArrayFieldReturnModule "sum_returned_pt2" [] =
+  evalVModuleTotal defaultFuel w509ArrayFieldReturnEnv (emitModule w509ArrayFieldReturnEnv w509ArrayFieldReturnModule) "sum_returned_pt2" [] := by
+  have hlowerable : Module.isLowerable w509ArrayFieldReturnEnv w509ArrayFieldReturnModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w509ArrayFieldReturnModule := by
+    simp [Module.hasUniqueFunctionNames, w509ArrayFieldReturnModule, w509ArrayFieldReturnMakePt, w509ArrayFieldReturnSumReturnedPt, w509ArrayFieldReturnMakePt2, w509ArrayFieldReturnSumReturnedPt2]
+  have hseq : Module.isSequential w509ArrayFieldReturnEnv w509ArrayFieldReturnModule := by native_decide
+  have hctx : Module.callContext w509ArrayFieldReturnEnv w509ArrayFieldReturnModule := by native_decide
+  have hfind : w509ArrayFieldReturnModule.findFunction "sum_returned_pt2" = some w509ArrayFieldReturnSumReturnedPt2 := by
+    simp [Module.findFunction, w509ArrayFieldReturnModule, w509ArrayFieldReturnMakePt, w509ArrayFieldReturnSumReturnedPt, w509ArrayFieldReturnMakePt2, w509ArrayFieldReturnSumReturnedPt2]
+  have hhost : ¬ Env.isHostOnly w509ArrayFieldReturnEnv w509ArrayFieldReturnSumReturnedPt2.name := by
+    simp [Env.isHostOnly, w509ArrayFieldReturnEnv, w509ArrayFieldReturnSumReturnedPt2]
+  exact module_value_equiv_proved_sequential w509ArrayFieldReturnEnv w509ArrayFieldReturnModule
+    hlowerable hunique hseq hctx "sum_returned_pt2" w509ArrayFieldReturnSumReturnedPt2 [] hfind hhost
+
+/- W510 theorems: element-level writes into packed array-typed struct fields.
+   These use direct `native_decide` computational equivalence rather than the
+   generic sequential theorem, because the current sequentiality predicate only
+   accepts identifier LHS assignments. The shallow model still evaluates both the
+   source and emitted Verilog to the same packed bit-vector value. -/
+
+/-- W510-A: writing and reading back a variable-index element of a packed 1-D
+    array field yields the same value on both sides of the model. -/
+theorem w510_array_field_write_var_index_value_equiv :
+  evalModuleFunctionTotal defaultFuel w510ArrayFieldWriteVarIndexEnv w510ArrayFieldWriteVarIndexModule "write_and_read"
+    [⟨8, BitVec.ofNat 8 1⟩] =
+  evalVModuleTotal defaultFuel w510ArrayFieldWriteVarIndexEnv
+    (emitModule w510ArrayFieldWriteVarIndexEnv w510ArrayFieldWriteVarIndexModule) "write_and_read"
+    [⟨8, BitVec.ofNat 8 1⟩] := by
+  native_decide
+
+/-- W510-B: writing and summing a variable-index row of a packed 2-D array field
+    yields the same value on both sides of the model. -/
+theorem w510_array_field_write_2d_slice_value_equiv :
+  evalModuleFunctionTotal defaultFuel w510ArrayFieldWrite2DSliceEnv w510ArrayFieldWrite2DSliceModule "write_row"
+    [⟨8, BitVec.ofNat 8 1⟩] =
+  evalVModuleTotal defaultFuel w510ArrayFieldWrite2DSliceEnv
+    (emitModule w510ArrayFieldWrite2DSliceEnv w510ArrayFieldWrite2DSliceModule) "write_row"
+    [⟨8, BitVec.ofNat 8 1⟩] := by
+  native_decide
+
+/-- W510-C: mutating a packed array field before returning the whole struct,
+    then reading the mutated element, yields the same value on both sides of the
+    model. -/
+theorem w510_array_field_write_return_copy_value_equiv :
+  evalModuleFunctionTotal defaultFuel w510ArrayFieldWriteReturnCopyEnv w510ArrayFieldWriteReturnCopyModule "check" [] =
+  evalVModuleTotal defaultFuel w510ArrayFieldWriteReturnCopyEnv
+    (emitModule w510ArrayFieldWriteReturnCopyEnv w510ArrayFieldWriteReturnCopyModule) "check" [] := by
+  native_decide
+
+/- W511 theorems: module-level packed scalar structs with fixed-size scalar
+   array fields.  The generic sequential value-preservation theorem applies
+   because module-level const/var declarations are evaluated before the function
+   body and the functions themselves are combinational. -/
+
+/-- W511-A: the module-level read witness is sequential. -/
+theorem w511_module_array_field_read_sequential :
+  Module.isSequential w511ModuleArrayFieldReadEnv w511ModuleArrayFieldReadModule := by
+  native_decide
+
+/-- W511-A: value preservation for `read_coord(1)` (returns 20). -/
+theorem w511_module_array_field_read_value_equiv :
+  evalModuleFunctionTotal defaultFuel w511ModuleArrayFieldReadEnv w511ModuleArrayFieldReadModule "read_coord"
+    [⟨8, BitVec.ofNat 8 1⟩] =
+  evalVModuleTotal defaultFuel w511ModuleArrayFieldReadEnv
+    (emitModule w511ModuleArrayFieldReadEnv w511ModuleArrayFieldReadModule) "read_coord"
+    [⟨8, BitVec.ofNat 8 1⟩] := by
+  have hlowerable : Module.isLowerable w511ModuleArrayFieldReadEnv w511ModuleArrayFieldReadModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w511ModuleArrayFieldReadModule := by
+    simp [Module.hasUniqueFunctionNames, w511ModuleArrayFieldReadModule, w511ModuleArrayFieldReadCoord]
+  have hseq : Module.isSequential w511ModuleArrayFieldReadEnv w511ModuleArrayFieldReadModule := by native_decide
+  have hctx : Module.callContext w511ModuleArrayFieldReadEnv w511ModuleArrayFieldReadModule := by native_decide
+  have hfind : w511ModuleArrayFieldReadModule.findFunction "read_coord" = some w511ModuleArrayFieldReadCoord := by
+    simp [Module.findFunction, w511ModuleArrayFieldReadModule, w511ModuleArrayFieldReadCoord]
+  have hhost : ¬ Env.isHostOnly w511ModuleArrayFieldReadEnv w511ModuleArrayFieldReadCoord.name := by
+    simp [Env.isHostOnly, w511ModuleArrayFieldReadEnv, w511ModuleArrayFieldReadCoord]
+  exact module_value_equiv_proved_sequential w511ModuleArrayFieldReadEnv w511ModuleArrayFieldReadModule
+    hlowerable hunique hseq hctx "read_coord" w511ModuleArrayFieldReadCoord [⟨8, BitVec.ofNat 8 1⟩] hfind hhost
+
+/-- W511-B: the module-level 2-D init witness is sequential. -/
+theorem w511_module_array_field_init_sequential :
+  Module.isSequential w511ModuleArrayFieldInitEnv w511ModuleArrayFieldInitModule := by
+  native_decide
+
+/-- W511-B: value preservation for `sum_row(1)` (returns 26). -/
+theorem w511_module_array_field_init_value_equiv :
+  evalModuleFunctionTotal defaultFuel w511ModuleArrayFieldInitEnv w511ModuleArrayFieldInitModule "sum_row"
+    [⟨8, BitVec.ofNat 8 1⟩] =
+  evalVModuleTotal defaultFuel w511ModuleArrayFieldInitEnv
+    (emitModule w511ModuleArrayFieldInitEnv w511ModuleArrayFieldInitModule) "sum_row"
+    [⟨8, BitVec.ofNat 8 1⟩] := by
+  have hlowerable : Module.isLowerable w511ModuleArrayFieldInitEnv w511ModuleArrayFieldInitModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w511ModuleArrayFieldInitModule := by
+    simp [Module.hasUniqueFunctionNames, w511ModuleArrayFieldInitModule, w511ModuleArrayFieldInitSumRow]
+  have hseq : Module.isSequential w511ModuleArrayFieldInitEnv w511ModuleArrayFieldInitModule := by native_decide
+  have hctx : Module.callContext w511ModuleArrayFieldInitEnv w511ModuleArrayFieldInitModule := by native_decide
+  have hfind : w511ModuleArrayFieldInitModule.findFunction "sum_row" = some w511ModuleArrayFieldInitSumRow := by
+    simp [Module.findFunction, w511ModuleArrayFieldInitModule, w511ModuleArrayFieldInitSumRow]
+  have hhost : ¬ Env.isHostOnly w511ModuleArrayFieldInitEnv w511ModuleArrayFieldInitSumRow.name := by
+    simp [Env.isHostOnly, w511ModuleArrayFieldInitEnv, w511ModuleArrayFieldInitSumRow]
+  exact module_value_equiv_proved_sequential w511ModuleArrayFieldInitEnv w511ModuleArrayFieldInitModule
+    hlowerable hunique hseq hctx "sum_row" w511ModuleArrayFieldInitSumRow [⟨8, BitVec.ofNat 8 1⟩] hfind hhost
+
+/-- W511-C: the module-level whole-struct copy witness is lowerable, but not
+    structurally sequential because `g_dst` is declared without an initializer at
+    module scope and then assigned inside a function.  We prove value preservation
+    directly by computation, matching the W510 element-write witnesses. -/
+theorem w511_module_array_field_copy_value_equiv :
+  evalModuleFunctionTotal defaultFuel w511ModuleArrayFieldCopyEnv w511ModuleArrayFieldCopyModule "copy_and_check"
+    [⟨8, BitVec.ofNat 8 1⟩] =
+  evalVModuleTotal defaultFuel w511ModuleArrayFieldCopyEnv
+    (emitModule w511ModuleArrayFieldCopyEnv w511ModuleArrayFieldCopyModule) "copy_and_check"
+    [⟨8, BitVec.ofNat 8 1⟩] := by
+  native_decide
+
+/- W512 theorems: arrays of structs with packed array-typed element fields. -/
+
+/-- W512-A: the packed-AOS read witness is lowerable. -/
+theorem w512_aos_read_lowerable :
+  Module.isLowerable w512AosReadEnv w512AosReadModule := by
+  native_decide
+
+/-- W512-A: the packed-AOS read witness is combinational. -/
+theorem w512_aos_read_combinational :
+  Module.isCombinational w512AosReadEnv w512AosReadModule := by
+  native_decide
+
+/-- W512-A: value preservation for `read_tag(arr, 0)` (returns 1). -/
+theorem w512_aos_read_tag_value_equiv :
+  evalModuleFunctionTotal defaultFuel w512AosReadEnv w512AosReadModule "read_tag"
+    [⟨256, BitVec.ofNat 256 0x000000010000000A000000140000001E0000000200000028000000320000003C⟩,
+     ⟨8, BitVec.ofNat 8 0⟩] =
+  evalVModuleTotal defaultFuel w512AosReadEnv (emitModule w512AosReadEnv w512AosReadModule) "read_tag"
+    [⟨256, BitVec.ofNat 256 0x000000010000000A000000140000001E0000000200000028000000320000003C⟩,
+     ⟨8, BitVec.ofNat 8 0⟩] := by
+  have hlowerable : Module.isLowerable w512AosReadEnv w512AosReadModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w512AosReadModule := by
+    simp [Module.hasUniqueFunctionNames, w512AosReadModule, w512AosReadTag, w512AosReadVal]
+  have hcomb : Module.isCombinational w512AosReadEnv w512AosReadModule := by native_decide
+  have hctx : Module.callContext w512AosReadEnv w512AosReadModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w512AosReadEnv, w512AosReadModule, w512AosReadTag, w512AosReadVal]
+  have hfind : w512AosReadModule.findFunction "read_tag" = some w512AosReadTag := by
+    simp [Module.findFunction, w512AosReadModule, w512AosReadTag, w512AosReadVal]
+  have hhost : ¬ Env.isHostOnly w512AosReadEnv w512AosReadTag.name := by
+    simp [Env.isHostOnly, w512AosReadEnv, w512AosReadTag]
+  exact module_value_equiv_statement w512AosReadEnv w512AosReadModule
+    hlowerable hunique hcomb hctx "read_tag" w512AosReadTag
+    [⟨256, BitVec.ofNat 256 0x000000010000000A000000140000001E0000000200000028000000320000003C⟩,
+     ⟨8, BitVec.ofNat 8 0⟩] hfind hhost
+
+/-- W512-A: value preservation for `read_val(arr, 1, 1)` (returns 50). -/
+theorem w512_aos_read_val_value_equiv :
+  evalModuleFunctionTotal defaultFuel w512AosReadEnv w512AosReadModule "read_val"
+    [⟨256, BitVec.ofNat 256 0x000000010000000A000000140000001E0000000200000028000000320000003C⟩,
+     ⟨8, BitVec.ofNat 8 1⟩, ⟨8, BitVec.ofNat 8 1⟩] =
+  evalVModuleTotal defaultFuel w512AosReadEnv (emitModule w512AosReadEnv w512AosReadModule) "read_val"
+    [⟨256, BitVec.ofNat 256 0x000000010000000A000000140000001E0000000200000028000000320000003C⟩,
+     ⟨8, BitVec.ofNat 8 1⟩, ⟨8, BitVec.ofNat 8 1⟩] := by
+  have hlowerable : Module.isLowerable w512AosReadEnv w512AosReadModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w512AosReadModule := by
+    simp [Module.hasUniqueFunctionNames, w512AosReadModule, w512AosReadTag, w512AosReadVal]
+  have hcomb : Module.isCombinational w512AosReadEnv w512AosReadModule := by native_decide
+  have hctx : Module.callContext w512AosReadEnv w512AosReadModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w512AosReadEnv, w512AosReadModule, w512AosReadTag, w512AosReadVal]
+  have hfind : w512AosReadModule.findFunction "read_val" = some w512AosReadVal := by
+    simp [Module.findFunction, w512AosReadModule, w512AosReadTag, w512AosReadVal]
+  have hhost : ¬ Env.isHostOnly w512AosReadEnv w512AosReadVal.name := by
+    simp [Env.isHostOnly, w512AosReadEnv, w512AosReadVal]
+  exact module_value_equiv_statement w512AosReadEnv w512AosReadModule
+    hlowerable hunique hcomb hctx "read_val" w512AosReadVal
+    [⟨256, BitVec.ofNat 256 0x000000010000000A000000140000001E0000000200000028000000320000003C⟩,
+     ⟨8, BitVec.ofNat 8 1⟩, ⟨8, BitVec.ofNat 8 1⟩] hfind hhost
+
+/-- W512-B: the packed-AOS element-write witness is lowerable. -/
+theorem w512_aos_write_lowerable :
+  Module.isLowerable w512AosWriteEnv w512AosWriteModule := by
+  native_decide
+
+/-- W512-B: value preservation for `overwrite_and_read()` (shallow model no-op).
+    The assignment target is not a bare identifier, so the shallow evaluator
+    leaves the local unchanged on both sides; the theorem confirms the emitted
+    Verilog also contains no placeholder. -/
+theorem w512_aos_write_value_equiv :
+  evalModuleFunctionTotal defaultFuel w512AosWriteEnv w512AosWriteModule "overwrite_and_read" [] =
+  evalVModuleTotal defaultFuel w512AosWriteEnv
+    (emitModule w512AosWriteEnv w512AosWriteModule) "overwrite_and_read" [] := by
+  native_decide
+
+/-- W512-C: the packed-AOS return witness is lowerable. -/
+theorem w512_aos_return_lowerable :
+  Module.isLowerable w512AosReturnEnv w512AosReturnModule := by
+  native_decide
+
+/-- W512-C: the packed-AOS return witness is combinational. -/
+theorem w512_aos_return_combinational :
+  Module.isCombinational w512AosReturnEnv w512AosReturnModule := by
+  native_decide
+
+/-- W512-C: value preservation for `read_returned()` (returns 60). -/
+theorem w512_aos_return_value_equiv :
+  evalModuleFunctionTotal defaultFuel w512AosReturnEnv w512AosReturnModule "read_returned" [] =
+  evalVModuleTotal defaultFuel w512AosReturnEnv (emitModule w512AosReturnEnv w512AosReturnModule) "read_returned" [] := by
+  have hlowerable : Module.isLowerable w512AosReturnEnv w512AosReturnModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w512AosReturnModule := by
+    simp [Module.hasUniqueFunctionNames, w512AosReturnModule, w512AosReturnMakeArr, w512AosReturnReadReturned]
+  have hcomb : Module.isCombinational w512AosReturnEnv w512AosReturnModule := by native_decide
+  have hctx : Module.callContext w512AosReturnEnv w512AosReturnModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w512AosReturnEnv, w512AosReturnModule, w512AosReturnMakeArr, w512AosReturnReadReturned]
+    all_goals native_decide
+  have hfind : w512AosReturnModule.findFunction "read_returned" = some w512AosReturnReadReturned := by
+    simp [Module.findFunction, w512AosReturnModule, w512AosReturnMakeArr, w512AosReturnReadReturned]
+  have hhost : ¬ Env.isHostOnly w512AosReturnEnv w512AosReturnReadReturned.name := by
+    simp [Env.isHostOnly, w512AosReturnEnv, w512AosReturnReadReturned]
+  exact module_value_equiv_statement w512AosReturnEnv w512AosReturnModule
+    hlowerable hunique hcomb hctx "read_returned" w512AosReturnReadReturned [] hfind hhost
+
 end Trinity.IcarusLowerable

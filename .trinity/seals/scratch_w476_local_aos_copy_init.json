@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:97d57cfc2130e4ba83f4d0e5338a6cdd8ccbf43a3819e149f56df7ed5f70fe76",
   "module": "w476_local_aos_copy_init",
   "ring": 12,
-  "sealed_at": "2026-07-11T12:28:56Z",
+  "sealed_at": "2026-07-13T09:00:35Z",
   "spec_hash": "sha256:a52bda0c660e279e8763af35b3db0caf6bd28b5c3e76f8c137d6d752d20797ab",
   "spec_path": "specs/scratch/w476_local_aos_copy_init.t27"
 }
