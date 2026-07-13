@@ -2224,3 +2224,7 @@
 - **Commit:** docs(trinity): Wave Loop 507 experience log and W508 setup metadata
 - **Files:** .claude/plans/wave-loop-499.md,.claude/plans/wave-loop-509.md,.claude/plans/wave-loop-510.md,.claude/plans/wave-loop-511.md,.claude/plans/wave-loop-512.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/ring-510.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json
 
+## 2026-07-13T10:12:20Z — wave-loop-513
+- **Commit:** feat(gen-verilog): Wave Loop 512 — arrays of lowerable scalar structs with fixed-size scalar array fields as packed-vector elements + W512 Lean witnesses + reseal + closeout/cooperation docs
+- **Files:** .claude/plans/wave-loop-513.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
