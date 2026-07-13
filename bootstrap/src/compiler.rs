@@ -119,6 +119,13 @@ impl Node {
     }
 }
 
+/// Returns true for Verilog relational operators that may need to be lowered
+/// as packed-vector comparisons when applied to scalar structs or arrays of
+/// structs. Used by W470/W519 whole-struct comparison lowering.
+fn is_comparison_op(op: &str) -> bool {
+    matches!(op, "==" | "!=" | "<" | "<=" | ">" | ">=")
+}
+
 // ============================================================================
 // Lexer (minimal implementation)
 // ============================================================================
@@ -18109,11 +18116,12 @@ impl VerilogCodegen {
                         self.write(", ");
                         self.gen_verilog_expr(&node.children[1]);
                         self.write(")");
-                    } else if node.extra_op.as_str() == "==" || node.extra_op.as_str() == "!=" {
-                        // W470: whole-struct equality/inequality is lowered to a
-                        // packed vector comparison so that scalar struct variables
-                        // (which are emitted as per-field registers) can be compared
-                        // against struct literals or other struct variables.
+                    } else if is_comparison_op(node.extra_op.as_str()) {
+                        // W470/W519: whole-struct comparisons (==, !=, <, <=, >, >=)
+                        // are lowered to packed vector comparisons so that scalar
+                        // struct variables (emitted as per-field registers) can be
+                        // compared against struct literals or other struct variables.
+                        let op = node.extra_op.as_str();
                         let lhs_ty = self
                             .scalar_struct_expr_type(&node.children[0])
                             .or_else(|| {
@@ -18130,11 +18138,6 @@ impl VerilogCodegen {
                             });
                         if lhs_ty.is_some() || rhs_ty.is_some() {
                             let ty = lhs_ty.or(rhs_ty).unwrap();
-                            let op = if node.extra_op.as_str() == "==" {
-                                "=="
-                            } else {
-                                "!="
-                            };
                             self.write("(");
                             self.gen_verilog_pack_scalar_struct_expr(
                                 &node.children[0], &ty,
@@ -18145,19 +18148,14 @@ impl VerilogCodegen {
                             );
                             self.write(")");
                         } else {
-                            // W474/W475: small array-of-struct equality is lowered
-                            // to a packed-vector comparison. The packer handles both
+                            // W474/W475: small array-of-struct comparisons are lowered
+                            // to packed-vector comparisons. The packer handles both
                             // scalar-struct elements and memory-mode arrays whose
                             // element struct has array-typed fields.
                             let lhs_aos = self.array_of_struct_expr_type(&node.children[0]);
                             let rhs_aos = self.array_of_struct_expr_type(&node.children[1]);
                             if lhs_aos.is_some() || rhs_aos.is_some() {
                                 let (elem_type, dims) = lhs_aos.or(rhs_aos).unwrap();
-                                let op = if node.extra_op.as_str() == "==" {
-                                    "=="
-                                } else {
-                                    "!="
-                                };
                                 self.write("(");
                                 self.gen_verilog_pack_array_of_struct_expr(
                                     &node.children[0], &elem_type, &dims,

@@ -1,0 +1,67 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w519_struct_order_param.t27
+; W519 witness: ordering comparisons on scalar struct parameters and on scalar
+; struct return values in the Icarus-lowerable Verilog path.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w519_struct_order_param;
+
+struct Pt {
+    x : u16,
+    y : u16,
+}
+
+fn less_than(a : Pt, b : Pt) -> bool {
+    return a < b;
+}
+
+fn leq(a : Pt, b : Pt) -> bool {
+    return a <= b;
+}
+
+fn greater_than(a : Pt, b : Pt) -> bool {
+    return a > b;
+}
+
+fn geq(a : Pt, b : Pt) -> bool {
+    return a >= b;
+}
+
+fn equal(a : Pt, b : Pt) -> bool {
+    return a == b;
+}
+
+fn not_equal(a : Pt, b : Pt) -> bool {
+    return a != b;
+}
+
+fn make_pt(x : u16, y : u16) -> Pt {
+    return Pt{.x = x, .y = y};
+}
+
+test w519_struct_order_param_basic {
+    var p1 : Pt = Pt{.x = 1, .y = 2};
+    var p2 : Pt = Pt{.x = 2, .y = 2};
+    assert(less_than(p1, p2));
+    assert(leq(p1, p2));
+    assert(greater_than(p2, p1));
+    assert(geq(p2, p1));
+    assert(equal(p1, Pt{.x = 1, .y = 2}));
+    assert(not_equal(p1, p2));
+
+    var p3 : Pt = make_pt(3, 3);
+    var p4 : Pt = make_pt(3, 4);
+    assert(less_than(p3, p4));
+    assert(leq(p3, p4));
+    assert(greater_than(p4, p3));
+    assert(geq(p4, p3));
+}
+
+invariant w519_struct_order_param_invariant:
+    less_than(Pt{.x = 0, .y = 0}, Pt{.x = 1, .y = 1});
+
+bench w519_struct_order_param_latency {
+    assert(less_than(Pt{.x = 1, .y = 2}, Pt{.x = 2, .y = 2}));
+}
+
+endmodule

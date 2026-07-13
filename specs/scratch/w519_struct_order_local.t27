@@ -1,0 +1,70 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w519_struct_order_local.t27
+; W519 witness: ordering comparisons (==, !=, <, <=, >, >=) on local scalar
+; struct variables in the Icarus-lowerable Verilog path.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w519_struct_order_local;
+
+struct Pt {
+    x : u16,
+    y : u16,
+}
+
+struct Inner {
+    a : u8,
+    b : u8,
+}
+
+struct Outer {
+    inner : Inner,
+    tag : u8,
+}
+
+fn cmp_local_literal() -> bool {
+    var a : Pt = Pt{.x = 1, .y = 2};
+    return (a == Pt{.x = 1, .y = 2})
+        && (a != Pt{.x = 2, .y = 2})
+        && (a < Pt{.x = 2, .y = 2})
+        && (a <= Pt{.x = 1, .y = 3})
+        && (a > Pt{.x = 0, .y = 1})
+        && (a >= Pt{.x = 1, .y = 2});
+}
+
+fn cmp_local_local() -> bool {
+    var a : Pt = Pt{.x = 3, .y = 4};
+    var b : Pt = Pt{.x = 4, .y = 4};
+    var c : Pt = Pt{.x = 3, .y = 3};
+    return (a < b)
+        && (a > c)
+        && (a <= a)
+        && (b >= b)
+        && (a != b)
+        && (a == a);
+}
+
+fn cmp_nested() -> bool {
+    var a : Outer = Outer{.inner = Inner{.a = 1, .b = 2}, .tag = 3};
+    var b : Outer = Outer{.inner = Inner{.a = 1, .b = 2}, .tag = 4};
+    return (a == a)
+        && (a != b)
+        && (a < b)
+        && (a <= b)
+        && (b > a)
+        && (b >= a);
+}
+
+test w519_struct_order_local_basic {
+    assert(cmp_local_literal());
+    assert(cmp_local_local());
+    assert(cmp_nested());
+}
+
+invariant w519_struct_order_local_invariant:
+    cmp_local_local();
+
+bench w519_struct_order_local_latency {
+    assert(cmp_local_literal());
+}
+
+endmodule

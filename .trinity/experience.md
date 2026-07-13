@@ -1,5 +1,40 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-07 — Wave Loop 519 (packed scalar struct ordering comparisons)
+
+### What worked
+- Broadening the existing W470 scalar-struct equality special case to *all*
+  relational operators (`==`, `!=`, `<`, `<=`, `>`, `>=`) fixed the real gap
+  (ordering comparisons on local scalar struct variables) with a minimal code
+  change.
+- Adding a tiny `is_comparison_op` helper kept the `ExprBinary` branch readable
+  and made the AOS comparison path automatically inherit the new operators.
+- Investigating the actual generated Verilog *before* writing the fix revealed
+  that equality/inequality already lowered correctly, while ordering fell
+  through to `(a < b)` where `a`/`b` do not exist as single nets.
+- Covering three binding shapes (local variable, function parameter,
+  module-level const/var) in scratch witnesses caught shape-specific bugs
+  (e.g., parameters are passed as packed vectors and can be compared directly,
+  whereas locals must be re-packed from per-field registers).
+- Including a W509-style scalar struct with a fixed-size scalar array field in
+  the module witness verified that packed array-field structs compare correctly
+  as contiguous bit vectors.
+- Adding a Rust integration test that compiles a probe spec and inspects the
+  generated Verilog provides cheap regression coverage for the packing shape.
+
+### Anti-pattern / lesson
+- Do not assume the headline feature ("equality/inequality") is the actual weak
+  point. Inspect the generated output for the *next* operator class in the
+  same family before deciding what to implement.
+- When a special case is added for a subset of operators (`==`, `!=`), document
+  why the sibling operators are excluded; otherwise they will be forgotten and
+  become latent bugs.
+- A single positive witness is insufficient when a feature crosses binding
+  boundaries. Add one witness per shape: local, parameter, module, and
+  array-field variant.
+
+---
+
 ## 2026-07-07 — Wave Loop 518 (break / continue yosys/Icarus baselines)
 
 ### What worked

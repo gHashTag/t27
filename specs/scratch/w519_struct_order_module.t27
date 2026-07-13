@@ -1,0 +1,77 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w519_struct_order_module.t27
+; W519 witness: ordering comparisons on module-level scalar struct variables,
+; including a packed scalar struct whose fixed-size scalar array field is
+; lowered as a contiguous bit vector (W509).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w519_struct_order_module;
+
+struct Pt {
+    x : u16,
+    y : u16,
+}
+
+struct Buf {
+    data : [4]u8,
+    tag : u8,
+}
+
+const C_SMALL : Pt = Pt{.x = 1, .y = 2};
+const C_LARGE : Pt = Pt{.x = 5, .y = 6};
+const C_BUF_A : Buf = Buf{.data = [1, 2, 3, 4], .tag = 0};
+const C_BUF_B : Buf = Buf{.data = [1, 2, 3, 5], .tag = 0};
+
+var g_a : Pt = Pt{.x = 2, .y = 3};
+var g_b : Pt = Pt{.x = 4, .y = 4};
+var g_buf : Buf = Buf{.data = [0, 0, 0, 0], .tag = 0};
+
+fn cmp_module_const() -> bool {
+    return (C_SMALL < C_LARGE)
+        && (C_SMALL <= C_LARGE)
+        && (C_LARGE > C_SMALL)
+        && (C_LARGE >= C_LARGE)
+        && (C_SMALL == C_SMALL)
+        && (C_SMALL != C_LARGE);
+}
+
+fn cmp_module_var() -> bool {
+    return (g_a < g_b)
+        && (g_a <= g_b)
+        && (g_b > g_a)
+        && (g_b >= g_b)
+        && (g_a == g_a)
+        && (g_a != g_b);
+}
+
+fn cmp_module_var_literal() -> bool {
+    return (g_a > Pt{.x = 1, .y = 1})
+        && (g_a <= Pt{.x = 3, .y = 3});
+}
+
+fn cmp_array_field() -> bool {
+    return (C_BUF_A < C_BUF_B)
+        && (C_BUF_A <= C_BUF_B)
+        && (C_BUF_B > C_BUF_A)
+        && (C_BUF_B >= C_BUF_B)
+        && (C_BUF_A == C_BUF_A)
+        && (C_BUF_A != C_BUF_B)
+        && (g_buf == g_buf)
+        && (g_buf < C_BUF_A);
+}
+
+test w519_struct_order_module_basic {
+    assert(cmp_module_const());
+    assert(cmp_module_var());
+    assert(cmp_module_var_literal());
+    assert(cmp_array_field());
+}
+
+invariant w519_struct_order_module_invariant:
+    cmp_module_const();
+
+bench w519_struct_order_module_latency {
+    assert(cmp_module_var());
+}
+
+endmodule
