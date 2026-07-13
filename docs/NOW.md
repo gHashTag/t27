@@ -1,7 +1,13 @@
 # NOW — IGLA cycle 1 + Wave Loop 469 context (2026-07-07)
 
-Last updated: 2026-07-07
+Last updated: 2026-07-13
 
+## t27c codegen: mut-inference for reassigned locals (Fixes #1463)
+
+- PR #1461 adds mutability inference to the Rust codegen backend.
+- `collect_mutable_names()` scans function bodies for assignment targets
+  (simple, index, field), emitting `let mut` where needed.
+- Eliminates 117 E0384 errors in tri-net specs.
 ## IGLA cycle 1 — process debt needles (Refs #1438, #1440, #1442, #1444, #1446)
 
 - Charter: `docs/nona-03-manifest/IGLA_IMPROVEMENT_LOOP.md` + audit `docs/reports/IGLA_AUDIT_W470_2026-07-07.md`.
