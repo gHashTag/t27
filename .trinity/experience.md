@@ -1,5 +1,69 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-07 — Wave Loop 507 (bounded `while` loops in Icarus-lowerable model)
+
+### What worked
+- Modeling the **dynamic condition** of a `while` loop by consuming one fuel unit
+  per iteration and re-evaluating the combinational condition at each step mirrors
+  the CompCert/CakeML fuel-based loop semantics and fits the existing W504
+  `forLoop` proof shape.
+- Introducing a dedicated **`P_whileLoop` forward-simulation predicate** kept the
+  main `P_stmt` proof compact: the `whileLoop` case simply applies `ih_while`,
+  while the recursive loop invariant is isolated in its own sub-proof.
+- Reusing the **existing Verilog backend path** for `StmtWhile` meant the Rust
+  classifier needed no changes; W507 only had to confirm that the backend
+  lowering is covered by the new Lean model and witnesses.
+- Adding **three orthogonal scratch witnesses** (counter, search, nested inside a
+  `for`) exercised the loop semantics under different termination and nesting
+  patterns without touching production specs.
+- Proving each witness via `module_value_equiv_proved_sequential` confirms that
+  the generic sequential theorem covers dynamic loop conditions once the
+  predicate classifies the loop as sequential.
+
+### What changed behavior
+- `proofs/lean4/Trinity/IcarusLowerable/Ast.lean`: added `Stmt.whileLoop`.
+- `proofs/lean4/Trinity/IcarusLowerable/Verilog.lean`: added `VStmt.whileLoop`.
+- `proofs/lean4/Trinity/IcarusLowerable/SemanticsTotal.lean`: added
+  `evalWhileLoopTotal` / `evalVWhileLoopTotal`.
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`: added `whileLoop` cases
+  for lowerability, combinationality, sequentiality, and function names.
+- `proofs/lean4/Trinity/IcarusLowerable/Emitter.lean`: emit `Stmt.whileLoop` as
+  `VStmt.whileLoop`.
+- `proofs/lean4/Trinity/IcarusLowerable/Equivalence.lean`: added `P_whileLoop`
+  and the `Stmt.whileLoop` case in `all_equiv`.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` / `Soundness.lean`: added
+  W507 witness modules and lowerability / sequentiality / value-preservation
+  theorems.
+- `specs/scratch/w507_while_*.t27` and `.trinity/seals/scratch_w507_while_*.json`:
+  new adversarial scratch witnesses and seals.
+- `docs/reports/WAVE_LOOP_507_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W508_2026-07-07.md`: close-out and next-wave
+  cooperation variants.
+- `docs/NOW.md` and `.trinity/current-issue.md`: updated for W508 setup.
+- Branch `wave-loop-508` created from `wave-loop-507`.
+
+### Patterns to reuse
+- When adding a new loop construct, keep **fuel accounting identical** to the
+  existing loop: one fuel unit for the outer step, smaller fuel for condition,
+  body, and recursive loop call.
+- For constructs whose backend already emits, verify the **classifier already
+  accepts** them before editing Rust; a Lean-only gap is cheaper to close.
+- Isolate the recursive invariant in its own **`P_*` predicate** so the main
+  structural induction case is a single application.
+- Add witnesses that exercise **termination, body state, and nesting** to catch
+  subtle off-by-one or condition-order bugs in the semantics.
+
+### Anti-patterns to avoid
+- Do not try to rewrite the condition manually inside the main `P_stmt` branch;
+  the induction hypothesis for the recursive predicate already contains the
+  required equality.
+- Do not add a `while` model without a partial-model fallback in
+  `Semantics.lean`; the partial evaluator must still compile even when the total
+  semantics carries the proof-relevant details.
+- Do not skip the Icarus smoke gate just because the classifier says
+  "lowerable"; the Verilog emission path for loops is exercised only by
+  simulation.
+
 ## 2026-07-07 — Wave Loop 505 (adversarial sequential witnesses for Icarus equivalence)
 
 ### What worked
