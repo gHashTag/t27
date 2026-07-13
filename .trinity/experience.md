@@ -1,5 +1,34 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-07 — Wave Loop 518 (break / continue yosys/Icarus baselines)
+
+### What worked
+- Replacing the broken `disable fork;` / `/* continue */;` emission with a
+  **flag-based** loop-control encoding fixed both yosys and Icarus in one change.
+- Modeling the encoding as two per-loop `reg` flags (`__break_flag_N`,
+  `__continue_flag_N`) made nested-loop scoping straightforward via a stack.
+- Guarding every body statement with `if (!break_flag && !continue_flag)` kept
+  `continue` semantics correct without needing named block `disable`.
+- Emitting the `for` increment as a manual, break-only-guarded statement at the
+  end of the body preserved `continue`-then-increment semantics.
+- Adding a no-op assignment (`i = i`) as the third clause of the generated `for`
+  header kept yosys 0.63 happy, since it rejects an empty step expression.
+- Suppressing `(* ram_style/rom_style *)` attributes on declarations inside
+  function/task bodies cleared the remaining Icarus 12.0 function-local pragma
+  failures without affecting module-level pragma emission.
+- Resealing the entire `specs/` tree after a generated-output change is safe
+  and fast; the suite then reports zero mismatches.
+
+### Anti-pattern / lesson
+- Do not emit simulator-specific control statements (`break`, `continue`,
+  `disable fork`) in the synthesizable backend. Use a portable flag encoding that
+  both simulators and synthesizers accept.
+- When generated Verilog syntax changes for a broad language construct (loops),
+  expect widespread seal mismatches and reseal proactively rather than one by
+  one.
+
+---
+
 ## 2026-07-07 — Wave Loop 517 (packed AOS parameter whole-array-field reads)
 
 ### What worked

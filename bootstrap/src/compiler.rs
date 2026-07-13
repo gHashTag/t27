@@ -4269,6 +4269,14 @@ pub struct VerilogCodegen {
     // passed as packed vectors (local/bench-local array arguments). Indexing
     // into such a parameter must slice the packed vector, not select a single bit.
     current_local_packed_array_params: std::collections::HashSet<String>,
+    // W518: per-loop break/continue flag names. Each entry is the
+    // (break_flag_name, continue_flag_name) for the corresponding nesting level.
+    loop_flag_stack: Vec<(String, String)>,
+    // W518: monotonic counter for unique loop flag names.
+    loop_flag_counter: u32,
+    // W518: true while emitting inside a function/task body; used to suppress
+    // pragma attributes on function-local declarations that Icarus rejects.
+    in_function_body: bool,
 }
 
 impl VerilogCodegen {
@@ -4340,6 +4348,9 @@ impl VerilogCodegen {
             bench_local_names: std::collections::HashSet::new(),
             bench_local_prefix: String::new(),
             toplevel_tmp_counter: 0,
+            loop_flag_stack: Vec::new(),
+            loop_flag_counter: 0,
+            in_function_body: false,
         }
     }
 
@@ -4452,7 +4463,7 @@ impl VerilogCodegen {
                         .insert(node.name.clone(), dims.clone());
                     self.local_packed_struct_array_elem_type
                         .insert(node.name.clone(), inner_elem_type.clone());
-                    if !node.extra_pragma.is_empty() {
+                    if !node.extra_pragma.is_empty() && !self.in_function_body {
                         self.write_indent();
                         self.write_line(&format!("(* {} *)", node.extra_pragma));
                     }
@@ -4518,7 +4529,7 @@ impl VerilogCodegen {
                 self.local_arrays.insert(safe_base.clone());
                 self.local_array_dims
                     .insert(node.name.clone(), dims.clone());
-                if !node.extra_pragma.is_empty() {
+                if !node.extra_pragma.is_empty() && !self.in_function_body {
                     self.write_indent();
                     self.write_line(&format!("(* {} *)", node.extra_pragma));
                 }
@@ -4532,7 +4543,7 @@ impl VerilogCodegen {
             self.local_arrays.insert(safe_base.clone());
             self.local_array_dims
                 .insert(node.name.clone(), dims.clone());
-            if !node.extra_pragma.is_empty() {
+            if !node.extra_pragma.is_empty() && !self.in_function_body {
                 self.write_indent();
                 self.write_line(&format!("(* {} *)", node.extra_pragma));
             }
@@ -12815,7 +12826,7 @@ impl VerilogCodegen {
                             .insert(node.name.clone(), dims.clone());
                         self.module_packed_struct_array_elem_type
                             .insert(node.name.clone(), target_elem_type.clone());
-                        if !node.extra_pragma.is_empty() {
+                        if !node.extra_pragma.is_empty() && !self.in_function_body {
                             self.write_indent();
                             self.write_line(&format!("(* {} *)", node.extra_pragma));
                         }
@@ -12861,7 +12872,7 @@ impl VerilogCodegen {
                         safe_name, total_leaf_count, target_elem_type
                     ));
                     // W459: emit optional ROM-style attribute (block/distributed).
-                    if !node.extra_pragma.is_empty() {
+                    if !node.extra_pragma.is_empty() && !self.in_function_body {
                         self.write_indent();
                         self.write_line(&format!("(* {} *)", node.extra_pragma));
                     }
@@ -12980,7 +12991,7 @@ impl VerilogCodegen {
                         "// LUT: {} [{}] {}",
                         safe_name, dims_label, leaf_type
                     ));
-                    if !node.extra_pragma.is_empty() {
+                    if !node.extra_pragma.is_empty() && !self.in_function_body {
                         self.write_indent();
                         self.write_line(&format!("(* {} *)", node.extra_pragma));
                     }
@@ -13033,7 +13044,7 @@ impl VerilogCodegen {
                         safe_name, array_size, elem_type
                     ));
                     // W459: emit optional ROM-style attribute (block/distributed).
-                    if !node.extra_pragma.is_empty() {
+                    if !node.extra_pragma.is_empty() && !self.in_function_body {
                         self.write_indent();
                         self.write_line(&format!("(* {} *)", node.extra_pragma));
                     }
@@ -13150,7 +13161,7 @@ impl VerilogCodegen {
                     "// const {} : {} (packed scalar struct)",
                     safe_name, struct_name
                 ));
-                if !node.extra_pragma.is_empty() {
+                if !node.extra_pragma.is_empty() && !self.in_function_body {
                     self.write_indent();
                     self.write_line(&format!("(* {} *)", node.extra_pragma));
                 }
@@ -13335,7 +13346,7 @@ impl VerilogCodegen {
                         "// var {} : {} (packed struct array)",
                         safe_name, node.extra_type
                     ));
-                    if !node.extra_pragma.is_empty() {
+                    if !node.extra_pragma.is_empty() && !self.in_function_body {
                         self.write_line(&format!("(* {} *)", node.extra_pragma));
                     }
                     self.gen_verilog_packed_struct_array_decl(
@@ -13404,7 +13415,7 @@ impl VerilogCodegen {
                     "// var {} : {} (struct array)",
                     safe_name, node.extra_type
                 ));
-                if !node.extra_pragma.is_empty() {
+                if !node.extra_pragma.is_empty() && !self.in_function_body {
                     self.write_line(&format!("(* {} *)", node.extra_pragma));
                 }
                 for (fname, ftype) in &flat_fields {
@@ -13523,7 +13534,7 @@ impl VerilogCodegen {
             } else {
                 format!("{} ", elem_range)
             };
-            if !node.extra_pragma.is_empty() {
+            if !node.extra_pragma.is_empty() && !self.in_function_body {
                 self.write_line(&format!("(* {} *)", node.extra_pragma));
             }
             self.write_line(&format!(
@@ -13616,7 +13627,7 @@ impl VerilogCodegen {
                     "// var {} : {} (packed scalar struct)",
                     safe_name, struct_name
                 ));
-                if !node.extra_pragma.is_empty() {
+                if !node.extra_pragma.is_empty() && !self.in_function_body {
                     self.write_indent();
                     self.write_line(&format!("(* {} *)", node.extra_pragma));
                 }
@@ -14030,6 +14041,11 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line(&format!("begin : {}", body_label));
             self.indent();
+            // W518: loop flags and function-body pragma suppression are scoped to
+            // the current function.
+            self.in_function_body = true;
+            self.loop_flag_stack.clear();
+            self.loop_flag_counter = 0;
             // W471: generate the function body into a temporary buffer so any
             // deferred array-of-struct return temporary declarations can be
             // emitted at function scope before the body content.
@@ -14076,6 +14092,7 @@ impl VerilogCodegen {
         self.local_packed_struct_vars.clear();
         self.array_param_types.clear();
         self.current_local_packed_array_params.clear();
+        self.in_function_body = false;
     }
 
     fn gen_verilog_fn(&mut self, node: &Node) {
@@ -16328,6 +16345,34 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_stmt(&mut self, node: &Node) {
+        // W518: every statement inside a loop is guarded by the current loop's
+        // break/continue flags. The guard is emitted before the statement and
+        // closed after it, so that break/continue skip the remaining body
+        // statements in the current iteration.
+        let guarded = !self.loop_flag_stack.is_empty();
+        let guard_flags = if guarded {
+            self.loop_flag_stack.last().cloned()
+        } else {
+            None
+        };
+        if let Some((ref break_flag, ref continue_flag)) = guard_flags {
+            self.write_indent();
+            self.write("if (!");
+            self.write(break_flag);
+            self.write(" && !");
+            self.write(continue_flag);
+            self.write_line(") begin");
+            self.indent();
+        }
+        self.gen_verilog_stmt_inner(node);
+        if guarded {
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+        }
+    }
+
+    fn gen_verilog_stmt_inner(&mut self, node: &Node) {
         // W471: remember where this statement begins so any deferred
         // array-of-struct return temporary assignments can be inserted
         // before the statement that produced them.
@@ -16537,7 +16582,7 @@ impl VerilogCodegen {
                                 .insert(base_name.clone(), dims.clone());
                             self.local_packed_struct_array_elem_type
                                 .insert(base_name.clone(), inner_elem_type.clone());
-                            if !node.extra_pragma.is_empty() {
+                            if !node.extra_pragma.is_empty() && !self.in_function_body {
                                 self.write_indent();
                                 self.write_line(&format!("(* {} *)", node.extra_pragma));
                             }
@@ -16724,7 +16769,7 @@ impl VerilogCodegen {
                         self.local_arrays.insert(safe_base.clone());
                         self.local_array_dims
                             .insert(base_name.clone(), dims.clone());
-                        if !node.extra_pragma.is_empty() {
+                        if !node.extra_pragma.is_empty() && !self.in_function_body {
                             self.write_indent();
                             self.write_line(
                                 &format!("(* {} *)", node.extra_pragma),
@@ -16748,7 +16793,7 @@ impl VerilogCodegen {
                     self.local_arrays.insert(safe_base.clone());
                     self.local_array_dims
                         .insert(base_name.clone(), dims.clone());
-                    if !node.extra_pragma.is_empty() {
+                    if !node.extra_pragma.is_empty() && !self.in_function_body {
                         self.write_indent();
                         self.write_line(&format!("(* {} *)", node.extra_pragma));
                     }
@@ -16812,7 +16857,7 @@ impl VerilogCodegen {
                                     struct_type.as_str(),
                                     &self.struct_fields,
                                 );
-                                if !node.extra_pragma.is_empty() {
+                                if !node.extra_pragma.is_empty() && !self.in_function_body {
                                     self.write_indent();
                                     self.write_line(&format!("(* {} *)", node.extra_pragma));
                                 }
@@ -16854,7 +16899,7 @@ impl VerilogCodegen {
                                 struct_type.as_str(),
                                 &self.struct_fields,
                             );
-                            if !node.extra_pragma.is_empty() {
+                            if !node.extra_pragma.is_empty() && !self.in_function_body {
                                 self.write_indent();
                                 self.write_line(&format!("(* {} *)", node.extra_pragma));
                             }
@@ -16909,7 +16954,7 @@ impl VerilogCodegen {
                                     struct_type,
                                     &self.struct_fields,
                                 );
-                                if !node.extra_pragma.is_empty() {
+                                if !node.extra_pragma.is_empty() && !self.in_function_body {
                                     self.write_indent();
                                     self.write_line(&format!("(* {} *)", node.extra_pragma));
                                 }
@@ -17098,10 +17143,26 @@ impl VerilogCodegen {
                 self.gen_verilog_for_range_stmt(node);
             }
             NodeKind::StmtBreak => {
-                self.write_line("disable fork;");
+                // W518: set the innermost loop's break flag. The guard wrapping
+                // subsequent statements will skip them, and the loop condition
+                // includes !break_flag so the loop exits.
+                self.write_indent();
+                if let Some((break_flag, _)) = self.loop_flag_stack.last() {
+                    self.write_line(&format!("{} = 1;", break_flag));
+                } else {
+                    self.write_line("/* break outside loop */;");
+                }
             }
             NodeKind::StmtContinue => {
-                self.write_line("/* continue */;");
+                // W518: set the innermost loop's continue flag. The guard wrapping
+                // the remaining body statements will skip them for this iteration,
+                // while the for-loop increment (guarded only by break) still runs.
+                self.write_indent();
+                if let Some((_, continue_flag)) = self.loop_flag_stack.last() {
+                    self.write_line(&format!("{} = 1;", continue_flag));
+                } else {
+                    self.write_line("/* continue outside loop */;");
+                }
             }
             NodeKind::StmtExpr => {
                 self.write_indent();
@@ -17213,14 +17274,18 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_while_stmt(&mut self, node: &Node) {
+        let (break_flag, _) = self.push_loop_flags();
         self.write_indent();
-        self.write("while (");
+        self.write("while ((");
         if !node.children.is_empty() {
             self.gen_verilog_expr(&node.children[0]);
         }
+        self.write(") && !");
+        self.write(&break_flag);
         self.write_line(") begin");
 
         self.indent();
+        self.write_loop_continue_reset();
         if node.children.len() > 1 {
             for stmt in &node.children[1].children {
                 self.gen_verilog_stmt(stmt);
@@ -17229,9 +17294,13 @@ impl VerilogCodegen {
         self.dedent();
         self.write_indent();
         self.write_line("end");
+        self.pop_loop_flags();
     }
 
-    fn gen_verilog_for_stmt(&mut self, node: &Node) {
+    fn gen_verilog_for_stmt(
+        &mut self,
+        node: &Node,
+    ) {
         // Emit as integer for loop: for (i = 0; i < N; i = i + 1)
         let body_idx = node.children.len().saturating_sub(1);
 
@@ -17241,43 +17310,58 @@ impl VerilogCodegen {
         } else {
             "__i".to_string()
         };
-        let iter_var = Self::verilog_safe_identifier(&iter_var_raw);
+        let iter_var =
+            Self::verilog_safe_identifier(&iter_var_raw);
+
+        let (break_flag, _) = self.push_loop_flags();
 
         // Try to extract the range/iterable from children[0]
         // For range-based: for (iter_var = 0; iter_var < upper; iter_var = iter_var + 1)
         if !self.loop_vars_declared.contains(&iter_var) {
             self.loop_vars_declared.insert(iter_var.clone());
             self.write_indent();
-            self.write_line(&format!("integer {};", iter_var),
+            self.write_line(
+                &format!("integer {};", iter_var),
             );
         }
         self.write_indent();
         if body_idx > 0 {
             let iterable = &node.children[0];
-            // Emit: integer iter_var; for (iter_var = 0; iter_var < iterable; iter_var = iter_var + 1)
+            // Emit: integer iter_var; for (iter_var = 0; iter_var < iterable; ...)
             self.write_line("// for-each over iterable");
             self.write_indent();
             self.write(&format!("for ({} = 0; {} < ", iter_var, iter_var));
             self.gen_verilog_expr(iterable);
-            self.write(&format!("; {} = {} + 1)", iter_var, iter_var));
+            self.write(&format!(" && !{}; {} = {})", break_flag, iter_var, iter_var));
         } else {
-            self.write(&format!("for ({0} = 0; {0} < 1; {0} = {0} + 1)", iter_var));
+            self.write(&format!(
+                "for ({0} = 0; {0} < 1 && !{1}; {0} = {0})",
+                iter_var, break_flag
+            ));
         }
         self.write_line(" begin");
 
         self.indent();
+        self.write_loop_continue_reset();
         if !node.children.is_empty() {
             for stmt in &node.children[body_idx].children {
                 self.gen_verilog_stmt(stmt);
             }
         }
+        self.write_loop_for_increment(&iter_var);
         self.dedent();
         self.write_indent();
         self.write_line("end");
+        self.pop_loop_flags();
     }
 
-    fn gen_verilog_for_range_stmt(&mut self, node: &Node) {
-        let var = Self::verilog_safe_identifier(&node.name);
+    fn gen_verilog_for_range_stmt(
+        &mut self,
+        node: &Node,
+    ) {
+        let var =
+            Self::verilog_safe_identifier(&node.name);
+        let (break_flag, _) = self.push_loop_flags();
         if !self.loop_vars_declared.contains(&var) {
             self.loop_vars_declared.insert(var.clone());
             self.write_indent();
@@ -17289,18 +17373,98 @@ impl VerilogCodegen {
             self.gen_verilog_expr(&node.children[0]);
             self.write(&format!("; {var} < "));
             self.gen_verilog_expr(&node.children[1]);
-            self.write(&format!("; {var} = {var} + 1)"));
+            self.write(&format!(" && !{break_flag}; {var} = {var})"));
         }
         self.write_line(" begin");
         self.indent();
+        self.write_loop_continue_reset();
         if node.children.len() > 2 {
             for stmt in &node.children[2].children {
                 self.gen_verilog_stmt(stmt);
             }
         }
+        self.write_loop_for_increment(&var);
         self.dedent();
         self.write_indent();
         self.write_line("end");
+        self.pop_loop_flags();
+    }
+
+    /// W518: allocate per-loop break/continue flag names, declare them, and
+    /// initialize them to 0 at the loop entry point. The reg declarations are
+    /// written inline here; `hoist_procedural_declarations` later moves them to
+    /// the top of the enclosing procedural block.
+    fn push_loop_flags(&mut self,
+    ) -> (String, String) {
+        let n = self.loop_flag_counter;
+        self.loop_flag_counter += 1;
+        let break_flag =
+            Self::verilog_safe_identifier(&format!("__break_flag_{}", n),
+            );
+        let continue_flag =
+            Self::verilog_safe_identifier(
+                &format!("__continue_flag_{}", n),
+            );
+        self.write_indent();
+        self.write_line(&format!("reg {};", break_flag),
+        );
+        self.write_indent();
+        self.write_line(&format!("reg {};", continue_flag),
+        );
+        self.write_indent();
+        self.write_line(&format!("{} = 0;", break_flag),
+        );
+        self.write_indent();
+        self.write_line(&format!("{} = 0;", continue_flag),
+        );
+        self.loop_flag_stack
+            .push((break_flag.clone(), continue_flag.clone()));
+        (break_flag, continue_flag)
+    }
+
+    fn pop_loop_flags(&mut self,
+    ) {
+        self.loop_flag_stack.pop();
+    }
+
+    /// W518: clear the continue flag at the start of a new iteration.
+    fn write_loop_continue_reset(&mut self,
+    ) {
+        let continue_flag = self.loop_flag_stack.last().map(|(_, c)| c.clone());
+        if let Some(continue_flag) = continue_flag {
+            self.write_indent();
+            self.write_line(&format!("{} = 0;", continue_flag),
+            );
+        }
+    }
+
+    /// W518: emit the guarded increment for a for loop, suppressed only when
+    /// the break flag is set so that `continue` still reaches the increment.
+    fn write_loop_for_increment(&mut self,
+        iter_var: &str,
+    ) {
+        let break_flag = self.loop_flag_stack.last().map(|(b, _)| b.clone());
+        if let Some(break_flag) = break_flag {
+            self.write_indent();
+            self.write("if (!");
+            self.write(&break_flag);
+            self.write_line(") begin");
+            self.indent();
+            self.write_indent();
+            self.write_line(&format!(
+                "{} = {} + 1;",
+                iter_var, iter_var
+            ));
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+        } else {
+            self.write_indent();
+            self.write_line(&format!(
+                "{} = {} + 1;",
+                iter_var, iter_var
+            ));
+        }
     }
 
     /// W479: split a flattened method-call name like `text.len` or `arr.contains`
@@ -38836,7 +39000,7 @@ mod tests_phase40_coverage {
     fn test_parse_for_range_verilog() {
         let code = "module M { pub fn f() -> void { for i in 0..8 { var x = 1 } } }";
         let out = Compiler::compile_verilog(code).expect("compile should succeed");
-        assert!(out.contains("for (i = 0; i < 8; i = i + 1)"), "Verilog output: {}", out);
+        assert!(out.contains("for (i = 0; i < 8 && !__break_flag_0; i = i)"), "Verilog output: {}", out);
     }
 
     #[test]

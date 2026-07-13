@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ce37ff553fe98f1e0c395d5659b291518ce436a25dca1a6c9156d3809df22761",
   "module": "w493_nested_struct_field_from_identifier_lowerable",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:00:35Z",
+  "sealed_at": "2026-07-13T15:05:21Z",
   "spec_hash": "sha256:dee1c58fb069a86648230dfbf972b224fd264ea05b4340b06d9ef752e33059c1",
   "spec_path": "specs/scratch/w493_nested_struct_field_from_identifier_lowerable.t27"
 }

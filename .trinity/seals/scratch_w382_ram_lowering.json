@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:954dbc2061a61fdac680e2275e031fdc91d594a000c508246d48ef30755b3e6a",
   "module": "w382_ram_lowering",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:00:35Z",
+  "sealed_at": "2026-07-13T15:05:21Z",
   "spec_hash": "sha256:53f790353a1849d26a1547564d32e59d53e7814c85aa33193ff98a04af52e45b",
   "spec_path": "specs/scratch/w382_ram_lowering.t27"
 }

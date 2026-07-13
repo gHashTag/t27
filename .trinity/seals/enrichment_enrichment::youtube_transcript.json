@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f3af607fa445d4ef52dc45b806875c3f80c86f9aebe7ae4ed009472fbab2a6dd",
   "module": "enrichment::youtube_transcript",
   "ring": 12,
-  "sealed_at": "2026-07-13T12:22:40Z",
+  "sealed_at": "2026-07-13T15:05:15Z",
   "spec_hash": "sha256:40135abe16b0c52525aea008d3168e85920797f3d2a16df2e4d2d16ccb8e94a0",
   "spec_path": "specs/enrichment/youtube_transcript.t27"
 }

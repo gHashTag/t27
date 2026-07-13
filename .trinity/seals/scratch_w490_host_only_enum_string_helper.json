@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:130738ff85e2b7448cc6cf7b43403d1dc45d0a9e93ab6c0230c4dcb05baf2b41",
   "module": "w490_host_only_enum_string_helper",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:00:35Z",
+  "sealed_at": "2026-07-13T15:05:20Z",
   "spec_hash": "sha256:c2550f23d7a23f6585345273b825cbf8c83c7d7878e9f26ea2b138072cbbd534",
   "spec_path": "specs/scratch/w490_host_only_enum_string_helper.t27"
 }

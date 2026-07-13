@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ea2e52c807388a268bb96484e642ca14731b5b8631fb6a6c1b9b4563a40d7509",
   "module": "w513_local_aos_read",
   "ring": 12,
-  "sealed_at": "2026-07-13T10:27:14Z",
+  "sealed_at": "2026-07-13T15:05:21Z",
   "spec_hash": "sha256:3643c3d64000466253a62714722d069a5ab462220ea3d1f1c323b198e6bf7da3",
   "spec_path": "specs/scratch/w513_local_aos_read.t27"
 }

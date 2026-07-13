@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a4ad5ad3d4e53b09ea6e51a3c5a7a0d7140dcbe29115c51f216daab797d5753b",
   "module": "w503_if_return",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:00:35Z",
+  "sealed_at": "2026-07-13T15:05:21Z",
   "spec_hash": "sha256:e6846a463250cc7030711b2502ee265b78731fee4b475bb89f6509c89adb2478",
   "spec_path": "specs/scratch/w503_if_return.t27"
 }

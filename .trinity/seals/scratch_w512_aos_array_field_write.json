@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1f134b9e32abcce992f7361d6543746c2f3eab158afd268157498f521ad1eaae",
   "module": "w512_aos_array_field_write",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:47:49Z",
+  "sealed_at": "2026-07-13T15:05:21Z",
   "spec_hash": "sha256:ca2a95df1f338c058deea9eccc9324b2381dbb35a0fd7d809837981dc59297dd",
   "spec_path": "specs/scratch/w512_aos_array_field_write.t27"
 }

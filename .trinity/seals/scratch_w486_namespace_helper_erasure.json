@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:cc33e0eef4b63a2614846e80907a05ff96e87e8d05c4521cf9ee4d2bfdbd43b4",
   "module": "w486_namespace_helper_erasure",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:00:35Z",
+  "sealed_at": "2026-07-13T15:05:21Z",
   "spec_hash": "sha256:e1cf945533c06e6d020ec44c11222171bc2b6d2ba1f1e08a8e98e4d54344183f",
   "spec_path": "specs/scratch/w486_namespace_helper_erasure.t27"
 }

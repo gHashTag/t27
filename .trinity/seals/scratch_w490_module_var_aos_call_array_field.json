@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:220b707257cf805628b8c12ec5c77be71147793d2daca4f813d997c7ffd9094a",
   "module": "w490_module_var_aos_call_array_field",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:47:49Z",
+  "sealed_at": "2026-07-13T15:05:21Z",
   "spec_hash": "sha256:f83a01a9580feac1921a03d16549e8bb94fb76c66ca5266aea1bde009ecaac70",
   "spec_path": "specs/scratch/w490_module_var_aos_call_array_field.t27"
 }

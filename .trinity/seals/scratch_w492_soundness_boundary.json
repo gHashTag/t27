@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d60c1d77705c0c2c6c0f01e8e0bfadf067482f57ef31d90626034a630c86d7f5",
   "module": "w492_soundness_boundary",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:00:35Z",
+  "sealed_at": "2026-07-13T15:05:20Z",
   "spec_hash": "sha256:58605941237fb5069a297b3bea92129dbf59f0b5c84ad36a264424d744c59504",
   "spec_path": "specs/scratch/w492_soundness_boundary.t27"
 }

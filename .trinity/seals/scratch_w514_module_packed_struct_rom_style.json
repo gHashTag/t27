@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7508263ba59a28c1504850646e2c0f8c750896ae2040011963a78268d00c6363",
   "module": "w514_module_packed_struct_rom_style",
   "ring": 12,
-  "sealed_at": "2026-07-13T11:14:36Z",
+  "sealed_at": "2026-07-13T15:05:21Z",
   "spec_hash": "sha256:b36808244bdf2e6737cfd1855abd37fb3156ae408559890362fbea1e48779740",
   "spec_path": "specs/scratch/w514_module_packed_struct_rom_style.t27"
 }

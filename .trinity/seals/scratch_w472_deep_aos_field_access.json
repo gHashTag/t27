@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ecb728e677cf67f30d265bf1be53a7b5cd0b92249b04cd7b1383df7e256d479a",
   "module": "w472_deep_aos_field_access",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:00:35Z",
+  "sealed_at": "2026-07-13T15:05:21Z",
   "spec_hash": "sha256:7454428ff61e3ea50ed1f0bc90808db61ad3c6c28b76f5a423d7d4290766cb55",
   "spec_path": "specs/scratch/w472_deep_aos_field_access.t27"
 }

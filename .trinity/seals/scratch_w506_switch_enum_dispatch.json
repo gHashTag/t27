@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:fa72c5ef9caa9e3e1ad5cc471363cacb5b13236419d0782c9ab9256e39c1943c",
   "module": "w506_switch_enum_dispatch",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:00:35Z",
+  "sealed_at": "2026-07-13T15:05:21Z",
   "spec_hash": "sha256:818e440c80a51dd0a6bd11d08604224a60695c50ad953dd403a65a1cd56d92b3",
   "spec_path": "specs/scratch/w506_switch_enum_dispatch.t27"
 }

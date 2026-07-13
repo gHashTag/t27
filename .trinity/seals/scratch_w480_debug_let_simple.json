@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f801f118da232c8108124b7cca3c4bd44826e6856b63987d360162a9b7c38b0e",
   "module": "w480_debug_let_simple",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:00:35Z",
+  "sealed_at": "2026-07-13T15:05:21Z",
   "spec_hash": "sha256:bbe94efadcc6c4ecd476678c3c60f670d5e1b50e494d1cd49c15c1ebdcc24880",
   "spec_path": "specs/scratch/w480_debug_let_simple.t27"
 }

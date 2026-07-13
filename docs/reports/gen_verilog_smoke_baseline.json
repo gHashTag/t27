@@ -1,9 +1,6 @@
 {
-  "branch": "wave-loop-509",
-  "description": "Residual gen-verilog yosys smoke failures on the W509 branch. Wave Loop 509 cleared all array-typed scalar-struct-field lowering boundaries. The two W508 break/continue scratch witnesses fail yosys smoke here because the W508 flag-based backend encoding is not present on this branch; they will be cleared when the W508/W510 early-exit flag work lands.",
-  "expected_failures": [
-    "specs/scratch/w508_break_nested.t27",
-    "specs/scratch/w508_break_search.t27"
-  ],
+  "branch": "wave-loop-518",
+  "description": "Residual gen-verilog yosys smoke failures after Wave Loop 518. No remaining baseline failures.",
+  "expected_failures": [],
   "source": "docs/reports/GEN_VERILOG_DEFECTS_REPRO.md"
 }

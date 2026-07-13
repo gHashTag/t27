@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:02c6766186c2334e3bc0f3944305912a15119620b3794350a74eeb00ac9e8d59",
   "module": "NotebookLM",
   "ring": 12,
-  "sealed_at": "2026-07-13T12:31:40Z",
+  "sealed_at": "2026-07-13T15:05:18Z",
   "spec_hash": "sha256:5aaadc46b3e93b09bd9f4a5542010c102ddd404455b503f5e380581740304fbf",
   "spec_path": "specs/memory/notebooklm.t27"
 }

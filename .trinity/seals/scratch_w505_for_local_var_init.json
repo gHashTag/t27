@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:e51291f0addbdff4a8cc93f543a6b34a037af0608ec2eaf15f7afa0141e7626a",
   "gen_hash_rust": "sha256:dfc185b8aaabaa22a096fcfefc7acc0abc832e98074c16677e02b041421ae15c",
-  "gen_hash_verilog": "sha256:4724f63bb82bb56c9a9c472ccb72d404c03531fd0fb564336cf8a7e870d271ca",
+  "gen_hash_verilog": "sha256:bc567fc76170ee0d6a6817ccfa07e959057bcc8ac3b7be823aecf0565c220dfd",
   "gen_hash_zig": "sha256:b7803232932f2f05398717716c2c8221555910a3ca4a3f39b6cf1668166f2278",
   "module": "w505_for_local_var_init",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:00:35Z",
+  "sealed_at": "2026-07-13T15:05:20Z",
   "spec_hash": "sha256:8227177e599f9ad0d36e17d4bf5412412cf6e61ad81b3f6099eb306a772fea1f",
   "spec_path": "specs/scratch/w505_for_local_var_init.t27"
 }
