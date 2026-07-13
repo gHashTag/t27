@@ -8,6 +8,12 @@ Last updated: 2026-07-13
 - `collect_mutable_names()` scans function bodies for assignment targets
   (simple, index, field), emitting `let mut` where needed.
 - Eliminates 117 E0384 errors in tri-net specs.
+## t27c codegen: recursive optimizer scan for control-flow bodies (Fixes #1464)
+
+- PR #1462 fixes const_propagate, copy_propagate, dead_store_elim to recurse
+  into if/while/for bodies when checking for reassignment/reads.
+- Eliminates 182 E0425 errors in tri-net specs (208 -> 26).
+- Stacked on #1461.
 ## IGLA cycle 1 — process debt needles (Refs #1438, #1440, #1442, #1444, #1446)
 
 - Charter: `docs/nona-03-manifest/IGLA_IMPROVEMENT_LOOP.md` + audit `docs/reports/IGLA_AUDIT_W470_2026-07-07.md`.
