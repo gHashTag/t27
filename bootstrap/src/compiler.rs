@@ -6549,12 +6549,20 @@ fn collect_mutable_names_one(stmt: &Node, set: &mut std::collections::HashSet<St
 }
 
 fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+    // Recursive reassignment check: a `let X = Y` where X is reassigned later
+    // (including inside if/while/for bodies) must NOT be copy-propagated —
+    // doing so leaves dangling `X = ...` reassignments in the emitted Rust
+    // with no declaration of X.
+    let mut reassigned_set = std::collections::HashSet::new();
+    collect_mutable_names(stmts, &mut reassigned_set);
+
     let mut replacements: Vec<(String, String)> = Vec::new();
     for stmt in stmts.iter() {
         if stmt.kind == NodeKind::StmtLocal
             && stmt.children.len() == 1
             && stmt.children[0].kind == NodeKind::ExprIdentifier
             && stmt.name != stmt.children[0].name
+            && !reassigned_set.contains(&stmt.name)
         {
             replacements.push((stmt.name.clone(), stmt.children[0].name.clone()));
         }
@@ -6580,13 +6588,13 @@ fn const_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             && is_literal(&stmt.children[0])
         {
             let name = stmt.name.clone();
-            let reassigned = stmts.iter().any(|s| {
-                s.kind == NodeKind::StmtAssign
-                    && !s.children.is_empty()
-                    && s.children[0].kind == NodeKind::ExprIdentifier
-                    && s.children[0].name == name
-            });
-            if !reassigned {
+            // Recursive reassignment check: scan into if/while/for/for-range bodies
+            // so a `let X = <literal>` that's reassigned INSIDE a control-flow block
+            // is not incorrectly inlined (which would leave dangling `X = ...` without
+            // a declaration in the emitted Rust).
+            let mut reassigned_set = std::collections::HashSet::new();
+            collect_mutable_names(stmts, &mut reassigned_set);
+            if !reassigned_set.contains(&name) {
                 consts.push((name, stmt.children[0].value.clone()));
             }
         }
@@ -6848,25 +6856,53 @@ fn find_first_non_local(stmts: &[Node]) -> usize {
     stmts.len()
 }
 
-fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
-    let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
+fn collect_reads_in_stmts(stmts: &[Node], reads: &mut std::collections::HashSet<String>) {
+    // Walk each statement and collect every identifier that is READ (RHS of
+    // assignment/local, return expression, standalone expression, and any
+    // subexpression inside if/while/for/for-range condition + body). Without
+    // recursing into control-flow bodies, a `let i = 0;` at the top of a
+    // function that is only read inside `while` would be seen as dead and
+    // eliminated, leaving `i` reassigned but never declared in the emit.
     for stmt in stmts.iter() {
         match stmt.kind {
             NodeKind::StmtLocal if !stmt.children.is_empty() => {
-                collect_reads(&stmt.children[0], &mut reads);
+                collect_reads(&stmt.children[0], reads);
             }
             NodeKind::StmtAssign if stmt.children.len() >= 2 => {
-                collect_reads(&stmt.children[1], &mut reads);
+                // LHS may itself contain reads (arr[i] = ..., s.f = ...) but a
+                // *simple* identifier LHS is a pure write — counting it as a
+                // read would prevent legitimate dead-store elimination.
+                let lhs = &stmt.children[0];
+                if lhs.kind != NodeKind::ExprIdentifier {
+                    collect_reads(lhs, reads);
+                }
+                collect_reads(&stmt.children[1], reads);
             }
             NodeKind::ExprReturn if !stmt.children.is_empty() => {
-                collect_reads(&stmt.children[0], &mut reads);
+                collect_reads(&stmt.children[0], reads);
             }
             NodeKind::StmtExpr if !stmt.children.is_empty() => {
-                collect_reads(&stmt.children[0], &mut reads);
+                collect_reads(&stmt.children[0], reads);
+            }
+            NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange => {
+                for c in &stmt.children {
+                    if c.kind == NodeKind::Module {
+                        collect_reads_in_stmts(&c.children, reads);
+                    } else {
+                        // Condition / range expressions live directly as child
+                        // nodes (not wrapped in Module) — read them fully.
+                        collect_reads(c, reads);
+                    }
+                }
             }
             _ => {}
         }
     }
+}
+
+fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+    let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
+    collect_reads_in_stmts(stmts, &mut reads);
     let before = stmts.len();
     stmts.retain(|s| {
         // R-OPT-1 (#918, W46): for StmtLocal the target name lives on
