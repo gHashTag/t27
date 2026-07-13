@@ -1,14 +1,91 @@
-# NOW — Wave Loop 506 in progress (2026-07-07)
+# NOW — Wave Loop 508 in progress (2026-07-07)
 
 **Last updated:** 2026-07-07
 
 ---
 
-## Wave Loop 506 — Model `switch` statements for enum / trit dispatch (in progress)
+## Wave Loop 508 — Model `break` / `continue` in bounded loops (in progress)
 
-- Branch: `wave-loop-506` (created)
+- Branch: `wave-loop-508` (created)
+- Issue: #1477 (placeholder — GH_TOKEN unavailable)
+- Plan: `.claude/plans/wave-loop-508.md`
+- Report: `docs/reports/WAVE_LOOP_508_CLOSEOUT.md`
+- Cooperation W509: `docs/reports/FPGA_LOOP_COOPERATION_W509_2026-07-07.md`
+
+### Goal
+
+Execute Variant A from the W508 cooperation plan: add `break` and `continue`
+control flow to the Icarus-lowerable operational semantics, shallow Verilog
+model, emitter, lowerability/sequential predicate, and generic equivalence
+theorem.
+
+### Deliverables (planned)
+
+- Extend `Stmt` / `VStmt` with `break` and `continue`.
+- Thread an early-exit flag through total statement-list evaluation.
+- Update lowerability/sequential predicates to require loop context.
+- Emit early-exit guards or procedural `break`/`continue` in Verilog.
+- Prove the new cases in `Equivalence.lean` and add witness theorems in
+  `Soundness.lean`.
+- Add scratch witnesses:
+  - `w508_break_search.t27`
+  - `w508_continue_sum.t27`
+  - `w508_break_nested.t27`
+
+---
+
+## Wave Loop 507 — Model bounded `while` loops (closed)
+
+- Branch: `wave-loop-507`
+- Issue: #1476
+- Plan: `.claude/plans/wave-loop-507.md`
+- Report: `docs/reports/WAVE_LOOP_507_CLOSEOUT.md`
+- Cooperation W508: `docs/reports/FPGA_LOOP_COOPERATION_W508_2026-07-07.md`
+
+### Deliverables
+
+- Added `Stmt.whileLoop` and `VStmt.whileLoop` to the Icarus-lowerable model.
+- Added fuel-bounded total evaluators that re-evaluate the combinational
+  condition each iteration.
+- Updated lowerability/sequential predicates and the generic `all_equiv`
+  theorem with a `P_whileLoop` invariant.
+- Added scratch witnesses:
+  - `specs/scratch/w507_while_counter.t27` — count-up counter.
+  - `specs/scratch/w507_while_search.t27` — linear search over a fixed array.
+  - `specs/scratch/w507_while_nested.t27` — nested `while` inside a `for`.
+- Added W507 witness environments/modules in `Lemmas.lean` and lowerability /
+  sequentiality / value-preservation theorems in `Soundness.lean`, each
+  applying `module_value_equiv_proved_sequential`.
+
+### Verification
+
+- `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in
+  IcarusLowerable modules.
+- `./scripts/tri verify --lean-lowerable`: passed, 253 lowerable specs, 0
+  disagreements.
+- `./scripts/tri test`:
+  - 715 / 715 non-smoke PASS.
+  - 195 / 195 yosys smoke PASS, 0 baseline failures.
+  - 195 / 195 Icarus smoke PASS, 0 documented baseline failures.
+  - 715 / 715 seal matches.
+  - FPGA board-less smoke gate / replay: OK.
+  - Standalone lake-package build: OK.
+- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
+
+### Residual boundaries
+
+- `break` and `continue` inside loops remain outside the modeled operational
+  semantics.
+- Array-typed direct fields still use memory-mode lowering.
+- The theorem still requires the chosen function to be emitted (non-host-only).
+
+---
+
+## Wave Loop 506 — Model `switch` statements for enum / trit dispatch (closed)
+
+- Branch: `wave-loop-506`
 - Issue: #1475 (placeholder — GH_TOKEN unavailable)
-- Cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W506_2026-07-07.md`
+- Cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W507_2026-07-07.md`
 
 ### Goal
 

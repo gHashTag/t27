@@ -38,6 +38,7 @@ inductive VStmt
   | ifThenElse (cond : VExpr) (then_ else_ : List VStmt)
   | switch (disc : VExpr) (cases : List (VExpr × List VStmt)) (default : List VStmt)
   | forLoop (var : String) (range : VExpr) (body : List VStmt)
+  | whileLoop (cond : VExpr) (body : List VStmt)
   | taskCall (name : String) (args : List VExpr)
   deriving Repr, BEq, Nonempty
 
@@ -92,6 +93,7 @@ def VStmt.hasPlaceholder : VStmt → Bool
       switchCaseListHasPlaceholder cases ||
       stmtListHasPlaceholder default
   | .forLoop _ range body => range.hasPlaceholder || stmtListHasPlaceholder body
+  | .whileLoop cond body => cond.hasPlaceholder || stmtListHasPlaceholder body
   | .taskCall _ args => VExpr.hasPlaceholder.exprListHasPlaceholder args
   | _ => false
 where

@@ -882,4 +882,120 @@ def w506SwitchModule : Module := {
   benches := []
 }
 
+/- W507 witness environments and modules: bounded `while` loops. -/
+
+/-- W507-A: environment for the bounded while-loop counter witness. -/
+def w507WhileCounterEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["count_to"]
+}
+
+/-- W507-A: function that counts up to its parameter using a `while` loop. -/
+def w507WhileCounterCountTo : Function := {
+  name := "count_to",
+  params := [("n", .u32)],
+  ret := some .u32,
+  body := [
+    .varDecl "i" .u32 (some (.intLit 0)),
+    .varDecl "acc" .u32 (some (.intLit 0)),
+    .whileLoop (.binop "<" (.identifier "i") (.identifier "n")) [
+      .assign (.identifier "acc") (.binop "+" (.identifier "acc") (.intLit 1)),
+      .assign (.identifier "i") (.binop "+" (.identifier "i") (.intLit 1))
+    ],
+    .return_ (some (.identifier "acc"))
+  ]
+}
+
+/-- W507-A: module containing the while-loop counter witness. -/
+def w507WhileCounterModule : Module := {
+  name := "w507_while_counter",
+  imports := [],
+  globals := [],
+  functions := [w507WhileCounterCountTo],
+  tests := [],
+  benches := []
+}
+
+/-- W507-B: environment for the while-loop linear-search witness. -/
+def w507WhileSearchEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["find_index"]
+}
+
+/-- W507-B: function that scans a fixed array with a `while` loop. -/
+def w507WhileSearchFindIndex : Function := {
+  name := "find_index",
+  params := [("target", .u32)],
+  ret := some .u32,
+  body := [
+    .varDecl "arr" (.array 5 .u32)
+      (some (.arrayLit (.array 5 .u32) [.intLit 3, .intLit 7, .intLit 1, .intLit 9, .intLit 2])),
+    .varDecl "i" .u32 (some (.intLit 0)),
+    .varDecl "found" .u32 (some (.intLit 5)),
+    .whileLoop (.binop "<" (.identifier "i") (.intLit 5)) [
+      .ifThenElse (.binop "==" (.index (.identifier "arr") (.identifier "i")) (.identifier "target"))
+        [.assign (.identifier "found") (.identifier "i")]
+        [],
+      .assign (.identifier "i") (.binop "+" (.identifier "i") (.intLit 1))
+    ],
+    .return_ (some (.identifier "found"))
+  ]
+}
+
+/-- W507-B: module containing the while-loop search witness. -/
+def w507WhileSearchModule : Module := {
+  name := "w507_while_search",
+  imports := [],
+  globals := [],
+  functions := [w507WhileSearchFindIndex],
+  tests := [],
+  benches := []
+}
+
+/-- W507-C: environment for the nested while-inside-for witness. -/
+def w507WhileNestedEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["nested_sum"]
+}
+
+/-- W507-C: function that nests a `while` loop inside a bounded `for` loop. -/
+def w507WhileNestedNestedSum : Function := {
+  name := "nested_sum",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "acc" .u32 (some (.intLit 0)),
+    .forLoop "outer" (.intLit 4) [
+      .varDecl "inner" .u32 (some (.intLit 0)),
+      .whileLoop (.binop "<" (.identifier "inner") (.identifier "outer")) [
+        .assign (.identifier "acc") (.binop "+" (.identifier "acc") (.intLit 1)),
+        .assign (.identifier "inner") (.binop "+" (.identifier "inner") (.intLit 1))
+      ]
+    ],
+    .return_ (some (.identifier "acc"))
+  ]
+}
+
+/-- W507-C: module containing the nested while-loop witness. -/
+def w507WhileNestedModule : Module := {
+  name := "w507_while_nested",
+  imports := [],
+  globals := [],
+  functions := [w507WhileNestedNestedSum],
+  tests := [],
+  benches := []
+}
+
 end Trinity.IcarusLowerable

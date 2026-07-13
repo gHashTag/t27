@@ -339,6 +339,10 @@ mutual
     | .switch disc cases default => do
         let d <- evalVExpr env vm val disc
         evalVSwitchStmtCases env vm val d default cases
+    | .whileLoop _ _ =>
+        -- The partial/combinational model does not execute loops; the fuel-based
+        -- total semantics in `SemanticsTotal.lean` is the proof-relevant model.
+        some val
     | .taskCall _ _ =>
         -- Task calls in the model only occur in test blocks; they are evaluated
         -- by the surrounding statement list, so we leave the valuation unchanged.

@@ -141,6 +141,23 @@ mutual
           evalForLoopTotal fuel env m val' var (i + 1) n body
   termination_by (fuel, n)
 
+  /-- Helper: execute a t27 while-loop body until the condition becomes false or
+      fuel runs out.  W507: each iteration consumes one fuel unit, the body runs
+      at the smaller fuel, and the combinational condition is re-evaluated after
+      every iteration. -/
+  def evalWhileLoopTotal (fuel : Nat) (env : Env) (m : Module) (val : Valuation)
+      (cond : Expr) (body : List Stmt) : Option Valuation :=
+    match fuel with
+    | 0 => none
+    | fuel+1 => do
+        let c <- evalExprTotal fuel env m val cond
+        if c.bits.toNat > 0 then
+          let val' <- evalStmtsTotal fuel env m val body
+          evalWhileLoopTotal fuel env m val' cond body
+        else
+          some val
+  termination_by (fuel, 0)
+
   /-- Helper: execute a t27 switch statement by matching the discriminant value
       against each case tag and running the first matching body (or the default).
       W506: the discriminant is evaluated once by the caller at the statement fuel;
@@ -182,6 +199,8 @@ mutual
       | .forLoop var range body => do
           let r <- evalExprTotal fuel env m val range
           evalForLoopTotal fuel env m val var 0 r.bits.toNat body
+      | .whileLoop cond body => do
+          evalWhileLoopTotal fuel env m val cond body
       | .switch disc cases default => do
           let d <- evalExprTotal fuel env m val disc
           evalSwitchStmtCasesTotal fuel env m val d default cases
@@ -290,6 +309,21 @@ mutual
           evalVForLoopTotal fuel env vm val' var (i + 1) n body
   termination_by (fuel, n)
 
+  /-- Helper: execute a shallow-Verilog while-loop body until the condition becomes
+      false or fuel runs out.  Mirrors `evalWhileLoopTotal` exactly. -/
+  def evalVWhileLoopTotal (fuel : Nat) (env : Env) (vm : VModule) (val : Valuation)
+      (cond : VExpr) (body : List VStmt) : Option Valuation :=
+    match fuel with
+    | 0 => none
+    | fuel+1 => do
+        let c <- evalVExprTotal fuel env vm val cond
+        if c.bits.toNat > 0 then
+          let val' <- evalVStmtsTotal fuel env vm val body
+          evalVWhileLoopTotal fuel env vm val' cond body
+        else
+          some val
+  termination_by (fuel, 0)
+
   /-- Helper: execute a shallow-Verilog switch statement by matching the
       discriminant value against each case tag and running the first matching body
       (or the default).  Fuel accounting mirrors the t27 side. -/
@@ -329,6 +363,8 @@ mutual
       | .forLoop var range body => do
           let r <- evalVExprTotal fuel env vm val range
           evalVForLoopTotal fuel env vm val var 0 r.bits.toNat body
+      | .whileLoop cond body => do
+          evalVWhileLoopTotal fuel env vm val cond body
       | .switch disc cases default => do
           let d <- evalVExprTotal fuel env vm val disc
           evalVSwitchStmtCasesTotal fuel env vm val d default cases

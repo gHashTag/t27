@@ -50,6 +50,7 @@ inductive Stmt
   | constDecl (name : String) (ty : Ty) (init : Option Expr)
   | ifThenElse (cond : Expr) (then_ else_ : List Stmt)
   | forLoop (var : String) (range : Expr) (body : List Stmt)
+  | whileLoop (cond : Expr) (body : List Stmt)
   | switch (disc : Expr) (cases : List (Expr × List Stmt)) (default : List Stmt)
   | return_ (e : Option Expr)
   | bareCall (e : Expr)

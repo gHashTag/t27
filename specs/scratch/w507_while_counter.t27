@@ -1,0 +1,19 @@
+module w507_while_counter;
+
+pub fn count_to(n : u32) -> u32 {
+    var i : u32 = 0;
+    var acc : u32 = 0;
+    while (i < n) {
+        acc = acc + 1;
+        i = i + 1;
+    }
+    return acc;
+}
+
+test while_counter {
+    assert_eq(count_to(0), 0);
+    assert_eq(count_to(3), 3);
+    assert_eq(count_to(7), 7);
+}
+
+endmodule

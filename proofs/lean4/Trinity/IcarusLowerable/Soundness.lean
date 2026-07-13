@@ -567,4 +567,91 @@ theorem w506_switch_value_equiv :
   exact module_value_equiv_proved_sequential w506SwitchEnv w506SwitchModule
     hlowerable hunique hseq hctx "main" w506SwitchMain [⟨32, BitVec.ofNat 32 1⟩] hfind hhost
 
+/- W507 theorems: bounded `while` loops. -/
+
+/-- W507-A: the bounded while-loop counter witness is lowerable. -/
+theorem w507_while_counter_lowerable :
+  Module.isLowerable w507WhileCounterEnv w507WhileCounterModule := by
+  native_decide
+
+/-- W507-A: the bounded while-loop counter witness is sequential. -/
+theorem w507_while_counter_sequential :
+  Module.isSequential w507WhileCounterEnv w507WhileCounterModule := by
+  native_decide
+
+/-- W507-A: value preservation for `count_to(3)`. -/
+theorem w507_while_counter_value_equiv :
+  evalModuleFunctionTotal defaultFuel w507WhileCounterEnv w507WhileCounterModule "count_to"
+    [⟨32, BitVec.ofNat 32 3⟩] =
+  evalVModuleTotal defaultFuel w507WhileCounterEnv (emitModule w507WhileCounterEnv w507WhileCounterModule) "count_to"
+    [⟨32, BitVec.ofNat 32 3⟩] := by
+  have hlowerable : Module.isLowerable w507WhileCounterEnv w507WhileCounterModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w507WhileCounterModule := by
+    simp [Module.hasUniqueFunctionNames, w507WhileCounterModule, w507WhileCounterCountTo]
+  have hseq : Module.isSequential w507WhileCounterEnv w507WhileCounterModule := by native_decide
+  have hctx : Module.callContext w507WhileCounterEnv w507WhileCounterModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w507WhileCounterEnv, w507WhileCounterModule, w507WhileCounterCountTo]
+  have hfind : w507WhileCounterModule.findFunction "count_to" = some w507WhileCounterCountTo := by
+    simp [Module.findFunction, w507WhileCounterModule, w507WhileCounterCountTo]
+  have hhost : ¬ Env.isHostOnly w507WhileCounterEnv w507WhileCounterCountTo.name := by
+    simp [Env.isHostOnly, w507WhileCounterEnv, w507WhileCounterCountTo]
+  exact module_value_equiv_proved_sequential w507WhileCounterEnv w507WhileCounterModule
+    hlowerable hunique hseq hctx "count_to" w507WhileCounterCountTo [⟨32, BitVec.ofNat 32 3⟩] hfind hhost
+
+/-- W507-B: the while-loop linear-search witness is lowerable. -/
+theorem w507_while_search_lowerable :
+  Module.isLowerable w507WhileSearchEnv w507WhileSearchModule := by
+  native_decide
+
+/-- W507-B: the while-loop linear-search witness is sequential. -/
+theorem w507_while_search_sequential :
+  Module.isSequential w507WhileSearchEnv w507WhileSearchModule := by
+  native_decide
+
+/-- W507-B: value preservation for `find_index(1)` (returns index 2). -/
+theorem w507_while_search_value_equiv :
+  evalModuleFunctionTotal defaultFuel w507WhileSearchEnv w507WhileSearchModule "find_index"
+    [⟨32, BitVec.ofNat 32 1⟩] =
+  evalVModuleTotal defaultFuel w507WhileSearchEnv (emitModule w507WhileSearchEnv w507WhileSearchModule) "find_index"
+    [⟨32, BitVec.ofNat 32 1⟩] := by
+  have hlowerable : Module.isLowerable w507WhileSearchEnv w507WhileSearchModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w507WhileSearchModule := by
+    simp [Module.hasUniqueFunctionNames, w507WhileSearchModule, w507WhileSearchFindIndex]
+  have hseq : Module.isSequential w507WhileSearchEnv w507WhileSearchModule := by native_decide
+  have hctx : Module.callContext w507WhileSearchEnv w507WhileSearchModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w507WhileSearchEnv, w507WhileSearchModule, w507WhileSearchFindIndex]
+  have hfind : w507WhileSearchModule.findFunction "find_index" = some w507WhileSearchFindIndex := by
+    simp [Module.findFunction, w507WhileSearchModule, w507WhileSearchFindIndex]
+  have hhost : ¬ Env.isHostOnly w507WhileSearchEnv w507WhileSearchFindIndex.name := by
+    simp [Env.isHostOnly, w507WhileSearchEnv, w507WhileSearchFindIndex]
+  exact module_value_equiv_proved_sequential w507WhileSearchEnv w507WhileSearchModule
+    hlowerable hunique hseq hctx "find_index" w507WhileSearchFindIndex [⟨32, BitVec.ofNat 32 1⟩] hfind hhost
+
+/-- W507-C: the nested while-inside-for witness is lowerable. -/
+theorem w507_while_nested_lowerable :
+  Module.isLowerable w507WhileNestedEnv w507WhileNestedModule := by
+  native_decide
+
+/-- W507-C: the nested while-inside-for witness is sequential. -/
+theorem w507_while_nested_sequential :
+  Module.isSequential w507WhileNestedEnv w507WhileNestedModule := by
+  native_decide
+
+/-- W507-C: value preservation for `nested_sum()` (returns 6). -/
+theorem w507_while_nested_value_equiv :
+  evalModuleFunctionTotal defaultFuel w507WhileNestedEnv w507WhileNestedModule "nested_sum" [] =
+  evalVModuleTotal defaultFuel w507WhileNestedEnv (emitModule w507WhileNestedEnv w507WhileNestedModule) "nested_sum" [] := by
+  have hlowerable : Module.isLowerable w507WhileNestedEnv w507WhileNestedModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w507WhileNestedModule := by
+    simp [Module.hasUniqueFunctionNames, w507WhileNestedModule, w507WhileNestedNestedSum]
+  have hseq : Module.isSequential w507WhileNestedEnv w507WhileNestedModule := by native_decide
+  have hctx : Module.callContext w507WhileNestedEnv w507WhileNestedModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w507WhileNestedEnv, w507WhileNestedModule, w507WhileNestedNestedSum]
+  have hfind : w507WhileNestedModule.findFunction "nested_sum" = some w507WhileNestedNestedSum := by
+    simp [Module.findFunction, w507WhileNestedModule, w507WhileNestedNestedSum]
+  have hhost : ¬ Env.isHostOnly w507WhileNestedEnv w507WhileNestedNestedSum.name := by
+    simp [Env.isHostOnly, w507WhileNestedEnv, w507WhileNestedNestedSum]
+  exact module_value_equiv_proved_sequential w507WhileNestedEnv w507WhileNestedModule
+    hlowerable hunique hseq hctx "nested_sum" w507WhileNestedNestedSum [] hfind hhost
+
 end Trinity.IcarusLowerable

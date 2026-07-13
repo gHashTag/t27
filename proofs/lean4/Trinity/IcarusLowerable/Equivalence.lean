@@ -788,6 +788,12 @@ theorem functionNames_forLoop {var range body} :
   simp [Stmt.functionNames', functionNamesList'_eq]
 
 @[simp]
+theorem functionNames_whileLoop {cond body} :
+    (Stmt.whileLoop cond body).functionNames' =
+    cond.functionNames' ++ body.flatMap Stmt.functionNames' := by
+  simp [Stmt.functionNames', functionNamesList'_eq]
+
+@[simp]
 theorem functionNames'_switch {disc cases default} :
     (Stmt.switch disc cases default).functionNames' =
     disc.functionNames' ++
@@ -890,6 +896,26 @@ theorem callContext_forLoop {env m var range body}
     have hmem : x ∈ (Stmt.forLoop var range body).functionNames' := by
       rw [functionNames_forLoop]
       apply List.mem_append_right range.functionNames'
+      exact List.mem_flatMap_of_mem hs hx
+    exact h x hmem
+
+theorem callContext_whileLoop {env m cond body}
+    (h : Stmt.callContext env m (Stmt.whileLoop cond body)) :
+    Expr.callContext env m cond ∧ Stmt.callContextList env m body := by
+  simp only [Stmt.callContext, stmt_functionNames_eq] at h
+  constructor
+  · intro x hx
+    rw [expr_functionNames_eq] at hx
+    have hmem : x ∈ (Stmt.whileLoop cond body).functionNames' := by
+      rw [functionNames_whileLoop]
+      apply List.mem_append_left (List.flatMap Stmt.functionNames' body)
+      exact hx
+    exact h x hmem
+  · intro s hs x hx
+    rw [stmt_functionNames_eq] at hx
+    have hmem : x ∈ (Stmt.whileLoop cond body).functionNames' := by
+      rw [functionNames_whileLoop]
+      apply List.mem_append_right cond.functionNames'
       exact List.mem_flatMap_of_mem hs hx
     exact h x hmem
 
@@ -1003,6 +1029,12 @@ theorem isCombinational_forLoop {var range body}
   simp only [Stmt.isCombinational, Expr.isCombinational] at h
   contradiction
 
+theorem isCombinational_whileLoop {cond body}
+    (h : Stmt.isCombinational (Stmt.whileLoop cond body)) :
+    Expr.isCombinational cond ∧ Stmt.isCombinationalList body := by
+  simp only [Stmt.isCombinational, Expr.isCombinational] at h
+  contradiction
+
 /-- A member of a combinational switch case list is combinational. -/
 theorem isCombinationalSwitchCaseList'_mem {cases : List (Expr × List Stmt)}
     (h : Stmt.isCombinationalSwitchCaseList' cases = true) :
@@ -1107,6 +1139,13 @@ theorem isSequential_ifThenElse {cond then_ else_}
 theorem isSequential_forLoop {var range body}
     (h : Stmt.isSequential (Stmt.forLoop var range body)) :
     Expr.isCombinational range ∧ Stmt.isSequentialList body := by
+  simp only [Stmt.isSequential, Expr.isCombinational, Stmt.isSequential', Stmt.isSequentialList,
+    isSequentialList'_eq, Bool.and_eq_true] at h ⊢
+  exact h
+
+theorem isSequential_whileLoop {cond body}
+    (h : Stmt.isSequential (Stmt.whileLoop cond body)) :
+    Expr.isCombinational cond ∧ Stmt.isSequentialList body := by
   simp only [Stmt.isSequential, Expr.isCombinational, Stmt.isSequential', Stmt.isSequentialList,
     isSequentialList'_eq, Bool.and_eq_true] at h ⊢
   exact h
@@ -1416,6 +1455,11 @@ theorem emitStmt_default_forLoop (env m) (var : String) (range : Expr) (body : L
     VStmt.forLoop var (emitExpr defaultFuel env m range) (emitStmts defaultFuel env m body) := by
   conv => lhs; unfold emitStmt; rfl
 
+theorem emitStmt_default_whileLoop (env m) (cond : Expr) (body : List Stmt) :
+    emitStmt defaultFuel env m (Stmt.whileLoop cond body) =
+    VStmt.whileLoop (emitExpr defaultFuel env m cond) (emitStmts defaultFuel env m body) := by
+  conv => lhs; unfold emitStmt; rfl
+
 theorem emitStmt_default_bareCall (env m) (e : Expr) :
     emitStmt defaultFuel env m (Stmt.bareCall e) =
     VStmt.taskCall "" [emitExpr defaultFuel env m e] := by
@@ -1455,6 +1499,14 @@ theorem evalForLoopTotal_zero {env m val var i n body} :
 theorem evalVForLoopTotal_zero {env vm val var i n body} :
     evalVForLoopTotal 0 env vm val var i n body = none := by
   simp [evalVForLoopTotal]
+
+theorem evalWhileLoopTotal_zero {env m val cond body} :
+    evalWhileLoopTotal 0 env m val cond body = none := by
+  simp [evalWhileLoopTotal]
+
+theorem evalVWhileLoopTotal_zero {env vm val cond body} :
+    evalVWhileLoopTotal 0 env vm val cond body = none := by
+  simp [evalVWhileLoopTotal]
 
 /-- At positive fuel a boolean literal reduces to a one-bit value. -/
 theorem evalExprTotal_succ_boolLit (fuel env m) (b : Bool) (val : Valuation) :
@@ -1816,6 +1868,11 @@ theorem evalStmtTotal_succ_forLoop (fuel env m) (var : String) (range : Expr) (b
     | none => simp [h, evalStmtTotal, Option.bind]
     | some r => simp [h, evalStmtTotal, Option.bind]
 
+theorem evalStmtTotal_succ_whileLoop (fuel env m) (cond : Expr) (body : List Stmt) (val : Valuation) :
+    evalStmtTotal (fuel + 1) env m val (Stmt.whileLoop cond body) =
+    evalWhileLoopTotal fuel env m val cond body := by
+    simp [evalStmtTotal, Option.bind]
+
 theorem evalStmtTotal_succ_switch (fuel env m) (disc : Expr) (cases : List (Expr × List Stmt))
     (default : List Stmt) (val : Valuation) :
     evalStmtTotal (fuel + 1) env m val (Stmt.switch disc cases default) =
@@ -1880,6 +1937,12 @@ theorem evalVStmtTotal_succ_forLoop (fuel env vm) (var : String) (range : VExpr)
     cases h : evalVExprTotal fuel env vm val range with
     | none => simp [h, evalVStmtTotal, Option.bind]
     | some r => simp [h, evalVStmtTotal, Option.bind]
+
+theorem evalVStmtTotal_succ_whileLoop (fuel env vm) (cond : VExpr) (body : List VStmt)
+    (val : Valuation) :
+    evalVStmtTotal (fuel + 1) env vm val (VStmt.whileLoop cond body) =
+    evalVWhileLoopTotal fuel env vm val cond body := by
+    simp [evalVStmtTotal, Option.bind]
 
 theorem evalVStmtTotal_succ_switch (fuel env vm) (disc : VExpr) (cases : List (VExpr × List VStmt))
     (default : List VStmt) (val : Valuation) :
@@ -1965,6 +2028,21 @@ def P_forLoop (fuel : Nat) : Prop :=
     (hval : Valuation.equiv val val),
     evalForLoopTotal fuel env₀ m₀ val var i n body =
     evalVForLoopTotal fuel env₀ vm0 val var i n vbody
+
+/-- Forward-simulation predicate for bounded `whileLoop` bodies at fuel `fuel`.
+    Unlike `forLoop`, the loop recurses only on fuel because the condition is
+    re-evaluated dynamically at every iteration. -/
+def P_whileLoop (fuel : Nat) : Prop :=
+  ∀ (val : Valuation) (cond : Expr) (body : List Stmt) (vcond : VExpr) (vbody : List VStmt)
+    (heq_cond : emitExpr defaultFuel env₀ m₀ cond = vcond)
+    (heq_body : emitStmts defaultFuel env₀ m₀ body = vbody)
+    (hcc_cond : Expr.callContext env₀ m₀ cond)
+    (hcc_body : Stmt.callContextList env₀ m₀ body)
+    (hcomb_cond : Expr.isCombinational cond)
+    (hseq_body : Stmt.isSequentialList body)
+    (hval : Valuation.equiv val val),
+    evalWhileLoopTotal fuel env₀ m₀ val cond body =
+    evalVWhileLoopTotal fuel env₀ vm0 val vcond vbody
 
 /-- Forward-simulation predicate for switch case bodies at fuel `fuel`.  Each case
     body is a statement list; the case walker needs to know that the chosen body
@@ -2055,7 +2133,8 @@ theorem P_expr_succ (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
       P_stmt env₀ m₀ vm0 k ∧
       P_stmts env₀ m₀ vm0 k ∧
       P_function env₀ m₀ vm0 k ∧
-      P_forLoop env₀ m₀ vm0 k)
+      P_forLoop env₀ m₀ vm0 k ∧
+      P_whileLoop env₀ m₀ vm0 k)
     (val : Valuation) (e : Expr) (ve : VExpr)
     (heq : emitExpr defaultFuel env₀ m₀ e = ve)
     (hcc : Expr.callContext env₀ m₀ e)
@@ -2327,7 +2406,8 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
     P_stmt env₀ m₀ vm0 fuel ∧
     P_stmts env₀ m₀ vm0 fuel ∧
     P_function env₀ m₀ vm0 fuel ∧
-    P_forLoop env₀ m₀ vm0 fuel := by
+    P_forLoop env₀ m₀ vm0 fuel ∧
+    P_whileLoop env₀ m₀ vm0 fuel := by
   induction fuel using Nat.strong_induction_on with
   | h fuel ih =>
       cases fuel with
@@ -2351,24 +2431,31 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
             rw [← heq]
             unfold evalFunctionTotal evalVFunctionTotal
             rfl
+          constructor
           · -- P_forLoop 0
             intro val var i n body vbody heq hcc hseq hval
             rw [← heq]
             simp [evalForLoopTotal_zero, evalVForLoopTotal_zero]
+          · -- P_whileLoop 0
+            intro val cond body vcond vbody heq_cond heq_body hcc_cond hcc_body hcomb_cond hseq_body hval
+            rw [← heq_cond, ← heq_body]
+            simp [evalWhileLoopTotal_zero, evalVWhileLoopTotal_zero]
       | succ fuel =>
       have h_ih : ∀ k, k ≤ fuel →
           P_expr env₀ m₀ vm0 k ∧
           P_stmt env₀ m₀ vm0 k ∧
           P_stmts env₀ m₀ vm0 k ∧
           P_function env₀ m₀ vm0 k ∧
-          P_forLoop env₀ m₀ vm0 k := by
+          P_forLoop env₀ m₀ vm0 k ∧
+          P_whileLoop env₀ m₀ vm0 k := by
         intro k hk
         exact ih k (by omega)
       have ih_expr := (h_ih fuel (by omega)).1
       have ih_stmt := (h_ih fuel (by omega)).2.1
       have ih_stmts := (h_ih fuel (by omega)).2.2.1
       have ih_fn := (h_ih fuel (by omega)).2.2.2.1
-      have ih_loop := (h_ih fuel (by omega)).2.2.2.2
+      have ih_loop := (h_ih fuel (by omega)).2.2.2.2.1
+      have ih_while := (h_ih fuel (by omega)).2.2.2.2.2
       constructor
       · -- P_expr (fuel + 1)
         intro val e ve heq hcc_e hcomb_e hval
@@ -2492,6 +2579,16 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
             intro r
             exact ih_loop val var 0 r.bits.toNat body
               (emitStmts defaultFuel env₀ m₀ body) rfl hcc_body hseq_body hval
+        | whileLoop cond body =>
+            have hcomb_cond := (Stmt.isSequential_whileLoop hseq_s).1
+            have hseq_body := (Stmt.isSequential_whileLoop hseq_s).2
+            have hcc_cond := (Stmt.callContext_whileLoop hcc_s).1
+            have hcc_body := (Stmt.callContext_whileLoop hcc_s).2
+            simp only [emitStmt_default_whileLoop,
+              evalStmtTotal_succ_whileLoop, evalVStmtTotal_succ_whileLoop]
+            exact ih_while val cond body
+              (emitExpr defaultFuel env₀ m₀ cond) (emitStmts defaultFuel env₀ m₀ body)
+              rfl rfl hcc_cond hcc_body hcomb_cond hseq_body hval
       constructor
       · -- P_stmts (fuel + 1)
         intro val ss vss heq hcc_ss hseq_ss hval
@@ -2530,6 +2627,7 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
               (fun p => p.1.1 == name) |>.map (·.2) |>.orElse (fun _ => base name))
           fn.body (emitStmts defaultFuel env₀ m₀ fn.body) rfl hcc_fn hseq_fn
           (Valuation.equiv_refl _)]
+      constructor
       · -- P_forLoop (fuel + 1)
         intro val var i n body vbody heq hcc hseq hval
         rw [← heq]
@@ -2548,6 +2646,23 @@ theorem all_equiv (hvm0 : vm0 = emitModuleFuel defaultFuel env₀ m₀)
             exact ih_loop val' var (i + 1) n body
               (emitStmts defaultFuel env₀ m₀ body) rfl hcc hseq
               (Valuation.equiv_refl val')
+      · -- P_whileLoop (fuel + 1)
+        intro val cond body vcond vbody heq_cond heq_body hcc_cond hcc_body hcomb_cond hseq_body hval
+        rw [← heq_cond, ← heq_body]
+        simp only [evalWhileLoopTotal, evalVWhileLoopTotal]
+        have h_cond := ih_expr val cond (emitExpr defaultFuel env₀ m₀ cond) rfl hcc_cond hcomb_cond hval
+        rw [h_cond]
+        apply Option.bind_congr_ext rfl
+        intro c
+        split_ifs with hcond
+        · have h_body := ih_stmts val body (emitStmts defaultFuel env₀ m₀ body) rfl hcc_body hseq_body (Valuation.equiv_refl _)
+          rw [h_body]
+          apply Option.bind_congr_ext rfl
+          intro val'
+          exact ih_while val' cond body
+            (emitExpr defaultFuel env₀ m₀ cond) (emitStmts defaultFuel env₀ m₀ body)
+            rfl rfl hcc_cond hcc_body hcomb_cond hseq_body (Valuation.equiv_refl val')
+        · rfl
 
 end EquivProof
 

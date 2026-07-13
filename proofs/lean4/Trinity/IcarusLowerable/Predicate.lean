@@ -194,6 +194,8 @@ def Stmt.isLowerableFuel (fuel : Nat) (env : Env) (s : Stmt) : Bool :=
       Stmt.isLowerableListFuel fuel env default
   | fuel+1, env, .forLoop _ range body =>
       range.isLowerableFuel fuel env && Stmt.isLowerableListFuel fuel env body
+  | fuel+1, env, .whileLoop cond body =>
+      cond.isLowerableFuel fuel env && Stmt.isLowerableListFuel fuel env body
   | fuel+1, env, .return_ e => e.all (fun x => x.isLowerableFuel fuel env)
   | fuel+1, env, .bareCall e => e.isLowerableFuel fuel env
 
@@ -282,6 +284,7 @@ def Stmt.isCombinationalFuel (fuel : Nat) (s : Stmt) : Bool :=
       Stmt.isCombinationalSwitchCaseListFuel fuel cases &&
       Stmt.isCombinationalListFuel fuel default
   | fuel+1, .forLoop _ _ _ => false
+  | fuel+1, .whileLoop _ _ => false
   | fuel+1, .return_ (some e) => e.isCombinationalFuel fuel
   | fuel+1, .return_ none => false
   | fuel+1, .bareCall e => e.isCombinationalFuel fuel
@@ -394,6 +397,8 @@ def Stmt.functionNamesFuel (fuel : Nat) (s : Stmt) : List String :=
       Stmt.functionNamesListFuel fuel default
   | fuel+1, .forLoop _ range body =>
       range.functionNamesFuel fuel ++ Stmt.functionNamesListFuel fuel body
+  | fuel+1, .whileLoop cond body =>
+      cond.functionNamesFuel fuel ++ Stmt.functionNamesListFuel fuel body
   | fuel+1, .return_ (some e) => e.functionNamesFuel fuel
   | fuel+1, .return_ none => []
   | fuel+1, .bareCall e => e.functionNamesFuel fuel
@@ -476,6 +481,8 @@ mutual
         Stmt.functionNamesList' default
     | .forLoop _ range body =>
         range.functionNames' ++ Stmt.functionNamesList' body
+    | .whileLoop cond body =>
+        cond.functionNames' ++ Stmt.functionNamesList' body
     | .return_ (some e) => e.functionNames'
     | .return_ none => []
     | .bareCall e => e.functionNames'
@@ -595,6 +602,7 @@ mutual
         Stmt.isCombinationalSwitchCaseList' cases &&
         Stmt.isCombinationalList' default
     | .forLoop _ _ _ => false
+    | .whileLoop _ _ => false
     | .return_ (some e) => e.isCombinational'
     | .bareCall e => e.isCombinational'
     | _ => false
@@ -665,6 +673,8 @@ mutual
         Stmt.isSequentialList' default
     | .forLoop _ range body =>
         range.isCombinational' && Stmt.isSequentialList' body
+    | .whileLoop cond body =>
+        cond.isCombinational' && Stmt.isSequentialList' body
     | .return_ (some e) => e.isCombinational'
     | .bareCall e => e.isCombinational'
     | _ => false
@@ -757,6 +767,9 @@ theorem Stmt.isCombinationalList_implies_isSequentialList' :
               · exact Stmt.isCombinationalSwitchCaseList_implies_isSequentialSwitchCaseList' cases h1_2
             · exact Stmt.isCombinationalList_implies_isSequentialList' default h1_3
         | forLoop _ _ _ =>
+            simp at h1
+            all_goals contradiction
+        | whileLoop _ _ =>
             simp at h1
             all_goals contradiction
         | return_ e =>

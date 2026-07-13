@@ -1,0 +1,21 @@
+module w507_while_nested;
+
+pub fn nested_sum() -> u32 {
+    var outer : u32 = 0;
+    var acc : u32 = 0;
+    for outer in 0..4 {
+        var inner : u32 = 0;
+        while (inner < outer) {
+            acc = acc + 1;
+            inner = inner + 1;
+        }
+    }
+    return acc;
+}
+
+test while_nested {
+    // 0 + 1 + 2 + 3 = 6
+    assert_eq(nested_sum(), 6);
+}
+
+endmodule
