@@ -2240,3 +2240,11 @@
 - **Commit:** feat(gen-verilog): Wave Loop 516 — whole-array-field reads from packed scalar structs and packed AOS elements, scalar array function returns, reseal 3 existing + 3 new scratch specs
 - **Files:** .trinity/experience.md
 
+## 2026-07-13T13:44:09Z — wave-loop-516
+- **Commit:** docs(experience): Wave Loop 516 learnings — whole-array-field slice width and AOS parameter boundary
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-13T13:44:13Z — wave-loop-516
+- **Commit:** chore(trinity): record W516 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
