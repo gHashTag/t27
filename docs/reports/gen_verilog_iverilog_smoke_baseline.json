@@ -1,9 +1,13 @@
 {
   "expected_failures": [
-    "specs/scratch/w508_continue_sum.t27"
+    "specs/scratch/w508_continue_sum.t27",
+    "specs/scratch/w468_local_ram_style.t27",
+    "specs/scratch/w514_function_local_packed_aos_ram_style.t27"
   ],
   "classification": {
-    "specs/scratch/w508_continue_sum.t27": "W508 continue flag backend not present on wave-loop-509; will be cleared by W508/W510 early-exit flag work."
+    "specs/scratch/w508_continue_sum.t27": "W508 continue flag backend not present on wave-loop-509; will be cleared by W508/W510 early-exit flag work.",
+    "specs/scratch/w468_local_ram_style.t27": "Icarus Verilog does not accept attribute specifiers attached to function-local declarations. The pragma is still honored by the yosys/Vivado backend.",
+    "specs/scratch/w514_function_local_packed_aos_ram_style.t27": "W514 function-local packed AOS pragma is intentionally not Icarus-lowerable because Icarus rejects attribute specifiers on function-local reg declarations."
   },
-  "note": "Icarus Verilog 12.0 baseline on wave-loop-509: 1 documented failure (W508 continue scratch witness). All other 200 Icarus smoke targets pass."
+  "note": "Icarus Verilog 12.0 baseline on wave-loop-514: 1 historical W508 failure plus 2 W514 function-local pragma witnesses that are not supported by the Icarus frontend. All other Icarus smoke targets pass."
 }

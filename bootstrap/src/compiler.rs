@@ -1908,6 +1908,13 @@ impl Parser {
 
     /// Parse a single statement inside a function body
     fn parse_body_stmt(&mut self) -> Result<Node, String> {
+        // W514: pragma inside a function body applies to the next local
+        // declaration, just as it does at module top level.
+        if self.current.kind == TokenKind::KwPragma {
+            self.parse_pragma()?;
+            return self.parse_body_stmt();
+        }
+
         // const / var declaration
         if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
             // `let` is lexed as KwConst. Detect destructuring form `let (a, b, c) = expr;`
@@ -7858,13 +7865,23 @@ impl VerilogCodegen {
         let end = block[block.len() - 1].clone();
         let mut decls: Vec<String> = Vec::new();
         let mut rest: Vec<String> = Vec::new();
-        for line in &block[1..block.len() - 1] {
+        let inner = &block[1..block.len() - 1];
+        let mut i = 0;
+        while i < inner.len() {
+            let line = &inner[i];
             let masked = Self::mask_comments_and_strings(line);
             let code = masked.trim();
             if code.starts_with("(*") {
-                // Icarus Verilog rejects standalone attribute specifiers inside
-                // procedural blocks, and they have no useful effect on per-element
-                // local registers, so drop them.
+                // W514: a pragma attribute that immediately precedes a local
+                // declaration must be hoisted together with that declaration. Drop
+                // only standalone attribute specifiers that are not attached to a
+                // declaration.
+                let next_is_decl = (i + 1) < inner.len()
+                    && Self::is_decl_line(&inner[i + 1]);
+                if next_is_decl {
+                    decls.push(line.clone());
+                }
+                i += 1;
                 continue;
             }
             if Self::is_decl_line(line) {
@@ -7872,6 +7889,7 @@ impl VerilogCodegen {
             } else {
                 rest.push(line.clone());
             }
+            i += 1;
         }
         let mut out = Vec::with_capacity(block.len());
         out.push(begin);
@@ -7933,9 +7951,16 @@ impl VerilogCodegen {
                 let c = m.trim_start();
                 let is_header = k == start;
                 let is_input = c.starts_with("input ");
+                let is_pragma = Self::is_pragma_line(l);
+                let is_decl = Self::is_decl_line(l);
                 if is_header || is_input {
                     out.push(l.clone());
-                } else if Self::is_decl_line(l) {
+                } else if is_decl {
+                    decls.push(l.clone());
+                } else if is_pragma && k + 1 <= end && Self::is_decl_line(&lines[k + 1]) {
+                    // W514: a pragma that immediately precedes a function-scope
+                    // declaration must be hoisted together with that declaration so
+                    // the attribute remains syntactically attached in Verilog.
                     decls.push(l.clone());
                 } else {
                     rest.push(l.clone());
@@ -7956,6 +7981,15 @@ impl VerilogCodegen {
         let masked = Self::mask_comments_and_strings(line);
         let code = masked.trim();
         code.starts_with("reg ") || code.starts_with("integer ")
+    }
+
+    /// W514: true when a line is a Verilog attribute (pragma) that should be
+    /// hoisted together with a following declaration. The backend emits
+    /// `(* name = "value" *)` on its own line, so we recognize that exact shape.
+    fn is_pragma_line(line: &str) -> bool {
+        let masked = Self::mask_comments_and_strings(line);
+        let code = masked.trim_start();
+        code.starts_with("(* ") && code.contains(" *)")
     }
 
     /// W477: replace Verilog comments and string literals with spaces so that
@@ -12827,6 +12861,10 @@ impl VerilogCodegen {
                     "// const {} : {} (packed scalar struct)",
                     safe_name, struct_name
                 ));
+                if !node.extra_pragma.is_empty() {
+                    self.write_indent();
+                    self.write_line(&format!("(* {} *)", node.extra_pragma));
+                }
                 let has_struct_lit = !node.children.is_empty()
                     && node.children[0].kind == NodeKind::ExprStructLit;
                 self.write_indent();
@@ -13289,6 +13327,10 @@ impl VerilogCodegen {
                     "// var {} : {} (packed scalar struct)",
                     safe_name, struct_name
                 ));
+                if !node.extra_pragma.is_empty() {
+                    self.write_indent();
+                    self.write_line(&format!("(* {} *)", node.extra_pragma));
+                }
                 let has_struct_lit = !node.children.is_empty()
                     && node.children[0].kind == NodeKind::ExprStructLit;
                 self.write_indent();
@@ -15802,11 +15844,30 @@ impl VerilogCodegen {
                             &ret_ty,
                             &self.struct_fields,
                         ) > 0
-                        && node.children[0].kind == NodeKind::ExprArrayLiteral
                     {
-                        if !self.try_emit_array_of_struct_literal_packed(
-                            &node.children[0],
-                        ) {
+                        if node.children[0].kind == NodeKind::ExprArrayLiteral {
+                            if !self.try_emit_array_of_struct_literal_packed(
+                                &node.children[0],
+                            ) {
+                                self.gen_verilog_expr(&node.children[0]);
+                            }
+                        } else if node.children[0].kind == NodeKind::ExprIdentifier {
+                            let base_name = &node.children[0].name;
+                            if self.is_local_packed_struct_array(base_name)
+                                || self.is_module_packed_struct_array(base_name)
+                            {
+                                let dims = Self::parse_array_dimensions(&ret_ty);
+                                let elem_type =
+                                    Self::array_dimensions_leaf_type(&dims);
+                                self.gen_verilog_pack_array_of_struct_expr(
+                                    &node.children[0],
+                                    &elem_type,
+                                    &dims,
+                                );
+                            } else {
+                                self.gen_verilog_expr(&node.children[0]);
+                            }
+                        } else {
                             self.gen_verilog_expr(&node.children[0]);
                         }
                     } else {
@@ -15931,6 +15992,64 @@ impl VerilogCodegen {
                             &inner_elem_type,
                             &self.struct_fields,
                         );
+                        let can_pack = Self::scalar_struct_can_lower_array_field_to_packed(
+                            &inner_elem_type,
+                            &self.struct_fields,
+                        );
+                        if can_pack {
+                            // W513: function-local array of lowerable scalar structs with
+                            // fixed-size scalar array fields: one packed vector per element.
+                            self.local_packed_struct_array_dims
+                                .insert(base_name.clone(), dims.clone());
+                            self.local_packed_struct_array_elem_type
+                                .insert(base_name.clone(), inner_elem_type.clone());
+                            if !node.extra_pragma.is_empty() {
+                                self.write_indent();
+                                self.write_line(&format!("(* {} *)", node.extra_pragma));
+                            }
+                            self.gen_verilog_packed_struct_array_decl(
+                                &safe_base,
+                                &inner_elem_type,
+                                &dims,
+                            );
+                            if !node.children.is_empty() {
+                                let init = &node.children[0];
+                                if init.kind == NodeKind::ExprArrayLiteral {
+                                    self.gen_verilog_packed_struct_array_init(
+                                        &safe_base,
+                                        &inner_elem_type,
+                                        &dims,
+                                        init,
+                                    );
+                                } else if init.kind == NodeKind::ExprCall
+                                    && !init.name.is_empty()
+                                {
+                                    self.gen_verilog_packed_struct_array_call_init(
+                                        base_name,
+                                        &dims,
+                                        &inner_elem_type,
+                                        init,
+                                    );
+                                } else if init.kind == NodeKind::ExprIdentifier
+                                    && !init.name.is_empty()
+                                {
+                                    self.gen_verilog_packed_struct_array_copy_init(
+                                        base_name,
+                                        &init.name,
+                                        &dims,
+                                    );
+                                } else {
+                                    self.write_indent();
+                                    self.write(&format!(
+                                        "// local packed AOS initializer for {} not yet lowered",
+                                        base_name
+                                    ));
+                                    self.gen_verilog_expr(init);
+                                    self.write_line(";");
+                                }
+                            }
+                            return;
+                        }
                         self.local_arrays.insert(safe_base.clone());
                         self.local_array_elem_info
                             .insert(base_name.clone(), (Self::multi_dim_struct_leaf_count(&dims), inner_elem_type.clone()));
@@ -16159,6 +16278,10 @@ impl VerilogCodegen {
                                     struct_type.as_str(),
                                     &self.struct_fields,
                                 );
+                                if !node.extra_pragma.is_empty() {
+                                    self.write_indent();
+                                    self.write_line(&format!("(* {} *)", node.extra_pragma));
+                                }
                                 self.write_indent();
                                 self.write_line(&format!(
                                     "reg [{0}:0] {1}; // W509 packed scalar struct local ({2})",
@@ -16197,6 +16320,10 @@ impl VerilogCodegen {
                                 struct_type.as_str(),
                                 &self.struct_fields,
                             );
+                            if !node.extra_pragma.is_empty() {
+                                self.write_indent();
+                                self.write_line(&format!("(* {} *)", node.extra_pragma));
+                            }
                             self.write_indent();
                             self.write_line(&format!(
                                 "reg [{0}:0] {1}; // W482/W483 packed scalar struct local ({2})",
@@ -16248,6 +16375,10 @@ impl VerilogCodegen {
                                     struct_type,
                                     &self.struct_fields,
                                 );
+                                if !node.extra_pragma.is_empty() {
+                                    self.write_indent();
+                                    self.write_line(&format!("(* {} *)", node.extra_pragma));
+                                }
                                 self.write_indent();
                                 self.write_line(&format!(
                                     "reg [{}:0] {}; // W509 packed scalar struct local ({})",
@@ -21991,13 +22122,41 @@ fn parse_int_value(s: &str) -> Option<i64> {
     }
 }
 
+fn type_is_struct_like(extra_type: &str) -> bool {
+    if extra_type.is_empty() || extra_type.starts_with('[') {
+        return false;
+    }
+    !matches!(
+        extra_type,
+        "u8" | "u16"
+            | "u32"
+            | "u64"
+            | "i8"
+            | "i16"
+            | "i32"
+            | "i64"
+            | "f32"
+            | "f64"
+            | "bool"
+            | "trit"
+            | "string"
+            | "void"
+    )
+}
+
 fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     let mut replacements: Vec<(String, String)> = Vec::new();
     for stmt in stmts.iter() {
         // W460: `let` bindings are intentionally preserved as explicit local
         // declarations; do not copy-propagate them away.
+        // W515: `var` bindings of struct-like type are mutable; copying one into
+        // another creates an independent value, so do not treat the destination
+        // as an alias of the source. Array and scalar `var` bindings continue to
+        // be propagated because the Verilog backend currently relies on the alias
+        // for array copy initializers and scalar copies are value-only.
         if stmt.kind == NodeKind::StmtLocal
             && stmt.extra_kind != "let"
+            && !(stmt.extra_mutable && type_is_struct_like(&stmt.extra_type))
             && stmt.children.len() == 1
             && stmt.children[0].kind == NodeKind::ExprIdentifier
             && stmt.name != stmt.children[0].name

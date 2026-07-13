@@ -1,0 +1,29 @@
+module w514_module_packed_struct_ram_style;
+
+pub struct S {
+    tag : u32,
+    vals : [3]u32,
+}
+
+pragma ram_style = "block";
+var s : S = S{.tag = 1, .vals = [10, 20, 30]};
+
+pub fn mutate_and_read() -> u32 {
+    s.tag = 7;
+    s.vals[0] = 100;
+    return s.tag + s.vals[0];
+}
+
+test module_packed_struct_ram_style {
+    assert_eq(mutate_and_read(), 107);
+}
+
+invariant module_packed_struct_ram_style_ok {
+    assert_eq(mutate_and_read(), 107);
+}
+
+bench module_packed_struct_ram_style_bench {
+    assert_eq(mutate_and_read(), 107);
+}
+
+endmodule

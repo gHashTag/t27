@@ -1,0 +1,31 @@
+module w515_local_packed_struct_return_copy;
+
+pub struct S {
+    tag : u32,
+    vals : [3]u32,
+}
+
+pub fn make() -> S {
+    return S{.tag = 3, .vals = [7, 8, 9]};
+}
+
+pub fn f() -> u32 {
+    var s : S = make();
+    s.tag = 7;
+    s.vals[0] = 100;
+    return s.tag + s.vals[0];
+}
+
+test local_packed_struct_return_copy {
+    assert_eq(f(), 107);
+}
+
+invariant local_packed_struct_return_copy_ok {
+    assert_eq(f(), 107);
+}
+
+bench local_packed_struct_return_copy_bench {
+    assert_eq(f(), 107);
+}
+
+endmodule

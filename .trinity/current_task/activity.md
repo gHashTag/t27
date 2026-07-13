@@ -2228,3 +2228,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 512 — arrays of lowerable scalar structs with fixed-size scalar array fields as packed-vector elements + W512 Lean witnesses + reseal + closeout/cooperation docs
 - **Files:** .claude/plans/wave-loop-513.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-13T12:42:28Z — wave-loop-515
+- **Commit:** docs(w513): Wave Loop 513 plan + branch wave-loop-513 created from wave-loop-512
+- **Files:** .claude/plans/wave-loop-514.md,.claude/plans/wave-loop-515.md,.trinity/current-issue.md,.trinity/seals/base_tritype-base.json,.trinity/seals/base_tritype-ops.json,.trinity/seals/bus_bus-pubsub.json,.trinity/seals/compiler_Lexing.json,.trinity/seals/config_config-migrate.json,.trinity/seals/config_config-paths.json,.trinity/seals/config_config-schema.json,.trinity/seals/enrichment_enrichment::youtube_transcript.json,.trinity/seals/fpga_Fifo.json,.trinity/seals/fpga_Formal.json,.trinity/seals/fpga_Hir.json,.trinity/seals/fpga_Memory.json,.trinity/seals/isa_ISAMemoryOps.json,.trinity/seals/isa_TernarySearch.json,.trinity/seals/isa_TernarySet.json,.trinity/seals/memory_FormulaEmbed.json,.trinity/seals/memory_NotebookLM.json
+

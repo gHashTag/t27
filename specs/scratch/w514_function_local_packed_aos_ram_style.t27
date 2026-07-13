@@ -1,0 +1,31 @@
+module w514_function_local_packed_aos_ram_style;
+
+pub struct S {
+    tag : u32,
+    vals : [3]u32,
+}
+
+pub fn f() -> u32 {
+    pragma ram_style = "block";
+    let arr : [2]S = [2]S{
+        S{.tag = 1, .vals = [10, 20, 30]},
+        S{.tag = 2, .vals = [40, 50, 60]},
+    };
+    arr[0].tag = 7;
+    arr[0].vals[0] = 100;
+    return arr[0].tag + arr[0].vals[0];
+}
+
+test function_local_packed_aos_ram_style {
+    assert_eq(f(), 107);
+}
+
+invariant function_local_packed_aos_ram_style_ok {
+    assert_eq(f(), 107);
+}
+
+bench function_local_packed_aos_ram_style_bench {
+    assert_eq(f(), 107);
+}
+
+endmodule

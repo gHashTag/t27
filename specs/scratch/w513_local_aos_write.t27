@@ -1,0 +1,39 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w513_local_aos_write.t27
+; W513 witness: write scalar and array-typed fields of a function-local
+; packed-element array of structs and read them back.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w513_local_aos_write;
+
+pub struct S {
+    tag : u32,
+    vals : [3]u32,
+}
+
+fn modify_fixed() -> u32 {
+    let arr : [2]S = [2]S{
+        S{.tag = 1, .vals = [10, 20, 30]},
+        S{.tag = 2, .vals = [40, 50, 60]},
+    };
+    arr[0].tag = 7;
+    arr[1].vals[2] = 99;
+    return arr[0].tag + arr[1].vals[2];
+}
+
+fn modify_indexed(i : u8, j : u8, v : u32) -> u32 {
+    let arr : [2]S = [2]S{
+        S{.tag = 1, .vals = [10, 20, 30]},
+        S{.tag = 2, .vals = [40, 50, 60]},
+    };
+    arr[i].vals[j] = v;
+    return arr[i].vals[j];
+}
+
+bench w513_local_aos_write_bench {
+    assert_eq(modify_fixed(), 106);
+    assert_eq(modify_indexed(0, 1, 55), 55);
+    assert_eq(modify_indexed(1, 2, 88), 88);
+}
+
+endmodule

@@ -1,0 +1,39 @@
+; SPDX-License-Identifier: Apache-2.0
+; t27/specs/scratch/w513_local_aos_return.t27
+; W513 witness: function-local packed-element array of structs returned
+; from a function and read back at the bench-local call site.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module w513_local_aos_return;
+
+pub struct S {
+    tag : u32,
+    vals : [3]u32,
+}
+
+fn make_local() -> [2]S {
+    let arr : [2]S = [2]S{
+        S{.tag = 1, .vals = [10, 20, 30]},
+        S{.tag = 2, .vals = [40, 50, 60]},
+    };
+    arr[1].vals[1] = 77;
+    return arr;
+}
+
+fn read_tag(arr : [2]S, i : u8) -> u32 {
+    return arr[i].tag;
+}
+
+fn read_val(arr : [2]S, i : u8, j : u8) -> u32 {
+    return arr[i].vals[j];
+}
+
+bench w513_local_aos_return_bench {
+    let arr : [2]S = make_local();
+    assert_eq(read_tag(arr, 0), 1);
+    assert_eq(read_tag(arr, 1), 2);
+    assert_eq(read_val(arr, 0, 0), 10);
+    assert_eq(read_val(arr, 1, 1), 77);
+}
+
+endmodule

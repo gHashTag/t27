@@ -1833,4 +1833,385 @@ def w512AosReturnModule : Module := {
   benches := []
 }
 
+/- W513 witness environments and modules: function-local packed-element arrays of
+   structs with fixed-size scalar array fields. -/
+
+/-- W513-A: environment for reading scalar and array-typed fields of a
+    function-local packed AOS. -/
+def w513LocalAosReadEnv : Env := {
+  structs := [("S", [("tag", .u32), ("vals", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["read_fixed", "read_indexed"]
+}
+
+/-- W513-A: read the scalar field of a function-local packed AOS element. -/
+def w513LocalAosReadFixed : Function := {
+  name := "read_fixed",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "arr" (.array 2 (.struct "S"))
+      (some (.arrayLit (.array 2 (.struct "S")) [
+        .structLit "S" [
+          ("tag", .intLit 1),
+          ("vals", .arrayLit (.array 3 .u32) [.intLit 10, .intLit 20, .intLit 30])
+        ],
+        .structLit "S" [
+          ("tag", .intLit 2),
+          ("vals", .arrayLit (.array 3 .u32) [.intLit 40, .intLit 50, .intLit 60])
+        ]
+      ])),
+    .return_ (some
+      (.binop "+"
+        (.fieldAccess (.index (.identifier "arr") (.intLit 0)) "tag")
+        (.index
+          (.fieldAccess (.index (.identifier "arr") (.intLit 1)) "vals")
+          (.intLit 1))))
+  ]
+}
+
+/-- W513-A: read an array-typed field element from a function-local packed AOS
+    using variable outer/inner indices. -/
+def w513LocalAosReadIndexed : Function := {
+  name := "read_indexed",
+  params := [("i", .u8), ("j", .u8)],
+  ret := some .u32,
+  body := [
+    .varDecl "arr" (.array 2 (.struct "S"))
+      (some (.arrayLit (.array 2 (.struct "S")) [
+        .structLit "S" [
+          ("tag", .intLit 1),
+          ("vals", .arrayLit (.array 3 .u32) [.intLit 10, .intLit 20, .intLit 30])
+        ],
+        .structLit "S" [
+          ("tag", .intLit 2),
+          ("vals", .arrayLit (.array 3 .u32) [.intLit 40, .intLit 50, .intLit 60])
+        ]
+      ])),
+    .return_ (some
+      (.index
+        (.fieldAccess
+          (.index (.identifier "arr") (.identifier "i"))
+          "vals")
+        (.identifier "j")))
+  ]
+}
+
+def w513LocalAosReadModule : Module := {
+  name := "w513_local_aos_read",
+  imports := [],
+  globals := [],
+  functions := [w513LocalAosReadFixed, w513LocalAosReadIndexed],
+  tests := [],
+  benches := []
+}
+
+/-- W513-B: environment for writing scalar/array-typed fields of a function-local
+    packed AOS and reading them back. -/
+def w513LocalAosWriteEnv : Env := {
+  structs := [("S", [("tag", .u32), ("vals", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["modify_fixed", "modify_indexed"]
+}
+
+/-- W513-B: write scalar and array-typed fields of a function-local packed AOS
+    with literal indices, then read them back. -/
+def w513LocalAosWriteFixed : Function := {
+  name := "modify_fixed",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "arr" (.array 2 (.struct "S"))
+      (some (.arrayLit (.array 2 (.struct "S")) [
+        .structLit "S" [
+          ("tag", .intLit 1),
+          ("vals", .arrayLit (.array 3 .u32) [.intLit 10, .intLit 20, .intLit 30])
+        ],
+        .structLit "S" [
+          ("tag", .intLit 2),
+          ("vals", .arrayLit (.array 3 .u32) [.intLit 40, .intLit 50, .intLit 60])
+        ]
+      ])),
+    .assign
+      (.fieldAccess (.index (.identifier "arr") (.intLit 0)) "tag")
+      (.intLit 7),
+    .assign
+      (.index
+        (.fieldAccess (.index (.identifier "arr") (.intLit 1)) "vals")
+        (.intLit 2))
+      (.intLit 99),
+    .return_ (some
+      (.binop "+"
+        (.fieldAccess (.index (.identifier "arr") (.intLit 0)) "tag")
+        (.index
+          (.fieldAccess (.index (.identifier "arr") (.intLit 1)) "vals")
+          (.intLit 2))))
+  ]
+}
+
+/-- W513-B: write a variable-index element of an array-typed field inside a
+    function-local packed AOS and read it back. -/
+def w513LocalAosWriteIndexed : Function := {
+  name := "modify_indexed",
+  params := [("i", .u8), ("j", .u8), ("v", .u32)],
+  ret := some .u32,
+  body := [
+    .varDecl "arr" (.array 2 (.struct "S"))
+      (some (.arrayLit (.array 2 (.struct "S")) [
+        .structLit "S" [
+          ("tag", .intLit 1),
+          ("vals", .arrayLit (.array 3 .u32) [.intLit 10, .intLit 20, .intLit 30])
+        ],
+        .structLit "S" [
+          ("tag", .intLit 2),
+          ("vals", .arrayLit (.array 3 .u32) [.intLit 40, .intLit 50, .intLit 60])
+        ]
+      ])),
+    .assign
+      (.index
+        (.fieldAccess
+          (.index (.identifier "arr") (.identifier "i"))
+          "vals")
+        (.identifier "j"))
+      (.identifier "v"),
+    .return_ (some
+      (.index
+        (.fieldAccess
+          (.index (.identifier "arr") (.identifier "i"))
+          "vals")
+        (.identifier "j")))
+  ]
+}
+
+def w513LocalAosWriteModule : Module := {
+  name := "w513_local_aos_write",
+  imports := [],
+  globals := [],
+  functions := [w513LocalAosWriteFixed, w513LocalAosWriteIndexed],
+  tests := [],
+  benches := []
+}
+
+/-- W513-C: environment for returning a function-local packed AOS from a function
+    and reading a mutated element from the returned value. -/
+def w513LocalAosReturnEnv : Env := {
+  structs := [("S", [("tag", .u32), ("vals", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["make_local", "read_returned"]
+}
+
+/-- W513-C: construct a function-local packed AOS, mutate one element, and return
+    the whole local identifier. -/
+def w513LocalAosReturnMakeLocal : Function := {
+  name := "make_local",
+  params := [],
+  ret := some (.array 2 (.struct "S")),
+  body := [
+    .varDecl "arr" (.array 2 (.struct "S"))
+      (some (.arrayLit (.array 2 (.struct "S")) [
+        .structLit "S" [
+          ("tag", .intLit 1),
+          ("vals", .arrayLit (.array 3 .u32) [.intLit 10, .intLit 20, .intLit 30])
+        ],
+        .structLit "S" [
+          ("tag", .intLit 2),
+          ("vals", .arrayLit (.array 3 .u32) [.intLit 40, .intLit 50, .intLit 60])
+        ]
+      ])),
+    .assign
+      (.index
+        (.fieldAccess
+          (.index (.identifier "arr") (.intLit 1))
+          "vals")
+        (.intLit 1))
+      (.intLit 77),
+    .return_ (some (.identifier "arr"))
+  ]
+}
+
+/-- W513-C: read arr[1].vals[1] from the returned function-local packed AOS. -/
+def w513LocalAosReturnReadReturned : Function := {
+  name := "read_returned",
+  params := [],
+  ret := some .u32,
+  body := [
+    .return_ (some
+      (.index
+        (.fieldAccess
+          (.index (.call "make_local" []) (.intLit 1))
+          "vals")
+        (.intLit 1)))
+  ]
+}
+
+def w513LocalAosReturnModule : Module := {
+  name := "w513_local_aos_return",
+  imports := [],
+  globals := [],
+  functions := [w513LocalAosReturnMakeLocal, w513LocalAosReturnReadReturned],
+  tests := [],
+  benches := []
+}
+
+/- W515 witness environments and modules: function-local packed scalar structs
+   initialized by copying another packed scalar struct value (local-to-local,
+   module-to-local, and return-to-local). -/
+
+/-- W515-A: environment for local-to-local copy of a packed scalar struct. -/
+def w515LocalCopyEnv : Env := {
+  structs := [("S", [("tag", .u32), ("vals", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["copy_and_sum"]
+}
+
+/-- W515-A: copy a local packed scalar struct into another local, mutate the
+    copy, and assert the original is unchanged. -/
+def w515LocalCopyFn : Function := {
+  name := "copy_and_sum",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "a" (.struct "S")
+      (some (.structLit "S" [
+        ("tag", .intLit 1),
+        ("vals", .arrayLit (.array 3 .u32) [.intLit 10, .intLit 20, .intLit 30])
+      ])),
+    .varDecl "b" (.struct "S") (some (.identifier "a")),
+    .assign (.fieldAccess (.identifier "b") "tag") (.intLit 7),
+    .assign
+      (.index (.fieldAccess (.identifier "b") "vals") (.intLit 0))
+      (.intLit 100),
+    .return_ (some
+      (.binop "+"
+        (.binop "+"
+          (.fieldAccess (.identifier "a") "tag")
+          (.index (.fieldAccess (.identifier "a") "vals") (.intLit 0)))
+        (.binop "+"
+          (.fieldAccess (.identifier "b") "tag")
+          (.index (.fieldAccess (.identifier "b") "vals") (.intLit 0)))))
+  ]
+}
+
+def w515LocalCopyModule : Module := {
+  name := "w515_local_packed_struct_copy",
+  imports := [],
+  globals := [],
+  functions := [w515LocalCopyFn],
+  tests := [],
+  benches := []
+}
+
+/-- W515-B: environment for module-to-local copy of a packed scalar struct. -/
+def w515ModuleToLocalCopyEnv : Env := {
+  structs := [("S", [("tag", .u32), ("vals", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["copy_and_sum"],
+  vars := [("m", .struct "S")]
+}
+
+def w515ModuleToLocalCopyGlobal : Stmt :=
+  .varDecl "m" (.struct "S")
+    (some (.structLit "S" [
+      ("tag", .intLit 5),
+      ("vals", .arrayLit (.array 3 .u32) [.intLit 11, .intLit 22, .intLit 33])
+    ]))
+
+/-- W515-B: copy a module-level packed scalar struct into a function-local packed
+    scalar struct, mutate the local, and sum both values to verify independence. -/
+def w515ModuleToLocalCopyFn : Function := {
+  name := "copy_and_sum",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "s" (.struct "S") (some (.identifier "m")),
+    .assign (.fieldAccess (.identifier "s") "tag") (.intLit 7),
+    .assign
+      (.index (.fieldAccess (.identifier "s") "vals") (.intLit 0))
+      (.intLit 100),
+    .return_ (some
+      (.binop "+"
+        (.binop "+"
+          (.fieldAccess (.identifier "m") "tag")
+          (.index (.fieldAccess (.identifier "m") "vals") (.intLit 0)))
+        (.binop "+"
+          (.fieldAccess (.identifier "s") "tag")
+          (.index (.fieldAccess (.identifier "s") "vals") (.intLit 0)))))
+  ]
+}
+
+def w515ModuleToLocalCopyModule : Module := {
+  name := "w515_module_to_local_packed_struct_copy",
+  imports := [],
+  globals := [w515ModuleToLocalCopyGlobal],
+  functions := [w515ModuleToLocalCopyFn],
+  tests := [],
+  benches := []
+}
+
+/-- W515-C: environment for return-to-local copy of a packed scalar struct. -/
+def w515ReturnToLocalCopyEnv : Env := {
+  structs := [("S", [("tag", .u32), ("vals", .array 3 .u32)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["make", "copy_and_sum"]
+}
+
+/-- W515-C: function that returns a packed scalar struct by value. -/
+def w515ReturnToLocalCopyMake : Function := {
+  name := "make",
+  params := [],
+  ret := some (.struct "S"),
+  body := [
+    .return_ (some (.structLit "S" [
+      ("tag", .intLit 3),
+      ("vals", .arrayLit (.array 3 .u32) [.intLit 7, .intLit 8, .intLit 9])
+    ]))
+  ]
+}
+
+/-- W515-C: copy a returned packed scalar struct into a local, mutate it, and
+    read it back. -/
+def w515ReturnToLocalCopyFn : Function := {
+  name := "copy_and_sum",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "s" (.struct "S") (some (.call "make" [])),
+    .assign (.fieldAccess (.identifier "s") "tag") (.intLit 7),
+    .assign
+      (.index (.fieldAccess (.identifier "s") "vals") (.intLit 0))
+      (.intLit 100),
+    .return_ (some
+      (.binop "+"
+        (.fieldAccess (.identifier "s") "tag")
+        (.index (.fieldAccess (.identifier "s") "vals") (.intLit 0))))
+  ]
+}
+
+def w515ReturnToLocalCopyModule : Module := {
+  name := "w515_local_packed_struct_return_copy",
+  imports := [],
+  globals := [],
+  functions := [w515ReturnToLocalCopyMake, w515ReturnToLocalCopyFn],
+  tests := [],
+  benches := []
+}
+
 end Trinity.IcarusLowerable

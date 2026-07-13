@@ -1,0 +1,29 @@
+module w515_local_packed_struct_copy;
+
+pub struct S {
+    tag : u32,
+    vals : [3]u32,
+}
+
+pub fn f() -> u32 {
+    var a : S = S{.tag = 1, .vals = [10, 20, 30]};
+    var b : S = a;
+    b.tag = 7;
+    b.vals[0] = 100;
+    // a must remain unchanged; b must reflect the mutations.
+    return (a.tag + a.vals[0]) + (b.tag + b.vals[0]);
+}
+
+test local_packed_struct_copy {
+    assert_eq(f(), 118);
+}
+
+invariant local_packed_struct_copy_ok {
+    assert_eq(f(), 118);
+}
+
+bench local_packed_struct_copy_bench {
+    assert_eq(f(), 118);
+}
+
+endmodule

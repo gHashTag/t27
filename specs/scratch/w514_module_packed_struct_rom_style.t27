@@ -1,0 +1,27 @@
+module w514_module_packed_struct_rom_style;
+
+pub struct S {
+    tag : u32,
+    vals : [3]u32,
+}
+
+pragma rom_style = "block";
+const c : S = S{.tag = 5, .vals = [11, 22, 33]};
+
+pub fn read_const() -> u32 {
+    return c.tag + c.vals[1];
+}
+
+test module_packed_struct_rom_style {
+    assert_eq(read_const(), 27);
+}
+
+invariant module_packed_struct_rom_style_ok {
+    assert_eq(read_const(), 27);
+}
+
+bench module_packed_struct_rom_style_bench {
+    assert_eq(read_const(), 27);
+}
+
+endmodule

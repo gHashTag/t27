@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2edacff00de8c3480b040488d236dbafca26d543c25abdd97b70d14da0173647",
   "module": "w476_adversarial_aggregate_tail",
   "ring": 12,
-  "sealed_at": "2026-07-13T09:00:35Z",
+  "sealed_at": "2026-07-13T12:31:41Z",
   "spec_hash": "sha256:7a5c98edc95f5ff2112616de6d1aabe0e9a6457b09041614416ba9eceb5ab30c",
   "spec_path": "specs/scratch/w476_adversarial_aggregate_tail.t27"
 }

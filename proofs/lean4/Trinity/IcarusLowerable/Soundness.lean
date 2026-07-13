@@ -1081,4 +1081,125 @@ theorem w512_aos_return_value_equiv :
   exact module_value_equiv_statement w512AosReturnEnv w512AosReturnModule
     hlowerable hunique hcomb hctx "read_returned" w512AosReturnReadReturned [] hfind hhost
 
+/- W513 theorems: function-local packed-element arrays of structs with fixed-size
+   scalar array fields. -/
+
+/-- W513-A: the function-local packed-AOS read witness is lowerable. -/
+theorem w513_local_aos_read_lowerable :
+  Module.isLowerable w513LocalAosReadEnv w513LocalAosReadModule := by
+  native_decide
+
+/-- W513-A: the function-local packed-AOS read witness is combinational. -/
+theorem w513_local_aos_read_combinational :
+  Module.isCombinational w513LocalAosReadEnv w513LocalAosReadModule := by
+  native_decide
+
+/-- W513-A: value preservation for `read_fixed()` (returns 51). -/
+theorem w513_local_aos_read_fixed_value_equiv :
+  evalModuleFunctionTotal defaultFuel w513LocalAosReadEnv w513LocalAosReadModule "read_fixed" [] =
+  evalVModuleTotal defaultFuel w513LocalAosReadEnv (emitModule w513LocalAosReadEnv w513LocalAosReadModule) "read_fixed" [] := by
+  have hlowerable : Module.isLowerable w513LocalAosReadEnv w513LocalAosReadModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w513LocalAosReadModule := by
+    simp [Module.hasUniqueFunctionNames, w513LocalAosReadModule, w513LocalAosReadFixed, w513LocalAosReadIndexed]
+  have hcomb : Module.isCombinational w513LocalAosReadEnv w513LocalAosReadModule := by native_decide
+  have hctx : Module.callContext w513LocalAosReadEnv w513LocalAosReadModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w513LocalAosReadEnv, w513LocalAosReadModule, w513LocalAosReadFixed, w513LocalAosReadIndexed]
+  have hfind : w513LocalAosReadModule.findFunction "read_fixed" = some w513LocalAosReadFixed := by
+    simp [Module.findFunction, w513LocalAosReadModule, w513LocalAosReadFixed, w513LocalAosReadIndexed]
+  have hhost : ¬ Env.isHostOnly w513LocalAosReadEnv w513LocalAosReadFixed.name := by
+    simp [Env.isHostOnly, w513LocalAosReadEnv, w513LocalAosReadFixed]
+  exact module_value_equiv_statement w513LocalAosReadEnv w513LocalAosReadModule
+    hlowerable hunique hcomb hctx "read_fixed" w513LocalAosReadFixed [] hfind hhost
+
+/-- W513-A: value preservation for `read_indexed(1, 2)` (returns 60). -/
+theorem w513_local_aos_read_indexed_value_equiv :
+  evalModuleFunctionTotal defaultFuel w513LocalAosReadEnv w513LocalAosReadModule "read_indexed"
+    [⟨8, BitVec.ofNat 8 1⟩, ⟨8, BitVec.ofNat 8 2⟩] =
+  evalVModuleTotal defaultFuel w513LocalAosReadEnv (emitModule w513LocalAosReadEnv w513LocalAosReadModule) "read_indexed"
+    [⟨8, BitVec.ofNat 8 1⟩, ⟨8, BitVec.ofNat 8 2⟩] := by
+  have hlowerable : Module.isLowerable w513LocalAosReadEnv w513LocalAosReadModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w513LocalAosReadModule := by
+    simp [Module.hasUniqueFunctionNames, w513LocalAosReadModule, w513LocalAosReadFixed, w513LocalAosReadIndexed]
+  have hcomb : Module.isCombinational w513LocalAosReadEnv w513LocalAosReadModule := by native_decide
+  have hctx : Module.callContext w513LocalAosReadEnv w513LocalAosReadModule := by
+    simp [Module.callContext, Stmt.callContextList, Stmt.callContext, Stmt.functionNames, w513LocalAosReadEnv, w513LocalAosReadModule, w513LocalAosReadFixed, w513LocalAosReadIndexed]
+  have hfind : w513LocalAosReadModule.findFunction "read_indexed" = some w513LocalAosReadIndexed := by
+    simp [Module.findFunction, w513LocalAosReadModule, w513LocalAosReadFixed, w513LocalAosReadIndexed]
+  have hhost : ¬ Env.isHostOnly w513LocalAosReadEnv w513LocalAosReadIndexed.name := by
+    simp [Env.isHostOnly, w513LocalAosReadEnv, w513LocalAosReadIndexed]
+  exact module_value_equiv_statement w513LocalAosReadEnv w513LocalAosReadModule
+    hlowerable hunique hcomb hctx "read_indexed" w513LocalAosReadIndexed
+    [⟨8, BitVec.ofNat 8 1⟩, ⟨8, BitVec.ofNat 8 2⟩] hfind hhost
+
+/-- W513-B: the function-local packed-AOS write witness is lowerable. -/
+theorem w513_local_aos_write_lowerable :
+  Module.isLowerable w513LocalAosWriteEnv w513LocalAosWriteModule := by
+  native_decide
+
+/-- W513-B: value preservation for `modify_fixed()` (returns 106). -/
+theorem w513_local_aos_write_fixed_value_equiv :
+  evalModuleFunctionTotal defaultFuel w513LocalAosWriteEnv w513LocalAosWriteModule "modify_fixed" [] =
+  evalVModuleTotal defaultFuel w513LocalAosWriteEnv (emitModule w513LocalAosWriteEnv w513LocalAosWriteModule) "modify_fixed" [] := by
+  native_decide
+
+/-- W513-B: value preservation for `modify_indexed(1, 2, 88)` (returns 88). -/
+theorem w513_local_aos_write_indexed_value_equiv :
+  evalModuleFunctionTotal defaultFuel w513LocalAosWriteEnv w513LocalAosWriteModule "modify_indexed"
+    [⟨8, BitVec.ofNat 8 1⟩, ⟨8, BitVec.ofNat 8 2⟩, ⟨32, BitVec.ofNat 32 88⟩] =
+  evalVModuleTotal defaultFuel w513LocalAosWriteEnv (emitModule w513LocalAosWriteEnv w513LocalAosWriteModule) "modify_indexed"
+    [⟨8, BitVec.ofNat 8 1⟩, ⟨8, BitVec.ofNat 8 2⟩, ⟨32, BitVec.ofNat 32 88⟩] := by
+  native_decide
+
+/-- W513-C: the function-local packed-AOS return witness is lowerable. -/
+theorem w513_local_aos_return_lowerable :
+  Module.isLowerable w513LocalAosReturnEnv w513LocalAosReturnModule := by
+  native_decide
+
+/-- W513-C: value preservation for `make_local()` returning the mutated packed AOS. -/
+theorem w513_local_aos_return_make_local_value_equiv :
+  evalModuleFunctionTotal defaultFuel w513LocalAosReturnEnv w513LocalAosReturnModule "make_local" [] =
+  evalVModuleTotal defaultFuel w513LocalAosReturnEnv (emitModule w513LocalAosReturnEnv w513LocalAosReturnModule) "make_local" [] := by
+  native_decide
+
+/-- W513-C: value preservation for `read_returned()` (returns 77). -/
+theorem w513_local_aos_return_read_returned_value_equiv :
+  evalModuleFunctionTotal defaultFuel w513LocalAosReturnEnv w513LocalAosReturnModule "read_returned" [] =
+  evalVModuleTotal defaultFuel w513LocalAosReturnEnv (emitModule w513LocalAosReturnEnv w513LocalAosReturnModule) "read_returned" [] := by
+  native_decide
+
+/- W515 theorems: function-local packed scalar struct copy initializers. -/
+
+/-- W515-A: the local-to-local packed scalar struct copy witness is lowerable. -/
+theorem w515_local_copy_lowerable :
+  Module.isLowerable w515LocalCopyEnv w515LocalCopyModule := by
+  native_decide
+
+/-- W515-A: value preservation for `copy_and_sum()` (returns 118). -/
+theorem w515_local_copy_value_equiv :
+  evalModuleFunctionTotal defaultFuel w515LocalCopyEnv w515LocalCopyModule "copy_and_sum" [] =
+  evalVModuleTotal defaultFuel w515LocalCopyEnv (emitModule w515LocalCopyEnv w515LocalCopyModule) "copy_and_sum" [] := by
+  native_decide
+
+/-- W515-B: the module-to-local packed scalar struct copy witness is lowerable. -/
+theorem w515_module_to_local_copy_lowerable :
+  Module.isLowerable w515ModuleToLocalCopyEnv w515ModuleToLocalCopyModule := by
+  native_decide
+
+/-- W515-B: value preservation for `copy_and_sum()` (returns 123). -/
+theorem w515_module_to_local_copy_value_equiv :
+  evalModuleFunctionTotal defaultFuel w515ModuleToLocalCopyEnv w515ModuleToLocalCopyModule "copy_and_sum" [] =
+  evalVModuleTotal defaultFuel w515ModuleToLocalCopyEnv (emitModule w515ModuleToLocalCopyEnv w515ModuleToLocalCopyModule) "copy_and_sum" [] := by
+  native_decide
+
+/-- W515-C: the return-to-local packed scalar struct copy witness is lowerable. -/
+theorem w515_return_to_local_copy_lowerable :
+  Module.isLowerable w515ReturnToLocalCopyEnv w515ReturnToLocalCopyModule := by
+  native_decide
+
+/-- W515-C: value preservation for `copy_and_sum()` (returns 107). -/
+theorem w515_return_to_local_copy_value_equiv :
+  evalModuleFunctionTotal defaultFuel w515ReturnToLocalCopyEnv w515ReturnToLocalCopyModule "copy_and_sum" [] =
+  evalVModuleTotal defaultFuel w515ReturnToLocalCopyEnv (emitModule w515ReturnToLocalCopyEnv w515ReturnToLocalCopyModule) "copy_and_sum" [] := by
+  native_decide
+
 end Trinity.IcarusLowerable

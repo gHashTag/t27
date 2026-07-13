@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:2212adf8e96dc8c24668eca1afdb89959bff5f3fde5141413ab8f00417ee27d9",
+  "gen_hash_rust": "sha256:c52e63aa259b7315337123f5c35c183497f849a69fedf41f51fb2278abd3eee0",
+  "gen_hash_verilog": "sha256:64aea8ae12a08db1d9725c254d7c4c51f269634ab280387de9867d3ebc2b1727",
+  "gen_hash_zig": "sha256:7508263ba59a28c1504850646e2c0f8c750896ae2040011963a78268d00c6363",
+  "module": "w514_module_packed_struct_rom_style",
+  "ring": 12,
+  "sealed_at": "2026-07-13T11:14:36Z",
+  "spec_hash": "sha256:b36808244bdf2e6737cfd1855abd37fb3156ae408559890362fbea1e48779740",
+  "spec_path": "specs/scratch/w514_module_packed_struct_rom_style.t27"
+}

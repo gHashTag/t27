@@ -1,95 +1,81 @@
-# NOW — Wave Loop 513 planned (2026-07-07)
+# NOW — Wave Loop 516 planned (2026-07-07)
 
 **Last updated:** 2026-07-07
 
 ---
 
-## Wave Loop 513 — Function-local packed arrays-of-structs (planned)
+## Wave Loop 516 — Cooperation variants (planned)
 
-- Branch: `wave-loop-513` (to create from `wave-loop-512`)
-- Issue: #1482 (placeholder — GH_TOKEN unavailable)
-- Plan: `.claude/plans/wave-loop-513.md` (to create)
-- Report: `docs/reports/WAVE_LOOP_513_CLOSEOUT.md` (to create)
-- Cooperation W514: `docs/reports/FPGA_LOOP_COOPERATION_W514_2026-07-07.md` (to create)
+- Branch: `wave-loop-516` (to create from `wave-loop-515`)
+- Issue: #1485 (placeholder — GH_TOKEN unavailable)
+- Cooperation W516: `docs/reports/FPGA_LOOP_COOPERATION_W516_2026-07-07.md`
+- Plan: select Variant A, B, or C and implement in the next loop.
 
 ### Goal
 
-Execute **Variant A** from the W513 cooperation plan: extend the W512
-packed-vector lowering for arrays of scalar structs with fixed-size scalar array
-fields from bench-local and module-level storage into **function-local
-declarations**.
+Pick one of the three W516 cooperation variants documented in
+`docs/reports/FPGA_LOOP_COOPERATION_W516_2026-07-07.md`:
 
-### Deliverables (planned)
+- **Variant A (recommended):** enable whole-array-field reads from packed scalar
+  structs and packed arrays-of-structs.
+- **Variant B:** clear the remaining W508 `break`/`continue` smoke baselines.
+- **Variant C:** add packed scalar struct equality / inequality operators in the
+  Icarus-lowerable subset.
 
-- Extend `gen_verilog_local_decl_hoisted` / `gen_verilog_local_assign` in
-  `bootstrap/src/compiler.rs` to emit packed-vector memories for function-local
-  arrays whose element type is a lowerable scalar struct.
-- Wire packed-AOS read/write/argument/return paths to function-local names,
-  including any function-local prefix.
-- Add scratch witnesses:
-  - `w513_local_aos_read.t27`
-  - `w513_local_aos_write.t27`
-  - `w513_local_aos_return.t27`
-- Add W513 environments/modules in
-  `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` and value-preservation
-  theorems in `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`.
-- Reseal affected specs after the Verilog layout change.
+### Residual boundaries from W515
+
+- Whole-array-field reads from packed structs / AOS are not yet lowered.
+- The W508 early-exit yosys/Icarus baselines remain.
+- Packed scalar struct equality operators are not yet lowerable.
 
 ---
 
-## Wave Loop 512 — Arrays of structs with array-typed element fields (closed)
+## Wave Loop 515 — Function-local packed scalar struct copy initializers (closed)
 
-- Branch: `wave-loop-512`
-- Issue: #1481 (placeholder — GH_TOKEN unavailable)
-- Plan: `.claude/plans/wave-loop-512.md`
-- Report: `docs/reports/WAVE_LOOP_512_CLOSEOUT.md`
-- Cooperation W513: `docs/reports/FPGA_LOOP_COOPERATION_W513_2026-07-07.md`
+- Branch: `wave-loop-515`
+- Issue: #1484 (placeholder — GH_TOKEN unavailable)
+- Plan: `.claude/plans/wave-loop-515.md`
+- Report: `docs/reports/WAVE_LOOP_515_CLOSEOUT.md`
+- Cooperation W516: `docs/reports/FPGA_LOOP_COOPERATION_W516_2026-07-07.md`
 
 ### Goal
 
-Execute **Variant A** from the W512 cooperation plan: extend the W509–W511
-packed-vector lowering for scalar structs with fixed-size scalar array fields
-from single instances (local/param/return/module) out to arrays of such structs.
+Execute a revised **Variant C** from the W515 cooperation plan: remove the
+unlowered boundary that function-local packed scalar struct variables cannot be
+initialized by copying another packed struct value.
 
 ### Deliverables
 
-- Added `local_packed_struct_array_*` and `module_packed_struct_array_*` tracking
-  maps plus packed-AOS helpers in `bootstrap/src/compiler.rs`.
-- Emitted bench-local and module-level arrays of lowerable scalar structs as
-  unpacked memories of packed vectors, reusing the MSB-first field layout.
-- Extended packed read/write paths to resolve `aos[i].field[j]` through the
-  outer memory address and inner packed-vector slice.
-- Added call-site argument packing so bench-local / module packed AOS can be
-  passed into functions.
+- Refined `copy_propagate` in `bootstrap/src/compiler.rs` to preserve `var`
+  declarations of struct-like type, fixing unresolved field access when a
+  copied packed struct local is later mutated.
 - Added scratch witnesses:
-  - `specs/scratch/w512_aos_array_field_read.t27`
-  - `specs/scratch/w512_aos_array_field_write.t27`
-  - `specs/scratch/w512_aos_array_field_return.t27`
-- Added W512 environments/modules in
-  `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` and value-preservation
-  theorems in `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`.
-- Resealed affected specs after the Verilog layout change.
+  - `specs/scratch/w515_local_packed_struct_copy.t27`
+  - `specs/scratch/w515_module_to_local_packed_struct_copy.t27`
+  - `specs/scratch/w515_local_packed_struct_return_copy.t27`
+- Added Lean environments and value-preservation theorems in
+  `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` and `Soundness.lean`.
+- Resealed 31 existing specs affected by the optimizer refinement and saved
+  seals for the three new W515 scratch specs.
 
 ### Verification
 
+- `cargo test -p t27c --bin t27c`: **1525 / 0 / 2**.
 - `lake build Trinity.IcarusLowerable.Soundness`: green with zero `sorry` in
   IcarusLowerable modules.
 - `./scripts/tri verify --lean-lowerable`: passed, 252 lowerable specs, 0
   disagreements.
-- `cargo test -p t27c --bin t27c`: 1525 / 0 / 2.
-- `./scripts/tri test --icarus-lowerable`: acceptable — 730/730
-  parse+typecheck+gen PASS, 208/210 yosys smoke PASS, 209/210 Icarus smoke PASS,
-  730/730 seal matches, Icarus lowerability 0 disagreements. The 3 smoke failures
-  are documented W508 early-exit baselines.
+- `./scripts/tri test --icarus-lowerable --fast`: acceptable — 739/739
+  parse+typecheck+gen PASS, 0 seal mismatches, Icarus lowerability 0
+  disagreements. The 5 smoke failures match the updated baseline (2 yosys W508
+  break baselines + 3 Icarus W508/function-local pragma baselines).
 
 ### Residual boundaries
 
-- Function-local packed AOS declarations are not yet lowered.
-- ram_style / ROM-style pragmas are not yet applied to packed structs / AOS.
-- The generic sequential theorem still accepts only identifier LHS assignments
-  and initialized module-level declarations.
-- The W508 break/continue/return early-exit interaction remains a documented
-  baseline on this branch.
+- Whole-array-field reads from packed structs / AOS are not yet lowered.
+- The W508 early-exit yosys/Icarus baselines remain.
+- Scalar and array `var` copy propagation still aliases the source for
+  non-struct types (documented semantic quirk).
 
 ---
 
