@@ -1,7 +1,13 @@
 # NOW — IGLA cycle 1 + Wave Loop 469 context (2026-07-07)
 
-Last updated: 2026-07-07
+Last updated: 2026-07-13
 
+## t27c codegen: recursive optimizer scan for control-flow bodies (Fixes #1464)
+
+- PR #1462 fixes const_propagate, copy_propagate, dead_store_elim to recurse
+  into if/while/for bodies when checking for reassignment/reads.
+- Eliminates 182 E0425 errors in tri-net specs (208 -> 26).
+- Stacked on #1461.
 ## IGLA cycle 1 — process debt needles (Refs #1438, #1440, #1442, #1444, #1446)
 
 - Charter: `docs/nona-03-manifest/IGLA_IMPROVEMENT_LOOP.md` + audit `docs/reports/IGLA_AUDIT_W470_2026-07-07.md`.
