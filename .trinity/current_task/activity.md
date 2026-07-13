@@ -2236,3 +2236,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 515 — function-local packed scalar struct copy initializers, refined copy_propagate for struct-like var types, three scratch witnesses + Lean value-preservation theorems, reseal 31 specs + 3 new specs
 - **Files:** .claude/plans/wave-loop-516.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/seals/math_E8LieAlgebra.json,.trinity/seals/math_ZamolodchikovE8.json,.trinity/seals/scratch_w516_local_aos_array_field_read.json,.trinity/seals/scratch_w516_module_scalar_struct_array_field_read.json,.trinity/seals/scratch_w516_param_scalar_struct_array_field_return.json,.trinity/seals/server_Project.json,bootstrap/src/compiler.rs,docs/reports/FPGA_LOOP_COOPERATION_W517_2026-07-07.md,docs/reports/WAVE_LOOP_516_CLOSEOUT.md,specs/scratch/w516_local_aos_array_field_read.t27,specs/scratch/w516_module_scalar_struct_array_field_read.t27,specs/scratch/w516_param_scalar_struct_array_field_return.t27
 
+## 2026-07-13T13:43:58Z — wave-loop-516
+- **Commit:** feat(gen-verilog): Wave Loop 516 — whole-array-field reads from packed scalar structs and packed AOS elements, scalar array function returns, reseal 3 existing + 3 new scratch specs
+- **Files:** .trinity/experience.md
+

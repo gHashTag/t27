@@ -1,5 +1,30 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-07 — Wave Loop 516 (whole-array-field reads from packed scalar structs / AOS)
+
+### What worked
+- Treating fixed-size scalar arrays (e.g. `[3]u32`) as a single packed vector
+  in `return_width` made function returns and local call-init unpacking straightforward.
+- Fixing `emit_packed_aos_field_slice` to slice the **total packed width** of an
+  array-typed field when no inner index is present eliminated a subtle regression
+  where `arr[i].coords` returned only the first scalar element.
+- Using function-local AOS witnesses for the variable-outer-index case avoided
+  the still-unfinished AOS-parameter binding path while still exercising the core
+  packed-vector slice logic.
+- Resealing the three affected non-scratch specs (`e8_lie_algebra`,
+  `zamolodchikov_e8`, `project`) immediately after the layout change kept the
+  seal gate green.
+
+### Anti-pattern / lesson
+- Do not assume a part-select that works for scalar element access (`arr[i].tag`)
+  automatically works for whole-array-field access. The slice width must be
+  computed from the full field type, not the leaf element type.
+- When a witness fails Icarus classification, simulate the generated Verilog
+  directly with `iverilog` to distinguish codegen bugs from simulator limitations
+  before changing the backend.
+
+---
+
 ## 2026-07-07 — Wave Loop 511 (module-level scalar structs with array-typed fields)
 
 ### What worked
