@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:b4199345ba299c50fa7c14cbaeae849af4cbe2f6a742f7e9b5ce0d6b23cb57cb",
+  "gen_hash_rust": "sha256:d6ac38ab847918c44217b11ff42b6dcb1e84c85ca4cb2028c347339c0c6371b1",
+  "gen_hash_verilog": "sha256:8c9c3e45f54a50b3434886dc7445a6c64fda481fa51713e1fe1ca5af8a127576",
+  "gen_hash_zig": "sha256:9361f6c8bfa0d2922f5c84d1f3cb57eeee2cc0f38652d5ac25dab21a331a3436",
+  "module": "W520_2D_PackedAOS_Param",
+  "ring": 12,
+  "sealed_at": "2026-07-13T16:19:48Z",
+  "spec_hash": "sha256:940b0f6ce90c6c8f4fe1a02e3ad20847718a03e2cda1964039664525a8d8a531",
+  "spec_path": "/Users/playra/t27/specs/scratch/w520_2d_packed_aos_param.t27"
+}

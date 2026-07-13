@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:86327c4e21f92f5da4ec7b91ffb1f6e7629a6798d555eec09253bdd8eecd8416",
+  "gen_hash_rust": "sha256:7e56195b30b02377d284e59febc0a1f335bb654d8ae6c7b60ef30e82cc712b6d",
+  "gen_hash_verilog": "sha256:844d6d29e75a1c7bd932b9efc981c77b23c85d7c65ea968f224181b3f065c10d",
+  "gen_hash_zig": "sha256:3d4cc92fab5b2d3d2068aba8cfb5f4e092119b4e217692709a50b01dc97bdd3f",
+  "module": "W520_2D_StructArrayParam_Local",
+  "ring": 12,
+  "sealed_at": "2026-07-13T16:19:48Z",
+  "spec_hash": "sha256:f4ba81f66b1b46fb3ea9f96bbe1186f5e88708f0194fa46820d7d5f0944af522",
+  "spec_path": "/Users/playra/t27/specs/scratch/w520_2d_struct_array_param_local.t27"
+}

@@ -1,5 +1,40 @@
 # t27 / Trinity Agent Experience Log
 
+## 2026-07-07 — Wave Loop 520 (multi-dimensional AOS parameters)
+
+### What worked
+- Investigating the actual generated Verilog for a 2-D AOS parameter call
+  revealed three independent gaps rather than one: module-level initializer,
+  test-block binding, and local memory-mode packing.
+- Fixing `gen_verilog_struct_rom_nested_init` to handle **flat** struct-literal
+  arrays (the parser's normal form for `[2][3]Pt{ ... }`) fixed module-level
+  2-D/3-D AOS initializers without breaking nested row-literal syntax.
+- Treating `TestBlock`/`InvariantBlock` local arrays as function-local arrays
+  in the array-parameter binding pass let them pass as packed-vector inputs,
+  matching the existing bench-local and function-local path.
+- Resolving the **leaf** element type when checking for array-typed fields in
+  the binding pass corrected the decision for multi-dimensional AOS like
+  `[2][2]Buf` (the intermediate type `[2]Buf` is not a struct).
+- Linearizing the outer-dimension index when packing a local memory-mode AOS
+  matched the `gen_verilog_local_struct_array_memory_decl` layout and fixed
+  illegal three-index references.
+- Adding one scratch witness per storage mode (register-mode, packed-element,
+  memory-mode) and per source (module-level vs. local) caught shape-specific
+  bugs that a single happy-path witness would have missed.
+- Resealing affected existing specs immediately after the Verilog output change
+  kept the suite green.
+
+### Anti-pattern / lesson
+- Do not assume a multi-dimensional feature works because the 1-D case works;
+  each of declaration, initializer, binding, and packing can have independent
+  dimension handling.
+- When the parser flattens an aggregate literal, every consumer of that literal
+  must be able to decode both nested and flat forms.
+- A single positive witness is insufficient when a feature crosses binding
+  boundaries; cover local, parameter, module, and each storage-mode variant.
+
+---
+
 ## 2026-07-07 — Wave Loop 519 (packed scalar struct ordering comparisons)
 
 ### What worked

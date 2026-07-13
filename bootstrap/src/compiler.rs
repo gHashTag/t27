@@ -6238,11 +6238,21 @@ impl VerilogCodegen {
                     self.write("{");
                     let mut first = true;
                     for comb in &combos {
-                        let outer_idx = comb
+                        // W520: local memory-mode arrays linearize all outer
+                        // dimensions into a single address, matching the
+                        // declaration emitted by gen_verilog_local_struct_array_memory_decl.
+                        let outer_addr: usize = comb
                             .iter()
-                            .map(|i| i.to_string())
-                            .collect::<Vec<_>>()
-                            .join("][");
+                            .enumerate()
+                            .map(|(k, &idx)| {
+                                let stride: usize = dims
+                                    .iter()
+                                    .skip(k + 1)
+                                    .map(|(s, _)| *s)
+                                    .product();
+                                idx * stride
+                            })
+                            .sum();
                         for (fname, ftype) in &direct_fields {
                             let field_name_raw = format!("{}_{}", safe_base, fname);
                             let field_safe = Self::verilog_safe_identifier(
@@ -6253,7 +6263,7 @@ impl VerilogCodegen {
                                     self.write(", ");
                                 }
                                 first = false;
-                                self.write(&format!("{}[{}]", field_safe, outer_idx));
+                                self.write(&format!("{}[{}]", field_safe, outer_addr));
                             } else {
                                 let inner_combos = Self::index_combinations(&field_dims);
                                 for inner in &inner_combos {
@@ -6268,7 +6278,7 @@ impl VerilogCodegen {
                                         .join("][");
                                     self.write(&format!(
                                         "{}[{}][{}]",
-                                        field_safe, outer_idx, inner_idx
+                                        field_safe, outer_addr, inner_idx
                                     ));
                                 }
                             }
@@ -7185,9 +7195,11 @@ impl VerilogCodegen {
         }
     }
 
-    /// W469: fetch the element at a given multi-dimensional index from a (possibly
-    /// nested) array literal. Returns None if the path does not exist or the leaf
-    /// is not a struct literal.
+    /// W469/W520: fetch the element at a given multi-dimensional index from a
+    /// (possibly nested) array literal. Returns None if the path does not exist.
+    /// Supports both nested row literals (`[2][3]T{ [3]T{...}, [3]T{...} }`) and
+    /// the flat leaf list (`[2][3]T{ a, b, c, d, e, f }`) produced by the t27
+    /// parser for struct-literal arrays.
     fn multi_dim_array_literal_get<'n>(
         lit: &'n Node,
         dims: &[(usize, String)],
@@ -7199,6 +7211,21 @@ impl VerilogCodegen {
         let child = lit.children.get(indices[0])?;
         if indices.len() == 1 {
             return Some(child);
+        }
+        // If the next child is not itself an array literal, the literal is a
+        // flat leaf list; compute the linear row-major index and return that
+        // element directly.
+        if child.kind != NodeKind::ExprArrayLiteral {
+            let addr: usize = indices
+                .iter()
+                .enumerate()
+                .map(|(k, &idx)| {
+                    let stride: usize =
+                        dims.iter().skip(k + 1).map(|(s, _)| *s).product();
+                    idx * stride
+                })
+                .sum();
+            return lit.children.get(addr);
         }
         Self::multi_dim_array_literal_get(child, &dims[1..], &indices[1..])
     }
@@ -10754,8 +10781,13 @@ impl VerilogCodegen {
                         NodeKind::TestBlock | NodeKind::InvariantBlock => {
                             let mut inner: Vec<&Node> = Vec::new();
                             Self::collect_expr_calls(decl, &f.name, &mut inner);
+                            // W520: test/invariant blocks are emitted as procedural
+                            // initial blocks and can declare local array variables.
+                            // Treat such arrays like function-local arrays so they
+                            // are passed as packed-vector inputs rather than bound
+                            // to a (non-existent) module-level memory.
                             for call in inner {
-                                call_sites.push((call, None, None));
+                                call_sites.push((call, Some(decl), None));
                             }
                         }
                         NodeKind::BenchBlock => {
@@ -10865,15 +10897,27 @@ impl VerilogCodegen {
                                             .get(bname)
                                             .map_or(false, |set| set.contains(&arg.name))
                                     });
-                                // W517: any array-of-structs whose element type has an
-                                // array-typed direct field must be passed as a packed-vector
-                                // input. The direct module-binding path assumes per-field
-                                // memories (e.g. `arr_coords`) that do not exist for packed
-                                // AOS, and the function-local/test-local/bench-local path
-                                // already uses the packed-vector form.
+                                // W517/W520: any array-of-structs whose leaf element type
+                                // has an array-typed direct field must be passed as a
+                                // packed-vector input. The direct module-binding path
+                                // assumes per-field memories (e.g. `arr_coords`) that do not
+                                // exist for packed AOS, and the function-local/test-local/
+                                // bench-local path already uses the packed-vector form.
+                                let leaf_elem_type = if self
+                                    .struct_fields
+                                    .contains_key(&expected_elem_type)
+                                {
+                                    expected_elem_type.clone()
+                                } else {
+                                    Self::array_dimensions_leaf_type(
+                                        &Self::parse_array_dimensions(
+                                            &expected_elem_type,
+                                        ),
+                                    )
+                                };
                                 let elem_has_array_field =
                                     Self::struct_type_has_array_field(
-                                        &expected_elem_type,
+                                        &leaf_elem_type,
                                         &self.struct_fields,
                                     );
                                 if is_local_array
@@ -11900,7 +11944,52 @@ impl VerilogCodegen {
         if lit.kind != NodeKind::ExprArrayLiteral {
             return;
         }
-        let dim_size = dims[indices.len()].0;
+        // W520: support flat leaf lists such as `[2][3]Pt{ Pt{...}, ..., Pt{...} }`.
+        // If none of the children are array literals, treat the whole literal as a
+        // row-major leaf list and initialize each element by its multi-dimensional
+        // index. The linear address within this literal is the suffix index; the
+        // full linear address prefixes it with the already-accumulated indices.
+        let depth = indices.len();
+        let remaining = &dims[depth..];
+        if !remaining.is_empty()
+            && !lit.children.is_empty()
+            && lit.children.iter().all(|c| c.kind != NodeKind::ExprArrayLiteral)
+        {
+            let prefix_linear: usize = indices
+                .iter()
+                .enumerate()
+                .map(|(k, &idx)| {
+                    let stride: usize = dims.iter().skip(k + 1).map(|(s, _)| *s).product();
+                    idx * stride
+                })
+                .sum();
+            let combos = Self::index_combinations(remaining);
+            for combo in &combos {
+                let suffix_linear: usize = combo
+                    .iter()
+                    .enumerate()
+                    .map(|(k, &idx)| {
+                        let stride: usize =
+                            remaining.iter().skip(k + 1).map(|(s, _)| *s).product();
+                        idx * stride
+                    })
+                    .sum();
+                if suffix_linear >= lit.children.len() {
+                    break;
+                }
+                if let Some(elem) = lit.children.get(suffix_linear) {
+                    self.gen_verilog_struct_rom_elem_init(
+                        rom_name,
+                        prefix_linear + suffix_linear,
+                        struct_name,
+                        elem,
+                        "",
+                    );
+                }
+            }
+            return;
+        }
+        let dim_size = dims[depth].0;
         for (i, child) in lit.children.iter().enumerate() {
             if i >= dim_size {
                 break;

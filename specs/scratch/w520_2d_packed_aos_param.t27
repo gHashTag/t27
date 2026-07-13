@@ -1,0 +1,38 @@
+// W520: 2-D array of packed scalar structs (element has fixed-size scalar array
+// fields) passed as a function parameter. Both module-level and local sources are
+// exercised.
+module W520_2D_PackedAOS_Param;
+
+struct Buf {
+    data : [4]u8,
+    tag : u8,
+}
+
+var g_bufs : [2][2]Buf = [2][2]Buf{
+    Buf{.data=[4]u8{1,2,3,4},.tag=10}, Buf{.data=[4]u8{5,6,7,8},.tag=11},
+    Buf{.data=[4]u8{9,10,11,12},.tag=12}, Buf{.data=[4]u8{13,14,15,16},.tag=13},
+};
+
+fn sum_2d_bufs(m : [2][2]Buf) -> u32 {
+    var total : u32 = 0;
+    for i in 0..2 {
+        for j in 0..2 {
+            for k in 0..4 {
+                total = total + (m[i][j].data[k] as u32);
+            }
+        }
+    }
+    return total;
+}
+
+test module_source { assert_eq(sum_2d_bufs(g_bufs), 136); }
+
+test local_source {
+    var bufs : [2][2]Buf = [2][2]Buf{
+        Buf{.data=[4]u8{1,2,3,4},.tag=10}, Buf{.data=[4]u8{5,6,7,8},.tag=11},
+        Buf{.data=[4]u8{9,10,11,12},.tag=12}, Buf{.data=[4]u8{13,14,15,16},.tag=13},
+    };
+    assert_eq(sum_2d_bufs(bufs), 136);
+}
+
+endmodule

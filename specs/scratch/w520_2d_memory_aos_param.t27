@@ -1,0 +1,48 @@
+// W520: 2-D array of memory-mode structs (element has an array-typed direct
+// field of structs) passed as a function parameter. The element is packed into a
+// flat vector at the call site and sliced inside the callee.
+module W520_2D_MemoryAOS_Param;
+
+struct Pt {
+    x : u16,
+    y : u16,
+}
+
+struct Wrap {
+    pts : [2]Pt,
+    n : u8,
+}
+
+var g_ws : [2][2]Wrap = [2][2]Wrap{
+    Wrap{.pts=[2]Pt{Pt{.x=1,.y=2},Pt{.x=3,.y=4}},.n=5},
+    Wrap{.pts=[2]Pt{Pt{.x=6,.y=7},Pt{.x=8,.y=9}},.n=10},
+    Wrap{.pts=[2]Pt{Pt{.x=11,.y=12},Pt{.x=13,.y=14}},.n=15},
+    Wrap{.pts=[2]Pt{Pt{.x=16,.y=17},Pt{.x=18,.y=19}},.n=20},
+};
+
+fn sum_2d_wrap(m : [2][2]Wrap) -> u32 {
+    var total : u32 = 0;
+    for i in 0..2 {
+        for j in 0..2 {
+            for k in 0..2 {
+                total = total + (m[i][j].pts[k].x as u32);
+            }
+            total = total + (m[i][j].n as u32);
+        }
+    }
+    return total;
+}
+
+test module_source { assert_eq(sum_2d_wrap(g_ws), 126); }
+
+test local_source {
+    var ws : [2][2]Wrap = [2][2]Wrap{
+        Wrap{.pts=[2]Pt{Pt{.x=1,.y=2},Pt{.x=3,.y=4}},.n=5},
+        Wrap{.pts=[2]Pt{Pt{.x=6,.y=7},Pt{.x=8,.y=9}},.n=10},
+        Wrap{.pts=[2]Pt{Pt{.x=11,.y=12},Pt{.x=13,.y=14}},.n=15},
+        Wrap{.pts=[2]Pt{Pt{.x=16,.y=17},Pt{.x=18,.y=19}},.n=20},
+    };
+    assert_eq(sum_2d_wrap(ws), 126);
+}
+
+endmodule

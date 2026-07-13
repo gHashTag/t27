@@ -1,0 +1,28 @@
+// W520: module-level 2-D array of scalar structs passed as a function parameter.
+// The array is lowered to per-field memories and the function reads each element
+// by its linearized outer address.
+module W520_2D_StructArrayParam_Module;
+
+struct Pt {
+    x : u16,
+    y : u16,
+}
+
+var g_pts : [2][3]Pt = [2][3]Pt{
+    Pt{.x=1,.y=0}, Pt{.x=2,.y=0}, Pt{.x=3,.y=0},
+    Pt{.x=4,.y=0}, Pt{.x=5,.y=0}, Pt{.x=6,.y=0},
+};
+
+fn sum_2d_pts(m : [2][3]Pt) -> u32 {
+    var total : u32 = 0;
+    for i in 0..2 {
+        for j in 0..3 {
+            total = total + (m[i][j].x as u32);
+        }
+    }
+    return total;
+}
+
+test basic { assert_eq(sum_2d_pts(g_pts), 21); }
+
+endmodule

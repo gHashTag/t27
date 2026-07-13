@@ -1,0 +1,29 @@
+// W520: test-block local 2-D array of scalar structs passed as a function
+// parameter. The local array is initialized from a flat struct-literal array
+// and passed to the callee as a packed vector input.
+module W520_2D_StructArrayParam_Local;
+
+struct Pt {
+    x : u16,
+    y : u16,
+}
+
+fn sum_2d_pts(m : [2][3]Pt) -> u32 {
+    var total : u32 = 0;
+    for i in 0..2 {
+        for j in 0..3 {
+            total = total + (m[i][j].x as u32);
+        }
+    }
+    return total;
+}
+
+test basic {
+    var pts : [2][3]Pt = [2][3]Pt{
+        Pt{.x=1,.y=0}, Pt{.x=2,.y=0}, Pt{.x=3,.y=0},
+        Pt{.x=4,.y=0}, Pt{.x=5,.y=0}, Pt{.x=6,.y=0},
+    };
+    assert_eq(sum_2d_pts(pts), 21);
+}
+
+endmodule

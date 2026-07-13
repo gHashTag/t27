@@ -1,7 +1,7 @@
-# Wave Loop 520 — Cooperation variants
+# Wave Loop 521 — Cooperation variants
 
-**Issue:** #1489 (placeholder — to create when GitHub token is available)  
-**Branch:** `wave-loop-520` (to create from `wave-loop-519`)  
+**Issue:** #1490 (placeholder — to create when GitHub token is available)  
+**Branch:** `wave-loop-521` (to create from `wave-loop-520`)  
 **Status:** planned  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
@@ -10,36 +10,35 @@
 ## Goal
 
 Select and execute one cooperation variant from
-`docs/reports/FPGA_LOOP_COOPERATION_W520_2026-07-07.md`:
+`docs/reports/FPGA_LOOP_COOPERATION_W521_2026-07-07.md`:
 
-- **Variant A (recommended):** extend W517 and W519 to multi-dimensional
-  packed arrays-of-structs (AOS) parameters with array-typed fields.
-- **Variant B:** formal soundness for scalar struct comparisons (equality and
-  ordering) in the Lean 4 IcarusLowerable proof stack.
-- **Variant C:** Icarus-lowerable classifier hardening and adversarial negative
-  witnesses for struct comparisons.
+- **Variant A (recommended):** add Lean 4 proof witnesses for the W520 multi-
+  dimensional array-of-structs parameter paths (register-mode and packed-element
+  AOS).
+- **Variant B:** extend multi-dimensional AOS lowering to function returns and
+  module-level whole-array assignment from calls.
+- **Variant C:** harden the Icarus-lowerable classifier for AOS parameter shapes
+  and add adversarial negative witnesses.
 
 ---
 
-## Residual boundaries from W519
+## Residual boundaries from W520
 
-- Scalar struct equality/inequality already lower correctly in the
-  Icarus-lowerable Verilog path.
-- Ordering comparisons (`<`, `<=`, `>`, `>=`) on local/param/module scalar
-  structs now lower to packed-vector comparisons (W519 landed).
-- Multi-dimensional AOS parameters with array-typed fields deeper than one
-  struct level still have no dedicated witness coverage.
-- Lean 4 formal proofs for scalar struct relational operators are not yet
-  written.
-- The static Icarus classifier does not explicitly reject non-lowerable
-  struct comparison shapes.
+- Module-level and local 2-D/3-D AOS parameters now lower correctly for
+  register-mode, packed-element, and memory-mode element structs.
+- Formal Lean 4 proof witnesses for the new multi-dimensional AOS parameter
+  cases are not yet written.
+- Multi-dimensional AOS **return values** and module-level assignment from
+  function calls remain unimplemented.
+- The Icarus-lowerable classifier does not explicitly reject non-lowerable AOS
+  parameter shapes (e.g. structs containing string/enum/f32 fields).
 
 ---
 
 ## Reference
 
-- W519 closeout: `docs/reports/WAVE_LOOP_519_CLOSEOUT.md`
-- W520 cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W520_2026-07-07.md`
+- W520 closeout: `docs/reports/WAVE_LOOP_520_CLOSEOUT.md`
+- W521 cooperation variants: `docs/reports/FPGA_LOOP_COOPERATION_W521_2026-07-07.md`
 
 ---
 
