@@ -2845,3 +2845,31 @@
 - Do not skip the FROZEN_HASH update when touching the sealed compiler file.
 - Do not start a full parser/backend refactor inside a single wave without a documented fallback variant.
 
+## 2026-07-07 — Wave Loop 527 (W469 2-D array-of-scalar-struct Verilog lowering)
+
+### What worked
+- Implementing the packed-vector AoS path for function-local `[N][M]Struct` kept the change localized to `VerilogCodegen` helpers and did not disturb the existing 1-D flattening.
+- Fixing `detect_unsupported_verilog_locals` to use a full-AST struct map removed the last W526 boundary; function bodies can now see module-level scalar structs.
+- Emitting scalar struct literals as sized concatenations (`{16'dy, 16'dx}`) made the witness acceptable to both yosys and Icarus.
+- Stopping `dead_store_elim` from dropping named initialized `let` bindings fixed three pre-existing cargo-test failures and aligned the optimizer with existing tests.
+- Resealing 176 specs after the backend change restored `./scripts/tri test` to 0 seal mismatches.
+- Cleaning duplicate `match` arms in `bootstrap/src/main.rs` unblocked the release build that the FROZEN_HASH ceremony forced.
+
+### What was blocked
+- Module-level 2-D AOS parameters and cross-function 2-D AOS values remain unsupported.
+- The `Trinity.IcarusLowerable` Lean 4 stack is not yet on `master`, so the new lowering has no formal soundness proof this wave.
+- `cargo build --release` (full workspace) still fails on an unrelated `flash-spi` struct-init error; only `cargo build --release -p t27c` is green.
+- 16 pre-existing yosys smoke failures remain in `./scripts/tri test`.
+
+### Corrective / keep-doing patterns
+- Build the full-AST struct/enum map once in `compile_verilog` and pass it down to recursive detectors; re-collecting per subtree misses module-level declarations.
+- Restrict new multi-dimensional lowering to `dims.len() >= 2` so existing 1-D flattening paths stay intact.
+- Use sized Verilog literals inside concatenations whenever a value may be consumed by Icarus.
+- Run the full release build after each `FROZEN_HASH` change; the ceremony can surface latent compile errors.
+- Reseal promptly after a backend change that affects generated code for many corpus specs; otherwise regressions hide behind seal mismatches.
+
+### Anti-patterns to avoid
+- Do not change scalar struct literal emission globally without checking both yosys and Icarus on representative specs.
+- Do not preserve all `let` bindings blindly; tuple-destructuring locals with empty names still produce invalid `reg [31:0] ;` declarations.
+- Do not leave duplicate `match` arms in the command dispatcher — full rebuilds will eventually fail with unreachable-pattern errors.
+

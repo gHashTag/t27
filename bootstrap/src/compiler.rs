@@ -2599,22 +2599,38 @@ impl Parser {
         Ok(lit)
     }
 
-    /// Parse array literal: [_]Type{ values } or [N]Type{ values }
+    /// Parse array literal: [_]Type{ values }, [N]Type{ values }, or
+    /// [N][M]Type{ values } (multi-dimensional). W527: consumes all leading
+    /// bracket dimensions and the element type before the brace.
     fn parse_array_literal(&mut self) -> Result<Node, String> {
         let mut node = Node::new(NodeKind::ExprArrayLiteral);
-        self.advance();
+        self.advance(); // consume first '['
 
-        if self.current.kind == TokenKind::RBracket {
-            self.advance();
-        } else {
-            let mut bracket_content = String::new();
-            while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
-                bracket_content.push_str(&self.current.lexeme);
+        let mut dims: Vec<String> = Vec::new();
+        loop {
+            // Collect the contents of the current bracket pair.
+            if self.current.kind == TokenKind::RBracket {
+                dims.push(String::new());
                 self.advance();
+            } else {
+                let mut bracket_content = String::new();
+                while self.current.kind != TokenKind::RBracket
+                    && self.current.kind != TokenKind::Eof
+                {
+                    bracket_content.push_str(&self.current.lexeme);
+                    self.advance();
+                }
+                dims.push(bracket_content.trim().to_string());
+                self.expect(TokenKind::RBracket)?;
             }
-            node.extra_size = bracket_content.trim().to_string();
-            self.expect(TokenKind::RBracket)?;
+            // Another leading bracket -> multi-dimensional literal.
+            if self.current.kind == TokenKind::LBracket {
+                self.advance(); // consume next '['
+            } else {
+                break;
+            }
         }
+        node.extra_size = dims.join("][");
 
         if self.current.kind == TokenKind::Ident {
             node.extra_type = self.current.lexeme.clone();
@@ -3667,6 +3683,12 @@ pub struct VerilogCodegen {
     // to skip a redundant truncation mask when the operand is a parameter that is
     // no wider than the cast target (a widening or same-width cast).
     param_widths: std::collections::HashMap<String, usize>,
+    // W527: top-level struct declarations -> field names and types, for
+    // packed-vector scalar-struct array lowering.
+    struct_decls: std::collections::HashMap<String, Vec<(String, String)>>,
+    // W527: function-local variable names -> declared type string, used to
+    // resolve multi-dimensional array-of-struct indexing and field access.
+    local_types: std::collections::HashMap<String, String>,
 }
 
 impl VerilogCodegen {
@@ -3677,6 +3699,8 @@ impl VerilogCodegen {
             module_name: String::new(),
             current_fn_name: String::new(),
             param_widths: std::collections::HashMap::new(),
+            struct_decls: std::collections::HashMap::new(),
+            local_types: std::collections::HashMap::new(),
         }
     }
 
@@ -3741,6 +3765,263 @@ impl VerilogCodegen {
         }
     }
 
+    /// W527: parse a t27 array type string like "[2][3]Pt" into a list of
+    /// dimension sizes and the element type name. Returns None for malformed or
+    /// non-array types.
+    fn parse_array_type(ty: &str) -> Option<(Vec<usize>, String)> {
+        let trimmed = ty.trim();
+        let mut rest = trimmed;
+        let mut dims = Vec::new();
+        while rest.starts_with('[') {
+            let close = rest.find(']')?;
+            let inner = rest[1..close].trim();
+            let size: usize = inner.parse().ok()?;
+            dims.push(size);
+            rest = rest[close + 1..].trim();
+        }
+        if dims.is_empty() || rest.is_empty() {
+            return None;
+        }
+        Some((dims, rest.to_string()))
+    }
+
+    /// W527: total bit width of a scalar struct element, or of a primitive
+    /// element type. Fixed-size scalar-array fields are counted as
+    /// `width * count`.
+    fn element_width(&self,
+        elem_type: &str,
+    ) -> u32 {
+        if let Some(fields) = self.struct_decls.get(elem_type) {
+            let mut w = 0u32;
+            for (_, ft) in fields {
+                let trimmed = ft.trim();
+                if let Some(close) = trimmed.find(']') {
+                    let inner = trimmed[1..close].trim();
+                    let count: u32 = inner.parse().unwrap_or(1);
+                    let base = trimmed[close + 1..].trim();
+                    w += count * Self::type_to_width(base);
+                } else {
+                    w += Self::type_to_width(trimmed);
+                }
+            }
+            return w.max(1);
+        }
+        Self::type_to_width(elem_type)
+    }
+
+    /// W527: for a scalar struct, return the bit offset (from the LSB of the
+    /// element) and width of the named field.
+    fn struct_field_offset(&self,
+        struct_name: &str,
+        field_name: &str,
+    ) -> Option<(u32, u32)> {
+        let fields = self.struct_decls.get(struct_name)?;
+        let mut offset = 0u32;
+        for (name, ftype) in fields {
+            let trimmed = ftype.trim();
+            let fw = if let Some(close) = trimmed.find(']') {
+                let inner = trimmed[1..close].trim();
+                let count: u32 = inner.parse().unwrap_or(1);
+                let base = trimmed[close + 1..].trim();
+                count * Self::type_to_width(base)
+            } else {
+                Self::type_to_width(trimmed)
+            };
+            if name == field_name {
+                return Some((offset, fw));
+            }
+            offset += fw;
+        }
+        None
+    }
+
+    /// W527: emit a Verilog part-select expression for one element of a packed
+    /// multi-dimensional array-of-struct local. `linear_expr` is the pre-quoted
+    /// textual expression for the linearized element index.
+    fn emit_packed_struct_element_slice(
+        &mut self,
+        var: &str,
+        linear_expr: &str,
+        elem_width: u32,
+        field_offset: u32,
+        field_width: u32,
+    ) {
+        if field_offset == 0 && field_width == elem_width {
+            // Whole element: no inner offset needed.
+            self.write(&format!(
+                "{}[({}) * {} +: {}]",
+                var, linear_expr, elem_width, elem_width
+            ));
+        } else {
+            self.write(&format!(
+                "{}[(({}) * {} + {}) +: {}]",
+                var, linear_expr, elem_width, field_offset, field_width
+            ));
+        }
+    }
+
+    /// W527: walk a chain of ExprIndex nodes rooted at a local
+    /// array-of-struct identifier and emit the corresponding packed slice.
+    /// `trailing_field` is Some("x") for `m[i][j].x`, None for `m[i][j]`.
+    /// Returns true if the chain was recognized and emitted.
+    fn try_emit_struct_array_access(
+        &mut self,
+        node: &Node,
+        trailing_field: Option<&str>,
+    ) -> bool {
+        // Walk down ExprIndex nodes to find the base identifier.
+        let mut current = node;
+        let mut indices: Vec<String> = Vec::new();
+        while current.kind == NodeKind::ExprIndex {
+            if current.children.len() >= 2 {
+                let mut idx_buf = String::new();
+                self.collect_expr_text(&current.children[1], &mut idx_buf);
+                indices.push(idx_buf);
+            }
+            current = match current.children.first() {
+                Some(c) => c,
+                None => return false,
+            };
+        }
+        let base_name = match current.kind {
+            NodeKind::ExprIdentifier if !current.name.is_empty() => current.name.clone(),
+            _ => return false,
+        };
+        let local_ty = match self.local_types.get(&base_name) {
+            Some(t) => t.clone(),
+            None => return false,
+        };
+        let (dims, elem_type) = match Self::parse_array_type(&local_ty) {
+            Some(v) => v,
+            None => return false,
+        };
+        if dims.len() < 2 || !self.struct_decls.contains_key(&elem_type) {
+            return false;
+        }
+        // Indices were collected from outermost to innermost; reverse to row-major.
+        indices.reverse();
+        if indices.len() != dims.len() {
+            return false;
+        }
+
+        let elem_width = self.element_width(&elem_type);
+        let mut linear = indices[0].clone();
+        for (i, dim) in dims.iter().enumerate().skip(1) {
+            linear = format!("(({}) * {} + {})", linear, dim, indices[i]);
+        }
+
+        let (field_offset, field_width) = if let Some(fname) = trailing_field {
+            match self.struct_field_offset(&elem_type, fname) {
+                Some(v) => v,
+                None => return false,
+            }
+        } else {
+            (0u32, elem_width)
+        };
+
+        self.emit_packed_struct_element_slice(
+            &base_name,
+            &linear,
+            elem_width,
+            field_offset,
+            field_width,
+        );
+        true
+    }
+
+    /// W527: helper that renders an expression subtree into a buffer without
+    /// touching `self.output`. Used to build index expressions for dynamic
+    /// part-selects.
+    fn collect_expr_text(&self,
+        node: &Node,
+        buf: &mut String,
+    ) {
+        // Dispatch into a temporary codegen instance so we reuse the existing
+        // expression emitter without mutating the real output.
+        let mut tmp = VerilogCodegen {
+            output: String::new(),
+            indent: 0,
+            module_name: String::new(),
+            current_fn_name: String::new(),
+            param_widths: self.param_widths.clone(),
+            struct_decls: self.struct_decls.clone(),
+            local_types: self.local_types.clone(),
+        };
+        tmp.gen_verilog_expr(node);
+        buf.push_str(&tmp.output);
+    }
+
+    /// W527: emit procedural assignments that initialize a packed multi-
+    /// dimensional array-of-struct local from a nested array literal.
+    fn emit_packed_struct_array_init(
+        &mut self,
+        var: &str,
+        ty: &str,
+        init: &Node,
+    ) {
+        let (dims, elem_type) = match Self::parse_array_type(ty) {
+            Some(v) => v,
+            None => return,
+        };
+        let elem_width = self.element_width(&elem_type) as usize;
+        self.emit_packed_struct_array_init_level(var, &dims, 0, elem_width, init, "");
+    }
+
+    fn emit_packed_struct_array_init_level(
+        &mut self,
+        var: &str,
+        dims: &[usize],
+        depth: usize,
+        elem_width: usize,
+        node: &Node,
+        base_expr: &str,
+    ) {
+        if depth + 1 == dims.len() {
+            // Innermost dimension: `node` should be an array literal of elements.
+            if node.kind != NodeKind::ExprArrayLiteral {
+                return;
+            }
+            let current_dim = dims[depth];
+            for (i, elem) in node.children.iter().enumerate() {
+                if i >= current_dim {
+                    break;
+                }
+                let idx = if base_expr.is_empty() {
+                    i.to_string()
+                } else {
+                    format!("({}) * {} + {}", base_expr, current_dim, i)
+                };
+                let mut rhs = String::new();
+                self.collect_expr_text(elem, &mut rhs);
+                self.write_indent();
+                self.write_line(&format!(
+                    "{}[({}) * {} +: {}] = {};",
+                    var, idx, elem_width, elem_width, rhs
+                ));
+            }
+            return;
+        }
+
+        // Outer dimension: `node` is an array literal of sub-arrays.
+        if node.kind != NodeKind::ExprArrayLiteral {
+            return;
+        }
+        let current_dim = dims[depth];
+        for (i, sub) in node.children.iter().enumerate() {
+            if i >= current_dim {
+                break;
+            }
+            let idx = if base_expr.is_empty() {
+                i.to_string()
+            } else {
+                format!("({}) * {} + {}", base_expr, current_dim, i)
+            };
+            self.emit_packed_struct_array_init_level(
+                var, dims, depth + 1, elem_width, sub, &idx,
+            );
+        }
+    }
+
     pub fn gen_verilog(&mut self, ast: &Node) {
         self.module_name = if !ast.name.is_empty() {
             Self::sanitize_identifier(&ast.name)
@@ -3783,6 +4064,16 @@ impl VerilogCodegen {
                 NodeKind::BenchBlock => benches.push(decl),
                 _ => {}
             }
+        }
+
+        // W527: cache struct declarations for packed-vector AoS lowering.
+        for s in &structs {
+            let fields: Vec<(String, String)> = s
+                .children
+                .iter()
+                .map(|f| (f.name.clone(), f.extra_type.clone()))
+                .collect();
+            self.struct_decls.insert(s.name.clone(), fields);
         }
 
         // Emit top-level module
@@ -4297,6 +4588,14 @@ impl VerilogCodegen {
     fn gen_verilog_fn(&mut self, node: &Node) {
         self.current_fn_name = node.name.clone();
         self.param_widths.clear();
+        self.local_types.clear();
+        // W527: cache local variable types for array-of-struct resolution.
+        for stmt in &node.children {
+            if stmt.kind == NodeKind::StmtLocal && !stmt.name.is_empty() {
+                self.local_types
+                    .insert(stmt.name.clone(), stmt.extra_type.clone());
+            }
+        }
         for (pname, ptype) in &node.params {
             self.param_widths
                 .insert(pname.clone(), Self::type_to_width(ptype) as usize);
@@ -4520,6 +4819,36 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtLocal => {
+                // W527: multi-dimensional arrays of scalar structs are lowered as a
+                // single packed-vector register with procedural per-element
+                // initialization. We deliberately keep the existing 1-D flattening
+                // path untouched to avoid regressing `pairs_a`-style field access.
+                if let Some((dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+                    if dims.len() >= 2 && self.struct_decls.contains_key(&elem_type) {
+                        let elem_w = self.element_width(&elem_type) as usize;
+                        let total_width: usize = dims.iter().product::<usize>() * elem_w;
+                        self.write_indent();
+                        self.write_line(&format!("reg [{}:0] {};", total_width - 1, node.name),
+                        );
+                        if !node.children.is_empty() {
+                            self.write_indent();
+                            self.write_line("begin");
+                            self.indent();
+                            self.emit_packed_struct_array_init(
+                                &node.name,
+                                &node.extra_type,
+                                &node.children[0],
+                            );
+                            self.dedent();
+                            self.write_indent();
+                            self.write_line("end");
+                        } else {
+                            self.write_line("");
+                        }
+                        return;
+                    }
+                }
+
                 self.write_indent();
                 let kw = "reg";
                 let width = Self::type_to_width(&node.extra_type);
@@ -4848,6 +5177,10 @@ impl VerilogCodegen {
             }
             NodeKind::ExprFieldAccess => {
                 if !node.children.is_empty() {
+                    // W527: packed array-of-struct field access (e.g. m[i][j].x).
+                    if self.try_emit_struct_array_access(&node.children[0], Some(&node.name)) {
+                        return;
+                    }
                     let child = &node.children[0];
                     if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
                         let base_name = match child.children[0].kind {
@@ -4871,6 +5204,10 @@ impl VerilogCodegen {
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
+                    // W527: packed array-of-struct element access (e.g. m[i][j]).
+                    if self.try_emit_struct_array_access(node, None) {
+                        return;
+                    }
                     self.gen_verilog_expr(&node.children[0]);
                     self.write("[");
                     self.gen_verilog_expr(&node.children[1]);
@@ -4893,7 +5230,57 @@ impl VerilogCodegen {
                 ));
             }
             NodeKind::ExprStructLit => {
-                // Verilog has no struct literals — emit as comment + value 0
+                // W527: scalar struct literals lower to a concatenation of their
+                // field values in reverse declaration order (last field becomes MSB),
+                // matching the packed-vector AoS layout used for arrays.
+                if let Some(fields) = self.struct_decls.get(&node.name) {
+                    static SCALAR_TYPES: &[&str] = &[
+                        "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "bool", "f32",
+                        "f64",
+                    ];
+                    let all_scalar = !fields.is_empty()
+                        && fields.iter().all(|(_, ft)| {
+                            let trimmed = ft.trim();
+                            let base = if let Some(close) = trimmed.find(']') {
+                                trimmed[close + 1..].trim()
+                            } else {
+                                trimmed
+                            };
+                            SCALAR_TYPES.contains(&base)
+                        });
+                    if all_scalar {
+                        let mut parts = Vec::new();
+                        for (fname, ftype) in fields.iter().rev() {
+                            let fwidth = Self::type_to_width(ftype.trim());
+                            let fwidth = if fwidth == 0 { 32 } else { fwidth };
+                            let child = node.children.iter().find(|c| {
+                                c.kind == NodeKind::ExprFieldAccess
+                                    && c.name == *fname
+                                    && !c.children.is_empty()
+                            });
+                            if let Some(c) = child {
+                                let val = &c.children[0];
+                                if val.kind == NodeKind::ExprLiteral {
+                                    let lit = match val.value.as_str() {
+                                        "true" => "1'b1".to_string(),
+                                        "false" => "1'b0".to_string(),
+                                        _ => format!("{}'d{}", fwidth, val.value),
+                                    };
+                                    parts.push(lit);
+                                } else {
+                                    let mut buf = String::new();
+                                    self.collect_expr_text(val, &mut buf);
+                                    parts.push(buf);
+                                }
+                            } else {
+                                parts.push(format!("{}'d0", fwidth));
+                            }
+                        }
+                        self.write(&format!("{{{}}}", parts.join(", ")));
+                        return;
+                    }
+                }
+                // Fallback for non-scalar structs.
                 self.write(&format!("0 /* {} {{...}} */", node.name));
             }
             NodeKind::ExprSwitch => {
@@ -6170,14 +6557,40 @@ impl Compiler {
         Ok(codegen.into_string())
     }
 
-    /// W526: reject multi-dimensional arrays of aggregate (struct/enum) types
-    /// early in the Verilog compile path, instead of silently emitting broken
-    /// placeholder code. Returns a clear diagnostic the caller can surface.
-    fn detect_unsupported_verilog_locals(ast: &Node) -> Result<(), String> {
-        static PRIMITIVE_ELEM_TYPES: &[&str] = &[
+    /// W526/W527: reject multi-dimensional arrays of aggregate types that the
+    /// Verilog backend cannot yet lower cleanly. Scalar-struct arrays with only
+    /// primitive scalar fields are allowed through because W527 adds packed-vector
+    /// AoS lowering for them. Returns a clear diagnostic the caller can surface.
+    fn detect_unsupported_verilog_locals(
+        ast: &Node,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> Result<(), String> {
+        static PRIMITIVE_TYPES: &[&str] = &[
             "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64",
             "bool", "void", "string",
         ];
+        fn is_primitive(t: &str) -> bool {
+            PRIMITIVE_TYPES.contains(&t.trim())
+        }
+
+        fn is_lowerable_scalar_struct(
+            name: &str,
+            structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+        ) -> bool {
+            if let Some(fields) = structs.get(name) {
+                return !fields.is_empty() && fields.iter().all(|(_, t)| {
+                    let base = t.trim().trim_start_matches('[').trim();
+                    // Fixed-size scalar-array fields are also primitive vectors.
+                    if let Some(end) = base.find(']') {
+                        let inner = base[end + 1..].trim();
+                        return is_primitive(inner);
+                    }
+                    is_primitive(base)
+                });
+            }
+            false
+        }
+
         for child in &ast.children {
             if child.kind != NodeKind::StmtLocal {
                 continue;
@@ -6189,20 +6602,44 @@ impl Compiler {
             }
             // Extract element type after the last closing bracket.
             let elem = ty.rsplit_once(']').map(|(_, e)| e).unwrap_or(ty).trim();
-            if elem.is_empty() || PRIMITIVE_ELEM_TYPES.contains(&elem) {
+            if elem.is_empty() || is_primitive(elem) {
+                continue;
+            }
+            if is_lowerable_scalar_struct(elem, structs) {
                 continue;
             }
             return Err(format!(
-                "unsupported multi-dimensional array of aggregate type `{}` for local variable `{}` at line {}: 2-D array-of-struct lowering is not yet implemented (see docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md)",
+                "unsupported multi-dimensional array of aggregate type `{}` for local variable `{}` at line {}: 2-D array-of-struct lowering is not yet implemented for non-scalar structs/enums (see docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md)",
                 ty, child.name, child.line
             ));
         }
         // Module-level declarations live directly under the Module node; nested
-        // bodies (functions) are also scanned recursively.
+        // bodies (functions) are also scanned recursively with the same struct map.
         for child in &ast.children {
-            Self::detect_unsupported_verilog_locals(child)?;
+            Self::detect_unsupported_verilog_locals(child, structs)?;
         }
         Ok(())
+    }
+
+    fn collect_struct_decls(
+        ast: &Node,
+    ) -> std::collections::HashMap<String, Vec<(String, String)>> {
+        let mut structs = std::collections::HashMap::new();
+        fn walk(node: &Node, structs: &mut std::collections::HashMap<String, Vec<(String, String)>>) {
+            if node.kind == NodeKind::StructDecl {
+                let fields: Vec<(String, String)> = node
+                    .children
+                    .iter()
+                    .map(|f| (f.name.clone(), f.extra_type.clone()))
+                    .collect();
+                structs.insert(node.name.clone(), fields);
+            }
+            for child in &node.children {
+                walk(child, structs);
+            }
+        }
+        walk(ast, &mut structs);
+        structs
     }
 
     pub fn compile_verilog(source: &str) -> Result<String, String> {
@@ -6211,7 +6648,10 @@ impl Compiler {
         let mut ast = parser.parse()?;
         // W526: catch unsupported multi-dimensional aggregate arrays before the
         // optimizer drops the declaration or before we emit broken placeholders.
-        Self::detect_unsupported_verilog_locals(&ast)?;
+        // Build the struct map from the *full* module AST so nested function bodies
+        // can still recognize module-level scalar structs as lowerable.
+        let structs = Self::collect_struct_decls(&ast);
+        Self::detect_unsupported_verilog_locals(&ast, &structs)?;
         optimize(&mut ast, &OptConfig::default());
         let mut codegen = VerilogCodegen::new();
         codegen.gen_verilog(&ast);
@@ -6943,24 +7383,29 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     collect_reads_in_stmts(stmts, &mut reads);
     let before = stmts.len();
     stmts.retain(|s| {
-        // R-OPT-1 (#918, W46): for StmtLocal the target name lives on
-        // `s.name` directly, but for StmtAssign the target is the LHS
+        // R-OPT-1 (#918, W46): the target of StmtAssign is the LHS
         // expression stored in `s.children[0]` and `s.name` is the empty
         // string. The previous code tested `reads.contains(&s.name)` on
-        // both kinds, so for *every* StmtAssign the test was
-        // `reads.contains("")`, which is always false, and the assignment
-        // was unconditionally dropped. This removed every assignment
-        // from every optimised program.
+        // StmtAssign, so the test was `reads.contains("")`, which is always
+        // false, and the assignment was unconditionally dropped. This removed
+        // every assignment from every optimised program.
         //
-        // Even with the right name, we must only eliminate an assignment
-        // whose LHS is a *simple identifier*: `arr[i] = x` and
-        // `s.field = x` write through a base that may be live, and
-        // dropping them is unsound. We therefore guard on the LHS kind
-        // before consulting `reads`.
-        if s.kind == NodeKind::StmtLocal && !s.children.is_empty()
-            && !reads.contains(&s.name) {
-                return false;
-            }
+        // We must only eliminate an assignment whose LHS is a *simple
+        // identifier*: `arr[i] = x` and `s.field = x` write through a base
+        // that may be live, and dropping them is unsound. We therefore guard on
+        // the LHS kind before consulting `reads`.
+        //
+        // Initialized local bindings (`let y = x`) are kept even when their
+        // only use is inlined by copy-propagation, because the backends emit
+        // the declaration as a named register. Tuple-destructuring locals have
+        // no name and are still eliminated if they are never read.
+        if s.kind == NodeKind::StmtLocal
+            && !s.children.is_empty()
+            && s.name.is_empty()
+            && !reads.contains(&s.name)
+        {
+            return false;
+        }
         if s.kind == NodeKind::StmtAssign && s.children.len() >= 2 {
             let lhs = &s.children[0];
             if lhs.kind == NodeKind::ExprIdentifier

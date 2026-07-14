@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e8e48c8d5c93486ab5821cd37efcd59cd3ba2672bf1bb1c624f137390d4e8aa2",
-  "gen_hash_rust": "sha256:be1ddb5aa5eba254a6ccf54a3528ef9bd3a9a1c113bd59fb2656f0caf1a67fb6",
-  "gen_hash_verilog": "sha256:56e5ec750e5e9f775c18b71088b0f788d8150ed8df47355304baa2af5f0fdb58",
-  "gen_hash_zig": "sha256:d8fe18ddb915e93bbf22b9269ec41c1511ac8bf8a77e22de11aea86860864049",
+  "gen_hash_c": "sha256:0a0f446fb4ffe014b109345c511d030a47e6d886adc1560056e65ce094eaf44a",
+  "gen_hash_rust": "sha256:443f8335f5d2dacb3ee7ae0d929bccf730c6feccc78fcd849ad4062719b2c340",
+  "gen_hash_verilog": "sha256:f62cd29b04f71da32f2745d939522687036dbcef881f60f950d026beb70ca67f",
+  "gen_hash_zig": "sha256:c79efbfa33d0e7412cfcdfaa19da99eb774b42416d9aa3d20b8355aa28a1ee79",
   "module": "forward_pass",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:09Z",
+  "sealed_at": "2026-07-14T08:18:39Z",
   "spec_hash": "sha256:1920e6c067ad95834cf0ebfa8f91c0002ea24ce3d6254f9161b26878ce280dc4",
   "spec_path": "specs/neural/forward_pass.t27"
 }

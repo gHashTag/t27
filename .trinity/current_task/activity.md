@@ -1524,3 +1524,7 @@
 - **Commit:** fix(igla): Wave Loop 525 — unify L1 TRACEABILITY regex across all gates and remove commit-msg amend bypass
 - **Files:** .claude/plans/wave-loop-526.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,docs/reports/FPGA_LOOP_COOPERATION_W527_2026-08-11.md,docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md,docs/reports/WAVE_LOOP_526_CLOSEOUT.md,specs/scratch/w526_2d_struct_array_repro.t27
 
+## 2026-07-14T08:23:20Z — wave-loop-527
+- **Commit:** feat(igla): Wave Loop 526 — clear diagnostic for W469 2-D array-of-struct Verilog regression, negative witness, and design doc (Closes #1497)
+- **Files:** .claude/plans/wave-loop-527.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/base_ternary_add.json,.trinity/seals/base_tritype-base.json,.trinity/seals/base_tritype-ops.json,.trinity/seals/boards_ArtyA7_Integration.json,.trinity/seals/boards_BoardMinimalXC7A100T.json,.trinity/seals/brain_brain-phi-timing.json,.trinity/seals/bus_bus-pubsub.json,.trinity/seals/bus_bus-schema.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-eval.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json
+
