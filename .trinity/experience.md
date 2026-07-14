@@ -1,3 +1,49 @@
+## 2026-07-07 — Wave Loop 534 (harden the Icarus lowerability boundary)
+
+### What worked
+- Defining the lowerability boundary as a source-AST predicate closed the
+  soundness gap where generated Verilog + `iverilog` accepted semantically
+  unlowerable specs because the backend emitted placeholder code.
+- Reusing `VerilogCodegen::is_primitive_scalar_type` and
+  `VerilogCodegen::is_lowerable_scalar_struct` kept the type rules identical to
+  the Verilog backend.
+- Adding the `t27c icarus-lowerable` subcommand made the boundary testable
+  from CI and from a Rust integration test without invoking the full suite.
+- Keeping `iverilog -g2012` as a backend cross-check in `suite.rs` preserved
+  the simulation gate at 0 failures while switching the authoritative filter to
+  the structural classifier.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `Compiler::is_icarus_lowerable`, `Compiler::icarus_lowerability_reason`,
+    `collect_function_names`, `is_icarus_lowerable_type`,
+    `is_icarus_lowerable_struct_name`, `ast_is_icarus_lowerable`, and
+    `is_icarus_builtin`.
+  - Fixed `Ok(false)` propagation in `ast_is_icarus_lowerable` (the `?` operator
+    only short-circuits on `Err`, so every recursive `Ok(false)` must be checked
+    explicitly).
+  - Rejected `while (true)` as structurally unbounded.
+- `bootstrap/src/main.rs`: added the `IcarusLowerable` subcommand and the
+  `run_icarus_lowerable` handler.
+- `bootstrap/src/suite.rs`: `is_icarus_lowerable` now uses the structural
+  classifier as the gate and runs `gen-verilog` + `iverilog` only as a sanity
+  cross-check.
+- `bootstrap/tests/icarus_lowerable.rs`: new integration test for the classifier.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `specs/scratch/`: added 6 W534 negative witnesses and sealed them.
+- `docs/ICARUS_LOWERABLE_BOUNDARY.md`: documented the structural lowerability
+  contract.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_534_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W535_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 535.
+
+### What to watch next
+- The Lean 4 `Predicate.lean` still accepts some constructs that the Rust
+  classifier rejects (e.g. `f32` struct fields and `while (true)`).  Wave Loop
+  535 should tighten the predicate and add matching `¬ Module.isLowerable`
+  theorems.
+
 ## 2026-07-07 — Wave Loop 533 (module-level packed scalar structs with array fields)
 
 ### What worked

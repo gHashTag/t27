@@ -1,0 +1,16 @@
+// W534 negative witness: a call to a host-only helper from synthesizable code
+// is NOT Icarus-lowerable. Issue #1505.
+module w534_negative_host_only_helper;
+
+use host::print;
+
+pub fn synth() -> i32 {
+    print("hello");
+    return 1;
+}
+
+test should_not_be_icarus_lowerable {
+    // Intentionally empty: exercises the lowerability classifier boundary.
+}
+
+endmodule

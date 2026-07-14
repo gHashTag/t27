@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:442516e307d3839c54c21ec13a824d819cd7d0db68c47530cd75126d0caadedd",
+  "gen_hash_rust": "sha256:6a0e2fa8cfeca1f849c7577782793fe6731b306d37c9a0bf98f769a496fd695d",
+  "gen_hash_verilog": "sha256:784537ef9ee9e8720fb55d4a5033048ce1dfb2fbcc60c4bfc7e8dd58999448d1",
+  "gen_hash_zig": "sha256:4cd7ffa4c2299eecaf2189b8b6f672f4852ba15a06aaaa34de25fbead38a6241",
+  "module": "w534_negative_nonlowerable_struct_assign",
+  "ring": 12,
+  "sealed_at": "2026-07-14T17:00:10Z",
+  "spec_hash": "sha256:a7e7c95964f0e433cc41f0ed7ac0674af100c0ed7dc026f685e617a4dc6a8982",
+  "spec_path": "/Users/playra/t27/specs/scratch/w534_negative_nonlowerable_struct_assign.t27"
+}

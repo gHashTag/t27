@@ -247,6 +247,23 @@ fn save_icarus_baseline(path: &Path, lines: &[String]) -> anyhow::Result<()> {
 }
 
 fn is_icarus_lowerable(repo: &Path, rel: &str) -> bool {
+    // W534: structural classifier is the authoritative lowerability predicate.
+    // The Verilog backend is then used as a cross-check: any spec whose
+    // generated Verilog contains `UNSUPPORTED_ICARUS` or is rejected by
+    // `iverilog -g2012` is excluded from Icarus simulation.
+    let path = repo.join(rel);
+    let source = match fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let structural = match crate::compiler::Compiler::is_icarus_lowerable(&source) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    if !structural {
+        return false;
+    }
+
     let exe = match t27c_exe() {
         Ok(e) => e,
         Err(_) => return false,
@@ -263,8 +280,6 @@ fn is_icarus_lowerable(repo: &Path, rel: &str) -> bool {
     if out.contains("UNSUPPORTED_ICARUS") {
         return false;
     }
-    // Reject specs whose generated Verilog is accepted by yosys but not by
-    // Icarus Verilog (e.g. nested hierarchical names, certain 2-D local arrays).
     let tmp = std::env::temp_dir().join(format!("t27c_icarus_lowerable_{}.v", rel.replace('/', "_")));
     if fs::write(&tmp, out.as_bytes()).is_err() {
         return false;

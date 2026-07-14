@@ -7780,6 +7780,302 @@ impl Compiler {
         let hir = AstToHir::convert(&ast)?;
         Ok(format!("{:#?}", hir))
     }
+
+    /// W534: structural Icarus-lowerability classifier.
+    ///
+    /// Returns `Ok(true)` when the source uses only constructs that the Verilog
+    /// backend can lower to synthesizable Icarus Verilog.  Returns `Ok(false)`
+    /// with a reason string when a non-lowerable construct is found.
+    ///
+    /// This is the Rust side of the lowerability boundary; it is designed to
+    /// align with `Trinity.IcarusLowerable.Module.isLowerable` in Lean 4.
+    pub fn is_icarus_lowerable(source: &str) -> Result<bool, String> {
+        let ast = Self::parse_ast(source)?;
+        let structs = Self::collect_struct_decls(&ast);
+        let mut functions = std::collections::HashSet::new();
+        Self::collect_function_names(&ast, &mut functions);
+        Self::ast_is_icarus_lowerable(&ast, &structs, &functions, false)
+    }
+
+    /// W534: reason string version of the structural classifier.
+    pub fn icarus_lowerability_reason(source: &str) -> Result<String, String> {
+        match Self::is_icarus_lowerable(source) {
+            Ok(true) => Ok(String::new()),
+            Ok(false) => Err("not lowerable".to_string()),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn collect_function_names(
+        node: &Node,
+        functions: &mut std::collections::HashSet<String>,
+    ) {
+        if node.kind == NodeKind::FnDecl && !node.name.is_empty() {
+            functions.insert(node.name.clone());
+        }
+        for child in &node.children {
+            Self::collect_function_names(child, functions);
+        }
+    }
+
+    /// W534: true when `ty` is a scalar primitive or an array of lowerable
+    /// scalar primitives / scalar structs.
+    fn is_icarus_lowerable_type(
+        ty: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> bool {
+        let trimmed = ty.trim();
+        if trimmed.is_empty() {
+            return true; // untyped / inferred
+        }
+        if VerilogCodegen::is_primitive_scalar_type(trimmed) {
+            return true;
+        }
+        // Strip array dimensions: "[3][4]Pt" -> "Pt", "[3]i16" -> "i16".
+        let mut rest = trimmed;
+        while rest.starts_with('[') {
+            if let Some(end) = rest.find(']') {
+                rest = rest[end + 1..].trim();
+            } else {
+                return false;
+            }
+        }
+        if rest.is_empty() {
+            return false;
+        }
+        if VerilogCodegen::is_primitive_scalar_type(rest) {
+            return true;
+        }
+        VerilogCodegen::is_lowerable_scalar_struct(rest, structs)
+    }
+
+    /// W534: true when `name` refers to a lowerable scalar struct or a primitive
+    /// scalar/array type.
+    fn is_icarus_lowerable_struct_name(
+        name: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> bool {
+        VerilogCodegen::is_lowerable_scalar_struct(name, structs)
+    }
+
+    /// W534: structural lowerability check for the whole module AST.
+    fn ast_is_icarus_lowerable(
+        node: &Node,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+        functions: &std::collections::HashSet<String>,
+        in_loop: bool,
+    ) -> Result<bool, String> {
+        match node.kind {
+            NodeKind::Module => {
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::UseDecl => Ok(true), // imports themselves are not lowerability blockers
+            NodeKind::ConstDecl | NodeKind::EnumDecl | NodeKind::EnumVariant => Ok(true),
+            NodeKind::StructDecl => {
+                if let Some(fields) = structs.get(&node.name) {
+                    for (_, ty) in fields {
+                        if !Self::is_icarus_lowerable_type(ty, structs) {
+                            return Ok(false);
+                        }
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::FnDecl => {
+                // Return type and parameter types must be lowerable.
+                if !node.extra_return_type.is_empty()
+                    && !Self::is_icarus_lowerable_type(&node.extra_return_type, structs)
+                {
+                    return Ok(false);
+                }
+                for (_, ty) in &node.params {
+                    if !ty.is_empty() && !Self::is_icarus_lowerable_type(ty, structs) {
+                        return Ok(false);
+                    }
+                }
+                // Function body.
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::TestBlock | NodeKind::BenchBlock | NodeKind::InvariantBlock => {
+                // Tests/benches/invariants are host-side harness code and are not
+                // part of the synthesizable Icarus model.
+                Ok(true)
+            }
+            NodeKind::StmtLocal | NodeKind::StmtAssign => {
+                if !node.extra_type.is_empty()
+                    && !Self::is_icarus_lowerable_type(&node.extra_type, structs)
+                {
+                    return Ok(false);
+                }
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::StmtIf => {
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::StmtFor => {
+                // Iterator-style `for` is not lowerable; only range-for is.
+                return Ok(false);
+            }
+            NodeKind::StmtForRange => {
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::StmtWhile => {
+                // Unbounded `while (true)` cannot be lowered to a fuel-bounded
+                // Icarus model.  Bounded while loops (e.g. `while (i < N)`) are
+                // accepted structurally; termination is checked by the Lean
+                // soundness layer.
+                if let Some(cond) = node.children.first() {
+                    if cond.kind == NodeKind::ExprLiteral
+                        && matches!(cond.value.as_str(), "true" | "1")
+                    {
+                        return Ok(false);
+                    }
+                    if !Self::ast_is_icarus_lowerable(cond, structs, functions, false)? {
+                        return Ok(false);
+                    }
+                }
+                for child in node.children.iter().skip(1) {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, true)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::StmtBreak | NodeKind::StmtContinue => {
+                // Break/continue are lowerable only inside a loop body.
+                Ok(in_loop)
+            }
+            NodeKind::StmtExpr => {
+                if let Some(expr) = node.children.first() {
+                    if !Self::ast_is_icarus_lowerable(expr, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprReturn => {
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprLiteral | NodeKind::ExprIdentifier | NodeKind::ExprEnumValue => {
+                Ok(true)
+            }
+            NodeKind::ExprBinary | NodeKind::ExprUnary | NodeKind::ExprIndex
+            | NodeKind::ExprFieldAccess => {
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprCast => {
+                if !node.extra_type.is_empty()
+                    && !Self::is_icarus_lowerable_type(&node.extra_type, structs)
+                {
+                    return Ok(false);
+                }
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprCall => {
+                let callee = &node.name;
+                // Qualified calls (namespace::name) cannot be resolved in the
+                // synthesizable Icarus model.
+                if callee.contains("::") {
+                    return Ok(false);
+                }
+                // Calls to functions not defined in this module are rejected,
+                // except for a small set of builtins that the Verilog backend
+                // injects or handles specially.
+                if !functions.contains(callee) && !Self::is_icarus_builtin(callee) {
+                    return Ok(false);
+                }
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprStructLit => {
+                // The struct being constructed must itself be lowerable.
+                if !Self::is_icarus_lowerable_struct_name(&node.name, structs) {
+                    return Ok(false);
+                }
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprArrayLiteral => {
+                if !node.extra_type.is_empty()
+                    && !Self::is_icarus_lowerable_type(&node.extra_type, structs)
+                {
+                    return Ok(false);
+                }
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprSwitch => {
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            _ => Ok(true),
+        }
+    }
+
+    /// W534: built-in functions that the Verilog backend handles without a
+    /// source-level definition.
+    fn is_icarus_builtin(name: &str) -> bool {
+        matches!(
+            name,
+            "__mul_noop" // injected R-SI-1 multiplication helper
+        )
+    }
 }
 
 // ============================================================================

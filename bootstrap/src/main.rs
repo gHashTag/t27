@@ -125,6 +125,16 @@ enum Commands {
         input: String,
     },
 
+    /// Check whether a .t27 spec is in the Icarus-lowerable subset using the
+    /// structural classifier. Prints a machine-readable verdict.
+    IcarusLowerable {
+        /// Input file path
+        input: String,
+        /// Emit JSON verdict on stdout
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+
     /// Emit the balanced-ternary HW primitive library (trit stdlib) as one
     /// self-contained Verilog file. No input spec required.
     ///
@@ -3036,6 +3046,34 @@ fn run_icarus_simulate(input_path: &str) -> anyhow::Result<()> {
     }
     if stdout.contains("[TEST]") && stdout.contains(": FAILED") {
         anyhow::bail!("Icarus simulation reported test failures");
+    }
+    Ok(())
+}
+
+/// W534: run the structural Icarus-lowerability classifier on a single spec and
+/// print a machine-readable verdict.
+fn run_icarus_lowerable(input_path: &str, json: bool) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)
+        .with_context(|| format!("failed to read {}", input_path))?;
+    let verdict = compiler::Compiler::is_icarus_lowerable(&source);
+    let lowerable = match &verdict {
+        Ok(v) => *v,
+        Err(_) => false,
+    };
+    if json {
+        let value = serde_json::json!({
+            "path": input_path,
+            "lowerable": lowerable,
+            "reason": verdict.as_ref().err().map(|e| e.to_string()).unwrap_or_default(),
+        });
+        println!("{}", serde_json::to_string_pretty(&value)?);
+    } else {
+        if lowerable {
+            println!("lowerable");
+        } else {
+            let reason = verdict.as_ref().err().map(|e| e.to_string()).unwrap_or_else(|| "not lowerable".to_string());
+            println!("not_lowerable: {}", reason);
+        }
     }
     Ok(())
 }
@@ -8194,6 +8232,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenVerilogHir { input, with_sva, sva_behaviors } =>
             run_gen_verilog_hir(&input, with_sva, sva_behaviors.as_deref())?,
         Commands::IcarusSimulate { input } => run_icarus_simulate(&input)?,
+        Commands::IcarusLowerable { input, json } => run_icarus_lowerable(&input, json)?,
         Commands::GenTritStdlib { output } => run_gen_trit_stdlib(output.as_deref())?,
         Commands::GenBehaviorSva {
             name,
@@ -8468,6 +8507,7 @@ fn main() -> anyhow::Result<()> {
         Commands::GenVerilogHir { input, with_sva, sva_behaviors } =>
             run_gen_verilog_hir(&input, with_sva, sva_behaviors.as_deref())?,
         Commands::IcarusSimulate { input } => run_icarus_simulate(&input)?,
+        Commands::IcarusLowerable { input, json } => run_icarus_lowerable(&input, json)?,
         Commands::GenTritStdlib { output } => run_gen_trit_stdlib(output.as_deref())?,
         Commands::GenBehaviorSva {
             name,

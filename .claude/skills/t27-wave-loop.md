@@ -167,6 +167,43 @@ wrong even after declarations look correct. Also, Verilog `reg` declarations mus
 be hoisted to the top of every procedural block — never interleave them with
 statements.
 
+## Worked example — Wave Loop 534
+
+Wave Loop 534 hardened the Icarus lowerability boundary by making it structural,
+documented, and cross-checked:
+
+- Added `Compiler::is_icarus_lowerable` and `Compiler::icarus_lowerability_reason`
+  in `bootstrap/src/compiler.rs`; the classifier walks the parsed t27 AST and
+  rejects host-only helpers, non-lowerable types, unresolved/qualified imports,
+  `while (true)`, iterator-style `for`, and mis-placed `break`/`continue`.
+- Fixed a latent bug where recursive `ast_is_icarus_lowerable` returned
+  `Ok(false)` without propagating it (the `?` operator only short-circuits on
+  `Err`, not on `Ok(false)`).
+- Added the `t27c icarus-lowerable [--json]` CLI subcommand and wired it into
+  `bootstrap/src/main.rs`.
+- Switched `bootstrap/src/suite.rs::is_icarus_lowerable` to the structural
+  classifier as the authoritative gate, keeping `iverilog -g2012 -o /dev/null`
+  as a backend sanity cross-check.
+- Created six adversarial scratch witnesses (`specs/scratch/w534_negative_*.t27`)
+  and sealed them.
+- Added `bootstrap/tests/icarus_lowerable.rs` to assert that the classifier
+  rejects all W534 negative witnesses and accepts known lowerable W5xx/W3xx
+  witnesses.
+- Documented the boundary in `docs/ICARUS_LOWERABLE_BOUNDARY.md`.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  new integration test 2/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable --fast` 35/0 Icarus PASS,
+  0 seal mismatches, 24 pre-existing yosys smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: a lowerability boundary defined only by generated-Verilog + an
+external compiler is unsound — the backend can emit syntactically valid
+placeholder Verilog for semantically unlowerable constructs.  The source-AST
+structural predicate must be the source of truth, with the external compiler
+used only as a cross-check.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
