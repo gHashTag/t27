@@ -45,38 +45,6 @@ theorem scalar_struct_literal_lowerable :
   Module.isLowerable scalarStructEnv scalarStructModule := by
   native_decide
 
-/-- Environment for imported-constructor expression-context witness. -/
-def importedCtorEnv : Env := {
-  structs := [("Pt", [("coords", .array 3 .u8)])],
-  constructors := [("make_pt", "Pt")],
-  enums := [],
-  imports := [("make_pt", ("geom", "make_pt"))],
-  hostOnly := [],
-  reachable := ["main"]
-}
-
-def importedCtorMain : Function := {
-  name := "main",
-  params := [],
-  ret := some .u8,
-  body := [.return_ (some (.fieldAccess (.call "make_pt" [.intLit 1, .intLit 2, .intLit 3]) "coords"))]
-}
-
-def importedCtorModule : Module := {
-  name := "imported_constructor_expr_context",
-  imports := [{ path := "geom", items := ["make_pt"] }],
-  globals := [],
-  functions := [importedCtorMain],
-  tests := [],
-  benches := []
-}
-
-/-- An imported constructor call used in expression context for a leaf-lowerable
-    field is lowerable when the import resolves and arity matches. -/
-theorem imported_constructor_expr_context_lowerable :
-  Module.isLowerable importedCtorEnv importedCtorModule := by
-  native_decide
-
 /-- Environment for array-field index on struct-return call witness. -/
 def arrayFieldEnv : Env := {
   structs := [("Pt", [("coords", .array 3 .u8)])],
@@ -2762,5 +2730,213 @@ def w529Function2DStructArrayReturnModule : Module := {
   tests := [],
   benches := []
 }
+
+/- W535 negative witness environments and modules: the tightened predicate rejects
+   the exact patterns flagged by the Rust structural classifier. -/
+
+/-- W535-A: environment for a cast to a non-lowerable type.  The shallow AST models
+    an unlowerable cast via `.unsupportedIcarus`; the Rust classifier maps `as`
+    casts to non-lowerable types to a non-lowerable classification. -/
+def w535CastToStringEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["make_label"]
+}
+
+def w535CastToStringMakeLabel : Function := {
+  name := "make_label",
+  params := [("v", .i32)],
+  ret := some .string,
+  body := [.return_ (some (.unsupportedIcarus "cast to string"))]
+}
+
+def w535CastToStringModule : Module := {
+  name := "w535_negative_cast_to_string",
+  imports := [],
+  globals := [],
+  functions := [w535CastToStringMakeLabel],
+  tests := [],
+  benches := []
+}
+
+/-- W535-A: a cast to `string` is not Icarus-lowerable. -/
+theorem w535_cast_to_string_not_lowerable :
+  ¬ Module.isLowerable w535CastToStringEnv w535CastToStringModule := by
+  native_decide
+
+/-- W535-B: environment for a struct with an `f32` field. -/
+def w535F32FieldEnv : Env := {
+  structs := [("Point", [("x", .f32), ("y", .i16)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := [],
+  vars := [("src", .struct "Point")]
+}
+
+def w535F32FieldConst : Stmt :=
+  .constDecl "src" (.struct "Point")
+    (some (.structLit "Point" [("x", .f32Lit "1.5"), ("y", .intLit 42)]))
+
+def w535F32FieldModule : Module := {
+  name := "w535_negative_f32_field",
+  imports := [],
+  globals := [w535F32FieldConst],
+  functions := [],
+  tests := [],
+  benches := []
+}
+
+/-- W535-B: a struct with an `f32` field is not Icarus-lowerable. -/
+theorem w535_f32_field_not_lowerable :
+  ¬ Module.isLowerable w535F32FieldEnv w535F32FieldModule := by
+  native_decide
+
+/-- W535-C: environment for a call to a host-only helper from synthesizable code. -/
+def w535HostOnlyHelperEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := ["print"],
+  reachable := ["synth"]
+}
+
+def w535HostOnlyHelperPrint : Function := {
+  name := "print",
+  params := [("msg", .string)],
+  ret := none,
+  body := [.bareCall (.unsupportedIcarus "host print")]
+}
+
+def w535HostOnlyHelperSynth : Function := {
+  name := "synth",
+  params := [],
+  ret := some .i32,
+  body := [
+    .bareCall (.call "print" [.stringLit "hello"]),
+    .return_ (some (.intLit 1))
+  ]
+}
+
+def w535HostOnlyHelperModule : Module := {
+  name := "w535_negative_host_only_helper",
+  imports := [],
+  globals := [],
+  functions := [w535HostOnlyHelperPrint, w535HostOnlyHelperSynth],
+  tests := [],
+  benches := []
+}
+
+/-- W535-C: a call to a host-only helper from synthesizable code is not
+    Icarus-lowerable. -/
+theorem w535_host_only_helper_not_lowerable :
+  ¬ Module.isLowerable w535HostOnlyHelperEnv w535HostOnlyHelperModule := by
+  native_decide
+
+/-- W535-D: environment for whole-struct assignment of a struct with a non-lowerable
+    field (`String`) at module scope. -/
+def w535NonlowerableStructAssignEnv : Env := {
+  structs := [("Tagged", [("label", .string), ("value", .i16)])],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := [],
+  vars := [("src", .struct "Tagged"), ("dst", .struct "Tagged")]
+}
+
+def w535NonlowerableStructAssignSrc : Stmt :=
+  .constDecl "src" (.struct "Tagged")
+    (some (.structLit "Tagged" [("label", .stringLit "hello"), ("value", .intLit 42)]))
+
+def w535NonlowerableStructAssignDst : Stmt :=
+  .varDecl "dst" (.struct "Tagged") none
+
+def w535NonlowerableStructAssignModule : Module := {
+  name := "w535_negative_nonlowerable_struct_assign",
+  imports := [],
+  globals := [w535NonlowerableStructAssignSrc, w535NonlowerableStructAssignDst],
+  functions := [],
+  tests := [],
+  benches := []
+}
+
+/-- W535-D: a struct with a `String` field is not Icarus-lowerable. -/
+theorem w535_nonlowerable_struct_assign_not_lowerable :
+  ¬ Module.isLowerable w535NonlowerableStructAssignEnv w535NonlowerableStructAssignModule := by
+  native_decide
+
+/-- W535-E: environment for an unbounded `while (true)` loop. -/
+def w535UnboundedWhileEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["run_forever"]
+}
+
+def w535UnboundedWhileRunForever : Function := {
+  name := "run_forever",
+  params := [],
+  ret := some .i32,
+  body := [
+    .varDecl "i" .i32 (some (.intLit 0)),
+    .whileLoop (.boolLit true) [
+      .assign (.identifier "i") (.binop "+" (.identifier "i") (.intLit 1))
+    ],
+    .return_ (some (.identifier "i"))
+  ]
+}
+
+def w535UnboundedWhileModule : Module := {
+  name := "w535_negative_unbounded_while",
+  imports := [],
+  globals := [],
+  functions := [w535UnboundedWhileRunForever],
+  tests := [],
+  benches := []
+}
+
+/-- W535-E: `while (true)` is not Icarus-lowerable. -/
+theorem w535_unbounded_while_not_lowerable :
+  ¬ Module.isLowerable w535UnboundedWhileEnv w535UnboundedWhileModule := by
+  native_decide
+
+/-- W535-F: environment for an unresolved imported function call. -/
+def w535UnresolvedImportEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [("magic", ("some::external", "magic"))],
+  hostOnly := [],
+  reachable := ["synth"]
+}
+
+def w535UnresolvedImportSynth : Function := {
+  name := "synth",
+  params := [],
+  ret := some .i32,
+  body := [.return_ (some (.call "magic" [.intLit 1, .intLit 2]))]
+}
+
+def w535UnresolvedImportModule : Module := {
+  name := "w535_negative_unresolved_import",
+  imports := [{ path := "some::external", items := ["magic"] }],
+  globals := [],
+  functions := [w535UnresolvedImportSynth],
+  tests := [],
+  benches := []
+}
+
+/-- W535-F: a call to an imported function is not Icarus-lowerable. -/
+theorem w535_unresolved_import_not_lowerable :
+  ¬ Module.isLowerable w535UnresolvedImportEnv w535UnresolvedImportModule := by
+  native_decide
 
 end Trinity.IcarusLowerable

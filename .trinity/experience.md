@@ -3318,3 +3318,61 @@
   many existing seals.
 
 
+
+## Wave Loop 535 — Align the Lean 4 lowerability predicate with the Rust structural classifier
+
+**Date:** 2026-07-07  
+**Issue:** #1506  
+**Branch:** wave-loop-535
+
+### What worked
+- Introducing an explicit `Nat` fuel parameter for `Ty.isLowerableFuel` made the
+  recursive struct-field check transparent to the Lean kernel and avoided a
+  well-foundedness rabbit hole.
+- Keeping the predicate change small (three rejection rules) let `native_decide`
+  discharge all six new negative theorems without custom proof automation.
+- Modeling the positive bounded-while corpus witness directly in
+  `Completeness.lean` kept the file self-contained and avoided a brittle code-gen
+  dependency on the Rust parser.
+- Removing the obsolete `imported_ctor_sound` theorem immediately after the
+  import-rejection rule was added prevented a stale `sorry`-free build from
+  masking the breakage.
+
+### Deliverables
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean` — tightened predicate.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` — six W535 negative theorems.
+- `proofs/lean4/Trinity/IcarusLowerable/Completeness.lean` — bounded-while corpus
+  witness.
+- `specs/igla/w535_bounded_while_module.t27` and its seal.
+- `docs/ICARUS_LOWERABLE_BOUNDARY.md` and `docs/reports/WAVE_LOOP_535_CLOSEOUT.md`.
+- `docs/reports/FPGA_LOOP_COOPERATION_W536_2026-07-07.md`.
+- `.trinity/current-issue.md` advanced to Wave Loop 536.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 2 passed; 0 failed.
+- `./scripts/tri test --icarus-simulate --icarus-lowerable --fast`: 35 Icarus
+  passed, 0 failed; 610 seal matches, 0 mismatches; 24 pre-existing yosys smoke
+  baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Lemmas`: OK.
+- `lake build Trinity.IcarusLowerable.Soundness`: 8572 jobs green.
+- `lake build Trinity.IcarusLowerable.Completeness`: 8573 jobs green.
+
+### Patterns to reuse
+- Use fuel-threaded recursive predicates (`Ty.isLowerableFuel`) for any
+  lowerability check that walks struct or array nesting; it keeps proofs fast
+  and kernel-transparent.
+- When a rule change breaks an existing positive theorem, delete or rewrite
+  the theorem in the same commit so the soundness build stays green.
+- Mirror the Rust classifier's rejection reasons one-to-one in the Lean model;
+  each divergence should be explicitly documented as a known incompleteness.
+
+### Anti-patterns to avoid
+- Do not require every struct name in the simplified corpus model to have a
+  declaration; treat undefined structs leniently until the corpus generator
+  supplies full field lists, or many existing theorems will break.
+- Do not run `./scripts/tri test` without `--icarus-lowerable` on a branch that
+  touches the classifier, because the full suite will attempt to simulate specs
+  that the backend cannot lower.

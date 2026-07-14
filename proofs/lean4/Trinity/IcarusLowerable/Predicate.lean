@@ -68,12 +68,24 @@ def Ty.isNumeric : Ty → Bool
   | .u8 | .u16 | .u32 | .u64 | .i8 | .i16 | .i32 | .i64 => true
   | _ => false
 
-/-- Types that are lowerable in synthesizable Icarus contexts. -/
-def Ty.isLowerable : Ty → Bool
-  | .bool | .u8 | .u16 | .u32 | .u64 | .i8 | .i16 | .i32 | .i64 => true
-  | .array n elem => n > 0 && elem.isLowerable
-  | .struct _ => true   -- struct lowerability is checked per-field when used
-  | .f32 | .string | .enum _ => false
+/-- Types that are lowerable in synthesizable Icarus contexts, fuel-threaded
+    so struct recursion is transparent to the Lean kernel.
+    W535: a struct type is lowerable only when it exists in the environment and
+    every field is itself lowerable (recursively). -/
+def Ty.isLowerableFuel (fuel : Nat) (env : Env) (ty : Ty) : Bool :=
+  match fuel, ty with
+  | 0, _ => false
+  | _+1, .bool | _+1, .u8 | _+1, .u16 | _+1, .u32 | _+1, .u64
+  | _+1, .i8 | _+1, .i16 | _+1, .i32 | _+1, .i64 => true
+  | fuel+1, .array size elem => size > 0 && Ty.isLowerableFuel fuel env elem
+  | fuel+1, .struct name =>
+      let fields := env.structFields name
+      -- W535: when the struct is declared in the environment, every field must be
+      -- lowerable.  Undefined structs are treated as lowerable by default; this
+      -- keeps the simplified corpus model in Completeness.lean valid while still
+      -- rejecting concrete non-lowerable struct declarations like f32 fields.
+      fields.isEmpty || fields.all (fun p => Ty.isLowerableFuel fuel env p.2)
+  | _+1, .f32 | _+1, .string | _+1, .enum _ => false
 
 /-- Leaf-field lowerability: used when a struct is actually packed/sliced. -/
 def Ty.isLeafLowerable : Ty → Bool
@@ -91,6 +103,9 @@ set_option linter.unusedVariables false
     larger than the depth/list-length of any lowerable expression encountered in
     the proof-relevant corpus. -/
 def predicateFuel : Nat := 1000
+
+/-- Wrapper: type lowerability with the default predicate fuel. -/
+def Ty.isLowerable (env : Env) (ty : Ty) : Bool := Ty.isLowerableFuel predicateFuel env ty
 
 mutual
 
@@ -130,9 +145,12 @@ def Expr.isLowerableFuel (fuel : Nat) (env : Env) (e : Expr) : Bool :=
       (!Env.isHostOnly env name) &&
       ((name.splitOn "::").length == 1) &&
       (!unlowerableBuiltins.contains name) &&
+      -- W535: reject calls to names that are imported from another module; the
+      -- Icarus backend cannot resolve cross-module imports in synthesizable code.
+      (!env.imports.any (fun p => p.1 == name)) &&
       Expr.isLowerableListFuel fuel env args
   | fuel+1, env, .structLit _ fields => Expr.isLowerableFieldListFuel fuel env fields
-  | fuel+1, env, .arrayLit ty elems => ty.isLowerable && Expr.isLowerableListFuel fuel env elems
+  | fuel+1, env, .arrayLit ty elems => ty.isLowerable env && Expr.isLowerableListFuel fuel env elems
   | fuel+1, env, .enumVal enum variant =>
       env.enums.contains enum && (env.enumValue enum variant).isSome
   | fuel+1, env, .len base => base.isLowerableFuel fuel env
@@ -182,8 +200,8 @@ def Stmt.isLowerableFuel (fuel : Nat) (env : Env) (s : Stmt) : Bool :=
   match fuel, env, s with
   | 0, _, _ => false
   | fuel+1, env, .assign lhs rhs => lhs.isLowerableFuel fuel env && rhs.isLowerableFuel fuel env
-  | fuel+1, env, .varDecl _ ty init => ty.isLowerable && init.all (fun e => e.isLowerableFuel fuel env)
-  | fuel+1, env, .constDecl _ ty init => ty.isLowerable && init.all (fun e => e.isLowerableFuel fuel env)
+  | fuel+1, env, .varDecl _ ty init => ty.isLowerable env && init.all (fun e => e.isLowerableFuel fuel env)
+  | fuel+1, env, .constDecl _ ty init => ty.isLowerable env && init.all (fun e => e.isLowerableFuel fuel env)
   | fuel+1, env, .ifThenElse cond then_ else_ =>
       cond.isLowerableFuel fuel env &&
       Stmt.isLowerableListFuel fuel env then_ &&
@@ -195,7 +213,12 @@ def Stmt.isLowerableFuel (fuel : Nat) (env : Env) (s : Stmt) : Bool :=
   | fuel+1, env, .forLoop _ range body =>
       range.isLowerableFuel fuel env && Stmt.isLowerableListFuel fuel env body
   | fuel+1, env, .whileLoop cond body =>
-      cond.isLowerableFuel fuel env && Stmt.isLowerableListFuel fuel env body
+      -- W535: reject unbounded `while (true)`.  Bounded loops are accepted
+      -- structurally; termination is handled by the fuel-bounded semantics
+      -- and the soundness layer.
+      !(cond == .boolLit true) &&
+      cond.isLowerableFuel fuel env &&
+      Stmt.isLowerableListFuel fuel env body
   | fuel+1, env, .break => true
   | fuel+1, env, .continue => true
   | fuel+1, env, .return_ e => e.all (fun x => x.isLowerableFuel fuel env)
@@ -580,7 +603,7 @@ def Stmt.functionNames (s : Stmt) : List String := s.functionNames'
 def Function.isLowerable (env : Env) (fn : Function) : Bool :=
   if Env.isHostOnly env fn.name then true
   else
-    let interfaceOK := fn.params.all (fun p => p.2.isLowerable) && fn.ret.all (·.isLowerable)
+    let interfaceOK := fn.params.all (fun p => p.2.isLowerable env) && fn.ret.all (·.isLowerable env)
     interfaceOK && fn.body.all (Stmt.isLowerable env)
 
 /-- A module is lowerable when all globals and emitted functions are lowerable

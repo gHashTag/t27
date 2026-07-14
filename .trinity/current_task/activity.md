@@ -1560,3 +1560,7 @@
 - **Commit:** feat(icarus-lowerable): W534 structural Icarus lowerability boundary, CLI gate, adversarial witnesses, and cross-checked suite integration
 - **Files:** .claude/plans/wave-loop-535.md
 
+## 2026-07-14T17:58:25Z — wave-loop-535
+- **Commit:** plan(535): decomposed W535 plan — align Lean 4 lowerability predicate with Rust structural classifier
+- **Files:** .claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/igla_w535_bounded_while_module.json,docs/ICARUS_LOWERABLE_BOUNDARY.md,docs/reports/FPGA_LOOP_COOPERATION_W536_2026-07-07.md,docs/reports/WAVE_LOOP_535_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Completeness.lean,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/igla/w535_bounded_while_module.t27
+

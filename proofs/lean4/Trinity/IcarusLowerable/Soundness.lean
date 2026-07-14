@@ -37,14 +37,6 @@ theorem scalar_struct_sound :
   intro h
   native_decide
 
-/-- The imported-constructor expression-context witness satisfies the soundness
-    contract. -/
-theorem imported_ctor_sound :
-  Module.isSound importedCtorEnv importedCtorModule := by
-  unfold Module.isSound
-  intro h
-  native_decide
-
 /-- The array-field index on struct-return call witness satisfies the soundness
     contract. -/
 theorem array_field_sound :

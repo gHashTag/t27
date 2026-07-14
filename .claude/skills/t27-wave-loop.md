@@ -204,6 +204,42 @@ placeholder Verilog for semantically unlowerable constructs.  The source-AST
 structural predicate must be the source of truth, with the external compiler
 used only as a cross-check.
 
+## Worked example — Wave Loop 535
+
+Wave Loop 535 aligned the Lean 4 lowerability predicate with the Rust structural
+classifier:
+
+- Added fuel-threaded `Ty.isLowerableFuel` in
+  `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean` so struct-field
+  lowerability is checked recursively and transparently to the Lean kernel.
+- Tightened `Stmt.isLowerableFuel` to reject `while (true)` and
+  `Expr.isLowerableFuel` to reject calls to imported names.
+- Added six `¬ Module.isLowerable` theorems in `Lemmas.lean` for the W534
+  adversarial witnesses (cast to string, `f32` field, host-only helper,
+  non-lowerable struct assignment, unbounded `while`, unresolved import) and
+  discharged them with `native_decide`.
+- Removed the obsolete `imported_ctor_sound` theorem from `Soundness.lean` after
+  the import-rejection rule made it false.
+- Created `specs/igla/w535_bounded_while_module.t27` as a positive bounded-while
+  corpus witness, sealed it, and added the matching environment, module, and
+  `igla_w535_bounded_while_module_lowerable` theorem to `Completeness.lean`.
+- Updated `docs/ICARUS_LOWERABLE_BOUNDARY.md` to document the tightened rules,
+  the six negative theorems, and the positive corpus witness.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 2/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable --fast` 35/0 Icarus PASS,
+  0 seal mismatches, 24 pre-existing yosys smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Lemmas` green,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`,
+  `lake build Trinity.IcarusLowerable.Completeness` 8573 jobs / 0 `sorry`.
+
+Key learning: when tightening a formal predicate, use a fuel-threaded recursive
+definition for any check that walks nested types, delete or rewrite positive
+theorems that become false immediately, and treat undefined struct names
+leniently in simplified corpus models until the generator supplies full field
+lists.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

@@ -4577,6 +4577,44 @@ def vsa_sequence_hdc_module : Module := {
   tests := [{ name := "item_memory_get_vector_creates_on_miss", params := [], ret := none, body := [] }, { name := "item_memory_get_vector_returns_existing", params := [], ret := none, body := [] }, { name := "ngram_encoder_creates_valid_encoding", params := [], ret := none, body := [] }, { name := "ngram_encoder_same_input_same_output", params := [], ret := none, body := [] }, { name := "ngram_encoder_different_input_different_output", params := [], ret := none, body := [] }, { name := "sequence_store_creates_entry", params := [], ret := none, body := [] }, { name := "sequence_query_finds_best_match", params := [], ret := none, body := [] }, { name := "detector_trains_on_samples", params := [], ret := none, body := [] }, { name := "detector_detects_correct_language", params := [], ret := none, body := [] }],
   benches := [{ name := "ngram_encode_latency_10_chars", params := [], ret := none, body := [] }, { name := "ngram_decode_latency_10_chars", params := [], ret := none, body := [] }, { name := "sequence_query_latency_100_entries", params := [], ret := none, body := [] }, { name := "detector_train_latency", params := [], ret := none, body := [] }, { name := "item_memory_cache_hit_latency", params := [], ret := none, body := [] }, { name := "item_memory_cache_miss_latency", params := [], ret := none, body := [] }]
 }
+
+/-- W535 positive corpus witness: a bounded `while` loop remains lowerable after
+    tightening the predicate to reject `while (true)`. -/
+def igla_w535_bounded_while_module_env : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["count_to"]
+}
+
+def igla_w535_bounded_while_module_module : Module := {
+  name := "w535_bounded_while_module",
+  imports := [],
+  globals := [],
+  functions := [{
+    name := "count_to",
+    params := [("n", .u32)],
+    ret := some .u32,
+    body := [
+      .varDecl "i" .u32 (some (.intLit 0)),
+      .varDecl "acc" .u32 (some (.intLit 0)),
+      .whileLoop (.binop "<" (.identifier "i") (.identifier "n")) [
+        .assign (.identifier "acc") (.binop "+" (.identifier "acc") (.intLit 1)),
+        .assign (.identifier "i") (.binop "+" (.identifier "i") (.intLit 1))
+      ],
+      .return_ (some (.identifier "acc"))
+    ]
+  }],
+  tests := [{ name := "bounded_while_counts", params := [], ret := none, body := [
+    .bareCall (.call "assert_eq" [.call "count_to" [.intLit 0], .intLit 0]),
+    .bareCall (.call "assert_eq" [.call "count_to" [.intLit 3], .intLit 3]),
+    .bareCall (.call "assert_eq" [.call "count_to" [.intLit 7], .intLit 7])
+  ] }],
+  benches := []
+}
+
 theorem api_sdk_contract_lowerable : Module.isLowerable api_sdk_contract_env api_sdk_contract_module = true := by native_decide
 theorem api_tri_net_api_lowerable : Module.isLowerable api_tri_net_api_env api_tri_net_api_module = true := by native_decide
 theorem ar_asp_solver_lowerable : Module.isLowerable ar_asp_solver_env ar_asp_solver_module = true := by native_decide
@@ -4825,3 +4863,4 @@ theorem tri_utils_version_lowerable : Module.isLowerable tri_utils_version_env t
 theorem vm_jit_semantics_lowerable : Module.isLowerable vm_jit_semantics_env vm_jit_semantics_module = true := by native_decide
 theorem vsa_packed_vsa_lowerable : Module.isLowerable vsa_packed_vsa_env vsa_packed_vsa_module = true := by native_decide
 theorem vsa_sequence_hdc_lowerable : Module.isLowerable vsa_sequence_hdc_env vsa_sequence_hdc_module = true := by native_decide
+theorem igla_w535_bounded_while_module_lowerable : Module.isLowerable igla_w535_bounded_while_module_env igla_w535_bounded_while_module_module = true := by native_decide

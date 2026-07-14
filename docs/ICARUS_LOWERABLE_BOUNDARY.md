@@ -29,6 +29,9 @@ Implementation: `bootstrap/src/compiler.rs`
   - A scalar struct is lowerable iff every field is a scalar primitive or a fixed-size
     array of scalar primitives (checked recursively).  Fields of type `f32`, `string`,
     enum, nested struct, pointer, slice, etc. make the struct non-lowerable.
+    (W535: the Lean `Ty.isLowerableFuel` predicate now mirrors this recursive
+    struct-field check; undefined struct names are treated leniently to keep the
+    simplified corpus model valid.)
   - Return types, parameter types, and local declaration types must be lowerable.
 
 - **Functions**
@@ -36,12 +39,17 @@ Implementation: `bootstrap/src/compiler.rs`
     small set of backend-injected builtins.
   - Qualified calls (`namespace::name`) are rejected.
   - Calls to host-only helpers (imports from `host::`, `print`, etc.) are rejected.
+  - Calls to names that appear in an `import` declaration are rejected in
+    synthesizable context, because the Icarus backend cannot resolve cross-module
+    imports (W535).
 
 - **Control flow**
   - `if`/`else` and range-for (`for i in a..b`) are lowerable.
   - Iterator-style `for` is not lowerable.
   - `while` loops are accepted structurally only when the condition is not a constant
     `true` literal.  Bounded termination is checked by the Lean soundness layer.
+    W535 added a positive corpus witness `specs/igla/w535_bounded_while_module.t27`
+    that uses a bounded `while (i < n)` loop and is admitted by the gate.
   - `break`/`continue` are lowerable only inside loop bodies.
 
 - **Expressions**
@@ -101,7 +109,17 @@ Lean predicate:
 | `w534_negative_unbounded_while.t27` | `while (true)` unbounded loop |
 | `w534_negative_unresolved_import.t27` | call to an unresolved imported function |
 
-## 6. Lean 4 model
+W535 added matching negative theorems in `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`
+(`w535_*_not_lowerable`) so the Lean predicate rejects the same six patterns.
+
+## 6. Positive corpus witness
+
+`specs/igla/w535_bounded_while_module.t27` is a bounded `while`-loop module that
+passes the Icarus-lowerable gate, is admitted to Icarus simulation, and has a
+positive `Module.isLowerable` theorem in `Completeness.lean`
+(`igla_w535_bounded_while_module_lowerable`).
+
+## 7. Lean 4 model
 
 The simplified AST predicate is in `proofs/lean4/Trinity/IcarusLowerable/`:
 
@@ -113,10 +131,16 @@ The simplified AST predicate is in `proofs/lean4/Trinity/IcarusLowerable/`:
   the lowerable subset.
 
 The Lean predicate is kept as close as possible to the Rust structural
-classifier.  Where the two diverge, the Rust classifier is the operational
-source of truth and the Lean model is tightened in follow-up waves.
+classifier.  W535 closed three known divergence points:
+  1. `while (true)` is rejected by both predicates.
+  2. Non-lowerable struct fields (`f32`, `string`, etc.) are rejected
+     recursively by both predicates.
+  3. Calls to imported functions are rejected by both predicates.
+After W535 the remaining divergence is the handling of undefined struct names in
+the simplified corpus model (Lean treats them leniently; Rust resolves them
+against the full parser environment).
 
-## 7. Pre-existing yosys smoke baseline
+## 8. Pre-existing yosys smoke baseline
 
 The Icarus-lowerable gate is independent of the Yosys synthesis smoke gate.
 Several legacy `w3xx` scratch specs fail Yosys smoke because they exercise
