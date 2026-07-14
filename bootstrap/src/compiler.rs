@@ -6170,10 +6170,48 @@ impl Compiler {
         Ok(codegen.into_string())
     }
 
+    /// W526: reject multi-dimensional arrays of aggregate (struct/enum) types
+    /// early in the Verilog compile path, instead of silently emitting broken
+    /// placeholder code. Returns a clear diagnostic the caller can surface.
+    fn detect_unsupported_verilog_locals(ast: &Node) -> Result<(), String> {
+        static PRIMITIVE_ELEM_TYPES: &[&str] = &[
+            "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64",
+            "bool", "void", "string",
+        ];
+        for child in &ast.children {
+            if child.kind != NodeKind::StmtLocal {
+                continue;
+            }
+            let ty = &child.extra_type;
+            // Only multi-dimensional array types trigger this boundary.
+            if !ty.contains("][") {
+                continue;
+            }
+            // Extract element type after the last closing bracket.
+            let elem = ty.rsplit_once(']').map(|(_, e)| e).unwrap_or(ty).trim();
+            if elem.is_empty() || PRIMITIVE_ELEM_TYPES.contains(&elem) {
+                continue;
+            }
+            return Err(format!(
+                "unsupported multi-dimensional array of aggregate type `{}` for local variable `{}` at line {}: 2-D array-of-struct lowering is not yet implemented (see docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md)",
+                ty, child.name, child.line
+            ));
+        }
+        // Module-level declarations live directly under the Module node; nested
+        // bodies (functions) are also scanned recursively.
+        for child in &ast.children {
+            Self::detect_unsupported_verilog_locals(child)?;
+        }
+        Ok(())
+    }
+
     pub fn compile_verilog(source: &str) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let mut ast = parser.parse()?;
+        // W526: catch unsupported multi-dimensional aggregate arrays before the
+        // optimizer drops the declaration or before we emit broken placeholders.
+        Self::detect_unsupported_verilog_locals(&ast)?;
         optimize(&mut ast, &OptConfig::default());
         let mut codegen = VerilogCodegen::new();
         codegen.gen_verilog(&ast);

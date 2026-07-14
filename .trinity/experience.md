@@ -2821,3 +2821,27 @@
 - Continue documenting the exact 7 yosys smoke failure matrix each wave so the baseline is auditable.
 - Keep `docs/NOW.md`, `.trinity/current-issue.md`, and persistent memory updated in the same commit as the close-out reports.
 
+## 2026-07-07 — Wave Loop 526 (W469 2-D array-of-struct Verilog regression diagnostic + design doc)
+
+### What worked
+- Converting the silent W469 regression into a clear `compile_verilog` diagnostic stopped the backend from emitting broken placeholder Verilog.
+- Adding `Compiler::detect_unsupported_verilog_locals` before optimization ensures the diagnostic fires even though the optimizer later drops the truncated declaration.
+- Staging a negative witness spec (`specs/scratch/w526_2d_struct_array_repro.t27`) and a design doc (`docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md`) gives W527 a concrete starting point.
+- Updating `bootstrap/stage0/FROZEN_HASH` for every `bootstrap/src/compiler.rs` change kept the M5 freeze ceremony in sync.
+
+### What was blocked
+- Full 2-D scalar-struct array lowering exceeds a single wave because it requires parser, typechecker, and emitter changes plus resealing.
+- The `Trinity.IcarusLowerable` Lean 4 stack is not yet on `master`, so formal soundness work for the new lowering would have to be redone after the stack lands.
+- The current `master` baseline already has 3 unrelated `let_binding` cargo-test failures and 114 seal mismatches; new work must be measured against the clean-HEAD baseline.
+
+### Corrective / keep-doing patterns
+- Prefer a hard diagnostic over silently passing smoke tests with broken generated code.
+- When changing `bootstrap/src/compiler.rs`, run the freeze ceremony and update `FROZEN_HASH` in the same commit.
+- Measure new failures against the pre-existing baseline, not an ideal zero-failure baseline.
+- For multi-week features, land the design doc and negative witness first, then schedule implementation for the next wave.
+
+### Anti-patterns to avoid
+- Do not try to hide an unsupported feature by making the generated output syntactically valid but semantically wrong.
+- Do not skip the FROZEN_HASH update when touching the sealed compiler file.
+- Do not start a full parser/backend refactor inside a single wave without a documented fallback variant.
+
