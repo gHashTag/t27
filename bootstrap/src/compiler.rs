@@ -3674,10 +3674,17 @@ pub struct VerilogCodegen {
     module_types: std::collections::HashMap<String, String>,
     // W528: function parameter names -> declared type string.
     param_types: std::collections::HashMap<String, String>,
+    // W530: when true, emit active test assertions for Icarus simulation
+    // instead of commented-out placeholders.
+    emit_test_assertions: bool,
 }
 
 impl VerilogCodegen {
     pub fn new() -> Self {
+        Self::with_options(false)
+    }
+
+    pub fn with_options(emit_test_assertions: bool) -> Self {
         Self {
             output: String::new(),
             indent: 0,
@@ -3689,6 +3696,7 @@ impl VerilogCodegen {
             local_types: std::collections::HashMap::new(),
             module_types: std::collections::HashMap::new(),
             param_types: std::collections::HashMap::new(),
+            emit_test_assertions,
         }
     }
 
@@ -3968,6 +3976,7 @@ impl VerilogCodegen {
             local_types: self.local_types.clone(),
             module_types: self.module_types.clone(),
             param_types: self.param_types.clone(),
+            emit_test_assertions: self.emit_test_assertions,
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -4116,6 +4125,7 @@ impl VerilogCodegen {
                     local_types: self.local_types.clone(),
                     module_types: self.module_types.clone(),
                     param_types: self.param_types.clone(),
+                    emit_test_assertions: self.emit_test_assertions,
                 };
                 tmp.emit_packed_array_literal_concat_level(sub, dims, depth + 1, elem_w);
                 parts.push(tmp.output);
@@ -4125,6 +4135,9 @@ impl VerilogCodegen {
         while parts.len() < current_dim {
             parts.push(format!("{}'d0", elem_w));
         }
+        // Verilog concatenation is MSB-first, but t27 element [0] is stored at
+        // the LSB of the packed vector, so emit elements in reverse order.
+        parts.reverse();
         self.write(&format!("{{{}}}", parts.join(", ")));
     }
 
@@ -4954,31 +4967,78 @@ impl VerilogCodegen {
         self.write_line("end");
     }
 
-    fn gen_verilog_test_stmt(&mut self, node: &Node, _test_name: &str) {
-        match node.kind {
-            NodeKind::StmtExpr => {
-                if let Some(expr) = node.children.first() {
-                    if expr.kind == NodeKind::ExprCall {
-                        self.write_indent();
-                        self.write("// ");
-                        self.gen_verilog_expr(expr);
-                        self.write_line(";");
+    fn gen_verilog_test_stmt(&mut self, node: &Node, test_name: &str) {
+        if self.emit_test_assertions {
+            match node.kind {
+                NodeKind::StmtExpr => {
+                    if let Some(expr) = node.children.first() {
+                        if expr.kind == NodeKind::ExprCall
+                            && expr.name == "assert_eq"
+                            && expr.children.len() == 2
+                        {
+                            self.write_indent();
+                            self.write("if (((");
+                            self.gen_verilog_expr(&expr.children[0]);
+                            self.write(") != (");
+                            self.gen_verilog_expr(&expr.children[1]);
+                            self.write("))) begin\n");
+                            self.indent();
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "$display(\"[TEST] {} : FAILED\");",
+                                test_name
+                            ));
+                            self.write_indent();
+                            self.write("$display(\"  expected %0d, got %0d\", (");
+                            self.gen_verilog_expr(&expr.children[1]);
+                            self.write("), (");
+                            self.gen_verilog_expr(&expr.children[0]);
+                            self.write_line("));");
+                            self.dedent();
+                            self.write_indent();
+                            self.write_line("end");
+                        } else {
+                            self.write_indent();
+                            self.gen_verilog_expr(expr);
+                            self.write_line(";");
+                        }
                     }
                 }
+                NodeKind::StmtLocal | NodeKind::StmtAssign => {
+                    self.write_indent();
+                    self.gen_verilog_stmt(node);
+                }
+                _ => {
+                    self.write_indent();
+                    self.write_line(&format!("// (stmt: {:?})", node.kind));
+                }
             }
-            NodeKind::StmtLocal => {
-                self.write_indent();
-                self.write("// ");
-                self.gen_verilog_stmt(node);
-            }
-            NodeKind::StmtAssign => {
-                self.write_indent();
-                self.write("// ");
-                self.gen_verilog_stmt(node);
-            }
-            _ => {
-                self.write_indent();
-                self.write_line(&format!("// (stmt: {:?})", node.kind));
+        } else {
+            match node.kind {
+                NodeKind::StmtExpr => {
+                    if let Some(expr) = node.children.first() {
+                        if expr.kind == NodeKind::ExprCall {
+                            self.write_indent();
+                            self.write("// ");
+                            self.gen_verilog_expr(expr);
+                            self.write_line(";");
+                        }
+                    }
+                }
+                NodeKind::StmtLocal => {
+                    self.write_indent();
+                    self.write("// ");
+                    self.gen_verilog_stmt(node);
+                }
+                NodeKind::StmtAssign => {
+                    self.write_indent();
+                    self.write("// ");
+                    self.gen_verilog_stmt(node);
+                }
+                _ => {
+                    self.write_indent();
+                    self.write_line(&format!("// (stmt: {:?})", node.kind));
+                }
             }
         }
     }
@@ -5331,6 +5391,12 @@ impl VerilogCodegen {
                         self.write(", ");
                     }
                     self.gen_verilog_expr(arg);
+                }
+                // W530: zero-argument functions are emitted with a dummy `_unused`
+                // input by gen_verilog_fn, so Icarus Verilog needs a placeholder
+                // argument at call sites.
+                if node.children.is_empty() {
+                    self.write("1'b0");
                 }
                 self.write(")");
             }
@@ -6855,6 +6921,14 @@ impl Compiler {
     }
 
     pub fn compile_verilog(source: &str) -> Result<String, String> {
+        Self::compile_verilog_with_options(source, false)
+    }
+
+    pub fn compile_verilog_for_simulation(source: &str) -> Result<String, String> {
+        Self::compile_verilog_with_options(source, true)
+    }
+
+    fn compile_verilog_with_options(source: &str, emit_test_assertions: bool) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let mut ast = parser.parse()?;
@@ -6865,7 +6939,7 @@ impl Compiler {
         let structs = Self::collect_struct_decls(&ast);
         Self::detect_unsupported_verilog_locals(&ast, &structs)?;
         optimize(&mut ast, &OptConfig::default());
-        let mut codegen = VerilogCodegen::new();
+        let mut codegen = VerilogCodegen::with_options(emit_test_assertions);
         codegen.gen_verilog(&ast);
         Ok(codegen.into_string())
     }

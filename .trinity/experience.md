@@ -1,3 +1,68 @@
+## 2026-07-07 — Wave Loop 530 (Icarus simulation gate / 2-D packed-vector layout fix)
+
+### What worked
+- The first Icarus simulation run immediately exposed a real semantic bug:
+  `emit_packed_array_literal_concat_level` emitted `{e0, e1, ...}`, but Verilog
+  concatenation is MSB-first, so t27 element `[0][0]` was placed at the MSB.
+  Reversing the parts before concatenation fixed the mismatch and aligned the
+  packed-vector layout with the linearized slice accessors.
+- Adding `emit_test_assertions` to `VerilogCodegen` let the same codegen path
+  produce both synthesis-safe and simulation-active Verilog without duplicating
+  the emitter.
+- Running the simulation gate only on the deliberate W493–W529 regression specs
+  (`specs/scratch/w5*.t27`) kept unrelated scratch experiments from destabilizing
+  the suite.
+- Recording JSON baselines on the first successful run made the gate repeatable
+  and reviewable.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `emit_test_assertions` option to `VerilogCodegen`.
+  - Added `Compiler::compile_verilog_for_simulation`.
+  - Fixed packed array literal concatenation order by reversing `parts` before
+    emitting `{...}`.
+  - Zero-argument calls now pass `1'b0` for the `_unused` dummy input.
+- `bootstrap/src/main.rs`:
+  - Added `IcarusSimulate` subcommand.
+  - Added `--icarus-simulate`, `--icarus-lowerable`, and `--fast` flags to the
+    `Suite` subcommand.
+- `bootstrap/src/suite.rs`:
+  - Added Phase 3d: Icarus Verilog simulation gate.
+  - Added lowerability classifier (gen-verilog success + no `UNSUPPORTED_ICARUS`
+    + `iverilog -g2012` compile success).
+  - Added JSON baseline load/record/compare helpers.
+- `.trinity/icarus-baselines/`: added 10 baselines for W526/W528/W529 witnesses.
+- `.trinity/seals/`: resealed 125 specs whose `gen_hash_verilog` changed after
+  the layout fix.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_530_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W531_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 531.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `./scripts/tri test --icarus-simulate --icarus-lowerable`: 0 Icarus simulation
+  failures, 0 seal mismatches, 16 pre-existing yosys smoke baseline failures.
+
+### Patterns to reuse
+- A simulation gate catches value-level regressions that static syntax-only
+  smoke gates miss; make it the next layer after `gen-verilog` succeeds.
+- When emitting packed-vector concatenations, always check the MSB/LSB
+  convention of the target language against the index-to-bit mapping used by
+  accessors.
+- Scope regression suites to a deliberate whitelist so experimental scratch specs
+  do not create noise.
+
+### Anti-patterns to avoid
+- Do not run the simulation gate on every scratch spec without a classifier;
+  non-lowerable experiments will produce large failure counts and hide real bugs.
+- Do not forget to reseal after any change that affects generated code; even a
+  layout-order fix changes many `gen_hash_verilog` seals.
+
+---
+
 ## 2026-07-07 — Wave Loop 529 (formal module/function 2-D AOS soundness / W530 setup)
 
 ### What worked

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9e5c14e1e9309dc228f7700c70e7dfd6b2cb86bdf9607af8b7d659aad9a5c7b4",
   "gen_hash_rust": "sha256:a24e4f501a90fe4dd557bb4c29facce7fd0d1d09466c9a7d43ba46f134cb9f0b",
-  "gen_hash_verilog": "sha256:b6bc52d5cf6a4f7664e28f4e897b45e65fb87b8908a510c61a53806cc429ff38",
+  "gen_hash_verilog": "sha256:293585890ef314a6e7cb830ab235034fd7bbc9a25b5bab7d5690aaa36869f1de",
   "gen_hash_zig": "sha256:d6db4cf9bdcbf9fa44a0b06a411839c479ab1de86d59b085377a54f8cc50ba9f",
   "module": "BootROM_Testbench",
   "ring": 12,
-  "sealed_at": "2026-07-14T08:18:38Z",
+  "sealed_at": "2026-07-14T12:04:22Z",
   "spec_hash": "sha256:824b57fc33a864a5185e313d43e48b5fbeed0a99a796651014f7f9de5c9a11c4",
   "spec_path": "specs/fpga/testbench/bootrom_tb.t27"
 }

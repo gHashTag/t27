@@ -117,6 +117,14 @@ enum Commands {
         sva_behaviors: Option<String>,
     },
 
+    /// Generate a Verilog testbench from a .t27 file and run it with Icarus
+    /// Verilog (iverilog + vvp). Emits active test assertions inside
+    /// `// synthesis translate_off` regions.
+    IcarusSimulate {
+        /// Input file path
+        input: String,
+    },
+
     /// Emit the balanced-ternary HW primitive library (trit stdlib) as one
     /// self-contained Verilog file. No input spec required.
     ///
@@ -769,6 +777,18 @@ enum Commands {
         /// Repository root (default: current directory)
         #[arg(long, default_value = ".")]
         repo_root: PathBuf,
+
+        /// Run Icarus Verilog simulation on lowerable specs.
+        #[arg(long, default_value_t = false)]
+        icarus_simulate: bool,
+
+        /// Restrict Icarus simulation to specs the classifier marks lowerable.
+        #[arg(long, default_value_t = false)]
+        icarus_lowerable: bool,
+
+        /// Skip long-running phases (parse/typecheck/gen are still run).
+        #[arg(long, default_value_t = false)]
+        fast: bool,
     },
 
     /// Validate conformance/*.json files (JSON + vector keys)
@@ -2962,6 +2982,60 @@ fn run_gen_verilog_hir(
             }
         }
         Err(e) => anyhow::bail!("HIR Verilog generation error: {}", e),
+    }
+    Ok(())
+}
+
+/// W530: generate Verilog with active test assertions and run it through
+/// Icarus Verilog (iverilog + vvp).
+fn run_icarus_simulate(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+    let verilog = compiler::Compiler::compile_verilog_for_simulation(&source)
+        .map_err(|e| anyhow::anyhow!("Verilog generation error: {}", e))?;
+
+    let name = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "icarus_sim".to_string());
+    let tmp = std::env::temp_dir().join(format!("t27c_icarus_{}", name));
+    let v_path = tmp.with_extension("v");
+    let vvp_path = tmp.with_extension("vvp");
+
+    fs::write(&v_path, verilog)
+        .with_context(|| format!("writing temporary Verilog {}", v_path.display()))?;
+
+    let compile = std::process::Command::new("iverilog")
+        .args([
+            "-g2012",
+            "-o",
+            &vvp_path.to_string_lossy(),
+            &v_path.to_string_lossy(),
+        ])
+        .output()
+        .context("spawning iverilog")?;
+    if !compile.status.success() {
+        let err = String::from_utf8_lossy(&compile.stderr);
+        anyhow::bail!("iverilog rejected generated Verilog:\n{}", err.trim());
+    }
+
+    let sim = std::process::Command::new("vvp")
+        .arg(&vvp_path)
+        .output()
+        .context("spawning vvp")?;
+    let stdout = String::from_utf8_lossy(&sim.stdout);
+    let stderr = String::from_utf8_lossy(&sim.stderr);
+    if !stdout.is_empty() {
+        print!("{}", stdout);
+    }
+    if !stderr.is_empty() {
+        eprint!("{}", stderr);
+    }
+    if !sim.status.success() {
+        anyhow::bail!("vvp simulation exited with non-zero status");
+    }
+    if stdout.contains("[TEST]") && stdout.contains(": FAILED") {
+        anyhow::bail!("Icarus simulation reported test failures");
     }
     Ok(())
 }
@@ -8119,6 +8193,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::DebugHir { input } => run_debug_hir(&input)?,
         Commands::GenVerilogHir { input, with_sva, sva_behaviors } =>
             run_gen_verilog_hir(&input, with_sva, sva_behaviors.as_deref())?,
+        Commands::IcarusSimulate { input } => run_icarus_simulate(&input)?,
         Commands::GenTritStdlib { output } => run_gen_trit_stdlib(output.as_deref())?,
         Commands::GenBehaviorSva {
             name,
@@ -8211,7 +8286,19 @@ async fn main() -> anyhow::Result<()> {
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
         }
-        Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
+        Commands::Suite {
+            repo_root,
+            icarus_simulate,
+            icarus_lowerable,
+            fast,
+        } => suite::run_comprehensive(
+            &repo_root,
+            suite::SuiteOptions {
+                icarus_simulate,
+                icarus_lowerable,
+                fast,
+            },
+        )?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
         }
@@ -8380,6 +8467,7 @@ fn main() -> anyhow::Result<()> {
         Commands::DebugHir { input } => run_debug_hir(&input)?,
         Commands::GenVerilogHir { input, with_sva, sva_behaviors } =>
             run_gen_verilog_hir(&input, with_sva, sva_behaviors.as_deref())?,
+        Commands::IcarusSimulate { input } => run_icarus_simulate(&input)?,
         Commands::GenTritStdlib { output } => run_gen_trit_stdlib(output.as_deref())?,
         Commands::GenBehaviorSva {
             name,
@@ -8471,7 +8559,19 @@ fn main() -> anyhow::Result<()> {
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
         }
-        Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
+        Commands::Suite {
+            repo_root,
+            icarus_simulate,
+            icarus_lowerable,
+            fast,
+        } => suite::run_comprehensive(
+            &repo_root,
+            suite::SuiteOptions {
+                icarus_simulate,
+                icarus_lowerable,
+                fast,
+            },
+        )?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
         }

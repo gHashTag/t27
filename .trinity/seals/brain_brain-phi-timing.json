@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:31de12313c7955f8b609378cdade0540444cb753271acfbfe71c4540c48b77e9",
   "gen_hash_rust": "sha256:aa1887ec1a571c2df15658bcccb60072ff90c38dca3ac169bc5642c9d44812e7",
-  "gen_hash_verilog": "sha256:b124414a84dfe451c41a8fb9d3b35926d3856cecb41686c4a74adb9b429877c6",
+  "gen_hash_verilog": "sha256:8fe333dc754fb6377eee8847d5033875c4e55a19bb466eaecdce42e482b8ea14",
   "gen_hash_zig": "sha256:209d1e3089dc58d6c6203ab53175a2a639355365069e20eae7e9417412e5d420",
   "module": "brain-phi-timing",
   "ring": 12,
-  "sealed_at": "2026-07-14T08:18:38Z",
+  "sealed_at": "2026-07-14T12:04:21Z",
   "spec_hash": "sha256:ffd2b818210ba99175f2f20c48790f6e82cb63dc880c0bc57f0b1e263d2a54d1",
   "spec_path": "specs/brain/phi_timing.t27"
 }

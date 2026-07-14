@@ -57,19 +57,30 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
-## Worked example — Wave Loop 529
+## Worked example — Wave Loop 530
 
-Wave Loop 529 formalized the W528 packed-vector 2-D AoS cross-boundary lowering:
+Wave Loop 530 made the static Icarus-lowerability classifier executable:
 
-- Restored missing `Trinity.IcarusLowerable` source modules from git history.
-- Added four positive witnesses in `Lemmas.lean`.
-- Proved value preservation in `Soundness.lean` via the generic equivalence theorems.
-- Created and sealed four matching scratch specs.
-- Validation: `lake build Trinity.IcarusLowerable.Soundness` green with 0 sorry,
-  `cargo test -p t27c --bin t27c` 1494/0/2, `./scripts/tri test` 0 seal mismatches.
+- Fixed a latent 2-D packed-vector layout bug in `bootstrap/src/compiler.rs`
+  (reverse Verilog concatenation parts so t27 index `[0]` maps to the LSB).
+- Added `VerilogCodegen::emit_test_assertions` and
+  `Compiler::compile_verilog_for_simulation`.
+- Added `t27c icarus-simulate` and the `--icarus-simulate` / `--icarus-lowerable`
+  flags to `t27c suite` (exposed via `./scripts/tri test`).
+- Added Phase 3d in `bootstrap/src/suite.rs`: compile generated Verilog with
+  `iverilog`, run with `vvp`, and compare `$display` output against JSON
+  baselines under `.trinity/icarus-baselines/`.
+- Scoped the first regression suite to W493–W529 lowerable scratch witnesses
+  (`specs/scratch/w5*.t27`) and recorded 10 baselines.
+- Resealed 125 specs whose `gen_hash_verilog` changed after the layout fix.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable` 10/10 Icarus PASS,
+  0 seal mismatches, 16 pre-existing yosys smoke baselines.
 
-Key learning: when formal source modules are missing from the worktree, check the
-commit history before re-implementing the shallow model.
+Key learning: a simulation gate catches value-level regressions that static
+syntax-only smoke gates miss; it also exposed that unrelated scratch specs must
+be kept out of the regression suite by a deliberate whitelist.
 
 ---
 
