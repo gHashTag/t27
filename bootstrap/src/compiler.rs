@@ -1371,12 +1371,28 @@ impl Parser {
                 let mut type_str = String::new();
                 if self.current.kind == TokenKind::Colon {
                     self.advance(); // consume :
-                                    // Collect type tokens until comma, semicolon, or closing brace
-                    while self.current.kind != TokenKind::Comma
-                        && self.current.kind != TokenKind::Semicolon
-                        && self.current.kind != TokenKind::RBrace
-                        && self.current.kind != TokenKind::Eof
-                    {
+                                    // Collect type tokens until the field
+                                    // separator (comma/semicolon) or closing
+                                    // brace. A `;` INSIDE brackets is the
+                                    // length separator of a fixed-size array
+                                    // (`[u32; 4]`), not a field terminator, so
+                                    // only stop on a separator at bracket depth
+                                    // 0. Previously the type was truncated to
+                                    // `[u32`, corrupting every array-typed
+                                    // struct field.
+                    let mut bracket_depth: i32 = 0;
+                    loop {
+                        match self.current.kind {
+                            TokenKind::LBracket => bracket_depth += 1,
+                            TokenKind::RBracket => bracket_depth -= 1,
+                            TokenKind::RBrace | TokenKind::Eof => break,
+                            TokenKind::Comma | TokenKind::Semicolon
+                                if bracket_depth <= 0 =>
+                            {
+                                break
+                            }
+                            _ => {}
+                        }
                         type_str.push_str(&self.current.lexeme);
                         self.advance();
                     }
@@ -7717,6 +7733,12 @@ pub struct RustCodegen {
     /// (via simple assignment `x = ...` or index assignment `arr[i] = ...`).
     /// Used to infer `let mut` for locals declared with `let`.
     mut_names: std::collections::HashSet<String>,
+    /// Rust return type of the function currently being generated. t27 has no
+    /// distinct boolean type -- comparison/logical operators are u32-valued
+    /// (0/1) and specs assert `== 1`/`== 0`. When a `return` yields such a
+    /// bool-typed Rust expression but the declared return type is an integer,
+    /// the value is coerced with `as <ret>` so the generated code type-checks.
+    current_ret_type: String,
 }
 
 #[allow(dead_code)]
@@ -7726,6 +7748,7 @@ impl RustCodegen {
             output: String::new(),
             indent: 0,
             mut_names: std::collections::HashSet::new(),
+            current_ret_type: String::new(),
         }
     }
 
@@ -7876,6 +7899,7 @@ impl RustCodegen {
             "pub fn {}({}) -> {} {{",
             fn_name, params_str, ret_type
         ));
+        self.current_ret_type = ret_type.clone();
 
         // Check if there's a body
         let has_body = node.children.iter().any(|c| {
@@ -7895,7 +7919,7 @@ impl RustCodegen {
                         let val = if child.children.is_empty() {
                             "()".to_string()
                         } else {
-                            Self::expr_to_rust(&child.children[0])
+                            Self::return_value_rust(&child.children[0], &ret_type)
                         };
                         self.write_line(&format!("return {};", val));
                     }
@@ -8034,10 +8058,11 @@ impl RustCodegen {
     fn gen_rust_stmt(&mut self, stmt: &Node) {
         match stmt.kind {
             NodeKind::ExprReturn => {
+                let ret_type = self.current_ret_type.clone();
                 let val = if stmt.children.is_empty() {
                     "()".to_string()
                 } else {
-                    Self::expr_to_rust(&stmt.children[0])
+                    Self::return_value_rust(&stmt.children[0], &ret_type)
                 };
                 self.write_line(&format!("return {};", val));
             }
@@ -8160,6 +8185,61 @@ impl RustCodegen {
         }
     }
 
+    /// True when `t` is a Rust integer scalar type. Used to decide whether a
+    /// bool-valued expression must be coerced to a numeric return type.
+    fn is_integer_rust_type(t: &str) -> bool {
+        matches!(
+            t.trim(),
+            "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+                | "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
+        )
+    }
+
+    /// True when the top-level operator of `node` produces a Rust `bool`
+    /// (comparison, logical and/or, logical not). t27 treats these as u32-valued
+    /// (0/1), so in an integer-typed context they need an explicit `as` cast.
+    fn is_bool_valued_expr(node: &Node) -> bool {
+        match node.kind {
+            NodeKind::ExprBinary => matches!(
+                node.extra_op.as_str(),
+                "==" | "!=" | "<" | ">" | "<=" | ">=" | "and" | "or" | "&&" | "||"
+            ),
+            NodeKind::ExprUnary => matches!(node.extra_op.as_str(), "!" | "not"),
+            _ => false,
+        }
+    }
+
+    /// Lower a returned expression, coercing a bool-valued expression to the
+    /// declared integer return type (`(<expr>) as u32`). A comparison such as
+    /// `paths >= min` in a `-> u32` function otherwise emits a `bool` where a
+    /// `u32` is expected (E0308). Non-bool expressions and non-integer return
+    /// types are passed through unchanged, so valid semantics are preserved.
+    fn return_value_rust(expr: &Node, ret_type: &str) -> String {
+        let val = Self::expr_to_rust(expr);
+        if Self::is_bool_valued_expr(expr) && Self::is_integer_rust_type(ret_type) {
+            format!("({}) as {}", val, ret_type.trim())
+        } else {
+            val
+        }
+    }
+
+    /// Index of the first `;` at bracket-nesting depth 0 in `s`, used to split
+    /// a fixed-size array's element type from its length (`T; N`). Returns
+    /// `None` when there is no top-level separator (a plain `[T]` slice), so
+    /// nested arrays like `[[f64; 8]; 8]` split on the outer `;`, not the inner.
+    fn top_level_semicolon(s: &str) -> Option<usize> {
+        let mut depth: i32 = 0;
+        for (i, c) in s.char_indices() {
+            match c {
+                '[' | '<' | '(' => depth += 1,
+                ']' | '>' | ')' => depth -= 1,
+                ';' if depth == 0 => return Some(i),
+                _ => {}
+            }
+        }
+        None
+    }
+
     fn t27_type_to_rust(t27_type: &str) -> String {
         let t = t27_type.trim();
         // Handle optional types
@@ -8181,14 +8261,31 @@ impl RustCodegen {
                 let inner = &t[2..];
                 format!("Vec<{}>", Self::t27_type_to_rust(inner))
             }
-            t if t.starts_with('[') && t.contains(']') => {
-                // [N]T format - convert to Vec
-                if let Some(bracket_end) = t.find(']') {
-                    let inner = &t[bracket_end + 1..];
-                    format!("Vec<{}>", Self::t27_type_to_rust(inner))
+            t if t.starts_with('[') && t.ends_with(']') => {
+                // Bracketed array type as produced by `parse_type_annotation`,
+                // where both element and (optional) size live inside the
+                // brackets. `[T; N]` is a fixed-size array and MUST lower to a
+                // Rust array `[T; N]` -- previously the element+size form fell
+                // into the `[N]T` branch below, which took the (empty) text
+                // after `]` and emitted an invalid `Vec<>` (E0107; 26 sites in
+                // tri-net gen). `[T]` (no size) is a dynamic vector.
+                // Splitting on the FIRST `;` would corrupt nested arrays like
+                // `[[f64; 8]; 8]`, so split on the top-level (depth-0) `;`.
+                let inside = &t[1..t.len() - 1];
+                if let Some(semi) = Self::top_level_semicolon(inside) {
+                    let elem = inside[..semi].trim();
+                    let size = inside[semi + 1..].trim();
+                    format!("[{}; {}]", Self::t27_type_to_rust(elem), size)
                 } else {
-                    t.to_string()
+                    format!("Vec<{}>", Self::t27_type_to_rust(inside.trim()))
                 }
+            }
+            t if t.starts_with('[') && t.contains(']') => {
+                // Zig-style `[N]T` (size inside brackets, element after `]`):
+                // preserve the historical slice lowering.
+                let bracket_end = t.find(']').unwrap();
+                let inner = &t[bracket_end + 1..];
+                format!("Vec<{}>", Self::t27_type_to_rust(inner))
             }
             t => t.to_string(), // Custom type name
         };
@@ -22763,6 +22860,142 @@ mod tests_phase40_coverage {
         assert_eq!(local.kind, NodeKind::StmtLocal);
         assert_eq!(local.name, "mut", "`let mut = 5` must name the variable `mut`");
         assert!(!local.extra_mutable, "`let` (const) binding must be immutable");
+    }
+
+    // ===================================================================
+    // tri-net PR #81 defect A: fixed-size array types `[T; N]` must lower to
+    // a Rust array, not an empty `Vec<>`. The size (`;`) previously either
+    // truncated the struct-field type at the parser, or landed in the `[N]T`
+    // codegen branch which took the empty text after `]` and emitted
+    // `Vec<>` -- 26 E0107 across ~22 tri-net gen files.
+    // ===================================================================
+    #[test]
+    fn test_array_param_lowers_to_fixed_size_rust() {
+        let code = "module M { pub fn sum(xs: [u32; 4]) -> u32 { return xs[0]; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("xs: [u32; 4]"),
+            "fixed-size array param must lower to `[u32; 4]`, got: {}",
+            out
+        );
+        assert!(
+            !out.contains("Vec<>"),
+            "empty Vec<> leaked into output: {}",
+            out
+        );
+    }
+
+    #[test]
+    fn test_array_struct_field_lowers_to_fixed_size_rust() {
+        let code =
+            "module M { struct Buf { data: [u32; 4], id: [u8; 32] } test t { assert 1 == 1 } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("pub data: [u32; 4]"),
+            "array struct field must lower to `[u32; 4]`, got: {}",
+            out
+        );
+        assert!(
+            out.contains("pub id: [u8; 32]"),
+            "array struct field must lower to `[u8; 32]`, got: {}",
+            out
+        );
+        // Regression: `;` inside `[...]` must not truncate the field type.
+        assert!(
+            !out.contains("[u32,") && !out.contains("Vec<>"),
+            "array field type corrupted: {}",
+            out
+        );
+    }
+
+    #[test]
+    fn test_nested_array_type_splits_on_top_level_semicolon() {
+        let code = "module M { pub fn m(g: [[f64; 8]; 8]) -> f64 { return g[0][0]; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("g: [[f64; 8]; 8]"),
+            "nested array must split on the outer `;`, got: {}",
+            out
+        );
+    }
+
+    #[test]
+    fn test_dynamic_slice_still_lowers_to_vec() {
+        // `[]T` (leading empty brackets) stays a dynamic Vec -- unchanged.
+        let code = "module M { pub fn f(xs: []u32) -> u32 { return xs[0]; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("xs: Vec<u32>"),
+            "dynamic slice must remain `Vec<u32>`, got: {}",
+            out
+        );
+    }
+
+    // ===================================================================
+    // tri-net PR #81 defect B: a comparison / logical operator yields a Rust
+    // `bool`, but t27 has no bool type -- such expressions are u32-valued
+    // (0/1) and specs assert `== 1`/`== 0`. In an integer-typed `return`
+    // context the value must be coerced with `as <ret>`, otherwise the
+    // generated code fails with E0308 (2 sites in tri-net
+    // `multipath_routing::is_multipath_viable`).
+    // ===================================================================
+    #[test]
+    fn test_comparison_return_coerced_to_u32() {
+        let code =
+            "module M { pub fn viable(paths: u32, min: u32) -> u32 { return paths >= min; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("as u32"),
+            "comparison return must be coerced with `as u32`, got: {}",
+            out
+        );
+    }
+
+    #[test]
+    fn test_logical_and_return_coerced_to_u32() {
+        let code =
+            "module M { pub fn both(a: u32, b: u32) -> u32 { return a > 0 and b > 0; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("&&") && out.contains("as u32"),
+            "logical-and return must be coerced with `as u32`, got: {}",
+            out
+        );
+    }
+
+    #[test]
+    fn test_logical_not_of_comparison_return_coerced_to_u32() {
+        let code = "module M { pub fn ne(a: u32, b: u32) -> u32 { return !(a == b); } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("as u32"),
+            "logical-not return must be coerced with `as u32`, got: {}",
+            out
+        );
+    }
+
+    #[test]
+    fn test_arithmetic_return_not_coerced() {
+        // A non-bool expression must NOT gain a spurious `as u32` cast.
+        let code = "module M { pub fn add(a: u32, b: u32) -> u32 { return a + b; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("return (a + b);") && !out.contains("as u32"),
+            "arithmetic return must be unchanged, got: {}",
+            out
+        );
+    }
+
+    #[test]
+    fn test_bool_return_not_coerced() {
+        // A function that genuinely returns bool must keep the bool value.
+        let code = "module M { pub fn eq(a: u32, b: u32) -> bool { return a == b; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            !out.contains("as u32"),
+            "bool-return must not be coerced to u32, got: {}",
+            out
+        );
     }
 
     #[test]
