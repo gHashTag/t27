@@ -1556,3 +1556,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 533 — module-level packed scalar structs with fixed-size scalar array fields, test-block local decl hoist, 8 scratch witnesses, reseal corpus, 0 Icarus simulation failures (Closes #1504)
 - **Files:** .claude/plans/wave-loop-534.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w534_negative_cast_to_string.json,.trinity/icarus-baselines/specs/scratch/w534_negative_unbounded_while.json,.trinity/seals/scratch_w534_negative_cast_to_string.json,.trinity/seals/scratch_w534_negative_f32_field.json,.trinity/seals/scratch_w534_negative_host_only_helper.json,.trinity/seals/scratch_w534_negative_nonlowerable_struct_assign.json,.trinity/seals/scratch_w534_negative_unbounded_while.json,.trinity/seals/scratch_w534_negative_unresolved_import.json,bootstrap/src/compiler.rs,bootstrap/src/main.rs,bootstrap/src/suite.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/bitnet_bundle.rs,bootstrap/tests/icarus_lowerable.rs
 
+## 2026-07-14T17:20:43Z — wave-loop-535
+- **Commit:** feat(icarus-lowerable): W534 structural Icarus lowerability boundary, CLI gate, adversarial witnesses, and cross-checked suite integration
+- **Files:** .claude/plans/wave-loop-535.md
+
