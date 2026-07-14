@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0e674f2b568df1d7054785fd04075d1e403ce7b4c7f224da9ea6f2f99271ade4",
   "module": "AgentRunner",
   "ring": 12,
-  "sealed_at": "2026-07-14T15:07:10Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:cffb49f5744b1d9bca34556103501e0761f3ca5aed1079628cadc50f9425f4fa",
   "spec_path": "specs/server/agent-runner.t27"
 }

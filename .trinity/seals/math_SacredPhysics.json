@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:14f3aeb7b3253e6106d3e3b716381fe39b049b2681e9f7dff580e7302aa2247c",
   "module": "SacredPhysics",
   "ring": 12,
-  "sealed_at": "2026-07-14T15:07:10Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:f6eb8badfe1440f6807dd535fd2fcae783fa0e80c6a5ae59f0a03e75224c0b26",
   "spec_path": "specs/math/sacred_physics.t27"
 }

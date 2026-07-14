@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:b50b97b400d06d61786ad596803e607b1c3deb2914ced039abc12955be3eacb2",
   "gen_hash_rust": "sha256:91b65d0d6db5adb8bdced5860010c6ecfb7234669d07ce1890deebfc7a8a36e1",
-  "gen_hash_verilog": "sha256:bff82d79364ef5d95468042566ee131335eb9f9c7181d0b8b4927b3f2500eb5f",
+  "gen_hash_verilog": "sha256:c4135bcb0b8bede9b7ec5ff4453600a241f0d0ad7b81a513de924e404d069857",
   "gen_hash_zig": "sha256:26d925e0c176f7c16182c1521788a9d2609842bbe29a0764393e5d06d8e694df",
   "module": "CrossOpt",
   "ring": 12,
-  "sealed_at": "2026-07-14T15:07:09Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:febf87624d67aa679c451ceba324033bcca3e9bd351a150bdd57a3e38e79122f",
   "spec_path": "specs/fpga/crossopt.t27"
 }

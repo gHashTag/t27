@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:55fdd2f9464e3b5cbd82d67ebff78e371d8eb249613b74d402418350cac19cc4",
   "module": "w380_tuple_return",
   "ring": 12,
-  "sealed_at": "2026-07-14T15:07:11Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:d7fe5e75594efc37e65de90e3b3822f0968e022791778ed079267745b3c0a315",
   "spec_path": "specs/scratch/w380_tuple_return.t27"
 }

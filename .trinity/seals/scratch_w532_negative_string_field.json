@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b69c57fa127bae6646b9a20683f3310fc381c7696bac5bf698d0179b786a5eb8",
   "module": "w532_negative_string_field",
   "ring": 12,
-  "sealed_at": "2026-07-14T15:07:11Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:83fe174fe7c2a0b874d153a46cf1ff3e3442c845857bb3d0b9da183880da9ee3",
   "spec_path": "specs/scratch/w532_negative_string_field.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ed521af9019a13380a6dc1b75335db412947fcfb7eca2eb5f1a30cc8d7dda7c6",
   "module": "VcdTrace",
   "ring": 12,
-  "sealed_at": "2026-07-14T15:07:09Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:2b44816b9f5f214e367c646d7bc5d4ad38f9aa5fd7e35cb6be985fab5d57c232",
   "spec_path": "specs/fpga/vcd_trace.t27"
 }

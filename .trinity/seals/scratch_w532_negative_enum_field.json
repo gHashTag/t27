@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1481908ff0c0f88f904d5db74b98c94e28024266b3ca48473bc27b94e4e1c5f0",
   "module": "w532_negative_enum_field",
   "ring": 12,
-  "sealed_at": "2026-07-14T15:07:11Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:620eea3a1dc8c760c3bd2d53a0c803c577dc42f4b3d66155e11b380b78e3bbb9",
   "spec_path": "specs/scratch/w532_negative_enum_field.t27"
 }

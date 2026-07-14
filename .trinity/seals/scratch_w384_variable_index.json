@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2c205ed1cb4e9c4b581588e8bdbf3e22f6c616d606cc52a9e1498b7a104d72b2",
   "module": "w384_variable_index",
   "ring": 12,
-  "sealed_at": "2026-07-14T15:07:11Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:3d3010ed3b140d2cb6679eaa11fb86039d1447f0e213e456625c7e9e5cf99f6f",
   "spec_path": "specs/scratch/w384_variable_index.t27"
 }

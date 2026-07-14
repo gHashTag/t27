@@ -136,6 +136,37 @@ existing 1-D flattening regress. Sized signed literals are also required inside
 packed concatenations — `$signed(-value)` is ambiguous in width and breaks the
 layout.
 
+## Worked example — Wave Loop 533
+
+Wave Loop 533 closed the last major packed-vector gap: module-level single scalar
+structs with fixed-size scalar array fields:
+
+- Added `base_type_name`, `is_lowerable_scalar_struct_type`, and `fn_return_types`
+  in `bootstrap/src/compiler.rs` so bare lowerable structs share the same width/sign
+  logic as arrays-of-structs.
+- Fixed `packed_width` / `packed_signed` for bare lowerable scalar structs to
+  prevent silent 32-bit truncation on function parameters and return values.
+- Lowered module-level `const` scalar structs as `localparam`/`parameter [W:0]` and
+  module-level `var` scalar structs as `reg [W:0]` with `initial` initialization.
+- Added a `LocalEmitPhase` / `emit_local` helper and hoisted test-block local
+  declarations above procedural statements, fixing an Icarus syntax error for
+  `var tmp : Pt = make(...);`.
+- Fixed `parse_const_decl` to parse `Ident{LBrace}` initializers into real
+  `ExprStructLit` nodes instead of raw text or dropped consts.
+- Added 8 scratch witnesses (6 positive + 2 negative), resealed the corpus, and
+  recorded 8 Icarus JSON baselines.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable --fast` 36/0 Icarus PASS,
+  0 seal mismatches, 24 pre-existing yosys smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: when a new shape becomes lowerable, update `packed_width` and
+`packed_signed` before touching any emitter; otherwise function signatures stay
+wrong even after declarations look correct. Also, Verilog `reg` declarations must
+be hoisted to the top of every procedural block — never interleave them with
+statements.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

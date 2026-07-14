@@ -1,3 +1,73 @@
+## 2026-07-07 — Wave Loop 533 (module-level packed scalar structs with array fields)
+
+### What worked
+- Reusing the existing packed-vector helpers (`element_width`, `emit_packed_struct_array_init`,
+  packed concatenation) for *single* scalar structs avoided a parallel lowering path and kept
+  module/function/local layouts identical.
+- Adding `is_lowerable_scalar_struct_type` and routing it through `packed_width` / `packed_signed`
+  fixed the silent 32-bit-truncation bug for scalar-struct function parameters and return values.
+- Caching top-level function return types in `fn_return_types` let field access work on
+  struct-returning function-call results without special-casing the call expression.
+- Hoisting test-block local variable declarations to the top of the generated `initial` block
+  removed an Icarus syntax error that appeared whenever a `var tmp : Pt = make(...)` followed a
+  `$display` or other statement.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `base_type_name`, `is_lowerable_scalar_struct_type`, and `LocalEmitPhase` / `emit_local`
+    to share declaration/initialization emission between normal statements and the hoisted test-block
+    pre-declaration pass.
+  - `packed_width` / `packed_signed` now return `element_width(struct)` for bare lowerable scalar
+    structs instead of the legacy 32-bit fallback.
+  - `gen_verilog_const` emits bare lowerable scalar structs as `localparam`/`parameter [W:0] name = {...};`.
+  - `gen_verilog_var` emits bare lowerable scalar structs as `reg [W:0] name;` with an `initial`
+    block initializer from struct literals, identifiers, or function calls.
+  - `gen_verilog_struct` skips lowerable scalar structs (emits a packed-vector comment).
+  - `gen_verilog_test` hoists all test-local `reg` declarations before the first procedural
+    statement and caches local types for packed field access.
+  - `ExprFieldAccess` resolves single scalar-struct field reads through a packed part-select with
+    `$signed(...)` for signed fields, including call-return results.
+  - `parse_const_decl` now parses `Ident{LBrace}` initializers into a real `ExprStructLit` instead
+    of dropping the const or storing raw text.
+  - `fn_return_types` map is populated from top-level `FnDecl` nodes and cloned into temporary
+    codegen instances.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `specs/scratch/`: added 8 W533 scratch specs (6 positive + 2 negative) and removed temporary probes.
+- `.trinity/icarus-baselines/`: recorded JSON baselines for the 8 lowerable W533 witnesses.
+- `.trinity/seals/`: resealed specs whose `gen_hash_verilog` changed (including the test-block
+  hoisting and the single scalar-struct layout fixes).
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_533_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W534_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 534.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `./scripts/tri test --icarus-simulate --icarus-lowerable --fast`: 36 passed, 0 failed;
+  0 seal mismatches; 24 pre-existing yosys smoke baseline failures; 2 negative scratch specs
+  correctly filtered out by the lowerability classifier.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- A single `emit_local` helper with `Decl/Init/Full` phases makes it easy to hoist declarations
+  for any procedural block (test, bench, future loops) without duplicating type-specific logic.
+- When a type newly becomes lowerable, update `packed_width` / `packed_signed` *first*; otherwise
+  function parameters and return values silently keep the wrong width.
+- Cache return-type metadata at the top of `gen_verilog` so downstream expression emission can
+  resolve call-result shapes without a second pass.
+
+### Anti-patterns to avoid
+- Do not emit Verilog `reg` declarations after procedural statements inside `initial` blocks;
+  Icarus and the Verilog standard reject it, and the error message points at the wrong line.
+- Do not store raw struct-literal text in `ExprIdentifier` to satisfy one backend; it breaks
+  C/Rust/Zig seals and the AST contract.
+- Do not add new scratch specs without recording an Icarus JSON baseline on the first successful
+  run; the simulation gate compares deterministic output lines.
+
+---
+
 ## 2026-07-07 — Wave Loop 531 (Icarus regression extension / primitive-array unpacked lowering)
 
 ### What worked

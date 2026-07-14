@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0083454c84237ce9e890b00013861ad3e3150ec9e6074827984b62c9732c7cc1",
   "module": "SemanticSearch",
   "ring": 12,
-  "sealed_at": "2026-07-14T15:07:10Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:513b6a22de6436f9269e7422c67954b6836990fa5ddeb147df0c992e698e56ee",
   "spec_path": "specs/memory/semantic_search.t27"
 }

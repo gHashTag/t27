@@ -1,0 +1,18 @@
+// W533 negative witness: a scalar struct with a string-typed field is NOT
+// Icarus-lowerable and must stay outside the packed-vector subset.
+// Issue #1504.
+module w533_negative_module_string_field;
+
+struct Tagged {
+    label : String,
+    value : i16,
+}
+
+const src : Tagged = Tagged{label: "hello", value: 42};
+
+test should_not_be_icarus_lowerable {
+    // Intentionally empty: this spec exists to exercise the lowerability
+    // classifier boundary, not to simulate.
+}
+
+endmodule
