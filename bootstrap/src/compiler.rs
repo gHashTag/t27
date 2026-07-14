@@ -1153,29 +1153,9 @@ impl Parser {
         // Optional type annotation `: Type`
         if self.current.kind == TokenKind::Colon {
             self.advance(); // consume :
-                            // Type can be complex: u8, i8, []Trit, [N]T, etc.
-            let mut type_str = String::new();
-            // Handle [] prefix for slice types
-            if self.current.kind == TokenKind::LBracket {
-                type_str.push('[');
-                self.advance();
-                // Might have a size expression
-                while self.current.kind != TokenKind::RBracket
-                    && self.current.kind != TokenKind::Eof
-                {
-                    type_str.push_str(&self.current.lexeme);
-                    self.advance();
-                }
-                type_str.push(']');
-                if self.current.kind == TokenKind::RBracket {
-                    self.advance();
-                }
-            }
-            if self.current.kind == TokenKind::Ident {
-                type_str.push_str(&self.current.lexeme);
-                self.advance();
-            }
-            decl.extra_type = type_str;
+            // W528: use the shared type parser so multi-dimensional array
+            // annotations like `[2][3]Pt` are preserved correctly.
+            decl.extra_type = self.parse_type_annotation();
         }
 
         // = value
@@ -3678,6 +3658,7 @@ pub struct VerilogCodegen {
     indent: u32,
     module_name: String,
     current_fn_name: String,
+    current_fn_return_type: String,
     // Width of the parameters of the function currently being lowered, keyed by
     // parameter name. Populated in `gen_verilog_fn`. Used by `ExprCast` lowering
     // to skip a redundant truncation mask when the operand is a parameter that is
@@ -3689,6 +3670,10 @@ pub struct VerilogCodegen {
     // W527: function-local variable names -> declared type string, used to
     // resolve multi-dimensional array-of-struct indexing and field access.
     local_types: std::collections::HashMap<String, String>,
+    // W528: module-level const/var names -> declared type string.
+    module_types: std::collections::HashMap<String, String>,
+    // W528: function parameter names -> declared type string.
+    param_types: std::collections::HashMap<String, String>,
 }
 
 impl VerilogCodegen {
@@ -3698,9 +3683,12 @@ impl VerilogCodegen {
             indent: 0,
             module_name: String::new(),
             current_fn_name: String::new(),
+            current_fn_return_type: String::new(),
             param_widths: std::collections::HashMap::new(),
             struct_decls: std::collections::HashMap::new(),
             local_types: std::collections::HashMap::new(),
+            module_types: std::collections::HashMap::new(),
+            param_types: std::collections::HashMap::new(),
         }
     }
 
@@ -3763,6 +3751,34 @@ impl VerilogCodegen {
         } else {
             format!("[{}:0]", width - 1)
         }
+    }
+
+    /// W528: total packed bit width of any t27 type. Only multi-dimensional
+    /// arrays of scalar structs are expanded into a packed-vector width; for
+    /// primitive arrays (and all other types) we preserve the legacy 32-bit
+    /// fallback so existing parameter/return signatures stay stable.
+    fn packed_width(&self, ty: &str) -> u32 {
+        if let Some((dims, elem_type)) = Self::parse_array_type(ty) {
+            if self.struct_decls.contains_key(&elem_type) {
+                let elem_w = self.element_width(&elem_type) as u32;
+                return dims.iter().fold(elem_w, |acc, d| acc * (*d as u32));
+            }
+        }
+        Self::type_to_width(ty)
+    }
+
+    /// W528: signedness of the packed representation of a t27 type. Scalar
+    /// struct arrays are emitted as unsigned packed vectors; primitive arrays
+    /// keep the scalar signedness of their element type; non-array types keep
+    /// their original signedness.
+    fn packed_signed(&self, ty: &str) -> bool {
+        if let Some((dims, elem_type)) = Self::parse_array_type(ty) {
+            if self.struct_decls.contains_key(&elem_type) {
+                return false;
+            }
+            return Self::type_is_signed(&elem_type);
+        }
+        Self::type_is_signed(ty)
     }
 
     /// W527: parse a t27 array type string like "[2][3]Pt" into a list of
@@ -3887,7 +3903,10 @@ impl VerilogCodegen {
             NodeKind::ExprIdentifier if !current.name.is_empty() => current.name.clone(),
             _ => return false,
         };
-        let local_ty = match self.local_types.get(&base_name) {
+        let local_ty = match self.local_types.get(&base_name)
+            .or_else(|| self.param_types.get(&base_name))
+            .or_else(|| self.module_types.get(&base_name))
+        {
             Some(t) => t.clone(),
             None => return false,
         };
@@ -3943,9 +3962,12 @@ impl VerilogCodegen {
             indent: 0,
             module_name: String::new(),
             current_fn_name: String::new(),
+            current_fn_return_type: String::new(),
             param_widths: self.param_widths.clone(),
             struct_decls: self.struct_decls.clone(),
             local_types: self.local_types.clone(),
+            module_types: self.module_types.clone(),
+            param_types: self.param_types.clone(),
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -4022,6 +4044,90 @@ impl VerilogCodegen {
         }
     }
 
+    /// W528: parse an array-literal text fragment (e.g. the ExprIdentifier
+    /// stored for a module-level const like `[2][3]Pt{...}`) into an
+    /// ExprArrayLiteral on demand. This avoids changing the shared AST for
+    /// other backends.
+    fn parse_array_literal_text(&self, text: &str) -> Option<Node> {
+        let lexer = Lexer::new(text);
+        let mut parser = Parser::new(lexer);
+        parser.parse_array_literal().ok()
+    }
+
+    /// W528: emit a nested array literal as a single packed concatenation,
+    /// suitable for a module-level parameter/localparam initializer. Each
+    /// innermost element is rendered through `gen_verilog_expr` (so scalar
+    /// struct literals already lower to their packed concatenation). Missing
+    /// entries are padded with sized zero.
+    fn emit_packed_array_literal_concat(
+        &mut self,
+        node: &Node,
+        ty: &str,
+    ) {
+        let (dims, elem_type) = match Self::parse_array_type(ty) {
+            Some(v) => v,
+            None => {
+                self.write("0 /* TODO: packed array literal for non-array type */");
+                return;
+            }
+        };
+        let elem_w = self.element_width(&elem_type) as usize;
+        self.emit_packed_array_literal_concat_level(node, &dims, 0, elem_w);
+    }
+
+    fn emit_packed_array_literal_concat_level(
+        &mut self,
+        node: &Node,
+        dims: &[usize],
+        depth: usize,
+        elem_w: usize,
+    ) {
+        let current_dim = dims[depth];
+        let mut parts = Vec::new();
+        if depth + 1 == dims.len() {
+            // Innermost dimension: elements are scalar struct literals (or
+            // primitive expressions). Render each element to a string.
+            let inner = if node.kind == NodeKind::ExprArrayLiteral {
+                &node.children[..]
+            } else {
+                &node.children[..0]
+            };
+            for elem in inner.iter().take(current_dim) {
+                let mut rhs = String::new();
+                self.collect_expr_text(elem, &mut rhs);
+                parts.push(rhs);
+            }
+        } else {
+            // Outer dimensions: each child is a sub-array literal.
+            let outer = if node.kind == NodeKind::ExprArrayLiteral {
+                &node.children[..]
+            } else {
+                &node.children[..0]
+            };
+            for sub in outer.iter().take(current_dim) {
+                let mut tmp = VerilogCodegen {
+                    output: String::new(),
+                    indent: 0,
+                    module_name: String::new(),
+                    current_fn_name: String::new(),
+                    current_fn_return_type: String::new(),
+                    param_widths: self.param_widths.clone(),
+                    struct_decls: self.struct_decls.clone(),
+                    local_types: self.local_types.clone(),
+                    module_types: self.module_types.clone(),
+                    param_types: self.param_types.clone(),
+                };
+                tmp.emit_packed_array_literal_concat_level(sub, dims, depth + 1, elem_w);
+                parts.push(tmp.output);
+            }
+        }
+        // Pad missing entries with sized zero.
+        while parts.len() < current_dim {
+            parts.push(format!("{}'d0", elem_w));
+        }
+        self.write(&format!("{{{}}}", parts.join(", ")));
+    }
+
     pub fn gen_verilog(&mut self, ast: &Node) {
         self.module_name = if !ast.name.is_empty() {
             Self::sanitize_identifier(&ast.name)
@@ -4074,6 +4180,14 @@ impl VerilogCodegen {
                 .map(|f| (f.name.clone(), f.extra_type.clone()))
                 .collect();
             self.struct_decls.insert(s.name.clone(), fields);
+        }
+
+        // W528: cache module-level const/var type annotations so function-local
+        // and test-bench code can resolve packed array-of-struct accesses.
+        for c in &consts {
+            if !c.extra_type.is_empty() {
+                self.module_types.insert(c.name.clone(), c.extra_type.clone());
+            }
         }
 
         // Emit top-level module
@@ -4347,6 +4461,48 @@ impl VerilogCodegen {
             }
         }
 
+        // W528: multi-dimensional arrays of scalar structs are lowered as a
+        // single packed parameter/localparam, matching the function-local
+        // packed-vector AoS layout.
+        if let Some((_dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            if self.struct_decls.contains_key(&elem_type) {
+                let width = self.packed_width(&node.extra_type);
+                let signed = self.packed_signed(&node.extra_type);
+                self.write_indent();
+                if node.extra_pub {
+                    self.write("parameter ");
+                } else {
+                    self.write("localparam ");
+                }
+                if signed {
+                    self.write("signed ");
+                }
+                let range = Self::range_decl(width);
+                if !range.is_empty() {
+                    self.write(&format!("{} ", range));
+                }
+                self.write(&format!("{} = ", node.name));
+                let init_node = if !node.children.is_empty() {
+                    match node.children[0].kind {
+                        NodeKind::ExprArrayLiteral => Some(node.children[0].clone()),
+                        NodeKind::ExprIdentifier => {
+                            self.parse_array_literal_text(&node.children[0].name)
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+                if let Some(init) = init_node {
+                    self.emit_packed_array_literal_concat(&init, &node.extra_type);
+                } else {
+                    self.write(&format!("{}'d0", width));
+                }
+                self.write_line(";");
+                return;
+            }
+        }
+
         // Determine if this is an array constant (LUT)
         let is_array = !node.extra_size.is_empty();
 
@@ -4467,6 +4623,40 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_var(&mut self, node: &Node) {
+        // W528: multi-dimensional arrays of scalar structs are lowered as a
+        // single packed-vector register with procedural per-element init.
+        if let Some((_dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            if self.struct_decls.contains_key(&elem_type) {
+                let width = self.packed_width(&node.extra_type);
+                self.write_indent();
+                self.write_line(&format!("reg [{}:0] {};", width.saturating_sub(1), node.name),
+                );
+                if !node.children.is_empty() {
+                    self.write_indent();
+                    self.write_line("initial begin");
+                    self.indent();
+                    let init_node = match node.children[0].kind {
+                        NodeKind::ExprArrayLiteral => node.children[0].clone(),
+                        NodeKind::ExprIdentifier => {
+                            self.parse_array_literal_text(&node.children[0].name)
+                                .unwrap_or_else(|| node.children[0].clone())
+                        }
+                        _ => node.children[0].clone(),
+                    };
+                    self.emit_packed_struct_array_init(
+                        &node.name,
+                        &node.extra_type,
+                        &init_node,
+                    );
+                    self.dedent();
+                    self.write_indent();
+                    self.write_line("end");
+                }
+                self.write_line("");
+                return;
+            }
+        }
+
         let width = Self::type_to_width(&node.extra_type);
         let signed = Self::type_is_signed(&node.extra_type);
         let signed_str = if signed { "signed " } else { "" };
@@ -4587,8 +4777,10 @@ impl VerilogCodegen {
 
     fn gen_verilog_fn(&mut self, node: &Node) {
         self.current_fn_name = node.name.clone();
+        self.current_fn_return_type = node.extra_return_type.clone();
         self.param_widths.clear();
         self.local_types.clear();
+        self.param_types.clear();
         // W527: cache local variable types for array-of-struct resolution.
         for stmt in &node.children {
             if stmt.kind == NodeKind::StmtLocal && !stmt.name.is_empty() {
@@ -4597,8 +4789,12 @@ impl VerilogCodegen {
             }
         }
         for (pname, ptype) in &node.params {
+            // W528: packed width for array-of-struct parameters; primitive width
+            // for scalar parameters.
             self.param_widths
-                .insert(pname.clone(), Self::type_to_width(ptype) as usize);
+                .insert(pname.clone(), self.packed_width(ptype) as usize);
+            self.param_types
+                .insert(pname.clone(), ptype.clone());
         }
         self.write_line("");
         self.write_indent();
@@ -4606,12 +4802,12 @@ impl VerilogCodegen {
 
         // Emit as a Verilog function declaration
         let ret_width = if !node.extra_return_type.is_empty() {
-            Self::type_to_width(&node.extra_return_type)
+            self.packed_width(&node.extra_return_type)
         } else {
             32
         };
         let ret_signed = if !node.extra_return_type.is_empty() {
-            Self::type_is_signed(&node.extra_return_type)
+            self.packed_signed(&node.extra_return_type)
         } else {
             false
         };
@@ -4648,8 +4844,8 @@ impl VerilogCodegen {
         // Emit parameters as input declarations
         for (pname, ptype) in &node.params {
             self.write_indent();
-            let pw = Self::type_to_width(ptype);
-            let ps = Self::type_is_signed(ptype);
+            let pw = self.packed_width(ptype);
+            let ps = self.packed_signed(ptype);
             let ps_str = if ps { "signed " } else { "" };
             let pr = Self::range_decl(pw);
             let pr_str = if pr.is_empty() {
@@ -4694,6 +4890,7 @@ impl VerilogCodegen {
             self.write_line("endfunction");
         }
         self.current_fn_name.clear();
+        self.current_fn_return_type.clear();
         self.param_widths.clear();
     }
 
@@ -4814,7 +5011,22 @@ impl VerilogCodegen {
                         self.current_fn_name.clone()
                     };
                     self.write(&format!("{} = ", fn_name));
-                    self.gen_verilog_expr(&node.children[0]);
+                    // W528: when returning a nested array literal of scalar structs,
+                    // lower it to a single packed concatenation matching the
+                    // function's declared return width.
+                    let return_type = self.current_fn_return_type.clone();
+                    if node.children[0].kind == NodeKind::ExprArrayLiteral
+                        && Self::parse_array_type(&return_type)
+                            .map(|(_, et)| self.struct_decls.contains_key(&et))
+                            .unwrap_or(false)
+                    {
+                        self.emit_packed_array_literal_concat(
+                            &node.children[0],
+                            &return_type,
+                        );
+                    } else {
+                        self.gen_verilog_expr(&node.children[0]);
+                    }
                     self.write_line(";");
                 }
             }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:04315b97dd7a18ff1fef93f734023bfa6567b1528324d74ce83a8cd294241d54",
   "gen_hash_rust": "sha256:28e741e68d71b34e41287f6e5b55da4772c0eef8f68e4a5d0a7e6417ab81e870",
-  "gen_hash_verilog": "sha256:9f0508c2d78b942d342f51f682475831e12d40bb5eadab4fdc7e0e4ad2ef5323",
+  "gen_hash_verilog": "sha256:43bc09d23b7d88a5bf746488eec95a1f77cd1ce4c07cc0a2bf6ad44d154b030a",
   "gen_hash_zig": "sha256:d7d38effabceeba404715fd5eae16a672b1a5f9e8506ecb15871bc68d2d76c15",
   "module": "PhiRatio",
   "ring": 12,
-  "sealed_at": "2026-07-14T08:18:39Z",
+  "sealed_at": "2026-07-14T08:55:29Z",
   "spec_hash": "sha256:9481014dd6cef9f3ddb3d77185bf48e722d349748678d294c8f2e9865e63fe28",
   "spec_path": "specs/numeric/phi_ratio.t27"
 }

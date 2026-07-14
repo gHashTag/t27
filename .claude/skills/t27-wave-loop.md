@@ -11,13 +11,14 @@ parameters:
 
 # t27 Wave Loop Skill
 
-This skill encodes the standing Russian charter repeated across Wave Loops:
+This skill encodes the standing Wave Loop charter repeated across t27 sessions:
 
-> исследуй слабые места работы, исследуй научные работы по теме, создай
-> декомпозированный план и реализуй все и в конце отчет и три варианта
-> сотрудничества для следующего Wave лупа! сохрани в конце скилы
+> investigate weak points, research relevant scientific literature, create a
+> decomposed plan, implement the recommended variant, write a closeout report,
+> propose three cooperation variants for the next Wave Loop, and save skills
+> and experience at the end.
 
-Translation / procedure:
+Procedure:
 
 1. **Investigate weak points** — audit the current branch, recent test
    baselines, and unlanded process-debt needles.
@@ -55,6 +56,20 @@ When a PHI LOOP phase is complete, include:
 Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
+
+## Worked example — Wave Loop 529
+
+Wave Loop 529 formalized the W528 packed-vector 2-D AoS cross-boundary lowering:
+
+- Restored missing `Trinity.IcarusLowerable` source modules from git history.
+- Added four positive witnesses in `Lemmas.lean`.
+- Proved value preservation in `Soundness.lean` via the generic equivalence theorems.
+- Created and sealed four matching scratch specs.
+- Validation: `lake build Trinity.IcarusLowerable.Soundness` green with 0 sorry,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `./scripts/tri test` 0 seal mismatches.
+
+Key learning: when formal source modules are missing from the worktree, check the
+commit history before re-implementing the shallow model.
 
 ---
 

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:6b5f147dec45882480e1da2e0b68bae9c8429350a7b239f73ca20c1476160025",
   "gen_hash_rust": "sha256:707f552a33e1cf215278a1709d7eb43d98c430a409ad2dc73a0038a84e89bc0f",
-  "gen_hash_verilog": "sha256:fa2c37dc1e4ab60149eec67fd364cba91bb9280929f0dc9b21417081e347c014",
+  "gen_hash_verilog": "sha256:cbed7f73093e211747dca2d0b741a111ffc0cf95dbeffadd1fb18e0db8622492",
   "gen_hash_zig": "sha256:4db7998a5171cbf97967d1bee58e7f7a0fdfa55680d1fbf957c29342094e17d7",
   "module": "Session",
   "ring": 12,
-  "sealed_at": "2026-07-14T08:18:39Z",
+  "sealed_at": "2026-07-14T08:55:29Z",
   "spec_hash": "sha256:94e35496e81c873a42165d46580afa6fd5d8fd30303756743158a60740a7d72f",
   "spec_path": "specs/server/session.t27"
 }

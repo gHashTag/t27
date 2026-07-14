@@ -78,3 +78,6 @@ docker/Xilinx_Unified_*.bin
 
 # Ignore stray git-stash leftovers in working tree
 *~Stashed changes*
+
+# Ephemeral agent worktrees (created by Claude Code / tooling)
+.claude/worktrees/

@@ -1,3 +1,134 @@
+## 2026-07-07 — Wave Loop 529 (formal module/function 2-D AOS soundness / W530 setup)
+
+### What worked
+- Restoring the missing `Trinity.IcarusLowerable` source modules from git commit
+  `33276d818` made the W529 formalization possible without re-implementing the
+  shallow model.
+- Reusing the existing generic equivalence theorems
+  (`module_value_equiv_statement` and `module_value_equiv_proved_sequential`)
+  kept the new value-preservation proofs short and uniform.
+- Adding the witnesses directly to `Lemmas.lean`/`Soundness.lean` (rather than
+  trying to auto-generate `Completeness.lean`) kept the change reviewable and
+  self-contained.
+- Keeping the formal struct fields as `u32` avoided the unsupported `ExprCast`
+  path while preserving the same arithmetic values as the `u16` + `as u32`
+  scratch specs.
+- Sealing the four new scratch specs immediately after creation kept
+  `./scripts/tri test` at 0 seal mismatches.
+
+### What changed behavior
+- `proofs/lean4/Trinity/IcarusLowerable/`:
+  - Restored 10 source modules from commit `33276d818`.
+  - `Lemmas.lean`: added four W529 witness env/module definitions.
+  - `Soundness.lean`: added lowerability, combinationality/sequentiality, and
+    value-preservation theorems for each witness.
+- `specs/scratch/`:
+  - `w529_module_2d_struct_array_const.t27`
+  - `w529_module_2d_struct_array_var.t27`
+  - `w529_function_2d_struct_array_param.t27`
+  - `w529_function_2d_struct_array_return.t27`
+- `.trinity/seals/`: added 4 new scratch seals.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_529_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W530_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 530.
+
+### Verification
+- `cargo build --release -p t27c --bin t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `lake build Trinity.IcarusLowerable.Soundness`: OK (8572 jobs), 0 sorry in
+  `Lemmas.lean` / `Soundness.lean`.
+- `./scripts/tri test`: Seal Verify 586/0, 16 pre-existing yosys smoke baseline
+  failures, no new failures.
+
+### Patterns to reuse
+- When formal source modules are missing from the worktree, check the git
+  history first; restoring a known-good baseline is faster than recreating the
+  model.
+- Match formal witnesses to the subset supported by the shallow model (no
+  casts, no host-only helpers) rather than forcing the model to match every
+  frontend construct.
+- Prove value preservation via the existing generic theorem once lowerability,
+  uniqueness, sequentiality, and call-context are established by `native_decide`.
+
+### Anti-patterns to avoid
+- Do not let a generated file like `Completeness.lean` block a wave; if the
+  generator is not in the current worktree, cover the new shapes in the source
+  modules and document the regeneration gap.
+- Do not create scratch specs without sealing them; the suite will report seal
+  mismatches even if the specs otherwise compile.
+
+---
+
+## 2026-07-07 — Wave Loop 528 (2-D AOS cross-boundary lowering / reseal / W529 setup)
+
+### What worked
+- Extending the W527 function-local packed-vector path to module-level
+  `const`/`var` and function parameters/returns reused the same linearized slice
+  helpers, keeping the layout consistent across all scopes.
+- Parsing the module-level array-literal text on demand inside the Verilog
+  backend (rather than changing the shared AST) avoided regressing Zig, C, and
+  Rust generated code.
+- Restricting `packed_width` expansion to scalar-struct element types kept all
+  primitive-array parameter/return signatures stable, eliminating unintended seal
+  churn.
+- Adding `module_types` and `param_types` maps let `try_emit_struct_array_access`
+  resolve array accesses against module-level and parameter symbols, not just
+  function locals.
+- Saving seals for the affected existing specs plus the five new scratch specs
+  brought `./scripts/tri test` back to 0 seal mismatches while preserving the 16
+  pre-existing yosys smoke baselines.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `parse_const_decl` uses `parse_type_annotation()` so multi-dimensional
+    array type annotations are preserved.
+  - `VerilogCodegen` gained `packed_width`, `packed_signed`,
+    `parse_array_literal_text`, `emit_packed_array_literal_concat`,
+    `module_types`, `param_types`, `current_fn_return_type`.
+  - `gen_verilog_const`/`gen_verilog_var` lower module-level scalar-struct
+    arrays as packed parameters/registers.
+  - `gen_verilog_fn` emits packed widths for scalar-struct array parameters and
+    returns.
+  - `ExprReturn` lowers array-literal returns to a packed concatenation.
+- `bootstrap/stage0/FROZEN_HASH` updated to the live compiler hash.
+- New scratch witnesses:
+  - `w528_module_2d_struct_array_const.t27`
+  - `w528_module_2d_struct_array_var.t27`
+  - `w528_function_2d_struct_array_param.t27`
+  - `w528_function_2d_struct_array_return.t27`
+  - `w528_parse_const_2d.t27`
+- Resealed 26 existing specs and saved 6 new scratch seals.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_528_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W529_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 529.
+
+### Verification
+- `cargo build --release -p t27c --bin t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --tests`: 20 passed; 1 failed (`bundle_writes_exactly_eleven_files`,
+  pre-existing and unrelated to W528).
+- `./scripts/tri test`: Seal Verify 582/0, 16 pre-existing yosys smoke baseline failures.
+- Icarus simulation and Yosys synthesis on the four main W528 witnesses: PASS.
+
+### Patterns to reuse
+- Keep AST changes local to the backend that needs them; on-demand parsing of
+  literal text prevents cross-backend seal churn.
+- When a type-derived width could apply broadly, gate it tightly on the exact
+  supported shape (here: scalar-struct arrays) to avoid silent signature changes.
+- Map every new symbol scope (module-level, parameters) so that access helpers
+  work uniformly across scopes.
+
+### Anti-patterns to avoid
+- Do not change the shared parser to emit a richer AST just for one backend;
+  the other generators and seals will pay the cost.
+- Do not reseal blindly; first verify that the only mismatches are expected
+  consequences of the targeted change.
+
+---
+
 ## 2026-07-07 — IGLA Improvement Loop cycle 1 (audit + loop charter)
 
 ### What worked
