@@ -82,6 +82,29 @@ Key learning: a simulation gate catches value-level regressions that static
 syntax-only smoke gates miss; it also exposed that unrelated scratch specs must
 be kept out of the regression suite by a deliberate whitelist.
 
+## Worked example — Wave Loop 531
+
+Wave Loop 531 extended the Icarus simulation regression suite to primitive arrays:
+
+- Lowered function-local and module-level arrays of primitive scalars as
+  unpacked Verilog arrays in `bootstrap/src/compiler.rs`, fixing signed widths
+  and variable-index writes that the old packed scalar-reg fallback broke.
+- Added W531 helpers for primitive-array detection, access, and initialization.
+- Extended `icarus_regression_specs` in `bootstrap/src/suite.rs` to include
+  lowerable `w3*` scratch specs alongside the existing `w5*` witnesses.
+- Resealed 23 specs whose `gen_hash_verilog` changed after the lowering switch.
+- Recorded new/updated Icarus JSON baselines under
+  `.trinity/icarus-baselines/`.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable` 24/0 Icarus PASS,
+  0 seal mismatches, 16 pre-existing yosys smoke baselines.
+
+Key learning: the same broken array-lowering fallback existed in two places
+(`StmtLocal` and `gen_verilog_var`); fixing only one left module-level RAM
+witnesses broken. Unpacked arrays are the correct Verilog lowering for primitive
+t27 arrays when signed widths or variable indices matter.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

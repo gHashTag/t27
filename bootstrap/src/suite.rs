@@ -194,13 +194,15 @@ fn cmd_icarus_simulate(repo: &Path, rel: &str) -> anyhow::Result<String> {
 }
 
 fn icarus_regression_specs(repo: &Path) -> Vec<PathBuf> {
+    // W531: include W5xx structural/struct witnesses and W3xx primitive-array
+    // witnesses that are now lowered with unpacked Verilog arrays.
     collect_t27(&repo.join("specs/scratch"))
         .unwrap_or_default()
         .into_iter()
         .filter(|p| {
             p.file_stem()
                 .and_then(|s| s.to_str())
-                .map(|s| s.starts_with("w5"))
+                .map(|s| s.starts_with("w5") || s.starts_with("w3"))
                 .unwrap_or(false)
         })
         .collect()

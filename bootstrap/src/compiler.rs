@@ -4141,6 +4141,154 @@ impl VerilogCodegen {
         self.write(&format!("{{{}}}", parts.join(", ")));
     }
 
+    /// W531: primitive scalar types that can be packed into a bit vector.
+    fn is_primitive_scalar_type(ty: &str) -> bool {
+        matches!(
+            ty.trim(),
+            "u8" | "u16" | "u32" | "u64" | "i8" | "i16" | "i32" | "i64" | "bool"
+        )
+    }
+
+    /// W531: true if `ty` is an array whose element type is a primitive scalar.
+    fn is_primitive_array_type(ty: &str) -> bool {
+        let Some((_, elem_type)) = Self::parse_array_type(ty) else {
+            return false;
+        };
+        Self::is_primitive_scalar_type(&elem_type)
+    }
+
+    /// W531: return the dimension sizes and element type of a primitive array.
+    fn primitive_array_info(ty: &str) -> Option<(Vec<usize>, String)> {
+        let (dims, elem_type) = Self::parse_array_type(ty)?;
+        if !Self::is_primitive_scalar_type(&elem_type) {
+            return None;
+        }
+        Some((dims, elem_type))
+    }
+
+    /// W531: emit an element access expression for an unpacked primitive array
+    /// using Verilog multidimensional indexing (e.g. `m[i][j]`).
+    fn emit_unpacked_primitive_array_access(
+        &mut self,
+        var: &str,
+        indices: &[String],
+    ) {
+        self.write(var);
+        for idx in indices {
+            self.write("[");
+            self.write(idx);
+            self.write("]");
+        }
+    }
+
+    /// W531: walk a chain of ExprIndex nodes rooted at a primitive array
+    /// identifier and emit the corresponding unpacked element access. Returns
+    /// true if the chain was recognized and emitted.
+    fn try_emit_primitive_array_access(&mut self, node: &Node) -> bool {
+        // Walk down ExprIndex nodes to find the base identifier.
+        let mut current = node;
+        let mut indices: Vec<String> = Vec::new();
+        while current.kind == NodeKind::ExprIndex {
+            if current.children.len() >= 2 {
+                let mut idx_buf = String::new();
+                self.collect_expr_text(&current.children[1], &mut idx_buf);
+                indices.push(idx_buf);
+            }
+            current = match current.children.first() {
+                Some(c) => c,
+                None => return false,
+            };
+        }
+        let base_name = match current.kind {
+            NodeKind::ExprIdentifier if !current.name.is_empty() => current.name.clone(),
+            _ => return false,
+        };
+        let local_ty = match self.local_types.get(&base_name)
+            .or_else(|| self.param_types.get(&base_name))
+            .or_else(|| self.module_types.get(&base_name))
+        {
+            Some(t) => t.clone(),
+            None => return false,
+        };
+        let (dims, _elem_type) = match Self::primitive_array_info(&local_ty) {
+            Some(v) => v,
+            None => return false,
+        };
+
+        // Indices were collected from outermost to innermost; reverse to row-major.
+        indices.reverse();
+        if indices.len() != dims.len() {
+            return false;
+        }
+
+        self.emit_unpacked_primitive_array_access(&base_name, &indices);
+        true
+    }
+
+    /// W531: emit procedural assignments that initialize an unpacked primitive
+    /// multi-dimensional array from a nested array literal.
+    fn emit_unpacked_primitive_array_init(
+        &mut self,
+        var: &str,
+        ty: &str,
+        init: &Node,
+    ) {
+        let (dims, _elem_type) = match Self::primitive_array_info(ty) {
+            Some(v) => v,
+            None => return,
+        };
+        let mut indices: Vec<String> = Vec::new();
+        self.emit_unpacked_primitive_array_init_level(
+            var, &dims, 0, init, &mut indices,
+        );
+    }
+
+    fn emit_unpacked_primitive_array_init_level(
+        &mut self,
+        var: &str,
+        dims: &[usize],
+        depth: usize,
+        node: &Node,
+        indices: &mut Vec<String>,
+    ) {
+        if depth + 1 == dims.len() {
+            // Innermost dimension: `node` should be an array literal of elements.
+            if node.kind != NodeKind::ExprArrayLiteral {
+                return;
+            }
+            let current_dim = dims[depth];
+            for (i, elem) in node.children.iter().enumerate() {
+                if i >= current_dim {
+                    break;
+                }
+                indices.push(i.to_string());
+                let mut rhs = String::new();
+                self.collect_expr_text(elem, &mut rhs);
+                self.write_indent();
+                self.emit_unpacked_primitive_array_access(var, indices);
+                self.write_line(&format!(" = {};", rhs));
+                indices.pop();
+            }
+            return;
+        }
+
+        // Outer dimension: `node` is an array literal of sub-arrays.
+        if node.kind != NodeKind::ExprArrayLiteral {
+            return;
+        }
+        let current_dim = dims[depth];
+        for (i, sub) in node.children.iter().enumerate() {
+            if i >= current_dim {
+                break;
+            }
+            indices.push(i.to_string());
+            self.emit_unpacked_primitive_array_init_level(
+                var, dims, depth + 1, sub, indices,
+            );
+            indices.pop();
+        }
+    }
+
     pub fn gen_verilog(&mut self, ast: &Node) {
         self.module_name = if !ast.name.is_empty() {
             Self::sanitize_identifier(&ast.name)
@@ -4670,6 +4818,55 @@ impl VerilogCodegen {
             }
         }
 
+        // W531: module-level arrays of primitive scalars are lowered as
+        // unpacked Verilog arrays so that signed widths and variable indices
+        // are preserved.
+        if Self::is_primitive_array_type(&node.extra_type) {
+            let (dims, elem_type) = Self::primitive_array_info(&node.extra_type
+            ).unwrap_or((Vec::new(), "u32".to_string()));
+            let elem_w = Self::type_to_width(&elem_type).max(1) as usize;
+            let signed = Self::type_is_signed(
+                &Self::parse_array_type(&node.extra_type)
+                    .map(|(_, et)| et)
+                    .unwrap_or_default(),
+            );
+            let signed_str = if signed { "signed " } else { "" };
+            let dims_str = dims
+                .iter()
+                .map(|d| format!("[0:{}]", d - 1))
+                .collect::<String>();
+            self.write_indent();
+            self.write_line(
+                &format!(
+                    "reg {}{}[{}:0] {}{};",
+                    signed_str, "", elem_w - 1, node.name, dims_str
+                ),
+            );
+            if !node.children.is_empty() {
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                let init_node = match node.children[0].kind {
+                    NodeKind::ExprArrayLiteral => node.children[0].clone(),
+                    NodeKind::ExprIdentifier => {
+                        self.parse_array_literal_text(&node.children[0].name
+                        ).unwrap_or_else(|| node.children[0].clone())
+                    }
+                    _ => node.children[0].clone(),
+                };
+                self.emit_unpacked_primitive_array_init(
+                    &node.name,
+                    &node.extra_type,
+                    &init_node,
+                );
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            }
+            self.write_line("");
+            return;
+        }
+
         let width = Self::type_to_width(&node.extra_type);
         let signed = Self::type_is_signed(&node.extra_type);
         let signed_str = if signed { "signed " } else { "" };
@@ -5093,8 +5290,7 @@ impl VerilogCodegen {
             NodeKind::StmtLocal => {
                 // W527: multi-dimensional arrays of scalar structs are lowered as a
                 // single packed-vector register with procedural per-element
-                // initialization. We deliberately keep the existing 1-D flattening
-                // path untouched to avoid regressing `pairs_a`-style field access.
+                // initialization.
                 if let Some((dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
                     if dims.len() >= 2 && self.struct_decls.contains_key(&elem_type) {
                         let elem_w = self.element_width(&elem_type) as usize;
@@ -5119,6 +5315,46 @@ impl VerilogCodegen {
                         }
                         return;
                     }
+                }
+
+                // W531: 1-D and multi-D arrays of primitive scalars are lowered as
+                // unpacked Verilog arrays. This replaces the legacy scalar-reg fallback
+                // that treated element access as bit-select.
+                if Self::is_primitive_array_type(&node.extra_type) {
+                    let (dims, elem_type) = Self::primitive_array_info(&node.extra_type
+                    ).unwrap_or((Vec::new(), "u32".to_string()));
+                    let elem_w = Self::type_to_width(&elem_type).max(1) as usize;
+                    let signed = Self::type_is_signed(&Self::parse_array_type(&node.extra_type)
+                            .map(|(_, et)| et)
+                            .unwrap_or_default(),
+                    );
+                    let signed_str = if signed { "signed " } else { "" };
+                    let dims_str = dims
+                        .iter()
+                        .map(|d| format!("[0:{}]", d - 1))
+                        .collect::<String>();
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "reg {}{}[{}:0] {}{};",
+                        signed_str, "", elem_w - 1, node.name, dims_str
+                    ));
+                    if !node.children.is_empty() {
+                        let child = &node.children[0];
+                        self.write_indent();
+                        self.write_line("begin");
+                        self.indent();
+                        self.emit_unpacked_primitive_array_init(
+                            &node.name,
+                            &node.extra_type,
+                            child,
+                        );
+                        self.dedent();
+                        self.write_indent();
+                        self.write_line("end");
+                    } else {
+                        self.write_line("");
+                    }
+                    return;
                 }
 
                 self.write_indent();
@@ -5484,6 +5720,10 @@ impl VerilogCodegen {
                 if node.children.len() >= 2 {
                     // W527: packed array-of-struct element access (e.g. m[i][j]).
                     if self.try_emit_struct_array_access(node, None) {
+                        return;
+                    }
+                    // W531: packed primitive array element access (e.g. temps[i]).
+                    if self.try_emit_primitive_array_access(node) {
                         return;
                     }
                     self.gen_verilog_expr(&node.children[0]);

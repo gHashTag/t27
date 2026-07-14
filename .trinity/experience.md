@@ -1,3 +1,64 @@
+## 2026-07-07 — Wave Loop 531 (Icarus regression extension / primitive-array unpacked lowering)
+
+### What worked
+- Lowering function-local primitive arrays as unpacked Verilog arrays
+  (`reg signed [15:0] temps [0:3];`) fixed both signed-element width issues and
+  Icarus's rejection of variable-index packed part-selects as l-values.
+- Applying the same fix to module-level `var` declarations fixed the W382 RAM
+  lowering witness, which had the same broken scalar-reg-per-element fallback.
+- Extending `icarus_regression_specs` to include `w3*` while keeping the
+  `--icarus-lowerable` classifier as a pre-filter let the regression suite grow
+  from 10 to 24 specs without adding noise from non-lowerable experiments.
+- Recording JSON baselines automatically on first successful runs made the new
+  witnesses repeatable.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added W531 helpers: `is_primitive_scalar_type`, `is_primitive_array_type`,
+    `primitive_array_info`, `emit_unpacked_primitive_array_access`,
+    `try_emit_primitive_array_access`, `emit_unpacked_primitive_array_init`,
+    `emit_unpacked_primitive_array_init_level`.
+  - `gen_verilog_stmt` `StmtLocal` branch now emits unpacked arrays for primitive
+    arrays instead of the scalar-reg packed fallback.
+  - `gen_verilog_var` now emits unpacked arrays for primitive array module-level
+    variables.
+  - `gen_verilog_expr` `ExprIndex` now routes primitive-array element access
+    through `try_emit_primitive_array_access`.
+- `bootstrap/src/suite.rs`:
+  - `icarus_regression_specs` now includes `w5*` and `w3*` scratch specs.
+- `.trinity/icarus-baselines/`: added/updated baselines for lowerable W3xx
+  primitive-array witnesses.
+- `.trinity/seals/`: resealed specs whose `gen_hash_verilog` changed.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_531_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W532_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 532.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `./scripts/tri test --icarus-simulate --icarus-lowerable`: 24 passed, 0 failed;
+  0 seal mismatches; 16 pre-existing yosys smoke baseline failures.
+- `./scripts/tri test --icarus-lowerable --fast`: same result.
+
+### Patterns to reuse
+- Unpacked Verilog arrays are the correct lowering for t27 primitive arrays when
+  signed widths or variable indices matter.
+- When changing array lowering, check both function-local and module-level
+  declaration sites; the same broken fallback can exist in multiple places.
+- Grow regression whitelists incrementally and let a lowerability classifier
+  filter out non-ready specs.
+
+### Anti-patterns to avoid
+- Do not lower primitive arrays as scalar packed-vector bit-selects; it silently
+  breaks signed values and variable-index writes.
+- Do not extend the regression suite without a classifier; non-lowerable specs
+  will create noise and hide real regressions.
+
+---
+
 ## 2026-07-07 — Wave Loop 530 (Icarus simulation gate / 2-D packed-vector layout fix)
 
 ### What worked
