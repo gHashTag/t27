@@ -1799,6 +1799,23 @@ impl Parser {
         decl.extra_mutable = self.current.kind == TokenKind::KwVar;
         self.advance(); // consume const/var
 
+        // #1465 follow-up: accept a `mut` mutability modifier after the binding
+        // keyword (e.g. `let mut cg = ...`). `mut` is not a reserved keyword, so
+        // the lexer hands it back as a bare Ident; without this branch it was
+        // captured as the *variable name*, leaving the real name dangling as a
+        // separate assignment. That produced split, invalid output — `let mut;`
+        // followed by `<name> = ...;` (undeclared-identifier E0425 downstream,
+        // e.g. tri-net gen/rust/adaptive_routing.rs). Treat `mut` as a modifier
+        // only when a real name Ident follows, so a variable literally named
+        // `mut` (`let mut = 5;`) still parses as before.
+        if self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "mut"
+            && self.peek.kind == TokenKind::Ident
+        {
+            decl.extra_mutable = true;
+            self.advance(); // consume `mut`
+        }
+
         // Name
         if self.current.kind == TokenKind::Ident {
             decl.name = self.current.lexeme.clone();
@@ -22651,6 +22668,101 @@ mod tests_phase40_coverage {
         assert_eq!(local.kind, NodeKind::StmtLocal);
         assert_eq!(local.name, "x");
         assert!(!local.extra_mutable, "`let` must map to an immutable local");
+    }
+
+    // #1465 follow-up regression: `let mut <name>` must parse the modifier and
+    // capture the real name. Before the fix, `mut` was taken as the variable
+    // name and the actual name dangled as a separate assignment, emitting the
+    // split, invalid `let mut;` / `<name> = ...;` seen in tri-net gen output.
+    #[test]
+    fn test_let_mut_ast_names_variable_and_is_mutable() {
+        let code = "module M { pub fn f() -> u32 { let mut cg = 5; cg = cg + 1; return cg; } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let ast = parser.parse().expect("parse should succeed");
+        let f = &ast.children[0];
+        let local = &f.children[0];
+        assert_eq!(local.kind, NodeKind::StmtLocal);
+        assert_eq!(
+            local.name, "cg",
+            "`let mut` must capture the real name, not `mut`"
+        );
+        assert!(local.extra_mutable, "`let mut` must map to a mutable local");
+        assert_eq!(
+            local.children.len(),
+            1,
+            "initializer must be attached to the declaration"
+        );
+    }
+
+    #[test]
+    fn test_let_mut_emitted_rust_untyped() {
+        let code = "module M { pub fn f() -> u32 { let mut cg = 5; cg = cg + 1; return cg; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("let mut cg = 5"),
+            "expected `let mut cg = 5`, got: {}",
+            out
+        );
+        assert!(
+            !out.contains("let mut;"),
+            "split declaration leaked: {}",
+            out
+        );
+        assert!(
+            !out.contains("let mut ;"),
+            "split declaration leaked: {}",
+            out
+        );
+    }
+
+    #[test]
+    fn test_let_mut_emitted_rust_typed() {
+        let code =
+            "module M { pub fn f() -> u32 { let mut cg: u32 = 5; cg = cg + 1; return cg; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("let mut cg: u32 = 5"),
+            "expected typed `let mut cg: u32 = 5`, got: {}",
+            out
+        );
+        assert!(
+            !out.contains("let mut;"),
+            "split declaration leaked: {}",
+            out
+        );
+    }
+
+    #[test]
+    fn test_let_mut_emitted_c() {
+        let code = "module M { pub fn f() -> u32 { let mut cg = 5; cg = cg + 1; return cg; } }";
+        let out = Compiler::compile_c(code).expect("compile should succeed");
+        assert!(
+            out.contains("cg = 5"),
+            "expected `cg = 5` in C, got: {}",
+            out
+        );
+        assert!(
+            !out.contains("int mut;"),
+            "split declaration leaked into C: {}",
+            out
+        );
+    }
+
+    // Backwards-compat: a variable literally named `mut` (no following name
+    // Ident) must still parse as the binding's name, unchanged by the modifier
+    // handling above.
+    #[test]
+    fn test_let_variable_named_mut_still_parses() {
+        let code = "module M { pub fn f() -> u32 { let mut = 5; return mut; } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let ast = parser.parse().expect("parse should succeed");
+        let f = &ast.children[0];
+        let local = &f.children[0];
+        assert_eq!(local.kind, NodeKind::StmtLocal);
+        assert_eq!(local.name, "mut", "`let mut = 5` must name the variable `mut`");
+        assert!(!local.extra_mutable, "`let` (const) binding must be immutable");
     }
 
     #[test]
