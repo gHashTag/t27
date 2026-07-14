@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:5c5512dbc0ec52a4d782551681425c9f4baf824c44f60624a82581a9dbe69c15",
   "gen_hash_rust": "sha256:c7ff4d9db506c86aabe88ab55dd3e9685f0f273be0a5f67438077a39f32fb5c6",
-  "gen_hash_verilog": "sha256:b86401457f3a78f39940dcdaff97c587f4a10b695e876f9431a4bd657b0cf52a",
+  "gen_hash_verilog": "sha256:ac08cbbf1c99d50cdecfc3e6554c6e86d93f5d14d4534c4c5d1685fa07979846",
   "gen_hash_zig": "sha256:24d4f6c104e892298c245045998ee7b9ae55739089bad3135a355e450c0ac094",
   "module": "Formal",
   "ring": 12,
-  "sealed_at": "2026-07-14T08:18:38Z",
+  "sealed_at": "2026-07-14T15:07:09Z",
   "spec_hash": "sha256:090f5fe32fbec3c6907143f4087ae455ec0f77ec0c8d2bde1c985cba52b6c29c",
   "spec_path": "specs/fpga/formal.t27"
 }

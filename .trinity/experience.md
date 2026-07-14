@@ -3130,3 +3130,75 @@
 - Do not preserve all `let` bindings blindly; tuple-destructuring locals with empty names still produce invalid `reg [31:0] ;` declarations.
 - Do not leave duplicate `match` arms in the command dispatcher — full rebuilds will eventually fail with unreachable-pattern errors.
 
+---
+
+## 2026-07-07 — Wave Loop 532 (Icarus lowerable subset: signed scalar-array struct fields)
+
+### What worked
+- Closing the signed scalar-array struct-field gap required extending the
+  packed-vector helpers, not rewriting them: `scalar_field_width`,
+  `scalar_field_is_signed`, and `scalar_array_info` gave the backend correct
+  widths and signedness for `[N]i8/i16/i32` fields.
+- Adding a dedicated `try_emit_struct_array_field_element_access` helper for
+  `grid[i][j].data[k]` kept the existing 1-D flattening path untouched and
+  preserved the HIR parity regression test.
+- Emitting signed negative literals as `-{w}'sd{abs}` solved the Icarus
+  rejection of `{w}'sd-{value}` and the width-ambiguity of `$signed(-value)` in
+  packed concatenations.
+- Allowing colon syntax in on-demand array-literal re-parsing fixed module-level
+  `const` initializers that stored their text with `field: value` form.
+- Marking non-lowerable structs (enum/string/float fields) with
+  `// UNSUPPORTED_ICARUS` keeps the classifier honest even when the generated
+  Verilog degrades gracefully for host-only use.
+- Resealing the whole corpus immediately after the backend change brought the
+  suite back to 0 seal mismatches, and the Icarus simulation gate stayed at
+  0 failures.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `scalar_field_width`, `scalar_field_is_signed`, `scalar_array_info`.
+  - Added `emit_packed_scalar_value`, `emit_packed_struct_field_value`,
+    `emit_packed_array_element_value`.
+  - Added `try_emit_struct_array_field_element_access` for inner-index access
+    into packed array fields.
+  - Updated `ExprStructLit` to emit array fields as nested concatenations.
+  - Allowed colon field-init syntax in on-demand `parse_array_literal_text`.
+  - Added `is_lowerable_scalar_struct` and emitted `// UNSUPPORTED_ICARUS`
+    markers for structs with non-lowerable fields.
+- `specs/scratch/`: added 7 W532 witnesses (5 positive, 2 negative).
+- `.trinity/seals/`: resealed affected specs; added 7 new scratch seals.
+- `.trinity/icarus-baselines/`: recorded baselines for the 5 lowerable W532
+  witnesses.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the live compiler hash.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_532_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W533_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 533.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `./scripts/tri test --icarus-simulate --icarus-lowerable`: 28 Icarus passed, 0
+  failed; 593 seal matches, 0 mismatches; 23 pre-existing yosys smoke baseline
+  failures unchanged.
+
+### Patterns to reuse
+- Compute width and signedness per scalar-struct field and emit each field as
+  its own concatenation sub-tree; do not try to reuse the primitive scalar path.
+- For signed values inside packed concatenations, always emit a sized signed
+  literal to fix both width and tool acceptance.
+- Scale the inner index by the inner element width when lowering
+  `struct_field_array[index]`; otherwise the part-select reads bits, not words.
+- Add explicit `UNSUPPORTED_ICARUS` markers for non-lowerable constructs so the
+  classifier is self-documenting and honest.
+
+### Anti-patterns to avoid
+- Do not emit signed negative literals as `{w}'sd-{value}` or as `$signed(-value)`
+  without a width; both break Icarus or corrupt packed layout.
+- Do not route 1-D array-of-scalar-struct access through the new packed slice
+  helper unless the existing flattening tests and HIR parity are updated.
+- Do not reseal only the new specs; generated-code shape changes usually affect
+  many existing seals.
+
+

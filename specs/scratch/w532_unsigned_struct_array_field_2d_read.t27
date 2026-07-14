@@ -1,0 +1,26 @@
+// W532 witness: 2-D packed array of scalar structs with an unsigned fixed-size
+// scalar array field; read one element.
+module w532_unsigned_struct_array_field_2d_read;
+
+pub struct Pt {
+    data : [3]u16,
+}
+
+pub const grid : [2][3]Pt = [2][3]Pt{
+    [3]Pt{ Pt{data: [3]u16{1, 2, 3}}, Pt{data: [3]u16{4, 5, 6}}, Pt{data: [3]u16{7, 8, 9}} },
+    [3]Pt{ Pt{data: [3]u16{10, 11, 12}}, Pt{data: [3]u16{13, 14, 15}}, Pt{data: [3]u16{16, 17, 18}} }
+};
+
+pub fn read_unsigned(i : u32, j : u32, k : u32) -> u16 {
+    return grid[i][j].data[k];
+}
+
+test unsigned_array_field_2d {
+    assert_eq(read_unsigned(0, 0, 0), 1);
+    assert_eq(read_unsigned(0, 0, 1), 2);
+    assert_eq(read_unsigned(0, 1, 2), 6);
+    assert_eq(read_unsigned(1, 2, 0), 16);
+    assert_eq(read_unsigned(1, 2, 2), 18);
+}
+
+endmodule

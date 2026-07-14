@@ -2550,8 +2550,8 @@ impl Parser {
             } else if self.current.kind == TokenKind::Ident {
                 // Allow field = expr without dot prefix
                 let n = self.current.lexeme.clone();
-                // Peek: only treat as field init if followed by '='
-                if self.peek.kind == TokenKind::Equals {
+                // Peek: only treat as field init if followed by '=' or ':'
+                if self.peek.kind == TokenKind::Equals || self.peek.kind == TokenKind::Colon {
                     field_name = n;
                     self.advance(); // consume field name
                 } else {
@@ -2561,8 +2561,8 @@ impl Parser {
                 break;
             }
 
-            if self.current.kind == TokenKind::Equals {
-                self.advance(); // consume =
+            if self.current.kind == TokenKind::Equals || self.current.kind == TokenKind::Colon {
+                self.advance(); // consume = or :
             }
 
             let val = self.parse_expr()?;
@@ -3752,6 +3752,148 @@ impl VerilogCodegen {
         matches!(ty, "i8" | "i16" | "i32" | "i64")
     }
 
+    /// W532: total bit width of a scalar-struct field that may be a bare scalar
+    /// or a fixed-size array of scalars (e.g. `[3]i16` -> 48).
+    fn scalar_field_width(ty: &str) -> u32 {
+        let trimmed = ty.trim();
+        if let Some(close) = trimmed.find(']') {
+            let inner = trimmed[1..close].trim();
+            let count: u32 = inner.parse().unwrap_or(1);
+            let base = trimmed[close + 1..].trim();
+            count * Self::type_to_width(base)
+        } else {
+            Self::type_to_width(trimmed)
+        }
+    }
+
+    /// W532: true if a scalar-struct field is signed (bare signed scalar or fixed-
+    /// size array of signed scalars).
+    fn scalar_field_is_signed(ty: &str) -> bool {
+        let trimmed = ty.trim();
+        let base = if let Some(close) = trimmed.find(']') {
+            trimmed[close + 1..].trim()
+        } else {
+            trimmed
+        };
+        Self::type_is_signed(base)
+    }
+
+    /// W532: if `ty` is a fixed-size array of primitive scalars, return
+    /// (count, element_width, signed).
+    fn scalar_array_info(ty: &str) -> Option<(usize, u32, bool)> {
+        let trimmed = ty.trim();
+        let close = trimmed.find(']')?;
+        let inner = trimmed[1..close].trim();
+        let count: usize = inner.parse().ok()?;
+        let base = trimmed[close + 1..].trim();
+        if !Self::is_primitive_scalar_type(base) {
+            return None;
+        }
+        Some((count, Self::type_to_width(base), Self::type_is_signed(base)))
+    }
+
+    /// W532: emit a single scalar value (literal or expression) as a Verilog
+    /// expression string of the given width and signedness.
+    fn emit_packed_scalar_value(&self,
+        val: &Node,
+        width: u32,
+        signed: bool,
+    ) -> String {
+        // Helper: signed negative literal as a sized expression accepted by
+        // Icarus (e.g. -16'sd2) so the result occupies exactly `width` bits.
+        let signed_negative = |n: i128| {
+            let abs = (-n) as u128;
+            format!("-{}'sd{}", width, abs)
+        };
+
+        if val.kind == NodeKind::ExprLiteral {
+            match val.value.as_str() {
+                "true" => return "1'b1".to_string(),
+                "false" => return "1'b0".to_string(),
+                v => {
+                    if signed {
+                        if let Ok(n) = v.parse::<i128>() {
+                            if n < 0 {
+                                return signed_negative(n);
+                            } else {
+                                return format!("{}'sd{}", width, n.to_string());
+                            }
+                        }
+                        return format!("{}'sd{}", width, v);
+                    }
+                    return format!("{}'d{}", width, v);
+                }
+            }
+        }
+
+        // Unary minus on a numeric literal is common for negative initializers
+        // and is not parsed as a single ExprLiteral in t27.
+        if signed
+            && val.kind == NodeKind::ExprUnary
+            && val.extra_op.trim() == "-"
+            && val.children.len() == 1
+            && val.children[0].kind == NodeKind::ExprLiteral
+        {
+            let v = val.children[0].value.as_str();
+            if let Ok(n) = v.parse::<i128>() {
+                return signed_negative(-n);
+            }
+        }
+
+        let mut buf = String::new();
+        self.collect_expr_text(val, &mut buf);
+        if signed {
+            format!("$signed({})", buf)
+        } else {
+            buf
+        }
+    }
+
+    /// W532: emit the value for one scalar-struct field (bare scalar or fixed-
+    /// size scalar array) as a Verilog expression string suitable for a packed
+    /// concatenation.
+    fn emit_packed_struct_field_value(&self,
+        val: &Node,
+        ftype: &str,
+    ) -> String {
+        if let Some((count, elem_w, signed)) = Self::scalar_array_info(ftype) {
+            if val.kind == NodeKind::ExprArrayLiteral {
+                let mut parts = Vec::new();
+                for elem in val.children.iter().take(count) {
+                    parts.push(
+                        self.emit_packed_scalar_value(elem, elem_w, signed),
+                    );
+                }
+                while parts.len() < count {
+                    parts.push(format!("{}'d0", elem_w));
+                }
+                // Verilog concatenation is MSB-first; t27 element [0] is LSB.
+                parts.reverse();
+                return format!("{{{}}}", parts.join(", "));
+            }
+            return format!("{}'d0", count as u32 * elem_w);
+        }
+        let fwidth = Self::scalar_field_width(ftype);
+        let signed = Self::scalar_field_is_signed(ftype);
+        self.emit_packed_scalar_value(val, fwidth, signed)
+    }
+
+    /// W532: emit a scalar array-literal element (primitive scalar or scalar
+    /// struct) as a Verilog expression string for a packed concatenation.
+    fn emit_packed_array_element_value(&self,
+        val: &Node,
+        elem_type: &str,
+    ) -> String {
+        if self.struct_decls.contains_key(elem_type) {
+            let mut buf = String::new();
+            self.collect_expr_text(val, &mut buf);
+            return buf;
+        }
+        let width = Self::type_to_width(elem_type.trim());
+        let signed = Self::type_is_signed(elem_type.trim());
+        self.emit_packed_scalar_value(val, width, signed)
+    }
+
     /// Format a Verilog range declaration like [31:0]
     fn range_decl(width: u32) -> String {
         if width == 1 {
@@ -3956,6 +4098,112 @@ impl VerilogCodegen {
         true
     }
 
+    /// W532: emit a packed slice for `base[outer...].field[inner]` where
+    /// `field` is a fixed-size scalar array inside a scalar struct. Handles both
+    /// single scalar structs (`p.data[k]`) and arrays of scalar structs
+    /// (`grid[i][j].data[k]`). Returns true if the access was recognised.
+    fn try_emit_struct_array_field_element_access(
+        &mut self,
+        node: &Node,
+    ) -> bool {
+        if node.kind != NodeKind::ExprIndex || node.children.len() < 2 {
+            return false;
+        }
+        let field_access = match node.children.first() {
+            Some(fa) if fa.kind == NodeKind::ExprFieldAccess => fa,
+            _ => return false,
+        };
+        let field_name = &field_access.name;
+        if field_access.children.is_empty() {
+            return false;
+        }
+
+        // Walk the outer ExprIndex chain inside the field access.
+        let mut current = &field_access.children[0];
+        let mut outer_indices: Vec<String> = Vec::new();
+        while current.kind == NodeKind::ExprIndex {
+            if current.children.len() >= 2 {
+                let mut idx_buf = String::new();
+                self.collect_expr_text(&current.children[1], &mut idx_buf,
+                );
+                outer_indices.push(idx_buf);
+            }
+            current = match current.children.first() {
+                Some(c) => c,
+                None => return false,
+            };
+        }
+        let base_name = match current.kind {
+            NodeKind::ExprIdentifier if !current.name.is_empty() => {
+                current.name.clone()
+            }
+            _ => return false,
+        };
+        let local_ty = match self.local_types.get(&base_name)
+            .or_else(|| self.param_types.get(&base_name))
+            .or_else(|| self.module_types.get(&base_name))
+        {
+            Some(t) => t.clone(),
+            None => return false,
+        };
+
+        // Resolve the element type and outer dimensions.
+        let (dims, elem_type) = match Self::parse_array_type(&local_ty) {
+            Some((d, et)) => (d, et),
+            None => (Vec::new(), local_ty.clone()),
+        };
+        if !self.struct_decls.contains_key(&elem_type) {
+            return false;
+        }
+        outer_indices.reverse();
+        if outer_indices.len() != dims.len() {
+            return false;
+        }
+
+        let elem_width = self.element_width(&elem_type);
+        let linear = if dims.is_empty() {
+            "0".to_string()
+        } else {
+            let mut expr = outer_indices[0].clone();
+            for (i, dim) in dims.iter().enumerate().skip(1) {
+                expr = format!("(({}) * {} + {})", expr, dim, outer_indices[i]);
+            }
+            expr
+        };
+
+        let field_offset = match self.struct_field_offset(&elem_type, field_name,
+        ) {
+            Some((off, _)) => off,
+            None => return false,
+        };
+        let field_type = match self.struct_decls.get(&elem_type) {
+            Some(fields) => match fields.iter().find(|(n, _)| n == field_name) {
+                Some((_, ft)) => ft.clone(),
+                None => return false,
+            },
+            None => return false,
+        };
+        let (count, inner_w, signed) = match Self::scalar_array_info(&field_type
+        ) {
+            Some(v) => v,
+            None => return false,
+        };
+        let mut inner_idx = String::new();
+        self.collect_expr_text(&node.children[1], &mut inner_idx,
+        );
+
+        let slice_expr = format!(
+            "{}[(({}) * {} + {} + ({} * {})) +: {}]",
+            base_name, linear, elem_width, field_offset, inner_idx, inner_w, inner_w
+        );
+        if signed {
+            self.write(&format!("$signed({})", slice_expr));
+        } else {
+            self.write(&slice_expr);
+        }
+        true
+    }
+
     /// W527: helper that renders an expression subtree into a buffer without
     /// touching `self.output`. Used to build index expressions for dynamic
     /// part-selects.
@@ -4065,9 +4313,9 @@ impl VerilogCodegen {
 
     /// W528: emit a nested array literal as a single packed concatenation,
     /// suitable for a module-level parameter/localparam initializer. Each
-    /// innermost element is rendered through `gen_verilog_expr` (so scalar
-    /// struct literals already lower to their packed concatenation). Missing
-    /// entries are padded with sized zero.
+    /// innermost element is rendered through `emit_packed_array_element_value`
+    /// so primitive scalars are sized correctly and scalar struct literals lower
+    /// to their packed concatenation. Missing entries are padded with sized zero.
     fn emit_packed_array_literal_concat(
         &mut self,
         node: &Node,
@@ -4081,7 +4329,9 @@ impl VerilogCodegen {
             }
         };
         let elem_w = self.element_width(&elem_type) as usize;
-        self.emit_packed_array_literal_concat_level(node, &dims, 0, elem_w);
+        self.emit_packed_array_literal_concat_level(
+            node, &dims, 0, elem_w, &elem_type,
+        );
     }
 
     fn emit_packed_array_literal_concat_level(
@@ -4090,21 +4340,20 @@ impl VerilogCodegen {
         dims: &[usize],
         depth: usize,
         elem_w: usize,
+        elem_type: &str,
     ) {
         let current_dim = dims[depth];
         let mut parts = Vec::new();
         if depth + 1 == dims.len() {
-            // Innermost dimension: elements are scalar struct literals (or
-            // primitive expressions). Render each element to a string.
+            // Innermost dimension: elements are scalar struct literals or
+            // primitive expressions. Render each element to a string.
             let inner = if node.kind == NodeKind::ExprArrayLiteral {
                 &node.children[..]
             } else {
                 &node.children[..0]
             };
             for elem in inner.iter().take(current_dim) {
-                let mut rhs = String::new();
-                self.collect_expr_text(elem, &mut rhs);
-                parts.push(rhs);
+                parts.push(self.emit_packed_array_element_value(elem, elem_type));
             }
         } else {
             // Outer dimensions: each child is a sub-array literal.
@@ -4127,7 +4376,9 @@ impl VerilogCodegen {
                     param_types: self.param_types.clone(),
                     emit_test_assertions: self.emit_test_assertions,
                 };
-                tmp.emit_packed_array_literal_concat_level(sub, dims, depth + 1, elem_w);
+                tmp.emit_packed_array_literal_concat_level(
+                    sub, dims, depth + 1, elem_w, elem_type,
+                );
                 parts.push(tmp.output);
             }
         }
@@ -4147,6 +4398,27 @@ impl VerilogCodegen {
             ty.trim(),
             "u8" | "u16" | "u32" | "u64" | "i8" | "i16" | "i32" | "i64" | "bool"
         )
+    }
+
+    /// W532: a scalar struct is lowerable to a packed vector iff every field is
+    /// either a primitive scalar or a fixed-size array of primitive scalars.
+    /// Fields of type string, enum, float, or nested aggregate are rejected.
+    fn is_lowerable_scalar_struct(
+        name: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> bool {
+        let Some(fields) = structs.get(name) else {
+            return false;
+        };
+        !fields.is_empty()
+            && fields.iter().all(|(_, t)| {
+                let trimmed = t.trim();
+                if let Some(end) = trimmed.find(']') {
+                    let base = trimmed[end + 1..].trim();
+                    return Self::is_primitive_scalar_type(base);
+                }
+                Self::is_primitive_scalar_type(trimmed)
+            })
     }
 
     /// W531: true if `ty` is an array whose element type is a primitive scalar.
@@ -4950,6 +5222,13 @@ impl VerilogCodegen {
     fn gen_verilog_struct(&mut self, node: &Node, reg_prefix: &str) {
         self.write_indent();
         self.write_line(&format!("// struct {}", node.name));
+        if !Self::is_lowerable_scalar_struct(&node.name, &self.struct_decls) {
+            self.write_indent();
+            self.write_line(&format!(
+                "// UNSUPPORTED_ICARUS: struct {} contains non-lowerable fields",
+                node.name
+            ));
+        }
         for field in &node.children {
             self.write_indent();
             let width = Self::type_to_width(&field.extra_type);
@@ -5718,6 +5997,11 @@ impl VerilogCodegen {
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
+                    // W532: packed scalar-struct field-with-index access
+                    // (e.g. p.data[k] or grid[i][j].data[k]).
+                    if self.try_emit_struct_array_field_element_access(node) {
+                        return;
+                    }
                     // W527: packed array-of-struct element access (e.g. m[i][j]).
                     if self.try_emit_struct_array_access(node, None) {
                         return;
@@ -5748,14 +6032,12 @@ impl VerilogCodegen {
                 ));
             }
             NodeKind::ExprStructLit => {
-                // W527: scalar struct literals lower to a concatenation of their
-                // field values in reverse declaration order (last field becomes MSB),
-                // matching the packed-vector AoS layout used for arrays.
+                // W527/W532: scalar struct literals lower to a concatenation of
+                // their field values in reverse declaration order (last field
+                // becomes MSB), matching the packed-vector AoS layout used for
+                // arrays. Fixed-size scalar-array fields are rendered as nested
+                // concatenations of their elements.
                 if let Some(fields) = self.struct_decls.get(&node.name) {
-                    static SCALAR_TYPES: &[&str] = &[
-                        "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "bool", "f32",
-                        "f64",
-                    ];
                     let all_scalar = !fields.is_empty()
                         && fields.iter().all(|(_, ft)| {
                             let trimmed = ft.trim();
@@ -5764,13 +6046,11 @@ impl VerilogCodegen {
                             } else {
                                 trimmed
                             };
-                            SCALAR_TYPES.contains(&base)
+                            Self::is_primitive_scalar_type(base)
                         });
                     if all_scalar {
                         let mut parts = Vec::new();
                         for (fname, ftype) in fields.iter().rev() {
-                            let fwidth = Self::type_to_width(ftype.trim());
-                            let fwidth = if fwidth == 0 { 32 } else { fwidth };
                             let child = node.children.iter().find(|c| {
                                 c.kind == NodeKind::ExprFieldAccess
                                     && c.name == *fname
@@ -5778,19 +6058,11 @@ impl VerilogCodegen {
                             });
                             if let Some(c) = child {
                                 let val = &c.children[0];
-                                if val.kind == NodeKind::ExprLiteral {
-                                    let lit = match val.value.as_str() {
-                                        "true" => "1'b1".to_string(),
-                                        "false" => "1'b0".to_string(),
-                                        _ => format!("{}'d{}", fwidth, val.value),
-                                    };
-                                    parts.push(lit);
-                                } else {
-                                    let mut buf = String::new();
-                                    self.collect_expr_text(val, &mut buf);
-                                    parts.push(buf);
-                                }
+                                parts.push(
+                                    self.emit_packed_struct_field_value(val, ftype),
+                                );
                             } else {
+                                let fwidth = Self::scalar_field_width(ftype);
                                 parts.push(format!("{}'d0", fwidth));
                             }
                         }
@@ -7091,24 +7363,6 @@ impl Compiler {
             PRIMITIVE_TYPES.contains(&t.trim())
         }
 
-        fn is_lowerable_scalar_struct(
-            name: &str,
-            structs: &std::collections::HashMap<String, Vec<(String, String)>>,
-        ) -> bool {
-            if let Some(fields) = structs.get(name) {
-                return !fields.is_empty() && fields.iter().all(|(_, t)| {
-                    let base = t.trim().trim_start_matches('[').trim();
-                    // Fixed-size scalar-array fields are also primitive vectors.
-                    if let Some(end) = base.find(']') {
-                        let inner = base[end + 1..].trim();
-                        return is_primitive(inner);
-                    }
-                    is_primitive(base)
-                });
-            }
-            false
-        }
-
         for child in &ast.children {
             if child.kind != NodeKind::StmtLocal {
                 continue;
@@ -7123,7 +7377,7 @@ impl Compiler {
             if elem.is_empty() || is_primitive(elem) {
                 continue;
             }
-            if is_lowerable_scalar_struct(elem, structs) {
+            if VerilogCodegen::is_lowerable_scalar_struct(elem, structs) {
                 continue;
             }
             return Err(format!(

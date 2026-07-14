@@ -105,6 +105,37 @@ Key learning: the same broken array-lowering fallback existed in two places
 witnesses broken. Unpacked arrays are the correct Verilog lowering for primitive
 t27 arrays when signed widths or variable indices matter.
 
+## Worked example — Wave Loop 532
+
+Wave Loop 532 extended the packed-vector subset to signed scalar-array struct
+fields:
+
+- Added `scalar_field_width`, `scalar_field_is_signed`, `scalar_array_info`,
+  `emit_packed_scalar_value`, `emit_packed_struct_field_value`, and
+  `emit_packed_array_element_value` in `bootstrap/src/compiler.rs` so that
+  scalar-struct fields of the form `[N]i8/i16/i32` are sized and signed correctly.
+- Added `try_emit_struct_array_field_element_access` to lower `grid[i][j].data[k]`
+  as a single dynamic part-select, scaling the inner index by the inner element
+  width.
+- Emitted signed negative literals as `-{w}'sd{abs}` inside packed concatenations
+  to satisfy Icarus and keep each value at exactly the declared width.
+- Allowed colon syntax in on-demand array-literal re-parsing so module-level
+  `const` initializers lower correctly.
+- Added `is_lowerable_scalar_struct` and `// UNSUPPORTED_ICARUS` markers to keep
+  the classifier aligned with the backend for string/enum/float fields.
+- Added 7 scratch witnesses (5 positive, 2 negative), resealed the corpus,
+  and recorded 5 Icarus JSON baselines.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable` 28/0 Icarus PASS,
+  0 seal mismatches, 23 pre-existing yosys smoke baselines unchanged.
+
+Key learning: when adding a new access shape to an existing lowering path, add a
+separate helper rather than modifying the old one; otherwise HIR parity and
+existing 1-D flattening regress. Sized signed literals are also required inside
+packed concatenations — `$signed(-value)` is ambiguous in width and breaks the
+layout.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
