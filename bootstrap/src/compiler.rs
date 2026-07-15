@@ -1222,12 +1222,13 @@ impl Parser {
                 decl.children.push(val_node);
                 self.advance();
             } else if self.current.kind == TokenKind::Ident {
-                // W533: a scalar struct literal initializer `const x : T = T{...}` is
-                // parsed as an expression so it becomes a real ExprStructLit child.
+                // W533/W543: a scalar struct literal initializer `const x : T = T{...}`
+                // or a function-call initializer `const x : T = make(5)` is parsed as
+                // a full expression so the AST preserves arguments and field values.
                 // Plain identifiers stay as `ExprIdentifier` for type aliases and
                 // cross-const references.
                 let name = self.current.lexeme.clone();
-                if self.peek.kind == TokenKind::LBrace {
+                if self.peek.kind == TokenKind::LBrace || self.peek.kind == TokenKind::LParen {
                     let lit = self.parse_expr()?;
                     decl.children.push(lit);
                 } else {

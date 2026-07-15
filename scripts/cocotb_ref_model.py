@@ -374,7 +374,7 @@ def _find_function_body(fn: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 class EvalContext:
     """Holds variable bindings and top-level declarations for expression eval."""
 
-    def __init__(self, root: Dict[str, Any]) -> None:
+    def __init__(self, root: Dict[str, Any], bind_module_initializers: bool = True) -> None:
         self.root = root
         self.decls = _collect_top_level_decls(root)
         self.vars: Dict[str, Bv] = {}
@@ -407,37 +407,33 @@ class EvalContext:
                     if vname and vtype:
                         locals_map[vname] = vtype
             self.fn_local_types[name] = locals_map
-        # W541: bind module-level const/var initializers of lowerable packed
+        # W541/W543: bind module-level const/var initializers of lowerable packed
         # scalar struct (or fixed-size scalar array) type so that assertions on
         # whole packed values can be independently evaluated.  Track which ones
         # are mutable so whole-struct assignments inside test blocks update the
         # reference model state.
         self.mutable_module_names: set = set()
-        for decl in _children(root):
-            kind = decl.get("kind")
-            if kind not in ("ConstDecl",):
-                continue
-            name = decl.get("name", "")
-            vtype = decl.get("extra_type", "")
-            if not name or not vtype:
-                continue
-            if not _is_lowerable_scalar_struct_type(self, vtype) and _scalar_array_info(vtype) is None:
-                continue
-            if decl.get("extra_mutable", False):
-                self.mutable_module_names.add(name)
-            kids = _children(decl)
-            if not kids:
-                continue
-            init_node = kids[0]
-            # Avoid binding initializers that contain function calls; evaluating
-            # them would recursively create new EvalContexts and re-enter this
-            # binding loop (e.g. a module var initialized by `make()`).
-            if _contains_kind(init_node, "ExprCall"):
-                continue
-            init = _eval_expr_bv(self, init_node)
-            if init is None:
-                continue
-            self.vars[name] = init
+        if bind_module_initializers:
+            for decl in _children(root):
+                kind = decl.get("kind")
+                if kind not in ("ConstDecl",):
+                    continue
+                name = decl.get("name", "")
+                vtype = decl.get("extra_type", "")
+                if not name or not vtype:
+                    continue
+                if not _is_lowerable_scalar_struct_type(self, vtype) and _scalar_array_info(vtype) is None:
+                    continue
+                if decl.get("extra_mutable", False):
+                    self.mutable_module_names.add(name)
+                kids = _children(decl)
+                if not kids:
+                    continue
+                init_node = kids[0]
+                init = _eval_expr_bv(self, init_node)
+                if init is None:
+                    continue
+                self.vars[name] = init
 
     def bind(self, name: str, value: Bv) -> None:
         self.vars[name] = value
@@ -686,7 +682,10 @@ def _eval_call_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
     params = ctx.fn_param_types.get(name, [])
     if len(args) != len(params):
         return None
-    call_ctx = EvalContext(ctx.root)
+    # W543: create a call-only context so that evaluating the callee body does
+    # not re-enter the module-initializer binding loop.  The callee still sees
+    # all module-level bindings already established in the outer context.
+    call_ctx = EvalContext(ctx.root, bind_module_initializers=False)
     call_ctx.vars.update(ctx.vars)
     call_ctx.current_fn = name
     for (pname, ptype), arg in zip(params, args):

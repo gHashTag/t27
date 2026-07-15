@@ -505,6 +505,53 @@ does not emit `StmtLocal` nodes for parameters, and do not rely on Icarus'
 mixed-context signed/unsigned semantics for sign extension — emit explicit
 sign-bit replication when widening a signed source into an unsigned target.
 
+## Worked example — Wave Loop 543
+
+Wave Loop 543 closed the last large runtime gap in the independent VCD cross-check:
+module-level consts/vars initialized by function calls.
+
+- In `scripts/cocotb_ref_model.py`, added a `bind_module_initializers` flag to
+  `EvalContext.__init__` and made `_eval_call_bv` create call-only contexts with
+  `bind_module_initializers=False`, breaking the recursion between module-level
+  const binding and function-call evaluation.
+- Removed the defensive `_contains_kind(init_node, "ExprCall")` skip so lowerable
+  call-initialized module consts are bound eagerly.
+- In `bootstrap/src/compiler.rs`, fixed `parse_const_decl` to parse an identifier
+  followed by `(` as a function-call initializer via `parse_expr()`.  The old code
+  created an `ExprIdentifier` named after the function and dropped the arguments,
+  producing invalid Verilog such as `localparam src = make;`.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Added five scratch witnesses:
+  - `specs/scratch/w543_module_scalar_call_init.t27`
+  - `specs/scratch/w543_module_struct_call_init.t27`
+  - `specs/scratch/w543_module_mixed_call_init.t27`
+  - `specs/scratch/w543_call_arg_casts.t27`
+  - `specs/scratch/w543_negative_nonlowerable_call_init.t27`
+  and resealed affected corpus specs:
+  - `specs/math/sacred_physics.t27`
+  - `specs/nn/attention.t27`
+  - `specs/physics/formula_discovery.t27`
+  - `specs/physics/gamma_conjecture.t27`
+  - `specs/physics/gi1_analysis.t27`
+- Extended `bootstrap/tests/icarus_lowerable.rs` with a W543 negative-witness test
+  and added two W543 positive witnesses to the known-lowerable list.
+- Wrote `docs/reports/WAVE_LOOP_543_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W544_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W544.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 5/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast`
+  46/0 Icarus PASS, 46/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: break recursion by giving call-evaluation contexts a flag that
+prevents re-entry into eager module binding, rather than permanently skipping
+function-call initializers.  After a parser change that affects const initializers,
+reseal the whole corpus — math and physics specs often hide function-call const
+initializers like `pow(PHI, -3.0)`.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

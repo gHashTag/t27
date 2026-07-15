@@ -81,12 +81,28 @@ fn rejects_w537_undefined_struct_witness() {
 }
 
 #[test]
+fn rejects_w543_nonlowerable_call_init_witness() {
+    let dir = scratch_dir();
+    let p = dir.join("w543_negative_nonlowerable_call_init.t27");
+    assert!(p.exists(), "missing W543 negative witness {}", p.display());
+    let (lowerable, json) = run_icarus_lowerable(&p);
+    assert!(
+        !lowerable,
+        "expected {} to be rejected because String is not lowerable, got: {}",
+        p.display(),
+        json
+    );
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [
         "w532_signed_struct_array_field_2d_copy.t27",
         "w533_module_scalar_struct_return.t27",
         "w528_function_2d_struct_array_param.t27",
+        "w543_module_scalar_call_init.t27",
+        "w543_module_struct_call_init.t27",
     ];
     for name in &positive {
         let p = dir.join(name);

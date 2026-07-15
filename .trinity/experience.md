@@ -1,3 +1,78 @@
+## 2026-07-07 — Wave Loop 543 (function-call module initializers for independent VCD cross-check)
+
+### What worked
+- Adding a `bind_module_initializers` flag to `EvalContext.__init__` broke the
+  recursion between module-level const binding and function-call evaluation.  Call
+  contexts now inherit already-bound module values from the outer context without
+  re-entering the binding loop.
+- Removing the defensive `_contains_kind(init_node, "ExprCall")` skip once the
+  recursion was broken allowed lowerable call-initialized module consts to be
+  bound eagerly like any other initializer.
+- Fixing `parse_const_decl` to parse identifier+`(` as a full expression via
+  `parse_expr()` preserved function-call arguments in module initializers.  The
+  old code created an `ExprIdentifier` named after the function and dropped the
+  arguments, producing invalid Verilog (`localparam src = make;`).
+- Keeping the default `bind_module_initializers=True` meant existing witnesses and
+  the top-level assertion context behaved exactly as before.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `parse_const_decl` now treats an identifier followed by `(` as a function-call
+    initializer and parses it as a full expression.
+- `scripts/cocotb_ref_model.py`:
+  - `EvalContext.__init__` gained `bind_module_initializers` (default `True`).
+  - `_eval_call_bv` creates callee contexts with `bind_module_initializers=False`.
+  - Module-const binding loop no longer skips `ExprCall` initializers.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `rejects_w543_nonlowerable_call_init_witness`.
+  - Added `w543_module_scalar_call_init.t27` and
+    `w543_module_struct_call_init.t27` to the positive-witness list.
+- Added five scratch witnesses:
+  - `specs/scratch/w543_module_scalar_call_init.t27`
+  - `specs/scratch/w543_module_struct_call_init.t27`
+  - `specs/scratch/w543_module_mixed_call_init.t27`
+  - `specs/scratch/w543_call_arg_casts.t27`
+  - `specs/scratch/w543_negative_nonlowerable_call_init.t27`
+- Resealed affected corpus specs:
+  - `specs/math/sacred_physics.t27`
+  - `specs/nn/attention.t27`
+  - `specs/physics/formula_discovery.t27`
+  - `specs/physics/gamma_conjecture.t27`
+  - `specs/physics/gi1_analysis.t27`
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_543_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W544_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 544.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 5 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 46 Icarus PASS,
+  46 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baseline
+  failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Break recursion between eager module binding and call evaluation by giving
+  call contexts a flag that disables re-entry into the module-binding loop.
+- When a const/var initializer looks like an identifier, check the next token;
+  `(` means a function call and `{` means a struct literal, both of which must be
+  parsed as full expressions to preserve arguments/fields.
+- Reseal the whole corpus after a parser change that affects const initializers;
+  seemingly unrelated math/physics specs may use function-call const initializers.
+
+### Anti-patterns to avoid
+- Do not special-case function-call initializers by skipping them; fix the
+  recursion that made the skip necessary in the first place.
+- Do not assume `parse_expr()` is too aggressive for const initializers; it stops
+  at the semicolon and correctly captures complex call/struct-literal RHSs.
+
+---
+
 ## 2026-07-07 — Wave Loop 542 (scalar function-call arguments for independent VCD cross-check)
 
 ### What worked
