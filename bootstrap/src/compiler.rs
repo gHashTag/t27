@@ -3693,6 +3693,8 @@ pub struct VerilogCodegen {
     emit_test_assertions: bool,
     // W538: monotonic probe index for assert_eq VCD probes inside test blocks.
     probe_counter: usize,
+    // W539: per-test-block probe metadata: (probe_name, width_bits, is_signed).
+    probe_specs: Vec<(String, u32, bool)>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -3722,6 +3724,7 @@ impl VerilogCodegen {
             fn_return_types: std::collections::HashMap::new(),
             emit_test_assertions,
             probe_counter: 0,
+            probe_specs: Vec::new(),
         }
     }
 
@@ -3960,6 +3963,221 @@ impl VerilogCodegen {
             return false;
         }
         Self::type_is_signed(ty)
+    }
+
+    /// W539: infer the scalar bit width and signedness of an expression in the
+    /// Icarus-lowerable subset. Returns None for non-scalar or unresolvable
+    /// expressions (structs, arrays, strings, etc.).
+    fn expr_width_signed(&self, node: &Node) -> Option<(u32, bool)> {
+        match node.kind {
+            NodeKind::ExprLiteral => {
+                // Booleans are scalar; numeric literals default to the width of
+                // their inferred type when the literal carries an explicit type
+                // annotation, otherwise to the platform int width.
+                let lit = node.value.as_str();
+                if lit == "true" || lit == "false" {
+                    return Some((1, false));
+                }
+                let ty = node.extra_type.as_str();
+                if !ty.is_empty() {
+                    return Some((Self::type_to_width(ty), Self::type_is_signed(ty)));
+                }
+                // Untyped integer literal: default to 32-bit signed (matches
+                // the Verilog expression context).
+                Some((32, true))
+            }
+            NodeKind::ExprIdentifier => {
+                let ty = self.local_types.get(&node.name)
+                    .or_else(|| self.param_types.get(&node.name))
+                    .or_else(|| self.module_types.get(&node.name))?;
+                // Only scalar identifiers are probe-able.
+                if Self::is_primitive_scalar_type(ty) {
+                    Some((Self::type_to_width(ty), Self::type_is_signed(ty)))
+                } else {
+                    None
+                }
+            }
+            NodeKind::ExprCall => {
+                // Parameterless function calls whose return type is scalar.
+                let ret_ty = self.fn_return_types.get(&node.name)?;
+                if Self::is_primitive_scalar_type(ret_ty) {
+                    Some((Self::type_to_width(ret_ty), Self::type_is_signed(ret_ty)))
+                } else {
+                    None
+                }
+            }
+            NodeKind::ExprFieldAccess => {
+                if node.children.is_empty() {
+                    return None;
+                }
+                let child = &node.children[0];
+                // W527/W533: field access on packed scalar struct or array element.
+                let base_name = match child.kind {
+                    NodeKind::ExprIdentifier => child.name.clone(),
+                    NodeKind::ExprIndex if !child.children.is_empty() => {
+                        match child.children[0].kind {
+                            NodeKind::ExprIdentifier => child.children[0].name.clone(),
+                            _ => return None,
+                        }
+                    }
+                    _ => return None,
+                };
+                let local_ty = self.local_types.get(&base_name)
+                    .or_else(|| self.param_types.get(&base_name))
+                    .or_else(|| self.module_types.get(&base_name))?;
+                let base_ty = Self::base_type_name(local_ty);
+                let struct_name = if self.is_lowerable_scalar_struct_type(local_ty) {
+                    base_ty
+                } else if Self::parse_array_type(local_ty).is_some()
+                    && self.is_lowerable_scalar_struct_type(&base_ty)
+                {
+                    base_ty
+                } else {
+                    return None;
+                };
+                let fields = self.struct_decls.get(&struct_name)?;
+                let ftype = fields.iter()
+                    .find(|(n, _)| n == &node.name)
+                    .map(|(_, t)| t.clone())?;
+                if Self::is_primitive_scalar_type(&ftype) {
+                    Some((Self::type_to_width(&ftype), Self::type_is_signed(&ftype)))
+                } else {
+                    Self::scalar_array_info(&ftype)
+                        .map(|(count, w, signed)| (count as u32 * w, signed))
+                }
+            }
+            NodeKind::ExprIndex => {
+                if node.children.len() < 2 {
+                    return None;
+                }
+                // Try to resolve the base as a primitive scalar array.
+                let mut current = &node.children[0];
+                while current.kind == NodeKind::ExprIndex {
+                    current = current.children.first()?;
+                }
+                if current.kind != NodeKind::ExprIdentifier {
+                    return None;
+                }
+                let local_ty = self.local_types.get(&current.name)
+                    .or_else(|| self.param_types.get(&current.name))
+                    .or_else(|| self.module_types.get(&current.name))?;
+                if let Some((_, elem_type)) = Self::parse_array_type(local_ty) {
+                    if Self::is_primitive_scalar_type(&elem_type) {
+                        return Some((
+                            Self::type_to_width(&elem_type),
+                            Self::type_is_signed(&elem_type),
+                        ));
+                    }
+                }
+                // Scalar-struct array field element access: base is a field
+                // access, the field is a fixed-size scalar array.
+                if node.children[0].kind == NodeKind::ExprFieldAccess {
+                    if let Some(info) = self.field_scalar_array_info(&node.children[0]
+                    ) {
+                        return Some((info.1, info.2));
+                    }
+                }
+                None
+            }
+            NodeKind::ExprBinary => {
+                if node.children.len() < 2 {
+                    return None;
+                }
+                let op = node.extra_op.as_str();
+                // Logical operators return bool (1 bit unsigned).
+                if matches!(op, "&&" | "||" | "and" | "or") {
+                    return Some((1, false));
+                }
+                if matches!(op, "==" | "!=" | "<" | "<=" | ">" | ">=") {
+                    return Some((1, false));
+                }
+                // Arithmetic / bitwise operators inherit width/sign from the
+                // left operand when both operands are scalar; otherwise fall back.
+                let left = self.expr_width_signed(&node.children[0])?;
+                let right = self.expr_width_signed(&node.children[1])?;
+                // Result width is the max operand width for non-shift ops.
+                if matches!(op, "<<" | ">>") {
+                    // Shift result width equals the left operand width.
+                    return Some(left);
+                }
+                let width = left.0.max(right.0);
+                let signed = left.1 || right.1;
+                Some((width, signed))
+            }
+            NodeKind::ExprUnary => {
+                if node.children.is_empty() {
+                    return None;
+                }
+                let op = node.extra_op.as_str();
+                let child = self.expr_width_signed(&node.children[0])?;
+                // Logical negation returns bool.
+                if op == "!" || op == "not" {
+                    return Some((1, false));
+                }
+                // Bitwise/arithmetic negation preserves width/sign.
+                Some(child)
+            }
+            NodeKind::ExprCast => {
+                if node.children.is_empty() {
+                    return None;
+                }
+                let base_ty = node
+                    .extra_type
+                    .split('[')
+                    .next()
+                    .unwrap_or("")
+                    .to_string();
+                let width = Self::type_to_width(&base_ty);
+                let signed = Self::type_is_signed(&base_ty);
+                Some((width, signed))
+            }
+            NodeKind::ExprSwitch => {
+                // Result type is the type of any case result; use the first one.
+                node.children.get(1)
+                    .and_then(|c| self.expr_width_signed(c))
+            }
+            _ => None,
+        }
+    }
+
+    /// W539: helper to extract (count, element_width, signed) for a scalar-array
+    /// field inside a scalar struct, given a field-access expression node.
+    fn field_scalar_array_info(
+        &self,
+        field_access: &Node,
+    ) -> Option<(usize, u32, bool)> {
+        if field_access.kind != NodeKind::ExprFieldAccess || field_access.children.is_empty() {
+            return None;
+        }
+        let child = &field_access.children[0];
+        let base_name = match child.kind {
+            NodeKind::ExprIdentifier => child.name.clone(),
+            NodeKind::ExprIndex if !child.children.is_empty() => {
+                match child.children[0].kind {
+                    NodeKind::ExprIdentifier => child.children[0].name.clone(),
+                    _ => return None,
+                }
+            }
+            _ => return None,
+        };
+        let local_ty = self.local_types.get(&base_name)
+            .or_else(|| self.param_types.get(&base_name))
+            .or_else(|| self.module_types.get(&base_name))?;
+        let base_ty = Self::base_type_name(local_ty);
+        let struct_name = if self.is_lowerable_scalar_struct_type(local_ty) {
+            base_ty
+        } else if Self::parse_array_type(local_ty).is_some()
+            && self.is_lowerable_scalar_struct_type(&base_ty)
+        {
+            base_ty
+        } else {
+            return None;
+        };
+        let fields = self.struct_decls.get(&struct_name)?;
+        let ftype = fields.iter()
+            .find(|(n, _)| n == &field_access.name)
+            .map(|(_, t)| t.clone())?;
+        Self::scalar_array_info(&ftype)
     }
 
     /// W527: parse a t27 array type string like "[2][3]Pt" into a list of
@@ -4268,6 +4486,7 @@ impl VerilogCodegen {
             fn_return_types: self.fn_return_types.clone(),
             emit_test_assertions: self.emit_test_assertions,
             probe_counter: 0,
+            probe_specs: Vec::new(),
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -4420,6 +4639,7 @@ impl VerilogCodegen {
                     fn_return_types: self.fn_return_types.clone(),
                     emit_test_assertions: self.emit_test_assertions,
                     probe_counter: 0,
+                    probe_specs: Vec::new(),
                 };
                 tmp.emit_packed_array_literal_concat_level(
                     sub, dims, depth + 1, elem_w, elem_type,
@@ -5594,6 +5814,8 @@ impl VerilogCodegen {
         // initial block. Verilog requires all `reg` declarations before any
         // procedural statements.
         // W538: also hoist scalar assert_eq probe registers for VCD capture.
+        // W539: probe width/signedness is inferred from the actual expression.
+        self.probe_specs.clear();
         if self.emit_test_assertions {
             let mut probe_idx = 0usize;
             for child in &node.children {
@@ -5616,16 +5838,25 @@ impl VerilogCodegen {
                         && s.children.len() == 2
                 });
                 if is_assert {
+                    let actual = &stmt.unwrap().children[0];
+                    let (width, signed) = self.expr_width_signed(actual)
+                        .unwrap_or((64, false));
                     let probe_name = format!(
                         "_t27_probe_{}_{}",
                         Self::sanitize_identifier(&node.name),
                         probe_idx
                     );
+                    let range = Self::range_decl(width);
                     self.write_indent();
                     self.write_line(&format!(
-                        "reg [63:0] {}; // W538 scalar probe",
-                        probe_name
+                        "reg {}{} {}; // W539 typed probe w={} signed={}",
+                        range,
+                        if range.is_empty() { "" } else { " " },
+                        probe_name,
+                        width,
+                        signed
                     ));
+                    self.probe_specs.push((probe_name, width, signed));
                     probe_idx += 1;
                 }
             }
@@ -5656,6 +5887,7 @@ impl VerilogCodegen {
                         {
                             // W538: assign the scalar probe that captures the
                             // actual expression value for independent VCD cross-check.
+                            // W539: probe metadata was recorded during hoisting.
                             let probe_idx = self.probe_counter;
                             self.probe_counter += 1;
                             let probe_name = format!(

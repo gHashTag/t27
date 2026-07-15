@@ -351,6 +351,41 @@ output out of deterministic baseline comparisons instead of re-recording every
 baseline.  Treat unreadable VCD probes as skipped supplemental checks, not gate
 failures, when the chosen probe width cannot represent the value.
 
+## Worked example — Wave Loop 539
+
+Wave Loop 539 replaced W538's fixed 64-bit VCD probe with typed probes and
+extended the Python reference model evaluator to handle the Icarus-lowerable
+expression subset:
+
+- Added `expr_width_signed` and `field_scalar_array_info` to
+  `bootstrap/src/compiler.rs` to infer the scalar width and signedness of every
+  `assert_eq` actual expression, and emitted `reg [W-1:0]` probes (with a safe
+  64-bit fallback).  Added a `probe_specs` vector to carry metadata per test block.
+- Replaced the previous 64-bit signed heuristic in
+  `scripts/cocotb_ref_model.py` with a `Bv` bit-vector class that tracks width
+  and signedness independently of Python `int`.
+- Implemented a recursive evaluator for literals, variables, parameterless
+  function calls, struct field access, scalar array indexing, binary/unary
+  operators, casts, switch, and ternary expressions.
+- Updated the built-in VCD parser to record per-identifier widths and the
+  cross-check to interpret probe values with the correct width/signedness.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Wrote `docs/reports/WAVE_LOOP_539_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W540_2026-07-08.md`, and advanced
+  `.trinity/current-issue.md` to W540.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 4/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast`
+  35/0 Icarus PASS, 35/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: always carry `(width, signed)` with every reference-model value;
+never infer signedness from the sign of a Python `int`.  Reuse the compiler's
+existing type/width helpers so the Python evaluator mirrors the Verilog packed
+layout exactly.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

@@ -1,3 +1,67 @@
+## 2026-07-08 — Wave Loop 539 (typed VCD probe + full Python expression evaluator)
+
+### What worked
+- Adding `expr_width_signed` and `field_scalar_array_info` in
+  `bootstrap/src/compiler.rs` let the backend infer the scalar width and
+  signedness of `assert_eq` actual expressions, so probes can be emitted as
+  `reg [W-1:0]` instead of a fixed 64 bits.
+- Keeping a `probe_specs` vector in `VerilogCodegen` made the width/sign metadata
+  available for downstream consumers without re-parsing the Verilog.
+- Modeling every reference-model value as a `Bv(width, signed)` in Python
+  prevented signed/unsigned interpretation bugs that previously caused
+  mismatches on `i16` probes (e.g. `-3` read back as `65533`).
+- Implementing a recursive evaluator for the Icarus-lowerable subset (literals,
+  vars, parameterless calls, field access, scalar indexing, binary/unary ops,
+  casts, switch, ternary) covered most W5xx/W3xx scalar assertions.
+- Interpreting VCD vector values with the declared probe width and signedness
+  removed the brittle 64-bit signed heuristic.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `expr_width_signed` and `field_scalar_array_info`.
+  - Replaced fixed `reg [63:0]` probe declarations with typed probes.
+  - Added `probe_specs` metadata to `VerilogCodegen`.
+- `scripts/cocotb_ref_model.py`:
+  - Added `Bv` bit-vector class.
+  - Added full typed expression evaluator (`_eval_expr_bv`, `_eval_call_bv`,
+    `_eval_field_bv`, `_eval_index_bv`, etc.).
+  - Updated VCD parser to store per-identifier widths.
+  - Updated cross-check to interpret probe values with correct width/signedness.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_539_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W540_2026-07-08.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 540.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 4 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 35 Icarus PASS,
+  35 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baseline
+  failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Always carry width and signedness with every reference-model value; never
+  infer signedness from the sign of a Python `int`.
+- Reuse the compiler's existing `packed_width` / `packed_signed` / field-offset
+  helpers when inferring expression types so the Python model stays bit-accurate
+  with the generated Verilog.
+- A typed probe is the right granularity for scalar assertions; multi-signal
+  slices are the next increment for wide values.
+
+### Anti-patterns to avoid
+- Do not assume 64-bit signed two's complement for all VCD probes; the probe
+  width and the expression's signedness must be authoritative.
+- Do not hand-edit files under `gen/`; change specs and regenerate.
+- Do not make the cocotb gate fail when a supplemental probe cannot be
+  evaluated; keep the log-based self-check as the authority.
+
+---
+
 ## 2026-07-15 — Wave Loop 538 (VCD probe + independent cocotb reference-model check)
 
 ### What worked

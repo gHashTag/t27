@@ -1580,3 +1580,7 @@
 - **Commit:** feat(cocotb): Wave Loop 538 — scalar VCD probes for assert_eq actual expressions, independent VCD cross-check in cocotb reference model, / gated by emit_test_assertions, normalize VCD/[PROBE] lines out of Icarus baseline comparison, 35/35 Icarus PASS / 35/35 cocotb PASS / 0 seal mismatches
 - **Files:** 
 
+## 2026-07-15T07:07:53Z — wave-loop-539
+- **Commit:** feat(cocotb): Wave Loop 538 — scalar VCD probes for assert_eq actual expressions, independent VCD cross-check in cocotb reference model, dumpfile/dumpvars gated by emit_test_assertions, normalize VCD/[PROBE] lines out of Icarus baseline comparison, 35/35 Icarus PASS / 35/35 cocotb PASS / 0 seal mismatches
+- **Files:** .claude/plans/wave-loop-539.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,docs/reports/FPGA_LOOP_COOPERATION_W540_2026-07-08.md,docs/reports/WAVE_LOOP_539_CLOSEOUT.md,scripts/cocotb_ref_model.py
+
