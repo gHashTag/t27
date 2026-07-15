@@ -1588,3 +1588,7 @@
 - **Commit:** feat(igla): Wave Loop 539 — typed 64-bit VCD probes + full Python expression evaluator for Icarus-lowerable subset\n\nCloses #1510
 - **Files:** .claude/plans/wave-loop-540.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w540_wide_packed_struct_array.json,.trinity/seals/scratch_w540_wide_packed_struct_array.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,docs/reports/FPGA_LOOP_COOPERATION_W541_2026-07-07.md,docs/reports/WAVE_LOOP_540_CLOSEOUT.md,scripts/cocotb_ref_model.py,specs/scratch/w540_wide_packed_struct_array.t27
 
+## 2026-07-15T07:33:16Z — wave-loop-540
+- **Commit:** feat(icarus): Wave Loop 540 — multi-signal VCD probes for wide packed structs and arrays
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
