@@ -1,7 +1,7 @@
-# Wave Loop 541 — Module-level wide packed values for independent VCD cross-check
+# Wave Loop 542 — Scalar function-call arguments for independent VCD cross-check
 
-**Issue:** #1512 (placeholder — to create when GitHub token is available)  
-**Branch:** `wave-loop-541`  
+**Issue:** #1513 (placeholder — to create when GitHub token is available)  
+**Branch:** `wave-loop-542`  
 **Status:** planned  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
@@ -9,38 +9,40 @@
 
 ## Goal
 
-Continue from Wave Loop 540's multi-slice VCD probe implementation and close the largest
-remaining gap: `assert_eq` actual expressions that are module-level wide packed values
-(constants, variables, or whole-struct assignments).  Once these are covered, the
-Icarus/cocotb gate will give an independent VCD cross-check for a much broader class of
-lowerable scalar-struct assertions.
+Continue from Wave Loop 541's module-level wide packed value coverage and extend the
+Python reference model to evaluate scalar arguments in function calls.  Once this is
+done, assertions such as `assert_eq(add(-3, 4), 1)` and
+`assert_eq(sum(Pt{...}), 6)` will receive an independent VCD cross-check rather than
+falling back to the log-based self-check.
 
 **Recommended cooperation variant:** Variant A from
-`docs/reports/FPGA_LOOP_COOPERATION_W541_2026-07-07.md`.
+`docs/reports/FPGA_LOOP_COOPERATION_W542_2026-07-07.md`.
 
 ---
 
 ## Concrete deliverables
 
 1. **Python reference model** (`scripts/cocotb_ref_model.py`)
-   - Bind module-level `const` and `var` declarations of lowerable packed scalar struct
-     (and fixed-size scalar array) type into `EvalContext.vars` when their initializers
-     are statically evaluable.
-   - Keep the existing signed/width-aware `Bv` representation for every binding.
+   - Extend `_eval_call_bv` to evaluate scalar argument expressions of primitive
+     8/16/32/64/128-bit type (signed or unsigned).
+   - Bind each evaluated argument to the corresponding parameter name in the callee
+     context before evaluating the function body.
+   - Preserve width and signedness from the declared parameter type when the argument
+     is an untyped literal or a narrower expression.
 
-2. **Verilog backend** (`bootstrap/src/compiler.rs`)
-   - Extend `expr_width_signed` to size `ExprIdentifier` and whole-struct assignment
-     expressions whose type is a lowerable packed scalar struct wider than 64 bits.
-   - Reuse the W540 multi-slice probe emission; no new Verilog constructs are needed.
-
-3. **Scratch witnesses** (`specs/scratch/`)
-   - `w541_module_wide_struct_const.t27`: assert on a module-level const of a wide
-     packed scalar struct.
-   - `w541_module_wide_struct_var.t27`: assert on a module-level var initialized from
-     a wide struct literal.
-   - `w541_module_wide_struct_assign.t27`: assert after a whole-struct assignment from
-     a function call.
+2. **Scratch witnesses** (`specs/scratch/`)
+   - `w542_scalar_call_args.t27`: function with two scalar arguments, asserted against
+     the expected result.
+   - `w542_signed_scalar_call.t27`: scalar call involving negative signed values to
+     exercise sign extension.
+   - `w542_struct_sum_call.t27`: function taking a packed scalar struct and returning
+     a scalar sum, asserted with a struct literal argument.
    - Seal each witness and record Icarus baselines.
+
+3. **Negative witness**
+   - `w542_negative_nonlowerable_call.t27` (or reuse an existing negative witness):
+     confirm that non-lowerable calls are still skipped gracefully without failing the
+     cocotb gate.
 
 4. **Validation**
    - `cargo build --release -p t27c` green.
@@ -53,14 +55,15 @@ lowerable scalar-struct assertions.
 
 ---
 
-## Residual boundaries from W540
+## Residual boundaries from W541
 
 - `./scripts/tri test --icarus-lowerable --cocotb --fast` is green:
-  36 Icarus simulations passed, 0 failed; 36 cocotb reference-model checks passed,
+  39 Icarus simulations passed, 0 failed; 39 cocotb reference-model checks passed,
   0 failed; 0 seal mismatches.
 - 24 pre-existing yosys smoke baseline failures remain documented and unchanged.
-- Wide module-level packed values still skip the independent VCD check and rely on the
-  log-based self-check.
+- Scalar function-call arguments still skip the independent VCD check.
+- Module-level const/var initializers that are function calls still skip binding and
+  fall back to log-only verification.
 
 ---
 

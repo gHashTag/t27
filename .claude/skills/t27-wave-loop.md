@@ -427,4 +427,39 @@ offsets from the suffix index to keep the VCD parser minimal and robust.
 
 ---
 
+## Worked example — Wave Loop 541
+
+Wave Loop 541 extended the reference model to cover module-level wide packed values
+and whole-struct assignments:
+
+- Added `_is_lowerable_scalar_struct_type`, `_packed_type_width_signed`, and
+  `_contains_kind` helpers in `scripts/cocotb_ref_model.py`.
+- Bound module-level `const`/`var` initializers of lowerable packed scalar struct or
+  fixed-size scalar array type into `EvalContext.vars`; skipped initializers
+  containing function calls to avoid recursive context construction.
+- Tracked `mutable_module_names` and updated the reference model state for
+  whole-struct assignments inside test blocks before collecting each assertion.
+- Updated `_resolve_base_type` so bound module vars still expose their declared type
+  for field/index width inference.
+- Extended `expr_width_signed` in `bootstrap/src/compiler.rs` to size `ExprIdentifier`
+  nodes whose type is a lowerable packed scalar struct, triggering multi-slice probes.
+- Added three scratch witnesses covering const, var, and assignment patterns, each
+  with a seal and an Icarus baseline.
+- Wrote `docs/reports/WAVE_LOOP_541_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W542_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W542.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 4/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast`
+  39/0 Icarus PASS, 39/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: bind module-level values into the reference model only when their
+initializers are statically evaluable; keep declared type information available even
+after binding so that field/index width inference remains correct.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

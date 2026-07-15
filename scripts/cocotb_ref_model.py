@@ -148,6 +148,64 @@ def _scalar_array_info(ty: str) -> Optional[Tuple[int, int, bool]]:
     return (dims[0], width, elem in _TYPE_SIGNED)
 
 
+def _is_primitive_scalar_type(ty: str) -> bool:
+    """True for 'u32', 'i16', etc. and '[N]u32' one-dimensional scalar arrays."""
+    parsed = _parse_array_type(ty)
+    elem = parsed[1] if parsed else ty.strip()
+    return elem in _TYPE_WIDTH and (parsed is None or len(parsed[0]) == 1)
+
+
+def _packed_type_width_signed(
+    ctx: EvalContext, ty: str
+) -> Optional[Tuple[int, bool]]:
+    """Return (width, signed) for a lowerable packed scalar struct or array."""
+    # Fixed-size scalar array.
+    info = _scalar_array_info(ty)
+    if info is not None:
+        return (info[0] * info[1], info[2])
+    # Lowerable packed scalar struct.
+    decl = ctx.decls.get(f"struct:{ty.strip()}")
+    if decl is None:
+        return None
+    total = 0
+    signed = False
+    for field in _children(decl):
+        ftype = field.get("extra_type", "")
+        finfo = _scalar_array_info(ftype)
+        if finfo is not None:
+            total += finfo[0] * finfo[1]
+            signed = signed or finfo[2]
+            continue
+        fws = _type_width_signed(ftype)
+        if fws is None:
+            return None
+        total += fws[0]
+        signed = signed or fws[1]
+    return (total, signed)
+
+
+def _is_lowerable_scalar_struct_type(ctx: EvalContext, ty: str) -> bool:
+    """Mirror the compiler's notion of a lowerable packed scalar struct."""
+    decl = ctx.decls.get(f"struct:{ty.strip()}")
+    if decl is None:
+        return False
+    for field in _children(decl):
+        ftype = field.get("extra_type", "")
+        if _scalar_array_info(ftype) is not None:
+            continue
+        if _type_width_signed(ftype) is not None:
+            continue
+        return False
+    return True
+
+
+def _contains_kind(node: Dict[str, Any], kind: str) -> bool:
+    """Recursively check whether `node` or any descendant has the given kind."""
+    if node.get("kind") == kind:
+        return True
+    return any(_contains_kind(child, kind) for child in _children(node))
+
+
 # ---------------------------------------------------------------------------
 # AST helpers
 # ---------------------------------------------------------------------------
@@ -339,6 +397,37 @@ class EvalContext:
                     if vname and vtype:
                         locals_map[vname] = vtype
             self.fn_local_types[name] = locals_map
+        # W541: bind module-level const/var initializers of lowerable packed
+        # scalar struct (or fixed-size scalar array) type so that assertions on
+        # whole packed values can be independently evaluated.  Track which ones
+        # are mutable so whole-struct assignments inside test blocks update the
+        # reference model state.
+        self.mutable_module_names: set = set()
+        for decl in _children(root):
+            kind = decl.get("kind")
+            if kind not in ("ConstDecl",):
+                continue
+            name = decl.get("name", "")
+            vtype = decl.get("extra_type", "")
+            if not name or not vtype:
+                continue
+            if not _is_lowerable_scalar_struct_type(self, vtype) and _scalar_array_info(vtype) is None:
+                continue
+            if decl.get("extra_mutable", False):
+                self.mutable_module_names.add(name)
+            kids = _children(decl)
+            if not kids:
+                continue
+            init_node = kids[0]
+            # Avoid binding initializers that contain function calls; evaluating
+            # them would recursively create new EvalContexts and re-enter this
+            # binding loop (e.g. a module var initialized by `make()`).
+            if _contains_kind(init_node, "ExprCall"):
+                continue
+            init = _eval_expr_bv(self, init_node)
+            if init is None:
+                continue
+            self.vars[name] = init
 
     def bind(self, name: str, value: Bv) -> None:
         self.vars[name] = value
@@ -346,7 +435,7 @@ class EvalContext:
     def resolve_var_type(self, name: str) -> Optional[str]:
         if name in self.vars:
             return None  # runtime binding; type is carried by the Bv
-        # module-level const
+        # module-level const/var are both represented as ConstDecl in the AST.
         c = self.decls.get(f"const:{name}")
         if c is not None:
             return c.get("extra_type", "")
@@ -366,11 +455,24 @@ def _type_of_expr(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Tuple[int,
             return (v.width, v.signed)
         ty = ctx.resolve_var_type(name)
         if ty:
-            return _type_width_signed(ty)
+            return _packed_type_width_signed(ctx, ty) or _type_width_signed(ty)
         return None
     if kind == "ExprCall":
         ret_ty = ctx.fn_return_types.get(node.get("name", ""), "")
-        return _type_width_signed(ret_ty)
+        return _packed_type_width_signed(ctx, ret_ty) or _type_width_signed(ret_ty)
+    if kind == "ExprArrayLiteral":
+        elem_type = node.get("extra_type", "")
+        try:
+            count = int(node.get("extra_size", "").split("][")[-1])
+        except ValueError:
+            return None
+        ws = _type_width_signed(elem_type)
+        if ws is None:
+            return None
+        return (count * ws[0], ws[1])
+    if kind == "ExprStructLit":
+        struct_name = node.get("extra_type", "") or node.get("name", "")
+        return _packed_type_width_signed(ctx, struct_name)
     if kind == "ExprFieldAccess" and _children(node):
         base = _children(node)[0]
         base_name = _base_name(base)
@@ -446,9 +548,15 @@ def _base_name(node: Dict[str, Any]) -> Optional[str]:
 
 
 def _resolve_base_type(ctx: EvalContext, name: str) -> Optional[str]:
-    if name in ctx.vars:
-        # We don't store type names for runtime vars; fallback below.
-        pass
+    # W541: module-level const/var are now bound in ctx.vars, but we still need
+    # their declared type for field/index type inference.  Top-level decls always
+    # carry the type annotation; function-local types are resolved via the
+    # existing resolve_var_type fallback.
+    c = ctx.decls.get(f"const:{name}")
+    if c is not None:
+        ty = c.get("extra_type", "")
+        if ty:
+            return _base_type_name(ty)
     ty = ctx.resolve_var_type(name)
     if ty:
         return _base_type_name(ty)
@@ -859,6 +967,22 @@ def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, int, Optional[A
         block_name = block.get("name", "")
         idx = 0
         for stmt in _children(block):
+            # W541: track whole-struct assignments to mutable module-level vars
+            # so subsequent assertions see the updated value in the reference model.
+            if stmt.get("kind") == "StmtAssign":
+                kids = _children(stmt)
+                if len(kids) >= 2 and kids[0].get("kind") == "ExprIdentifier":
+                    lhs = kids[0].get("name", "")
+                    if lhs in ctx.mutable_module_names:
+                        lhs_ty = ctx.resolve_var_type(lhs)
+                        if lhs_ty and (
+                            _is_lowerable_scalar_struct_type(ctx, lhs_ty)
+                            or _scalar_array_info(lhs_ty) is not None
+                        ):
+                            rhs_bv = _eval_expr_bv(ctx, kids[1])
+                            if rhs_bv is not None:
+                                ctx.vars[lhs] = rhs_bv
+                continue
             call = None
             if stmt.get("kind") == "StmtExpr" and _children(stmt):
                 call = _children(stmt)[0]

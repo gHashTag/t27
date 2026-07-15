@@ -3991,9 +3991,14 @@ impl VerilogCodegen {
                 let ty = self.local_types.get(&node.name)
                     .or_else(|| self.param_types.get(&node.name))
                     .or_else(|| self.module_types.get(&node.name))?;
-                // Only scalar identifiers are probe-able.
+                // Primitive scalar identifiers are probe-able as before.
                 if Self::is_primitive_scalar_type(ty) {
                     Some((Self::type_to_width(ty), Self::type_is_signed(ty)))
+                } else if self.is_lowerable_scalar_struct_type(ty) {
+                    // W541: module-level lowerable packed scalar structs are also
+                    // probe-able; use the packed vector width.
+                    let base = Self::base_type_name(ty);
+                    Some((self.element_width(&base), false))
                 } else {
                     None
                 }

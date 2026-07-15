@@ -1,3 +1,68 @@
+## 2026-07-07 — Wave Loop 541 (module-level wide packed values for independent VCD cross-check)
+
+### What worked
+- Binding module-level `const`/`var` initializers of lowerable packed scalar struct
+  (or fixed-size scalar array) type into `EvalContext.vars` let the reference model
+  evaluate assertions on whole packed values such as `assert_eq(src, Wide{...})`.
+- Tracking `mutable_module_names` and processing `StmtAssign` nodes in statement order
+  allowed whole-struct assignments inside test blocks (`dst = make(); assert_eq(dst, ...)`)
+  to update the reference model state before each assertion.
+- Extending `expr_width_signed` for `ExprIdentifier` on lowerable packed scalar structs
+  made the Verilog backend emit multi-slice probes for module-level wide values.
+- Skipping module-level initializers that contain function calls avoided recursive
+  `EvalContext` construction while keeping the change minimal.
+- Updating `_resolve_base_type` to look up the declared type from top-level `ConstDecl`
+  nodes even when the name is already bound in `ctx.vars` preserved correct field
+  and index width inference for module vars.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `expr_width_signed` now handles lowerable packed scalar struct identifiers.
+- `scripts/cocotb_ref_model.py`:
+  - Added `_is_lowerable_scalar_struct_type`, `_packed_type_width_signed`, and
+    `_contains_kind` helpers.
+  - `EvalContext.__init__` binds module-level lowerable packed initializers and tracks
+    mutable module vars.
+  - `_collect_assertions` evaluates preceding whole-struct assignments to module vars.
+  - `_type_of_expr` and `_resolve_base_type` handle bound module vars correctly.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- Added three scratch witnesses:
+  - `specs/scratch/w541_module_wide_struct_const.t27`
+  - `specs/scratch/w541_module_wide_struct_var.t27`
+  - `specs/scratch/w541_module_wide_struct_assign.t27`
+  Each has a seal and an Icarus baseline.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_541_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W542_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 542.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 4 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 39 Icarus PASS,
+  39 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baseline
+  failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Bind module-level values into the reference model when their initializers are
+  statically evaluable; skip anything that would recursively re-enter context setup.
+- Process test-block statements in order so assignments update model state before
+  assertions are evaluated.
+- Keep type resolution separate from value resolution so that bound variables still
+  expose their declared type for field/index inference.
+
+### Anti-patterns to avoid
+- Do not eagerly evaluate module-level initializers that contain function calls; the
+  resulting recursive context construction can blow the Python stack.
+- Do not drop declared type information just because a variable has a runtime value;
+  width inference still needs the static type.
+
+---
+
 ## 2026-07-07 — Wave Loop 540 (multi-signal VCD probes for wide packed structs and arrays)
 
 ### What worked
