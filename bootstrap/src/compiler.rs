@@ -6832,8 +6832,11 @@ impl VerilogCodegen {
                 //   * signed target -> `$signed(op)` so the value sign-extends
                 //     when it feeds a wider expression context;
                 //   * unsigned scalar target of width W < 64 -> `(op & {W{1'b1}})`
-                //     which truncates a wider operand to exactly W bits and is a
-                //     no-op on a narrower operand (zero-extension on assignment);
+                //     which truncates a wider operand to exactly W bits.  When the
+                //     operand is signed and narrower than W, emit an explicit
+                //     W-bit concatenation `({(W-N){($signed(op) < 0)}}, op)` that
+                //     sign-extends without relying on Icarus' mixed signed/unsigned
+                //     expression-context semantics;
                 //   * 64-bit / array / unknown -> emit the operand verbatim.
                 if node.children.is_empty() {
                     return;
@@ -6847,24 +6850,39 @@ impl VerilogCodegen {
                 let signed = Self::type_is_signed(&base_ty);
                 let width = Self::type_to_width(&base_ty) as usize;
                 let is_array = node.extra_type.contains('[');
-                // If the operand is a parameter we know the width of, we can tell
-                // whether this cast widens (or keeps the same width). A widening
-                // unsigned cast needs no truncation mask: the value already fits.
+                // Infer the operand's scalar width/signedness so we can decide
+                // whether to emit a mask, sign-extend, or skip the mask for a
+                // widening unsigned cast.
                 let operand = &node.children[0];
-                let operand_width = if operand.kind == NodeKind::ExprIdentifier {
-                    self.param_widths.get(&operand.name).copied()
-                } else {
-                    None
-                };
-                let is_widening = operand_width.map(|ow| ow <= width).unwrap_or(false);
+                let operand_ws = self.expr_width_signed(operand);
+                let operand_signed = operand_ws.map(|(_, s)| s).unwrap_or(false);
+                let operand_width = operand_ws.map(|(w, _)| w as usize);
+                let is_widening_unsigned =
+                    operand_width.map(|ow| ow <= width).unwrap_or(false) && !operand_signed;
+                let needs_sign_ext =
+                    operand_signed && operand_width.map(|ow| ow < width).unwrap_or(false);
                 if signed {
                     self.write("$signed(");
                     self.gen_verilog_expr(operand);
                     self.write(")");
-                } else if !is_array && width >= 1 && width < 64 && !is_widening {
-                    self.write("(");
-                    self.gen_verilog_expr(operand);
-                    self.write(&format!(" & {{{}{{1'b1}}}})", width));
+                } else if !is_array && width >= 1 && width < 64 && !is_widening_unsigned {
+                    if needs_sign_ext {
+                        let ext = width - operand_width.unwrap();
+                        // Explicit sign-extension: replicate the sign bit (computed
+                        // via comparison so it works for any operand expression)
+                        // and concatenate with the original operand.
+                        self.write("({{");
+                        self.write(&ext.to_string());
+                        self.write("{($signed(");
+                        self.gen_verilog_expr(operand);
+                        self.write(") < 0)}}, ");
+                        self.gen_verilog_expr(operand);
+                        self.write("})");
+                    } else {
+                        self.write("(");
+                        self.gen_verilog_expr(operand);
+                        self.write(&format!(" & {{{}{{1'b1}}}})", width));
+                    }
                 } else {
                     self.gen_verilog_expr(operand);
                 }

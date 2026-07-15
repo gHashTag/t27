@@ -1,0 +1,14 @@
+// W542 witness: signed scalar function-call arguments and return values.
+module w542_signed_scalar_call;
+
+pub fn sub(a : i16, b : i16) -> i16 {
+    return a - b;
+}
+
+test signed_scalar_call {
+    assert_eq(sub(-3, 4), -7);
+    assert_eq(sub(100, 50), 50);
+    assert_eq(sub(-32768, 0), -32768);
+}
+
+endmodule

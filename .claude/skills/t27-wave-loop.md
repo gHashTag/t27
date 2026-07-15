@@ -462,4 +462,49 @@ after binding so that field/index width inference remains correct.
 
 ---
 
+## Worked example — Wave Loop 542
+
+Wave Loop 542 made scalar function-call arguments independently cross-checkable by
+extending the Python reference model, and fixed a pre-existing signed-to-unsigned
+cast sign-extension bug in the Verilog backend:
+
+- Added `EvalContext.current_fn` in `scripts/cocotb_ref_model.py` and populated
+  `fn_local_types` with function parameter declared types so that field/index access
+  on parameter identifiers (e.g. `p.x` in `pub fn sum(p : Pt) -> u32`) resolves
+  correctly inside the function body.
+- Updated `_resolve_base_type` to consult the current function's local type map
+  before falling back to module-level declarations.
+- Fixed `_eval_cast_bv` to sign-extend signed sources when the target width is larger
+  than the source width.
+- In `bootstrap/src/compiler.rs`, changed `ExprCast` lowering to infer operand
+  width/signedness via `expr_width_signed` and to emit explicit sign-extension
+  `({{(W-N){($signed(op) < 0)}}, op})` for signed-to-unsigned widening casts,
+  avoiding an Icarus Verilog subtlety where mixed signed/unsigned expression
+  contexts zero-extend signed sub-expressions.
+- Added three scratch witnesses:
+  - `specs/scratch/w542_scalar_call_args.t27`
+  - `specs/scratch/w542_signed_scalar_call.t27`
+  - `specs/scratch/w542_struct_sum_call.t27`
+  and resealed the affected corpus specs:
+  - `specs/numeric/gf8.t27`
+  - `specs/scratch/w374_module_keyword.t27`
+  - `specs/scratch/w377_struct_field_mapping.t27`
+- Wrote `docs/reports/WAVE_LOOP_542_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W543_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W543.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 4/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast`
+  42/0 Icarus PASS, 42/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: record function parameter types in the reference model because the AST
+does not emit `StmtLocal` nodes for parameters, and do not rely on Icarus'
+mixed-context signed/unsigned semantics for sign extension — emit explicit
+sign-bit replication when widening a signed source into an unsigned target.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

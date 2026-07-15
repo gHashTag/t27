@@ -1,3 +1,73 @@
+## 2026-07-07 — Wave Loop 542 (scalar function-call arguments for independent VCD cross-check)
+
+### What worked
+- Binding function parameter declared types into `EvalContext.fn_local_types` let the
+  reference model resolve field/index access on parameter identifiers such as `p.x` in
+  `pub fn sum(p : Pt) -> u32`.
+- Tracking `EvalContext.current_fn` made the function-local type map active only when
+  evaluating inside the corresponding function body, avoiding parameter names from
+  shadowing module-level types in other scopes.
+- Sign-extending signed sources in `_eval_cast_bv` when the target is wider matched
+  the two's-complement semantics that t27 tests expect.
+- Replacing the compiler's `(op & {W{1'b1}})` unsigned cast with an explicit
+  `({{(W-N){($signed(op) < 0)}}, op})` sign-extension avoided an Icarus Verilog
+  subtlety where mixed signed/unsigned expression contexts zero-extend signed
+  sub-expressions.
+- Adding three scratch witnesses covering primitive scalar, signed scalar, and packed
+  scalar-struct arguments exercised the new path end-to-end.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `ExprCast` lowering now infers operand width/signedness via `expr_width_signed` and
+    emits explicit sign-extension for signed-to-unsigned widening casts.
+- `scripts/cocotb_ref_model.py`:
+  - `EvalContext` gained `current_fn` and parameter types are stored in
+    `fn_local_types`.
+  - `_resolve_base_type` consults the current function's local type map.
+  - `_eval_cast_bv` sign-extends signed sources to wider targets.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- Added three scratch witnesses:
+  - `specs/scratch/w542_scalar_call_args.t27`
+  - `specs/scratch/w542_signed_scalar_call.t27`
+  - `specs/scratch/w542_struct_sum_call.t27`
+  Each has a seal and an Icarus baseline.
+- Resealed affected corpus specs:
+  - `specs/numeric/gf8.t27`
+  - `specs/scratch/w374_module_keyword.t27`
+  - `specs/scratch/w377_struct_field_mapping.t27`
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_542_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W543_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 543.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 4 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 42 Icarus PASS,
+  42 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baseline
+  failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Record function parameter types in the reference model because the AST does not emit
+  `StmtLocal` nodes for parameters.
+- Resolve names from the closest scope first (function-local, then module-level) so
+  parameter identifiers shadow top-level declarations correctly.
+- Avoid relying on Icarus' signed/unsigned expression-context semantics for sign
+  extension; emit explicit concatenation when a signed source must be widened into an
+  unsigned target.
+
+### Anti-patterns to avoid
+- Do not assume `(signed_expr & {W{1'b1}})` will sign-extend in a wider unsigned
+  expression context; Icarus may zero-extend the sub-expression from its source width.
+- Do not drop parameter declared types from the reference model; field and index
+  inference needs them even though parameters are runtime-bound in `ctx.vars`.
+
+---
+
 ## 2026-07-07 — Wave Loop 541 (module-level wide packed values for independent VCD cross-check)
 
 ### What worked

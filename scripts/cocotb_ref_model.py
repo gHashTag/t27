@@ -382,14 +382,24 @@ class EvalContext:
         self.fn_param_types: Dict[str, List[Tuple[str, str]]] = {}
         self.fn_return_types: Dict[str, str] = {}
         self.fn_local_types: Dict[str, Dict[str, str]] = {}
+        # Track which function we are evaluating so parameter/local declared
+        # types can be resolved even when the identifier is bound in vars.
+        self.current_fn: Optional[str] = None
         for decl in _children(root):
             if decl.get("kind") != "FnDecl":
                 continue
             name = decl.get("name", "")
+            params = decl.get("params", []) or []
             if name:
-                self.fn_param_types[name] = decl.get("params", []) or []
+                self.fn_param_types[name] = params
                 self.fn_return_types[name] = decl.get("extra_return_type", "")
             locals_map: Dict[str, str] = {}
+            # Function parameters are not emitted as StmtLocal nodes, but they
+            # carry a type annotation in the FnDecl params list.  Record them so
+            # field/index access on parameter identifiers resolves correctly.
+            for pname, ptype in params:
+                if pname and ptype:
+                    locals_map[pname] = ptype
             for stmt in _children(decl):
                 if stmt.get("kind") == "StmtLocal":
                     vname = stmt.get("name", "")
@@ -548,15 +558,22 @@ def _base_name(node: Dict[str, Any]) -> Optional[str]:
 
 
 def _resolve_base_type(ctx: EvalContext, name: str) -> Optional[str]:
+    # W542: function parameters are bound in vars but are not StmtLocal nodes,
+    # so resolve their declared type from the current function's local map
+    # first.  They shadow module-level names inside the function body.
+    if ctx.current_fn:
+        local_ty = ctx.fn_local_types.get(ctx.current_fn, {}).get(name)
+        if local_ty:
+            return _base_type_name(local_ty)
     # W541: module-level const/var are now bound in ctx.vars, but we still need
-    # their declared type for field/index type inference.  Top-level decls always
-    # carry the type annotation; function-local types are resolved via the
-    # existing resolve_var_type fallback.
+    # their declared type for field/index type inference.  Top-level decls
+    # always carry the type annotation.
     c = ctx.decls.get(f"const:{name}")
     if c is not None:
         ty = c.get("extra_type", "")
         if ty:
             return _base_type_name(ty)
+    # Fallback for unbound identifiers.
     ty = ctx.resolve_var_type(name)
     if ty:
         return _base_type_name(ty)
@@ -671,6 +688,7 @@ def _eval_call_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
         return None
     call_ctx = EvalContext(ctx.root)
     call_ctx.vars.update(ctx.vars)
+    call_ctx.current_fn = name
     for (pname, ptype), arg in zip(params, args):
         arg_bv = _eval_expr_bv(ctx, arg)
         if arg_bv is None:
@@ -793,7 +811,14 @@ def _eval_cast_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
     src = _eval_expr_bv(ctx, _children(node)[0])
     if src is None:
         return None
-    return Bv(src.value, ws[0], ws[1])
+    width, signed = ws
+    raw = src.value
+    if width > src.width:
+        # Sign-extend signed sources, zero-extend unsigned sources.
+        if src.signed and (raw & (1 << (src.width - 1))):
+            raw |= ((1 << (width - src.width)) - 1) << src.width
+    # Bv.__init__ masks/truncates to the target width.
+    return Bv(raw, width, signed)
 
 
 def _eval_binary_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:

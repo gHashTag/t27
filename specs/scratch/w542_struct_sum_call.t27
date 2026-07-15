@@ -1,0 +1,21 @@
+// W542 witness: function taking a packed scalar struct literal argument and
+// returning a scalar sum.  The reference model must evaluate the struct literal,
+// bind it to the parameter, and compare the call result against the VCD probe.
+module w542_struct_sum_call;
+
+struct Pt {
+    x: i16,
+    y: i16,
+    z: u16,
+}
+
+pub fn sum(p : Pt) -> u32 {
+    return (p.x as u32) + (p.y as u32) + (p.z as u32);
+}
+
+test struct_sum_call {
+    assert_eq(sum(Pt{ .x = -3, .y = 4, .z = 5 }), 6);
+    assert_eq(sum(Pt{ .x = 1, .y = 2, .z = 3 }), 6);
+}
+
+endmodule
