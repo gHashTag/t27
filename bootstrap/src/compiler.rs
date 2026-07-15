@@ -6703,19 +6703,22 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprArrayLiteral => {
-                // R-CA-2 (wave-31): array literals in expression context
-                // (e.g. as function-call arguments) used to emit a
-                // comment-only token `/* array [...]{} */`, which Yosys
-                // rejects with `syntax error, unexpected ','` when the
-                // argument list reduces to whitespace + comma. We follow
-                // the precedent established by `ExprStructLit` below and
-                // emit a synthesizable scalar `0` plus an explanatory
-                // TODO comment, so the surrounding expression remains
-                // parseable Verilog.
-                self.write(&format!(
-                    "0 /* TODO: array literal [{}]{} not yet lowered to Verilog */",
-                    node.extra_size, node.extra_type
-                ));
+                // W544: fixed-size scalar array literals in expression context
+                // (e.g. function return values) lower to a packed concatenation
+                // when the element type is a primitive scalar.  For other
+                // element types, fall back to the R-CA-2 placeholder so the
+                // surrounding expression remains parseable Verilog.
+                let elem = node.extra_type.trim();
+                let maybe_count = node.extra_size.parse::<usize>();
+                if maybe_count.is_ok() && Self::is_primitive_scalar_type(elem) {
+                    let ty = format!("[{}]{}", node.extra_size, elem);
+                    self.emit_packed_array_literal_concat(node, &ty);
+                } else {
+                    self.write(&format!(
+                        "0 /* TODO: array literal [{}]{} not yet lowered to Verilog */",
+                        node.extra_size, node.extra_type
+                    ));
+                }
             }
             NodeKind::ExprStructLit => {
                 // W527/W532: scalar struct literals lower to a concatenation of
@@ -8323,6 +8326,14 @@ impl Compiler {
                 // Return type and parameter types must be lowerable.
                 if !node.extra_return_type.is_empty()
                     && !Self::is_icarus_lowerable_type(&node.extra_return_type, structs)
+                {
+                    return Ok(false);
+                }
+                // Reject function return types that are primitive scalar arrays.
+                // The current backend does not connect packed/unpacked function
+                // returns to module const/var storage consistently.
+                if !node.extra_return_type.is_empty()
+                    && VerilogCodegen::scalar_array_info(&node.extra_return_type).is_some()
                 {
                     return Ok(false);
                 }

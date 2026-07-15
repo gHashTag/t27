@@ -92,6 +92,19 @@ def Ty.isLeafLowerable : Ty → Bool
   | .array n elem => n > 0 && elem.isLeafLowerable
   | .f32 | .string | .enum _ | .struct _ => false
 
+/-- W544: primitive scalar types that are bit-lowerable as single Verilog regs. -/
+def Ty.isPrimitiveScalar : Ty → Bool
+  | .bool | .u8 | .u16 | .u32 | .u64 | .i8 | .i16 | .i32 | .i64 => true
+  | _ => false
+
+/-- W544: a primitive scalar array (e.g. [3]u8).  Function returns of this
+    shape are rejected by the Rust classifier because the backend does not yet
+    connect packed/unpacked function returns to module const/var storage
+    consistently. -/
+def Ty.isPrimitiveScalarArray : Ty → Bool
+  | .array n elem => n > 0 && elem.isPrimitiveScalar
+  | _ => false
+
 /-- Is the given operator a lowerable numeric/bitwise/boolean operator? -/
 def opIsLowerable (op : String) : Bool :=
   ["+", "-", "*", "/", "%", "&", "|", "^", "<<", ">>", "==", "!=", "<", "<=", ">", ">=", "&&", "||", "!", "and", "or"].contains op
@@ -603,7 +616,11 @@ def Function.isLowerable (env : Env) (fn : Function) : Bool :=
   if Env.isHostOnly env fn.name then true
   else
     let interfaceOK := fn.params.all (fun p => p.2.isLowerable env) && fn.ret.all (·.isLowerable env)
-    interfaceOK && fn.body.all (Stmt.isLowerable env)
+    -- W544: reject function return types that are primitive scalar arrays.  The
+    -- backend does not yet connect packed/unpacked function returns to module
+    -- const/var storage consistently.
+    let retNotScalarArray := fn.ret.all (fun r => !r.isPrimitiveScalarArray)
+    interfaceOK && retNotScalarArray && fn.body.all (Stmt.isLowerable env)
 
 /-- A module is lowerable when all globals and emitted functions are lowerable
     and `break`/`continue` only occur inside loop bodies.  W499: reachability no

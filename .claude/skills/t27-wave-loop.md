@@ -552,6 +552,60 @@ function-call initializers.  After a parser change that affects const initialize
 reseal the whole corpus — math and physics specs often hide function-call const
 initializers like `pow(PHI, -3.0)`.
 
+## Worked example — Wave Loop 544
+
+Wave Loop 544 closed the mutable-state gap in the independent VCD cross-check:
+module-level mutable `var`s and test-block whole-struct assignments whose RHS is
+a function call.
+
+- Verified that the W543 `bind_module_initializers` path in
+  `scripts/cocotb_ref_model.py` already binds mutable module `var` call
+  initializers because they share the `ConstDecl` AST shape with consts.
+- Verified that `_collect_assertions` already updates `ctx.vars[lhs]` for
+  whole-struct assignments inside test blocks, including RHS function calls.
+- In `bootstrap/src/compiler.rs`, fixed `ExprArrayLiteral` in expression context
+  to emit a packed concatenation for fixed-size primitive scalar arrays instead
+  of a `0 /* TODO */` placeholder, and updated `bootstrap/stage0/FROZEN_HASH`.
+- Added a new structural-classifier rule to reject `FnDecl` return types that
+  are primitive scalar arrays (e.g. `[3]u8`), because the backend cannot yet
+  connect packed/unpacked function returns to module const/var storage
+  consistently.
+- Mirrored the new rejection rule in
+  `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean` via
+  `Ty.isPrimitiveScalarArray` and updated `Function.isLowerable`.
+- Added six scratch witnesses:
+  - Positive:
+    - `specs/scratch/w544_module_var_scalar_call_init.t27`
+    - `specs/scratch/w544_module_var_struct_call_assign.t27`
+    - `specs/scratch/w544_nested_call_init.t27`
+    - `specs/scratch/w544_call_init_depends_on_const.t27`
+  - Negative:
+    - `specs/scratch/w544_negative_call_init_returns_array.t27`
+    - `specs/scratch/w544_negative_nonlowerable_var_call_init.t27`
+- Resealed affected corpus specs:
+  - `specs/isa/ternary_pattern_matching.t27`
+  - `specs/isa/ternary_search.t27`
+  - `specs/isa/ternary_set.t27`
+  - `specs/isa/ternary_sorting.t27`
+  - `specs/pipeline/benchmarks.t27`
+- Extended `bootstrap/tests/icarus_lowerable.rs` with a W544 negative-witness
+  test and added four W544 positive witnesses to the known-lowerable list.
+- Wrote `docs/reports/WAVE_LOOP_544_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W545_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W545.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 6/0,
+  `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`
+  50/0 Icarus PASS, 50/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: when a Variant B witness exposes a backend/classifier gap,
+convert it into a negative boundary witness and align the Rust classifier with the
+Lean predicate before attempting a full implementation.  A clean, formalized
+rejection is more valuable than a half-working positive feature.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

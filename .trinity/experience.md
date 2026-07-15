@@ -1,3 +1,81 @@
+## 2026-07-07 — Wave Loop 544 (mutable module vars and test-block call assignments for independent VCD cross-check)
+
+### What worked
+- The W543 `EvalContext.bind_module_initializers` fix already covered mutable
+  module `var` call initializers because module-level vars share the same AST
+  node shape (`ConstDecl`) as consts.  Adding explicit witnesses was enough to
+  prove end-to-end behavior.
+- The existing `_collect_assertions` path in `scripts/cocotb_ref_model.py`
+  already evaluated `StmtAssign` RHSs with a fresh call context, so whole-struct
+  assignments from function calls inside test blocks passed without extra code.
+- Converting the scalar-array function-return witness from positive to negative
+  produced a clean, formalized boundary instead of a half-working feature.  The
+  Rust classifier and Lean predicate now agree on the rejection.
+- The `ExprArrayLiteral` expression-context lowering fix (packed concatenation
+  for primitive scalar arrays) fixed latent TODOs in five corpus specs while
+  keeping the classifier boundary explicit.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `ExprArrayLiteral` in expression context now emits a packed concatenation for
+    fixed-size primitive scalar arrays.
+  - `ast_is_icarus_lowerable` rejects `FnDecl` return types that are primitive
+    scalar arrays (e.g. `[3]u8`).
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`:
+  - Added `Ty.isPrimitiveScalar` and `Ty.isPrimitiveScalarArray`.
+  - `Function.isLowerable` rejects primitive scalar array return types.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `rejects_w544_primitive_scalar_array_return`.
+  - Extended `accepts_known_lowerable_witnesses` with the four new W544 positive
+    witnesses.
+- Added six scratch witnesses:
+  - `specs/scratch/w544_module_var_scalar_call_init.t27`
+  - `specs/scratch/w544_module_var_struct_call_assign.t27`
+  - `specs/scratch/w544_nested_call_init.t27`
+  - `specs/scratch/w544_call_init_depends_on_const.t27`
+  - `specs/scratch/w544_negative_call_init_returns_array.t27`
+  - `specs/scratch/w544_negative_nonlowerable_var_call_init.t27`
+- Resealed affected corpus specs:
+  - `specs/isa/ternary_pattern_matching.t27`
+  - `specs/isa/ternary_search.t27`
+  - `specs/isa/ternary_set.t27`
+  - `specs/isa/ternary_sorting.t27`
+  - `specs/pipeline/benchmarks.t27`
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_544_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W545_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 545.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 6 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  50 Icarus PASS, 50 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- When a Variant B witness exposes a backend/classifier gap, convert it into a
+  negative boundary witness and align the Rust classifier with the Lean
+  predicate before trying to make the feature fully work in one loop.
+- Primitive scalar array literals in expression context must be lowered as
+  packed concatenations; do not leave TODO placeholders in generated Verilog.
+- Keep mutable module var call initializers on the same code path as const
+  initializers; they share the same AST node and the same lifetime concerns.
+
+### Anti-patterns to avoid
+- Do not try to force a positive witness through a backend that cannot yet
+  connect the return value to storage; a clean negative boundary is more valuable.
+- Do not forget to update the Lean predicate when the Rust classifier gains a
+  new rejection rule; the integration test `corpus_classifier_matches_lean_completeness`
+  will catch mismatches, but it is faster to mirror changes immediately.
+
+---
+
 ## 2026-07-07 — Wave Loop 543 (function-call module initializers for independent VCD cross-check)
 
 ### What worked
