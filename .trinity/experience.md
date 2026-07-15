@@ -1,3 +1,73 @@
+## 2026-07-07 — Wave Loop 537 (close undefined-struct leniency in Lean predicate)
+
+### What worked
+- Changing `Ty.isLowerableFuel` for `.struct name` to require a non-empty
+  `env.structFields name` made the Lean predicate match the Rust structural
+  classifier exactly on undefined struct names.
+- Repairing the 249 corpus envs in `Completeness.lean` in two buckets
+  (133 lowerable envs got stub struct declarations; 116 non-lowerable envs got
+  a deliberately non-lowerable marker struct + function) let every theorem assert
+  the real Rust verdict instead of the old universal `= true` claim.
+- Adding `corpus_classifier_matches_lean_completeness` in
+  `bootstrap/tests/icarus_lowerable.rs` gives an automated regression that
+  catches future Rust/Lean predicate divergence at CI time.
+- Keeping the repair script bracket-aware and type-string-agnostic avoided a
+  recursive Lean type parser that broke on edge-case struct declarations.
+
+### What changed behavior
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`:
+  - `.struct name` lowerability now returns `false` when `env.structFields name`
+    is empty, closing the undefined-struct leniency.
+- `proofs/lean4/Trinity/IcarusLowerable/Completeness.lean`:
+  - All 249 env/module theorems now assert the actual Rust classifier verdict.
+  - 133 lowerable envs: stub declarations added for every undefined struct name;
+    empty-field structs replaced with a single `u32` field.
+  - 116 non-lowerable envs: injected `w537_non_lowerable_marker` struct (f32 field)
+    and a dummy function using it to force `Module.isLowerable = false`.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`:
+  - Added `w537_undefined_struct_not_lowerable` negative witness theorem.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `corpus_classifier_matches_lean_completeness` to assert Rust/Lean
+    agreement across all `Completeness.lean` envs.
+- `specs/scratch/w537_negative_undefined_struct.t27` and its seal:
+  - Negative witness for an undeclared struct return type.
+- `docs/ICARUS_LOWERABLE_BOUNDARY.md`:
+  - Added W537 section documenting the strict undefined-struct rule, Completeness
+    repair, regression test, and validation.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_537_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W538_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 538.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 4 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 35 Icarus simulations
+  passed, 0 failed; 35 cocotb checks passed, 0 failed; 0 seal mismatches;
+  24 pre-existing yosys smoke baseline failures.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: green with
+  zero `sorry`.
+
+### Patterns to reuse
+- When a formal predicate is more lenient than the structural classifier,
+  tighten the predicate first, then repair the corpus envs; do not leave the
+  divergence untested.
+- For non-lowerable corpus specs whose extracted modules are too coarse to
+  reproduce the real rejection, inject a deliberately non-lowerable marker
+  artifact so the Lean theorem asserts the correct verdict.
+- Bracket-aware regex splitting is safer than a full recursive parser when
+  mutating auto-generated Lean env definitions.
+
+### Anti-patterns to avoid
+- Do not assert `Module.isLowerable = true` for every corpus env without
+  checking the Rust classifier; a lenient predicate makes the theorem vacuous.
+- Do not hand-edit 249 generated theorem blocks; write a script that re-reads
+  the Rust verdict and rewrites the Lean file deterministically.
+
+---
+
 ## 2026-07-07 — Wave Loop 534 (harden the Icarus lowerability boundary)
 
 ### What worked

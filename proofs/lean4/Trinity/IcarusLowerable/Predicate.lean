@@ -80,11 +80,10 @@ def Ty.isLowerableFuel (fuel : Nat) (env : Env) (ty : Ty) : Bool :=
   | fuel+1, .array size elem => size > 0 && Ty.isLowerableFuel fuel env elem
   | fuel+1, .struct name =>
       let fields := env.structFields name
-      -- W535: when the struct is declared in the environment, every field must be
-      -- lowerable.  Undefined structs are treated as lowerable by default; this
-      -- keeps the simplified corpus model in Completeness.lean valid while still
-      -- rejecting concrete non-lowerable struct declarations like f32 fields.
-      fields.isEmpty || fields.all (fun p => Ty.isLowerableFuel fuel env p.2)
+      -- W537: a struct is lowerable only when it is declared in the environment
+      -- and every field is itself lowerable (recursively).  Undefined struct
+      -- names are rejected, matching the Rust structural classifier.
+      !fields.isEmpty && fields.all (fun p => Ty.isLowerableFuel fuel env p.2)
   | _+1, .f32 | _+1, .string | _+1, .enum _ => false
 
 /-- Leaf-field lowerability: used when a struct is actually packed/sliced. -/

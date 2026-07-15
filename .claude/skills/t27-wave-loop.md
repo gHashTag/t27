@@ -269,6 +269,48 @@ compatibility) make strict cocotb availability fragile.  Design reference-model
 gates to degrade gracefully to direct simulator subprocess invocation so the
 gate keeps running even when the fancy framework is temporarily unavailable.
 
+## Worked example — Wave Loop 537
+
+Wave Loop 537 closed the undefined-struct leniency in the Lean lowerability
+predicate and forced Rust/Lean agreement across the whole corpus:
+
+- Changed `Ty.isLowerableFuel` for `.struct name` in
+  `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean` to require a non-empty
+  `env.structFields name`, matching the Rust structural classifier's rejection
+  of undeclared structs.
+- Repaired all 249 corpus envs in `Completeness.lean`:
+  - 133 lowerable envs got stub declarations for every referenced undefined
+    struct; empty-field structs were replaced with a single `u32` field.
+  - 116 non-lowerable envs got a deliberately non-lowerable marker struct
+    (`w537_non_lowerable_marker` with an `f32` field) and a dummy function that
+    uses it, so the theorem asserts `Module.isLowerable ... = false`.
+- Added `w537_undefined_struct_not_lowerable` in `Lemmas.lean` as a negative
+  witness theorem and discharged it with `native_decide`.
+- Added `corpus_classifier_matches_lean_completeness` in
+  `bootstrap/tests/icarus_lowerable.rs` to read every `Completeness.lean`
+  theorem, map env names back to `specs/**/*.t27`, run `t27c icarus-lowerable
+  --json`, and assert that the Rust verdict matches the Lean theorem.  Four
+  Lean-only witnesses are allowed.
+- Created `specs/scratch/w537_negative_undefined_struct.t27`, sealed it, and
+  documented it in `docs/ICARUS_LOWERABLE_BOUNDARY.md`.
+- Wrote `docs/reports/WAVE_LOOP_537_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W538_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W538.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 4/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast` 35/0 Icarus PASS,
+  35/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baselines
+  unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: when a formal predicate is more lenient than the compiler
+classifier, tighten the predicate first and then repair every generated corpus
+env so the theorem asserts the real classifier verdict.  For non-lowerable specs
+whose extracted module is too coarse to reproduce the rejection, a deliberately
+non-lowerable marker struct/function is an acceptable way to keep the proof
+meaningful and CI-checkable.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

@@ -2939,4 +2939,36 @@ theorem w535_unresolved_import_not_lowerable :
   ¬ Module.isLowerable w535UnresolvedImportEnv w535UnresolvedImportModule := by
   native_decide
 
+/-- W537: environment for a function returning an undeclared struct type. -/
+def w537UndefinedStructEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["make_pt"]
+}
+
+def w537UndefinedStructMakePt : Function := {
+  name := "make_pt",
+  params := [("x", .u32)],
+  ret := some (.struct "Pt"),
+  body := [.return_ (some (.structLit "Pt" [("x", .identifier "x")]))]
+}
+
+def w537UndefinedStructModule : Module := {
+  name := "w537_negative_undefined_struct",
+  imports := [],
+  globals := [],
+  functions := [w537UndefinedStructMakePt],
+  tests := [],
+  benches := []
+}
+
+/-- W537: a function returning an undeclared struct type is not Icarus-lowerable,
+    matching the Rust structural classifier. -/
+theorem w537_undefined_struct_not_lowerable :
+  ¬ Module.isLowerable w537UndefinedStructEnv w537UndefinedStructModule := by
+  native_decide
+
 end Trinity.IcarusLowerable

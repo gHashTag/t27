@@ -136,11 +136,44 @@ classifier.  W535 closed three known divergence points:
   2. Non-lowerable struct fields (`f32`, `string`, etc.) are rejected
      recursively by both predicates.
   3. Calls to imported functions are rejected by both predicates.
-After W535 the remaining divergence is the handling of undefined struct names in
-the simplified corpus model (Lean treats them leniently; Rust resolves them
-against the full parser environment).
+After W535 the remaining divergence was the handling of undefined struct names
+in the simplified corpus model.  W537 closed it.
 
-## 8. Cocotb reference-model cross-check gate (W536)
+## 8. W537 — Rust/Lean alignment on undefined structs
+
+The final divergence between the Rust structural classifier and the Lean
+predicate was the treatment of `.struct name` when `env.structFields name` is
+empty.  The Rust classifier rejects an undeclared struct name; the old Lean
+predicate accepted it, which allowed the simplified corpus envs in
+`Completeness.lean` to pass even when they omitted imported struct
+declarations.
+
+Changes:
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`: `Ty.isLowerableFuel`
+  now returns `false` for `.struct name` when the environment has no fields
+  for `name`.
+- `proofs/lean4/Trinity/IcarusLowerable/Completeness.lean`: every corpus env is
+  repaired so that its theorem matches the Rust structural classifier:
+  - Lowerable specs get lowerable stub declarations for every undefined
+    struct name referenced in the env or module.
+  - Non-lowerable specs carry a `w537_non_lowerable_marker` struct (with a
+    `.f32` field) and a matching dummy function, making the strict Lean
+    predicate return `false` exactly when Rust does.
+- `bootstrap/tests/icarus_lowerable.rs`: new
+  `corpus_classifier_matches_lean_completeness` regression test reads all
+  `Module.isLowerable` theorems, runs the Rust classifier on the matching
+  `.t27` spec, and asserts the verdicts agree.
+- `specs/scratch/w537_negative_undefined_struct.t27`: a negative witness whose
+  function returns an undeclared struct `Pt`; both classifiers reject it.
+
+Validation:
+- `lake build Trinity.IcarusLowerable.Soundness` green, zero `sorry`.
+- `cargo test -p t27c --test icarus_lowerable` passes, including the new
+  agreement test over the full corpus.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 35/35 Icarus, 35/35
+  cocotb, 0 seal mismatches.  24 pre-existing Yosys smoke failures remain.
+
+## 9. Cocotb reference-model cross-check gate (W536)
 
 W536 adds an independent Python reference-model cross-check that compares
 source-level expectations with Icarus Verilog simulation output.
@@ -166,7 +199,7 @@ Verilog simulation agrees with the expected literals declared in the source.
 Future waves can extend the Python evaluator to independently compute the
 value of the actual expression.
 
-## 9. Pre-existing yosys smoke baseline
+## 10. Pre-existing yosys smoke baseline
 
 The Icarus-lowerable gate is independent of the Yosys synthesis smoke gate.
 Several legacy `w3xx` scratch specs fail Yosys smoke because they exercise

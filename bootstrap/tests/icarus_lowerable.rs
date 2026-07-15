@@ -67,6 +67,20 @@ fn rejects_w534_negative_witnesses() {
 }
 
 #[test]
+fn rejects_w537_undefined_struct_witness() {
+    let dir = scratch_dir();
+    let p = dir.join("w537_negative_undefined_struct.t27");
+    assert!(p.exists(), "missing W537 negative witness {}", p.display());
+    let (lowerable, json) = run_icarus_lowerable(&p);
+    assert!(
+        !lowerable,
+        "expected {} to be rejected because Pt is not declared, got: {}",
+        p.display(),
+        json
+    );
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [
@@ -85,4 +99,97 @@ fn accepts_known_lowerable_witnesses() {
             json
         );
     }
+}
+
+/// W537 regression: every corpus spec in `Trinity.IcarusLowerable.Completeness`
+/// must have a theorem whose verdict matches the Rust structural classifier.
+#[test]
+fn corpus_classifier_matches_lean_completeness() {
+    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/.."));
+    let completeness = repo.join("proofs/lean4/Trinity/IcarusLowerable/Completeness.lean");
+    let text = std::fs::read_to_string(&completeness)
+        .expect("failed to read Completeness.lean");
+
+    // theorem foo_lowerable : Module.isLowerable foo_env foo_module = true := by native_decide
+    let theorem_re = regex::Regex::new(
+        r"theorem\s+(\w+)_lowerable\s*:\s*Module\.isLowerable\s+(\w+)_env\s+(\w+)_module\s*=\s*(true|false)\s*:=\s*by\s+native_decide",
+    )
+    .unwrap();
+
+    // Build env-name -> spec-path map the same way the Completeness.lean envs are named.
+    let specs_dir = repo.join("specs");
+    let mut env_to_spec: std::collections::HashMap<String, PathBuf> =
+        std::collections::HashMap::new();
+    for entry in walkdir::WalkDir::new(&specs_dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let p = entry.path();
+        if p.extension().and_then(|s| s.to_str()) != Some("t27") {
+            continue;
+        }
+        let rel = p.strip_prefix(&specs_dir).expect("spec under specs/");
+        let env_name = rel
+            .with_extension("")
+            .to_string_lossy()
+            .replace(std::path::MAIN_SEPARATOR, "_");
+        env_to_spec.insert(env_name, p.to_path_buf());
+    }
+
+    let mut checked = 0usize;
+    let mut missing_specs = Vec::new();
+    for cap in theorem_re.captures_iter(&text) {
+        let theorem_name = cap[1].to_string();
+        let env_name = cap[2].to_string();
+        let module_name = cap[3].to_string();
+        assert_eq!(
+            theorem_name, env_name,
+            "theorem/env name mismatch: {} vs {}",
+            theorem_name, env_name
+        );
+        assert_eq!(
+            env_name, module_name,
+            "env/module name mismatch: {} vs {}",
+            env_name, module_name
+        );
+        let lean_verdict = &cap[4] == "true";
+        let Some(spec) = env_to_spec.get(&env_name) else {
+            missing_specs.push(env_name);
+            continue;
+        };
+        let (rust_verdict, json) = run_icarus_lowerable(spec);
+        assert_eq!(
+            rust_verdict, lean_verdict,
+            "Rust/Lean lowerability mismatch for {}: Rust={}, Lean theorem={}\n{}",
+            spec.display(), rust_verdict, lean_verdict, json
+        );
+        checked += 1;
+    }
+
+    // A handful of envs are Lean-only formal witnesses with no matching .t27 file.
+    let expected_missing = [
+        "automation_wrapup_auto",
+        "igla_w521_2d_aos_param_soundness",
+        "igla_w524_2d_packed_aos_param_module",
+        "physics_gamma_conflict",
+    ];
+    for name in &expected_missing {
+        assert!(
+            missing_specs.contains(&name.to_string()),
+            "expected {} to be a Lean-only witness without a matching spec",
+            name
+        );
+    }
+    assert_eq!(
+        missing_specs.len(),
+        expected_missing.len(),
+        "unexpected envs without matching specs: {:?}",
+        missing_specs
+    );
+
+    assert!(
+        checked >= 245,
+        "expected at least 245 corpus agreement checks, got {}",
+        checked
+    );
 }
