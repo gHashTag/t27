@@ -1,3 +1,68 @@
+## 2026-07-07 — Wave Loop 540 (multi-signal VCD probes for wide packed structs and arrays)
+
+### What worked
+- Extending `expr_width_signed` to size `ExprCall` and `ExprStructLit` nodes that
+  return/evaluate to lowerable packed scalar structs let the backend emit multi-slice
+  probes for any wide `assert_eq` actual expression in the Icarus-lowerable subset.
+- Pre-declaring the wide temporary register together with the slice registers at the
+  top of each generated test block kept the output acceptable to Icarus Verilog's
+  declaration-before-statement rule.
+- Splitting wide packed values into deterministic 64-bit slices and reconstructing them
+  by OR-ing shifted slices in Python avoided dependence on external big-int VCD
+  libraries and matched the Verilog packed layout.
+- Adding `_eval_struct_lit_bv` and `_eval_array_lit_bv` to the Python reference model
+  made whole packed-struct/array literals comparable against the VCD reconstruction.
+- Re-wrapping simple literal expected values at the inferred actual width prevented
+  narrow-literal defaults from corrupting the comparison for wide types.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `expr_width_signed` now handles lowerable packed scalar struct returns and literals.
+  - `gen_verilog_test` pre-declares a packed temporary reg and per-slice regs for
+    wide assertions.
+  - `gen_verilog_test_stmt` assigns the temporary reg and copies each slice by
+    part-select.
+- `scripts/cocotb_ref_model.py`:
+  - Added `u128`/`i128` widths.
+  - Added `_eval_struct_lit_bv` and `_eval_array_lit_bv`.
+  - Added `_VcdParser.probe_slices` and slice reconstruction in `_cross_check`.
+  - `_collect_assertions` now uses `_type_of_expr` to size expected values at the
+    actual width.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- Added scratch witness `specs/scratch/w540_wide_packed_struct_array.t27`, its seal,
+  and its Icarus baseline.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_540_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W541_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 541.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 4 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 36 Icarus PASS,
+  36 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baseline
+  failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Declare all probe registers before emitting procedural statements in generated
+  Verilog initial blocks.
+- Encode deterministic slice names (`_s0`, `_s1`, ...) and reconstruct offsets from
+  the slice index rather than from VCD metadata, keeping the parser minimal.
+- When the actual expression is wider than the literal default, carry the actual
+  width into the expected value so the comparison is bit-accurate.
+
+### Anti-patterns to avoid
+- Do not emit variable declarations after the first procedural statement in a
+  generated Verilog block; Icarus rejects it even in `-g2012` mode.
+- Do not assume a literal's default evaluator width is the same as the expression
+  it is compared against; use the actual expression type as the authority.
+
+---
+
 ## 2026-07-08 — Wave Loop 539 (typed VCD probe + full Python expression evaluator)
 
 ### What worked

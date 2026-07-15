@@ -86,12 +86,14 @@ _TYPE_WIDTH: Dict[str, int] = {
     "i32": 32,
     "u64": 64,
     "i64": 64,
+    "u128": 128,
+    "i128": 128,
     "usize": 32,
     "int": 32,
     "nat": 32,
 }
 
-_TYPE_SIGNED: set = {"i8", "i16", "i32", "i64", "int"}
+_TYPE_SIGNED: set = {"i8", "i16", "i32", "i64", "i128", "int"}
 
 
 def _parse_array_type(ty: str) -> Optional[Tuple[List[int], str]]:
@@ -479,7 +481,75 @@ def _eval_expr_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
         return _eval_switch_bv(ctx, node)
     if kind == "ExprIf":
         return _eval_ternary_bv(ctx, node)
+    if kind == "ExprStructLit":
+        return _eval_struct_lit_bv(ctx, node)
+    if kind == "ExprArrayLiteral":
+        return _eval_array_lit_bv(ctx, node)
     return None
+
+
+def _eval_array_lit_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
+    """Pack a scalar array literal into a bit-vector (element 0 at LSB)."""
+    elem_type = node.get("extra_type", "")
+    try:
+        count = int(node.get("extra_size", "").split("][")[-1])
+    except ValueError:
+        return None
+    ws = _type_width_signed(elem_type)
+    if ws is None:
+        return None
+    elem_w, signed = ws
+    raw = 0
+    for i, child in enumerate(_children(node)):
+        val = _eval_expr_bv(ctx, child)
+        if val is None:
+            return None
+        mask = (1 << elem_w) - 1
+        raw |= (val.value & mask) << (i * elem_w)
+    return Bv(raw, count * elem_w, signed)
+
+
+def _eval_struct_lit_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
+    """Pack a scalar-struct literal into a bit-vector (LSB-first field order)."""
+    struct_name = node.get("name", "")
+    decl = ctx.decls.get(f"struct:{struct_name}")
+    if decl is None:
+        return None
+    fields = [(f.get("name", ""), f.get("extra_type", "")) for f in _children(decl)]
+    # Collect explicitly provided field values.
+    assigned: Dict[str, Bv] = {}
+    for child in _children(node):
+        if child.get("kind") != "ExprFieldAccess":
+            continue
+        fname = child.get("name", "")
+        kids = _children(child)
+        if not kids:
+            continue
+        val = _eval_expr_bv(ctx, kids[0])
+        if val is None:
+            return None
+        assigned[fname] = val
+    raw = 0
+    offset = 0
+    total_width = 0
+    for fname, ftype in fields:
+        val = assigned.get(fname)
+        if val is None:
+            info = _scalar_array_info(ftype)
+            if info is not None:
+                fw = info[0] * info[1]
+                val = Bv(0, fw, info[2])
+            else:
+                ws = _type_width_signed(ftype)
+                if ws is None:
+                    return None
+                fw, signed = ws
+                val = Bv(0, fw, signed)
+        mask = (1 << val.width) - 1
+        raw |= (val.value & mask) << offset
+        offset += val.width
+        total_width += val.width
+    return Bv(raw, total_width, False)
 
 
 def _eval_call_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
@@ -804,10 +874,25 @@ def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, int, Optional[A
                 out.append((block_name, idx, None, "skipped: assert_eq arity", probe))
                 idx += 1
                 continue
-            # Try the full typed evaluator first.
+            # Infer the actual expression's scalar width/signedness.  This is
+            # required for W540 wide probes: the VCD slices tell us the physical
+            # width, but we need the declared type to know whether the final
+            # value is signed.
+            actual_ws = _type_of_expr(ctx, args[0])
+            # Try the full typed evaluator first.  Keep the Bv object so the
+            # cross-check knows the exact width and signedness (W540 wide
+            # probes need this to reconstruct and interpret values correctly).
             expected_bv = _eval_expr_bv(ctx, args[1])
             if expected_bv is not None:
-                out.append((block_name, idx, expected_bv.as_int(), "ok", probe))
+                if actual_ws is not None and expected_bv.width != actual_ws[0]:
+                    # The evaluator may have used a default/narrow width for an
+                    # untyped literal, but the actual expression is wider.  Re-wrap
+                    # the literal's integer value at the actual width so the VCD
+                    # comparison compares the right number of bits.
+                    simple = _eval_simple_const(args[1])
+                    if isinstance(simple, int):
+                        expected_bv = Bv(simple, actual_ws[0], actual_ws[1])
+                out.append((block_name, idx, expected_bv, "ok", probe))
             else:
                 # Fall back to the simple literal evaluator for backwards
                 # compatibility with constant-only specs.
@@ -815,6 +900,8 @@ def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, int, Optional[A
                 if expected is None:
                     out.append((block_name, idx, None, "skipped: non-literal expected", probe))
                 else:
+                    if actual_ws is not None and isinstance(expected, int):
+                        expected = Bv(expected, actual_ws[0], actual_ws[1])
                     out.append((block_name, idx, expected, "ok", probe))
             idx += 1
     return out
@@ -985,6 +1072,29 @@ class _VcdParser:
                 return (val, self.id_to_width.get(sid, 64))
         return None
 
+    def probe_slices(self, base_name: str) -> Optional[List[Tuple[int, int, int]]]:
+        """Return sorted slice values for a wide probe: (value, width, offset)."""
+        slices: List[Tuple[int, int, int]] = []
+        prefix = base_name + "_s"
+        for sid, sname in self.id_to_name.items():
+            if sname == base_name:
+                # single-signal probe, not a slice set
+                return None
+            if not sname.startswith(prefix):
+                continue
+            suffix = sname[len(prefix):]
+            if not suffix.isdigit():
+                continue
+            slice_idx = int(suffix)
+            val = self.values.get(sid, 0)
+            width = self.id_to_width.get(sid, 64)
+            offset = slice_idx * 64
+            slices.append((val, width, offset))
+        if not slices:
+            return None
+        slices.sort(key=lambda t: t[2])
+        return slices
+
 
 # ---------------------------------------------------------------------------
 # Log parsing and cross-check
@@ -1044,20 +1154,44 @@ def _cross_check(
         for block_name, idx, expected, note, probe in assertions:
             if note != "ok" or expected is None:
                 continue
-            probe_info = vcd.probe_value(probe)
-            if probe_info is None:
-                continue
-            raw, width = probe_info
-            signed = isinstance(expected, int) and expected < 0
-            actual = _interpret_vcd_value(raw, width, signed)
+            expected_bv = expected if isinstance(expected, Bv) else None
+            # Prefer the typed width/signedness carried by the expected value;
+            # fall back to the single-signal VCD width and a heuristic for
+            # plain ints.
+            signed = expected_bv.signed if expected_bv is not None else (isinstance(expected, int) and expected < 0)
+
+            slices = vcd.probe_slices(probe)
+            if slices is not None:
+                raw = 0
+                full_width = 0
+                for val, swidth, offset in slices:
+                    mask = (1 << swidth) - 1
+                    raw |= (val & mask) << offset
+                    full_width = max(full_width, offset + swidth)
+                # The expected Bv was constructed at the actual expression width,
+                # which is authoritative even when slices only tell us the lower
+                # bound (e.g. a 128-bit value split 64+64).
+                if expected_bv is not None:
+                    full_width = expected_bv.width
+                actual = _interpret_vcd_value(raw, full_width, signed)
+            else:
+                probe_info = vcd.probe_value(probe)
+                if probe_info is None:
+                    continue
+                raw, width = probe_info
+                full_width = expected_bv.width if expected_bv is not None else width
+                actual = _interpret_vcd_value(raw, full_width, signed)
+
             if isinstance(expected, bool):
                 expected_int = 1 if expected else 0
+            elif isinstance(expected, Bv):
+                expected_int = expected.as_int()
             else:
                 expected_int = int(expected)
             if actual != expected_int:
                 errors.append(
                     f"VCD mismatch {probe} (block {block_name}, assert {idx}): "
-                    f"expected {expected_int}, got {raw} (signed {actual}, width={width})"
+                    f"expected {expected_int}, got {actual} (raw={raw}, width={full_width})"
                 )
 
     return (not errors), errors

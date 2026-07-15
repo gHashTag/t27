@@ -388,4 +388,43 @@ layout exactly.
 
 ---
 
+## Worked example — Wave Loop 540
+
+Wave Loop 540 extended W539's typed probes to multi-signal slice probes for wide
+packed values (>64 bits) in the Icarus-lowerable subset:
+
+- Extended `expr_width_signed` in `bootstrap/src/compiler.rs` to size `ExprCall`
+  returning a lowerable packed scalar struct and `ExprStructLit`, so wide assertions
+  trigger the multi-slice path.
+- Pre-declared a packed temporary register together with 64-bit slice registers at
+  the top of each generated test block; assigned the temporary from the actual
+  expression and copied each slice by part-select.
+- Added `_VcdParser.probe_slices`, slice reconstruction by OR-ing shifted slices,
+  and correct width/signedness interpretation in `scripts/cocotb_ref_model.py`.
+- Added `_eval_struct_lit_bv` and `_eval_array_lit_bv` so whole packed-struct and
+  scalar-array literals can be evaluated as bit-vectors.
+- Re-wrapped literal expected values at the inferred actual width so narrow defaults
+  do not corrupt wide comparisons.
+- Added `u128`/`i128` to the Python type-width table.
+- Sealed the scratch witness `specs/scratch/w540_wide_packed_struct_array.t27`
+  (80-bit packed struct with a `[5]u16` field) and recorded its Icarus baseline.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Wrote `docs/reports/WAVE_LOOP_540_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W541_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W541.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 4/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast`
+  36/0 Icarus PASS, 36/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: declare all generated probe registers before the first procedural
+statement in a Verilog initial block; Icarus rejects declarations that follow
+statements even in `-g2012` mode.  Use deterministic slice suffixes and reconstruct
+offsets from the suffix index to keep the VCD parser minimal and robust.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*

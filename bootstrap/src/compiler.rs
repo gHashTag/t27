@@ -3694,7 +3694,8 @@ pub struct VerilogCodegen {
     // W538: monotonic probe index for assert_eq VCD probes inside test blocks.
     probe_counter: usize,
     // W539: per-test-block probe metadata: (probe_name, width_bits, is_signed).
-    probe_specs: Vec<(String, u32, bool)>,
+    // W540: extended to include an optional slice offset for multi-signal probes.
+    probe_specs: Vec<(String, u32, bool, Option<u32>)>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -3998,10 +3999,14 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprCall => {
-                // Parameterless function calls whose return type is scalar.
+                // Parameterless function calls whose return type is scalar or a
+                // lowerable packed scalar struct (W540 wide probe path).
                 let ret_ty = self.fn_return_types.get(&node.name)?;
                 if Self::is_primitive_scalar_type(ret_ty) {
                     Some((Self::type_to_width(ret_ty), Self::type_is_signed(ret_ty)))
+                } else if self.is_lowerable_scalar_struct_type(ret_ty) {
+                    let base = Self::base_type_name(ret_ty);
+                    Some((self.element_width(&base), false))
                 } else {
                     None
                 }
@@ -4135,6 +4140,21 @@ impl VerilogCodegen {
                 // Result type is the type of any case result; use the first one.
                 node.children.get(1)
                     .and_then(|c| self.expr_width_signed(c))
+            }
+            NodeKind::ExprStructLit => {
+                // A literal of a lowerable packed scalar struct has the packed
+                // vector width of that struct (W540 wide probe path).
+                let ty = node.extra_type.as_str();
+                let struct_name = if !ty.is_empty() {
+                    ty.to_string()
+                } else {
+                    node.name.clone()
+                };
+                if self.is_lowerable_scalar_struct_type(&struct_name) {
+                    Some((self.element_width(&struct_name), false))
+                } else {
+                    None
+                }
             }
             _ => None,
         }
@@ -5841,23 +5861,67 @@ impl VerilogCodegen {
                     let actual = &stmt.unwrap().children[0];
                     let (width, signed) = self.expr_width_signed(actual)
                         .unwrap_or((64, false));
-                    let probe_name = format!(
-                        "_t27_probe_{}_{}",
-                        Self::sanitize_identifier(&node.name),
-                        probe_idx
-                    );
-                    let range = Self::range_decl(width);
-                    self.write_indent();
-                    self.write_line(&format!(
-                        "reg {}{} {}; // W539 typed probe w={} signed={}",
-                        range,
-                        if range.is_empty() { "" } else { " " },
-                        probe_name,
-                        width,
-                        signed
-                    ));
-                    self.probe_specs.push((probe_name, width, signed));
-                    probe_idx += 1;
+                    if width <= 64 {
+                        let probe_name = format!(
+                            "_t27_probe_{}_{}",
+                            Self::sanitize_identifier(&node.name),
+                            probe_idx
+                        );
+                        let range = Self::range_decl(width);
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "reg {}{} {}; // W539 typed probe w={} signed={}",
+                            range,
+                            if range.is_empty() { "" } else { " " },
+                            probe_name,
+                            width,
+                            signed
+                        ));
+                        self.probe_specs.push((probe_name, width, signed, None));
+                        probe_idx += 1;
+                    } else {
+                        // W540: split the wide expression into 64-bit (or final
+                        // partial) slice probes.  Declare a temporary packed reg
+                        // here so all variable declarations precede procedural
+                        // statements in the test block.
+                        let tmp_name = format!(
+                            "_t27_probe_tmp_{}_{}",
+                            Self::sanitize_identifier(&node.name),
+                            probe_idx
+                        );
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "reg [{}:0] {}; // W540 wide probe tmp",
+                            width - 1,
+                            tmp_name
+                        ));
+                        let mut offset = 0u32;
+                        let mut slice_idx = 0usize;
+                        while offset < width {
+                            let slice_width = (width - offset).min(64);
+                            let slice_name = format!(
+                                "_t27_probe_{}_{}_s{}",
+                                Self::sanitize_identifier(&node.name),
+                                probe_idx,
+                                slice_idx
+                            );
+                            let range = Self::range_decl(slice_width);
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "reg {}{} {}; // W540 slice offset={} w={} signed={}",
+                                range,
+                                if range.is_empty() { "" } else { " " },
+                                slice_name,
+                                offset,
+                                slice_width,
+                                signed
+                            ));
+                            self.probe_specs.push((slice_name, slice_width, signed, Some(offset)));
+                            offset += slice_width;
+                            slice_idx += 1;
+                        }
+                        probe_idx += 1;
+                    }
                 }
             }
         }
@@ -5888,22 +5952,67 @@ impl VerilogCodegen {
                             // W538: assign the scalar probe that captures the
                             // actual expression value for independent VCD cross-check.
                             // W539: probe metadata was recorded during hoisting.
+                            // W540: wide expressions are split into slice probes.
                             let probe_idx = self.probe_counter;
                             self.probe_counter += 1;
-                            let probe_name = format!(
+                            let base_name = format!(
                                 "_t27_probe_{}_{}",
                                 Self::sanitize_identifier(test_name),
                                 probe_idx
                             );
-                            self.write_indent();
-                            self.write(&format!("{} = (", probe_name));
-                            self.gen_verilog_expr(&expr.children[0]);
-                            self.write_line(");");
-                            self.write_indent();
-                            self.write_line(&format!(
-                                "$display(\"[PROBE] {} {} = %0d\", {});",
-                                test_name, probe_idx, probe_name
-                            ));
+                            let slice_prefix = format!("{}_s", base_name);
+                            let specs: Vec<(String, u32, bool, Option<u32>)> = self
+                                .probe_specs
+                                .iter()
+                                .filter(|(n, _, _, _)| {
+                                    n == &base_name || n.starts_with(&slice_prefix)
+                                })
+                                .cloned()
+                                .collect();
+                            let is_wide = specs.iter().any(|(_, _, _, off)| off.is_some());
+                            if is_wide {
+                                // W540: multi-slice probe.  Determine the full
+                                // packed width from the slice coverage.
+                                let full_width = specs
+                                    .iter()
+                                    .map(|(_, w, _, off)| off.unwrap_or(0) + w)
+                                    .max()
+                                    .unwrap_or(64);
+                                // The packed temporary reg was declared with
+                                // the probe slices; just assign it here.
+                                let tmp_name = format!(
+                                    "_t27_probe_tmp_{}_{}",
+                                    Self::sanitize_identifier(test_name),
+                                    probe_idx
+                                );
+                                self.write_indent();
+                                self.write(&format!("{} = (", tmp_name));
+                                self.gen_verilog_expr(&expr.children[0]);
+                                self.write_line(");");
+                                for (slice_name, slice_width, _signed, offset) in &specs {
+                                    let off = offset.unwrap_or(0);
+                                    self.write_indent();
+                                    self.write_line(&format!(
+                                        "{} = {}[{} +: {}];",
+                                        slice_name, tmp_name, off, slice_width
+                                    ));
+                                    self.write_indent();
+                                    self.write_line(&format!(
+                                        "$display(\"[PROBE] {} {} = %0d\", {});",
+                                        test_name, probe_idx, slice_name
+                                    ));
+                                }
+                            } else {
+                                self.write_indent();
+                                self.write(&format!("{} = (", base_name));
+                                self.gen_verilog_expr(&expr.children[0]);
+                                self.write_line(");");
+                                self.write_indent();
+                                self.write_line(&format!(
+                                    "$display(\"[PROBE] {} {} = %0d\", {});",
+                                    test_name, probe_idx, base_name
+                                ));
+                            }
                             self.write_indent();
                             self.write("if (((");
                             self.gen_verilog_expr(&expr.children[0]);
