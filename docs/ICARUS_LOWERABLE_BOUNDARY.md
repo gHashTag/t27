@@ -140,7 +140,33 @@ After W535 the remaining divergence is the handling of undefined struct names in
 the simplified corpus model (Lean treats them leniently; Rust resolves them
 against the full parser environment).
 
-## 8. Pre-existing yosys smoke baseline
+## 8. Cocotb reference-model cross-check gate (W536)
+
+W536 adds an independent Python reference-model cross-check that compares
+source-level expectations with Icarus Verilog simulation output.
+
+- **AST JSON export**: `t27c parse --json` emits the parsed AST as JSON
+  (`bootstrap/src/compiler.rs` derives `serde::Serialize` on `Node` and
+  `NodeKind`).
+- **Simulation Verilog dump**: `t27c gen-verilog-for-simulation` prints the same
+  self-checking Verilog testbench used by `t27c icarus-simulate`.
+- **Reference model**: `scripts/cocotb_ref_model.py` extracts `assert_eq`
+  expected literals from `test` / `invariant` blocks, runs the simulation via
+  `iverilog` + `vvp`, and verifies that every statically evaluable block is
+  reported as `[TEST] <name> : PASSED`.  When `cocotb` is available the model
+  uses `cocotb_tools.runner`; otherwise it falls back to direct subprocess
+  invocation of `iverilog`/`vvp`.
+- **CLI gate**: `t27c icarus-cocotb <spec.t27>` drives the above flow for a
+  single spec.
+- **Suite gate**: `./scripts/tri test --icarus-lowerable --cocotb --fast` runs
+  the reference model on all lowerable `w5xx`/`w3xx` scratch regression specs.
+
+The reference model is intentionally lightweight in W536: it checks that the
+Verilog simulation agrees with the expected literals declared in the source.
+Future waves can extend the Python evaluator to independently compute the
+value of the actual expression.
+
+## 9. Pre-existing yosys smoke baseline
 
 The Icarus-lowerable gate is independent of the Yosys synthesis smoke gate.
 Several legacy `w3xx` scratch specs fail Yosys smoke because they exercise

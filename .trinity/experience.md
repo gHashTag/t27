@@ -3376,3 +3376,58 @@
 - Do not run `./scripts/tri test` without `--icarus-lowerable` on a branch that
   touches the classifier, because the full suite will attempt to simulate specs
   that the backend cannot lower.
+
+---
+
+---
+
+---
+
+## Wave Loop 536 — Cocotb reference-model cosimulation gate
+
+**Date:** 2026-07-07  
+**Issue:** #1507  
+**Branch:** wave-loop-536
+
+### What worked
+- Deriving serde::Serialize on the AST Node types let the Python reference
+  model consume the source tree without re-implementing the parser.
+- Reusing the existing self-checking simulation Verilog (compile_verilog_for_simulation)
+  meant the gate could be built on top of proven backend output.
+- Extracting expected literals from assert_eq calls in test/invariant blocks
+  gave an independent source-level oracle that is easy to extend later.
+- Resolving the generated top-level module name from the emitted Verilog text
+  handled specs that omit an explicit module declaration.
+
+### Deliverables
+- bootstrap/src/compiler.rs — serde::Serialize on Node/NodeKind.
+- bootstrap/src/main.rs — t27c parse --json, t27c gen-verilog-for-simulation,
+  and t27c icarus-cocotb subcommands; --cocotb suite flag.
+- bootstrap/src/suite.rs — Phase 3e cocotb reference-model gate.
+- scripts/cocotb_ref_model.py — Python reference model with cocotb fallback.
+- docs/ICARUS_LOWERABLE_BOUNDARY.md — cocotb gate documentation.
+- docs/reports/WAVE_LOOP_536_CLOSEOUT.md and
+  docs/reports/FPGA_LOOP_COOPERATION_W537_2026-07-07.md.
+- .trinity/current-issue.md advanced to Wave Loop 537.
+
+### Verification
+- cargo build --release -p t27c: OK.
+- cargo test -p t27c --bin t27c: 1494 passed; 0 failed; 2 ignored.
+- cargo test -p tri: 78 passed; 0 failed.
+- ./scripts/tri test --icarus-lowerable --cocotb --fast: 35 Icarus passed,
+  0 failed; 35 cocotb reference-model passed, 0 failed; 610 seal matches,
+  0 mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+
+### Patterns to reuse
+- Add AST export flags early when building external reference models; JSON is
+  the lowest-friction interchange format.
+- Make framework-dependent gates degrade to direct subprocess invocation so they
+  survive Python environment constraints (PEP 668, incompatible Python versions).
+- Derive serialization on compiler AST types with serde::Serialize rather than
+  hand-writing a separate schema; the AST is the schema.
+
+### Anti-patterns to avoid
+- Do not assume the top-level Verilog module name equals the file stem; always
+  parse it from the generated source or from the AST module name.
+- Do not require cocotb to be installed system-wide; document the fallback
+  path and the T27_COCOTB_PYTHON override.

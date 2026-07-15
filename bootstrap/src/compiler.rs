@@ -6,11 +6,13 @@
 
 use std::default::Default;
 
+use serde::Serialize;
+
 // ============================================================================
 // AST Node Types (from parser.t27)
 // ============================================================================
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum NodeKind {
     Module,
     UseDecl,
@@ -49,7 +51,7 @@ pub enum NodeKind {
     StmtExpr, // bare expression statement: func(a, b);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 #[allow(dead_code)]
 pub struct Node {
     pub kind: NodeKind,

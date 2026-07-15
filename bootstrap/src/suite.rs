@@ -16,6 +16,8 @@ pub struct SuiteOptions {
     pub icarus_simulate: bool,
     /// Restrict Icarus simulation to specs the classifier marks lowerable.
     pub icarus_lowerable: bool,
+    /// Run the Python reference-model cocotb cross-check on lowerable specs.
+    pub cocotb: bool,
     /// Skip long-running phases where possible.
     pub fast: bool,
 }
@@ -191,6 +193,28 @@ fn cmd_icarus_simulate(repo: &Path, rel: &str) -> anyhow::Result<String> {
         anyhow::bail!("{}", format!("Icarus simulation failed: {} {}", err.trim(), out.trim()).trim());
     }
     Ok(out)
+}
+
+fn cmd_icarus_cocotb(repo: &Path, rel: &str) -> anyhow::Result<()> {
+    let exe = t27c_exe()?;
+    let st = Command::new(&exe)
+        .current_dir(repo)
+        .args(["icarus-cocotb", rel])
+        .output()?;
+    let out = String::from_utf8_lossy(&st.stdout).to_string();
+    if !st.status.success() {
+        let err = String::from_utf8_lossy(&st.stderr);
+        anyhow::bail!(
+            "{}",
+            format!(
+                "cocotb reference-model failed: {} {}",
+                err.trim(),
+                out.trim()
+            )
+            .trim()
+        );
+    }
+    Ok(())
 }
 
 fn icarus_regression_specs(repo: &Path) -> Vec<PathBuf> {
@@ -549,6 +573,35 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         println!("Icarus simulation gate disabled (use --icarus-simulate or --icarus-lowerable)");
     }
 
+    println!("--- Phase 3e: Cocotb Reference-Model Cross-Check Gate ---");
+    let mut p3e_fail = 0usize;
+    if opts.cocotb {
+        if icarus_tools_available() {
+            let mut cocotb_targets = icarus_regression_specs(&repo);
+            if opts.icarus_lowerable {
+                cocotb_targets.retain(|f| {
+                    let rel = match rel_arg(&repo, f) {
+                        Ok(r) => r,
+                        Err(_) => return false,
+                    };
+                    is_icarus_lowerable(&repo, &rel)
+                });
+            }
+            let (p3ep, p3ef) = run_phase(
+                &repo,
+                "icarus-cocotb",
+                cmd_icarus_cocotb,
+                &cocotb_targets,
+            )?;
+            println!("Cocotb Reference Model: {} passed, {} failed", p3ep, p3ef);
+            p3e_fail = p3ef;
+        } else {
+            println!("iverilog/vvp not available; skipping cocotb reference-model gate");
+        }
+    } else {
+        println!("Cocotb reference-model gate disabled (use --cocotb)");
+    }
+
     println!("--- Phase 4: Gen C ---");
     let (p4p, p4f) = run_phase(
         &repo,
@@ -582,7 +635,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
 
     println!();
     println!("=== SUMMARY ===");
-    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p4f + p5f + fp_diff;
+    let total_fail = p1f + p1bf + gf16_fail + p2f + p2bf + p3f + p3b_fail + p3c_fail + p3d_fail + p3e_fail + p4f + p5f + fp_diff;
     println!("Parse failures:           {}", p1f);
     println!("Typecheck fails:          {}", p1bf);
     println!("GF16 conformance:         {}", gf16_fail);
@@ -592,6 +645,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     println!("Gen Verilog smoke fails:  {}", p3b_fail);
     println!("FPGA smoke fails:         {}", p3c_fail);
     println!("Icarus simulation fails:  {}", p3d_fail);
+    println!("Cocotb reference fails:   {}", p3e_fail);
     println!("Gen C failures:           {}", p4f);
     println!("Seal mismatches:          {}", p5f);
     println!("FP divergences:           {}", fp_diff);

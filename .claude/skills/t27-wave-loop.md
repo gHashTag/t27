@@ -240,6 +240,35 @@ theorems that become false immediately, and treat undefined struct names
 leniently in simplified corpus models until the generator supplies full field
 lists.
 
+## Worked example — Wave Loop 536
+
+Wave Loop 536 added a cocotb reference-model cosimulation gate:
+
+- Derived `serde::Serialize` on `Node`/`NodeKind` in `bootstrap/src/compiler.rs`
+  and updated `bootstrap/stage0/FROZEN_HASH`.
+- Added `t27c parse --json` and `t27c gen-verilog-for-simulation` subcommands.
+- Created `scripts/cocotb_ref_model.py` to extract `assert_eq` expected literals
+  from the t27 AST, run `iverilog` + `vvp`, and verify simulation log PASS
+  lines.  The script uses `cocotb_tools.runner` when available and falls back
+  to direct subprocess invocation otherwise.
+- Added `t27c icarus-cocotb` and the `--cocotb` suite flag in
+  `bootstrap/src/suite.rs` (Phase 3e).
+- Seeded the gate with lowerable `w5xx`/`w3xx` scratch regression specs; the
+  suite reports 35/35 cocotb reference-model checks passing.
+- Wrote `docs/reports/WAVE_LOOP_536_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W537_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W537.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast` 35/0 Icarus PASS,
+  35/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baselines
+  unchanged.
+
+Key learning: environment-specific Python dependencies (PEP 668, Python 3.14
+compatibility) make strict cocotb availability fragile.  Design reference-model
+gates to degrade gracefully to direct simulator subprocess invocation so the
+gate keeps running even when the fancy framework is temporarily unavailable.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

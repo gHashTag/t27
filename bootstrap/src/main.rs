@@ -72,6 +72,10 @@ enum Commands {
     Parse {
         /// Input file path
         input: String,
+
+        /// Emit JSON instead of Rust Debug format
+        #[arg(long, default_value_t = false)]
+        json: bool,
     },
 
     /// Generate Zig code from .t27 file
@@ -95,6 +99,14 @@ enum Commands {
         /// Only used with --with-sva.
         #[arg(long)]
         sva_behaviors: Option<String>,
+    },
+
+    /// Generate self-checking Verilog testbench from .t27 file
+    /// (same output used by icarus-simulate).
+    #[command(name = "gen-verilog-for-simulation")]
+    GenVerilogForSimulation {
+        /// Input file path
+        input: String,
     },
 
     /// Debug: dump Hardware IR (HIR) from .t27 file
@@ -133,6 +145,16 @@ enum Commands {
         /// Emit JSON verdict on stdout
         #[arg(long, default_value_t = false)]
         json: bool,
+    },
+
+    /// Run generated Verilog through a Python reference-model cross-check.
+    /// The reference model extracts expected assert_eq literals from the t27
+    /// AST, runs Icarus Verilog (via cocotb when available, otherwise via
+    /// direct iverilog/vvp), and verifies that the simulation log reports PASS
+    /// for every statically evaluable test block.
+    IcarusCocotb {
+        /// Input file path
+        input: String,
     },
 
     /// Emit the balanced-ternary HW primitive library (trit stdlib) as one
@@ -795,6 +817,10 @@ enum Commands {
         /// Restrict Icarus simulation to specs the classifier marks lowerable.
         #[arg(long, default_value_t = false)]
         icarus_lowerable: bool,
+
+        /// Run the Python reference-model cocotb cross-check on lowerable specs.
+        #[arg(long, default_value_t = false)]
+        cocotb: bool,
 
         /// Skip long-running phases (parse/typecheck/gen are still run).
         #[arg(long, default_value_t = false)]
@@ -2913,12 +2939,18 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
 // Command Handlers
 // ============================================================================
 
-fn run_parse(input_path: &str) -> anyhow::Result<()> {
+fn run_parse(input_path: &str, json: bool) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
 
     match compiler::Compiler::parse_ast(&source) {
-        Ok(ast) => println!("{:#?}", ast),
+        Ok(ast) => {
+            if json {
+                println!("{}", serde_json::to_string_pretty(&ast)?);
+            } else {
+                println!("{:#?}", ast);
+            }
+        }
         Err(e) => anyhow::bail!("Parse error: {}", e),
     }
     Ok(())
@@ -2956,6 +2988,16 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
             }
         }
         Err(e) => anyhow::bail!("Compile error: {}", e),
+    }
+    Ok(())
+}
+
+fn run_gen_verilog_for_simulation(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+    match compiler::Compiler::compile_verilog_for_simulation(&source) {
+        Ok(verilog) => print!("{}", verilog),
+        Err(e) => anyhow::bail!("Simulation Verilog generation error: {}", e),
     }
     Ok(())
 }
@@ -3074,6 +3116,119 @@ fn run_icarus_lowerable(input_path: &str, json: bool) -> anyhow::Result<()> {
             let reason = verdict.as_ref().err().map(|e| e.to_string()).unwrap_or_else(|| "not lowerable".to_string());
             println!("not_lowerable: {}", reason);
         }
+    }
+    Ok(())
+}
+
+/// W536: locate a Python interpreter that can import cocotb. Falls back to
+/// plain ``python3`` and direct iverilog/vvp mode if cocotb is not available.
+fn find_cocotb_python() -> (String, bool) {
+    if let Ok(python) = std::env::var("T27_COCOTB_PYTHON") {
+        let has_cocotb = std::process::Command::new(&python)
+            .args(["-c", "import cocotb"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        return (python, has_cocotb);
+    }
+    for python in ["python3", "python"] {
+        let has_cocotb = std::process::Command::new(python)
+            .args(["-c", "import cocotb"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if has_cocotb {
+            return (python.to_string(), true);
+        }
+    }
+    ("python3".to_string(), false)
+}
+
+/// W536: locate ``scripts/cocotb_ref_model.py`` relative to the repo root.
+fn find_cocotb_ref_model_script() -> anyhow::Result<PathBuf> {
+    let from_cwd = std::env::current_dir()
+        .ok()
+        .map(|d| d.join("scripts").join("cocotb_ref_model.py"));
+    if let Some(p) = from_cwd {
+        if p.is_file() {
+            return Ok(p);
+        }
+    }
+    let from_exe = std::env::current_exe()
+        .ok()
+        .and_then(|exe| {
+            // target/release/t27c  ->  repo root
+            exe.parent().and_then(|d| d.parent()).map(|root| {
+                root.join("scripts").join("cocotb_ref_model.py")
+            })
+        });
+    if let Some(p) = from_exe {
+        if p.is_file() {
+            return Ok(p);
+        }
+    }
+    anyhow::bail!("could not find scripts/cocotb_ref_model.py; run t27c from the repo root")
+}
+
+/// W536: generate self-checking Verilog, dump the AST as JSON, and run the
+/// Python reference-model cross-check.
+fn run_icarus_cocotb(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)
+        .with_context(|| format!("failed to read {}", input_path))?;
+
+    let ast = compiler::Compiler::parse_ast(&source)
+        .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
+    let verilog = compiler::Compiler::compile_verilog_for_simulation(&source)
+        .map_err(|e| anyhow::anyhow!("Verilog generation error: {}", e))?;
+
+    // The generated Verilog may use a synthetic module name when the source
+    // lacks an explicit ``module`` declaration, so take the top module name
+    // from the emitted text rather than the AST.
+    let top_module = extract_module_name_from_verilog(&verilog);
+
+    let name = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "cocotb".to_string());
+    let tmp = std::env::temp_dir().join(format!(
+        "t27c_cocotb_{}_{}", name, std::process::id()));
+    fs::create_dir_all(&tmp)
+        .with_context(|| format!("creating temp directory {}", tmp.display()))?;
+
+    let v_path = tmp.join("DUT.v");
+    let ast_path = tmp.join("ast.json");
+    fs::write(&v_path, verilog)
+        .with_context(|| format!("writing temporary Verilog {}", v_path.display()))?;
+    fs::write(&ast_path, serde_json::to_string_pretty(&ast)?)
+        .with_context(|| format!("writing temporary AST JSON {}", ast_path.display()))?;
+
+    let script = find_cocotb_ref_model_script()?;
+    let (python, has_cocotb) = find_cocotb_python();
+
+    let mut cmd = std::process::Command::new(&python);
+    cmd.arg(&script)
+        .arg("--ast-json")
+        .arg(&ast_path)
+        .arg("--verilog")
+        .arg(&v_path)
+        .arg("--top-module")
+        .arg(&top_module);
+    if has_cocotb {
+        cmd.arg("--use-cocotb");
+    }
+
+    let out = cmd.output().context("spawning cocotb reference model")?;
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    if !stdout.is_empty() {
+        print!("{}", stdout);
+    }
+    if !stderr.is_empty() {
+        eprint!("{}", stderr);
+    }
+    if !out.status.success() {
+        anyhow::bail!("cocotb reference-model cross-check failed for {}", input_path);
     }
     Ok(())
 }
@@ -8224,15 +8379,18 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Parse { input } => run_parse(&input)?,
+        Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input, with_sva, sva_behaviors } =>
             run_gen_verilog(&input, with_sva, sva_behaviors.as_deref())?,
+        Commands::GenVerilogForSimulation { input } =>
+            run_gen_verilog_for_simulation(&input)?,
         Commands::DebugHir { input } => run_debug_hir(&input)?,
         Commands::GenVerilogHir { input, with_sva, sva_behaviors } =>
             run_gen_verilog_hir(&input, with_sva, sva_behaviors.as_deref())?,
         Commands::IcarusSimulate { input } => run_icarus_simulate(&input)?,
         Commands::IcarusLowerable { input, json } => run_icarus_lowerable(&input, json)?,
+        Commands::IcarusCocotb { input } => run_icarus_cocotb(&input)?,
         Commands::GenTritStdlib { output } => run_gen_trit_stdlib(output.as_deref())?,
         Commands::GenBehaviorSva {
             name,
@@ -8329,12 +8487,14 @@ async fn main() -> anyhow::Result<()> {
             repo_root,
             icarus_simulate,
             icarus_lowerable,
+            cocotb,
             fast,
         } => suite::run_comprehensive(
             &repo_root,
             suite::SuiteOptions {
                 icarus_simulate,
                 icarus_lowerable,
+                cocotb,
                 fast,
             },
         )?,
@@ -8499,15 +8659,18 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Parse { input } => run_parse(&input)?,
+        Commands::Parse { input, json } => run_parse(&input, json)?,
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input, with_sva, sva_behaviors } =>
             run_gen_verilog(&input, with_sva, sva_behaviors.as_deref())?,
+        Commands::GenVerilogForSimulation { input } =>
+            run_gen_verilog_for_simulation(&input)?,
         Commands::DebugHir { input } => run_debug_hir(&input)?,
         Commands::GenVerilogHir { input, with_sva, sva_behaviors } =>
             run_gen_verilog_hir(&input, with_sva, sva_behaviors.as_deref())?,
         Commands::IcarusSimulate { input } => run_icarus_simulate(&input)?,
         Commands::IcarusLowerable { input, json } => run_icarus_lowerable(&input, json)?,
+        Commands::IcarusCocotb { input } => run_icarus_cocotb(&input)?,
         Commands::GenTritStdlib { output } => run_gen_trit_stdlib(output.as_deref())?,
         Commands::GenBehaviorSva {
             name,
@@ -8603,12 +8766,14 @@ fn main() -> anyhow::Result<()> {
             repo_root,
             icarus_simulate,
             icarus_lowerable,
+            cocotb,
             fast,
         } => suite::run_comprehensive(
             &repo_root,
             suite::SuiteOptions {
                 icarus_simulate,
                 icarus_lowerable,
+                cocotb,
                 fast,
             },
         )?,

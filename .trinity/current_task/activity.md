@@ -1564,3 +1564,7 @@
 - **Commit:** plan(535): decomposed W535 plan — align Lean 4 lowerability predicate with Rust structural classifier
 - **Files:** .claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/igla_w535_bounded_while_module.json,docs/ICARUS_LOWERABLE_BOUNDARY.md,docs/reports/FPGA_LOOP_COOPERATION_W536_2026-07-07.md,docs/reports/WAVE_LOOP_535_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Completeness.lean,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/igla/w535_bounded_while_module.t27
 
+## 2026-07-15T03:11:33Z — wave-loop-536
+- **Commit:** feat(icarus-lowerable): Wave Loop 535 — align Lean 4 lowerability predicate with Rust structural classifier, recursive struct-field check, reject while(true) and imported calls, six W535 negative theorems, bounded-while corpus witness, 0 Icarus failures / 0 seal mismatches (Closes #1506)
+- **Files:** .claude/plans/wave-loop-536.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,bootstrap/src/compiler.rs,bootstrap/src/main.rs,bootstrap/src/suite.rs,bootstrap/stage0/FROZEN_HASH,docs/ICARUS_LOWERABLE_BOUNDARY.md,docs/reports/FPGA_LOOP_COOPERATION_W537_2026-07-07.md,docs/reports/WAVE_LOOP_536_CLOSEOUT.md,scripts/cocotb_ref_model.py
+
