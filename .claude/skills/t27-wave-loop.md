@@ -311,6 +311,46 @@ whose extracted module is too coarse to reproduce the rejection, a deliberately
 non-lowerable marker struct/function is an acceptable way to keep the proof
 meaningful and CI-checkable.
 
+## Worked example — Wave Loop 538
+
+Wave Loop 538 added a VCD probe and an independent reference-model cross-check
+to the cocotb gate:
+
+- Added a per-test-block probe counter to `VerilogCodegen` and emitted
+  `reg [63:0] _t27_probe_<block>_<N>` declarations for every `assert_eq` actual
+  expression in simulation mode, hoisted to the top of the generated
+  `initial` block.
+- Emitted `$dumpfile("dump.vcd"); $dumpvars(0);` inside
+  `// synthesis translate_off` only when `emit_test_assertions` is true, so
+  synthesis-mode seals stayed stable.
+- Updated `scripts/cocotb_ref_model.py` to capture VCD in both direct
+  `iverilog/vvp` and cocotb runner paths, parse final probe values with a
+  minimal built-in VCD parser, and compare them against independently evaluated
+  expected literals.  Negative expected literals are compared as signed 64-bit
+  two's complement to match Verilog sign extension.
+- Skipped X/missing probes gracefully (typical for wide non-scalar values) and
+  fell back to the log-based self-check.
+- Updated `bootstrap/src/suite.rs::normalize_icarus_output` to filter out VCD
+  startup diagnostics and `[PROBE]` debug lines, so the existing Phase 3d
+  baselines remained valid without re-recording.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Wrote `docs/reports/WAVE_LOOP_538_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W539_2026-07-15.md`, and advanced
+  `.trinity/current-issue.md` to W539.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 4/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable --cocotb --fast`
+  35/0 Icarus PASS, 35/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: gate all simulation-only instrumentation with
+`emit_test_assertions` to keep synthesis seals stable, and normalize new debug
+output out of deterministic baseline comparisons instead of re-recording every
+baseline.  Treat unreadable VCD probes as skipped supplemental checks, not gate
+failures, when the chosen probe width cannot represent the value.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

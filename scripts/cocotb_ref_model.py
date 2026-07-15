@@ -121,15 +121,23 @@ def _eval_simple_const(node: Dict[str, Any]) -> Optional[Any]:
     return None
 
 
-def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, int, Optional[Any], str]]:
+def _sanitize_probe_name(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_]", "_", name)
+
+
+def _probe_name(block_name: str, idx: int) -> str:
+    return f"_t27_probe_{_sanitize_probe_name(block_name)}_{idx}"
+
+
+def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, int, Optional[Any], str, str]]:
     """
-    Return list of (block_name, index, expected_value, note) assertions.
+    Return list of (block_name, index, expected_value, note, probe_name) assertions.
 
     Only ``assert_eq(<actual>, <expected>)`` calls with a statically
     evaluable expected literal are recorded; everything else is skipped
     with note ``skipped``.
     """
-    out: List[Tuple[str, int, Optional[Any], str]] = []
+    out: List[Tuple[str, int, Optional[Any], str, str]] = []
     for block in _children(root):
         bkind = block.get("kind")
         if bkind not in ("TestBlock", "InvariantBlock"):
@@ -147,28 +155,29 @@ def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, int, Optional[A
             if call.get("name") != "assert_eq":
                 continue
             args = _children(call)
+            probe = _probe_name(block_name, idx)
             if len(args) != 2:
-                out.append((block_name, idx, None, "skipped: assert_eq arity"))
+                out.append((block_name, idx, None, "skipped: assert_eq arity", probe))
                 idx += 1
                 continue
             expected = _eval_simple_const(args[1])
             if expected is None:
-                out.append((block_name, idx, None, "skipped: non-literal expected"))
+                out.append((block_name, idx, None, "skipped: non-literal expected", probe))
             else:
-                out.append((block_name, idx, expected, "ok"))
+                out.append((block_name, idx, expected, "ok", probe))
             idx += 1
     return out
 
 
-def _block_has_evaluable_asserts(assertions: List[Tuple[str, int, Optional[Any], str]], block_name: str) -> bool:
-    return any(name == block_name and note == "ok" for name, _, _, note in assertions)
+def _block_has_evaluable_asserts(assertions: List[Tuple[str, int, Optional[Any], str, str]], block_name: str) -> bool:
+    return any(name == block_name and note == "ok" for name, _, _, _, _ in assertions)
 
 
-def _expected_pass_blocks(assertions: List[Tuple[str, int, Optional[Any], str]]) -> List[str]:
+def _expected_pass_blocks(assertions: List[Tuple[str, int, Optional[Any], str, str]]) -> List[str]:
     """Block names that have at least one evaluable assert_eq."""
     seen: set = set()
     out: List[str] = []
-    for name, _, _, note in assertions:
+    for name, _, _, note, _ in assertions:
         if note == "ok" and name not in seen:
             seen.add(name)
             out.append(name)
@@ -190,10 +199,11 @@ def _find_simulator() -> Tuple[str, str]:
     return iverilog, vvp
 
 
-def _run_iverilog_vvp(verilog_path: Path, top_module: str) -> Tuple[int, str, str]:
+def _run_iverilog_vvp(verilog_path: Path, top_module: str) -> Tuple[int, str, str, Optional[Path]]:
     iverilog, vvp = _find_simulator()
     work = verilog_path.parent
     vvp_path = work / f"{verilog_path.stem}.vvp"
+    vcd_path = work / "dump.vcd"
     compile_cmd = [
         iverilog,
         "-g2012",
@@ -203,12 +213,14 @@ def _run_iverilog_vvp(verilog_path: Path, top_module: str) -> Tuple[int, str, st
     ]
     rc, cout, cerr = _run_subprocess(compile_cmd, cwd=work)
     if rc != 0:
-        return rc, cout, cerr
+        return rc, cout, cerr, None
+    # W538: $dumpfile("dump.vcd") in the testbench produces the VCD.
     sim_rc, sout, serr = _run_subprocess([vvp, str(vvp_path)], cwd=work)
-    return sim_rc, sout + ("\n" + cerr if cerr else ""), ""
+    vcd_file = vcd_path if vcd_path.exists() else None
+    return sim_rc, sout + ("\n" + cerr if cerr else ""), "", vcd_file
 
 
-def _run_cocotb(verilog_path: Path, top_module: str) -> Tuple[int, str, str]:
+def _run_cocotb(verilog_path: Path, top_module: str) -> Tuple[int, str, str, Optional[Path]]:
     if not HAVE_COCOTB:
         raise RuntimeError("cocotb requested but not importable")
     try:
@@ -218,6 +230,7 @@ def _run_cocotb(verilog_path: Path, top_module: str) -> Tuple[int, str, str]:
 
     work = verilog_path.parent
     build_dir = work / "sim_build"
+    vcd_path = build_dir / "dump.vcd"
     runner = get_runner("icarus")
     runner.build(
         hdl_toplevel=top_module,
@@ -241,13 +254,87 @@ def _run_cocotb(verilog_path: Path, top_module: str) -> Tuple[int, str, str]:
         log_text = log_file.read_text()
     else:
         log_text = ""
-    return 0, log_text, ""
+    vcd_file = vcd_path if vcd_path.exists() else None
+    return 0, log_text, "", vcd_file
 
 
-def _run_simulation(verilog_path: Path, top_module: str, use_cocotb: bool) -> Tuple[int, str, str]:
+def _run_simulation(verilog_path: Path, top_module: str, use_cocotb: bool) -> Tuple[int, str, str, Optional[Path]]:
     if use_cocotb and HAVE_COCOTB:
         return _run_cocotb(verilog_path, top_module)
     return _run_iverilog_vvp(verilog_path, top_module)
+
+
+# ---------------------------------------------------------------------------
+# VCD parsing (W538)
+# ---------------------------------------------------------------------------
+
+class _VcdParser:
+    """Minimal VCD parser sufficient for scalar/vector probe values."""
+
+    def __init__(self, path: Path) -> None:
+        self.id_to_name: Dict[str, str] = {}
+        self.values: Dict[str, int] = {}
+        self._parse(path)
+
+    def _parse(self, path: Path) -> None:
+        in_var = False
+        var_type = ""
+        var_width = 0
+        var_id = ""
+        var_name = ""
+        in_dumpvars = False
+        with path.open("r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith("$var"):
+                    in_var = True
+                    parts = line.split()
+                    var_type = parts[1] if len(parts) > 1 else ""
+                    var_width = int(parts[2]) if len(parts) > 2 else 1
+                    var_id = parts[3] if len(parts) > 3 else ""
+                    var_name = parts[4] if len(parts) > 4 else ""
+                    if "$end" in line:
+                        self.id_to_name[var_id] = var_name
+                        in_var = False
+                    continue
+                if in_var and "$end" in line:
+                    self.id_to_name[var_id] = var_name
+                    in_var = False
+                    continue
+                if line.startswith("$enddefinitions"):
+                    continue
+                if line.startswith("$dumpvars"):
+                    in_dumpvars = True
+                    continue
+                if line == "$end" and in_dumpvars:
+                    in_dumpvars = False
+                    continue
+                if line.startswith("#"):
+                    continue
+                if line.startswith("b"):
+                    # Vector: "b<value> <id>"
+                    rest = line[1:]
+                    sp = rest.rsplit(" ", 1)
+                    if len(sp) == 2:
+                        val_str, sid = sp
+                        try:
+                            self.values[sid] = int(val_str, 2) if val_str else 0
+                        except ValueError:
+                            pass
+                elif len(line) >= 2 and line[1:].strip() in self.id_to_name:
+                    # Scalar: "0<id>" or "1<id>"
+                    sid = line[1:].strip()
+                    self.values[sid] = 1 if line[0] == "1" else 0
+
+    def probe_value(self, name: str) -> Optional[int]:
+        # Probes are declared in the top-level module, so the hierarchical
+        # name is just the bare identifier in the VCD $var section.
+        for sid, sname in self.id_to_name.items():
+            if sname == name:
+                return self.values.get(sid)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -255,6 +342,7 @@ def _run_simulation(verilog_path: Path, top_module: str, use_cocotb: bool) -> Tu
 # ---------------------------------------------------------------------------
 
 _TEST_LINE_RE = re.compile(r"\[TEST\]\s+(.+?)\s*:\s*(starting|PASSED|FAILED)", re.IGNORECASE)
+_PROBE_LINE_RE = re.compile(r"\[PROBE\]\s+(.+?)\s+(\d+)\s*=\s*(\d+)")
 
 
 def _parse_log(log_text: str) -> Dict[str, Dict[str, Any]]:
@@ -275,8 +363,9 @@ def _parse_log(log_text: str) -> Dict[str, Dict[str, Any]]:
 
 
 def _cross_check(
-    assertions: List[Tuple[str, int, Optional[Any], str]],
+    assertions: List[Tuple[str, int, Optional[Any], str, str]],
     log_results: Dict[str, Dict[str, Any]],
+    vcd: Optional[_VcdParser],
 ) -> Tuple[bool, List[str]]:
     errors: List[str] = []
     expected_blocks = _expected_pass_blocks(assertions)
@@ -294,6 +383,40 @@ def _cross_check(
         if res["failed"]:
             if name not in expected_blocks:
                 errors.append(f"unexpected [TEST] {name} : FAILED")
+
+    # W538: independent VCD signal-value cross-check for scalar probes.
+    if vcd is not None:
+        for block_name, idx, expected, note, probe in assertions:
+            if note != "ok" or expected is None:
+                continue
+            actual = vcd.probe_value(probe)
+            if actual is None:
+                # W538: X/missing probes occur when the actual expression is wider
+                # than 64 bits or contains undefined bits.  Skip the independent
+                # VCD check and rely on the log-based self-check for these cases.
+                continue
+            # W538: the 64-bit probe preserves two's complement bit patterns.
+            # Interpret the VCD value with the same signedness as the expected
+            # literal: negative expected => signed 64-bit; otherwise unsigned.
+            if isinstance(expected, bool):
+                expected_int = 1 if expected else 0
+            else:
+                expected_int = int(expected)
+            if expected_int < 0:
+                # Convert unsigned 64-bit two's complement to signed Python int.
+                actual_signed = actual - (1 << 64) if actual >= (1 << 63) else actual
+                if actual_signed != expected_int:
+                    errors.append(
+                        f"VCD mismatch {probe} (block {block_name}, assert {idx}): "
+                        f"expected {expected_int}, got {actual} (signed {actual_signed})"
+                    )
+            else:
+                if actual != expected_int:
+                    errors.append(
+                        f"VCD mismatch {probe} (block {block_name}, assert {idx}): "
+                        f"expected {expected_int}, got {actual}"
+                    )
+
     return (not errors), errors
 
 
@@ -306,14 +429,22 @@ def run_reference_check(
     verilog_path: Path,
     top_module: str,
     use_cocotb: bool = False,
-) -> Tuple[bool, List[str], str]:
+) -> Tuple[bool, List[str], str, Optional[_VcdParser]]:
     ast = json.loads(ast_json_path.read_text())
     assertions = _collect_assertions(ast)
-    rc, log_text, err_text = _run_simulation(verilog_path, top_module, use_cocotb)
+    rc, log_text, err_text, vcd_path = _run_simulation(verilog_path, top_module, use_cocotb)
     if rc != 0:
-        return False, [f"simulation failed (rc={rc}): {err_text or log_text}"], log_text
-    ok, errors = _cross_check(assertions, _parse_log(log_text))
-    return ok, errors, log_text
+        return False, [f"simulation failed (rc={rc}): {err_text or log_text}"], log_text, None
+    vcd: Optional[_VcdParser] = None
+    if vcd_path is not None:
+        try:
+            vcd = _VcdParser(vcd_path)
+        except Exception as e:
+            # VCD parsing is a supplemental check; do not fail the gate just
+            # because the parser could not read the file.
+            print(f"warning: could not parse VCD {vcd_path}: {e}")
+    ok, errors = _cross_check(assertions, _parse_log(log_text), vcd)
+    return ok, errors, log_text, vcd
 
 
 def main(argv: List[str]) -> int:
@@ -325,7 +456,7 @@ def main(argv: List[str]) -> int:
     parser.add_argument("--verbose", action="store_true", help="Print simulation log")
     args = parser.parse_args(argv)
 
-    ok, errors, log_text = run_reference_check(args.ast_json, args.verilog, args.top_module, args.use_cocotb)
+    ok, errors, log_text, vcd = run_reference_check(args.ast_json, args.verilog, args.top_module, args.use_cocotb)
     if args.verbose:
         print(log_text)
     if not ok:
@@ -337,7 +468,8 @@ def main(argv: List[str]) -> int:
     ast = json.loads(args.ast_json.read_text())
     assertions = _collect_assertions(ast)
     expected = _expected_pass_blocks(assertions)
-    print(f"cocotb reference-model OK: {len(expected)} test block(s) passed")
+    vcd_note = " (+ VCD probe check)" if vcd is not None else ""
+    print(f"cocotb reference-model OK: {len(expected)} test block(s) passed{vcd_note}")
     return 0
 
 

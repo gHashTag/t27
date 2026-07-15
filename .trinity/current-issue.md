@@ -1,7 +1,7 @@
-# Wave Loop 538 — Extend cocotb reference model with independent expression evaluator + VCD comparison
+# Wave Loop 539 — Typed 64-bit VCD probe + full Python expression evaluator
 
-**Issue:** #1509 (placeholder — to create when GitHub token is available)
-**Branch:** `wave-loop-538`
+**Issue:** #1510 (placeholder — to create when GitHub token is available)
+**Branch:** `wave-loop-539`
 **Status:** planned
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
@@ -9,33 +9,35 @@
 
 ## Goal
 
-Continue from Wave Loop 537's Rust/Lean lowerability alignment and advance the
+Continue from Wave Loop 538's VCD probe cross-check and advance the
 recommended cooperation variant documented in
-`docs/reports/FPGA_LOOP_COOPERATION_W538_2026-07-07.md`.
+`docs/reports/FPGA_LOOP_COOPERATION_W539_2026-07-15.md`.
 
 **Variant A (recommended):**
-- Extend `scripts/cocotb_ref_model.py` with a recursive interpreter for the
-  Icarus-lowerable expression subset (literals, arithmetic, function calls,
-  scalar array/struct indexing).
-- Drive the generated Verilog as a DUT from cocotb, force inputs and clock, and
-  capture a VCD trace.
-- Compare the VCD trace against the independently computed reference values.
-- Seed with W5xx witnesses that already have Lean value-preservation theorems.
+- Add type/width inference to `scripts/cocotb_ref_model.py` so the VCD probe
+  comparison knows the expected bit width and signedness of each assertion.
+- Extend the Python reference evaluator to handle variable reads,
+  parameterless function calls, struct field access, and scalar array indexing
+  for the Icarus-lowerable subset.
+- Emit width-typed probes (`reg [W-1:0]`) when the expression width is
+  statically known, and skip only genuinely non-scalar assertions.
+- Seed with W5xx/W3xx witnesses that currently skip due to non-literal
+  expecteds and verify they now get an independent VCD cross-check.
 - Keep `./scripts/tri test --icarus-lowerable --cocotb --fast` at 0 cocotb
   failures and 0 seal mismatches.
 - Keep `lake build Trinity.IcarusLowerable.Soundness` green with zero `sorry`.
 
-**Variant B:** Extend the Lean 4 formal semantics to cover module-level
-procedural initialization and whole-struct assignment, with a non-scratch
-corpus witness in `specs/igla/`.
+**Variant B:** Formalize VCD-time value preservation in Lean by defining a
+source-level expression denotation and relating it to the emitted Verilog
+signal value.
 
-**Variant C:** Add module-level packed-struct assignment from function calls
-and struct literals, and prove lowerability/value-preservation for the new
-pattern.
+**Variant C:** Emit multi-signal VCD probes for wide packed structs and arrays,
+reconstruct the full value in Python, and compare against a bit-vector
+reference value.
 
 ---
 
-## Residual boundaries from W537
+## Residual boundaries from W538
 
 - `./scripts/tri test --icarus-lowerable --cocotb --fast` is green:
   35 Icarus simulations passed, 0 failed; 35 cocotb reference-model checks
@@ -43,9 +45,9 @@ pattern.
 - 24 pre-existing yosys smoke failures remain documented and unchanged.
 - `cargo build --release -p t27c`, `cargo test -p t27c --bin t27c`, and
   `cargo test -p tri` are green.
-- W537 closed the undefined-struct leniency in `Trinity.IcarusLowerable.Predicate`
-  and repaired all 249 corpus envs in `Completeness.lean`; Rust and Lean
-  verdicts now agree.
+- The VCD probe is currently fixed at 64 bits and skips wide/non-scalar
+  assertions; the Python evaluator currently handles literals and simple
+  constant expressions only.
 
 ---
 

@@ -3691,6 +3691,8 @@ pub struct VerilogCodegen {
     // W530: when true, emit active test assertions for Icarus simulation
     // instead of commented-out placeholders.
     emit_test_assertions: bool,
+    // W538: monotonic probe index for assert_eq VCD probes inside test blocks.
+    probe_counter: usize,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -3719,6 +3721,7 @@ impl VerilogCodegen {
             param_types: std::collections::HashMap::new(),
             fn_return_types: std::collections::HashMap::new(),
             emit_test_assertions,
+            probe_counter: 0,
         }
     }
 
@@ -4264,6 +4267,7 @@ impl VerilogCodegen {
             param_types: self.param_types.clone(),
             fn_return_types: self.fn_return_types.clone(),
             emit_test_assertions: self.emit_test_assertions,
+            probe_counter: 0,
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -4415,6 +4419,7 @@ impl VerilogCodegen {
                     param_types: self.param_types.clone(),
                     fn_return_types: self.fn_return_types.clone(),
                     emit_test_assertions: self.emit_test_assertions,
+                    probe_counter: 0,
                 };
                 tmp.emit_packed_array_literal_concat_level(
                     sub, dims, depth + 1, elem_w, elem_type,
@@ -4827,6 +4832,21 @@ impl VerilogCodegen {
             self.write_line("// -------------------------------------------------------");
             self.write_indent();
             self.write_line("// synthesis translate_off");
+            // W538: enable VCD waveform capture only in simulation mode (when
+            // active test assertions are emitted).  Synthesis-mode output must
+            // remain unchanged so seals stay stable.
+            if self.emit_test_assertions {
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                self.write_indent();
+                self.write_line("$dumpfile(\"dump.vcd\");");
+                self.write_indent();
+                self.write_line("$dumpvars(0);");
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            }
             for t in &tests {
                 self.gen_verilog_test(t);
             }
@@ -5555,6 +5575,8 @@ impl VerilogCodegen {
             Self::sanitize_identifier(&node.name)
         ));
         self.indent();
+        // W538: probe indices are per-test-block.
+        self.probe_counter = 0;
         // W533: cache test-block local variable types for packed scalar-struct
         // field access (e.g. `var tmp : Pt = make(...); assert_eq(tmp.x, 1);`).
         let mut test_locals: Vec<String> = Vec::new();
@@ -5571,7 +5593,9 @@ impl VerilogCodegen {
         // W533: hoist test-block local variable declarations to the top of the
         // initial block. Verilog requires all `reg` declarations before any
         // procedural statements.
+        // W538: also hoist scalar assert_eq probe registers for VCD capture.
         if self.emit_test_assertions {
+            let mut probe_idx = 0usize;
             for child in &node.children {
                 if child.kind == NodeKind::StmtLocal
                     && !child.name.is_empty()
@@ -5579,6 +5603,30 @@ impl VerilogCodegen {
                 {
                     self.write_indent();
                     self.emit_local(child, LocalEmitPhase::Decl);
+                }
+                // Pre-declare a probe for every assert_eq in the test block.
+                let stmt = if child.kind == NodeKind::StmtExpr {
+                    child.children.first()
+                } else {
+                    None
+                };
+                let is_assert = stmt.map_or(false, |s| {
+                    s.kind == NodeKind::ExprCall
+                        && s.name == "assert_eq"
+                        && s.children.len() == 2
+                });
+                if is_assert {
+                    let probe_name = format!(
+                        "_t27_probe_{}_{}",
+                        Self::sanitize_identifier(&node.name),
+                        probe_idx
+                    );
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "reg [63:0] {}; // W538 scalar probe",
+                        probe_name
+                    ));
+                    probe_idx += 1;
                 }
             }
         }
@@ -5606,6 +5654,24 @@ impl VerilogCodegen {
                             && expr.name == "assert_eq"
                             && expr.children.len() == 2
                         {
+                            // W538: assign the scalar probe that captures the
+                            // actual expression value for independent VCD cross-check.
+                            let probe_idx = self.probe_counter;
+                            self.probe_counter += 1;
+                            let probe_name = format!(
+                                "_t27_probe_{}_{}",
+                                Self::sanitize_identifier(test_name),
+                                probe_idx
+                            );
+                            self.write_indent();
+                            self.write(&format!("{} = (", probe_name));
+                            self.gen_verilog_expr(&expr.children[0]);
+                            self.write_line(");");
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "$display(\"[PROBE] {} {} = %0d\", {});",
+                                test_name, probe_idx, probe_name
+                            ));
                             self.write_indent();
                             self.write("if (((");
                             self.gen_verilog_expr(&expr.children[0]);

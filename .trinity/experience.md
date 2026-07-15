@@ -1,3 +1,72 @@
+## 2026-07-15 — Wave Loop 538 (VCD probe + independent cocotb reference-model check)
+
+### What worked
+- Adding `$dumpfile`/`$dumpvars` only in simulation mode (guarded by
+  `emit_test_assertions`) kept synthesis-mode Verilog seals stable while
+  enabling VCD capture for the reference model.
+- Hoisting scalar probe `reg` declarations to the top of each generated test
+  block satisfied Verilog's declaration-before-statement rule, so the new
+  probes compiled cleanly with Icarus.
+- Building a minimal built-in VCD parser in `scripts/cocotb_ref_model.py`
+  removed the dependency on an external VCD library and kept the script
+  self-contained.
+- Interpreting negative expected literals as signed 64-bit two's complement
+  aligned the Python comparison with Verilog's sign-extended probe values.
+- Filtering VCD startup diagnostics and `[PROBE]` lines out of the Phase 3d
+  baseline comparison in `bootstrap/src/suite.rs` let the existing Icarus
+  simulation baselines remain valid without manual re-recording.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added a per-test-block probe counter to `VerilogCodegen`.
+  - Emits `reg [63:0] _t27_probe_<block>_<N>` declarations for every
+    `assert_eq` in simulation mode and assigns them with the actual
+    expression value.
+  - Emits `$dumpfile("dump.vcd"); $dumpvars(0);` inside
+    `// synthesis translate_off` only when `emit_test_assertions` is true.
+- `bootstrap/src/suite.rs`:
+  - `normalize_icarus_output` now drops VCD info/warning lines and `[PROBE]`
+    debug lines before baseline comparison.
+- `scripts/cocotb_ref_model.py`:
+  - Captures VCD in both direct `iverilog/vvp` and cocotb runner paths.
+  - Parses the final probe values and compares them against independently
+    evaluated expected literals.
+  - Skips X/missing probes gracefully (typically wide non-scalar values).
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_538_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W539_2026-07-15.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 539.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 4 passed; 0 failed.
+- `./scripts/tri test --icarus-simulate --icarus-lowerable --cocotb --fast`:
+  35 Icarus PASS, 35 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Keep synthesis-mode generated code stable by gating all simulation-only
+  instrumentation with the existing `emit_test_assertions` flag.
+- When adding new output lines that would invalidate deterministic baselines,
+  normalize them out of the comparison rather than re-recording every baseline.
+- A 64-bit scalar probe is a pragmatic first step; width-typed probes are the
+  natural next increment.
+
+### Anti-patterns to avoid
+- Do not emit simulation-only diagnostics outside `// synthesis translate_off`
+  or without `emit_test_assertions` guarding — they will change seals and
+  synthesis baselines.
+- Do not make the reference model fail the gate when a supplemental VCD probe
+  cannot be parsed; treat it as a skipped supplemental check and fall back to
+  the authoritative log-based self-check.
+
+---
+
 ## 2026-07-07 — Wave Loop 537 (close undefined-struct leniency in Lean predicate)
 
 ### What worked
