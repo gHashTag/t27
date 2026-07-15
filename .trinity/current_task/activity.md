@@ -1608,3 +1608,7 @@
 - **Commit:** chore(trinity): record W542 session log and commit count
 - **Files:** .claude/plans/wave-loop-543.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w543_call_arg_casts.json,.trinity/icarus-baselines/specs/scratch/w543_module_mixed_call_init.json,.trinity/icarus-baselines/specs/scratch/w543_module_scalar_call_init.json,.trinity/icarus-baselines/specs/scratch/w543_module_struct_call_init.json,.trinity/seals/math_SacredPhysics.json,.trinity/seals/nn_SacredAttention.json,.trinity/seals/physics_FormulaDiscovery.json,.trinity/seals/physics_GI1Analysis.json,.trinity/seals/physics_GammaConjecture.json,.trinity/seals/scratch_w543_call_arg_casts.json,.trinity/seals/scratch_w543_module_mixed_call_init.json,.trinity/seals/scratch_w543_module_scalar_call_init.json,.trinity/seals/scratch_w543_module_struct_call_init.json,.trinity/seals/scratch_w543_negative_nonlowerable_call_init.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH
 
+## 2026-07-15T08:28:24Z — wave-loop-543
+- **Commit:** feat(cocotb): Wave Loop 543 — function-call module initializers for independent VCD cross-check + parser fix for const function-call initializers
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
