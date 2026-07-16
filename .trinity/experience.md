@@ -1,3 +1,70 @@
+## 2026-07-07 — Wave Loop 557 (general bench CSE for scalar calls)
+
+### What worked
+- Single scratch witness `w557_bench_scalar_call_dedup` confirmed that the
+  W556 call-temporary map can be generalized to pure scalar-return calls in
+  deterministic `bench`/`test` blocks. `assert_eq(val(), 0xAB)` and
+  `assert_eq(val() + other(), 0xAB + 0xCD)` now share a single `_t27_call_tmp_*`
+  for `val()`.
+- A contextual `use_call_array_temps` flag on `VerilogCodegen` is a clean way
+  to enable temporary substitution only inside test/bench emission without
+  touching the general `gen_verilog_expr` contract for all other codegen.
+- Keeping `collect_expr_text` always rendering the original call text (by
+  forcing `use_call_array_temps: false` in the temporary codegen instance)
+  prevents temporary names from leaking into their own dedup keys or RHS
+  assignments.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Generalized `call_returning_packed_primitive_array_info` to
+    `call_returning_cse_value_info`, which returns temporary descriptors for
+    primitive scalar returns and primitive scalar array returns.
+  - Renamed generated temporary prefix from `_t27_call_arr_tmp_` to
+    `_t27_call_tmp_`.
+  - Added `use_call_array_temps` field and `with_call_array_temps_enabled`
+    scope helper.
+  - Enabled temporary substitution in `gen_verilog_expr` for `ExprCall` when
+    the flag is set.
+  - Wrapped test/bench statement loops in `with_call_array_temps_enabled`.
+  - Removed the now-redundant `gen_verilog_expr_with_call_array_tmp` wrapper.
+  - Updated temporary declaration comments to "packed/scalar call tmp".
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`: added
+  `accepts_w557_bench_scalar_call_dedup`.
+- `docs/ICARUS_LOWERABLE_BOUNDARY.md`: updated section 10 to describe general
+  primitive-scalar / scalar-array call deduplication.
+- Added positive scratch witness `specs/scratch/w557_bench_scalar_call_dedup.t27`.
+- Saved t27 seal and recorded Icarus baseline for the witness.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W557_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 558 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 17 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  68 Icarus PASS, 68 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` on W557 / W551 / W553 / W556 witnesses: PASS.
+- Direct `t27c icarus-cocotb` on W557 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Use a contextual flag to enable CSE substitution only inside the specific
+  emission scope (test/bench blocks), and reset it afterward so synthesizable
+  paths remain unaffected.
+- When the same function is used to build dedup keys and to render RHS
+  assignments, ensure the key-generation path never sees substituted names.
+
+### Anti-patterns to avoid
+- Do not add substitution directly into the general `gen_verilog_expr` without
+  a flag: `collect_expr_text` uses it for keys and RHS rendering, and would
+  create a circular reference leading to stack overflow.
+
+---
+
 ## 2026-07-07 — Wave Loop 556 (multi-site call-return array deduplication)
 
 ### What worked

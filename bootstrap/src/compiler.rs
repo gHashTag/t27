@@ -3713,6 +3713,9 @@ pub struct VerilogCodegen {
     call_array_tmp_info: std::collections::HashMap<String, (Vec<usize>, String, u32, bool)>,
     // W553: set of call-array temporaries already assigned in the current block.
     call_array_tmp_materialized: std::collections::HashSet<String>,
+    // W557: while true, gen_verilog_expr substitutes pre-declared call temporaries
+    // for raw ExprCall nodes. This is set only while emitting test/bench blocks.
+    use_call_array_temps: bool,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -3748,6 +3751,7 @@ impl VerilogCodegen {
             call_array_tmp_names: std::collections::HashMap::new(),
             call_array_tmp_info: std::collections::HashMap::new(),
             call_array_tmp_materialized: std::collections::HashSet::new(),
+            use_call_array_temps: false,
         }
     }
 
@@ -3996,9 +4000,10 @@ impl VerilogCodegen {
         Self::type_is_signed(ty)
     }
 
-    /// W553: if `node` is a function call whose return type is a primitive scalar
-    /// array, return the array info plus a stable textual key for the call.
-    fn call_returning_packed_primitive_array_info(
+    /// W553/W557: if `node` is a function call whose return type is a primitive
+    /// scalar (including fixed-size scalar arrays), return a temporary descriptor
+    /// and a stable textual key for the call.
+    fn call_returning_cse_value_info(
         &self,
         node: &Node,
     ) -> Option<(String, Vec<usize>, String, u32, bool)> {
@@ -4006,9 +4011,14 @@ impl VerilogCodegen {
             return None;
         }
         let ret_ty = self.fn_return_types.get(&node.name)?;
-        let (dims, elem_type) = Self::primitive_array_info(ret_ty)?;
         let mut key = String::new();
         self.collect_expr_text(node, &mut key);
+        if Self::is_primitive_scalar_type(ret_ty) {
+            let width = Self::type_to_width(ret_ty);
+            let signed = Self::type_is_signed(ret_ty);
+            return Some((key, Vec::new(), ret_ty.to_string(), width, signed));
+        }
+        let (dims, elem_type) = Self::primitive_array_info(ret_ty)?;
         let width = self.packed_width(ret_ty);
         let signed = self.packed_signed(ret_ty);
         Some((key, dims, elem_type, width, signed))
@@ -4035,11 +4045,11 @@ impl VerilogCodegen {
             }
             if base.kind == NodeKind::ExprCall {
                 if let Some((key, dims, elem_type, width, signed)) =
-                    self.call_returning_packed_primitive_array_info(base)
+                    self.call_returning_cse_value_info(base)
                 {
                     if !self.call_array_tmp_names.contains_key(&key) {
                         let tmp_name = format!(
-                            "_t27_call_arr_tmp_{}_{}",
+                            "_t27_call_tmp_{}_{}",
                             Self::sanitize_identifier(block_name),
                             self.call_array_tmp_names.len()
                         );
@@ -4050,16 +4060,16 @@ impl VerilogCodegen {
                 }
             }
         }
-        // W556: a bare function call whose return type is a primitive scalar
-        // array also needs a packed-vector temporary so the same value can be used
-        // at multiple sites (element indexing and whole-array comparison).
+        // W556/W557: a bare function call whose return type is a primitive scalar
+        // or scalar array also needs a packed-vector / scalar temporary so the
+        // same value can be used at multiple sites in one block.
         if node.kind == NodeKind::ExprCall {
             if let Some((key, dims, elem_type, width, signed)) =
-                self.call_returning_packed_primitive_array_info(node)
+                self.call_returning_cse_value_info(node)
             {
                 if !self.call_array_tmp_names.contains_key(&key) {
                     let tmp_name = format!(
-                        "_t27_call_arr_tmp_{}_{}",
+                        "_t27_call_tmp_{}_{}",
                         Self::sanitize_identifier(block_name),
                         self.call_array_tmp_names.len()
                     );
@@ -4074,14 +4084,15 @@ impl VerilogCodegen {
         }
     }
 
-    /// W553: emit the packed-vector temporary assignment for a call-return array
-    /// if it has not already been materialized in this block.
+    /// W553/W557: emit the temporary assignment for a call returning a primitive
+    /// scalar or scalar array if it has not already been materialized in this
+    /// block.
     fn materialize_call_array_tmp(
         &mut self,
         call_node: &Node,
     ) {
         let Some((key, _dims, _elem_type, _width, _signed)) =
-            self.call_returning_packed_primitive_array_info(call_node)
+            self.call_returning_cse_value_info(call_node)
         else {
             return;
         };
@@ -4097,6 +4108,20 @@ impl VerilogCodegen {
         self.write_line(&format!("{} = {};", tmp_name, call_text),
         );
         self.call_array_tmp_materialized.insert(tmp_name);
+    }
+
+    /// W557: enable call-temporary substitution while emitting a test/bench
+    /// block, then disable it again so synthesizable code paths keep raw calls.
+    fn with_call_array_temps_enabled<F, R>(&mut self,
+        f: F,
+    ) -> R
+    where
+        F: FnOnce(&mut Self) -> R,
+    {
+        self.use_call_array_temps = true;
+        let result = f(self);
+        self.use_call_array_temps = false;
+        result
     }
 
     /// W553/W556: recursively scan an expression and materialize every
@@ -4238,7 +4263,7 @@ impl VerilogCodegen {
                     // W553: indexing the packed primitive scalar array returned by a
                     // function call (e.g. seq()[0]).
                     if let Some((_key, _dims, elem_type, _width, _signed)) =
-                        self.call_returning_packed_primitive_array_info(current)
+                        self.call_returning_cse_value_info(current)
                     {
                         return Some((
                             Self::type_to_width(&elem_type),
@@ -4690,13 +4715,16 @@ impl VerilogCodegen {
 
     /// W527: helper that renders an expression subtree into a buffer without
     /// touching `self.output`. Used to build index expressions for dynamic
-    /// part-selects.
+    /// part-selects and to build stable textual keys for call CSE.
     fn collect_expr_text(&self,
         node: &Node,
         buf: &mut String,
     ) {
         // Dispatch into a temporary codegen instance so we reuse the existing
         // expression emitter without mutating the real output.
+        // W557: the temporary instance must never substitute call temporaries,
+        // because this function is used both to build deduplication keys and to
+        // render the RHS of the temporary assignment itself.
         let mut tmp = VerilogCodegen {
             output: String::new(),
             indent: 0,
@@ -4717,6 +4745,7 @@ impl VerilogCodegen {
             call_array_tmp_names: self.call_array_tmp_names.clone(),
             call_array_tmp_info: self.call_array_tmp_info.clone(),
             call_array_tmp_materialized: std::collections::HashSet::new(),
+            use_call_array_temps: false,
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -4875,6 +4904,7 @@ impl VerilogCodegen {
                     call_array_tmp_names: self.call_array_tmp_names.clone(),
                     call_array_tmp_info: self.call_array_tmp_info.clone(),
                     call_array_tmp_materialized: std::collections::HashSet::new(),
+                    use_call_array_temps: false,
                 };
                 tmp.emit_packed_array_literal_concat_level(
                     sub, dims, depth + 1, elem_w, elem_type,
@@ -5463,11 +5493,13 @@ impl VerilogCodegen {
                 self.write_line(&format!("$display(\"[BENCH] {} : starting\");", b.name));
                 self.write_indent();
                 self.write_line(&format!("{} = 0;", counter));
-                for child in &b.children {
-                    self.gen_verilog_test_stmt(child, &b.name, "BENCH");
-                    self.write_indent();
-                    self.write_line(&format!("{} = {} + 1;", counter, counter));
-                }
+                self.with_call_array_temps_enabled(|this| {
+                    for child in &b.children {
+                        this.gen_verilog_test_stmt(child, &b.name, "BENCH");
+                        this.write_indent();
+                        this.write_line(&format!("{} = {} + 1;", counter, counter));
+                    }
+                });
                 for name in block_locals {
                     self.local_types.remove(&name);
                 }
@@ -6307,8 +6339,9 @@ impl VerilogCodegen {
                     }
                 }
             }
-            // W553: after probe registers, declare packed-vector temporaries for any
-            // function calls returning primitive scalar arrays that will be indexed.
+            // W553/W557: after probe registers, declare temporaries for any
+            // function calls returning primitive scalars or scalar arrays that are
+            // used at multiple sites in this block.
             let tmp_decls: Vec<(String, u32, bool)> = self
                 .call_array_tmp_info
                 .iter()
@@ -6320,12 +6353,12 @@ impl VerilogCodegen {
                 self.write_indent();
                 if range.is_empty() {
                     self.write_line(&format!(
-                        "reg{} {}; // W553 packed call-return array tmp w={} signed={}",
+                        "reg{} {}; // W557 packed/scalar call tmp w={} signed={}",
                         signed_kw, tmp_name, width, signed
                     ));
                 } else {
                     self.write_line(&format!(
-                        "reg{} [{}:0] {}; // W553 packed call-return array tmp w={} signed={}",
+                        "reg{} [{}:0] {}; // W557 packed/scalar call tmp w={} signed={}",
                         signed_kw, width - 1, tmp_name, width, signed
                     ));
                 }
@@ -6346,9 +6379,11 @@ impl VerilogCodegen {
         let block_locals = self.gen_verilog_probe_prelude(node, &node.name);
         self.write_indent();
         self.write_line(&format!("$display(\"[TEST] {} : starting\");", node.name));
-        for child in &node.children {
-            self.gen_verilog_test_stmt(child, &node.name, "TEST");
-        }
+        self.with_call_array_temps_enabled(|this| {
+            for child in &node.children {
+                this.gen_verilog_test_stmt(child, &node.name, "TEST");
+            }
+        });
         for name in block_locals {
             self.local_types.remove(&name);
         }
@@ -6357,27 +6392,6 @@ impl VerilogCodegen {
         self.dedent();
         self.write_indent();
         self.write_line("end");
-    }
-
-    /// W556: emit a single expression, substituting any pre-declared packed-array
-    /// call temporary in place of the raw call. This avoids re-evaluating the
-    /// same call multiple times inside a test/bench block.
-    fn gen_verilog_expr_with_call_array_tmp(
-        &mut self,
-        node: &Node,
-    ) {
-        if node.kind == NodeKind::ExprCall && !self.call_array_tmp_names.is_empty() {
-            let mut call_text = String::new();
-            self.collect_expr_text(node, &mut call_text);
-            if let Some(tmp_name) = self.call_array_tmp_names.get(&call_text).cloned() {
-                // Make sure this temporary has been materialized in the current block
-                // before we reference it.
-                self.materialize_call_array_tmp(node);
-                self.write(&tmp_name);
-                return;
-            }
-        }
-        self.gen_verilog_expr(node);
     }
 
     fn gen_verilog_test_stmt(&mut self, node: &Node, test_name: &str, block_tag: &str) {
@@ -6430,7 +6444,7 @@ impl VerilogCodegen {
                                 );
                                 self.write_indent();
                                 self.write(&format!("{} = (", tmp_name));
-                                self.gen_verilog_expr_with_call_array_tmp(&expr.children[0]);
+                                self.gen_verilog_expr(&expr.children[0]);
                                 self.write_line(");");
                                 for (slice_name, slice_width, _signed, offset) in &specs {
                                     let off = offset.unwrap_or(0);
@@ -6448,7 +6462,7 @@ impl VerilogCodegen {
                             } else {
                                 self.write_indent();
                                 self.write(&format!("{} = (", base_name));
-                                self.gen_verilog_expr_with_call_array_tmp(&expr.children[0]);
+                                self.gen_verilog_expr(&expr.children[0]);
                                 self.write_line(");");
                                 self.write_indent();
                                 self.write_line(&format!(
@@ -6458,7 +6472,7 @@ impl VerilogCodegen {
                             }
                             self.write_indent();
                             self.write("if (((");
-                            self.gen_verilog_expr_with_call_array_tmp(&expr.children[0]);
+                            self.gen_verilog_expr(&expr.children[0]);
                             self.write(") != (");
                             self.gen_verilog_expr(&expr.children[1]);
                             self.write("))) begin\n");
@@ -6472,7 +6486,7 @@ impl VerilogCodegen {
                             self.write("$display(\"  expected %0d, got %0d\", (");
                             self.gen_verilog_expr(&expr.children[1]);
                             self.write("), (");
-                            self.gen_verilog_expr_with_call_array_tmp(&expr.children[0]);
+                            self.gen_verilog_expr(&expr.children[0]);
                             self.write_line("));");
                             self.dedent();
                             self.write_indent();
@@ -7020,6 +7034,17 @@ impl VerilogCodegen {
                 self.write(&node.name);
             }
             NodeKind::ExprCall => {
+                // W557: inside test/bench blocks, reference a pre-declared temporary
+                // for pure calls instead of re-invoking them. The temporary was
+                // assigned earlier in the block by materialize_call_array_tmp.
+                if self.use_call_array_temps && !self.call_array_tmp_names.is_empty() {
+                    let mut call_text = String::new();
+                    self.collect_expr_text(node, &mut call_text);
+                    if let Some(tmp_name) = self.call_array_tmp_names.get(&call_text).cloned() {
+                        self.write(&tmp_name);
+                        return;
+                    }
+                }
                 self.write(&node.name);
                 self.write("(");
                 for (i, arg) in node.children.iter().enumerate() {

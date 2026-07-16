@@ -1700,3 +1700,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 555 — whole-array assert_eq in deterministic bench blocks via packed-vector VCD probes
 - **Files:** .claude/plans/wave-loop-556.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w556_bench_multi_site_array_dedup.json,.trinity/seals/scratch_w556_bench_multi_site_array_dedup.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/ICARUS_LOWERABLE_BOUNDARY.md,docs/reports/FPGA_LOOP_CLOSEOUT_W556_2026-07-07.md,specs/scratch/w556_bench_multi_site_array_dedup.t27
 
+## 2026-07-16T15:57:10Z — wave-loop-557
+- **Commit:** feat(gen-verilog): Wave Loop 556 — multi-site call-return array temporary deduplication
+- **Files:** .claude/plans/wave-loop-557.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w557_bench_scalar_call_dedup.json,.trinity/seals/scratch_w557_bench_scalar_call_dedup.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W557_2026-07-07.md,specs/scratch/w557_bench_scalar_call_dedup.t27
+
