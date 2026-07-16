@@ -4280,3 +4280,54 @@
   reconstruction mismatches in existing wide-struct witnesses.
 - Do not rely on a single immediate index in the reference model; multi-D access
   is a chain, and only the chain gives the correct row-major order.
+
+## 2026-07-16 — Wave Loop 549 (3-D primitive scalar array function returns for independent VCD cross-check)
+
+### What worked
+- The rank-independent flat-index formula already implemented in W548 generalized
+  cleanly to 3-D: the compiler emitted `m[(((0 * 12) + (0 * 4) + 0) * 8) +: 8]`,
+  the Python `_collect_index_chain` captured three indices in source order, and
+  the cocotb cross-check passed without reference-model changes.
+- The 3-D Lean witness used nested `.array N (.array M (.array K T))` types and
+  three-level `.index` expressions, and `native_decide` proved lowerability and
+  value equivalence without model changes.
+- Reusing the W548 pattern (one witness, one Rust test, one Lean theorem, seal,
+  baseline, closeout) made W549 a small, low-risk loop.
+
+### What changed behavior
+- Added `specs/scratch/w549_3d_call_init_returns_array.t27` positive witness with
+  a function returning `[2][3][4]u8` and a corner-element sum.
+- Added Icarus baseline and seal for the new witness.
+- Added `accepts_w549_three_dimensional_primitive_scalar_array_return` integration
+  test in `bootstrap/tests/icarus_lowerable.rs`.
+- Added `w549ThreeDCallInitReturnsArray*` helpers and lowerability/value-
+  preservation theorems in `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` /
+  `Soundness.lean`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W549_2026-07-16.md` with three W550
+  cooperation variants and advanced `.trinity/current-issue.md` to Wave Loop 550
+  (Variant A: 4-D primitive scalar array returns).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 9 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  57 Icarus PASS, 57 cocotb PASS, 637 seal matches, 0 mismatches; 24 pre-existing
+  yosys smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- After fixing a multi-dimensional bug, add the next higher rank as the next loop;
+  rank-independence is a property that must be demonstrated, not assumed.
+- Use literal expected values in `assert_eq` for the final witness so both the
+  Verilog self-check and the Python reference model evaluate the same integer.
+- Keep the Lean witness structurally identical to the .t27 source: nested array
+  types, nested array literals, nested index expressions.
+
+### Anti-patterns to avoid
+- Do not skip to rank N without testing the intermediate rank; each rank can
+  exercise a different recursion/chain depth in the parser, backend, and model.
+- Do not add backend code for a higher rank before proving the existing code
+  already handles it; W549 needed zero compiler changes.

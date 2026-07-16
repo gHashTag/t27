@@ -1596,4 +1596,25 @@ theorem w548_2d_signed_element_read_value_equiv :
   exact module_value_equiv_statement w548TwoDSignedElementReadEnv w548TwoDSignedElementReadModule
     hlowerable hunique hcomb hctx "diag" w548TwoDSignedElementReadDiag [] hfind hhost
 
+/- W549 theorems: three-dimensional primitive scalar array function returns. -/
+
+theorem w549_3d_call_init_returns_array_lowerable :
+  Module.isLowerable w549ThreeDCallInitReturnsArrayEnv w549ThreeDCallInitReturnsArrayModule := by
+  native_decide
+
+theorem w549_3d_call_init_returns_array_value_equiv :
+  evalModuleFunctionTotal defaultFuel w549ThreeDCallInitReturnsArrayEnv w549ThreeDCallInitReturnsArrayModule "check" [] =
+  evalVModuleTotal defaultFuel w549ThreeDCallInitReturnsArrayEnv (emitModule w549ThreeDCallInitReturnsArrayEnv w549ThreeDCallInitReturnsArrayModule) "check" [] := by
+  have hlowerable : Module.isLowerable w549ThreeDCallInitReturnsArrayEnv w549ThreeDCallInitReturnsArrayModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w549ThreeDCallInitReturnsArrayModule := by
+    simp [Module.hasUniqueFunctionNames, w549ThreeDCallInitReturnsArrayModule, w549ThreeDCallInitReturnsArrayCube, w549ThreeDCallInitReturnsArrayCheck]
+  have hcomb : Module.isCombinational w549ThreeDCallInitReturnsArrayEnv w549ThreeDCallInitReturnsArrayModule := by native_decide
+  have hctx : Module.callContext w549ThreeDCallInitReturnsArrayEnv w549ThreeDCallInitReturnsArrayModule := by native_decide
+  have hfind : w549ThreeDCallInitReturnsArrayModule.findFunction "check" = some w549ThreeDCallInitReturnsArrayCheck := by
+    simp [Module.findFunction, w549ThreeDCallInitReturnsArrayModule, w549ThreeDCallInitReturnsArrayCube, w549ThreeDCallInitReturnsArrayCheck]
+  have hhost : ¬ Env.isHostOnly w549ThreeDCallInitReturnsArrayEnv w549ThreeDCallInitReturnsArrayCheck.name := by
+    simp [Env.isHostOnly, w549ThreeDCallInitReturnsArrayEnv, w549ThreeDCallInitReturnsArrayCheck]
+  exact module_value_equiv_statement w549ThreeDCallInitReturnsArrayEnv w549ThreeDCallInitReturnsArrayModule
+    hlowerable hunique hcomb hctx "check" w549ThreeDCallInitReturnsArrayCheck [] hfind hhost
+
 end Trinity.IcarusLowerable

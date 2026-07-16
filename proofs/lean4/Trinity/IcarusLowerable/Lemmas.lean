@@ -3062,6 +3062,72 @@ def w548TwoDSignedElementReadModule : Module := {
   benches := []
 }
 
+/- W549 witness: three-dimensional primitive scalar array initialized from a
+   packed-vector function call. -/
+
+/-- W549: helper function that returns a `[2][3][4]u8` packed vector. -/
+def w549ThreeDCallInitReturnsArrayCube : Function := {
+  name := "cube",
+  params := [],
+  ret := some (.array 2 (.array 3 (.array 4 .u8))),
+  body := [
+    .return_ (some (.arrayLit (.array 2 (.array 3 (.array 4 .u8))) [
+      .arrayLit (.array 3 (.array 4 .u8)) [
+        .arrayLit (.array 4 .u8) [.intLit 1, .intLit 2, .intLit 3, .intLit 4],
+        .arrayLit (.array 4 .u8) [.intLit 5, .intLit 6, .intLit 7, .intLit 8],
+        .arrayLit (.array 4 .u8) [.intLit 9, .intLit 10, .intLit 11, .intLit 12]
+      ],
+      .arrayLit (.array 3 (.array 4 .u8)) [
+        .arrayLit (.array 4 .u8) [.intLit 13, .intLit 14, .intLit 15, .intLit 16],
+        .arrayLit (.array 4 .u8) [.intLit 17, .intLit 18, .intLit 19, .intLit 20],
+        .arrayLit (.array 4 .u8) [.intLit 21, .intLit 22, .intLit 23, .intLit 24]
+      ]
+    ]))
+  ]
+}
+
+/-- W549: function that binds the returned 3-D array to a local `let` and returns
+    the sum of four corner elements indexed through the full index chain. -/
+def w549ThreeDCallInitReturnsArrayCheck : Function := {
+  name := "check",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "m" (.array 2 (.array 3 (.array 4 .u8))) (some (.call "cube" [])),
+    .return_ (some
+      (.binop "+"
+        (.binop "+"
+          (.index (.index (.index (.identifier "m") (.intLit 0)) (.intLit 0)) (.intLit 0))
+          (.index (.index (.index (.identifier "m") (.intLit 0)) (.intLit 2)) (.intLit 3)))
+        (.binop "+"
+          (.index (.index (.index (.identifier "m") (.intLit 1)) (.intLit 0)) (.intLit 0))
+          (.index (.index (.index (.identifier "m") (.intLit 1)) (.intLit 2)) (.intLit 3)))))
+  ]
+}
+
+def w549ThreeDCallInitReturnsArrayEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["cube", "check"]
+}
+
+/-- W549: module with a function-local 3-D packed primitive array initializer. -/
+def w549ThreeDCallInitReturnsArrayModule : Module := {
+  name := "w549_3d_call_init_returns_array",
+  imports := [],
+  globals := [],
+  functions := [w549ThreeDCallInitReturnsArrayCube, w549ThreeDCallInitReturnsArrayCheck],
+  tests := [
+    { name := "three_d_corner_sum", params := [], ret := none, body := [
+      .bareCall (.call "assert_eq" [.call "check" [], .intLit 50])
+    ]}
+  ],
+  benches := []
+}
+
 /- W535 negative witness environments and modules: the tightened predicate rejects
    the exact patterns flagged by the Rust structural classifier. -/
 

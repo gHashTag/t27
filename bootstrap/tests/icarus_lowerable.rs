@@ -152,6 +152,24 @@ fn accepts_w548_multi_dimensional_primitive_scalar_array_return() {
 }
 
 #[test]
+fn accepts_w549_three_dimensional_primitive_scalar_array_return() {
+    let dir = scratch_dir();
+    for name in &[
+        "w549_3d_call_init_returns_array.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W549 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [
