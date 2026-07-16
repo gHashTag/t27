@@ -4808,12 +4808,14 @@ impl VerilogCodegen {
             if indices.len() != dims.len() {
                 return false;
             }
+            // Multi-dimensional packed layout: row-major linearization in element
+            // units.  For [2][3]u8 with element width 8, element [i][j] is at
+            // flat element index (i * 3 + j).  The bit offset is that index times
+            // elem_w.
             let flat_idx = if indices.len() == 1 {
                 indices[0].clone()
             } else {
-                // Multi-dimensional packed layout: row-major linearization.
-                // offset = idx0 * (product of inner dims) + idx1 * (product of
-                // remaining dims) + ... + last idx.
+                // W548: compute the flat element index first.
                 let mut stride = 1usize;
                 let mut parts = Vec::new();
                 for (idx, dim) in indices.iter().zip(dims.iter()).rev() {
@@ -4837,13 +4839,16 @@ impl VerilogCodegen {
             }
             let is_literal_idx = flat_idx.parse::<u32>().is_ok();
             if is_literal_idx {
+                // Literal flat index: scale by elem_w to get bit offset.
                 let i: usize = flat_idx.parse().unwrap_or(0);
                 let hi = (i + 1) * elem_w - 1;
                 let lo = i * elem_w;
                 self.write(&format!("{}[{}:{}]", base_name, hi, lo));
             } else {
+                // W548: scale the flat element index by elem_w to get the bit
+                // offset for the variable part-select.
                 self.write(&format!(
-                    "{}[({} * {}) +:{}]",
+                    "{}[(({}) * {}) +: {}]",
                     base_name, flat_idx, elem_w, elem_w
                 ));
             }

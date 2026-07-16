@@ -2957,6 +2957,111 @@ def w547SignedElementCompareModule : Module := {
   benches := []
 }
 
+/- W548 witnesses: multi-dimensional primitive scalar arrays initialized from
+   packed-vector function calls. -/
+
+/-- W548-A: helper function that returns a `[2][3]u8` packed vector. -/
+def w548TwoDCallInitReturnsArrayGrid : Function := {
+  name := "grid",
+  params := [],
+  ret := some (.array 2 (.array 3 .u8)),
+  body := [
+    .return_ (some (.arrayLit (.array 2 (.array 3 .u8)) [
+      .arrayLit (.array 3 .u8) [.intLit 1, .intLit 2, .intLit 3],
+      .arrayLit (.array 3 .u8) [.intLit 4, .intLit 5, .intLit 6]
+    ]))
+  ]
+}
+
+/-- W548-A: function that binds the returned 2-D array to a local `let` and
+    returns the sum of two elements indexed with the full multi-dimensional chain. -/
+def w548TwoDCallInitReturnsArraySum : Function := {
+  name := "sum",
+  params := [],
+  ret := some .u8,
+  body := [
+    .varDecl "m" (.array 2 (.array 3 .u8)) (some (.call "grid" [])),
+    .return_ (some
+      (.binop "+"
+        (.index (.index (.identifier "m") (.intLit 0)) (.intLit 0))
+        (.index (.index (.identifier "m") (.intLit 1)) (.intLit 2))))
+  ]
+}
+
+def w548TwoDCallInitReturnsArrayEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["grid", "sum"]
+}
+
+/-- W548-A: module with a function-local 2-D packed primitive array initializer. -/
+def w548TwoDCallInitReturnsArrayModule : Module := {
+  name := "w548_2d_call_init_returns_array",
+  imports := [],
+  globals := [],
+  functions := [w548TwoDCallInitReturnsArrayGrid, w548TwoDCallInitReturnsArraySum],
+  tests := [
+    { name := "two_d_unsigned_sum", params := [], ret := none, body := [
+      .bareCall (.call "assert_eq" [.call "sum" [], .intLit 7])
+    ]}
+  ],
+  benches := []
+}
+
+/-- W548-B: helper function that returns a `[2][2]i8` signed packed vector. -/
+def w548TwoDSignedElementReadSigns : Function := {
+  name := "signs",
+  params := [],
+  ret := some (.array 2 (.array 2 .i8)),
+  body := [
+    .return_ (some (.arrayLit (.array 2 (.array 2 .i8)) [
+      .arrayLit (.array 2 .i8) [.intLit (-1), .intLit (-2)],
+      .arrayLit (.array 2 .i8) [.intLit (-3), .intLit (-4)]
+    ]))
+  ]
+}
+
+/-- W548-B: function that binds the returned signed 2-D array to a local `let`
+    and returns the diagonal signed element sum. -/
+def w548TwoDSignedElementReadDiag : Function := {
+  name := "diag",
+  params := [],
+  ret := some .i8,
+  body := [
+    .varDecl "m" (.array 2 (.array 2 .i8)) (some (.call "signs" [])),
+    .return_ (some
+      (.binop "+"
+        (.index (.index (.identifier "m") (.intLit 0)) (.intLit 0))
+        (.index (.index (.identifier "m") (.intLit 1)) (.intLit 1))))
+  ]
+}
+
+def w548TwoDSignedElementReadEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["signs", "diag"]
+}
+
+/-- W548-B: module with a function-local signed 2-D packed primitive array initializer. -/
+def w548TwoDSignedElementReadModule : Module := {
+  name := "w548_2d_signed_element_read",
+  imports := [],
+  globals := [],
+  functions := [w548TwoDSignedElementReadSigns, w548TwoDSignedElementReadDiag],
+  tests := [
+    { name := "two_d_signed_diag", params := [], ret := none, body := [
+      .bareCall (.call "assert_eq" [.call "diag" [], .intLit (-5)])
+    ]}
+  ],
+  benches := []
+}
+
 /- W535 negative witness environments and modules: the tightened predicate rejects
    the exact patterns flagged by the Rust structural classifier. -/
 

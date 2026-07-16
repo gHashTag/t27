@@ -1,0 +1,23 @@
+// W548 positive witness: a function returning a 2-D unsigned primitive scalar
+// array initializes a function-local let binding.  The packed-vector function
+// result is stored as a flat packed reg and indexed with correct multi-dimensional
+// bit-slice linearization.
+module w548_2d_call_init_returns_array;
+
+pub fn grid() -> [2][3]u8 {
+    return [2][3]u8{
+        [3]u8{ 1, 2, 3 },
+        [3]u8{ 4, 5, 6 }
+    };
+}
+
+pub fn sum() -> u32 {
+    let m : [2][3]u8 = grid();
+    return (m[0][0] as u32) + (m[1][2] as u32);
+}
+
+test two_d_unsigned_sum {
+    assert_eq(sum(), 7);
+}
+
+endmodule

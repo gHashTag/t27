@@ -133,6 +133,25 @@ fn accepts_w547_signed_primitive_scalar_array_return() {
 }
 
 #[test]
+fn accepts_w548_multi_dimensional_primitive_scalar_array_return() {
+    let dir = scratch_dir();
+    for name in &[
+        "w548_2d_call_init_returns_array.t27",
+        "w548_2d_signed_element_read.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W548 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [

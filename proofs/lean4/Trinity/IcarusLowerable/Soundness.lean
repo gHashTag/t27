@@ -1552,4 +1552,48 @@ theorem w547_signed_element_compare_value_equiv :
   exact module_value_equiv_statement w547SignedCallInitReturnsArrayEnv w547SignedElementCompareModule
     hlowerable hunique hcomb hctx "seq" w547SignedElementCompareSeq [] hfind hhost
 
+/- W548 theorems: multi-dimensional primitive scalar array function returns. -/
+
+/- Unsigned 2-D packed primitive array return with element indexing. -/
+
+theorem w548_2d_call_init_returns_array_lowerable :
+  Module.isLowerable w548TwoDCallInitReturnsArrayEnv w548TwoDCallInitReturnsArrayModule := by
+  native_decide
+
+theorem w548_2d_call_init_returns_array_value_equiv :
+  evalModuleFunctionTotal defaultFuel w548TwoDCallInitReturnsArrayEnv w548TwoDCallInitReturnsArrayModule "sum" [] =
+  evalVModuleTotal defaultFuel w548TwoDCallInitReturnsArrayEnv (emitModule w548TwoDCallInitReturnsArrayEnv w548TwoDCallInitReturnsArrayModule) "sum" [] := by
+  have hlowerable : Module.isLowerable w548TwoDCallInitReturnsArrayEnv w548TwoDCallInitReturnsArrayModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w548TwoDCallInitReturnsArrayModule := by
+    simp [Module.hasUniqueFunctionNames, w548TwoDCallInitReturnsArrayModule, w548TwoDCallInitReturnsArrayGrid, w548TwoDCallInitReturnsArraySum]
+  have hcomb : Module.isCombinational w548TwoDCallInitReturnsArrayEnv w548TwoDCallInitReturnsArrayModule := by native_decide
+  have hctx : Module.callContext w548TwoDCallInitReturnsArrayEnv w548TwoDCallInitReturnsArrayModule := by native_decide
+  have hfind : w548TwoDCallInitReturnsArrayModule.findFunction "sum" = some w548TwoDCallInitReturnsArraySum := by
+    simp [Module.findFunction, w548TwoDCallInitReturnsArrayModule, w548TwoDCallInitReturnsArrayGrid, w548TwoDCallInitReturnsArraySum]
+  have hhost : ¬ Env.isHostOnly w548TwoDCallInitReturnsArrayEnv w548TwoDCallInitReturnsArraySum.name := by
+    simp [Env.isHostOnly, w548TwoDCallInitReturnsArrayEnv, w548TwoDCallInitReturnsArraySum]
+  exact module_value_equiv_statement w548TwoDCallInitReturnsArrayEnv w548TwoDCallInitReturnsArrayModule
+    hlowerable hunique hcomb hctx "sum" w548TwoDCallInitReturnsArraySum [] hfind hhost
+
+/- Signed 2-D packed primitive array return with element indexing. -/
+
+theorem w548_2d_signed_element_read_lowerable :
+  Module.isLowerable w548TwoDSignedElementReadEnv w548TwoDSignedElementReadModule := by
+  native_decide
+
+theorem w548_2d_signed_element_read_value_equiv :
+  evalModuleFunctionTotal defaultFuel w548TwoDSignedElementReadEnv w548TwoDSignedElementReadModule "diag" [] =
+  evalVModuleTotal defaultFuel w548TwoDSignedElementReadEnv (emitModule w548TwoDSignedElementReadEnv w548TwoDSignedElementReadModule) "diag" [] := by
+  have hlowerable : Module.isLowerable w548TwoDSignedElementReadEnv w548TwoDSignedElementReadModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w548TwoDSignedElementReadModule := by
+    simp [Module.hasUniqueFunctionNames, w548TwoDSignedElementReadModule, w548TwoDSignedElementReadSigns, w548TwoDSignedElementReadDiag]
+  have hcomb : Module.isCombinational w548TwoDSignedElementReadEnv w548TwoDSignedElementReadModule := by native_decide
+  have hctx : Module.callContext w548TwoDSignedElementReadEnv w548TwoDSignedElementReadModule := by native_decide
+  have hfind : w548TwoDSignedElementReadModule.findFunction "diag" = some w548TwoDSignedElementReadDiag := by
+    simp [Module.findFunction, w548TwoDSignedElementReadModule, w548TwoDSignedElementReadSigns, w548TwoDSignedElementReadDiag]
+  have hhost : ¬ Env.isHostOnly w548TwoDSignedElementReadEnv w548TwoDSignedElementReadDiag.name := by
+    simp [Env.isHostOnly, w548TwoDSignedElementReadEnv, w548TwoDSignedElementReadDiag]
+  exact module_value_equiv_statement w548TwoDSignedElementReadEnv w548TwoDSignedElementReadModule
+    hlowerable hunique hcomb hctx "diag" w548TwoDSignedElementReadDiag [] hfind hhost
+
 end Trinity.IcarusLowerable

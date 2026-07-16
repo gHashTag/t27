@@ -4211,3 +4211,72 @@
   parse it from the generated source or from the AST module name.
 - Do not require cocotb to be installed system-wide; document the fallback
   path and the T27_COCOTB_PYTHON override.
+
+## 2026-07-16 — Wave Loop 548 (multi-dimensional primitive scalar array function returns for independent VCD cross-check)
+
+### What worked
+- Fixing the Verilog variable part-select to scale the flat *element* index by
+  `elemW` (`m[(((i * 3) + j) * 8) +: 8]`) corrected 2-D packed primitive array
+  indexing in a single compiler change.
+- Walking the full `ExprIndex` chain in the Python reference model and computing
+  the row-major flat index made the cocotb cross-check rank-independent for the
+  subset exercised so far.
+- Keeping `_eval_array_lit_bv` aware of declared element width for 1-D scalar
+  arrays, while recursively concatenating inner packed arrays for multi-D
+  literals, preserved existing W540/W541 wide-struct-array VCD reconstruction.
+- Reusing the W545–W547 formal-witness pattern for 2-D arrays kept the Lean model
+  in lockstep with the Rust backend.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `try_emit_primitive_array_access` now scales the flat element index by
+    `elem_w` for variable-index packed primitive array slices.
+- `scripts/cocotb_ref_model.py`:
+  - Added `_collect_index_chain` to gather all indices from nested `ExprIndex`
+    nodes in source order.
+  - Rewrote `_eval_index_bv` to compute the row-major flat element index across
+    all dimensions and extract the correct signed/unsigned bit slice.
+  - Updated `_eval_array_lit_bv` to recursively pack multi-dimensional literals
+    while still masking 1-D scalar array children to the declared element width.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` / `Soundness.lean`:
+  - Added W548-A/B helper environments, modules, functions, and lowerability /
+    value-preservation theorems for unsigned and signed 2-D packed primitive
+    arrays.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `accepts_w548_multi_dimensional_primitive_scalar_array_return`
+    integration test.
+- Added two positive scratch witnesses:
+  - `specs/scratch/w548_2d_call_init_returns_array.t27`
+  - `specs/scratch/w548_2d_signed_element_read.t27`
+- Resealed both new witnesses and recorded Icarus baselines.
+- Updated `bootstrap/stage0/FROZEN_HASH` after the compiler edit.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W548_2026-07-16.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 549 (Variant A).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 8 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  56 Icarus PASS, 56 cocotb PASS, 636 seal matches, 0 mismatches; 24
+  pre-existing yosys smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- When fixing multi-dimensional indexing, write the general flat-index formula
+  (`flat = Σ idx[k] * Π dims[k+1:]`) once in both the compiler and the reference
+  model; do not hand-special-case 2-D.
+- For reference-model array-literal packing, reconstruct the declared full type
+  from `extra_size` + `extra_type` so that 1-D element masking and multi-D
+  recursive concatenation share the same layout calculation.
+- Add both an unsigned and a signed witness for every packed-vector indexing
+  change; signed bit-slices have independent `$signed(...)` semantics in Verilog.
+
+### Anti-patterns to avoid
+- Do not concatenate scalar array literal children at their natural (often
+  32-bit) width; always mask to the declared element width to avoid silent VCD
+  reconstruction mismatches in existing wide-struct witnesses.
+- Do not rely on a single immediate index in the reference model; multi-D access
+  is a chain, and only the chain gives the correct row-major order.

@@ -564,6 +564,24 @@ def _base_name(node: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _collect_index_chain(
+    node: Dict[str, Any]
+) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Walk an ExprIndex chain and return (root, [indices in source order]).
+
+    For ``m[i][j]`` the chain is ``ExprIndex(ExprIndex(m, i), j)``; this
+    function descends to ``m`` and returns the indices ``[i, j]`` in the order
+    they appear in the source.
+    """
+    indices: List[Dict[str, Any]] = []
+    while node.get("kind") == "ExprIndex" and _children(node):
+        kids = _children(node)
+        if len(kids) >= 2:
+            indices.append(kids[1])
+        node = kids[0]
+    return node, indices
+
+
 def _resolve_full_type(ctx: EvalContext, name: str) -> Optional[str]:
     """Return the declared type of `name` including array dimensions."""
     if ctx.current_fn:
@@ -646,24 +664,55 @@ def _eval_expr_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
 
 
 def _eval_array_lit_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
-    """Pack a scalar array literal into a bit-vector (element 0 at LSB)."""
+    """Pack a scalar array literal into a bit-vector (element 0 at LSB).
+
+    W548: handle multi-dimensional literals such as
+    ``[2][3]u8{ row0, row1 }`` by concatenating inner packed arrays.  For a
+    one-dimensional scalar array each child is masked to the element width
+    before packing, matching the compiler's packed-vector layout.
+    """
+    children = _children(node)
+    if not children:
+        return None
     elem_type = node.get("extra_type", "")
-    try:
-        count = int(node.get("extra_size", "").split("][")[-1])
-    except ValueError:
-        return None
-    ws = _type_width_signed(elem_type)
-    if ws is None:
-        return None
-    elem_w, signed = ws
+    size_str = node.get("extra_size", "")
+    full_ty = f"[{size_str}]{elem_type}" if size_str and elem_type else ""
+    parsed = _parse_array_type(full_ty) if full_ty else None
+    if parsed:
+        dims, elem = parsed
+        elem_ws = _type_width_signed(elem)
+        if elem_ws and len(dims) >= 1:
+            count = dims[0]
+            total_width = elem_ws[0]
+            for d in dims:
+                total_width *= d
+            inner_width = total_width // count
+            raw = 0
+            off = 0
+            for child in children:
+                val = _eval_expr_bv(ctx, child)
+                if val is None:
+                    return None
+                mask = (1 << inner_width) - 1
+                raw |= (val.value & mask) << off
+                off += inner_width
+            return Bv(raw, total_width, elem_ws[1])
+    # Fallback: recursively concatenate children at their natural widths.
     raw = 0
-    for i, child in enumerate(_children(node)):
+    width = 0
+    signed: Optional[bool] = None
+    for child in children:
         val = _eval_expr_bv(ctx, child)
         if val is None:
             return None
-        mask = (1 << elem_w) - 1
-        raw |= (val.value & mask) << (i * elem_w)
-    return Bv(raw, count * elem_w, signed)
+        mask = (1 << val.width) - 1
+        raw |= (val.value & mask) << width
+        width += val.width
+        if signed is None:
+            signed = val.signed
+    if signed is None:
+        return None
+    return Bv(raw, width, signed)
 
 
 def _eval_struct_lit_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
@@ -786,45 +835,60 @@ def _eval_field_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
 
 
 def _eval_index_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
-    if len(_children(node)) < 2:
+    root, indices = _collect_index_chain(node)
+    if root is None or not indices:
         return None
-    base = _children(node)[0]
-    index = _children(node)[1]
-    idx_bv = _eval_expr_bv(ctx, index)
-    if idx_bv is None:
+    idx_values = [_eval_expr_bv(ctx, idx) for idx in indices]
+    if any(v is None for v in idx_values):
         return None
-    idx = idx_bv.as_int()
-    base_name = _base_name(base)
-    if base_name is None:
-        return None
-    # W547: use the full declared type for primitive array element extraction.
-    full_type = _resolve_full_type(ctx, base_name)
-    if full_type is not None:
-        parsed = _parse_array_type(full_type)
-        if parsed:
-            dims, elem = parsed
-            elem_ws = _type_width_signed(elem)
-            if elem_ws:
-                # Primitive scalar array element.
-                whole_bv = ctx.vars.get(base_name)
-                if whole_bv is None:
-                    return None
-                # Linear index (row-major, outermost varies slowest).
-                # We only handle a single dimension here; multi-dim primitive arrays
-                # are unpacked and we don't have a whole-array value to slice.
-                if len(dims) == 1:
-                    raw = (whole_bv.value >> (idx * elem_ws[0])) & ((1 << elem_ws[0]) - 1)
+    idxs = [v.as_int() for v in idx_values]
+
+    if root.get("kind") == "ExprIdentifier":
+        base_name = root.get("name", "")
+        if not base_name:
+            return None
+        # W547/W548: use the full declared type (including all array dimensions)
+        # so that primitive scalar arrays like ``[2][3]i8`` resolve correctly.
+        full_type = _resolve_full_type(ctx, base_name)
+        if full_type is not None:
+            parsed = _parse_array_type(full_type)
+            if parsed:
+                dims, elem = parsed
+                elem_ws = _type_width_signed(elem)
+                if elem_ws and len(dims) == len(idxs):
+                    # W548: compute row-major flat element index from the full
+                    # index chain.  Element ``[i][j]`` of ``[2][3]u8`` is at
+                    # flat index ``i * 3 + j``.
+                    flat = 0
+                    for dim, idx in zip(dims, idxs):
+                        if idx < 0 or idx >= dim:
+                            return None
+                        flat = flat * dim + idx
+                    whole_bv = ctx.vars.get(base_name)
+                    if whole_bv is None:
+                        return None
+                    raw = (whole_bv.value >> (flat * elem_ws[0])) & (
+                        (1 << elem_ws[0]) - 1
+                    )
                     return Bv(raw, *elem_ws)
-                return None
-    base_type = _resolve_base_type(ctx, base_name)
-    if base_type is None:
         return None
-    # Scalar-struct array field element access: base is a field access.
-    if base.get("kind") == "ExprFieldAccess":
-        field_bv = _eval_field_bv(ctx, base)
+
+    if root.get("kind") == "ExprFieldAccess":
+        # Scalar-struct array field element access: ``aos[i].field[j]``.
+        # Field arrays are currently one-dimensional.
+        if len(idxs) != 1:
+            return None
+        idx = idxs[0]
+        base_name = _base_name(root)
+        if base_name is None:
+            return None
+        base_type = _resolve_base_type(ctx, base_name)
+        if base_type is None:
+            return None
+        field_bv = _eval_field_bv(ctx, root)
         if field_bv is None:
             return None
-        ftype = _struct_field_type(ctx.decls, base_type, base.get("name", ""))
+        ftype = _struct_field_type(ctx.decls, base_type, root.get("name", ""))
         if ftype is None:
             return None
         info = _scalar_array_info(ftype)
@@ -835,6 +899,7 @@ def _eval_index_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
             return None
         raw = (field_bv.value >> (idx * elem_w)) & ((1 << elem_w) - 1)
         return Bv(raw, elem_w, signed)
+
     return None
 
 
