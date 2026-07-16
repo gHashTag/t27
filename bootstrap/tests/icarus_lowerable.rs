@@ -341,6 +341,26 @@ fn accepts_w558_bench_scalar_call_expected_side_dedup() {
 }
 
 #[test]
+fn accepts_w559_bench_whole_array_higher_rank_signed() {
+    let dir = scratch_dir();
+    for name in &[
+        "w559_bench_whole_array_3d_signed.t27",
+        "w559_bench_whole_array_3d_signed_direct_call.t27",
+        "w559_bench_whole_array_4d_signed.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W559 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [

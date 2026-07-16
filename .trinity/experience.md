@@ -4820,3 +4820,37 @@ Sources:
 
 ### Pattern for next loops
 - Wide packed values in deterministic bench blocks share the same multi-slice probe emission and Python VCD reconstruction as test blocks; adding bench witnesses is usually enough.
+
+## 2026-07-07 — Wave Loop 559 (signed whole-array comparison for 3-D and 4-D arrays)
+
+### What worked
+- The rank-independent code paths (`expr_width_signed`, `emit_packed_array_literal_concat`, `gen_verilog_probe_prelude`, `_eval_array_lit_bv`) already supported 3-D and 4-D signed primitive scalar arrays, so no compiler or Python-model changes were needed.
+- A wide `[2][2][2][2]i32` 4-D witness forced four 64-bit VCD slice probes and verified the W540 multi-slice reconstruction path with signed elements.
+- A direct-call variant (`assert_eq(cube(), literal)`) exercised the W557 packed call temporary for rank-3 returns and recorded an Icarus baseline.
+
+### What changed behavior
+- `specs/scratch/w559_bench_whole_array_3d_signed.t27`: 3-D signed whole-array comparison with named test/bench local.
+- `specs/scratch/w559_bench_whole_array_4d_signed.t27`: 4-D signed whole-array comparison, 256-bit packed vector.
+- `specs/scratch/w559_bench_whole_array_3d_signed_direct_call.t27`: same 3-D array, actual expression is the function call directly.
+- `bootstrap/tests/icarus_lowerable.rs`: `accepts_w559_bench_whole_array_higher_rank_signed`.
+- Saved t27 seals for all three witnesses.
+- Recorded Icarus baseline for the direct-call witness.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W559_2026-07-07.md` and advanced `.trinity/current-issue.md` to Wave Loop 560.
+- Added `dump.vcd` to `.gitignore`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 19 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 70 Icarus PASS, 70 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on all three W559 witnesses: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- When extending a whole-array probe to higher ranks, start from the assumption that the backend is rank-independent; produce witnesses that exercise both the narrow (single-probe) and wide (multi-slice) cases.
+- If a named test/bench local exposes a pre-existing non-assertion `gen-verilog` limitation, keep the local variant as a structural lowerability witness and add a direct-call variant to record an Icarus baseline.
+
+### Anti-patterns to avoid
+- Do not treat a pre-existing non-simulatable but structurally lowerable witness as a failure of the current wave; record the limitation explicitly and ensure at least one variant passes the full automated gate.
+

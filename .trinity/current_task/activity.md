@@ -1724,3 +1724,7 @@
 - **Commit:** feat(icarus-lowerable): Wave Loop 558 — expected-side scalar call deduplication witness + docs + seal
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-16T16:35:50Z — wave-loop-559
+- **Commit:** feat(icarus-lowerable): Wave Loop 558 — expected-side scalar call deduplication witness + docs + seal
+- **Files:** .claude/plans/wave-loop-559.md,.gitignore,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w559_bench_whole_array_3d_signed_direct_call.json,.trinity/seals/scratch_w559_bench_whole_array_3d_signed.json,.trinity/seals/scratch_w559_bench_whole_array_3d_signed_direct_call.json,.trinity/seals/scratch_w559_bench_whole_array_4d_signed.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W559_2026-07-07.md,specs/scratch/w559_bench_whole_array_3d_signed.t27,specs/scratch/w559_bench_whole_array_3d_signed_direct_call.t27,specs/scratch/w559_bench_whole_array_4d_signed.t27
+
