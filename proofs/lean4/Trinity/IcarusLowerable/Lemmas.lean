@@ -2773,6 +2773,111 @@ def w545CallInitReturnsArrayModule : Module := {
   benches := []
 }
 
+/- W546 witnesses: function-local primitive scalar arrays initialized or reassigned
+   from packed-vector function calls. -/
+
+/-- W546-A: helper function that returns a `[3]u8` packed vector. -/
+def w546LocalCallInitReturnsArraySeq : Function := {
+  name := "seq",
+  params := [],
+  ret := some (.array 3 .u8),
+  body := [
+    .return_ (some (.arrayLit (.array 3 .u8) [.intLit 1, .intLit 2, .intLit 3]))
+  ]
+}
+
+/-- W546-A: function that binds the returned array to a local `let` and returns
+    the element sum. -/
+def w546LocalCallInitReturnsArrayCheck : Function := {
+  name := "check",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "a" (.array 3 .u8) (some (.call "seq" [])),
+    .return_ (some
+      (.binop "+"
+        (.binop "+"
+          (.index (.identifier "a") (.intLit 0))
+          (.index (.identifier "a") (.intLit 1)))
+        (.index (.identifier "a") (.intLit 2))))
+  ]
+}
+
+def w546LocalCallInitReturnsArrayEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["seq", "check"]
+}
+
+/-- W546-A: module with a function-local packed primitive array initializer. -/
+def w546LocalCallInitReturnsArrayModule : Module := {
+  name := "w546_local_call_init_returns_array",
+  imports := [],
+  globals := [],
+  functions := [w546LocalCallInitReturnsArraySeq, w546LocalCallInitReturnsArrayCheck],
+  tests := [
+    { name := "local_call_init_returns_array", params := [], ret := none, body := [
+      .bareCall (.call "assert_eq" [.call "check" [], .intLit 6])
+    ]}
+  ],
+  benches := []
+}
+
+/-- W546-B: helper function that returns a different `[3]u8` packed vector. -/
+def w546LocalCallAssignReturnsArraySeq : Function := {
+  name := "seq",
+  params := [],
+  ret := some (.array 3 .u8),
+  body := [
+    .return_ (some (.arrayLit (.array 3 .u8) [.intLit 7, .intLit 8, .intLit 9]))
+  ]
+}
+
+/-- W546-B: function that initializes a local array from a literal, reassigns it
+    from a function call, and returns the element sum. -/
+def w546LocalCallAssignReturnsArrayCheck : Function := {
+  name := "check",
+  params := [],
+  ret := some .u32,
+  body := [
+    .varDecl "a" (.array 3 .u8)
+      (some (.arrayLit (.array 3 .u8) [.intLit 1, .intLit 2, .intLit 3])),
+    .assign (.identifier "a") (.call "seq" []),
+    .return_ (some
+      (.binop "+"
+        (.binop "+"
+          (.index (.identifier "a") (.intLit 0))
+          (.index (.identifier "a") (.intLit 1)))
+        (.index (.identifier "a") (.intLit 2))))
+  ]
+}
+
+def w546LocalCallAssignReturnsArrayEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["seq", "check"]
+}
+
+/-- W546-B: module with a function-local packed primitive array reassignment. -/
+def w546LocalCallAssignReturnsArrayModule : Module := {
+  name := "w546_local_call_assign_returns_array",
+  imports := [],
+  globals := [],
+  functions := [w546LocalCallAssignReturnsArraySeq, w546LocalCallAssignReturnsArrayCheck],
+  tests := [
+    { name := "local_call_assign_returns_array", params := [], ret := none, body := [
+      .bareCall (.call "assert_eq" [.call "check" [], .intLit 24])
+    ]}
+  ],
+  benches := []
+}
+
 /- W535 negative witness environments and modules: the tightened predicate rejects
    the exact patterns flagged by the Rust structural classifier. -/
 

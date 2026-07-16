@@ -665,6 +665,48 @@ then mirror the change in the Lean predicate, and finally add lowerability and
 value-preservation theorems.  Track new packed-vector shapes in a dedicated
 `VerilogCodegen` map so declaration and access sites agree.
 
+## Worked example — Wave Loop 546
+
+Wave Loop 546 extended W545's primitive scalar array function returns to function-
+local `let` bindings and reassignments.
+
+- In `bootstrap/src/compiler.rs`:
+  - Added `local_packed_primitive_arrays` tracking to `VerilogCodegen` and
+    cleared it at the start of each function.
+  - In `emit_local`, primitive scalar array `StmtLocal` nodes with a non-array-
+    literal initializer are emitted as packed-vector `reg [W-1:0]` with a whole-
+    vector assignment.
+  - In `gen_verilog_stmt` for `StmtAssign`, assignments of packed-vector
+    expressions to primitive array identifiers are emitted as whole-vector
+    assignments and the target is tracked as packed.
+  - `try_emit_primitive_array_access` checks `local_packed_primitive_arrays`
+    before falling back to the unpacked path.
+  - Updated temporary `VerilogCodegen` clones to carry the new local map.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- In `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`:
+  - Added W546-A and W546-B helper environments, modules, and functions.
+- In `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`:
+  - Added lowerability and value-preservation theorems for both witnesses.
+- Added two positive scratch witnesses:
+  - `specs/scratch/w546_local_call_init_returns_array.t27`
+  - `specs/scratch/w546_local_call_assign_returns_array.t27`
+- Resealed affected corpus spec `specs/api/c_api_contract.t27`.
+- Wrote `docs/reports/WAVE_LOOP_546_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W547_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W547.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 6/0,
+  `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`
+  53/0 Icarus PASS, 53/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: track per-scope packed-vector shapes in a dedicated map, clear it
+at scope boundaries, and branch the local-array emitter on initializer kind:
+array-literal → unpacked (preserves variable-index writes), call/other packed
+expression → packed vector.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

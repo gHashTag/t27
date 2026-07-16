@@ -1465,4 +1465,51 @@ theorem w545_call_init_returns_array_value_equiv :
   exact module_value_equiv_proved_sequential w545CallInitReturnsArrayEnv w545CallInitReturnsArrayModule
     hlowerable hunique hseq hctx "seq" w545CallInitReturnsArraySeq [] hfind hhost
 
+/- W546 theorems: function-local primitive scalar arrays initialized or reassigned
+   from packed-vector function calls. -/
+
+/-- W546-A: the local-call-init primitive scalar array witness is lowerable. -/
+theorem w546_local_call_init_returns_array_lowerable :
+  Module.isLowerable w546LocalCallInitReturnsArrayEnv w546LocalCallInitReturnsArrayModule := by
+  native_decide
+
+/-- W546-A: value preservation for `check()` (returns 6). -/
+theorem w546_local_call_init_returns_array_value_equiv :
+  evalModuleFunctionTotal defaultFuel w546LocalCallInitReturnsArrayEnv w546LocalCallInitReturnsArrayModule "check" [] =
+  evalVModuleTotal defaultFuel w546LocalCallInitReturnsArrayEnv (emitModule w546LocalCallInitReturnsArrayEnv w546LocalCallInitReturnsArrayModule) "check" [] := by
+  have hlowerable : Module.isLowerable w546LocalCallInitReturnsArrayEnv w546LocalCallInitReturnsArrayModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w546LocalCallInitReturnsArrayModule := by
+    simp [Module.hasUniqueFunctionNames, w546LocalCallInitReturnsArrayModule, w546LocalCallInitReturnsArraySeq, w546LocalCallInitReturnsArrayCheck]
+  have hcomb : Module.isCombinational w546LocalCallInitReturnsArrayEnv w546LocalCallInitReturnsArrayModule := by native_decide
+  have hctx : Module.callContext w546LocalCallInitReturnsArrayEnv w546LocalCallInitReturnsArrayModule := by
+    native_decide
+  have hfind : w546LocalCallInitReturnsArrayModule.findFunction "check" = some w546LocalCallInitReturnsArrayCheck := by
+    simp [Module.findFunction, w546LocalCallInitReturnsArrayModule, w546LocalCallInitReturnsArraySeq, w546LocalCallInitReturnsArrayCheck]
+  have hhost : ¬ Env.isHostOnly w546LocalCallInitReturnsArrayEnv w546LocalCallInitReturnsArrayCheck.name := by
+    simp [Env.isHostOnly, w546LocalCallInitReturnsArrayEnv, w546LocalCallInitReturnsArrayCheck]
+  exact module_value_equiv_statement w546LocalCallInitReturnsArrayEnv w546LocalCallInitReturnsArrayModule
+    hlowerable hunique hcomb hctx "check" w546LocalCallInitReturnsArrayCheck [] hfind hhost
+
+/-- W546-B: the local-call-assign primitive scalar array witness is lowerable. -/
+theorem w546_local_call_assign_returns_array_lowerable :
+  Module.isLowerable w546LocalCallAssignReturnsArrayEnv w546LocalCallAssignReturnsArrayModule := by
+  native_decide
+
+/-- W546-B: value preservation for `check()` (returns 24). -/
+theorem w546_local_call_assign_returns_array_value_equiv :
+  evalModuleFunctionTotal defaultFuel w546LocalCallAssignReturnsArrayEnv w546LocalCallAssignReturnsArrayModule "check" [] =
+  evalVModuleTotal defaultFuel w546LocalCallAssignReturnsArrayEnv (emitModule w546LocalCallAssignReturnsArrayEnv w546LocalCallAssignReturnsArrayModule) "check" [] := by
+  have hlowerable : Module.isLowerable w546LocalCallAssignReturnsArrayEnv w546LocalCallAssignReturnsArrayModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w546LocalCallAssignReturnsArrayModule := by
+    simp [Module.hasUniqueFunctionNames, w546LocalCallAssignReturnsArrayModule, w546LocalCallAssignReturnsArraySeq, w546LocalCallAssignReturnsArrayCheck]
+  have hcomb : Module.isCombinational w546LocalCallAssignReturnsArrayEnv w546LocalCallAssignReturnsArrayModule := by native_decide
+  have hctx : Module.callContext w546LocalCallAssignReturnsArrayEnv w546LocalCallAssignReturnsArrayModule := by
+    native_decide
+  have hfind : w546LocalCallAssignReturnsArrayModule.findFunction "check" = some w546LocalCallAssignReturnsArrayCheck := by
+    simp [Module.findFunction, w546LocalCallAssignReturnsArrayModule, w546LocalCallAssignReturnsArraySeq, w546LocalCallAssignReturnsArrayCheck]
+  have hhost : ¬ Env.isHostOnly w546LocalCallAssignReturnsArrayEnv w546LocalCallAssignReturnsArrayCheck.name := by
+    simp [Env.isHostOnly, w546LocalCallAssignReturnsArrayEnv, w546LocalCallAssignReturnsArrayCheck]
+  exact module_value_equiv_statement w546LocalCallAssignReturnsArrayEnv w546LocalCallAssignReturnsArrayModule
+    hlowerable hunique hcomb hctx "check" w546LocalCallAssignReturnsArrayCheck [] hfind hhost
+
 end Trinity.IcarusLowerable

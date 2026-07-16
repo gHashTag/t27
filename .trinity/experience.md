@@ -1,3 +1,76 @@
+## 2026-07-07 — Wave Loop 546 (function-local primitive scalar array return initializers and reassignments for independent VCD cross-check)
+
+### What worked
+- The same packed-vector infrastructure from W545 generalized to function-local
+  primitive scalar arrays once the packed/unpacked choice was tracked in a
+  per-function map (`local_packed_primitive_arrays`).
+- Distinguishing `let a : [3]u8 = [3]u8{...}` (unpacked, for variable-index writes)
+  from `let a : [3]u8 = seq()` (packed, because the RHS is a packed-vector call)
+  produced correct Verilog for both shapes without breaking existing W531
+  unpacked-array witnesses.
+- Detecting packed-array reassignment at the `StmtAssign` level and emitting a
+  whole-vector assignment prevented Verilog width mismatches between packed RHS
+  and unpacked LHS.
+- Adding lowerability + value-preservation theorems for both new witnesses kept
+  the formal model in lockstep with the Rust backend.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `local_packed_primitive_arrays` tracking to `VerilogCodegen` and
+    `with_options`.
+  - In `gen_verilog_fn`, clear `local_packed_primitive_arrays` at the start of
+    each function.
+  - In `emit_local`, primitive scalar array `StmtLocal` nodes with a non-array-
+    literal initializer are emitted as packed-vector `reg [W-1:0]` with a whole-
+    vector assignment and tracked in `local_packed_primitive_arrays`.
+  - In `gen_verilog_stmt` for `StmtAssign`, assignments of packed-vector
+    expressions (`ExprCall` or `ExprArrayLiteral`) to primitive array identifiers
+    are emitted as whole-vector assignments and the target is tracked as packed.
+  - `try_emit_primitive_array_access` now checks `local_packed_primitive_arrays`
+    before falling back to the unpacked path.
+  - Updated temporary `VerilogCodegen` clones to carry the new local map.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`:
+  - Added W546-A/B helper environments, modules, and functions.
+- `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`:
+  - Added lowerability and value-preservation theorems for W546-A and W546-B.
+- Added two positive scratch witnesses:
+  - `specs/scratch/w546_local_call_init_returns_array.t27`
+  - `specs/scratch/w546_local_call_assign_returns_array.t27`
+- Resealed affected corpus spec:
+  - `specs/api/c_api_contract.t27`
+- Wrote `docs/reports/WAVE_LOOP_546_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W547_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 547 (Variant A).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 6 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  53 Icarus PASS, 53 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Track per-scope packed-vector shapes in a dedicated map so declaration and
+  access sites agree; clear the map at scope boundaries (function entry).
+- Branch the local-array emitter on initializer kind, not just type:
+  array-literal → unpacked (preserves variable-index writes);
+  call/other packed expression → packed vector.
+- Detect whole-vector reassignment at `StmtAssign` and emit a single packed
+  assignment rather than letting the LHS fall back to unpacked access.
+
+### Anti-patterns to avoid
+- Do not assume all primitive arrays of the same type use the same storage shape
+  in a given function; the choice depends on how the binding is initialized.
+- Do not update only the initializer path without also updating the access path;
+  `try_emit_primitive_array_access` must know about packed locals.
+
+---
+
 ## 2026-07-07 — Wave Loop 545 (primitive scalar array function returns for independent VCD cross-check)
 
 ### What worked

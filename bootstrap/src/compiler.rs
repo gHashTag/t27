@@ -3694,6 +3694,9 @@ pub struct VerilogCodegen {
     // when the initializer is a function call returning the array; indexing is
     // lowered as bit-slices instead of unpacked array access.
     module_packed_primitive_arrays: std::collections::HashMap<String, (Vec<usize>, String)>,
+    // W546: function-local primitive scalar arrays that are stored as packed
+    // vectors.  The same bit-slice access path applies inside the function scope.
+    local_packed_primitive_arrays: std::collections::HashMap<String, (Vec<usize>, String)>,
     // W530: when true, emit active test assertions for Icarus simulation
     // instead of commented-out placeholders.
     emit_test_assertions: bool,
@@ -3730,6 +3733,7 @@ impl VerilogCodegen {
             param_types: std::collections::HashMap::new(),
             fn_return_types: std::collections::HashMap::new(),
             module_packed_primitive_arrays: std::collections::HashMap::new(),
+            local_packed_primitive_arrays: std::collections::HashMap::new(),
             emit_test_assertions,
             probe_counter: 0,
             probe_specs: Vec::new(),
@@ -4525,6 +4529,7 @@ impl VerilogCodegen {
             param_types: self.param_types.clone(),
             fn_return_types: self.fn_return_types.clone(),
             module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
+            local_packed_primitive_arrays: self.local_packed_primitive_arrays.clone(),
             emit_test_assertions: self.emit_test_assertions,
             probe_counter: 0,
             probe_specs: Vec::new(),
@@ -4679,6 +4684,7 @@ impl VerilogCodegen {
                     param_types: self.param_types.clone(),
                     fn_return_types: self.fn_return_types.clone(),
                     module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
+                    local_packed_primitive_arrays: self.local_packed_primitive_arrays.clone(),
                     emit_test_assertions: self.emit_test_assertions,
                     probe_counter: 0,
                     probe_specs: Vec::new(),
@@ -4793,9 +4799,11 @@ impl VerilogCodegen {
             _ => return false,
         };
 
-        // W545: module-level primitive scalar arrays initialized by function calls
-        // are stored as packed vectors.  Indexing is lowered as bit-slices.
-        if let Some((dims, elem_type)) = self.module_packed_primitive_arrays.get(&base_name) {
+        // W545/W546: primitive scalar arrays stored as packed vectors (module-level
+        // const/var or function-local) are indexed by bit-slices.
+        let packed_info = self.module_packed_primitive_arrays.get(&base_name)
+            .or_else(|| self.local_packed_primitive_arrays.get(&base_name));
+        if let Some((dims, elem_type)) = packed_info {
             let elem_w = Self::type_to_width(elem_type).max(1) as usize;
             if indices.len() != dims.len() {
                 return false;
@@ -5791,6 +5799,7 @@ impl VerilogCodegen {
         self.param_widths.clear();
         self.local_types.clear();
         self.param_types.clear();
+        self.local_packed_primitive_arrays.clear();
         // W527: cache local variable types for array-of-struct resolution.
         for stmt in &node.children {
             if stmt.kind == NodeKind::StmtLocal && !stmt.name.is_empty() {
@@ -6296,11 +6305,49 @@ impl VerilogCodegen {
             }
         }
 
-        // W531: 1-D and multi-D arrays of primitive scalars are lowered as
-        // unpacked Verilog arrays.
+        // W531/W546: 1-D and multi-D arrays of primitive scalars are lowered as
+        // unpacked Verilog arrays when initialized by an array literal, so that
+        // variable-index writes are preserved.  When initialized by a function call
+        // (or any other packed-vector expression), they are stored as a packed
+        // vector and assigned wholesale.
         if Self::is_primitive_array_type(&node.extra_type) {
             let (dims, elem_type) = Self::primitive_array_info(&node.extra_type
             ).unwrap_or((Vec::new(), "u32".to_string()));
+            let child = node.children.first();
+            let is_packed_init = child.map_or(false, |c| {
+                c.kind != NodeKind::ExprArrayLiteral
+            });
+            if is_packed_init {
+                let width = self.packed_width(&node.extra_type) as usize;
+                let signed = self.packed_signed(&node.extra_type);
+                let signed_str = if signed { "signed " } else { "" };
+                let range = Self::range_decl(width as u32);
+                let range_str = if range.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", range)
+                };
+                if phase != LocalEmitPhase::Init {
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "reg {}{}{};",
+                        signed_str, range_str, node.name
+                    ));
+                }
+                if phase != LocalEmitPhase::Decl && child.is_some() {
+                    self.write_indent();
+                    self.write(&format!("{} = ", node.name));
+                    self.gen_verilog_expr(child.unwrap());
+                    self.write_line(";");
+                } else if phase == LocalEmitPhase::Full {
+                    self.write_line("");
+                }
+                self.local_packed_primitive_arrays.insert(
+                    node.name.clone(),
+                    (dims.clone(), elem_type.clone()),
+                );
+                return;
+            }
             let elem_w = Self::type_to_width(&elem_type).max(1) as usize;
             let signed = Self::type_is_signed(
                 &Self::parse_array_type(&node.extra_type)
@@ -6319,8 +6366,8 @@ impl VerilogCodegen {
                     signed_str, "", elem_w - 1, node.name, dims_str
                 ));
             }
-            if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
-                let child = &node.children[0];
+            if phase != LocalEmitPhase::Decl && child.is_some() {
+                let child = child.unwrap();
                 self.write_indent();
                 self.write_line("begin");
                 self.indent();
@@ -6407,15 +6454,42 @@ impl VerilogCodegen {
             NodeKind::StmtAssign => {
                 self.write_indent();
                 if node.children.len() >= 2 {
-                    self.gen_verilog_expr(&node.children[0]);
-                    if node.extra_op == "+=" {
-                        self.write(" = ");
-                        self.gen_verilog_expr(&node.children[0]);
-                        self.write(" + ");
+                    let lhs = &node.children[0];
+                    let rhs = &node.children[1];
+                    // W546: detect assignment of a packed-vector expression to a
+                    // function-local primitive scalar array.  The target identifier
+                    // must be tracked as packed, and the RHS must be a call or
+                    // array literal that produces a packed vector of the same width.
+                    let is_packed_array_assign = lhs.kind == NodeKind::ExprIdentifier
+                        && !lhs.name.is_empty()
+                        && Self::is_primitive_array_type(&lhs.extra_type)
+                        && (rhs.kind == NodeKind::ExprCall
+                            || rhs.kind == NodeKind::ExprArrayLiteral);
+                    if is_packed_array_assign {
+                        let (dims, elem_type) = Self::primitive_array_info(&lhs.extra_type
+                        ).unwrap_or((Vec::new(), "u32".to_string()));
+                        self.write(&format!("{} = ", lhs.name));
+                        if rhs.kind == NodeKind::ExprArrayLiteral {
+                            self.emit_packed_array_literal_concat(rhs, &lhs.extra_type);
+                        } else {
+                            self.gen_verilog_expr(rhs);
+                        }
+                        self.write_line(";");
+                        self.local_packed_primitive_arrays.insert(
+                            lhs.name.clone(),
+                            (dims.clone(), elem_type.clone()),
+                        );
                     } else {
-                        self.write(" = ");
+                        self.gen_verilog_expr(lhs);
+                        if node.extra_op == "+=" {
+                            self.write(" = ");
+                            self.gen_verilog_expr(lhs);
+                            self.write(" + ");
+                        } else {
+                            self.write(" = ");
+                        }
+                        self.gen_verilog_expr(rhs);
                     }
-                    self.gen_verilog_expr(&node.children[1]);
                 }
                 self.write_line(";");
             }
