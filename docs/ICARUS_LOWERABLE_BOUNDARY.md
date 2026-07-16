@@ -199,7 +199,33 @@ Verilog simulation agrees with the expected literals declared in the source.
 Future waves can extend the Python evaluator to independently compute the
 value of the actual expression.
 
-## 10. Pre-existing yosys smoke baseline
+## 10. Deterministic bench/test call-return array temporary deduplication (W556)
+
+W556 reuses a single packed-vector temporary for the same function-call
+expression returning a primitive scalar array when that expression appears at
+multiple sites in one `test` or deterministic `bench` block. This is a limited,
+block-scoped form of common-subexpression elimination applied to the
+simulation-only assertion harness.
+
+Rules and caveats:
+- The temporary is created only for calls whose return type is a fixed-size
+  primitive scalar array (`[N]T` or `[N][M]T` where `T` is `u8`/`i8`/etc.).
+- The deduplication key is the full call expression text, including function
+  name and rendered arguments, so `f()` and `f(1)` receive different
+  temporaries.
+- The temporary is assigned once per block on first use and referenced by every
+  subsequent site.
+- This optimization is only valid for **pure, side-effect-free calls** inside
+  the deterministic simulation gate. The Icarus-lowerable subset already
+  rejects host-only helpers and unresolved imports; future waves may add an
+  explicit side-effect classifier for `bench` blocks that use `#` delays or
+  unbounded loops.
+
+Witness: `specs/scratch/w556_bench_multi_site_array_dedup.t27` asserts both
+`mat()[1][2]` and `assert_eq(mat(), expected)` in the same bench, and the
+generated Verilog contains a single `_t27_call_arr_tmp_*` assignment.
+
+## 11. Pre-existing yosys smoke baseline
 
 The Icarus-lowerable gate is independent of the Yosys synthesis smoke gate.
 Several legacy `w3xx` scratch specs fail Yosys smoke because they exercise

@@ -1,3 +1,66 @@
+## 2026-07-07 — Wave Loop 556 (multi-site call-return array deduplication)
+
+### What worked
+- Single scratch witness `w556_bench_multi_site_array_dedup` confirmed that
+  the W553 packed-vector temporary map can be reused when the same function call
+  returning a primitive scalar array is used at multiple sites (element index
+  and whole-array comparison) in one deterministic `bench` block.
+- Extending `predeclare_call_array_tmps` and
+  `materialize_call_array_tmps_in_expr` to bare `ExprCall` nodes, plus a
+  dedicated `gen_verilog_expr_with_call_array_tmp` wrapper, kept the change
+  surgical and avoided modifying the general `gen_verilog_expr` emitter.
+- The generated Verilog for W556 shows exactly one `_t27_call_arr_tmp_*`
+  assignment and two references, proving the deduplication works.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `predeclare_call_array_tmps` now registers a packed-vector temporary for
+    bare `ExprCall` whose return type is a primitive scalar array, not only for
+    `ExprIndex -> ExprCall` chains.
+  - `materialize_call_array_tmps_in_expr` now materializes temporaries for bare
+    `ExprCall` sites too.
+  - Added `gen_verilog_expr_with_call_array_tmp` and used it in
+    `gen_verilog_test_stmt` for probe assignment, comparison, and diagnostic
+    emission of `assert_eq` actual expressions.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`: added
+  `accepts_w556_bench_multi_site_array_dedup`.
+- `docs/ICARUS_LOWERABLE_BOUNDARY.md`: added section 10 documenting the W556
+  block-scoped call-return array temporary deduplication rule and pure-call
+  caveat.
+- Added positive scratch witness `specs/scratch/w556_bench_multi_site_array_dedup.t27`.
+- Saved t27 seal for the witness.
+- Recorded Icarus baseline for the witness.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W556_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 557 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 16 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  67 Icarus PASS, 67 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W556 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- A block-scoped map keyed by full call expression text is enough to deduplicate
+  call-return array values inside test/bench blocks; extend registration and
+  lookup to all call sites that need the same packed value.
+- Wrap `gen_verilog_expr` for the specific emission sites that should substitute
+  the temporary, rather than changing the general emitter, so other codegen
+  paths (and `collect_expr_text`) keep using the original call text.
+
+### Anti-patterns to avoid
+- Do not change `gen_verilog_expr` itself to substitute call temporaries: it is
+  used by `collect_expr_text` to build the deduplication key, which would create
+  a circular dependency and stack overflow.
+
+---
+
 ## 2026-07-07 — Wave Loop 555 (whole-array bench assignments)
 
 ### What worked
