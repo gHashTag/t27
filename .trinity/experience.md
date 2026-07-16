@@ -1,3 +1,74 @@
+## 2026-07-07 — Wave Loop 558 (expected-side scalar call deduplication)
+
+### What worked
+- A code-only investigation showed that W557 already deduplicates scalar-return
+  calls on the expected side of `assert_eq`: `predeclare_call_array_tmps`
+  recurses into all expression children, `use_call_array_temps` is active for
+  the whole test/bench statement loop, and `gen_verilog_expr` substitutes
+  temporaries for any matching `ExprCall`. Therefore W558 became a
+  **witness-only regression lock** rather than a compiler change.
+- New scratch witness `w558_bench_scalar_call_expected_side_dedup` proves the
+  behavior with `assert_eq(val(), val())` and
+  `assert_eq(val() + other(), val() + other())`; the generated Verilog evaluates
+  each unique call exactly once and shares the temporary between both operands.
+- Updated `docs/ICARUS_LOWERABLE_BOUNDARY.md` section 10 to describe scalar-return
+  call deduplication and both operands of `assert_eq`.
+
+### What changed behavior
+- `bootstrap/tests/icarus_lowerable.rs`: added
+  `accepts_w558_bench_scalar_call_expected_side_dedup`.
+- `docs/ICARUS_LOWERABLE_BOUNDARY.md`: renamed section 10 and documented W557/W558
+  scalar/array call CSE semantics, including the pure-call caveat.
+- Added positive scratch witness
+  `specs/scratch/w558_bench_scalar_call_expected_side_dedup.t27`.
+- Saved t27 seal and recorded Icarus baseline for the witness.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W558_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 559 (Variant A recommended:
+  signed whole-array comparison for higher ranks).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 18 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  69 Icarus PASS, 69 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` on W558 witness: PASS.
+- Direct `t27c icarus-cocotb` on W558 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- VO-GCSE (FSE 2025) applies compiler-style Global CSE to SMT-based bounded
+  model checking, eliminating redundant sub-expressions across assertion
+  operands. W557/W558 implements the same idea in the t27 simulation harness.
+- CREST (arXiv 2019) translates ANSI-C reference models into Verilog and relies
+  on compiler-style CSE; t27's per-block temporary is a deterministic equivalent.
+- CompCert's verified CSE (`backend/CSEproof.v`) underpins the soundness
+  intuition for pure-call memoization.
+
+Sources:
+- [VO-GCSE](https://ssvlab.github.io/lucasccordeiro/papers/fse2025.pdf)
+- [CREST](https://arxiv.org/pdf/1908.01324)
+- [CompCert CSEproof.v](https://github.com/AbsInt/CompCert/blob/master/backend/CSEproof.v)
+- [SystemVerilog Assertions local variables](https://systemverilog.us/vf/seq_local_var.pdf)
+
+### Patterns to reuse
+- When a planned wave is already solved by the previous generalization, still
+  create the witness, integration test, and documentation update so the behavior
+  is locked and future regressions are caught.
+- A block-scoped CSE pass needs a contextual flag set during the specific
+  emission scope and reset afterward, plus a key-generation path that always
+  renders the original expression text.
+
+### Anti-patterns to avoid
+- Do not skip writing a wave plan just because no compiler change is required;
+  the plan records the engineering conclusion and the acceptance criteria that
+  the witness must meet.
+
+---
+
 ## 2026-07-07 — Wave Loop 557 (general bench CSE for scalar calls)
 
 ### What worked

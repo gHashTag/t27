@@ -1704,3 +1704,23 @@
 - **Commit:** feat(gen-verilog): Wave Loop 556 — multi-site call-return array temporary deduplication
 - **Files:** .claude/plans/wave-loop-557.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w557_bench_scalar_call_dedup.json,.trinity/seals/scratch_w557_bench_scalar_call_dedup.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W557_2026-07-07.md,specs/scratch/w557_bench_scalar_call_dedup.t27
 
+## 2026-07-16T16:13:47Z — wave-loop-558
+- **Commit:** feat(gen-verilog): Wave Loop 557 — general bench CSE for scalar calls
+- **Files:** .claude/plans/wave-loop-558.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/icarus-baselines/specs/scratch/w558_bench_scalar_call_expected_side_dedup.json,.trinity/seals/scratch_w558_bench_scalar_call_expected_side_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/ICARUS_LOWERABLE_BOUNDARY.md,docs/reports/FPGA_LOOP_CLOSEOUT_W558_2026-07-07.md,dump.vcd,repro/numerics/nmse_manifest.json,repro/numerics/nmse_manifest_protocol_v1.json,specs/scratch/w558_bench_scalar_call_expected_side_dedup.t27
+
+## 2026-07-16T16:13:54Z — wave-loop-558
+- **Commit:** feat(icarus-lowerable): Wave Loop 558 — expected-side scalar call deduplication witness + docs + seal
+- **Files:** 
+
+## 2026-07-16T16:14:01Z — wave-loop-558
+- **Commit:** feat(icarus-lowerable): Wave Loop 558 — expected-side scalar call deduplication witness + docs + seal
+- **Files:** dump.vcd
+
+## 2026-07-16T16:14:52Z — wave-loop-559
+- **Commit:** feat(icarus-lowerable): Wave Loop 558 — expected-side scalar call deduplication witness + docs + seal
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md
+
+## 2026-07-16T16:16:25Z — wave-loop-559
+- **Commit:** feat(icarus-lowerable): Wave Loop 558 — expected-side scalar call deduplication witness + docs + seal
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
