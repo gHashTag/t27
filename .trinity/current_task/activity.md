@@ -1736,3 +1736,11 @@
 - **Commit:** feat(gen-verilog): Wave Loop 560 — scalar-struct return call deduplication (Issue #1531)
 - **Files:** docs/ICARUS_LOWERABLE_BOUNDARY.md
 
+## 2026-07-16T16:53:10Z — wave-loop-560
+- **Commit:** docs(icarus-lowerable): document W560 scalar-struct call CSE in boundary doc
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T16:53:15Z — wave-loop-560
+- **Commit:** chore(trinity): record W560 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
