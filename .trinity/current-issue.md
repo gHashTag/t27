@@ -1,48 +1,37 @@
-# Wave Loop 551 — Independent VCD cross-check for deterministic `bench` blocks
+# Wave Loop 555 — Current Issue
 
-**Issue:** #1522 (placeholder — create when GitHub token is available)  
-**Branch:** `wave-loop-551`  
-**Source:** `docs/reports/FPGA_LOOP_CLOSEOUT_W550_2026-07-16.md` (Variant A)  
-**Anchor:** φ² + φ⁻² = 3 | TRINITY
-
----
+**Issue #1526** — Whole-array bench assignments (Variant A).
+**Branch:** `wave-loop-555` (to be created from current `wave-loop-554`).
+**Previous:** Wave Loop 554 closed (#1525, branch `wave-loop-554`).
 
 ## Goal
 
-Extend the cocotb reference-model cross-check from `test` blocks to deterministic
-`bench` blocks.  All W5xx cocotb cross-checks so far target `test` blocks; `bench`
-blocks contain latency/throughput assertions that are currently skipped by the
-reference model.  This leaves a gap in independent verification of generated
-Verilog cycle-level behavior.
-
-## Scope
-
-1. Extend `scripts/cocotb_ref_model.py` to parse `bench` blocks and evaluate
-   deterministic assertions inside them, skipping non-deterministic or timing-only
-   benches.
-2. Add a positive scratch witness `specs/scratch/w551_bench_scalar_call_cross_check.t27`
-   with a `bench` block that uses a lowerable function call and a deterministic
-   assertion.
-3. Update `bootstrap/src/suite.rs` to include `bench` blocks in the cocotb gate
-   when `--cocotb` is enabled.
-4. Keep `test` and `bench` probes clearly distinguished in VCD output.
-5. Record the Icarus baseline and seal the new witness.
-6. Run the full validation matrix.
+Support `assert_eq` on a complete 2-D primitive scalar array value inside a
+`bench` block. Reuse the W540 multi-slice probe path to capture the wide signed
+packed array in Icarus and reconstruct it in the Python reference model.
 
 ## Acceptance criteria
 
-- The new deterministic `bench` witness passes Icarus simulation and the cocotb
-  reference-model cross-check.
-- `./scripts/tri test --icarus-simulate --cocotb --fast` passes the new bench
-  witness.
-- Existing `test` cocotb count remains unchanged (no regression).
-- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
-  0 cocotb failures, 0 Icarus failures, 0 seal mismatches, and the 24
-  pre-existing yosys smoke baseline failures remain unchanged.
-- `cargo build --release -p t27c`, `cargo test -p t27c --bin t27c`, `cargo test -p tri`,
-  `cargo test -p t27c --test icarus_lowerable`, and
-  `lake build Trinity.IcarusLowerable.Soundness` remain green / 0 `sorry`.
+- New scratch witness(es) under `specs/scratch/w555_*` exercise:
+  - a function returning a 2-D primitive scalar array,
+  - a `bench`-local `let` receiving that whole array,
+  - an `assert_eq(tmp, expected_2d_literal)` comparing the entire array value.
+- The generated Verilog emits multi-slice VCD probes for the packed array,
+  preserving signed element interpretation.
+- The Python reference model reconstructs the 2-D value from the recorded probe
+  slices and validates it against the expected array literal.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast` shows
+  zero new Icarus/cocotb failures and zero seal mismatches.
+- `lake build Trinity.IcarusLowerable.Soundness` remains green with zero `sorry`.
 
----
+## Cooperation variants for Wave Loop 556
 
-*Next: Wave Loop 552 cooperation variants will be proposed in the W551 closeout.*
+1. **Variant A — Recommended: multi-site call-return array deduplication.**
+   When the same `f()` packed-array expression is indexed at multiple sites in
+   one bench, reuse a single packed temporary and emit only one assignment.
+2. **Variant B: signed whole-array comparison for higher ranks.** Extend the
+   W555 whole-array bench probe to 3-D and 4-D signed primitive scalar arrays.
+3. **Variant C: timed/non-deterministic bench classifier.** Introduce an AST
+   classifier that rejects (or skips) `bench` blocks containing `#` delays or
+   unbounded loops from the deterministic cocotb gate, and document the
+   boundary.

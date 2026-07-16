@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:6582ce1b118b4b556c09a45db53859150386e3a8f114da709622f4d9879241c1",
   "gen_hash_rust": "sha256:778093a0d5c4337b40b0bedd2eb97950b35f0e208ee5d39f7a8f7b2b650f8cac",
-  "gen_hash_verilog": "sha256:5b1a37dac6a8f598f47c7b544d051d9860b6dc7953164715279e29493b3c32d4",
+  "gen_hash_verilog": "sha256:ebaea58f413f4a4945b2e2a01248d56b00386a94d739ae285d7ba939d18e4025",
   "gen_hash_zig": "sha256:a5d8da8252e5299330fda0e83b959610524096e86dcf15b7aa1104c4c07d75a4",
   "module": "igla-race-gemm",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:456a69d96eb811f794384932bcae4dc7081ccf64f6f4d2df3b1321995f38e637",
   "spec_path": "specs/igla/race/gemm.t27"
 }

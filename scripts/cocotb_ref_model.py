@@ -1079,18 +1079,18 @@ def _eval_ternary_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
     return _eval_expr_bv(ctx, children[2])
 
 
-def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, int, Optional[Any], str, str]]:
+def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, str, int, Optional[Any], str, str]]:
     """
-    Return list of (block_name, index, expected_value, note, probe_name) assertions.
+    Return list of (block_name, block_kind, index, expected_value, note, probe_name) assertions.
 
     The expected value is a Python int when the expected expression can be
     statically evaluated; otherwise None with a descriptive note.
     """
     ctx = EvalContext(root)
-    out: List[Tuple[str, int, Optional[Any], str, str]] = []
+    out: List[Tuple[str, str, int, Optional[Any], str, str]] = []
     for block in _children(root):
         bkind = block.get("kind")
-        if bkind not in ("TestBlock", "InvariantBlock"):
+        if bkind not in ("TestBlock", "InvariantBlock", "BenchBlock"):
             continue
         block_name = block.get("name", "")
         # W547: collect test-block local declarations before processing assertions
@@ -1147,7 +1147,7 @@ def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, int, Optional[A
             args = _children(call)
             probe = _probe_name(block_name, idx)
             if len(args) != 2:
-                out.append((block_name, idx, None, "skipped: assert_eq arity", probe))
+                out.append((block_name, bkind, idx, None, "skipped: assert_eq arity", probe))
                 idx += 1
                 continue
             # Infer the actual expression's scalar width/signedness.  This is
@@ -1168,17 +1168,17 @@ def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, int, Optional[A
                     simple = _eval_simple_const(args[1])
                     if isinstance(simple, int):
                         expected_bv = Bv(simple, actual_ws[0], actual_ws[1])
-                out.append((block_name, idx, expected_bv, "ok", probe))
+                out.append((block_name, bkind, idx, expected_bv, "ok", probe))
             else:
                 # Fall back to the simple literal evaluator for backwards
                 # compatibility with constant-only specs.
                 expected = _eval_simple_const(args[1])
                 if expected is None:
-                    out.append((block_name, idx, None, "skipped: non-literal expected", probe))
+                    out.append((block_name, bkind, idx, None, "skipped: non-literal expected", probe))
                 else:
                     if actual_ws is not None and isinstance(expected, int):
                         expected = Bv(expected, actual_ws[0], actual_ws[1])
-                    out.append((block_name, idx, expected, "ok", probe))
+                    out.append((block_name, bkind, idx, expected, "ok", probe))
             idx += 1
         # W547: restore outer variable bindings after the test block.
         for k in block_locals:
@@ -1190,19 +1190,27 @@ def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, int, Optional[A
     return out
 
 
-def _block_has_evaluable_asserts(assertions: List[Tuple[str, int, Optional[Any], str, str]], block_name: str) -> bool:
-    return any(name == block_name and note == "ok" for name, _, _, _, _ in assertions)
+def _block_has_evaluable_asserts(
+    assertions: List[Tuple[str, str, int, Optional[Any], str, str]], block_name: str
+) -> bool:
+    return any(name == block_name and note == "ok" for name, _, _, _, note, _ in assertions)
 
 
-def _expected_pass_blocks(assertions: List[Tuple[str, int, Optional[Any], str, str]]) -> List[str]:
-    """Block names that have at least one evaluable assert_eq."""
+def _expected_pass_blocks(
+    assertions: List[Tuple[str, str, int, Optional[Any], str, str]]
+) -> List[Tuple[str, str]]:
+    """Block names and kinds that have at least one evaluable assert_eq."""
     seen: set = set()
-    out: List[str] = []
-    for name, _, _, note, _ in assertions:
+    out: List[Tuple[str, str]] = []
+    for name, kind, _, _, note, _ in assertions:
         if note == "ok" and name not in seen:
             seen.add(name)
-            out.append(name)
+            out.append((name, kind))
     return out
+
+
+def _status_tag(kind: str) -> str:
+    return "BENCH" if kind == "BenchBlock" else "TEST"
 
 
 # ---------------------------------------------------------------------------
@@ -1383,18 +1391,22 @@ class _VcdParser:
 # Log parsing and cross-check
 # ---------------------------------------------------------------------------
 
-_TEST_LINE_RE = re.compile(r"\[TEST\]\s+(.+?)\s*:\s*(starting|PASSED|FAILED)", re.IGNORECASE)
+_STATUS_LINE_RE = re.compile(
+    r"\[(TEST|BENCH)\]\s+(.+?)\s*:\s*(starting|PASSED|FAILED)", re.IGNORECASE
+)
 _PROBE_LINE_RE = re.compile(r"\[PROBE\]\s+(.+?)\s+(\d+)\s*=\s*(\d+)")
 
 
 def _parse_log(log_text: str) -> Dict[str, Dict[str, Any]]:
     results: Dict[str, Dict[str, Any]] = {}
     for line in log_text.splitlines():
-        m = _TEST_LINE_RE.search(line)
+        m = _STATUS_LINE_RE.search(line)
         if not m:
             continue
-        name, status = m.group(1).strip(), m.group(2).lower()
-        entry = results.setdefault(name, {"started": False, "passed": False, "failed": False})
+        tag = m.group(1).upper()
+        name, status = m.group(2).strip(), m.group(3).lower()
+        key = f"{tag}:{name}"
+        entry = results.setdefault(key, {"tag": tag, "started": False, "passed": False, "failed": False})
         if status == "starting":
             entry["started"] = True
         elif status == "passed":
@@ -1413,28 +1425,31 @@ def _interpret_vcd_value(raw: int, width: int, signed: bool) -> int:
 
 
 def _cross_check(
-    assertions: List[Tuple[str, int, Optional[Any], str, str]],
+    assertions: List[Tuple[str, str, int, Optional[Any], str, str]],
     log_results: Dict[str, Dict[str, Any]],
     vcd: Optional[_VcdParser],
 ) -> Tuple[bool, List[str]]:
     errors: List[str] = []
     expected_blocks = _expected_pass_blocks(assertions)
-    for block in expected_blocks:
-        res = log_results.get(block)
+    for block, kind in expected_blocks:
+        tag = _status_tag(kind)
+        key = f"{tag}:{block}"
+        res = log_results.get(key)
         if res is None:
-            errors.append(f"missing [TEST] {block} in simulation log")
+            errors.append(f"missing [{tag}] {block} in simulation log")
             continue
         if res["failed"]:
-            errors.append(f"[TEST] {block} : FAILED")
+            errors.append(f"[{tag}] {block} : FAILED")
         elif not res["passed"]:
-            errors.append(f"[TEST] {block} never reported PASSED")
-    for name, res in log_results.items():
+            errors.append(f"[{tag}] {block} never reported PASSED")
+    expected_names = {block for block, _ in expected_blocks}
+    for key, res in log_results.items():
         if res["failed"]:
-            if name not in expected_blocks:
-                errors.append(f"unexpected [TEST] {name} : FAILED")
+            if res.get("tag", "TEST") == "TEST" and key.split(":", 1)[1] not in expected_names:
+                errors.append(f"unexpected [{res.get('tag', 'TEST')}] {key.split(':', 1)[1]} : FAILED")
 
     if vcd is not None:
-        for block_name, idx, expected, note, probe in assertions:
+        for block_name, _kind, idx, expected, note, probe in assertions:
             if note != "ok" or expected is None:
                 continue
             expected_bv = expected if isinstance(expected, Bv) else None
@@ -1462,7 +1477,10 @@ def _cross_check(
                 if probe_info is None:
                     continue
                 raw, width = probe_info
-                full_width = expected_bv.width if expected_bv is not None else width
+                # W553: the VCD signal width is authoritative for a single-signal
+                # probe. The expected literal may be typed wider (e.g. an untyped
+                # -1 defaults to 32 bits), so sign-extend from the physical width.
+                full_width = width
                 actual = _interpret_vcd_value(raw, full_width, signed)
 
             if isinstance(expected, bool):
@@ -1527,7 +1545,15 @@ def main(argv: List[str]) -> int:
     assertions = _collect_assertions(ast)
     expected = _expected_pass_blocks(assertions)
     vcd_note = " (+ VCD probe check)" if vcd is not None else ""
-    print(f"cocotb reference-model OK: {len(expected)} test block(s) passed{vcd_note}")
+    test_count = sum(1 for _, kind in expected if kind != "BenchBlock")
+    bench_count = sum(1 for _, kind in expected if kind == "BenchBlock")
+    label_parts = []
+    if test_count:
+        label_parts.append(f"{test_count} test block(s)")
+    if bench_count:
+        label_parts.append(f"{bench_count} bench block(s)")
+    label = " / ".join(label_parts) if label_parts else "0 blocks"
+    print(f"cocotb reference-model OK: {label} passed{vcd_note}")
     return 0
 
 

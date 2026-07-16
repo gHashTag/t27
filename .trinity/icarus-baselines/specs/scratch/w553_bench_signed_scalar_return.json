@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] signed_scalar_test : starting",
+    "[TEST] signed_scalar_test : PASSED",
+    "[BENCH] signed_scalar_bench : starting",
+    "[BENCH] signed_scalar_bench : %0d cycles          1",
+    "[BENCH] signed_scalar_bench : PASSED"
+  ]
+}

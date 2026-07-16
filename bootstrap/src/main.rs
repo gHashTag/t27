@@ -3086,8 +3086,10 @@ fn run_icarus_simulate(input_path: &str) -> anyhow::Result<()> {
     if !sim.status.success() {
         anyhow::bail!("vvp simulation exited with non-zero status");
     }
-    if stdout.contains("[TEST]") && stdout.contains(": FAILED") {
-        anyhow::bail!("Icarus simulation reported test failures");
+    if stdout.lines().any(|l| {
+        (l.starts_with("[TEST]") || l.starts_with("[BENCH]")) && l.contains(": FAILED")
+    }) {
+        anyhow::bail!("Icarus simulation reported test/bench failures");
     }
     Ok(())
 }

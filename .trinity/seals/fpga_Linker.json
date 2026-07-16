@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:153ea6fefbc202e231ecabde4151274f5ca67c83d7980dbbe53af28c2ce1eda0",
   "gen_hash_rust": "sha256:8334a48562e2e1d8e763c4152f695d50d12d32ed797f1cc6c6e47d9e0ff1e543",
-  "gen_hash_verilog": "sha256:3731f35913d6b364f4eca40f8a5b6244695764562ec0081661a5d3a669edd33e",
+  "gen_hash_verilog": "sha256:67b59acdbb610e4c7ff3d8b4098a68ed3d724bc968371341aa5947acdb30dfe8",
   "gen_hash_zig": "sha256:e15b585de94da7c6c6b4ddfd03ae52998a09c86d94873711b415e6088bcdb669",
   "module": "Linker",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:64a8091d1c5d8163af7ce400dee2b8ffbe713584045340e1126a0b7560b04c6e",
   "spec_path": "specs/fpga/linker.t27"
 }

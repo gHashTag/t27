@@ -1,0 +1,17 @@
+// W551 positive witness: a deterministic bench block with a scalar function-call
+// assert_eq gets the same independent VCD cross-check as a test block.
+module w551_bench_scalar_call_cross_check;
+
+pub fn answer() -> u32 {
+    return 42;
+}
+
+test direct_test {
+    assert_eq(answer(), 42);
+}
+
+bench "cross_check" {
+    assert_eq(answer(), 42);
+}
+
+endmodule

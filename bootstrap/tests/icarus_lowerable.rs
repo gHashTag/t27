@@ -188,6 +188,84 @@ fn accepts_w550_four_dimensional_primitive_scalar_array_return() {
 }
 
 #[test]
+fn accepts_w551_bench_block_cross_check() {
+    let dir = scratch_dir();
+    for name in &[
+        "w551_bench_scalar_call_cross_check.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W551 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w552_bench_wide_cross_check() {
+    let dir = scratch_dir();
+    for name in &[
+        "w552_bench_wide_packed_struct.t27",
+        "w552_bench_module_wide_struct.t27",
+        "w552_bench_2d_array_return.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W552 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w553_bench_signed_cross_check() {
+    let dir = scratch_dir();
+    for name in &[
+        "w553_bench_signed_scalar_return.t27",
+        "w553_bench_signed_struct_field.t27",
+        "w553_bench_signed_array_element.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W553 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w554_bench_local_array_cross_check() {
+    let dir = scratch_dir();
+    for name in &[
+        "w554_bench_local_array_unsigned.t27",
+        "w554_bench_local_array_signed.t27",
+        "w554_bench_local_array_2d.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W554 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [

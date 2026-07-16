@@ -240,9 +240,9 @@ fn icarus_baseline_path(repo: &Path, rel: &str) -> PathBuf {
 }
 
 fn normalize_icarus_output(text: &str) -> Vec<String> {
-    // W538: the Icarus simulation baseline tracks [TEST] status lines only.
-    // VCD capture diagnostics and scalar probe debug lines are intentionally
-    // omitted so the baseline stays focused on pass/fail transitions.
+    // W538/W551: the Icarus simulation baseline tracks [TEST] and [BENCH]
+    // status lines. VCD capture diagnostics and scalar probe debug lines are
+    // intentionally omitted so the baseline stays focused on pass/fail transitions.
     text.lines()
         .map(|l| l.trim_end().to_string())
         .filter(|l| {

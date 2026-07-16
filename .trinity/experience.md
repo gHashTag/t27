@@ -1,3 +1,132 @@
+## 2026-07-07 — Wave Loop 554 (bench-local primitive scalar arrays)
+
+### What worked
+- Three new scratch witnesses (`w554_bench_local_array_unsigned`,
+  `w554_bench_local_array_signed`, `w554_bench_local_array_2d`) confirmed
+  that the existing `emit_local` packed-vector lowering and the Python
+  reference model's `test_local_types` binding already handle `bench`-local
+  primitive scalar arrays initialized from function calls.
+- Reusing the same validation matrix as W551-W553 (Icarus simulation,
+  cocotb cross-check, seal ceremony, Lean Soundness) kept quality gates
+  consistent.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Fixed a latent multi-dimensional packed primitive-array indexing bug in
+    `try_emit_primitive_array_access`: indices are collected outermost-first,
+    so they must be reversed before computing the row-major flat index. This
+    also repaired W548/W549/W550/W552 multi-D indexing.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `accepts_w554_bench_local_array_cross_check` integration test.
+- Added three positive scratch witnesses under `specs/scratch/w554_*`.
+- Saved t27 seals for the three witnesses.
+- Resealed W548, W549, W550, and W552_2d scratch witnesses whose generated
+  Verilog changed due to the multi-D indexing fix.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W554_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 555 (Variant A).
+- Note: W554 witnesses pass direct `t27c icarus-simulate` / `t27c icarus-cocotb`
+  but are not included in the automated `./scripts/tri test --icarus-lowerable`
+  regression count because the suite's `gen-verilog` pre-flight rejects test/bench
+  named locals (pre-existing limitation).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 14 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  65 Icarus PASS, 65 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- A `bench`-local primitive scalar array initialized from a function call is
+  just a packed-vector `reg` in Verilog; the compiler's existing packed-array
+  local lowering and the Python evaluator's `_resolve_full_type` handle it once
+  the witness exists.
+- When computing a row-major flat index from indices collected AST-outermost-
+  first, reverse the vector to source order before scaling by dimensions.
+
+### Anti-patterns to avoid
+- Do not assume that symmetric test cases (`tmp[0][0]`, `tmp[1][1]`) validate
+  multi-D indexing; use asymmetric indices (`tmp[1][2]`) to catch order bugs.
+
+---
+
+## 2026-07-07 — Wave Loop 553 (signed/unsigned mixed deterministic bench probes)
+
+### What worked
+- Adding explicit signed `bench` witnesses flushed out two latent bugs that
+  passed under `test` blocks but would have broken the deterministic cocotb
+  gate for benches.
+- Materializing a function-call packed-array return into a block-local temporary
+  `reg` before indexing fixed the iverilog "Malformed statement" caused by
+  `seq(1'b0)[0]`.
+- Emitting `reg signed [...]` for signed scalar probes made `$display("%0d")`
+  show the t27 signed value instead of the raw unsigned bit pattern.
+- Using the physical VCD signal width (not the AST literal width) for signed
+  reconstruction in the Python reference model fixed the cocotb mismatch on
+  narrow signed probes whose expected literal was typed wider.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `call_array_tmp_names`, `call_array_tmp_info`, and
+    `call_array_tmp_materialized` to `VerilogCodegen`.
+  - Added helpers to pre-declare, assign, and reuse packed-vector temporaries
+    for function calls returning primitive scalar arrays that are indexed in
+    test/bench blocks.
+  - `expr_width_signed` now resolves the element width/signedness of
+    `f()[i]` when `f` returns a packed primitive scalar array.
+  - `try_emit_primitive_array_access` now recognizes an `ExprCall` base that
+    has a pre-declared temporary and lowers element access against that temp.
+  - Scalar probe declarations now emit the `signed` keyword when the actual
+    expression is signed.
+  - Updated temporary `VerilogCodegen` clones to carry the new temporary maps.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `scripts/cocotb_ref_model.py`:
+  - `_cross_check` uses the VCD signal width for single-signal probes when
+    sign-extending raw values.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `accepts_w553_bench_signed_cross_check` integration test.
+- Added three positive scratch witnesses:
+  - `specs/scratch/w553_bench_signed_scalar_return.t27`
+  - `specs/scratch/w553_bench_signed_array_element.t27`
+  - `specs/scratch/w553_bench_signed_struct_field.t27`
+- Recorded Icarus baselines and saved t27 seals for the three witnesses.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W553_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 554 (Variant A).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 13 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  65 Icarus PASS, 65 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- When a `bench` (or `test`) expression indexes a function call that returns a
+  packed vector, pre-declare a packed `reg` at the block top, assign it once
+  on first use, and read the indexed slice from that temporary.
+- Declare scalar VCD probes with the `signed` keyword whenever the t27 actual
+  expression is signed, so that `%0d` display and downstream VCD parsing see
+  the correct two's-complement value.
+- Sign-extend VCD raw values from the physical signal width, not the AST
+  literal width, when comparing against expected signed values.
+
+### Anti-patterns to avoid
+- Do not emit `f()[i]` directly in Verilog; function-call results are not
+  bit-selectable expressions.
+- Do not infer probe signedness only from the expected literal; the probe
+  register's declared signedness must match the actual expression type.
+
+---
+
 ## 2026-07-07 — Wave Loop 547 (signed primitive scalar array function returns for independent VCD cross-check)
 
 ### What worked
@@ -4384,3 +4513,47 @@
 - Do not keep increasing rank forever without a plan to stop; once rank-independence
   is convincingly demonstrated, pivot to a different dimension (e.g. bench blocks,
   signed probes, module-level assignments) for greater verification value.
+
+## 2026-07-07 — Wave Loop 551 (deterministic bench block Icarus/cocotb VCD cross-check)
+
+### What worked
+- Extracting `gen_verilog_probe_prelude` in `bootstrap/src/compiler.rs` let test and bench blocks share the same probe-register hoisting and block-local type caching.
+- Adding `block_tag` to `gen_verilog_test_stmt` and emitting `[BENCH] ... : PASSED` gave the cocotb gate a reliable bench pass marker.
+- Including `BenchBlock` in `_collect_assertions` and keying log results by `TEST:<name>` / `BENCH:<name>` extended the Python reference model with minimal changes.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - New `gen_verilog_probe_prelude` helper called from test and bench emission.
+  - `gen_verilog_test_stmt` now takes `block_tag` and emits `[BENCH]` markers for bench assertions.
+  - Bench blocks now print `[BENCH] <name> : PASSED` at completion.
+- `bootstrap/src/main.rs`:
+  - `run_icarus_simulate` recognizes both `[TEST]` and `[BENCH]` failure lines.
+- `bootstrap/src/suite.rs`:
+  - Updated baseline normalization comment to include `[BENCH]`.
+- `scripts/cocotb_ref_model.py`:
+  - `_collect_assertions` includes `BenchBlock` and records `block_kind`.
+  - `_parse_log` parses `[TEST]`/`[BENCH]` status lines and keys results by tag+name.
+  - `_cross_check` expects the right marker per block kind.
+- `specs/scratch/w551_bench_scalar_call_cross_check.t27`: positive witness with test + bench `assert_eq`.
+- `bootstrap/tests/icarus_lowerable.rs`: `accepts_w551_bench_block_cross_check`.
+- Resealed `bootstrap/stage0/FROZEN_HASH`, `repro/numerics/nmse_manifest*.json`, and 201 corpus specs.
+
+### Pattern for next loops
+- Deterministic `bench` blocks can share the same AST traversal, probe hoisting, and reference-model evaluator as `test` blocks; only the status marker and block-kind filter need to differ.
+
+## 2026-07-07 — Wave Loop 552 (wide packed struct/array bench cross-check)
+
+### What worked
+- Reusing the W540 multi-slice probe path and W550 row-major flat-index evaluator for deterministic `bench` blocks required no new compiler code after W551 unified probe hoisting.
+- Adding three bench witnesses (wide struct return, module struct assignment, 2-D array return) exercised the full VCD reconstruction path end-to-end.
+- The Python reference model tracked module-level mutable var updates inside bench blocks the same way it does for test blocks.
+
+### What changed behavior
+- `specs/scratch/w552_bench_wide_packed_struct.t27`: wide packed scalar struct in bench.
+- `specs/scratch/w552_bench_module_wide_struct.t27`: module-level mutable struct assignment inside bench.
+- `specs/scratch/w552_bench_2d_array_return.t27`: 2-D primitive scalar array return inside bench.
+- `bootstrap/tests/icarus_lowerable.rs`: `accepts_w552_bench_wide_cross_check`.
+- Added three Icarus baselines and three t27 seals.
+
+### Pattern for next loops
+- Wide packed values in deterministic bench blocks share the same multi-slice probe emission and Python VCD reconstruction as test blocks; adding bench witnesses is usually enough.
