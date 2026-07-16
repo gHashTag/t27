@@ -148,6 +148,21 @@ def _scalar_array_info(ty: str) -> Optional[Tuple[int, int, bool]]:
     return (dims[0], width, elem in _TYPE_SIGNED)
 
 
+def _primitive_array_info(ty: str) -> Optional[Tuple[List[int], str, int, bool]]:
+    """For '[2][3]i16' return (dims, elem, total_width, signed)."""
+    parsed = _parse_array_type(ty)
+    if not parsed:
+        return None
+    dims, elem = parsed
+    elem_width = _TYPE_WIDTH.get(elem)
+    if elem_width is None:
+        return None
+    total = elem_width
+    for d in dims:
+        total *= d
+    return (dims, elem, total, elem in _TYPE_SIGNED)
+
+
 def _is_primitive_scalar_type(ty: str) -> bool:
     """True for 'u32', 'i16', etc. and '[N]u32' one-dimensional scalar arrays."""
     parsed = _parse_array_type(ty)
@@ -159,10 +174,10 @@ def _packed_type_width_signed(
     ctx: EvalContext, ty: str
 ) -> Optional[Tuple[int, bool]]:
     """Return (width, signed) for a lowerable packed scalar struct or array."""
-    # Fixed-size scalar array.
-    info = _scalar_array_info(ty)
+    # Fixed-size primitive scalar array (1-D or multi-D).
+    info = _primitive_array_info(ty)
     if info is not None:
-        return (info[0] * info[1], info[2])
+        return (info[2], info[3])
     # Lowerable packed scalar struct.
     decl = ctx.decls.get(f"struct:{ty.strip()}")
     if decl is None:
@@ -473,12 +488,17 @@ def _type_of_expr(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Tuple[int,
         return _packed_type_width_signed(ctx, ret_ty) or _type_width_signed(ret_ty)
     if kind == "ExprArrayLiteral":
         elem_type = node.get("extra_type", "")
-        try:
-            count = int(node.get("extra_size", "").split("][")[-1])
-        except ValueError:
-            return None
+        size_str = node.get("extra_size", "")
+        full_ty = f"[{size_str}]{elem_type}" if size_str and elem_type else ""
+        info = _primitive_array_info(full_ty)
+        if info is not None:
+            return (info[2], info[3])
         ws = _type_width_signed(elem_type)
         if ws is None:
+            return None
+        try:
+            count = int(size_str.split("][")[-1])
+        except ValueError:
             return None
         return (count * ws[0], ws[1])
     if kind == "ExprStructLit":

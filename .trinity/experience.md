@@ -1,3 +1,65 @@
+## 2026-07-07 — Wave Loop 555 (whole-array bench assignments)
+
+### What worked
+- Four new scratch witnesses (`w555_bench_whole_array_unsigned`,
+  `w555_bench_whole_array_signed`, `w555_bench_whole_array_nested_call`,
+  `w555_bench_whole_array_wide`) confirmed that the W540 multi-slice VCD probe
+  path handles whole 2-D primitive scalar array values in deterministic
+  `bench` blocks once the compiler recognizes them as packed vectors.
+- Extending `expr_width_signed` and the Python `_type_of_expr` for primitive
+  scalar array identifiers, call returns, and array literals was sufficient to
+  enable the existing probe pre-declaration and reconstruction code.
+- Multi-dimensional array literals lowered to packed concatenations via the
+  existing `emit_packed_array_literal_concat`, so `assert_eq(tmp, [2][3]u8{...})`
+  compares the full packed vector directly.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `expr_width_signed` now returns `(packed_width, packed_signed)` for primitive
+    scalar array identifiers, calls returning primitive scalar arrays, and
+    multi-dimensional primitive scalar array literals.
+  - `gen_verilog_expr` for `ExprArrayLiteral` now splits `extra_size` on `][`
+    and lowers multi-D primitive scalar array literals to a packed concatenation.
+- `scripts/cocotb_ref_model.py`:
+  - Added `_primitive_array_info()` for full multi-D width / signedness.
+  - `_packed_type_width_signed()` and `_type_of_expr()` now use it for primitive
+    scalar arrays of any rank.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`: added
+  `accepts_w555_bench_whole_array_cross_check`.
+- Added four positive scratch witnesses under `specs/scratch/w555_*`.
+- Saved t27 seals for the four witnesses.
+- Recorded Icarus baseline for `w555_bench_whole_array_nested_call.json`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W555_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 556 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 15 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  66 Icarus PASS, 66 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on all four W555
+  witnesses: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- A whole-array `assert_eq` in a `bench` block is just a wide packed-vector VCD
+  probe; once the compiler knows the width/signedness of the actual expression,
+  the W540 multi-slice path works unchanged.
+- Multi-dimensional array literals in expression context lower to nested packed
+  concatenations the same way function-return array literals do.
+
+### Anti-patterns to avoid
+- Do not rely on the suite's `gen-verilog` pre-flight for test/bench named locals;
+  use direct `t27c icarus-simulate` / `t27c icarus-cocotb` for those witnesses
+  until the pre-existing local-stripping limitation is fixed.
+
+---
+
 ## 2026-07-07 — Wave Loop 554 (bench-local primitive scalar arrays)
 
 ### What worked

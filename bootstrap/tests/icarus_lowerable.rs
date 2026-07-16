@@ -266,6 +266,27 @@ fn accepts_w554_bench_local_array_cross_check() {
 }
 
 #[test]
+fn accepts_w555_bench_whole_array_cross_check() {
+    let dir = scratch_dir();
+    for name in &[
+        "w555_bench_whole_array_unsigned.t27",
+        "w555_bench_whole_array_signed.t27",
+        "w555_bench_whole_array_nested_call.t27",
+        "w555_bench_whole_array_wide.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W555 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [

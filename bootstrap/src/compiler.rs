@@ -4136,19 +4136,26 @@ impl VerilogCodegen {
                     // probe-able; use the packed vector width.
                     let base = Self::base_type_name(ty);
                     Some((self.element_width(&base), false))
+                } else if Self::is_primitive_array_type(ty) {
+                    // W555: whole primitive scalar arrays are packed vectors and can
+                    // be probed / compared directly in assert_eq.
+                    Some((self.packed_width(ty), self.packed_signed(ty)))
                 } else {
                     None
                 }
             }
             NodeKind::ExprCall => {
-                // Parameterless function calls whose return type is scalar or a
-                // lowerable packed scalar struct (W540 wide probe path).
+                // Parameterless function calls whose return type is scalar, a
+                // lowerable packed scalar struct (W540 wide probe path), or a
+                // primitive scalar array (W555 whole-array bench assert_eq).
                 let ret_ty = self.fn_return_types.get(&node.name)?;
                 if Self::is_primitive_scalar_type(ret_ty) {
                     Some((Self::type_to_width(ret_ty), Self::type_is_signed(ret_ty)))
                 } else if self.is_lowerable_scalar_struct_type(ret_ty) {
                     let base = Self::base_type_name(ret_ty);
                     Some((self.element_width(&base), false))
+                } else if Self::is_primitive_array_type(ret_ty) {
+                    Some((self.packed_width(ret_ty), self.packed_signed(ret_ty)))
                 } else {
                     None
                 }
@@ -4290,6 +4297,24 @@ impl VerilogCodegen {
                 let width = Self::type_to_width(&base_ty);
                 let signed = Self::type_is_signed(&base_ty);
                 Some((width, signed))
+            }
+            NodeKind::ExprArrayLiteral => {
+                // W555: a primitive scalar array literal has the packed width of its
+                // element type times all dimensions.
+                let elem = node.extra_type.trim();
+                let dims: Vec<usize> = node.extra_size.split("][")
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                let dims_count = node.extra_size.split("][").count();
+                if !dims.is_empty()
+                    && dims.len() == dims_count
+                    && Self::is_primitive_scalar_type(elem)
+                {
+                    let ty = format!("[{}]{}", node.extra_size, elem);
+                    Some((self.packed_width(&ty), self.packed_signed(&ty)))
+                } else {
+                    None
+                }
             }
             NodeKind::ExprSwitch => {
                 // Result type is the type of any case result; use the first one.
@@ -7146,14 +7171,20 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprArrayLiteral => {
-                // W544: fixed-size scalar array literals in expression context
-                // (e.g. function return values) lower to a packed concatenation
-                // when the element type is a primitive scalar.  For other
-                // element types, fall back to the R-CA-2 placeholder so the
-                // surrounding expression remains parseable Verilog.
+                // W544/W555: fixed-size scalar array literals in expression context
+                // (e.g. function return values and assert_eq expected values) lower
+                // to a packed concatenation when the element type is a primitive
+                // scalar.  Multi-dimensional literals are handled by splitting
+                // extra_size on "][".
                 let elem = node.extra_type.trim();
-                let maybe_count = node.extra_size.parse::<usize>();
-                if maybe_count.is_ok() && Self::is_primitive_scalar_type(elem) {
+                let dims: Vec<usize> = node.extra_size.split("][")
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                let dims_count = node.extra_size.split("][").count();
+                if !dims.is_empty()
+                    && dims.len() == dims_count
+                    && Self::is_primitive_scalar_type(elem)
+                {
                     let ty = format!("[{}]{}", node.extra_size, elem);
                     self.emit_packed_array_literal_concat(node, &ty);
                 } else {
