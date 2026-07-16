@@ -2878,12 +2878,88 @@ def w546LocalCallAssignReturnsArrayModule : Module := {
   benches := []
 }
 
+/- W547 witnesses: signed primitive scalar arrays initialized from packed-vector
+   function calls. -/
+
+/-- W547-A: helper function that returns a `[3]i8` signed packed vector. -/
+def w547SignedCallInitReturnsArraySeq : Function := {
+  name := "seq",
+  params := [],
+  ret := some (.array 3 .i8),
+  body := [
+    .return_ (some (.arrayLit (.array 3 .i8) [.intLit (-1), .intLit (-2), .intLit (-3)]))
+  ]
+}
+
+/-- W547-A: function that binds the returned signed array to a local `let` and
+    returns the signed element sum. -/
+def w547SignedCallInitReturnsArrayCheck : Function := {
+  name := "check",
+  params := [],
+  ret := some .i8,
+  body := [
+    .varDecl "a" (.array 3 .i8) (some (.call "seq" [])),
+    .return_ (some
+      (.binop "+"
+        (.binop "+"
+          (.index (.identifier "a") (.intLit 0))
+          (.index (.identifier "a") (.intLit 1)))
+        (.index (.identifier "a") (.intLit 2))))
+  ]
+}
+
+def w547SignedCallInitReturnsArrayEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["seq", "check"]
+}
+
+/-- W547-A: module with a function-local signed packed primitive array initializer. -/
+def w547SignedCallInitReturnsArrayModule : Module := {
+  name := "w547_signed_call_init_returns_array",
+  imports := [],
+  globals := [],
+  functions := [w547SignedCallInitReturnsArraySeq, w547SignedCallInitReturnsArrayCheck],
+  tests := [
+    { name := "signed_call_init_returns_array", params := [], ret := none, body := [
+      .bareCall (.call "assert_eq" [.call "check" [], .intLit (-6)])
+    ]}
+  ],
+  benches := []
+}
+
+/-- W547-B: helper function that returns a `[3]i8` signed packed vector. -/
+def w547SignedElementCompareSeq : Function := {
+  name := "seq",
+  params := [],
+  ret := some (.array 3 .i8),
+  body := [
+    .return_ (some (.arrayLit (.array 3 .i8) [.intLit (-1), .intLit (-2), .intLit (-3)]))
+  ]
+}
+
+/-- W547-B: test block that binds the signed array locally and compares the first
+    element against a signed literal. -/
+def w547SignedElementCompareModule : Module := {
+  name := "w547_signed_element_compare",
+  imports := [],
+  globals := [],
+  functions := [w547SignedElementCompareSeq],
+  tests := [
+    { name := "signed_element_compare", params := [], ret := none, body := [
+      .varDecl "a" (.array 3 .i8) (some (.call "seq" [])),
+      .bareCall (.call "assert_eq" [.index (.identifier "a") (.intLit 0), .intLit (-1)])
+    ]}
+  ],
+  benches := []
+}
+
 /- W535 negative witness environments and modules: the tightened predicate rejects
    the exact patterns flagged by the Rust structural classifier. -/
 
-/-- W535-A: environment for a cast to a non-lowerable type.  The shallow AST models
-    an unlowerable cast via `.unsupportedIcarus`; the Rust classifier maps `as`
-    casts to non-lowerable types to a non-lowerable classification. -/
 def w535CastToStringEnv : Env := {
   structs := [],
   constructors := [],

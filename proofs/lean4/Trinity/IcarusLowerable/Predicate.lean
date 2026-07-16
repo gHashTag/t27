@@ -97,10 +97,10 @@ def Ty.isPrimitiveScalar : Ty → Bool
   | .bool | .u8 | .u16 | .u32 | .u64 | .i8 | .i16 | .i32 | .i64 => true
   | _ => false
 
-/-- W544: a primitive scalar array (e.g. [3]u8).  Function returns of this
-    shape are rejected by the Rust classifier because the backend does not yet
-    connect packed/unpacked function returns to module const/var storage
-    consistently. -/
+/-- W544/W545/W547: a primitive scalar array (e.g. [3]u8 or [3]i8).  Function
+    returns of this shape are lowerable once the backend stores the packed
+    function result in a packed-vector module const/var or local reg and indexes
+    it by bit-slices. -/
 def Ty.isPrimitiveScalarArray : Ty → Bool
   | .array n elem => n > 0 && elem.isPrimitiveScalar
   | _ => false

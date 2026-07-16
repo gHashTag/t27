@@ -1,3 +1,67 @@
+## 2026-07-07 — Wave Loop 547 (signed primitive scalar array function returns for independent VCD cross-check)
+
+### What worked
+- Wrapping signed packed primitive-array slices with `$signed(...)` in
+  `try_emit_primitive_array_access` fixed signed comparison and arithmetic in one
+  focused compiler change.
+- Extending the Python reference model to bind and type-infer test-block local
+  variables closed the cocotb cross-check gap for assertions on function-local
+  signed arrays.
+- Reusing the W545/W546 formal-witness pattern for signed values kept the Lean
+  model in lockstep with the Rust backend.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `try_emit_primitive_array_access` wraps signed packed primitive-array
+    bit-slices with `$signed(...)`.
+- `scripts/cocotb_ref_model.py`:
+  - `EvalContext` now tracks `test_local_types` and `current_block`.
+  - `_collect_assertions` binds test-block local packed values before processing
+    assertions and restores outer bindings afterwards.
+  - Added `_resolve_full_type` for full declared-type lookup (including array
+    dimensions) and updated `_type_of_expr` / `_eval_index_bv` to use it for
+    primitive array element access.
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`: updated stale W544
+  comment about primitive scalar array returns being rejected.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` / `Soundness.lean`:
+  - Added W547-A/B helper environments, modules, functions, and lowerability /
+    value-preservation theorems.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `accepts_w547_signed_primitive_scalar_array_return` integration test.
+- Added two positive scratch witnesses:
+  - `specs/scratch/w547_signed_call_init_returns_array.t27`
+  - `specs/scratch/w547_signed_element_compare.t27`
+- Resealed both new witnesses and recorded Icarus baselines.
+- Wrote `docs/reports/WAVE_LOOP_547_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W548_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 548 (Variant A).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 7 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  54 Icarus PASS, 54 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Wrap signed packed-vector slices with `$signed(...)` whenever the element
+  type is signed; bare part-selects of signed packed vectors are unsigned in
+  Verilog.
+- When the cocotb reference model needs type information for block-local
+  variables, collect `StmtLocal` declarations and bind their values before
+  evaluating assertions in that block.
+
+### Anti-patterns to avoid
+- Do not rely on the reference model inferring element width from a stripped
+  base type; always resolve the full declared type (including array dimensions)
+  for primitive array element access.
+
+---
+
 ## 2026-07-07 — Wave Loop 546 (function-local primitive scalar array return initializers and reassignments for independent VCD cross-check)
 
 ### What worked

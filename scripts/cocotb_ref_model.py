@@ -385,6 +385,11 @@ class EvalContext:
         # Track which function we are evaluating so parameter/local declared
         # types can be resolved even when the identifier is bound in vars.
         self.current_fn: Optional[str] = None
+        # W547: track test-block local variable types and the current test block
+        # so that assertions referencing function-local packed arrays can infer
+        # the correct element width/signedness for the VCD cross-check.
+        self.test_local_types: Dict[str, Dict[str, str]] = {}
+        self.current_block: Optional[str] = None
         for decl in _children(root):
             if decl.get("kind") != "FnDecl":
                 continue
@@ -499,19 +504,25 @@ def _type_of_expr(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Tuple[int,
         base_name = _base_name(base)
         if base_name is None:
             return None
-        base_type = _resolve_base_type(ctx, base_name)
-        if base_type is None:
+        # W547: use the full declared type (including array dimensions) so that
+        # primitive scalar arrays like [3]i8 resolve to the correct element
+        # width/signedness.  _resolve_base_type strips dimensions for struct-name
+        # lookups; that is the wrong granularity here.
+        full_type = _resolve_full_type(ctx, base_name)
+        if full_type is None:
             return None
         # Primitive scalar array element.
-        parsed = _parse_array_type(base_type)
+        parsed = _parse_array_type(full_type)
         if parsed:
             _, elem = parsed
             ws = _type_width_signed(elem)
             if ws:
                 return ws
         # Scalar-struct array field element access: base is a field access
-        # whose field is a fixed-size scalar array.
-        if base.get("kind") == "ExprFieldAccess":
+        # whose field is a fixed-size scalar array.  For this path the base type
+        # is the struct name without array dimensions.
+        base_type = _resolve_base_type(ctx, base_name)
+        if base_type is not None and base.get("kind") == "ExprFieldAccess":
             ftype = _struct_field_type(ctx.decls, base_type, base.get("name", ""))
             if ftype:
                 info = _scalar_array_info(ftype)
@@ -553,12 +564,37 @@ def _base_name(node: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _resolve_full_type(ctx: EvalContext, name: str) -> Optional[str]:
+    """Return the declared type of `name` including array dimensions."""
+    if ctx.current_fn:
+        local_ty = ctx.fn_local_types.get(ctx.current_fn, {}).get(name)
+        if local_ty:
+            return local_ty
+    if ctx.current_block:
+        local_ty = ctx.test_local_types.get(ctx.current_block, {}).get(name)
+        if local_ty:
+            return local_ty
+    c = ctx.decls.get(f"const:{name}")
+    if c is not None:
+        ty = c.get("extra_type", "")
+        if ty:
+            return ty
+    return ctx.resolve_var_type(name)
+
+
 def _resolve_base_type(ctx: EvalContext, name: str) -> Optional[str]:
     # W542: function parameters are bound in vars but are not StmtLocal nodes,
     # so resolve their declared type from the current function's local map
     # first.  They shadow module-level names inside the function body.
     if ctx.current_fn:
         local_ty = ctx.fn_local_types.get(ctx.current_fn, {}).get(name)
+        if local_ty:
+            return _base_type_name(local_ty)
+    # W547: test-block local variables (e.g. `let a : [3]i8 = seq();`) carry a
+    # type annotation in the StmtLocal node.  Resolve them when evaluating
+    # assertions inside the same test block.
+    if ctx.current_block:
+        local_ty = ctx.test_local_types.get(ctx.current_block, {}).get(name)
         if local_ty:
             return _base_type_name(local_ty)
     # W541: module-level const/var are now bound in ctx.vars, but we still need
@@ -761,25 +797,28 @@ def _eval_index_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
     base_name = _base_name(base)
     if base_name is None:
         return None
+    # W547: use the full declared type for primitive array element extraction.
+    full_type = _resolve_full_type(ctx, base_name)
+    if full_type is not None:
+        parsed = _parse_array_type(full_type)
+        if parsed:
+            dims, elem = parsed
+            elem_ws = _type_width_signed(elem)
+            if elem_ws:
+                # Primitive scalar array element.
+                whole_bv = ctx.vars.get(base_name)
+                if whole_bv is None:
+                    return None
+                # Linear index (row-major, outermost varies slowest).
+                # We only handle a single dimension here; multi-dim primitive arrays
+                # are unpacked and we don't have a whole-array value to slice.
+                if len(dims) == 1:
+                    raw = (whole_bv.value >> (idx * elem_ws[0])) & ((1 << elem_ws[0]) - 1)
+                    return Bv(raw, *elem_ws)
+                return None
     base_type = _resolve_base_type(ctx, base_name)
     if base_type is None:
         return None
-    parsed = _parse_array_type(base_type)
-    if parsed:
-        dims, elem = parsed
-        elem_ws = _type_width_signed(elem)
-        if elem_ws:
-            # Primitive scalar array element.
-            whole_bv = ctx.vars.get(base_name)
-            if whole_bv is None:
-                return None
-            # Linear index (row-major, outermost varies slowest).
-            # We only handle a single dimension here; multi-dim primitive arrays
-            # are unpacked and we don't have a whole-array value to slice.
-            if len(dims) == 1:
-                raw = (whole_bv.value >> (idx * elem_ws[0])) & ((1 << elem_ws[0]) - 1)
-                return Bv(raw, *elem_ws)
-            return None
     # Scalar-struct array field element access: base is a field access.
     if base.get("kind") == "ExprFieldAccess":
         field_bv = _eval_field_bv(ctx, base)
@@ -989,6 +1028,30 @@ def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, int, Optional[A
         if bkind not in ("TestBlock", "InvariantBlock"):
             continue
         block_name = block.get("name", "")
+        # W547: collect test-block local declarations before processing assertions
+        # so that assertions on function-local packed arrays infer the correct
+        # element width/signedness and can evaluate the packed value.
+        block_locals: Dict[str, Bv] = {}
+        block_local_types: Dict[str, str] = {}
+        for stmt in _children(block):
+            if stmt.get("kind") == "StmtLocal":
+                vname = stmt.get("name", "")
+                vtype = stmt.get("extra_type", "")
+                if not vname or not vtype:
+                    continue
+                block_local_types[vname] = vtype
+                kids = _children(stmt)
+                if kids:
+                    init_bv = _eval_expr_bv(ctx, kids[0])
+                    if init_bv is not None:
+                        block_locals[vname] = init_bv
+        if block_local_types:
+            ctx.test_local_types[block_name] = block_local_types
+        # Temporarily bind block-local values while evaluating this block's
+        # assertions; restore the outer bindings afterwards.
+        saved_vars = {k: ctx.vars[k] for k in block_locals if k in ctx.vars}
+        ctx.vars.update(block_locals)
+        ctx.current_block = block_name
         idx = 0
         for stmt in _children(block):
             # W541: track whole-struct assignments to mutable module-level vars
@@ -1052,6 +1115,13 @@ def _collect_assertions(root: Dict[str, Any]) -> List[Tuple[str, int, Optional[A
                         expected = Bv(expected, actual_ws[0], actual_ws[1])
                     out.append((block_name, idx, expected, "ok", probe))
             idx += 1
+        # W547: restore outer variable bindings after the test block.
+        for k in block_locals:
+            if k in saved_vars:
+                ctx.vars[k] = saved_vars[k]
+            else:
+                ctx.vars.pop(k, None)
+        ctx.current_block = None
     return out
 
 

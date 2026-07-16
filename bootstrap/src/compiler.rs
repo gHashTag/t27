@@ -4827,6 +4827,14 @@ impl VerilogCodegen {
                 parts.reverse();
                 parts.join(" + ")
             };
+            // W547: a part-select of a signed packed vector is unsigned in
+            // Verilog.  Wrap the slice with $signed(...) when the element type is
+            // signed so that comparisons, arithmetic, and probes preserve t27's
+            // two's-complement semantics.
+            let elem_signed = Self::type_is_signed(&elem_type);
+            if elem_signed {
+                self.write("$signed(");
+            }
             let is_literal_idx = flat_idx.parse::<u32>().is_ok();
             if is_literal_idx {
                 let i: usize = flat_idx.parse().unwrap_or(0);
@@ -4838,6 +4846,9 @@ impl VerilogCodegen {
                     "{}[({} * {}) +:{}]",
                     base_name, flat_idx, elem_w, elem_w
                 ));
+            }
+            if elem_signed {
+                self.write(")");
             }
             return true;
         }

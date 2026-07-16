@@ -1512,4 +1512,44 @@ theorem w546_local_call_assign_returns_array_value_equiv :
   exact module_value_equiv_statement w546LocalCallAssignReturnsArrayEnv w546LocalCallAssignReturnsArrayModule
     hlowerable hunique hcomb hctx "check" w546LocalCallAssignReturnsArrayCheck [] hfind hhost
 
+/- W547 theorems: signed primitive scalar array function returns. -/
+
+theorem w547_signed_call_init_returns_array_lowerable :
+  Module.isLowerable w547SignedCallInitReturnsArrayEnv w547SignedCallInitReturnsArrayModule := by
+  native_decide
+
+theorem w547_signed_call_init_returns_array_value_equiv :
+  evalModuleFunctionTotal defaultFuel w547SignedCallInitReturnsArrayEnv w547SignedCallInitReturnsArrayModule "check" [] =
+  evalVModuleTotal defaultFuel w547SignedCallInitReturnsArrayEnv (emitModule w547SignedCallInitReturnsArrayEnv w547SignedCallInitReturnsArrayModule) "check" [] := by
+  have hlowerable : Module.isLowerable w547SignedCallInitReturnsArrayEnv w547SignedCallInitReturnsArrayModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w547SignedCallInitReturnsArrayModule := by
+    simp [Module.hasUniqueFunctionNames, w547SignedCallInitReturnsArrayModule, w547SignedCallInitReturnsArraySeq, w547SignedCallInitReturnsArrayCheck]
+  have hcomb : Module.isCombinational w547SignedCallInitReturnsArrayEnv w547SignedCallInitReturnsArrayModule := by native_decide
+  have hctx : Module.callContext w547SignedCallInitReturnsArrayEnv w547SignedCallInitReturnsArrayModule := by native_decide
+  have hfind : w547SignedCallInitReturnsArrayModule.findFunction "check" = some w547SignedCallInitReturnsArrayCheck := by
+    simp [Module.findFunction, w547SignedCallInitReturnsArrayModule, w547SignedCallInitReturnsArraySeq, w547SignedCallInitReturnsArrayCheck]
+  have hhost : ¬ Env.isHostOnly w547SignedCallInitReturnsArrayEnv w547SignedCallInitReturnsArrayCheck.name := by
+    simp [Env.isHostOnly, w547SignedCallInitReturnsArrayEnv, w547SignedCallInitReturnsArrayCheck]
+  exact module_value_equiv_statement w547SignedCallInitReturnsArrayEnv w547SignedCallInitReturnsArrayModule
+    hlowerable hunique hcomb hctx "check" w547SignedCallInitReturnsArrayCheck [] hfind hhost
+
+theorem w547_signed_element_compare_lowerable :
+  Module.isLowerable w547SignedCallInitReturnsArrayEnv w547SignedElementCompareModule := by
+  native_decide
+
+theorem w547_signed_element_compare_value_equiv :
+  evalModuleFunctionTotal defaultFuel w547SignedCallInitReturnsArrayEnv w547SignedElementCompareModule "seq" [] =
+  evalVModuleTotal defaultFuel w547SignedCallInitReturnsArrayEnv (emitModule w547SignedCallInitReturnsArrayEnv w547SignedElementCompareModule) "seq" [] := by
+  have hlowerable : Module.isLowerable w547SignedCallInitReturnsArrayEnv w547SignedElementCompareModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w547SignedElementCompareModule := by
+    simp [Module.hasUniqueFunctionNames, w547SignedElementCompareModule, w547SignedElementCompareSeq]
+  have hcomb : Module.isCombinational w547SignedCallInitReturnsArrayEnv w547SignedElementCompareModule := by native_decide
+  have hctx : Module.callContext w547SignedCallInitReturnsArrayEnv w547SignedElementCompareModule := by native_decide
+  have hfind : w547SignedElementCompareModule.findFunction "seq" = some w547SignedElementCompareSeq := by
+    simp [Module.findFunction, w547SignedElementCompareModule, w547SignedElementCompareSeq]
+  have hhost : ¬ Env.isHostOnly w547SignedCallInitReturnsArrayEnv w547SignedElementCompareSeq.name := by
+    simp [Env.isHostOnly, w547SignedCallInitReturnsArrayEnv, w547SignedElementCompareSeq]
+  exact module_value_equiv_statement w547SignedCallInitReturnsArrayEnv w547SignedElementCompareModule
+    hlowerable hunique hcomb hctx "seq" w547SignedElementCompareSeq [] hfind hhost
+
 end Trinity.IcarusLowerable
