@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "protocol_version": "1.0",
-  "seal_hash": "49e55df6d444db18186f7e096b73ff56f77ae07d47547f1e5e64682a4999034d",
+  "seal_hash": "87e5cbd3ad9471a130643ec6443a55c08cbf9d2daf7322b4d345d822bb4b6e21",
   "rng": {
     "family": "pcg64",
     "seed": "0x297a49"
@@ -15,9 +15,9 @@
       "ratio": 0.06261974889143408
     },
     "D_LOG": {
-      "nmse_gf16": 1.476049303052953e-07,
-      "nmse_bf16": 2.351736425281605e-06,
-      "ratio": 0.06276423187501574
+      "nmse_gf16": 1.4760493030529666e-07,
+      "nmse_bf16": 2.3517364252816086e-06,
+      "ratio": 0.06276423187501623
     },
     "D_RELU": {
       "nmse_gf16": 1.7304317234439273e-07,
@@ -25,14 +25,14 @@
       "ratio": 0.06260079303886927
     },
     "D_PHI": {
-      "nmse_gf16": 1.7817398485573813e-07,
+      "nmse_gf16": 1.781739848557381e-07,
       "nmse_bf16": 2.8478564272536918e-06,
-      "ratio": 0.06256424416295411
+      "ratio": 0.0625642441629541
     },
     "D_DEEP": {
-      "nmse_gf16": 1.475567206889314e-07,
-      "nmse_bf16": 2.3698851004608678e-06,
-      "ratio": 0.06226323827270625
+      "nmse_gf16": 1.4755672068893432e-07,
+      "nmse_bf16": 2.3698851004608627e-06,
+      "ratio": 0.06226323827270762
     }
   },
   "identity_witness": {
@@ -40,10 +40,10 @@
     "trinity_residual_f64": 0.0
   },
   "runner": {
-    "host_arch": "x86_64-linux",
-    "compiler": "cpython 3.12.8"
+    "host_arch": "arm64-darwin",
+    "compiler": "cpython 3.14.6"
   },
-  "timestamp": "2026-06-14T15:26:40.774789+00:00",
+  "timestamp": "2026-07-16T13:39:48.144588+00:00",
   "x_extension": {
     "seal_note": "live seal source matches FROZEN_HASH; sealed run",
     "producer": "repro/numerics/nmse_gf16.py",

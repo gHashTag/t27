@@ -199,31 +199,42 @@ Verilog simulation agrees with the expected literals declared in the source.
 Future waves can extend the Python evaluator to independently compute the
 value of the actual expression.
 
-## 10. Deterministic bench/test call-return array temporary deduplication (W556)
+## 10. Deterministic bench/test call CSE for scalar and array returns (W556–W558)
 
-W556 reuses a single packed-vector temporary for the same function-call
-expression returning a primitive scalar array when that expression appears at
-multiple sites in one `test` or deterministic `bench` block. This is a limited,
-block-scoped form of common-subexpression elimination applied to the
-simulation-only assertion harness.
+W556 introduced a block-scoped common-subexpression elimination pass for the
+simulation-only assertion harness: a single packed-vector temporary is reused
+for the same function-call expression when it appears at multiple sites in one
+`test` or deterministic `bench` block. W557 generalized the same machinery to
+scalar-return calls (`u8`, `i8`, `u32`, etc.), and W558 verified that the
+deduplication applies to both operands of `assert_eq`.
 
 Rules and caveats:
-- The temporary is created only for calls whose return type is a fixed-size
-  primitive scalar array (`[N]T` or `[N][M]T` where `T` is `u8`/`i8`/etc.).
+- The temporary is created for calls whose return type is a fixed-size
+  primitive scalar (`u8`, `i8`, `u16`, `i16`, `u32`, `i32`, `u64`, `i64`,
+  `bool`) or a fixed-size primitive scalar array (`[N]T` or `[N][M]T` where
+  `T` is a primitive scalar). Lowerable packed scalar-struct returns are not yet
+  deduplicated.
 - The deduplication key is the full call expression text, including function
   name and rendered arguments, so `f()` and `f(1)` receive different
   temporaries.
 - The temporary is assigned once per block on first use and referenced by every
-  subsequent site.
+  subsequent site, including both the actual and expected sides of an
+  `assert_eq`.
 - This optimization is only valid for **pure, side-effect-free calls** inside
   the deterministic simulation gate. The Icarus-lowerable subset already
   rejects host-only helpers and unresolved imports; future waves may add an
   explicit side-effect classifier for `bench` blocks that use `#` delays or
   unbounded loops.
 
-Witness: `specs/scratch/w556_bench_multi_site_array_dedup.t27` asserts both
-`mat()[1][2]` and `assert_eq(mat(), expected)` in the same bench, and the
-generated Verilog contains a single `_t27_call_arr_tmp_*` assignment.
+Witnesses:
+- `specs/scratch/w556_bench_multi_site_array_dedup.t27` asserts both
+  `mat()[1][2]` and `assert_eq(mat(), expected)` in the same bench; the
+  generated Verilog contains a single `_t27_call_tmp_*` assignment.
+- `specs/scratch/w557_bench_scalar_call_dedup.t27` uses `val()` at multiple
+  actual-side sites.
+- `specs/scratch/w558_bench_scalar_call_expected_side_dedup.t27` uses
+  `assert_eq(val(), val())` and `assert_eq(val() + other(), val() + other())`,
+  proving the same temporary is shared between both operands.
 
 ## 11. Pre-existing yosys smoke baseline
 

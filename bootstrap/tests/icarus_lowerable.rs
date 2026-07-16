@@ -323,6 +323,24 @@ fn accepts_w557_bench_scalar_call_dedup() {
 }
 
 #[test]
+fn accepts_w558_bench_scalar_call_expected_side_dedup() {
+    let dir = scratch_dir();
+    for name in &[
+        "w558_bench_scalar_call_expected_side_dedup.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W558 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [
