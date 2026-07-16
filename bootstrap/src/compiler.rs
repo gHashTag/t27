@@ -4018,6 +4018,21 @@ impl VerilogCodegen {
             let signed = Self::type_is_signed(ret_ty);
             return Some((key, Vec::new(), ret_ty.to_string(), width, signed));
         }
+        // W560: packed scalar-struct returns are also lowerable to a single packed
+        // vector and can be shared across sites via the call-CSE temporary.
+        if self.is_lowerable_scalar_struct_type(ret_ty)
+            && Self::parse_array_type(ret_ty).is_none()
+        {
+            let width = self.packed_width(ret_ty);
+            let signed = self.packed_signed(ret_ty);
+            return Some((
+                key,
+                Vec::new(),
+                Self::base_type_name(ret_ty),
+                width,
+                signed,
+            ));
+        }
         let (dims, elem_type) = Self::primitive_array_info(ret_ty)?;
         let width = self.packed_width(ret_ty);
         let signed = self.packed_signed(ret_ty);
@@ -7183,12 +7198,34 @@ impl VerilogCodegen {
                                         })
                                         .unwrap_or_default();
                                     let signed = Self::scalar_field_is_signed(&ftype);
-                                    let mut call_buf = String::new();
-                                    self.collect_expr_text(child, &mut call_buf);
-                                    let slice = format!(
-                                        "({})[{} +: {}]",
-                                        call_buf, off, fw
-                                    );
+                                    let mut call_key = String::new();
+                                    self.collect_expr_text(child, &mut call_key);
+                                    // W560: if a call temporary has been pre-declared
+                                    // for this scalar-struct return, slice the temporary
+                                    // instead of re-invoking the function.
+                                    let (base_expr, needs_parens) =
+                                        if self.use_call_array_temps
+                                            && !self.call_array_tmp_names.is_empty()
+                                        {
+                                            if let Some(tmp_name) =
+                                                self.call_array_tmp_names.get(&call_key).cloned()
+                                            {
+                                                // W560: slice the pre-declared temporary
+                                                // directly; parentheses are unnecessary and
+                                                // some simulators reject them around a part-
+                                                // select of a temporary identifier.
+                                                (tmp_name, false)
+                                            } else {
+                                                (call_key, true)
+                                            }
+                                        } else {
+                                            (call_key, true)
+                                        };
+                                    let slice = if needs_parens {
+                                        format!("({})[{} +: {}]", base_expr, off, fw)
+                                    } else {
+                                        format!("{}[{} +: {}]", base_expr, off, fw)
+                                    };
                                     if signed {
                                         self.write(&format!("$signed({})", slice));
                                     } else {

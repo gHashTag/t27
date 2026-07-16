@@ -174,29 +174,32 @@ def _packed_type_width_signed(
     ctx: EvalContext, ty: str
 ) -> Optional[Tuple[int, bool]]:
     """Return (width, signed) for a lowerable packed scalar struct or array."""
-    # Fixed-size primitive scalar array (1-D or multi-D).
+    # Fixed-size primitive scalar array (1-D or multi-D).  The packed vector is
+    # unsigned unless it is an array of lowerable packed scalar structs, where
+    # the compiler still emits an unsigned packed vector.
     info = _primitive_array_info(ty)
     if info is not None:
+        if _is_lowerable_scalar_struct_type(ctx, info[1]):
+            return (info[2], False)
         return (info[2], info[3])
     # Lowerable packed scalar struct.
+    if not _is_lowerable_scalar_struct_type(ctx, ty):
+        return None
     decl = ctx.decls.get(f"struct:{ty.strip()}")
     if decl is None:
         return None
     total = 0
-    signed = False
     for field in _children(decl):
         ftype = field.get("extra_type", "")
         finfo = _scalar_array_info(ftype)
         if finfo is not None:
             total += finfo[0] * finfo[1]
-            signed = signed or finfo[2]
             continue
         fws = _type_width_signed(ftype)
         if fws is None:
             return None
         total += fws[0]
-        signed = signed or fws[1]
-    return (total, signed)
+    return (total, False)
 
 
 def _is_lowerable_scalar_struct_type(ctx: EvalContext, ty: str) -> bool:
@@ -759,22 +762,24 @@ def _eval_struct_lit_bv(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Bv]:
     offset = 0
     total_width = 0
     for fname, ftype in fields:
+        info = _scalar_array_info(ftype)
+        if info is not None:
+            fw = info[0] * info[1]
+            signed = info[2]
+        else:
+            ws = _type_width_signed(ftype)
+            if ws is None:
+                return None
+            fw, signed = ws
         val = assigned.get(fname)
         if val is None:
-            info = _scalar_array_info(ftype)
-            if info is not None:
-                fw = info[0] * info[1]
-                val = Bv(0, fw, info[2])
-            else:
-                ws = _type_width_signed(ftype)
-                if ws is None:
-                    return None
-                fw, signed = ws
-                val = Bv(0, fw, signed)
-        mask = (1 << val.width) - 1
+            val = Bv(0, fw, signed)
+        # Pack each field at its declared width, masking values that were
+        # evaluated at a wider natural width (e.g. integer literals).
+        mask = (1 << fw) - 1
         raw |= (val.value & mask) << offset
-        offset += val.width
-        total_width += val.width
+        offset += fw
+        total_width += fw
     return Bv(raw, total_width, False)
 
 

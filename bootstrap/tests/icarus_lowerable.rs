@@ -361,6 +361,26 @@ fn accepts_w559_bench_whole_array_higher_rank_signed() {
 }
 
 #[test]
+fn accepts_w560_bench_scalar_struct_call_dedup() {
+    let dir = scratch_dir();
+    for name in &[
+        "w560_bench_scalar_struct_call_dedup.t27",
+        "w560_bench_scalar_struct_call_dedup_both_sides.t27",
+        "w560_bench_scalar_struct_call_dedup_nested.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W560 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [

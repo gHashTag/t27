@@ -1,3 +1,103 @@
+## 2026-07-07 — Wave Loop 560 (scalar-struct return call deduplication)
+
+### What worked
+- Adding a scalar-struct branch to `call_returning_cse_value_info` in
+  `bootstrap/src/compiler.rs` was sufficient to extend the W557/W558
+  block-scoped call temporary machinery to lowerable packed scalar-struct
+  returns. No new CSE map was needed; the existing `predeclare_call_array_tmps`
+  / `materialize_call_array_tmp` pipeline accepted the new shape because it is
+  described as a single packed vector (`width = packed_width(ret_ty)`,
+  `signed = false`).
+- The `ExprFieldAccess` emission path already handled field part-selects over
+  a packed call expression. It only needed to detect that the slice base was a
+  predeclared temporary identifier and omit the parentheses, avoiding an
+  Icarus syntax error on `$signed((_t27_call_tmp_...)[0 +: 16])`.
+- Three witnesses cover the three important cases:
+  - `w560_bench_scalar_struct_call_dedup.t27`: whole-struct comparison,
+    field-access comparison, and local initializer all reuse one temporary.
+  - `w560_bench_scalar_struct_call_dedup_both_sides.t27`:
+    `assert_eq(make(5,6), make(5,6))` exercises expected-side reuse.
+  - `w560_bench_scalar_struct_call_dedup_nested.t27`: two field accesses of
+    the same call share one temporary, and two distinct calls each get their
+    own temporary.
+- The cocotb mismatch on whole-struct assertions was resolved in the reference
+  model, not the compiler: `_eval_struct_lit_bv` now masks each field value to
+  its declared width before packing, and `_packed_type_width_signed` returns
+  `signed = false` for lowerable packed scalar structs, matching the compiler's
+  unsigned packed-vector probe reg.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Scalar-struct branch in `call_returning_cse_value_info`.
+  - Parenthesis-free part-select when slicing a predeclared call temporary in
+    `ExprFieldAccess` emission.
+- `scripts/cocotb_ref_model.py`:
+  - `_eval_struct_lit_bv` packs fields at declared widths.
+  - `_packed_type_width_signed` returns unsigned for lowerable packed scalar
+    structs and arrays of such structs.
+- `bootstrap/tests/icarus_lowerable.rs`: added
+  `accepts_w560_bench_scalar_struct_call_dedup`.
+- `bootstrap/stage0/FROZEN_HASH`: updated to
+  `8ef77f2178287ff3bc2be45cb932788782a7440061f3e303516c71d18f0eb039`.
+- Added positive scratch witnesses:
+  - `specs/scratch/w560_bench_scalar_struct_call_dedup.t27`
+  - `specs/scratch/w560_bench_scalar_struct_call_dedup_both_sides.t27`
+  - `specs/scratch/w560_bench_scalar_struct_call_dedup_nested.t27`
+- Saved t27 seals and recorded Icarus baselines for all three witnesses.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W560_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 561 (Variant A recommended:
+  array-of-struct return call deduplication).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 20 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` on all three W560 witnesses: PASS.
+- Direct `t27c icarus-cocotb` on all three W560 witnesses: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- The optimization is classic Common Subexpression Elimination (CSE) applied
+  to pure function calls inside a deterministic simulation block, equivalent
+  to the value-numbering step in Aho/Sethi/Ullman and to CIRCT's
+  `createCSEPass` for combinational hardware. Because t27 lowers struct
+  returns to a single packed vector, CSE can reuse the same register for the
+  whole value and for every field slice.
+- The Python reference-model fix is a reminder that *expected-side* packing
+  must mirror the compiler's bit layout exactly, including declared widths and
+  signedness of intermediate vectors.
+
+Sources:
+- [Aho/Sethi/Ullman — Compilers: Principles, Techniques, and Tools](https://en.wikipedia.org/wiki/Compilers:_Principles,_Techniques,_and_Tools)
+- [CIRCT createCSEPass](https://circt.llvm.org/docs/Passes/#cse-createcsepass)
+- [ASPDAC 2026 CombRewriter](https://aspdac2026.com)
+
+### Patterns to reuse
+- When extending CSE to a new value shape, mirror the existing scalar/array
+  metadata format (key, dims, base type, width, signed) so that the rest of the
+  temporary pipeline stays unchanged.
+- A block-scoped temporary identifier needs special syntax handling at every
+  emission site that slices the base expression; identifiers do not need
+  parentheses, but parenthesized expressions do.
+- Always cross-check both the actual expression side and the expected literal
+  side in cocotb, because the reference model packs literals differently from
+  the compiler for composite types.
+
+### Anti-patterns to avoid
+- Do not assume that a struct-literal evaluator naturally knows the declared
+  field width; integer literals evaluate to a default width (e.g. 32-bit) and
+  must be masked to the declared type width before packing.
+- Do not OR the signed flags of struct fields when computing the packed vector
+  signedness: the compiler emits an unsigned packed reg for lowerable scalar
+  structs, so the reference model must do the same.
+
+---
+
 ## 2026-07-07 — Wave Loop 558 (expected-side scalar call deduplication)
 
 ### What worked
