@@ -4936,3 +4936,40 @@ theorem vm_jit_semantics_lowerable : Module.isLowerable vm_jit_semantics_env vm_
 theorem vsa_packed_vsa_lowerable : Module.isLowerable vsa_packed_vsa_env vsa_packed_vsa_module = true := by native_decide
 theorem vsa_sequence_hdc_lowerable : Module.isLowerable vsa_sequence_hdc_env vsa_sequence_hdc_module = false := by native_decide
 theorem igla_w535_bounded_while_module_lowerable : Module.isLowerable igla_w535_bounded_while_module_env igla_w535_bounded_while_module_module = true := by native_decide
+
+def scratch_w545_call_init_returns_array_env : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["seq"]
+}
+
+def scratch_w545_call_init_returns_array_module : Module := {
+  name := "w545_call_init_returns_array",
+  imports := [],
+  globals := [
+    .constDecl "a" (.array 3 .u8) (some (.call "seq" []))
+  ],
+  functions := [{
+    name := "seq",
+    params := [],
+    ret := some (.array 3 .u8),
+    body := [
+      .return_ (some (.arrayLit (.array 3 .u8)
+        [.intLit 1, .intLit 2, .intLit 3]))
+    ]
+  }],
+  tests := [
+    { name := "call_init_returns_array", params := [], ret := none, body := [
+      .bareCall (.call "assert_eq" [.index (.identifier "a") (.intLit 0), .intLit 1]),
+      .bareCall (.call "assert_eq" [.index (.identifier "a") (.intLit 1), .intLit 2]),
+      .bareCall (.call "assert_eq" [.index (.identifier "a") (.intLit 2), .intLit 3])
+    ]}
+  ],
+  benches := []
+}
+
+theorem scratch_w545_call_init_returns_array_lowerable :
+  Module.isLowerable scratch_w545_call_init_returns_array_env scratch_w545_call_init_returns_array_module = true := by native_decide

@@ -3689,6 +3689,11 @@ pub struct VerilogCodegen {
     // W533: top-level function names -> declared return type string, used to
     // resolve field access on scalar-struct function-call results.
     fn_return_types: std::collections::HashMap<String, String>,
+    // W545: module-level const/var primitive scalar arrays that are stored as
+    // packed vectors (key: name, value: (dims, elem_type)).  These are created
+    // when the initializer is a function call returning the array; indexing is
+    // lowered as bit-slices instead of unpacked array access.
+    module_packed_primitive_arrays: std::collections::HashMap<String, (Vec<usize>, String)>,
     // W530: when true, emit active test assertions for Icarus simulation
     // instead of commented-out placeholders.
     emit_test_assertions: bool,
@@ -3724,6 +3729,7 @@ impl VerilogCodegen {
             module_types: std::collections::HashMap::new(),
             param_types: std::collections::HashMap::new(),
             fn_return_types: std::collections::HashMap::new(),
+            module_packed_primitive_arrays: std::collections::HashMap::new(),
             emit_test_assertions,
             probe_counter: 0,
             probe_specs: Vec::new(),
@@ -3941,6 +3947,14 @@ impl VerilogCodegen {
         if let Some((dims, elem_type)) = Self::parse_array_type(ty) {
             if self.is_lowerable_scalar_struct_type(&elem_type) {
                 let elem_w = self.element_width(&elem_type) as u32;
+                return dims.iter().fold(elem_w, |acc, d| acc * (*d as u32));
+            }
+            // W545: primitive scalar arrays (e.g. [3]u8) are lowered as a single
+            // packed vector whose width is the product of dimensions and element
+            // width.  This aligns function return declarations with the packed
+            // concatenation emitted for array literals.
+            if Self::is_primitive_scalar_type(&elem_type) {
+                let elem_w = Self::type_to_width(&elem_type);
                 return dims.iter().fold(elem_w, |acc, d| acc * (*d as u32));
             }
         }
@@ -4510,6 +4524,7 @@ impl VerilogCodegen {
             module_types: self.module_types.clone(),
             param_types: self.param_types.clone(),
             fn_return_types: self.fn_return_types.clone(),
+            module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
             emit_test_assertions: self.emit_test_assertions,
             probe_counter: 0,
             probe_specs: Vec::new(),
@@ -4663,6 +4678,7 @@ impl VerilogCodegen {
                     module_types: self.module_types.clone(),
                     param_types: self.param_types.clone(),
                     fn_return_types: self.fn_return_types.clone(),
+                    module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
                     emit_test_assertions: self.emit_test_assertions,
                     probe_counter: 0,
                     probe_specs: Vec::new(),
@@ -4776,6 +4792,48 @@ impl VerilogCodegen {
             NodeKind::ExprIdentifier if !current.name.is_empty() => current.name.clone(),
             _ => return false,
         };
+
+        // W545: module-level primitive scalar arrays initialized by function calls
+        // are stored as packed vectors.  Indexing is lowered as bit-slices.
+        if let Some((dims, elem_type)) = self.module_packed_primitive_arrays.get(&base_name) {
+            let elem_w = Self::type_to_width(elem_type).max(1) as usize;
+            if indices.len() != dims.len() {
+                return false;
+            }
+            let flat_idx = if indices.len() == 1 {
+                indices[0].clone()
+            } else {
+                // Multi-dimensional packed layout: row-major linearization.
+                // offset = idx0 * (product of inner dims) + idx1 * (product of
+                // remaining dims) + ... + last idx.
+                let mut stride = 1usize;
+                let mut parts = Vec::new();
+                for (idx, dim) in indices.iter().zip(dims.iter()).rev() {
+                    if stride == 1 {
+                        parts.push(idx.clone());
+                    } else {
+                        parts.push(format!("({} * {})", idx, stride));
+                    }
+                    stride *= dim;
+                }
+                parts.reverse();
+                parts.join(" + ")
+            };
+            let is_literal_idx = flat_idx.parse::<u32>().is_ok();
+            if is_literal_idx {
+                let i: usize = flat_idx.parse().unwrap_or(0);
+                let hi = (i + 1) * elem_w - 1;
+                let lo = i * elem_w;
+                self.write(&format!("{}[{}:{}]", base_name, hi, lo));
+            } else {
+                self.write(&format!(
+                    "{}[({} * {}) +:{}]",
+                    base_name, flat_idx, elem_w, elem_w
+                ));
+            }
+            return true;
+        }
+
         let local_ty = match self.local_types.get(&base_name)
             .or_else(|| self.param_types.get(&base_name))
             .or_else(|| self.module_types.get(&base_name))
@@ -5289,6 +5347,41 @@ impl VerilogCodegen {
             }
         }
 
+        // W545: module-level primitive scalar arrays initialized by a function
+        // call are stored as a packed vector so the function's packed return
+        // value can be assigned directly.  Static indexing is lowered as
+        // bit-slices in try_emit_primitive_array_access.
+        if let Some((dims, elem_type)) = Self::primitive_array_info(&node.extra_type
+        ) {
+            if !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprCall
+            {
+                let width = self.packed_width(&node.extra_type);
+                let signed = self.packed_signed(&node.extra_type);
+                let range = Self::range_decl(width);
+                self.write_indent();
+                if node.extra_pub {
+                    self.write("parameter ");
+                } else {
+                    self.write("localparam ");
+                }
+                if signed {
+                    self.write("signed ");
+                }
+                if !range.is_empty() {
+                    self.write(&format!("{} ", range));
+                }
+                self.write(&format!("{} = ", node.name));
+                self.gen_verilog_expr(&node.children[0]);
+                self.write_line(";");
+                self.module_packed_primitive_arrays.insert(
+                    node.name.clone(),
+                    (dims.clone(), elem_type.clone()),
+                );
+                return;
+            }
+        }
+
         // Determine if this is an array constant (LUT)
         let is_array = !node.extra_size.is_empty();
 
@@ -5466,6 +5559,44 @@ impl VerilogCodegen {
                     self.write_line("end");
                 }
                 self.write_line("");
+                return;
+            }
+        }
+
+        // W545: module-level primitive scalar arrays initialized by a function
+        // call are stored as a packed vector so the function's packed return
+        // value can be assigned directly in an initial block.
+        if let Some((dims, elem_type)) = Self::primitive_array_info(
+            &node.extra_type
+        ) {
+            if !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprCall
+            {
+                let width = self.packed_width(&node.extra_type);
+                let signed = self.packed_signed(&node.extra_type);
+                let signed_str = if signed { "signed " } else { "" };
+                let range = Self::range_decl(width);
+                self.write_indent();
+                self.write(&format!("reg {}{}", signed_str, range));
+                if !range.is_empty() {
+                    self.write(" ");
+                }
+                self.write_line(&format!("{};", node.name));
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                self.write_indent();
+                self.write(&format!("{} = ", node.name));
+                self.gen_verilog_expr(&node.children[0]);
+                self.write_line(";");
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+                self.write_line("");
+                self.module_packed_primitive_arrays.insert(
+                    node.name.clone(),
+                    (dims.clone(), elem_type.clone()),
+                );
                 return;
             }
         }
@@ -6248,12 +6379,18 @@ impl VerilogCodegen {
                     // W528: when returning a nested array literal of scalar structs,
                     // lower it to a single packed concatenation matching the
                     // function's declared return width.
+                    // W545: extend the same treatment to primitive scalar arrays so
+                    // that [3]u8{...} is returned as a 24-bit packed vector.
                     let return_type = self.current_fn_return_type.clone();
-                    if node.children[0].kind == NodeKind::ExprArrayLiteral
+                    let is_packed_array_return = node.children[0].kind
+                        == NodeKind::ExprArrayLiteral
                         && Self::parse_array_type(&return_type)
-                            .map(|(_, et)| self.struct_decls.contains_key(&et))
-                            .unwrap_or(false)
-                    {
+                            .map(|(_, et)| {
+                                self.struct_decls.contains_key(&et)
+                                    || Self::is_primitive_scalar_type(&et)
+                            })
+                            .unwrap_or(false);
+                    if is_packed_array_return {
                         self.emit_packed_array_literal_concat(
                             &node.children[0],
                             &return_type,
@@ -8326,14 +8463,6 @@ impl Compiler {
                 // Return type and parameter types must be lowerable.
                 if !node.extra_return_type.is_empty()
                     && !Self::is_icarus_lowerable_type(&node.extra_return_type, structs)
-                {
-                    return Ok(false);
-                }
-                // Reject function return types that are primitive scalar arrays.
-                // The current backend does not connect packed/unpacked function
-                // returns to module const/var storage consistently.
-                if !node.extra_return_type.is_empty()
-                    && VerilogCodegen::scalar_array_info(&node.extra_return_type).is_some()
                 {
                     return Ok(false);
                 }

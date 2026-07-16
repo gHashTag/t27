@@ -1,3 +1,90 @@
+## 2026-07-07 — Wave Loop 545 (primitive scalar array function returns for independent VCD cross-check)
+
+### What worked
+- Converting the W544 negative boundary into a positive feature forced a complete
+  compiler/classifier/formal/test update, producing a coherent capability rather
+  than a half-supported special case.
+- The existing packed-vector infrastructure for scalar-struct arrays (W511–W513)
+  generalized cleanly to primitive scalar arrays once `packed_width` reported the
+  total vector width; most of the work was wiring function returns into that path.
+- Adding `module_packed_primitive_arrays` to `VerilogCodegen` let module-level
+  primitive scalar arrays be tracked as packed vectors so static indexing could
+  resolve the correct part-select (`a[i*8 +: 8]`).
+- Updating the Lean predicate (`Function.isLowerable`) and adding
+  lowerability/sequential/value-preservation theorems kept the formal model in
+  lockstep with the Rust backend.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `module_packed_primitive_arrays` tracking to `VerilogCodegen` and
+    `with_options`.
+  - Fixed `packed_width` for primitive scalar arrays to return the total packed
+    bit width (e.g. `[3]u8` → 24 bits).
+  - Extended `ExprReturn` lowering to emit packed concatenations for primitive
+    scalar array returns.
+  - Added packed-vector `localparam`/`reg` emission in `gen_verilog_const` and
+    `gen_verilog_var` for module-level primitive scalar arrays initialized from
+    calls.
+  - Added packed-vector slice access in `try_emit_primitive_array_access`.
+  - Removed the W544 classifier rule that rejected primitive scalar array
+    function return types.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Replaced `rejects_w544_primitive_scalar_array_return` with
+    `accepts_w545_primitive_scalar_array_return`.
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`:
+  - Removed the `retNotScalarArray` guard from `Function.isLowerable`.
+- `proofs/lean4/Trinity/IcarusLowerable/Completeness.lean`:
+  - Added `scratch_w545_call_init_returns_array_env`, module, and lowerability
+    theorem.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`:
+  - Added `w545CallInitReturnsArraySeq`, `w545CallInitReturnsArrayEnv`, and
+    `w545CallInitReturnsArrayModule` helpers.
+- `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`:
+  - Added lowerability, sequential, and value-preservation theorems for W545.
+- Added two positive scratch witnesses:
+  - `specs/scratch/w545_call_init_returns_array.t27`
+  - `specs/scratch/w545_var_call_init_returns_array.t27`
+- Removed obsolete negative witness:
+  - `specs/scratch/w544_negative_call_init_returns_array.t27`
+- Resealed affected corpus specs:
+  - `specs/compiler/lexer.t27`
+  - `specs/math/zamolodchikov_e8.t27`
+  - `specs/sync/index.t27`
+- Added Icarus baselines for the two new W545 witnesses.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_545_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W546_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 546.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 6 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  52 Icarus PASS, 52 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- When promoting a negative boundary to a positive feature, update the backend
+  first, then remove the classifier rejection, then mirror the change in the Lean
+  predicate, and finally add lowerability + value-preservation theorems.
+- Track new packed-vector storage shapes in a dedicated `VerilogCodegen` map so
+  that both declaration and access sites agree on the packed/unpacked choice.
+- Fix `packed_width` and `packed_signed` before touching any emitter; otherwise
+  function signatures stay wrong even after declarations look correct.
+
+### Anti-patterns to avoid
+- Do not leave generated Verilog width mismatches between function return types
+  and caller storage — Icarus will silently truncate or pad.
+- Do not update only the Rust classifier without the Lean predicate; the
+  integration test will catch it, but it is faster to mirror changes immediately.
+
+---
+
 ## 2026-07-07 — Wave Loop 544 (mutable module vars and test-block call assignments for independent VCD cross-check)
 
 ### What worked

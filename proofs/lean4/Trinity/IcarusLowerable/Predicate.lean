@@ -616,11 +616,10 @@ def Function.isLowerable (env : Env) (fn : Function) : Bool :=
   if Env.isHostOnly env fn.name then true
   else
     let interfaceOK := fn.params.all (fun p => p.2.isLowerable env) && fn.ret.all (·.isLowerable env)
-    -- W544: reject function return types that are primitive scalar arrays.  The
-    -- backend does not yet connect packed/unpacked function returns to module
-    -- const/var storage consistently.
-    let retNotScalarArray := fn.ret.all (fun r => !r.isPrimitiveScalarArray)
-    interfaceOK && retNotScalarArray && fn.body.all (Stmt.isLowerable env)
+    -- W545: primitive scalar array return types are now lowerable.  The Rust
+    -- backend stores the packed function result in a packed-vector module
+    -- const/var and indexes it by bit-slices.
+    interfaceOK && fn.body.all (Stmt.isLowerable env)
 
 /-- A module is lowerable when all globals and emitted functions are lowerable
     and `break`/`continue` only occur inside loop bodies.  W499: reachability no

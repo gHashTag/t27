@@ -606,6 +606,65 @@ convert it into a negative boundary witness and align the Rust classifier with t
 Lean predicate before attempting a full implementation.  A clean, formalized
 rejection is more valuable than a half-working positive feature.
 
+## Worked example — Wave Loop 545
+
+Wave Loop 545 promoted the W544 negative boundary into a positive, fully-lowerable
+feature: functions returning fixed-size primitive scalar arrays can now initialize
+module-level `const` and `var` declarations in the Icarus-lowerable subset.
+
+- In `bootstrap/src/compiler.rs`:
+  - Added `module_packed_primitive_arrays` tracking to `VerilogCodegen` so
+    module-level primitive scalar arrays are stored as packed vectors.
+  - Fixed `packed_width` for primitive scalar arrays to return the total bit width
+    (e.g. `[3]u8` → 24 bits).
+  - Extended `ExprReturn` lowering to emit packed concatenations for primitive
+    scalar array returns.
+  - Added packed-vector `localparam`/`reg` emission in `gen_verilog_const` and
+    `gen_verilog_var` for module-level primitive scalar arrays initialized from
+    calls.
+  - Added packed-vector slice access in `try_emit_primitive_array_access`.
+  - Removed the W544 classifier rule that rejected primitive scalar array function
+    return types.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- In `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`:
+  - Removed the `retNotScalarArray` guard from `Function.isLowerable`.
+- In `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`:
+  - Added `w545CallInitReturnsArraySeq`, `w545CallInitReturnsArrayEnv`, and
+    `w545CallInitReturnsArrayModule` helpers.
+- In `proofs/lean4/Trinity/IcarusLowerable/Completeness.lean`:
+  - Added the W545 environment, module, and lowerability theorem.
+- In `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`:
+  - Added lowerability, sequential, and value-preservation theorems for W545 using
+    `module_value_equiv_proved_sequential`.
+- Replaced `rejects_w544_primitive_scalar_array_return` in
+  `bootstrap/tests/icarus_lowerable.rs` with
+  `accepts_w545_primitive_scalar_array_return`.
+- Added two positive scratch witnesses:
+  - `specs/scratch/w545_call_init_returns_array.t27`
+  - `specs/scratch/w545_var_call_init_returns_array.t27`
+- Removed the obsolete negative witness
+  `specs/scratch/w544_negative_call_init_returns_array.t27` and its seal.
+- Resealed affected corpus specs:
+  - `specs/compiler/lexer.t27`
+  - `specs/math/zamolodchikov_e8.t27`
+  - `specs/sync/index.t27`
+- Wrote `docs/reports/WAVE_LOOP_545_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W546_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W546.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 6/0,
+  `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`
+  52/0 Icarus PASS, 52/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: when promoting a negative boundary to a positive feature, update
+width/sign helpers first, then the emitter, then remove the classifier rejection,
+then mirror the change in the Lean predicate, and finally add lowerability and
+value-preservation theorems.  Track new packed-vector shapes in a dedicated
+`VerilogCodegen` map so declaration and access sites agree.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

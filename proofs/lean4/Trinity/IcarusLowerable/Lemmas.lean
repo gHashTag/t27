@@ -2731,6 +2731,48 @@ def w529Function2DStructArrayReturnModule : Module := {
   benches := []
 }
 
+/- W545 witness: primitive scalar array returned from a function and used to
+   initialize a module-level global. -/
+
+/-- W545: helper function that constructs and returns a `[3]u8` packed vector. -/
+def w545CallInitReturnsArraySeq : Function := {
+  name := "seq",
+  params := [],
+  ret := some (.array 3 .u8),
+  body := [
+    .varDecl "a" (.array 3 .u8)
+      (some (.arrayLit (.array 3 .u8) [.intLit 1, .intLit 2, .intLit 3])),
+    .return_ (some (.identifier "a"))
+  ]
+}
+
+def w545CallInitReturnsArrayEnv : Env := {
+  structs := [],
+  constructors := [],
+  enums := [],
+  imports := [],
+  hostOnly := [],
+  reachable := ["seq"]
+}
+
+/-- W545: module with a global initialized from a primitive scalar array return. -/
+def w545CallInitReturnsArrayModule : Module := {
+  name := "w545_call_init_returns_array",
+  imports := [],
+  globals := [
+    .constDecl "a" (.array 3 .u8) (some (.call "seq" []))
+  ],
+  functions := [w545CallInitReturnsArraySeq],
+  tests := [
+    { name := "call_init_returns_array", params := [], ret := none, body := [
+      .bareCall (.call "assert_eq" [.index (.identifier "a") (.intLit 0), .intLit 1]),
+      .bareCall (.call "assert_eq" [.index (.identifier "a") (.intLit 1), .intLit 2]),
+      .bareCall (.call "assert_eq" [.index (.identifier "a") (.intLit 2), .intLit 3])
+    ]}
+  ],
+  benches := []
+}
+
 /- W535 negative witness environments and modules: the tightened predicate rejects
    the exact patterns flagged by the Rust structural classifier. -/
 

@@ -1433,4 +1433,36 @@ theorem w529_function_2d_struct_array_return_varidx_value_equiv :
   exact module_value_equiv_proved_sequential w529Function2DStructArrayReturnEnv w529Function2DStructArrayReturnModule
     hlowerable hunique hseq hctx "varidx_returned" w529Function2DStructArrayReturnVaridx [Value.mk 32 1, Value.mk 32 2] hfind hhost
 
+/- W545 theorems: primitive scalar array function returns used to initialize
+   module-level globals. -/
+
+/-- W545: the call-init primitive scalar array witness is lowerable. -/
+theorem w545_call_init_returns_array_lowerable :
+  Module.isLowerable w545CallInitReturnsArrayEnv w545CallInitReturnsArrayModule := by
+  native_decide
+
+/-- W545: the call-init primitive scalar array witness is sequential because the
+    module global is initialized by a pure combinational call and the test block
+    contains only bare assertions. -/
+theorem w545_call_init_returns_array_sequential :
+  Module.isSequential w545CallInitReturnsArrayEnv w545CallInitReturnsArrayModule := by
+  native_decide
+
+/-- W545: value preservation for `seq()` returning the packed vector `[1,2,3]`. -/
+theorem w545_call_init_returns_array_value_equiv :
+  evalModuleFunctionTotal defaultFuel w545CallInitReturnsArrayEnv w545CallInitReturnsArrayModule "seq" [] =
+  evalVModuleTotal defaultFuel w545CallInitReturnsArrayEnv (emitModule w545CallInitReturnsArrayEnv w545CallInitReturnsArrayModule) "seq" [] := by
+  have hlowerable : Module.isLowerable w545CallInitReturnsArrayEnv w545CallInitReturnsArrayModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w545CallInitReturnsArrayModule := by
+    simp [Module.hasUniqueFunctionNames, w545CallInitReturnsArrayModule, w545CallInitReturnsArraySeq]
+  have hseq : Module.isSequential w545CallInitReturnsArrayEnv w545CallInitReturnsArrayModule := by native_decide
+  have hctx : Module.callContext w545CallInitReturnsArrayEnv w545CallInitReturnsArrayModule := by
+    native_decide
+  have hfind : w545CallInitReturnsArrayModule.findFunction "seq" = some w545CallInitReturnsArraySeq := by
+    simp [Module.findFunction, w545CallInitReturnsArrayModule, w545CallInitReturnsArraySeq]
+  have hhost : ¬ Env.isHostOnly w545CallInitReturnsArrayEnv w545CallInitReturnsArraySeq.name := by
+    simp [Env.isHostOnly, w545CallInitReturnsArrayEnv, w545CallInitReturnsArraySeq]
+  exact module_value_equiv_proved_sequential w545CallInitReturnsArrayEnv w545CallInitReturnsArrayModule
+    hlowerable hunique hseq hctx "seq" w545CallInitReturnsArraySeq [] hfind hhost
+
 end Trinity.IcarusLowerable

@@ -95,17 +95,22 @@ fn rejects_w543_nonlowerable_call_init_witness() {
 }
 
 #[test]
-fn rejects_w544_primitive_scalar_array_return() {
+fn accepts_w545_primitive_scalar_array_return() {
     let dir = scratch_dir();
-    let p = dir.join("w544_negative_call_init_returns_array.t27");
-    assert!(p.exists(), "missing W544 negative witness {}", p.display());
-    let (lowerable, json) = run_icarus_lowerable(&p);
-    assert!(
-        !lowerable,
-        "expected {} to be rejected because [3]u8 return type is not yet lowerable, got: {}",
-        p.display(),
-        json
-    );
+    for name in &[
+        "w545_call_init_returns_array.t27",
+        "w545_var_call_init_returns_array.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W545 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
 }
 
 #[test]
