@@ -1,37 +1,41 @@
-# Wave Loop 550 — 4-D primitive scalar array function returns for independent VCD cross-check
+# Wave Loop 551 — Independent VCD cross-check for deterministic `bench` blocks
 
-**Issue:** #1521 (placeholder — create when GitHub token is available)  
-**Branch:** `wave-loop-550`  
-**Source:** `docs/reports/FPGA_LOOP_CLOSEOUT_W549_2026-07-16.md` (Variant A)  
+**Issue:** #1522 (placeholder — create when GitHub token is available)  
+**Branch:** `wave-loop-551`  
+**Source:** `docs/reports/FPGA_LOOP_CLOSEOUT_W550_2026-07-16.md` (Variant A)  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 
 ---
 
 ## Goal
 
-Extend Wave Loop 549's multi-dimensional primitive scalar array function-return
-support to four-dimensional arrays (`[2][2][2][2]u8`).  This validates that the
-row-major index linearization and bit-slice scaling are truly rank-independent
-and reveals any remaining hard-coded 2-D or 3-D assumptions in the compiler,
-reference model, or Lean formal model.
+Extend the cocotb reference-model cross-check from `test` blocks to deterministic
+`bench` blocks.  All W5xx cocotb cross-checks so far target `test` blocks; `bench`
+blocks contain latency/throughput assertions that are currently skipped by the
+reference model.  This leaves a gap in independent verification of generated
+Verilog cycle-level behavior.
 
 ## Scope
 
-1. Add a positive scratch witness `specs/scratch/w550_4d_call_init_returns_array.t27`
-   with a function returning `[2][2][2][2]u8` and element extraction.
-2. Confirm the existing `_collect_index_chain` / `_eval_index_bv` reference-model
-   path handles four-level `ExprIndex` nesting.
-3. Add lowerability and value-preservation theorems in
-   `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` / `Soundness.lean`.
-4. Record the Icarus baseline and seal the new witness.
-5. If any hard-coded rank limit appears, remove it in the compiler, reference
-   model, or Lean model.
+1. Extend `scripts/cocotb_ref_model.py` to parse `bench` blocks and evaluate
+   deterministic assertions inside them, skipping non-deterministic or timing-only
+   benches.
+2. Add a positive scratch witness `specs/scratch/w551_bench_scalar_call_cross_check.t27`
+   with a `bench` block that uses a lowerable function call and a deterministic
+   assertion.
+3. Update `bootstrap/src/suite.rs` to include `bench` blocks in the cocotb gate
+   when `--cocotb` is enabled.
+4. Keep `test` and `bench` probes clearly distinguished in VCD output.
+5. Record the Icarus baseline and seal the new witness.
 6. Run the full validation matrix.
 
 ## Acceptance criteria
 
-- The new 4-D primitive scalar array return witness passes Icarus simulation
-  and the cocotb reference-model cross-check.
+- The new deterministic `bench` witness passes Icarus simulation and the cocotb
+  reference-model cross-check.
+- `./scripts/tri test --icarus-simulate --cocotb --fast` passes the new bench
+  witness.
+- Existing `test` cocotb count remains unchanged (no regression).
 - `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
   0 cocotb failures, 0 Icarus failures, 0 seal mismatches, and the 24
   pre-existing yosys smoke baseline failures remain unchanged.
@@ -41,4 +45,4 @@ reference model, or Lean formal model.
 
 ---
 
-*Next: Wave Loop 551 cooperation variants will be proposed in the W550 closeout.*
+*Next: Wave Loop 552 cooperation variants will be proposed in the W551 closeout.*

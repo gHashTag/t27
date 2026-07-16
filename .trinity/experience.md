@@ -4331,3 +4331,56 @@
   exercise a different recursion/chain depth in the parser, backend, and model.
 - Do not add backend code for a higher rank before proving the existing code
   already handles it; W549 needed zero compiler changes.
+
+## 2026-07-16 — Wave Loop 550 (4-D primitive scalar array function returns for independent VCD cross-check)
+
+### What worked
+- Adding a 4-D witness `[2][2][2][2]u8` proved the rank-independent flat-index
+  formula is truly general: the compiler emitted
+  `m[(((0 * 8) + (0 * 4) + (0 * 2) + 0) * 8) +: 8]` without code changes.
+- The Python reference model's `_collect_index_chain` and `_eval_array_lit_bv`
+  handled rank-4 recursion without modification.
+- The Lean formal model accepted nested `.array` depth 4 and `native_decide`
+  proved lowerability and value equivalence, confirming the partial evaluator's
+  fuel budget is sufficient for this shape.
+- Following the W548/W549 pattern (one witness, one Rust test, one Lean theorem,
+  seal, baseline, closeout) kept the loop small even though the conceptual rank
+  increased.
+
+### What changed behavior
+- Added `specs/scratch/w550_4d_call_init_returns_array.t27` positive witness with
+  a function returning `[2][2][2][2]u8` and a corner-element sum.
+- Added Icarus baseline and seal for the new witness.
+- Added `accepts_w550_four_dimensional_primitive_scalar_array_return` integration
+  test in `bootstrap/tests/icarus_lowerable.rs`.
+- Added `w550FourDCallInitReturnsArray*` helpers and lowerability/value-
+  preservation theorems in `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` /
+  `Soundness.lean`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W550_2026-07-16.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 551 (Variant A: deterministic bench
+  block VCD cross-check).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 10 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  58 Icarus PASS, 58 cocotb PASS, 638 seal matches, 0 mismatches; 24 pre-existing
+  yosys smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- After demonstrating rank N, add rank N+1 as the next loop if the code is
+  intended to be rank-independent; do not stop at the rank that first passes.
+- Keep the test value small enough to be human-verifiable (`1 + 8 + 9 + 16 = 34`)
+  so the expected literal in `assert_eq` also serves as a sanity check for readers.
+- Use `native_decide` value-preservation theorems for each new witness shape;
+  the proof infrastructure does not need to change when the shape is a strict
+  extension of a previous one.
+
+### Anti-patterns to avoid
+- Do not keep increasing rank forever without a plan to stop; once rank-independence
+  is convincingly demonstrated, pivot to a different dimension (e.g. bench blocks,
+  signed probes, module-level assignments) for greater verification value.

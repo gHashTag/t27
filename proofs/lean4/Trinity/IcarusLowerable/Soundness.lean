@@ -1617,4 +1617,25 @@ theorem w549_3d_call_init_returns_array_value_equiv :
   exact module_value_equiv_statement w549ThreeDCallInitReturnsArrayEnv w549ThreeDCallInitReturnsArrayModule
     hlowerable hunique hcomb hctx "check" w549ThreeDCallInitReturnsArrayCheck [] hfind hhost
 
+/- W550 theorems: four-dimensional primitive scalar array function returns. -/
+
+theorem w550_4d_call_init_returns_array_lowerable :
+  Module.isLowerable w550FourDCallInitReturnsArrayEnv w550FourDCallInitReturnsArrayModule := by
+  native_decide
+
+theorem w550_4d_call_init_returns_array_value_equiv :
+  evalModuleFunctionTotal defaultFuel w550FourDCallInitReturnsArrayEnv w550FourDCallInitReturnsArrayModule "check" [] =
+  evalVModuleTotal defaultFuel w550FourDCallInitReturnsArrayEnv (emitModule w550FourDCallInitReturnsArrayEnv w550FourDCallInitReturnsArrayModule) "check" [] := by
+  have hlowerable : Module.isLowerable w550FourDCallInitReturnsArrayEnv w550FourDCallInitReturnsArrayModule := by native_decide
+  have hunique : Module.hasUniqueFunctionNames w550FourDCallInitReturnsArrayModule := by
+    simp [Module.hasUniqueFunctionNames, w550FourDCallInitReturnsArrayModule, w550FourDCallInitReturnsArrayHyper, w550FourDCallInitReturnsArrayCheck]
+  have hcomb : Module.isCombinational w550FourDCallInitReturnsArrayEnv w550FourDCallInitReturnsArrayModule := by native_decide
+  have hctx : Module.callContext w550FourDCallInitReturnsArrayEnv w550FourDCallInitReturnsArrayModule := by native_decide
+  have hfind : w550FourDCallInitReturnsArrayModule.findFunction "check" = some w550FourDCallInitReturnsArrayCheck := by
+    simp [Module.findFunction, w550FourDCallInitReturnsArrayModule, w550FourDCallInitReturnsArrayHyper, w550FourDCallInitReturnsArrayCheck]
+  have hhost : ¬ Env.isHostOnly w550FourDCallInitReturnsArrayEnv w550FourDCallInitReturnsArrayCheck.name := by
+    simp [Env.isHostOnly, w550FourDCallInitReturnsArrayEnv, w550FourDCallInitReturnsArrayCheck]
+  exact module_value_equiv_statement w550FourDCallInitReturnsArrayEnv w550FourDCallInitReturnsArrayModule
+    hlowerable hunique hcomb hctx "check" w550FourDCallInitReturnsArrayCheck [] hfind hhost
+
 end Trinity.IcarusLowerable
