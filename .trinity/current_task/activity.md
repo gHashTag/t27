@@ -1732,3 +1732,7 @@
 - **Commit:** feat(igla): Wave Loop 559 — signed whole-array comparison for 3-D/4-D primitive scalar arrays
 - **Files:** .claude/plans/wave-loop-560.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w560_bench_scalar_struct_call_dedup.json,.trinity/icarus-baselines/specs/scratch/w560_bench_scalar_struct_call_dedup_both_sides.json,.trinity/icarus-baselines/specs/scratch/w560_bench_scalar_struct_call_dedup_nested.json,.trinity/seals/scratch_w560_bench_scalar_struct_call_dedup.json,.trinity/seals/scratch_w560_bench_scalar_struct_call_dedup_both_sides.json,.trinity/seals/scratch_w560_bench_scalar_struct_call_dedup_nested.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W560_2026-07-07.md,scripts/cocotb_ref_model.py,specs/scratch/w560_bench_scalar_struct_call_dedup.t27,specs/scratch/w560_bench_scalar_struct_call_dedup_both_sides.t27,specs/scratch/w560_bench_scalar_struct_call_dedup_nested.t27
 
+## 2026-07-16T16:53:01Z — wave-loop-560
+- **Commit:** feat(gen-verilog): Wave Loop 560 — scalar-struct return call deduplication (Issue #1531)
+- **Files:** docs/ICARUS_LOWERABLE_BOUNDARY.md
+
