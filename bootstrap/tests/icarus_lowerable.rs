@@ -67,6 +67,35 @@ fn rejects_w534_negative_witnesses() {
 }
 
 #[test]
+fn rejects_w561_nonlowerable_struct_return_witnesses() {
+    let dir = scratch_dir();
+    let mut witnesses: Vec<PathBuf> = std::fs::read_dir(&dir)
+        .expect("failed to read specs/scratch")
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| {
+            p.file_stem()
+                .and_then(|s| s.to_str())
+                .map(|s| s.starts_with("w561_negative_struct_return_"))
+                .unwrap_or(false)
+        })
+        .collect();
+    witnesses.sort();
+    assert!(
+        !witnesses.is_empty(),
+        "expected W561 negative struct-return witnesses in specs/scratch"
+    );
+    for p in &witnesses {
+        let (lowerable, json) = run_icarus_lowerable(p);
+        assert!(
+            !lowerable,
+            "expected {} to be rejected because its return struct is not lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn rejects_w537_undefined_struct_witness() {
     let dir = scratch_dir();
     let p = dir.join("w537_negative_undefined_struct.t27");

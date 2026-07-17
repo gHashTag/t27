@@ -221,11 +221,15 @@ Rules and caveats:
 - The temporary is assigned once per block on first use and referenced by every
   subsequent site, including both the actual and expected sides of an
   `assert_eq`, whole-struct comparisons, and individual field accesses.
+- The optimization is **gated by the structural lowerability classifier**. A
+  function returning a scalar-struct with a non-lowerable field (e.g. `string`,
+  `enum`, `f32`, or an unresolved imported type) is rejected and never enters the
+  call-CSE pipeline. W561 added negative witnesses that lock this boundary.
 - This optimization is only valid for **pure, side-effect-free calls** inside
-  the deterministic simulation gate. The Icarus-lowerable subset already
-  rejects host-only helpers and unresolved imports; future waves may add an
-  explicit side-effect classifier for `bench` blocks that use `#` delays or
-  unbounded loops.
+  the deterministic simulation gate. The Icarus-lowerable subset already rejects
+  host-only helpers and unresolved imports; future waves may add an explicit
+  side-effect classifier for `bench` blocks that use non-deterministic control
+  flow.
 
 Witnesses:
 - `specs/scratch/w556_bench_multi_site_array_dedup.t27` asserts both
@@ -239,6 +243,11 @@ Witnesses:
 - `specs/scratch/w560_bench_scalar_struct_call_dedup.t27` reuses one temporary
   for a whole-struct comparison, a `.x` field comparison, and a local
   initializer in the same block.
+- `specs/scratch/w561_negative_struct_return_string_field.t27`,
+  `w561_negative_struct_return_enum_field.t27`,
+  `w561_negative_struct_return_f32_field.t27`, and
+  `w561_negative_struct_return_unresolved_import.t27` prove that non-lowerable
+  struct-return calls are rejected before CSE can apply.
 
 ## 11. Pre-existing yosys smoke baseline
 

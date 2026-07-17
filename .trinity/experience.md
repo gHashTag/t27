@@ -1,3 +1,71 @@
+## 2026-07-16 — Wave Loop 561 (negative / boundary witnesses for non-lowerable struct returns)
+
+### What worked
+- A quick spike of Variant A (array-of-struct return call deduplication) showed
+  three missing compiler facilities: array-of-struct literal lowering,
+  bench-local 1-D array-of-struct declarations, and 1-D array-of-struct element
+  field access. Documenting these gaps let us pivot cleanly to Variant C.
+- Variant C added four negative witnesses covering `string`, `enum`, `f32`, and
+  unresolved-import fields inside a scalar-struct return. All are rejected by
+  the structural `icarus-lowerable` classifier, so the W560 CSE optimization is
+  correctly gated.
+- A single integration test (`rejects_w561_nonlowerable_struct_return_witnesses`)
+  automatically discovers any future `w561_negative_struct_return_*.t27` files,
+  making the boundary easy to extend.
+- Updating `docs/ICARUS_LOWERABLE_BOUNDARY.md` section 10 made the lowerability
+  gate explicit for the W560 optimization.
+
+### What changed behavior
+- `bootstrap/tests/icarus_lowerable.rs`: added
+  `rejects_w561_nonlowerable_struct_return_witnesses`.
+- Added negative scratch witnesses:
+  - `specs/scratch/w561_negative_struct_return_string_field.t27`
+  - `specs/scratch/w561_negative_struct_return_enum_field.t27`
+  - `specs/scratch/w561_negative_struct_return_f32_field.t27`
+  - `specs/scratch/w561_negative_struct_return_unresolved_import.t27`
+- Saved t27 seals for all four negative witnesses.
+- Updated `docs/ICARUS_LOWERABLE_BOUNDARY.md` section 10.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W561_2026-07-16.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 562 (Variant A recommended:
+  array-of-struct return call deduplication).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 21 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- The wave is a defensive boundary regression lock, analogous to negative test
+  suites in verified compilers. The principle is the same as W537's
+  `corpus_classifier_matches_lean_completeness`: classifier verdicts must be
+  exercised by witnesses so the supported subset does not silently expand.
+
+Sources:
+- [CompCert testing](https://compcert.org/man/manual006.html)
+- [LLVM Testing Guide](https://llvm.org/docs/TestingGuide.html)
+
+### Patterns to reuse
+- When a recommended variant depends on multiple missing prerequisites, pivot
+  to a smaller boundary/negative wave rather than silently growing scope.
+- Remove spike artifacts that fail the suite; keep the investigation conclusion
+  in the plan and closeout report.
+- A glob-based integration test over `wNNN_negative_*` files makes the boundary
+  self-documenting and easy to extend.
+
+### Anti-patterns to avoid
+- Do not keep a broken spike witness in the repo just because it was useful
+  during investigation; it will fail seal verify and confuse future waves.
+- Do not add negative witnesses to the Icarus simulation suite; they should be
+  classifier-only.
+
+---
+
 ## 2026-07-07 — Wave Loop 560 (scalar-struct return call deduplication)
 
 ### What worked
