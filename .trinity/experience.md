@@ -1,3 +1,77 @@
+## 2026-07-07 — Wave Loop 562 (whole-struct comparison for structs with array-typed fields)
+
+### What worked
+- Extending `try_emit_struct_array_field_element_access` to accept an
+  `ExprCall` base was the minimal change needed to fix malformed Verilog for
+  `make_packet(...).data[i]`. The existing path already computed field offset +
+  inner index * element width; it only needed the right base expression
+  (predeclared temporary, bare identifier, or parenthesized raw call).
+- Using a single end-to-end bench witness (`w562_bench_struct_array_field.t27`)
+  with whole-struct `assert_eq`, element access on a call return, and scalar
+  field access on a local copy exercised three emission paths in one spec.
+- Resealing early, after the compiler edit was stable, kept the full
+  `./scripts/tri test` gate green on the first run. Ten affected seals were
+  updated.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: `try_emit_struct_array_field_element_access`
+  now handles an `ExprCall` base for scalar-struct returns with scalar-array
+  fields, emitting a single correct dynamic part-select over the call
+  temporary (or a parenthesized raw call when no temporary exists).
+- `bootstrap/stage0/FROZEN_HASH` updated to
+  `fedc9333f22a0590e38200410cffe7969b76f3a9fd7548ab6101b62d15a69d40`.
+- Added `specs/scratch/w562_bench_struct_array_field.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w562_bench_struct_array_field` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Resealed 10 existing seals whose generated Verilog shifted due to the
+  compiler change.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 22 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `icarus-cocotb` on W562 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- The wave continues the packed-vector flattening of scalar structs. In
+  SystemVerilog, packed structs with packed array members are allowed by the
+  standard but not supported by Icarus; t27 therefore flattens the whole struct
+  to one packed vector and computes every field/element access as a part-select.
+- The bug (`$signed(tmp[...])[i]`) is a classic instance of composing two
+  independent indexing/slicing passes. CIRCT and Yosys lowerings that flatten
+  aggregates face the same hazard: the slice expression must be produced at
+  the same abstraction level as the packed-vector base.
+
+Sources:
+- [IEEE 1800-2017 packed arrays / packed structs](https://ieeexplore.ieee.org/document/8299595)
+- [CIRCT lowering of aggregate constant arrays](https://circt.llvm.org/docs/Dialects/HW/)
+- [Yosys packed struct support notes](https://yosyshq.net/yosys/documentation.html)
+
+### Patterns to reuse
+- Distinguish three base shapes in any packed slice path: identifier,
+  predeclared call temporary, and raw function-call expression. Parentheses
+  rules differ for each.
+- Collapse nested index/slice operations into one dynamic part-select with
+  explicit offset arithmetic rather than letting each layer emit its own slice.
+- End-to-end bench witnesses with whole-struct assertions lock both compiler
+  packing and reference-model packing simultaneously.
+
+### Anti-patterns to avoid
+- Do not assume a slice base is always a simple identifier; function-call
+  returns and call temporaries need explicit handling.
+- Do not re-run the full gate without resealing after a compiler edit that
+  changes generated Verilog — seal mismatches are expected and must be resolved
+  as part of the wave.
+
+---
+
 ## 2026-07-16 — Wave Loop 561 (negative / boundary witnesses for non-lowerable struct returns)
 
 ### What worked

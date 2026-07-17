@@ -4622,10 +4622,13 @@ impl VerilogCodegen {
         true
     }
 
-    /// W532: emit a packed slice for `base[outer...].field[inner]` where
+    /// W532/W562: emit a packed slice for `base[outer...].field[inner]` where
     /// `field` is a fixed-size scalar array inside a scalar struct. Handles both
     /// single scalar structs (`p.data[k]`) and arrays of scalar structs
-    /// (`grid[i][j].data[k]`). Returns true if the access was recognised.
+    /// (`grid[i][j].data[k]`). Also handles the case where the base is a call
+    /// returning a scalar struct with a scalar-array field, slicing a
+    /// pre-declared packed-vector temporary if one exists. Returns true if the
+    /// access was recognised.
     fn try_emit_struct_array_field_element_access(
         &mut self,
         node: &Node,
@@ -4642,58 +4645,94 @@ impl VerilogCodegen {
             return false;
         }
 
-        // Walk the outer ExprIndex chain inside the field access.
-        let mut current = &field_access.children[0];
+        // W562: the base may be a function call returning a scalar struct.
+        // Determine the base expression text, optional call temporary, and the
+        // struct element type that owns the scalar-array field.
+        let base_child = &field_access.children[0];
+        let mut base_expr = String::new();
+        let mut elem_type = String::new();
+        let mut needs_parens = true;
+        let mut base_is_array_of_struct = false;
         let mut outer_indices: Vec<String> = Vec::new();
-        while current.kind == NodeKind::ExprIndex {
-            if current.children.len() >= 2 {
-                let mut idx_buf = String::new();
-                self.collect_expr_text(&current.children[1], &mut idx_buf,
-                );
-                outer_indices.push(idx_buf);
-            }
-            current = match current.children.first() {
-                Some(c) => c,
-                None => return false,
-            };
-        }
-        let base_name = match current.kind {
-            NodeKind::ExprIdentifier if !current.name.is_empty() => {
-                current.name.clone()
-            }
-            _ => return false,
-        };
-        let local_ty = match self.local_types.get(&base_name)
-            .or_else(|| self.param_types.get(&base_name))
-            .or_else(|| self.module_types.get(&base_name))
-        {
-            Some(t) => t.clone(),
-            None => return false,
-        };
 
-        // Resolve the element type and outer dimensions.
-        let (dims, elem_type) = match Self::parse_array_type(&local_ty) {
-            Some((d, et)) => (d, et),
-            None => (Vec::new(), local_ty.clone()),
-        };
-        if !self.struct_decls.contains_key(&elem_type) {
+        match base_child.kind {
+            NodeKind::ExprCall if !base_child.name.is_empty() => {
+                self.collect_expr_text(base_child, &mut base_expr);
+                if let Some(ret_ty) = self.fn_return_types.get(&base_child.name) {
+                    elem_type = Self::base_type_name(ret_ty);
+                    if !self.is_lowerable_scalar_struct_type(&elem_type)
+                        || Self::parse_array_type(ret_ty).is_some()
+                    {
+                        return false;
+                    }
+                    // W562: if a call temporary exists, slice it directly.
+                    if self.use_call_array_temps
+                        && !self.call_array_tmp_names.is_empty()
+                    {
+                        if let Some(tmp_name) =
+                            self.call_array_tmp_names.get(&base_expr).cloned()
+                        {
+                            base_expr = tmp_name;
+                            needs_parens = false;
+                        }
+                    }
+                } else {
+                    return false;
+                }
+            }
+            _ => {
+                // Walk the outer ExprIndex chain inside the field access to find
+                // the base identifier (existing W532 path).
+                let mut current = base_child;
+                while current.kind == NodeKind::ExprIndex {
+                    if current.children.len() >= 2 {
+                        let mut idx_buf = String::new();
+                        self.collect_expr_text(&current.children[1], &mut idx_buf);
+                        outer_indices.push(idx_buf);
+                    }
+                    current = match current.children.first() {
+                        Some(c) => c,
+                        None => return false,
+                    };
+                }
+                let base_name = match current.kind {
+                    NodeKind::ExprIdentifier if !current.name.is_empty() => {
+                        current.name.clone()
+                    }
+                    _ => return false,
+                };
+                let local_ty = match self.local_types.get(&base_name)
+                    .or_else(|| self.param_types.get(&base_name))
+                    .or_else(|| self.module_types.get(&base_name))
+                {
+                    Some(t) => t.clone(),
+                    None => return false,
+                };
+
+                // Resolve the element type and outer dimensions.
+                let (dims, et) = match Self::parse_array_type(&local_ty) {
+                    Some((d, et)) => {
+                        base_is_array_of_struct = true;
+                        (d, et)
+                    }
+                    None => (Vec::new(), local_ty.clone()),
+                };
+                if !self.struct_decls.contains_key(&et) {
+                    return false;
+                }
+                elem_type = et;
+                outer_indices.reverse();
+                if outer_indices.len() != dims.len() {
+                    return false;
+                }
+                base_expr = base_name;
+                needs_parens = false;
+            }
+        }
+
+        if elem_type.is_empty() {
             return false;
         }
-        outer_indices.reverse();
-        if outer_indices.len() != dims.len() {
-            return false;
-        }
-
-        let elem_width = self.element_width(&elem_type);
-        let linear = if dims.is_empty() {
-            "0".to_string()
-        } else {
-            let mut expr = outer_indices[0].clone();
-            for (i, dim) in dims.iter().enumerate().skip(1) {
-                expr = format!("(({}) * {} + {})", expr, dim, outer_indices[i]);
-            }
-            expr
-        };
 
         let field_offset = match self.struct_field_offset(&elem_type, field_name,
         ) {
@@ -4707,23 +4746,68 @@ impl VerilogCodegen {
             },
             None => return false,
         };
-        let (count, inner_w, signed) = match Self::scalar_array_info(&field_type
+        let (_count, inner_w, signed) = match Self::scalar_array_info(&field_type
         ) {
             Some(v) => v,
             None => return false,
         };
         let mut inner_idx = String::new();
-        self.collect_expr_text(&node.children[1], &mut inner_idx,
-        );
+        self.collect_expr_text(&node.children[1], &mut inner_idx);
 
-        let slice_expr = format!(
-            "{}[(({}) * {} + {} + ({} * {})) +: {}]",
-            base_name, linear, elem_width, field_offset, inner_idx, inner_w, inner_w
-        );
-        if signed {
-            self.write(&format!("$signed({})", slice_expr));
+        let slice_expr = if base_is_array_of_struct {
+            let elem_width = self.element_width(&elem_type);
+            let linear = if outer_indices.is_empty() {
+                "0".to_string()
+            } else {
+                let mut expr = outer_indices[0].clone();
+                for (i, dim) in Self::parse_array_type(
+                    &format!("[{}]", outer_indices.iter().map(|_| "1").collect::<Vec<_>>().join("]["))).unwrap_or_default().0.iter().enumerate().skip(1)
+                {
+                    let _ = dim;
+                    expr = format!("(({}) * 1 + {})", expr, outer_indices[i]);
+                }
+                for (i, dim) in Self::parse_array_type(
+                    &format!("[{}]dummy", outer_indices.iter().map(|_| "1").collect::<Vec<_>>().join("]["))).unwrap_or_default().0.iter().enumerate().skip(1)
+                {
+                    let _ = dim;
+                    expr = format!("(({}) * 1 + {})", expr, outer_indices[i]);
+                }
+                // Reconstruct actual dims from the base type for correct stride.
+                let (dims, _et) = Self::parse_array_type(
+                    &self.local_types.get(&base_expr).or_else(|| self.param_types.get(&base_expr)).or_else(|| self.module_types.get(&base_expr)).cloned().unwrap_or_default()
+                ).unwrap_or_default();
+                let mut expr = outer_indices[0].clone();
+                for (i, dim) in dims.iter().enumerate().skip(1) {
+                    expr = format!("(({}) * {} + {})", expr, dim, outer_indices[i]);
+                }
+                expr
+            };
+            format!(
+                "{}[(({}) * {} + {} + ({} * {})) +: {}]",
+                base_expr, linear, elem_width, field_offset, inner_idx, inner_w, inner_w
+            )
         } else {
-            self.write(&slice_expr);
+            // Single scalar-struct base (or call temporary): no outer element
+            // stride, just field offset + inner index * element width.
+            format!(
+                "{}[({} + ({} * {})) +: {}]",
+                base_expr, field_offset, inner_idx, inner_w, inner_w
+            )
+        };
+
+        // W560/W562: parenthesize the base expression only if it is a raw
+        // function call; identifiers and temporaries do not need parentheses
+        // around a part-select.
+        let final_expr = if needs_parens {
+            format!("({})[({} + ({} * {})) +: {}]", base_expr, field_offset, inner_idx, inner_w, inner_w)
+        } else {
+            slice_expr
+        };
+
+        if signed {
+            self.write(&format!("$signed({})", final_expr));
+        } else {
+            self.write(&final_expr);
         }
         true
     }

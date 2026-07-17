@@ -1752,3 +1752,7 @@
 - **Commit:** feat(icarus-lowerable): Wave Loop 561 — negative / boundary witnesses for non-lowerable struct-return calls (Issue #1532)
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-17T08:25:27Z — wave-loop-562
+- **Commit:** chore(trinity): record W561 session log and commit count
+- **Files:** .claude/plans/wave-loop-562.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w562_bench_struct_array_field.json,.trinity/seals/compiler_Lexing.json,.trinity/seals/compiler_Stdlib.json,.trinity/seals/scratch_w532_negative_enum_field.json,.trinity/seals/scratch_w532_negative_string_field.json,.trinity/seals/scratch_w532_signed_struct_array_field_param.json,.trinity/seals/scratch_w532_signed_struct_array_field_return.json,.trinity/seals/scratch_w533_module_scalar_struct_const.json,.trinity/seals/scratch_w533_module_scalar_struct_var_call.json,.trinity/seals/scratch_w533_module_scalar_struct_var_copy.json,.trinity/seals/scratch_w533_module_scalar_struct_var_literal.json,.trinity/seals/scratch_w562_bench_struct_array_field.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs
+
