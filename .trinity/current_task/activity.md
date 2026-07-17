@@ -1756,3 +1756,7 @@
 - **Commit:** chore(trinity): record W561 session log and commit count
 - **Files:** .claude/plans/wave-loop-562.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w562_bench_struct_array_field.json,.trinity/seals/compiler_Lexing.json,.trinity/seals/compiler_Stdlib.json,.trinity/seals/scratch_w532_negative_enum_field.json,.trinity/seals/scratch_w532_negative_string_field.json,.trinity/seals/scratch_w532_signed_struct_array_field_param.json,.trinity/seals/scratch_w532_signed_struct_array_field_return.json,.trinity/seals/scratch_w533_module_scalar_struct_const.json,.trinity/seals/scratch_w533_module_scalar_struct_var_call.json,.trinity/seals/scratch_w533_module_scalar_struct_var_copy.json,.trinity/seals/scratch_w533_module_scalar_struct_var_literal.json,.trinity/seals/scratch_w562_bench_struct_array_field.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs
 
+## 2026-07-17T08:25:31Z — wave-loop-562
+- **Commit:** feat(gen-verilog): Wave Loop 562 — whole-struct comparison for structs with array-typed fields, scalar-array field access on scalar-struct call returns, 22/22 icarus_lowerable PASS + 72/72 Icarus + 72/72 cocotb + 0 seal mismatches
+- **Files:** .trinity/current_task/.commit_count
+
