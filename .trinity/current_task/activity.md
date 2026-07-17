@@ -1748,3 +1748,7 @@
 - **Commit:** chore(trinity): record W560 session log and commit count
 - **Files:** .claude/plans/wave-loop-561.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w561_negative_struct_return_enum_field.json,.trinity/seals/scratch_w561_negative_struct_return_f32_field.json,.trinity/seals/scratch_w561_negative_struct_return_string_field.json,.trinity/seals/scratch_w561_negative_struct_return_unresolved_import.json,bootstrap/tests/icarus_lowerable.rs,docs/ICARUS_LOWERABLE_BOUNDARY.md,docs/reports/FPGA_LOOP_CLOSEOUT_W561_2026-07-16.md,specs/scratch/w561_negative_struct_return_enum_field.t27,specs/scratch/w561_negative_struct_return_f32_field.t27,specs/scratch/w561_negative_struct_return_string_field.t27,specs/scratch/w561_negative_struct_return_unresolved_import.t27
 
+## 2026-07-17T07:15:35Z — wave-loop-561
+- **Commit:** feat(icarus-lowerable): Wave Loop 561 — negative / boundary witnesses for non-lowerable struct-return calls (Issue #1532)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
