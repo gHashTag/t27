@@ -1764,3 +1764,11 @@
 - **Commit:** chore(trinity): record W562 session log and commit count
 - **Files:** .claude/plans/wave-loop-563.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w563_bench_array_of_struct_call_dedup.json,.trinity/seals/boards_BoardMinimalXC7A100T.json,.trinity/seals/fpga_ApbBridge.json,.trinity/seals/fpga_TernaryIsa.json,.trinity/seals/numeric_GoldenFloatFamily.json,.trinity/seals/scratch_w563_bench_array_of_struct_call_dedup.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W563_2026-07-07.md,specs/scratch/w563_bench_array_of_struct_call_dedup.t27
 
+## 2026-07-17T08:43:04Z — wave-loop-563
+- **Commit:** feat(gen-verilog): Wave Loop 563 — array-of-struct return call deduplication, 1-D array-of-struct packed lowering, 23/23 icarus_lowerable PASS + 72/72 Icarus + 72/72 cocotb + 0 seal mismatches
+- **Files:** 
+
+## 2026-07-17T08:43:28Z — wave-loop-563
+- **Commit:** chore(trinity): record W563 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
