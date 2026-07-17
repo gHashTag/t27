@@ -1,3 +1,84 @@
+## 2026-07-07 — Wave Loop 563 (array-of-struct return call deduplication)
+
+### What worked
+- Closing the three W561 prerequisites in one wave was feasible because each was
+  a small localized change: a 1-D local-declaration branch in `emit_local`, a
+  generalized `try_emit_struct_array_access`, and a new descriptor in
+  `call_returning_cse_value_info`.
+- A spike witness (`/tmp/w563_spike_aos.t27`) quickly showed the exact failures
+  (wrong local width, flattened `tmp_x`, missing call base) and confirmed the
+  classifier already accepted the shape, so the work was purely backend
+  lowering, not predicate changes.
+- The existing `emit_packed_array_literal_concat` already handled `[N]Pt`
+  literals correctly; no new literal lowering code was needed.
+- The end-to-end bench witness demonstrates that `make_pts(...)` is evaluated
+  once per block: the generated Verilog contains exactly one
+  `_t27_call_tmp_*` assignment for each of the test and bench blocks.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - 1-D array-of-struct local branch in `emit_local`.
+  - Generalized `try_emit_struct_array_access` for 1-D arrays and `ExprCall`
+    bases returning arrays of scalar structs.
+  - Extended `call_returning_cse_value_info` for `[N]Pt` returns.
+  - Updated `test_verilog_struct_field_access_indexed` to assert the new
+    packed-slice output.
+- `bootstrap/stage0/FROZEN_HASH` updated to
+  `92fb8abd6bc5245b5a3f7aa1b9eb54917c5f4e9ec2622f51c2e9a548030f5665`.
+- Added `specs/scratch/w563_bench_array_of_struct_call_dedup.t27` with seal and
+  Icarus baseline.
+- Added `accepts_w563_bench_array_of_struct_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Resealed 4 existing corpus seals whose generated Verilog shifted.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 23 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `icarus-cocotb` on W563 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- Packed array-of-struct lowering is a standard aggregate-flattening step in
+  hardware compilers. CIRCT's `HWLegalizeModules` pass lowers `hw::ArrayGetOp`
+  and `hw::ArrayCreateOp` into per-element wires and `casez` lookups when
+  `disallowPackedArrays` is set, because tools like Icarus and Yosys's native
+  frontend do not support packed arrays of structs. t27 takes a simpler but
+  equivalent approach: store the whole `[N]Pt` as one unsigned packed vector
+  and emit every access as a part-select.
+- Common-subexpression elimination for the simulation assertion harness mirrors
+  CIRCT's `createCSEPass()` run before legalization: evaluate a pure call once
+  per block and reuse the packed result. W563 completes the W556–W560 series
+  for arrays of scalar structs.
+
+Sources:
+- [CIRCT Verilog Generation / LoweringOptions](https://circt.llvm.org/docs/VerilogGeneration/)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [Yosys packed-struct array support gap](https://github.com/YosysHQ/yosys/issues/4653)
+- [CIRCT CSE pass documentation](https://circt.llvm.org/docs/Passes/#hw-cse)
+
+### Patterns to reuse
+- A 1-D array of packed scalar structs is just a wider packed vector: declare
+  it wholesale and assign it wholesale.
+- Generalize slice access functions to accept identifier, temporary, and
+  parenthesized call bases; the offset arithmetic stays the same.
+- Spike a broken witness in `/tmp` before editing production code to isolate
+  the exact failing emission path.
+
+### Anti-patterns to avoid
+- Do not keep a unit test asserting an old placeholder emission when the real
+  lowering lands; update the test to document the new correct output.
+- Do not add CSE descriptors for aggregate returns without also adding the
+  slice/access paths that consume the temporary; otherwise the temporary is
+  declared but never correctly indexed.
+
+---
+
 ## 2026-07-07 — Wave Loop 562 (whole-struct comparison for structs with array-typed fields)
 
 ### What worked

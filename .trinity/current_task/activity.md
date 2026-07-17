@@ -1760,3 +1760,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 562 — whole-struct comparison for structs with array-typed fields, scalar-array field access on scalar-struct call returns, 22/22 icarus_lowerable PASS + 72/72 Icarus + 72/72 cocotb + 0 seal mismatches
 - **Files:** .trinity/current_task/.commit_count
 
+## 2026-07-17T08:43:00Z — wave-loop-563
+- **Commit:** chore(trinity): record W562 session log and commit count
+- **Files:** .claude/plans/wave-loop-563.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w563_bench_array_of_struct_call_dedup.json,.trinity/seals/boards_BoardMinimalXC7A100T.json,.trinity/seals/fpga_ApbBridge.json,.trinity/seals/fpga_TernaryIsa.json,.trinity/seals/numeric_GoldenFloatFamily.json,.trinity/seals/scratch_w563_bench_array_of_struct_call_dedup.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W563_2026-07-07.md,specs/scratch/w563_bench_array_of_struct_call_dedup.t27
+

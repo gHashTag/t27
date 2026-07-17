@@ -4033,10 +4033,17 @@ impl VerilogCodegen {
                 signed,
             ));
         }
-        let (dims, elem_type) = Self::primitive_array_info(ret_ty)?;
-        let width = self.packed_width(ret_ty);
-        let signed = self.packed_signed(ret_ty);
-        Some((key, dims, elem_type, width, signed))
+        // W563: arrays of lowerable packed scalar structs are treated like packed
+        // primitive scalar arrays: one temporary per call, indexed by element/field.
+        let (dims, elem_type) = Self::parse_array_type(ret_ty)?;
+        if Self::is_primitive_scalar_type(&elem_type)
+            || self.is_lowerable_scalar_struct_type(&elem_type)
+        {
+            let width = self.packed_width(ret_ty);
+            let signed = self.packed_signed(ret_ty);
+            return Some((key, dims, elem_type, width, signed));
+        }
+        None
     }
 
     /// W553/W556: recursively scan an expression subtree and pre-declare
@@ -4550,16 +4557,17 @@ impl VerilogCodegen {
         }
     }
 
-    /// W527: walk a chain of ExprIndex nodes rooted at a local
-    /// array-of-struct identifier and emit the corresponding packed slice.
-    /// `trailing_field` is Some("x") for `m[i][j].x`, None for `m[i][j]`.
-    /// Returns true if the chain was recognized and emitted.
+    /// W527/W563: walk a chain of ExprIndex nodes rooted at a local
+    /// array-of-struct identifier or a call returning an array of scalar structs,
+    /// and emit the corresponding packed slice. `trailing_field` is Some("x")
+    /// for `m[i][j].x`, None for `m[i][j]`. Returns true if the chain was
+    /// recognized and emitted.
     fn try_emit_struct_array_access(
         &mut self,
         node: &Node,
         trailing_field: Option<&str>,
     ) -> bool {
-        // Walk down ExprIndex nodes to find the base identifier.
+        // Walk down ExprIndex nodes to find the base identifier or call.
         let mut current = node;
         let mut indices: Vec<String> = Vec::new();
         while current.kind == NodeKind::ExprIndex {
@@ -4573,24 +4581,56 @@ impl VerilogCodegen {
                 None => return false,
             };
         }
-        let base_name = match current.kind {
-            NodeKind::ExprIdentifier if !current.name.is_empty() => current.name.clone(),
+
+        // Resolve the base expression, dimensions, and element struct type.
+        let (base_expr, dims, elem_type) = match current.kind {
+            NodeKind::ExprIdentifier if !current.name.is_empty() => {
+                let base_name = current.name.clone();
+                let local_ty = match self.local_types.get(&base_name)
+                    .or_else(|| self.param_types.get(&base_name))
+                    .or_else(|| self.module_types.get(&base_name))
+                {
+                    Some(t) => t.clone(),
+                    None => return false,
+                };
+                let (dims, elem_type) = match Self::parse_array_type(&local_ty) {
+                    Some(v) => v,
+                    None => return false,
+                };
+                if !self.struct_decls.contains_key(&elem_type) {
+                    return false;
+                }
+                (base_name, dims, elem_type)
+            }
+            NodeKind::ExprCall if !current.name.is_empty() => {
+                let ret_ty = match self.fn_return_types.get(&current.name) {
+                    Some(t) => t.clone(),
+                    None => return false,
+                };
+                let (dims, elem_type) = match Self::parse_array_type(&ret_ty) {
+                    Some(v) => v,
+                    None => return false,
+                };
+                if !self.struct_decls.contains_key(&elem_type) {
+                    return false;
+                }
+                let mut call_key = String::new();
+                self.collect_expr_text(current, &mut call_key);
+                let base_expr = if self.use_call_array_temps
+                    && !self.call_array_tmp_names.is_empty()
+                {
+                    self.call_array_tmp_names
+                        .get(&call_key)
+                        .cloned()
+                        .unwrap_or_else(|| format!("({})", call_key))
+                } else {
+                    format!("({})", call_key)
+                };
+                (base_expr, dims, elem_type)
+            }
             _ => return false,
         };
-        let local_ty = match self.local_types.get(&base_name)
-            .or_else(|| self.param_types.get(&base_name))
-            .or_else(|| self.module_types.get(&base_name))
-        {
-            Some(t) => t.clone(),
-            None => return false,
-        };
-        let (dims, elem_type) = match Self::parse_array_type(&local_ty) {
-            Some(v) => v,
-            None => return false,
-        };
-        if dims.len() < 2 || !self.struct_decls.contains_key(&elem_type) {
-            return false;
-        }
+
         // Indices were collected from outermost to innermost; reverse to row-major.
         indices.reverse();
         if indices.len() != dims.len() {
@@ -4598,10 +4638,15 @@ impl VerilogCodegen {
         }
 
         let elem_width = self.element_width(&elem_type);
-        let mut linear = indices[0].clone();
-        for (i, dim) in dims.iter().enumerate().skip(1) {
-            linear = format!("(({}) * {} + {})", linear, dim, indices[i]);
-        }
+        let linear = if dims.len() == 1 {
+            indices[0].clone()
+        } else {
+            let mut expr = indices[0].clone();
+            for (i, dim) in dims.iter().enumerate().skip(1) {
+                expr = format!("(({}) * {} + {})", expr, dim, indices[i]);
+            }
+            expr
+        };
 
         let (field_offset, field_width) = if let Some(fname) = trailing_field {
             match self.struct_field_offset(&elem_type, fname) {
@@ -4613,7 +4658,7 @@ impl VerilogCodegen {
         };
 
         self.emit_packed_struct_element_slice(
-            &base_name,
+            &base_expr,
             &linear,
             elem_width,
             field_offset,
@@ -6689,6 +6734,34 @@ impl VerilogCodegen {
                 self.write_line("");
             }
             return;
+        }
+
+        // W563: one-dimensional arrays of scalar structs are lowered as a single
+        // packed-vector register and assigned wholesale (from a call or from a
+        // packed array literal).
+        if let Some((dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            if dims.len() == 1 && self.struct_decls.contains_key(&elem_type) {
+                let elem_w = self.element_width(&elem_type) as usize;
+                let total_width = dims[0] * elem_w;
+                if phase != LocalEmitPhase::Init {
+                    self.write_indent();
+                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, node.name));
+                }
+                if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
+                    let child = &node.children[0];
+                    self.write_indent();
+                    self.write(&format!("{} = ", node.name));
+                    if child.kind == NodeKind::ExprArrayLiteral {
+                        self.emit_packed_array_literal_concat(child, &node.extra_type);
+                    } else {
+                        self.gen_verilog_expr(child);
+                    }
+                    self.write_line(";");
+                } else if phase == LocalEmitPhase::Full {
+                    self.write_line("");
+                }
+                return;
+            }
         }
 
         // W527: multi-dimensional arrays of scalar structs are lowered as a
@@ -22657,8 +22730,19 @@ mod tests_hir_pipeline_parity {
     }
 }"#;
         let v = Compiler::compile_verilog(src).unwrap();
-        assert!(!v.contains("pairsa"), "indexed field access must use underscore: got 'pairsa'");
-        assert!(v.contains("pairs_a"), "expected flattened name pairs_a");
+        assert!(
+            !v.contains("pairsa"),
+            "indexed field access must not concatenate names: got 'pairsa'"
+        );
+        assert!(
+            !v.contains("pairs_a"),
+            "indexed field access must not use flattened name pairs_a"
+        );
+        assert!(
+            v.contains("pairs[((idx) * 16 + 0) +: 8]"),
+            "expected packed slice for indexed field access, got:\n{}",
+            v
+        );
     }
 
     #[test]
