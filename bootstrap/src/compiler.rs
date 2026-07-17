@@ -4203,14 +4203,12 @@ impl VerilogCodegen {
                 // Primitive scalar identifiers are probe-able as before.
                 if Self::is_primitive_scalar_type(ty) {
                     Some((Self::type_to_width(ty), Self::type_is_signed(ty)))
-                } else if self.is_lowerable_scalar_struct_type(ty) {
-                    // W541: module-level lowerable packed scalar structs are also
-                    // probe-able; use the packed vector width.
-                    let base = Self::base_type_name(ty);
-                    Some((self.element_width(&base), false))
-                } else if Self::is_primitive_array_type(ty) {
-                    // W555: whole primitive scalar arrays are packed vectors and can
-                    // be probed / compared directly in assert_eq.
+                } else if self.is_lowerable_scalar_struct_type(ty)
+                    || Self::is_primitive_array_type(ty)
+                {
+                    // W541/W555/W564: lowerable packed scalar structs, arrays of
+                    // scalar structs, and primitive scalar arrays all lower to a
+                    // single packed vector that can be probed / compared directly.
                     Some((self.packed_width(ty), self.packed_signed(ty)))
                 } else {
                     None
@@ -4219,13 +4217,15 @@ impl VerilogCodegen {
             NodeKind::ExprCall => {
                 // Parameterless function calls whose return type is scalar, a
                 // lowerable packed scalar struct (W540 wide probe path), or a
-                // primitive scalar array (W555 whole-array bench assert_eq).
+                // primitive scalar array (W555 whole-array bench assert_eq), or
+                // a packed 1-D array of lowerable scalar structs (W564).
                 let ret_ty = self.fn_return_types.get(&node.name)?;
                 if Self::is_primitive_scalar_type(ret_ty) {
                     Some((Self::type_to_width(ret_ty), Self::type_is_signed(ret_ty)))
                 } else if self.is_lowerable_scalar_struct_type(ret_ty) {
-                    let base = Self::base_type_name(ret_ty);
-                    Some((self.element_width(&base), false))
+                    // W564: this also covers arrays of scalar structs because
+                    // packed_width folds array dimensions into the total width.
+                    Some((self.packed_width(ret_ty), self.packed_signed(ret_ty)))
                 } else if Self::is_primitive_array_type(ret_ty) {
                     Some((self.packed_width(ret_ty), self.packed_signed(ret_ty)))
                 } else {
@@ -4371,8 +4371,9 @@ impl VerilogCodegen {
                 Some((width, signed))
             }
             NodeKind::ExprArrayLiteral => {
-                // W555: a primitive scalar array literal has the packed width of its
-                // element type times all dimensions.
+                // W555/W564: a primitive scalar array literal or a lowerable packed
+                // scalar-struct array literal has the packed width of its element
+                // type times all dimensions.
                 let elem = node.extra_type.trim();
                 let dims: Vec<usize> = node.extra_size.split("][")
                     .filter_map(|s| s.parse().ok())
@@ -4380,7 +4381,8 @@ impl VerilogCodegen {
                 let dims_count = node.extra_size.split("][").count();
                 if !dims.is_empty()
                     && dims.len() == dims_count
-                    && Self::is_primitive_scalar_type(elem)
+                    && (Self::is_primitive_scalar_type(elem)
+                        || self.is_lowerable_scalar_struct_type(elem))
                 {
                     let ty = format!("[{}]{}", node.extra_size, elem);
                     Some((self.packed_width(&ty), self.packed_signed(&ty)))
@@ -7436,11 +7438,12 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprArrayLiteral => {
-                // W544/W555: fixed-size scalar array literals in expression context
-                // (e.g. function return values and assert_eq expected values) lower
-                // to a packed concatenation when the element type is a primitive
-                // scalar.  Multi-dimensional literals are handled by splitting
-                // extra_size on "][".
+                // W544/W555/W564: fixed-size scalar array literals in expression
+                // context (e.g. function return values and assert_eq expected
+                // values) lower to a packed concatenation when the element type is
+                // a primitive scalar or a lowerable packed scalar struct.
+                // Multi-dimensional literals are handled by splitting extra_size
+                // on "][".
                 let elem = node.extra_type.trim();
                 let dims: Vec<usize> = node.extra_size.split("][")
                     .filter_map(|s| s.parse().ok())
@@ -7448,7 +7451,8 @@ impl VerilogCodegen {
                 let dims_count = node.extra_size.split("][").count();
                 if !dims.is_empty()
                     && dims.len() == dims_count
-                    && Self::is_primitive_scalar_type(elem)
+                    && (Self::is_primitive_scalar_type(elem)
+                        || self.is_lowerable_scalar_struct_type(elem))
                 {
                     let ty = format!("[{}]{}", node.extra_size, elem);
                     self.emit_packed_array_literal_concat(node, &ty);

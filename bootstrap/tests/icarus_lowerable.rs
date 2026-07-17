@@ -446,6 +446,24 @@ fn accepts_w563_bench_array_of_struct_call_dedup() {
 }
 
 #[test]
+fn accepts_w564_bench_whole_aos_1d() {
+    let dir = scratch_dir();
+    for name in &[
+        "w564_bench_whole_aos_1d.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W564 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [

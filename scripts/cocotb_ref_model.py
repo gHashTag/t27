@@ -174,14 +174,24 @@ def _packed_type_width_signed(
     ctx: EvalContext, ty: str
 ) -> Optional[Tuple[int, bool]]:
     """Return (width, signed) for a lowerable packed scalar struct or array."""
-    # Fixed-size primitive scalar array (1-D or multi-D).  The packed vector is
-    # unsigned unless it is an array of lowerable packed scalar structs, where
-    # the compiler still emits an unsigned packed vector.
-    info = _primitive_array_info(ty)
-    if info is not None:
-        if _is_lowerable_scalar_struct_type(ctx, info[1]):
-            return (info[2], False)
-        return (info[2], info[3])
+    parsed = _parse_array_type(ty)
+    if parsed:
+        dims, elem = parsed
+        # W564: arrays of lowerable packed scalar structs fold the struct width
+        # across all dimensions into a single unsigned packed vector.
+        if _is_lowerable_scalar_struct_type(ctx, elem):
+            base_ws = _packed_type_width_signed(ctx, elem)
+            if base_ws is None:
+                return None
+            total = base_ws[0]
+            for d in dims:
+                total *= d
+            return (total, False)
+        # Fixed-size primitive scalar array (1-D or multi-D).
+        info = _primitive_array_info(ty)
+        if info is not None:
+            return (info[2], info[3])
+        return None
     # Lowerable packed scalar struct.
     if not _is_lowerable_scalar_struct_type(ctx, ty):
         return None
@@ -493,6 +503,11 @@ def _type_of_expr(ctx: EvalContext, node: Dict[str, Any]) -> Optional[Tuple[int,
         elem_type = node.get("extra_type", "")
         size_str = node.get("extra_size", "")
         full_ty = f"[{size_str}]{elem_type}" if size_str and elem_type else ""
+        # W564: use the packed-vector width for primitive scalar arrays and for
+        # arrays of lowerable packed scalar structs.
+        packed = _packed_type_width_signed(ctx, full_ty)
+        if packed is not None:
+            return packed
         info = _primitive_array_info(full_ty)
         if info is not None:
             return (info[2], info[3])

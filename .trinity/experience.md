@@ -5177,3 +5177,58 @@ Sources:
 ### Anti-patterns to avoid
 - Do not treat a pre-existing non-simulatable but structurally lowerable witness as a failure of the current wave; record the limitation explicitly and ensure at least one variant passes the full automated gate.
 
+## 2026-07-07 — Wave Loop 564 (whole-array comparison for 1-D arrays of scalar structs)
+
+### What worked
+- The W555 whole-array `assert_eq` probe path needed only width-inference updates
+  to support packed 1-D arrays of scalar structs. Once `expr_width_signed` knew
+  the total packed width, the W540 multi-slice / W551 bench cross-check
+  machinery worked unchanged.
+- `gen_verilog_expr` `ExprArrayLiteral` already had the packed concatenation
+  emitter (`emit_packed_array_literal_concat`) used for primitive arrays; the
+  element renderer already handled scalar-struct literals, so adding the
+  lowerable scalar-struct element condition was sufficient.
+- The cocotb reference model needed a single fix: `_packed_type_width_signed`
+  must multiply the base struct width by all array dimensions for `[N]Pt`.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `expr_width_signed` treats `ExprIdentifier`/`ExprCall`/`ExprArrayLiteral`
+    of lowerable scalar-struct arrays as packed vectors (W564).
+  - `gen_verilog_expr` `ExprArrayLiteral` lowers `[N]Pt` literals to packed
+    concatenations.
+- `scripts/cocotb_ref_model.py`: `_packed_type_width_signed` and `_type_of_expr`
+  handle arrays of lowerable packed scalar structs.
+- `specs/scratch/w564_bench_whole_aos_1d.t27`: positive witness with whole-array
+  `assert_eq` on a local 1-D AoS variable and on a function-call return, in both
+  a `test` and a deterministic `bench` block.
+- `bootstrap/tests/icarus_lowerable.rs`: `accepts_w564_bench_whole_aos_1d`.
+- Saved t27 seal: `.trinity/seals/scratch_w564_bench_whole_aos_1d.json`.
+- Recorded Icarus baseline: `.trinity/icarus-baselines/specs/scratch/w564_bench_whole_aos_1d.json`.
+- Updated `bootstrap/stage0/FROZEN_HASH`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W564_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 565 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 24 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W564 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- When adding a new packed-vector expression shape, update width inference in
+  `ExprIdentifier`, `ExprCall`, and `ExprArrayLiteral`. The existing probe and
+  cross-check paths usually take over once the width is correct.
+- Array literals of lowerable scalar structs can share the same packed
+  concatenation emitter as primitive arrays; verify that the element renderer
+  already knows how to pack struct literals.
+- The Python reference model must independently compute the same packed-vector
+  width for arrays of structs: multiply the base struct width by all dimensions.
+
+### Anti-patterns to avoid
+- Do not duplicate whole-array literal emission logic for structs; reuse
+  `emit_packed_array_literal_concat` and only broaden the element-type guard.
+
