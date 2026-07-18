@@ -1,3 +1,72 @@
+## 2026-07-07 — Wave Loop 567 (3-D array-of-struct return call deduplication)
+
+### What worked
+- The W567 3-D AoS witness confirmed that every relevant path is genuinely rank-
+  agnostic: `emit_local`'s W566 wholesale-init branch, `call_returning_cse_value_info`,
+  `try_emit_struct_array_access`, `gen_verilog_expr` for `ExprArrayLiteral`, and
+  `_eval_array_lit_bv` in the cocotb reference model all handled `[2][2][2]Pt`
+  without modification.
+- The only failure in the first draft was an incorrect expected value in the
+  witness (`cube[1][0][1].y` should be `11`, not `9`, because the linear element
+  index is `((1*2+0)*2+1) = 5` and element 5 is `Pt{ x=10, y=11 }`). This
+  highlights the importance of manually checking the row-major layout before
+  blaming the compiler.
+- Zero compiler and zero reference-model changes kept the wave small and focused:
+  a new witness, a new integration test, a seal, and a baseline.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w567_bench_3d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w567_bench_3d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 27 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `icarus-cocotb` on W567 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- Vitis HLS flattens 3-D arrays into a single packed vector with
+  `array_reshape type=complete dim=0`; the resulting bit order places the lowest
+  index in the lowest bits, matching t27's layout. This confirms that t27's
+  row-major packed-vector lowering is consistent with commercial HLS practice.
+- CIRCT `HWLegalizeModules` handles multi-dimensional packed arrays recursively
+  in post-order; t27's recursive `emit_packed_array_literal_concat` and
+  `emit_packed_struct_array_init` mirror the same structural approach.
+
+Sources:
+- [Vitis HLS: Structs](https://docs.amd.com/r/en-US/ug1399-vitis-hls/Structs)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [CIRCT LoweringOptions.h](https://github.com/llvm/circt/blob/main/include/circt/Support/LoweringOptions.h)
+
+### Patterns to reuse
+- When a feature is supposed to be generic (rank-agnostic), exercise the next
+  rank the code claims to support; W567 proved the 2-D result generalizes to 3-D.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always verify the expected value arithmetic against the documented row-major
+  layout before changing compiler code.
+
+### Anti-patterns to avoid
+- Do not skip a witness for a higher rank just because the code "looks" rank-
+  independent. Actual behavior is the only proof.
+- Do not change the compiler when the failure is in the test's expected-value
+  arithmetic.
+
+---
+
 ## 2026-07-07 — Wave Loop 566 (2-D array-of-struct return call deduplication)
 
 ### What worked
