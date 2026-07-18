@@ -1840,3 +1840,7 @@
 - **Commit:** chore(trinity): record W577 session log and commit count
 - **Files:** .claude/plans/wave-loop-578.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w578_bench_12d_aos_call_dedup.json,.trinity/seals/scratch_w578_bench_12d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W578_2026-07-07.md,specs/scratch/w578_bench_12d_aos_call_dedup.t27
 
+## 2026-07-18T14:27:54Z — wave-loop-578
+- **Commit:** feat(igla): Wave Loop 578 — 12-D array-of-struct return call deduplication, 131,072-bit packed vector, zero compiler changes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
