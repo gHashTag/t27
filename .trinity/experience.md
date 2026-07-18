@@ -5232,3 +5232,52 @@ Sources:
 - Do not duplicate whole-array literal emission logic for structs; reuse
   `emit_packed_array_literal_concat` and only broaden the element-type guard.
 
+## 2026-07-07 — Wave Loop 565 (multi-site whole-array AoS call deduplication)
+
+### What worked
+- The W563 call-CSE machinery (`predeclare_call_array_tmps`,
+  `materialize_call_array_tmps_in_expr`, `call_returning_cse_value_info`) and the
+  W564 whole-array assertion path composed correctly without any compiler edits.
+  A single packed-vector temporary is shared when the same `make_pts(...)` call
+  is used as a local initializer, the expected side of `assert_eq`, and the
+  actual side of another `assert_eq`.
+- The cocotb reference model evaluated the local variable and the array literal
+  independently and matched the VCD probe values on the first run.
+- Writing a witness that uses the same call in three syntactic positions made the
+  sharing immediately visible in the generated Verilog.
+
+### What changed behavior
+- `specs/scratch/w565_bench_multi_site_whole_aos.t27`: multi-site whole-array
+  AoS witness with the same call used as initializer, expected expression, and
+  actual expression.
+- `bootstrap/tests/icarus_lowerable.rs`: `accepts_w565_bench_multi_site_whole_aos`.
+- Saved t27 seal: `.trinity/seals/scratch_w565_bench_multi_site_whole_aos.json`.
+- Recorded Icarus baseline: `.trinity/icarus-baselines/specs/scratch/w565_bench_multi_site_whole_aos.json`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W565_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 566 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 25 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W565 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- To validate that two features compose, write one witness that stresses both at
+  once and inspects the generated code for shared temporaries / duplicated calls.
+- Use the same value in multiple syntactic positions (initializer, expected,
+  actual) to make CSE sharing or duplication immediately obvious.
+- A zero-compiler-change wave is still valuable if it produces a permanent
+  regression witness for previously-untested composition.
+
+### Anti-patterns to avoid
+- Do not assume a generic CSE path works for a new shape without a dedicated
+  witness; even when no code changes are needed, the witness locks the behavior.
+- Do not report a bench witness as a suite-Icarus regression failure when it is
+  excluded by the pre-existing `gen-verilog` / `gen-verilog-for-simulation`
+  divergence; use direct `icarus-simulate` / `icarus-cocotb` as the authoritative
+  gate for these witnesses.
+

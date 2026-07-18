@@ -1780,3 +1780,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 564 — whole-array comparison for 1-D arrays of scalar structs, 24/24 icarus_lowerable PASS + 72/72 Icarus + 72/72 cocotb + 0 seal mismatches
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-18T10:07:06Z — wave-loop-565
+- **Commit:** chore(trinity): record W564 session log and commit count
+- **Files:** .claude/plans/wave-loop-565.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w565_bench_multi_site_whole_aos.json,.trinity/seals/scratch_w565_bench_multi_site_whole_aos.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W565_2026-07-07.md,specs/scratch/w565_bench_multi_site_whole_aos.t27
+
