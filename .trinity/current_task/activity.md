@@ -1828,3 +1828,7 @@
 - **Commit:** chore(trinity): record W575 session log and commit count\n\nCloses #1546
 - **Files:** .claude/plans/wave-loop-576.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w576_bench_10d_aos_call_dedup.json,.trinity/seals/scratch_w576_bench_10d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W576_2026-07-07.md,specs/scratch/w576_bench_10d_aos_call_dedup.t27
 
+## 2026-07-18T14:10:33Z — wave-loop-576
+- **Commit:** feat(igla): Wave Loop 576 — 10-D array-of-struct return call deduplication, 32,768-bit packed vector, zero compiler changes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
