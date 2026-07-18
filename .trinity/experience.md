@@ -5526,3 +5526,53 @@ Sources:
 - Do not add compiler changes "just in case" when the generated code and all
   gates already pass.
 
+## 2026-07-07 — Wave Loop 570 (5-D array-of-struct return call deduplication)
+
+### What worked
+- The 5-D AoS witness `[2][2][2][2][2]Pt` (1024-bit packed vector, 32 elements)
+  confirmed that the rank-agnostic paths scale cleanly to five dimensions.
+  No compiler or reference-model changes were required.
+- The generated Verilog declared a single 1024-bit packed-vector temporary per
+  block and reused it for local init, indexed field access, and whole-array
+  assertions.
+- The cocotb reference model independently built the same 1024-bit packed vector
+  and agreed with the VCD probes on the first run.
+- Hand-written row-major arithmetic was verified with a small Python script
+  before simulation, avoiding the witness-value mistake that occurred in W569.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w570_bench_5d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w570_bench_5d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W570_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 571 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 30 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W570 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- The next-rank witness is the most effective way to verify rank-agnostic claims;
+  after 1-D through 4-D, the 5-D case exercises recursive literal emission and
+  width arithmetic at >1024 bits.
+- Verify hand-written row-major arithmetic with a small script before running
+  gates; a wrong expected value is much cheaper to fix than a phantom compiler
+  bug investigation.
+- A power-of-two next rank isolates rank-specific bugs from non-power-of-two
+  dimension-product bugs.
+
+### Anti-patterns to avoid
+- Do not skip the 5-D case assuming 4-D is sufficient; iverilog and the cocotb
+  model may have different behavior at five levels of nesting / 1024-bit width.
+- Do not treat a zero-compiler-change wave as "not real work"; the witness,
+  seal, baseline, and integration test permanently lock the behavior.
+
