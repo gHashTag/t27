@@ -3897,10 +3897,16 @@ impl VerilogCodegen {
 
         let mut buf = String::new();
         self.collect_expr_text(val, &mut buf);
+        // W583: non-literal expressions inside packed concatenations need an
+        // explicit width context. SystemVerilog `width'(expr)` gives the
+        // expression a self-determined size of exactly `width` bits, which
+        // prevents Icarus/Yosys from reporting "indefinite width" in a
+        // concatenation. For signed fields the result is then reinterpreted with
+        // $signed so the packed bits represent a two's-complement value.
         if signed {
-            format!("$signed({})", buf)
+            format!("$signed({}'({}))", width, buf)
         } else {
-            buf
+            format!("{}'({})", width, buf)
         }
     }
 

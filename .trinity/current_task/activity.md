@@ -1872,3 +1872,15 @@
 - **Commit:** chore(trinity): record W581 session log and commit count
 - **Files:** .claude/plans/wave-loop-582.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w582_bench_16d_aos_call_dedup.json,.trinity/seals/scratch_w582_bench_16d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W582_2026-07-07.md,specs/scratch/w582_bench_16d_aos_call_dedup.t27
 
+## 2026-07-18T17:09:18Z — wave-loop-583
+- **Commit:** feat(igla): Wave Loop 582 — 16-D array-of-struct return call deduplication, 2,097,152-bit packed vector, zero compiler changes, closes #1553
+- **Files:** .claude/plans/wave-loop-583.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w583_bench_module_3d_aos_call_dedup.json,.trinity/seals/brain_brain-phi-timing.json,.trinity/seals/bus_bus-pubsub.json,.trinity/seals/bus_bus-schema.json,.trinity/seals/coder_igla-coder-prm.json,.trinity/seals/coder_igla-coder-weights.json,.trinity/seals/compiler_Lexing.json,.trinity/seals/compiler_Stdlib.json,.trinity/seals/config_config-load.json,.trinity/seals/config_config-paths.json,.trinity/seals/config_config-schema.json,.trinity/seals/file_FileWatcher.json,.trinity/seals/fpga_ApbBridge.json,.trinity/seals/fpga_CTS.json,.trinity/seals/fpga_CrossOpt.json
+
+## 2026-07-18T17:09:43Z — wave-loop-583
+- **Commit:** feat(gen-verilog): Wave Loop 583 — module-scope 3-D array-of-struct constants, fix non-literal width context in packed concatenations, closes #1554
+- **Files:** docs/reports/FPGA_LOOP_CLOSEOUT_W583_2026-07-07.md
+
+## 2026-07-18T17:09:54Z — wave-loop-583
+- **Commit:** feat(gen-verilog): Wave Loop 583 — module-scope 3-D array-of-struct constants, fix non-literal width context in packed concatenations, closes #1554
+- **Files:** docs/reports/FPGA_LOOP_CLOSEOUT_W583_2026-07-07.md
+

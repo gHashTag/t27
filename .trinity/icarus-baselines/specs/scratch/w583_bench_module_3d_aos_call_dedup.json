@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] module_const_3d : starting",
+    "[TEST] module_const_3d : PASSED",
+    "[BENCH] module_bench_3d : starting",
+    "[BENCH] module_bench_3d : %0d cycles          2",
+    "[BENCH] module_bench_3d : PASSED"
+  ]
+}

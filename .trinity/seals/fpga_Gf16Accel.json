@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:059d03a2cfac0cca6b5b3f385b4e618694eda38a13de427d493cefdf87349436",
   "gen_hash_rust": "sha256:d0c268be306e0ddb3c15cf993945d3b865c083cdaa382f3a134f75baac6df8bb",
-  "gen_hash_verilog": "sha256:af5f19d552c92ab89eb4f8e2dd2c02034bb7f95c53cfc629b234d6f5c892c550",
+  "gen_hash_verilog": "sha256:c1cd5145db04a9430588e302e353d4495eb4406a9071bb549a1ab9999ac87d8e",
   "gen_hash_zig": "sha256:bdeb4029d4be348ce9c34755fcb6bbba925b73cf569bc92730b559300f0aa708",
   "module": "Gf16Accel",
   "ring": 12,
-  "sealed_at": "2026-07-16T13:46:56Z",
+  "sealed_at": "2026-07-18T16:36:15Z",
   "spec_hash": "sha256:5ff83b222f25bcc76c64b469ec36441be9d44750b4dc3e7d8e17a343450a9f8a",
   "spec_path": "specs/fpga/gf16_accel.t27"
 }

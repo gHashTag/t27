@@ -1,3 +1,72 @@
+## 2026-07-07 — Wave Loop 583 (module-scope 3-D array-of-struct constant with computed-field bench cross-check)
+
+### What worked
+- Shifting focus from function-local rank scaling to module scope revealed a
+  real, previously latent bug: non-literal scalar expressions inside packed
+  concatenations were emitted without an explicit width context, causing
+  Icarus 12.0 to reject module-level 3-D AoS constants and function-returned
+  3-D AoS with computed fields.
+- The fix is minimal: `emit_packed_scalar_value` now wraps non-literal
+  expressions in SystemVerilog `width'(expr)` (unsigned) or
+  `$signed(width'(expr))` (signed). This is accepted by Icarus 12.0 `-g2012`
+  and Yosys 0.63.
+- The W583 witness `w583_bench_module_3d_aos_call_dedup.t27` validates a
+  module-level `pub const expected : [2][2][2]Pt`, a function returning a 3-D
+  AoS with computed fields, and a bench whole-array `assert_eq(actual, expected)`.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: `emit_packed_scalar_value` non-literal branch
+  now emits `width'(expr)` / `$signed(width'(expr))`.
+- `bootstrap/stage0/FROZEN_HASH`: updated to
+  `8db163435fb06702b62c266e951da7e92ae151cfc4db7a8e7870a7ff4f460c02`.
+- Resealed 71 affected specs whose generated Verilog changed.
+- Added `specs/scratch/w583_bench_module_3d_aos_call_dedup.t27` with seal and
+  Icarus baseline.
+- Added integration test `accepts_w583_bench_module_3d_aos_call_dedup`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 43 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` on W583 witness: PASS.
+- Direct `t27c icarus-cocotb` on W583 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1 packed-array minimum is 65,536 bits; W583 deliberately
+  moved away from width scaling and toward scope coverage.
+- Icarus issue #1171 / maintainer caryr: standard suggests 2^16 packed
+  dimension floor, but Icarus has no hard cap; very large packed vectors can
+  hang/oom. This motivated choosing Variant C over Variant A for W583.
+- Yosys frontend warns on signed literal width mismatches; these are
+  non-fatal synthesis-smoke artifacts (StackOverflow / Yosys internals docs).
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed
+  arrays one dimension at a time.
+
+### Patterns to reuse
+- When a packed concatenation contains a non-literal expression, always give it
+  an explicit width via `width'(expr)` or sign-extended equivalent.
+- Module-scope whole-array assertions are a good way to stress constant
+  lowering and CSE paths without creating huge files.
+- After any generated-expression syntax change, expect to reseal all specs that
+  contain struct/array literals with non-literal elements.
+
+### Anti-patterns to avoid
+- Do not assume rank-agnostic paths cover all scopes; module-level const/var
+  initializers can hit different code paths than function-local ones.
+- Do not ignore Icarus elaboration errors on small witnesses before scaling to
+  huge ones; the small case is where the real bugs hide.
+- Do not change `gen_verilog_expr(ExprLiteral)` globally to sized literals;
+  the width cast on non-literals is a targeted fix that avoids breaking loop
+  bounds, indices, and other self-determined contexts.
+
+---
+
 ## 2026-07-07 — Wave Loop 582 (16-D array-of-struct return call deduplication)
 
 ### What worked
