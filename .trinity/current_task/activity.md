@@ -1820,3 +1820,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 573 — 7-D array-of-struct return call deduplication, Icarus $display overflow workaround at witness level
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-18T13:23:16Z — wave-loop-573
+- **Commit:** chore(trinity): record W573 session log and commit count\n\nCloses #1544
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
