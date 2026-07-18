@@ -5576,3 +5576,57 @@ Sources:
 - Do not treat a zero-compiler-change wave as "not real work"; the witness,
   seal, baseline, and integration test permanently lock the behavior.
 
+## 2026-07-07 — Wave Loop 571 (5-D array-of-struct return call deduplication with non-power-of-two outer dimension)
+
+### What worked
+- The 5-D non-power-of-two witness `[3][2][2][2][2]Pt` (1536-bit packed vector,
+  48 elements) confirmed that the rank-agnostic paths scale cleanly to five
+  dimensions with a non-power-of-two outer extent. No compiler or reference-model
+  changes were required.
+- The generated Verilog declared a single 1536-bit packed-vector temporary per
+  block and reused it for local init, indexed field access, and whole-array
+  assertions.
+- The cocotb reference model independently built the same 1536-bit packed vector
+  and agreed with the VCD probes on the first run.
+- Hand-written row-major arithmetic was verified with a small Python script
+  before simulation, avoiding the witness-value mistake that occurred in W569.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w571_bench_5d_aos_call_dedup_nonp2.t27` with seal and
+  Icarus baseline.
+- Added `accepts_w571_bench_5d_aos_call_dedup_nonp2` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W571_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 572 (Variant A recommended, Variant B
+  offered as a deliberate scope shift to module scope).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 31 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W571 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- A non-power-of-two outer dimension at the next rank is the strongest stress
+  test for rank-agnostic width/index arithmetic; powers of two can mask
+  product-overflow bugs.
+- Verify hand-written row-major arithmetic with a small script before running
+  gates; a wrong expected value is much cheaper to fix than a phantom compiler
+  bug investigation.
+- After several zero-compiler-change rank waves, consider a scope shift (e.g.
+  local → module scope) rather than adding yet another rank, which yields
+  diminishing returns.
+
+### Anti-patterns to avoid
+- Do not add another rank indefinitely without asking whether the next most
+  valuable stress test is a different dimension of the feature (scope, corner
+  cases, non-lowerable boundaries).
+- Do not trust hand-written row-major arithmetic for 5-D non-power-of-two shapes
+  without a quick script check.
+
