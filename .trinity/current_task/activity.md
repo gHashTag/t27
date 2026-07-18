@@ -1820,3 +1820,7 @@
 - **Commit:** chore(trinity): record final W573 session log bump\n\nCloses #1544
 - **Files:** .claude/plans/wave-loop-574.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w574_bench_8d_aos_call_dedup.json,.trinity/seals/scratch_w574_bench_8d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W574_2026-07-07.md,specs/scratch/w574_bench_8d_aos_call_dedup.t27
 
+## 2026-07-18T13:33:57Z — wave-loop-574
+- **Commit:** feat(gen-verilog): Wave Loop 574 — 8-D array-of-struct return call deduplication, Icarus $display workaround reused
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
