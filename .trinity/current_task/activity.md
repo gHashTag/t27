@@ -1896,3 +1896,7 @@
 - **Commit:** feat(igla): Wave Loop 585 — module-scope 7-D array-of-struct variable initialized from a call, multi-site bench CSE, closes #1556
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-18T21:22:47Z — wave-loop-586
+- **Commit:** chore(trinity): record W585 session log and commit count
+- **Files:** .claude/plans/wave-loop-586.md,.claude/plans/wave-loop-587.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w586_bench_module_8d_aos_var_write.json,.trinity/icarus-baselines/specs/scratch/w587_bench_module_8d_aos_var_call_write.json,.trinity/seals/scratch_w526_2d_struct_array_repro.json,.trinity/seals/scratch_w528_function_2d_struct_array_param.json,.trinity/seals/scratch_w528_function_2d_struct_array_return.json,.trinity/seals/scratch_w528_module_2d_struct_array_const.json,.trinity/seals/scratch_w528_module_2d_struct_array_var.json,.trinity/seals/scratch_w529_function_2d_struct_array_param.json,.trinity/seals/scratch_w529_function_2d_struct_array_return.json,.trinity/seals/scratch_w529_module_2d_struct_array_const.json,.trinity/seals/scratch_w529_module_2d_struct_array_var.json,.trinity/seals/scratch_w563_bench_array_of_struct_call_dedup.json,.trinity/seals/scratch_w566_bench_2d_aos_call_dedup.json,.trinity/seals/scratch_w567_bench_3d_aos_call_dedup.json
+

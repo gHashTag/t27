@@ -3716,6 +3716,9 @@ pub struct VerilogCodegen {
     // W557: while true, gen_verilog_expr substitutes pre-declared call temporaries
     // for raw ExprCall nodes. This is set only while emitting test/bench blocks.
     use_call_array_temps: bool,
+    // W586: true while emitting the left-hand side of an assignment. Signed packed
+    // slice expressions must not be wrapped with `$signed(...)` in lvalue position.
+    in_lvalue: bool,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -3752,6 +3755,7 @@ impl VerilogCodegen {
             call_array_tmp_info: std::collections::HashMap::new(),
             call_array_tmp_materialized: std::collections::HashSet::new(),
             use_call_array_temps: false,
+            in_lvalue: false,
         }
     }
 
@@ -4243,13 +4247,23 @@ impl VerilogCodegen {
                     return None;
                 }
                 let child = &node.children[0];
-                // W527/W533: field access on packed scalar struct or array element.
+                // W527/W533/W586: field access on packed scalar struct or array
+                // element. The base may be a bare identifier or a chain of
+                // ExprIndex nodes for multi-dimensional array access.
                 let base_name = match child.kind {
                     NodeKind::ExprIdentifier => child.name.clone(),
-                    NodeKind::ExprIndex if !child.children.is_empty() => {
-                        match child.children[0].kind {
-                            NodeKind::ExprIdentifier => child.children[0].name.clone(),
-                            _ => return None,
+                    NodeKind::ExprIndex => {
+                        let mut current = child;
+                        while current.kind == NodeKind::ExprIndex {
+                            current = match current.children.first() {
+                                Some(c) => c,
+                                None => return None,
+                            };
+                        }
+                        if current.kind == NodeKind::ExprIdentifier {
+                            current.name.clone()
+                        } else {
+                            return None;
                         }
                     }
                     _ => return None,
@@ -4432,10 +4446,18 @@ impl VerilogCodegen {
         let child = &field_access.children[0];
         let base_name = match child.kind {
             NodeKind::ExprIdentifier => child.name.clone(),
-            NodeKind::ExprIndex if !child.children.is_empty() => {
-                match child.children[0].kind {
-                    NodeKind::ExprIdentifier => child.children[0].name.clone(),
-                    _ => return None,
+            NodeKind::ExprIndex => {
+                let mut current = child;
+                while current.kind == NodeKind::ExprIndex {
+                    current = match current.children.first() {
+                        Some(c) => c,
+                        None => return None,
+                    };
+                }
+                if current.kind == NodeKind::ExprIdentifier {
+                    current.name.clone()
+                } else {
+                    return None;
                 }
             }
             _ => return None,
@@ -4540,9 +4562,11 @@ impl VerilogCodegen {
         None
     }
 
-    /// W527: emit a Verilog part-select expression for one element of a packed
+    /// W527/W586: emit a Verilog part-select expression for one element of a packed
     /// multi-dimensional array-of-struct local. `linear_expr` is the pre-quoted
-    /// textual expression for the linearized element index.
+    /// textual expression for the linearized element index. If `signed` is true the
+    /// resulting slice is reinterpreted with `$signed(...)` so that Icarus treats
+    /// the packed bits as two's-complement instead of unsigned.
     fn emit_packed_struct_element_slice(
         &mut self,
         var: &str,
@@ -4550,6 +4574,7 @@ impl VerilogCodegen {
         elem_width: u32,
         field_offset: u32,
         field_width: u32,
+        signed: bool,
     ) {
         if field_offset == 0 && field_width == elem_width {
             // Whole element: no inner offset needed.
@@ -4558,10 +4583,15 @@ impl VerilogCodegen {
                 var, linear_expr, elem_width, elem_width
             ));
         } else {
-            self.write(&format!(
+            let slice = format!(
                 "{}[(({}) * {} + {}) +: {}]",
                 var, linear_expr, elem_width, field_offset, field_width
-            ));
+            );
+            if signed && !self.in_lvalue {
+                self.write(&format!("$signed({})", slice));
+            } else {
+                self.write(&slice);
+            }
         }
     }
 
@@ -4656,13 +4686,17 @@ impl VerilogCodegen {
             expr
         };
 
-        let (field_offset, field_width) = if let Some(fname) = trailing_field {
-            match self.struct_field_offset(&elem_type, fname) {
+        let (field_offset, field_width, signed) = if let Some(fname) = trailing_field {
+            let (off, fw) = match self.struct_field_offset(&elem_type, fname) {
                 Some(v) => v,
                 None => return false,
-            }
+            };
+            let ftype = self.struct_decls.get(&elem_type)
+                .and_then(|fs| fs.iter().find(|(n, _)| n == fname).map(|(_, t)| t.clone()))
+                .unwrap_or_default();
+            (off, fw, Self::scalar_field_is_signed(&ftype))
         } else {
-            (0u32, elem_width)
+            (0u32, elem_width, false)
         };
 
         self.emit_packed_struct_element_slice(
@@ -4671,6 +4705,7 @@ impl VerilogCodegen {
             elem_width,
             field_offset,
             field_width,
+            signed,
         );
         true
     }
@@ -4857,7 +4892,7 @@ impl VerilogCodegen {
             slice_expr
         };
 
-        if signed {
+        if signed && !self.in_lvalue {
             self.write(&format!("$signed({})", final_expr));
         } else {
             self.write(&final_expr);
@@ -4898,6 +4933,7 @@ impl VerilogCodegen {
             call_array_tmp_info: self.call_array_tmp_info.clone(),
             call_array_tmp_materialized: std::collections::HashSet::new(),
             use_call_array_temps: false,
+            in_lvalue: false,
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -5057,6 +5093,7 @@ impl VerilogCodegen {
                     call_array_tmp_info: self.call_array_tmp_info.clone(),
                     call_array_tmp_materialized: std::collections::HashSet::new(),
                     use_call_array_temps: false,
+                    in_lvalue: false,
                 };
                 tmp.emit_packed_array_literal_concat_level(
                     sub, dims, depth + 1, elem_w, elem_type,
@@ -6988,7 +7025,9 @@ impl VerilogCodegen {
                             (dims.clone(), elem_type.clone()),
                         );
                     } else {
+                        self.in_lvalue = true;
                         self.gen_verilog_expr(lhs);
+                        self.in_lvalue = false;
                         if node.extra_op == "+=" {
                             self.write(" = ");
                             self.gen_verilog_expr(lhs);
@@ -7345,7 +7384,7 @@ impl VerilogCodegen {
                                         .unwrap_or_default();
                                     let signed = Self::scalar_field_is_signed(&ftype);
                                     let slice = format!("{}[{} +: {}]", base_name, off, fw);
-                                    if signed {
+                                    if signed && !self.in_lvalue {
                                         self.write(&format!("$signed({})", slice));
                                     } else {
                                         self.write(&slice);
@@ -7402,7 +7441,7 @@ impl VerilogCodegen {
                                     } else {
                                         format!("{}[{} +: {}]", base_expr, off, fw)
                                     };
-                                    if signed {
+                                    if signed && !self.in_lvalue {
                                         self.write(&format!("$signed({})", slice));
                                     } else {
                                         self.write(&slice);

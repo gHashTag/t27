@@ -6784,3 +6784,114 @@ Sources:
   implementation limit. Let the gates decide.
 - Do not silently drop wide operands from `$display` messages. The current code
   still prints the local identifier, preserving debuggability.
+
+## 2026-07-18 — Wave Loop 586 (module-scope 8-D array-of-struct variable with indexed signed field writes)
+
+### What worked
+- A module-scope `var dst : [2]^8 Pt` lowered as a single packed `reg [8191:0]`
+  already supported procedural slice assignments for indexed field writes
+  (`dst[i][j][k][l][m][n][o][p].y = -999`).
+- The real gap was **signed packed-slice semantics**: the generated read/compare
+  path treated the 16-bit field slice as unsigned, so negative values printed and
+  compared as large positive numbers.
+- Fix was localized to three pieces:
+  1. Walk multi-dimensional `ExprIndex` chains in `expr_width_signed` and
+     `field_scalar_array_info` so probe metadata and width inference can resolve
+     the base module variable.
+  2. Wrap signed packed-slice reads with `$signed(...)` in
+     `emit_packed_struct_element_slice` and the existing scalar-struct/call
+     field-access paths.
+  3. Suppress the `$signed(...)` wrapper when the slice is used as an assignment
+     target by adding an `in_lvalue` flag set only during `StmtAssign` LHS
+     emission.
+- After the fix, Icarus simulation and cocotb reference model both report PASS
+  for the W586 witness; 30 affected seals were resealed.
+
+### Numbers / gates
+- FROZEN_HASH updated to `61637d927d4b07f415fbe72348bbdf244a26412860fc9f332d07b81a1e9a9a6f`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 46/0 (new test added).
+- `./scripts/tri test --fast`: 0 seal mismatches; 24 pre-existing yosys smoke
+  baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W586 witness: PASS.
+
+### Scientific / engineering background
+- IEEE Std 1800-2017 §11.5.1 part-selects are unsigned bit ranges by default;
+  a signed interpretation requires an explicit `$signed(...)` cast. The t27
+  backend already used this for scalar-struct field reads and scalar-array field
+  element reads, but not for packed multi-D array-of-struct field reads.
+- Verilog equality/relational operators are unsigned if any operand is unsigned,
+  so comparing an unsigned 16-bit slice against a negative literal fails even
+  when the underlying bits are correct. Casting the slice to signed makes the
+  comparison signed and width-extended correctly.
+- Lvalue slices cannot be wrapped with `$signed(...)`; the assignment target
+  must remain a plain part-select. Tracking lvalue context in the emitter avoids
+  duplicating the access logic.
+
+### Patterns to reuse
+- Use an `in_lvalue` codegen flag whenever the same expression helper is shared
+  between assignment targets and rvalue contexts; this is cheaper than building
+  separate lvalue/rvalue emitters.
+- Update `expr_width_signed` to walk nested `ExprIndex` chains so that probe
+  width/signed metadata stays accurate for multi-dimensional accesses.
+- Reseal all affected specs after a change to signed packed-slice rendering;
+  the generated Verilog changes for every prior AoS witness with signed fields.
+
+### Anti-patterns to avoid
+- Do not wrap the LHS of a procedural assignment with `$signed(...)`; some
+  simulators reject it and it is semantically unnecessary because the bits are
+  already correct.
+- Do not assume that because a narrow test passes the reference model and
+  VCD probes agree on signedness; always check that probe metadata matches the
+  expression's signed flag.
+
+## Wave Loop 587 — 2026-07-07
+
+### What worked
+- Variant C (module-scope `[2]^8 Pt` variable initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**.
+  The W586 signed packed-slice fixes and the existing call-return CSE path
+  already handled 8-D AoS initialization, whole-array comparison, and indexed
+  signed reads/writes correctly.
+- The main risk was literal syntax in the generated witness. Using a recursive
+  generator that balances braces/brackets and avoids leading commas produced a
+  valid 1,048,576-bit packed parameter and function return.
+
+### Root cause / fix
+- The initial W587 witness attempt accidentally contained leading commas after
+  opening braces (`[2]Pt{, ...}`). The const raw-text capture accepts this, but
+  the re-parser `parse_array_literal_text` fails, falling back to a zero
+  parameter. The function-return literal path also silently dropped the function
+  body because the main expression parser could not recover from the leading
+  comma.
+- Fix: regenerate the witness with strictly valid t27 array-literal syntax:
+  `[N1][N2]...T{ elem1, elem2 }` with balanced braces and no leading comma.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `61637d927d4b07f415fbe72348bbdf244a26412860fc9f332d07b81a1e9a9a6f`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 47/0 (new W587 test added).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  73/73 Icarus PASS / 73/73 cocotb PASS / 0 seal mismatches / 24 pre-existing
+  yosys smoke baselines.
+- Direct `t27c icarus-simulate` and `t27c icarus-cocotb` on W587 witness: PASS.
+
+### Patterns to reuse
+- For very large nested array literals, generate the text programmatically and
+  validate brace/bracket balance independently before trusting the parser.
+- A single-line literal works, but pretty-printed multi-line is also valid as
+  long as commas remain separators (not prefixes) and braces stay balanced.
+- Module-scope `var dst : [N]...Pt = fn_call(...)` works for 8-D with no new
+  compiler support when signed-slice reads and lvalue handling are already
+  correct.
+
+### Anti-patterns to avoid
+- Do not use `', '.join(...)` when emitting array-literal children; it can
+  produce a leading comma if the join result is inserted directly after `{`.
+- Do not assume a malformed literal will fail loudly at parse time: the
+  module-level const parser captures raw text, so errors may only surface during
+  Verilog emission as `0 /* TODO ... */` or an empty function body.

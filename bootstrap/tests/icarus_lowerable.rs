@@ -842,6 +842,42 @@ fn accepts_w585_bench_module_7d_aos_var_call_dedup() {
 }
 
 #[test]
+fn accepts_w586_bench_module_8d_aos_var_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w586_bench_module_8d_aos_var_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W586 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w587_bench_module_8d_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w587_bench_module_8d_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W587 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [
