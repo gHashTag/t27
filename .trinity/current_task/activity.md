@@ -1812,3 +1812,7 @@
 - **Commit:** feat(igla): Wave Loop 570 — 5-D array-of-struct return call deduplication, 30/30 icarus_lowerable PASS + direct Icarus/cocotb PASS
 - **Files:** .claude/plans/wave-loop-571.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w571_bench_5d_aos_call_dedup_nonp2.json,.trinity/seals/scratch_w571_bench_5d_aos_call_dedup_nonp2.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W571_2026-07-07.md,specs/scratch/w571_bench_5d_aos_call_dedup_nonp2.t27
 
+## 2026-07-18T13:21:26Z — wave-loop-573
+- **Commit:** feat(igla): Wave Loop 572 — 6-D array-of-struct return call deduplication, 32/32 icarus_lowerable PASS + direct Icarus/cocotb PASS
+- **Files:** .claude/plans/wave-loop-573.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w573_bench_7d_aos_call_dedup.json,.trinity/seals/scratch_w573_bench_7d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W573_2026-07-07.md,specs/scratch/w573_bench_7d_aos_call_dedup.t27
+

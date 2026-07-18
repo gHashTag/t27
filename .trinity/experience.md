@@ -5702,3 +5702,86 @@ Sources:
 - Do not assume a higher-rank witness will fail; let the gates decide whether the
   compiler path is truly rank-agnostic.
 
+## 2026-07-18 — Wave Loop 573 (7-D array-of-struct return call deduplication)
+
+### What worked
+- The 7-D witness `[2][2][2][2][2][2][2]Pt` (4096-bit packed vector, 128
+  elements) confirmed that the rank-agnostic paths scale cleanly from six to
+  seven dimensions. No compiler or reference-model changes were required.
+- The generated Verilog declared a single 4096-bit packed-vector temporary per
+  call per block and reused it for local init, indexed field access, and
+  whole-array assertions.
+- The cocotb reference model independently built the same 4096-bit packed vector
+  and agreed with the VCD probes on the first run.
+- Hand-written row-major arithmetic for the two indexed probes was verified with
+  a small Python check before simulation.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w573_bench_7d_aos_call_dedup.t27` with a witness-level
+  workaround for an Icarus 12.0 `$display` buffer overflow on a 4096-bit nested
+  concatenation.
+- Saved t27 seal and Icarus baseline for the W573 witness.
+- Added `accepts_w573_bench_7d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W573_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 574 (Variant A recommended 8-D,
+  Variant B non-p2 7-D, Variant C module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 33 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W573 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- IEEE Std 1364-2005 / SystemVerilog 1800 require tools to support packed vectors
+  of at least 65,536 bits; concatenation width is bounded only by the receiver's
+  implementation limits. A 4096-bit flattened vector is within the standard
+  minimum, yet Icarus 12.0 overflows its VPI task-argument buffer when asked to
+  format a 4096-bit, seven-level nested concatenation inside `$display`.
+- t27 flattens multi-D arrays to a single 1-D packed vector with part-select
+  indexing, avoiding Icarus's known bugs around non-constant indices in outer
+  packed dimensions.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  `flat = (((((((i0*2+i1)*2+i2)*2+i3)*2+i4)*2+i5)*2+i6)`, identical to the linear
+  index expression emitted by t27 for 7-D access.
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed arrays
+  with no explicit depth cap; t27's recursive literal emission and slice-access
+  paths follow the same rank-agnostic strategy.
+
+Sources:
+- [IEEE 1364-2005 PDF](https://www.eg.bucknell.edu/~csci320/2016-fall/wp-content/uploads/2015/08/verilog-std-1364-2005.pdf)
+- [Stack Overflow: maximum wire bit width](https://stackoverflow.com/questions/57244232/what-is-the-maximum-wire-bit-width-in-verilog-system-verilog)
+- [Icarus Verilog quirks](https://steveicarus.github.io/iverilog/usage/icarus_verilog_quirks.html)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+
+### Patterns to reuse
+- When generated Verilog asks a simulator to format an extremely wide nested
+  concatenation inside a system task, bind the literal to a named local first.
+  This keeps the t27 compiler unchanged and documents the toolchain limit at the
+  witness level.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always verify expected-value arithmetic against the documented row-major layout
+  before changing compiler code.
+
+### Anti-patterns to avoid
+- Do not modify `gen_verilog_test_stmt` just to avoid a single Icarus formatting
+  bug. A witness-level workaround is cheaper and preserves the existing debug
+  output format.
+- Do not assume the next rank will be free; 8-D will be 8192 bits and may hit a
+  different simulator limit. Let the gates decide.
+- Do not silently drop wide operands from `$display` messages. The current code
+  still prints the local identifier, preserving debuggability.
+
