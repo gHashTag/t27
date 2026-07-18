@@ -6778,17 +6778,28 @@ impl VerilogCodegen {
                     self.write_line(&format!("reg [{}:0] {};", total_width - 1, node.name));
                 }
                 if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
-                    self.write_indent();
-                    self.write_line("begin");
-                    self.indent();
-                    self.emit_packed_struct_array_init(
-                        &node.name,
-                        &node.extra_type,
-                        &node.children[0],
-                    );
-                    self.dedent();
-                    self.write_indent();
-                    self.write_line("end");
+                    let child = &node.children[0];
+                    // W566: a 2-D array of scalar structs initialized from a packed-vector
+                    // expression (function call or other non-literal) can be assigned
+                    // wholesale because the layout matches the packed-vector register.
+                    if child.kind != NodeKind::ExprArrayLiteral {
+                        self.write_indent();
+                        self.write(&format!("{} = ", node.name));
+                        self.gen_verilog_expr(child);
+                        self.write_line(";");
+                    } else {
+                        self.write_indent();
+                        self.write_line("begin");
+                        self.indent();
+                        self.emit_packed_struct_array_init(
+                            &node.name,
+                            &node.extra_type,
+                            child,
+                        );
+                        self.dedent();
+                        self.write_indent();
+                        self.write_line("end");
+                    }
                 } else if phase == LocalEmitPhase::Full {
                     self.write_line("");
                 }

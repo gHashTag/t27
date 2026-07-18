@@ -1,3 +1,80 @@
+## 2026-07-07 — Wave Loop 566 (2-D array-of-struct return call deduplication)
+
+### What worked
+- The W566 2-D AoS witness immediately exposed a small gap: `emit_local`'s multi-D
+  branch only initialized a `[N][M]Pt` local from an `ExprArrayLiteral`. A call
+  initializer fell through to an empty `begin...end` block and left the local as
+  `X`. Adding a wholesale packed-vector assignment branch (`name = <expr>;`) was
+  the minimal correct fix.
+- The W557/ W563 CSE descriptor and the W563/ W564 whole-array assertion paths
+  proved to be genuinely rank-agnostic: no changes were needed for 2-D call
+  deduplication, indexed field access, or whole-array comparison against a 2-D
+  array literal.
+- The cocotb reference model already handled 2-D struct array literals and
+  indexed access correctly; zero Python changes were required.
+- Resealing the 3 affected corpus specs early kept the `./scripts/tri test` gate
+  green after the compiler edit.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: in `emit_local`, the multi-D array-of-scalar-struct
+  local initializer now assigns the packed vector wholesale when the initializer
+  is not an `ExprArrayLiteral`.
+- `bootstrap/stage0/FROZEN_HASH` updated to
+  `59b723ff437cf048bd8d549d6a61d4873b119e6edbabf4f9449e74ab27ef8950`.
+- Added `specs/scratch/w566_bench_2d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w566_bench_2d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Resealed 3 existing corpus seals whose generated Verilog shifted.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 26 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `icarus-cocotb` on W566 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- Extending aggregate lowering from 1-D to 2-D is a standard stress test in
+  HLS/LLVM-style compilers. Vitis HLS and Intel HLS Compiler both flatten nested
+  arrays of packed structs into a single wide vector and compute linear element
+  offsets from the innermost dimension outward. t27's `try_emit_struct_array_access`
+  already follows this convention, and the W566 fix only closed the local-
+  declaration gap.
+- CIRCT `HWLegalizeModules` legalizes multi-dimensional packed arrays into
+  per-element wires/registers and `casez` lookups for variable-index access; t27's
+  packed-vector approach is a direct specialization for the Icarus-lowerable
+  simulation subset.
+
+Sources:
+- [CIRCT Verilog Generation / LoweringOptions](https://circt.llvm.org/docs/VerilogGeneration/)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [Yosys packed-struct array support gap](https://github.com/YosysHQ/yosys/issues/4653)
+
+### Patterns to reuse
+- When adding a witness for a rank-agnostic feature, exercise the next rank the
+  code claims to support; hidden assumptions usually appear there.
+- For packed-vector locals, a non-literal initializer should be assigned
+  wholesale; per-element init is only needed when the compiler explicitly wants
+  to flatten or unpack a literal.
+- A single end-to-end witness that uses the same value as local initializer,
+  indexed access base, expected side, and actual side makes CSE sharing or
+  duplication immediately visible in generated Verilog.
+
+### Anti-patterns to avoid
+- Do not assume that because a path works for 1-D and the code looks rank-
+  independent it will work for 2-D without a witness. The W566 bug was exactly a
+  1-D-shaped assumption in the local-declaration branch.
+- Do not leave an empty `begin...end` block for an unhandled initializer shape;
+  it produces silent `X` values instead of a clear compile-time error.
+
+---
+
 ## 2026-07-07 — Wave Loop 563 (array-of-struct return call deduplication)
 
 ### What worked

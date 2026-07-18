@@ -1788,3 +1788,7 @@
 - **Commit:** feat(icarus-lowerable): Wave Loop 565 — multi-site whole-array AoS call deduplication witness, 25/25 icarus_lowerable PASS + direct Icarus/cocotb PASS
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-18T10:18:11Z — wave-loop-566
+- **Commit:** chore(trinity): record W565 session log and commit count
+- **Files:** .claude/plans/wave-loop-566.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w566_bench_2d_aos_call_dedup.json,.trinity/seals/scratch_w528_function_2d_struct_array_return.json,.trinity/seals/scratch_w529_function_2d_struct_array_return.json,.trinity/seals/scratch_w532_signed_struct_array_field_2d_copy.json,.trinity/seals/scratch_w566_bench_2d_aos_call_dedup.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W566_2026-07-07.md,specs/scratch/w566_bench_2d_aos_call_dedup.t27
+

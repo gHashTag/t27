@@ -482,6 +482,24 @@ fn accepts_w565_bench_multi_site_whole_aos() {
 }
 
 #[test]
+fn accepts_w566_bench_2d_aos_call_dedup() {
+    let dir = scratch_dir();
+    for name in &[
+        "w566_bench_2d_aos_call_dedup.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W566 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [
