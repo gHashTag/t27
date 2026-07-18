@@ -5427,3 +5427,53 @@ Sources:
   divergence; use direct `icarus-simulate` / `icarus-cocotb` as the authoritative
   gate for these witnesses.
 
+## 2026-07-07 — Wave Loop 568 (4-D array-of-struct return call deduplication)
+
+### What worked
+- The W568 4-D AoS witness confirmed that the rank-agnostic paths scale cleanly
+  from 1-D through 4-D. No compiler or reference-model changes were needed.
+- The W566 `emit_local` wholesale-init branch (`dims.len() >= 2`) correctly
+  assigned the packed 512-bit call result to the local register.
+- `call_returning_cse_value_info` returned a single temporary descriptor for
+  `[2][2][2][2]Pt` and the same temporary was reused for local init, indexed
+  access, and both whole-array `assert_eq` sites.
+- Manual row-major arithmetic check before simulation caught no mistakes in the
+  witness; `hyper[0][1][0][1].x = 10` and `hyper[1][0][1][0].y = 21` matched the
+  generated Verilog linear offsets on the first run.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w568_bench_4d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w568_bench_4d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W568_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 569 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 28 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W568 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- When a feature is supposed to be rank-agnostic, the strongest verification is a
+  witness one rank higher that exercises local init, indexed access, whole-array
+  actual, and whole-array expected in one block. If the paths are truly generic,
+  the wave should be zero-code-change.
+- A zero-compiler-change wave is still a deliverable when it adds a permanent
+  regression witness, a seal, an Icarus baseline, and an integration test.
+- Non-power-of-two dimensions are a better stress test than another power-of-two
+  rank because they expose off-by-one errors in product arithmetic.
+
+### Anti-patterns to avoid
+- Do not skip the next-rank witness just because the current rank passes; hidden
+  assumptions often appear only when the dimension count or product changes.
+- Do not modify the compiler "just in case" when the generated code and all
+  gates already pass; extra changes risk regressions without adding value.
+
