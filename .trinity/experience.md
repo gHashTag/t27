@@ -1,3 +1,71 @@
+## 2026-07-07 — Wave Loop 581 (15-D array-of-struct return call deduplication)
+
+### What worked
+- The W581 15-D AoS witness is a clean zero-code-change extension of W566–W580.
+  Every relevant path (`emit_local`, `call_returning_cse_value_info`,
+  `try_emit_struct_array_access`, `gen_verilog_expr` for `ExprArrayLiteral`, and
+  the cocotb reference model) handled `[2]^15 Pt` (1,048,576 bits, 32,768
+  elements) without modification.
+- Icarus 12.0 accepted the 1-MiBit packed vector once the wide literal was
+  bound to a local `expected` variable before `assert_eq`, confirming the
+  W573–W580 `$display` VPI workaround scales to sixteen times the IEEE
+  1800-2017 minimum width.
+- A deterministic Python generation script with explicit row-major linearization
+  prevented manual expected-value mistakes and produced a ~5.7 MB / ~295k-line
+  spec deterministically.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w581_bench_15d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w581_bench_15d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 41 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `icarus-cocotb` on W581 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1 mandates at least 65,536-bit packed-vector support;
+  W581 tests a 1-MiBit vector, i.e. sixteen times the language minimum.
+- Icarus VPI display buffers grow dynamically; keeping the wide literal out of
+  `$display` arguments avoids the implementation-specific buffer path that failed
+  in W573–W580 when exercised directly.
+- CIRCT `HWLegalizeModules` and C++23 `std::mdspan` both treat multi-dimensional
+  packed arrays as recursive row-major products, matching t27's lowering.
+
+### Patterns to reuse
+- Always generate high-rank expected values with a script; hand computation at
+  rank 15 is error-prone and field-width constraints (signed i16 overflow) are
+  easy to miss.
+- When generating nested array literals, emit the outer `[N]^rank T{` separately
+  and recursively emit two children of rank `rank-1`; this avoids the accidental
+  double-nesting that produced a 32-bit zero padding in the first W581 Verilog
+  draft.
+- Reuse the local-`expected` `$display` workaround for any wide aggregate
+  assertion until Icarus's VPI path is fixed upstream.
+
+### Anti-patterns to avoid
+- Do not assume a signed-field array element can hold arbitrarily large linear
+  indices; check `2*e+1 ≤ max_signed(width)` before picking indexed probes.
+- Do not hand-edit or hand-generate multi-D array literals beyond trivial sizes;
+  a script is the only reliable way to match the compiler's row-major layout.
+- Do not ignore a `32'd0` padding prefix in generated Verilog for a packed-vector
+  assignment — it is a symptom of literal size mismatch and will cause
+  silent shifts or X values.
+
+---
+
 ## 2026-07-07 — Wave Loop 567 (3-D array-of-struct return call deduplication)
 
 ### What worked
