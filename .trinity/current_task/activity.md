@@ -1868,3 +1868,7 @@
 - **Commit:** feat(igla): Wave Loop 581 — 15-D array-of-struct return call deduplication, 1,048,576-bit packed vector, zero compiler changes
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-18T16:12:42Z — wave-loop-582
+- **Commit:** chore(trinity): record W581 session log and commit count
+- **Files:** .claude/plans/wave-loop-582.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w582_bench_16d_aos_call_dedup.json,.trinity/seals/scratch_w582_bench_16d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W582_2026-07-07.md,specs/scratch/w582_bench_16d_aos_call_dedup.t27
+

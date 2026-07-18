@@ -1,3 +1,72 @@
+## 2026-07-07 — Wave Loop 582 (16-D array-of-struct return call deduplication)
+
+### What worked
+- The W582 16-D AoS witness is another clean zero-code-change extension of
+  W566–W581. Every relevant path (`emit_local`, `call_returning_cse_value_info`,
+  `try_emit_struct_array_access`, `gen_verilog_expr` for `ExprArrayLiteral`, and
+  the cocotb reference model) handled `[2]^16 Pt` (2,097,152 bits, 65,536
+  elements) without modification.
+- Icarus 12.0 accepted the 2-MiBit packed vector once the wide literal was
+  bound to a local `expected` variable before `assert_eq`, confirming the
+  W573–W581 `$display` VPI workaround scales to thirty-two times the IEEE
+  1800-2017 minimum width.
+- The deterministic Python generation script, with the W581 fixes (root literal
+  emitted separately, signed i16 invariant enforced), produced a ~11.4 MB /
+  ~590k-line spec without manual errors.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w582_bench_16d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w582_bench_16d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 42 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` on W582 witness: PASS (~4 min wall-clock).
+- Direct `t27c icarus-cocotb` on W582 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1 / §6.9.1 mandates at least 65,536-bit packed-vector
+  support; W582 tests a 2-MiBit vector, i.e. thirty-two times the language
+  minimum. The Icarus maintainer in issue #1171 notes the standard suggests a
+  2^16 packed-dimension floor, but Icarus does not enforce it as a hard cap.
+- Yosys reports a width warning on `16'sd131071` literals because they exceed
+  the signed 16-bit range; this is a synthesis-smoke quirk, not a functional
+  failure, and is counted among the unchanged 24 yosys smoke baselines.
+- CIRCT `HWLegalizeModules` and C++23 `std::mdspan` both treat multi-dimensional
+  packed arrays as recursive row-major products, matching t27's lowering.
+
+### Patterns to reuse
+- Continue using the deterministic Python generator with separate root-literal
+  emission and signed-field invariant checks for any higher-rank scalar-struct
+  array witness.
+- Reuse the local-`expected` workaround for wide aggregate assertions until
+  Icarus's VPI path is fixed upstream.
+- Monitor direct simulation wall-clock as rank increases; ~4 min at 2 MiBit is
+  still acceptable but suggests 4 MiBit may be near a practical timeout boundary.
+
+### Anti-patterns to avoid
+- Do not ignore yosys width warnings on signed literals; document whether they
+  are pre-existing synthesis-smoke quirks or new functional issues.
+- Do not increase rank without checking the signed-field range of the chosen
+  indexed probes; at rank 16 only half of the element space (`e ≤ 16383`) is
+  safe for `i16` fields.
+- Do not assume the full `./scripts/tri test` gate will remain fast as the
+  witness doubles in size each rank; time direct simulation separately.
+
+---
+
 ## 2026-07-07 — Wave Loop 581 (15-D array-of-struct return call deduplication)
 
 ### What worked
