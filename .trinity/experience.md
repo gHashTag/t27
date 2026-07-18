@@ -6057,3 +6057,102 @@ Sources:
   limit. Let the gates decide.
 - Do not silently drop wide operands from `$display` messages. The current code
   still prints the local identifier, preserving debuggability.
+
+## Wave Loop 577 — 2026-07-07
+
+### Context
+Wave Loop 577 was the next rung on the rank ladder after W576: eleven-dimensional
+array-of-struct return call deduplication. The question was whether the
+rank-agnostic paths would hold at 65,536 bits — exactly the IEEE 1800-2017
+minimum packed-vector width — and whether Icarus 12.0 would accept that vector
+once the `$display` workaround from W573–W576 was applied.
+
+### What we learned
+- Icarus 12.0 accepts a 65,536-bit, eleven-level nested packed-vector literal when
+  it is bound to a named local variable before being passed to `$display`.
+- The t27 compiler's recursive literal emission, CSE descriptor
+  (`call_returning_cse_value_info`), and multi-D slice-access paths scale to eleven
+  dimensions with no code changes.
+- The cocotb reference model independently built the same 65,536-bit packed
+  vector and agreed with the VCD probes on the first run.
+- The first expected indexed value was initially miscalculated manually (3070
+  instead of the correct 1534); the gate caught it immediately, confirming the
+  value of running simulation before trusting hand arithmetic.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w577_bench_11d_aos_call_dedup.t27` with the same local-
+  `expected` workaround for Icarus `$display` formatting.
+- Saved t27 seal and Icarus baseline for the W577 witness.
+- Added `accepts_w577_bench_11d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W577_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 578 (Variant A recommended 12-D,
+  Variant B non-p2 11-D, Variant C module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 37 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W577 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not available
+  in this workspace; expected unchanged because no compiler / predicate code
+  changed.
+
+### Scientific / engineering background
+- IEEE Std 1800-2017 clause 7.4.1 requires tools to support packed vectors of at
+  least 65,536 bits; concatenation width is bounded only by the receiver's
+  implementation limits. A 65,536-bit flattened vector sits exactly on the
+  language minimum, and Icarus 12.0 accepted it once the literal was bound to a
+  local variable before `$display`.
+- t27 flattens multi-D arrays to a single 1-D packed vector with part-select
+  indexing, avoiding Icarus's known bugs around non-constant indices in outer
+  packed dimensions.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  `flat = ((((((((((((((((((((((i0*2+i1)*2+i2)*2+i3)*2+i4)*2+i5)*2+i6)*2+i7)*2+i8)*2+i9)*2+i10)`,
+  identical to the linear index expression emitted by t27 for 11-D access.
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed arrays
+  with no explicit depth cap; t27's recursive literal emission and slice-access
+  paths follow the same rank-agnostic strategy.
+
+Sources:
+- [IEEE 1800-2017 PDF](https://img.antpedia.com/standard/files/pdfs_ora/20230616-ieee/IEEE/Std/IEEE%20Std%201800-2017.pdf)
+- [Stack Overflow: maximum wire bit width](https://stackoverflow.com/questions/57244232/what-is-the-maximum-wire-bit-width-in-verilog-system-verilog)
+- [Icarus Verilog issue #1171](https://github.com/steveicarus/iverilog/issues/1171)
+- [Icarus Verilog issue #1180](https://github.com/steveicarus/iverilog/issues/1180)
+- [Icarus Verilog quirks](https://steveicarus.github.io/iverilog/usage/icarus_verilog_quirks.html)
+- [Icarus VPI Within VVP](https://steveicarus.github.io/iverilog/developer/guide/vvp/vpi.html)
+- [Icarus vpi_signal.cc](https://github.com/steveicarus/iverilog/blob/master/vvp/vpi_signal.cc)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [Intel HLS Compiler: Mapping HLS Data Types](https://www.intel.com/content/www/us/en/docs/programmable/683349/23-1/mapping-hls-data-types-to-rtl-signals.html)
+
+### Patterns to reuse
+- When generated Verilog asks a simulator to format an extremely wide nested
+  concatenation inside a system task, bind the literal to a named local first.
+  This keeps the t27 compiler unchanged and documents the toolchain limit at the
+  witness level.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always verify expected-value arithmetic with a script before simulation; even
+  simple manual row-major calculations are error-prone at high rank.
+- When the next rank exceeds a language-minimum boundary (131,072 bits for 12-D),
+  expect the gate to become more brittle and prepare a fallback variant.
+
+### Anti-patterns to avoid
+- Do not modify `gen_verilog_test_stmt` just to avoid a single Icarus formatting
+  bug. A witness-level workaround is cheaper and preserves the existing debug
+  output format.
+- Do not assume the next rank will be free; 12-D will be 131,072 bits, twice the
+  IEEE 1800-2017 minimum, and may hit a different simulator or implementation
+  limit. Let the gates decide.
+- Do not silently drop wide operands from `$display` messages. The current code
+  still prints the local identifier, preserving debuggability.
