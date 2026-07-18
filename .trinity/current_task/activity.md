@@ -1904,3 +1904,7 @@
 - **Commit:** feat(gen-verilog): Wave Loops 586-587 — signed packed-slice reads and module-scope 8-D AoS var call init
 - **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/icarus-baselines/specs/scratch/w588_bench_module_9d_aos_var_call_write.json,.trinity/seals/scratch_w588_bench_module_9d_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,specs/scratch/w588_bench_module_9d_aos_var_call_write.t27
 
+## 2026-07-18T21:46:04Z — wave-loop-588
+- **Commit:** feat(gen-verilog): Wave Loop 588 — module-scope 9-D AoS var initialized from a call with indexed signed field writes
+- **Files:** .claude/plans/wave-loop-588.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W588_2026-07-07.md
+

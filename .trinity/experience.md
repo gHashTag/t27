@@ -6895,3 +6895,46 @@ Sources:
 - Do not assume a malformed literal will fail loudly at parse time: the
   module-level const parser captures raw text, so errors may only surface during
   Verilog emission as `0 /* TODO ... */` or an empty function body.
+
+## Wave Loop 588 — 2026-07-07
+
+### What worked
+- Variant C (module-scope `[2]^9 Pt` variable initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**.
+  The W586 signed packed-slice and W587 call-return CSE paths already handled
+  9-D AoS initialization, whole-array comparison, and indexed signed reads/writes.
+- Agent E weak-point analysis correctly identified the giant-concatenation and
+  signed-overflow risks, which informed the choice to stay at 9-D and keep leaf
+  values in the safe i16 range.
+
+### Root cause / fix
+- No fix needed. The only implementation work was generating a syntactically
+  valid 9-D literal (1023 braces/brackets) and avoiding values > 32767.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `61637d927d4b07f415fbe72348bbdf244a26412860fc9f332d07b81a1e9a9a6f`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 48/0 (new W588 test added).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  75/75 Icarus PASS / 75/75 cocotb PASS / 0 seal mismatches / 24 pre-existing
+  yosys smoke baselines.
+- Direct `t27c icarus-simulate` and `t27c icarus-cocotb` W588 PASS.
+
+### Patterns to reuse
+- Reuse the W587 recursive literal generator with rank as a parameter; it
+  naturally balances braces/brackets and avoids leading commas.
+- Keep witness leaf values well below the signed field maximum to avoid
+  simulator-dependent truncation of `16'sdN` literals.
+- For module-scope mutable AoS, the combination of `pub var dst = fn_call()` and
+  `dst[i][j]... .field = value` works at least through 9-D with no new backend
+  support.
+
+### Anti-patterns to avoid
+- Do not probe the absolute MSB element of a vector whose width is exactly a
+  signed-field boundary (e.g., 16,384-bit vector); choose interior elements for
+  frame-condition checks.
+- Do not assume that because 8-D passed, 10-D will pass interactively; the
+  4-MiBit cliff is real and should be crossed only with explicit chunked-literal
+  design.
