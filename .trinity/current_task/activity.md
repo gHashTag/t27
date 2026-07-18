@@ -1884,3 +1884,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 583 — module-scope 3-D array-of-struct constants, fix non-literal width context in packed concatenations, closes #1554
 - **Files:** docs/reports/FPGA_LOOP_CLOSEOUT_W583_2026-07-07.md
 
+## 2026-07-18T18:33:49Z — wave-loop-584
+- **Commit:** feat(gen-verilog): Wave Loop 583 — module-scope 3-D array-of-struct constants, fix non-literal width context in packed concatenations, closes #1554
+- **Files:** .claude/plans/wave-loop-584.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w584_bench_17d_aos_call_dedup.json,.trinity/seals/scratch_w584_bench_17d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W584_2026-07-07.md,specs/scratch/w584_bench_17d_aos_call_dedup.t27
+

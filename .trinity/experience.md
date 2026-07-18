@@ -1,3 +1,66 @@
+## 2026-07-07 — Wave Loop 584 (17-D array-of-struct return call deduplication)
+
+### What worked
+- Extending the rank-scaling sequence from 16-D to 17-D required zero compiler
+  or reference-model changes. The same rank-agnostic paths that handled W582
+  accepted `[2]^17 Pt` (4,194,304 bits, 131,072 elements).
+- The W573–W582 workaround of binding the wide literal to a local `expected`
+  variable before `assert_eq` remains effective at 4 MiBit. Icarus 12.0 passed
+  both test and bench blocks.
+- The cocotb reference model cross-check passed, confirming row-major packed
+  layout and signed/unsigned field decoding are consistent at rank 17.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w584_bench_17d_aos_call_dedup.t27` (~22 MB / ~1.18 M
+  lines) with seal and Icarus baseline.
+- Added integration test `accepts_w584_bench_17d_aos_call_dedup`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 44 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` W584: PASS (~22.5 min wall-clock).
+- Direct `t27c icarus-cocotb` W584: PASS (~23.7 min wall-clock).
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1 packed-array minimum is 65,536 bits; W584 tests a
+  4,194,304-bit vector, i.e. sixty-four times the language minimum.
+- Icarus `vpi/sys_display.c` allocates decimal string buffers proportional to
+  vector width via `calc_dec_size`; the local-`expected` workaround avoids
+  formatting the whole 4-MiBit vector through the VPI `$display` path.
+- Icarus maintainer caryr notes the standard suggests a 2^16 packed-dimension
+  floor but Icarus does not enforce a hard cap; very large vectors can exhaust
+  memory or time.
+- EDA Playground / Cadence reports show simulator-specific segfaults around
+  500 kbit packed vectors; Icarus 12.0 on this host handled 4 MiBit without
+  crash.
+
+### Patterns to reuse
+- Continue using the deterministic Python generator for high-rank witnesses.
+- At rank 17, indexed probes need at least three leading zeros to keep element
+  index `e ≤ 16383` for `i16` fields.
+- Reuse the local-`expected` workaround until Icarus's VPI `$display` path is
+  fixed upstream.
+
+### Anti-patterns to avoid
+- Do not assume rank scaling can continue indefinitely without CI timeout
+  impact; 17-D already approaches 25 min of direct simulation.
+- Do not use indexed probes with fewer leading zeros at rank 17; the signed
+  i16 field range becomes the binding constraint, not the array dimensionality.
+- Do not run direct 4-MiBit simulation inside `./scripts/tri test --fast`; rely
+  on saved Icarus baselines after the first successful manual run.
+
+---
+
 ## 2026-07-07 — Wave Loop 583 (module-scope 3-D array-of-struct constant with computed-field bench cross-check)
 
 ### What worked
