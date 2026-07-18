@@ -6254,3 +6254,101 @@ Sources:
   limit. Let the gates decide.
 - Do not silently drop wide operands from `$display` messages. The current code
   still prints the local identifier, preserving debuggability.
+
+## Wave Loop 579 — 2026-07-07
+
+### Context
+Wave Loop 579 was the next rung on the rank ladder after W578: thirteen-dimensional
+array-of-struct return call deduplication. The question was whether the
+rank-agnostic paths would hold at 262,144 bits — four times the IEEE 1800-2017
+minimum packed-vector width — and whether Icarus 12.0 would accept that vector
+once the `$display` workaround from W573–W578 was applied.
+
+### What we learned
+- Icarus 12.0 accepts a 262,144-bit, thirteen-level nested packed-vector literal when
+  it is bound to a named local variable before being passed to `$display`.
+- The t27 compiler's recursive literal emission, CSE descriptor
+  (`call_returning_cse_value_info`), and multi-D slice-access paths scale to thirteen
+  dimensions with no code changes.
+- The cocotb reference model independently built the same 262,144-bit packed
+  vector and agreed with the VCD probes on the first run.
+- At 13-D the generated witness file reaches ~1.3 MB / 73k lines, and Icarus
+  simulation is still acceptably fast on current hardware, but wall-clock and peak
+  RSS are visibly increasing.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w579_bench_13d_aos_call_dedup.t27` with the same local-
+  `expected` workaround for Icarus `$display` formatting.
+- Saved t27 seal and Icarus baseline for the W579 witness.
+- Added `accepts_w579_bench_13d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W579_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 580 (Variant A recommended 14-D,
+  Variant B non-p2 13-D, Variant C module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 39 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W579 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not available
+  in this workspace; expected unchanged because no compiler / predicate code
+  changed.
+
+### Scientific / engineering background
+- IEEE Std 1800-2017 clause 7.4.1 requires tools to support packed vectors of at
+  least 65,536 bits; concatenation width is bounded only by the receiver's
+  implementation limits. A 262,144-bit flattened vector is four times the language
+  minimum, and Icarus 12.0 accepted it once the literal was bound to a local
+  variable before `$display`.
+- t27 flattens multi-D arrays to a single 1-D packed vector with part-select
+  indexing, avoiding Icarus's known bugs around non-constant indices in outer
+  packed dimensions.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  identical to the linear index expression emitted by t27 for 13-D access.
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed arrays
+  with no explicit depth cap; t27's recursive literal emission and slice-access
+  paths follow the same rank-agnostic strategy.
+
+Sources:
+- [IEEE 1800-2017 PDF](https://img.antpedia.com/standard/files/pdfs_ora/20230616-ieee/IEEE/Std/IEEE%20Std%201800-2017.pdf)
+- [Stack Overflow: maximum wire bit width](https://stackoverflow.com/questions/57244232/what-is-the-maximum-wire-bit-width-in-verilog-system-verilog)
+- [Icarus Verilog issue #1171](https://github.com/steveicarus/iverilog/issues/1171)
+- [Icarus Verilog issue #1180](https://github.com/steveicarus/iverilog/issues/1180)
+- [Icarus Verilog quirks](https://steveicarus.github.io/iverilog/usage/icarus_verilog_quirks.html)
+- [Icarus VPI Within VVP](https://steveicarus.github.io/iverilog/developer/guide/vvp/vpi.html)
+- [Icarus vpi_signal.cc](https://github.com/steveicarus/iverilog/blob/master/vvp/vpi_signal.cc)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [Intel HLS Compiler: Mapping HLS Data Types](https://www.intel.com/content/www/us/en/docs/programmable/683349/23-1/mapping-hls-data-types-to-rtl-signals.html)
+
+### Patterns to reuse
+- When generated Verilog asks a simulator to format an extremely wide nested
+  concatenation inside a system task, bind the literal to a named local first.
+  This keeps the t27 compiler unchanged and documents the toolchain limit at the
+  witness level.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always precompute expected-value arithmetic with a script before simulation;
+  row-major linearization is easy to get wrong by hand at high rank.
+- As rank grows, the file size and Icarus elaboration time grow linearly with
+  element count; monitor wall-clock but do not preemptively skip the gate.
+
+### Anti-patterns to avoid
+- Do not modify `gen_verilog_test_stmt` just to avoid a single Icarus formatting
+  bug. A witness-level workaround is cheaper and preserves the existing debug
+  output format.
+- Do not assume the next rank will be free; 14-D will be 524,288 bits, eight times
+  the IEEE 1800-2017 minimum, and may hit a different simulator or implementation
+  limit. Let the gates decide.
+- Do not silently drop wide operands from `$display` messages. The current code
+  still prints the local identifier, preserving debuggability.
