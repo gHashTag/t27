@@ -5477,3 +5477,52 @@ Sources:
 - Do not modify the compiler "just in case" when the generated code and all
   gates already pass; extra changes risk regressions without adding value.
 
+## 2026-07-07 — Wave Loop 569 (4-D array-of-struct return call deduplication with non-power-of-two outer dimension)
+
+### What worked
+- The non-power-of-two outer dimension (`[3][2][2][2]Pt`, total width 768 bits)
+  confirmed that the rank-agnostic paths handle arbitrary dimension products.
+  No compiler or reference-model changes were required.
+- The generated Verilog declared a single 768-bit packed-vector temporary per
+  block and reused it for local init, indexed field access, and whole-array
+  assertions.
+- The cocotb reference model independently built the same 768-bit packed vector
+  and agreed with the VCD probes on the first run after the witness expected
+  value was corrected.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w569_bench_4d_aos_call_dedup_nonp2.t27` with seal and
+  Icarus baseline.
+- Added `accepts_w569_bench_4d_aos_call_dedup_nonp2` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W569_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 570 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 29 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W569 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- A non-power-of-two dimension is a stronger stress test than another power-of-two
+  rank because it exposes off-by-one errors and product-overflow bugs.
+- When a simulation fails on the first run, re-verify the witness expected-value
+  arithmetic before changing the compiler; the hardware and reference model are
+  often already correct.
+- Add both a `test` block (for precise indexed assertions) and a `bench` block
+  (for deterministic cross-check against the reference model) so every gate is
+  exercised.
+
+### Anti-patterns to avoid
+- Do not trust hand-written row-major arithmetic without a quick script check;
+  a single wrong expected value can look like a compiler bug.
+- Do not add compiler changes "just in case" when the generated code and all
+  gates already pass.
+

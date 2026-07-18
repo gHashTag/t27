@@ -1800,3 +1800,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 567 — 3-D array-of-struct return call deduplication, 27/27 icarus_lowerable PASS + 72/72 Icarus + 72/72 cocotb + 0 seal mismatches
 - **Files:** .claude/plans/wave-loop-568.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w568_bench_4d_aos_call_dedup.json,.trinity/seals/scratch_w568_bench_4d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W568_2026-07-07.md,specs/scratch/w568_bench_4d_aos_call_dedup.t27
 
+## 2026-07-18T12:02:02Z — wave-loop-569
+- **Commit:** chore(trinity): correct W568 activity log entry after pre-commit hook stale message
+- **Files:** .claude/plans/wave-loop-569.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w569_bench_4d_aos_call_dedup_nonp2.json,.trinity/seals/scratch_w569_bench_4d_aos_call_dedup_nonp2.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W569_2026-07-07.md,specs/scratch/w569_bench_4d_aos_call_dedup_nonp2.t27
+
