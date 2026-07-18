@@ -1,7 +1,7 @@
 # Wave Loop 572 — Current Issue
 
 **Issue #1543** — Next step after 5-D array-of-struct return call deduplication with non-power-of-two outer dimension.
-**Branch:** `wave-loop-572` (to be created from `wave-loop-571`).
+**Branch:** `wave-loop-572` (created from `wave-loop-571`).
 **Previous:** Wave Loop 571 closed (#1542, branch `wave-loop-571`).
 
 ## Goal
