@@ -1,17 +1,17 @@
-# Wave Loop 585 — Current Issue
+# Wave Loop 586 — Current Issue
 
-**Issue #1556** — Next step after 17-D array-of-struct return call
-sededuplication (W584).
-**Branch:** `wave-loop-585` (to be created from `wave-loop-584`).
-**Previous:** Wave Loop 584 closed (#1555, branch `wave-loop-584`).
+**Issue #1557** — Next step after module-scope 7-D array-of-struct variable
+initialized from a call (W585).
+**Branch:** `wave-loop-586` (to be created from `wave-loop-585`).
+**Previous:** Wave Loop 585 closed (#1556, branch `wave-loop-585`).
 
 ## Goal
 
 Pick one of the three cooperation variants below and implement it under the
-standard PHI LOOP / FPGA Loop gates. Variant C is recommended because the W584
-17-D direct simulation already took ~22.5 minutes, making further rank scaling
-risky for CI. Variants A and B remain documented options if the user wants to
-continue pushing the width boundary.
+standard PHI LOOP / FPGA Loop gates. Variant C is recommended because it keeps
+file size and direct-simulation wall-clock modest while covering a new
+compiler facility (module-scope mutable packed-array field writes) that has not
+yet been exercised at this scale.
 
 ## Cooperation variants
 
@@ -29,21 +29,21 @@ continue pushing the width boundary.
    extent at the 17-D scale, following the W569/W571 pattern. Indexed probes
    must still respect `e ≤ 16383`.
 
-3. **Variant C — Recommended: module-scope 7-D array-of-struct variable
-   initialized from a call, with multi-site bench CSE.**
-   Add a witness with a module-level `var dst : [2][2][2][2][2][2][2]Pt`
-   (524,288-bit packed width, 16,384 elements) initialized from a function
-   call returning a 7-D AoS with computed fields. The bench/test blocks should
-   read `dst` at multiple whole-array and indexed sites, exercising W557
-   call-array CSE across module-scope and function-return boundaries. Keeps
-   file size small while covering scope/CSE interaction.
+3. **Variant C — Recommended: module-scope 8-D array-of-struct variable with
+   indexed field writes and multi-site reads.**
+   Add a witness with a module-level `var dst : [2][2][2][2][2][2][2][2]Pt`
+   (1,048,576-bit packed width, 32,768 elements) initialized from a function call
+   returning an 8-D AoS. A bench block should write a few indexed elements of
+   `dst` and then assert the updated values at multiple read sites, exercising
+   module-scope **mutation** plus call-result CSE while staying well under the
+   4-MiBit direct-simulation cliff.
 
 ## Acceptance criteria (for whichever variant is chosen)
 
-- New scratch witness(es) under `specs/scratch/w585_*`.
+- New scratch witness(es) under `specs/scratch/w586_*`.
 - Compiler and/or reference-model changes limited to the chosen variant.
 - `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast` shows
   zero new Icarus/cocotb failures and zero seal mismatches.
 - `lake build Trinity.IcarusLowerable.Soundness` remains green with zero `sorry`.
-- Closeout report, seal ceremony, integration test update, and three W586
+- Closeout report, seal ceremony, integration test update, and three W587
   variants recorded in `.trinity/current-issue.md`.

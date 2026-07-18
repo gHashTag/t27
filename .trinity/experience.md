@@ -1,3 +1,68 @@
+## 2026-07-07 — Wave Loop 585 (module-scope 7-D array-of-struct variable initialized from a call)
+
+### What worked
+- Variant C delivered a small, fast witness that covers a new scope/CSE
+  boundary without requiring any compiler or reference-model changes.
+- A module-level `pub var dst : [2]^7 Pt` can be initialized from a pure
+  function call returning a 524,288-bit packed vector; Icarus 12.0 lowers it
+  to a packed register with procedural initialization.
+- Reading `dst` at multiple whole-array and indexed bench/test sites passed,
+  confirming that the call result is materialized once and reused across sites.
+- Adding a second module-scope binding (`pub const expected`) initialized from
+  the same call exercised multi-site module-scope CSE without breaking
+  lowerability or simulation.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w585_bench_module_7d_aos_var_call_dedup.t27` (~16 KB /
+  ~40 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w585_bench_module_7d_aos_var_call_dedup`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 45 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` W585: PASS (short wall-clock).
+- Direct `t27c icarus-cocotb` W585: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- CompCert’s verified `CSE` pass resets equations at function calls and memory
+  stores to preserve semantics; t27’s Icarus-lowerable path similarly materializes
+  call results once and shares them, which is the guarantee tested by the
+  multi-site `dst`/`expected` bindings.
+- Global value numbering (Kildall 1973; Gulwani–Necula 2004) provides the
+  theoretical basis for detecting redundant computations across an entire
+  procedure; module-scope CSE is the module-level analogue.
+- IEEE 1800-2017 packed-array variables are well supported at 524,288 bits;
+  this is eight times smaller than the 4-MiBit W584 stress point and sixty-four
+  times smaller than the 18-D risk in Variant A.
+
+### Patterns to reuse
+- Use a moderate-width module-scope `var` initialized from a function call to
+  test scope boundaries while keeping direct simulation fast.
+- Pair a `const` and a `var` from the same call to exercise multi-site CSE
+  without duplicating large literals by hand.
+- Continue to choose non-rank-scaling variants when the previous wave already
+  established the practical CI wall-clock limit.
+
+### Anti-patterns to avoid
+- Do not push to 18-D (Variant A) without a CI timeout budget: W584 already took
+  ~22.5 minutes, and the next doubling is expected to exceed 40 minutes.
+- Do not assume module-scope `var` call initialization is identical to
+  function-local lowering; test it explicitly with a dedicated witness.
+- Avoid relying only on whole-array assertions for module-scope variables;
+  indexed assertions verify that the packed register layout is preserved.
+
+---
+
 ## 2026-07-07 — Wave Loop 584 (17-D array-of-struct return call deduplication)
 
 ### What worked
