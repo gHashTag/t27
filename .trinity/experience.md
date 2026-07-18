@@ -5630,3 +5630,75 @@ Sources:
 - Do not trust hand-written row-major arithmetic for 5-D non-power-of-two shapes
   without a quick script check.
 
+## 2026-07-07 — Wave Loop 572 (6-D array-of-struct return call deduplication)
+
+### What worked
+- The 6-D witness `[2][2][2][2][2][2]Pt` (2048-bit packed vector, 64 elements)
+  confirmed that the rank-agnostic paths scale cleanly from five to six
+  dimensions. No compiler or reference-model changes were required.
+- The generated Verilog declared a single 2048-bit packed-vector temporary per
+  block and reused it for local init, indexed field access, and whole-array
+  assertions.
+- The cocotb reference model independently built the same 2048-bit packed vector
+  and agreed with the VCD probes on the first run.
+- Hand-written row-major arithmetic for the two indexed probes was verified with
+  a small Python script before simulation.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w572_bench_6d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w572_bench_6d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W572_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 573 (Variant A recommended, Variant B
+  as non-p2 6-D, Variant C as module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 32 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W572 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Scientific / engineering background
+- Vitis HLS `array_reshape type=complete dim=0` flattens all dimensions of an
+  array into one wide register; the lowest-index element maps to the lowest bits,
+  matching t27's row-major packed-vector layout.
+- Intel/Altera HLS Compiler maps packed-struct arrays to contiguous signals with
+  the first-declared member in the low-order bits and no padding, the same
+  convention used by t27 for scalar structs.
+- CIRCT `HWLegalizeModules` recursively decomposes multi-dimensional packed arrays
+  into per-element or flat-bit operations; t27's recursive literal emission and
+  slice-access paths follow the same rank-agnostic strategy.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  `flat = (((((i0*d1+i1)*d2+i2)*d3+i3)*d4+i4)*d5+i5)`, identical to the linear
+  index expression emitted by t27 for 6-D access.
+
+Sources:
+- [Vitis HLS: Structs](https://docs.amd.com/r/en-US/ug1399-vitis-hls/Structs)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [Intel HLS Compiler: Mapping HLS Data Types to RTL Signals](https://www.intel.com/content/www/us/en/docs/programmable/683349/23-1/mapping-hls-data-types-to-rtl-signals.html)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+
+### Patterns to reuse
+- When a feature is supposed to be rank-agnostic, exercise the next claimed rank;
+  W572 proved the 5-D result generalizes to 6-D.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always verify expected-value arithmetic against the documented row-major layout
+  before changing compiler code.
+
+### Anti-patterns to avoid
+- Do not add another rank indefinitely without asking whether the next most
+  valuable stress test is a different dimension of the feature (scope, corner
+  cases, non-lowerable boundaries).
+- Do not assume a higher-rank witness will fail; let the gates decide whether the
+  compiler path is truly rank-agnostic.
+
