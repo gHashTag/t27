@@ -1956,3 +1956,7 @@
 - **Commit:** docs(w596): Wave Loop 596 closeout report — verification matrix update with fast sweep result
 - **Files:** .claude/plans/wave-loop-597.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w597_bench_module_13x2p11_aos_var_call_write.json,.trinity/seals/scratch_w597_bench_module_13x2p11_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W597_2026-07-07.md,specs/scratch/w597_bench_module_13x2p11_aos_var_call_write.t27
 
+## 2026-07-19T08:54:12Z — wave-loop-597
+- **Commit:** feat(igla): Wave Loop 597 — module-scope [13][2]^11 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
