@@ -968,6 +968,24 @@ fn accepts_w592_bench_module_3x2p15_aos_var_call_write() {
 }
 
 #[test]
+fn accepts_w593_bench_module_5x2p15_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w593_bench_module_5x2p15_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W593 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [
