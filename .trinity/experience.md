@@ -7340,3 +7340,46 @@ Sources:
   of the verification gate.
 - Do not assume that a non-power-of-two outer dimension stops working after a
   certain size; test it with a controlled witness instead.
+
+## Wave Loop 596 — 2026-07-07
+
+### What worked
+- Variant A (`[11][2]^12 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 11.
+- Agent E weak-point analysis correctly identified the outer-dimension-11 risk and
+  recommended continuing the odd outer-dimension ladder while staying under the
+  4-MiBit cliff; the 1.37-MiBit point produced a smaller witness than W595.
+- Multi-line W584-style brace style kept the 13-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 45,056 elements (`max raw 90111`, `90111 % 32768 = 24574`).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 56/0 (new W596 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- Direct `t27c icarus-simulate` W596 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W596 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, ...) for module-scope
+  packed AoS witnesses; the compiler and reference model are dimension-agnostic as
+  long as the total width stays inside simulator comfort.
+- Smaller witnesses under the cliff run faster, making them good daily-wave
+  material while still expanding layout coverage.
+
+### Anti-patterns to avoid
+- Do not skip the odd outer-dimension ladder and jump straight to the 8-MiBit
+  power-of-two jump; the cliff should be crossed only with explicit chunked-literal
+  design.
+- Do not assume that because W595 passed, W596 will pass without a fresh witness;
+  each new outer dimension is a distinct regression data point.
