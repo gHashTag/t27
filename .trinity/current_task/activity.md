@@ -1960,3 +1960,15 @@
 - **Commit:** feat(igla): Wave Loop 597 — module-scope [13][2]^11 Pt non-p2 AoS var from call with indexed signed writes
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-19T08:54:18Z — wave-loop-597
+- **Commit:** chore(trinity): record W596/W597 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T08:54:23Z — wave-loop-597
+- **Commit:** chore(trinity): record W597 session log and commit count increment
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T08:54:26Z — wave-loop-597
+- **Commit:** chore(trinity): record W597 session log and commit count increment
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
