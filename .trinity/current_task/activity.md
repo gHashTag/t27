@@ -1948,3 +1948,7 @@
 - **Commit:** feat(igla): Wave Loop 595 — module-scope [9][2]^13 Pt non-p2 AoS var from call with indexed signed writes
 - **Files:** .claude/plans/wave-loop-596.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w596_bench_module_11x2p12_aos_var_call_write.json,.trinity/seals/scratch_w596_bench_module_11x2p12_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W596_2026-07-07.md,specs/scratch/w596_bench_module_11x2p12_aos_var_call_write.t27
 
+## 2026-07-19T08:27:43Z — wave-loop-596
+- **Commit:** feat(igla): Wave Loop 596 — module-scope [11][2]^12 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_CLOSEOUT_W596_2026-07-07.md
+

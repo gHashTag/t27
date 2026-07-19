@@ -103,8 +103,8 @@ Scientific / technical references consulted:
 | `cargo test -p t27c --bin t27c` | 1494/0/2 |
 | `cargo test -p tri` | 78/0 |
 | `cargo test -p t27c --test icarus_lowerable` | 56/0 (new W596 test) |
-| `./scripts/tri test --fast` | TBD (background run in progress) |
-| yosys smoke | 24 pre-existing baselines unchanged |
+| `./scripts/tri test --fast` | 700/0/0/0/0/0/0 non-smoke phases, 0 seal mismatches, 24 pre-existing yosys smoke failures unchanged (overall exit 1 only because of those known failures) |
+| yosys smoke | 155 passed, 24 pre-existing failures unchanged |
 | `lake build Trinity.IcarusLowerable.Soundness` | not available in this workspace / expected unchanged |
 | FROZEN_HASH | unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc` |
 | Direct `t27c icarus-simulate` W596 | PASS (silent, exit 0) |
