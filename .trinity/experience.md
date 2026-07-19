@@ -7383,3 +7383,52 @@ Sources:
   design.
 - Do not assume that because W595 passed, W596 will pass without a fresh witness;
   each new outer dimension is a distinct regression data point.
+
+---
+
+## Wave Loop 597 — 2026-07-07
+
+### What worked
+- Variant A (`[13][2]^11 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 13.
+- The W596 closeout report incorrectly sized this variant as 1,114,112 bits /
+  34,816 elements; the corrected arithmetic for `[13][2]^11 Pt` is 26,624 elements
+  and 852,032 bits (≈0.81 MiBit). Reconciling the plan with the actual witness early
+  avoided a mismatch between promised and delivered scope.
+- Multi-line W584-style brace style kept the 11-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 26,624 elements (`max raw 53247`, `53247 % 32768 = 20479`).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 57/0 (new W597 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run to completion — Phase 1 Parse dominated by
+  large literal specs and made no progress after ~20 min wall-clock.
+- Direct `t27c icarus-simulate` W597 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W597 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, ...) for module-scope
+  packed AoS witnesses; the compiler and reference model are dimension-agnostic as
+  long as the total width stays inside simulator comfort.
+- Smaller witnesses under the cliff run fast and are good daily-wave material,
+  but still require a fresh integration test and direct simulation because each
+  new outer stride is a distinct layout data point.
+
+### Anti-patterns to avoid
+- Do not copy forward size estimates from the previous closeout report without
+  recomputing them; dimensions and element counts must match.
+- Do not wait for the full `./scripts/tri test --fast` sweep when Phase 1 Parse
+  is blocked by unrelated giant literal specs; direct Icarus and cocotb gates on
+  the new witness are sufficient for a zero-change wave.
