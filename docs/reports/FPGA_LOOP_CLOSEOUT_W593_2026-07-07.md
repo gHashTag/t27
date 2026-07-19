@@ -99,7 +99,7 @@ Scientific / technical references consulted:
 | `cargo test -p tri` | 78/0 |
 | `cargo test -p t27c --test icarus_lowerable` | 53/0 (new W593 test) |
 | `./scripts/tri test --fast` | 697 passed / 0 seal mismatches (152 yosys smoke PASS / 24 pre-existing failures) |
-| `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast` | TBD |
+| `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast` | in progress (currently simulating W590) |
 | yosys smoke | 152 passed, 24 pre-existing failures unchanged |
 | `lake build Trinity.IcarusLowerable.Soundness` | not available in this workspace / expected unchanged |
 | FROZEN_HASH | unchanged |

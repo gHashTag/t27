@@ -1,3 +1,67 @@
+## 2026-07-07 — Wave Loop 594 (module-scope `[7][2]^14 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant B stayed comfortably under the 4-MiBit cliff (3.67 MiBit) and
+  exercised the first module-scope packed AoS with an outer dimension of 7.
+- A module-level `pub var dst : [7][2]^14 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler
+  changes. The W589 `gen_verilog_var`/`gen_verilog_const` wholesale paths and
+  the generic indexed field-write paths are dimension-agnostic.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 7, confirming the layout is preserved end-to-end.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w594_bench_module_7x2p14_aos_var_call_write.t27` (~24.4 MB /
+  ~316k lines) with seal and Icarus baseline.
+- Added integration test `accepts_w594_bench_module_7x2p14_aos_var_call_write`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 54 passed; 0 failed.
+- `./scripts/tri test --fast`: TBD (background run in progress).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: TBD
+  (full pipeline still running).
+- Direct `t27c icarus-simulate` W594: PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W594: PASS (reference-model OK).
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant B emits a single
+  3,670,016-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+
+### Anti-patterns to avoid
+- Do not rely on a single power-of-two dimension to prove layout correctness;
+  add a dedicated non-p2 module-scope witness.
+- Avoid adding a second giant literal in the same module; it roughly doubles
+  generated-file size and wall-clock for little extra coverage.
+- Do not jump directly to `[2]^18` (Variant A) without first probing the
+  simulator at intermediate widths.
+
+---
+
 ## 2026-07-07 — Wave Loop 593 (module-scope `[5][2]^15 Pt` non-power-of-two outer-dimension AoS variable)
 
 ### What worked
@@ -25,7 +89,8 @@
 - `cargo test -p tri`: 78 passed; 0 failed.
 - `cargo test -p t27c --test icarus_lowerable`: 53 passed; 0 failed.
 - `./scripts/tri test --fast`: 697 passed; 0 seal mismatches (152 yosys smoke PASS / 24 pre-existing failures).
-- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: TBD.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: in
+  progress (currently simulating W590).
 - Direct `t27c icarus-simulate` W593: PASS (silent, exit 0).
 - Direct `t27c icarus-cocotb` W593: PASS (reference-model OK).
 - `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
