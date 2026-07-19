@@ -2288,3 +2288,11 @@
 - **Commit:** chore(trinity): record W631 session log and commit count
 - **Files:** .claude/plans/wave-loop-632.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w632_bench_module_83x2p6_aos_var_call_write.json,.trinity/seals/scratch_w632_bench_module_83x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W632_2026-07-07.md,scripts/gen_w632.py,specs/scratch/w632_bench_module_83x2p6_aos_var_call_write.t27
 
+## 2026-07-19T20:03:55Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 632 — module-scope [83][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** 
+
+## 2026-07-19T20:04:01Z — wave-loop-623
+- **Commit:** chore(trinity): record W632 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
