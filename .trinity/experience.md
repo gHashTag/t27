@@ -7815,3 +7815,63 @@ Sources:
   signal is about modulo semantics, not value size.
 - Do not skip the fresh integration test for small witnesses; outer stride 29 is
   a distinct layout data point.
+
+---
+
+## Wave Loop 606 — 2026-07-07
+
+### What worked
+- Variant A (`[31][2]^6 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 31.
+- With 1,984 elements, the offset-0 value schedule never wraps modulo 32768. An
+  explicit shifted call `make_grid(32768)` was retained to keep the modulo-wrap
+  regression signal equivalent to earlier waves, and it passed in both Icarus and
+  cocotb.
+- Multi-line W584-style brace style kept the 6-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 1,984 elements (`max raw 3967`, well below 32768).
+- Reusing the exact W605 module-scope lowerable style (`pub var dst`, `pub const
+  expected`, explicit array-type annotations, `.x = ...` field initializers,
+  separate `test`/`bench` blocks) avoided a parse-valid-but-unlowerable syntax
+  trap encountered in an early draft.
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+- Early W606 draft lesson: bench-local `mut dst` and compact `{ x y }` struct
+  literals parsed but produced invalid Verilog (unbound `_x`/`_y`, zeroed
+  `make_grid` body). The lowerable subset has a single well-supported path; match
+  the established W605 style rather than inventing equivalent-looking syntax.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 66/0 (new W606 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W606 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W606 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 31 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
