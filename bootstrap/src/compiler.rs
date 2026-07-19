@@ -5767,6 +5767,37 @@ impl VerilogCodegen {
             return;
         }
 
+        // W589: module-level multi-dimensional arrays of scalar structs
+        // initialized by a function call are lowered as a single packed
+        // parameter/localparam, assigned directly from the function's packed
+        // return value.
+        if let Some((_dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            if self.struct_decls.contains_key(&elem_type)
+                && !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprCall
+            {
+                let width = self.packed_width(&node.extra_type);
+                let signed = self.packed_signed(&node.extra_type);
+                let range = Self::range_decl(width);
+                self.write_indent();
+                if node.extra_pub {
+                    self.write("parameter ");
+                } else {
+                    self.write("localparam ");
+                }
+                if signed {
+                    self.write("signed ");
+                }
+                if !range.is_empty() {
+                    self.write(&format!("{} ", range));
+                }
+                self.write(&format!("{} = ", node.name));
+                self.gen_verilog_expr(&node.children[0]);
+                self.write_line(";");
+                return;
+            }
+        }
+
         // W528: multi-dimensional arrays of scalar structs are lowered as a
         // single packed parameter/localparam, matching the function-local
         // packed-vector AoS layout.
@@ -5989,6 +6020,40 @@ impl VerilogCodegen {
             }
             self.write_line("");
             return;
+        }
+
+        // W589: module-level multi-dimensional arrays of scalar structs
+        // initialized by a function call are lowered as a single packed-vector
+        // register, assigned wholesale from the function's packed return value.
+        if let Some((_dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            if self.struct_decls.contains_key(&elem_type)
+                && !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprCall
+            {
+                let width = self.packed_width(&node.extra_type);
+                let signed = self.packed_signed(&node.extra_type);
+                let signed_str = if signed { "signed " } else { "" };
+                let range = Self::range_decl(width);
+                self.write_indent();
+                self.write(&format!("reg {}{}", signed_str, range));
+                if !range.is_empty() {
+                    self.write(" ");
+                }
+                self.write_line(&format!("{};", node.name),
+                );
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                self.write_indent();
+                self.write(&format!("{} = ", node.name));
+                self.gen_verilog_expr(&node.children[0]);
+                self.write_line(";");
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+                self.write_line("");
+                return;
+            }
         }
 
         // W528: multi-dimensional arrays of scalar structs are lowered as a

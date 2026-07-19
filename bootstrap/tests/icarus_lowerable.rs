@@ -896,6 +896,78 @@ fn accepts_w588_bench_module_9d_aos_var_call_write() {
 }
 
 #[test]
+fn accepts_w589_bench_module_17d_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w589_bench_module_17d_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W589 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w590_bench_module_17d_aos_var_call_reassign() {
+    let dir = scratch_dir();
+    for name in &[
+        "w590_bench_module_17d_aos_var_call_reassign.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W590 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w591_bench_module_17d_aos_var_literal_reassign() {
+    let dir = scratch_dir();
+    for name in &[
+        "w591_bench_module_17d_aos_var_literal_reassign.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W591 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w592_bench_module_3x2p15_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w592_bench_module_3x2p15_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W592 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [

@@ -1,3 +1,131 @@
+## 2026-07-07 — Wave Loop 592 (module-scope `[3][2]^15 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant B stayed under the validated 4-MiBit cliff (3.1 MiBit) and exercised
+  the first module-scope packed AoS with a non-power-of-two outer dimension.
+- A module-level `pub var dst : [3][2]^15 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler
+  changes. The W589 `gen_verilog_var`/`gen_verilog_const` wholesale paths and
+  the generic indexed field-write paths are dimension-agnostic.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 3, confirming the layout is preserved end-to-end.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w592_bench_module_3x2p15_aos_var_call_write.t27` (~23 MB /
+  ~295k lines) with seal and Icarus baseline.
+- Added integration test `accepts_w592_bench_module_3x2p15_aos_var_call_write`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 52 passed; 0 failed.
+- `./scripts/tri test --fast`: 696 passed; 0 seal mismatches (151 yosys smoke PASS).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 79
+  Icarus PASS, 79 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke
+  baseline failures unchanged.
+- Direct `t27c icarus-simulate` W592: PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W592: PASS (reference-model OK).
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant B emits a single
+  3,145,728-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus commit `128c621` fixed a packed-array bound-width overflow, and issue
+  #1171 documents remaining capacity risks above ~4 MiBit; Variant B stays
+  safely under that threshold.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 98,304.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the 4-MiBit cliff is crossed.
+
+### Anti-patterns to avoid
+- Do not assume non-power-of-two dimensions are naturally tested by power-of-two
+  witnesses; add a dedicated non-p2 module-scope witness to prove layout.
+- Do not push to 18-D (Variant A) without a CI timeout budget: the next doubling
+  is expected to exceed the interactive limit.
+- Avoid adding a second giant literal in the same module; it roughly doubles
+  generated-file size and wall-clock for little extra coverage.
+
+---
+
+## 2026-07-07 — Wave Loop 591 (module-scope 17-D AoS variable initialized from a call, then wholesale-reassigned to a packed array literal)
+
+### What worked
+- Variant C stayed at the validated 4-MiBit cliff and tested a new RHS shape
+  for whole-array reassignment: a packed array literal on the right-hand side
+  of `dst = expected_b;`.
+- A module-level `pub var dst : [2]^17 Pt` can be initialized from a function
+  call and then reassigned to a module-scope constant packed literal with zero
+  compiler changes. The generic `StmtAssign` path + `gen_verilog_expr
+  ExprArrayLiteral` emitted the correct wholesale Verilog assignment.
+- Indexed signed field writes and read-back after literal reassignment passed,
+  confirming the packed register layout is preserved.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w591_bench_module_17d_aos_var_literal_reassign.t27` (~14 MB /
+  ~786k lines) with seal and Icarus baseline.
+- Added integration test `accepts_w591_bench_module_17d_aos_var_literal_reassign`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 51 passed; 0 failed.
+- `./scripts/tri test --fast`: 695 passed; 0 seal mismatches.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 78
+  Icarus PASS, 78 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke
+  baseline failures unchanged.
+- Direct `t27c icarus-simulate` W591: PASS (~12 min 50 s).
+- Direct `t27c icarus-cocotb` W591: PASS (~13 min).
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.3 permits continuous and procedural assignments to packed
+  arrays of packed structs; t27's lowering maps scalar-struct arrays onto this
+  construct.
+- Whole-array assignment of a packed vector from a concatenation on the RHS is
+  single-statement in Verilog (`dst = { ... };`) and avoids per-element loop
+  overhead that might otherwise dominate at 131,072 elements.
+- EDA Playground / Cadence reports show simulator-specific segfaults around
+  500 kbit packed vectors; Icarus 12.0 on this host handled two 4-MiBit literals
+  in one module without crash, at the cost of longer compile/simulate time.
+
+### Patterns to reuse
+- When the previous wave established a compiler path, vary the RHS expression
+  class (call vs. literal) to broaden coverage without adding new implementation.
+- Use a second module-scope `const` literal to represent the post-assignment
+  expected state; it can be checked with the same whole-array and indexed
+  assertions.
+- Keep leaf values inside signed i16 with modulo schedules even when offsets are
+  added to the second literal.
+
+### Anti-patterns to avoid
+- Do not duplicate 4-MiBit literals routinely: simulation time scales with the
+  number of giant concatenations. Prefer function-call CSE when possible.
+- Do not assume that `StmtAssign` can lower every array-literal shape; verify
+  the generated Verilog for the new shape on a small witness first.
+- Do not use single-line brace style for extreme-rank literals; the parser can
+  silently truncate them.
+
+---
+
 ## 2026-07-07 — Wave Loop 585 (module-scope 7-D array-of-struct variable initialized from a call)
 
 ### What worked
@@ -6938,3 +7066,104 @@ Sources:
 - Do not assume that because 8-D passed, 10-D will pass interactively; the
   4-MiBit cliff is real and should be crossed only with explicit chunked-literal
   design.
+
+## Wave Loop 589 — 2026-07-07
+
+### What worked
+- Variant C (module-scope `[2]^17 Pt` variable initialized from a call with
+  indexed signed field writes) was implemented by fixing the module-scope
+  multi-D scalar-struct array call-initializer path in `gen_verilog_var` and
+  `gen_verilog_const`.
+- Agent E weak-point analysis correctly identified the giant-concatenation,
+  signed-overflow, and silent-uninitialized-register risks before implementation.
+- Keeping leaf values inside signed i16 with `(2*i)%32768` avoided simulator
+  truncation issues.
+- Generating the literal in multi-line W584-style made the parser produce a
+  complete AST; single-line 17-D literals parsed without error but dropped the
+  trailing module declarations.
+
+### Root cause / fix
+- `emit_packed_struct_array_init` only accepts `ExprArrayLiteral` initializers.
+  A function-call initializer for a module-scope multi-D scalar-struct array
+  fell through and left the `reg` uninitialized / emitted `parameter ... = 0`.
+- Added dedicated branches in `gen_verilog_var` and `gen_verilog_const` that
+  detect `ExprCall` initializers and emit wholesale packed assignment:
+  `reg [W-1:0] dst; initial dst = make_fn(...);` and the corresponding
+  `parameter` form.
+
+### Numbers / gates
+- FROZEN_HASH updated: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 49/0 (new W589 test added).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  76/76 Icarus PASS / 76/76 cocotb PASS / 0 seal mismatches after reseal /
+  24 pre-existing yosys smoke baselines.
+- `./scripts/tri test --fast` (post-reseal): 693 passed, 0 seal mismatches.
+- Resealed affected existing seals:
+  `w585_bench_module_7d_aos_var_call_dedup`,
+  `w587_bench_module_8d_aos_var_call_write`,
+  `w588_bench_module_9d_aos_var_call_write`.
+- Direct `t27c icarus-simulate` and `t27c icarus-cocotb` W589 PASS.
+
+### Patterns to reuse
+- Use wholesale packed assignment for module-scope multi-D scalar-struct arrays
+  initialized from function calls; the per-element procedural init path is only
+  for literal initializers.
+- Generate extreme-rank array literals in multi-line brace style matching
+  existing witnesses; do not rely on single-line mega-literals.
+- Constrain witness leaf values to the signed field range to avoid
+  simulator-dependent truncation of `16'sdN` literals.
+
+### Anti-patterns to avoid
+- Do not assume a malformed or over-long literal will fail loudly at parse time;
+  the parser may accept it but emit an incomplete AST.
+- Do not leave multi-D scalar-struct array call initializers in the
+  literal-only emitter path; always provide a wholesale branch.
+- Do not probe the absolute MSB element of a vector whose width is exactly a
+  signed-field boundary; choose interior elements for frame-condition checks.
+
+## Wave Loop 590 — 2026-07-07
+
+### What worked
+- Variant C (`[2]^17 Pt` module-scope mutable AoS initialized from one call, then
+  whole-array reassigned to a second call result) was implemented with **zero
+  compiler changes**. The W589 wholesale assignment path, W557 call-return CSE
+  temporaries, and generic `StmtAssign` packed-vector path already handled mutable
+  whole-array reassignment.
+- Agent E weak-point analysis correctly identified that Variant A (18-D) would
+  cross the 4-MiBit cliff and Variant B (non-p2 outer dimension) was lower-value,
+  leaving Variant C as the best interactive target.
+- The multi-line W584 brace style kept the 17-D literal parseable; a single-line
+  literal would have silently truncated the AST again.
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, and baseline.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 50/0 (new W590 test added).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  77/77 Icarus PASS / 77/77 cocotb PASS / 0 seal mismatches / 24 pre-existing
+  yosys smoke baselines.
+- `./scripts/tri test --fast`: 694 passed / 0 seal mismatches.
+- Direct `t27c icarus-simulate` W590 PASS (~11.5 min).
+- Direct `t27c icarus-cocotb` W590 PASS (~12 min).
+
+### Patterns to reuse
+- Use whole-array reassignment `dst = make_other(...);` for module-scope packed
+  multi-D scalar-struct `reg`s; the existing CSE + `StmtAssign` paths already
+  materialize the necessary packed-vector temporary.
+- When two 4-MiBit literals are needed in one spec, expect roughly doubled
+  wall-clock; plan batch gates with `--fast` accordingly.
+
+### Anti-patterns to avoid
+- Do not assume that a second 4-MiBit function in the same module is free; each
+  one is a giant concatenation that the simulator must process.
+- Do not use single-line literals for ranks above ~10; the parser accepts them
+  but produces incomplete ASTs.
