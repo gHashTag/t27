@@ -2268,3 +2268,15 @@
 - **Commit:** feat(igla): Wave Loop 630 — module-scope [79][2]^6 Pt non-p2 AoS var from call with indexed signed writes
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
 
+## 2026-07-07 — wave-loop-631
+- **Commit:** feat(igla): Wave Loop 631 — module-scope [81][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-631.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w631_bench_module_81x2p6_aos_var_call_write.json,.trinity/seals/scratch_w631_bench_module_81x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W631_2026-07-07.md,specs/scratch/w631_bench_module_81x2p6_aos_var_call_write.t27,scripts/gen_w631.py
+
+## 2026-07-07 — wave-loop-631
+- **Commit:** chore(trinity): record W631 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T19:53:11Z — wave-loop-623
+- **Commit:** chore(trinity): record W630 session log and commit count
+- **Files:** .claude/plans/wave-loop-631.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w631_bench_module_81x2p6_aos_var_call_write.json,.trinity/seals/scratch_w631_bench_module_81x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W631_2026-07-07.md,scripts/gen_w631.py,specs/scratch/w631_bench_module_81x2p6_aos_var_call_write.t27
+
