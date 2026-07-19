@@ -1,59 +1,59 @@
-# Wave Loop 609 — Current Issue
+# Wave Loop 610 — Current Issue
 
-**Issue #1580** — Module-scope `[37][2]^6 Pt` array-of-struct variable with a
+**Issue #1581** — Module-scope `[39][2]^6 Pt` array-of-struct variable with a
 non-power-of-two outer dimension, initialized from a function call, with indexed
 signed field writes.
-**Branch:** `wave-loop-609`.
-**Previous:** Wave Loop 608 (#1579, branch `wave-loop-608`).
+**Branch:** `wave-loop-610`.
+**Previous:** Wave Loop 609 (#1580, branch `wave-loop-609`).
 
 ## Chosen cooperation variant
 
-**Variant A — `[37][2]^6 Pt` initialized from a call, with indexed signed field
+**Variant A — `[39][2]^6 Pt` initialized from a call, with indexed signed field
 writes and read-back.**
 
-Witness: `specs/scratch/w609_bench_module_37x2p6_aos_var_call_write.t27`.
+Witness: `specs/scratch/w610_bench_module_39x2p6_aos_var_call_write.t27`.
 
 - `pub struct Pt { x : i16, y : i16 }`
-- `pub fn make_grid(offset : u16) -> [37][2]^6 Pt` returning a 75,776-bit packed
-  literal with 2,368 elements, leaf values `x=(2*e + offset)%32768`,
+- `pub fn make_grid(offset : u16) -> [39][2]^6 Pt` returning a 79,872-bit packed
+  literal with 2,496 elements, leaf values `x=(2*e + offset)%32768`,
   `y=(2*e + offset + 1)%32768`.
-- `pub const expected : [37][2]^6 Pt = make_grid(0);`
-- `pub var dst : [37][2]^6 Pt = make_grid(0);`
-- `test module_var_37x2p6_call_write`: initial state equals `expected`, plus
+- `pub const expected : [39][2]^6 Pt = make_grid(0);`
+- `pub var dst : [39][2]^6 Pt = make_grid(0);`
+- `test module_var_39x2p6_call_write`: initial state equals `expected`, plus
   corner indexed reads (first element, last element, mid element, and an explicit
   modulo-wrap check using `make_grid(32768)`).
-- `bench module_bench_37x2p6_call_write`: whole-array equality before writes,
+- `bench module_bench_39x2p6_call_write`: whole-array equality before writes,
   indexed reads, signed indexed writes, read-back, frame-condition checks,
   whole-array inequality after partial writes.
 
 This variant tests a module-scope packed AoS with a non-power-of-two outer
-dimension (37), reaching 75,776 bits (≈0.072 MiBit), well under the 4-MiBit
+dimension (39), reaching 79,872 bits (≈0.076 MiBit), well under the 4-MiBit
 cliff, without requiring new compiler support.
 
-## Background from Wave Loop 608
+## Background from Wave Loop 609
 
-W608 validated a module-scope `[35][2]^6 Pt` (71,680-bit) mutable packed reg
+W609 validated a module-scope `[37][2]^6 Pt` (75,776-bit) mutable packed reg
 initialized from a function call, with indexed signed field writes, with zero
-compiler changes. Because 2,240 elements are below the natural modulo-wrap
+compiler changes. Because 2,368 elements are below the natural modulo-wrap
 point, the test retained an explicit `make_grid(32768)` call to preserve the
-modulo-wrap regression signal. W605–W608 all use the same module-scope
+modulo-wrap regression signal. W605–W609 all use the same module-scope
 lowerable style after W606 showed that alternative syntax can parse but produce
 invalid Verilog.
 
-## Open risks for W609
+## Open risks for W610
 
-1. **First outer dimension 37.** The compiler and reference model must
-   multiply/stride by 37 at the outer dimension. Prior non-p2 witnesses
-   (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35) suggest this is safe, but a module-scope
+1. **First outer dimension 39.** The compiler and reference model must
+   multiply/stride by 39 at the outer dimension. Prior non-p2 witnesses
+   (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37) suggest this is safe, but a module-scope
    witness is needed for end-to-end proof.
-2. **Element count below the modulo-wrap point.** With only 2,368 elements,
-   the offset-0 schedule `(2*e + offset) % 32768` never wraps (max raw 4,735).
+2. **Element count below the modulo-wrap point.** With only 2,496 elements,
+   the offset-0 schedule `(2*e + offset) % 32768` never wraps (max raw 4,991).
    The test must explicitly exercise modulo wrap with a shifted call such as
    `make_grid(32768)` to keep the regression signal equivalent to earlier waves.
 3. **Parser tolerance for single-line mega-literals.** Multi-line W584-style
-   brace style remains mandatory for the 6-D nested literal inside the 37×
+   brace style remains mandatory for the 6-D nested literal inside the 39×
    outer shape.
-4. **Simulator capacity.** At 0.072 MiBit the witness is expected to be very fast
+4. **Simulator capacity.** At 0.076 MiBit the witness is expected to be very fast
    and comfortably interactive.
 
 ## Scientific / technical background
@@ -69,7 +69,7 @@ invalid Verilog.
 - Icarus issue #1134 — assertion failures with unpacked arrays of packed
   structs; t27 flattening avoids the trigger.
 - Icarus issue #1171 — freezes during elaboration of very large packed vectors;
-  W609 stays far below the reported threshold.
+  W610 stays far below the reported threshold.
 - Yosys docs / PR #4100 / issue #4653 / issue #2677 — multidimensional packed
   arrays supported, arrays of packed structs still unsupported; t27 flattening
   avoids the gap.
@@ -79,11 +79,11 @@ invalid Verilog.
 - CIRCT `HWLegalizeModules.cpp` / SV dialect — production packed-array
   scalarization.
 
-## Next Wave Loop 610 cooperation variants
+## Next Wave Loop 611 cooperation variants
 
-1. **Variant A — `[39][2]^6 Pt` module-scope var from a call with indexed signed
+1. **Variant A — `[41][2]^6 Pt` module-scope var from a call with indexed signed
    writes.**
-   79,872-bit packed vector, 2,496 elements, non-power-of-two outer dimension 39
+   83,968-bit packed vector, 2,624 elements, non-power-of-two outer dimension 41
    well under the 4-MiBit cliff. Continues the odd outer-dimension ladder.
    **Recommended.**
 
@@ -93,8 +93,8 @@ invalid Verilog.
    2× and will likely hit Icarus/Yosys compile-time or memory limits
    interactively. Not recommended without chunked-literal design.
 
-3. **Variant C — `[37][2]^6 Pt` module-scope var initialized from a call, then
+3. **Variant C — `[39][2]^6 Pt` module-scope var initialized from a call, then
    conditionally reassigned inside an `if` statement, followed by indexed signed
    field writes.**
-   Stays at 0.072 MiBit and tests that control-flow guarded whole-array
+   Stays at 0.076 MiBit and tests that control-flow guarded whole-array
    reassignment of a packed `reg` works correctly. Useful follow-up to W590/W591.
