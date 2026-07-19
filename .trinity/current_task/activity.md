@@ -2032,3 +2032,7 @@
 - **Commit:** chore(trinity): record W604 session log and commit count increment
 - **Files:** .claude/plans/wave-loop-605.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w605_bench_module_29x2p6_aos_var_call_write.json,.trinity/seals/scratch_w605_bench_module_29x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W605_2026-07-07.md,specs/scratch/w605_bench_module_29x2p6_aos_var_call_write.t27
 
+## 2026-07-19T14:56:26Z — wave-loop-605
+- **Commit:** feat(igla): Wave Loop 605 — module-scope [29][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
