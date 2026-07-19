@@ -7527,3 +7527,51 @@ Sources:
   signal is about modulo semantics, not value size.
 - Do not skip the fresh integration test for small witnesses; outer stride 17 is
   a distinct layout data point.
+
+---
+
+## Wave Loop 600 — 2026-07-07
+
+### What worked
+- Variant A (`[19][2]^8 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 19.
+- With only 4,864 elements, the offset-0 value schedule never wraps modulo 32768.
+  An explicit shifted call `make_grid(32768)` was retained to keep the modulo-wrap
+  regression signal equivalent to earlier waves, and it passed in both Icarus
+  and cocotb.
+- Multi-line W584-style brace style kept the 8-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 4,864 elements (`max raw 9727`, well below 32768).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 60/0 (new W600 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W600 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W600 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, ...) for
+  module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 19 is
+  a distinct layout data point.
