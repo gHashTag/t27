@@ -8966,3 +8966,57 @@ Sources:
   outer dimension changes.
 - Do not rely on `./scripts/tri test --fast` for very large literal specs; use
   the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## Wave Loop 629 — module-scope `[77][2]^6 Pt` non-p2 AoS var from call
+
+### What worked
+- Extending the W628 witness to outer dimension 77 by adding two more row blocks
+  (+128/+256 value offsets per row) produced a valid multi-line literal that
+  parsed, lowered, simulated, and reference-matched on the first attempt.
+- The exact W605/W628 module-scope lowerable style was reused: `pub var dst`,
+  `pub const expected`, explicit `[77][2][2][2][2][2][2] Pt` type annotations,
+  `Pt{ .x = ..., .y = ... }` field initializers, separate `test`/`bench` blocks.
+- Corner indices updated consistently: last row `[76]` (was `[74]`), mid row
+  `[38]` (was `[37]`), expected values `9854/9855` and `4928/4929`.
+
+### Surprises / weak points
+- The 77-outer pattern (4,928 elements, 157,696-bit packed vector) passed all
+  gates with no compiler or reference-model changes.
+- The row-block extension pattern remains robust and is now the standard template
+  for continuing the odd outer-dimension ladder.
+- `./scripts/tri test --fast` Phase 1 Parse is still dominated by unrelated large
+  literal specs in earlier waves; direct `t27c` gates remain the practical closeout
+  path.
+
+### Metrics
+- Packed vector: `77 * 2^6 = 4,928` elements, `157,696` bits (~0.149 MiBit).
+- Spec lines: ~14,700.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 89/0 (new W629 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W629 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W629 PASS (reference-model OK).
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 77, 79, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
