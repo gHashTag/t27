@@ -8367,3 +8367,51 @@ Sources:
   a distinct layout data point.
 - Do not assume that a spec which parses and emits Verilog is correct; run the
   Icarus and cocotb gates before sealing.
+
+## Wave Loop 617 — module-scope `[53][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 53 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w617_bench_module_53x2p6_aos_var_call_write.t27`.
+- Reusing the exact W616 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w617_bench_module_53x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 77/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w617_bench_module_53x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w617_bench_module_53x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 53-outer pattern (3,392 elements, 108,544-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `53 * 2^6 = 3,392` elements, `108,544` bits (~0.103 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 77/0 (new W617 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W617 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W617 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 53 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
