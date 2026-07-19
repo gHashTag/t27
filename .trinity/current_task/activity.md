@@ -2344,3 +2344,43 @@
 - **Commit:** chore(trinity): record W637 session log and commit count
 - **Files:** .claude/plans/wave-loop-638.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w638_bench_module_95x2p6_aos_var_call_write.json,.trinity/seals/scratch_w638_bench_module_95x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W638_2026-07-07.md,scripts/gen_w638.py,specs/scratch/w638_bench_module_95x2p6_aos_var_call_write.t27
 
+## 2026-07-19T21:25:12Z — wave-loop-638
+- **Commit:** feat(igla): Wave Loop 638 — module-scope [95][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:17Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:17Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:18Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:18Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:19Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:19Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:20Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:20Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:24Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
