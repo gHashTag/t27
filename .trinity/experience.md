@@ -7432,3 +7432,50 @@ Sources:
 - Do not wait for the full `./scripts/tri test --fast` sweep when Phase 1 Parse
   is blocked by unrelated giant literal specs; direct Icarus and cocotb gates on
   the new witness are sufficient for a zero-change wave.
+
+---
+
+## Wave Loop 598 — 2026-07-07
+
+### What worked
+- Variant A (`[15][2]^10 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 15.
+- With only 15,360 elements, the offset-0 value schedule never wraps modulo 32768.
+  An explicit shifted call `make_grid(32768)` was added to the test to keep the
+  modulo-wrap regression signal equivalent to earlier waves, and it passed in both
+  Icarus and cocotb.
+- Multi-line W584-style brace style kept the 10-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 15,360 elements (`max raw 30719`, well below 32768).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 58/0 (new W598 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W598 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W598 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, ...) for
+  module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- When element count drops below the natural modulo-wrap point, add an explicit
+  shifted call (e.g., `make_grid(32768)`) to preserve the wrap regression signal.
+
+### Anti-patterns to avoid
+- Do not drop the modulo-wrap assertion just because the offset-0 schedule fits
+  in range; the regression signal is about `% 32768` semantics, not just value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 15 is
+  still a distinct layout data point.
