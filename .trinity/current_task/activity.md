@@ -1976,3 +1976,7 @@
 - **Commit:** chore(trinity): record W597 session log and commit count increment
 - **Files:** .claude/plans/wave-loop-598.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w598_bench_module_15x2p10_aos_var_call_write.json,.trinity/seals/scratch_w598_bench_module_15x2p10_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W598_2026-07-07.md,specs/scratch/w598_bench_module_15x2p10_aos_var_call_write.t27
 
+## 2026-07-19T08:59:23Z — wave-loop-598
+- **Commit:** feat(igla): Wave Loop 598 — module-scope [15][2]^10 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
