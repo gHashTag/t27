@@ -2480,3 +2480,7 @@
 - **Commit:** chore(trinity): record W644 session log and commit count
 - **Files:** .claude/plans/wave-loop-645.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w645_bench_module_109x2p6_aos_var_call_write.json,.trinity/seals/scratch_w645_bench_module_109x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W645_2026-07-07.md,scripts/gen_w645.py,specs/scratch/w645_bench_module_109x2p6_aos_var_call_write.t27
 
+## 2026-07-19T23:16:53Z — wave-loop-645
+- **Commit:** feat(igla): Wave Loop 645 — module-scope [109][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
