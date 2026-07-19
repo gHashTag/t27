@@ -2224,3 +2224,15 @@
 - **Commit:** chore(trinity): record W627 session log and commit count
 - **Files:** .claude/plans/wave-loop-628.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w628_bench_module_75x2p6_aos_var_call_write.json,.trinity/seals/scratch_w628_bench_module_75x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W628_2026-07-07.md,specs/scratch/w628_bench_module_75x2p6_aos_var_call_write.t27
 
+## 2026-07-19T19:04:46Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 628 — module-scope [75][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T19:04:47Z — wave-loop-623
+- **Commit:** chore(trinity): record W628 session log and commit count
+- **Files:** .claude/plans/wave-loop-628.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w628_bench_module_75x2p6_aos_var_call_write.json,.trinity/seals/scratch_w628_bench_module_75x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W628_2026-07-07.md,specs/scratch/w628_bench_module_75x2p6_aos_var_call_write.t27
+
+## 2026-07-19T19:05:53Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 628 — module-scope [75][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
