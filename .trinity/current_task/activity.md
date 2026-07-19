@@ -2164,3 +2164,7 @@
 - **Commit:** feat(igla): Wave Loop 621 — module-scope [61][2]^6 Pt non-p2 AoS var from call with indexed signed writes
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-19T17:25:26Z — wave-loop-622
+- **Commit:** chore(trinity): record W621 session log and commit count
+- **Files:** .claude/plans/wave-loop-622.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w622_bench_module_63x2p6_aos_var_call_write.json,.trinity/seals/scratch_w622_bench_module_63x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W622_2026-07-07.md,specs/scratch/w622_bench_module_63x2p6_aos_var_call_write.t27
+
