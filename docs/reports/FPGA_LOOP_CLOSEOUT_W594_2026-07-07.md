@@ -129,7 +129,7 @@ controlled way without new compiler support.
 
 2. **Variant B — `[9][2]^13 Pt` module-scope var from a call with indexed signed
    writes.**
-   3,735,552-bit packed vector, 73,728 elements, non-power-of-two outer
+   2,359,296-bit packed vector, 73,728 elements, non-power-of-two outer
    dimension 9 under the 4-MiBit cliff. Tests the next odd outer dimension while
    staying safely under the cliff. **Recommended.**
 

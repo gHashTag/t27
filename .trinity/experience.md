@@ -7294,3 +7294,49 @@ Sources:
   one is a giant concatenation that the simulator must process.
 - Do not use single-line literals for ranks above ~10; the parser accepts them
   but produces incomplete ASTs.
+
+## Wave Loop 595 — 2026-07-07
+
+### What worked
+- Variant B (`[9][2]^13 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 9.
+- Agent E weak-point analysis correctly identified the outer-dimension-9 risk and
+  the need to keep the witness well under the 4-MiBit cliff; the 2.25-MiBit point
+  was chosen as the next interactive data point.
+- Multi-line W584-style brace style kept the 14-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 73,728 elements.
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 55/0 (new W595 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- Direct `t27c icarus-simulate` W595 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W595 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, ...) for module-scope
+  packed AoS witnesses; the compiler and reference model are dimension-agnostic as
+  long as the total width stays inside simulator comfort.
+- Generate array-of-struct witnesses with a recursive rank-aware script that
+  balances braces/brackets and produces valid t27 literal syntax.
+- Include a disk-space cleanup step before long cocotb batches; old
+  `/tmp/claude-501/t27c_cocotb_*` directories can accumulate tens of gigabytes.
+
+### Anti-patterns to avoid
+- Do not trust single-line mega-literals for high-rank arrays; always use
+  multi-line brace style and verify the generated AST is complete.
+- Do not let cocotb temporary directories pile up across waves; cleanup is part
+  of the verification gate.
+- Do not assume that a non-power-of-two outer dimension stops working after a
+  certain size; test it with a controlled witness instead.

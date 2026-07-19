@@ -1940,3 +1940,7 @@
 - **Commit:** feat(gen-verilog): Wave Loop 593 — module-scope [5][2]^15 Pt mutable packed AoS from call with indexed signed field writes
 - **Files:** .claude/plans/wave-loop-594.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w594_bench_module_7x2p14_aos_var_call_write.json,.trinity/seals/scratch_w594_bench_module_7x2p14_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W593_2026-07-07.md,docs/reports/FPGA_LOOP_CLOSEOUT_W594_2026-07-07.md,specs/scratch/w594_bench_module_7x2p14_aos_var_call_write.t27
 
+## 2026-07-19T07:04:10Z — wave-loop-595
+- **Commit:** feat(gen-verilog): Wave Loop 594 — module-scope [7][2]^14 Pt mutable packed AoS from call with indexed signed field writes
+- **Files:** .claude/plans/wave-loop-595.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w595_bench_module_9x2p13_aos_var_call_write.json,.trinity/seals/scratch_w595_bench_module_9x2p13_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W594_2026-07-07.md,docs/reports/FPGA_LOOP_CLOSEOUT_W595_2026-07-07.md,specs/scratch/w595_bench_module_9x2p13_aos_var_call_write.t27
+
