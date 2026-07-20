@@ -2648,3 +2648,7 @@
 - **Commit:** feat(igla): Wave Loop 664 — module-scope [147][2]^6 Pt non-p2 AoS var from a call with indexed signed writes
 - **Files:** .trinity/icarus-baselines/specs/scratch/w665_bench_module_149x2p6_aos_var_call_write.json,.trinity/seals/scratch_w665_bench_module_149x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w665.py,specs/scratch/w665_bench_module_149x2p6_aos_var_call_write.t27
 
+## 2026-07-20T10:17:36Z — wave-loop-665
+- **Commit:** feat(igla): Wave Loop 665 — module-scope [149][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-665.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W665_2026-07-07.md
+
