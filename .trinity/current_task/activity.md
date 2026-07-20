@@ -2668,3 +2668,7 @@
 - **Commit:** docs(w665): correct tri fast sweep status to timed-out at Phase 1 Parse
 - **Files:** .trinity/icarus-baselines/specs/scratch/w666_bench_module_151x2p6_aos_var_call_write.json,.trinity/seals/scratch_w666_bench_module_151x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w666.py,specs/scratch/w666_bench_module_151x2p6_aos_var_call_write.t27
 
+## 2026-07-20T11:19:33Z — wave-loop-666
+- **Commit:** feat(igla): Wave Loop 666 — module-scope [151][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-666.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W666_2026-07-07.md
+
