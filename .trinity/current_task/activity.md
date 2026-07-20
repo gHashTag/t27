@@ -2652,3 +2652,7 @@
 - **Commit:** feat(igla): Wave Loop 665 — module-scope [149][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
 - **Files:** .claude/plans/wave-loop-665.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W665_2026-07-07.md
 
+## 2026-07-20T10:17:55Z — wave-loop-665
+- **Commit:** docs(w665): Wave Loop 665 issue #1636 + branch wave-loop-665 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
