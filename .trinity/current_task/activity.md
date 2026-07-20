@@ -2604,3 +2604,7 @@
 - **Commit:** feat(igla): Wave Loop 658 — module-scope [135][2]^6 Pt non-power-of-two AoS var from call with indexed signed writes
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
 
+## 2026-07-20T06:31:13Z — wave-loop-658
+- **Commit:** chore(trinity): record W658 session log and commit count after full gate sweep
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
