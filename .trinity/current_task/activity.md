@@ -2684,3 +2684,7 @@
 - **Commit:** chore(trinity): record W667 session log and commit count
 - **Files:** .trinity/icarus-baselines/specs/scratch/w668_bench_module_155x2p6_aos_var_call_write.json,.trinity/seals/scratch_w668_bench_module_155x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w668.py,specs/scratch/w668_bench_module_155x2p6_aos_var_call_write.t27
 
+## 2026-07-20T11:56:09Z — wave-loop-668
+- **Commit:** feat(igla): Wave Loop 668 — module-scope [155][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-668.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W668_2026-07-07.md
+
