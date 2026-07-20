@@ -2664,3 +2664,7 @@
 - **Commit:** chore(trinity): record W665 session log and commit count (catch-up)
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
 
+## 2026-07-20T11:19:26Z — wave-loop-666
+- **Commit:** docs(w665): correct tri fast sweep status to timed-out at Phase 1 Parse
+- **Files:** .trinity/icarus-baselines/specs/scratch/w666_bench_module_151x2p6_aos_var_call_write.json,.trinity/seals/scratch_w666_bench_module_151x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w666.py,specs/scratch/w666_bench_module_151x2p6_aos_var_call_write.t27
+
