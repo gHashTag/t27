@@ -2616,3 +2616,7 @@
 - **Commit:** chore(trinity): final W658 tracking update after skill save
 - **Files:** .claude/plans/wave-loop-659.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w659_bench_module_137x2p6_aos_var_call_write.json,.trinity/seals/scratch_w659_bench_module_137x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W659_2026-07-07.md,scripts/gen_w659.py,specs/scratch/w659_bench_module_137x2p6_aos_var_call_write.t27
 
+## 2026-07-20T07:01:05Z — wave-loop-659
+- **Commit:** feat(igla): Wave Loop 659 — module-scope [137][2]^6 Pt non-power-of-two AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
