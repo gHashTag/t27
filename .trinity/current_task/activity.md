@@ -2640,3 +2640,7 @@
 - **Commit:** feat(igla): Wave Loop 662 — module-scope [143][2]^6 Pt non-p2 AoS var from a call with indexed signed writes
 - **Files:** .claude/plans/wave-loop-663.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w663_bench_module_145x2p6_aos_var_call_write.json,.trinity/seals/scratch_w663_bench_module_145x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W663_2026-07-07.md,scripts/gen_w663.py,specs/scratch/w663_bench_module_145x2p6_aos_var_call_write.t27
 
+## 2026-07-20T10:04:12Z — wave-loop-664
+- **Commit:** feat(igla): Wave Loop 663 — module-scope [145][2]^6 Pt non-p2 AoS var from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-664.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w664_bench_module_147x2p6_aos_var_call_write.json,.trinity/seals/scratch_w664_bench_module_147x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W664_2026-07-07.md,scripts/gen_w664.py,specs/scratch/w664_bench_module_147x2p6_aos_var_call_write.t27
+
