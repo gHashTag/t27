@@ -64,7 +64,7 @@ No compiler, reference-model, or language changes were required.
 | `cargo test -p t27c --bin t27c` | 1494 passed; 0 failed; 2 ignored |
 | `cargo test -p tri` | 78 passed; 0 failed |
 | `cargo test -p t27c --test icarus_lowerable` | 125 passed; 0 failed |
-| `./scripts/tri test --fast` | clean except pre-existing Yosys smoke failures (see §8) |
+| `./scripts/tri test --fast` | **timed out** at Phase 1 (Parse) after 15 min — W665 adds a 28,371-line, 651 KB literal that dominates the repository-wide parse sweep. All targeted `t27c` gates above passed independently. |
 
 ---
 
@@ -117,11 +117,14 @@ are:
 
 ---
 
-## 8. Known baseline failures
+## 8. Known baseline / sweep status
 
-`./scripts/tri test --fast` reports the same 24 pre-existing Gen Verilog Yosys
-Smoke failures observed in W660–W664. They are caused by `translate_off`
-comment warnings and are unrelated to the packed-AoS ladder.
+`./scripts/tri test --fast` was started with a 15-minute timeout and **exited
+124** during Phase 1 (Parse). The 28,371-line, 651 KB W665 literal dominates
+the repository-wide parse sweep. Targeted `t27c` parse, lowerability, Icarus
+simulation, cocotb, and seal gates all passed independently, and the
+`cargo test` suites are green. The pre-existing 24 Gen Verilog Yosys Smoke
+failures observed in W660–W664 were not reached.
 
 ---
 

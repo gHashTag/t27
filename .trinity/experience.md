@@ -11408,7 +11408,9 @@ Sources:
 - Direct `t27c icarus-lowerable` W665: PASS (`lowerable`).
 - Direct `t27c icarus-simulate` W665: PASS (17 cycles, PASSED).
 - Direct `t27c icarus-cocotb` W665: PASS (`reference-model OK`).
-- `./scripts/tri test --fast`: clean except 24 pre-existing Yosys smoke failures.
+- `./scripts/tri test --fast`: **timed out** at Phase 1 (Parse) after 15 min — the
+  28,371-line, 651 KB W665 literal dominates the repository-wide parse sweep.
+  All targeted `t27c` gates and `cargo test` passed independently.
 
 ### Scientific / engineering background
 - IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
