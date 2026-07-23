@@ -1,3 +1,83 @@
+## 2026-07-24 — Wave Loop 771 (module-scope `[361][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 361.
+  The `[361][2]^6 Pt` witness is 739,328 bits (~0.705 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [361][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 361, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 361`, `MID_IDX = 180`; the frame-condition element is
+  `[180][1][0][0][0][0][0]`, element number `180*64 + 32 = 11,552`.
+- Updated weak-point audit: 45 of 54 30-day commits include `Closes #N` (≈83%).
+  Clean non-worktree scan: 57 of 874 `.t27` specs lack `test`/`invariant`/`bench`
+  (≈6.5%). 19 `scripts/*.sh` remain under `scripts/`.
+- Fresh 2025-2026 literature scan surfaced ternary synthesis/verification EDA
+  (Tlsys, SONIC, Polynomial Surrogate Training, Temporal Behavior Trees),
+  optical/photonic multi-valued logic, and ternary Transformer/LLM FPGA
+  accelerators (TENET, ELiTeFormer).
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w771_bench_module_361x2p6_aos_var_call_write.t27` (~1,581 KB /
+  ~68,651 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w771_bench_module_361x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w771.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 231 passed; 0 failed.
+- Direct `t27c parse` W771: PASS.
+- Direct `t27c icarus-lowerable` W771: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W771: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W771: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  739,328-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - TENET — sparsity-aware LUT-centric ternary LLM inference on FPGA and ASIC
+    (arXiv 2025).
+  - ELiTeFormer — hybrid linear attention + ternary projections for FPGAs
+    (arXiv 2026).
+  - KULeuven ternary-lut-dse — Chisel generator for LUT-based ternary MatMul,
+    accepted at IEEE ISPASS 2026.
+  - Tlsys — RTL-to-CNFET gate-level ternary synthesis framework with
+    verification methodology (Chinese Journal of Electronics 2026).
+  - Polynomial Surrogate Training — differentiable Kleene K₃ ternary logic gate
+    networks amenable to formal verification (arXiv 2026).
+  - Ternary Logic Encodings of Temporal Behavior Trees — Kleene strong ternary
+    semantics for STL/behavior trees with MILP/MIQP control synthesis
+    (arXiv 2026).
+  - SONIC — event-driven gate-level simulator/verifier for ternary VLSI circuits
+    using delta cycles (IEEE ISMVL 2026).
+  - CNTFET-based ternary LFSR/D-flip-flop design (Circuits Syst. Signal Process.
+    2026).
+  - Photonic multi-valued logic via Möbius phase-cycles and wavelength-division
+    ternary encoding (Zenodo 2026).
+  - All-optical photonic-crystal ternary inverters with nonlinear directional
+    couplers (Journal of Optical Communications 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+---
+
 ## 2026-07-24 — Wave Loop 770 (module-scope `[359][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
 
 ### What worked
