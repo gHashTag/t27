@@ -41,6 +41,18 @@
 - Save `.trinity/experience.md`, memory file, `MEMORY.md` pointer, and update
   `skills-wave-loop-recipe.md`.
 
+## Weak-point audit carried out this wave
+- L1 TRACEABILITY: 51 of 61 30-day subject lines carry `Closes #N`/`Fixes #N` (≈84%).
+- L4 TESTABILITY: 57 of 879 non-worktree `.t27` specs lack `test`/`invariant`/`bench` (≈6.5%).
+- L7 UNITY: 19 `scripts/*.sh` remain under `scripts/`.
+- Pre-existing FPGA failures tracked as weak point #1245.
+
+## Scientific / engineering background consulted
+- IEEE 1800-2017 packed arrays/structs (§7.4.1/§7.4.3).
+- AMD UG900 2026.1 / AR 51836 Vivado packed-aggregate support.
+- 2025-2026 ternary/MVL literature: KULeuven ternary-lut-dse (ISPASS 2026),
+  TeLLMe v2, TerEffic, TernaryCore, SONIC (ISMVL 2026), TVHDL (ISMVL 2026).
+
 ## Cooperation variants for next Wave Loop
 
 - **A (recommended):** `[367][2]^6 Pt` (~0.717 MiBit), continuing the odd ladder.

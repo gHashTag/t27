@@ -1,3 +1,77 @@
+## 2026-07-24 — Wave Loop 773 (module-scope `[365][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 365.
+  The `[365][2]^6 Pt` witness is 747,520 bits (~0.713 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [365][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 365, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 365`, `MID_IDX = 182`; the frame-condition element is
+  `[182][1][0][0][0][0][0]`, element number `182*64 + 32 = 11,680`.
+- Updated weak-point audit: 51 of 61 30-day subject lines carry `Closes #N`/`Fixes #N`
+  (≈84%); merge/closeout bodies also contain the link. Clean non-worktree scan:
+  57 of 879 `.t27` specs lack `test`/`invariant`/`bench` (≈6.5%). 19 `scripts/*.sh`
+  remain under `scripts/`.
+- Pre-existing FPGA synthesis/formal failures in CI (`sby` pip package missing,
+  Yosys static-cast Verilog-2005 limitation in `build/fpga/generated/uart.v`) are
+  unrelated to this wave and tracked as weak point #1245.
+- Fresh 2025-2026 literature scan reinforced IEEE 1800-2017 packed-array/struct
+  semantics (AMD UG900 2026.1, AR 51836) and ternary EDA/simulation work
+  (SONIC, TernaryCore, KULeuven LUT-based ternary MatMul, TeLLMe v2, TerEffic).
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w773_bench_module_365x2p6_aos_var_call_write.t27` (~1,599 KB /
+  ~69,411 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w773_bench_module_365x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w773.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 233 passed; 0 failed.
+- Direct `t27c parse` W773: PASS.
+- Direct `t27c icarus-lowerable` W773: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W773: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W773: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  747,520-bit packed vector, which is legal SystemVerilog.
+- AMD UG900 2026.1 and AR 51836 confirm Vivado simulation/synthesis accept packed
+  arrays of structs as wide vectors, mapped to `svLogicVecVal` arrays in DPI.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - KULeuven LUT-based ternary MatMul DSE — Chisel generator for 1.58-bit LLM
+    inference, accepted at IEEE ISPASS 2026 (arXiv:2604.25183).
+  - TeLLMe v2 — edge-FPGA end-to-end ternary LLM prefill/decode accelerator on
+    AMD Kria KV260 (arXiv:2510.15926).
+  - TerEffic — Alveo U280 ternary-quantized LLM inference with LUT-based TMat
+    core (arXiv:2502.16473).
+  - TernaryCore — open-source Verilog BitNet b1.58 FPGA accelerator core
+    simulated with Icarus Verilog, targeting Artix-7 (GitHub 2026).
+  - SONIC — event-driven gate-level simulator/verifier for ternary VLSI circuits
+    using delta cycles, with BCT Verilog FPGA export (IEEE ISMVL 2026).
+  - TVHDL — balanced ternary extension to IEEE 1076-2008 VHDL for mixed-radix
+    VLSI design and verification (IEEE ISMVL 2026).
+
+---
+
 ## 2026-07-24 — Wave Loop 772 (module-scope `[363][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
 
 ### What worked

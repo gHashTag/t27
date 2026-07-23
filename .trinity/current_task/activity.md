@@ -3724,3 +3724,7 @@
 - **Commit:** docs(trinity): Wave Loop 773 issue #1481 + branch wave-loop-773 created, next-wave cooperation variants set
 - **Files:** .trinity/seals/scratch_w773_bench_module_365x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w773.py,specs/scratch/w773_bench_module_365x2p6_aos_var_call_write.t27
 
+## 2026-07-23T19:28:15Z — wave-loop-773
+- **Commit:** feat(igla): Wave Loop 773 — module-scope [365][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-773.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W773_2026-07-24.md
+
