@@ -3668,3 +3668,7 @@
 - **Commit:** chore(trinity): record final W763 session log and commit count
 - **Files:** .claude/plans/wave-loop-763.md,.claude/plans/wave-loop-764.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w763_bench_module_345x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w763_bench_module_345x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W763_2026-07-23.md,scripts/gen_w763.py,specs/scratch/w763_bench_module_345x2p6_aos_var_call_write.t27
 
+## 2026-07-23T17:15:15Z — wave-loop-765
+- **Commit:** feat(igla): Wave Loop 764 — module-scope [347][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-766.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w765_bench_module_349x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W765_2026-07-23.md,scripts/gen_w765.py,specs/scratch/w765_bench_module_349x2p6_aos_var_call_write.t27
+
