@@ -1,3 +1,71 @@
+## 2026-07-23 — Wave Loop 769 (module-scope `[357][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 357.
+  The `[357][2]^6 Pt` witness is 731,136 bits (~0.697 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [357][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 357, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 357`, `MID_IDX = 178`; the frame-condition element is
+  `[178][1][0][0][0][0][0]`, element number `178*64 + 32 = 11,424`.
+- Updated weak-point audit: 43 of 52 30-day commits include `Closes #N` (≈83%).
+  Clean non-worktree scan: 53 of 896 `.t27` specs lack `test`/`invariant`/`bench`
+  (≈5.9%). 19 `scripts/*.sh` remain under `scripts/`.
+- Fresh 2025-2026 literature scan surfaced photonic ternary logic, ternary RISC-V
+  extensions, in-memory ternary MAC arrays, ternary approximate computing, and
+  superconducting ternary arithmetic units.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w769_bench_module_357x2p6_aos_var_call_write.t27` (~1,563 KB /
+  ~67,891 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w769_bench_module_357x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w769.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 229 passed; 0 failed.
+- Direct `t27c parse` W769: PASS.
+- Direct `t27c icarus-lowerable` W769: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W769: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W769: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  731,136-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Photonic ternary logic gates using Mach-Zehnder interferometers for
+    high-speed multi-value data processing (IEEE PTCL 2026).
+  - Ternary RISC-V ISA extension proposals for 1.58-bit LLM inference
+    acceleration (arXiv 2026).
+  - In-memory ternary multiply-accumulate arrays based on FeFET and RRAM
+    crossbars (IEEE TED 2026).
+  - Ternary approximate computing with quality-configurable stochastic
+    computing kernels (IEEE TC 2026).
+  - Superconducting ternary full adder and multiplier units in RSFQ/ERSFQ
+    logic families (IEEE Trans. Appl. Supercond. 2025).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+---
+
 ## 2026-07-23 — Wave Loop 765 (module-scope `[349][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
 
 ### What worked
