@@ -25,15 +25,15 @@ field writes and `assert_eq` read-back in a `bench` block.
 ## Technical notes
 
 - Shape: `[351][2]^6 Pt` where `Pt = pub struct Pt { x : i16, y : i16 }`.
-- Total elements: `351 × 64 = 22,464`.
-- Packed vector width: `22,464 × 32 = 718,848` bits (~0.686 MiBit).
+- Total elements: `351 x 64 = 22,464`.
+- Packed vector width: `22,464 x 32 = 718,848` bits (~0.686 MiBit).
 - `MID_IDX = 175`; frame-condition element `[175][1][0][0][0][0][0]` is element
   `175*64 + 32 = 11,232`.
 - Generator script: `scripts/gen_w766.py` (copy from `scripts/gen_w765.py`, set
   `OUTER = 351` and `MID_IDX = 175`, manually fix the f-string header).
 - Use `assert_eq` checks on changed elements (Icarus simulation path does not
   emit `assert_ne`).
-- Include `make_grid(32768)` period-identity check because `32768 ≡ 0 (mod 32768)`.
+- Include `make_grid(32768)` period-identity check because `32768 == 0 (mod 32768)`.
 - Zero compiler / reference-model / FROZEN_HASH changes expected.
 
 ## Cooperation variants for next Wave Loop
