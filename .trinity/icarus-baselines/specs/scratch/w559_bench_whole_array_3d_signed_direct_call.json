@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] whole_array_3d_signed_direct_call_test : starting",
+    "[TEST] whole_array_3d_signed_direct_call_test : PASSED",
+    "[BENCH] whole_array_3d_signed_direct_call_bench : starting",
+    "[BENCH] whole_array_3d_signed_direct_call_bench : %0d cycles          1",
+    "[BENCH] whole_array_3d_signed_direct_call_bench : PASSED"
+  ]
+}

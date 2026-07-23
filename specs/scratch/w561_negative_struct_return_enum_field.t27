@@ -1,0 +1,25 @@
+// W561 negative witness: a function returning a scalar-struct with an enum
+// field must not be treated as a lowerable packed-vector return, and therefore
+// cannot participate in the W560 call-deduplication optimization.
+module w561_negative_struct_return_enum_field;
+
+pub enum Color {
+    Red,
+    Green,
+    Blue,
+}
+
+pub struct Bad {
+    tag : Color,
+    value : i16,
+}
+
+pub fn make_bad(v : i16) -> Bad {
+    return Bad{tag: Color::Red, value: v};
+}
+
+test negative_struct_return_enum_field {
+    assert_eq(make_bad(7).value, 7);
+}
+
+endmodule

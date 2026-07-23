@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5ac162c026587c3e6a17091304176491c6951e23ea7167f4312d2794adc10d26",
   "module": "TriMarkup",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:12Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:f60ffa66f95a923d551adbf6f40ef3fa81a2179d81e1e8d76fb9202dc1f8f8f4",
   "spec_path": "specs/tri/encoding/markup.t27"
 }

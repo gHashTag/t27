@@ -1,0 +1,7 @@
+[mcp_servers.t27-traceability]
+command = "node"
+args = ["scripts/mcp-traceability-server.js"]
+
+[mcp_servers.t27-traceability.env]
+PROJECT_ROOT = "/Users/playra/t27"
+ENFORCE_L1 = "true"

@@ -75,8 +75,8 @@ fn bundle_creates_output_directory_when_missing() {
 }
 
 #[test]
-fn bundle_writes_exactly_eleven_files() {
-    let dir = scratch_dir("eleven_files");
+fn bundle_writes_exactly_twelve_files() {
+    let dir = scratch_dir("twelve_files");
     let (_o, _e, ok) = run_bundle(&[
         "gen-bitnet-bundle",
         "--output-dir",
@@ -84,7 +84,7 @@ fn bundle_writes_exactly_eleven_files() {
     ]);
     assert!(ok);
     let count = fs::read_dir(&dir).unwrap().count();
-    assert_eq!(count, 11);
+    assert_eq!(count, 12);
     cleanup(&dir);
 }
 

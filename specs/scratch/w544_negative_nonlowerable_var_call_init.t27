@@ -1,0 +1,15 @@
+// W544 negative witness: a mutable var initialized by a function returning a
+// non-lowerable type must be rejected by the Icarus-lowerability classifier.
+module w544_negative_nonlowerable_var_call_init;
+
+pub fn make_label(v : i32) -> String {
+    return v as String;
+}
+
+var label : String = make_label(42);
+
+test should_skip_nonlowerable {
+    // Intentionally exercises the lowerability classifier / reference-model skip.
+}
+
+endmodule

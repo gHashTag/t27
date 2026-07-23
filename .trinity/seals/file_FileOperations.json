@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:0fd2d187ae1015d308af72b39ed207ece90932d7ed276920b77e14a73fb40531",
+  "gen_hash_c": "sha256:daf44970ae9265d870b92b1451ca469fe7e171566677d9ada5990f921e2f4d08",
   "gen_hash_rust": "sha256:e12ec2791bed77d5c9ed0ac157bb310cbcc81307d6efa0fcabb31905c884215c",
-  "gen_hash_verilog": "sha256:c8fda237dd6d9dcdac01348105618fa254cdb05214fce4597536c0101c006e1e",
-  "gen_hash_zig": "sha256:bc03b70a5bdd42eff0ce4ae385493357eed2e7a43aede09f8bcc77755a2127f4",
+  "gen_hash_verilog": "sha256:51961b6e2d0a0470300d3449f31a234a18d4388ccf352074ceaa782bb240e21a",
+  "gen_hash_zig": "sha256:2caf5d39c619de0528addd7edcc7013f6f436548884527acf28028d4d51f33de",
   "module": "FileOperations",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:06Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:7ceef650197877982ac7a2b4758bd9bba2b735ea33f2df74bea0448367785a56",
   "spec_path": "specs/file/operations.t27"
 }

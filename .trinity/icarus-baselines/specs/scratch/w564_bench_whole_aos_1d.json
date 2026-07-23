@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] whole_aos_test : starting",
+    "[TEST] whole_aos_test : PASSED",
+    "[BENCH] whole_aos_bench : starting",
+    "[BENCH] whole_aos_bench : %0d cycles          3",
+    "[BENCH] whole_aos_bench : PASSED"
+  ]
+}

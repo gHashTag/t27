@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:12e51a2a50cdca43d5cf65c58c43ded8caf7cb354646340adb8b1c24820e4ce1",
-  "gen_hash_rust": "sha256:896bf16d60871d5895c1c778952a0ad63d04e8c69edd0923d048937013572e9e",
-  "gen_hash_verilog": "sha256:256ab2b0534b7c5b1e06f22d77bef08e60d3a26a22484b42eeea2d7a46ac2d87",
-  "gen_hash_zig": "sha256:0af1516fd201452d29edebffd2fdf48326e46f0a435ad1aa8f39431e08851440",
+  "gen_hash_c": "sha256:8c7c2c0bb102a24056ddb67d8801959f31b5f1d7c954457e7230a21773ce014a",
+  "gen_hash_rust": "sha256:a09897c1fbb937145553034ad53e4663f5109fd610fbf7ac5e2c3084dd29a93f",
+  "gen_hash_verilog": "sha256:471d96a977196285b4e628237b5c241ec6ed15f35df016d50bea3efc57745624",
+  "gen_hash_zig": "sha256:b1a585a809e91578293ef65fc961c09a48fac6d905cc6eab6e602ea64f55cfc0",
   "module": "RadixEconomy",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:08Z",
+  "sealed_at": "2026-07-16T13:46:55Z",
   "spec_hash": "sha256:b580bb708977e0fb9e03cdc156551262ce5596f534e44d31e14d66d7ca9e83b5",
   "spec_path": "specs/math/radix_economy.t27"
 }

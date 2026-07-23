@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] multi_site_test : starting",
+    "[TEST] multi_site_test : PASSED",
+    "[BENCH] multi_site_dedup_bench : starting",
+    "[BENCH] multi_site_dedup_bench : %0d cycles          2",
+    "[BENCH] multi_site_dedup_bench : PASSED"
+  ]
+}

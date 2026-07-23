@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:8b8c1125d24c114979da556711849236775e1743e8d84600292081065381411f",
   "gen_hash_rust": "sha256:a8a928b839553ee6f38b5998656d350b54b257e37c78cba24e19dc5000070c1a",
-  "gen_hash_verilog": "sha256:b65b807afd717897f5eafe5c39b2765c99eb20f6174fc12a53df6880a15d6a0b",
+  "gen_hash_verilog": "sha256:d20c1857040231f1d8673a71b0b4049b7c9421829ff7bdf6ca7dbd4e5544f425",
   "gen_hash_zig": "sha256:a60f5c47678dcd5075656976464272d0fc985e42511138aa4160ce350d10acd4",
   "module": "PowerAnalysis_Testbench",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:07Z",
+  "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:d8970c696708b802f279b04ca2bd3dde298c299405b40f452e5b86ea2f556379",
   "spec_path": "specs/fpga/testbench/power_analysis_tb.t27"
 }

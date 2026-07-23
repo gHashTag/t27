@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4c3457a5566be651fd18e9c9d78132546c7bddd38ff9c483628efc97c66f365e",
   "module": "ZeroDSP_BPSK",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:06Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:c03511cef14c6a38652f65fdc0852cfc638dec039a96c9dc4cb6f04f49643228",
   "spec_path": "specs/fpga/bpsk.t27"
 }

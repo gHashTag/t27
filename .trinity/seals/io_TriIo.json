@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f1dae496bfcaace314b6fd9183aaf2253758a510e672fcc3b48fe6c8a317443a",
   "module": "TriIo",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:12Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:9aa3f120d7149de57f33abba748180cf7cfa0876bbee28cb4a4fb6459b1cad31",
   "spec_path": "specs/tri/io/io.t27"
 }

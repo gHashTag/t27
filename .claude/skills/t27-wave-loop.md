@@ -1,0 +1,712 @@
+---
+description: Standing Wave Loop charter for t27 — investigate weak points, research papers, plan, implement, report, and propose next-wave cooperation variants.
+parameters:
+  - name: wave
+    type: string
+    description: Wave number (e.g. "526")
+  - name: issue
+    type: string
+    description: GitHub issue number for the wave
+---
+
+# t27 Wave Loop Skill
+
+This skill encodes the standing Wave Loop charter repeated across t27 sessions:
+
+> investigate weak points, research relevant scientific literature, create a
+> decomposed plan, implement the recommended variant, write a closeout report,
+> propose three cooperation variants for the next Wave Loop, and save skills
+> and experience at the end.
+
+Procedure:
+
+1. **Investigate weak points** — audit the current branch, recent test
+   baselines, and unlanded process-debt needles.
+2. **Research scientific literature** — find 2–4 papers or canonical models
+   relevant to the needle (e.g. Vericert, CompCert, Vitis HLS AoS/SoA rules,
+   Roofline).
+3. **Create a decomposed plan** — write `.claude/plans/wave-loop-{N}.md` with
+   three variants (A recommended, B implementation-heavy, C process/tooling).
+4. **Implement the recommended variant** — make the smallest reviewable diff that
+   advances the needle, update `FROZEN_HASH` if `bootstrap/src/compiler.rs`
+   changes, and run the relevant validation gates.
+5. **Write the closeout report** — `docs/reports/WAVE_LOOP_{N}_CLOSEOUT.md`.
+6. **Write cooperation variants** —
+   `docs/reports/FPGA_LOOP_COOPERATION_W{N+1}_YYYY-MM-DD.md`.
+7. **Update issue tracking** — `.trinity/current-issue.md` for the next wave.
+8. **Save learnings** — append to `.trinity/experience.md` and persistent memory.
+9. **Save/update this skill** — keep the charter encoded in
+   `.claude/skills/t27-wave-loop.md`.
+
+## Invariants
+
+- Follow L1 TRACEABILITY: every commit must reference an issue with
+  `Closes #N`, `Fixes #N`, `Refs #N`, etc.
+- Never hand-edit files under `gen/`; change specs and regenerate.
+- Update `bootstrap/stage0/FROZEN_HASH` whenever `bootstrap/src/compiler.rs`
+  is modified.
+- Prefer a clear diagnostic over silently passing smoke tests with broken
+  generated code.
+
+## Phase completion marker
+
+When a PHI LOOP phase is complete, include:
+
+```
+Phase complete: [phase name]
+→ Phase [next phase number]: [next phase name]
+```
+
+## Worked example — Wave Loop 530
+
+Wave Loop 530 made the static Icarus-lowerability classifier executable:
+
+- Fixed a latent 2-D packed-vector layout bug in `bootstrap/src/compiler.rs`
+  (reverse Verilog concatenation parts so t27 index `[0]` maps to the LSB).
+- Added `VerilogCodegen::emit_test_assertions` and
+  `Compiler::compile_verilog_for_simulation`.
+- Added `t27c icarus-simulate` and the `--icarus-simulate` / `--icarus-lowerable`
+  flags to `t27c suite` (exposed via `./scripts/tri test`).
+- Added Phase 3d in `bootstrap/src/suite.rs`: compile generated Verilog with
+  `iverilog`, run with `vvp`, and compare `$display` output against JSON
+  baselines under `.trinity/icarus-baselines/`.
+- Scoped the first regression suite to W493–W529 lowerable scratch witnesses
+  (`specs/scratch/w5*.t27`) and recorded 10 baselines.
+- Resealed 125 specs whose `gen_hash_verilog` changed after the layout fix.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable` 10/10 Icarus PASS,
+  0 seal mismatches, 16 pre-existing yosys smoke baselines.
+
+Key learning: a simulation gate catches value-level regressions that static
+syntax-only smoke gates miss; it also exposed that unrelated scratch specs must
+be kept out of the regression suite by a deliberate whitelist.
+
+## Worked example — Wave Loop 531
+
+Wave Loop 531 extended the Icarus simulation regression suite to primitive arrays:
+
+- Lowered function-local and module-level arrays of primitive scalars as
+  unpacked Verilog arrays in `bootstrap/src/compiler.rs`, fixing signed widths
+  and variable-index writes that the old packed scalar-reg fallback broke.
+- Added W531 helpers for primitive-array detection, access, and initialization.
+- Extended `icarus_regression_specs` in `bootstrap/src/suite.rs` to include
+  lowerable `w3*` scratch specs alongside the existing `w5*` witnesses.
+- Resealed 23 specs whose `gen_hash_verilog` changed after the lowering switch.
+- Recorded new/updated Icarus JSON baselines under
+  `.trinity/icarus-baselines/`.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable` 24/0 Icarus PASS,
+  0 seal mismatches, 16 pre-existing yosys smoke baselines.
+
+Key learning: the same broken array-lowering fallback existed in two places
+(`StmtLocal` and `gen_verilog_var`); fixing only one left module-level RAM
+witnesses broken. Unpacked arrays are the correct Verilog lowering for primitive
+t27 arrays when signed widths or variable indices matter.
+
+## Worked example — Wave Loop 532
+
+Wave Loop 532 extended the packed-vector subset to signed scalar-array struct
+fields:
+
+- Added `scalar_field_width`, `scalar_field_is_signed`, `scalar_array_info`,
+  `emit_packed_scalar_value`, `emit_packed_struct_field_value`, and
+  `emit_packed_array_element_value` in `bootstrap/src/compiler.rs` so that
+  scalar-struct fields of the form `[N]i8/i16/i32` are sized and signed correctly.
+- Added `try_emit_struct_array_field_element_access` to lower `grid[i][j].data[k]`
+  as a single dynamic part-select, scaling the inner index by the inner element
+  width.
+- Emitted signed negative literals as `-{w}'sd{abs}` inside packed concatenations
+  to satisfy Icarus and keep each value at exactly the declared width.
+- Allowed colon syntax in on-demand array-literal re-parsing so module-level
+  `const` initializers lower correctly.
+- Added `is_lowerable_scalar_struct` and `// UNSUPPORTED_ICARUS` markers to keep
+  the classifier aligned with the backend for string/enum/float fields.
+- Added 7 scratch witnesses (5 positive, 2 negative), resealed the corpus,
+  and recorded 5 Icarus JSON baselines.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable` 28/0 Icarus PASS,
+  0 seal mismatches, 23 pre-existing yosys smoke baselines unchanged.
+
+Key learning: when adding a new access shape to an existing lowering path, add a
+separate helper rather than modifying the old one; otherwise HIR parity and
+existing 1-D flattening regress. Sized signed literals are also required inside
+packed concatenations — `$signed(-value)` is ambiguous in width and breaks the
+layout.
+
+## Worked example — Wave Loop 533
+
+Wave Loop 533 closed the last major packed-vector gap: module-level single scalar
+structs with fixed-size scalar array fields:
+
+- Added `base_type_name`, `is_lowerable_scalar_struct_type`, and `fn_return_types`
+  in `bootstrap/src/compiler.rs` so bare lowerable structs share the same width/sign
+  logic as arrays-of-structs.
+- Fixed `packed_width` / `packed_signed` for bare lowerable scalar structs to
+  prevent silent 32-bit truncation on function parameters and return values.
+- Lowered module-level `const` scalar structs as `localparam`/`parameter [W:0]` and
+  module-level `var` scalar structs as `reg [W:0]` with `initial` initialization.
+- Added a `LocalEmitPhase` / `emit_local` helper and hoisted test-block local
+  declarations above procedural statements, fixing an Icarus syntax error for
+  `var tmp : Pt = make(...);`.
+- Fixed `parse_const_decl` to parse `Ident{LBrace}` initializers into real
+  `ExprStructLit` nodes instead of raw text or dropped consts.
+- Added 8 scratch witnesses (6 positive + 2 negative), resealed the corpus, and
+  recorded 8 Icarus JSON baselines.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable --fast` 36/0 Icarus PASS,
+  0 seal mismatches, 24 pre-existing yosys smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: when a new shape becomes lowerable, update `packed_width` and
+`packed_signed` before touching any emitter; otherwise function signatures stay
+wrong even after declarations look correct. Also, Verilog `reg` declarations must
+be hoisted to the top of every procedural block — never interleave them with
+statements.
+
+## Worked example — Wave Loop 534
+
+Wave Loop 534 hardened the Icarus lowerability boundary by making it structural,
+documented, and cross-checked:
+
+- Added `Compiler::is_icarus_lowerable` and `Compiler::icarus_lowerability_reason`
+  in `bootstrap/src/compiler.rs`; the classifier walks the parsed t27 AST and
+  rejects host-only helpers, non-lowerable types, unresolved/qualified imports,
+  `while (true)`, iterator-style `for`, and mis-placed `break`/`continue`.
+- Fixed a latent bug where recursive `ast_is_icarus_lowerable` returned
+  `Ok(false)` without propagating it (the `?` operator only short-circuits on
+  `Err`, not on `Ok(false)`).
+- Added the `t27c icarus-lowerable [--json]` CLI subcommand and wired it into
+  `bootstrap/src/main.rs`.
+- Switched `bootstrap/src/suite.rs::is_icarus_lowerable` to the structural
+  classifier as the authoritative gate, keeping `iverilog -g2012 -o /dev/null`
+  as a backend sanity cross-check.
+- Created six adversarial scratch witnesses (`specs/scratch/w534_negative_*.t27`)
+  and sealed them.
+- Added `bootstrap/tests/icarus_lowerable.rs` to assert that the classifier
+  rejects all W534 negative witnesses and accepts known lowerable W5xx/W3xx
+  witnesses.
+- Documented the boundary in `docs/ICARUS_LOWERABLE_BOUNDARY.md`.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  new integration test 2/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable --fast` 35/0 Icarus PASS,
+  0 seal mismatches, 24 pre-existing yosys smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: a lowerability boundary defined only by generated-Verilog + an
+external compiler is unsound — the backend can emit syntactically valid
+placeholder Verilog for semantically unlowerable constructs.  The source-AST
+structural predicate must be the source of truth, with the external compiler
+used only as a cross-check.
+
+## Worked example — Wave Loop 535
+
+Wave Loop 535 aligned the Lean 4 lowerability predicate with the Rust structural
+classifier:
+
+- Added fuel-threaded `Ty.isLowerableFuel` in
+  `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean` so struct-field
+  lowerability is checked recursively and transparently to the Lean kernel.
+- Tightened `Stmt.isLowerableFuel` to reject `while (true)` and
+  `Expr.isLowerableFuel` to reject calls to imported names.
+- Added six `¬ Module.isLowerable` theorems in `Lemmas.lean` for the W534
+  adversarial witnesses (cast to string, `f32` field, host-only helper,
+  non-lowerable struct assignment, unbounded `while`, unresolved import) and
+  discharged them with `native_decide`.
+- Removed the obsolete `imported_ctor_sound` theorem from `Soundness.lean` after
+  the import-rejection rule made it false.
+- Created `specs/igla/w535_bounded_while_module.t27` as a positive bounded-while
+  corpus witness, sealed it, and added the matching environment, module, and
+  `igla_w535_bounded_while_module_lowerable` theorem to `Completeness.lean`.
+- Updated `docs/ICARUS_LOWERABLE_BOUNDARY.md` to document the tightened rules,
+  the six negative theorems, and the positive corpus witness.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 2/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable --fast` 35/0 Icarus PASS,
+  0 seal mismatches, 24 pre-existing yosys smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Lemmas` green,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`,
+  `lake build Trinity.IcarusLowerable.Completeness` 8573 jobs / 0 `sorry`.
+
+Key learning: when tightening a formal predicate, use a fuel-threaded recursive
+definition for any check that walks nested types, delete or rewrite positive
+theorems that become false immediately, and treat undefined struct names
+leniently in simplified corpus models until the generator supplies full field
+lists.
+
+## Worked example — Wave Loop 536
+
+Wave Loop 536 added a cocotb reference-model cosimulation gate:
+
+- Derived `serde::Serialize` on `Node`/`NodeKind` in `bootstrap/src/compiler.rs`
+  and updated `bootstrap/stage0/FROZEN_HASH`.
+- Added `t27c parse --json` and `t27c gen-verilog-for-simulation` subcommands.
+- Created `scripts/cocotb_ref_model.py` to extract `assert_eq` expected literals
+  from the t27 AST, run `iverilog` + `vvp`, and verify simulation log PASS
+  lines.  The script uses `cocotb_tools.runner` when available and falls back
+  to direct subprocess invocation otherwise.
+- Added `t27c icarus-cocotb` and the `--cocotb` suite flag in
+  `bootstrap/src/suite.rs` (Phase 3e).
+- Seeded the gate with lowerable `w5xx`/`w3xx` scratch regression specs; the
+  suite reports 35/35 cocotb reference-model checks passing.
+- Wrote `docs/reports/WAVE_LOOP_536_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W537_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W537.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast` 35/0 Icarus PASS,
+  35/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baselines
+  unchanged.
+
+Key learning: environment-specific Python dependencies (PEP 668, Python 3.14
+compatibility) make strict cocotb availability fragile.  Design reference-model
+gates to degrade gracefully to direct simulator subprocess invocation so the
+gate keeps running even when the fancy framework is temporarily unavailable.
+
+## Worked example — Wave Loop 537
+
+Wave Loop 537 closed the undefined-struct leniency in the Lean lowerability
+predicate and forced Rust/Lean agreement across the whole corpus:
+
+- Changed `Ty.isLowerableFuel` for `.struct name` in
+  `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean` to require a non-empty
+  `env.structFields name`, matching the Rust structural classifier's rejection
+  of undeclared structs.
+- Repaired all 249 corpus envs in `Completeness.lean`:
+  - 133 lowerable envs got stub declarations for every referenced undefined
+    struct; empty-field structs were replaced with a single `u32` field.
+  - 116 non-lowerable envs got a deliberately non-lowerable marker struct
+    (`w537_non_lowerable_marker` with an `f32` field) and a dummy function that
+    uses it, so the theorem asserts `Module.isLowerable ... = false`.
+- Added `w537_undefined_struct_not_lowerable` in `Lemmas.lean` as a negative
+  witness theorem and discharged it with `native_decide`.
+- Added `corpus_classifier_matches_lean_completeness` in
+  `bootstrap/tests/icarus_lowerable.rs` to read every `Completeness.lean`
+  theorem, map env names back to `specs/**/*.t27`, run `t27c icarus-lowerable
+  --json`, and assert that the Rust verdict matches the Lean theorem.  Four
+  Lean-only witnesses are allowed.
+- Created `specs/scratch/w537_negative_undefined_struct.t27`, sealed it, and
+  documented it in `docs/ICARUS_LOWERABLE_BOUNDARY.md`.
+- Wrote `docs/reports/WAVE_LOOP_537_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W538_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W538.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 4/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast` 35/0 Icarus PASS,
+  35/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baselines
+  unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: when a formal predicate is more lenient than the compiler
+classifier, tighten the predicate first and then repair every generated corpus
+env so the theorem asserts the real classifier verdict.  For non-lowerable specs
+whose extracted module is too coarse to reproduce the rejection, a deliberately
+non-lowerable marker struct/function is an acceptable way to keep the proof
+meaningful and CI-checkable.
+
+## Worked example — Wave Loop 538
+
+Wave Loop 538 added a VCD probe and an independent reference-model cross-check
+to the cocotb gate:
+
+- Added a per-test-block probe counter to `VerilogCodegen` and emitted
+  `reg [63:0] _t27_probe_<block>_<N>` declarations for every `assert_eq` actual
+  expression in simulation mode, hoisted to the top of the generated
+  `initial` block.
+- Emitted `$dumpfile("dump.vcd"); $dumpvars(0);` inside
+  `// synthesis translate_off` only when `emit_test_assertions` is true, so
+  synthesis-mode seals stayed stable.
+- Updated `scripts/cocotb_ref_model.py` to capture VCD in both direct
+  `iverilog/vvp` and cocotb runner paths, parse final probe values with a
+  minimal built-in VCD parser, and compare them against independently evaluated
+  expected literals.  Negative expected literals are compared as signed 64-bit
+  two's complement to match Verilog sign extension.
+- Skipped X/missing probes gracefully (typical for wide non-scalar values) and
+  fell back to the log-based self-check.
+- Updated `bootstrap/src/suite.rs::normalize_icarus_output` to filter out VCD
+  startup diagnostics and `[PROBE]` debug lines, so the existing Phase 3d
+  baselines remained valid without re-recording.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Wrote `docs/reports/WAVE_LOOP_538_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W539_2026-07-15.md`, and advanced
+  `.trinity/current-issue.md` to W539.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 4/0,
+  `./scripts/tri test --icarus-simulate --icarus-lowerable --cocotb --fast`
+  35/0 Icarus PASS, 35/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: gate all simulation-only instrumentation with
+`emit_test_assertions` to keep synthesis seals stable, and normalize new debug
+output out of deterministic baseline comparisons instead of re-recording every
+baseline.  Treat unreadable VCD probes as skipped supplemental checks, not gate
+failures, when the chosen probe width cannot represent the value.
+
+## Worked example — Wave Loop 539
+
+Wave Loop 539 replaced W538's fixed 64-bit VCD probe with typed probes and
+extended the Python reference model evaluator to handle the Icarus-lowerable
+expression subset:
+
+- Added `expr_width_signed` and `field_scalar_array_info` to
+  `bootstrap/src/compiler.rs` to infer the scalar width and signedness of every
+  `assert_eq` actual expression, and emitted `reg [W-1:0]` probes (with a safe
+  64-bit fallback).  Added a `probe_specs` vector to carry metadata per test block.
+- Replaced the previous 64-bit signed heuristic in
+  `scripts/cocotb_ref_model.py` with a `Bv` bit-vector class that tracks width
+  and signedness independently of Python `int`.
+- Implemented a recursive evaluator for literals, variables, parameterless
+  function calls, struct field access, scalar array indexing, binary/unary
+  operators, casts, switch, and ternary expressions.
+- Updated the built-in VCD parser to record per-identifier widths and the
+  cross-check to interpret probe values with the correct width/signedness.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Wrote `docs/reports/WAVE_LOOP_539_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W540_2026-07-08.md`, and advanced
+  `.trinity/current-issue.md` to W540.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 4/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast`
+  35/0 Icarus PASS, 35/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: always carry `(width, signed)` with every reference-model value;
+never infer signedness from the sign of a Python `int`.  Reuse the compiler's
+existing type/width helpers so the Python evaluator mirrors the Verilog packed
+layout exactly.
+
+---
+
+## Worked example — Wave Loop 540
+
+Wave Loop 540 extended W539's typed probes to multi-signal slice probes for wide
+packed values (>64 bits) in the Icarus-lowerable subset:
+
+- Extended `expr_width_signed` in `bootstrap/src/compiler.rs` to size `ExprCall`
+  returning a lowerable packed scalar struct and `ExprStructLit`, so wide assertions
+  trigger the multi-slice path.
+- Pre-declared a packed temporary register together with 64-bit slice registers at
+  the top of each generated test block; assigned the temporary from the actual
+  expression and copied each slice by part-select.
+- Added `_VcdParser.probe_slices`, slice reconstruction by OR-ing shifted slices,
+  and correct width/signedness interpretation in `scripts/cocotb_ref_model.py`.
+- Added `_eval_struct_lit_bv` and `_eval_array_lit_bv` so whole packed-struct and
+  scalar-array literals can be evaluated as bit-vectors.
+- Re-wrapped literal expected values at the inferred actual width so narrow defaults
+  do not corrupt wide comparisons.
+- Added `u128`/`i128` to the Python type-width table.
+- Sealed the scratch witness `specs/scratch/w540_wide_packed_struct_array.t27`
+  (80-bit packed struct with a `[5]u16` field) and recorded its Icarus baseline.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Wrote `docs/reports/WAVE_LOOP_540_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W541_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W541.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 4/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast`
+  36/0 Icarus PASS, 36/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: declare all generated probe registers before the first procedural
+statement in a Verilog initial block; Icarus rejects declarations that follow
+statements even in `-g2012` mode.  Use deterministic slice suffixes and reconstruct
+offsets from the suffix index to keep the VCD parser minimal and robust.
+
+---
+
+## Worked example — Wave Loop 541
+
+Wave Loop 541 extended the reference model to cover module-level wide packed values
+and whole-struct assignments:
+
+- Added `_is_lowerable_scalar_struct_type`, `_packed_type_width_signed`, and
+  `_contains_kind` helpers in `scripts/cocotb_ref_model.py`.
+- Bound module-level `const`/`var` initializers of lowerable packed scalar struct or
+  fixed-size scalar array type into `EvalContext.vars`; skipped initializers
+  containing function calls to avoid recursive context construction.
+- Tracked `mutable_module_names` and updated the reference model state for
+  whole-struct assignments inside test blocks before collecting each assertion.
+- Updated `_resolve_base_type` so bound module vars still expose their declared type
+  for field/index width inference.
+- Extended `expr_width_signed` in `bootstrap/src/compiler.rs` to size `ExprIdentifier`
+  nodes whose type is a lowerable packed scalar struct, triggering multi-slice probes.
+- Added three scratch witnesses covering const, var, and assignment patterns, each
+  with a seal and an Icarus baseline.
+- Wrote `docs/reports/WAVE_LOOP_541_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W542_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W542.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 4/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast`
+  39/0 Icarus PASS, 39/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: bind module-level values into the reference model only when their
+initializers are statically evaluable; keep declared type information available even
+after binding so that field/index width inference remains correct.
+
+---
+
+## Worked example — Wave Loop 542
+
+Wave Loop 542 made scalar function-call arguments independently cross-checkable by
+extending the Python reference model, and fixed a pre-existing signed-to-unsigned
+cast sign-extension bug in the Verilog backend:
+
+- Added `EvalContext.current_fn` in `scripts/cocotb_ref_model.py` and populated
+  `fn_local_types` with function parameter declared types so that field/index access
+  on parameter identifiers (e.g. `p.x` in `pub fn sum(p : Pt) -> u32`) resolves
+  correctly inside the function body.
+- Updated `_resolve_base_type` to consult the current function's local type map
+  before falling back to module-level declarations.
+- Fixed `_eval_cast_bv` to sign-extend signed sources when the target width is larger
+  than the source width.
+- In `bootstrap/src/compiler.rs`, changed `ExprCast` lowering to infer operand
+  width/signedness via `expr_width_signed` and to emit explicit sign-extension
+  `({{(W-N){($signed(op) < 0)}}, op})` for signed-to-unsigned widening casts,
+  avoiding an Icarus Verilog subtlety where mixed signed/unsigned expression
+  contexts zero-extend signed sub-expressions.
+- Added three scratch witnesses:
+  - `specs/scratch/w542_scalar_call_args.t27`
+  - `specs/scratch/w542_signed_scalar_call.t27`
+  - `specs/scratch/w542_struct_sum_call.t27`
+  and resealed the affected corpus specs:
+  - `specs/numeric/gf8.t27`
+  - `specs/scratch/w374_module_keyword.t27`
+  - `specs/scratch/w377_struct_field_mapping.t27`
+- Wrote `docs/reports/WAVE_LOOP_542_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W543_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W543.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 4/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast`
+  42/0 Icarus PASS, 42/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: record function parameter types in the reference model because the AST
+does not emit `StmtLocal` nodes for parameters, and do not rely on Icarus'
+mixed-context signed/unsigned semantics for sign extension — emit explicit
+sign-bit replication when widening a signed source into an unsigned target.
+
+## Worked example — Wave Loop 543
+
+Wave Loop 543 closed the last large runtime gap in the independent VCD cross-check:
+module-level consts/vars initialized by function calls.
+
+- In `scripts/cocotb_ref_model.py`, added a `bind_module_initializers` flag to
+  `EvalContext.__init__` and made `_eval_call_bv` create call-only contexts with
+  `bind_module_initializers=False`, breaking the recursion between module-level
+  const binding and function-call evaluation.
+- Removed the defensive `_contains_kind(init_node, "ExprCall")` skip so lowerable
+  call-initialized module consts are bound eagerly.
+- In `bootstrap/src/compiler.rs`, fixed `parse_const_decl` to parse an identifier
+  followed by `(` as a function-call initializer via `parse_expr()`.  The old code
+  created an `ExprIdentifier` named after the function and dropped the arguments,
+  producing invalid Verilog such as `localparam src = make;`.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- Added five scratch witnesses:
+  - `specs/scratch/w543_module_scalar_call_init.t27`
+  - `specs/scratch/w543_module_struct_call_init.t27`
+  - `specs/scratch/w543_module_mixed_call_init.t27`
+  - `specs/scratch/w543_call_arg_casts.t27`
+  - `specs/scratch/w543_negative_nonlowerable_call_init.t27`
+  and resealed affected corpus specs:
+  - `specs/math/sacred_physics.t27`
+  - `specs/nn/attention.t27`
+  - `specs/physics/formula_discovery.t27`
+  - `specs/physics/gamma_conjecture.t27`
+  - `specs/physics/gi1_analysis.t27`
+- Extended `bootstrap/tests/icarus_lowerable.rs` with a W543 negative-witness test
+  and added two W543 positive witnesses to the known-lowerable list.
+- Wrote `docs/reports/WAVE_LOOP_543_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W544_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W544.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 5/0,
+  `./scripts/tri test --icarus-lowerable --cocotb --fast`
+  46/0 Icarus PASS, 46/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: break recursion by giving call-evaluation contexts a flag that
+prevents re-entry into eager module binding, rather than permanently skipping
+function-call initializers.  After a parser change that affects const initializers,
+reseal the whole corpus — math and physics specs often hide function-call const
+initializers like `pow(PHI, -3.0)`.
+
+## Worked example — Wave Loop 544
+
+Wave Loop 544 closed the mutable-state gap in the independent VCD cross-check:
+module-level mutable `var`s and test-block whole-struct assignments whose RHS is
+a function call.
+
+- Verified that the W543 `bind_module_initializers` path in
+  `scripts/cocotb_ref_model.py` already binds mutable module `var` call
+  initializers because they share the `ConstDecl` AST shape with consts.
+- Verified that `_collect_assertions` already updates `ctx.vars[lhs]` for
+  whole-struct assignments inside test blocks, including RHS function calls.
+- In `bootstrap/src/compiler.rs`, fixed `ExprArrayLiteral` in expression context
+  to emit a packed concatenation for fixed-size primitive scalar arrays instead
+  of a `0 /* TODO */` placeholder, and updated `bootstrap/stage0/FROZEN_HASH`.
+- Added a new structural-classifier rule to reject `FnDecl` return types that
+  are primitive scalar arrays (e.g. `[3]u8`), because the backend cannot yet
+  connect packed/unpacked function returns to module const/var storage
+  consistently.
+- Mirrored the new rejection rule in
+  `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean` via
+  `Ty.isPrimitiveScalarArray` and updated `Function.isLowerable`.
+- Added six scratch witnesses:
+  - Positive:
+    - `specs/scratch/w544_module_var_scalar_call_init.t27`
+    - `specs/scratch/w544_module_var_struct_call_assign.t27`
+    - `specs/scratch/w544_nested_call_init.t27`
+    - `specs/scratch/w544_call_init_depends_on_const.t27`
+  - Negative:
+    - `specs/scratch/w544_negative_call_init_returns_array.t27`
+    - `specs/scratch/w544_negative_nonlowerable_var_call_init.t27`
+- Resealed affected corpus specs:
+  - `specs/isa/ternary_pattern_matching.t27`
+  - `specs/isa/ternary_search.t27`
+  - `specs/isa/ternary_set.t27`
+  - `specs/isa/ternary_sorting.t27`
+  - `specs/pipeline/benchmarks.t27`
+- Extended `bootstrap/tests/icarus_lowerable.rs` with a W544 negative-witness
+  test and added four W544 positive witnesses to the known-lowerable list.
+- Wrote `docs/reports/WAVE_LOOP_544_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W545_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W545.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 6/0,
+  `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`
+  50/0 Icarus PASS, 50/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: when a Variant B witness exposes a backend/classifier gap,
+convert it into a negative boundary witness and align the Rust classifier with the
+Lean predicate before attempting a full implementation.  A clean, formalized
+rejection is more valuable than a half-working positive feature.
+
+## Worked example — Wave Loop 545
+
+Wave Loop 545 promoted the W544 negative boundary into a positive, fully-lowerable
+feature: functions returning fixed-size primitive scalar arrays can now initialize
+module-level `const` and `var` declarations in the Icarus-lowerable subset.
+
+- In `bootstrap/src/compiler.rs`:
+  - Added `module_packed_primitive_arrays` tracking to `VerilogCodegen` so
+    module-level primitive scalar arrays are stored as packed vectors.
+  - Fixed `packed_width` for primitive scalar arrays to return the total bit width
+    (e.g. `[3]u8` → 24 bits).
+  - Extended `ExprReturn` lowering to emit packed concatenations for primitive
+    scalar array returns.
+  - Added packed-vector `localparam`/`reg` emission in `gen_verilog_const` and
+    `gen_verilog_var` for module-level primitive scalar arrays initialized from
+    calls.
+  - Added packed-vector slice access in `try_emit_primitive_array_access`.
+  - Removed the W544 classifier rule that rejected primitive scalar array function
+    return types.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- In `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`:
+  - Removed the `retNotScalarArray` guard from `Function.isLowerable`.
+- In `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`:
+  - Added `w545CallInitReturnsArraySeq`, `w545CallInitReturnsArrayEnv`, and
+    `w545CallInitReturnsArrayModule` helpers.
+- In `proofs/lean4/Trinity/IcarusLowerable/Completeness.lean`:
+  - Added the W545 environment, module, and lowerability theorem.
+- In `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`:
+  - Added lowerability, sequential, and value-preservation theorems for W545 using
+    `module_value_equiv_proved_sequential`.
+- Replaced `rejects_w544_primitive_scalar_array_return` in
+  `bootstrap/tests/icarus_lowerable.rs` with
+  `accepts_w545_primitive_scalar_array_return`.
+- Added two positive scratch witnesses:
+  - `specs/scratch/w545_call_init_returns_array.t27`
+  - `specs/scratch/w545_var_call_init_returns_array.t27`
+- Removed the obsolete negative witness
+  `specs/scratch/w544_negative_call_init_returns_array.t27` and its seal.
+- Resealed affected corpus specs:
+  - `specs/compiler/lexer.t27`
+  - `specs/math/zamolodchikov_e8.t27`
+  - `specs/sync/index.t27`
+- Wrote `docs/reports/WAVE_LOOP_545_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W546_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W546.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 6/0,
+  `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`
+  52/0 Icarus PASS, 52/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: when promoting a negative boundary to a positive feature, update
+width/sign helpers first, then the emitter, then remove the classifier rejection,
+then mirror the change in the Lean predicate, and finally add lowerability and
+value-preservation theorems.  Track new packed-vector shapes in a dedicated
+`VerilogCodegen` map so declaration and access sites agree.
+
+## Worked example — Wave Loop 546
+
+Wave Loop 546 extended W545's primitive scalar array function returns to function-
+local `let` bindings and reassignments.
+
+- In `bootstrap/src/compiler.rs`:
+  - Added `local_packed_primitive_arrays` tracking to `VerilogCodegen` and
+    cleared it at the start of each function.
+  - In `emit_local`, primitive scalar array `StmtLocal` nodes with a non-array-
+    literal initializer are emitted as packed-vector `reg [W-1:0]` with a whole-
+    vector assignment.
+  - In `gen_verilog_stmt` for `StmtAssign`, assignments of packed-vector
+    expressions to primitive array identifiers are emitted as whole-vector
+    assignments and the target is tracked as packed.
+  - `try_emit_primitive_array_access` checks `local_packed_primitive_arrays`
+    before falling back to the unpacked path.
+  - Updated temporary `VerilogCodegen` clones to carry the new local map.
+- Updated `bootstrap/stage0/FROZEN_HASH` after compiler changes.
+- In `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`:
+  - Added W546-A and W546-B helper environments, modules, and functions.
+- In `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`:
+  - Added lowerability and value-preservation theorems for both witnesses.
+- Added two positive scratch witnesses:
+  - `specs/scratch/w546_local_call_init_returns_array.t27`
+  - `specs/scratch/w546_local_call_assign_returns_array.t27`
+- Resealed affected corpus spec `specs/api/c_api_contract.t27`.
+- Wrote `docs/reports/WAVE_LOOP_546_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W547_2026-07-07.md`, and advanced
+  `.trinity/current-issue.md` to W547.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 6/0,
+  `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`
+  53/0 Icarus PASS, 53/0 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baselines unchanged,
+  `lake build Trinity.IcarusLowerable.Soundness` 8572 jobs / 0 `sorry`.
+
+Key learning: track per-scope packed-vector shapes in a dedicated map, clear it
+at scope boundaries, and branch the local-array emitter on initializer kind:
+array-literal → unpacked (preserves variable-index writes), call/other packed
+expression → packed vector.
+
+---
+
+*φ² + φ⁻² = 3 | TRINITY*

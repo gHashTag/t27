@@ -1,0 +1,7 @@
+{
+  "lines": [
+    "[BENCH] module_bench_8d_var_write : starting",
+    "[BENCH] module_bench_8d_var_write : %0d cycles          8",
+    "[BENCH] module_bench_8d_var_write : PASSED"
+  ]
+}
