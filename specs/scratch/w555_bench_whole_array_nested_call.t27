@@ -1,0 +1,27 @@
+// W555 witness: deterministic bench block asserting equality directly on the
+// function-call expression returning a 2-D primitive scalar array. Exercises
+// the W553 packed-vector temporary plus W540 multi-slice probe path.
+module w555_bench_whole_array_nested_call;
+
+pub fn mat() -> [2][3]u8 {
+    return [2][3]u8{
+        [3]u8{ 7, 8, 9 },
+        [3]u8{ 10, 11, 12 }
+    };
+}
+
+test whole_array_nested_call_test {
+    assert_eq(mat(), [2][3]u8{
+        [3]u8{ 7, 8, 9 },
+        [3]u8{ 10, 11, 12 }
+    });
+}
+
+bench "whole_array_nested_call_bench" {
+    assert_eq(mat(), [2][3]u8{
+        [3]u8{ 7, 8, 9 },
+        [3]u8{ 10, 11, 12 }
+    });
+}
+
+endmodule

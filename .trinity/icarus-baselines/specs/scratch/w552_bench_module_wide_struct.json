@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] wide_struct_assign : starting",
+    "[TEST] wide_struct_assign : PASSED",
+    "[BENCH] wide_struct_assign_bench : starting",
+    "[BENCH] wide_struct_assign_bench : %0d cycles          2",
+    "[BENCH] wide_struct_assign_bench : PASSED"
+  ]
+}

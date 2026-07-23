@@ -1,0 +1,16 @@
+// W534 negative witness: a scalar struct with an f32 field is NOT
+// Icarus-lowerable. Issue #1505.
+module w534_negative_f32_field;
+
+struct Point {
+    x : f32,
+    y : i16,
+}
+
+const src : Point = Point{x: 1.5, y: 42};
+
+test should_not_be_icarus_lowerable {
+    // Intentionally empty: exercises the lowerability classifier boundary.
+}
+
+endmodule

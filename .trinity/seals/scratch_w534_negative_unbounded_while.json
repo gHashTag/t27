@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:b63515e63ee9c132a2c6f699b6ca746981d510e13ad58b4e2e8f448419cc09f8",
+  "gen_hash_rust": "sha256:1db31edf3e2baae14648a38b5f244ecf65fa3b1cb09d11e97d406a4ebe3f11e5",
+  "gen_hash_verilog": "sha256:8c86dc64c19f8ad06db7be67d49c4212aed06243d2aec8f975b82029d0d58224",
+  "gen_hash_zig": "sha256:32e5749a9e4ce59c805d1a76de626577b2a0b410da574aed5fe3d69807bd7c68",
+  "module": "w534_negative_unbounded_while",
+  "ring": 12,
+  "sealed_at": "2026-07-14T17:00:10Z",
+  "spec_hash": "sha256:1e3df7a8aa0a64d1271e0dc44b240769da4741485856c83dd945e66f79936c45",
+  "spec_path": "/Users/playra/t27/specs/scratch/w534_negative_unbounded_while.t27"
+}

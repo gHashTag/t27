@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1b5dfe37471b021e6d5733744388df7abc73ee4f8deecf06e3e169bb3eb0e677",
   "module": "TriPrimsMst",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:12Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:642d11214c510192057a915200d03aa793e184955d215b1c8a0152b627e1f8da",
   "spec_path": "specs/tri/graph/prims_mst.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:7f1ba8964f5b4a950433e37019744dd3a2b537f70a2113fb70b7d1bf26371335",
-  "gen_hash_rust": "sha256:53a7e9abf24e51ecf70af7eb2be017f269982c3b6e00d453fa72aa0a17d8ef9d",
-  "gen_hash_verilog": "sha256:ec1cfe8447f2c4ec039894ad6038fa5e3853bd0b3011c70d4931374f529840ad",
-  "gen_hash_zig": "sha256:348236879580a131cea267f00fd28230208d33a2dab6589a9109f85e3745033f",
+  "gen_hash_c": "sha256:09d01cb28fffd1b814dc414fb4368b37bf39ce198aa184d74470f4da7d703ec6",
+  "gen_hash_rust": "sha256:38e966eafb5098b0f7f89013f4e8571e3430d9fc2b6aadff4fdc967d1a1317c1",
+  "gen_hash_verilog": "sha256:2463087a4a33bc05708597ac7a031ffee7b113969d097d8d8912d702b04ae35e",
+  "gen_hash_zig": "sha256:8d5a43ef97cc8465688448d4cbaedb88045d356b35f63141f233b87188693af3",
   "module": "VcdConformanceCompare",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:07Z",
+  "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:f4725c1e5baf34cd48150fccccaf061f585340ffd5963986293fb3262ce8e6e3",
   "spec_path": "specs/fpga/vcd_conformance_compare.t27"
 }

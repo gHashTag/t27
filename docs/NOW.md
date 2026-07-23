@@ -1,6 +1,57 @@
-# NOW — IGLA cycle 1 + Wave Loop 469 context (2026-07-07)
+# NOW — Wave Loop 763 close-out / Wave Loop 764 setup (2026-07-23)
 
-Last updated: 2026-07-13
+Last updated: 2026-07-23
+
+## Wave Loop 763 — module-scope `[345][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1734)
+
+- Branch: `wave-loop-763`
+- Issue: #1734
+- PR: #1471
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W763_2026-07-23.md`
+- Plan: `.claude/plans/wave-loop-763.md`
+- Cooperation W764: `.claude/plans/wave-loop-764.md`
+
+### What landed
+- `specs/scratch/w763_bench_module_345x2p6_aos_var_call_write.t27`
+  - 22,080 elements, 706,560-bit packed vector (~0.674 MiBit).
+  - Module-scope `pub var dst : [345][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w763.py`
+  - Generator for the W763 witness; `OUTER = 345`, `MID_IDX = 172`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w763_bench_module_345x2p6_aos_var_call_write`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/plans/wave-loop-764.md`
+  - W763 learnings saved and W764 issue/plan created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 223/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W763: PASS.
+
+---
+
+## Wave Loop 764 — next odd outer-dimension `[347][2]^6 Pt` (Issue #1735)
+
+- Branch: `wave-loop-764` (to create after W763 merge)
+- Issue: #1735
+- Plan: `.claude/plans/wave-loop-764.md`
+
+### Candidate variants
+- Variant A (recommended): continue the odd outer-dimension ladder with `[347][2]^6 Pt`.
+- Variant B: keep width at ~0.674 MiBit but move the packed var to bench/function scope.
+- Variant C: add `if`-guarded indexed signed field writes at the current width.
+
+---
+
+# NOW — IGLA cycle 1 + Wave Loop 469 context (2026-07-07)
 
 ## t27c codegen: mut-inference for reassigned locals (Fixes #1463)
 

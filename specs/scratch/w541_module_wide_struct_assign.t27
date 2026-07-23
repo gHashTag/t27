@@ -1,0 +1,21 @@
+// W541 witness: module-level var receives a whole-struct assignment from a
+// function call inside the test block.  The Python reference model must track the
+// assignment and compare the final value reconstructed from VCD slices.
+module w541_module_wide_struct_assign;
+
+struct Wide {
+    data: [5]u16,
+}
+
+pub fn make() -> Wide {
+    return Wide{ .data = [5]u16{11, 12, 13, 14, 15} };
+}
+
+var dst : Wide;
+
+test wide_struct_assign {
+    dst = make();
+    assert_eq(dst, Wide{ .data = [5]u16{11, 12, 13, 14, 15} });
+}
+
+endmodule

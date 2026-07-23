@@ -1,0 +1,17 @@
+// W534 negative witness: an unbounded dynamic while loop is NOT
+// Icarus-lowerable. Issue #1505.
+module w534_negative_unbounded_while;
+
+pub fn run_forever() -> i32 {
+    var i : i32 = 0;
+    while (true) {
+        i = i + 1;
+    }
+    return i;
+}
+
+test should_not_be_icarus_lowerable {
+    // Intentionally empty: exercises the lowerability classifier boundary.
+}
+
+endmodule

@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] scalar_struct_call_dedup_both_sides_test : starting",
+    "[TEST] scalar_struct_call_dedup_both_sides_test : PASSED",
+    "[BENCH] scalar_struct_call_dedup_both_sides_bench : starting",
+    "[BENCH] scalar_struct_call_dedup_both_sides_bench : %0d cycles          1",
+    "[BENCH] scalar_struct_call_dedup_both_sides_bench : PASSED"
+  ]
+}

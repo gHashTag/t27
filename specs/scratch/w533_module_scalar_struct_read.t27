@@ -1,0 +1,22 @@
+// W533 witness: module-level packed scalar struct read
+// Issue #1504
+module w533_module_scalar_struct_read;
+
+struct Pt {
+    x: i16,
+    y: i16,
+    z: u16,
+}
+
+const src : Pt = Pt{ .x = -3, .y = 4, .z = 5 };
+var dst : Pt;
+
+test read_field {
+    dst = src;
+    assert_eq(dst.x, -3);
+    assert_eq(dst.y, 4);
+    assert_eq(dst.z, 5);
+    assert_eq(src.x, -3);
+}
+
+endmodule

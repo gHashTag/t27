@@ -1,0 +1,17 @@
+// W534 negative witness: whole-struct assignment of a non-lowerable struct
+// (string field) at module scope is NOT Icarus-lowerable. Issue #1505.
+module w534_negative_nonlowerable_struct_assign;
+
+struct Tagged {
+    label : String,
+    value : i16,
+}
+
+const src : Tagged = Tagged{label: "hello", value: 42};
+var dst : Tagged;
+
+test should_not_be_icarus_lowerable {
+    // Intentionally empty: exercises the lowerability classifier boundary.
+}
+
+endmodule

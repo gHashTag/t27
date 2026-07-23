@@ -1,0 +1,40 @@
+// W566 witness: 2-D array-of-struct return call deduplication.
+// A function returns a fixed-size 2-D array of lowerable packed scalar structs.
+// The same call is reused at indexed, whole-array, and array-literal sites in
+// one deterministic block, exercising the multi-D CSE descriptor and slice path.
+module w566_bench_2d_aos_call_dedup;
+
+pub struct Pt {
+    x : i16,
+    y : i16,
+}
+
+pub fn make_grid() -> [2][3]Pt {
+    return [2][3]Pt{
+        [3]Pt{ Pt{ .x = 0, .y = 1 }, Pt{ .x = 2, .y = 3 }, Pt{ .x = 4, .y = 5 } },
+        [3]Pt{ Pt{ .x = 6, .y = 7 }, Pt{ .x = 8, .y = 9 }, Pt{ .x = 10, .y = 11 } }
+    };
+}
+
+test grid_test {
+    let t : [2][3]Pt = make_grid();
+    assert_eq(t[0][1].x, 2);
+    assert_eq(t[1][2].y, 11);
+    assert_eq(t, make_grid());
+    assert_eq(make_grid(), [2][3]Pt{
+        [3]Pt{ Pt{ .x = 0, .y = 1 }, Pt{ .x = 2, .y = 3 }, Pt{ .x = 4, .y = 5 } },
+        [3]Pt{ Pt{ .x = 6, .y = 7 }, Pt{ .x = 8, .y = 9 }, Pt{ .x = 10, .y = 11 } }
+    });
+}
+
+bench "grid_bench" {
+    let t : [2][3]Pt = make_grid();
+    assert_eq(t[0][0].x, 0);
+    assert_eq(t, make_grid());
+    assert_eq(make_grid(), [2][3]Pt{
+        [3]Pt{ Pt{ .x = 0, .y = 1 }, Pt{ .x = 2, .y = 3 }, Pt{ .x = 4, .y = 5 } },
+        [3]Pt{ Pt{ .x = 6, .y = 7 }, Pt{ .x = 8, .y = 9 }, Pt{ .x = 10, .y = 11 } }
+    });
+}
+
+endmodule

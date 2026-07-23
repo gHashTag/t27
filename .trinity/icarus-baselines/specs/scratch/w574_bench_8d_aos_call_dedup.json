@@ -1,0 +1,9 @@
+{
+"lines": [
+"[TEST] octa_test : starting",
+"[TEST] octa_test : PASSED",
+"[BENCH] octa_bench : starting",
+"[BENCH] octa_bench : %0d cycles          6",
+"[BENCH] octa_bench : PASSED"
+]
+}

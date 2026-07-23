@@ -1,0 +1,46 @@
+// W526 negative witness: 2-D array of scalar structs reproduces the W469
+// gen-verilog lowering boundary. The t27c Verilog backend now emits a clear
+// compile-time diagnostic instead of silently generating broken placeholder
+// code. The test block documents the intended semantics once full lowering is
+// implemented in Wave Loop 527.
+module w526_2d_struct_array_repro;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn sum_2d_literal() -> u32 {
+    var m : [2][3]Pt = [2][3]Pt{
+        [3]Pt{ Pt{.x = 1, .y = 2}, Pt{.x = 3, .y = 4}, Pt{.x = 5, .y = 6} },
+        [3]Pt{ Pt{.x = 7, .y = 8}, Pt{.x = 9, .y = 10}, Pt{.x = 11, .y = 12} },
+    };
+    return (m[0][0].x as u32) + (m[0][2].y as u32) + (m[1][1].x as u32) + (m[1][2].y as u32);
+}
+
+pub fn sum_2d_varidx(i : u32, j : u32) -> u32 {
+    var m : [2][3]Pt = [2][3]Pt{
+        [3]Pt{ Pt{.x = 1, .y = 2}, Pt{.x = 3, .y = 4}, Pt{.x = 5, .y = 6} },
+        [3]Pt{ Pt{.x = 7, .y = 8}, Pt{.x = 9, .y = 10}, Pt{.x = 11, .y = 12} },
+    };
+    return (m[i][j].x as u32) + (m[i][j].y as u32);
+}
+
+pub fn set_and_sum_2d(i : u32, j : u32) -> u32 {
+    var m : [2][3]Pt = [2][3]Pt{
+        [3]Pt{ Pt{.x = 1, .y = 2}, Pt{.x = 3, .y = 4}, Pt{.x = 5, .y = 6} },
+        [3]Pt{ Pt{.x = 7, .y = 8}, Pt{.x = 9, .y = 10}, Pt{.x = 11, .y = 12} },
+    };
+    m[i][j] = Pt{.x = 100, .y = 200};
+    return (m[0][0].x as u32) + (m[0][0].y as u32) + (m[1][2].x as u32) + (m[1][2].y as u32);
+}
+
+test two_d_struct_array {
+    assert_eq(sum_2d_literal(), 28);
+    assert_eq(sum_2d_varidx(0, 0), 3);
+    assert_eq(sum_2d_varidx(1, 2), 23);
+    assert_eq(set_and_sum_2d(0, 0), 323);
+    assert_eq(set_and_sum_2d(1, 2), 303);
+}
+
+endmodule

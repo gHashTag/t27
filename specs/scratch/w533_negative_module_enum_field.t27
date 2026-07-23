@@ -1,0 +1,24 @@
+// W533 negative witness: a scalar struct with an enum-typed field is NOT
+// Icarus-lowerable and must stay outside the packed-vector subset.
+// Issue #1504.
+module w533_negative_module_enum_field;
+
+enum Color {
+    Red,
+    Green,
+    Blue,
+}
+
+struct Tagged {
+    tag : Color,
+    value : i16,
+}
+
+const src : Tagged = Tagged{tag: Color::Red, value: 42};
+
+test should_not_be_icarus_lowerable {
+    // Intentionally empty: this spec exists to exercise the lowerability
+    // classifier boundary, not to simulate.
+}
+
+endmodule
