@@ -77,6 +77,84 @@
 
 ---
 
+## 2026-07-23 — Wave Loop 767 (module-scope `[353][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 353.
+  The `[353][2]^6 Pt` witness is 722,944 bits (~0.690 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [353][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 353, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 353`, `MID_IDX = 176`; the frame-condition element is
+  `[176][1][0][0][0][0][0]`, element number `176*64 + 32 = 11,296`.
+- Updated weak-point audit: 41 of 50 30-day commits include `Closes #N` (≈82%).
+  Clean non-worktree scan: 53 of 894 `.t27` specs lack `test`/`invariant`/`bench`
+  (≈5.9%). 19 `scripts/*.sh` remain under `scripts/`.
+- Fresh 2025-2026 literature scan surfaced memristor/RAM ternary logic,
+  MVL FPGA architectures, ternary RTL-to-netlist synthesis, ternary VHDL,
+  ternary public-key cryptography, and ternary LWE cryptanalysis.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w767_bench_module_353x2p6_aos_var_call_write.t27` (~1,545 KB /
+  ~67,131 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w767_bench_module_353x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w767.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 227 passed; 0 failed.
+- Direct `t27c parse` W767: PASS.
+- Direct `t27c icarus-lowerable` W767: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W767: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W767: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  722,944-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Multi-Level Resistive Synapses — memristive crossbar fabric with ternary
+    BitNet datapath using differential memristor pairs (arXiv 2026).
+  - TerEffic — Alveo U280 ternary LLM accelerator, 16,300 tok/s at 455 tok/s/W
+    for 370M model (arXiv 2025).
+  - In-memory balanced ternary gates/decoders via tri-valued memristors
+    (EPJ Plus 2026).
+  - Ternary Łukasiewicz logic in 1T1R ReRAM crossbar, experimentally validated
+    on commercial 200 mm chip (Phil. Trans. R. Soc. A 2025).
+  - Tri-state memristor ternary NOT/NAND/NOR and cascaded decoder in 3D crossbar
+    (Adv. Electron. Mater. 2025).
+  - Generalized T-gate based MVL FPGA architecture merging LUT and flip-flop
+    functions (IEEE Access 2025).
+  - Tlsys — first ternary RTL-to-CNFET netlist synthesis framework, >500k gates
+    (Chinese Journal of Electronics 2026).
+  - Ternary VHDL extension TVHDL for mixed-radix VLSI simulation with GHDL/GTKWave
+    (IEEE ISMVL 2026).
+  - Ternary public-key cryptosystem using ternary group rings and matrix
+    ternarization (arXiv 2026).
+  - Ternary LWE key-search via quantum-walk LSH attack, concrete security
+    estimates for NTRU/BLISS/GLP (MDPI Information 2025).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+---
+
 ## 2026-07-23 — Wave Loop 766 (module-scope `[351][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
 
 ### What worked
