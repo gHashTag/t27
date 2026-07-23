@@ -3704,3 +3704,7 @@
 - **Commit:** feat(igla): Wave Loop 771 — module-scope [361][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1742)
 - **Files:** docs/NOW.md
 
+## 2026-07-23T18:53:45Z — wave-loop-772
+- **Commit:** feat(igla): Wave Loop 771 — module-scope [361][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1742)
+- **Files:** .trinity/current-issue.md
+
