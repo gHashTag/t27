@@ -75,6 +75,85 @@
   - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
     7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
 
+---
+
+## 2026-07-23 — Wave Loop 766 (module-scope `[351][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 351.
+  The `[351][2]^6 Pt` witness is 718,848 bits (~0.686 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [351][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 351, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 351`, `MID_IDX = 175`; the frame-condition element is
+  `[175][1][0][0][0][0][0]`, element number `175*64 + 32 = 11,232`.
+- Updated weak-point audit: 40 of 49 30-day commits include `Closes #N` (≈82%).
+  Clean non-worktree scan: 53 of 893 `.t27` specs lack `test`/`invariant`/`bench`
+  (≈5.9%). 19 `scripts/*.sh` remain under `scripts/`.
+- Fresh 2025-2026 literature scan surfaced TeLLMe/TeLLMe v2, TerEffic, the
+  ISPASS 2026 LUT-based ternary accelerator generator, 5500FP/GargantuRAM,
+  Trinity v2.0.x, and recent CNTFET ternary full-adder work in IEEE TCAD/AEU.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w766_bench_module_351x2p6_aos_var_call_write.t27` (~1,536 KB /
+  ~66,751 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w766_bench_module_351x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w766.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 226 passed; 0 failed.
+- Direct `t27c parse` W766: PASS.
+- Direct `t27c icarus-lowerable` W766: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W766: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W766: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  718,848-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - TeLLMe v2 / TeLLMe — end-to-end ternary LLM accelerators on AMD KV260 using
+    table-lookup matmul (25/143 tok/s decode/prefill under 5 W; arXiv 2025).
+  - TerEffic — Alveo U280 ternary LLM accelerator, 16,300 tok/s at 455 tok/s/W
+    for 370M model (arXiv 2025).
+  - Hardware Generation and Exploration of LUT-Based Accelerators for 1.58-bit
+    LLM Inference — open-source generator + cost model, TSMC 16 nm, accepted at
+    IEEE ISPASS 2026 (arXiv 2026).
+  - 5500FP / GargantuRAM — 24-trit balanced ternary RISC processor on Efinix
+    Trion FPGA at 20 MHz, 120-instruction ISA, real ±3.3 V ternary I/O,
+    CERN-OHL-P v2 board, commercially available (Zenodo/GitHub 2026).
+  - Trinity B002 / Trinity v2.0.x — zero-DSP ternary-weight autoregressive LLM
+    inference on Xilinx Artix-7 via OpenXC7, ~63 tok/s @ ~1 W, QMTech XC7A100T
+    (Zenodo 2026).
+  - Unbalanced ternary full adder in CNTFET — 42-transistor multi-threshold
+    design with 35.8–75.2% power reduction (IEEE TCAD 2026).
+  - CNTFET-based ternary full adder — 76/55 CNTFET complete/partial adders with
+    ~24% delay improvement (IEEE TCAD 2025).
+  - Energy-optimized ternary full adder using capacitive threshold logic and
+    CNTFETs for DSP (AEU 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+---
+
 ## 2026-07-23 — Wave Loop 764 (module-scope `[347][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
 
 ### What worked
