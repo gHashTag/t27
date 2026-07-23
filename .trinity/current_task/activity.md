@@ -3680,3 +3680,7 @@
 - **Commit:** feat(igla): Wave Loop 766 — module-scope [351][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1737)
 - **Files:** .claude/plans/wave-loop-768.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w767_bench_module_353x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W767_2026-07-23.md,scripts/gen_w767.py,specs/scratch/w767_bench_module_353x2p6_aos_var_call_write.t27
 
+## 2026-07-23T18:05:01Z — wave-loop-768
+- **Commit:** feat(igla): Wave Loop 767 — module-scope [353][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1738)
+- **Files:** .claude/plans/wave-loop-769.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w768_bench_module_355x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W768_2026-07-23.md,scripts/gen_w768.py,specs/scratch/w768_bench_module_355x2p6_aos_var_call_write.t27
+

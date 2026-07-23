@@ -1,28 +1,28 @@
-# NOW — Wave Loop 767 close-out / Wave Loop 768 setup (2026-07-23)
+# NOW — Wave Loop 768 close-out / Wave Loop 769 setup (2026-07-23)
 
 Last updated: 2026-07-23
 
-## Wave Loop 767 — module-scope `[353][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1738)
+## Wave Loop 768 — module-scope `[355][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1739)
 
-- Branch: `wave-loop-767`
-- Issue: #1738
+- Branch: `wave-loop-768`
+- Issue: #1739
 - PR: to open
-- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W767_2026-07-23.md`
-- Plan: `.claude/plans/wave-loop-767.md`
-- Cooperation W768: `.claude/plans/wave-loop-768.md`
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W768_2026-07-23.md`
+- Plan: `.claude/plans/wave-loop-768.md`
+- Cooperation W769: `.claude/plans/wave-loop-769.md`
 
 ### What landed
-- `specs/scratch/w767_bench_module_353x2p6_aos_var_call_write.t27`
-  - 22,592 elements, 722,944-bit packed vector (~0.690 MiBit).
-  - Module-scope `pub var dst : [353][2]^6 Pt` initialized from a function call and
+- `specs/scratch/w768_bench_module_355x2p6_aos_var_call_write.t27`
+  - 22,720 elements, 727,040-bit packed vector (~0.694 MiBit).
+  - Module-scope `pub var dst : [355][2]^6 Pt` initialized from a function call and
     exercised with indexed signed field writes.
   - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
-- `scripts/gen_w767.py`
-  - Generator for the W767 witness; `OUTER = 353`, `MID_IDX = 176`.
+- `scripts/gen_w768.py`
+  - Generator for the W768 witness; `OUTER = 355`, `MID_IDX = 177`.
 - `bootstrap/tests/icarus_lowerable.rs`
-  - Added `accepts_w767_bench_module_353x2p6_aos_var_call_write`.
-- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/plans/wave-loop-768.md`
-  - W767 learnings saved and W768 issue/plan created.
+  - Added `accepts_w768_bench_module_355x2p6_aos_var_call_write`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/plans/wave-loop-769.md`
+  - W768 learnings saved and W769 issue/plan created.
 
 ### Not changed
 - `bootstrap/src/compiler.rs` — zero compiler changes.
@@ -33,8 +33,21 @@ Last updated: 2026-07-23
 - `cargo build --release -p t27c`: OK.
 - `cargo test -p t27c --bin t27c`: 1494/0/2.
 - `cargo test -p tri`: 78/0.
-- `cargo test -p t27c --test icarus_lowerable`: 227/0.
-- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W767: PASS.
+- `cargo test -p t27c --test icarus_lowerable`: 228/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W768: PASS.
+
+---
+
+## Wave Loop 769 — next odd outer-dimension `[357][2]^6 Pt` (Issue #1740)
+
+- Branch: `wave-loop-769` (to create after W768 merge)
+- Issue: #1740
+- Plan: `.claude/plans/wave-loop-769.md`
+
+### Candidate variants
+- Variant A (recommended): continue the odd outer-dimension ladder with `[357][2]^6 Pt`.
+- Variant B: keep width at ~0.694 MiBit but move the packed var to bench/function scope.
+- Variant C: add `if`-guarded indexed signed field writes at the current width.
 
 ---
 

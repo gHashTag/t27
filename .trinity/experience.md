@@ -77,6 +77,79 @@
 
 ---
 
+## 2026-07-23 — Wave Loop 768 (module-scope `[355][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 355.
+  The `[355][2]^6 Pt` witness is 727,040 bits (~0.694 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [355][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 355, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 355`, `MID_IDX = 177`; the frame-condition element is
+  `[177][1][0][0][0][0][0]`, element number `177*64 + 32 = 11,360`.
+- Updated weak-point audit: 42 of 51 30-day commits include `Closes #N` (≈82%).
+  Clean non-worktree scan: 53 of 895 `.t27` specs lack `test`/`invariant`/`bench`
+  (≈5.9%). 19 `scripts/*.sh` remain under `scripts/`.
+- Fresh 2025-2026 literature scan surfaced BitNet training/inference extensions,
+  spintronic/MTJ ternary logic-in-memory, skyrmion multi-value probabilistic
+  computing, and superconducting ternary output data links.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w768_bench_module_355x2p6_aos_var_call_write.t27` (~1,554 KB /
+  ~67,511 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w768_bench_module_355x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w768.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 228 passed; 0 failed.
+- Direct `t27c parse` W768: PASS.
+- Direct `t27c icarus-lowerable` W768: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W768: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W768: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  727,040-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - BitNet b1.58 foundational ternary LLM and JMLR 2025 training recipe.
+  - BitNet b1.58 2B4T — first open-source native 1-bit 2B LLM (4T tokens).
+  - Bitnet.cpp — edge CPU inference with TL/I2_S kernels up to 6.25× vs FP16.
+  - Sparse-BitNet — natural compatibility with N:M semi-structured sparsity.
+  - Skyrmion multi-value probabilistic computing with current-controlled
+    diffusion and MTJ-compatible readout (arXiv 2025).
+  - MTJ+FinFET ternary logic-in-memory array with full ternary operator set
+    (Results in Engineering 2025).
+  - Reconfigurable skyrmion multi-port logic device with VCMA gating
+    (Chinese Phys. Lett. 2026).
+  - Cascading VCMA skyrmion AND/OR/NAND/NOR gates (Nanotechnology 2026).
+  - Ternary RSFQ output data link, 3-bit→2-trit encoder, MIT Lincoln Lab
+    SFQ5ee process (IEEE Trans. Appl. Supercond. 2025).
+  - Verilog/SDF modeling framework for synchronous/asynchronous SFQ/RSFQ/ASFQ
+    pulse-based logic (arXiv 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+---
+
 ## 2026-07-23 — Wave Loop 767 (module-scope `[353][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
 
 ### What worked
