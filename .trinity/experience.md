@@ -1,3 +1,73 @@
+## 2026-07-23 — Wave Loop 764 (module-scope `[347][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 347.
+  The `[347][2]^6 Pt` witness is 710,656 bits (~0.678 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [347][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 347, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 347`, `MID_IDX = 173`; the frame-condition element is
+  `[173][1][0][0][0][0][0]`, element number `173*64 + 32 = 11,104`.
+- Updated weak-point audit: 576 commits in 30 days (29 with `Closes #N`), 57
+  `.t27` specs without `test`/`invariant`/`bench`, 23 `scripts/*.sh` under `scripts/`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w764_bench_module_347x2p6_aos_var_call_write.t27` (~1,519 KB /
+  ~65,991 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w764_bench_module_347x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w764.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 224 passed; 0 failed.
+- Direct `t27c parse` W764: PASS.
+- Direct `t27c icarus-lowerable` W764: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W764: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W764: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  710,656-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Trinity B002 / Trinity v2.0.x — zero-DSP ternary-weight autoregressive LLM
+    inference on Xilinx Artix-7 via OpenXC7, ~63 tok/s @ ~1 W, QMTech XC7A100T
+    (Zenodo 2025/2026).
+  - TerEffic — highly efficient ternary LLM inference on AMD Alveo U280, 16,300
+    tok/s on 370 M model, 455 tok/s/W (arXiv 2025).
+  - TeLLMe v2 — end-to-end ternary LLM prefill/decode accelerator on AMD Kria
+    KV260, up to 25 tok/s decode / 143 tok/s prefill under 5 W (arXiv 2025).
+  - 5500FP / GargantuRAM — 24-trit balanced ternary RISC processor on Efinix
+    Trion FPGA at 20 MHz, real ±3.3 V ternary I/O, CERN-OHL-P v2 board,
+    commercially available (Zenodo/GitHub/Hackaday 2026).
+  - TernaryCore — open-source native {-1,0,+1} Verilog BitNet b1.58 accelerator,
+    zero DSP, 31/31 simulations passing, Artix-7 roadmap (GitHub 2026).
+  - Unbalanced ternary full adder in CNTFET — 42-transistor design with 35.8–75.2%
+    power reduction (IEEE TCAD 2026).
+  - CNTFET-based ternary full adder — 76/55 CNTFET complete/partial adders with
+    ~24% delay improvement (IEEE TCAD 2025).
+  - Energy-optimized ternary full adder using capacitive threshold logic and
+    CNTFETs for DSP (AEU 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
 ## 2026-07-23 — Wave Loop 763 (module-scope `[345][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
 
 ### What worked

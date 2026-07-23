@@ -12,15 +12,15 @@ field writes and `assert_eq` read-back in a `bench` block.
 
 ## PHI LOOP decomposition
 
-- [ ] **Issue** - Confirm #1735 scope and Variant A.
-- [ ] **Spec** - Generate `specs/scratch/w764_bench_module_347x2p6_aos_var_call_write.t27`.
-- [ ] **TDD** - Include `test` write schedule and `bench` read-back assertions.
-- [ ] **Impl** - No compiler changes; reuse W632 inner-dimension offset formula.
-- [ ] **Gen** - Run direct witness generation from `scripts/gen_w764.py`.
-- [ ] **Seal** - `t27c seal --save` the witness.
-- [ ] **Verify** - `parse`, `icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, cargo suites.
+- [x] **Issue** - Confirm #1735 scope and Variant A.
+- [x] **Spec** - Generate `specs/scratch/w764_bench_module_347x2p6_aos_var_call_write.t27`.
+- [x] **TDD** - Include `test` write schedule and `bench` read-back assertions.
+- [x] **Impl** - No compiler changes; reuse W632 inner-dimension offset formula.
+- [x] **Gen** - Run direct witness generation from `scripts/gen_w764.py`.
+- [x] **Seal** - `t27c seal --save` the witness.
+- [x] **Verify** - `parse`, `icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, cargo suites.
 - [ ] **Land** - Merge `wave-loop-764` to `master` with `Closes #1735`.
-- [ ] **Learn** - Save W764 memory + update `skills-wave-loop-recipe.md` + `MEMORY.md`.
+- [x] **Learn** - Save W764 memory + update `skills-wave-loop-recipe.md` + `MEMORY.md`.
 
 ## Three cooperation variants for next Wave Loop
 
