@@ -3720,3 +3720,7 @@
 - **Commit:** docs(trinity): update NOW.md for W772 close-out / W773 setup and add wave-loop-773 plan
 - **Files:** .claude/plans/wave-loop-773.md,.trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W772_2026-07-24.md
 
+## 2026-07-23T19:26:56Z — wave-loop-773
+- **Commit:** docs(trinity): Wave Loop 773 issue #1481 + branch wave-loop-773 created, next-wave cooperation variants set
+- **Files:** .trinity/seals/scratch_w773_bench_module_365x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w773.py,specs/scratch/w773_bench_module_365x2p6_aos_var_call_write.t27
+
