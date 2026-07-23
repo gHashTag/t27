@@ -1,6 +1,55 @@
-# NOW — Wave Loop 771 close-out / Wave Loop 772 setup (2026-07-24)
+# NOW — Wave Loop 772 close-out / Wave Loop 773 setup (2026-07-24)
 
 Last updated: 2026-07-24
+
+## Wave Loop 772 — module-scope `[363][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1743)
+
+- Branch: `wave-loop-772`
+- Issue: #1743
+- PR: #1480
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W772_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-772.md`
+- Cooperation W773: `.claude/plans/wave-loop-773.md`
+
+### What landed
+- `specs/scratch/w772_bench_module_363x2p6_aos_var_call_write.t27`
+  - 23,232 elements, 743,424-bit packed vector (~0.709 MiBit).
+  - Module-scope `pub var dst : [363][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w772.py`
+  - Generator for the W772 witness; `OUTER = 363`, `MID_IDX = 181`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w772_bench_module_363x2p6_aos_var_call_write`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/plans/wave-loop-773.md`
+  - W772 learnings saved and W773 issue/plan created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 232/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W772: PASS.
+
+---
+
+## Wave Loop 773 — next odd outer-dimension `[365][2]^6 Pt` (Issue #1744)
+
+- Branch: `wave-loop-773` (to create after W772 merge)
+- Issue: #1744
+- Plan: `.claude/plans/wave-loop-773.md`
+
+### Candidate variants
+- Variant A (recommended): continue the odd outer-dimension ladder with `[365][2]^6 Pt`.
+- Variant B: keep width at ~0.709 MiBit but move the packed var to bench/function scope.
+- Variant C: add `if`-guarded indexed signed field writes at the current width.
+
+---
 
 ## Wave Loop 771 — module-scope `[361][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1742)
 
@@ -35,19 +84,6 @@ Last updated: 2026-07-24
 - `cargo test -p tri`: 78/0.
 - `cargo test -p t27c --test icarus_lowerable`: 231/0.
 - `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W771: PASS.
-
----
-
-## Wave Loop 772 — next odd outer-dimension `[363][2]^6 Pt` (Issue #1743)
-
-- Branch: `wave-loop-772` (to create after W771 merge)
-- Issue: #1743
-- Plan: `.claude/plans/wave-loop-772.md`
-
-### Candidate variants
-- Variant A (recommended): continue the odd outer-dimension ladder with `[363][2]^6 Pt`.
-- Variant B: keep width at ~0.705 MiBit but move the packed var to bench/function scope.
-- Variant C: add `if`-guarded indexed signed field writes at the current width.
 
 ---
 
