@@ -3708,3 +3708,7 @@
 - **Commit:** feat(igla): Wave Loop 771 — module-scope [361][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1742)
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-23T19:10:40Z — wave-loop-772
+- **Commit:** docs(trinity): Wave Loop 772 issue #1743 + branch wave-loop-772 created, next-wave cooperation variants set
+- **Files:** .trinity/experience.md,.trinity/seals/scratch_w772_bench_module_363x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W772_2026-07-24.md,scripts/gen_w772.py,specs/scratch/w772_bench_module_363x2p6_aos_var_call_write.t27
+
