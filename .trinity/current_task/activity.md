@@ -3732,3 +3732,7 @@
 - **Commit:** docs(trinity): Wave Loop 773 closeout report, experience, and updated plan
 - **Files:** .claude/plans/wave-loop-774.md,docs/NOW.md
 
+## 2026-07-23T19:34:18Z — wave-loop-774
+- **Commit:** docs(trinity): update NOW.md for W773 close-out / W774 setup and add wave-loop-774 plan
+- **Files:** .trinity/current-issue.md
+
