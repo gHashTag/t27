@@ -1,7 +1,7 @@
-# Wave Loop 773 Plan — Issue #1744
+# Wave Loop 773 Plan — Issue #1481
 
 ## Phase 1: Issue
-- Confirm W773 issue #1744 and branch `wave-loop-773`.
+- Confirm W773 issue #1481 and branch `wave-loop-773`.
 
 ## Phase 2: Spec
 - Generate `specs/scratch/w773_bench_module_365x2p6_aos_var_call_write.t27` using
@@ -33,7 +33,7 @@
 - `cargo test -p t27c --test icarus_lowerable`
 
 ## Phase 8: Land
-- Commit with `feat(igla): Wave Loop 773 — module-scope [365][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1744)`.
+- Commit with `feat(igla): Wave Loop 773 — module-scope [365][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1481)`.
 - Push `wave-loop-773`, open PR, merge to `master`, create `wave-loop-774`.
 
 ## Phase 9: Learn

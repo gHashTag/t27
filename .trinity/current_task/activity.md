@@ -3716,3 +3716,7 @@
 - **Commit:** feat(igla): Wave Loop 772 — module-scope [363][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
 - **Files:** .claude/plans/wave-loop-773.md,docs/NOW.md
 
+## 2026-07-23T19:19:07Z — wave-loop-773
+- **Commit:** docs(trinity): update NOW.md for W772 close-out / W773 setup and add wave-loop-773 plan
+- **Files:** .claude/plans/wave-loop-773.md,.trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W772_2026-07-24.md
+

@@ -38,10 +38,10 @@ Last updated: 2026-07-24
 
 ---
 
-## Wave Loop 773 — next odd outer-dimension `[365][2]^6 Pt` (Issue #1744)
+## Wave Loop 773 — next odd outer-dimension `[365][2]^6 Pt` (Issue #1481)
 
-- Branch: `wave-loop-773` (to create after W772 merge)
-- Issue: #1744
+- Branch: `wave-loop-773`
+- Issue: #1481
 - Plan: `.claude/plans/wave-loop-773.md`
 
 ### Candidate variants

@@ -3,7 +3,7 @@
 **Date:** 2026-07-24  
 **Issue:** #1743  
 **Branch:** `wave-loop-772`  
-**Next branch:** `wave-loop-773`  
+**Next branch:** `wave-loop-773` (Issue #1481)  
 **Witness:** `specs/scratch/w772_bench_module_363x2p6_aos_var_call_write.t27`  
 **Generator:** `scripts/gen_w772.py`
 
@@ -134,7 +134,7 @@ Sources:
 
 ---
 
-## 6. Three cooperation variants for Wave Loop 773
+## 6. Three cooperation variants for Wave Loop 773 (Issue #1481)
 
 1. **Variant A (recommended): `[365][2]^6 Pt` module-scope var from call with
    indexed signed field writes.**
