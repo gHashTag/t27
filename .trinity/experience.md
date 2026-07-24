@@ -1,3 +1,82 @@
+## 2026-07-24 — Wave Loop 781 (module-scope `[381][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1492)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 381.
+  The `[381][2]^6 Pt` witness is 780,288 bits (~0.745 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [381][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 381, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 381`, `MID_IDX = 190`; the frame-condition element is
+  `[190][1][0][0][0][0][0]`, element number `190*64 + 32 = 12,192`.
+- Fresh weak-point audit (2026-07-24) identified three actionable closeout-scope items:
+  `cli/flash-spi/src/main.rs:81` fails workspace tests because `FlashOpts` added
+  `bitswap`/`no_jprogram`; `cargo clippy -p t27c` is blocked by `clippy::approx_constant`
+  at `bootstrap/src/sensitivity.rs:126`; and `bitnet_pipeline::sequencer_idle_arms_on_start`
+  drifts because generated Verilog now emits `done<=0;` in the IDLE state. These
+  three were fixed in W781 to restore workspace/clippy/pipeline gates.
+- Remaining medium risks: 627 release warnings (mostly unused/dead code), Vivado-in-Docker
+  CI gap (image not published), and open PR stack W774-W780 still awaiting review.
+- 30-day subject-line traceability is strong in the active window; the automated
+  `l1-traceability.yml` workflow is operational.
+- Clean scan: 57 of 886 `.t27` specs lack `test`/`invariant`/`bench` (≈6.43%).
+  19 `scripts/*.sh` remain under `scripts/`. No new secrets found in `.env.example` files.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w781_bench_module_381x2p6_aos_var_call_write.t27` (~1,670 KB /
+  ~72,200 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w781_bench_module_381x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w781.py`.
+- Fixed `cli/flash-spi/src/main.rs` to pass new `FlashOpts` fields.
+- Fixed `bootstrap/src/sensitivity.rs:126` to use `std::f64::consts::PI`.
+- Fixed `bootstrap/tests/bitnet_pipeline.rs:143` expected IDLE-state substring.
+- Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W781_2026-07-24.md` and next-wave
+  plan `.claude/plans/wave-loop-782.md`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test --workspace`: OK (flash-spi compiles).
+- `cargo clippy -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_pipeline`: 20 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 241 passed; 0 failed.
+- Direct `t27c parse` W781: PASS.
+- Direct `t27c icarus-lowerable` W781: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W781: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W781: PASS (`reference-model OK`).
+- `t27c seal --save` W781: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  780,288-bit packed vector, which is legal SystemVerilog.
+- AMD UG900 2026.1 and AR 51836 confirm Vivado simulation/synthesis accept packed
+  arrays of structs as wide vectors, mapped to `svLogicVecVal` arrays in DPI.
+- Yosys 0.65-dev documentation shows that arrays of packed structs and non-standard
+  packed ranges remain fragile; t27 packed-vector flattening avoids both gaps.
+- 2025-2026 literature scan highlights:
+  - TerEffic (arXiv 2502.16473v2, 2025) — ternary-LLM FPGA accelerator with TMat core.
+  - Ternary VHDL (ISMVL 2026, DOI 10.1109/ismvl68998.2026.00041) — balanced ternary
+    extension to IEEE 1076-2008 for VLSI/FPGA modeling.
+  - Trinity B002 (Zenodo 10.5281/zenodo.19224235, 2026) — DSP-free FPGA architecture
+    for ternary inference with OpenXC7/Yosys flow.
+  - SONIC (ISMVL 2026, DOI 10.1109/ismvl68998.2026.00042) — event-driven ternary
+    gate-level simulator exporting binary-coded ternary Verilog.
+  - 5500FP / "It's not a binary choice" (The Register, Mar 2026) — 24-trit balanced
+    ternary RISC CPU on conventional FPGA, first off-the-shelf ternary hardware
+    since Setun.
+  - cocotb 2.0 (DVCon Europe 2024) — Python-based testbench framework; Icarus 11+
+    support, Python Runner flow, LogicArray API.
+
+---
+
 ## 2026-07-24 — Wave Loop 780 (module-scope `[379][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1496)
 
 ### What worked
@@ -16,8 +95,7 @@
   across the current activity window, improved versus W779; the remote 30-day
   rate should be tracked separately. Clean scan: 57 of 886 `.t27` specs lack
   `test`/`invariant`/`bench` (≈6.43%). 19 `scripts/*.sh` remain under `scripts/`.
-  PR #1484 (W774), #1486 (W775), #1488 (W776), #1489 (README update), #1491 (W777),
-  #1493 (W778), and #1495 (W779) remain OPEN/BLOCKED, so W780 was branched from
+  Earlier wave PRs remain OPEN/BLOCKED, so W780 was branched from
   `wave-loop-779` HEAD to avoid blocking. Untracked W485 artefacts, `main` vs `master`
   divergence, and pre-existing FPGA synthesis failures noted as hygiene weak points.
 - The `bitnet_pipeline::sequencer_idle_arms_on_start` test drift is still present

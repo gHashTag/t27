@@ -139,18 +139,18 @@ fn top_cycle_counter_resets_on_start_and_increments_when_busy() {
 }
 
 #[test]
-fn top_busy_from_current_layer_or_layer_start() {
+fn top_busy_tracks_started_until_done() {
     let (stdout, _stderr, ok) = run(&["gen-bitnet-engine-top"]);
     assert!(ok);
-    assert!(stdout.contains("assign busy = (current_layer != 6'd0) || layer_start;"));
+    assert!(stdout.contains("assign busy = started && !done;"));
 }
 
 #[test]
-fn top_mem_outputs_tied_off() {
+fn top_mem_outputs_driven_by_prefetch_axi() {
     let (stdout, _stderr, ok) = run(&["gen-bitnet-engine-top"]);
     assert!(ok);
-    assert!(stdout.contains("assign mem_addr  = 32'd0;"));
-    assert!(stdout.contains("assign mem_rd_en = 1'b0;"));
+    assert!(stdout.contains("assign mem_addr  = pf_axi_araddr;"));
+    assert!(stdout.contains("assign mem_rd_en = pf_axi_arvalid;"));
 }
 
 #[test]
