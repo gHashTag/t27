@@ -1,3 +1,102 @@
+## 2026-07-24 — Wave Loop 791 (module-scope `[401][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1511)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 401.
+  The `[401][2]^6 Pt` witness is 821,248 bits (~0.783 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [401][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 401, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 401`, `MID_IDX = 200`; the frame-condition element is
+  `[200][1][0][0][0][0][0]`, element number `200*64 + 32 = 12,832`.
+- The generator copy hazard struck again: `scripts/gen_w791.py` line 7/77 had a hardcoded
+  `w790` prefix inside an f-string (`module w790_bench_module_{OUTER}x2p6...`), so the
+  first generated spec had the wrong module name. Fixing the prefix and regenerating
+  resolved it. This is the same hazard documented in W782–W790 learnings and remains
+  the only manual step in the otherwise mechanical flow.
+- Fresh weak-point audit (2026-07-24) found no new actionable items. The W783 fix
+  for `bootstrap/tests/verilog_const_array.rs:166` remains green; the pre-existing
+  `verilog_array_literal_expr` regression is still out of scope for the witness ladder.
+- 30-day subject-line traceability recovered to ~14.0% (148/1055) because the closeout
+  commit and recent maintenance commits include `Closes #N` in subjects, but it is still
+  below the W773-era peak.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH` (`68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`).
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w791_bench_module_401x2p6_aos_var_call_write.t27` (~1,758 KB /
+  ~76,251 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w791_bench_module_401x2p6_aos_var_call_write`
+  in `bootstrap/tests/icarus_lowerable.rs`.
+- Added generator script `scripts/gen_w791.py`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W791_2026-07-24.md` and
+  `.claude/plans/wave-loop-792.md` with three cooperation variants.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo clippy -p t27c`: OK (780 warnings, 0 errors).
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p flash-spi`: 2 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_pipeline`: 20 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_top`: 17 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 251 passed; 0 failed.
+- `cargo test -p t27c --test verilog_const_array`: 2 passed; 0 failed.
+- Direct `t27c parse` W791: PASS.
+- Direct `t27c icarus-lowerable` W791: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W791: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W791: PASS (`reference-model OK`).
+- Direct `t27c seal --save` W791: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  821,248-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+- Recent 2025–2026 ternary/MVL literature (Tlsys ternary RTL-to-netlist
+  framework, Trinity B002 zero-DSP FPGA ternary inference, SONIC ternary EDA,
+  Ternary VHDL, and optimized ternary Wallace multipliers) reinforces that
+  flattening ternary aggregate data to wide binary packed vectors is a
+  pragmatic, toolchain-compatible path while native MVL fabrics mature.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- Parameterizing the wave prefix inside the generator template would eliminate
+  the recurring copy hazard; until then, grep for the old wave number after
+  copying a generator and before the first generation.
+
+### Anti-patterns to avoid
+- Do not use single-line literals for >1,000 element initializers; the scanner
+  becomes the bottleneck.
+- Do not rely on `assert_ne` being emitted for Icarus simulation.
+- Do not run the full `./scripts/tri test --fast` suite as the only check when
+  adding a near-MiBit packed-vector witness; rely on targeted t27c gates and the
+  dedicated `icarus_lowerable` test instead.
+- Do not bundle deeper compiler regressions (e.g. `verilog_array_literal_expr`)
+  into a witness closeout; open a separate issue for those.
+
 ## 2026-07-24 — Wave Loop 790 (module-scope `[399][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1509)
 
 ### What worked

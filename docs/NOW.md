@@ -1,3 +1,82 @@
+# NOW — Wave Loop 791 close-out / Wave Loop 792 setup (2026-07-24)
+
+Last updated: 2026-07-24
+
+## Wave Loop 791 — module-scope `[401][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1511)
+
+- Branch: `wave-loop-791`
+- Parent branch: `wave-loop-790` HEAD (`d758b7c8a`)
+- Issue: #1511
+- PR: #1512
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W791_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-791.md`
+- Cooperation W792: `.claude/plans/wave-loop-792.md`
+
+### What landed
+- `specs/scratch/w791_bench_module_401x2p6_aos_var_call_write.t27`
+  - 25,664 elements, 821,248-bit packed vector (~0.783 MiBit).
+  - Module-scope `pub var dst : [401][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w791.py`
+  - Generator for the W791 witness; `OUTER = 401`, `MID_IDX = 200`.
+  - Note: the generator header had a hardcoded `w790` prefix inside an f-string,
+    which required a manual fix and regeneration before the module name matched
+    the wave number.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w791_bench_module_401x2p6_aos_var_call_write`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
+  `.claude/plans/wave-loop-792.md`
+  - W791 learnings saved and W792 plan/cooperation variants created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo clippy -p t27c`: OK (780 warnings, 0 errors).
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p flash-spi`: 2/0.
+- `cargo test -p t27c --test bitnet_pipeline`: 20/0.
+- `cargo test -p t27c --test bitnet_top`: 17/0.
+- `cargo test -p t27c --test icarus_lowerable`: 251/0.
+- `cargo test -p t27c --test verilog_const_array`: 2/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W791: PASS.
+
+### Remaining weak points
+- `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
+  compiler lowering issue, tracked for separate issue).
+- FPGA E2E CI red (`sby` missing + Yosys static-cast error in generated `uart.v`).
+- 626 release warnings and 780 clippy warnings need dedicated cleanup sprint.
+- Vivado-in-Docker CI gap (private image not yet published).
+- 30-day traceability by subject recovered to ~14.0% (148/1055) but remains below
+  the W773-era peak; keep closing references in subjects.
+
+---
+
+## Wave Loop 792 — module-scope `[403][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
+
+- Branch: `wave-loop-792`
+- Parent branch: `wave-loop-791` HEAD (after closeout)
+- Issue: TBD after W791 PR opened
+- PR: (to open)
+- Plan: `.claude/plans/wave-loop-792.md`
+
+### Goal
+Continue the odd outer-dimension module-scope AoS ladder with `[403][2]^6 Pt`.
+Expected 25,792 elements, 825,344-bit packed vector (~0.787 MiBit), still under
+4-MiBit cliff, with zero compiler / reference-model / FROZEN_HASH changes.
+
+### Variants
+- **A (recommended):** `[403][2]^6 Pt` module-scope var from call.
+- **B:** `[401][2]^6 Pt` bench/function-scope packed var from call.
+- **C:** `[401][2]^6 Pt` module-scope var with `if`-guarded writes.
+
+---
+
 # NOW — Wave Loop 789 close-out / Wave Loop 790 setup (2026-07-24)
 
 Last updated: 2026-07-24

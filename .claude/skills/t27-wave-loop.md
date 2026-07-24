@@ -1256,6 +1256,43 @@ the `make_grid(32768)` period-identity check because `32768 ≡ 0 (mod 32768)`, 
 use `assert_eq` on changed elements because `assert_ne` is not emitted by the
 Icarus simulation path.
 
+## Worked example — Wave Loop 791
+
+Wave Loop 791 extended the odd outer-dimension ladder to `[401][2]^6 Pt` with no
+compiler changes, branching from `wave-loop-790` HEAD because earlier wave PRs
+remained open awaiting review:
+
+- Generated `scripts/gen_w791.py` from `scripts/gen_w790.py` with `OUTER = 401`
+  and `MID_IDX = 200`.
+- Produced `specs/scratch/w791_bench_module_401x2p6_aos_var_call_write.t27`
+  (25,664 elements, 821,248-bit packed vector, ~0.783 MiBit).
+- Added integration test `accepts_w791_bench_module_401x2p6_aos_var_call_write`
+  after the existing W790 tests in `bootstrap/tests/icarus_lowerable.rs`.
+- Ran `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles, PASSED),
+  `icarus-cocotb` (reference-model OK), and `t27c seal --save`.
+- No changes to `bootstrap/src/compiler.rs`, `bootstrap/stage0/FROZEN_HASH`, or
+  `scripts/cocotb_ref_model.py` for the witness itself.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo clippy -p t27c` green (780 warnings, 0 errors),
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p flash-spi` 2/0,
+  `cargo test -p t27c --test bitnet_pipeline` 20/0,
+  `cargo test -p t27c --test bitnet_top` 17/0,
+  `cargo test -p t27c --test icarus_lowerable` 251/0,
+  `cargo test -p t27c --test verilog_const_array` 2/0.
+- Refreshed weak-point audit and 2025-2026 ternary/MVL literature scan.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W791_2026-07-24.md` and
+  `.claude/plans/wave-loop-792.md` with three cooperation variants.
+
+Key learning: the mechanical generator discipline continues to be the cheapest
+way to extend the non-power-of-two packed-vector ladder. The 30-day
+subject-line traceability rate recovered to ~14.0% (148/1055) in this closeout
+but remains below the W773-era peak, so keep closing references in commit
+subjects. Always fix the module header prefix after copying a generator, keep the
+`make_grid(32768)` period-identity check because `32768 ≡ 0 (mod 32768)`, and use
+`assert_eq` on changed elements because `assert_ne` is not emitted by the Icarus
+simulation path.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
