@@ -1,3 +1,72 @@
+## 2026-07-24 — Wave Loop 780 (module-scope `[379][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1496)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 379.
+  The `[379][2]^6 Pt` witness is 776,192 bits (~0.741 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [379][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 379, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 379`, `MID_IDX = 189`; the frame-condition element is
+  `[189][1][0][0][0][0][0]`, element number `189*64 + 32 = 12,128`.
+- Updated weak-point audit: 30-day subject-line traceability is ~56.7% (17/30)
+  across the current activity window, improved versus W779; the remote 30-day
+  rate should be tracked separately. Clean scan: 57 of 886 `.t27` specs lack
+  `test`/`invariant`/`bench` (≈6.43%). 19 `scripts/*.sh` remain under `scripts/`.
+  PR #1484 (W774), #1486 (W775), #1488 (W776), #1489 (README update), #1491 (W777),
+  #1493 (W778), and #1495 (W779) remain OPEN/BLOCKED, so W780 was branched from
+  `wave-loop-779` HEAD to avoid blocking. Untracked W485 artefacts, `main` vs `master`
+  divergence, and pre-existing FPGA synthesis failures noted as hygiene weak points.
+- The `bitnet_pipeline::sequencer_idle_arms_on_start` test drift is still present
+  (unrelated to wave-loop work).
+- Pre-existing FPGA synthesis/formal failures in CI (`sby` pip package missing,
+  Yosys static-cast Verilog-2005 limitation in `build/fpga/generated/uart.v`) are
+  unrelated to this wave and block PR #1489 from merging even with `--admin`.
+- Fresh 2024-2026 literature scan found the same TerEffic/TeLLMe/ELiTeFormer/
+  ternary-lut-dse/SONIC/REBEL-6/TVHDL references, plus no new high-impact releases
+  in the last few hours.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w780_bench_module_379x2p6_aos_var_call_write.t27` (~1,660 KB /
+  ~72,071 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w780_bench_module_379x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w780.py`.
+- Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W780_2026-07-24.md` and next-wave
+  plan `.claude/plans/wave-loop-781.md`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 240 passed; 0 failed.
+- Direct `t27c parse` W780: PASS.
+- Direct `t27c icarus-lowerable` W780: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W780: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W780: PASS (`reference-model OK`).
+- `t27c seal --save` W780: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  776,192-bit packed vector, which is legal SystemVerilog.
+- AMD UG900 2026.1 and AR 51836 confirm Vivado simulation/synthesis accept packed
+  arrays of structs as wide vectors, mapped to `svLogicVecVal` arrays in DPI.
+- Yosys 0.65-dev documentation shows that arrays of packed structs and non-standard
+  packed ranges remain fragile; t27 packed-vector flattening avoids both gaps.
+- Literature scan: TerEffic (5 ternary weights in 8 bits, 3^5=243<256), TeLLMe
+  (3 ternary values in 5-bit LUT index), KULeuven ternary-lut-dse (non-power-of-two
+  LUT depths), ELiTeFormer (hybrid linear attention + BitNet b1.58 on VCK5000),
+  SONIC/REBEL-6/TVHDL (ternary EDA tooling and ISA), and AMD/Intel ternary neural
+  accelerator notes.
+
+---
+
 ## 2026-07-24 — Wave Loop 779 (module-scope `[377][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1494)
 
 ### What worked
