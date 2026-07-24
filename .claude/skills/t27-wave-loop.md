@@ -709,6 +709,39 @@ expression → packed vector.
 
 ---
 
+## Worked example — Wave Loop 775
+
+Wave Loop 775 extended the odd outer-dimension ladder to `[369][2]^6 Pt` with no
+compiler changes, branching from `wave-loop-774` HEAD because PR #1484 (W774)
+remained open awaiting review:
+
+- Generated `scripts/gen_w775.py` from `scripts/gen_w774.py` with `OUTER = 369`
+  and `MID_IDX = 184`.
+- Produced `specs/scratch/w775_bench_module_369x2p6_aos_var_call_write.t27`
+  (23,616 elements, 755,712-bit packed vector, ~0.721 MiBit).
+- Added integration test `accepts_w775_bench_module_369x2p6_aos_var_call_write`
+  after the existing W775 tests in `bootstrap/tests/icarus_lowerable.rs`.
+- Ran `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles, PASSED),
+  `icarus-cocotb` (reference-model OK), and `t27c seal --save`.
+- No changes to `bootstrap/src/compiler.rs`, `bootstrap/stage0/FROZEN_HASH`, or
+  `scripts/cocotb_ref_model.py`.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 235/0,
+  `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb` 53/0 Icarus
+  PASS, 53/0 cocotb PASS, 0 seal mismatches.
+- Refreshed weak-point audit and 2025-2026 ternary/MVL literature scan.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W775_2026-07-24.md` and proposed three
+  cooperation variants for W776: `[371][2]^6 Pt` (recommended), bench/function
+  scope at `[369][2]^6 Pt`, and `if`-guarded writes at `[369][2]^6 Pt`.
+
+Key learning: when the previous wave's PR is still open, branch the next wave
+from the previous wave branch HEAD so the sequence can continue. Maintain the
+same mechanical generator discipline, and keep the `make_grid(32768)`
+period-identity check because `32768 ≡ 0 (mod 32768)`. Keep using `assert_eq` on
+changed elements because `assert_ne` is not emitted by the Icarus simulation
+path.
+
 ## Worked example — Wave Loop 774
 
 Wave Loop 774 exercised the odd outer-dimension ladder with no compiler changes,

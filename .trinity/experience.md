@@ -1,3 +1,85 @@
+## 2026-07-24 — Wave Loop 775 (module-scope `[369][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 369.
+  The `[369][2]^6 Pt` witness is 755,712 bits (~0.721 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [369][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 369, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 369`, `MID_IDX = 184`; the frame-condition element is
+  `[184][1][0][0][0][0][0]`, element number `184*64 + 32 = 11,808`.
+- Updated weak-point audit: 11 of 68 30-day subject lines carry `Closes #N`/`Fixes #N`
+  (≈16.2%), still low compared to earlier weeks; merge/closeout bodies still contain the link.
+  Clean non-worktree scan: 51 of 881 `.t27` specs lack `test`/`invariant`/`bench` (≈5.8%).
+  19 `scripts/*.sh` remain under `scripts/`. PR #1484 (W774) remains OPEN/BLOCKED
+  awaiting review, so W775 was branched from `wave-loop-774` HEAD to avoid blocking.
+  Untracked W485 artefacts and stale `NOW.md` (2026-05-24) noted as hygiene weak points.
+- Pre-existing FPGA synthesis/formal failures in CI (`sby` pip package missing,
+  Yosys static-cast Verilog-2005 limitation in `build/fpga/generated/uart.v`) are
+  unrelated to this wave and tracked as weak point #1245.
+- Fresh 2025-2026 literature scan reinforced IEEE 1800-2017 packed-array/struct
+  semantics (AMD UG900 2026.1, AR 51836), native ternary ISA/compiler work
+  (REBEL-6, RV32I-to-REBEL translator), ternary EDA/simulation work
+  (SONIC, TVHDL, KULeuven LUT-based ternary MatMul, VTX1 ternary SoC), and
+  SystemVerilog tooling gaps (Yosys/Icarus arrays-of-packed-structs not supported).
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w775_bench_module_369x2p6_aos_var_call_write.t27` (~1,616 KB /
+  ~70,171 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w775_bench_module_369x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w775.py`.
+- Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W775_2026-07-24.md`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 235 passed; 0 failed.
+- Direct `t27c parse` W775: PASS.
+- Direct `t27c icarus-lowerable` W775: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W775: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W775: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  755,712-bit packed vector, which is legal SystemVerilog.
+- AMD UG900 2026.1 and AR 51836 confirm Vivado simulation/synthesis accept packed
+  arrays of structs as wide vectors, mapped to `svLogicVecVal` arrays in DPI.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - REBEL-6 — 32-trit balanced ternary ISA with RV32I-to-REBEL (R2R) compiler
+    pipeline for C; 1.4% fewer instructions and 33.2% lower dynamic power than
+    RV32I (IEEE ISMVL 2025).
+  - SONIC — event-driven gate-level simulator/verifier for ternary VLSI circuits
+    using delta cycles, with BCT Verilog FPGA export (IEEE ISMVL 2026).
+  - TVHDL — balanced ternary extension to IEEE 1076-2008 VHDL for mixed-radix
+    VLSI design and verification (IEEE ISMVL 2026).
+  - KULeuven LUT-based ternary MatMul DSE — Chisel generator for 1.58-bit LLM
+    inference, accepted at IEEE ISPASS 2026 (arXiv:2604.25183).
+  - VTX1 — open-source balanced-ternary SoC with CPU, memory/cache, UART/SPI/I2C/GPIO/DMA,
+    RTL-to-silicon flow using Icarus Verilog and Yosys, SkyWater 130nm tape-out planned.
+  - SystemVerilog tooling gaps — Yosys native frontend still does not support
+    arrays of packed structs; Icarus issue #1134 documents assertion failures for
+    unpacked arrays of packed structs. t27 scalar packed-vector flattening avoids
+    both gaps.
+
+---
+
 ## 2026-07-24 — Wave Loop 774 (module-scope `[367][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1483)
 
 ### What worked
