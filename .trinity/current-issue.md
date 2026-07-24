@@ -1,8 +1,9 @@
-# Wave Loop 774 — Issue TBD
+# Wave Loop 774 — Issue #1483
 
 **Branch:** `wave-loop-774`  
 **Date:** 2026-07-24  
 **Cooperation variant:** A (recommended)
+**Status:** implementation complete, pending merge to `master`
 
 ## Goal
 
@@ -12,15 +13,15 @@ field writes and `assert_eq` read-back in a `bench` block.
 
 ## Acceptance criteria
 
-1. `specs/scratch/w774_bench_module_367x2p6_aos_var_call_write.t27` is generated and parses.
-2. The witness is Icarus-lowerable and simulates correctly (17 cycles, PASSED).
-3. The cocotb reference model matches the t27 semantics.
-4. `t27c seal --save` succeeds and FROZEN_HASH remains unchanged.
-5. All cargo suites remain green.
-6. Integration test `accepts_w774_bench_module_367x2p6_aos_var_call_write` is added.
-7. Closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W774_2026-07-24.md` is written.
-8. Learning is saved to `.trinity/experience.md`, memory, and `skills-wave-loop-recipe.md`.
-9. Branch merges to `master` with `Closes #<ISSUE>`.
+1. [x] `specs/scratch/w774_bench_module_367x2p6_aos_var_call_write.t27` is generated and parses.
+2. [x] The witness is Icarus-lowerable and simulates correctly (17 cycles, PASSED).
+3. [x] The cocotb reference model matches the t27 semantics.
+4. [x] `t27c seal --save` succeeds and FROZEN_HASH remains unchanged.
+5. [x] All cargo suites remain green.
+6. [x] Integration test `accepts_w774_bench_module_367x2p6_aos_var_call_write` is added.
+7. [x] Closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W774_2026-07-24.md` is written.
+8. [x] Learning is saved to `.trinity/experience.md`, memory, and `.claude/skills/t27-wave-loop.md`.
+9. [ ] Branch merges to `master` with `Closes #1483`.
 
 ## Technical notes
 
