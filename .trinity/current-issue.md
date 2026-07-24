@@ -4,7 +4,7 @@
 **Parent branch:** `wave-loop-783` HEAD (`7f2c7afb4`)
 **Date:** 2026-07-24
 **Issue:** #1497
-**PR:** (to open after closeout)
+**PR:** #1498
 **Cooperation variant:** A (recommended)
 **Status:** closeout complete
 
