@@ -1,3 +1,85 @@
+## 2026-07-24 — Wave Loop 790 (module-scope `[399][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1509)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 399.
+  The `[399][2]^6 Pt` witness is 817,152 bits (~0.779 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [399][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 399, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 399`, `MID_IDX = 200`; the frame-condition element is
+  `[199][1][0][0][0][0][0]`, element number `199*64 + 32 = 12,768`.
+- The generator copy hazard struck again: `scripts/gen_w790.py` line 77 had a hardcoded
+  `w789` prefix inside an f-string (`module w789_bench_module_{OUTER}x2p6...`), so the
+  first generated spec had the wrong module name. Fixing the prefix and regenerating
+  resolved it. This is the same hazard documented in W782–W789 learnings and remains
+  the only manual step in the otherwise mechanical flow.
+- Fresh weak-point audit (2026-07-24) found no new actionable items. The W783 fix
+  for `bootstrap/tests/verilog_const_array.rs:166` remains green. The deeper
+  `verilog_array_literal_expr` regression and FPGA E2E CI redness remain pre-existing
+  and out of scope for the witness ladder.
+- Remaining medium risks: `verilog_array_literal_expr` regression (deeper compiler
+  lowering issue), FPGA E2E CI red (`sby` missing + Yosys static-cast), 626 release
+  warnings, 780 clippy warnings, Vivado-in-Docker CI gap, and open PR stack W774-W789
+  still awaiting review.
+- Clean scan: 57 of 897 `.t27` specs lack `test`/`invariant`/`bench` (≈6.35%).
+  19 `scripts/*.sh` remain under `scripts/`. No new secrets found in `.env.example` files.
+- 30-day traceability by commit subject dropped to 0 of 87 (0.0%) because recent wave
+  commits place `Closes #N` in the body, not the subject. This is not a L1 violation
+  but reinforces the downward trend and suggests a future tooling/policy tweak.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w790_bench_module_399x2p6_aos_var_call_write.t27` (~1,750 KB /
+  ~75,871 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w790_bench_module_399x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w790.py`.
+- Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W790_2026-07-24.md` and next-wave
+  plan `.claude/plans/wave-loop-791.md`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo clippy -p t27c`: OK (780 warnings, 0 errors).
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p flash-spi`: 2 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_pipeline`: 20 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_top`: 17 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 250 passed; 0 failed.
+- `cargo test -p t27c --test verilog_const_array`: 2 passed; 0 failed.
+- Direct `t27c parse` W790: PASS.
+- Direct `t27c icarus-lowerable` W790: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W790: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W790: PASS (`reference-model OK`).
+- `t27c seal --save` W790: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  817,152-bit packed vector, which is legal SystemVerilog.
+- AMD UG901 2026.1 confirms packed arrays of structs are supported synthesizable
+  aggregate data types, mapped to wide `svLogicVecVal` arrays in DPI.
+- Yosys issue 5837 (2026) shows unusual packed-array shapes can expose
+  simulator/synthesis mismatches, reinforcing t27's flatten-to-wide-vector
+  strategy for open-source compatibility.
+- 2024-2026 literature scan highlights:
+  - IEEE Std 1800-2017 §7.4.
+  - AMD UG901 2026.1 / AR 51836.
+  - Yosys issue 5837 (2026).
+  - "A Generalized Multiple-Valued FPGA Architecture Based on Improved T-Gate Circuit" (IEEE Access 2025, DOI 10.1109/access.2025.3605842).
+  - "Reconfigurable Multiple-Valued Logic Function and Sequential Circuit Realizations via Threshold Logic Gates" (arXiv 2024, 2404.06420).
+  - "TeLLMe: An Energy-Efficient Ternary LLM Accelerator for Prefilling and Decoding on Edge FPGAs" (arXiv 2025, 2504.16266).
+  - "TerEffic: Highly Efficient Ternary LLM Inference on FPGA" (arXiv 2025, 2502.16473v2).
+  - "Trinity B002: Zero-DSP FPGA Architecture for Ternary Inference" (Zenodo 2026, DOI 10.5281/zenodo.19224235).
+  - "An Innovative Approach to Multi-Valued Logic" (IEEJ Trans. Electrical & Electronic Engineering 2026).
+
+---
+
 ## 2026-07-24 — Wave Loop 789 (module-scope `[397][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1507)
 
 ### What worked
