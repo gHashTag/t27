@@ -4,7 +4,7 @@
 **Parent branch:** `wave-loop-782` HEAD
 **Date:** 2026-07-24
 **Issue:** #1495
-**PR:** (to open after closeout)
+**PR:** #1496
 **Cooperation variant:** A (recommended)
 **Status:** closeout complete
 

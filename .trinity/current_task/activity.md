@@ -3788,3 +3788,7 @@
 - **Commit:** feat(igla): Wave Loop 782 — module-scope [383][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
 - **Files:** .claude/plans/wave-loop-784.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w783_bench_module_385x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,bootstrap/tests/verilog_const_array.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W783_2026-07-24.md,scripts/gen_w783.py,specs/scratch/w783_bench_module_385x2p6_aos_var_call_write.t27
 
+## 2026-07-24T15:37:09Z — wave-loop-783
+- **Commit:** feat(igla): Wave Loop 783 — module-scope [385][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current-issue.md
+
