@@ -1,33 +1,33 @@
-# NOW — Wave Loop 791 close-out / Wave Loop 792 setup (2026-07-24)
+# NOW — Wave Loop 792 close-out / Wave Loop 793 setup (2026-07-24)
 
 Last updated: 2026-07-24
 
-## Wave Loop 791 — module-scope `[401][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1511)
+## Wave Loop 792 — module-scope `[403][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1513)
 
-- Branch: `wave-loop-791`
-- Parent branch: `wave-loop-790` HEAD (`d758b7c8a`)
-- Issue: #1511
-- PR: #1512
-- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W791_2026-07-24.md`
-- Plan: `.claude/plans/wave-loop-791.md`
-- Cooperation W792: `.claude/plans/wave-loop-792.md`
+- Branch: `wave-loop-792`
+- Parent branch: `wave-loop-791` HEAD (`4b0ec7cb9`)
+- Issue: #1513
+- PR: #1514
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W792_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-792.md`
+- Cooperation W793: `.claude/plans/wave-loop-793.md`
 
 ### What landed
-- `specs/scratch/w791_bench_module_401x2p6_aos_var_call_write.t27`
-  - 25,664 elements, 821,248-bit packed vector (~0.783 MiBit).
-  - Module-scope `pub var dst : [401][2]^6 Pt` initialized from a function call and
+- `specs/scratch/w792_bench_module_403x2p6_aos_var_call_write.t27`
+  - 25,792 elements, 825,344-bit packed vector (~0.787 MiBit).
+  - Module-scope `pub var dst : [403][2]^6 Pt` initialized from a function call and
     exercised with indexed signed field writes.
   - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
-- `scripts/gen_w791.py`
-  - Generator for the W791 witness; `OUTER = 401`, `MID_IDX = 200`.
-  - Note: the generator header had a hardcoded `w790` prefix inside an f-string,
+- `scripts/gen_w792.py`
+  - Generator for the W792 witness; `OUTER = 403`, `MID_IDX = 201`.
+  - Note: the generator header had a hardcoded `w791` prefix inside an f-string,
     which required a manual fix and regeneration before the module name matched
     the wave number.
 - `bootstrap/tests/icarus_lowerable.rs`
-  - Added `accepts_w791_bench_module_401x2p6_aos_var_call_write`.
+  - Added `accepts_w792_bench_module_403x2p6_aos_var_call_write`.
 - `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
-  `.claude/plans/wave-loop-792.md`
-  - W791 learnings saved and W792 plan/cooperation variants created.
+  `.claude/plans/wave-loop-793.md`
+  - W792 learnings saved and W793 plan/cooperation variants created.
 
 ### Not changed
 - `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
@@ -42,9 +42,9 @@ Last updated: 2026-07-24
 - `cargo test -p flash-spi`: 2/0.
 - `cargo test -p t27c --test bitnet_pipeline`: 20/0.
 - `cargo test -p t27c --test bitnet_top`: 17/0.
-- `cargo test -p t27c --test icarus_lowerable`: 251/0.
+- `cargo test -p t27c --test icarus_lowerable`: 252/0.
 - `cargo test -p t27c --test verilog_const_array`: 2/0.
-- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W791: PASS.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W792: PASS.
 
 ### Remaining weak points
 - `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
@@ -52,28 +52,28 @@ Last updated: 2026-07-24
 - FPGA E2E CI red (`sby` missing + Yosys static-cast error in generated `uart.v`).
 - 626 release warnings and 780 clippy warnings need dedicated cleanup sprint.
 - Vivado-in-Docker CI gap (private image not yet published).
-- 30-day traceability by subject recovered to ~14.0% (148/1055) but remains below
-  the W773-era peak; keep closing references in subjects.
+- 30-day traceability by subject remains ~14.0% (148/1056), unchanged from W791;
+  keep closing references in subjects.
 
 ---
 
-## Wave Loop 792 — module-scope `[403][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
+## Wave Loop 793 — module-scope `[405][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
 
-- Branch: `wave-loop-792`
-- Parent branch: `wave-loop-791` HEAD (after closeout)
-- Issue: TBD after W791 PR opened
+- Branch: `wave-loop-793`
+- Parent branch: `wave-loop-792` HEAD (after closeout)
+- Issue: TBD after W792 PR opened
 - PR: (to open)
-- Plan: `.claude/plans/wave-loop-792.md`
+- Plan: `.claude/plans/wave-loop-793.md`
 
 ### Goal
-Continue the odd outer-dimension module-scope AoS ladder with `[403][2]^6 Pt`.
-Expected 25,792 elements, 825,344-bit packed vector (~0.787 MiBit), still under
+Continue the odd outer-dimension module-scope AoS ladder with `[405][2]^6 Pt`.
+Expected 25,920 elements, 829,440-bit packed vector (~0.791 MiBit), still under
 4-MiBit cliff, with zero compiler / reference-model / FROZEN_HASH changes.
 
 ### Variants
-- **A (recommended):** `[403][2]^6 Pt` module-scope var from call.
-- **B:** `[401][2]^6 Pt` bench/function-scope packed var from call.
-- **C:** `[401][2]^6 Pt` module-scope var with `if`-guarded writes.
+- **A (recommended):** `[405][2]^6 Pt` module-scope var from call.
+- **B:** `[403][2]^6 Pt` bench/function-scope packed var from call.
+- **C:** `[403][2]^6 Pt` module-scope var with `if`-guarded writes.
 
 ---
 

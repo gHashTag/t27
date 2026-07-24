@@ -1293,6 +1293,45 @@ subjects. Always fix the module header prefix after copying a generator, keep th
 `assert_eq` on changed elements because `assert_ne` is not emitted by the Icarus
 simulation path.
 
+## Worked example — Wave Loop 792
+
+Wave Loop 792 extended the odd outer-dimension ladder to `[403][2]^6 Pt` with no
+compiler changes, branching from `wave-loop-791` HEAD because earlier wave PRs
+remained open awaiting review:
+
+- Generated `scripts/gen_w792.py` from `scripts/gen_w791.py` with `OUTER = 403`
+  and `MID_IDX = 201`.
+- Fixed the generator header prefix from the copied `w791_bench_module_...`
+  string to `w792_bench_module_403x2p6_aos_var_call_write` before regenerating.
+- Produced `specs/scratch/w792_bench_module_403x2p6_aos_var_call_write.t27`
+  (25,792 elements, 825,344-bit packed vector, ~0.787 MiBit).
+- Added integration test `accepts_w792_bench_module_403x2p6_aos_var_call_write`
+  after the existing W791 tests in `bootstrap/tests/icarus_lowerable.rs`.
+- Ran `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles, PASSED),
+  `icarus-cocotb` (reference-model OK), and `t27c seal --save`.
+- No changes to `bootstrap/src/compiler.rs`, `bootstrap/stage0/FROZEN_HASH`, or
+  `scripts/cocotb_ref_model.py` for the witness itself.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo clippy -p t27c` green (780 warnings, 0 errors),
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p flash-spi` 2/0,
+  `cargo test -p t27c --test bitnet_pipeline` 20/0,
+  `cargo test -p t27c --test bitnet_top` 17/0,
+  `cargo test -p t27c --test icarus_lowerable` 252/0,
+  `cargo test -p t27c --test verilog_const_array` 2/0.
+- Refreshed weak-point audit and 2025-2026 ternary/MVL literature scan.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W792_2026-07-24.md` and
+  `.claude/plans/wave-loop-793.md` with three cooperation variants.
+
+Key learning: the mechanical ladder is now 20 waves deep (W774–W792) with zero
+compiler changes, confirming the packed-vector AoS lowering is robust up to at
+least `[403][2]^6 Pt` (25,792 elements, ~0.787 MiBit). The generator copy hazard
+remains the only manual failure mode; parameterizing the wave prefix inside the
+generator template would make the flow fully mechanical. Continue fixing the
+module header prefix after each copy, keep the `make_grid(32768)` period-identity
+check, and use `assert_eq` on changed elements because `assert_ne` is not emitted
+by the Icarus simulation path.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
