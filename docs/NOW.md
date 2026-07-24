@@ -1,4 +1,4 @@
-# NOW — Wave Loop 773 close-out / Wave Loop 774 setup (2026-07-24)
+# NOW — Wave Loop 776 close-out / Wave Loop 777 setup (2026-07-24)
 
 Last updated: 2026-07-24
 
@@ -35,6 +35,61 @@ Last updated: 2026-07-24
 - `cargo test -p tri`: 78/0.
 - `cargo test -p t27c --test icarus_lowerable`: 233/0.
 - `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W773: PASS.
+
+---
+
+## Wave Loop 776 — module-scope `[371][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1487)
+
+- Branch: `wave-loop-776`
+- Parent branch: `wave-loop-775` HEAD (`2e86eb0b8`)
+- Issue: #1487
+- PR: #1488 (to open)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W776_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-776.md`
+- Cooperation W777: `.claude/plans/wave-loop-777.md`
+
+### What landed
+- `specs/scratch/w776_bench_module_371x2p6_aos_var_call_write.t27`
+  - 23,744 elements, 759,808-bit packed vector (~0.725 MiBit).
+  - Module-scope `pub var dst : [371][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w776.py`
+  - Generator for the W776 witness; `OUTER = 371`, `MID_IDX = 185`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w776_bench_module_371x2p6_aos_var_call_write`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
+  `.claude/plans/wave-loop-777.md`
+  - W776 learnings saved and W777 plan/cooperation variants created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 236/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W776: PASS.
+
+### Notes
+- W774 PR #1484 and W775 PR #1486 are still open awaiting review, so W776 was
+  branched from `wave-loop-775` HEAD to keep the ladder unblocked.
+
+---
+
+## Wave Loop 777 — next odd outer-dimension `[373][2]^6 Pt` (Issue TBD)
+
+- Branch: `wave-loop-777` (to create after W776 merge or stack)
+- Issue: TBD
+- Plan: `.claude/plans/wave-loop-777.md`
+
+### Candidate variants
+- Variant A (recommended): continue the odd outer-dimension ladder with `[373][2]^6 Pt`.
+- Variant B: keep width at ~0.725 MiBit but move the packed var to bench/function scope.
+- Variant C: add `if`-guarded indexed signed field writes at the current width.
 
 ---
 

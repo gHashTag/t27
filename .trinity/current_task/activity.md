@@ -3748,3 +3748,7 @@
 - **Commit:** docs(trinity): update current-issue.md with PR #1484 link for Wave Loop 774 (Refs #1483)
 - **Files:** .claude/plans/wave-loop-776.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w775_bench_module_369x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W775_2026-07-24.md,scripts/gen_w775.py,specs/scratch/w775_bench_module_369x2p6_aos_var_call_write.t27
 
+## 2026-07-24T12:25:29Z — wave-loop-776
+- **Commit:** feat(igla): Wave Loop 775 — module-scope [369][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1485)
+- **Files:** .claude/plans/loop-w776-full-cycle.md,.claude/plans/wave-loop-777.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w776_bench_module_371x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W776_2026-07-24.md,scripts/gen_w776.py,specs/scratch/w776_bench_module_371x2p6_aos_var_call_write.t27
+
