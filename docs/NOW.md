@@ -1,6 +1,59 @@
-# NOW — Wave Loop 781 close-out / Wave Loop 782 setup (2026-07-24)
+# NOW — Wave Loop 782 close-out / Wave Loop 783 setup (2026-07-24)
 
 Last updated: 2026-07-24
+
+## Wave Loop 782 — module-scope `[383][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1493)
+
+- Branch: `wave-loop-782`
+- Parent branch: `wave-loop-781` HEAD (`a61465608`)
+- Issue: #1493
+- PR: (to open)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W782_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-782.md`
+- Cooperation W783: `.claude/plans/wave-loop-783.md`
+
+### What landed
+- `specs/scratch/w782_bench_module_383x2p6_aos_var_call_write.t27`
+  - 24,512 elements, 784,384-bit packed vector (~0.748 MiBit).
+  - Module-scope `pub var dst : [383][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w782.py`
+  - Generator for the W782 witness; `OUTER = 383`, `MID_IDX = 191`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w782_bench_module_383x2p6_aos_var_call_write`.
+- Weak-point fix in this closeout:
+  - `bootstrap/src/host/telemetry.rs:242` — replaced literal `3.14` with
+    `std::f64::consts::PI` and updated expected formatted output to `"3.142"`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
+  `.claude/plans/wave-loop-783.md`
+  - W782 learnings saved and W783 plan/cooperation variants created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo clippy -p t27c`: OK (780 warnings, 0 errors).
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p flash-spi`: 2/0.
+- `cargo test -p t27c --test bitnet_pipeline`: 20/0.
+- `cargo test -p t27c --test bitnet_top`: 17/0.
+- `cargo test -p t27c --test icarus_lowerable`: 242/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W782: PASS.
+
+### Remaining weak points
+- `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
+  compiler lowering issue, tracked for separate issue).
+- `bootstrap/tests/verilog_const_array.rs` regression (pre-existing, deeper
+  compiler lowering issue, tracked for separate issue).
+- 627 release warnings (unused/dead code) need dedicated cleanup sprint.
+- Vivado-in-Docker CI gap (private image not yet published).
+
+---
 
 ## Wave Loop 781 — module-scope `[381][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1492)
 

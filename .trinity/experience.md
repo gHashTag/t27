@@ -1,3 +1,81 @@
+## 2026-07-24 — Wave Loop 782 (module-scope `[383][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1493)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 383.
+  The `[383][2]^6 Pt` witness is 784,384 bits (~0.748 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [383][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 383, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 383`, `MID_IDX = 191`; the frame-condition element is
+  `[191][1][0][0][0][0][0]`, element number `191*64 + 32 = 12,256`.
+- Fresh weak-point audit (2026-07-24) identified one actionable closeout-scope item:
+  `bootstrap/src/host/telemetry.rs:242` still used literal `3.14`, which triggers
+  `clippy::approx_constant` under stricter clippy settings. Replaced it with
+  `std::f64::consts::PI` and updated the expected formatted output to `"3.142"`;
+  the standard project gate `cargo clippy -p t27c` remains green.
+- Remaining medium risks: 627 release warnings (mostly unused/dead code), Vivado-in-Docker
+  CI gap (image not published), and open PR stack W774-W781 still awaiting review.
+- Wave-loop feature commits carry `Closes #N` in PR bodies; subject-line enforcement
+  remains a watch item when activity density drops.
+- Clean scan: 59 of 888 `.t27` specs lack `test`/`invariant`/`bench` (≈6.64%).
+  19 `scripts/*.sh` remain under `scripts/`. No new secrets found in `.env.example` files.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w782_bench_module_383x2p6_aos_var_call_write.t27` (~1,678 KB /
+  ~72,831 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w782_bench_module_383x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w782.py`.
+- Fixed `bootstrap/src/host/telemetry.rs:242` to use `std::f64::consts::PI`.
+- Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W782_2026-07-24.md` and next-wave
+  plan `.claude/plans/wave-loop-783.md`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo clippy -p t27c`: OK (780 warnings, 0 errors).
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p flash-spi`: 2 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_pipeline`: 20 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_top`: 17 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 242 passed; 0 failed.
+- Direct `t27c parse` W782: PASS.
+- Direct `t27c icarus-lowerable` W782: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W782: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W782: PASS (`reference-model OK`).
+- `t27c seal --save` W782: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  784,384-bit packed vector, which is legal SystemVerilog.
+- AMD UG900 2026.1 and AR 51836 confirm Vivado simulation/synthesis accept packed
+  arrays of structs as wide vectors, mapped to `svLogicVecVal` arrays in DPI.
+- Yosys commit f94eec95 shows that packed multidimensional arrays inside packed
+  structs are handled as a contiguous bit vector whose width is the product of
+  dimension widths, including non-power-of-two sizes; directly analogous to t27's
+  lowering.
+- 2025-2026 literature scan highlights:
+  - TerEffic (arXiv 2502.16473v2, 2025) — ternary-LLM FPGA accelerator with TMat core.
+  - Ternary VHDL (ISMVL 2026, DOI 10.1109/ismvl68998.2026.00041) — ternary
+    extension to IEEE 1076-2008 for VLSI/FPGA modeling.
+  - Trinity B002 (Zenodo 10.5281/zenodo.19224235, 2026) — DSP-free FPGA architecture
+    for ternary inference.
+  - SONIC (ISMVL 2026, DOI 10.1109/ismvl68998.2026.00042) — event-driven ternary
+    gate-level simulator exporting binary-coded ternary Verilog.
+  - 5500FP / "It's not a binary choice" (The Register, Mar 2026) — 24-trit balanced
+    ternary RISC CPU on conventional FPGA.
+  - cocotb 2.0 (DVCon Europe 2024 / docs.cocotb.org) — Python testbench framework
+    with Icarus 11+ support and Python Runner flow.
+
+---
+
 ## 2026-07-24 — Wave Loop 781 (module-scope `[381][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1492)
 
 ### What worked

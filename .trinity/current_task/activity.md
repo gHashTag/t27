@@ -3780,3 +3780,7 @@
 - **Commit:** feat(igla): Wave Loop 780 — module-scope [379][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
 - **Files:** .claude/plans/wave-loop-781.md,.claude/plans/wave-loop-782.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w781_bench_module_381x2p6_aos_var_call_write.json,bootstrap/src/sensitivity.rs,bootstrap/tests/bitnet_pipeline.rs,bootstrap/tests/bitnet_top.rs,bootstrap/tests/icarus_lowerable.rs,cli/flash-spi/src/main.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W781_2026-07-24.md,scripts/gen_w781.py,specs/scratch/w781_bench_module_381x2p6_aos_var_call_write.t27
 
+## 2026-07-24T15:20:28Z — wave-loop-782
+- **Commit:** feat(igla): Wave Loop 781 — module-scope [381][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-783.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w782_bench_module_383x2p6_aos_var_call_write.json,bootstrap/src/host/telemetry.rs,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W782_2026-07-24.md,scripts/gen_w782.py,specs/scratch/w782_bench_module_383x2p6_aos_var_call_write.t27
+
