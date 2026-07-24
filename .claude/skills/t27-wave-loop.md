@@ -804,6 +804,40 @@ Also use the /loop iteration to refresh the weak-point audit and literature
 scan even when no compiler code changes, so closeout reports remain honest about
 traceability drift and worktree hygiene.
 
+## Worked example — Wave Loop 778
+
+Wave Loop 778 extended the odd outer-dimension ladder to `[375][2]^6 Pt` with no
+compiler changes, branching from `wave-loop-777` HEAD because PR #1484 (W774),
+PR #1486 (W775), PR #1488 (W776), PR #1489 (README/W774-W776 merge), and
+PR #1491 (W777) remained open or unstable:
+
+- Generated `scripts/gen_w778.py` from `scripts/gen_w777.py` with `OUTER = 375`
+  and `MID_IDX = 187`.
+- Produced `specs/scratch/w778_bench_module_375x2p6_aos_var_call_write.t27`
+  (24,000 elements, 768,000-bit packed vector, ~0.733 MiBit).
+- Added integration test `accepts_w778_bench_module_375x2p6_aos_var_call_write`
+  after the existing W777 tests in `bootstrap/tests/icarus_lowerable.rs`.
+- Ran `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles, PASSED),
+  `icarus-cocotb` (reference-model OK), and `t27c seal --save`.
+- No changes to `bootstrap/src/compiler.rs`, `bootstrap/stage0/FROZEN_HASH`, or
+  `scripts/cocotb_ref_model.py`.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 238/0,
+  `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb` 53/0 Icarus
+  PASS, 53/0 cocotb PASS, 0 seal mismatches.
+- Refreshed weak-point audit and 2025-2026 ternary/MVL literature scan.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W778_2026-07-24.md` and
+  `.claude/plans/wave-loop-779.md` with three cooperation variants.
+
+Key learning: the mechanical generator discipline continues to be the cheapest
+way to extend the non-power-of-two packed-vector ladder. The 30-day
+subject-line traceability rate can regress quickly when wave-loop activity
+pauses, so keep monitoring it. Always fix the module header prefix after copying
+a generator, keep the `make_grid(32768)` period-identity check because
+`32768 ≡ 0 (mod 32768)`, and use `assert_eq` on changed elements because
+`assert_ne` is not emitted by the Icarus simulation path.
+
 ## Worked example — Wave Loop 777
 
 Wave Loop 777 extended the odd outer-dimension ladder to `[373][2]^6 Pt` with no

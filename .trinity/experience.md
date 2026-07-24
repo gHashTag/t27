@@ -1,3 +1,85 @@
+## 2026-07-24 — Wave Loop 778 (module-scope `[375][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1492)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 375.
+  The `[375][2]^6 Pt` witness is 768,000 bits (~0.733 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [375][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 375, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 375`, `MID_IDX = 187`; the frame-condition element is
+  `[187][1][0][0][0][0][0]`, element number `187*64 + 32 = 12,000`.
+- Updated weak-point audit: 30-day subject-line traceability is ~17.8% (13/73)
+  across the current activity window, a regression from the local wave-loop spike;
+  the remote 30-day rate should be tracked separately. Clean scan: 57 of 884
+  `.t27` specs lack `test`/`invariant`/`bench` (≈6.45%). 19 `scripts/*.sh` remain
+  under `scripts/`. PR #1484 (W774), #1486 (W775), #1488 (W776), #1489 (README
+  update), and #1491 (W777) remain OPEN/BLOCKED, so W778 was branched from
+  `wave-loop-777` HEAD to avoid blocking. Untracked W485 artefacts, `main` vs `master`
+  divergence, and pre-existing FPGA synthesis failures noted as hygiene weak points.
+- The `bitnet_pipeline::sequencer_idle_arms_on_start` test drift is still present:
+  the test expects exact string `IDLE: if(start) begin ...` but actual
+  `gen-layer-sequencer` output wraps it as `IDLE: begin done<=0; if(start) begin ... end end`.
+  This is unrelated to wave-loop work and causes `cargo test -p t27c --test bitnet_pipeline`
+  to fail.
+- Pre-existing FPGA synthesis/formal failures in CI (`sby` pip package missing,
+  Yosys static-cast Verilog-2005 limitation in `build/fpga/generated/uart.v`) are
+  unrelated to this wave and block PR #1489 from merging even with `--admin`.
+- Fresh 2024-2026 literature scan found TerEffic/TeLLMe/ELiTeFormer (non-power-of-two
+  ternary weight packing), the KU Leuven ternary-lut-dse open-source Chisel generator,
+  plus SONIC/REBEL-6/TVHDL and prior VTX1/TernaryCore references.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w778_bench_module_375x2p6_aos_var_call_write.t27` (~1,643 KB /
+  ~71,311 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w778_bench_module_375x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w778.py`.
+- Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W778_2026-07-24.md` and next-wave
+  plan `.claude/plans/wave-loop-779.md`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 238 passed; 0 failed.
+- Direct `t27c parse` W778: PASS.
+- Direct `t27c icarus-lowerable` W778: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W778: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W778: PASS (`reference-model OK`).
+- `t27c seal --save` W778: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  768,000-bit packed vector, which is legal SystemVerilog.
+- AMD UG900 2026.1 and AR 51836 confirm Vivado simulation/synthesis accept packed
+  arrays of structs as wide vectors, mapped to `svLogicVecVal` arrays in DPI.
+- Yosys 0.65-dev documentation and open issues #2677/#2908/#5837 show that arrays of
+  packed structs and non-standard packed ranges remain fragile; t27 packed-vector
+  flattening avoids both gaps.
+- 2024-2026 ternary/MVL literature scan found:
+  - TerEffic — packs 5 ternary weights into 8 bits (3^5=243<256) (arXiv 2025).
+  - TeLLMe — packs 3 ternary values into a 5-bit index (27 combinations) for LUT-based
+    ternary matmul on edge FPGAs (arXiv 2025).
+  - KULeuven-MICAS/ternary-lut-dse — open-source Chisel generator for LUT-based
+    ternary matrix multiplication with non-power-of-two LUT depths (IEEE ISPASS 2026).
+  - ELiTeFormer — hybrid linear attention + BitNet b1.58 ternary projections on
+    Xilinx VCK5000, 5/3 packing scheme (arXiv 2026).
+  - SONIC — event-driven gate-level simulator/verifier for ternary VLSI
+    (IEEE ISMVL 2026).
+  - REBEL-6 — 32-trit balanced ternary ISA with RV32I-to-REBEL compiler
+    (IEEE ISMVL 2025).
+  - TVHDL — balanced ternary extension to VHDL verified with GHDL/GTKWave
+    (IEEE ISMVL 2026).
+
+---
+
 ## 2026-07-24 — Wave Loop 777 (module-scope `[373][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1490)
 
 ### What worked

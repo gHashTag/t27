@@ -1,4 +1,4 @@
-# NOW — Wave Loop 777 close-out / Wave Loop 778 setup (2026-07-24)
+# NOW — Wave Loop 778 close-out / Wave Loop 779 setup (2026-07-24)
 
 Last updated: 2026-07-24
 
@@ -122,15 +122,59 @@ Last updated: 2026-07-24
 
 ---
 
-## Wave Loop 778 — next odd outer-dimension `[375][2]^6 Pt` (Issue #1492)
+## Wave Loop 778 — module-scope `[375][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1492)
 
-- Branch: `wave-loop-778` (to create after W777 merge or stack)
+- Branch: `wave-loop-778`
+- Parent branch: `wave-loop-777` HEAD (`0867846cf`)
 - Issue: #1492
-- Plan: `.claude/plans/wave-loop-778.md`
+- PR: #1493 (to open / pending review)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W778_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-779.md`
+
+### What landed
+- `specs/scratch/w778_bench_module_375x2p6_aos_var_call_write.t27`
+  - 24,000 elements, 768,000-bit packed vector (~0.733 MiBit).
+  - Module-scope `pub var dst : [375][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w778.py`
+  - Generator for the W778 witness; `OUTER = 375`, `MID_IDX = 187`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w778_bench_module_375x2p6_aos_var_call_write`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
+  `.claude/plans/wave-loop-779.md`
+  - W778 learnings saved and W779 plan/cooperation variants created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 238/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W778: PASS.
+
+### Notes
+- W774 PR #1484, W775 PR #1486, W776 PR #1488, W777 PR #1491, and PR #1489
+  (README/W774-W776 merge) remain open awaiting review, so W778 was branched from
+  `wave-loop-777` HEAD to keep the ladder unblocked.
+- The `bitnet_pipeline::sequencer_idle_arms_on_start` test drift remains a
+  pre-existing failure unrelated to the wave-loop ladder.
+
+---
+
+## Wave Loop 779 — next odd outer-dimension `[377][2]^6 Pt` (Issue #1494)
+
+- Branch: `wave-loop-779` (to create after W778 merge or stack)
+- Issue: #1494
+- Plan: `.claude/plans/wave-loop-779.md`
 
 ### Candidate variants
-- Variant A (recommended): continue the odd outer-dimension ladder with `[375][2]^6 Pt`.
-- Variant B: keep width at ~0.729 MiBit but move the packed var to bench/function scope.
+- Variant A (recommended): continue the odd outer-dimension ladder with `[377][2]^6 Pt`.
+- Variant B: keep width at ~0.733 MiBit but move the packed var to bench/function scope.
 - Variant C: add `if`-guarded indexed signed field writes at the current width.
 
 ---
