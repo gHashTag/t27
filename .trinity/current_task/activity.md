@@ -3756,3 +3756,7 @@
 - **Commit:** feat(igla): Wave Loop 776 — module-scope [371][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1487)
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-24T12:55:27Z — merge-wave-loops-w774-w776-readme
+- **Commit:** docs(readme): add Wave Loop Ladder W760–W776 section and update status line
+- **Files:** README.md
+
