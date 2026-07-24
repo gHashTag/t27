@@ -3760,3 +3760,7 @@
 - **Commit:** docs(readme): add Wave Loop Ladder W760–W776 section and update status line
 - **Files:** .trinity/seals/scratch_w777_bench_module_373x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w777.py,specs/scratch/w777_bench_module_373x2p6_aos_var_call_write.t27
 
+## 2026-07-24T13:38:02Z — wave-loop-777
+- **Commit:** feat(igla): Wave Loop 777 — module-scope [373][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/loop-w777-full-cycle.md,.claude/plans/wave-loop-778.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W777_2026-07-24.md
+
