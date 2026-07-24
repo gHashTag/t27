@@ -3800,3 +3800,7 @@
 - **Commit:** feat(igla): Wave Loop 784 — module-scope [387][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
 - **Files:** .trinity/current-issue.md
 
+## 2026-07-24T16:41:08Z — wave-loop-785
+- **Commit:** docs(trinity): record W784 PR #1498 in current-issue.md
+- **Files:** .claude/plans/wave-loop-786.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w785_bench_module_389x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W785_2026-07-24.md,scripts/gen_w785.py,specs/scratch/w785_bench_module_389x2p6_aos_var_call_write.t27
+

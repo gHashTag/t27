@@ -1,3 +1,74 @@
+## 2026-07-24 — Wave Loop 785 (module-scope `[389][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1499)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 389.
+  The `[389][2]^6 Pt` witness is 796,672 bits (~0.760 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [389][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 389, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 389`, `MID_IDX = 194`; the frame-condition element is
+  `[194][1][0][0][0][0][0]`, element number `194*64 + 32 = 12,416`.
+- Fresh weak-point audit (2026-07-24) found no new actionable items. The W783 fix
+  for `bootstrap/tests/verilog_const_array.rs:166` remains green. The deeper
+  `verilog_array_literal_expr` regression and FPGA E2E CI redness remain pre-existing
+  and out of scope for the witness ladder.
+- Remaining medium risks: `verilog_array_literal_expr` regression (deeper compiler
+  lowering issue), FPGA E2E CI red (`sby` missing + Yosys static-cast), 626 release
+  warnings, 780 clippy warnings, Vivado-in-Docker CI gap, and open PR stack W774-W784
+  still awaiting review.
+- Clean scan: 51 of 891 `.t27` specs lack `test`/`invariant`/`bench` (≈5.72%).
+  19 `scripts/*.sh` remain under `scripts/`. No new secrets found in `.env.example` files.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w785_bench_module_389x2p6_aos_var_call_write.t27` (~1,704 KB /
+  ~73,971 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w785_bench_module_389x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w785.py`.
+- Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W785_2026-07-24.md` and next-wave
+  plan `.claude/plans/wave-loop-786.md`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo clippy -p t27c`: OK (780 warnings, 0 errors).
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p flash-spi`: 2 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_pipeline`: 20 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_top`: 17 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 245 passed; 0 failed.
+- `cargo test -p t27c --test verilog_const_array`: 2 passed; 0 failed.
+- Direct `t27c parse` W785: PASS.
+- Direct `t27c icarus-lowerable` W785: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W785: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W785: PASS (`reference-model OK`).
+- `t27c seal --save` W785: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  796,672-bit packed vector, which is legal SystemVerilog.
+- AMD UG901 2026.1 confirms packed arrays of structs are supported synthesizable
+  aggregate data types, mapped to wide `svLogicVecVal` arrays in DPI.
+- Yosys issue 5837 (2026) shows unusual packed-array shapes can expose
+  simulator/synthesis mismatches, reinforcing t27's flatten-to-wide-vector
+  strategy for open-source compatibility.
+- 2025-2026 literature scan highlights:
+  - Tlsys (Chinese Journal of Electronics 2026, DOI 10.23919/cje.2025.00.418).
+  - TernaryCore (GitHub 2026, shepherdscientific/ternarycore).
+  - KULeuven-MICAS/ternary-lut-dse (GitHub 2026).
+  - AMD Vivado Synthesis — SystemVerilog Constructs (UG901 2026.1).
+  - AMD AR 51836 — Design Assistant for Vivado Synthesis: Aggregate Data Types.
+  - Yosys issue 5837 (2026).
+
+---
+
 ## 2026-07-24 — Wave Loop 784 (module-scope `[387][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1497)
 
 ### What worked
