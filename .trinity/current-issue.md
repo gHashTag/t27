@@ -4,9 +4,9 @@
 **Parent branch:** `wave-loop-775` HEAD (`2e86eb0b8`)  
 **Date:** 2026-07-24  
 **Issue:** #1487  
-**PR:** #1488 (TBD)  
+**PR:** #1488  
 **Cooperation variant:** A (recommended)  
-**Status:** implementation complete, pending PR review and merge
+**Status:** implementation complete, PR opened, pending review and merge
 
 ## Goal
 
