@@ -3740,3 +3740,7 @@
 - **Commit:** docs(trinity): Wave Loop 774 branch setup and cooperation variants
 - **Files:** .claude/plans/loop-w774-full-cycle.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w774_bench_module_367x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W774_2026-07-24.md,scripts/gen_w774.py,specs/scratch/w774_bench_module_367x2p6_aos_var_call_write.t27
 
+## 2026-07-24T11:10:22Z — wave-loop-774
+- **Commit:** feat(igla): Wave Loop 774 — module-scope [367][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1483)
+- **Files:** .trinity/current-issue.md
+

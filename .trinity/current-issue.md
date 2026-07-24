@@ -21,7 +21,8 @@ field writes and `assert_eq` read-back in a `bench` block.
 6. [x] Integration test `accepts_w774_bench_module_367x2p6_aos_var_call_write` is added.
 7. [x] Closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W774_2026-07-24.md` is written.
 8. [x] Learning is saved to `.trinity/experience.md`, memory, and `.claude/skills/t27-wave-loop.md`.
-9. [ ] Branch merges to `master` with `Closes #1483`.
+9. [x] PR #1484 opened from `wave-loop-774` to `master` with `Closes #1483`.
+10. [ ] PR #1484 reviewed and merged to `master`.
 
 ## Technical notes
 
