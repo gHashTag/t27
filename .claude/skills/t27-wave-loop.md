@@ -105,6 +105,31 @@ Key learning: the same broken array-lowering fallback existed in two places
 witnesses broken. Unpacked arrays are the correct Verilog lowering for primitive
 t27 arrays when signed widths or variable indices matter.
 
+## Worked example — Wave Loop 786
+
+Wave Loop 786 continued the module-scope packed-array-of-struct ladder with no
+compiler changes:
+
+- Copied `scripts/gen_w785.py` to `scripts/gen_w786.py` and updated `OUTER = 391`,
+  `MID_IDX = 195`, and the module prefix to `w786_bench_module_391x2p6_aos_var_call_write`.
+- Generated `specs/scratch/w786_bench_module_391x2p6_aos_var_call_write.t27`
+  (25,024 elements, 800,768-bit packed vector, ~0.763 MiBit).
+- Added integration test `accepts_w786_bench_module_391x2p6_aos_var_call_write` in
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Sealed the witness with `t27c seal --save`; `FROZEN_HASH` unchanged.
+- Weak-point audit (2026-07-24) found no new actionable items; W783 fix for
+  `bootstrap/tests/verilog_const_array.rs:166` remains green. Deeper
+  `verilog_array_literal_expr` regression and FPGA E2E CI red remain pre-existing.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 246/0,
+  direct `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save`
+  W786 all PASS.
+
+Key learning: the mechanical generator pattern remains stable at `[391][2]^6 Pt`
+(25,024 elements, ~0.763 MiBit). The recurring copy hazard is the only manual
+step; automating the wave prefix in the generator template would remove it.
+
 ## Worked example — Wave Loop 785
 
 Wave Loop 785 continued the module-scope packed-array-of-struct ladder with no

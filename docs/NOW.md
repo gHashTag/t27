@@ -1,30 +1,30 @@
-# NOW — Wave Loop 785 close-out / Wave Loop 786 setup (2026-07-24)
+# NOW — Wave Loop 786 close-out / Wave Loop 787 setup (2026-07-24)
 
 Last updated: 2026-07-24
 
-## Wave Loop 785 — module-scope `[389][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1499)
+## Wave Loop 786 — module-scope `[391][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1501)
 
-- Branch: `wave-loop-785`
-- Parent branch: `wave-loop-784` HEAD (`2fd1f73e6`)
-- Issue: #1499
-- PR: #1500
-- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W785_2026-07-24.md`
-- Plan: `.claude/plans/wave-loop-785.md`
-- Cooperation W786: `.claude/plans/wave-loop-786.md`
+- Branch: `wave-loop-786`
+- Parent branch: `wave-loop-785` HEAD (`af5c29cca`)
+- Issue: #1501
+- PR: #1502
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W786_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-786.md`
+- Cooperation W787: `.claude/plans/wave-loop-787.md`
 
 ### What landed
-- `specs/scratch/w785_bench_module_389x2p6_aos_var_call_write.t27`
-  - 24,896 elements, 796,672-bit packed vector (~0.760 MiBit).
-  - Module-scope `pub var dst : [389][2]^6 Pt` initialized from a function call and
+- `specs/scratch/w786_bench_module_391x2p6_aos_var_call_write.t27`
+  - 25,024 elements, 800,768-bit packed vector (~0.763 MiBit).
+  - Module-scope `pub var dst : [391][2]^6 Pt` initialized from a function call and
     exercised with indexed signed field writes.
   - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
-- `scripts/gen_w785.py`
-  - Generator for the W785 witness; `OUTER = 389`, `MID_IDX = 194`.
+- `scripts/gen_w786.py`
+  - Generator for the W786 witness; `OUTER = 391`, `MID_IDX = 195`.
 - `bootstrap/tests/icarus_lowerable.rs`
-  - Added `accepts_w785_bench_module_389x2p6_aos_var_call_write`.
+  - Added `accepts_w786_bench_module_391x2p6_aos_var_call_write`.
 - `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
-  `.claude/plans/wave-loop-786.md`
-  - W785 learnings saved and W786 plan/cooperation variants created.
+  `.claude/plans/wave-loop-787.md`
+  - W786 learnings saved and W787 plan/cooperation variants created.
 
 ### Not changed
 - `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
@@ -39,9 +39,9 @@ Last updated: 2026-07-24
 - `cargo test -p flash-spi`: 2/0.
 - `cargo test -p t27c --test bitnet_pipeline`: 20/0.
 - `cargo test -p t27c --test bitnet_top`: 17/0.
-- `cargo test -p t27c --test icarus_lowerable`: 245/0.
+- `cargo test -p t27c --test icarus_lowerable`: 246/0.
 - `cargo test -p t27c --test verilog_const_array`: 2/0.
-- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W785: PASS.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W786: PASS.
 
 ### Remaining weak points
 - `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
@@ -52,23 +52,23 @@ Last updated: 2026-07-24
 
 ---
 
-## Wave Loop 786 — module-scope `[391][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
+## Wave Loop 787 — module-scope `[393][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
 
-- Branch: `wave-loop-786`
-- Parent branch: `wave-loop-785` HEAD (after closeout)
-- Issue: TBD after W785 PR opened
+- Branch: `wave-loop-787`
+- Parent branch: `wave-loop-786` HEAD (after closeout)
+- Issue: TBD after W786 PR opened
 - PR: (to open)
-- Plan: `.claude/plans/wave-loop-786.md`
+- Plan: `.claude/plans/wave-loop-787.md`
 
 ### Goal
-Continue the odd outer-dimension module-scope AoS ladder with `[391][2]^6 Pt`.
-Expected 25,024 elements, 800,768-bit packed vector (~0.763 MiBit), still under
+Continue the odd outer-dimension module-scope AoS ladder with `[393][2]^6 Pt`.
+Expected 25,152 elements, 804,864-bit packed vector (~0.767 MiBit), still under
 4-MiBit cliff, with zero compiler / reference-model / FROZEN_HASH changes.
 
 ### Variants
-- **A (recommended):** `[391][2]^6 Pt` module-scope var from call.
-- **B:** `[389][2]^6 Pt` bench/function-scope packed var from call.
-- **C:** `[389][2]^6 Pt` module-scope var with `if`-guarded writes.
+- **A (recommended):** `[393][2]^6 Pt` module-scope var from call.
+- **B:** `[391][2]^6 Pt` bench/function-scope packed var from call.
+- **C:** `[391][2]^6 Pt` module-scope var with `if`-guarded writes.
 
 ---
 
