@@ -1048,6 +1048,45 @@ generator, keep the `make_grid(32768)` period-identity check because
 `32768 ≡ 0 (mod 32768)`, and use `assert_eq` on changed elements because
 `assert_ne` is not emitted by the Icarus simulation path.
 
+## Worked example — Wave Loop 784
+
+Wave Loop 784 extended the odd outer-dimension ladder to `[387][2]^6 Pt` with no
+compiler changes, branching from `wave-loop-783` HEAD because earlier wave PRs
+remained open awaiting review:
+
+- Generated `scripts/gen_w784.py` from `scripts/gen_w783.py` with `OUTER = 387`
+  and `MID_IDX = 193`.
+- Produced `specs/scratch/w784_bench_module_387x2p6_aos_var_call_write.t27`
+  (24,768 elements, 792,576-bit packed vector, ~0.756 MiBit).
+- Added integration test `accepts_w784_bench_module_387x2p6_aos_var_call_write`
+  after the existing W783 tests in `bootstrap/tests/icarus_lowerable.rs`.
+- Ran `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles, PASSED),
+  `icarus-cocotb` (reference-model OK), and `t27c seal --save`.
+- No changes to `bootstrap/src/compiler.rs`, `bootstrap/stage0/FROZEN_HASH`, or
+  `scripts/cocotb_ref_model.py` for the witness itself.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo clippy -p t27c` green (780 warnings, 0 errors),
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p flash-spi` 2/0,
+  `cargo test -p t27c --test bitnet_pipeline` 20/0,
+  `cargo test -p t27c --test bitnet_top` 17/0,
+  `cargo test -p t27c --test icarus_lowerable` 244/0,
+  `cargo test -p t27c --test verilog_const_array` 2/0,
+  `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb` 53/0 Icarus
+  PASS, 53/0 cocotb PASS, 0 seal mismatches.
+- Refreshed weak-point audit and 2025-2026 ternary/MVL literature scan.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W784_2026-07-24.md` and
+  `.claude/plans/wave-loop-785.md` with three cooperation variants.
+
+Key learning: the mechanical generator discipline continues to be the cheapest
+way to extend the non-power-of-two packed-vector ladder. Even when no compiler
+changes are needed, the /loop charter still adds value by refreshing the weak-point
+audit and literature scan so each closeout report honestly documents the current
+risk surface. Always fix the module header prefix after copying a generator, keep
+the `make_grid(32768)` period-identity check because `32768 ≡ 0 (mod 32768)`, and
+use `assert_eq` on changed elements because `assert_ne` is not emitted by the
+Icarus simulation path.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*

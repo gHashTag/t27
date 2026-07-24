@@ -1,6 +1,56 @@
-# NOW — Wave Loop 783 close-out / Wave Loop 784 setup (2026-07-24)
+# NOW — Wave Loop 784 close-out / Wave Loop 785 setup (2026-07-24)
 
 Last updated: 2026-07-24
+
+## Wave Loop 784 — module-scope `[387][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1497)
+
+- Branch: `wave-loop-784`
+- Parent branch: `wave-loop-783` HEAD (`7f2c7afb4`)
+- Issue: #1497
+- PR: (to open)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W784_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-784.md`
+- Cooperation W785: `.claude/plans/wave-loop-785.md`
+
+### What landed
+- `specs/scratch/w784_bench_module_387x2p6_aos_var_call_write.t27`
+  - 24,768 elements, 792,576-bit packed vector (~0.756 MiBit).
+  - Module-scope `pub var dst : [387][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w784.py`
+  - Generator for the W784 witness; `OUTER = 387`, `MID_IDX = 193`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w784_bench_module_387x2p6_aos_var_call_write`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
+  `.claude/plans/wave-loop-785.md`
+  - W784 learnings saved and W785 plan/cooperation variants created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo clippy -p t27c`: OK (780 warnings, 0 errors).
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p flash-spi`: 2/0.
+- `cargo test -p t27c --test bitnet_pipeline`: 20/0.
+- `cargo test -p t27c --test bitnet_top`: 17/0.
+- `cargo test -p t27c --test icarus_lowerable`: 244/0.
+- `cargo test -p t27c --test verilog_const_array`: 2/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W784: PASS.
+
+### Remaining weak points
+- `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
+  compiler lowering issue, tracked for separate issue).
+- FPGA E2E CI red (`sby` missing + Yosys static-cast error in generated `uart.v`).
+- 626 release warnings and 780 clippy warnings need dedicated cleanup sprint.
+- Vivado-in-Docker CI gap (private image not yet published).
+
+---
 
 ## Wave Loop 783 — module-scope `[385][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1495)
 
