@@ -1,33 +1,33 @@
-# NOW — Wave Loop 788 close-out / Wave Loop 789 setup (2026-07-24)
+# NOW — Wave Loop 789 close-out / Wave Loop 790 setup (2026-07-24)
 
 Last updated: 2026-07-24
 
-## Wave Loop 788 — module-scope `[395][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1505)
+## Wave Loop 789 — module-scope `[397][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1507)
 
-- Branch: `wave-loop-788`
-- Parent branch: `wave-loop-787` HEAD (`f5ee041a8`)
-- Issue: #1505
-- PR: #1506
-- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W788_2026-07-24.md`
-- Plan: `.claude/plans/wave-loop-788.md`
-- Cooperation W789: `.claude/plans/wave-loop-789.md`
+- Branch: `wave-loop-789`
+- Parent branch: `wave-loop-788` HEAD (`44fa559e7`)
+- Issue: #1507
+- PR: #1508
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W789_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-789.md`
+- Cooperation W790: `.claude/plans/wave-loop-790.md`
 
 ### What landed
-- `specs/scratch/w788_bench_module_395x2p6_aos_var_call_write.t27`
-  - 25,280 elements, 808,960-bit packed vector (~0.771 MiBit).
-  - Module-scope `pub var dst : [395][2]^6 Pt` initialized from a function call and
+- `specs/scratch/w789_bench_module_397x2p6_aos_var_call_write.t27`
+  - 25,408 elements, 813,056-bit packed vector (~0.775 MiBit).
+  - Module-scope `pub var dst : [397][2]^6 Pt` initialized from a function call and
     exercised with indexed signed field writes.
   - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
-- `scripts/gen_w788.py`
-  - Generator for the W788 witness; `OUTER = 395`, `MID_IDX = 197`.
-  - Note: the generator header had a hardcoded `w787` prefix inside an f-string,
-    which required a manual fix and regeneration before the module name and seal
-    matched the wave number.
+- `scripts/gen_w789.py`
+  - Generator for the W789 witness; `OUTER = 397`, `MID_IDX = 198`.
+  - Note: the generator header had a hardcoded `w788` prefix inside an f-string,
+    which required a manual fix and regeneration before the module name matched
+    the wave number.
 - `bootstrap/tests/icarus_lowerable.rs`
-  - Added `accepts_w788_bench_module_395x2p6_aos_var_call_write`.
+  - Added `accepts_w789_bench_module_397x2p6_aos_var_call_write`.
 - `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
-  `.claude/plans/wave-loop-789.md`
-  - W788 learnings saved and W789 plan/cooperation variants created.
+  `.claude/plans/wave-loop-790.md`
+  - W789 learnings saved and W790 plan/cooperation variants created.
 
 ### Not changed
 - `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
@@ -42,9 +42,9 @@ Last updated: 2026-07-24
 - `cargo test -p flash-spi`: 2/0.
 - `cargo test -p t27c --test bitnet_pipeline`: 20/0.
 - `cargo test -p t27c --test bitnet_top`: 17/0.
-- `cargo test -p t27c --test icarus_lowerable`: 248/0.
+- `cargo test -p t27c --test icarus_lowerable`: 249/0.
 - `cargo test -p t27c --test verilog_const_array`: 2/0.
-- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W788: PASS.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W789: PASS.
 
 ### Remaining weak points
 - `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
@@ -55,23 +55,23 @@ Last updated: 2026-07-24
 
 ---
 
-## Wave Loop 789 — module-scope `[397][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
+## Wave Loop 790 — module-scope `[399][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
 
-- Branch: `wave-loop-789`
-- Parent branch: `wave-loop-788` HEAD (after closeout)
-- Issue: TBD after W788 PR opened
+- Branch: `wave-loop-790`
+- Parent branch: `wave-loop-789` HEAD (after closeout)
+- Issue: TBD after W789 PR opened
 - PR: (to open)
-- Plan: `.claude/plans/wave-loop-789.md`
+- Plan: `.claude/plans/wave-loop-790.md`
 
 ### Goal
-Continue the odd outer-dimension module-scope AoS ladder with `[397][2]^6 Pt`.
-Expected 25,408 elements, 813,056-bit packed vector (~0.775 MiBit), still under
+Continue the odd outer-dimension module-scope AoS ladder with `[399][2]^6 Pt`.
+Expected 25,536 elements, 817,152-bit packed vector (~0.779 MiBit), still under
 4-MiBit cliff, with zero compiler / reference-model / FROZEN_HASH changes.
 
 ### Variants
-- **A (recommended):** `[397][2]^6 Pt` module-scope var from call.
-- **B:** `[395][2]^6 Pt` bench/function-scope packed var from call.
-- **C:** `[395][2]^6 Pt` module-scope var with `if`-guarded writes.
+- **A (recommended):** `[399][2]^6 Pt` module-scope var from call.
+- **B:** `[397][2]^6 Pt` bench/function-scope packed var from call.
+- **C:** `[397][2]^6 Pt` module-scope var with `if`-guarded writes.
 
 ---
 

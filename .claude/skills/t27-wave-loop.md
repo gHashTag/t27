@@ -185,6 +185,35 @@ mechanical wave flow. Parameterizing the wave prefix inside the generator templa
 would eliminate the only manual step that has caused repeated first-attempt
 regenerations in W782–W788.
 
+## Worked example — Wave Loop 789
+
+Wave Loop 789 continued the module-scope packed-array-of-struct ladder with no
+compiler changes:
+
+- Copied `scripts/gen_w788.py` to `scripts/gen_w789.py` and updated `OUTER = 397`,
+  `MID_IDX = 198`, and the module prefix to `w789_bench_module_397x2p6_aos_var_call_write`.
+  The generator header still hardcodes the wave prefix inside an f-string
+  (`module w788_bench_module_{OUTER}x2p6...`), so a manual fix and regeneration
+  were required after the first attempt produced the wrong module name.
+- Generated `specs/scratch/w789_bench_module_397x2p6_aos_var_call_write.t27`
+  (25,408 elements, 813,056-bit packed vector, ~0.775 MiBit).
+- Added integration test `accepts_w789_bench_module_397x2p6_aos_var_call_write` in
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Sealed the witness with `t27c seal --save`; `FROZEN_HASH` unchanged.
+- Weak-point audit (2026-07-24) found no new actionable items; W783 fix for
+  `bootstrap/tests/verilog_const_array.rs:166` remains green. Deeper
+  `verilog_array_literal_expr` regression and FPGA E2E CI red remain pre-existing.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 249/0,
+  direct `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save`
+  W789 all PASS.
+
+Key learning: the mechanical ladder is now 16 waves deep (W774–W789) with zero
+compiler changes. The generator copy hazard remains the only source of
+first-attempt failures; parameterizing the wave prefix is the clear next tooling
+investment to make the flow fully mechanical.
+
 ## Worked example — Wave Loop 785
 
 Wave Loop 785 continued the module-scope packed-array-of-struct ladder with no
