@@ -3768,3 +3768,7 @@
 - **Commit:** docs(trinity): Wave Loop 777 close-out — current-issue, NOW, skill, experience, W778 plan/report
 - **Files:** .claude/plans/wave-loop-779.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w778_bench_module_375x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W778_2026-07-24.md,scripts/gen_w778.py,specs/scratch/w778_bench_module_375x2p6_aos_var_call_write.t27
 
+## 2026-07-24T13:57:42Z — wave-loop-779
+- **Commit:** feat(igla): Wave Loop 778 — module-scope [375][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-780.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w779_bench_module_377x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W779_2026-07-24.md,scripts/gen_w779.py,specs/scratch/w779_bench_module_377x2p6_aos_var_call_write.t27
+
