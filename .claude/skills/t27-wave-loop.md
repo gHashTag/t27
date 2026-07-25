@@ -1610,15 +1610,85 @@ remained open awaiting review:
 - Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W799_2026-07-24.md` and
   `.claude/plans/wave-loop-800.md` with three cooperation variants.
 
-Key learning: the mechanical ladder is now 27 waves deep (W774–W799) with zero
+## Worked example — Wave Loop 800
+
+Wave Loop 800 continued the module-scope packed-array-of-struct ladder with no
+compiler changes, branching from `wave-loop-799` HEAD because earlier wave PRs
+remained open awaiting review:
+
+- Generated `scripts/gen_w800.py` from `scripts/gen_w799.py` with `OUTER = 419`
+  and `MID_IDX = 209`.
+- Fixed both the generator destination path and the module header f-string from
+  stale `w799` / `417` references to `w800_bench_module_419x2p6_aos_var_call_write`
+  before regenerating.
+- Produced `specs/scratch/w800_bench_module_419x2p6_aos_var_call_write.t27`
+  (26,816 elements, 858,112-bit packed vector, ~0.818 MiBit).
+- Added integration test `accepts_w800_bench_module_419x2p6_aos_var_call_write`
+  after the existing W799 tests in `bootstrap/tests/icarus_lowerable.rs`.
+- Ran `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles, PASSED),
+  `icarus-cocotb` (reference-model OK), and `t27c seal --save`.
+- No changes to `bootstrap/src/compiler.rs`, `bootstrap/stage0/FROZEN_HASH`, or
+  `scripts/cocotb_ref_model.py` for the witness itself.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo clippy -p t27c` green (780 warnings, 0 errors),
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p flash-spi` 2/0,
+  `cargo test -p t27c --test bitnet_pipeline` 20/0,
+  `cargo test -p t27c --test bitnet_top` 17/0,
+  `cargo test -p t27c --test icarus_lowerable` 260/0,
+  `cargo test -p t27c --test verilog_const_array` 2/0.
+- Refreshed weak-point audit and 2025–2026 ternary/MVL literature scan.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W800_2026-07-24.md` and
+  `.claude/plans/wave-loop-801.md` with three cooperation variants.
+- Updated this skill's Live Wave Loop Tracker to wave 801.
+
+Key learning: the mechanical ladder is now 28 waves deep (W774–W800) with zero
 compiler changes, confirming the packed-vector AoS lowering is robust up to at
-least `[417][2]^6 Pt` (26,688 elements, ~0.814 MiBit). The generator copy hazard
+least `[419][2]^6 Pt` (26,816 elements, ~0.818 MiBit). The generator copy hazard
 continues to be the only manual failure mode, and it now spans two distinct text
 locations (destination path + module header f-string). A single parameterized
 wave-prefix variable in the generator template would eliminate both. Continue
 grepping for stale wave numbers and outer dimensions after each copy, keep the
 `make_grid(32768)` period-identity check, and use `assert_eq` on changed elements
 because `assert_ne` is not emitted by the Icarus simulation path.
+
+---
+
+## Live Wave Loop Tracker
+
+This section is updated at the end of every completed Wave Loop. It is the
+single source of truth for "what is the current wave, what is next, and what
+variants are queued."
+
+| Field | Value |
+|-------|-------|
+| **Current wave** | 801 |
+| **Issue** | TBD (open after W800 PR lands or during W801 setup) |
+| **Branch** | `wave-loop-801` |
+| **Parent branch** | `wave-loop-800` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[421][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Status** | READY TO START |
+| **Next wave variants queued** | W802 Variant A `[423][2]^6 Pt`; Variant B function-scope `[421][2]^6 Pt`; Variant C `[421][2]^6 Pt` with `if`-guarded writes |
+
+### Open backlog (non-blocking)
+
+- Parameterize the generator template so the wave prefix and `OUTER` dimension
+  come from a single `WAVE` / `OUTER` pair and the copy hazard disappears.
+- Address pre-existing `verilog_array_literal_expr` regression in a dedicated ring.
+- Unblock FPGA E2E CI (`sby` missing + Yosys static-cast error in generated `uart.v`).
+- Cleanup sprint for 626 release warnings / 780 clippy warnings.
+- Improve 30-day commit traceability (currently ~15–20% of subjects carry `Closes #N`).
+
+### How to update this tracker
+
+After closing a wave:
+
+1. Bump **Current wave** to `N+1`.
+2. Set **Issue** / **Branch** / **Parent branch** / **Recommended variant** for the next wave.
+3. Rotate the **Next wave variants queued** row from the just-written cooperation plan.
+4. Move any completed backlog item to a struck-through line or remove it.
+5. Append a new `Worked example — Wave Loop N` section above this tracker.
+6. Commit the skill update together with the wave closeout.
 
 ---
 

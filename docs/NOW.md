@@ -1,34 +1,36 @@
-# NOW — Wave Loop 799 close-out / Wave Loop 800 setup (2026-07-24)
+# NOW — Wave Loop 800 close-out / Wave Loop 801 setup (2026-07-24)
 
 Last updated: 2026-07-24
 
-## Wave Loop 799 — module-scope `[417][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1527)
+## Wave Loop 800 — module-scope `[419][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1529)
 
-- Branch: `wave-loop-799`
-- Parent branch: `wave-loop-798` HEAD (`df8ebc5ca`)
-- Issue: #1527
-- PR: #1528
-- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W799_2026-07-24.md`
-- Plan: `.claude/plans/wave-loop-799.md`
-- Cooperation W800: `.claude/plans/wave-loop-800.md`
+- Branch: `wave-loop-800`
+- Parent branch: `wave-loop-799` HEAD (`ffbcbfe27`)
+- Issue: #1529
+- PR: (to open)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W800_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-800.md`
+- Cooperation W801: `.claude/plans/wave-loop-801.md`
 
 ### What landed
-- `specs/scratch/w799_bench_module_417x2p6_aos_var_call_write.t27`
-  - 26,688 elements, 854,016-bit packed vector (~0.814 MiBit).
-  - Module-scope `pub var dst : [417][2]^6 Pt` initialized from a function call and
+- `specs/scratch/w800_bench_module_419x2p6_aos_var_call_write.t27`
+  - 26,816 elements, 858,112-bit packed vector (~0.818 MiBit).
+  - Module-scope `pub var dst : [419][2]^6 Pt` initialized from a function call and
     exercised with indexed signed field writes.
   - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
-- `scripts/gen_w799.py`
-  - Generator for the W799 witness; `OUTER = 417`, `MID_IDX = 208`.
+- `scripts/gen_w800.py`
+  - Generator for the W800 witness; `OUTER = 419`, `MID_IDX = 209`.
   - Note: both the destination path and the module header f-string had to be
-    manually fixed after copying from W798 (generator copy hazard).
+    manually fixed after copying from W799 (generator copy hazard).
 - `bootstrap/tests/icarus_lowerable.rs`
-  - Added `accepts_w799_bench_module_417x2p6_aos_var_call_write`.
-- `.trinity/seals/scratch_w799_bench_module_417x2p6_aos_var_call_write.json`
+  - Added `accepts_w800_bench_module_419x2p6_aos_var_call_write`.
+- `.trinity/seals/scratch_w800_bench_module_419x2p6_aos_var_call_write.json`
   - Saved by `t27c seal --save`.
+- `.claude/skills/t27-wave-loop.md`
+  - Added a live Wave Loop Tracker section that is updated at the end of every loop.
 - `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
-  `.claude/plans/wave-loop-800.md`
-  - W799 learnings saved and W800 plan/cooperation variants created.
+  `.claude/plans/wave-loop-801.md`
+  - W800 learnings saved and W801 plan/cooperation variants created.
 
 ### Not changed
 - `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
@@ -43,9 +45,9 @@ Last updated: 2026-07-24
 - `cargo test -p flash-spi`: 2/0.
 - `cargo test -p t27c --test bitnet_pipeline`: 20/0.
 - `cargo test -p t27c --test bitnet_top`: 17/0.
-- `cargo test -p t27c --test icarus_lowerable`: 259/0.
+- `cargo test -p t27c --test icarus_lowerable`: 260/0.
 - `cargo test -p t27c --test verilog_const_array`: 2/0.
-- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W799: PASS.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W800: PASS.
 
 ### Remaining weak points
 - `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
@@ -54,26 +56,28 @@ Last updated: 2026-07-24
 - 626 release warnings and 780 clippy warnings need dedicated cleanup sprint.
 - Vivado-in-Docker CI gap (private image not yet published).
 - 30-day traceability by subject remains low; keep closing references in commit subjects.
+- Generator copy hazard: parameterize destination path and module header in the
+  generator template to eliminate stale wave-number references on copy.
 
 ---
 
-## Wave Loop 800 — module-scope `[419][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
+## Wave Loop 801 — module-scope `[421][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
 
-- Branch: `wave-loop-800`
-- Parent branch: `wave-loop-799` HEAD (after closeout)
-- Issue: TBD after W799 PR opened
+- Branch: `wave-loop-801`
+- Parent branch: `wave-loop-800` HEAD (after closeout)
+- Issue: TBD after W800 PR opened
 - PR: (to open)
-- Plan: `.claude/plans/wave-loop-800.md`
+- Plan: `.claude/plans/wave-loop-801.md`
 
 ### Goal
-Continue the odd outer-dimension module-scope AoS ladder with `[419][2]^6 Pt`.
-Expected 26,816 elements, 858,112-bit packed vector (~0.818 MiBit), still under
+Continue the odd outer-dimension module-scope AoS ladder with `[421][2]^6 Pt`.
+Expected 26,944 elements, 862,208-bit packed vector (~0.822 MiBit), still under
 4-MiBit cliff, with zero compiler / reference-model / FROZEN_HASH changes.
 
 ### Variants
-- **A (recommended):** `[419][2]^6 Pt` module-scope var from call.
-- **B:** `[417][2]^6 Pt` bench/function-scope packed var from call.
-- **C:** `[417][2]^6 Pt` module-scope var with `if`-guarded writes.
+- **A (recommended):** `[421][2]^6 Pt` module-scope var from call.
+- **B:** `[419][2]^6 Pt` bench/function-scope packed var from call.
+- **C:** `[419][2]^6 Pt` module-scope var with `if`-guarded writes.
 
 ---
 
