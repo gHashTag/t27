@@ -3860,3 +3860,11 @@
 - **Commit:** feat(igla): Wave Loop 798 — module-scope [415][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
 - **Files:** docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W798_2026-07-24.md
 
+## 2026-07-25T10:57:14Z — wave-loop-799
+- **Commit:** docs(trinity): Wave Loop 798 closeout — record session state and commit count
+- **Files:** .claude/plans/wave-loop-800.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w799_bench_module_417x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W799_2026-07-24.md,scripts/gen_w799.py,specs/scratch/w799_bench_module_417x2p6_aos_var_call_write.t27
+
+## 2026-07-25T10:58:58Z — wave-loop-799
+- **Commit:** feat(igla): Wave Loop 799 — module-scope [417][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W799_2026-07-24.md
+
