@@ -3852,3 +3852,11 @@
 - **Commit:** feat(igla): Wave Loop 796 — module-scope [411][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
 - **Files:** .claude/plans/wave-loop-798.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w797_bench_module_413x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W797_2026-07-24.md,scripts/gen_w797.py,specs/scratch/w797_bench_module_413x2p6_aos_var_call_write.t27
 
+## 2026-07-25T10:43:51Z — wave-loop-798
+- **Commit:** feat(igla): Wave Loop 797 — module-scope [413][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-799.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w798_bench_module_415x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W798_2026-07-24.md,scripts/gen_w798.py,specs/scratch/w798_bench_module_415x2p6_aos_var_call_write.t27
+
+## 2026-07-25T10:44:33Z — wave-loop-798
+- **Commit:** feat(igla): Wave Loop 798 — module-scope [415][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W798_2026-07-24.md
+
