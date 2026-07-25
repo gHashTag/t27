@@ -1,34 +1,34 @@
-# NOW — Wave Loop 801 close-out / Wave Loop 802 setup (2026-07-24)
+# NOW — Wave Loop 802 close-out / Wave Loop 803 setup (2026-07-24)
 
 Last updated: 2026-07-24
 
-## Wave Loop 801 — module-scope `[421][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1531)
+## Wave Loop 802 — module-scope `[423][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1533)
 
-- Branch: `wave-loop-801`
-- Parent branch: `wave-loop-800` HEAD (`c1f58760e`)
-- Issue: #1531
+- Branch: `wave-loop-802`
+- Parent branch: `wave-loop-801` HEAD (`af69d956d`)
+- Issue: #1533
 - PR: (to open)
-- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W801_2026-07-24.md`
-- Plan: `.claude/plans/wave-loop-801.md`
-- Cooperation W802: `.claude/plans/wave-loop-802.md`
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W802_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-802.md`
+- Cooperation W803: `.claude/plans/wave-loop-803.md`
 
 ### What landed
-- `specs/scratch/w801_bench_module_421x2p6_aos_var_call_write.t27`
-  - 26,944 elements, 862,208-bit packed vector (~0.822 MiBit).
-  - Module-scope `pub var dst : [421][2]^6 Pt` initialized from a function call and
+- `specs/scratch/w802_bench_module_423x2p6_aos_var_call_write.t27`
+  - 27,072 elements, 866,304-bit packed vector (~0.826 MiBit).
+  - Module-scope `pub var dst : [423][2]^6 Pt` initialized from a function call and
     exercised with indexed signed field writes.
   - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
-- `scripts/gen_w801.py`
-  - Generator for the W801 witness; `OUTER = 421`, `MID_IDX = 210`.
+- `scripts/gen_w802.py`
+  - Generator for the W802 witness; `OUTER = 423`, `MID_IDX = 211`.
   - Note: both the destination path and the module header f-string had to be
-    manually fixed after copying from W800 (generator copy hazard).
+    manually fixed after copying from W801 (generator copy hazard).
 - `bootstrap/tests/icarus_lowerable.rs`
-  - Added `accepts_w801_bench_module_421x2p6_aos_var_call_write`.
-- `.trinity/seals/scratch_w801_bench_module_421x2p6_aos_var_call_write.json`
+  - Added `accepts_w802_bench_module_423x2p6_aos_var_call_write`.
+- `.trinity/seals/scratch_w802_bench_module_423x2p6_aos_var_call_write.json`
   - Saved by `t27c seal --save`.
 - `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
-  `.claude/plans/wave-loop-802.md`
-  - W801 learnings saved and W802 plan/cooperation variants created.
+  `.claude/plans/wave-loop-803.md`
+  - W802 learnings saved and W803 plan/cooperation variants created.
 
 ### Not changed
 - `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
@@ -43,9 +43,9 @@ Last updated: 2026-07-24
 - `cargo test -p flash-spi`: 2/0.
 - `cargo test -p t27c --test bitnet_pipeline`: 20/0.
 - `cargo test -p t27c --test bitnet_top`: 17/0.
-- `cargo test -p t27c --test icarus_lowerable`: 261/0.
+- `cargo test -p t27c --test icarus_lowerable`: 262/0.
 - `cargo test -p t27c --test verilog_const_array`: 2/0.
-- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W801: PASS.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W802: PASS.
 
 ### Remaining weak points
 - `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
@@ -59,23 +59,23 @@ Last updated: 2026-07-24
 
 ---
 
-## Wave Loop 802 — module-scope `[423][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
+## Wave Loop 803 — module-scope `[425][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
 
-- Branch: `wave-loop-802`
-- Parent branch: `wave-loop-801` HEAD (after closeout)
-- Issue: TBD after W801 PR opened
+- Branch: `wave-loop-803`
+- Parent branch: `wave-loop-802` HEAD (after closeout)
+- Issue: TBD after W802 PR opened
 - PR: (to open)
-- Plan: `.claude/plans/wave-loop-802.md`
+- Plan: `.claude/plans/wave-loop-803.md`
 
 ### Goal
-Continue the odd outer-dimension module-scope AoS ladder with `[423][2]^6 Pt`.
-Expected 27,072 elements, 866,304-bit packed vector (~0.826 MiBit), still under
+Continue the odd outer-dimension module-scope AoS ladder with `[425][2]^6 Pt`.
+Expected 27,200 elements, 870,400-bit packed vector (~0.830 MiBit), still under
 4-MiBit cliff, with zero compiler / reference-model / FROZEN_HASH changes.
 
 ### Variants
-- **A (recommended):** `[423][2]^6 Pt` module-scope var from call.
-- **B:** `[421][2]^6 Pt` bench/function-scope packed var from call.
-- **C:** `[421][2]^6 Pt` module-scope var with `if`-guarded writes.
+- **A (recommended):** `[425][2]^6 Pt` module-scope var from call.
+- **B:** `[423][2]^6 Pt` bench/function-scope packed var from call.
+- **C:** `[423][2]^6 Pt` module-scope var with `if`-guarded writes.
 
 ---
 

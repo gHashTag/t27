@@ -1,3 +1,111 @@
+## 2026-07-24 — Wave Loop 802 (module-scope `[423][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1533)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 423.
+  The `[423][2]^6 Pt` witness is 866,304 bits (~0.826 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [423][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 423, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 423`, `MID_IDX = 211`; the frame-condition element is
+  `[211][1][0][0][0][0][0]`, element number `211*64 + 32 = 13,536`.
+- The generator copy hazard struck again: both the destination path and the module
+  header f-string in `scripts/gen_w802.py` carried stale `w801` / `421` references
+  after copying from W801. Fixing both before regenerating resolved it. This is the same
+  hazard documented in W782–W801 learnings and remains the only manual step in the
+  otherwise mechanical flow.
+- Fresh weak-point audit (2026-07-24) found no new actionable items. The W783 fix
+  for `bootstrap/tests/verilog_const_array.rs:166` remains green; the pre-existing
+  `verilog_array_literal_expr` regression is still out of scope for the witness ladder.
+- 30-day subject-line traceability remained low; the closeout commit carries
+  `Closes #1533` in the subject, but the overall rate needs improvement.
+  Continue putting issue references in commit subjects.
+- Updated the live Wave Loop Tracker in `.claude/skills/t27-wave-loop.md` to wave 803.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH` (`68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`).
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w802_bench_module_423x2p6_aos_var_call_write.t27` (~1,856 KB /
+  ~80,431 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w802_bench_module_423x2p6_aos_var_call_write`
+  in `bootstrap/tests/icarus_lowerable.rs`.
+- Added generator script `scripts/gen_w802.py`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W802_2026-07-24.md` and
+  `.claude/plans/wave-loop-803.md` with three cooperation variants.
+- Updated `.claude/skills/t27-wave-loop.md` live tracker to wave 803.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo clippy -p t27c`: OK (780 warnings, 0 errors).
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p flash-spi`: 2 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_pipeline`: 20 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_top`: 17 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 262 passed; 0 failed.
+- `cargo test -p t27c --test verilog_const_array`: 2 passed; 0 failed.
+- Direct `t27c parse` W802: PASS.
+- Direct `t27c icarus-lowerable` W802: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W802: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W802: PASS (`reference-model OK`).
+- Direct `t27c seal --save` W802: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  866,304-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+- Recent 2025–2026 ternary/MVL literature reinforces that flattening ternary
+  aggregate data to wide binary packed vectors is a pragmatic, toolchain-compatible
+  path while native MVL fabrics mature:
+  - IEEE Access 2025: An RTL-Based General Synthesis Methodology for
+    Device-Independent Ternary Logic Circuits.
+  - Chinese Journal of Electronics 2026: Tlsys, an RTL-to-CNFET ternary synthesis
+    framework for 500k+ gate designs.
+  - IEEE Access 2025: A Generalized Multiple-Valued FPGA Architecture Based on
+    Improved T-Gate Circuit.
+  - 2026 IEEE ISMVL: Ternary VHDL, a balanced ternary extension to IEEE 1076-2008.
+  - arXiv 2025: TerEffic, highly efficient ternary LLM inference on FPGA.
+  - Zenodo 2026: Trinity B002, zero-DSP FPGA architecture for ternary inference.
+  - GitHub 2026: Vericert v2.0.0, a formally verified HLS tool based on CompCert,
+    whose scheduler uses a validated three-valued logic checker.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- Parameterizing the wave prefix and destination path inside the generator template
+  would eliminate the recurring copy hazard; until then, grep for both the old wave
+  number and the old outer dimension after copying a generator and before the first
+  generation.
+- Keep the `.claude/skills/t27-wave-loop.md` live tracker up to date at the end of
+  every loop so the next loop starts from the latest state.
+
+### Anti-patterns to avoid
+- Do not use single-line literals for >1,000 element initializers; the scanner
+  becomes the bottleneck.
+- Do not rely on `assert_ne` being emitted for Icarus simulation.
+
 ## 2026-07-24 — Wave Loop 801 (module-scope `[421][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1531)
 
 ### What worked
