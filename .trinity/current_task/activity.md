@@ -3844,3 +3844,7 @@
 - **Commit:** docs(trinity): Wave Loop 794 closeout, report, and W795 cooperation variants
 - **Files:** .claude/plans/wave-loop-795.md,.claude/plans/wave-loop-796.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w795_bench_module_409x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W795_2026-07-24.md,scripts/gen_w795.py,specs/scratch/w795_bench_module_409x2p6_aos_var_call_write.t27
 
+## 2026-07-25T10:17:14Z — wave-loop-796
+- **Commit:** feat(igla): Wave Loop 795 — module-scope [409][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-797.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w796_bench_module_411x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W796_2026-07-24.md,scripts/gen_w796.py,specs/scratch/w796_bench_module_411x2p6_aos_var_call_write.t27
+
