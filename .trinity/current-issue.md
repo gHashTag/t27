@@ -1,38 +1,28 @@
-# Current Issue — Wave Loop 803 setup
+# Current Issue — Wave Loop 803
 
-**Date:** 2026-07-24
-**Anchor:** φ² + φ⁻² = 3 | TRINITY
-
-## Active wave
-
-- **Wave:** 803
-- **Issue:** TBD
-- **Branch:** `wave-loop-803` (to create from `wave-loop-802` HEAD because earlier PRs remain open)
-- **Plan:** `.claude/plans/wave-loop-803.md`
-- **Recommended variant:** A — module-scope `[425][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes.
+| Field | Value |
+|-------|-------|
+| Wave | 803 |
+| Issue | #1535 |
+| Branch | `wave-loop-803` |
+| Base | `wave-loop-802` @ `7058c0652ce1fc886bcf3d9235749de8d0a6ba70` |
+| Variant | `[425][2]^6 Pt` module-scope AoS variable from call with indexed signed writes |
+| Target packed vector | 27,200 elements × 32 bits = 870,400 bits (~0.830 MiBit) |
+| Status | in progress |
 
 ## Goal
-
-Continue the odd outer-dimension module-scope packed array-of-struct ladder with `[425][2]^6 Pt`.
-Expected 27,200 elements, 870,400-bit packed vector (~0.830 MiBit), still under the 4-MiBit cliff,
-with zero compiler / reference-model / FROZEN_HASH changes.
+Increment the non-power-of-two outer-dimension ladder by one rung to `[425][2]^6 Pt`, keeping the established inner-dimension (`2^6`) and struct (`Pt { x : i16, y : i16 }`) pattern. Validate that t27c still lowers, simulates, cocotb-matches, and seals the wider packed vector without compiler or FROZEN_HASH changes.
 
 ## Acceptance criteria
+- [ ] Generator `scripts/gen_w803.py` with `OUTER = 425`, `MID_IDX = 212`; copy hazard fixed before first run.
+- [ ] Witness `specs/scratch/w803_bench_module_425x2p6_aos_var_call_write.t27` generated and parsed.
+- [ ] `t27c icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, and `seal --save` all PASS.
+- [ ] Integration test `accepts_w803_bench_module_425x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
+- [ ] `bootstrap/stage0/FROZEN_HASH` unchanged.
+- [ ] Closeout report, next-wave plan, docs, skill tracker, and persistent memory updated.
+- [ ] Commit with `Closes #1535`, push branch, open PR to `master`.
 
-1. `specs/scratch/w803_bench_module_425x2p6_aos_var_call_write.t27` is generated and parses.
-2. Icarus-lowerable, simulates (17 cycles, PASSED), and cocotb reference-model matches.
-3. `t27c seal --save` succeeds and `FROZEN_HASH` stays unchanged.
-4. All cargo suites green.
-5. Integration test added to `bootstrap/tests/icarus_lowerable.rs`.
-6. Closeout report written with weak-point audit, literature scan, and three W804 cooperation variants.
-7. Skills and experience saved.
-
-## Notes
-
-- Copy `scripts/gen_w802.py` to `scripts/gen_w803.py`, update `OUTER = 425` and `MID_IDX = 212`, and fix the destination path/module header copy hazard before generating.
-- Use `assert_eq` on changed elements; `assert_ne` is not emitted by the Icarus simulation path.
-- Keep the `make_grid(32768)` period-identity check because `32768 ≡ 0 (mod 32768)`.
-
----
-
-φ² + 1/φ² = 3 | TRINITY
+## Cooperation variants for W804
+- **A (recommended):** `[427][2]^6 Pt`, outer += 2, MID_IDX = 213.
+- **B:** `[425][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
+- **C:** `[425][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
