@@ -3840,3 +3840,7 @@
 - **Commit:** docs(trinity): Wave Loop 793 closeout, report, and W794 cooperation variants
 - **Files:** .claude/plans/wave-loop-794.md,.claude/plans/wave-loop-795.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w794_bench_module_407x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W794_2026-07-24.md,scripts/gen_w794.py,specs/scratch/w794_bench_module_407x2p6_aos_var_call_write.t27
 
+## 2026-07-25T10:07:10Z — wave-loop-795
+- **Commit:** docs(trinity): Wave Loop 794 closeout, report, and W795 cooperation variants
+- **Files:** .claude/plans/wave-loop-795.md,.claude/plans/wave-loop-796.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w795_bench_module_409x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W795_2026-07-24.md,scripts/gen_w795.py,specs/scratch/w795_bench_module_409x2p6_aos_var_call_write.t27
+

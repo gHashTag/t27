@@ -64,7 +64,7 @@ Continue the module-scope packed array-of-struct ladder with the recommended Var
 
 ## Cooperation variants for Wave Loop 796
 
-- **Variant A (recommended):** continue odd outer-dimension ladder with `[411][2]^6 Pt]` (~0.803 MiBit, 26,304 elements, 841,728-bit packed vector). Zero compiler changes expected.
+- **Variant A (recommended):** continue odd outer-dimension ladder with `[411][2]^6 Pt` (~0.803 MiBit, 26,304 elements, 841,728-bit packed vector). Zero compiler changes expected.
 - **Variant B:** keep `[409][2]^6 Pt` width but move the packed var to bench/function scope to exercise function-local non-power-of-two packed arrays.
 - **Variant C:** keep `[409][2]^6 Pt` width and add `if`-guarded indexed signed field writes to exercise control-flow + packed-vector writes.
 
