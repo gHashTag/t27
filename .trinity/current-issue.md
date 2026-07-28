@@ -5,19 +5,19 @@
 | Wave | 813 |
 | Issue | #1555 |
 | Branch | `wave-loop-813` |
-| Base | `wave-loop-812` @ `TBD` |
+| Base | `wave-loop-812` @ `bb81fb972` |
 | Variant | `[445][2]^6 Pt` module-scope AoS variable from call with indexed signed writes |
 | Target packed vector | 28,480 elements × 32 bits = 911,360 bits (~0.869 MiBit) |
-| Status | planned |
+| Status | in_progress |
 
 ## Goal
 Increment the non-power-of-two outer-dimension ladder by one rung to `[445][2]^6 Pt`, keeping the established inner-dimension (`2^6`) and struct (`Pt { x : i16, y : i16 }`) pattern. Validate that t27c still lowers, simulates, cocotb-matches, and seals the wider packed vector without compiler or FROZEN_HASH changes.
 
 ## Acceptance criteria
-- [ ] Generator `scripts/gen_w813.py` with `OUTER = 445`, `MID_IDX = 222`; copy hazard fixed before first run.
-- [ ] Witness `specs/scratch/w813_bench_module_445x2p6_aos_var_call_write.t27` generated and parsed.
-- [ ] `t27c icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, and `seal --save` all PASS.
-- [ ] Integration test `accepts_w813_bench_module_445x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
+- [x] Generator `scripts/gen_w813.py` with `OUTER = 445`, `MID_IDX = 222`; copy hazard fixed before first run.
+- [x] Witness `specs/scratch/w813_bench_module_445x2p6_aos_var_call_write.t27` generated and parsed.
+- [x] `t27c icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, and `seal --save` all PASS.
+- [x] Integration test `accepts_w813_bench_module_445x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
 - [ ] `bootstrap/stage0/FROZEN_HASH` unchanged.
 - [ ] Closeout report, next-wave plan, docs, skill tracker, autopilot skill, and persistent memory updated.
 - [ ] Commit with `Closes #1555`, push branch, open PR to `master`.
