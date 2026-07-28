@@ -3916,3 +3916,7 @@
 - **Commit:** feat(igla): Wave Loop 810 — module-scope [439][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
 - **Files:** .claude/plans/wave-loop-812.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w811_bench_module_441x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W811_2026-07-24.md,scripts/gen_w811.py,specs/scratch/w811_bench_module_441x2p6_aos_var_call_write.t27
 
+## 2026-07-28T03:05:22Z — wave-loop-812
+- **Commit:** feat(igla): Wave Loop 811 — module-scope [441][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-813.md,.claude/skills/t27-wave-loop.md,.claude/skills/wave-loop-autopilot.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w812_bench_module_443x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W812_2026-07-24.md,scripts/gen_w812.py,specs/scratch/w812_bench_module_443x2p6_aos_var_call_write.t27
+
