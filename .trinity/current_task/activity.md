@@ -3936,3 +3936,7 @@
 - **Commit:** feat(igla): Wave Loop 814 — module-scope [447][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
 - **Files:** .claude/skills/wave-loop-autopilot.md,docs/NOW.md
 
+## 2026-07-29T13:08:08Z — wave-loop-815
+- **Commit:** docs: update Wave Loop tracker and NOW.md with W814 PR #1556
+- **Files:** .claude/plans/wave-loop-816.md,.claude/skills/t27-wave-loop.md,.claude/skills/wave-loop-autopilot.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w815_bench_module_449x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W815_2026-07-29.md,scripts/gen_w815.py,specs/scratch/w815_bench_module_449x2p6_aos_var_call_write.t27
+
