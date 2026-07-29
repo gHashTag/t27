@@ -1,3 +1,28 @@
+# NOW — conformance instance-пакеты + Lean φ-скелет (2026-07-29)
+
+Last updated: 2026-07-29
+
+## conformance: параметрические instance-пакеты (structural) + Lean-скелет φ-правила (Closes #1558)
+
+- Branch: `wave-loop-29-07b-swtracks`
+- Issue: #1558
+- Трек Wave-лупа 29.07b «улучшения без железа», SW-часть (encoding-уровень).
+
+### Что легло
+- `conformance/gen_structural_instances.py` + `conformance/README_structural_instances.md` — генератор instance-пакетов для structural-форматов.
+- 4 instance-пакета (`kind="instance"`, независимый Fraction-декодер, abs_error=0):
+  - `instance_q_format_Q4_4_v0.json` — канонич. round-trip 512/512.
+  - `instance_q_format_Q2_5_v0.json` — 256/256.
+  - `instance_minifloat_E2M1_v0.json` — 13/13.
+  - `instance_minifloat_E3M4_v0.json` — 225/225.
+- `proofs/lean4/Trinity/GoldenFloatRoundTrip.lean` — скелет φ-правила (e=round((N−1)/φ²), m=N−1−e, bias=2^(e−1)−1); field_budget+anchor_witness доказаны, gf16_fields/roundtrip_normal = `sorry` `[ТРЕБУЕТ lake build]`.
+
+### Границы честности (BINDING)
+- `kind="instance"` — КОНКРЕТНЫЕ параметризации structural-семейств, каталог НЕ меняют: **75 bitexact / 0 selfconsistent / 8 structural = 83**.
+- Всё `[verified SW]` (independent decoder), НЕ HW. encoding ≠ compute ≠ FPGA.
+
+---
+
 # NOW — Wave Loop 773 close-out / Wave Loop 774 setup (2026-07-24)
 
 Last updated: 2026-07-24
