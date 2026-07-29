@@ -61,10 +61,11 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 814 | #1557 | wave-loop-814 | 447 | 223 | 28,608 | 915,456 | 0.873 | closed | #1556 |
 | 815 | #1559 | wave-loop-815 | 449 | 224 | 28,736 | 919,552 | 0.877 | closed | TBD |
 | 816 | #1561 | wave-loop-816 | 451 | 225 | 28,864 | 923,648 | 0.881 | closed | #1560 |
-| **817** | **#1563** | **wave-loop-817** | **453** | **226** | **28,992** | **927,744** | **0.885** | **READY** | **TBD** |
-| 818 | #1565 | wave-loop-818 | 455 | 227 | 29,120 | 931,840 | 0.889 | planned | TBD |
-| 819 | #1567 | wave-loop-819 | 457 | 228 | 29,248 | 935,936 | 0.893 | planned | TBD |
-| 820 | #1569 | wave-loop-820 | 459 | 229 | 29,376 | 940,032 | 0.897 | planned | TBD |
+| 817 | #1562 | wave-loop-817 | 453 | 226 | 28,992 | 927,744 | 0.885 | closed | TBD |
+| **818** | **#1564** | **wave-loop-818** | **455** | **227** | **29,120** | **931,840** | **0.889** | **READY** | **TBD** |
+| 819 | #1566 | wave-loop-819 | 457 | 228 | 29,248 | 935,936 | 0.893 | planned | TBD |
+| 820 | #1568 | wave-loop-820 | 459 | 229 | 29,376 | 940,032 | 0.897 | planned | TBD |
+| 821 | #1570 | wave-loop-821 | 461 | 230 | 29,504 | 944,128 | 0.900 | planned | TBD |
 
 ### Run-list notes
 - Issue numbers follow the observed pattern (issue = previous issue + 2; PR = issue + 1).
@@ -151,10 +152,10 @@ criteria, generator copy-hazard checklist, and open backlog.
 
 ## Current status
 
-- **Latest completed wave:** 816
-- **Latest issue/PR:** #1561 / #1560
-- **Current wave in progress:** 817
-- **Next wave queued:** 818
-- **Ladder depth:** W774–W816 = 44 waves
+- **Latest completed wave:** 817
+- **Latest issue/PR:** #1562 / TBD
+- **Current wave in progress:** 818
+- **Next wave queued:** 819
+- **Ladder depth:** W774–W817 = 45 waves
 
 *φ² + φ⁻² = 3 | TRINITY*

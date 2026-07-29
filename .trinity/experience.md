@@ -1,3 +1,67 @@
+## 2026-07-29 — Wave Loop 817 (module-scope `[453][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1562)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 453.
+  The `[453][2]^6 Pt` witness is 929,792 bits (~0.886 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [453][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 453, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 453`, `MID_IDX = 226`; the frame-condition element is
+  `[226][1][0][0][0][0][0]`, element number `226*64 + 32 = 14,496`.
+- The generator copy hazard struck again after copying `scripts/gen_w816.py` →
+  `scripts/gen_w817.py`. Both the destination path and the module header f-string
+  carried stale `w816` / `451` references. Fixing both before regenerating resolved it.
+  The stale `MID_IDX` comment was also corrected to `226`.
+  This is the same hazard documented in W782–W816 learnings and remains the only
+  manual step in the otherwise mechanical flow.
+- Fresh weak-point audit (2026-07-29) found no new actionable items. The W783 fix
+  for `bootstrap/tests/verilog_const_array.rs:166` remains green; the pre-existing
+  `verilog_array_literal_expr` regression is still out of scope for the witness ladder.
+- 30-day subject-line traceability remained low; the closeout commit carries
+  `Closes #1562` in the subject, but the overall rate needs improvement.
+  Continue putting issue references in commit subjects.
+- Updated the live Wave Loop Tracker in `.claude/skills/t27-wave-loop.md` to wave 818.
+- Updated `.claude/skills/wave-loop-autopilot.md` to mark W817 READY, W818 planned,
+  and refreshed the master run-list.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH` (`68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`).
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w817_bench_module_453x2p6_aos_var_call_write.t27` (~1,989 KB /
+  ~86,131 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w817_bench_module_453x2p6_aos_var_call_write`
+  in `bootstrap/tests/icarus_lowerable.rs`.
+- Added generator script `scripts/gen_w817.py`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W817_2026-07-29.md` and
+  `.claude/plans/wave-loop-818.md` with three cooperation variants.
+- Updated `.claude/skills/t27-wave-loop.md` live tracker to wave 818.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo clippy -p t27c`: OK (780 warnings, 0 errors).
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p flash-spi`: 2 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_pipeline`: 20 passed; 0 failed.
+- `cargo test -p t27c --test bitnet_top`: 17 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 277 passed; 0 failed.
+- `cargo test -p t27c --test verilog_const_array`: 2 passed; 0 failed.
+- Direct `t27c parse` W817: PASS.
+- Direct `t27c icarus-lowerable` W817: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W817: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W817: PASS (`reference-model OK`).
+- Direct `t27c seal --save` W817: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  929,792-bit packed vector, which is legal SystemVerilog.
+
 ## 2026-07-29 — Wave Loop 816 (module-scope `[451][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1561)
 
 ### What worked
