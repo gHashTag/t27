@@ -3928,3 +3928,7 @@
 - **Commit:** feat(igla): Wave Loop 813 — module-scope [445][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
 - **Files:** .claude/plans/loop-w775-full-cycle.md,.claude/plans/wave-loop-485.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,specs/scratch/w485_bench_local_array_hoist.t27,specs/scratch/w485_host_helper_shadow.t27,specs/scratch/w485_wildcard_binding.t27
 
+## 2026-07-29T09:31:13Z — wave-loop-814
+- **Commit:** chore: backup local changes 2026-07-28
+- **Files:** .claude/plans/wave-loop-815.md,.claude/skills/t27-wave-loop.md,.claude/skills/wave-loop-autopilot.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w814_bench_module_447x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W814_2026-07-29.md,scripts/gen_w814.py,specs/scratch/w814_bench_module_447x2p6_aos_var_call_write.t27
+
