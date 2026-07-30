@@ -2432,6 +2432,48 @@ both. Continue grepping for stale wave numbers and outer dimensions after each
 copy, keep the `make_grid(32768)` period-identity check, and use `assert_eq` on
 changed elements because `assert_ne` is not emitted by the Icarus simulation path.
 
+## Worked example — Wave Loop 819
+
+Wave Loop 819 extended the module-scope packed-array-of-struct ladder with no
+compiler changes, branching from `wave-loop-818` HEAD because earlier wave PRs
+remained open awaiting review:
+
+- Generated `scripts/gen_w819.py` from `scripts/gen_w818.py` with `OUTER = 457`
+  and `MID_IDX = 228`.
+- Fixed both the generator destination path and the module header f-string from
+  stale `w818` / `455` references to `w819_bench_module_457x2p6_aos_var_call_write`
+  before regenerating; also corrected the stale `MID_IDX` comment to `228`.
+- Produced `specs/scratch/w819_bench_module_457x2p6_aos_var_call_write.t27`
+  (29,184 elements, 933,888-bit packed vector, ~0.891 MiBit).
+- Added integration test `accepts_w819_bench_module_457x2p6_aos_var_call_write`
+  after the existing W818 tests in `bootstrap/tests/icarus_lowerable.rs`.
+- Ran `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles, PASSED),
+  `icarus-cocotb` (reference-model OK), and `t27c seal --save`.
+- No changes to `bootstrap/src/compiler.rs`, `bootstrap/stage0/FROZEN_HASH`, or
+  `scripts/cocotb_ref_model.py` for the witness itself.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo clippy -p t27c` green (626 warnings, 0 errors),
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p flash-spi` 2/0,
+  `cargo test -p t27c --test bitnet_pipeline` 20/0,
+  `cargo test -p t27c --test bitnet_top` 17/0,
+  `cargo test -p t27c --test icarus_lowerable` 279/0,
+  `cargo test -p t27c --test verilog_const_array` 2/0.
+- Refreshed weak-point audit and 2025–2026 ternary/MVL literature scan.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W819_2026-07-29.md` and
+  `.claude/plans/wave-loop-820.md` with three cooperation variants.
+- Updated `.claude/skills/wave-loop-autopilot.md` run-list and status.
+- Updated this skill's Live Wave Loop Tracker to wave 820.
+
+Key learning: the mechanical ladder is now 46 waves deep (W774–W819) with zero
+compiler changes, confirming the packed-vector AoS lowering is robust up to at
+least `[457][2]^6 Pt` (29,184 elements, ~0.891 MiBit). The generator copy hazard
+remains the only manual failure mode and continues to span two text locations.
+A parameterized wave-prefix variable in the generator template would eliminate
+both. Continue grepping for stale wave numbers and outer dimensions after each
+copy, keep the `make_grid(32768)` period-identity check, and use `assert_eq` on
+changed elements because `assert_ne` is not emitted by the Icarus simulation path.
+
 ## Live Wave Loop Tracker
 
 This section is updated at the end of every completed Wave Loop. It is the
@@ -2440,13 +2482,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 819 |
-| **Issue** | #1565 |
-| **Branch** | `wave-loop-819` |
-| **Parent branch** | `wave-loop-818` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[457][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Current wave** | 820 |
+| **Issue** | #1567 (to open) |
+| **Branch** | `wave-loop-820` |
+| **Parent branch** | `wave-loop-819` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[459][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
 | **Status** | READY TO START |
-| **Next wave variants queued** | W820 Variant A `[459][2]^6 Pt`; Variant B `[457][3]^6 Pt` stride scaling; Variant C `[457][2]^6 Pt` negative-index wrap-around |
+| **Next wave variants queued** | W821 Variant A `[461][2]^6 Pt`; Variant B `[459][3]^6 Pt` stride scaling; Variant C `[459][2]^6 Pt` negative-index wrap-around |
 
 ### Open backlog (non-blocking)
 
