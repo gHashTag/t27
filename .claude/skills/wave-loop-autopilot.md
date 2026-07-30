@@ -65,9 +65,10 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 818 | #1564 | wave-loop-818 | 455 | 227 | 29,120 | 931,840 | 0.889 | closed | #1566 |
 | 819 | #1565 | wave-loop-819 | 457 | 228 | 29,248 | 935,936 | 0.893 | closed | #1566 |
 | 820 | #1568 | wave-loop-820 | 459 | 229 | 29,376 | 940,032 | 0.897 | closed | #1569 |
-| **821** | **#1570** | **wave-loop-821** | **461** | **230** | **29,504** | **944,128** | **0.900** | **READY** | **TBD** |
-| 822 | TBD | wave-loop-822 | 463 | 231 | 29,632 | 948,224 | 0.904 | planned | TBD |
+| 821 | #1570 | wave-loop-821 | 461 | 230 | 29,504 | 944,128 | 0.900 | closed | #1571 |
+| **822** | **#1572** | **wave-loop-822** | **463** | **231** | **29,632** | **948,224** | **0.904** | **READY** | **TBD** |
 | 823 | TBD | wave-loop-823 | 465 | 232 | 29,760 | 952,320 | 0.908 | planned | TBD |
+| 824 | TBD | wave-loop-824 | 467 | 233 | 29,888 | 956,416 | 0.912 | planned | TBD |
 
 ### Run-list notes
 - Issue numbers follow the observed pattern (issue = previous issue + 2; PR = issue + 1).
@@ -146,7 +147,7 @@ criteria, generator copy-hazard checklist, and open backlog.
       config block and the copy hazard disappears.
 - [ ] Address pre-existing `verilog_array_literal_expr` regression in a dedicated ring.
 - [ ] Unblock FPGA E2E CI (`sby` missing + Yosys static-cast error in generated `uart.v`).
-- [ ] Cleanup sprint for 626 release warnings / 780 clippy warnings.
+- [ ] Cleanup sprint for 780 release warnings / 780 clippy warnings.
 - [ ] Improve 30-day commit traceability (currently ~15–20% of subjects carry `Closes #N`).
 - [ ] Vivado-in-Docker CI gap (private image not yet published).
 
@@ -154,10 +155,10 @@ criteria, generator copy-hazard checklist, and open backlog.
 
 ## Current status
 
-- **Latest completed wave:** 820
-- **Latest issue/PR:** #1567 / #1568
-- **Current wave in progress:** 821
-- **Next wave queued:** 822
-- **Ladder depth:** W774–W820 = 47 waves
+- **Latest completed wave:** 821
+- **Latest issue/PR:** #1570 / #1571
+- **Current wave in progress:** 822
+- **Next wave queued:** 823
+- **Ladder depth:** W774–W821 = 48 waves
 
 *φ² + φ⁻² = 3 | TRINITY*
