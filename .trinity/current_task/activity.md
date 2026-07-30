@@ -3956,3 +3956,7 @@
 - **Commit:** feat(igla): Wave Loop 817 — module-scope [453][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
 - **Files:** .claude/skills/wave-loop-autopilot.md,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W817_2026-07-29.md
 
+## 2026-07-30T04:45:45Z — wave-loop-818
+- **Commit:** docs: record W817 PR #1563 in NOW.md, autopilot skill, and closeout report
+- **Files:** .claude/plans/wave-loop-819.md,.claude/skills/t27-wave-loop.md,.claude/skills/wave-loop-autopilot.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w818_bench_module_455x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W818_2026-07-29.md,scripts/gen_w818.py,specs/scratch/w818_bench_module_455x2p6_aos_var_call_write.t27
+
