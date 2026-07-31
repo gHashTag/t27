@@ -2544,6 +2544,28 @@ Wave Loop 822 extended the module-scope packed array-of-struct ladder to `[463][
 - Updated skill tracker to wave 823, autopilot run-list to mark W822 closed, and
   persistent memory with W822 closeout details.
 
+### Worked example — Wave Loop 823
+
+Wave Loop 823 advanced the odd outer-dimension module-scope packed AoS ladder to
+`[465][2]^6 Pt`:
+
+- Issue #1585, branch `wave-loop-823` from `wave-loop-822` HEAD `fd1ef6dbe`.
+- Generator `scripts/gen_w823.py` copied from W822 and fixed for copy hazard:
+  destination path and module header updated to `w823` / `465`, `OUTER = 465`,
+  `MID_IDX = 232`.
+- Generated `specs/scratch/w823_bench_module_465x2p6_aos_var_call_write.t27`
+  (29,760 elements, 952,320-bit packed vector, ~0.908 MiBit).
+- Added integration test `accepts_w823_bench_module_465x2p6_aos_var_call_write`
+  in `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb`, and `seal --save` all PASS.
+- Validation matrix: `cargo test --release --test icarus_lowerable accepts_w823_bench_module_465x2p6_aos_var_call_write` 1/0.
+- Zero changes to `bootstrap/src/compiler.rs`, reference model, or `FROZEN_HASH`.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W823_2026-07-29.md` and
+  next-wave plan `.claude/plans/wave-loop-824.md` with variants A/B/C.
+- Updated skill tracker to wave 824, autopilot run-list to mark W823 closed, and
+  persistent memory with W823 closeout details.
+
 ## Live Wave Loop Tracker
 
 This section is updated at the end of every completed Wave Loop. It is the
@@ -2552,13 +2574,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 823 |
-| **Issue** | #1574 (to open) |
-| **Branch** | `wave-loop-823` |
-| **Parent branch** | `wave-loop-822` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[465][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Current wave** | 824 |
+| **Issue** | TBD (to open) |
+| **Branch** | `wave-loop-824` |
+| **Parent branch** | `wave-loop-823` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[467][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
 | **Status** | READY TO START |
-| **Next wave variants queued** | W824 Variant A `[467][2]^6 Pt`; Variant B `[465][3]^6 Pt` stride scaling; Variant C `[465][2]^6 Pt` negative-index wrap-around |
+| **Next wave variants queued** | W825 Variant A `[469][2]^6 Pt`; Variant B `[467][3]^6 Pt` stride scaling; Variant C `[467][2]^6 Pt` negative-index wrap-around |
 
 ### Open backlog (non-blocking)
 

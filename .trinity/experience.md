@@ -1,3 +1,60 @@
+## 2026-07-29 — Wave Loop 823 (module-scope `[465][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1585)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 465.
+  The `[465][2]^6 Pt` witness is 952,320 bits (~0.908 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [465][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 465, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 465`, `MID_IDX = 232`; the frame-condition element is
+  `[232][1][0][0][0][0][0]`, element number `232*64 + 32 = 14,880`.
+- The generator copy hazard struck again after copying `scripts/gen_w822.py` →
+  `scripts/gen_w823.py`. Both the destination path and the module header f-string
+  carried stale `w822` / `463` references. Fixing both before regenerating resolved it.
+  The stale `MID_IDX` comment was also corrected to `232`.
+  This is the same hazard documented in W782–W822 learnings and remains the only
+  manual step in the otherwise mechanical flow.
+- Fresh weak-point audit (2026-07-29) found no new actionable items. The W783 fix
+  for `bootstrap/tests/verilog_const_array.rs:166` remains green; the pre-existing
+  `verilog_array_literal_expr` regression is still out of scope for the witness ladder.
+- 30-day subject-line traceability remained low; the closeout commit carries
+  `Closes #1585` in the subject, but the overall rate needs improvement.
+  Continue putting issue references in commit subjects.
+- Updated the live Wave Loop Tracker in `.claude/skills/t27-wave-loop.md` to wave 824.
+- Updated `.claude/skills/wave-loop-autopilot.md` to mark W823 closed, W824 planned,
+  and refreshed the master run-list.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH` (`68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`).
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w823_bench_module_465x2p6_aos_var_call_write.t27` (~1,992 KB /
+  ~88,411 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w823_bench_module_465x2p6_aos_var_call_write`
+  in `bootstrap/tests/icarus_lowerable.rs`.
+- Added generator script `scripts/gen_w823.py`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W823_2026-07-29.md` and
+  `.claude/plans/wave-loop-824.md` with three cooperation variants.
+- Updated `.claude/skills/t27-wave-loop.md` live tracker to wave 824.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test --release --test icarus_lowerable accepts_w823_bench_module_465x2p6_aos_var_call_write`: 1/0.
+- Direct `t27c parse` W823: PASS.
+- Direct `t27c icarus-lowerable` W823: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W823: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W823: PASS (`reference-model OK`).
+- Direct `t27c seal --save` W823: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  952,320-bit packed vector, which is legal SystemVerilog.
+
 ## 2026-07-30 — Wave Loop 822 (module-scope `[463][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1572)
 
 ### What worked
