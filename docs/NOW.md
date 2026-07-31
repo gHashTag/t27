@@ -1,3 +1,26 @@
+# NOW — Rust backend type fixes (2026-07-31)
+
+Last updated: 2026-07-31
+
+## gen-rust: array types, index casts, boolean coercion (Closes #1574)
+
+- Branch: `fix/rust-backend-types`
+- Issue: #1574
+- The Rust backend emitted code that does not compile; downstream tri-net had 32 errors and red CI since 2026-07-23.
+
+### Что легло
+- `t27_type_to_rust` — форма `[T; N]` больше не схлопывается в `Vec<>`; эмитится `[T; N as usize]`.
+- `ExprIndex` — нелитеральный индекс приводится к `usize`.
+- Целые и булевы согласованы: классификатор `expr_is_bool`, `!= 0` в условии, `as u32` в целочисленной позиции, `((x) == 0)` вместо побитового `!`.
+- Рекурсивный предпроход собирает функции `-> bool`, плюс `bool`-параметры и локальные, чтобы вызов булевой функции не получал лишний `!= 0`.
+
+### Границы честности (BINDING)
+- Проверено downstream: библиотека tri-net собирается, 101 тест проходит.
+- FROZEN_HASH переподписан механически; governance-часть церемонии M5 (GOLD-RING, одобрение Архитектора) не выполнялась.
+- `fpga-synthesis` падает на SystemVerilog-касте `8'(...)` в Verilog-бэкенде — воспроизведено на немодифицированном master, к этой работе отношения не имеет.
+
+---
+
 # NOW — conformance instance-пакеты + Lean φ-скелет (2026-07-29)
 
 Last updated: 2026-07-29
