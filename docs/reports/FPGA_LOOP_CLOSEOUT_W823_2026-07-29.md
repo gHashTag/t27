@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-29  
 **Issue:** #1585  
-**PR:** TBD  
+**PR:** #1586  
 **Branch:** `wave-loop-823`  
 **Base:** `wave-loop-822` @ `fd1ef6dbe` (because earlier waves' PRs remain open)
 

@@ -7,7 +7,7 @@ Last updated: 2026-07-29
 - Branch: `wave-loop-823`
 - Parent branch: `wave-loop-822` HEAD (`fd1ef6dbe`)
 - Issue: #1585
-- PR: TBD
+- PR: #1586
 - Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W823_2026-07-29.md`
 - Plan: `.claude/plans/wave-loop-824.md`
 - Cooperation W824: `.claude/plans/wave-loop-824.md`

@@ -67,7 +67,7 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 820 | #1568 | wave-loop-820 | 459 | 229 | 29,376 | 940,032 | 0.897 | closed | #1569 |
 | 821 | #1570 | wave-loop-821 | 461 | 230 | 29,504 | 944,128 | 0.900 | closed | #1571 |
 | 822 | #1572 | wave-loop-822 | 463 | 231 | 29,632 | 948,224 | 0.904 | closed | #1573 |
-| 823 | #1585 | wave-loop-823 | 465 | 232 | 29,760 | 952,320 | 0.908 | closed | TBD |
+| 823 | #1585 | wave-loop-823 | 465 | 232 | 29,760 | 952,320 | 0.908 | closed | #1586 |
 | **824** | **TBD** | **wave-loop-824** | **467** | **233** | **29,888** | **956,416** | **0.912** | **READY** | **TBD** |
 | 825 | TBD | wave-loop-825 | 469 | 234 | 30,016 | 960,512 | 0.916 | planned | TBD |
 | 826 | TBD | wave-loop-826 | 471 | 235 | 30,144 | 964,608 | 0.920 | planned | TBD |
@@ -158,7 +158,7 @@ criteria, generator copy-hazard checklist, and open backlog.
 ## Current status
 
 - **Latest completed wave:** 823
-- **Latest issue/PR:** #1585 / TBD
+- **Latest issue/PR:** #1585 / #1586
 - **Current wave in progress:** 824
 - **Next wave queued:** 825
 - **Ladder depth:** W774–W823 = 50 waves
