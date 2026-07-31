@@ -44,6 +44,7 @@
 ### Validation
 - `cargo build --release -p t27c`: OK.
 - `cargo test --release --test icarus_lowerable accepts_w823_bench_module_465x2p6_aos_var_call_write`: 1/0.
+- `cargo test --release --test icarus_lowerable` (full suite): 283/0.
 - Direct `t27c parse` W823: PASS.
 - Direct `t27c icarus-lowerable` W823: PASS (`lowerable`).
 - Direct `t27c icarus-simulate` W823: PASS (17 cycles, PASSED).

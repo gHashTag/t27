@@ -40,6 +40,7 @@ Last updated: 2026-07-29
 ### Verification
 - `cargo build --release -p t27c`: OK.
 - `cargo test --release --test icarus_lowerable accepts_w823_bench_module_465x2p6_aos_var_call_write`: 1/0.
+- `cargo test --release --test icarus_lowerable` (full suite): 283/0.
 - `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W823: PASS.
 
 ### Remaining weak points

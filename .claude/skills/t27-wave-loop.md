@@ -2559,7 +2559,7 @@ Wave Loop 823 advanced the odd outer-dimension module-scope packed AoS ladder to
   in `bootstrap/tests/icarus_lowerable.rs`.
 - Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
   `icarus-cocotb`, and `seal --save` all PASS.
-- Validation matrix: `cargo test --release --test icarus_lowerable accepts_w823_bench_module_465x2p6_aos_var_call_write` 1/0.
+- Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 283/0.
 - Zero changes to `bootstrap/src/compiler.rs`, reference model, or `FROZEN_HASH`.
 - Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W823_2026-07-29.md` and
   next-wave plan `.claude/plans/wave-loop-824.md` with variants A/B/C.
