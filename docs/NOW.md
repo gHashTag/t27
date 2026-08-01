@@ -1,3 +1,24 @@
+# NOW — ci: gate INDEX_all_formats.json against the packs it summarises (2026-08-01)
+
+Last updated: 2026-08-01
+
+## ci: gate INDEX_all_formats.json against the packs it summarises (Closes #1577)
+
+- Branch: `gate/pack-index-consistency`
+- Issue: #1577
+- PR: #1578
+
+### Что легло
+- Nothing checked that the index agreed with the packs, which is how the pass-48 tier regression went unnoticed. `tools/pack_index_consistency_gate.py` locks digest, tier, witness count, header totals and index membership.
+- `--selftest` plants a mutant for every check and fails if any survives, following `wp18_selftest_gate.py`'s convention.
+
+### Границы честности (BINDING)
+- Selftest: every check FAIL-reachable.
+- Live corpus: verdict CLEAN, 0 failures, 5 informational notes about hand-curated packs that declare no `bitexact` flag.
+- Deliberately NOT checked: a bitexact pack with an empty `witnesses[]`. That is the normal case for the ~60 uncontested packs; demanding a witness everywhere would misstate honesty rule #10.
+
+---
+
 # NOW — conformance: the pack generator runs on a clean checkout (2026-08-01)
 
 Last updated: 2026-08-01
