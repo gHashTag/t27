@@ -1,3 +1,22 @@
+# NOW — scripts: cocotb_ref_model is importable again (2026-08-01)
+
+Last updated: 2026-08-01
+
+## scripts: cocotb_ref_model is importable again (Closes #1592)
+
+- Branch: `fix/cocotb-forward-reference`
+- Issue: #1592
+- PR: #1589
+
+### Что легло
+- The module raised `NameError: name 'EvalContext' is not defined` at import: the class is annotated on parameters at lines 174 and 215 and defined at line 402. `from __future__ import annotations` defers annotation evaluation and the module loads.
+
+### Границы честности (BINDING)
+- Placement matters: a `__future__` import may be preceded only by the docstring, comments and blank lines. Putting it between shebang and docstring also loads the module but silently leaves `__doc__` as `None`. It goes after the docstring, confirmed with `ast.get_docstring`.
+- Found by running the EXEC bucket — the last 12 scripts in the repository never executed. No workflow references this file.
+
+---
+
 # NOW — ci: track the paper count the published version actually declares (2026-08-01)
 
 Last updated: 2026-08-01

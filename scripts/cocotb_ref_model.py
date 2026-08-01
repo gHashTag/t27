@@ -20,6 +20,8 @@ independently evaluated expected value using the declared bit width and
 signedness.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
