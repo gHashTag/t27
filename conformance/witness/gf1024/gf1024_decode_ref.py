@@ -34,6 +34,7 @@ Author: Vasilev (gHashTag), ORCID 0009-0008-4294-6159, admin@t27.ai.
 """
 import json
 import re
+import os
 import sys
 from fractions import Fraction
 
@@ -158,7 +159,8 @@ def check_pack(pack_path):
 
 if __name__ == "__main__":
     p = sys.argv[1] if len(sys.argv) > 1 else \
-        "/home/user/workspace/gf1024_work/gf1024_pack.json"
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "..", "..", "vectors", "gf1024_conformance_v0.json")
     ok, tot, fails = check_pack(p)
     print(f"gf1024 golden (Fraction exact oracle) vs pack: {ok}/{tot} exact  "
           f"[e={E} m={M} bias={BIAS}]")
