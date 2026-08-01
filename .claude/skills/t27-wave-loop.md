@@ -2632,6 +2632,28 @@ Wave Loop 826 advanced the odd outer-dimension module-scope packed AoS ladder to
 - Updated skill tracker to wave 827, autopilot run-list to mark W826 closed, and
   persistent memory with W826 closeout details.
 
+### Worked example — Wave Loop 827
+
+Wave Loop 827 advanced the odd outer-dimension module-scope packed AoS ladder to
+`[473][2]^6 Pt`:
+
+- Issue #1595, branch `wave-loop-827` from `wave-loop-826` HEAD `7645f1d`.
+- Generator `scripts/gen_w827.py` copied from W826 and fixed for copy hazard:
+  destination path and module header updated to `w827` / `473`, `OUTER = 473`,
+  `MID_IDX = 236`.
+- Generated `specs/scratch/w827_bench_module_473x2p6_aos_var_call_write.t27`
+  (30,272 elements, 968,704-bit packed vector, ~0.923 MiBit).
+- Added integration test `accepts_w827_bench_module_473x2p6_aos_var_call_write`
+  in `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb`, and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 287/0.
+- Zero changes to `bootstrap/src/compiler.rs`, reference model, or `FROZEN_HASH`.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W827_2026-08-01.md` and
+  next-wave plan `.claude/plans/wave-loop-828.md` with variants A/B/C.
+- Updated skill tracker to wave 828, autopilot run-list to mark W827 closed, and
+  persistent memory with W827 closeout details.
+
 ## Live Wave Loop Tracker
 
 This section is updated at the end of every completed Wave Loop. It is the
@@ -2640,13 +2662,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 827 |
-| **Issue** | TBD (to open) |
-| **Branch** | `wave-loop-827` |
-| **Parent branch** | `wave-loop-826` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[473][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Current wave** | 828 |
+| **Issue** | #1597 (expected) |
+| **Branch** | `wave-loop-828` |
+| **Parent branch** | `wave-loop-827` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[475][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
 | **Status** | READY TO START |
-| **Next wave variants queued** | W828 Variant A `[475][2]^6 Pt`; Variant B `[473][3]^6 Pt` stride scaling; Variant C `[473][2]^6 Pt` negative-index wrap-around |
+| **Next wave variants queued** | W829 Variant A `[477][2]^6 Pt`; Variant B `[475][3]^6 Pt` stride scaling; Variant C `[475][2]^6 Pt` negative-index wrap-around |
 
 ### Open backlog (non-blocking)
 
@@ -2654,7 +2676,7 @@ variants are queued."
   come from a single `WAVE` / `OUTER` pair and the copy hazard disappears.
 - Address pre-existing `verilog_array_literal_expr` regression in a dedicated ring.
 - Unblock FPGA E2E CI (`sby` missing + Yosys static-cast error in generated `uart.v`).
-- Cleanup sprint for 780 release warnings / 780 clippy warnings.
+- Cleanup sprint for 626 release warnings / 780 clippy warnings.
 - Improve 30-day commit traceability (currently ~15–20% of subjects carry `Closes #N`).
 
 ### How to update this tracker
