@@ -1,3 +1,24 @@
+# NOW — ci: track the paper count the published version actually declares (2026-08-01)
+
+Last updated: 2026-08-01
+
+## ci: track the paper count the published version actually declares (Closes #1583)
+
+- Branch: `fix/stale-paper-count`
+- Issue: #1583
+- PR: #1584
+
+### Что легло
+- `check_catalog_count.py` printed, on every run, that the SSOT's 83 disagreed with a paper count of 84 and an erratum was required. `ERRATA_2026-06-14.md` recorded that erratum and the v2 replacement carried it out.
+- Fetching the current entry shows both the title and the abstract were corrected: *An 83-Format Numeric Catalog…*, arXiv:2606.09686v2, updated 2026-06-22. The constant tracked the withdrawn v1.
+
+### Границы честности (BINDING)
+- This is not the edit the existing comment forbids. The constant tracks what the PAPER declares, and the paper changed; matching it to the SSOT would defeat the gate.
+- The comment now carries the fetch command, version and date so the next reader can re-check in one line.
+- Alarm intact, verified by mutation: with a divergent constant the gate still warns and still exits 3 under `--strict-paper`.
+
+---
+
 # NOW — Rust backend type fixes (2026-07-31)
 
 Last updated: 2026-07-31
