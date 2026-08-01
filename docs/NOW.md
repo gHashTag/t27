@@ -19,6 +19,26 @@ Last updated: 2026-08-01
 
 ---
 
+# NOW — witness: wide-rung decode refs resolve their pack inside the repository (2026-08-01)
+
+Last updated: 2026-08-01
+
+## witness: wide-rung decode refs resolve their pack inside the repository (Closes #1581)
+
+- Branch: `fix/witness-default-paths`
+- Issue: #1581
+- PR: #1582
+
+### Что легло
+- All six wide-rung witness decode references defaulted to a path under `/home/user/workspace` when run with no argument, so the file a `witnesses[]` entry names failed on every machine but the one it was written on. The default now resolves relative to the script's own location.
+
+### Границы честности (BINDING)
+- The witnesses themselves were sound: given the in-repo pack explicitly, gf128 already reported 15/15 exact at abs_error=0. Only the default lookup was wrong; no decoding changes.
+- All six run standalone afterwards, gf48 through gf1024, each at abs_error=0.
+- The `cross_check_representative.py` scripts were never affected — they import these modules and never reach `__main__`.
+
+---
+
 # NOW — ci: gate INDEX_all_formats.json against the packs it summarises (2026-08-01)
 
 Last updated: 2026-08-01
