@@ -37,11 +37,29 @@ import sys
 import tempfile
 from pathlib import Path
 
-# The count claimed in arXiv:2606.09686 Table 1 abstract ("exactly 84").
-# This is the ASPIRATIONAL paper number. When SSOT diverges from it, an
-# erratum is required (see ERRATA_2026-06-14.md). Do NOT silently edit this
-# to match SSOT -- the whole point is to surface the divergence.
-PAPER_DECLARED_COUNT = 84
+# The count currently declared by the published paper.
+#
+# Do NOT silently edit this to match the SSOT -- the whole point is to surface a
+# divergence. Change it ONLY when the PAPER itself changes, and record the
+# evidence here so the next reader can re-check it in one command.
+#
+# 84 -> 83 on 2026-08-01. The v2 replacement corrected BOTH the title and the
+# abstract; v1's 84 is withdrawn. Verified by fetching the arXiv entry directly:
+#
+#   curl -sS "https://export.arxiv.org/api/query?id_list=2606.09686"
+#
+#   TITLE    : An 83-Format Numeric Catalog with Bit-Exact Conformance Vectors:
+#              A Vendor-Neutral Reference for FP8, BF16, MXFP4, and Microscaling
+#              Formats
+#   ID       : http://arxiv.org/abs/2606.09686v2
+#   UPDATED  : 2026-06-22T12:28:45Z
+#   abstract : "a catalog of 83 numeric formats spanning 13 families"
+#
+# Before this, the constant tracked the withdrawn v1 and the gate printed
+# "an erratum is required" on every run for work ERRATA_2026-06-14.md and the v2
+# replacement had already done. A gate that cries wolf every run is one nobody
+# reads on the day the divergence is real.
+PAPER_DECLARED_COUNT = 83
 PAPER_ID = "arXiv:2606.09686"
 
 CATALOG_LINE = re.compile(r"//\s*CATALOG:")
