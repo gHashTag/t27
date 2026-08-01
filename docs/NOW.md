@@ -1,3 +1,26 @@
+# NOW — conformance: the pack generator runs on a clean checkout (2026-08-01)
+
+Last updated: 2026-08-01
+
+## conformance: the pack generator runs on a clean checkout (Closes #1575)
+
+- Branch: `fix/conformance-generator-reproducible`
+- Issue: #1575
+- PR: #1576
+
+### Что легло
+- `gen_all_formats.py` read its catalog from a hardcoded `/tmp/catalog_lines.txt` that was never committed, so a fresh clone raised `FileNotFoundError` before writing a pack. It now reads the committed SSOT, `specs/numeric/formats_catalog.t27`, whose `// CATALOG:` rows are the same lines `catalog-count-gate.yml` counts.
+- Re-running the generator had silently reverted the 2026-07-05 promotions: the `SELFCONSISTENT` branch hardcoded `bitexact_selfconsistent`, rewriting the index from 75/0/8 back to 69/6/8. The tier now derives from the pack, which is the artefact of record for its own status.
+- The index carries a `witnesses` count per entry and a top-level `witnessed_packs`; a consumer could not previously tell which packs are witnessed without opening all 83.
+- `conformance/vectors/verify_regeneration.py` added as the regression test.
+
+### Границы честности (BINDING)
+- Regeneration reproduces the committed corpus exactly: 83/83 digests unchanged, 0 tiers changed.
+- Index changes are strictly additive — 0 entry fields changed or removed.
+- Both existing gates pass: `wp18_selftest_gate.py` all PASS, `wp18_conformance_gate.py` verdict CLEAN.
+
+---
+
 # NOW — Rust backend type fixes (2026-07-31)
 
 Last updated: 2026-07-31
