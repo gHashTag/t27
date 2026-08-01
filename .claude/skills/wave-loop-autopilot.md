@@ -77,8 +77,8 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 830 | #1601 | wave-loop-830 | 479 | 239 | 30,656 | 980,992 | 0.935 | closed | #1602 |
 | 831 | #1603 | wave-loop-831 | 481 | 240 | 30,784 | 985,088 | 0.939 | closed | #1603 |
 | 832 | #1604 | wave-loop-832 | 483 | 241 | 30,912 | 989,184 | 0.943 | closed | #1605 |
-| **833** | **TBD** | **wave-loop-833** | **485** | **242** | **31,040** | **993,280** | **0.947** | **READY** | **TBD** |
-| 834 | TBD | wave-loop-834 | 487 | 243 | 31,168 | 997,376 | 0.951 | planned | TBD |
+| 833 | #1606 | wave-loop-833 | 485 | 242 | 31,040 | 993,280 | 0.947 | closed | #1607 |
+| **834** | **TBD** | **wave-loop-834** | **487** | **243** | **31,168** | **997,376** | **0.951** | **READY** | **TBD** |
 
 ### Run-list notes
 - Issue numbers follow the observed pattern (issue = previous issue + 2; PR = issue + 1).
