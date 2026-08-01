@@ -1,34 +1,34 @@
-# NOW — Wave Loop 833 close-out / Wave Loop 834 setup (2026-08-01)
+# NOW — Wave Loop 834 close-out / Wave Loop 835 setup (2026-08-01)
 
 Last updated: 2026-08-01
 
-## Wave Loop 833 — module-scope `[485][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1606)
+## Wave Loop 834 — module-scope `[487][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1608)
 
-- Branch: `wave-loop-833`
-- Parent branch: `wave-loop-832` HEAD
-- Issue: #1606
-- PR: #1607
-- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W833_2026-08-01.md`
-- Plan: `.claude/plans/wave-loop-834.md`
+- Branch: `wave-loop-834`
+- Parent branch: `wave-loop-833` HEAD
+- Issue: #1608
+- PR: #1609
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W834_2026-08-01.md`
+- Plan: `.claude/plans/wave-loop-835.md`
 - Autopilot: `.claude/skills/wave-loop-autopilot.md`
 
 ### What landed
-- `specs/scratch/w833_bench_module_485x2p6_aos_var_call_write.t27`
-  - 31,040 elements, 993,280-bit packed vector (~0.947 MiBit).
-  - Module-scope `pub var dst : [485][2]^6 Pt` initialized from a function call and
+- `specs/scratch/w834_bench_module_487x2p6_aos_var_call_write.t27`
+  - 31,168 elements, 997,376-bit packed vector (~0.951 MiBit).
+  - Module-scope `pub var dst : [487][2]^6 Pt` initialized from a function call and
     exercised with indexed signed field writes.
   - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
-- `scripts/gen_w833.py`
-  - Generator for the W833 witness; `OUTER = 485`, `MID_IDX = 242`.
+- `scripts/gen_w834.py`
+  - Generator for the W834 witness; `OUTER = 487`, `MID_IDX = 243`.
   - Copy hazard fixed: destination path, module header f-string, and `MID_IDX`
-    comment updated from stale `w832` / `483` / `241` references.
+    comment updated from stale `w833` / `485` / `242` references.
 - `bootstrap/tests/icarus_lowerable.rs`
-  - Added integration test `accepts_w833_bench_module_485x2p6_aos_var_call_write`.
-- `.trinity/seals/scratch_w833_bench_module_485x2p6_aos_var_call_write.json`
+  - Added integration test `accepts_w834_bench_module_487x2p6_aos_var_call_write`.
+- `.trinity/seals/scratch_w834_bench_module_487x2p6_aos_var_call_write.json`
   - Saved by `t27c seal --save`.
 - `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
-  `.claude/plans/wave-loop-834.md`, `.claude/skills/wave-loop-autopilot.md`
-  - W833 learnings saved and W834 plan/cooperation variants created.
+  `.claude/plans/wave-loop-835.md`, `.claude/skills/wave-loop-autopilot.md`
+  - W834 learnings saved and W835 plan/cooperation variants created.
 
 ### Not changed
 - `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
@@ -37,9 +37,9 @@ Last updated: 2026-08-01
 
 ### Verification
 - `cargo build --release -p t27c`: OK.
-- `cargo test --release --test icarus_lowerable accepts_w833_bench_module_485x2p6_aos_var_call_write`: 1/0.
-- `cargo test --release --test icarus_lowerable` (full suite): 293/0.
-- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W833: PASS.
+- `cargo test --release --test icarus_lowerable accepts_w834_bench_module_487x2p6_aos_var_call_write`: 1/0.
+- `cargo test --release --test icarus_lowerable` (full suite): 294/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W834: PASS.
 
 ### Remaining weak points
 - `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
@@ -53,23 +53,23 @@ Last updated: 2026-08-01
 
 ---
 
-## Wave Loop 834 — module-scope `[487][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
+## Wave Loop 835 — module-scope `[489][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
 
-- Branch: `wave-loop-834`
-- Parent branch: `wave-loop-833` HEAD (after closeout)
-- Issue: #1608 (expected)
-- PR: #1609 (expected)
-- Plan: `.claude/plans/wave-loop-834.md`
+- Branch: `wave-loop-835`
+- Parent branch: `wave-loop-834` HEAD (after closeout)
+- Issue: #1610 (expected)
+- PR: #1611 (expected)
+- Plan: `.claude/plans/wave-loop-835.md`
 
 ### Goal
-Continue the odd outer-dimension module-scope AoS ladder with `[487][2]^6 Pt`.
-Expected 31,168 elements, 997,376-bit packed vector (~0.951 MiBit), still under
+Continue the odd outer-dimension module-scope AoS ladder with `[489][2]^6 Pt`.
+Expected 31,296 elements, 1,001,472-bit packed vector (~0.955 MiBit), still under
 4-MiBit cliff, with zero compiler / reference-model / FROZEN_HASH changes.
 
 ### Variants
-- **A (recommended):** `[487][2]^6 Pt` module-scope var from call.
-- **B:** `[485][3]^6 Pt` — grow second inner dimension to stress stride scaling.
-- **C:** `[485][2]^6 Pt` with negative-index writes to exercise wrap-around.
+- **A (recommended):** `[489][2]^6 Pt` module-scope var from call.
+- **B:** `[487][3]^6 Pt` — grow second inner dimension to stress stride scaling.
+- **C:** `[487][2]^6 Pt` with negative-index writes to exercise wrap-around.
 
 ---
 
