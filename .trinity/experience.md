@@ -1,3 +1,44 @@
+## 2026-08-04 — Wave Loop 839 (module-scope `[497][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1618)
+
+### What worked
+- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 497.
+  The `[497][2]^6 Pt` witness is 1,017,344 bits (≈0.970 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler, reference-model, or `FROZEN_HASH` changes.
+- Generator `scripts/gen_w839.py` copied from W838 and fixed for the recurring copy hazard:
+  destination path and module header f-string updated from stale `w838` / `495` / `247`
+  to `w839` / `497` / `248`; stale `MID_IDX` comment corrected to `248`.
+- Generated `specs/scratch/w839_bench_module_497x2p6_aos_var_call_write.t27`
+  (31,792 elements, 1,017,344-bit packed vector).
+- Added integration test `accepts_w839_bench_module_497x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test -p t27c --test icarus_lowerable` 299/0.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W839_2026-08-04.md` and
+  next-wave plan `.claude/plans/wave-loop-840.md` with variants A/B/C.
+- Updated skill tracker to wave 840, autopilot run-list to mark W839 closed, and
+  persistent memory with W839 closeout details.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w839_bench_module_497x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
+- Added integration test `accepts_w839_bench_module_497x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w839.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK (627 warnings, 0 errors).
+- `cargo test -p t27c --test icarus_lowerable`: 299 passed; 0 failed.
+- Direct `t27c parse` W839: PASS.
+- Direct `t27c icarus-lowerable` W839: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W839: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W839: PASS (`reference-model OK`).
+- `t27c seal --save` W839: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+
 ## 2026-08-04 — Wave Loop 838 (module-scope `[495][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1616)
 
 ### What worked
