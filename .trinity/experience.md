@@ -1,3 +1,56 @@
+## 2026-08-04 — Wave Loop 843 (module-scope `[505][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1626)
+
+### What worked
+- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 505.
+  The `[505][2]^6 Pt` witness is 1,034,240 bits (≈0.986 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler, reference-model, or `FROZEN_HASH` changes.
+- Generator `scripts/gen_w843.py` copied from W842 and fixed for the recurring copy hazard:
+  destination path and module header f-string updated from stale `w842` / `503` / `251`
+  to `w843` / `505` / `252`; stale `MID_IDX` comment corrected to `252`.
+- Generated `specs/scratch/w843_bench_module_505x2p6_aos_var_call_write.t27`
+  (32,320 elements, 1,034,240-bit packed vector).
+- Added integration test `accepts_w843_bench_module_505x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test -p t27c --test icarus_lowerable` 303/0.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W843_2026-08-04.md` and
+  next-wave plan `.claude/plans/wave-loop-844.md` with variants A/B/C.
+- Updated skill tracker to wave 844, autopilot run-list to mark W843 closed, and
+  persistent memory with W843 closeout details.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w843_bench_module_505x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
+- Added integration test `accepts_w843_bench_module_505x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w843.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK (626 warnings, 0 errors).
+- `cargo test -p t27c --test icarus_lowerable`: 303 passed; 0 failed.
+- Direct `t27c parse` W843: PASS.
+- Direct `t27c icarus-lowerable` W843: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W843: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W843: PASS (`reference-model OK`).
+- `t27c seal --save` W843: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions; the non-power-of-two outer dimension (505) remains legal for Icarus
+  and t27c because the total packed width is still a multiple of 32 bits per element.
+- Module-scope variables initialized from a function call and updated with signed
+  variable indices continue to lower cleanly, confirming the stride/width path is
+  stable up to ~0.986 MiBit.
+
+### Cooperation variants for W844
+- **A (recommended):** `[507][2]^6 Pt`, outer += 2, `MID_IDX = 253`.
+- **B:** `[505][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
+- **C:** `[505][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
+
+---
+
 ## 2026-08-04 — Wave Loop 842 (module-scope `[503][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1624)
 
 ### What worked
