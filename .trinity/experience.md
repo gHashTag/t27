@@ -1,3 +1,67 @@
+## 2026-08-04 — Wave Loop 848 (module-scope `[515][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1636)
+
+### What worked
+- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 515.
+  The `[515][2]^6 Pt` witness is 1,054,720 bits (≈1.006 MiBit), now past the 1-MiBit
+  line, and required no compiler, reference-model, or `FROZEN_HASH` changes.
+- Generator `scripts/gen_w848.py` copied from W847 and fixed for the recurring copy hazard:
+  destination path and module header f-string updated from stale `w847` / `513` / `256`
+  to `w848` / `515` / `257`; stale `MID_IDX` comment corrected to `257`.
+- Generated `specs/scratch/w848_bench_module_515x2p6_aos_var_call_write.t27`
+  (32,960 elements, 1,054,720-bit packed vector).
+- Added integration test `accepts_w848_bench_module_515x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 308/0.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W848_2026-08-04.md` and
+  next-wave plan `.claude/plans/wave-loop-849.md` with variants A/B/C.
+- Updated decomposed plan `.claude/plans/wave-loop-848.md` with weak-points audit and
+  scientific background (Icarus bound-normalization fix `128c621`, FPGA Roofline,
+  Vericert, Vitis HLS).
+- Updated skill tracker to wave 849, autopilot run-list to mark W848 closed, and
+  persistent memory with W848 closeout details.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w848_bench_module_515x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
+- Added integration test `accepts_w848_bench_module_515x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w848.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK (warnings, 0 errors).
+- `cargo test --release --test icarus_lowerable`: 308 passed; 0 failed.
+- Direct `t27c parse` W848: PASS.
+- Direct `t27c icarus-lowerable` W848: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W848: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W848: PASS (`reference-model OK`).
+- `t27c seal --save` W848: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.2 define packed-array width as the product of packed
+  dimensions; the non-power-of-two outer dimension (515) remains legal for Icarus
+  and t27c because the total packed width is still a multiple of 32 bits per element.
+- Icarus Verilog has no documented 1-MiBit hard cap; the LRM only requires 65,536-bit
+  support and Icarus warns around 1 Gbit. Upstream commit `128c621` fixed a
+  bound-normalization path that could accidentally create billion-bit vectors
+  ([steveicarus/iverilog@128c621](https://github.com/steveicarus/iverilog/commit/128c621e8540b0a68145094fa876dc5de073c9a6)).
+- FPGA Roofline model (Siracusa et al., IEEE TC 2021, DOI 10.1109/TC.2021.3111761)
+  frames wide packed vectors as memory quanta `Q`; the ladder is probing how large
+  `Q` can grow before routing/host-memory costs dominate.
+- Vericert (Herklotz et al., OOPSLA 2021, DOI 10.1145/3485494) reinforces the value
+  of a bit-exact source-to-hardware mapping, which the Wave Loop identity checks exercise.
+- Vitis HLS UG1399 shows the commercial analog: internal AoS → SoA, but interface
+  structs can be aggregated with `compact=bit` into wide vectors.
+
+### Cooperation variants for W849
+- **A (recommended):** `[517][2]^6 Pt`, outer += 2, `MID_IDX = 258`.
+- **B:** `[515][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
+- **C:** `[515][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
+
+---
+
 ## 2026-08-04 — Wave Loop 847 (module-scope `[513][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1634)
 
 ### What worked
