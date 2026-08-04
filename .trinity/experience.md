@@ -1,3 +1,68 @@
+## 2026-08-04 — Wave Loop 851 (module-scope `[521][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1642)
+
+### What worked
+- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 521.
+  The `[521][2]^6 Pt` witness is 1,067,008 bits (≈1.018 MiBit), continuing past the
+  1-MiBit line, and required no compiler, reference-model, or `FROZEN_HASH` changes.
+- Generator `scripts/gen_w851.py` copied from W850 and fixed for the recurring copy hazard:
+  destination path and module header f-string updated from stale `w850` / `519` / `259`
+  to `w851` / `521` / `260`; stale `MID_IDX` comment corrected to `260`.
+- Generated `specs/scratch/w851_bench_module_521x2p6_aos_var_call_write.t27`
+  (33,344 elements, 1,067,008-bit packed vector).
+- Added integration test `accepts_w851_bench_module_521x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 311/0.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W851_2026-08-04.md` and
+  next-wave plan `.claude/plans/wave-loop-852.md` with variants A/B/C.
+- Created issue #1644 and branch `wave-loop-852` for the next wave.
+- Updated skill trackers, autopilot run-list, master plan, and persistent memory.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w851_bench_module_521x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
+- Added integration test `accepts_w851_bench_module_521x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w851.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK (warnings, 0 errors).
+- `cargo test --release --test icarus_lowerable`: 311 passed; 0 failed.
+- Direct `t27c parse` W851: PASS.
+- Direct `t27c icarus-lowerable` W851: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W851: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W851: PASS (`reference-model OK`).
+- `t27c seal --save` W851: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.2 define packed-array width as the product of packed
+  dimensions; the non-power-of-two outer dimension (521) remains legal for Icarus
+  and t27c because the total packed width is still a multiple of 32 bits per element.
+- Icarus Verilog has no documented 1-MiBit hard cap; the LRM only requires 65,536-bit
+  support and Icarus warns around 1 Gbit. Upstream commit `128c621` fixed a
+  bound-normalization path that could accidentally create billion-bit vectors
+  ([steveicarus/iverilog@128c621](https://github.com/steveicarus/iverilog/commit/128c621e8540b0a68145094fa876dc5de073c9a6)).
+  Historical Icarus 0.8 carried a ~256 K-entry allocator assertion for huge packed
+  vectors, but modern versions do not hit it
+  ([gEDA-user Mar 2005](https://archives.seul.org/geda/user/Mar-2005/msg00150.html)).
+- FPGA Roofline model (Siracusa et al., IEEE TC 2021, DOI 10.1109/TC.2021.3111761)
+  frames wide packed vectors as memory quanta `Q`; the ladder is probing how large
+  `Q` can grow before routing/host-memory costs dominate.
+- Vericert (Herklotz et al., OOPSLA 2021, DOI 10.1145/3485494) and the underlying
+  CompCert verified back-end (Leroy, 2009) provide the verified-compilation analog
+  for bit-exact source-to-hardware mappings.
+- Vitis HLS UG1399 shows the commercial analog: internal AoS → SoA, but interface
+  structs can be aggregated with `compact=bit` into wide vectors.
+
+### Cooperation variants for W852
+- **A (recommended):** `[523][2]^6 Pt`, outer += 2, `MID_IDX = 261`.
+- **B:** `[521][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
+- **C:** `[521][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
+
+---
+
 ## 2026-08-04 — Wave Loop 850 (module-scope `[519][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1640)
 
 ### What worked
