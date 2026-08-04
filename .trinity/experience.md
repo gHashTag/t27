@@ -1,3 +1,64 @@
+## 2026-08-04 — Wave Loop 846 (module-scope `[511][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1632)
+
+### What worked
+- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 511.
+  The `[511][2]^6 Pt` witness is 1,046,528 bits (≈0.998 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler, reference-model, or `FROZEN_HASH` changes.
+- Generator `scripts/gen_w846.py` copied from W845 and fixed for the recurring copy hazard:
+  destination path and module header f-string updated from stale `w845` / `509` / `254`
+  to `w846` / `511` / `255`; stale `MID_IDX` comment corrected to `255`.
+- Generated `specs/scratch/w846_bench_module_511x2p6_aos_var_call_write.t27`
+  (32,704 elements, 1,046,528-bit packed vector).
+- Added integration test `accepts_w846_bench_module_511x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test -p t27c --test icarus_lowerable` 306/0.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W846_2026-08-04.md` and
+  next-wave plan `.claude/plans/wave-loop-847.md` with variants A/B/C.
+- Updated decomposed plan `.claude/plans/wave-loop-846.md` with weak-points audit and
+  scientific background (Vericert, FPGA Roofline, Vitis HLS aggregate pragma, Icarus quirks).
+- Updated skill tracker to wave 847, autopilot run-list to mark W846 closed, and
+  persistent memory with W846 closeout details.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w846_bench_module_511x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
+- Added integration test `accepts_w846_bench_module_511x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w846.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK (626 warnings, 0 errors).
+- `cargo test -p t27c --test icarus_lowerable`: 306 passed; 0 failed.
+- Direct `t27c parse` W846: PASS.
+- Direct `t27c icarus-lowerable` W846: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W846: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W846: PASS (`reference-model OK`).
+- `t27c seal --save` W846: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions; the non-power-of-two outer dimension (511) remains legal for Icarus
+  and t27c because the total packed width is still a multiple of 32 bits per element.
+- Vericert (Herklotz et al., OOPSLA 2021, DOI 10.1145/3485494) reinforces the value
+  of a bit-exact source-to-hardware mapping, which the Wave Loop ladder exercises.
+- FPGA Roofline model (Siracusa et al., IEEE TC 2021) relates wide packed vectors
+  to memory quanta `Q` and operational intensity; the ladder is therefore probing
+  the practical width ceiling where `Q` gains remain cheaply routable.
+- Vitis HLS UG1399 shows the commercial analog: internal AoS → SoA, but interface
+  structs can be aggregated with `compact=bit` into wide vectors.
+- Icarus issue #521/#995 and commit `128c621` document packed-array width quirks;
+  t27c’s lowering avoids the outer-dimension variable-index limitation.
+
+### Cooperation variants for W847
+- **A (recommended):** `[513][2]^6 Pt`, outer += 2, `MID_IDX = 256`.
+- **B:** `[511][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
+- **C:** `[511][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
+
+---
+
 ## 2026-08-04 — Wave Loop 845 (module-scope `[509][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1630)
 
 ### What worked
