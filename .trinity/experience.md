@@ -1,3 +1,83 @@
+## 2026-08-04 — Wave Loop 838 (module-scope `[495][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1616)
+
+### What worked
+- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 495.
+  The `[495][2]^6 Pt` witness is 1,013,760 bits (≈0.967 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler, reference-model, or `FROZEN_HASH` changes.
+- Generator `scripts/gen_w838.py` copied from W837 and fixed for the recurring copy hazard:
+  destination path and module header f-string updated from stale `w837` / `493` / `246`
+  to `w838` / `495` / `247`; stale `MID_IDX` comment corrected to `247`.
+- Generated `specs/scratch/w838_bench_module_495x2p6_aos_var_call_write.t27`
+  (31,680 elements, 1,013,760-bit packed vector).
+- Added integration test `accepts_w838_bench_module_495x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test -p t27c --test icarus_lowerable` 298/0.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W838_2026-08-04.md` and
+  next-wave plan `.claude/plans/wave-loop-839.md` with variants A/B/C.
+- Updated skill tracker to wave 839, autopilot run-list to mark W838 closed, and
+  persistent memory with W838 closeout details.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w838_bench_module_495x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
+- Added integration test `accepts_w838_bench_module_495x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w838.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK (627 warnings, 0 errors).
+- `cargo test -p t27c --test icarus_lowerable`: 298 passed; 0 failed.
+- Direct `t27c parse` W838: PASS.
+- Direct `t27c icarus-lowerable` W838: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W838: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W838: PASS (`reference-model OK`).
+- `t27c seal --save` W838: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  1,013,760-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- The generator copy hazard is three text locations: `DST`, module header f-string,
+  and `MID_IDX` comment. Always grep for the previous wave number and outer dimension
+  after copying the script.
+- Recompute `OUTER * 2^6` and `* 32` for every wave; do not trust copy-pasted
+  element/bit counts in the planning template.
+
+### Anti-patterns to avoid
+- Do not use single-line literals for >1,000 element initializers; the scanner
+  becomes the bottleneck.
+- Do not rely on `assert_ne` being emitted for Icarus simulation.
+- Do not run the full `./scripts/tri test --fast` suite as the only check when
+  adding a near-MiBit packed-vector witness; rely on targeted t27c gates and the
+  dedicated `icarus_lowerable` test instead.
+- Do not trust copy-pasted element/bit counts in the planning template; recompute
+  `OUTER * 2^6` and `* 32` for every wave.
+
 ## 2026-08-01 — Wave Loop 837 (module-scope `[493][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1614)
 
 ### What worked
