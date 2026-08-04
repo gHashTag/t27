@@ -71,4 +71,4 @@ Keep the W847 outer dimension but replace signed positive writes with a mix of n
 - [x] State files updated: `.trinity/current-issue.md`, `.trinity/experience.md`, `docs/NOW.md`
 - [x] Skill trackers updated
 - [x] Persistent memory `wave-loop-848.md` + `MEMORY.md` index
-- [ ] Commit with `Closes #1636`, push branch `wave-loop-848`, open PR #1637
+- [x] Commit with `Closes #1636`, push branch `wave-loop-848`, open PR #1637
