@@ -116,7 +116,8 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 869 | #1686 | wave-loop-869 | 557 | 278 | 35,648 | 1,140,736 | 1.088 | closed | #1687 |
 | 870 | #1688 | wave-loop-870 | 559 | 279 | 35,776 | 1,144,832 | 1.092 | closed | #1689 |
 | 871 | #1690 | wave-loop-871 | 561 | 280 | 35,904 | 1,148,928 | 1.096 | closed | #1692 |
-| **872** | **#1691** | **wave-loop-872** | **563** | **281** | **36,032** | **1,153,024** | **1.100** | **READY** | **TBD** |
+| 872 | #1691 | wave-loop-872 | 563 | 281 | 36,032 | 1,153,024 | 1.100 | closed | TBD |
+| **873** | **#1693** | **wave-loop-873** | **565** | **282** | **36,160** | **1,157,120** | **1.104** | **READY** | **TBD** |
 
 ### Run-list notes
 - Issue numbers follow the observed pattern (issue = previous issue + 2).
