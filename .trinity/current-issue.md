@@ -3,12 +3,12 @@
 | Field | Value |
 |-------|-------|
 | Wave | 868 |
-| Issue | #1684 (expected) |
+| Issue | #1684 |
 | Branch | `wave-loop-868` |
 | Base | `wave-loop-867` (parent branch because earlier waves' PRs remain open) |
 | Variant | `[555][2]^6 Pt` module-scope AoS variable from call with indexed signed writes |
 | Target packed vector | 35,520 elements × 32 bits = 1,136,640 bits (~1.084 MiBit) |
-| Status | planned |
+| Status | in progress |
 
 ## Goal
 

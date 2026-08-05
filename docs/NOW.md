@@ -7,7 +7,7 @@ Last updated: 2026-08-05
 - Branch: `wave-loop-867`
 - Parent branch: `wave-loop-866` HEAD
 - Issue: #1682
-- PR: TBD
+- PR: #1683
 - Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W867_2026-08-05.md`
 - Plan: `.claude/plans/wave-loop-868.md`
 - Autopilot: `.claude/skills/wave-loop-autopilot.md`
@@ -82,7 +82,7 @@ Last updated: 2026-08-05
 
 - Branch: `wave-loop-868`
 - Parent branch: `wave-loop-867` HEAD (after closeout)
-- Issue: #1684 (expected)
+- Issue: #1684
 - PR: TBD
 - Plan: `.claude/plans/wave-loop-868.md`
 - Master plan: `.claude/skills/wave-loop-master-plan.md`

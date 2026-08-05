@@ -1,8 +1,8 @@
 # Wave Loop 868 Plan
 
-**Issue:** #1684 (expected)  
+**Issue:** #1684  
 **Branch:** `wave-loop-868` (from `wave-loop-867` HEAD)  
-**Previous branch PR:** TBD (`wave-loop-867`)  
+**Previous branch PR:** #1683 (`wave-loop-867`)  
 **Variant A:** module-scope `[555][2]^6 Pt` non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes.
 
 ## Constants
