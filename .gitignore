@@ -38,6 +38,7 @@ test-ledger/
 *.tmp
 *.bak
 *.bak[0-9]*
+*.backup
 *.orig
 *.rej
 /*.patch
