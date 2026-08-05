@@ -1,3 +1,16 @@
+# NOW — bug: fix ternary MAC adder_tree_27 overflow (wrong dot product) (2026-08-05)
+
+Last updated: 2026-08-05
+
+## bug: adder_tree_27 level-2 overflow + functional MAC testbench (Closes #1732)
+
+- Branch: `fix/mac-adder-tree-overflow`
+
+### Что легло
+- **Model-critical correctness bug in the ternary MAC core.** `adder_tree_27` (gen-trit-stdlib; wrapped by `trit27_dot_product`/`pipeline_stage2_compute`) declared level-2 as `signed [3:0]` (range [-8,+7]), but each `l2[j]` sums three `l1 in [-3,+3]` → range [-9,+9]. All-+1 dot product read **-21 instead of +27** (each group-of-9 = +9 wrapped to -7). Fixed by widening `l2` to `signed [4:0]`. Found by a NEW golden-vector functional testbench `tests/bitnet_compute_mac.rs` (iverilog+vvp): all-P/all-N/all-Z/single-trit/multi-chunk accumulation now match; skips w/o iverilog. Updated the unit test that had codified the buggy `signed [3:0]` width. trit_stdlib.rs is NOT under the FROZEN_HASH seal (only compiler.rs) → no reseal. Full suite green (excl. pre-existing #1726). This is the functional instrument that makes the engine-top datapath fix (input≡weight aliasing) provable next.
+
+---
+
 # NOW — test: iverilog elaboration instrument for the assembled BitNet engine (2026-08-05)
 
 Last updated: 2026-08-05
