@@ -1,3 +1,16 @@
+# NOW — fix: gen-verilog hoist function-local reg decls to body top (#1741) (2026-08-05)
+
+Last updated: 2026-08-05
+
+## fix: gen-verilog hoists function-local decls -> loops/multi-locals elaborate (Closes #1741)
+
+- Branch: `fix/verilog-hoist-fn-locals`
+
+### Что легло
+- gen-verilog emitted function-local `reg` declarations at their point of declaration — after preceding statements and inside `while`-loop blocks — which Verilog forbids (iverilog: "syntax error / Malformed statement"). Root cause confirmed with minimal cases: decl-after-statement fails in ANY block; decl-first is fine. Fix: recursively collect every function-body local (`collect_fn_local_decls`) and hoist its `reg` declaration to the top of the `begin : <fn>_body` block, then emit each StmtLocal as assignment-only (Init phase) via a `hoist_fn_locals` flag. Verified: the loop-form ternary dot product (while + locals) now iverilog-compiles AND bit-exact cross-checks vs `trit27_dot_product` on 300 random vectors; new regression test `tests/verilog_decl_hoist.rs`; full compiler suite green (excl. pre-existing #1726). FROZEN_HASH re-sealed. Unblocks non-trivial spec-first hardware (loops/locals) — the wall the spec-first MAC (#1743) had to route around with a 27-term loop-free form.
+
+---
+
 # NOW — feat: spec-first ternary MAC dot product (.t27), bit-exact vs handwritten (2026-08-05)
 
 Last updated: 2026-08-05

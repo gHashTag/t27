@@ -3808,6 +3808,10 @@ pub struct VerilogCodegen {
     module_name: String,
     current_fn_name: String,
     current_fn_return_type: String,
+    // When true, top-level function-body local declarations have already been
+    // hoisted to the top of the body block, so a direct-child StmtLocal must
+    // emit only its assignment (Init phase), not a fresh `reg` declaration.
+    hoist_fn_locals: bool,
     // Width of the parameters of the function currently being lowered, keyed by
     // parameter name. Populated in `gen_verilog_fn`. Used by `ExprCast` lowering
     // to skip a redundant truncation mask when the operand is a parameter that is
@@ -3877,6 +3881,7 @@ impl VerilogCodegen {
             module_name: String::new(),
             current_fn_name: String::new(),
             current_fn_return_type: String::new(),
+            hoist_fn_locals: false,
             param_widths: std::collections::HashMap::new(),
             struct_decls: std::collections::HashMap::new(),
             local_types: std::collections::HashMap::new(),
@@ -5061,6 +5066,7 @@ impl VerilogCodegen {
             module_name: String::new(),
             current_fn_name: String::new(),
             current_fn_return_type: String::new(),
+            hoist_fn_locals: false,
             param_widths: self.param_widths.clone(),
             struct_decls: self.struct_decls.clone(),
             local_types: self.local_types.clone(),
@@ -5221,6 +5227,7 @@ impl VerilogCodegen {
                     module_name: String::new(),
                     current_fn_name: String::new(),
                     current_fn_return_type: String::new(),
+                    hoist_fn_locals: false,
                     param_widths: self.param_widths.clone(),
                     struct_decls: self.struct_decls.clone(),
                     local_types: self.local_types.clone(),
@@ -6556,7 +6563,22 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line(&format!("begin : {}_body", node.name));
             self.indent();
+            // #1741: Verilog forbids a declaration after a procedural statement
+            // (iverilog rejects it, in the body block AND in nested loop/if
+            // blocks), so hoist every local's `reg` declaration -- at any depth
+            // -- to the top of the function body block, then emit the body with
+            // each StmtLocal reduced to its assignment (Init phase). A reg
+            // declared inside a loop is fine to declare once and reassign each
+            // iteration.
+            let mut decls: Vec<&Node> = Vec::new();
+            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+            Self::collect_fn_local_decls(&node.children, &mut decls, &mut seen);
+            for d in decls {
+                self.emit_local(d, LocalEmitPhase::Decl);
+            }
+            self.hoist_fn_locals = true;
             self.gen_verilog_fn_body(&node.children);
+            self.hoist_fn_locals = false;
             self.dedent();
             self.write_indent();
             self.write_line("end");
@@ -6583,6 +6605,30 @@ impl VerilogCodegen {
     /// name, a bare fall-through would let the trailing statements clobber
     /// the guarded assignment (last write wins). Wrapping the remainder in an
     /// else preserves the early-return semantics.
+    /// #1741: recursively collect every `StmtLocal` in a function body (at any
+    /// nesting depth) so its `reg` declaration can be hoisted to the top of the
+    /// body block. Deduped by binding name (tuple-pattern locals by their
+    /// comma-joined field list) so a name declared once is emitted once.
+    fn collect_fn_local_decls<'a>(
+        stmts: &'a [Node],
+        out: &mut Vec<&'a Node>,
+        seen: &mut std::collections::HashSet<String>,
+    ) {
+        for s in stmts {
+            if s.kind == NodeKind::StmtLocal {
+                let key = if s.name.is_empty() {
+                    s.extra_field.clone()
+                } else {
+                    s.name.clone()
+                };
+                if !key.is_empty() && seen.insert(key) {
+                    out.push(s);
+                }
+            }
+            Self::collect_fn_local_decls(&s.children, out, seen);
+        }
+    }
+
     fn gen_verilog_fn_body(&mut self, stmts: &[Node]) {
         for (idx, stmt) in stmts.iter().enumerate() {
             let is_guarded_return = stmt.kind == NodeKind::StmtIf
@@ -6611,7 +6657,13 @@ impl VerilogCodegen {
                 self.write_line("end");
                 return;
             }
-            self.gen_verilog_stmt(stmt);
+            // #1741: top-level locals had their `reg` declaration hoisted, so
+            // emit only the assignment here.
+            if self.hoist_fn_locals && stmt.kind == NodeKind::StmtLocal {
+                self.emit_local(stmt, LocalEmitPhase::Init);
+            } else {
+                self.gen_verilog_stmt(stmt);
+            }
         }
     }
 
@@ -7273,7 +7325,14 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtLocal => {
-                self.emit_local(node, LocalEmitPhase::Full);
+                // #1741: inside a function body being hoisted, the declaration
+                // was already emitted at the top; emit only the assignment.
+                let phase = if self.hoist_fn_locals {
+                    LocalEmitPhase::Init
+                } else {
+                    LocalEmitPhase::Full
+                };
+                self.emit_local(node, phase);
             }
             NodeKind::StmtAssign => {
                 self.write_indent();
