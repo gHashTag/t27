@@ -3194,6 +3194,19 @@ impl Codegen {
         self.write_line("};");
     }
 
+    /// Map a t27 tuple type `(T, U, ...)` to a Zig anonymous tuple-struct type
+    /// `struct { T, U, ... }`. Returns None for non-tuple types.
+    fn t27_tuple_type_to_zig(ty: &str) -> Option<String> {
+        let t = ty.trim();
+        if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+            let inner = &t[1..t.len() - 1];
+            let elems: Vec<&str> = inner.split(',').map(|e| e.trim()).collect();
+            Some(format!("struct {{ {} }}", elems.join(", ")))
+        } else {
+            None
+        }
+    }
+
     fn gen_fn_decl(&mut self, node: &Node) {
         if node.extra_pub {
             self.write("pub ");
@@ -3206,7 +3219,10 @@ impl Codegen {
         let return_type = if node.extra_return_type.is_empty() {
             "void".to_string()
         } else {
-            node.extra_return_type.clone()
+            // A tuple return type `(T, U)` lowers to a Zig anonymous tuple
+            // struct; scalar/other types pass through unchanged.
+            Self::t27_tuple_type_to_zig(&node.extra_return_type)
+                .unwrap_or_else(|| node.extra_return_type.clone())
         };
 
         // Check if this is a method (first param is "self")
@@ -3323,20 +3339,40 @@ impl Codegen {
             }
             NodeKind::StmtLocal => {
                 self.write_indent();
-                if node.extra_mutable {
-                    self.write("var ");
+                if node.name.is_empty() && !node.extra_field.is_empty() {
+                    // Tuple-destructuring `let (s, d) = init`. Zig destructuring
+                    // needs a binding keyword per element:
+                    // `const s, const d = init;`.
+                    let kw = if node.extra_mutable { "var" } else { "const" };
+                    let binds: Vec<String> = node
+                        .extra_field
+                        .split(',')
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| format!("{} {}", kw, s))
+                        .collect();
+                    self.write(&binds.join(", "));
+                    if !node.children.is_empty() {
+                        self.write(" = ");
+                        self.gen_expr(&node.children[0]);
+                    }
+                    self.write_line(";");
                 } else {
-                    self.write("const ");
+                    if node.extra_mutable {
+                        self.write("var ");
+                    } else {
+                        self.write("const ");
+                    }
+                    self.write(&node.name);
+                    if !node.extra_type.is_empty() {
+                        self.write(&format!(": {}", node.extra_type));
+                    }
+                    if !node.children.is_empty() {
+                        self.write(" = ");
+                        self.gen_expr(&node.children[0]);
+                    }
+                    self.write_line(";");
                 }
-                self.write(&node.name);
-                if !node.extra_type.is_empty() {
-                    self.write(&format!(": {}", node.extra_type));
-                }
-                if !node.children.is_empty() {
-                    self.write(" = ");
-                    self.gen_expr(&node.children[0]);
-                }
-                self.write_line(";");
             }
             NodeKind::StmtAssign => {
                 self.write_indent();
@@ -3745,6 +3781,17 @@ impl Codegen {
                     self.gen_expr(&node.children[0]);
                     self.write("))");
                 }
+            }
+            NodeKind::ExprTuple => {
+                // Zig anonymous tuple value: `(e0, e1)` -> `.{ e0, e1 }`.
+                self.write(".{ ");
+                for (i, elem) in node.children.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.gen_expr(elem);
+                }
+                self.write(" }");
             }
             _ => {}
         }
@@ -26179,6 +26226,36 @@ mod tests_phase40_coverage {
             out
         );
         assert!(!out.contains("reg [31:0] ;"), "empty reg decl leaked: {}", out);
+    }
+
+    // #1702: gen-zig tuple lowering. A tuple-return type `(T, U)` lowers to a Zig
+    // anonymous tuple struct, the tuple literal to `.{ ... }`, and
+    // `let (s, d) = call()` to `const s, const d = call();`. Used to emit an
+    // invalid `(u32, u32)` return type, `return ;`, and `const  = dm(a, b);`.
+    // The emitted forms compile + comptime-evaluate under Zig 0.15.2.
+    #[test]
+    fn test_tuple_literal_and_destructuring_zig() {
+        let code = "module M { \
+            pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } \
+            pub fn use_it(a: u32, b: u32) -> u32 { let (s, d) = dm(a, b); return s + d; } }";
+        let out = Compiler::compile(code).expect("compile should succeed");
+        assert!(
+            out.contains("pub fn dm(a: u32, b: u32) struct { u32, u32 } {"),
+            "tuple return type not lowered to Zig tuple struct: {}",
+            out
+        );
+        assert!(
+            out.contains("return .{ a + b, a - b };"),
+            "tuple literal not lowered to Zig `.{{ ... }}`: {}",
+            out
+        );
+        assert!(
+            out.contains("const s, const d = dm(a, b);"),
+            "tuple destructuring not lowered to Zig `const s, const d = ...`: {}",
+            out
+        );
+        assert!(!out.contains("const  ="), "empty binding leaked: {}", out);
+        assert!(!out.contains("return ;"), "empty return leaked: {}", out);
     }
 
     // #1659: Zig-style wrapping operators +% -% *% must lower per backend.
