@@ -70,14 +70,15 @@ at the end.
 | 861 | #1666 | wave-loop-861 | 541 | 270 | 34,624 | 1,107,968 | 1.056 | closed | #1667 |
 | 862 | #1668 | wave-loop-862 | 543 | 271 | 34,752 | 1,112,064 | 1.060 | closed | #1669 |
 | 863 | #1670 | wave-loop-863 | 545 | 272 | 34,880 | 1,116,160 | 1.064 | closed | #1671 |
-| **864** | **#1672** | **wave-loop-864** | **547** | **273** | **35,008** | **1,120,256** | **1.068** | **in progress** | **TBD** |
-| 865 | #1674 (expected) | wave-loop-865 (planned) | 549 | 274 | 35,136 | 1,124,352 | 1.072 | planned | TBD |
+| 864 | #1672 | wave-loop-864 | 547 | 273 | 35,008 | 1,120,256 | 1.068 | closed | #1673 |
+| **865** | **#1674** | **wave-loop-865** | **549** | **274** | **35,136** | **1,124,352** | **1.072** | **in progress** | **TBD** |
+| 866 | #1676 (expected) | wave-loop-866 (planned) | 551 | 275 | 35,264 | 1,128,448 | 1.076 | planned | TBD |
 
-### W864 cooperation variants (draft)
+### W865 cooperation variants (draft)
 
-- **A (recommended):** `[547][2]^6 Pt`, outer += 2, `MID_IDX = 273`.
-- **B:** `[545][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
-- **C:** `[545][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
+- **A (recommended):** `[549][2]^6 Pt`, outer += 2, `MID_IDX = 274`.
+- **B:** `[547][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
+- **C:** `[547][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
 
 ## Update-at-end-of-loop instructions
 
