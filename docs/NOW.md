@@ -1,3 +1,16 @@
+# NOW — test: harden ternary MAC coverage (boundary + randomized reference sweep) (2026-08-05)
+
+Last updated: 2026-08-05
+
+## test: MAC overflow-boundary + 200-vector randomized reference sweep (Closes #1734)
+
+- Branch: `test/mac-randomized-sweep-work`
+
+### Что легло
+- Follow-up to the MAC overflow fix (#1733). Hardened `tests/bitnet_compute_mac.rs`: (1) overflow-boundary vectors pinning a level-2 group summing to exactly +/-8 (the value the old `signed [3:0]` wrapped); (2) a 200-vector randomized sweep (deterministic iverilog seed) cross-checked against an **independent** in-TB `ref_dot` (decode + multiply-accumulate, not using the DUT reduction tree). All pass → the MAC bug class is dry in the searched space; future arithmetic regressions now caught. Test-only; no compiler/emitter change, no reseal.
+
+---
+
 # NOW — bug: fix ternary MAC adder_tree_27 overflow (wrong dot product) (2026-08-05)
 
 Last updated: 2026-08-05
