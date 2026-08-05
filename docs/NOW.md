@@ -1,3 +1,16 @@
+# NOW — feat: self-contained BitNet bundle (bundles trit_stdlib, elaborates standalone) (2026-08-05)
+
+Last updated: 2026-08-05
+
+## feat: gen-bitnet-bundle includes trit_stdlib -> elaborates standalone (Closes #1739)
+
+- Branch: `feat/self-contained-bundle`
+
+### Что легло
+- Follow-up from #1730: the bundle instantiated `trit27_dot_product` but omitted the trit stdlib that defines it, so it couldn't elaborate/synthesize standalone. Compose `trit_stdlib.sv` at dependency-first position; `BUNDLE_ORDER`/`BUNDLE_FILE_COUNT` 12→13; updated the index-based unit tests. Simplified `tests/bitnet_elaborate.rs` to elaborate the bundle directory as-is (dropped the separate stdlib emission) — now proves self-containment. Verified: `iverilog -t null -s bitnet_engine_top` over the bundle alone elaborates clean; unit 1500/0, bundle 21/21, full suite green (excl. pre-existing #1726). No compiler change, no reseal.
+
+---
+
 # NOW — feat: spec-first ternary activation quantizer (.t27) (2026-08-05)
 
 Last updated: 2026-08-05
