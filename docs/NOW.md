@@ -1,3 +1,21 @@
+# NOW — conformance: correct 5 stale gf16 vectors + wire oracle into CI (2026-08-05)
+
+Last updated: 2026-08-05
+
+## conformance: correct 5 stale gf16 vectors + wire oracle into CI (Closes #1579)
+
+- Branch: `fix/gf16-conformance-vectors`
+- Issue: #1579
+- PR: #1673
+
+### Что легло
+- gf16_ref.py exited non-zero on 5 named-constant vectors. Brute force over all 65536 codes proved the encoder picks the nearest GF16 code and decode is FPGA-consistent, so the vectors' expected.decoded values were phantom (not representable). Set expected.decoded to the true constant and tolerance_abs to the quantization bound (phase_transition widened to 0.0005). Added .github/workflows/gf16-conformance.yml so the oracle runs on every change.
+
+### Границы честности (BINDING)
+- The fix corrects test data, not the encoder/decoder — those are proven correct by roundtrip (19/19) and FPGA-consistency (32/32). Oracle now 35 pass / 0 fail.
+
+---
+
 # NOW — scripts: cocotb_ref_model is importable again (2026-08-01)
 
 Last updated: 2026-08-01
