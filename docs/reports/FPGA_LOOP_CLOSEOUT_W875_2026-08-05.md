@@ -158,15 +158,15 @@ changes the asymptotic behavior.
 - [x] Integration test added immediately after W874's test.
 - [x] `FROZEN_HASH` verified unchanged.
 - [x] Closeout report written.
-- [ ] Commit with `Closes #1699`, push branch `wave-loop-875`, open PR to `master`.
-- [ ] Create W876 issue and branch `wave-loop-876` from `wave-loop-875` HEAD.
+- [x] Commit with `Closes #1699`, push branch `wave-loop-875`, open PR #1700 to `master`.
+- [x] Create W876 issue #1701 and branch `wave-loop-876` from `wave-loop-875` HEAD.
 
 ---
 
 ## 6. Next steps
 
-1. Land W875 commit (`Closes #1699`) and open PR to `master`.
-2. Create W876 issue and branch `wave-loop-876` from `wave-loop-875` HEAD.
+1. ~~Land W875 commit (`Closes #1699`) and open PR #1700 to `master`.~~ Done.
+2. ~~Create W876 issue #1701 and branch `wave-loop-876` from `wave-loop-875` HEAD.~~ Done.
 3. Implement selected W876 variant per the standing charter.
 
 *φ² + φ⁻² = 3 | TRINITY*
