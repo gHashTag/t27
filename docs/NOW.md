@@ -1,3 +1,16 @@
+# NOW — codegen: gen-c tuple lowering — closes tuple workstream across all backends (2026-08-05)
+
+Last updated: 2026-08-05
+
+## codegen: gen-c tuple literals + let (a,b) destructuring (Closes #1727, #1702)
+
+- Branch: `feat/tuple-c`
+
+### Что легло
+- Final backend of tuple support (#1702). C has no anonymous tuples, so gen-c now hoists a `typedef struct { T f0; U f1; }` per distinct tuple shape, lowers a tuple return type to that struct (`c_return_type`), the tuple literal to a C99 compound literal `(T){ e0, e1 }` (`gen_c_expr` ExprTuple), and `let (s, d) = call()` to a temp struct + per-field copies with element C types (`gen_c_stmt`). Emitted C compiles under `cc -std=c99 -Wall -Wextra` and runs: `use_it(5,3)==10`, `dm(7,2)==(9,5)`. New test `test_tuple_literal_and_destructuring_c`; full suite 1500/0; FROZEN_HASH re-sealed. **Tuple support now complete across parser + rust + verilog + zig + c → #1702 closed.**
+
+---
+
 # NOW — codegen: gen-zig tuple lowering (return type + literal + destructuring) (2026-08-05)
 
 Last updated: 2026-08-05

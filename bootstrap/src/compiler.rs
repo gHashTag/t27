@@ -7999,6 +7999,12 @@ pub struct CCodegen {
     output: String,
     indent: u32,
     module_name: String,
+    /// Function name -> t27 return type, used to resolve tuple element types at
+    /// a `let (a, b) = call()` destructuring site.
+    fn_return_types: std::collections::HashMap<String, String>,
+    /// t27 tuple return type of the function currently being emitted, so an
+    /// `ExprTuple` in a `return` can be cast to the right C compound-literal type.
+    current_ret_tuple_type: Option<String>,
 }
 
 impl CCodegen {
@@ -8007,6 +8013,33 @@ impl CCodegen {
             output: String::new(),
             indent: 0,
             module_name: String::new(),
+            fn_return_types: std::collections::HashMap::new(),
+            current_ret_tuple_type: None,
+        }
+    }
+
+    /// Map a t27 tuple type `(T, U, ...)` to a deterministic C typedef name and
+    /// its element C types. Returns None for non-tuple types.
+    fn c_tuple_info(ty: &str) -> Option<(String, Vec<String>)> {
+        let t = ty.trim();
+        if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+            let inner = &t[1..t.len() - 1];
+            let elems: Vec<String> = inner
+                .split(',')
+                .map(|e| Self::param_type_to_c(e.trim()))
+                .collect();
+            let sanitized: String = elems
+                .iter()
+                .map(|c| {
+                    c.chars()
+                        .map(|ch| if ch.is_alphanumeric() { ch } else { '_' })
+                        .collect::<String>()
+                })
+                .collect::<Vec<_>>()
+                .join("_");
+            Some((format!("t27_tuple_{}", sanitized), elems))
+        } else {
+            None
         }
     }
 
@@ -8122,6 +8155,64 @@ impl CCodegen {
                 NodeKind::InvariantBlock => invariants.push(decl),
                 NodeKind::BenchBlock => benches.push(decl),
                 _ => {}
+            }
+        }
+
+        // Record function return types so tuple-destructuring sites can resolve
+        // the element types of a called function.
+        for f in &functions {
+            if !f.extra_return_type.is_empty() {
+                self.fn_return_types
+                    .insert(f.name.clone(), f.extra_return_type.clone());
+            }
+        }
+
+        // Hoist a C struct typedef for every distinct tuple shape used as a
+        // function return type or produced by a destructured call. C has no
+        // anonymous tuples, so `(u32, u32)` becomes a named struct with fields
+        // f0, f1, ....
+        {
+            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+            let mut typedefs: Vec<(String, Vec<String>)> = Vec::new();
+            let mut consider = |ty: &str,
+                                seen: &mut std::collections::HashSet<String>,
+                                typedefs: &mut Vec<(String, Vec<String>)>| {
+                if let Some((name, elems)) = Self::c_tuple_info(ty) {
+                    if seen.insert(name.clone()) {
+                        typedefs.push((name, elems));
+                    }
+                }
+            };
+            for f in &functions {
+                consider(&f.extra_return_type, &mut seen, &mut typedefs);
+                for stmt in &f.children {
+                    if stmt.kind == NodeKind::StmtLocal
+                        && stmt.name.is_empty()
+                        && !stmt.extra_field.is_empty()
+                    {
+                        if let Some(init) = stmt.children.first() {
+                            if init.kind == NodeKind::ExprCall {
+                                if let Some(rt) = self.fn_return_types.get(&init.name) {
+                                    consider(&rt.clone(), &mut seen, &mut typedefs);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if !typedefs.is_empty() {
+                self.write_line("/* -------------------------------------------------------");
+                self.write_line("   Tuple types");
+                self.write_line("   ------------------------------------------------------- */");
+                self.write_line("");
+                for (name, elems) in &typedefs {
+                    self.write("typedef struct { ");
+                    for (i, e) in elems.iter().enumerate() {
+                        self.write(&format!("{} f{}; ", e, i));
+                    }
+                    self.write_line(&format!("}} {};", name));
+                }
+                self.write_line("");
             }
         }
 
@@ -8340,8 +8431,18 @@ impl CCodegen {
         self.write_line("");
     }
 
+    /// C return type for a t27 return type: a tuple lowers to its hoisted
+    /// struct typedef name, everything else to the usual C type.
+    fn c_return_type(ty: &str) -> String {
+        if let Some((name, _)) = Self::c_tuple_info(ty) {
+            name
+        } else {
+            Self::param_type_to_c(ty)
+        }
+    }
+
     fn gen_c_fn_prototype(&mut self, node: &Node) {
-        let ret_type = Self::param_type_to_c(&node.extra_return_type);
+        let ret_type = Self::c_return_type(&node.extra_return_type);
         let ret_type = if ret_type.is_empty() {
             "void".to_string()
         } else {
@@ -8363,12 +8464,16 @@ impl CCodegen {
     }
 
     fn gen_c_fn(&mut self, node: &Node) {
-        let ret_type = Self::param_type_to_c(&node.extra_return_type);
+        let ret_type = Self::c_return_type(&node.extra_return_type);
         let ret_type = if ret_type.is_empty() {
             "void".to_string()
         } else {
             ret_type
         };
+        // Track a tuple return type so an `ExprTuple` in a `return` can be
+        // emitted as the matching C compound literal.
+        self.current_ret_tuple_type =
+            Self::c_tuple_info(&node.extra_return_type).map(|_| node.extra_return_type.clone());
 
         self.write(&format!("{} {}(", ret_type, node.name));
         for (i, (pname, ptype)) in node.params.iter().enumerate() {
@@ -8485,6 +8590,52 @@ impl CCodegen {
                     self.gen_c_expr(&node.children[0]);
                 }
                 self.write_line(";");
+            }
+            NodeKind::StmtLocal
+                if node.name.is_empty() && !node.extra_field.is_empty() =>
+            {
+                // Tuple-destructuring `let (s, d) = call()`: bind the call result
+                // through a temp of the callee's hoisted tuple struct, then copy
+                // each field (f0, f1, ...) into a typed local.
+                let names: Vec<String> = node
+                    .extra_field
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                let tuple_ty = node.children.first().and_then(|init| {
+                    if init.kind == NodeKind::ExprCall {
+                        self.fn_return_types.get(&init.name).cloned()
+                    } else {
+                        None
+                    }
+                });
+                let info = tuple_ty.as_deref().and_then(Self::c_tuple_info);
+                match info {
+                    Some((tname, elems)) if elems.len() == names.len() => {
+                        let tmp = format!("__t_c{}", node.line);
+                        self.write_indent();
+                        self.write(&format!("{} {} = ", tname, tmp));
+                        if let Some(init) = node.children.first() {
+                            self.gen_c_expr(init);
+                        }
+                        self.write_line(";");
+                        for (i, (nm, ety)) in names.iter().zip(elems.iter()).enumerate() {
+                            self.write_indent();
+                            self.write_line(&format!("{} {} = {}.f{};", ety, nm, tmp, i));
+                        }
+                    }
+                    _ => {
+                        // Fallback: keep the (invalid) original shape rather than
+                        // silently dropping the statement.
+                        self.write_indent();
+                        self.write(&format!("/* tuple destructure ({}) */ ", node.extra_field));
+                        if let Some(init) = node.children.first() {
+                            self.gen_c_expr(init);
+                        }
+                        self.write_line(";");
+                    }
+                }
             }
             NodeKind::StmtLocal => {
                 self.write_indent();
@@ -8988,6 +9139,27 @@ impl CCodegen {
                     self.gen_c_expr(&node.children[0]);
                     self.write("))");
                 }
+            }
+            NodeKind::ExprTuple => {
+                // Tuple literal -> C99 compound literal of the current
+                // function's hoisted tuple struct: `(T){ e0, e1 }`. The field
+                // order matches the typedef (f0, f1, ...).
+                if let Some((name, _)) = self
+                    .current_ret_tuple_type
+                    .as_deref()
+                    .and_then(Self::c_tuple_info)
+                {
+                    self.write(&format!("({}){{ ", name));
+                } else {
+                    self.write("{ ");
+                }
+                for (i, elem) in node.children.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.gen_c_expr(elem);
+                }
+                self.write(" }");
             }
             _ => {
                 self.write(&format!("/* unsupported: {:?} */", node.kind));
@@ -26256,6 +26428,41 @@ mod tests_phase40_coverage {
         );
         assert!(!out.contains("const  ="), "empty binding leaked: {}", out);
         assert!(!out.contains("return ;"), "empty return leaked: {}", out);
+    }
+
+    // #1702: gen-c tuple lowering. C has no anonymous tuples, so a tuple return
+    // type gets a hoisted `typedef struct { ... }`, the literal a C99 compound
+    // literal, and `let (s, d) = call()` a temp-struct + per-field copies. Used
+    // to emit `(u32, u32) dm(...)`, `return /* unsupported: ExprTuple */;` and
+    // `int  = dm(a, b);`. The emitted C compiles (-std=c99 -Wall) and runs.
+    #[test]
+    fn test_tuple_literal_and_destructuring_c() {
+        let code = "module M { \
+            pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } \
+            pub fn use_it(a: u32, b: u32) -> u32 { let (s, d) = dm(a, b); return s + d; } }";
+        let out = Compiler::compile_c(code).expect("compile should succeed");
+        assert!(
+            out.contains("typedef struct { uint32_t f0; uint32_t f1; } t27_tuple_uint32_t_uint32_t;"),
+            "tuple typedef not hoisted: {}",
+            out
+        );
+        assert!(
+            out.contains("t27_tuple_uint32_t_uint32_t dm(uint32_t a, uint32_t b)"),
+            "tuple return type not lowered to the struct: {}",
+            out
+        );
+        assert!(
+            out.contains("return (t27_tuple_uint32_t_uint32_t){ (a + b), (a - b) };"),
+            "tuple literal not lowered to a C compound literal: {}",
+            out
+        );
+        assert!(
+            out.contains("uint32_t s = __t_c1.f0;") && out.contains("uint32_t d = __t_c1.f1;"),
+            "tuple destructuring not lowered to per-field copies: {}",
+            out
+        );
+        assert!(!out.contains("unsupported: ExprTuple"), "ExprTuple left unlowered: {}", out);
+        assert!(!out.contains("int  = "), "empty binding leaked: {}", out);
     }
 
     // #1659: Zig-style wrapping operators +% -% *% must lower per backend.
