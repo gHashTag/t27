@@ -5354,7 +5354,16 @@ impl VerilogCodegen {
             NodeKind::ExprIdentifier if !current.name.is_empty() => {
                 let info = self.module_packed_primitive_arrays.get(&current.name)
                     .or_else(|| self.local_packed_primitive_arrays.get(&current.name))
-                    .cloned();
+                    .cloned()
+                    .or_else(|| {
+                        // #1745: an array-typed parameter is lowered to a single
+                        // packed vector, so its elements must be indexed by
+                        // element-wide slices too -- otherwise `xs[i]` is a
+                        // bit-select and reads one bit instead of the element.
+                        self.param_types
+                            .get(&current.name)
+                            .and_then(|ty| Self::primitive_array_info(ty))
+                    });
                 (current.name.clone(), info)
             }
             NodeKind::ExprCall => {
