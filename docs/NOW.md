@@ -1,3 +1,16 @@
+# NOW — codegen: gen-verilog tuple lowering (concat + destructuring) (2026-08-05)
+
+Last updated: 2026-08-05
+
+## codegen: gen-verilog tuple literals + let (a,b) destructuring (Closes #1717)
+
+- Branch: `feat/tuple-verilog`
+
+### Что легло
+- Part 3 of tuple support (#1702), the model-critical backend. gen-verilog now lowers `ExprTuple` to a packed concat with element 0 in the LSB (`(e0, e1)` -> `{e1, e0}`), sizes tuple-return functions to the summed width (`packed_width` tuple branch), and destructures `let (s, d) = call()` through a packed temp sliced back into each binding (`s = __tup_lN[31:0]`, `d = __tup_lN[63:32]`). Verified: iverilog `-t null -Wall` syntax OK + numeric TB `use_it(5,3)=10` (= 2·5). New unit test `test_tuple_literal_and_destructuring_verilog`; full suite 1498/0; FROZEN_HASH re-sealed. Zig/C tuple lowering still TODO (tracked on #1702).
+
+---
+
 # NOW — codegen: gen-rust tuple support (literals + destructuring) (2026-08-05)
 
 Last updated: 2026-08-05
