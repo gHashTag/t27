@@ -1,0 +1,38 @@
+# GF16 conformance oracle gate (CI).
+#
+# conformance/gf16_ref.py is a stdlib-only self-checking oracle (FPGA-consistency,
+# roundtrip, and named-constant vectors from conformance/gf16_vectors.json). It was
+# never wired into CI, so 5 stale vectors regressed unnoticed (#1579). This gate runs
+# it on every change to the oracle or its vectors and fails on any non-zero exit.
+name: gf16-conformance
+
+on:
+  push:
+    paths:
+      - "conformance/gf16_ref.py"
+      - "conformance/gf16_vectors.json"
+      - ".github/workflows/gf16-conformance.yml"
+  pull_request:
+    paths:
+      - "conformance/gf16_ref.py"
+      - "conformance/gf16_vectors.json"
+      - ".github/workflows/gf16-conformance.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  gf16-oracle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run GF16 conformance oracle (stdlib-only, no deps)
+        run: python3 conformance/gf16_ref.py
