@@ -88,7 +88,7 @@ Wave Loop 878 continued the mechanical packed-vector AoS ladder past the 1-MiBit
   work reports BRAM/URAM bandwidths in the TB/s range versus HBM ~460 GB/s.
 - Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W878_2026-08-05.md` and
   next-wave plan `.claude/plans/wave-loop-879.md` with variants A/B/C.
-- Closed with commit `Closes #1706`, pushed branch `wave-loop-878`, opened PR TBD.
+- Closed with commit `Closes #1706`, pushed branch `wave-loop-878`, opened PR #1707.
 - Updated this skill's Live Wave Loop Tracker to wave 879.
 
 Key learning: the 1-MiBit neighborhood remains a soft boundary for t27c and
@@ -4123,7 +4123,7 @@ variants are queued."
 | Field | Value |
 |-------|-------|
 | **Current wave** | 879 |
-| **Issue** | #1707 (expected) |
+| **Issue** | #1708 (expected) |
 | **Branch** | `wave-loop-879` |
 | **Parent branch** | `wave-loop-878` HEAD because earlier wave PRs remain open |
 | **Recommended variant** | A — module-scope `[577][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes

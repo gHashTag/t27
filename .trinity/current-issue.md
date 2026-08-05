@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Wave | 879 |
-| Issue | #1707 (expected; GitHub may assign a different number) |
+| Issue | #1708 (expected; GitHub may assign a different number) |
 | Branch | `wave-loop-879` |
 | Base | `wave-loop-878` (parent branch because earlier waves' PRs remain open) |
 | Variant | `[577][2]^6 Pt` module-scope AoS variable from call with indexed signed writes |
@@ -26,7 +26,7 @@ wider packed vector without compiler or FROZEN_HASH changes.
 - [ ] Full `cargo test --release --test icarus_lowerable` passes at **339/0**.
 - [ ] `bootstrap/stage0/FROZEN_HASH` unchanged.
 - [ ] Closeout report, next-wave plan, skills, and persistent memory updated.
-- [ ] Commit with `Closes #1707`, push branch, open PR to `master`.
+- [ ] Commit with `Closes #1708`, push branch, open PR to `master`.
 
 ## Cooperation variants for W880
 
