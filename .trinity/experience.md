@@ -1,3 +1,14 @@
+## Wave Loop 876 — 2026-08-05
+
+- Issue: #1701
+- Branch: `wave-loop-876`
+- Variant: `[571][2]^6 Pt` module-scope packed array-of-struct variable from call with indexed signed writes
+- Target: 36,544 elements × 32 bits = 1,169,408 bits (~1.116 MiBit)
+- Result: validation all PASS; 0 compiler changes; `FROZEN_HASH` unchanged.
+- Key learning: the mechanical ladder is stable past the 1-MiBit line. The generator
+  copy-hazard checklist is still the dominant manual risk; parameterizing the wave
+  prefix inside the generator template would remove it.
+
 ## 2026-08-05 — Wave Loop 875 (module-scope `[569][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1699)
 
 ### What worked
