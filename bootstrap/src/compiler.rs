@@ -199,6 +199,8 @@ pub enum TokenKind {
     ShiftRight,
     PlusEquals,
     PlusPercent,
+    MinusPercent,
+    StarPercent,
 
     // Special
     Semicolon,
@@ -594,6 +596,28 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::PlusPercent,
                     lexeme: String::from("+%"),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'-', b'%'] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::MinusPercent,
+                    lexeme: String::from("-%"),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'*', b'%'] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::StarPercent,
+                    lexeme: String::from("*%"),
                     line: start_line,
                     col: start_col,
                 };
@@ -2187,7 +2211,10 @@ impl Parser {
         let mut left = self.parse_expr_multiplicative()?;
         while matches!(
             self.current.kind,
-            TokenKind::Plus | TokenKind::Minus | TokenKind::PlusPercent
+            TokenKind::Plus
+                | TokenKind::Minus
+                | TokenKind::PlusPercent
+                | TokenKind::MinusPercent
         ) {
             let op = self.current.lexeme.clone();
             self.advance();
@@ -2202,12 +2229,16 @@ impl Parser {
         Ok(left)
     }
 
-    /// Parse multiplicative expressions (*, /, %, **)
+    /// Parse multiplicative expressions (*, /, %, **, *%)
     fn parse_expr_multiplicative(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_unary()?;
         while matches!(
             self.current.kind,
-            TokenKind::Star | TokenKind::Slash | TokenKind::Percent | TokenKind::Power
+            TokenKind::Star
+                | TokenKind::Slash
+                | TokenKind::Percent
+                | TokenKind::Power
+                | TokenKind::StarPercent
         ) {
             let op = self.current.lexeme.clone();
             self.advance();
@@ -7361,14 +7392,15 @@ impl VerilogCodegen {
                     // R-SI-1: Multiplication must not appear as `*` operator in
                     // synthesizable RTL. Emit `__mul_noop(a, b)` instead — the
                     // function definition is injected once per module preamble.
-                    if node.extra_op.as_str() == "*" {
+                    if matches!(node.extra_op.as_str(), "*" | "*%") {
                         self.write("__mul_noop(");
                         self.gen_verilog_expr(&node.children[0]);
                         self.write(", ");
                         self.gen_verilog_expr(&node.children[1]);
                         self.write(")");
                     } else {
-                        // Map operators
+                        // Map operators. Wrapping operators (+% -%) collapse to the
+                        // plain operator: Verilog arithmetic already wraps by width.
                         let op = match node.extra_op.as_str() {
                             "&&" | "and" => "&&",
                             "||" | "or" => "||",
@@ -7378,8 +7410,8 @@ impl VerilogCodegen {
                             "<=" => "<=",
                             ">" => ">",
                             "<" => "<",
-                            "+" => "+",
-                            "-" => "-",
+                            "+" | "+%" => "+",
+                            "-" | "-%" => "-",
                             "/" => "/",
                             "%" => "%",
                             "&" => "&",
@@ -8637,6 +8669,11 @@ impl CCodegen {
                         let c_op = match op {
                             "and" => "&&",
                             "or" => "||",
+                            // Wrapping operators collapse to the plain operator:
+                            // C unsigned arithmetic already wraps modulo 2^N.
+                            "+%" => "+",
+                            "-%" => "-",
+                            "*%" => "*",
                             other => other,
                         };
                         self.write("(");
@@ -11428,6 +11465,19 @@ impl RustCodegen {
                 if node.children.len() >= 2 {
                     let left = Self::expr_to_rust(&node.children[0]);
                     let right = Self::expr_to_rust(&node.children[1]);
+                    // Zig-style wrapping operators (+% -% *%) have no infix form
+                    // in Rust; lower them to the wrapping_* methods. Emitting the
+                    // literal operator produced uncompilable Rust. Checked +/-/*
+                    // stay infix so the Rust backend keeps the same overflow-panic
+                    // semantics as the Zig backend.
+                    if let Some(method) = match node.extra_op.as_str() {
+                        "+%" => Some("wrapping_add"),
+                        "-%" => Some("wrapping_sub"),
+                        "*%" => Some("wrapping_mul"),
+                        _ => None,
+                    } {
+                        return format!("({}).{}({})", left, method, right);
+                    }
                     let op = match node.extra_op.as_str() {
                         "and" => "&&",
                         "or" => "||",
@@ -25868,6 +25918,57 @@ mod tests_phase40_coverage {
         cg.gen_rust(&ast);
         let out = cg.into_string();
         assert!(out.contains("for i in 0..8"), "Rust output: {}", out);
+    }
+
+    // #1659: Zig-style wrapping operators +% -% *% must lower per backend.
+    // Rust has no infix form -> wrapping_* methods. Verilog and C already wrap
+    // by width, so they collapse to the plain operator (Verilog * / *% share the
+    // __mul_noop path). Zig has the operators natively and passes them through.
+    #[test]
+    fn test_wrapping_ops_all_backends_1659() {
+        let code =
+            "module M { pub fn f(a: u32, b: u32) -> u32 { return (a +% b) *% (a -% b); } }";
+
+        let rust = Compiler::compile_rust(code).expect("rust compile");
+        assert!(
+            rust.contains("wrapping_add")
+                && rust.contains("wrapping_sub")
+                && rust.contains("wrapping_mul"),
+            "rust missing wrapping_* methods: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("+%") && !rust.contains("-%") && !rust.contains("*%"),
+            "literal wrapping op leaked into Rust: {}",
+            rust
+        );
+
+        let c = Compiler::compile_c(code).expect("c compile");
+        assert!(
+            !c.contains("+%") && !c.contains("-%") && !c.contains("*%"),
+            "literal wrapping op leaked into C: {}",
+            c
+        );
+
+        let vlog = Compiler::compile_verilog(code).expect("verilog compile");
+        assert!(
+            !vlog.contains("+%") && !vlog.contains("-%") && !vlog.contains("*%"),
+            "literal wrapping op leaked into Verilog: {}",
+            vlog
+        );
+        assert!(
+            vlog.contains("__mul_noop"),
+            "verilog *% should route through __mul_noop: {}",
+            vlog
+        );
+
+        // Zig has +% -% *% natively; the emitter passes them through verbatim.
+        let zig = Compiler::compile(code).expect("zig compile");
+        assert!(
+            zig.contains("+%") && zig.contains("-%") && zig.contains("*%"),
+            "zig should keep native wrapping ops: {}",
+            zig
+        );
     }
 
     // #1401 regression: a `let` local binding must survive into generated

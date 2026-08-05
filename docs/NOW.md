@@ -1,3 +1,20 @@
+# NOW — lang: wrapping arithmetic operators -% and *% (2026-08-05)
+
+Last updated: 2026-08-05
+
+## lang: wrapping arithmetic operators -% and *% (Closes #1659)
+
+- Branch: `feat/wrapping-arith-ops`
+- PR: #1674
+
+### Что легло
+- Adds the Zig-style wrapping-operator family (only +% existed, and gen-rust mis-emitted it as invalid Rust). Lexer MinusPercent/StarPercent; parser -% additive, *% multiplicative; Rust -> wrapping_add/sub/mul; Verilog collapses to +/- and *% -> __mul_noop (HW wraps by width); C collapses to +/-/* (unsigned wraps); Zig native passthrough. Cross-backend test test_wrapping_ops_all_backends_1659; FROZEN_HASH re-sealed. Supersedes #1660.
+
+### Границы честности (BINDING)
+- Full compiler suite 1495/0; generated Rust compiles under rustc; Verilog/C emit no literal %-operator. Checked +/-/* stay infix -> same overflow-panic semantics as the Zig backend.
+
+---
+
 # NOW — chore: remove stray backup/patch artifacts + close gitignore gap (2026-08-05)
 
 Last updated: 2026-08-05
