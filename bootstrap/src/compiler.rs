@@ -11428,6 +11428,14 @@ impl RustCodegen {
                 if node.children.len() >= 2 {
                     let left = Self::expr_to_rust(&node.children[0]);
                     let right = Self::expr_to_rust(&node.children[1]);
+                    // The Zig-style wrapping-add operator `+%` has no infix form
+                    // in Rust; lower it to the `wrapping_add` method. Emitting
+                    // `a +% b` literally produced uncompilable Rust. Checked `+`
+                    // / `*` stay infix so the Rust backend keeps the same
+                    // overflow-panic semantics as the Zig backend.
+                    if node.extra_op == "+%" {
+                        return format!("({}).wrapping_add({})", left, right);
+                    }
                     let op = match node.extra_op.as_str() {
                         "and" => "&&",
                         "or" => "||",
@@ -25868,6 +25876,37 @@ mod tests_phase40_coverage {
         cg.gen_rust(&ast);
         let out = cg.into_string();
         assert!(out.contains("for i in 0..8"), "Rust output: {}", out);
+    }
+
+    // R7 regression: the Zig-style wrapping-add operator `+%` has no infix
+    // Rust form. The emitter used to pass it through literally, producing
+    // `a +% b`, which is not valid Rust and fails to compile. It must lower to
+    // the `wrapping_add` method. Checked `+` stays infix (overflow-panic
+    // parity with the Zig backend).
+    #[test]
+    fn test_wrapping_add_op_lowered_rust() {
+        let code = "module M { pub fn f(a: u32, b: u32) -> u32 { return a +% b; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("wrapping_add"),
+            "`+%` not lowered to wrapping_add: {}",
+            out
+        );
+        assert!(
+            !out.contains("+%"),
+            "literal `+%` leaked into Rust output: {}",
+            out
+        );
+        // Plain `+` must remain a checked infix add (not silently wrapped).
+        let checked = Compiler::compile_rust(
+            "module M { pub fn g(a: u32, b: u32) -> u32 { return a + b; } }",
+        )
+        .expect("compile should succeed");
+        assert!(
+            !checked.contains("wrapping_add"),
+            "checked `+` was wrongly lowered to wrapping_add: {}",
+            checked
+        );
     }
 
     // #1401 regression: a `let` local binding must survive into generated
