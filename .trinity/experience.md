@@ -1,3 +1,66 @@
+## 2026-08-05 — Wave Loop 875 (module-scope `[569][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1699)
+
+### What worked
+- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 569.
+  The `[569][2]^6 Pt` witness is 1,165,312 bits (≈1.112 MiBit), continuing past the
+  1-MiBit line, and required no compiler, reference-model, or `FROZEN_HASH` changes.
+- Generator `scripts/gen_w875.py` copied from W874 and fixed for the recurring copy hazard:
+  destination path and module header f-string updated from stale `w874` / `567` / `283`
+  to `w875` / `569` / `284`; stale `MID_IDX` comment corrected to `284`.
+- Generated `specs/scratch/w875_bench_module_569x2p6_aos_var_call_write.t27`
+  (36,416 elements, 1,165,312-bit packed vector).
+- Added integration test `accepts_w875_bench_module_569x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 335/0.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W875_2026-08-05.md` and
+  next-wave plan `.claude/plans/wave-loop-876.md` with variants A/B/C.
+- Created issue #1699 and branch `wave-loop-875`; PR opened for W875. Created issue #1700 and branch `wave-loop-876` for the next wave.
+- Updated `docs/NOW.md`, `.trinity/current-issue.md`, skill trackers, autopilot
+  run-list, master plan, and persistent memory.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w875_bench_module_569x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
+- Added integration test `accepts_w875_bench_module_569x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w875.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK (warnings, 0 errors).
+- `cargo test --release --test icarus_lowerable accepts_w875_bench_module_569x2p6_aos_var_call_write`: 1/0.
+- `cargo test --release --test icarus_lowerable` (full suite): 335/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W875: PASS.
+- `bootstrap/stage0/FROZEN_HASH`: unchanged.
+
+### Scientific background and weak-point investigation
+- **Icarus Verilog:** standard suggests 2^16 bits as a packed-dimension limit, but
+  modern Icarus treats it as a soft guideline and allocates until memory is exhausted
+  (upstream issue #1171, 2024). The packed-array-of-struct assertion path (#1134) saw a
+  relevant fix in commit `128c621` (2026-06-20) correcting min-width calculation for
+  packed array bounds so negative bounds no longer become huge widths. Packed/unpacked
+  array parameters (#1180) remain unsupported; our generator avoids them.
+- **Vitis HLS UG1399 `compact=bit`:** commercial analog for packing structs into
+  wide vectors. Maximum packed port width is 8192 bits (4096 for `axis`), but our
+  vector is an internal module variable, so the relevant comparison is internal
+  representation fidelity, not IO pin width.
+- **Vericert / CompCert:** verified C-to-Verilog HLS framework. Vericert v2.0.0 was
+  released 2026-01-29. Original Vericert paper at OOPSLA 2021 (DOI 10.1145/3485494);
+  2024 PLDI paper on verified hyperblock scheduling (DOI 10.1145/3656455). Related
+  2026 verified-hardware/dataflow work: Graphiti at ASPLOS 2026 (DOI 10.1145/3779212.3790166)
+  and "Let It Flow" at PLDI 2026 (DOI 10.1145/3808263). Our `t27c icarus-cocotb` gate is a
+  lightweight reference-model equivalence check adjacent to that paradigm.
+- **FPGA Roofline (Siracusa et al., IEEE TC 2021, DOI 10.1109/tc.2021.3111761):**
+  the ladder is a memory-quanta `Q` probe; each wider vector grows the working set
+  along the bandwidth axis while the compute roof stays flat. We remain on the soft,
+  memory-bandwidth-limited side of the wall.
+
+### Next wave
+- Wave Loop 876: module-scope `[571][2]^6 Pt` (variant A), 36,544 elements,
+  1,169,408 bits (~1.116 MiBit). Continue mechanical `outer += 2` ladder.
+
 ## 2026-08-05 — Wave Loop 873 (module-scope `[565][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1694)
 
 ### What worked
@@ -111,7 +174,7 @@
   memory-bandwidth-limited side of the wall.
 
 ### Next wave
-- Wave Loop 875: module-scope `[569][2]^6 Pt` (variant A), 36,416 elements,
+- Wave Loop 875: module-scope `[569][2]^6 Pt` (variant A, issue #1699), 36,416 elements,
   1,165,312 bits (~1.112 MiBit). Continue mechanical `outer += 2` ladder.
 
 ## 2026-08-05 — Wave Loop 872 (module-scope `[563][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1691)
