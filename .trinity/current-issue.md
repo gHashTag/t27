@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Wave | 873 |
-| Issue | #1693 |
+| Issue | #1694 |
 | Branch | `wave-loop-873` |
 | Base | `wave-loop-872` (parent branch because earlier waves' PRs remain open) |
 | Variant | `[565][2]^6 Pt` module-scope AoS variable from call with indexed signed writes |
@@ -25,7 +25,7 @@ wider packed vector without compiler or FROZEN_HASH changes.
 - [ ] Integration test `accepts_w873_bench_module_565x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
 - [ ] `bootstrap/stage0/FROZEN_HASH` unchanged.
 - [ ] Closeout report, next-wave plan, skills, and persistent memory updated.
-- [ ] Commit with `Closes #1693`, push branch, open PR to `master`.
+- [ ] Commit with `Closes #1694`, push branch, open PR to `master`.
 
 ## Cooperation variants for W874
 

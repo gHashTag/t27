@@ -16,7 +16,7 @@
 - Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 332/0.
 - Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W872_2026-08-05.md` and
   next-wave plan `.claude/plans/wave-loop-873.md` with variants A/B/C.
-- Created issue #1691 and branch `wave-loop-872`; PR opened for W872. Created issue #1693 and branch `wave-loop-873` for the next wave.
+- Created issue #1691 and branch `wave-loop-872`; PR #1693 opened for W872. Created issue #1694 and branch `wave-loop-873` for the next wave.
 - Updated `docs/NOW.md`, `.trinity/current-issue.md`, skill trackers, autopilot
   run-list, master plan, and persistent memory.
 
