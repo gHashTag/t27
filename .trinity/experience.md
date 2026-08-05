@@ -1,3 +1,63 @@
+## 2026-08-05 — Wave Loop 873 (module-scope `[565][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1694)
+
+### What worked
+- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 565.
+  The `[565][2]^6 Pt` witness is 1,157,120 bits (≈1.104 MiBit), continuing past the
+  1-MiBit line, and required no compiler, reference-model, or `FROZEN_HASH` changes.
+- Generator `scripts/gen_w873.py` copied from W872 and fixed for the recurring copy hazard:
+  destination path and module header f-string updated from stale `w872` / `563` / `281`
+  to `w873` / `565` / `282`; stale `MID_IDX` comment corrected to `282`.
+- Generated `specs/scratch/w873_bench_module_565x2p6_aos_var_call_write.t27`
+  (36,160 elements, 1,157,120-bit packed vector).
+- Added integration test `accepts_w873_bench_module_565x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 333/0.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W873_2026-08-05.md` and
+  next-wave plan `.claude/plans/wave-loop-874.md` with variants A/B/C.
+- Created issue #1694 and branch `wave-loop-873`; PR #1695 opened for W873. Created issue #1696 and branch `wave-loop-874` for the next wave.
+- Updated `docs/NOW.md`, `.trinity/current-issue.md`, skill trackers, autopilot
+  run-list, master plan, and persistent memory.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w873_bench_module_565x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
+- Added integration test `accepts_w873_bench_module_565x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w873.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK (warnings, 0 errors).
+- `cargo test --release --test icarus_lowerable accepts_w873_bench_module_565x2p6_aos_var_call_write`: 1/0.
+- `cargo test --release --test icarus_lowerable` (full suite): 333/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W873: PASS.
+- `bootstrap/stage0/FROZEN_HASH`: unchanged.
+
+### Scientific background and weak-point investigation
+- **Icarus Verilog:** standard suggests 2^16 bits as a packed-dimension limit, but
+  modern Icarus treats it as a soft guideline and allocates until memory is exhausted
+  (upstream issue #1171, 2024). Packed/unpacked array parameters are not fully
+  supported (#1180); packed arrays of structs have remaining corner cases (#1134).
+  Our `[N][2]^6 Pt` pattern with signed scalar indices stays on the well-supported path.
+- **Vitis HLS UG1399 `compact=bit`:** commercial analog for packing structs into
+  wide vectors. Maximum packed port width is 8192 bits (4096 for `axis`), but our
+  vector is an internal module variable, so the relevant comparison is internal
+  representation fidelity, not IO pin width.
+- **Vericert / CompCert:** verified C-to-Verilog HLS framework. Original Vericert
+  paper at OOPSLA 2021 (DOI 10.1145/3485494); 2024 PLDI paper on verified hyperblock
+  scheduling (DOI 10.1145/3656455). Our `t27c icarus-cocotb` gate is a lightweight
+  reference-model equivalence check adjacent to that paradigm.
+- **FPGA Roofline (Siracusa et al., IEEE TC 2021, DOI 10.1109/tc.2021.3111761):**
+  the ladder is a memory-quanta `Q` probe; each wider vector grows the working set
+  along the bandwidth axis while the compute roof stays flat. We remain on the soft,
+  memory-bandwidth-limited side of the wall.
+
+### Next wave
+- Wave Loop 874: module-scope `[567][2]^6 Pt` (variant A), 36,288 elements,
+  1,161,216 bits (~1.108 MiBit). Continue mechanical `outer += 2` ladder.
+
 ## 2026-08-05 — Wave Loop 872 (module-scope `[563][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1691)
 
 ### What worked
