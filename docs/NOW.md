@@ -1,3 +1,16 @@
+# NOW — codegen: gen-rust tuple support (literals + destructuring) (2026-08-05)
+
+Last updated: 2026-08-05
+
+## codegen: gen-rust tuple literals + let (a,b) destructuring (Closes #1715)
+
+- Branch: `feat/tuple-destructure`
+
+### Что легло
+- Adds NodeKind::ExprTuple (parsed in the `(` primary when a comma follows), a tuple-pattern branch in parse_local_decl (pattern stored in extra_field, name empty), an optimizer guard so tuple-destructuring locals are not eliminated, and gen-rust emit for tuple literals `(e0, e1)` and `let (a, b) = init`. Tuple specs now rustc-compile end-to-end. Full suite 1497/0; FROZEN_HASH re-sealed. Part 2 of tuple support (#1702) — Verilog/C tuple lowering still TODO.
+
+---
+
 # NOW — parser: tuple return types no longer silently drop the function (2026-08-05)
 
 Last updated: 2026-08-05
