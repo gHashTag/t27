@@ -57,6 +57,34 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
+## Worked example — Wave Loop 871
+
+Wave Loop 871 continued the mechanical packed-vector ladder past the 1-MiBit line:
+
+- Selected Variant A: module-scope `[561][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w871.py` from `gen_w870.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment).
+- Produced `specs/scratch/w871_bench_module_561x2p6_aos_var_call_write.t27`
+  (35,904 elements, 1,148,928-bit packed vector).
+- Added integration test `accepts_w871_bench_module_561x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates all PASS:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save`.
+  - Full `cargo test --release --test icarus_lowerable`: 331/0.
+- Research background: Icarus Verilog has no 1-MiBit hard cap (LRM minimum is
+  65,536 bits; Icarus warns near 1 Gbit; upstream commit `128c621` fixed a
+  bound-normalization path that could accidentally create billion-bit vectors;
+  historical Icarus 0.8 had a ~256 K-entry allocator assertion for huge packed
+  vectors, but modern versions do not hit it at this scale). Vitis HLS UG1399
+  `compact=bit` is the commercial analog for packing structs into wide vectors
+  (max packed port width 8192 bits, but our vector is an internal variable).
+  Vericert/CompCert provides the verified-compilation analog. FPGA Roofline
+  (Siracusa et al., IEEE TC 2021) frames the ladder as a memory-quanta `Q` probe.
+- Closeout report: `docs/reports/FPGA_LOOP_CLOSEOUT_W871_2026-08-05.md`.
+- Next-wave plan: `.claude/plans/wave-loop-872.md` with variants A/B/C.
+
 ## Worked example — Wave Loop 870
 
 Wave Loop 870 continued the mechanical packed-vector ladder past the 1-MiBit line:
