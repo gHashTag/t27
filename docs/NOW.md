@@ -1,3 +1,16 @@
+# NOW — feat: spec-first ternary activation quantizer (.t27) (2026-08-05)
+
+Last updated: 2026-08-05
+
+## feat: spec-first ternary activation quantizer (Closes #1737)
+
+- Branch: `feat/spec-first-activation-quantizer`
+
+### Что легло
+- First BitNet-relevant datapath primitive on the **spec-first** path (the whole accelerator was hand-written Rust emitters, off-constitution). `specs/ternary/activation_quantizer.t27`: `quantize(v: i16, threshold: i16) -> u8` re-ternarizes a signed accumulator to a packed trit `{N=00,Z=01,P=10}` with a symmetric threshold (`v>+t→P`, `v<-t→N`, else Z). gen-verilog emits a clean signed-compare nested-if function. Verified: `typecheck` 0/0; `icarus-simulate` **7/7** embedded test blocks pass (positive/negative/zero-band, both `v==±t` boundaries→Z, just-over/under→P/N); `seal --save/--verify` all 3 backends hash-MATCH. Provides the activation re-ternarizer the engine needs to chain MAC→quantize→next-layer, and proves the ternary-native spec-first path — a differentiator no competitor (Ternary-NanoCore) has.
+
+---
+
 # NOW — test: harden ternary MAC coverage (boundary + randomized reference sweep) (2026-08-05)
 
 Last updated: 2026-08-05
