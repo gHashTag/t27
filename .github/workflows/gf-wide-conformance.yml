@@ -1,0 +1,60 @@
+# Wide-format GoldenFloat conformance gate (CI).
+#
+# conformance/gf_wide_independent_witness.py is a second, independent oracle that
+# decodes GF rungs as exact dyadic (significand, exponent) pairs — never materialising
+# 2^bias — so it handles gf96..gf1024 (bias up to ~2.5e120), including denormals,
+# without the fractions.Fraction blowup that made the old general oracle impossible on
+# wide packs (#1580). It was never wired into CI, the same gap that let the gf16
+# oracle rot (#1579). This gate runs it on every change to the witness or a wide pack.
+#
+# Scope: the unified-schema wide rungs the witness supports (hex/bits/value vectors).
+# The narrow rungs (gf16/gf32/gf64) still use an older per-format vector schema and are
+# out of scope here.
+name: gf-wide-conformance
+
+on:
+  push:
+    paths:
+      - "conformance/gf_wide_independent_witness.py"
+      - "conformance/vectors/gf14_conformance_v0.json"
+      - "conformance/vectors/gf48_conformance_v0.json"
+      - "conformance/vectors/gf96_conformance_v0.json"
+      - "conformance/vectors/gf128_conformance_v0.json"
+      - "conformance/vectors/gf256_conformance_v0.json"
+      - "conformance/vectors/gf512_conformance_v0.json"
+      - "conformance/vectors/gf1024_conformance_v0.json"
+      - ".github/workflows/gf-wide-conformance.yml"
+  pull_request:
+    paths:
+      - "conformance/gf_wide_independent_witness.py"
+      - "conformance/vectors/gf14_conformance_v0.json"
+      - "conformance/vectors/gf48_conformance_v0.json"
+      - "conformance/vectors/gf96_conformance_v0.json"
+      - "conformance/vectors/gf128_conformance_v0.json"
+      - "conformance/vectors/gf256_conformance_v0.json"
+      - "conformance/vectors/gf512_conformance_v0.json"
+      - "conformance/vectors/gf1024_conformance_v0.json"
+      - ".github/workflows/gf-wide-conformance.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  gf-wide:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        fmt: [gf14, gf48, gf96, gf128, gf256, gf512, gf1024]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Dyadic wide-format witness (${{ matrix.fmt }})
+        run: python3 conformance/gf_wide_independent_witness.py conformance/vectors/${{ matrix.fmt }}_conformance_v0.json
