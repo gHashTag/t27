@@ -57,6 +57,41 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
+## Worked example — Wave Loop 858
+
+Wave Loop 858 continued the mechanical packed-vector ladder in the 1-MiBit
+range:
+
+- Selected Variant A: module-scope `[535][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w858.py` from `gen_w857.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment).
+- Produced `specs/scratch/w858_bench_module_535x2p6_aos_var_call_write.t27`
+  (34,240 elements, 1,095,680-bit packed vector).
+- Added integration test `accepts_w858_bench_module_535x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates all PASS:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save`.
+  - Full `cargo test --release --test icarus_lowerable`: 318/0.
+- Research background: Icarus Verilog has no 1-MiBit hard cap (LRM minimum is
+  65,536 bits; Icarus warns near 1 Gbit; upstream commit `128c621` fixed a
+  bound-normalization path that could accidentally create billion-bit vectors;
+  historical Icarus 0.8 had a ~256 K-entry allocator assertion for huge packed
+  vectors, but modern versions do not hit it). Siracusa et al. (IEEE TC 2021)
+  Roofline model frames the ladder as a memory-quanta `Q` probe; Vericert/CompCert
+  and Vitis HLS UG1399 provide verified-HLS and commercial analogs for packed AoS.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W858_2026-08-05.md` and
+  next-wave plan `.claude/plans/wave-loop-859.md` with variants A/B/C.
+- Created issue #1658 and branch `wave-loop-859` for the next wave.
+- Updated `.trinity/current-issue.md`, `.trinity/experience.md`, `docs/NOW.md`,
+  autopilot run-list, master plan, and persistent memory.
+
+Key learning: the 1-MiBit range is still a soft boundary for Icarus and t27c.
+The next meaningful watch-point remains the established 4-MiBit soft cliff.
+Generator copy-hazard checks must be performed before every generator run; the
+master plan skill tracks the live backlog and update cadence.
+
 ## Worked example — Wave Loop 857
 
 Wave Loop 857 continued the mechanical packed-vector ladder in the 1-MiBit
