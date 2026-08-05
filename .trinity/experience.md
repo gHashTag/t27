@@ -1,40 +1,40 @@
-## 2026-08-05 — Wave Loop 856 (module-scope `[531][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1652)
+## 2026-08-05 — Wave Loop 857 (module-scope `[533][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1654)
 
 ### What worked
-- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 531.
-  The `[531][2]^6 Pt` witness is 1,087,488 bits (≈1.038 MiBit), continuing past the
+- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 533.
+  The `[533][2]^6 Pt` witness is 1,091,584 bits (≈1.042 MiBit), continuing past the
   1-MiBit line, and required no compiler, reference-model, or `FROZEN_HASH` changes.
-- Generator `scripts/gen_w856.py` copied from W855 and fixed for the recurring copy hazard:
-  destination path and module header f-string updated from stale `w855` / `529` / `264`
-  to `w856` / `531` / `265`; stale `MID_IDX` comment corrected to `265`.
-- Generated `specs/scratch/w856_bench_module_531x2p6_aos_var_call_write.t27`
-  (33,984 elements, 1,087,488-bit packed vector).
-- Added integration test `accepts_w856_bench_module_531x2p6_aos_var_call_write`
+- Generator `scripts/gen_w857.py` copied from W856 and fixed for the recurring copy hazard:
+  destination path and module header f-string updated from stale `w856` / `531` / `265`
+  to `w857` / `533` / `266`; stale `MID_IDX` comment corrected to `266`.
+- Generated `specs/scratch/w857_bench_module_533x2p6_aos_var_call_write.t27`
+  (34,112 elements, 1,091,584-bit packed vector).
+- Added integration test `accepts_w857_bench_module_533x2p6_aos_var_call_write`
   to `bootstrap/tests/icarus_lowerable.rs`.
 - Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
   `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
-- Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 316/0.
-- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W856_2026-08-05.md` and
-  next-wave plan `.claude/plans/wave-loop-857.md` with variants A/B/C.
-- Created issue #1654 and branch `wave-loop-857` for the next wave.
+- Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 317/0.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W857_2026-08-05.md` and
+  next-wave plan `.claude/plans/wave-loop-858.md` with variants A/B/C.
+- Created issue #1656 and branch `wave-loop-858` for the next wave.
 - Updated skill trackers, autopilot run-list, master plan, and persistent memory.
 
 ### What changed behavior
 - No changes to `bootstrap/src/compiler.rs`.
 - No changes to `bootstrap/stage0/FROZEN_HASH`.
 - No changes to `scripts/cocotb_ref_model.py`.
-- Added `specs/scratch/w856_bench_module_531x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
-- Added integration test `accepts_w856_bench_module_531x2p6_aos_var_call_write`.
-- Added generator script `scripts/gen_w856.py`.
+- Added `specs/scratch/w857_bench_module_533x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
+- Added integration test `accepts_w857_bench_module_533x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w857.py`.
 
 ### Validation
 - `cargo build --release -p t27c`: OK (warnings, 0 errors).
-- `cargo test --release --test icarus_lowerable`: 316 passed; 0 failed.
-- Direct `t27c parse` W856: PASS.
-- Direct `t27c icarus-lowerable` W856: PASS (`lowerable`).
-- Direct `t27c icarus-simulate` W856: PASS (17 cycles, PASSED).
-- Direct `t27c icarus-cocotb` W856: PASS (`reference-model OK`).
-- `t27c seal --save` W856: PASS.
+- `cargo test --release --test icarus_lowerable`: 317 passed; 0 failed.
+- Direct `t27c parse` W857: PASS.
+- Direct `t27c icarus-lowerable` W857: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W857: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W857: PASS (`reference-model OK`).
+- `t27c seal --save` W857: PASS.
 
 ### Scientific / engineering background
 - IEEE 1800-2017 §7.4.1/7.4.2 define packed-array width as the product of packed
@@ -52,12 +52,12 @@
   transformation for interface structs.
 
 ### Next wave
-- Variant A recommended for Wave Loop 857: `[533][2]^6 Pt`, `MID_IDX = 266`.
-- Issue #1654 and branch `wave-loop-857` created.
+- Variant A recommended for Wave Loop 858: `[535][2]^6 Pt`, `MID_IDX = 267`.
+- Issue #1656 and branch `wave-loop-858` created.
 
 ---
 
-## 2026-08-05 — Wave Loop 855 (module-scope `[529][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1650)
+## 2026-08-05 — Wave Loop 856 (module-scope `[529][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1650)
 
 ### What worked
 - Variant A extended the odd outer-dimension module-scope packed AoS ladder to 529.
