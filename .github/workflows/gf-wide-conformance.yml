@@ -16,6 +16,7 @@ on:
   push:
     paths:
       - "conformance/gf_wide_independent_witness.py"
+      - "conformance/vectors/gf14_conformance_v0.json"
       - "conformance/vectors/gf48_conformance_v0.json"
       - "conformance/vectors/gf96_conformance_v0.json"
       - "conformance/vectors/gf128_conformance_v0.json"
@@ -26,6 +27,7 @@ on:
   pull_request:
     paths:
       - "conformance/gf_wide_independent_witness.py"
+      - "conformance/vectors/gf14_conformance_v0.json"
       - "conformance/vectors/gf48_conformance_v0.json"
       - "conformance/vectors/gf96_conformance_v0.json"
       - "conformance/vectors/gf128_conformance_v0.json"
@@ -44,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        fmt: [gf48, gf96, gf128, gf256, gf512, gf1024]
+        fmt: [gf14, gf48, gf96, gf128, gf256, gf512, gf1024]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
