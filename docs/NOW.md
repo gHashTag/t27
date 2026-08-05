@@ -1,22 +1,22 @@
-# Wave Loop 880 — current
+# Wave Loop 881 — current
 
-- Issue: #1712 (expected)
-- Branch: `wave-loop-880`
-- Variant: `[579][2]^6 Pt` module-scope AoS variable from call with indexed signed writes
-- Target: 37,056 elements × 32 bits = 1,185,792 bits (~1.131 MiBit)
-- Plan: `.claude/plans/wave-loop-880.md`
-- Status: issue created, branch to create
+- Issue: #1713 (expected)
+- Branch: `wave-loop-881`
+- Variant: `[581][2]^6 Pt` module-scope AoS variable from call with indexed signed writes
+- Target: 37,184 elements × 32 bits = 1,189,888 bits (~1.135 MiBit)
+- Plan: `.claude/plans/wave-loop-881.md`
+- Status: plan ready; issue to create, branch to create
 
 ## What to do next
 
-1. Create W880 issue and branch `wave-loop-880` from `wave-loop-879` HEAD.
-2. Copy `scripts/gen_w879.py` → `scripts/gen_w880.py`, fix copy hazard (`w880`, `OUTER = 579`, `MID_IDX = 289`).
+1. Create W881 issue and branch `wave-loop-881` from `wave-loop-880` HEAD.
+2. Copy `scripts/gen_w880.py` → `scripts/gen_w881.py`, fix copy hazard (`w881`, `OUTER = 581`, `MID_IDX = 290`).
 3. Generate witness, run validation gates, add integration test.
-4. Closeout report + W881 cooperation variants + skills/memory updates.
+4. Closeout report + W882 cooperation variants + skills/memory updates.
 
 ---
 
-# Wave Loop 879 — close-out / Wave Loop 880 setup (2026-08-05)
+# Wave Loop 880 — close-out / Wave Loop 881 setup (2026-08-05)
 
 Last updated: 2026-08-05
 
@@ -154,39 +154,42 @@ Last updated: 2026-08-05
   HBM ~460 GB/s, confirming that internal vectors at this scale remain
   comfortably inside the on-chip memory bandwidth regime.
 
-### Cooperation variants for Wave Loop 880
+### Cooperation variants for Wave Loop 881
 
-- **A (recommended):** `[579][2]^6 Pt`, outer += 2, `MID_IDX = 289`.
-- **B:** `[577][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
-- **C:** `[577][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
+- **A (recommended):** `[581][2]^6 Pt`, outer += 2, `MID_IDX = 290`.
+- **B:** `[579][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
+- **C:** `[579][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
 
 ---
 
-## Wave Loop 879 — module-scope `[577][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1708)
+## Wave Loop 880 — module-scope `[579][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1712)
 
-- Branch: `wave-loop-879`
-- Parent branch: `wave-loop-878` HEAD
-- Issue: #1708
-- PR: #1711
-- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W879_2026-08-05.md`
-- Plan: `.claude/plans/wave-loop-880.md`
+- Branch: `wave-loop-880`
+- Parent branch: `wave-loop-879` HEAD
+- Issue: #1712
+- PR: TBD (GitHub-assigned on open)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W880_2026-08-05.md`
+- Plan: `.claude/plans/wave-loop-881.md`
 - Autopilot: `.claude/skills/wave-loop-autopilot.md`
 - Master plan: `.claude/skills/wave-loop-master-plan.md`
 
 ### What landed
 
-- `specs/scratch/w879_bench_module_577x2p6_aos_var_call_write.t27`
-  - 36,928 elements, 1,181,696-bit packed vector (~1.128 MiBit).
-  - Module-scope `pub var dst : [577][2]^6 Pt` initialized from a function call and
+- `specs/scratch/w880_bench_module_579x2p6_aos_var_call_write.t27`
+  - 37,056 elements, 1,185,792-bit packed vector (~1.131 MiBit).
+  - Module-scope `pub var dst : [579][2]^6 Pt` initialized from a function call and
     exercised with indexed signed field writes.
   - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
-- `scripts/gen_w879.py`
-  - Generator for the W879 witness; `OUTER = 577`, `MID_IDX = 288`.
+- `scripts/gen_w880.py`
+  - Generator for the W880 witness; `OUTER = 579`, `MID_IDX = 289`.
   - Copy hazard fixed: destination path, module header f-string, and `MID_IDX`
-    comment updated from stale `w878` / `575` / `287` references.
+    comment updated from stale `w879` / `577` / `288` references. The bare
+    outer-dimension number in the destination path and the stale `MID_IDX` comment
+    (`286` carried from earlier waves) required a second replacement pass,
+    reinforcing the checklist + post-generation sanity check.
 - `bootstrap/tests/icarus_lowerable.rs`
-  - Added integration test `accepts_w879_bench_module_577x2p6_aos_var_call_write`.
-- `.trinity/seals/scratch_w879_bench_module_577x2p6_aos_var_call_write.json`
+  - Added integration test `accepts_w880_bench_module_579x2p6_aos_var_call_write`.
+- `.trinity/seals/scratch_w880_bench_module_579x2p6_aos_var_call_write.json`
   - Saved by `t27c seal --save`.
 
 ### Not changed
@@ -198,38 +201,43 @@ Last updated: 2026-08-05
 ### Verification
 
 - `cargo build --release -p t27c`: OK (warnings, 0 errors).
-- `cargo test --release --test icarus_lowerable accepts_w879_bench_module_577x2p6_aos_var_call_write`: 1/0.
-- `cargo test --release --test icarus_lowerable` (full suite): 339/0.
-- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W879: PASS.
+- `cargo test --release --test icarus_lowerable accepts_w880_bench_module_579x2p6_aos_var_call_write`: 1/0.
+- `cargo test --release --test icarus_lowerable` (full suite): 340/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W880: PASS.
 
 ### Research / weak points
 
 - **Icarus Verilog:** the standard suggests 2^16 bits as a packed-dimension limit,
   but modern Icarus treats it as a soft guideline and allocates until memory is
-  exhausted. At ~1.128 MiBit we are still far from any practical hard boundary.
+  exhausted. At ~1.131 MiBit we are still far from any practical hard boundary.
   Icarus V13.0 (2026-03-02) improves memory management and packed/unpacked array
   handling. Open issue #1134 tracks unpacked arrays of packed structs; our
   module-scope packed array-of-struct witness does not exercise that path.
+  PR #1292 (opened 2026-01-23) is a broader fix effort for elaboration assertions.
 - **Vitis HLS UG1399 `compact=bit`:** commercial analog for packing structs into
   wide vectors. Maximum packed *port* width is 8192 bits (4096 for `axis`), but
   our vector is an internal module variable, so the comparison is about internal
   representation fidelity, not IO pin width.
-- **Vericert / CompCert:** verified C-to-Verilog HLS framework. Vericert v2.0.0
+- **Vericert / Graphiti:** verified C-to-Verilog HLS framework. Vericert v2.0.0
   released 2026-01-29; the 2024 PLDI paper *Hyperblock Scheduling for Verified
-  High-Level Synthesis* (DOI 10.1145/3656455) and 2026 follow-ons Graphiti (ASPLOS)
-  and Let It Flow (PLDI) provide the verified-HLS context.
+  High-Level Synthesis* (DOI 10.1145/3656455) and 2026 ASPLOS paper *Graphiti:
+  Formally Verified Out-of-Order Execution in Dataflow Circuits* (DOI 10.1145/3779212.3790166)
+  provide the verified-HLS context. Graphiti reports 2.1× speedup over in-order
+  dataflow HLS and 5.8× over Vericert, and caught an unsound transformation in
+  the original unverified Dynamatic/DF-OoO `bicg` rewrite.
 - **FPGA Roofline (Siracusa et al., IEEE TC 2021, DOI 10.1109/tc.2021.3111761):**
   the ladder is a memory-quanta `Q` probe; each wider vector grows the working set
   along the bandwidth axis while the compute roof stays flat. 2026 work on FPGA
-  LLM inference reports on-chip BRAM/URAM bandwidths in the TB/s range versus
-  HBM ~460 GB/s, confirming that internal vectors at this scale remain
-  comfortably inside the on-chip memory bandwidth regime.
+  LLM inference reports on-chip BRAM bandwidths up to **21.8 TB/s** and URAM up to
+  **10.4 TB/s** versus HBM at **~460 GB/s** on AMD Alveo U55C, confirming that
+  internal vectors at this scale remain comfortably inside the on-chip memory
+  bandwidth regime.
 
-### Cooperation variants for Wave Loop 880
+### Cooperation variants for Wave Loop 881
 
-- **A (recommended):** `[579][2]^6 Pt`, outer += 2, `MID_IDX = 289`.
-- **B:** `[577][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
-- **C:** `[577][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
+- **A (recommended):** `[581][2]^6 Pt`, outer += 2, `MID_IDX = 290`.
+- **B:** `[579][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
+- **C:** `[579][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
 
 ---
 
