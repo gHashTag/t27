@@ -1,3 +1,63 @@
+## 2026-08-05 — Wave Loop 868 (module-scope `[555][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1684)
+
+### What worked
+- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 555.
+  The `[555][2]^6 Pt` witness is 1,136,640 bits (≈1.084 MiBit), continuing past the
+  1-MiBit line, and required no compiler, reference-model, or `FROZEN_HASH` changes.
+- Generator `scripts/gen_w868.py` copied from W867 and fixed for the recurring copy hazard:
+  destination path and module header f-string updated from stale `w867` / `553` / `276`
+  to `w868` / `555` / `277`; stale `MID_IDX` comment corrected to `277`.
+- Generated `specs/scratch/w868_bench_module_555x2p6_aos_var_call_write.t27`
+  (35,520 elements, 1,136,640-bit packed vector).
+- Added integration test `accepts_w868_bench_module_555x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 328/0.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W868_2026-08-05.md` and
+  next-wave plan `.claude/plans/wave-loop-869.md` with variants A/B/C.
+- Created issue #1686 (expected) and branch `wave-loop-869`; PR #1685 opened for W868 for the next wave.
+- Updated `docs/NOW.md`, `.trinity/current-issue.md`, skill trackers, autopilot
+  run-list, master plan, and persistent memory.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w868_bench_module_555x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
+- Added integration test `accepts_w868_bench_module_555x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w868.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK (warnings, 0 errors).
+- `cargo test --release --test icarus_lowerable accepts_w868_bench_module_555x2p6_aos_var_call_write`: 1/0.
+- `cargo test --release --test icarus_lowerable` (full suite): 328/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W868: PASS.
+- `bootstrap/stage0/FROZEN_HASH`: unchanged.
+
+### Scientific background and weak-point investigation
+- **Icarus Verilog:** standard suggests 2^16 bits as a packed-dimension limit, but
+  modern Icarus treats it as a soft guideline and allocates until memory is exhausted
+  (upstream issue #1171, 2024). Packed/unpacked array parameters are not fully
+  supported (#1180); packed arrays of structs have remaining corner cases (#1134).
+  Our `[N][2]^6 Pt` pattern with signed scalar indices stays on the well-supported path.
+- **Vitis HLS UG1399 `compact=bit`:** commercial analog for packing structs into
+  wide vectors. Maximum packed port width is 8192 bits (4096 for `axis`), but our
+  vector is an internal module variable, so the relevant comparison is internal
+  representation fidelity, not IO pin width.
+- **Vericert / CompCert:** verified C-to-Verilog HLS framework. Original Vericert
+  paper at OOPSLA 2021 (DOI 10.1145/3485494); 2024 PLDI paper on verified hyperblock
+  scheduling (DOI 10.1145/3656455). Our `t27c icarus-cocotb` gate is a lightweight
+  reference-model equivalence check adjacent to that paradigm.
+- **FPGA Roofline (Siracusa et al., IEEE TC 2021, DOI 10.1109/tc.2021.3111761):**
+  the ladder is a memory-quanta `Q` probe; each wider vector grows the working set
+  along the bandwidth axis while the compute roof stays flat. We remain on the soft,
+  memory-bandwidth-limited side of the wall.
+
+### Next wave
+- Wave Loop 869: module-scope `[557][2]^6 Pt` (variant A), 35,648 elements,
+  1,140,736 bits (~1.088 MiBit). Continue mechanical `outer += 2` ladder.
+
 ## 2026-08-05 — Wave Loop 867 (module-scope `[553][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1682)
 
 ### What worked

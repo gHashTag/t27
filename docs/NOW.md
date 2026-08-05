@@ -1,3 +1,21 @@
+# Wave Loop 869 — current
+
+- Issue: #1686 (expected)
+- Branch: `wave-loop-869`
+- Variant: `[557][2]^6 Pt` module-scope AoS variable from call with indexed signed writes
+- Target: 35,648 elements × 32 bits = 1,140,736 bits (~1.084 MiBit)
+- Plan: `.claude/plans/wave-loop-869.md`
+- Status: planned
+
+## What to do next
+
+1. Create W869 issue and branch `wave-loop-869` from `wave-loop-868` HEAD.
+2. Copy `scripts/gen_w868.py` → `scripts/gen_w869.py`, fix copy hazard (`w869`, `OUTER = 557`, `MID_IDX = 278`).
+3. Generate witness, run validation gates, add integration test.
+4. Closeout report + W870 cooperation variants + skills/memory updates.
+
+---
+
 # NOW — Wave Loop 867 close-out / Wave Loop 868 setup (2026-08-05)
 
 Last updated: 2026-08-05
@@ -78,27 +96,4 @@ Last updated: 2026-08-05
 
 ---
 
-## Wave Loop 868 — module-scope `[555][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
-
-- Branch: `wave-loop-868`
-- Parent branch: `wave-loop-867` HEAD (after closeout)
-- Issue: #1684
-- PR: TBD
-- Plan: `.claude/plans/wave-loop-868.md`
-- Master plan: `.claude/skills/wave-loop-master-plan.md`
-
-### Goal
-
-Continue the odd outer-dimension module-scope AoS ladder with `[555][2]^6 Pt`.
-Expected 35,520 elements, 1,136,640-bit packed vector (~1.084 MiBit), still well
-under the 4-MiBit cliff, with zero compiler / reference-model / FROZEN_HASH changes.
-
-### Variants
-
-- **A (recommended):** `[555][2]^6 Pt` module-scope var from call.
-- **B:** `[553][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
-- **C:** `[553][2]^6 Pt` with negative-index writes to exercise wrap-around.
-
----
-
-*φ² + φ⁻² = 3 | TRINITY*
+#
