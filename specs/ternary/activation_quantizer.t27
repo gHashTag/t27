@@ -1,0 +1,18 @@
+module ActivationQuantizer;
+// Ternary activation quantizer for the BitNet engine: re-ternarize a signed
+// accumulator to a packed trit {N=0b00, Z=0b01, P=0b10} using a symmetric
+// threshold. v > +t -> P, v < -t -> N, else Z.
+pub fn quantize(v: i16, threshold: i16) -> u8 {
+    if (v > threshold) { return 2; }
+    if (v < -threshold) { return 0; }
+    return 1;
+}
+
+test quantize_positive { assert_eq(quantize(100, 10), 2); }
+test quantize_negative { assert_eq(quantize(-100, 10), 0); }
+test quantize_zero_band { assert_eq(quantize(5, 10), 1); }
+test quantize_boundary_hi { assert_eq(quantize(10, 10), 1); }
+test quantize_boundary_lo { assert_eq(quantize(-10, 10), 1); }
+test quantize_just_over { assert_eq(quantize(11, 10), 2); }
+test quantize_just_under { assert_eq(quantize(-11, 10), 0); }
+endmodule
