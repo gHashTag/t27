@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Wave | 875 |
-| Issue | #1698 |
+| Issue | #1699 |
 | Branch | `wave-loop-875` |
 | Base | `wave-loop-874` (parent branch because earlier waves' PRs remain open) |
 | Variant | `[569][2]^6 Pt` module-scope AoS variable from call with indexed signed writes |
@@ -25,7 +25,7 @@ wider packed vector without compiler or FROZEN_HASH changes.
 - [ ] Integration test `accepts_w875_bench_module_569x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
 - [ ] `bootstrap/stage0/FROZEN_HASH` unchanged.
 - [ ] Closeout report, next-wave plan, skills, and persistent memory updated.
-- [ ] Commit with `Closes #1698`, push branch, open PR to `master`.
+- [ ] Commit with `Closes #1699`, push branch, open PR to `master`.
 
 ## Cooperation variants for W876
 

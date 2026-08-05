@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Wave | 875 |
-| Issue | #1698 |
+| Issue | #1699 |
 | Branch | `wave-loop-875` |
 | Base | `wave-loop-874` HEAD (parent branch because earlier waves' PRs remain open) |
 | Variant (selected) | `[569][2]^6 Pt` module-scope AoS variable from call with indexed signed writes |
@@ -41,7 +41,7 @@ wider packed vector without compiler or FROZEN_HASH changes.
 7. **Closeout** — write `docs/reports/FPGA_LOOP_CLOSEOUT_W875_...md`, update
    `docs/NOW.md`, `.trinity/experience.md`, `.trinity/current-issue.md`, skill
    trackers, and persistent memory.
-8. **Land** — commit with `Closes #1698`, push branch, open PR.
+8. **Land** — commit with `Closes #1699`, push branch, open PR.
 
 ## Constants for generator
 

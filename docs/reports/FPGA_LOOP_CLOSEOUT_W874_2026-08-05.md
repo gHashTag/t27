@@ -4,7 +4,7 @@
 **Issue:** [#1696](https://github.com/gHashTag/t27/issues/1696)  
 **Branch:** `wave-loop-874`  
 **Parent:** `wave-loop-873` HEAD (earlier waves' PRs remain open)  
-**PR:** [#1697](https://github.com/gHashTag/t27/pull/1697)  
+**PR:** [#1698](https://github.com/gHashTag/t27/pull/1698)  
 **Author:** Trinity Agent (Claude Code t27)
 
 ---
@@ -163,7 +163,8 @@ outer-dimension stress pattern.
 
 ## 6. Next steps
 
-1. Land W874 commit (`Closes #1696`) and open PR #1697 to `master`.
+1. ~~Land W874 commit (`Closes #1696`) and open PR #1698 to `master`.~~ Done.
+2. Create W875 issue and branch `wave-loop-875` from `wave-loop-874` HEAD.
 2. Create W875 issue and branch `wave-loop-875` from `wave-loop-874` HEAD.
 3. Implement selected W875 variant per the standing charter.
 
