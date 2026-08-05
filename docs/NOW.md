@@ -1,3 +1,17 @@
+# NOW — ci: wire dyadic wide-format witness into CI (gf48..gf1024) (2026-08-05)
+
+Last updated: 2026-08-05
+
+## ci: wire dyadic wide-format witness into CI (gf48..gf1024) (Closes #1580)
+
+- Branch: `ci/gf-wide-conformance`
+- PR: #1675
+
+### Что легло
+- gf_wide_independent_witness.py decodes GF rungs as exact dyadic pairs (gf1024 bias ~2.5e120) with no Fraction blowup, resolving #1580. Added gf-wide-conformance.yml matrix gate over gf14/gf48/gf96/gf128/gf256/gf512/gf1024; each exits 0, witness returns 1 on any mismatch.
+
+---
+
 # NOW — scripts: cocotb_ref_model is importable again (2026-08-01)
 
 Last updated: 2026-08-01
