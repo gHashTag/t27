@@ -1,36 +1,36 @@
-# Current Issue — Wave Loop 854
+# Current Issue — Wave Loop 855
 
 | Field | Value |
 |-------|-------|
-| Wave | 854 |
-| Issue | #1648 |
-| Branch | `wave-loop-854` |
-| Base | `wave-loop-853` (parent branch because earlier waves' PRs remain open) |
-| Variant | `[527][2]^6 Pt` module-scope AoS variable from call with indexed signed writes |
-| Target packed vector | 33,728 elements × 32 bits = 1,079,296 bits (~1.030 MiBit) |
+| Wave | 855 |
+| Issue | #1650 |
+| Branch | `wave-loop-855` |
+| Base | `wave-loop-854` (parent branch because earlier waves' PRs remain open) |
+| Variant | `[529][2]^6 Pt` module-scope AoS variable from call with indexed signed writes |
+| Target packed vector | 33,856 elements × 32 bits = 1,083,392 bits (~1.034 MiBit) |
 | Status | planned |
 
 ## Goal
 
-Increment the non-power-of-two outer-dimension ladder by one rung to `[527][2]^6 Pt`,
+Increment the non-power-of-two outer-dimension ladder by one rung to `[529][2]^6 Pt`,
 keeping the established inner-dimension (`2^6`) and struct (`Pt { x : i16, y : i16 }`)
 pattern. Validate that t27c still lowers, simulates, cocotb-matches, and seals the
 wider packed vector without compiler or FROZEN_HASH changes.
 
 ## Acceptance criteria
 
-- [ ] Generator `scripts/gen_w854.py` with `OUTER = 527`, `MID_IDX = 263`; copy hazard fixed before first run.
-- [ ] Witness `specs/scratch/w854_bench_module_527x2p6_aos_var_call_write.t27` generated and parsed.
+- [ ] Generator `scripts/gen_w855.py` with `OUTER = 529`, `MID_IDX = 264`; copy hazard fixed before first run.
+- [ ] Witness `specs/scratch/w855_bench_module_529x2p6_aos_var_call_write.t27` generated and parsed.
 - [ ] `t27c icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, and `seal --save` all PASS.
-- [ ] Integration test `accepts_w854_bench_module_527x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
+- [ ] Integration test `accepts_w855_bench_module_529x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
 - [ ] `bootstrap/stage0/FROZEN_HASH` unchanged.
 - [ ] Closeout report, next-wave plan, skills, and persistent memory updated.
-- [ ] Commit with `Closes #1648`, push branch, open PR to `master`.
+- [ ] Commit with `Closes #1650`, push branch, open PR to `master`.
 
-## Cooperation variants for W855
+## Cooperation variants for W856
 
-- **A (recommended):** `[529][2]^6 Pt`, outer += 2, `MID_IDX = 264`.
-- **B:** `[527][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
-- **C:** `[527][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
+- **A (recommended):** `[531][2]^6 Pt`, outer += 2, `MID_IDX = 265`.
+- **B:** `[529][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
+- **C:** `[529][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
 
 *φ² + φ⁻² = 3 | TRINITY*
