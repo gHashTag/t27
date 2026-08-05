@@ -1,3 +1,16 @@
+# NOW — feat: spec-first BitNet neuron (.t27) — accumulation + quantize (2026-08-05)
+
+Last updated: 2026-08-05
+
+## feat: spec-first BitNet neuron4 (dot-product accumulation + quantize) (Closes #1746)
+
+- Branch: `feat/spec-first-bitnet-neuron`
+
+### Что легло
+- First spec-first BitNet **compute unit**. `specs/ternary/bitnet_neuron.t27`: `dot27` (27-trit dot product via a real `while` loop — now that #1741 unblocked loops) + `quantize` + `neuron4(a0,w0,...,a3,w3,threshold)` accumulating the ternary dot product over 4 chunk pairs then re-ternarizing. Chunks are separate scalar params because packed-array element indexing is broken (filed #1745). Verified: typecheck 0 err; icarus-simulate 5/5; new `tests/bitnet_neuron_specfirst.rs` cross-checks neuron4 vs an independent reference on **200 random vectors** (ALL_MATCH); seal 3 backends MATCH. Combines #1738 (quantizer) + #1743 (MAC) into a working neuron and demonstrates the #1741 loop fix end-to-end. No compiler change, no reseal.
+
+---
+
 # NOW — fix: gen-verilog hoist function-local reg decls to body top (#1741) (2026-08-05)
 
 Last updated: 2026-08-05
