@@ -63,16 +63,16 @@ at the end.
 
 | Wave | Issue | Branch | Outer | MID_IDX | Elements | Bits | MiBit | Status | PR |
 |------|-------|--------|-------|---------|----------|------|-------|--------|----|
-| 853 | #1646 | wave-loop-853 | 525 | 262 | 33,600 | 1,075,200 | 1.026 | closed | #1647 |
 | 854 | #1648 | wave-loop-854 | 527 | 263 | 33,728 | 1,079,296 | 1.030 | closed | #1649 |
-| **855** | **#1650** | **wave-loop-855** | **529** | **264** | **33,856** | **1,083,392** | **1.034** | **in progress** | **TBD** |
-| 856 | #1652 (expected) | wave-loop-856 (planned) | 531 | 265 | 33,984 | 1,087,488 | 1.038 | planned | TBD |
+| 855 | #1650 | wave-loop-855 | 529 | 264 | 33,856 | 1,083,392 | 1.034 | closed | #1651 |
+| **856** | **#1652** | **wave-loop-856** | **531** | **265** | **33,984** | **1,087,488** | **1.038** | **in progress** | **TBD** |
+| 857 | #1654 (expected) | wave-loop-857 (planned) | 533 | 266 | 34,112 | 1,091,584 | 1.042 | planned | TBD |
 
-### W855 cooperation variants (draft)
+### W856 cooperation variants (draft)
 
-- **A (recommended):** `[529][2]^6 Pt`, outer += 2, `MID_IDX = 264`.
-- **B:** `[527][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
-- **C:** `[527][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
+- **A (recommended):** `[531][2]^6 Pt`, outer += 2, `MID_IDX = 265`.
+- **B:** `[529][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
+- **C:** `[529][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
 
 ## Update-at-end-of-loop instructions
 

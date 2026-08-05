@@ -57,23 +57,23 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
-## Worked example — Wave Loop 854
+## Worked example — Wave Loop 855
 
-Wave Loop 854 continued the mechanical packed-vector ladder in the 1-MiBit
+Wave Loop 855 continued the mechanical packed-vector ladder in the 1-MiBit
 range:
 
-- Selected Variant A: module-scope `[527][2]^6 Pt` non-power-of-two outer-dimension
+- Selected Variant A: module-scope `[529][2]^6 Pt` non-power-of-two outer-dimension
   array-of-struct variable from call with indexed signed writes.
-- Generated `scripts/gen_w854.py` from `gen_w853.py` and fixed the three known
+- Generated `scripts/gen_w855.py` from `gen_w854.py` and fixed the three known
   copy-hazard locations (destination path, module header f-string, `MID_IDX` comment).
-- Produced `specs/scratch/w854_bench_module_527x2p6_aos_var_call_write.t27`
-  (33,728 elements, 1,079,296-bit packed vector).
-- Added integration test `accepts_w854_bench_module_527x2p6_aos_var_call_write` to
+- Produced `specs/scratch/w855_bench_module_529x2p6_aos_var_call_write.t27`
+  (33,856 elements, 1,083,392-bit packed vector).
+- Added integration test `accepts_w855_bench_module_529x2p6_aos_var_call_write` to
   `bootstrap/tests/icarus_lowerable.rs`.
 - Validation gates all PASS:
   - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
     `icarus-cocotb` (reference-model OK), `seal --save`.
-  - Full `cargo test --release --test icarus_lowerable`: 314/0.
+  - Full `cargo test --release --test icarus_lowerable`: 315/0.
 - Research background: Icarus Verilog has no 1-MiBit hard cap (LRM minimum is
   65,536 bits; Icarus warns near 1 Gbit; upstream commit `128c621` fixed a
   bound-normalization path that could accidentally create billion-bit vectors;
@@ -81,9 +81,9 @@ range:
   vectors, but modern versions do not hit it). Siracusa et al. (IEEE TC 2021)
   Roofline model frames the ladder as a memory-quanta `Q` probe; Vericert/CompCert
   and Vitis HLS UG1399 provide verified-HLS and commercial analogs for packed AoS.
-- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W854_2026-08-05.md` and
-  next-wave plan `.claude/plans/wave-loop-855.md` with variants A/B/C.
-- Created issue #1650 and branch `wave-loop-855` for the next wave.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W855_2026-08-05.md` and
+  next-wave plan `.claude/plans/wave-loop-856.md` with variants A/B/C.
+- Created issue #1652 and branch `wave-loop-856` for the next wave.
 - Updated `.trinity/current-issue.md`, `.trinity/experience.md`, `docs/NOW.md`,
   autopilot run-list, master plan, and persistent memory.
 
@@ -92,7 +92,7 @@ The next meaningful watch-point remains the established 4-MiBit soft cliff.
 Generator copy-hazard checks must be performed before every generator run; the
 master plan skill tracks the live backlog and update cadence.
 
-## Worked example — Wave Loop 853
+## Worked example — Wave Loop 854
 
 Wave Loop 853 continued the mechanical packed-vector ladder in the 1-MiBit
 range:

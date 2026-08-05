@@ -1,32 +1,32 @@
-# NOW — Wave Loop 854 close-out / Wave Loop 855 setup (2026-08-05)
+# NOW — Wave Loop 855 close-out / Wave Loop 856 setup (2026-08-05)
 
 Last updated: 2026-08-05
 
-## Wave Loop 854 — module-scope `[527][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1648)
+## Wave Loop 855 — module-scope `[529][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1650)
 
-- Branch: `wave-loop-854`
-- Parent branch: `wave-loop-853` HEAD
-- Issue: #1648
-- PR: #1649
-- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W854_2026-08-05.md`
-- Plan: `.claude/plans/wave-loop-855.md`
+- Branch: `wave-loop-855`
+- Parent branch: `wave-loop-854` HEAD
+- Issue: #1650
+- PR: #1651
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W855_2026-08-05.md`
+- Plan: `.claude/plans/wave-loop-856.md`
 - Autopilot: `.claude/skills/wave-loop-autopilot.md`
 - Master plan: `.claude/skills/wave-loop-master-plan.md`
 
 ### What landed
 
-- `specs/scratch/w854_bench_module_527x2p6_aos_var_call_write.t27`
-  - 33,728 elements, 1,079,296-bit packed vector (~1.030 MiBit).
-  - Module-scope `pub var dst : [527][2]^6 Pt` initialized from a function call and
+- `specs/scratch/w855_bench_module_529x2p6_aos_var_call_write.t27`
+  - 33,856 elements, 1,083,392-bit packed vector (~1.034 MiBit).
+  - Module-scope `pub var dst : [529][2]^6 Pt` initialized from a function call and
     exercised with indexed signed field writes.
   - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
-- `scripts/gen_w854.py`
-  - Generator for the W854 witness; `OUTER = 527`, `MID_IDX = 263`.
+- `scripts/gen_w855.py`
+  - Generator for the W855 witness; `OUTER = 529`, `MID_IDX = 264`.
   - Copy hazard fixed: destination path, module header f-string, and `MID_IDX`
-    comment updated from stale `w853` / `525` / `262` references.
+    comment updated from stale `w854` / `527` / `263` references.
 - `bootstrap/tests/icarus_lowerable.rs`
-  - Added integration test `accepts_w854_bench_module_527x2p6_aos_var_call_write`.
-- `.trinity/seals/scratch_w854_bench_module_527x2p6_aos_var_call_write.json`
+  - Added integration test `accepts_w855_bench_module_529x2p6_aos_var_call_write`.
+- `.trinity/seals/scratch_w855_bench_module_529x2p6_aos_var_call_write.json`
   - Saved by `t27c seal --save`.
 
 ### Not changed
@@ -38,9 +38,9 @@ Last updated: 2026-08-05
 ### Verification
 
 - `cargo build --release -p t27c`: OK (warnings, 0 errors).
-- `cargo test --release --test icarus_lowerable accepts_w854_bench_module_527x2p6_aos_var_call_write`: 1/0.
-- `cargo test --release --test icarus_lowerable` (full suite): 314/0.
-- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W854: PASS.
+- `cargo test --release --test icarus_lowerable accepts_w855_bench_module_529x2p6_aos_var_call_write`: 1/0.
+- `cargo test --release --test icarus_lowerable` (full suite): 315/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W855: PASS.
 
 ### Research / weak points
 
@@ -68,26 +68,26 @@ Last updated: 2026-08-05
 
 ---
 
-## Wave Loop 855 — module-scope `[529][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
+## Wave Loop 856 — module-scope `[531][2]^6 Pt` packed array-of-struct from call with indexed signed writes (variant A)
 
-- Branch: `wave-loop-855`
-- Parent branch: `wave-loop-854` HEAD (after closeout)
-- Issue: #1650 (created)
-- PR: #1651 (expected)
-- Plan: `.claude/plans/wave-loop-855.md`
+- Branch: `wave-loop-856`
+- Parent branch: `wave-loop-855` HEAD (after closeout)
+- Issue: #1652 (created)
+- PR: #1653 (expected)
+- Plan: `.claude/plans/wave-loop-856.md`
 - Master plan: `.claude/skills/wave-loop-master-plan.md`
 
 ### Goal
 
-Continue the odd outer-dimension module-scope AoS ladder with `[529][2]^6 Pt`.
-Expected 33,856 elements, 1,083,392-bit packed vector (~1.034 MiBit), still well
+Continue the odd outer-dimension module-scope AoS ladder with `[531][2]^6 Pt`.
+Expected 33,984 elements, 1,087,488-bit packed vector (~1.038 MiBit), still well
 under the 4-MiBit cliff, with zero compiler / reference-model / FROZEN_HASH changes.
 
 ### Variants
 
-- **A (recommended):** `[529][2]^6 Pt` module-scope var from call.
-- **B:** `[527][3]^6 Pt` — grow second inner dimension to stress stride scaling.
-- **C:** `[527][2]^6 Pt` with negative-index writes to exercise wrap-around.
+- **A (recommended):** `[531][2]^6 Pt` module-scope var from call.
+- **B:** `[529][3]^6 Pt` — grow second inner dimension to stress stride scaling.
+- **C:** `[529][2]^6 Pt` with negative-index writes to exercise wrap-around.
 
 ---
 
