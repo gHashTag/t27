@@ -167,7 +167,7 @@ Last updated: 2026-08-05
 - Branch: `wave-loop-880`
 - Parent branch: `wave-loop-879` HEAD
 - Issue: #1712
-- PR: TBD (GitHub-assigned on open)
+- PR: #1720
 - Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W880_2026-08-05.md`
 - Plan: `.claude/plans/wave-loop-881.md`
 - Autopilot: `.claude/skills/wave-loop-autopilot.md`
