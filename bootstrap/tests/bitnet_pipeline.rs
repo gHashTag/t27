@@ -140,7 +140,10 @@ fn sequencer_emits_first_last_chunk_strobes() {
 #[test]
 fn sequencer_idle_arms_on_start() {
     let v = run_subcommand("gen-layer-sequencer", &[]);
-    assert!(v.contains("IDLE: if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end"));
+    // IDLE deasserts `done` on entry (wave-36b) and arms the FSM on `start`.
+    assert!(v.contains(
+        "IDLE: begin done<=0; if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end end"
+    ));
 }
 
 #[test]

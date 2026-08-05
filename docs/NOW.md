@@ -1,3 +1,16 @@
+# NOW — test: fix stale sequencer_idle_arms_on_start assertion (2026-08-05)
+
+Last updated: 2026-08-05
+
+## test: fix stale IDLE assertion in bitnet_pipeline (Closes #1719)
+
+- Branch: `fix/sequencer-idle-test`
+
+### Что легло
+- `sequencer_idle_arms_on_start` was red on master: `gen-layer-sequencer` deasserts `done<=0` on IDLE entry (wave-36b) and emits `IDLE: begin done<=0; if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end end`, but the test still asserted the pre-wave-36b string. Updated the expectation to the current correct output (test-only; no codegen change, no reseal). `bitnet_pipeline` now 20/20.
+
+---
+
 # NOW — codegen: gen-verilog tuple lowering (concat + destructuring) (2026-08-05)
 
 Last updated: 2026-08-05
