@@ -5,7 +5,7 @@
 - Variant: `[579][2]^6 Pt` module-scope AoS variable from call with indexed signed writes
 - Target: 37,056 elements × 32 bits = 1,185,792 bits (~1.131 MiBit)
 - Plan: `.claude/plans/wave-loop-880.md`
-- Status: plan ready; issue to create, branch to create
+- Status: issue created, branch to create
 
 ## What to do next
 

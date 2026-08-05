@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Wave | 880 |
-| Issue | #1712 (expected) |
+| Issue | #1712 |
 | Branch | `wave-loop-880` |
 | Base | `wave-loop-879` HEAD (parent branch because earlier waves' PRs remain open) |
 | Variant (selected) | `[579][2]^6 Pt` module-scope AoS variable from call with indexed signed writes |

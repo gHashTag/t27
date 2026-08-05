@@ -3,12 +3,12 @@
 | Field | Value |
 |-------|-------|
 | Wave | 880 |
-| Issue | #1712 (expected; GitHub may assign a different number) |
+| Issue | #1712 |
 | Branch | `wave-loop-880` |
 | Base | `wave-loop-879` (parent branch because earlier waves' PRs remain open) |
 | Variant | `[579][2]^6 Pt` module-scope AoS variable from call with indexed signed writes |
 | Target packed vector | 37,056 elements × 32 bits = 1,185,792 bits (~1.131 MiBit) |
-| Status | plan ready, issue to create |
+| Status | issue created, branch to create |
 
 ## Goal
 
