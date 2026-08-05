@@ -37,7 +37,11 @@ test-ledger/
 # Temporary files
 *.tmp
 *.bak
+*.bak[0-9]*
+*.backup
 *.orig
+*.rej
+/*.patch
 tmp/
 .artifacts/
 dump.vcd
