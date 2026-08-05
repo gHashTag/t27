@@ -1,3 +1,17 @@
+# NOW — chore: remove stray backup/patch artifacts + close gitignore gap (2026-08-05)
+
+Last updated: 2026-08-05
+
+## chore: remove stray backup/patch artifacts + close gitignore gap (Closes #1653)
+
+- Branch: `chore/r2-stray-artifacts`
+- PR: #1654
+
+### Что легло
+- Removed 5 tracked strays (compiler.rs.orig/.backup, two .trinity/state/*.patch, a .tex.bak3). Extended .gitignore: *.bak/*.orig missed numbered variants (.bak3) and .backup; also ignore root /*.patch.
+
+---
+
 # NOW — scripts: cocotb_ref_model is importable again (2026-08-01)
 
 Last updated: 2026-08-01
