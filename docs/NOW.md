@@ -1,6 +1,6 @@
 # Wave Loop 881 — current
 
-- Issue: #1713 (expected)
+- Issue: #1722
 - Branch: `wave-loop-881`
 - Variant: `[581][2]^6 Pt` module-scope AoS variable from call with indexed signed writes
 - Target: 37,184 elements × 32 bits = 1,189,888 bits (~1.135 MiBit)

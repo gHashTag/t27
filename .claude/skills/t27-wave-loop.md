@@ -4198,7 +4198,7 @@ variants are queued."
 | Field | Value |
 |-------|-------|
 | **Current wave** | 881 |
-| **Issue** | #1713 (expected) |
+| **Issue** | #1722 |
 | **Branch** | `wave-loop-881` |
 | **Parent branch** | `wave-loop-880` HEAD because earlier wave PRs remain open |
 | **Recommended variant** | A — module-scope `[581][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes
