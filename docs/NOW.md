@@ -1,3 +1,16 @@
+# NOW — codegen: gen-zig tuple lowering (return type + literal + destructuring) (2026-08-05)
+
+Last updated: 2026-08-05
+
+## codegen: gen-zig tuple literals + let (a,b) destructuring (Closes #1724)
+
+- Branch: `feat/tuple-zig`
+
+### Что легло
+- Part 4 of tuple support (#1702). gen-zig now lowers a tuple return type `(T, U)` to a Zig anonymous tuple struct `struct { T, U }` (`gen_fn_decl` + `t27_tuple_type_to_zig`), the tuple literal to `.{ e0, e1 }` (`gen_expr` ExprTuple arm), and `let (s, d) = call()` to `const s, const d = call();` (`gen_stmt` StmtLocal tuple branch). Emitted Zig compiles under Zig 0.15.2 (`zig build-obj`) and comptime-evaluates: `use_it(5,3)==10`, `dm(7,2)==(9,5)`. New test `test_tuple_literal_and_destructuring_zig`; full suite 1499/0; FROZEN_HASH re-sealed. gen-c is the last remaining backend on #1702.
+
+---
+
 # NOW — test: fix stale sequencer_idle_arms_on_start assertion (2026-08-05)
 
 Last updated: 2026-08-05
