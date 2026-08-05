@@ -1,18 +1,18 @@
-# Wave Loop 874 — current
+# Wave Loop 875 — current
 
-- Issue: #1696
-- Branch: `wave-loop-874`
-- Variant: `[567][2]^6 Pt` module-scope AoS variable from call with indexed signed writes
-- Target: 36,288 elements × 32 bits = 1,161,216 bits (~1.108 MiBit)
-- Plan: `.claude/plans/wave-loop-874.md`
+- Issue: #1698
+- Branch: `wave-loop-875`
+- Variant: `[569][2]^6 Pt` module-scope AoS variable from call with indexed signed writes
+- Target: 36,416 elements × 32 bits = 1,165,312 bits (~1.112 MiBit)
+- Plan: `.claude/plans/wave-loop-875.md`
 - Status: branch created, ready to implement
 
 ## What to do next
 
-1. ~~Create W874 issue and branch `wave-loop-874` from `wave-loop-873` HEAD.~~ Done.
-2. Copy `scripts/gen_w873.py` → `scripts/gen_w874.py`, fix copy hazard (`w874`, `OUTER = 567`, `MID_IDX = 283`).
+1. ~~Create W875 issue and branch `wave-loop-875` from `wave-loop-874` HEAD.~~ Done.
+2. Copy `scripts/gen_w874.py` → `scripts/gen_w875.py`, fix copy hazard (`w875`, `OUTER = 569`, `MID_IDX = 284`).
 3. Generate witness, run validation gates, add integration test.
-4. Closeout report + W875 cooperation variants + skills/memory updates.
+4. Closeout report + W876 cooperation variants + skills/memory updates.
 
 ---
 
