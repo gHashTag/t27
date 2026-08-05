@@ -68,12 +68,13 @@ at the end.
 | 859 | #1662 | wave-loop-859 | 537 | 268 | 34,368 | 1,099,776 | 1.049 | closed | #1663 |
 | **860** | **#1664** | **wave-loop-860** | **539** | **269** | **34,496** | **1,103,872** | **1.052** | **in progress** | **TBD** |
 | 861 | #1666 (expected) | wave-loop-861 (planned) | 541 | 270 | 34,624 | 1,107,968 | 1.056 | planned | TBD |
+| 862 | #1668 (expected) | wave-loop-862 (planned) | 543 | 271 | 34,752 | 1,112,064 | 1.060 | planned | TBD |
 
-### W860 cooperation variants (draft)
+### W861 cooperation variants (draft)
 
-- **A (recommended):** `[537][2]^6 Pt`, outer += 2, `MID_IDX = 268`.
-- **B:** `[535][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
-- **C:** `[535][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
+- **A (recommended):** `[541][2]^6 Pt`, outer += 2, `MID_IDX = 270`.
+- **B:** `[539][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
+- **C:** `[539][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
 
 ## Update-at-end-of-loop instructions
 

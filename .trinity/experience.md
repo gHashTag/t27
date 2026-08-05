@@ -1,3 +1,62 @@
+## 2026-08-05 — Wave Loop 860 (module-scope `[539][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1664)
+
+### What worked
+- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 539.
+  The `[539][2]^6 Pt` witness is 1,103,872 bits (≈1.052 MiBit), continuing past the
+  1-MiBit line, and required no compiler, reference-model, or `FROZEN_HASH` changes.
+- Generator `scripts/gen_w860.py` copied from W859 and fixed for the recurring copy hazard:
+  destination path and module header f-string updated from stale `w859` / `537` / `268`
+  to `w860` / `539` / `269`; stale `MID_IDX` comment corrected to `269`.
+- Generated `specs/scratch/w860_bench_module_539x2p6_aos_var_call_write.t27`
+  (34,496 elements, 1,103,872-bit packed vector).
+- Added integration test `accepts_w860_bench_module_539x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 320/0.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W860_2026-08-05.md` and
+  next-wave plan `.claude/plans/wave-loop-861.md` with variants A/B/C.
+- Created issue #1666 and branch `wave-loop-861` for the next wave.
+- Updated skill trackers, autopilot run-list, master plan, and persistent memory.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w860_bench_module_539x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
+- Added integration test `accepts_w860_bench_module_539x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w860.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK (warnings, 0 errors).
+- `cargo test --release --test icarus_lowerable`: 320 passed; 0 failed.
+- Direct `t27c parse` W860: PASS.
+- Direct `t27c icarus-lowerable` W860: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W860: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W860: PASS (`reference-model OK`).
+- `t27c seal --save` W860: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.2 define packed-array width as the product of packed
+  dimensions; the LRM only requires simulators to support at least 65,536 bits.
+  Icarus currently warns around 1 Gbit, not 1 Mbit; upstream commit `128c621`
+  fixed a bound-normalization path that could accidentally produce billion-bit
+  vectors. Historical Icarus 0.8 had a ~256 K-entry allocator assertion for huge
+  packed vectors, but modern versions do not exhibit it.
+- Siracusa et al. (IEEE TC 2021, DOI 10.1109/TC.2021.3111761) FPGA Roofline model
+  frames the ladder as probing how large the memory quanta `Q` can grow before
+  routing/host-memory costs dominate.
+- CompCert (Leroy 2009) and Vericert (Herklotz et al. OOPSLA 2021) provide
+  verified-compilation analogs for bit-exact source-to-hardware mapping.
+- Xilinx UG1399 documents Vitis HLS `compact=bit` and the AoS-to-SoA
+  transformation for interface structs.
+
+### Next wave
+- Variant A recommended for Wave Loop 861: `[541][2]^6 Pt`, `MID_IDX = 270`.
+- Issue #1666 and branch `wave-loop-861` created.
+
+---
+
 ## 2026-08-05 — Wave Loop 859 (module-scope `[537][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1662)
 
 ### What worked
