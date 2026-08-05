@@ -2,7 +2,7 @@
 
 **Issue:** #1664  
 **Branch:** `wave-loop-860` (from `wave-loop-859` HEAD)  
-**PR:** TBD  
+**PR:** #1665  
 **Variant:** A — module-scope `[539][2]^6 Pt` non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes.
 
 ## Summary
