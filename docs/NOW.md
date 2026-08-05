@@ -1,6 +1,6 @@
 # Wave Loop 877 — current
 
-- Issue: #1702
+- Issue: #1703
 - Branch: `wave-loop-877`
 - Variant: `[573][2]^6 Pt` module-scope AoS variable from call with indexed signed writes
 - Target: 36,672 elements × 32 bits = 1,173,504 bits (~1.120 MiBit)
@@ -25,7 +25,7 @@ Last updated: 2026-08-05
 - Branch: `wave-loop-876`
 - Parent branch: `wave-loop-875` HEAD
 - Issue: #1701
-- PR: TBD (GitHub-assigned on open)
+- PR: #1704
 - Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W876_2026-08-05.md`
 - Plan: `.claude/plans/wave-loop-877.md`
 - Autopilot: `.claude/skills/wave-loop-autopilot.md`
