@@ -1,3 +1,17 @@
+## Wave Loop 878 — 2026-08-05
+
+- Issue: #1706
+- Branch: `wave-loop-878`
+- Variant: `[575][2]^6 Pt` module-scope packed array-of-struct variable from call with indexed signed writes
+- Target: 36,800 elements × 32 bits = 1,177,600 bits (~1.124 MiBit)
+- Result: validation all PASS; 0 compiler changes; `FROZEN_HASH` unchanged.
+- Key learning: the mechanical ladder remains stable past the 1-MiBit line at
+  1.124 MiBit. Generator copy-hazard checks are still the only manual risk; the
+  destination-path bare outer-dimension number is easy to miss when replacing
+  `w877`/`573`/`286` with `w878`/`575`/`287` because the filename literal does
+  not contain the wave prefix pattern used elsewhere. The three-location
+  checklist plus a post-generation `ls`/`head` sanity check catches it.
+
 ## Wave Loop 877 — 2026-08-05
 
 - Issue: #1703
