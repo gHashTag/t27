@@ -1,3 +1,55 @@
+## 2026-08-05 — Wave Loop 865 (module-scope `[549][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1678)
+
+### What worked
+- Variant A extended the odd outer-dimension module-scope packed AoS ladder to 549.
+  The `[549][2]^6 Pt` witness is 1,124,352 bits (≈1.072 MiBit), continuing past the
+  1-MiBit line, and required no compiler, reference-model, or `FROZEN_HASH` changes.
+- Generator `scripts/gen_w865.py` copied from W864 and fixed for the recurring copy hazard:
+  destination path and module header f-string updated from stale `w864` / `547` / `273`
+  to `w865` / `549` / `274`; stale `MID_IDX` comment corrected to `274`.
+- Generated `specs/scratch/w865_bench_module_549x2p6_aos_var_call_write.t27`
+  (35,136 elements, 1,124,352-bit packed vector).
+- Added integration test `accepts_w865_bench_module_549x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 325/0.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W865_2026-08-05.md` and
+  next-wave plan `.claude/plans/wave-loop-866.md` with variants A/B/C.
+- Created issue #1680 (expected) and branch `wave-loop-866` for the next wave.
+- Updated `docs/NOW.md`, `.trinity/current-issue.md`, skill trackers, autopilot
+  run-list, master plan, and persistent memory.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w865_bench_module_549x2p6_aos_var_call_write.t27` with seal and Icarus baseline.
+- Added integration test `accepts_w865_bench_module_549x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w865.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK (warnings, 0 errors).
+- `cargo test --release --test icarus_lowerable accepts_w865_bench_module_549x2p6_aos_var_call_write`: 1/0.
+- `cargo test --release --test icarus_lowerable` (full suite): 325/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W865: PASS.
+- `bootstrap/stage0/FROZEN_HASH`: unchanged.
+
+### Scientific background
+- Icarus Verilog has no documented 1-MiBit hard cap; LRM minimum 65,536 bits;
+  modern Icarus warns near 1 Gbit; upstream commit `128c621` fixed bound-normalization
+  bug; historical Icarus 0.8 had ~256 K-entry allocator assertion for huge packed vectors.
+- Siracusa et al. (IEEE TC 2021, DOI 10.1109/TC.2021.3111761) FPGA Roofline treats the
+  ladder as a memory-quanta `Q` probe.
+- Vericert/CompCert provide verified-compilation analogs for bit-exact lowering.
+- Vitis HLS UG1399 `compact=bit` provides the commercial packed-AoS analog.
+
+### Next wave
+- Wave Loop 866: module-scope `[551][2]^6 Pt` (variant A), 35,264 elements,
+  1,128,448 bits (~1.076 MiBit). Continue mechanical `outer += 2` ladder.
+
+---
+
 ## 2026-08-05 — Wave Loop 864 (module-scope `[547][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1672)
 
 ### What worked
@@ -15,8 +67,8 @@
   `icarus-cocotb` (reference-model OK), and `seal --save` all PASS.
 - Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 324/0.
 - Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W864_2026-08-05.md` and
-  next-wave plan `.claude/plans/wave-loop-865.md` with variants A/B/C.
-- Created issue #1674 and branch `wave-loop-865` for the next wave.
+  next-wave plan `.claude/plans/wave-loop-865.md` with variants A/B/C; PR #1677 opened for W864.
+- Created issue #1678 and branch `wave-loop-865` for the next wave.
 - Updated `docs/NOW.md`, `.trinity/current-issue.md`, skill trackers, autopilot
   run-list, master plan, and persistent memory.
 
