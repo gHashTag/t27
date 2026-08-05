@@ -52,7 +52,7 @@ array-of-struct variable from call with indexed signed writes.
    - Update `.trinity/experience.md` and `docs/NOW.md`.
    - Save persistent memory entry.
    - Commit with `Closes #1654`, push, open PR.
-   - Create issue #1655 / branch `wave-loop-858`.
+   - Create issue #1656 / branch `wave-loop-858`.
 
 ## Stop conditions
 

@@ -2,7 +2,7 @@
 
 **Issue:** #1654  
 **Branch:** `wave-loop-857` (from `wave-loop-856` HEAD)  
-**PR:** #1655  
+**PR:** #1657  
 **Variant:** A — module-scope `[533][2]^6 Pt` non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes.
 
 ## Summary
@@ -147,7 +147,7 @@ gen_hash_rust=sha256:ba06be88a7a616a95e85f481ab5055fa3b6d9216e8369e957a3918063ad
 
 ## Next steps
 
-1. Open PR #1655 to `master` with `Closes #1654`.
+1. Open PR #1657 to `master` with `Closes #1654`.
 2. Create GitHub issue #1656 for Wave Loop 858.
 3. Branch `wave-loop-858` from `wave-loop-857` HEAD and execute the selected
    W858 variant.
