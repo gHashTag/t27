@@ -1646,6 +1646,26 @@ impl Parser {
                 decl.extra_return_type = format!("*{}", self.current.lexeme);
                 self.advance();
             }
+        } else if self.current.kind == TokenKind::LParen {
+            // Tuple return type: `(T, U, ...)`. Previously unhandled: the parser
+            // fell through, desynced on `(` and silently dropped the whole
+            // function. Capture it as a canonical `(T, U)` string so the
+            // function survives and backends can lower it.
+            let mut rt = String::from("(");
+            self.advance(); // consume (
+            while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
+                if self.current.kind == TokenKind::Comma {
+                    rt.push_str(", ");
+                } else {
+                    rt.push_str(&self.current.lexeme);
+                }
+                self.advance();
+            }
+            if self.current.kind == TokenKind::RParen {
+                self.advance(); // consume )
+            }
+            rt.push(')');
+            decl.extra_return_type = rt;
         }
 
         // Skip optional 'const' qualifier before the body
@@ -25918,6 +25938,22 @@ mod tests_phase40_coverage {
         cg.gen_rust(&ast);
         let out = cg.into_string();
         assert!(out.contains("for i in 0..8"), "Rust output: {}", out);
+    }
+
+    // A function with a tuple return type `-> (T, U)` used to be silently
+    // dropped: the return-type parser had no `(` branch, desynced, and the
+    // whole function vanished (breaking every backend). It must now survive
+    // parsing with its tuple signature intact. (Body-lowering + `let (a,b)`
+    // destructuring are separate follow-ups; this only fixes the silent drop.)
+    #[test]
+    fn test_tuple_return_type_not_dropped() {
+        let code = "module M { pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("-> (u32, u32)"),
+            "tuple-return function was dropped or its signature mangled: {}",
+            out
+        );
     }
 
     // #1659: Zig-style wrapping operators +% -% *% must lower per backend.
