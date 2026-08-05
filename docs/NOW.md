@@ -1,3 +1,16 @@
+# NOW — ci: fix fpga-build flags in fpga-synthesis jobs (unblock red CI) (2026-08-05)
+
+Last updated: 2026-08-05
+
+## ci: fpga-build passes flags the subcommand rejects (Closes #1723)
+
+- Branch: `fix/ci-fpga-build-flags`
+
+### Что легло
+- `fpga-build.yml` invoked `t27c fpga-build ... --board <X> --profile minimal`, but the subcommand only defines `--device`/`--minimal` → `error: unexpected argument '--board'` (exit 2), making `fpga-synthesis-arty` red on **every** PR (it merged red on #1710/#1716/#1718/#1725/#1728). Replaced both bad invocations with `--minimal` (the `--device` default `xc7a100tcsg324-1` is already the Arty A7-100T part and matches the job's own chipdb placeholder; both jobs are synth/smoke where the exact part is immaterial). Verified: fixed command parses and proceeds to Verilog generation; old `--board` form still errors. Workflow-only change (no compiler, no reseal). Board-level UX (`--board`/`--profile`) could be added CLI-side later if desired.
+
+---
+
 # NOW — codegen: gen-c tuple lowering — closes tuple workstream across all backends (2026-08-05)
 
 Last updated: 2026-08-05
