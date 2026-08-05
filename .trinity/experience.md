@@ -16,7 +16,7 @@
 - Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 328/0.
 - Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W868_2026-08-05.md` and
   next-wave plan `.claude/plans/wave-loop-869.md` with variants A/B/C.
-- Created issue #1686 (expected) and branch `wave-loop-869`; PR #1685 opened for W868 for the next wave.
+- Created issue #1686 and branch `wave-loop-869`; PR #1685 opened for W868 for the next wave.
 - Updated `docs/NOW.md`, `.trinity/current-issue.md`, skill trackers, autopilot
   run-list, master plan, and persistent memory.
 

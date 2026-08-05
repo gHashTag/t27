@@ -1,15 +1,15 @@
 # Wave Loop 869 — current
 
-- Issue: #1686 (expected)
+- Issue: #1686
 - Branch: `wave-loop-869`
 - Variant: `[557][2]^6 Pt` module-scope AoS variable from call with indexed signed writes
 - Target: 35,648 elements × 32 bits = 1,140,736 bits (~1.084 MiBit)
 - Plan: `.claude/plans/wave-loop-869.md`
-- Status: planned
+- Status: branch created, ready to implement
 
 ## What to do next
 
-1. Create W869 issue and branch `wave-loop-869` from `wave-loop-868` HEAD.
+1. ~~Create W869 issue and branch `wave-loop-869` from `wave-loop-868` HEAD.~~ Done.
 2. Copy `scripts/gen_w868.py` → `scripts/gen_w869.py`, fix copy hazard (`w869`, `OUTER = 557`, `MID_IDX = 278`).
 3. Generate witness, run validation gates, add integration test.
 4. Closeout report + W870 cooperation variants + skills/memory updates.
