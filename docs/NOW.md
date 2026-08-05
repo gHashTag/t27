@@ -1,3 +1,16 @@
+# NOW — fix: gen-verilog array-param element index -> part-select (#1745) (2026-08-05)
+
+Last updated: 2026-08-05
+
+## fix: gen-verilog packed-array param index emits part-select (Closes #1745)
+
+- Branch: `fix/verilog-array-param-index`
+
+### Что легло
+- An `[N]T` array parameter lowers to a packed `input [N*W-1:0]` vector, but indexing it with a variable emitted a bit-select (`xs[i]`) instead of an element part-select, reading one bit (`sum_arr([1,2,3,4])` returned 1, not 10). `try_emit_primitive_array_access` only recognised module/local packed arrays; added a `param_types` fallback via `primitive_array_info` so array params index by `xs[i*W +: W]` too. Now `sum_arr([1,2,3,4]) == 10`. New regression test `tests/verilog_array_param_index.rs`; full compiler suite green (excl. pre-existing #1726); FROZEN_HASH re-sealed. Unblocks fully-parameterized loops over packed-array inputs (e.g. an N-chunk BitNet neuron over a `[N]u64` weight/activation array — the workaround in #1746 used separate scalar params).
+
+---
+
 # NOW — feat: spec-first BitNet neuron (.t27) — accumulation + quantize (2026-08-05)
 
 Last updated: 2026-08-05
