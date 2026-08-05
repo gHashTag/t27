@@ -57,14 +57,14 @@ fn bitnet_engine_bundle_elaborates_under_iverilog() {
         .success();
     assert!(bundle_ok, "gen-bitnet-bundle failed");
 
-    // 2. The bundle instantiates `trit27_dot_product` but does NOT include the
-    //    trit stdlib that defines it (#1730), so emit the stdlib alongside it.
-    let stdlib = Command::new(t27c())
-        .arg("gen-trit-stdlib")
-        .output()
-        .expect("failed to invoke gen-trit-stdlib");
-    assert!(stdlib.status.success(), "gen-trit-stdlib failed");
-    fs::write(dir.join("trit_stdlib.sv"), &stdlib.stdout).expect("write trit_stdlib.sv");
+    // 2. The bundle is self-contained: it now includes `trit_stdlib.sv` (which
+    //    defines the `trit27_dot_product` that `pipeline_stage2_compute`
+    //    instantiates), so no separate emission is needed -- the bundle
+    //    directory elaborates on its own.
+    assert!(
+        dir.join("trit_stdlib.sv").is_file(),
+        "bundle must include trit_stdlib.sv to elaborate standalone"
+    );
 
     // 3. Collect every RTL module: all .sv except the SVA property file, which
     //    is not iverilog-parseable (SystemVerilog assertions).

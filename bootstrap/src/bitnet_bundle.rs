@@ -28,6 +28,7 @@ use crate::bitnet_pipeline::{
     build_layer_sequencer, build_multilayer_sequencer, build_pipeline_stage2,
 };
 use crate::bitnet_top::build_bitnet_engine_top;
+use crate::trit_stdlib::build_trit_stdlib_verilog;
 use crate::weight_bram::build_default_weight_bram;
 
 /// Default engine-top module name. Matches the W36f canonical default.
@@ -74,19 +75,25 @@ pub struct BundleEntry {
 }
 
 /// Canonical filename ordering. Pipeline order = RTL deps order:
-///   1. weight_bram                    (W36a, storage)
-///   2. pipeline_stage2_compute        (W36b, compute)
-///   3. layer_sequencer                (W36b, control)
-///   4. multilayer_sequencer           (W36b, control)
-///   5. double_buffer_ctrl             (W36c, buffering)
-///   6. weight_prefetch_ctrl           (W36c, buffering)
-///   7. axi_lite_slave                 (W36d, host I/O)
-///   8. dma_controller                 (W36e, host I/O)
-///   9. interrupt_controller           (W36f, host I/O)
-///  10. bitnet_engine_top              (W36f, top wrapper)
-///  11. behavior_sva_v2                (W37, verification)
-///  12. manifest.txt                   (W38, this wave)
+///   1. trit_stdlib                    (W32, ternary primitives -- deps of compute)
+///   2. weight_bram                    (W36a, storage)
+///   3. pipeline_stage2_compute        (W36b, compute)
+///   4. layer_sequencer                (W36b, control)
+///   5. multilayer_sequencer           (W36b, control)
+///   6. double_buffer_ctrl             (W36c, buffering)
+///   7. weight_prefetch_ctrl           (W36c, buffering)
+///   8. axi_lite_slave                 (W36d, host I/O)
+///   9. dma_controller                 (W36e, host I/O)
+///  10. interrupt_controller           (W36f, host I/O)
+///  11. bitnet_engine_top              (W36f, top wrapper)
+///  12. behavior_sva_v2                (W37, verification)
+///  13. manifest.txt                   (W38, this wave)
+///
+/// `trit_stdlib` leads because `pipeline_stage2_compute` instantiates
+/// `trit27_dot_product` from it; including it makes the bundle self-contained
+/// (it elaborates standalone under iverilog).
 pub const BUNDLE_ORDER: &[&str] = &[
+    "trit_stdlib.sv",
     "weight_bram.sv",
     "pipeline_stage2_compute.sv",
     "layer_sequencer.sv",
@@ -101,8 +108,8 @@ pub const BUNDLE_ORDER: &[&str] = &[
     "manifest.txt",
 ];
 
-/// Total expected file count in a bundle (11 SV files + 1 manifest).
-pub const BUNDLE_FILE_COUNT: usize = 12;
+/// Total expected file count in a bundle (12 SV files + 1 manifest).
+pub const BUNDLE_FILE_COUNT: usize = 13;
 
 /// Canonical BitNet HLS behavior set (4 properties, v2-emittable).
 ///
@@ -187,6 +194,10 @@ pub fn build_manifest(config: &BundleConfig<'_>, entries: &[BundleEntry]) -> Str
 /// 10 entries are emitted, since it references their byte sizes.
 pub fn build_sv_entries(config: &BundleConfig<'_>) -> Vec<BundleEntry> {
     vec![
+        BundleEntry {
+            filename: "trit_stdlib.sv".to_string(),
+            content: build_trit_stdlib_verilog(),
+        },
         BundleEntry {
             filename: "weight_bram.sv".to_string(),
             content: build_default_weight_bram(),
@@ -286,19 +297,19 @@ mod tests {
     }
 
     #[test]
-    fn bundle_order_has_twelve_entries() {
-        assert_eq!(BUNDLE_ORDER.len(), 12);
-        assert_eq!(BUNDLE_FILE_COUNT, 12);
+    fn bundle_order_has_thirteen_entries() {
+        assert_eq!(BUNDLE_ORDER.len(), 13);
+        assert_eq!(BUNDLE_FILE_COUNT, 13);
     }
 
     #[test]
     fn bundle_order_ends_with_manifest() {
-        assert_eq!(BUNDLE_ORDER[11], "manifest.txt");
+        assert_eq!(BUNDLE_ORDER[12], "manifest.txt");
     }
 
     #[test]
-    fn bundle_order_starts_with_weight_bram() {
-        assert_eq!(BUNDLE_ORDER[0], "weight_bram.sv");
+    fn bundle_order_starts_with_trit_stdlib() {
+        assert_eq!(BUNDLE_ORDER[0], "trit_stdlib.sv");
     }
 
     #[test]
@@ -316,10 +327,10 @@ mod tests {
     }
 
     #[test]
-    fn build_sv_entries_returns_eleven_files() {
+    fn build_sv_entries_returns_twelve_files() {
         let cfg = BundleConfig::default();
         let entries = build_sv_entries(&cfg);
-        assert_eq!(entries.len(), 11);
+        assert_eq!(entries.len(), 12);
     }
 
     #[test]
@@ -348,17 +359,17 @@ mod tests {
     }
 
     #[test]
-    fn build_bundle_entries_returns_twelve() {
+    fn build_bundle_entries_returns_thirteen() {
         let cfg = BundleConfig::default();
         let entries = build_bundle_entries(&cfg);
-        assert_eq!(entries.len(), 12);
+        assert_eq!(entries.len(), 13);
     }
 
     #[test]
     fn build_bundle_entries_last_is_manifest() {
         let cfg = BundleConfig::default();
         let entries = build_bundle_entries(&cfg);
-        assert_eq!(entries[11].filename, "manifest.txt");
+        assert_eq!(entries[12].filename, "manifest.txt");
     }
 
     #[test]
@@ -406,7 +417,7 @@ mod tests {
             ..BundleConfig::default()
         };
         let entries = build_sv_entries(&cfg);
-        let top = &entries[9].content;
+        let top = &entries[10].content;
         assert!(top.contains("my_engine"));
     }
 
@@ -418,7 +429,7 @@ mod tests {
             axi_data_width: 64,
         };
         let entries = build_sv_entries(&cfg);
-        let axi = &entries[6].content;
+        let axi = &entries[7].content;
         // Width literals appear in the slave's parameter declarations.
         assert!(axi.contains("16") || axi.contains("[15:0]"));
         assert!(axi.contains("64") || axi.contains("[63:0]"));
@@ -440,7 +451,7 @@ mod tests {
     fn behavior_sva_block_present_in_bundle() {
         let cfg = BundleConfig::default();
         let entries = build_sv_entries(&cfg);
-        let sva = &entries[10].content;
+        let sva = &entries[11].content;
         assert!(sva.contains("property "));
         assert!(sva.contains("assert property"));
     }
@@ -449,7 +460,7 @@ mod tests {
     fn behavior_sva_block_includes_s_eventually() {
         let cfg = BundleConfig::default();
         let entries = build_sv_entries(&cfg);
-        let sva = &entries[10].content;
+        let sva = &entries[11].content;
         // start_eventually_done uses the v2 s_eventually consequent.
         assert!(sva.contains("s_eventually"));
     }
