@@ -1,3 +1,14 @@
+## Wave Loop 879 — 2026-08-05
+
+- Issue: #1708
+- Branch: `wave-loop-879`
+- Variant: `[577][2]^6 Pt` module-scope packed array-of-struct variable from call with indexed signed writes
+- Target: 36,928 elements × 32 bits = 1,181,696 bits (~1.128 MiBit)
+- Result: validation all PASS; 0 compiler changes; `FROZEN_HASH` unchanged.
+- Key learning: the mechanical ladder remains stable past the 1-MiBit line at
+  1.128 MiBit. Generator copy-hazard checklist and post-generation `ls`/`head`
+  sanity check continue to catch the only manual risk.
+
 ## Wave Loop 878 — 2026-08-05
 
 - Issue: #1706
