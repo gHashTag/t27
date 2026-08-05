@@ -4063,6 +4063,12 @@ impl VerilogCodegen {
     /// packed-vector width; primitive arrays (and all other types) preserve the
     /// legacy scalar width so existing parameter/return signatures stay stable.
     fn packed_width(&self, ty: &str) -> u32 {
+        let t = ty.trim();
+        if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+            // Tuple type `(T, U, ...)`: packed width is the sum of element widths.
+            let inner = &t[1..t.len() - 1];
+            return inner.split(',').map(|e| self.packed_width(e.trim())).sum();
+        }
         if let Some((dims, elem_type)) = Self::parse_array_type(ty) {
             if self.is_lowerable_scalar_struct_type(&elem_type) {
                 let elem_w = self.element_width(&elem_type) as u32;
@@ -6907,10 +6913,81 @@ impl VerilogCodegen {
         }
     }
 
+    /// Resolve the element types of a tuple-destructuring local
+    /// `let (a, b) = expr`. The tuple type comes from an explicit annotation
+    /// when present, otherwise from the return type of the initializing call.
+    fn tuple_local_elem_types(&self, node: &Node) -> Option<Vec<String>> {
+        let ty = if !node.extra_type.trim().is_empty() {
+            node.extra_type.trim().to_string()
+        } else {
+            let init = node.children.first()?;
+            if init.kind != NodeKind::ExprCall {
+                return None;
+            }
+            self.fn_return_types.get(&init.name)?.clone()
+        };
+        let t = ty.trim();
+        if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+            let inner = &t[1..t.len() - 1];
+            Some(inner.split(',').map(|e| e.trim().to_string()).collect())
+        } else {
+            None
+        }
+    }
+
     /// Emit a local variable declaration and/or initialization. `phase` selects
     /// whether to output only the `reg` declaration, only the procedural
     /// assignment, or the full original combined form.
     fn emit_local(&mut self, node: &Node, phase: LocalEmitPhase) {
+        // Tuple-destructuring local `let (s, d) = call(...)`: the binding names
+        // live in extra_field (comma-joined) with an empty node.name. Lower to a
+        // packed temp holding the callee's tuple, then slice each binding out
+        // with element 0 in the LSB -- matching the ExprTuple concatenation and
+        // the packed_width sum.
+        if node.name.is_empty() && !node.extra_field.is_empty() {
+            if let Some(elem_types) = self.tuple_local_elem_types(node) {
+                let names: Vec<String> = node
+                    .extra_field
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                if !names.is_empty() && names.len() == elem_types.len() {
+                    let widths: Vec<u32> =
+                        elem_types.iter().map(|t| self.packed_width(t).max(1)).collect();
+                    let total: u32 = widths.iter().sum();
+                    // Deterministic temp name (stable across Decl/Init phases).
+                    let tmp = format!("__tup_l{}", node.line);
+                    if phase != LocalEmitPhase::Init {
+                        self.write_indent();
+                        self.write_line(&format!("reg [{}:0] {};", total - 1, tmp));
+                        for (nm, w) in names.iter().zip(widths.iter()) {
+                            self.write_indent();
+                            self.write_line(&format!("reg [{}:0] {};", w - 1, nm));
+                        }
+                    }
+                    if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
+                        self.write_indent();
+                        self.write(&format!("{} = ", tmp));
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write_line(";");
+                        let mut off = 0u32;
+                        for (nm, w) in names.iter().zip(widths.iter()) {
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "{} = {}[{}:{}];",
+                                nm,
+                                tmp,
+                                off + w - 1,
+                                off
+                            ));
+                            off += w;
+                        }
+                    }
+                    return;
+                }
+            }
+        }
         // W533: bare scalar structs are lowered as a single packed-vector
         // register with whole-struct initialization.
         if Self::parse_array_type(&node.extra_type).is_none()
@@ -7674,6 +7751,20 @@ impl VerilogCodegen {
                         node.extra_size, node.extra_type
                     ));
                 }
+            }
+            NodeKind::ExprTuple => {
+                // Tuple literal -> packed concatenation with element 0 in the
+                // LSB: `(e0, e1)` -> `{e1, e0}`. Matches the packed_width sum and
+                // the destructuring slice order.
+                self.write("{");
+                let last = node.children.len().saturating_sub(1);
+                for (i, child) in node.children.iter().enumerate().rev() {
+                    if i != last {
+                        self.write(", ");
+                    }
+                    self.gen_verilog_expr(child);
+                }
+                self.write("}");
             }
             NodeKind::ExprStructLit => {
                 // W527/W532: scalar struct literals lower to a concatenation of
@@ -26051,6 +26142,43 @@ mod tests_phase40_coverage {
             "tuple-return body stubbed to unimplemented: {}",
             out
         );
+    }
+
+    // #1702: gen-verilog tuple lowering. A tuple-return function packs its
+    // elements into one vector (element 0 in the LSB) whose width is the sum of
+    // the element widths, and `let (s, d) = call()` destructures via a packed
+    // temp sliced back out. Used to emit `/* unsupported expr: ExprTuple */` and
+    // `reg [31:0] ;`.
+    #[test]
+    fn test_tuple_literal_and_destructuring_verilog() {
+        let code = "module M { \
+            pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } \
+            pub fn use_it(a: u32, b: u32) -> u32 { let (s, d) = dm(a, b); return s + d; } }";
+        let out = Compiler::compile_verilog(code).expect("compile should succeed");
+        // Tuple-return width is the packed sum (32 + 32 = 64), not a bare 32.
+        assert!(
+            out.contains("function [63:0] dm;"),
+            "tuple-return width not packed to 64: {}",
+            out
+        );
+        // Element 0 (a + b) sits in the LSB of the concatenation.
+        assert!(
+            out.contains("dm = {(a - b), (a + b)};"),
+            "tuple literal not lowered to LSB-first concat: {}",
+            out
+        );
+        // Destructuring: packed temp, then LSB/MSB slices into the bindings.
+        assert!(
+            out.contains("s = __tup_l1[31:0];") && out.contains("d = __tup_l1[63:32];"),
+            "tuple destructuring slices not emitted: {}",
+            out
+        );
+        assert!(
+            !out.contains("unsupported expr: ExprTuple"),
+            "ExprTuple left unlowered: {}",
+            out
+        );
+        assert!(!out.contains("reg [31:0] ;"), "empty reg decl leaked: {}", out);
     }
 
     // #1659: Zig-style wrapping operators +% -% *% must lower per backend.
