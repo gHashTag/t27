@@ -1,3 +1,49 @@
+# NOW — chore: remove stray backup/patch artifacts + close gitignore gap (2026-08-05)
+
+Last updated: 2026-08-05
+
+## chore: remove stray backup/patch artifacts + close gitignore gap (Closes #1653)
+
+- Branch: `chore/r2-stray-artifacts`
+- PR: #1654
+
+### Что легло
+- Removed 5 tracked strays (compiler.rs.orig/.backup, two .trinity/state/*.patch, a .tex.bak3). Extended .gitignore: *.bak/*.orig missed numbered variants (.bak3) and .backup; also ignore root /*.patch.
+
+---
+
+# NOW — ci: wire dyadic wide-format witness into CI (gf48..gf1024) (2026-08-05)
+
+Last updated: 2026-08-05
+
+## ci: wire dyadic wide-format witness into CI (gf48..gf1024) (Closes #1580)
+
+- Branch: `ci/gf-wide-conformance`
+- PR: #1675
+
+### Что легло
+- gf_wide_independent_witness.py decodes GF rungs as exact dyadic pairs (gf1024 bias ~2.5e120) with no Fraction blowup, resolving #1580. Added gf-wide-conformance.yml matrix gate over gf14/gf48/gf96/gf128/gf256/gf512/gf1024; each exits 0, witness returns 1 on any mismatch.
+
+---
+
+# NOW — conformance: correct 5 stale gf16 vectors + wire oracle into CI (2026-08-05)
+
+Last updated: 2026-08-05
+
+## conformance: correct 5 stale gf16 vectors + wire oracle into CI (Closes #1579)
+
+- Branch: `fix/gf16-conformance-vectors`
+- Issue: #1579
+- PR: #1673
+
+### Что легло
+- gf16_ref.py exited non-zero on 5 named-constant vectors. Brute force over all 65536 codes proved the encoder picks the nearest GF16 code and decode is FPGA-consistent, so the vectors' expected.decoded values were phantom (not representable). Set expected.decoded to the true constant and tolerance_abs to the quantization bound (phase_transition widened to 0.0005). Added .github/workflows/gf16-conformance.yml so the oracle runs on every change.
+
+### Границы честности (BINDING)
+- The fix corrects test data, not the encoder/decoder — those are proven correct by roundtrip (19/19) and FPGA-consistency (32/32). Oracle now 35 pass / 0 fail.
+
+---
+
 # NOW — scripts: cocotb_ref_model is importable again (2026-08-01)
 
 Last updated: 2026-08-01
