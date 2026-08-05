@@ -1,3 +1,16 @@
+# NOW — feat: spec-first ternary MAC dot product (.t27), bit-exact vs handwritten (2026-08-05)
+
+Last updated: 2026-08-05
+
+## feat: spec-first ternary MAC dot27 (.t27) == trit27_dot_product (Closes #1742)
+
+- Branch: `feat/spec-first-ternary-mac`
+
+### Что легло
+- The accelerator's **core datapath** now has a spec-first form. `specs/ternary/ternary_mac.t27`: `tmul` (sign-only ternary multiply, no `*` since gen-verilog's `*`=unsigned `__mul_noop`) + `dot27(a: u64, b: u64) -> i8` (27-trit ternary dot product over 54-bit packed vectors). Written **loop-free** (27-term sum of per-position helpers) because gen-verilog can't lower a local-declaring `while` loop — filed that backend defect as **#1741** (reg decls after statements / inside loop blocks → iverilog syntax error). Verified: typecheck 0 err; icarus-simulate 4/4 (all-N×all-N=+27, all-N×all-P=-27, all-P×all-P=+27, all-Z=0); seal 3 backends MATCH; new Rust integration test `tests/bitnet_mac_specfirst.rs` **bit-exact cross-checks dot27 vs the hand-written trit27_dot_product on 300 random vectors (ALL_MATCH)**. Full suite green (excl. pre-existing #1726). No compiler change, no reseal.
+
+---
+
 # NOW — feat: self-contained BitNet bundle (bundles trit_stdlib, elaborates standalone) (2026-08-05)
 
 Last updated: 2026-08-05
