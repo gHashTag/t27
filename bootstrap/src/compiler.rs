@@ -37,6 +37,7 @@ pub enum NodeKind {
     ExprIf,
     ExprStructLit,
     ExprArrayLiteral,
+    ExprTuple,
     ExprCast,
     ExprRange, // start..end
     // Statement nodes for fn bodies
@@ -1835,10 +1836,28 @@ impl Parser {
         decl.extra_mutable = self.current.kind == TokenKind::KwVar;
         self.advance(); // consume const/var
 
-        // Name
+        // Name, or a tuple-destructuring pattern `(a, b, ...)`.
         if self.current.kind == TokenKind::Ident {
             decl.name = self.current.lexeme.clone();
             self.advance();
+        } else if self.current.kind == TokenKind::LParen {
+            // `let (a, b) = expr` — store the comma-joined pattern in
+            // extra_field; name stays empty. Previously `(` was not consumed
+            // here, so the binding desynced and emitted `let ;`.
+            self.advance(); // consume (
+            let mut pat = String::new();
+            while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
+                match self.current.kind {
+                    TokenKind::Comma => pat.push_str(", "),
+                    TokenKind::Ident => pat.push_str(&self.current.lexeme),
+                    _ => {}
+                }
+                self.advance();
+            }
+            if self.current.kind == TokenKind::RParen {
+                self.advance(); // consume )
+            }
+            decl.extra_field = pat; // e.g. "a, b"
         }
 
         // Optional type annotation: : Type
@@ -2543,8 +2562,28 @@ impl Parser {
             TokenKind::LParen => {
                 self.advance(); // consume (
                 let inner = self.parse_expr()?;
-                self.expect(TokenKind::RParen)?;
-                Ok(inner)
+                if self.current.kind == TokenKind::Comma {
+                    // Tuple literal `(e0, e1, ...)`. Without this the parser
+                    // errored on the comma and the enclosing expression (e.g. a
+                    // tuple `return`) was dropped.
+                    let mut elems = vec![inner];
+                    while self.current.kind == TokenKind::Comma {
+                        self.advance(); // consume ,
+                        if self.current.kind == TokenKind::RParen {
+                            break; // trailing comma
+                        }
+                        elems.push(self.parse_expr()?);
+                    }
+                    self.expect(TokenKind::RParen)?;
+                    Ok(Node {
+                        kind: NodeKind::ExprTuple,
+                        children: elems,
+                        ..Default::default()
+                    })
+                } else {
+                    self.expect(TokenKind::RParen)?;
+                    Ok(inner)
+                }
             }
 
             // if expression: if (cond) expr else expr
@@ -10126,6 +10165,7 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
         if s.kind == NodeKind::StmtLocal
             && !s.children.is_empty()
             && s.name.is_empty()
+            && s.extra_field.is_empty() // keep tuple-destructuring locals (pattern in extra_field)
             && !reads.contains(&s.name)
         {
             return false;
@@ -11122,6 +11162,17 @@ impl RustCodegen {
                             self.write_line(&format!("{};", expr));
                         }
                     }
+                    NodeKind::StmtLocal
+                        if child.name.is_empty() && !child.extra_field.is_empty() =>
+                    {
+                        // Tuple-destructuring binding: `let (a, b) = init`.
+                        let val = if child.children.is_empty() {
+                            "()".to_string()
+                        } else {
+                            Self::expr_to_rust(&child.children[0])
+                        };
+                        self.write_line(&format!("let ({}) = {};", child.extra_field, val));
+                    }
                     NodeKind::StmtLocal => {
                         let mutable = child.extra_mutable || self.mut_names.contains(&child.name);
                         let kw = if mutable { "let mut" } else { "let" };
@@ -11264,6 +11315,17 @@ impl RustCodegen {
                 }
             }
             NodeKind::StmtLocal => {
+                // Tuple-destructuring binding: `let (a, b) = init` (name empty,
+                // pattern stored in extra_field by parse_local_decl).
+                if stmt.name.is_empty() && !stmt.extra_field.is_empty() {
+                    let val = if stmt.children.is_empty() {
+                        "()".to_string()
+                    } else {
+                        Self::expr_to_rust(&stmt.children[0])
+                    };
+                    self.write_line(&format!("let ({}) = {};", stmt.extra_field, val));
+                    return;
+                }
                 let kw = if stmt.extra_mutable || self.mut_names.contains(&stmt.name) { "let mut" } else { "let" };
                 let typ = Self::t27_type_to_rust(&stmt.extra_type);
                 if stmt.children.is_empty() {
@@ -11523,6 +11585,14 @@ impl RustCodegen {
                     .map(Self::expr_to_rust)
                     .collect();
                 format!("vec![{}]", elems.join(", "))
+            }
+            NodeKind::ExprTuple => {
+                let elems: Vec<String> = node
+                    .children
+                    .iter()
+                    .map(Self::expr_to_rust)
+                    .collect();
+                format!("({})", elems.join(", "))
             }
             NodeKind::ExprStructLit => {
                 let fields: Vec<String> = node
@@ -25952,6 +26022,33 @@ mod tests_phase40_coverage {
         assert!(
             out.contains("-> (u32, u32)"),
             "tuple-return function was dropped or its signature mangled: {}",
+            out
+        );
+    }
+
+    // gen-rust tuple support end-to-end: tuple literal `(a, b)` in a return and
+    // `let (s, d) = call()` destructuring must both emit valid Rust (they used
+    // to drop to `let ;` / `unimplemented!()`). Compiles under rustc.
+    #[test]
+    fn test_tuple_literal_and_destructuring_rust() {
+        let code = "module M { \
+            pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } \
+            pub fn use_it(a: u32, b: u32) -> u32 { let (s, d) = dm(a, b); return s + d; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("let (s, d) = dm(a, b)"),
+            "tuple destructuring not emitted: {}",
+            out
+        );
+        assert!(
+            out.contains("((a + b), (a - b))"),
+            "tuple literal not emitted: {}",
+            out
+        );
+        assert!(!out.contains("let ;"), "empty let leaked: {}", out);
+        assert!(
+            !out.contains("unimplemented!()"),
+            "tuple-return body stubbed to unimplemented: {}",
             out
         );
     }
