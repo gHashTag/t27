@@ -1,3 +1,16 @@
+# NOW — test: iverilog elaboration instrument for the assembled BitNet engine (2026-08-05)
+
+Last updated: 2026-08-05
+
+## test: elaborate the assembled BitNet engine bundle under iverilog (Closes #1730)
+
+- Branch: `feat/bitnet-elaborate-test`
+
+### Что легло
+- The BitNet HLS modules were validated only by substring asserts on emitted Verilog; **nothing elaborated the assembled engine** — the same structural blind spot that let the stale `bitnet_top` asserts (#1726) sit red unnoticed. New integration test `tests/bitnet_elaborate.rs` generates `gen-bitnet-bundle` + `gen-trit-stdlib` and runs `iverilog -g2012 -t null -s bitnet_engine_top` over all RTL (excl. the SVA property file), asserting clean elaboration; skips gracefully when iverilog is absent. Proven meaningful — during bring-up the same instrument caught `Unknown module type: trit27_dot_product` (the bundle omits its trit-stdlib dependency; making the bundle self-contained is a follow-up on #1730). Test-only; no compiler change, no reseal. Establishes the observability needed before any engine-top datapath change (e.g. the input≡weight aliasing at `bitnet_top.rs:217`).
+
+---
+
 # NOW — ci: fix fpga-build flags in fpga-synthesis jobs (unblock red CI) (2026-08-05)
 
 Last updated: 2026-08-05
