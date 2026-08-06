@@ -1,0 +1,12 @@
+{
+  "lines": [
+    "[TEST] read_var_idx_00 : starting",
+    "[TEST] read_var_idx_00 : PASSED",
+    "[TEST] read_var_idx_01 : starting",
+    "[TEST] read_var_idx_01 : PASSED",
+    "[TEST] read_var_idx_12 : starting",
+    "[TEST] read_var_idx_12 : PASSED",
+    "[TEST] write_var_idx_11 : starting",
+    "[TEST] write_var_idx_11 : PASSED"
+  ]
+}

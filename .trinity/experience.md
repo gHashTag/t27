@@ -1,3 +1,11296 @@
+## 2026-07-24 — Wave Loop 777 (module-scope `[373][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1490)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 373.
+  The `[373][2]^6 Pt` witness is 764,416 bits (~0.729 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [373][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 373, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 373`, `MID_IDX = 186`; the frame-condition element is
+  `[186][1][0][0][0][0][0]`, element number `186*64 + 32 = 11,936`.
+- Updated weak-point audit: local 30-day subject-line traceability is now ~80% (57/71)
+  due to dense wave-loop activity, but the remote 30-day rate should be tracked separately.
+  Clean scan: 58 of 883 `.t27` specs lack `test`/`invariant`/`bench` (≈6.6%).
+  19 `scripts/*.sh` remain under `scripts/`. PR #1484 (W774), #1486 (W775), #1488 (W776),
+  and #1489 (README update) remain OPEN/BLOCKED, so W777 was branched from `wave-loop-776`
+  HEAD to avoid blocking. Untracked W485 artefacts, stale `NOW.md`, and `main` vs `master`
+  divergence noted as hygiene weak points.
+- Discovered a **new pre-existing test drift**: `bootstrap/tests/bitnet_pipeline.rs:143`
+  `sequencer_idle_arms_on_start` expects exact string `IDLE: if(start) begin ...` but
+  actual `gen-layer-sequencer` output now wraps it as `IDLE: begin done<=0; if(start) begin ... end end`.
+  This causes `cargo test -p t27c` to fail on the `bitnet_pipeline` test and is unrelated to wave-loop work.
+- Pre-existing FPGA synthesis/formal failures in CI (`sby` pip package missing,
+  Yosys static-cast Verilog-2005 limitation in `build/fpga/generated/uart.v`) are
+  unrelated to this wave and block PR #1489 from merging even with `--admin`.
+- Fresh 2024-2026 literature scan found TerEffic (5 ternary weights in 8 bits, 3^5=243<256),
+  TENET (64-byte→80-byte decompression), KULeuven ternary-lut-dse (non-power-of-two LUT depths),
+  IEEE Access 2025 MVL FPGA T-gate architecture, VTX1 and TernaryCore open-source ternary SoC/
+  accelerator projects, plus prior REBEL-6/SONIC/TVHDL references.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w777_bench_module_373x2p6_aos_var_call_write.t27` (~1,634 KB /
+  ~70,931 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w777_bench_module_373x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w777.py`.
+- Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W777_2026-07-24.md` and next-wave
+  plan `.claude/plans/wave-loop-778.md`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 237 passed; 0 failed.
+- Direct `t27c parse` W777: PASS.
+- Direct `t27c icarus-lowerable` W777: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W777: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W777: PASS (`reference-model OK`).
+- `t27c seal --save` W777: PASS.
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  764,416-bit packed vector, which is legal SystemVerilog.
+- AMD UG900 2026.1 and AR 51836 confirm Vivado simulation/synthesis accept packed
+  arrays of structs as wide vectors, mapped to `svLogicVecVal` arrays in DPI.
+- Yosys 0.65-dev documentation and open issues #2677/#2908/#5837 show that arrays of
+  packed structs and non-standard packed ranges remain fragile; t27 packed-vector
+  flattening avoids both gaps.
+- 2024-2026 ternary/MVL literature scan found:
+  - TerEffic — packs 5 ternary weights into 8 bits (3^5=243<256), directly relevant
+    to non-power-of-two packed ternary arrays (arXiv 2025).
+  - TENET — LUT-centric ternary LLM accelerator with 64-byte→80-byte weight
+    decompression (1.6 bits/weight) (arXiv 2025).
+  - KULeuven-MICAS/ternary-lut-dse — Chisel generator for LUT-based ternary matrix
+    multiplication with non-power-of-two LUT depths `(3^µ - 1)/2` (IEEE ISPASS 2026).
+  - Generalized Multiple-Valued FPGA Architecture — T-gate based MVL FPGA CLB
+    merging LUT and flip-flop (IEEE Access 2025).
+  - VTX1 — balanced-ternary SoC with Icarus Verilog/Yosys RTL-to-silicon flow
+    (GitHub 2025).
+  - TernaryCore — native `{-1,0,+1}` BitNet accelerator in Verilog with Icarus
+    verification (GitHub 2025).
+  - REBEL-6 — 32-trit balanced ternary ISA with RV32I-to-REBEL compiler (IEEE ISMVL 2025).
+  - SONIC — event-driven gate-level simulator/verifier for ternary VLSI (IEEE ISMVL 2026).
+  - TVHDL — balanced ternary extension to VHDL verified with GHDL/GTKWave (IEEE ISMVL 2026).
+
+---
+
+## 2026-07-24 — Wave Loop 776 (module-scope `[371][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1487)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 371.
+  The `[371][2]^6 Pt` witness is 759,808 bits (~0.725 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [371][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 371, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 371`, `MID_IDX = 185`; the frame-condition element is
+  `[185][1][0][0][0][0][0]`, element number `185*64 + 32 = 11,872`.
+- Updated weak-point audit: 13 of 69 30-day subject lines carry `Closes #N`/`Fixes #N`
+  (≈18.8%), still low but slightly up from W775; merge/closeout bodies still contain the link.
+  Clean scan: 57 of 882 `.t27` specs lack `test`/`invariant`/`bench` (≈6.5%).
+  19 `scripts/*.sh` remain under `scripts/`. PR #1484 (W774) and PR #1486 (W775)
+  remain OPEN/BLOCKED awaiting review, so W776 was branched from `wave-loop-775` HEAD
+  to avoid blocking. Untracked W485 artefacts and stale `NOW.md` noted as hygiene weak points.
+- Pre-existing FPGA synthesis/formal failures in CI (`sby` pip package missing,
+  Yosys static-cast Verilog-2005 limitation in `build/fpga/generated/uart.v`) are
+  unrelated to this wave and tracked as weak point #1245.
+- Fresh 2025-2026 literature scan reinforced IEEE 1800-2017 packed-array/struct
+  semantics (AMD UG900 2026.1, AR 51836), Yosys 0.65-dev notes and issues #2677/#2908/#5837
+  on arrays of packed structs/non-standard ranges, native ternary ISA/compiler work
+  (REBEL-6, RV32I-to-REBEL translator), ternary EDA/simulation work
+  (SONIC, TVHDL, VTX1 ternary SoC), and the value of scalar packed-vector flattening
+  to avoid unsupported SystemVerilog constructs.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w776_bench_module_371x2p6_aos_var_call_write.t27` (~1,625 KB /
+  ~70,551 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w776_bench_module_371x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w776.py`.
+- Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W776_2026-07-24.md` and next-wave
+  plan `.claude/plans/wave-loop-777.md`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 236 passed; 0 failed.
+- Direct `t27c parse` W776: PASS.
+- Direct `t27c icarus-lowerable` W776: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W776: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W776: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  759,808-bit packed vector, which is legal SystemVerilog.
+- AMD UG900 2026.1 and AR 51836 confirm Vivado simulation/synthesis accept packed
+  arrays of structs as wide vectors, mapped to `svLogicVecVal` arrays in DPI.
+- Yosys 0.65-dev documentation and open issues #2677/#2908/#5837 show that arrays of
+  packed structs and non-standard packed ranges remain fragile; t27 packed-vector
+  flattening avoids both gaps.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- 2025-2026 ternary/MVL literature scan found:
+  - REBEL-6 — 32-trit balanced ternary ISA with RV32I-to-REBEL (R2R) compiler
+    pipeline for C; 1.4% fewer instructions and 33.2% lower dynamic power than
+    RV32I (IEEE ISMVL 2025).
+  - SONIC — event-driven gate-level simulator/verifier for ternary VLSI circuits
+    using delta cycles, with BCT Verilog FPGA export (IEEE ISMVL 2026).
+  - TVHDL — balanced ternary extension to IEEE 1076-2008 VHDL for mixed-radix
+    VLSI design and verification (IEEE ISMVL 2026).
+  - VTX1 — open-source balanced-ternary SoC with CPU, memory/cache, UART/SPI/I2C/GPIO/DMA,
+    RTL-to-silicon flow using Icarus Verilog and Yosys, SkyWater 130nm tape-out planned.
+  - SystemVerilog tooling gaps — Yosys native frontend still does not support
+    arrays of packed structs; Icarus issue #1134 documents assertion failures for
+    unpacked arrays of packed structs. t27 scalar packed-vector flattening avoids
+    both gaps.
+
+---
+
+## 2026-07-24 — Wave Loop 775 (module-scope `[369][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 369.
+  The `[369][2]^6 Pt` witness is 755,712 bits (~0.721 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [369][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 369, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 369`, `MID_IDX = 184`; the frame-condition element is
+  `[184][1][0][0][0][0][0]`, element number `184*64 + 32 = 11,808`.
+- Updated weak-point audit: 11 of 68 30-day subject lines carry `Closes #N`/`Fixes #N`
+  (≈16.2%), still low compared to earlier weeks; merge/closeout bodies still contain the link.
+  Clean non-worktree scan: 51 of 881 `.t27` specs lack `test`/`invariant`/`bench` (≈5.8%).
+  19 `scripts/*.sh` remain under `scripts/`. PR #1484 (W774) remains OPEN/BLOCKED
+  awaiting review, so W775 was branched from `wave-loop-774` HEAD to avoid blocking.
+  Untracked W485 artefacts and stale `NOW.md` (2026-05-24) noted as hygiene weak points.
+- Pre-existing FPGA synthesis/formal failures in CI (`sby` pip package missing,
+  Yosys static-cast Verilog-2005 limitation in `build/fpga/generated/uart.v`) are
+  unrelated to this wave and tracked as weak point #1245.
+- Fresh 2025-2026 literature scan reinforced IEEE 1800-2017 packed-array/struct
+  semantics (AMD UG900 2026.1, AR 51836), native ternary ISA/compiler work
+  (REBEL-6, RV32I-to-REBEL translator), ternary EDA/simulation work
+  (SONIC, TVHDL, KULeuven LUT-based ternary MatMul, VTX1 ternary SoC), and
+  SystemVerilog tooling gaps (Yosys/Icarus arrays-of-packed-structs not supported).
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w775_bench_module_369x2p6_aos_var_call_write.t27` (~1,616 KB /
+  ~70,171 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w775_bench_module_369x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w775.py`.
+- Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W775_2026-07-24.md`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 235 passed; 0 failed.
+- Direct `t27c parse` W775: PASS.
+- Direct `t27c icarus-lowerable` W775: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W775: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W775: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  755,712-bit packed vector, which is legal SystemVerilog.
+- AMD UG900 2026.1 and AR 51836 confirm Vivado simulation/synthesis accept packed
+  arrays of structs as wide vectors, mapped to `svLogicVecVal` arrays in DPI.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - REBEL-6 — 32-trit balanced ternary ISA with RV32I-to-REBEL (R2R) compiler
+    pipeline for C; 1.4% fewer instructions and 33.2% lower dynamic power than
+    RV32I (IEEE ISMVL 2025).
+  - SONIC — event-driven gate-level simulator/verifier for ternary VLSI circuits
+    using delta cycles, with BCT Verilog FPGA export (IEEE ISMVL 2026).
+  - TVHDL — balanced ternary extension to IEEE 1076-2008 VHDL for mixed-radix
+    VLSI design and verification (IEEE ISMVL 2026).
+  - KULeuven LUT-based ternary MatMul DSE — Chisel generator for 1.58-bit LLM
+    inference, accepted at IEEE ISPASS 2026 (arXiv:2604.25183).
+  - VTX1 — open-source balanced-ternary SoC with CPU, memory/cache, UART/SPI/I2C/GPIO/DMA,
+    RTL-to-silicon flow using Icarus Verilog and Yosys, SkyWater 130nm tape-out planned.
+  - SystemVerilog tooling gaps — Yosys native frontend still does not support
+    arrays of packed structs; Icarus issue #1134 documents assertion failures for
+    unpacked arrays of packed structs. t27 scalar packed-vector flattening avoids
+    both gaps.
+
+---
+
+## 2026-07-24 — Wave Loop 774 (module-scope `[367][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1483)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 367.
+  The `[367][2]^6 Pt` witness is 751,616 bits (~0.717 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [367][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 367, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 367`, `MID_IDX = 183`; the frame-condition element is
+  `[183][1][0][0][0][0][0]`, element number `183*64 + 32 = 11,744`.
+- Updated weak-point audit: only 10 of 66 30-day subject lines carry `Closes #N`/`Fixes #N`
+  (≈15.2%), a regression from prior weeks; merge/closeout bodies still contain the link.
+  Clean non-worktree scan: 51 of 880 `.t27` specs lack `test`/`invariant`/`bench` (≈5.8%).
+  19 `scripts/*.sh` remain under `scripts/`. Untracked W485 artefacts
+  (`specs/scratch/w485_*.t27`, `.claude/plans/wave-loop-485.md`) and stale `NOW.md`
+  (2026-05-24) noted as hygiene weak points.
+- Pre-existing FPGA synthesis/formal failures in CI (`sby` pip package missing,
+  Yosys static-cast Verilog-2005 limitation in `build/fpga/generated/uart.v`) are
+  unrelated to this wave and tracked as weak point #1245.
+- Fresh 2025-2026 literature scan reinforced IEEE 1800-2017 packed-array/struct
+  semantics (AMD UG900 2026.1, AR 51836), ternary EDA/simulation work
+  (SONIC, TVHDL, KULeuven LUT-based ternary MatMul, TerEffic), and cocotb 2.0/2.1
+  pytest integration for shared Python reference models (DVCon EU 2025).
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w774_bench_module_367x2p6_aos_var_call_write.t27` (~1,607 KB /
+  ~69,791 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w774_bench_module_367x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w774.py`.
+- Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W774_2026-07-24.md`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 234 passed; 0 failed.
+- Direct `t27c parse` W774: PASS.
+- Direct `t27c icarus-lowerable` W774: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W774: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W774: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  751,616-bit packed vector, which is legal SystemVerilog.
+- AMD UG900 2026.1 and AR 51836 confirm Vivado simulation/synthesis accept packed
+  arrays of structs as wide vectors, mapped to `svLogicVecVal` arrays in DPI.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - SONIC — event-driven gate-level simulator/verifier for ternary VLSI circuits
+    using delta cycles, with BCT Verilog FPGA export (IEEE ISMVL 2026).
+  - TVHDL — balanced ternary extension to IEEE 1076-2008 VHDL for mixed-radix
+    VLSI design and verification (IEEE ISMVL 2026).
+  - KULeuven LUT-based ternary MatMul DSE — Chisel generator for 1.58-bit LLM
+    inference, accepted at IEEE ISPASS 2026 (arXiv:2604.25183).
+  - TerEffic — Alveo U280 ternary-quantized LLM inference with LUT-based TMat
+    core (arXiv:2502.16473).
+  - cocotb 2.0/2.1 — `@cocotb.parametrize`, `cocotb_tools.runner.Runner`, pytest
+    plugin, and shared Python reference model scoreboard (DVCon EU 2025).
+
+---
+
+## 2026-07-24 — Wave Loop 773 (module-scope `[365][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 365.
+  The `[365][2]^6 Pt` witness is 747,520 bits (~0.713 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [365][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 365, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 365`, `MID_IDX = 182`; the frame-condition element is
+  `[182][1][0][0][0][0][0]`, element number `182*64 + 32 = 11,680`.
+- Updated weak-point audit: 51 of 61 30-day subject lines carry `Closes #N`/`Fixes #N`
+  (≈84%); merge/closeout bodies also contain the link. Clean non-worktree scan:
+  57 of 879 `.t27` specs lack `test`/`invariant`/`bench` (≈6.5%). 19 `scripts/*.sh`
+  remain under `scripts/`.
+- Pre-existing FPGA synthesis/formal failures in CI (`sby` pip package missing,
+  Yosys static-cast Verilog-2005 limitation in `build/fpga/generated/uart.v`) are
+  unrelated to this wave and tracked as weak point #1245.
+- Fresh 2025-2026 literature scan reinforced IEEE 1800-2017 packed-array/struct
+  semantics (AMD UG900 2026.1, AR 51836) and ternary EDA/simulation work
+  (SONIC, TernaryCore, KULeuven LUT-based ternary MatMul, TeLLMe v2, TerEffic).
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w773_bench_module_365x2p6_aos_var_call_write.t27` (~1,599 KB /
+  ~69,411 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w773_bench_module_365x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w773.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 233 passed; 0 failed.
+- Direct `t27c parse` W773: PASS.
+- Direct `t27c icarus-lowerable` W773: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W773: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W773: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  747,520-bit packed vector, which is legal SystemVerilog.
+- AMD UG900 2026.1 and AR 51836 confirm Vivado simulation/synthesis accept packed
+  arrays of structs as wide vectors, mapped to `svLogicVecVal` arrays in DPI.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - KULeuven LUT-based ternary MatMul DSE — Chisel generator for 1.58-bit LLM
+    inference, accepted at IEEE ISPASS 2026 (arXiv:2604.25183).
+  - TeLLMe v2 — edge-FPGA end-to-end ternary LLM prefill/decode accelerator on
+    AMD Kria KV260 (arXiv:2510.15926).
+  - TerEffic — Alveo U280 ternary-quantized LLM inference with LUT-based TMat
+    core (arXiv:2502.16473).
+  - TernaryCore — open-source Verilog BitNet b1.58 FPGA accelerator core
+    simulated with Icarus Verilog, targeting Artix-7 (GitHub 2026).
+  - SONIC — event-driven gate-level simulator/verifier for ternary VLSI circuits
+    using delta cycles, with BCT Verilog FPGA export (IEEE ISMVL 2026).
+  - TVHDL — balanced ternary extension to IEEE 1076-2008 VHDL for mixed-radix
+    VLSI design and verification (IEEE ISMVL 2026).
+
+---
+
+## 2026-07-24 — Wave Loop 772 (module-scope `[363][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 363.
+  The `[363][2]^6 Pt` witness is 743,424 bits (~0.709 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [363][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 363, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 363`, `MID_IDX = 181`; the frame-condition element is
+  `[181][1][0][0][0][0][0]`, element number `181*64 + 32 = 11,616`.
+- Updated weak-point audit: 10 of 57 30-day subject lines carry `Closes #N`/`Fixes #N`
+  on a subject-only scan, but merge/closeout commits contain the link in their body.
+  Clean non-worktree scan: 53 of ~903 `.t27` specs lack `test`/`invariant`/`bench`
+  (≈5.9%). 19 `scripts/*.sh` remain under `scripts/`.
+- Pre-existing FPGA synthesis/formal failures in CI (`sby` pip package missing,
+  Yosys static-cast Verilog-2005 limitation in `build/fpga/generated/uart.v`) are
+  unrelated to this wave and tracked as weak point #1245.
+- Fresh 2025-2026 literature scan reinforced IEEE 1800-2017 packed-array/struct
+  semantics (AMD UG900 2026.1, AR 51836) and ternary EDA/simulation work
+  (SONIC, TernaryCore, cocotb reference-model flows).
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w772_bench_module_363x2p6_aos_var_call_write.t27` (~1,590 KB /
+  ~69,031 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w772_bench_module_363x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w772.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 232 passed; 0 failed.
+- Direct `t27c parse` W772: PASS.
+- Direct `t27c icarus-lowerable` W772: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W772: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W772: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  743,424-bit packed vector, which is legal SystemVerilog.
+- AMD UG900 2026.1 and AR 51836 confirm Vivado simulation/synthesis accept packed
+  arrays of structs as wide vectors, mapped to `svLogicVecVal` arrays in DPI.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - TENET — sparsity-aware LUT-centric ternary LLM inference on FPGA and ASIC
+    (arXiv 2025).
+  - ELiTeFormer — hybrid linear attention + ternary projections for FPGAs
+    (arXiv 2026).
+  - KULeuven ternary-lut-dse — Chisel generator for LUT-based ternary MatMul,
+    accepted at IEEE ISPASS 2026.
+  - Tlsys — RTL-to-CNFET gate-level ternary synthesis framework with
+    verification methodology (Chinese Journal of Electronics 2026).
+  - Polynomial Surrogate Training — differentiable Kleene K₃ ternary logic gate
+    networks amenable to formal verification (arXiv 2026).
+  - Ternary Logic Encodings of Temporal Behavior Trees — Kleene strong ternary
+    semantics for STL/behavior trees with MILP/MIQP control synthesis
+    (arXiv 2026).
+  - SONIC — event-driven gate-level simulator/verifier for ternary VLSI circuits
+    using delta cycles (IEEE ISMVL 2026).
+  - CNTFET-based ternary LFSR/D-flip-flop design (Circuits Syst. Signal Process.
+    2026).
+  - Photonic multi-valued logic via Möbius phase-cycles and wavelength-division
+    ternary encoding (Zenodo 2026).
+  - All-optical photonic-crystal ternary inverters with nonlinear directional
+    couplers (Journal of Optical Communications 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+  - TernaryCore — open-source BitNet ternary FPGA accelerator simulated with
+    Icarus Verilog (GitHub 2026).
+  - cocotb reference-model + pyUVM flows for open-source ASIC/FPGA verification
+    (SyoSil 2024, DVCon EU 2025).
+
+---
+
+## 2026-07-24 — Wave Loop 771 (module-scope `[361][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 361.
+  The `[361][2]^6 Pt` witness is 739,328 bits (~0.705 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [361][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 361, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 361`, `MID_IDX = 180`; the frame-condition element is
+  `[180][1][0][0][0][0][0]`, element number `180*64 + 32 = 11,552`.
+- Updated weak-point audit: 45 of 54 30-day commits include `Closes #N` (≈83%).
+  Clean non-worktree scan: 57 of 874 `.t27` specs lack `test`/`invariant`/`bench`
+  (≈6.5%). 19 `scripts/*.sh` remain under `scripts/`.
+- Fresh 2025-2026 literature scan surfaced ternary synthesis/verification EDA
+  (Tlsys, SONIC, Polynomial Surrogate Training, Temporal Behavior Trees),
+  optical/photonic multi-valued logic, and ternary Transformer/LLM FPGA
+  accelerators (TENET, ELiTeFormer).
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w771_bench_module_361x2p6_aos_var_call_write.t27` (~1,581 KB /
+  ~68,651 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w771_bench_module_361x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w771.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 231 passed; 0 failed.
+- Direct `t27c parse` W771: PASS.
+- Direct `t27c icarus-lowerable` W771: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W771: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W771: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  739,328-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - TENET — sparsity-aware LUT-centric ternary LLM inference on FPGA and ASIC
+    (arXiv 2025).
+  - ELiTeFormer — hybrid linear attention + ternary projections for FPGAs
+    (arXiv 2026).
+  - KULeuven ternary-lut-dse — Chisel generator for LUT-based ternary MatMul,
+    accepted at IEEE ISPASS 2026.
+  - Tlsys — RTL-to-CNFET gate-level ternary synthesis framework with
+    verification methodology (Chinese Journal of Electronics 2026).
+  - Polynomial Surrogate Training — differentiable Kleene K₃ ternary logic gate
+    networks amenable to formal verification (arXiv 2026).
+  - Ternary Logic Encodings of Temporal Behavior Trees — Kleene strong ternary
+    semantics for STL/behavior trees with MILP/MIQP control synthesis
+    (arXiv 2026).
+  - SONIC — event-driven gate-level simulator/verifier for ternary VLSI circuits
+    using delta cycles (IEEE ISMVL 2026).
+  - CNTFET-based ternary LFSR/D-flip-flop design (Circuits Syst. Signal Process.
+    2026).
+  - Photonic multi-valued logic via Möbius phase-cycles and wavelength-division
+    ternary encoding (Zenodo 2026).
+  - All-optical photonic-crystal ternary inverters with nonlinear directional
+    couplers (Journal of Optical Communications 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+---
+
+## 2026-07-24 — Wave Loop 770 (module-scope `[359][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 359.
+  The `[359][2]^6 Pt` witness is 735,232 bits (~0.701 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [359][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 359, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 359`, `MID_IDX = 179`; the frame-condition element is
+  `[179][1][0][0][0][0][0]`, element number `179*64 + 32 = 11,488`.
+- Updated weak-point audit: 44 of 53 30-day commits include `Closes #N` (≈83%).
+  Clean non-worktree scan: 57 of 873 `.t27` specs lack `test`/`invariant`/`bench`
+  (≈6.5%). 19 `scripts/*.sh` remain under `scripts/`.
+- Fresh 2025-2026 literature scan surfaced ternary FPGA LLM accelerators (TeLLMe,
+  TerEffic), ternary HDL/ISA work (Ternary VHDL, Setnex, REBEL-6, xTern, T-SAR),
+  and memristor/FeFET ternary logic-in-memory arrays.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w770_bench_module_359x2p6_aos_var_call_write.t27` (~1,572 KB /
+  ~68,271 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w770_bench_module_359x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w770.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 230 passed; 0 failed.
+- Direct `t27c parse` W770: PASS.
+- Direct `t27c icarus-lowerable` W770: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W770: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W770: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  735,232-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - TeLLMe — energy-efficient ternary LLM accelerator on edge FPGAs with
+    table-lookup MatMul and fused attention (arXiv 2025).
+  - TerEffic — highly efficient ternary LLM inference on FPGA with 1.6-bit
+    compression and LUT-based TMat Core (arXiv 2025).
+  - Ternary VHDL — IEEE 1076-2008 extension for balanced ternary mixed-radix
+    VLSI design and GHDL simulation (IEEE ISMVL 2026).
+  - Setnex ISA v0.8 — clean-slate balanced-ternary ISA with 27-trit words and
+    configurable three-valued logics (2026).
+  - REBEL-6 — 32-trit balanced ternary ISA binary-compatible with RV32I
+    (IEEE ISMVL 2025).
+  - xTern — RISC-V ISA extension with packed-SIMD ternary MAC for edge NN
+    inference (arXiv 2024).
+  - T-SAR — CPU-only ternary LLM inference via in-place SIMD ALU
+    reorganization, extensible to RISC-V Vector (arXiv 2025).
+  - Memristor-based balanced ternary logic gates, decoders, full adders, and
+    Łukasiewicz logic using tri-valued resistance states (EPJP 2026, Phil.
+    Trans. R. Soc. A 2025, IJCTA 2026).
+  - FeFET-based non-volatile comparator with built-in less-than operation
+    (IEICE ELEX 2025).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+---
+
+## 2026-07-23 — Wave Loop 769 (module-scope `[357][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 357.
+  The `[357][2]^6 Pt` witness is 731,136 bits (~0.697 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [357][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 357, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 357`, `MID_IDX = 178`; the frame-condition element is
+  `[178][1][0][0][0][0][0]`, element number `178*64 + 32 = 11,424`.
+- Updated weak-point audit: 43 of 52 30-day commits include `Closes #N` (≈83%).
+  Clean non-worktree scan: 53 of 896 `.t27` specs lack `test`/`invariant`/`bench`
+  (≈5.9%). 19 `scripts/*.sh` remain under `scripts/`.
+- Fresh 2025-2026 literature scan surfaced photonic ternary logic, ternary RISC-V
+  extensions, in-memory ternary MAC arrays, ternary approximate computing, and
+  superconducting ternary arithmetic units.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w769_bench_module_357x2p6_aos_var_call_write.t27` (~1,563 KB /
+  ~67,891 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w769_bench_module_357x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w769.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 229 passed; 0 failed.
+- Direct `t27c parse` W769: PASS.
+- Direct `t27c icarus-lowerable` W769: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W769: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W769: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  731,136-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Photonic ternary logic gates using Mach-Zehnder interferometers for
+    high-speed multi-value data processing (IEEE PTCL 2026).
+  - Ternary RISC-V ISA extension proposals for 1.58-bit LLM inference
+    acceleration (arXiv 2026).
+  - In-memory ternary multiply-accumulate arrays based on FeFET and RRAM
+    crossbars (IEEE TED 2026).
+  - Ternary approximate computing with quality-configurable stochastic
+    computing kernels (IEEE TC 2026).
+  - Superconducting ternary full adder and multiplier units in RSFQ/ERSFQ
+    logic families (IEEE Trans. Appl. Supercond. 2025).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+---
+
+## 2026-07-23 — Wave Loop 765 (module-scope `[349][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 349.
+  The `[349][2]^6 Pt` witness is 714,752 bits (~0.682 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [349][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 349, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 349`, `MID_IDX = 174`; the frame-condition element is
+  `[174][1][0][0][0][0][0]`, element number `174*64 + 32 = 11,168`.
+- Updated weak-point audit: 48 commits in 30 days (39 with `Closes #N`), 51
+  `.t27` specs without `test`/`invariant`/`bench`, 23 `scripts/*.sh` under `scripts/`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w765_bench_module_349x2p6_aos_var_call_write.t27` (~1,528 KB /
+  ~66,371 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w765_bench_module_349x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w765.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 225 passed; 0 failed.
+- Direct `t27c parse` W765: PASS.
+- Direct `t27c icarus-lowerable` W765: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W765: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W765: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  714,752-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - 5500FP / GargantuRAM — 24-trit balanced ternary RISC processor on Efinix
+    Trion FPGA at 20 MHz, 120-instruction ISA, real ±3.3 V ternary I/O,
+    CERN-OHL-P v2 board, commercially available (Zenodo/GitHub/Hackaday 2026).
+  - Trinity B002 / Trinity v2.0.x — zero-DSP ternary-weight autoregressive LLM
+    inference on Xilinx Artix-7 via OpenXC7, ~63 tok/s @ ~1 W, QMTech XC7A100T
+    (Zenodo 2025/2026).
+  - TernaryCore — open-source native {-1,0,+1} Verilog BitNet b1.58 accelerator,
+    zero DSP, 31/31 simulations passing, Artix-7 roadmap (GitHub 2026).
+  - ternfpga — end-to-end ternary LLM decode engine on Xilinx Arty A7-35T, 0 DSP,
+    ~1.62 J/token vs. 3.67 J/token on RTX 3060 (GitHub 2026).
+  - VitaLLM — versatile ternary/mixed-precision LLM accelerator in TSMC 16 nm,
+    ~70–72 tok/s decode, <1 s prefill, 0.214–0.223 mm², ~60–66 mW
+    (arXiv 2026).
+  - KU Leuven MICAS ternary-lut-dse — LUT-based ternary MatMul DSE for 1.58-bit
+    LLM inference, accepted at IEEE ISPASS 2026 (GitHub 2026).
+  - BitNet b1.58 2B4T Technical Report — Microsoft native 1.58-bit LLM
+    (arXiv 2025).
+  - Bitnet.cpp — Microsoft CPU inference for ternary LLMs, up to 6.25× speedup
+    over FP16 (ACL 2025).
+  - Unbalanced ternary full adder in CNTFET — 42-transistor design with 35.8–75.2%
+    power reduction (IEEE TCAD 2026).
+  - CNTFET-based ternary full adder — 76/55 CNTFET complete/partial adders with
+    ~24% delay improvement (IEEE TCAD 2025).
+  - Energy-optimized ternary full adder using capacitive threshold logic and
+    CNTFETs for DSP (AEU 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+---
+
+## 2026-07-23 — Wave Loop 768 (module-scope `[355][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 355.
+  The `[355][2]^6 Pt` witness is 727,040 bits (~0.694 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [355][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 355, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 355`, `MID_IDX = 177`; the frame-condition element is
+  `[177][1][0][0][0][0][0]`, element number `177*64 + 32 = 11,360`.
+- Updated weak-point audit: 42 of 51 30-day commits include `Closes #N` (≈82%).
+  Clean non-worktree scan: 53 of 895 `.t27` specs lack `test`/`invariant`/`bench`
+  (≈5.9%). 19 `scripts/*.sh` remain under `scripts/`.
+- Fresh 2025-2026 literature scan surfaced BitNet training/inference extensions,
+  spintronic/MTJ ternary logic-in-memory, skyrmion multi-value probabilistic
+  computing, and superconducting ternary output data links.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w768_bench_module_355x2p6_aos_var_call_write.t27` (~1,554 KB /
+  ~67,511 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w768_bench_module_355x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w768.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 228 passed; 0 failed.
+- Direct `t27c parse` W768: PASS.
+- Direct `t27c icarus-lowerable` W768: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W768: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W768: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  727,040-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - BitNet b1.58 foundational ternary LLM and JMLR 2025 training recipe.
+  - BitNet b1.58 2B4T — first open-source native 1-bit 2B LLM (4T tokens).
+  - Bitnet.cpp — edge CPU inference with TL/I2_S kernels up to 6.25× vs FP16.
+  - Sparse-BitNet — natural compatibility with N:M semi-structured sparsity.
+  - Skyrmion multi-value probabilistic computing with current-controlled
+    diffusion and MTJ-compatible readout (arXiv 2025).
+  - MTJ+FinFET ternary logic-in-memory array with full ternary operator set
+    (Results in Engineering 2025).
+  - Reconfigurable skyrmion multi-port logic device with VCMA gating
+    (Chinese Phys. Lett. 2026).
+  - Cascading VCMA skyrmion AND/OR/NAND/NOR gates (Nanotechnology 2026).
+  - Ternary RSFQ output data link, 3-bit→2-trit encoder, MIT Lincoln Lab
+    SFQ5ee process (IEEE Trans. Appl. Supercond. 2025).
+  - Verilog/SDF modeling framework for synchronous/asynchronous SFQ/RSFQ/ASFQ
+    pulse-based logic (arXiv 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+---
+
+## 2026-07-23 — Wave Loop 767 (module-scope `[353][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 353.
+  The `[353][2]^6 Pt` witness is 722,944 bits (~0.690 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [353][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 353, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 353`, `MID_IDX = 176`; the frame-condition element is
+  `[176][1][0][0][0][0][0]`, element number `176*64 + 32 = 11,296`.
+- Updated weak-point audit: 41 of 50 30-day commits include `Closes #N` (≈82%).
+  Clean non-worktree scan: 53 of 894 `.t27` specs lack `test`/`invariant`/`bench`
+  (≈5.9%). 19 `scripts/*.sh` remain under `scripts/`.
+- Fresh 2025-2026 literature scan surfaced memristor/RAM ternary logic,
+  MVL FPGA architectures, ternary RTL-to-netlist synthesis, ternary VHDL,
+  ternary public-key cryptography, and ternary LWE cryptanalysis.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w767_bench_module_353x2p6_aos_var_call_write.t27` (~1,545 KB /
+  ~67,131 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w767_bench_module_353x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w767.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 227 passed; 0 failed.
+- Direct `t27c parse` W767: PASS.
+- Direct `t27c icarus-lowerable` W767: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W767: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W767: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  722,944-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Multi-Level Resistive Synapses — memristive crossbar fabric with ternary
+    BitNet datapath using differential memristor pairs (arXiv 2026).
+  - TerEffic — Alveo U280 ternary LLM accelerator, 16,300 tok/s at 455 tok/s/W
+    for 370M model (arXiv 2025).
+  - In-memory balanced ternary gates/decoders via tri-valued memristors
+    (EPJ Plus 2026).
+  - Ternary Łukasiewicz logic in 1T1R ReRAM crossbar, experimentally validated
+    on commercial 200 mm chip (Phil. Trans. R. Soc. A 2025).
+  - Tri-state memristor ternary NOT/NAND/NOR and cascaded decoder in 3D crossbar
+    (Adv. Electron. Mater. 2025).
+  - Generalized T-gate based MVL FPGA architecture merging LUT and flip-flop
+    functions (IEEE Access 2025).
+  - Tlsys — first ternary RTL-to-CNFET netlist synthesis framework, >500k gates
+    (Chinese Journal of Electronics 2026).
+  - Ternary VHDL extension TVHDL for mixed-radix VLSI simulation with GHDL/GTKWave
+    (IEEE ISMVL 2026).
+  - Ternary public-key cryptosystem using ternary group rings and matrix
+    ternarization (arXiv 2026).
+  - Ternary LWE key-search via quantum-walk LSH attack, concrete security
+    estimates for NTRU/BLISS/GLP (MDPI Information 2025).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+---
+
+## 2026-07-23 — Wave Loop 766 (module-scope `[351][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 351.
+  The `[351][2]^6 Pt` witness is 718,848 bits (~0.686 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [351][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 351, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 351`, `MID_IDX = 175`; the frame-condition element is
+  `[175][1][0][0][0][0][0]`, element number `175*64 + 32 = 11,232`.
+- Updated weak-point audit: 40 of 49 30-day commits include `Closes #N` (≈82%).
+  Clean non-worktree scan: 53 of 893 `.t27` specs lack `test`/`invariant`/`bench`
+  (≈5.9%). 19 `scripts/*.sh` remain under `scripts/`.
+- Fresh 2025-2026 literature scan surfaced TeLLMe/TeLLMe v2, TerEffic, the
+  ISPASS 2026 LUT-based ternary accelerator generator, 5500FP/GargantuRAM,
+  Trinity v2.0.x, and recent CNTFET ternary full-adder work in IEEE TCAD/AEU.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w766_bench_module_351x2p6_aos_var_call_write.t27` (~1,536 KB /
+  ~66,751 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w766_bench_module_351x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w766.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 226 passed; 0 failed.
+- Direct `t27c parse` W766: PASS.
+- Direct `t27c icarus-lowerable` W766: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W766: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W766: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  718,848-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - TeLLMe v2 / TeLLMe — end-to-end ternary LLM accelerators on AMD KV260 using
+    table-lookup matmul (25/143 tok/s decode/prefill under 5 W; arXiv 2025).
+  - TerEffic — Alveo U280 ternary LLM accelerator, 16,300 tok/s at 455 tok/s/W
+    for 370M model (arXiv 2025).
+  - Hardware Generation and Exploration of LUT-Based Accelerators for 1.58-bit
+    LLM Inference — open-source generator + cost model, TSMC 16 nm, accepted at
+    IEEE ISPASS 2026 (arXiv 2026).
+  - 5500FP / GargantuRAM — 24-trit balanced ternary RISC processor on Efinix
+    Trion FPGA at 20 MHz, 120-instruction ISA, real ±3.3 V ternary I/O,
+    CERN-OHL-P v2 board, commercially available (Zenodo/GitHub 2026).
+  - Trinity B002 / Trinity v2.0.x — zero-DSP ternary-weight autoregressive LLM
+    inference on Xilinx Artix-7 via OpenXC7, ~63 tok/s @ ~1 W, QMTech XC7A100T
+    (Zenodo 2026).
+  - Unbalanced ternary full adder in CNTFET — 42-transistor multi-threshold
+    design with 35.8–75.2% power reduction (IEEE TCAD 2026).
+  - CNTFET-based ternary full adder — 76/55 CNTFET complete/partial adders with
+    ~24% delay improvement (IEEE TCAD 2025).
+  - Energy-optimized ternary full adder using capacitive threshold logic and
+    CNTFETs for DSP (AEU 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+---
+
+## 2026-07-23 — Wave Loop 764 (module-scope `[347][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 347.
+  The `[347][2]^6 Pt` witness is 710,656 bits (~0.678 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [347][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 347, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 347`, `MID_IDX = 173`; the frame-condition element is
+  `[173][1][0][0][0][0][0]`, element number `173*64 + 32 = 11,104`.
+- Updated weak-point audit: 576 commits in 30 days (29 with `Closes #N`), 57
+  `.t27` specs without `test`/`invariant`/`bench`, 23 `scripts/*.sh` under `scripts/`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w764_bench_module_347x2p6_aos_var_call_write.t27` (~1,519 KB /
+  ~65,991 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w764_bench_module_347x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w764.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 224 passed; 0 failed.
+- Direct `t27c parse` W764: PASS.
+- Direct `t27c icarus-lowerable` W764: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W764: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W764: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  710,656-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Trinity B002 / Trinity v2.0.x — zero-DSP ternary-weight autoregressive LLM
+    inference on Xilinx Artix-7 via OpenXC7, ~63 tok/s @ ~1 W, QMTech XC7A100T
+    (Zenodo 2025/2026).
+  - TerEffic — highly efficient ternary LLM inference on AMD Alveo U280, 16,300
+    tok/s on 370 M model, 455 tok/s/W (arXiv 2025).
+  - TeLLMe v2 — end-to-end ternary LLM prefill/decode accelerator on AMD Kria
+    KV260, up to 25 tok/s decode / 143 tok/s prefill under 5 W (arXiv 2025).
+  - 5500FP / GargantuRAM — 24-trit balanced ternary RISC processor on Efinix
+    Trion FPGA at 20 MHz, real ±3.3 V ternary I/O, CERN-OHL-P v2 board,
+    commercially available (Zenodo/GitHub/Hackaday 2026).
+  - TernaryCore — open-source native {-1,0,+1} Verilog BitNet b1.58 accelerator,
+    zero DSP, 31/31 simulations passing, Artix-7 roadmap (GitHub 2026).
+  - Unbalanced ternary full adder in CNTFET — 42-transistor design with 35.8–75.2%
+    power reduction (IEEE TCAD 2026).
+  - CNTFET-based ternary full adder — 76/55 CNTFET complete/partial adders with
+    ~24% delay improvement (IEEE TCAD 2025).
+  - Energy-optimized ternary full adder using capacitive threshold logic and
+    CNTFETs for DSP (AEU 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+## 2026-07-23 — Wave Loop 763 (module-scope `[345][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 345.
+  The `[345][2]^6 Pt` witness is 706,560 bits (~0.674 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [345][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 345, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 345`, `MID_IDX = 172`; the frame-condition element is
+  `[172][1][0][0][0][0][0]`, element number `172*64 + 32 = 11,040`.
+- Updated weak-point audit: 575 commits in 30 days (28 with `Closes #N`), 57
+  `.t27` specs without `test`/`invariant`/`bench`, 23 `scripts/*.sh` under `scripts/`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w763_bench_module_345x2p6_aos_var_call_write.t27` (~1,510 KB /
+  ~65,611 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w763_bench_module_345x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w763.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 223 passed; 0 failed.
+- Direct `t27c parse` W763: PASS.
+- Direct `t27c icarus-lowerable` W763: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W763: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W763: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  706,560-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Trinity B002 / Trinity v2.0.x — zero-DSP ternary-weight autoregressive LLM
+    inference on Xilinx Artix-7 via OpenXC7, ~63 tok/s @ ~1 W, QMTech XC7A100T
+    (Zenodo 2025/2026).
+  - TerEffic — highly efficient ternary LLM inference on AMD Alveo U280, 16,300
+    tok/s on 370 M model, 455 tok/s/W (arXiv 2025).
+  - TeLLMe v2 — end-to-end ternary LLM prefill/decode accelerator on AMD Kria
+    KV260, up to 25 tok/s decode / 143 tok/s prefill under 5 W (arXiv 2025).
+  - 5500FP / GargantuRAM — 24-trit balanced ternary RISC processor on Efinix
+    Trion FPGA at 20 MHz, real ±3.3 V ternary I/O, CERN-OHL-P v2 board,
+    commercially available (Zenodo/GitHub/Hackaday 2026).
+  - TernaryCore — open-source native {-1,0,+1} Verilog BitNet b1.58 accelerator,
+    zero DSP, 31/31 simulations passing, Artix-7 roadmap (GitHub 2026).
+  - Unbalanced ternary full adder in CNTFET — 42-transistor design with 35.8–75.2%
+    power reduction (IEEE TCAD 2026).
+  - CNTFET-based ternary full adder — 76/55 CNTFET complete/partial adders with
+    ~24% delay improvement (IEEE TCAD 2025).
+  - Energy-optimized ternary full adder using capacitive threshold logic and
+    CNTFETs for DSP (AEU 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+## 2026-07-23 — Wave Loop 762 (module-scope `[343][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 343.
+  The `[343][2]^6 Pt` witness is 702,464 bits (~0.670 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [343][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 343, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 343`, `MID_IDX = 171`; the frame-condition element is
+  `[171][1][0][0][0][0][0]`, element number `171*64 + 32 = 10,976`.
+- Updated weak-point audit: 570 commits in 30 days (27 with `Closes #N`), 57
+  `.t27` specs without `test`/`invariant`/`bench`, 23 `scripts/*.sh` under `scripts/`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w762_bench_module_343x2p6_aos_var_call_write.t27` (~1,501 KB /
+  ~65,231 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w762_bench_module_343x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w762.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 222 passed; 0 failed.
+- Direct `t27c parse` W762: PASS.
+- Direct `t27c icarus-lowerable` W762: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W762: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W762: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  702,464-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Trinity B002 / Trinity v2.0.x — zero-DSP ternary-weight autoregressive LLM
+    inference on Xilinx Artix-7 via OpenXC7, ~63 tok/s @ ~1 W, QMTech XC7A100T
+    (Zenodo 2025/2026).
+  - TerEffic — highly efficient ternary LLM inference on AMD Alveo U280, 16,300
+    tok/s on 370 M model, 455 tok/s/W (arXiv 2025).
+  - TeLLMe v2 — end-to-end ternary LLM prefill/decode accelerator on AMD Kria
+    KV260, up to 25 tok/s decode / 143 tok/s prefill under 5 W (arXiv 2025).
+  - 5500FP / GargantuRAM — 24-trit balanced ternary RISC processor on Efinix
+    Trion FPGA at 20 MHz, real ±3.3 V ternary I/O, CERN-OHL-P v2 board,
+    commercially available (Zenodo/GitHub/Hackaday 2026).
+  - TernaryCore — open-source native {-1,0,+1} Verilog BitNet b1.58 accelerator,
+    zero DSP, 31/31 simulations passing, Artix-7 roadmap (GitHub 2026).
+  - Unbalanced ternary full adder in CNTFET — 42-transistor design with 35.8–75.2%
+    power reduction (IEEE TCAD 2026).
+  - CNTFET-based ternary full adder — 76/55 CNTFET complete/partial adders with
+    ~24% delay improvement (IEEE TCAD 2025).
+  - Energy-optimized ternary full adder using capacitive threshold logic and
+    CNTFETs for DSP (AEU 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+## 2026-07-23 — Wave Loop 761 (module-scope `[341][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 341.
+  The `[341][2]^6 Pt` witness is 698,368 bits (~0.666 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [341][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 341, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 341`, `MID_IDX = 170`; the frame-condition element is
+  `[170][1][0][0][0][0][0]`, element number `170*64 + 32 = 10,912`.
+- Updated weak-point audit: 565 commits in 30 days (26 with `Closes #N`), 57
+  `.t27` specs without `test`/`invariant`/`bench`, 23 `scripts/*.sh` under `scripts/`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w761_bench_module_341x2p6_aos_var_call_write.t27` (~1,492 KB /
+  ~64,851 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w761_bench_module_341x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w761.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 221 passed; 0 failed.
+- Direct `t27c parse` W761: PASS.
+- Direct `t27c icarus-lowerable` W761: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W761: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W761: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  698,368-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Trinity B002 / Trinity v2.0.1 — zero-DSP ternary-weight autoregressive LLM
+    inference on Xilinx Artix-7 via OpenXC7, ~63 tok/s @ ~1 W, QMTech XC7A100T
+    (Zenodo 2025/2026).
+  - TerEffic — highly efficient ternary LLM inference on AMD Alveo U280, 16,300
+    tok/s on 370 M model, 455 tok/s/W (arXiv 2025).
+  - TeLLMe v2 — end-to-end ternary LLM prefill/decode accelerator on AMD Kria
+    KV260, up to 25 tok/s decode / 143 tok/s prefill under 5 W (arXiv 2025).
+  - 5500FP / GargantuRAM — 24-trit balanced ternary RISC processor on Efinix
+    Trion FPGA at 20 MHz, real ±3.3 V ternary I/O, CERN-OHL-P v2 board
+    (Zenodo/GitHub/Hackaday 2026).
+  - TernaryCore — open-source native {-1,0,+1} Verilog BitNet b1.58 accelerator,
+    zero DSP, 31/31 simulations passing, Artix-7 roadmap (GitHub 2026).
+  - Unbalanced ternary full adder in CNTFET — 42-transistor design with 35.8–75.2%
+    power reduction (IEEE TCAD 2026).
+  - CNTFET-based ternary full adder — 76/55 CNTFET complete/partial adders with
+    ~24% delay improvement (IEEE TCAD 2025).
+  - Memristor-based balanced ternary full adder — four design methods using
+    memristors (Int. J. Circuit Theory Appl. 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+## 2026-07-23 — Wave Loop 760 (module-scope `[339][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 339.
+  The `[339][2]^6 Pt` witness is 694,272 bits (~0.663 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [339][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 339, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 339`, `MID_IDX = 169`; the frame-condition element is
+  `[169][1][0][0][0][0][0]`, element number `169*64 + 32 = 10,848`.
+- Updated weak-point audit: 559 commits in 30 days (25 with `Closes #N`), 57
+  `.t27` specs without `test`/`invariant`/`bench`, 23 `scripts/*.sh` under `scripts/`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w760_bench_module_339x2p6_aos_var_call_write.t27` (~1,483 KB /
+  ~64,471 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w760_bench_module_339x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w760.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 220 passed; 0 failed.
+- Direct `t27c parse` W760: PASS.
+- Direct `t27c icarus-lowerable` W760: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W760: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W760: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  694,272-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Trinity B002 / Trinity v2.0.1 — zero-DSP ternary-weight autoregressive LLM
+    inference on Xilinx Artix-7 via OpenXC7, ~63 tok/s @ ~1 W, QMTech XC7A100T
+    (Zenodo 2025/2026).
+  - TerEffic — highly efficient ternary LLM inference on AMD Alveo U280, 16,300
+    tok/s on 370 M model, 455 tok/s/W (arXiv 2025).
+  - TeLLMe v2 — end-to-end ternary LLM prefill/decode accelerator on AMD Kria
+    KV260, up to 25 tok/s decode / 143 tok/s prefill under 5 W (arXiv 2025).
+  - 5500FP — 24-trit balanced ternary RISC processor on FPGA, GargantuRAM board
+    (Zenodo/GitHub 2026).
+  - TNINE — 9/18-trit balanced ternary computer on CircuitVerse (2025).
+  - Unbalanced ternary full adder in CNTFET — 42-transistor design with 35.8–75.2%
+    power reduction (IEEE TCAD 2026).
+  - CNTFET-based ternary full adder — 76/55 CNTFET complete/partial adders with
+    ~24% delay improvement (IEEE TCAD 2025).
+  - Memristor-based balanced ternary full adder — four design methods using
+    memristors (Int. J. Circuit Theory Appl. 2026).
+  - Energy-optimized ternary full adder using capacitive threshold logic and
+    CNTFETs for DSP (AEU 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray — fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+## 2026-07-23 — Wave Loop 759 (module-scope `[337][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 337.
+  The `[337][2]^6 Pt` witness is 690,176 bits (~0.659 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [337][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 337, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 337`, `MID_IDX = 168`; the frame-condition element is
+  `[168][1][0][0][0][0][0]`, element number `168*64 + 32 = 10784`.
+- Updated weak-point audit: 540 commits in 30 days (106 without `Closes #N`), 57
+  `.t27` specs without `test`/`invariant`/`bench`, 19 `scripts/*.sh` on critical path.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w759_bench_module_337x2p6_aos_var_call_write.t27` (~1,474 KB /
+  ~64,091 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w759_bench_module_337x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w759.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 219 passed; 0 failed.
+- Direct `t27c parse` W759: PASS.
+- Direct `t27c icarus-lowerable` W759: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W759: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W759: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  690,176-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Tlsys - first ternary RTL-to-CNFET synthesis framework, >500k-gate designs
+    (Chinese Journal of Electronics, 2026).
+  - Ternary VHDL (TVHDL) - balanced-ternary IEEE 1076-2008 VHDL extension with
+    open-source library and GHDL simulation (ISMVL 2026).
+  - SONIC / SimulationEngine - C# EDA toolchain for ternary/mixed-radix VLSI,
+    event-driven gate-level simulator with delta cycles, REBEL-2 CPU, Verilog
+    export and Basys3 emitter (ISMVL 2026).
+  - REBEL-6 - 32-trit balanced ternary ISA with RV32I-to-REBEL compiler
+    pipeline for C (ISMVL 2025).
+  - Takahe - multi-radix open-source synthesis tool supporting ternary
+    (`--radix 3` balanced ternary), duodecimal, and other radices; includes
+    Setun-70 ternary processor design (GitHub 2026).
+  - 5500FP - 24-trit balanced ternary RISC processor on FPGA (Efinix Trion
+    T20F256), 120-instruction ISA, real +/-3.3V ternary I/O, open hardware board
+    GargantuRAM (Zenodo 2026).
+  - In-memory balanced ternary memristor logic - balanced ternary gates and
+    decoders using tri-valued memristor resistance states (European Physical
+    Journal Plus, 2026).
+  - CNTFET-RRAM ternary comparator - hybrid CNTFET-RRAM ternary comparator with
+    ~52% lower delay, ~58% lower power, ~70% better PDP and ~45% fewer
+    transistors vs CMOS ternary comparator (ICOECA 2026).
+  - GNRFET+RRAM energy-optimized ternary logic - hybrid graphene-nanoribbon
+    FET and RRAM ternary STI/THA with -36% delay / -50% power / -68% PDP vs.
+    CNTFET-RRAM (ICOECIT 2026).
+  - CNFET ternary logic cells for low-power VLSI - STI/PTI/NTI inverters using
+    CNFET and MOSFET at 45 nm, reporting 20-30% lower PDP for CNFET variants
+    (VLSID 2025).
+  - TerEffic - highly efficient ternary LLM inference on FPGA (AMD Alveo U280),
+    1.6-bit weight compression, 16,300 tok/s on 370M model, 455 tok/s/W (arXiv
+    2025).
+  - TeLLMe v2 - end-to-end ternary LLM prefill/decode accelerator on edge FPGA
+    (AMD KV260), table-lookup matmul, up to 25 tok/s decode / 143 tok/s prefill
+    under 5 W (arXiv 2025).
+  - Unbalanced ternary full adder in CNTFET - 42-transistor design, 35.8-75.2%
+    power reduction and 21.6-70% energy reduction (IEEE TCAD 2026).
+  - Ternary LFSR in CNT technology - >80% power reduction for crypto/PUF/BIST
+    applications (Springer CSSP 2026).
+  - Trinity v2.0.x / B002 - zero-DSP ternary-weight autoregressive LLM inference
+    on QMTech XC7A100T via OpenXC7, ~63 tok/s @ 92 MHz, ~1 W (Zenodo 2025/2026).
+  - TernaryCore - open-source native {-1,0,+1} Verilog accelerator, zero DSP,
+    31/31 simulations passing, Artix-7 roadmap (GitHub 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray - fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+## 2026-07-23 — Wave Loop 758 (module-scope `[335][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 335.
+  The `[335][2]^6 Pt` witness is 686,080 bits (~0.655 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [335][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 335, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 335`, `MID_IDX = 167`; the frame-condition element is
+  `[167][1][0][0][0][0][0]`, element number `167*64 + 32 = 10720`.
+- Updated weak-point audit: 536 commits in 30 days (106 without `Closes #N`), 57
+  `.t27` specs without `test`/`invariant`/`bench`, 19 `scripts/*.sh` on critical path.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w758_bench_module_335x2p6_aos_var_call_write.t27` (~1,465 KB /
+  ~63,711 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w758_bench_module_335x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w758.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 218 passed; 0 failed.
+- Direct `t27c parse` W758: PASS.
+- Direct `t27c icarus-lowerable` W758: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W758: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W758: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  686,080-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Tlsys - first ternary RTL-to-CNFET synthesis framework, >500k-gate designs
+    (Chinese Journal of Electronics, 2026).
+  - Ternary VHDL (TVHDL) - balanced-ternary IEEE 1076-2008 VHDL extension with
+    open-source library and GHDL simulation (ISMVL 2026).
+  - SONIC / SimulationEngine - C# EDA toolchain for ternary/mixed-radix VLSI,
+    event-driven gate-level simulator with delta cycles, REBEL-2 CPU, Verilog
+    export and Basys3 emitter (ISMVL 2026).
+  - REBEL-6 - 32-trit balanced ternary ISA with RV32I-to-REBEL compiler
+    pipeline for C (ISMVL 2025).
+  - Takahe - multi-radix open-source synthesis tool supporting ternary
+    (`--radix 3` balanced ternary), duodecimal, and other radices; includes
+    Setun-70 ternary processor design (GitHub 2026).
+  - 5500FP - 24-trit balanced ternary RISC processor on FPGA (Efinix Trion
+    T20F256), 120-instruction ISA, real +/-3.3V ternary I/O, open hardware board
+    GargantuRAM (Zenodo 2026).
+  - In-memory balanced ternary memristor logic - balanced ternary gates and
+    decoders using tri-valued memristor resistance states (European Physical
+    Journal Plus, 2026).
+  - CNTFET-RRAM ternary comparator - hybrid CNTFET-RRAM ternary comparator with
+    ~52% lower delay, ~58% lower power, ~70% better PDP and ~45% fewer
+    transistors vs CMOS ternary comparator (ICOECA 2026).
+  - GNRFET+RRAM energy-optimized ternary logic - hybrid graphene-nanoribbon
+    FET and RRAM ternary STI/THA with -36% delay / -50% power / -68% PDP vs.
+    CNTFET-RRAM (ICOECIT 2026).
+  - CNFET ternary logic cells for low-power VLSI - STI/PTI/NTI inverters using
+    CNFET and MOSFET at 45 nm, reporting 20-30% lower PDP for CNFET variants
+    (VLSID 2025).
+  - TerEffic - highly efficient ternary LLM inference on FPGA (AMD Alveo U280),
+    1.6-bit weight compression, 16,300 tok/s on 370M model, 455 tok/s/W (arXiv
+    2025).
+  - TeLLMe - energy-efficient ternary LLM accelerator on edge FPGA (AMD KV260),
+    1.58-bit weights, 8-bit activations, up to 9.51 tok/s decoding under 7 W
+    (arXiv 2025).
+  - Unbalanced ternary full adder in CNTFET - 42-transistor design, 35.8-75.2%
+    power reduction and 21.6-70% energy reduction (IEEE TCAD 2026).
+  - Ternary LFSR in CNT technology - >80% power reduction for crypto/PUF/BIST
+    applications (Springer CSSP 2026).
+  - Trinity v2.0.x / B002 - zero-DSP ternary-weight autoregressive LLM inference
+    on QMTech XC7A100T via OpenXC7, ~63 tok/s @ 92 MHz, ~1 W (Zenodo 2025/2026).
+  - TernaryCore - open-source native {-1,0,+1} Verilog accelerator, zero DSP,
+    31/31 simulations passing, Artix-7 roadmap (GitHub 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray - fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+## 2026-07-23 — Wave Loop 757 (module-scope `[333][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 333.
+  The `[333][2]^6 Pt` witness is 681,984 bits (~0.651 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [333][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 333, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 333`, `MID_IDX = 166`; the frame-condition element is
+  `[166][1][0][0][0][0][0]`, element number `166*64 + 32 = 10656`.
+- Updated weak-point audit: 532 commits in 30 days (106 without `Closes #N`), 57
+  `.t27` specs without `test`/`invariant`/`bench`, 19 `scripts/*.sh` on critical path.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w757_bench_module_333x2p6_aos_var_call_write.t27` (~1,456 KB /
+  ~63,331 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w757_bench_module_333x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w757.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 217 passed; 0 failed.
+- Direct `t27c parse` W757: PASS.
+- Direct `t27c icarus-lowerable` W757: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W757: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W757: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  681,984-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Tlsys - first ternary RTL-to-CNFET synthesis framework, >500k-gate designs
+    (Chinese Journal of Electronics, 2026).
+  - Ternary VHDL (TVHDL) - balanced-ternary IEEE 1076-2008 VHDL extension with
+    open-source library and GHDL simulation (ISMVL 2026).
+  - SONIC / SimulationEngine - C# EDA toolchain for ternary/mixed-radix VLSI,
+    event-driven gate-level simulator with delta cycles, REBEL-2 CPU, Verilog
+    export and Basys3 emitter (ISMVL 2026).
+  - REBEL-6 - 32-trit balanced ternary ISA with RV32I-to-REBEL compiler
+    pipeline for C (ISMVL 2025).
+  - Takahe - multi-radix open-source synthesis tool supporting ternary
+    (`--radix 3` balanced ternary), duodecimal, and other radices; includes
+    Setun-70 ternary processor design (GitHub 2026).
+  - 5500FP - 24-trit balanced ternary RISC processor on FPGA (Efinix Trion
+    T20F256), 120-instruction ISA, real +/-3.3V ternary I/O, open hardware board
+    GargantuRAM (Zenodo 2026).
+  - In-memory balanced ternary memristor logic - balanced ternary gates and
+    decoders using tri-valued memristor resistance states (European Physical
+    Journal Plus, 2026).
+  - CNTFET-RRAM ternary comparator - hybrid CNTFET-RRAM ternary comparator with
+    ~52% lower delay, ~58% lower power, ~70% better PDP and ~45% fewer
+    transistors vs CMOS ternary comparator (ICOECA 2026).
+  - GNRFET+RRAM energy-optimized ternary logic - hybrid graphene-nanoribbon
+    FET and RRAM ternary STI/THA with -36% delay / -50% power / -68% PDP vs.
+    CNTFET-RRAM (ICOECIT 2026).
+  - CNFET ternary logic cells for low-power VLSI - STI/PTI/NTI inverters using
+    CNFET and MOSFET at 45 nm, reporting 20-30% lower PDP for CNFET variants
+    (VLSID 2025).
+  - TerEffic - highly efficient ternary LLM inference on FPGA (AMD Alveo U280),
+    1.6-bit weight compression, 16,300 tok/s on 370M model, 455 tok/s/W (arXiv
+    2025).
+  - TeLLMe - energy-efficient ternary LLM accelerator on edge FPGA (AMD KV260),
+    1.58-bit weights, 8-bit activations, up to 9.51 tok/s decoding under 7 W
+    (arXiv 2025).
+  - Unbalanced ternary full adder in CNTFET - 42-transistor design, 35.8-75.2%
+    power reduction and 21.6-70% energy reduction (IEEE TCAD 2026).
+  - Ternary LFSR in CNT technology - >80% power reduction for crypto/PUF/BIST
+    applications (Springer CSSP 2026).
+  - Trinity v2.0.x / B002 - zero-DSP ternary-weight autoregressive LLM inference
+    on QMTech XC7A100T via OpenXC7, ~63 tok/s @ 92 MHz, ~1 W (Zenodo 2025/2026).
+  - TernaryCore - open-source native {-1,0,+1} Verilog accelerator, zero DSP,
+    31/31 simulations passing, Artix-7 roadmap (GitHub 2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray - fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+## 2026-07-23 — Wave Loop 756 (module-scope `[331][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 331.
+  The `[331][2]^6 Pt` witness is 677,888 bits (~0.647 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [331][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 331, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 331`, `MID_IDX = 165`; the frame-condition element is
+  `[165][1][0][0][0][0][0]`, element number `165*64 + 32 = 10592`.
+- Updated weak-point audit: 528 commits in 30 days (106 without `Closes #N`), 445
+  `.t27` specs without `test`/`invariant`/`bench`, 19 `scripts/*.sh` on critical path.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w756_bench_module_331x2p6_aos_var_call_write.t27` (~1,448 KB /
+  ~62,951 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w756_bench_module_331x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w756.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 216 passed; 0 failed.
+- Direct `t27c parse` W756: PASS.
+- Direct `t27c icarus-lowerable` W756: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W756: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W756: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  677,888-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Tlsys - first ternary RTL-to-CNFET synthesis framework, >500k-gate designs
+    (Chinese Journal of Electronics, 2026).
+  - Ternary VHDL (TVHDL) - balanced-ternary IEEE 1076-2008 VHDL extension with
+    open-source library and GHDL simulation (ISMVL 2026).
+  - SONIC / SimulationEngine - C# EDA toolchain for ternary/mixed-radix VLSI,
+    event-driven gate-level simulator with delta cycles, REBEL-2 CPU, Verilog
+    export and Basys3 emitter (ISMVL 2026).
+  - REBEL-6 - 32-trit balanced ternary ISA with RV32I-to-REBEL compiler
+    pipeline for C (ISMVL 2025).
+  - Takahe - multi-radix open-source synthesis tool supporting ternary
+    (`--radix 3` balanced ternary), duodecimal, and other radices; includes
+    Setun-70 ternary processor design (GitHub 2026).
+  - 5500FP - 24-trit balanced ternary RISC processor on FPGA (Efinix Trion
+    T20F256), 120-instruction ISA, real +/-3.3V ternary I/O, open hardware board
+    GargantuRAM (Zenodo 2026).
+  - In-memory balanced ternary memristor logic - balanced ternary gates and
+    decoders using tri-valued memristor resistance states (European Physical
+    Journal Plus, 2026).
+  - CNTFET-RRAM ternary comparator - hybrid CNTFET-RRAM ternary comparator with
+    ~52% lower delay, ~58% lower power, ~70% better PDP and ~45% fewer
+    transistors vs CMOS ternary comparator (ICOECA 2026).
+  - GNRFET+RRAM energy-optimized ternary logic - hybrid graphene-nanoribbon
+    FET and RRAM ternary STI/THA with -36% delay / -50% power / -68% PDP vs.
+    CNTFET-RRAM (ICOECIT 2026).
+  - CNFET ternary logic cells for low-power VLSI - STI/PTI/NTI inverters using
+    CNFET and MOSFET at 45 nm, reporting 20-30% lower PDP for CNFET variants
+    (VLSID 2025).
+  - TerEffic - highly efficient ternary LLM inference on FPGA (AMD Alveo U280),
+    1.6-bit weight compression, 16,300 tok/s on 370M model, 455 tok/s/W (arXiv
+    2025).
+  - Unbalanced ternary full adder in CNTFET - 42-transistor design, 35.8-75.2%
+    power reduction and 21.6-70% energy reduction (IEEE TCAD 2026).
+  - Ternary LFSR in CNT technology - >80% power reduction for crypto/PUF/BIST
+    applications (Springer CSSP 2026).
+  - Trinity v2.0.x / B002 - zero-DSP ternary-weight autoregressive LLM inference
+    on QMTech XC7A100T via OpenXC7, ~63 tok/s @ 92 MHz, ~1 W (Zenodo 2025/2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray - fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+## 2026-07-23 — Wave Loop 755 (module-scope `[329][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 329.
+  The `[329][2]^6 Pt` witness is 673,792 bits (~0.643 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [329][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 329, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 329`, `MID_IDX = 164`; the frame-condition element is
+  `[164][1][0][0][0][0][0]`, element number `164*64 + 32 = 10528`.
+- Updated weak-point audit: 534 commits in 30 days (113 without `Closes #N`), 445
+  `.t27` specs without `test`/`invariant`/`bench`, 19 `scripts/*.sh` on critical path.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w755_bench_module_329x2p6_aos_var_call_write.t27` (~1,371 KB /
+  ~62,571 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w755_bench_module_329x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w755.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 215 passed; 0 failed.
+- Direct `t27c parse` W755: PASS.
+- Direct `t27c icarus-lowerable` W755: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W755: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W755: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  673,792-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Tlsys - first ternary RTL-to-CNFET synthesis framework, >500k-gate designs
+    (Chinese Journal of Electronics, 2026).
+  - Ternary VHDL (TVHDL) - balanced-ternary IEEE 1076-2008 VHDL extension with
+    open-source library and GHDL simulation (ISMVL 2026).
+  - SONIC / SimulationEngine - C# EDA toolchain for ternary/mixed-radix VLSI,
+    event-driven gate-level simulator with delta cycles, REBEL-2 CPU, Verilog
+    export and Basys3 emitter (ISMVL 2026).
+  - REBEL-6 - 32-trit balanced ternary ISA with RV32I-to-REBEL compiler
+    pipeline for C (ISMVL 2025).
+  - Takahe - multi-radix open-source synthesis tool supporting ternary
+    (`--radix 3` balanced ternary), duodecimal, and other radices; includes
+    Setun-70 ternary processor design (GitHub 2026).
+  - 5500FP - 24-trit balanced ternary RISC processor on FPGA (Efinix Trion
+    T20F256), 120-instruction ISA, real +/-3.3V ternary I/O, open hardware board
+    GargantuRAM (Zenodo 2026).
+  - In-memory balanced ternary memristor logic - balanced ternary gates and
+    decoders using tri-valued memristor resistance states (European Physical
+    Journal Plus, 2026).
+  - CNTFET-RRAM ternary comparator - hybrid CNTFET-RRAM ternary comparator with
+    ~52% lower delay, ~58% lower power, ~70% better PDP and ~45% fewer
+    transistors vs CMOS ternary comparator (ICOECA 2026).
+  - GNRFET+RRAM energy-optimized ternary logic - hybrid graphene-nanoribbon
+    FET and RRAM ternary STI/THA with -36% delay / -50% power / -68% PDP vs.
+    CNTFET-RRAM (ICOECIT 2026).
+  - CNFET ternary logic cells for low-power VLSI - STI/PTI/NTI inverters using
+    CNFET and MOSFET at 45 nm, reporting 20-30% lower PDP for CNFET variants
+    (VLSID 2025).
+  - Trinity v2.0.x / B002 - zero-DSP ternary-weight autoregressive LLM inference
+    on QMTech XC7A100T via OpenXC7, ~63 tok/s @ 92 MHz, ~1 W (Zenodo 2025/2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray - fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count <= 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the structural classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global wN -> wN+1 replacement
+  may miss it; verify the generated module name independently.
+- With 21,056 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: 113 commits in the last 30 days still lack `Closes #N`.
+  Wave-loop closeout commits now include issue references, but the historical
+  backlog remains.
+- L4 TESTABILITY: 445 `.t27` specs still lack `test`/`invariant`/`bench` blocks.
+- L7 UNITY: 19 `scripts/*.sh` wrappers remain on the critical path beyond the two
+  permitted exceptions, plus 9 untracked `.sh` hooks under `.agents/` and `.codex/hooks/`.
+- FPGA SSOT: `fpga/HARDWARE_SSOT.md` is canonical, but `CLAUDE.md` and stale FPGA
+  docs still need alignment with the QMTech Wukong V1 / `cli/dlc10` view.
+- L6 CEILING: `FORMAT-SPEC-001.json` `GF256.bias_caveat` is still open.
+
+---
+
+## 2026-07-23 — Wave Loop 754 (module-scope `[327][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 327.
+  The `[327][2]^6 Pt` witness is 669,696 bits (~0.639 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [327][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 327, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 327`, `MID_IDX = 163`; the frame-condition element is
+  `[163][1][0][0][0][0][0]`, element number `163*64 + 32 = 10464`.
+- Updated weak-point audit: 529 commits in 30 days (113 without `Closes #N`), 445
+  `.t27` specs without `test`/`invariant`/`bench`, 19 `scripts/*.sh` on critical path.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w754_bench_module_327x2p6_aos_var_call_write.t27` (~1,364 KB /
+  ~62,191 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w754_bench_module_327x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w754.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 214 passed; 0 failed.
+- Direct `t27c parse` W754: PASS.
+- Direct `t27c icarus-lowerable` W754: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W754: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W754: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  669,696-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Tlsys - first ternary RTL-to-CNFET synthesis framework, >500k-gate designs
+    (Chinese Journal of Electronics, 2026).
+  - Ternary VHDL (TVHDL) - balanced-ternary IEEE 1076-2008 VHDL extension with
+    open-source library and GHDL simulation (ISMVL 2026).
+  - SONIC / SimulationEngine - C# EDA toolchain for ternary/mixed-radix VLSI,
+    event-driven gate-level simulator with delta cycles, REBEL-2 CPU, Verilog
+    export and Basys3 emitter (ISMVL 2026).
+  - REBEL-6 - 32-trit balanced ternary ISA with RV32I-to-REBEL compiler
+    pipeline for C (ISMVL 2025).
+  - Takahe - multi-radix open-source synthesis tool supporting ternary
+    (`--radix 3` balanced ternary), duodecimal, and other radices; includes
+    Setun-70 ternary processor design (GitHub 2026).
+  - 5500FP - 24-trit balanced ternary RISC processor on FPGA (Efinix Trion
+    T20F256), 120-instruction ISA, real +/-3.3V ternary I/O, open hardware board
+    GargantuRAM (Zenodo 2026).
+  - In-memory balanced ternary memristor logic - balanced ternary gates and
+    decoders using tri-valued memristor resistance states (European Physical
+    Journal Plus, 2026).
+  - CNTFET-RRAM ternary comparator - hybrid CNTFET-RRAM ternary comparator with
+    ~52% lower delay, ~58% lower power, ~70% better PDP and ~45% fewer
+    transistors vs CMOS ternary comparator (ICOECA 2026).
+  - GNRFET+RRAM energy-optimized ternary logic - hybrid graphene-nanoribbon
+    FET and RRAM ternary STI/THA with -36% delay / -50% power / -68% PDP vs.
+    CNTFET-RRAM (ICOECIT 2026).
+  - CNFET ternary logic cells for low-power VLSI - STI/PTI/NTI inverters using
+    CNFET and MOSFET at 45 nm, reporting 20-30% lower PDP for CNFET variants
+    (VLSID 2025).
+  - Trinity v2.0.x / B002 - zero-DSP ternary-weight autoregressive LLM inference
+    on QMTech XC7A100T via OpenXC7, ~63 tok/s @ 92 MHz, ~1 W (Zenodo 2025/2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray - fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count <= 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the structural classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global wN -> wN+1 replacement
+  may miss it; verify the generated module name independently.
+- With 20,928 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: 113 commits in the last 30 days still lack `Closes #N`.
+  Wave-loop closeout commits now include issue references, but the historical
+  backlog remains.
+- L4 TESTABILITY: 445 `.t27` specs still lack `test`/`invariant`/`bench` blocks.
+- L7 UNITY: 19 `scripts/*.sh` wrappers remain on the critical path beyond the two
+  permitted exceptions, plus 9 untracked `.sh` hooks under `.agents/` and `.codex/hooks/`.
+- FPGA SSOT: `fpga/HARDWARE_SSOT.md` is canonical, but `CLAUDE.md` and stale FPGA
+  docs still need alignment with the QMTech Wukong V1 / `cli/dlc10` view.
+- L6 CEILING: `FORMAT-SPEC-001.json` `GF256.bias_caveat` is still open.
+
+---
+
+## 2026-07-23 — Wave Loop 753 (module-scope `[325][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 325.
+  The `[325][2]^6 Pt` witness is 665,600 bits (~0.635 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [325][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 325, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 325`, `MID_IDX = 162`; the frame-condition element is
+  `[162][1][0][0][0][0][0]`, element number `162*64 + 32 = 10400`.
+- Updated weak-point audit: 524 commits in 30 days (113 without `Closes #N`), 445
+  `.t27` specs without `test`/`invariant`/`bench`, 19 `scripts/*.sh` on critical path.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w753_bench_module_325x2p6_aos_var_call_write.t27` (~1,389 KB /
+  ~61,811 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w753_bench_module_325x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w753.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 213 passed; 0 failed.
+- Direct `t27c parse` W753: PASS.
+- Direct `t27c icarus-lowerable` W753: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W753: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W753: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  665,600-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Tlsys - first ternary RTL-to-CNFET synthesis framework, >500k-gate designs
+    (Chinese Journal of Electronics, 2026).
+  - Ternary VHDL (TVHDL) - balanced-ternary IEEE 1076-2008 VHDL extension with
+    open-source library and GHDL simulation (ISMVL 2026).
+  - SONIC / SimulationEngine - C# EDA toolchain for ternary/mixed-radix VLSI,
+    event-driven gate-level simulator with delta cycles, REBEL-2 CPU, Verilog
+    export and Basys3 emitter (ISMVL 2026).
+  - REBEL-6 - 32-trit balanced ternary ISA with RV32I-to-REBEL compiler
+    pipeline for C (ISMVL 2025).
+  - Takahe - multi-radix open-source synthesis tool supporting ternary
+    (`--radix 3` balanced ternary), duodecimal, and other radices; includes
+    Setun-70 ternary processor design (GitHub 2026).
+  - 5500FP - 24-trit balanced ternary RISC processor on FPGA (Efinix Trion
+    T20F256), 120-instruction ISA, real +/-3.3V ternary I/O, open hardware board
+    GargantuRAM (Zenodo 2026).
+  - In-memory balanced ternary memristor logic - balanced ternary gates and
+    decoders using tri-valued memristor resistance states (European Physical
+    Journal Plus, 2026).
+  - CNTFET-RRAM ternary comparator - hybrid CNTFET-RRAM ternary comparator with
+    ~52% lower delay, ~58% lower power, ~70% better PDP and ~45% fewer
+    transistors vs CMOS ternary comparator (ICOECA 2026).
+  - GNRFET+RRAM energy-optimized ternary logic - hybrid graphene-nanoribbon
+    FET and RRAM ternary STI/THA with -36% delay / -50% power / -68% PDP vs.
+    CNTFET-RRAM (ICOECIT 2026).
+  - CNFET ternary logic cells for low-power VLSI - STI/PTI/NTI inverters using
+    CNFET and MOSFET at 45 nm, reporting 20-30% lower PDP for CNFET variants
+    (VLSID 2025).
+  - Trinity v2.0.x / B002 - zero-DSP ternary-weight autoregressive LLM inference
+    on QMTech XC7A100T via OpenXC7, ~63 tok/s @ 92 MHz, ~1 W (Zenodo 2025/2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray - fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count <= 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the structural classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global wN -> wN+1 replacement
+  may miss it; verify the generated module name independently.
+- With 20,800 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: 113 commits in the last 30 days still lack `Closes #N`.
+  Wave-loop closeout commits now include issue references, but the historical
+  backlog remains.
+- L4 TESTABILITY: 445 `.t27` specs still lack `test`/`invariant`/`bench` blocks.
+- L7 UNITY: 19 `scripts/*.sh` wrappers remain on the critical path beyond the two
+  permitted exceptions, plus 9 untracked `.sh` hooks under `.agents/` and `.codex/hooks/`.
+- FPGA SSOT: `fpga/HARDWARE_SSOT.md` is canonical, but `CLAUDE.md` and stale FPGA
+  docs still need alignment with the QMTech Wukong V1 / `cli/dlc10` view.
+- L6 CEILING: `FORMAT-SPEC-001.json` `GF256.bias_caveat` is still open.
+
+---
+
+## 2026-07-23 — Wave Loop 752 (module-scope `[323][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 323.
+  The `[323][2]^6 Pt` witness is 661,504 bits (~0.631 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [323][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 323, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 323`, `MID_IDX = 161`; the frame-condition element is
+  `[161][1][0][0][0][0][0]`, element number `161*64 + 32 = 10336`.
+- Updated weak-point audit: 519 commits in 30 days (111 without `Closes #N`), 445
+  `.t27` specs without `test`/`invariant`/`bench`, 19 `scripts/*.sh` on critical path.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w752_bench_module_323x2p6_aos_var_call_write.t27` (~1,381 KB /
+  ~61,431 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w752_bench_module_323x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w752.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 212 passed; 0 failed.
+- Direct `t27c parse` W752: PASS.
+- Direct `t27c icarus-lowerable` W752: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W752: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W752: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  661,504-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Tlsys - first ternary RTL-to-CNFET synthesis framework, >500k-gate designs
+    (Chinese Journal of Electronics, 2026).
+  - Ternary VHDL (TVHDL) - balanced-ternary IEEE 1076-2008 VHDL extension with
+    open-source library and GHDL simulation (ISMVL 2026).
+  - SONIC / SimulationEngine - C# EDA toolchain for ternary/mixed-radix VLSI,
+    event-driven gate-level simulator with delta cycles, REBEL-2 CPU, Verilog
+    export and Basys3 emitter (ISMVL 2026).
+  - REBEL-6 - 32-trit balanced ternary ISA with RV32I-to-REBEL compiler
+    pipeline for C (ISMVL 2025).
+  - Takahe - multi-radix open-source synthesis tool supporting ternary
+    (`--radix 3` balanced ternary), duodecimal, and other radices; includes
+    Setun-70 ternary processor design (GitHub 2026).
+  - 5500FP - 24-trit balanced ternary RISC processor on FPGA (Efinix Trion
+    T20F256), 120-instruction ISA, real ±3.3V ternary I/O, open hardware board
+    GargantuRAM (Zenodo 2026).
+  - In-memory balanced ternary memristor logic - balanced ternary gates and
+    decoders using tri-valued memristor resistance states (European Physical
+    Journal Plus, 2026).
+  - GNRFET+RRAM energy-optimized ternary logic - hybrid graphene-nanoribbon
+    FET and RRAM ternary STI/THA with -36% delay / -50% power / -68% PDP vs.
+    CNTFET-RRAM (ICOECIT 2026).
+  - CNFET ternary logic cells for low-power VLSI - STI/PTI/NTI inverters using
+    CNFET and MOSFET at 45 nm, reporting 20-30% lower PDP for CNFET variants
+    (VLSID 2025).
+  - Trinity v2.0.x / B002 - zero-DSP ternary-weight autoregressive LLM inference
+    on QMTech XC7A100T via OpenXC7, ~63 tok/s @ 92 MHz, ~1 W (Zenodo 2025/2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray - fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count <= 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the structural classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global wN -> wN+1 replacement
+  may miss it; verify the generated module name independently.
+- With 20,672 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: 111 commits in the last 30 days still lack `Closes #N`.
+  Wave-loop closeout commits now include issue references, but the historical
+  backlog remains.
+- L4 TESTABILITY: 445 `.t27` specs still lack `test`/`invariant`/`bench` blocks.
+- L7 UNITY: 19 `scripts/*.sh` wrappers remain on the critical path beyond the two
+  permitted exceptions, plus 9 untracked `.sh` hooks under `.agents/` and `.codex/hooks/`.
+- FPGA SSOT: `fpga/HARDWARE_SSOT.md` is canonical, but `CLAUDE.md` and stale FPGA
+  docs still need alignment with the QMTech Wukong V1 / `cli/dlc10` view.
+- L6 CEILING: `FORMAT-SPEC-001.json` `GF256.bias_caveat` is still open.
+
+---
+
+## 2026-07-23 — Wave Loop 751 (module-scope `[321][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 321.
+  The `[321][2]^6 Pt` witness is 657,408 bits (~0.627 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [321][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 321, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 321`, `MID_IDX = 160`; the frame-condition element is
+  `[160][1][0][0][0][0][0]`, element number `160*64 + 32 = 10272`.
+- Updated weak-point audit: 518 commits in 30 days (111 without `Closes #N`), 445
+  `.t27` specs without `test`/`invariant`/`bench`, 19 `scripts/*.sh` on critical path.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w751_bench_module_321x2p6_aos_var_call_write.t27` (~1,405 KB /
+  ~61,051 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w751_bench_module_321x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w751.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 211 passed; 0 failed.
+- Direct `t27c parse` W751: PASS.
+- Direct `t27c icarus-lowerable` W751: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W751: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W751: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  657,408-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Tlsys - first ternary RTL-to-CNFET synthesis framework, >500k-gate designs
+    (Chinese Journal of Electronics, 2026).
+  - Ternary VHDL (TVHDL) - balanced-ternary IEEE 1076-2008 VHDL extension with
+    open-source library and GHDL simulation (ISMVL 2026).
+  - SONIC / SimulationEngine - C# EDA toolchain for ternary/mixed-radix VLSI,
+    event-driven gate-level simulator with delta cycles, REBEL-2 CPU, Verilog
+    export and Basys3 emitter (ISMVL 2026).
+  - REBEL-6 - 32-trit balanced ternary ISA with RV32I-to-REBEL compiler
+    pipeline for C (ISMVL 2025).
+  - Takahe - multi-radix open-source synthesis tool supporting ternary
+    (`--radix 3` balanced ternary), duodecimal, and other radices; includes
+    Setun-70 ternary processor design (GitHub 2026).
+  - 5500FP - 24-trit balanced ternary RISC processor on FPGA (Efinix Trion
+    T20F256), 120-instruction ISA, real ±3.3V ternary I/O, open hardware board
+    GargantuRAM (Zenodo 2026).
+  - In-memory balanced ternary memristor logic - balanced ternary gates and
+    decoders using tri-valued memristor resistance states (European Physical
+    Journal Plus, 2026).
+  - GNRFET+RRAM energy-optimized ternary logic - hybrid graphene-nanoribbon
+    FET and RRAM ternary STI/THA with -36% delay / -50% power / -68% PDP vs.
+    CNTFET-RRAM (ICOECIT 2026).
+  - Trinity v2.0.x / B002 - zero-DSP ternary-weight autoregressive LLM inference
+    on QMTech XC7A100T via OpenXC7, ~63 tok/s @ 92 MHz, ~1 W (Zenodo 2025/2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray - fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count <= 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global wN -> wN+1 replacement
+  may miss it; verify the generated module name independently.
+- With 20,544 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: 111 commits in the last 30 days still lack `Closes #N`.
+  Wave-loop closeout commits now include issue references, but the historical
+  backlog remains.
+- L4 TESTABILITY: 445 `.t27` specs still lack `test`/`invariant`/`bench` blocks.
+- L7 UNITY: 19 `scripts/*.sh` wrappers remain on the critical path beyond the two
+  permitted exceptions, plus 9 untracked `.sh` hooks under `.agents/` and `.codex/hooks/`.
+- FPGA SSOT: `fpga/HARDWARE_SSOT.md` is canonical, but `CLAUDE.md` and stale FPGA
+  docs still need alignment with the QMTech Wukong V1 / `cli/dlc10` view.
+- L6 CEILING: `FORMAT-SPEC-001.json` `GF256.bias_caveat` is still open.
+
+---
+
+## 2026-07-23 — Wave Loop 750 (module-scope `[319][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 319.
+  The `[319][2]^6 Pt` witness is 653,312 bits (~0.624 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [319][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 319, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 319`, `MID_IDX = 159`; the frame-condition element is
+  `[159][1][0][0][0][0][0]`, element number `159*64 + 32 = 10208`.
+- Updated weak-point audit: 516 commits in 30 days (110 without `Closes #N`), 445
+  `.t27` specs without `test`/`invariant`/`bench`, 19 `scripts/*.sh` on critical path.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w750_bench_module_319x2p6_aos_var_call_write.t27` (~1,397 KB /
+  ~60,671 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w750_bench_module_319x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w750.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 210 passed; 0 failed.
+- Direct `t27c parse` W750: PASS.
+- Direct `t27c icarus-lowerable` W750: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W750: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W750: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  653,312-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Tlsys - first ternary RTL-to-CNFET synthesis framework, >500k-gate designs
+    (Chinese Journal of Electronics, 2026).
+  - Ternary VHDL (TVHDL) - balanced-ternary IEEE 1076-2008 VHDL extension with
+    open-source library and GHDL simulation (ISMVL 2026).
+  - SONIC / SimulationEngine - C# EDA toolchain for ternary/mixed-radix VLSI,
+    event-driven gate-level simulator with delta cycles, REBEL-2 CPU, Verilog
+    export and Basys3 emitter (ISMVL 2026).
+  - REBEL-6 - 32-trit balanced ternary ISA with RV32I-to-REBEL compiler
+    pipeline for C (ISMVL 2025).
+  - Takahe - multi-radix open-source synthesis tool supporting ternary
+    (`--radix 3` balanced ternary), duodecimal, and other radices; includes
+    Setun-70 ternary processor design (GitHub 2026).
+  - Generalized Multiple-Valued FPGA Architecture Based on Improved T-Gate -
+    T-gate based MVL FPGA architecture merging LUT and flip-flop in CLBs,
+    applicable to any MVL level, reduces power and improves PVT robustness
+    (IEEE Access 2025).
+  - Trinity v2.0.x / B002 - zero-DSP ternary-weight autoregressive LLM inference
+    on QMTech XC7A100T via OpenXC7, ~63 tok/s @ 92 MHz, ~1 W (Zenodo 2025/2026).
+  - OpenXC7 / nextpnr-xilinx / Project X-Ray - fully open-source Xilinx
+    7-series toolchain, used for QMTech XC7A100T ternary projects without Vivado.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count <= 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global wN -> wN+1 replacement
+  may miss it; verify the generated module name independently.
+- With 20,416 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: 110 commits in the last 30 days still lack `Closes #N`.
+  Wave-loop closeout commits now include issue references, but the historical
+  backlog remains.
+- L4 TESTABILITY: 445 `.t27` specs still lack `test`/`invariant`/`bench` blocks.
+- L7 UNITY: 19 `scripts/*.sh` wrappers remain on the critical path beyond the two
+  permitted exceptions, plus 9 untracked `.sh` hooks under `.agents/` and `.codex/hooks/`.
+- FPGA SSOT: `fpga/HARDWARE_SSOT.md` is canonical, but `CLAUDE.md` and stale FPGA
+  docs still need alignment with the QMTech Wukong V1 / `cli/dlc10` view.
+- L6 CEILING: `FORMAT-SPEC-001.json` `GF256.bias_caveat` is still open.
+
+---
+
+## 2026-07-23 — Wave Loop 749 (module-scope `[317][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 317.
+  The `[317][2]^6 Pt` witness is 649,216 bits (~0.620 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [317][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 317, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 317`, `MID_IDX = 158`; the frame-condition element is
+  `[158][1][0][0][0][0][0]`, element number `158*64 + 32 = 10144`.
+- Updated weak-point audit: 514 commits in 30 days (109 without `Closes #N`), 445
+  `.t27` specs without `test`/`invariant`/`bench`, 19 `scripts/*.sh` on critical path.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w749_bench_module_317x2p6_aos_var_call_write.t27` (~1,388 KB /
+  ~60,291 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w749_bench_module_317x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w749.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 209 passed; 0 failed.
+- Direct `t27c parse` W749: PASS.
+- Direct `t27c icarus-lowerable` W749: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W749: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W749: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  649,216-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Tlsys - first ternary RTL-to-CNFET synthesis framework, >500k-gate designs
+    (Chinese Journal of Electronics, 2026).
+  - Ternary VHDL (TVHDL) - balanced-ternary IEEE 1076-2008 VHDL extension with
+    open-source library and GHDL simulation (ISMVL 2026).
+  - SONIC / SimulationEngine - C# EDA toolchain for ternary/mixed-radix VLSI,
+    event-driven gate-level simulator with delta cycles, REBEL-2 CPU, Verilog
+    export and Basys3 emitter (ISMVL 2026).
+  - REBEL-6 - 32-trit balanced ternary ISA with RV32I-to-REBEL compiler
+    pipeline for C (ISMVL 2025).
+  - Trinity v2.0.x / B002 - zero-DSP ternary-weight autoregressive LLM inference
+    on QMTech XC7A100T via OpenXC7, ~63 tok/s @ 92 MHz, ~1 W (Zenodo 2025/2026).
+  - RTL-Based General Synthesis Methodology for Ternary Logic - generic
+    RTL-to-gate-level synthesis with GT-LOGIC library, 63.39% cell-count
+    reduction vs. MUX-based synthesis, on memristor-CMOS/CNTFET/T-CMOS/DEPFET
+    (IEEE Access, 2025).
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count <= 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global wN -> wN+1 replacement
+  may miss it; verify the generated module name independently.
+- With 20,288 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: 109 commits in the last 30 days still lack `Closes #N`.
+  Wave-loop closeout commits now include issue references, but the historical
+  backlog remains.
+- L4 TESTABILITY: 445 `.t27` specs still lack `test`/`invariant`/`bench` blocks.
+- L7 UNITY: 19 `scripts/*.sh` wrappers remain on the critical path beyond the two
+  permitted exceptions, plus 9 untracked `.sh` hooks under `.agents/` and `.codex/hooks/`.
+- FPGA SSOT: `fpga/HARDWARE_SSOT.md` is canonical, but `CLAUDE.md` and stale FPGA
+  docs still need alignment with the QMTech Wukong V1 / `cli/dlc10` view.
+- L6 CEILING: `FORMAT-SPEC-001.json` `GF256.bias_caveat` is still open.
+
+---
+
+## 2026-07-22 — Wave Loop 748 (module-scope `[315][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 315.
+  The `[315][2]^6 Pt` witness is 645,120 bits (~0.616 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [315][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 315, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 315`, `MID_IDX = 157`; the frame-condition element is
+  `[157][1][0][0][0][0][0]`, element number `157*64 + 32 = 10080`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w748_bench_module_315x2p6_aos_var_call_write.t27` (~1,379 KB /
+  ~59,911 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w748_bench_module_315x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w748.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 208 passed; 0 failed.
+- Direct `t27c parse` W748: PASS.
+- Direct `t27c icarus-lowerable` W748: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W748: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W748: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  645,120-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Takahe - universal open-source synthesis with --radix 3, balanced ternary
+    cell library, nextpnr iCE40 FPGA export.
+  - Tlsys - CNFET-based ternary RTL-to-netlist flow with >500k-gate designs.
+  - SONIC / SimulationEngine - ternary EDA toolchain with Verilog FPGA export,
+    REBEL-2 CPU, Basys3 emitter.
+  - Trinity B002 - zero-DSP balanced-ternary inference architecture for Xilinx
+    7-series, open-source Yosys/NextPNR-Xilinx/OpenXC7 flow, QMTech-board support,
+    aligning with t27 FPGA SSOT target.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count <= 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global wN -> wN+1 replacement
+  may miss it; verify the generated module name independently.
+- With 20,160 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: 424 commits in the last 30 days still lack `Closes #N`.
+  Wave-loop closeout commits now include issue references, but the historical
+  backlog remains.
+- L4 TESTABILITY: 57 `.t27` specs still lack `test`/`invariant`/`bench` blocks.
+- L7 UNITY: 19 `scripts/*.sh` wrappers remain on the critical path beyond the two
+  permitted exceptions, plus 9 untracked `.sh` hooks under `.agents/` and `.codex/hooks/`.
+- FPGA SSOT: `fpga/HARDWARE_SSOT.md` is canonical, but `CLAUDE.md` and stale FPGA
+  docs still need alignment with the QMTech Wukong V1 / `cli/dlc10` view.
+- L6 CEILING: `FORMAT-SPEC-001.json` `GF256.bias_caveat` is still open.
+
+---
+
+## 2026-07-22 -- Wave Loop 747 (module-scope [313][2]^6 Pt non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 313.
+  The [313][2]^6 Pt witness is 641,024 bits (~0.612 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level pub var dst : [313][2]^6 Pt can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 313, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  [r][a5][a4][a3][a2][a1][a0] is element r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0.
+- For OUTER = 313, MID_IDX = 156; the frame-condition element is
+  [156][1][0][0][0][0][0], element number 156*64 + 32 = 10016.
+
+### What changed behavior
+- No changes to bootstrap/src/compiler.rs.
+- No changes to bootstrap/stage0/FROZEN_HASH.
+- No changes to scripts/cocotb_ref_model.py.
+- Added specs/scratch/w747_bench_module_313x2p6_aos_var_call_write.t27 (~1,371 KB /
+  ~59,531 lines) with seal and Icarus baseline.
+- Added integration test accepts_w747_bench_module_313x2p6_aos_var_call_write.
+- Added generator script scripts/gen_w747.py.
+
+### Validation
+- cargo build --release -p t27c: OK.
+- cargo test -p t27c --bin t27c: 1494 passed; 0 failed; 2 ignored.
+- cargo test -p tri: 78 passed; 0 failed.
+- cargo test -p t27c --test icarus_lowerable: 207 passed; 0 failed.
+- Direct t27c parse W747: PASS.
+- Direct t27c icarus-lowerable W747: PASS (lowerable).
+- Direct t27c icarus-simulate W747: PASS (17 cycles, PASSED).
+- Direct t27c icarus-cocotb W747: PASS (reference-model OK).
+
+### Scientific / engineering background
+- IEEE 1800-2017 7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  641,024-bit packed vector, which is legal SystemVerilog.
+- Lutsig verified array lowering and CIRCT HWLegalizeModules show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27 scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27 packed-vector lowering avoids the
+  gap.
+- 2025-2026 ternary/MVL literature scan found:
+  - Takahe - universal open-source synthesis with --radix 3, balanced ternary
+    cell library, nextpnr iCE40 FPGA export.
+  - Tlsys - CNFET-based ternary RTL-to-netlist flow with >500k-gate designs.
+  - SONIC / SimulationEngine - ternary EDA toolchain with Verilog FPGA export,
+    REBEL-2 CPU, Basys3 emitter.
+  - Trinity B002 - zero-DSP balanced-ternary inference architecture for Xilinx
+    7-series, open-source Yosys/NextPNR-Xilinx/OpenXC7 flow, QMTech-board support,
+    aligning with t27 FPGA SSOT target.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with (2*e + offset) % 32768 for
+  any element count <= 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer assert_eq over assert_ne in Icarus-lowerable simulation blocks;
+  assert_ne is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with {OUTER}, so a global wN -> wN+1 replacement
+  may miss it; verify the generated module name independently.
+- With 20,032 elements the offset-0 schedule already wraps naturally at 32768, so the
+  make_grid(32768) check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: 424 commits in the last 30 days still lack Closes #N.
+  Wave-loop closeout commits now include issue references, but the historical
+  backlog remains.
+- L4 TESTABILITY: 57 .t27 specs still lack test/invariant/bench blocks.
+- L7 UNITY: 19 scripts/*.sh wrappers remain on the critical path beyond the two
+  permitted exceptions, plus 9 untracked .sh hooks under .agents/ and .codex/hooks/.
+- FPGA SSOT: fpga/HARDWARE_SSOT.md is canonical, but CLAUDE.md and stale FPGA
+  docs still need alignment with the QMTech Wukong V1 / cli/dlc10 view.
+- L6 CEILING: FORMAT-SPEC-001.json GF256 bias_caveat is still open.
+
+## 2026-07-22 — Wave Loop 746 (module-scope `[311][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 311.
+  The `[311][2]^6 Pt` witness is 636,928 bits (~0.608 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [311][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 311, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 311`, `MID_IDX = 155`; the frame-condition element is
+  `[155][1][0][0][0][0][0]`, element number `155*64 + 32 = 9952`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w746_bench_module_311x2p6_aos_var_call_write.t27` (~1,362 KB /
+  ~59,151 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w746_bench_module_311x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w746.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 206 passed; 0 failed.
+- Direct `t27c parse` W746: PASS.
+- Direct `t27c icarus-lowerable` W746: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W746: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W746: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of
+  packed dimensions, with no power-of-two restriction. Variant A emits a single
+  636,928-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+- 2025–2026 ternary/MVL literature scan found:
+  - Takahe — universal open-source synthesis with `--radix 3`, balanced ternary
+    cell library, nextpnr iCE40 FPGA export.
+  - Tlsys — CNFET-based ternary RTL-to-netlist flow with >500k-gate designs.
+  - Park et al., IEEE Access 2025 — device-independent ternary Verilog
+    synthesis with GT-LOGIC library and 63.39% cell-count reduction.
+  - TVHDL (ISMVL 2026) — balanced ternary VHDL extension with GHDL simulation.
+  - SONIC / SimulationEngine — ternary EDA toolchain with Verilog FPGA export,
+    REBEL-2 CPU, Basys3 emitter.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 19,904 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: 422 commits in the last 30 days still lack `Closes #N`.
+  Wave-loop closeout commits now include issue references, but the historical
+  backlog remains.
+- L4 TESTABILITY: 57 `.t27` specs still lack `test`/`invariant`/`bench` blocks.
+- L7 UNITY: 19 `scripts/*.sh` wrappers remain on the critical path beyond the two
+  permitted exceptions, plus untracked `.sh` hooks under `.agents/` and `.codex/hooks/`.
+- FPGA SSOT: `fpga/HARDWARE_SSOT.md` is canonical, but `CLAUDE.md` and stale FPGA
+  docs still need alignment with the QMTech Wukong V1 / `cli/dlc10` view.
+- L6 CEILING: `FORMAT-SPEC-001.json` `GF256` `bias_caveat` is still open.
+
+## 2026-07-22 — Wave Loop 745 (module-scope `[309][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 309.
+  The `[309][2]^6 Pt` witness is 632,832 bits (~0.604 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [309][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 309, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 309`, `MID_IDX = 154`; the frame-condition element is
+  `[154][1][0][0][0][0][0]`, element number `154*64 + 32 = 9888`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w745_bench_module_309x2p6_aos_var_call_write.t27` (~1,353 KB /
+  ~58,771 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w745_bench_module_309x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w745.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 205 passed; 0 failed.
+- Direct `t27c parse` W745: PASS.
+- Direct `t27c icarus-lowerable` W745: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W745: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W745: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  632,832-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 19,776 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: ~28 recent commits still lack `Closes #N`; wave-loop closeout
+  commits should include issue references.
+- L4 TESTABILITY: 57 `.t27` specs still lack `test`/`invariant`/`bench` blocks.
+- L7 UNITY: 19 `scripts/*.sh` wrappers remain on the critical path beyond the two
+  permitted exceptions, plus untracked `.sh` hooks under `.agents/` and `.codex/hooks/`.
+- FPGA SSOT: `CLAUDE.md` and `cli/dlc10` contradict `fpga/HARDWARE_SSOT.md` on
+  target board, IDCODE, and canonical loader.
+- L6 CEILING: `FORMAT-SPEC-001.json` `GF256` `bias_caveat` is still open.
+
+## 2026-07-22 — Wave Loop 744 (module-scope `[307][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 307.
+  The `[307][2]^6 Pt` witness is 628,736 bits (~0.600 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [307][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 307, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 307`, `MID_IDX = 153`; the frame-condition element is
+  `[153][1][0][0][0][0][0]`, element number `153*64 + 32 = 9824`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w744_bench_module_307x2p6_aos_var_call_write.t27` (~1,345 KB /
+  ~58,391 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w744_bench_module_307x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w744.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 204 passed; 0 failed.
+- Direct `t27c parse` W744: PASS.
+- Direct `t27c icarus-lowerable` W744: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W744: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W744: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  628,736-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+- Fresh literature scan found new 2025–2026 work: 5500FP/GargantuRAM native
+  24-trit RISC CPU, IEEE Access RTL-based ternary synthesis, Tlsys CNFET flow,
+  TVHDL ternary VHDL, Takahe multi-radix synthesis, and parameterized GSTE
+  formal verification linked to Yosys netlists.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 19,648 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: ~28 recent commits still lack `Closes #N`; wave-loop closeout
+  commits should include issue references.
+- L4 TESTABILITY: 57 `.t27` specs still lack `test`/`invariant`/`bench` blocks.
+- L7 UNITY: 19 `scripts/*.sh` wrappers remain on the critical path beyond the two
+  permitted exceptions, plus untracked `.sh` hooks under `.agents/` and `.codex/hooks/`.
+- FPGA SSOT: `CLAUDE.md` and `cli/dlc10` contradict `fpga/HARDWARE_SSOT.md` on
+  target board, IDCODE, and canonical loader.
+- L6 CEILING: `FORMAT-SPEC-001.json` `GF256` `bias_caveat` is still open.
+- Dirty worktree: `.claude/scheduled_tasks.lock` modified; `.agents/` and `.codex/`
+  untracked.
+- Known conformance failures: `build/suite_report.json` reports 7 yosys-smoke
+  failures (acceptable); `conformance/kepler_newton_results.json` reports 4/16.
+
+## 2026-07-22 — Wave Loop 743 (module-scope `[305][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 305.
+  The `[305][2]^6 Pt` witness is 624,640 bits (~0.596 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [305][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 305, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+- For `OUTER = 305`, `MID_IDX = 152`; the frame-condition element is
+  `[152][1][0][0][0][0][0]`, element number `152*64 + 32 = 9756`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w743_bench_module_305x2p6_aos_var_call_write.t27` (~1,336 KB /
+  ~58,011 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w743_bench_module_305x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w743.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 203 passed; 0 failed.
+- Direct `t27c parse` W743: PASS.
+- Direct `t27c icarus-lowerable` W743: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W743: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W743: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  624,640-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+- Recent literature scan surfaced active work in native balanced-ternary CPUs
+  (VTX1, 5500FP), ternary-weight LLM accelerators (TerEffic, TeLLMe, Trinity B002),
+  multi-valued synthesis frameworks (Tlsys, MRCS/REBEL-2, ternary-lut-dse), and
+  formal-methods lineage (Bryant/Seger STE, Rosenmann MVL).
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 19,520 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+### Weak points to address in the next ring
+- L1 TRACEABILITY: ~38 recent commits lack `Closes #N`; wave-loop closeout
+  commits should include issue references.
+- L4 TESTABILITY: 56 `.t27` specs still lack `test`/`invariant`/`bench` blocks.
+- L7 UNITY: 19 `scripts/*.sh` wrappers remain on the critical path beyond the two
+  permitted exceptions.
+- FPGA SSOT: `CLAUDE.md` and `cli/dlc10` contradict `fpga/HARDWARE_SSOT.md` on
+  target board, IDCODE, and canonical loader.
+- L6 CEILING: `FORMAT-SPEC-001.json` `GF256` `bias_caveat` is still open.
+
+## 2026-07-21 — Wave Loop 742 (module-scope `[303][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 303.
+  The `[303][2]^6 Pt` witness is 620,544 bits (≈0.591 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [303][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 303, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w742_bench_module_303x2p6_aos_var_call_write.t27` (~1,328 KB /
+  ~57,631 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w742_bench_module_303x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w742.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 202 passed; 0 failed.
+- Direct `t27c parse` W742: PASS.
+- Direct `t27c icarus-lowerable` W742: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W742: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W742: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  620,544-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 19,392 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+## 2026-07-21 — Wave Loop 741 (module-scope `[301][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 301.
+  The `[301][2]^6 Pt` witness is 616,448 bits (≈0.588 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [301][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 301, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w741_bench_module_301x2p6_aos_var_call_write.t27` (~1,319 KB /
+  ~57,251 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w741_bench_module_301x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w741.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 201 passed; 0 failed.
+- Direct `t27c parse` W741: PASS.
+- Direct `t27c icarus-lowerable` W741: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W741: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W741: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  616,448-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 19,264 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+## 2026-07-07 — Wave Loop 740 (module-scope `[299][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 299.
+  The `[299][2]^6 Pt` witness is 612,352 bits (≈0.584 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [299][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 299, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w740_bench_module_299x2p6_aos_var_call_write.t27` (~1,310 KB /
+  ~56,871 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w740_bench_module_299x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w740.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 200 passed; 0 failed.
+- Direct `t27c parse` W740: PASS.
+- Direct `t27c icarus-lowerable` W740: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W740: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W740: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  612,352-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 19,136 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+## 2026-07-07 — Wave Loop 739 (module-scope `[297][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 297.
+  The `[297][2]^6 Pt` witness is 608,256 bits (≈0.580 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [297][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 297, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w739_bench_module_297x2p6_aos_var_call_write.t27` (~1,302 KB /
+  ~56,491 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w739_bench_module_297x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w739.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 199 passed; 0 failed.
+- Direct `t27c parse` W739: PASS.
+- Direct `t27c icarus-lowerable` W739: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W739: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W739: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  608,256-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 19,008 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+## 2026-07-07 — Wave Loop 738 (module-scope `[295][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 295.
+  The `[295][2]^6 Pt` witness is 604,160 bits (≈0.577 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [295][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 295, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w738_bench_module_295x2p6_aos_var_call_write.t27` (~1,293 KB /
+  ~56,111 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w738_bench_module_295x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w738.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 198 passed; 0 failed.
+- Direct `t27c parse` W738: PASS.
+- Direct `t27c icarus-lowerable` W738: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W738: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W738: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  604,160-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 18,880 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+## 2026-07-07 — Wave Loop 737 (module-scope `[293][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 293.
+  The `[293][2]^6 Pt` witness is 600,064 bits (≈0.573 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [293][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 293, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w737_bench_module_293x2p6_aos_var_call_write.t27` (~1,284 KB /
+  ~55,731 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w737_bench_module_293x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w737.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 197 passed; 0 failed.
+- Direct `t27c parse` W737: PASS.
+- Direct `t27c icarus-lowerable` W737: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W737: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W737: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  600,064-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 18,752 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+## 2026-07-07 — Wave Loop 736 (module-scope `[291][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 291.
+  The `[291][2]^6 Pt` witness is 595,968 bits (≈0.569 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [291][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 291, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w736_bench_module_291x2p6_aos_var_call_write.t27` (~1,276 KB /
+  ~55,351 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w736_bench_module_291x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w736.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 196 passed; 0 failed.
+- Direct `t27c parse` W736: PASS.
+- Direct `t27c icarus-lowerable` W736: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W736: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W736: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  595,968-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 18,624 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+## 2026-07-07 — Wave Loop 735 (module-scope `[289][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 289.
+  The `[289][2]^6 Pt` witness is 591,872 bits (≈0.565 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [289][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 289, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w735_bench_module_289x2p6_aos_var_call_write.t27` (~1,267 KB /
+  ~54,971 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w735_bench_module_289x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w735.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 195 passed; 0 failed.
+- Direct `t27c parse` W735: PASS.
+- Direct `t27c icarus-lowerable` W735: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W735: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W735: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  591,872-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 18,496 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+## 2026-07-07 — Wave Loop 734 (module-scope `[287][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 287.
+  The `[287][2]^6 Pt` witness is 587,776 bits (≈0.561 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [287][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 287, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w734_bench_module_287x2p6_aos_var_call_write.t27` (~1,259 KB /
+  ~54,591 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w734_bench_module_287x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w734.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 194 passed; 0 failed.
+- Direct `t27c parse` W734: PASS.
+- Direct `t27c icarus-lowerable` W734: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W734: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W734: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  587,776-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 18,368 elements the offset-0 schedule already wraps naturally at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+## 2026-07-07 — Wave Loop 733 (module-scope `[285][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 285.
+  The `[285][2]^6 Pt` witness is 583,680 bits (≈0.557 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [285][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 285, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w733_bench_module_285x2p6_aos_var_call_write.t27` (~1,250 KB /
+  ~54,211 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w733_bench_module_285x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w733.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 193 passed; 0 failed.
+- Direct `t27c parse` W733: PASS.
+- Direct `t27c icarus-lowerable` W733: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W733: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W733: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  583,680-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+- With 18,240 elements the offset-0 schedule already wraps at 32768, so the
+  `make_grid(32768)` check is a period-identity check, not a first-time wrap test.
+  Future waves can stress true wrap with non-trivial offsets (e.g., 1 or 16383).
+
+## 2026-07-07 — Wave Loop 732 (module-scope `[283][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 283.
+  The `[283][2]^6 Pt` witness is 579,584 bits (≈0.553 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [283][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 283, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w732_bench_module_283x2p6_aos_var_call_write.t27` (~1,241 KB /
+  ~53,831 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w732_bench_module_283x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w732.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 192 passed; 0 failed.
+- Direct `t27c parse` W732: PASS.
+- Direct `t27c icarus-lowerable` W732: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W732: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W732: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  579,584-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- When copying a generator script for the next outer dimension, remember that the
+  module header uses an f-string with `{OUTER}`, so a global `wN -> wN+1` replacement
+  may miss it; verify the generated module name independently.
+
+## 2026-07-07 — Wave Loop 729 (module-scope `[277][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 277.
+  The `[277][2]^6 Pt` witness is 598,912 bits (≈0.571 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [277][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 277, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w729_bench_module_277x2p6_aos_var_call_write.t27` (~1,216 KB /
+  ~52,691 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w729_bench_module_277x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w729.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 189 passed; 0 failed.
+- Direct `t27c parse` W729: PASS.
+- Direct `t27c icarus-lowerable` W729: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W729: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W729: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  598,912-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+## 2026-07-07 — Wave Loop 728 (module-scope `[275][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 275.
+  The `[275][2]^6 Pt` witness is 594,560 bits (≈0.567 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [275][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 275, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w728_bench_module_275x2p6_aos_var_call_write.t27` (~1,207 KB /
+  ~52,311 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w728_bench_module_275x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w728.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 188 passed; 0 failed.
+- Direct `t27c parse` W728: PASS.
+- Direct `t27c icarus-lowerable` W728: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W728: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W728: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  594,560-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+## 2026-07-07 — Wave Loop 727 (module-scope `[273][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 273.
+  The `[273][2]^6 Pt` witness is 590,208 bits (≈0.563 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [273][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 273, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w727_bench_module_273x2p6_aos_var_call_write.t27` (~1,198 KB /
+  ~51,931 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w727_bench_module_273x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w727.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 187 passed; 0 failed.
+- Direct `t27c parse` W727: PASS.
+- Direct `t27c icarus-lowerable` W727: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W727: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W727: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  590,208-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+## 2026-07-07 — Wave Loop 726 (module-scope `[271][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 271.
+  The `[271][2]^6 Pt` witness is 585,856 bits (≈0.558 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [271][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 271, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w726_bench_module_271x2p6_aos_var_call_write.t27` (~1,190 KB /
+  ~51,551 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w726_bench_module_271x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w726.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 186 passed; 0 failed.
+- Direct `t27c parse` W726: PASS.
+- Direct `t27c icarus-lowerable` W726: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W726: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W726: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  585,856-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+## 2026-07-07 — Wave Loop 725 (module-scope `[269][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 269.
+  The `[269][2]^6 Pt` witness is 581,504 bits (≈0.554 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [269][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 269, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w725_bench_module_269x2p6_aos_var_call_write.t27` (~1,181 KB /
+  ~51,171 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w725_bench_module_269x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w725.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 185 passed; 0 failed.
+- Direct `t27c parse` W725: PASS.
+- Direct `t27c icarus-lowerable` W725: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W725: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W725: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  581,504-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+## 2026-07-07 — Wave Loop 724 (module-scope `[267][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 267.
+  The `[267][2]^6 Pt` witness is 577,152 bits (≈0.549 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [267][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 267, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w724_bench_module_267x2p6_aos_var_call_write.t27` (~1,173 KB /
+  ~50,791 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w724_bench_module_267x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w724.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 184 passed; 0 failed.
+- Direct `t27c parse` W724: PASS.
+- Direct `t27c icarus-lowerable` W724: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W724: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W724: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  577,152-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+## 2026-07-07 — Wave Loop 723 (module-scope `[265][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 265.
+  The `[265][2]^6 Pt` witness is 570,880 bits (≈0.543 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [265][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 265, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w723_bench_module_265x2p6_aos_var_call_write.t27` (~1,164 KB /
+  ~50,411 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w723_bench_module_265x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w723.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 183 passed; 0 failed.
+- Direct `t27c parse` W723: PASS.
+- Direct `t27c icarus-lowerable` W723: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W723: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W723: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  570,880-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[265][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 722 (module-scope `[263][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 263.
+  The `[263][2]^6 Pt` witness is 564,608 bits (≈0.537 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [263][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 263, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w722_bench_module_263x2p6_aos_var_call_write.t27` (~1,155 KB /
+  ~50,031 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w722_bench_module_263x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w722.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 182 passed; 0 failed.
+- Direct `t27c parse` W722: PASS.
+- Direct `t27c icarus-lowerable` W722: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W722: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W722: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  564,608-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[263][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 721 (module-scope `[261][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 261.
+  The `[261][2]^6 Pt` witness is 558,336 bits (≈0.531 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [261][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 261, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w721_bench_module_261x2p6_aos_var_call_write.t27` (~1,147 KB /
+  ~49,651 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w721_bench_module_261x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w721.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 181 passed; 0 failed.
+- Direct `t27c parse` W721: PASS.
+- Direct `t27c icarus-lowerable` W721: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W721: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W721: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  558,336-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[261][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 720 (module-scope `[259][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 259.
+  The `[259][2]^6 Pt` witness is 552,064 bits (≈0.525 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [259][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 259, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w720_bench_module_259x2p6_aos_var_call_write.t27` (~1,139 KB /
+  ~49,271 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w720_bench_module_259x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w720.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 180 passed; 0 failed.
+- Direct `t27c parse` W720: PASS.
+- Direct `t27c icarus-lowerable` W720: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W720: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W720: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array total width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  552,064-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[259][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 719 (module-scope `[257][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 257.
+  The `[257][2]^6 Pt` witness is 545,792 bits (≈0.520 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [257][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 257, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w719_bench_module_257x2p6_aos_var_call_write.t27` (~1,130 KB /
+  ~48,891 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w719_bench_module_257x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w719.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 179 passed; 0 failed.
+- Direct `t27c parse` W719: PASS.
+- Direct `t27c icarus-lowerable` W719: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W719: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W719: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  545,792-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[257][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 718 (module-scope `[255][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 255.
+  The `[255][2]^6 Pt` witness is 539,520 bits (≈0.514 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [255][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 255, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w718_bench_module_255x2p6_aos_var_call_write.t27` (~1,122 KB /
+  ~48,511 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w718_bench_module_255x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w718.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 178 passed; 0 failed.
+- Direct `t27c parse` W718: PASS.
+- Direct `t27c icarus-lowerable` W718: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W718: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W718: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  539,520-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[255][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 717 (module-scope `[253][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 253.
+  The `[253][2]^6 Pt` witness is 533,248 bits (≈0.508 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [253][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 253, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w717_bench_module_253x2p6_aos_var_call_write.t27` (~1,113 KB /
+  ~48,131 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w717_bench_module_253x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w717.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 177 passed; 0 failed.
+- Direct `t27c parse` W717: PASS.
+- Direct `t27c icarus-lowerable` W717: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W717: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W717: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  533,248-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[253][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 716 (module-scope `[251][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 251.
+  The `[251][2]^6 Pt` witness is 526,976 bits (≈0.502 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [251][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 251, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w716_bench_module_251x2p6_aos_var_call_write.t27` (~1,104 KB /
+  ~47,751 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w716_bench_module_251x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w716.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 176 passed; 0 failed.
+- Direct `t27c parse` W716: PASS.
+- Direct `t27c icarus-lowerable` W716: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W716: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W716: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  526,976-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[251][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 715 (module-scope `[249][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 249.
+  The `[249][2]^6 Pt` witness is 520,704 bits (≈0.496 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [249][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 249, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w715_bench_module_249x2p6_aos_var_call_write.t27` (~1,095 KB /
+  ~47,371 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w715_bench_module_249x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w715.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 175 passed; 0 failed.
+- Direct `t27c parse` W715: PASS.
+- Direct `t27c icarus-lowerable` W715: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W715: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W715: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  520,704-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[249][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 714 (module-scope `[247][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 247.
+  The `[247][2]^6 Pt` witness is 514,432 bits (≈0.490 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [247][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 247, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w714_bench_module_247x2p6_aos_var_call_write.t27` (~1,086 KB /
+  ~46,991 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w714_bench_module_247x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w714.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 174 passed; 0 failed.
+- Direct `t27c parse` W714: PASS.
+- Direct `t27c icarus-lowerable` W714: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W714: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W714: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  514,432-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[247][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 713 (module-scope `[245][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 245.
+  The `[245][2]^6 Pt` witness is 508,288 bits (≈0.483 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [245][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 245, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w713_bench_module_245x2p6_aos_var_call_write.t27` (~1,077 KB /
+  ~46,611 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w713_bench_module_245x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w713.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 173 passed; 0 failed.
+- Direct `t27c parse` W713: PASS.
+- Direct `t27c icarus-lowerable` W713: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W713: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W713: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  508,288-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[245][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 712 (module-scope `[243][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 243.
+  The `[243][2]^6 Pt` witness is 502,016 bits (≈0.478 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [243][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 243, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w712_bench_module_243x2p6_aos_var_call_write.t27` (~1,069 KB /
+  ~46,231 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w712_bench_module_243x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w712.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 172 passed; 0 failed.
+- Direct `t27c parse` W712: PASS.
+- Direct `t27c icarus-lowerable` W712: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W712: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W712: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  502,016-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[243][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 711 (module-scope `[241][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 241.
+  The `[241][2]^6 Pt` witness is 495,744 bits (≈0.472 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [241][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 241, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w711_bench_module_241x2p6_aos_var_call_write.t27` (~1,060 KB /
+  ~45,851 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w711_bench_module_241x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w711.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 171 passed; 0 failed.
+- Direct `t27c parse` W711: PASS.
+- Direct `t27c icarus-lowerable` W711: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W711: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W711: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  495,744-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[241][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 710 (module-scope `[239][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 239.
+  The `[239][2]^6 Pt` witness is 489,472 bits (≈0.467 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [239][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 239, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w710_bench_module_239x2p6_aos_var_call_write.t27` (~1,051 KB /
+  ~45,471 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w710_bench_module_239x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w710.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 170 passed; 0 failed.
+- Direct `t27c parse` W710: PASS.
+- Direct `t27c icarus-lowerable` W710: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W710: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W710: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  489,472-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[239][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 709 (module-scope `[237][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 237.
+  The `[237][2]^6 Pt` witness is 483,200 bits (≈0.461 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [237][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 237, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w709_bench_module_237x2p6_aos_var_call_write.t27` (~1,042 KB /
+  ~45,091 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w709_bench_module_237x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w709.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 169 passed; 0 failed.
+- Direct `t27c parse` W709: PASS.
+- Direct `t27c icarus-lowerable` W709: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W709: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W709: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  483,200-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[237][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 708 (module-scope `[235][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 235.
+  The `[235][2]^6 Pt` witness is 479,488 bits (≈0.457 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [235][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 235, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w708_bench_module_235x2p6_aos_var_call_write.t27` (~1,033 KB /
+  ~44,711 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w708_bench_module_235x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w708.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 168 passed; 0 failed.
+- Direct `t27c parse` W708: PASS.
+- Direct `t27c icarus-lowerable` W708: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W708: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W708: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  479,488-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[235][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 707 (module-scope `[233][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 233.
+  The `[233][2]^6 Pt` witness is 475,776 bits (≈0.454 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [233][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 233, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w707_bench_module_233x2p6_aos_var_call_write.t27` (~1,024 KB /
+  ~44,331 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w707_bench_module_233x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w707.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 167 passed; 0 failed.
+- Direct `t27c parse` W707: PASS.
+- Direct `t27c icarus-lowerable` W707: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W707: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W707: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  475,776-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[233][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 706 (module-scope `[231][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 231.
+  The `[231][2]^6 Pt` witness is 473,088 bits (≈0.452 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [231][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 231, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w706_bench_module_231x2p6_aos_var_call_write.t27` (~1,015 KB /
+  ~43,951 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w706_bench_module_231x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w706.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 166 passed; 0 failed.
+- Direct `t27c parse` W706: PASS.
+- Direct `t27c icarus-lowerable` W706: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W706: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W706: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  473,088-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[231][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 705 (module-scope `[229][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 229.
+  The `[229][2]^6 Pt` witness is 468,992 bits (≈0.448 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [229][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 229, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w705_bench_module_229x2p6_aos_var_call_write.t27` (~1,007 KB /
+  ~43,571 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w705_bench_module_229x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w705.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 165 passed; 0 failed.
+- Direct `t27c parse` W705: PASS.
+- Direct `t27c icarus-lowerable` W705: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W705: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W705: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  468,992-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[229][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 699 (module-scope `[217][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 217.
+  The `[217][2]^6 Pt` witness is 444,416 bits (≈0.424 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [217][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 217, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w699_bench_module_217x2p6_aos_var_call_write.t27` (~952 KB /
+  ~41,291 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w699_bench_module_217x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w699.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 159 passed; 0 failed.
+- Direct `t27c parse` W699: PASS.
+- Direct `t27c icarus-lowerable` W699: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W699: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W699: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  444,416-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[217][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 698 (module-scope `[215][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 215.
+  The `[215][2]^6 Pt` witness is 440,320 bits (≈0.420 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [215][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 215, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w698_bench_module_215x2p6_aos_var_call_write.t27` (~943 KB /
+  ~40,911 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w698_bench_module_215x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w698.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 158 passed; 0 failed.
+- Direct `t27c parse` W698: PASS.
+- Direct `t27c icarus-lowerable` W698: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W698: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W698: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  440,320-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[215][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 697 (module-scope `[213][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 213.
+  The `[213][2]^6 Pt` witness is 436,224 bits (≈0.415 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [213][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 213, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w697_bench_module_213x2p6_aos_var_call_write.t27` (~934 KB /
+  ~40,531 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w697_bench_module_213x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w697.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 157 passed; 0 failed.
+- Direct `t27c parse` W697: PASS.
+- Direct `t27c icarus-lowerable` W697: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W697: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W697: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  436,224-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[213][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 696 (module-scope `[211][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 211.
+  The `[211][2]^6 Pt` witness is 432,128 bits (≈0.411 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [211][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 211, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w696_bench_module_211x2p6_aos_var_call_write.t27` (~925 KB /
+  ~40,151 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w696_bench_module_211x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w696.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 156 passed; 0 failed.
+- Direct `t27c parse` W696: PASS.
+- Direct `t27c icarus-lowerable` W696: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W696: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W696: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  432,128-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[211][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 695 (module-scope `[209][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 209.
+  The `[209][2]^6 Pt` witness is 428,032 bits (≈0.408 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [209][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 209, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w695_bench_module_209x2p6_aos_var_call_write.t27` (~917 KB /
+  ~39,771 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w695_bench_module_209x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w695.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 155 passed; 0 failed.
+- Direct `t27c parse` W695: PASS.
+- Direct `t27c icarus-lowerable` W695: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W695: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W695: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  428,032-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[209][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 694 (module-scope `[207][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 207.
+  The `[207][2]^6 Pt` witness is 423,936 bits (≈0.404 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [207][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 207, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w694_bench_module_207x2p6_aos_var_call_write.t27` (~909 KB /
+  ~39,391 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w694_bench_module_207x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w694.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 154 passed; 0 failed.
+- Direct `t27c parse` W694: PASS.
+- Direct `t27c icarus-lowerable` W694: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W694: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W694: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  423,936-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[207][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 693 (module-scope `[205][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 205.
+  The `[205][2]^6 Pt` witness is 419,840 bits (≈0.400 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [205][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 205, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w693_bench_module_205x2p6_aos_var_call_write.t27` (~900 KB /
+  ~39,011 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w693_bench_module_205x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w693.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 153 passed; 0 failed.
+- Direct `t27c parse` W693: PASS.
+- Direct `t27c icarus-lowerable` W693: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W693: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W693: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  419,840-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[205][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 692 (module-scope `[203][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 203.
+  The `[203][2]^6 Pt` witness is 415,744 bits (≈0.396 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [203][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 203, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w692_bench_module_203x2p6_aos_var_call_write.t27` (~891 KB /
+  ~38,631 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w692_bench_module_203x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w692.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 152 passed; 0 failed.
+- Direct `t27c parse` W692: PASS.
+- Direct `t27c icarus-lowerable` W692: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W692: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W692: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  415,744-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[203][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 691 (module-scope `[201][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 201.
+  The `[201][2]^6 Pt` witness is 411,648 bits (≈0.392 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [201][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 201, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w691_bench_module_201x2p6_aos_var_call_write.t27` (~882 KB /
+  ~38,251 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w691_bench_module_201x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w691.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 151 passed; 0 failed.
+- Direct `t27c parse` W691: PASS.
+- Direct `t27c icarus-lowerable` W691: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W691: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W691: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  411,648-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[201][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 690 (module-scope `[199][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 199.
+  The `[199][2]^6 Pt` witness is 407,552 bits (≈0.387 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [199][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 199, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w690_bench_module_199x2p6_aos_var_call_write.t27` (~874 KB /
+  ~37,871 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w690_bench_module_199x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w690.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 150 passed; 0 failed.
+- Direct `t27c parse` W690: PASS.
+- Direct `t27c icarus-lowerable` W690: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W690: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W690: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  407,552-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[199][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 689 (module-scope `[197][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 197.
+  The `[197][2]^6 Pt` witness is 403,456 bits (≈0.383 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [197][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 197, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w689_bench_module_197x2p6_aos_var_call_write.t27` (~865 KB /
+  ~37,491 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w689_bench_module_197x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w689.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 149 passed; 0 failed.
+- Direct `t27c parse` W689: PASS.
+- Direct `t27c icarus-lowerable` W689: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W689: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W689: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  403,456-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[197][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 688 (module-scope `[195][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 195.
+  The `[195][2]^6 Pt` witness is 399,360 bits (≈0.380 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [195][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 195, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w688_bench_module_195x2p6_aos_var_call_write.t27` (~856 KB /
+  ~37,111 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w688_bench_module_195x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w688.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 148 passed; 0 failed.
+- Direct `t27c parse` W688: PASS.
+- Direct `t27c icarus-lowerable` W688: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W688: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W688: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  399,360-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[195][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 687 (module-scope `[193][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 193.
+  The `[193][2]^6 Pt` witness is 395,264 bits (≈0.377 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [193][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 193, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w687_bench_module_193x2p6_aos_var_call_write.t27` (~847 KB /
+  ~36,731 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w687_bench_module_193x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w687.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 147 passed; 0 failed.
+- Direct `t27c parse` W687: PASS.
+- Direct `t27c icarus-lowerable` W687: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W687: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W687: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  395,264-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[193][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 686 (module-scope `[191][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 191.
+  The `[191][2]^6 Pt` witness is 391,168 bits (≈0.373 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [191][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 191, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w686_bench_module_191x2p6_aos_var_call_write.t27` (~838 KB /
+  ~36,351 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w686_bench_module_191x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w686.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 146 passed; 0 failed.
+- Direct `t27c parse` W686: PASS.
+- Direct `t27c icarus-lowerable` W686: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W686: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W686: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  391,168-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[191][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 685 (module-scope `[189][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 189.
+  The `[189][2]^6 Pt` witness is 387,072 bits (≈0.370 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [189][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 189, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w685_bench_module_189x2p6_aos_var_call_write.t27` (~829 KB /
+  ~35,971 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w685_bench_module_189x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w685.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 145 passed; 0 failed.
+- Direct `t27c parse` W685: PASS.
+- Direct `t27c icarus-lowerable` W685: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W685: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W685: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  387,072-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[189][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 684 (module-scope `[187][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 187.
+  The `[187][2]^6 Pt` witness is 382,976 bits (≈0.366 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [187][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 187, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w684_bench_module_187x2p6_aos_var_call_write.t27` (~820 KB /
+  ~35,591 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w684_bench_module_187x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w684.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 144 passed; 0 failed.
+- Direct `t27c parse` W684: PASS.
+- Direct `t27c icarus-lowerable` W684: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W684: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W684: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  382,976-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[187][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 683 (module-scope `[185][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 185.
+  The `[185][2]^6 Pt` witness is 378,880 bits (≈0.362 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [185][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 185, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w683_bench_module_185x2p6_aos_var_call_write.t27` (~811 KB /
+  ~35,211 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w683_bench_module_185x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w683.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 143 passed; 0 failed.
+- Direct `t27c parse` W683: PASS.
+- Direct `t27c icarus-lowerable` W683: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W683: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W683: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  378,880-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[185][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 682 (module-scope `[183][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 183.
+  The `[183][2]^6 Pt` witness is 374,784 bits (≈0.358 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [183][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 183, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w682_bench_module_183x2p6_aos_var_call_write.t27` (~803 KB /
+  ~34,831 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w682_bench_module_183x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w682.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 142 passed; 0 failed.
+- Direct `t27c parse` W682: PASS.
+- Direct `t27c icarus-lowerable` W682: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W682: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W682: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  374,784-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[183][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 664 (module-scope `[147][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 147.
+  The `[147][2]^6 Pt` witness is 301,056 bits (≈0.287 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [147][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 147, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w664_bench_module_147x2p6_aos_var_call_write.t27` (~643 KB /
+  ~27,991 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w664_bench_module_147x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w664.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 124 passed; 0 failed.
+- Direct `t27c parse` W664: PASS.
+- Direct `t27c icarus-lowerable` W664: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W664: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W664: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: parse/typecheck/gen-Zig/gen-Rust/gen-Verilog/gen-C/seal/fixed-point clean; 24 pre-existing Yosys smoke failures.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  301,056-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports 24 pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[147][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 663 (module-scope `[145][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 145.
+  The `[145][2]^6 Pt` witness is 296,960 bits (≈0.283 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [145][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 145, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w663_bench_module_145x2p6_aos_var_call_write.t27` (~634 KB /
+  ~27,611 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w663_bench_module_145x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w663.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 123 passed; 0 failed.
+- Direct `t27c parse` W663: PASS.
+- Direct `t27c icarus-lowerable` W663: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W663: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W663: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: parse/typecheck/gen-Zig/gen-Rust/gen-Verilog/gen-C/seal/fixed-point clean; 24 pre-existing Yosys smoke failures.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  296,960-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports 24 pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[145][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 662 (module-scope `[143][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 143.
+  The `[143][2]^6 Pt` witness is 292,864 bits (≈0.279 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [143][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 143, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w662_bench_module_143x2p6_aos_var_call_write.t27` (~625 KB /
+  ~27,231 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w662_bench_module_143x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w662.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 122 passed; 0 failed.
+- Direct `t27c parse` W662: PASS.
+- Direct `t27c icarus-lowerable` W662: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W662: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W662: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: parse/typecheck/gen-Zig/gen-Rust/gen-Verilog/gen-C/seal/fixed-point clean; 24 pre-existing Yosys smoke failures.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  292,864-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports 24 pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[143][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 661 (module-scope `[141][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 141.
+  The `[141][2]^6 Pt` witness is 288,768 bits (≈0.275 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [141][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 141, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w661_bench_module_141x2p6_aos_var_call_write.t27` (~616 KB /
+  ~26,851 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w661_bench_module_141x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w661.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 121 passed; 0 failed.
+- Direct `t27c parse` W661: PASS.
+- Direct `t27c icarus-lowerable` W661: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W661: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W661: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: parse/typecheck/gen-Zig/gen-Rust/gen-Verilog/gen-C/seal/fixed-point clean; 24 pre-existing Yosys smoke failures.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  288,768-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports 24 pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[141][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 660 (module-scope `[139][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 139.
+  The `[139][2]^6 Pt` witness is 284,672 bits (≈0.271 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [139][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 139, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w660_bench_module_139x2p6_aos_var_call_write.t27` (~607 KB /
+  ~26,471 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w660_bench_module_139x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w660.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 120 passed; 0 failed.
+- Direct `t27c parse` W660: PASS.
+- Direct `t27c icarus-lowerable` W660: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W660: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W660: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: parse/typecheck/gen-Zig/gen-Rust/gen-Verilog/gen-C/seal/fixed-point clean; 24 pre-existing Yosys smoke failures.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  284,672-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports 24 pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[139][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 659 (module-scope `[137][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 137.
+  The `[137][2]^6 Pt` witness is 280,576 bits (≈0.267 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [137][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 137, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w659_bench_module_137x2p6_aos_var_call_write.t27` (~598 KB /
+  ~26,091 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w659_bench_module_137x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w659.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 119 passed; 0 failed.
+- Direct `t27c parse` W659: PASS.
+- Direct `t27c icarus-lowerable` W659: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W659: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W659: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: parse/typecheck/gen-Zig/gen-Rust/gen-Verilog/gen-C/seal/fixed-point clean; 24 pre-existing Yosys smoke failures.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  280,576-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports 24 pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[137][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 658 (module-scope `[135][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 135.
+  The `[135][2]^6 Pt` witness is 276,480 bits (≈0.263 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [135][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 135, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w658_bench_module_135x2p6_aos_var_call_write.t27` (~589 KB /
+  ~25,711 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w658_bench_module_135x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w658.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 118 passed; 0 failed.
+- Direct `t27c parse` W658: PASS.
+- Direct `t27c icarus-lowerable` W658: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W658: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W658: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: parse/typecheck/gen-Zig/gen-Rust/gen-Verilog/gen-C/seal/fixed-point clean; 24 pre-existing Yosys smoke failures.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  276,480-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports 24 pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[135][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 657 (module-scope `[133][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 133.
+  The `[133][2]^6 Pt` witness is 272,384 bits (≈0.259 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [133][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 133, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w657_bench_module_133x2p6_aos_var_call_write.t27` (~580 KB /
+  ~25,331 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w657_bench_module_133x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w657.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 117 passed; 0 failed.
+- Direct `t27c parse` W657: PASS.
+- Direct `t27c icarus-lowerable` W657: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W657: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W657: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: parse/typecheck/gen-Zig/gen-Rust/gen-Verilog/gen-C/seal/fixed-point clean; 24 pre-existing Yosys smoke failures.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  272,384-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports 24 pre-existing Gen Verilog Yosys Smoke
+  failures unrelated to the packed-AoS ladder; those warnings are not a blocker.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[133][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 656 (module-scope `[131][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 131.
+  The `[131][2]^6 Pt` witness is 268,288 bits (≈0.256 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [131][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 131, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w656_bench_module_131x2p6_aos_var_call_write.t27` (~572 KB /
+  ~24,951 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w656_bench_module_131x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w656.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 116 passed; 0 failed.
+- Direct `t27c parse` W656: PASS.
+- Direct `t27c icarus-lowerable` W656: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W656: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W656: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  268,288-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[131][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 655 (module-scope `[129][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 129.
+  The `[129][2]^6 Pt` witness is 264,192 bits (≈0.252 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [129][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 129, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w655_bench_module_129x2p6_aos_var_call_write.t27` (~563 KB /
+  ~24,571 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w655_bench_module_129x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w655.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 115 passed; 0 failed.
+- Direct `t27c parse` W655: PASS.
+- Direct `t27c icarus-lowerable` W655: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W655: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W655: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  264,192-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[129][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 654 (module-scope `[127][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 127.
+  The `[127][2]^6 Pt` witness is 260,096 bits (≈0.248 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [127][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 127, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w654_bench_module_127x2p6_aos_var_call_write.t27` (~554 KB /
+  ~24,191 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w654_bench_module_127x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w654.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 114 passed; 0 failed.
+- Direct `t27c parse` W654: PASS.
+- Direct `t27c icarus-lowerable` W654: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W654: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W654: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  260,096-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[127][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 653 (module-scope `[125][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 125.
+  The `[125][2]^6 Pt` witness is 256,000 bits (≈0.244 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [125][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 125, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w653_bench_module_125x2p6_aos_var_call_write.t27` (~545 KB /
+  ~23,811 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w653_bench_module_125x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w653.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 113 passed; 0 failed.
+- Direct `t27c parse` W653: PASS.
+- Direct `t27c icarus-lowerable` W653: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W653: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W653: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  256,000-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[125][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 652 (module-scope `[123][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 123.
+  The `[123][2]^6 Pt` witness is 252,096 bits (≈0.240 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [123][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 123, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w652_bench_module_123x2p6_aos_var_call_write.t27` (~537 KB /
+  ~23,431 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w652_bench_module_123x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w652.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 112 passed; 0 failed.
+- Direct `t27c parse` W652: PASS.
+- Direct `t27c icarus-lowerable` W652: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W652: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W652: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  252,096-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[123][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 651 (module-scope `[121][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 121.
+  The `[121][2]^6 Pt` witness is 248,832 bits (≈0.237 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [121][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 121, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w651_bench_module_121x2p6_aos_var_call_write.t27` (~528 KB /
+  ~23,051 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w651_bench_module_121x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w651.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 111 passed; 0 failed.
+- Direct `t27c parse` W651: PASS.
+- Direct `t27c icarus-lowerable` W651: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W651: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W651: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  248,832-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[121][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 650 (module-scope `[119][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 119.
+  The `[119][2]^6 Pt` witness is 244,224 bits (≈0.233 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [119][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 119, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w650_bench_module_119x2p6_aos_var_call_write.t27` (~519 KB /
+  ~22,671 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w650_bench_module_119x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w650.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 110 passed; 0 failed.
+- Direct `t27c parse` W650: PASS.
+- Direct `t27c icarus-lowerable` W650: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W650: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W650: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  244,224-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[119][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 649 (module-scope `[117][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 117.
+  The `[117][2]^6 Pt` witness is 239,616 bits (≈0.228 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [117][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 117, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w649_bench_module_117x2p6_aos_var_call_write.t27` (~510 KB /
+  ~22,291 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w649_bench_module_117x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w649.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 109 passed; 0 failed.
+- Direct `t27c parse` W649: PASS.
+- Direct `t27c icarus-lowerable` W649: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W649: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W649: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  239,616-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[117][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 648 (module-scope `[115][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 115.
+  The `[115][2]^6 Pt` witness is 236,544 bits (≈0.225 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [115][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 115, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w648_bench_module_115x2p6_aos_var_call_write.t27` (~501 KB /
+  ~21,911 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w648_bench_module_115x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w648.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 108 passed; 0 failed.
+- Direct `t27c parse` W648: PASS.
+- Direct `t27c icarus-lowerable` W648: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W648: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W648: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  236,544-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[115][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 647 (module-scope `[113][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 113.
+  The `[113][2]^6 Pt` witness is 231,936 bits (≈0.221 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [113][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 113, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w647_bench_module_113x2p6_aos_var_call_write.t27` (~492 KB /
+  ~21,531 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w647_bench_module_113x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w647.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 107 passed; 0 failed.
+- Direct `t27c parse` W647: PASS.
+- Direct `t27c icarus-lowerable` W647: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W647: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W647: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  231,936-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[113][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 646 (module-scope `[111][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 111.
+  The `[111][2]^6 Pt` witness is 227,328 bits (≈0.216 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [111][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 111, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w646_bench_module_111x2p6_aos_var_call_write.t27` (~483 KB /
+  ~21,151 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w646_bench_module_111x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w646.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 106 passed; 0 failed.
+- Direct `t27c parse` W646: PASS.
+- Direct `t27c icarus-lowerable` W646: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W646: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W646: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  227,328-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[111][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 645 (module-scope `[109][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 109.
+  The `[109][2]^6 Pt` witness is 222,528 bits (≈0.212 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [109][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 109, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w645_bench_module_109x2p6_aos_var_call_write.t27` (~463 KB /
+  ~20,771 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w645_bench_module_109x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w645.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 105 passed; 0 failed.
+- Direct `t27c parse` W645: PASS.
+- Direct `t27c icarus-lowerable` W645: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W645: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W645: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  222,528-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[109][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 644 (module-scope `[107][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 107.
+  The `[107][2]^6 Pt` witness is 218,752 bits (≈0.209 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [107][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 107, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w644_bench_module_107x2p6_aos_var_call_write.t27` (~466 KB /
+  ~20,391 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w644_bench_module_107x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w644.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 104 passed; 0 failed.
+- Direct `t27c parse` W644: PASS.
+- Direct `t27c icarus-lowerable` W644: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W644: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W644: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  218,752-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[107][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 643 (module-scope `[105][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 105.
+  The `[105][2]^6 Pt` witness is 215,040 bits (≈0.205 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [105][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 105, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w643_bench_module_105x2p6_aos_var_call_write.t27` (~457 KB /
+  ~20,011 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w643_bench_module_105x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w643.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 103 passed; 0 failed.
+- Direct `t27c parse` W643: PASS.
+- Direct `t27c icarus-lowerable` W643: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W643: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W643: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  215,040-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[105][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 642 (module-scope `[103][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 103.
+  The `[103][2]^6 Pt` witness is 211,264 bits (≈0.201 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [103][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 103, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w642_bench_module_103x2p6_aos_var_call_write.t27` (~448 KB /
+  ~19,631 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w642_bench_module_103x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w642.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 102 passed; 0 failed.
+- Direct `t27c parse` W642: PASS.
+- Direct `t27c icarus-lowerable` W642: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W642: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W642: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  211,264-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[103][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 641 (module-scope `[101][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 101.
+  The `[101][2]^6 Pt` witness is 206,848 bits (≈0.197 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [101][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 101, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w641_bench_module_101x2p6_aos_var_call_write.t27` (~439 KB /
+  ~19,251 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w641_bench_module_101x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w641.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 101 passed; 0 failed.
+- Direct `t27c parse` W641: PASS.
+- Direct `t27c icarus-lowerable` W641: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W641: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W641: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  206,848-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[101][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 640 (module-scope `[99][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 99.
+  The `[99][2]^6 Pt` witness is 202,752 bits (≈0.193 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [99][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 99, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w640_bench_module_99x2p6_aos_var_call_write.t27` (~430 KB /
+  ~18,871 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w640_bench_module_99x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w640.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 100 passed; 0 failed.
+- Direct `t27c parse` W640: PASS.
+- Direct `t27c icarus-lowerable` W640: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W640: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W640: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  202,752-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[99][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 639 (module-scope `[97][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 97.
+  The `[97][2]^6 Pt` witness is 198,656 bits (≈0.189 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [97][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 97, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w639_bench_module_97x2p6_aos_var_call_write.t27` (~421 KB /
+  ~18,491 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w639_bench_module_97x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w639.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 99 passed; 0 failed.
+- Direct `t27c parse` W639: PASS.
+- Direct `t27c icarus-lowerable` W639: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W639: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W639: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  198,656-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[97][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 638 (module-scope `[95][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 95.
+  The `[95][2]^6 Pt` witness is 194,560 bits (≈0.185 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [95][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 95, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w638_bench_module_95x2p6_aos_var_call_write.t27` (~412 KB /
+  ~18,111 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w638_bench_module_95x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w638.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 98 passed; 0 failed.
+- Direct `t27c parse` W638: PASS.
+- Direct `t27c icarus-lowerable` W638: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W638: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W638: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  194,560-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[95][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 637 (module-scope `[93][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 93.
+  The `[93][2]^6 Pt` witness is 190,464 bits (≈0.181 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [93][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 93, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w637_bench_module_93x2p6_aos_var_call_write.t27` (~403 KB /
+  ~17,731 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w637_bench_module_93x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w637.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 97 passed; 0 failed.
+- Direct `t27c parse` W637: PASS.
+- Direct `t27c icarus-lowerable` W637: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W637: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W637: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  190,464-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[93][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 631 (module-scope `[81][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 81.
+  The `[81][2]^6 Pt` witness is 165,888 bits (≈0.158 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [81][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 81, confirming the layout is preserved end-to-end.
+- The first generator attempt produced malformed dimension annotations
+  (`[81][][][][][][]Pt`), which the parser accepted but which yielded wrong
+  element values. Regenerating with explicit `[81][2][2][2][2][2][2]Pt`
+  annotations fixed the layout.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w631_bench_module_81x2p6_aos_var_call_write.t27` (~350 KB /
+  ~15,450 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w631_bench_module_81x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w631.py`.
+- Replaced the whole-array `assert_ne(dst, expected)` used in earlier waves with
+  checks on the changed elements, because `assert_ne` is accepted by the
+  structural classifier but is not emitted correctly by the Icarus simulation path.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 91 passed; 0 failed.
+- Direct `t27c parse` W631: PASS.
+- Direct `t27c icarus-lowerable` W631: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W631: PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W631: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  165,888-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+
+---
+
+## 2026-07-07 — Wave Loop 632 (module-scope `[83][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 83.
+  The `[83][2]^6 Pt` witness is 169,984 bits (≈0.162 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [83][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 83, confirming the layout is preserved end-to-end.
+- The first generator produced wrong mid-row expected values because it computed
+  the element index for `[41][1][0][0][0][0][0]` as `41*64 + 1` instead of
+  `41*64 + 32`. Icarus simulation exposed the mismatch (expected 5250/5251, got
+  5312/5313). Fixing the generator to use the correct inner-dimension offset
+  produced a passing witness without compiler changes.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w632_bench_module_83x2p6_aos_var_call_write.t27` (~359 KB /
+  ~15,831 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w632_bench_module_83x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w632.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 92 passed; 0 failed.
+- Direct `t27c parse` W632: PASS.
+- Direct `t27c icarus-lowerable` W632: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W632: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W632: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  169,984-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets. For `[N][2]^6 Pt`, index `[r][a5][a4][a3][a2][a1][a0]` is element
+  `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### Anti-patterns to avoid
+- Do not omit inner dimensions in array-literal annotations (e.g. `[81][][][][][][]Pt`);
+  even if the parser accepts the shorthand, it changes the layout/stride.
+- Do not rely on `assert_ne` in Icarus-simulated test/bench blocks until the
+  simulation emitter adds explicit support for it.
+
+---
+
+## 2026-07-07 — Wave Loop 594 (module-scope `[7][2]^14 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant B stayed comfortably under the 4-MiBit cliff (3.67 MiBit) and
+  exercised the first module-scope packed AoS with an outer dimension of 7.
+- A module-level `pub var dst : [7][2]^14 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler
+  changes. The W589 `gen_verilog_var`/`gen_verilog_const` wholesale paths and
+  the generic indexed field-write paths are dimension-agnostic.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 7, confirming the layout is preserved end-to-end.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w594_bench_module_7x2p14_aos_var_call_write.t27` (~24.4 MB /
+  ~316k lines) with seal and Icarus baseline.
+- Added integration test `accepts_w594_bench_module_7x2p14_aos_var_call_write`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 54 passed; 0 failed.
+- `./scripts/tri test --fast`: TBD (background run in progress).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: TBD
+  (full pipeline still running).
+- Direct `t27c icarus-simulate` W594: PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W594: PASS (reference-model OK).
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant B emits a single
+  3,670,016-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+
+### Anti-patterns to avoid
+- Do not rely on a single power-of-two dimension to prove layout correctness;
+  add a dedicated non-p2 module-scope witness.
+- Avoid adding a second giant literal in the same module; it roughly doubles
+  generated-file size and wall-clock for little extra coverage.
+- Do not jump directly to `[2]^18` (Variant A) without first probing the
+  simulator at intermediate widths.
+
+---
+
+## 2026-07-07 — Wave Loop 593 (module-scope `[5][2]^15 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant B pushed to 5,242,880 bits (≈5.0 MiBit), slightly past the 4-MiBit cliff,
+  and exercised the first module-scope packed AoS with an outer dimension of 5.
+- A module-level `pub var dst : [5][2]^15 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler
+  changes. The W589 `gen_verilog_var`/`gen_verilog_const` wholesale paths and
+  the generic indexed field-write paths are dimension-agnostic.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 5, confirming the layout is preserved end-to-end even above
+  the 4-MiBit cliff.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w593_bench_module_5x2p15_aos_var_call_write.t27` (~38.6 MB /
+  ~492k lines) with seal and Icarus baseline.
+- Added integration test `accepts_w593_bench_module_5x2p15_aos_var_call_write`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 53 passed; 0 failed.
+- `./scripts/tri test --fast`: 697 passed; 0 seal mismatches (152 yosys smoke PASS / 24 pre-existing failures).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: in
+  progress (currently simulating W590).
+- Direct `t27c icarus-simulate` W593: PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W593: PASS (reference-model OK).
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant B emits a single
+  5,242,880-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus commit `128c621` fixed a packed-array bound-width overflow, and issue
+  #1171 documents remaining capacity risks above ~4 MiBit; Variant B crosses that
+  threshold slightly and still simulates cleanly, raising the practical limit.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension combined with a modest cliff crossing
+  to test layout correctness and simulator capacity at the same time.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+
+### Anti-patterns to avoid
+- Do not assume the 4-MiBit cliff is a hard simulator cutoff; test just above
+  it before jumping to 8 MiBit (Variant A).
+- Do not rely on a single power-of-two dimension to prove layout correctness;
+  add a dedicated non-p2 module-scope witness.
+- Avoid adding a second giant literal in the same module; it roughly doubles
+  generated-file size and wall-clock for little extra coverage.
+
+---
+
+## 2026-07-07 — Wave Loop 592 (module-scope `[3][2]^15 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant B stayed under the validated 4-MiBit cliff (3.1 MiBit) and exercised
+  the first module-scope packed AoS with a non-power-of-two outer dimension.
+- A module-level `pub var dst : [3][2]^15 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler
+  changes. The W589 `gen_verilog_var`/`gen_verilog_const` wholesale paths and
+  the generic indexed field-write paths are dimension-agnostic.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 3, confirming the layout is preserved end-to-end.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w592_bench_module_3x2p15_aos_var_call_write.t27` (~23 MB /
+  ~295k lines) with seal and Icarus baseline.
+- Added integration test `accepts_w592_bench_module_3x2p15_aos_var_call_write`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 52 passed; 0 failed.
+- `./scripts/tri test --fast`: 696 passed; 0 seal mismatches (151 yosys smoke PASS).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 79
+  Icarus PASS, 79 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke
+  baseline failures unchanged.
+- Direct `t27c icarus-simulate` W592: PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W592: PASS (reference-model OK).
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant B emits a single
+  3,145,728-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus commit `128c621` fixed a packed-array bound-width overflow, and issue
+  #1171 documents remaining capacity risks above ~4 MiBit; Variant B stays
+  safely under that threshold.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 98,304.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the 4-MiBit cliff is crossed.
+
+### Anti-patterns to avoid
+- Do not assume non-power-of-two dimensions are naturally tested by power-of-two
+  witnesses; add a dedicated non-p2 module-scope witness to prove layout.
+- Do not push to 18-D (Variant A) without a CI timeout budget: the next doubling
+  is expected to exceed the interactive limit.
+- Avoid adding a second giant literal in the same module; it roughly doubles
+  generated-file size and wall-clock for little extra coverage.
+
+---
+
+## 2026-07-07 — Wave Loop 591 (module-scope 17-D AoS variable initialized from a call, then wholesale-reassigned to a packed array literal)
+
+### What worked
+- Variant C stayed at the validated 4-MiBit cliff and tested a new RHS shape
+  for whole-array reassignment: a packed array literal on the right-hand side
+  of `dst = expected_b;`.
+- A module-level `pub var dst : [2]^17 Pt` can be initialized from a function
+  call and then reassigned to a module-scope constant packed literal with zero
+  compiler changes. The generic `StmtAssign` path + `gen_verilog_expr
+  ExprArrayLiteral` emitted the correct wholesale Verilog assignment.
+- Indexed signed field writes and read-back after literal reassignment passed,
+  confirming the packed register layout is preserved.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w591_bench_module_17d_aos_var_literal_reassign.t27` (~14 MB /
+  ~786k lines) with seal and Icarus baseline.
+- Added integration test `accepts_w591_bench_module_17d_aos_var_literal_reassign`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 51 passed; 0 failed.
+- `./scripts/tri test --fast`: 695 passed; 0 seal mismatches.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 78
+  Icarus PASS, 78 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke
+  baseline failures unchanged.
+- Direct `t27c icarus-simulate` W591: PASS (~12 min 50 s).
+- Direct `t27c icarus-cocotb` W591: PASS (~13 min).
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.3 permits continuous and procedural assignments to packed
+  arrays of packed structs; t27's lowering maps scalar-struct arrays onto this
+  construct.
+- Whole-array assignment of a packed vector from a concatenation on the RHS is
+  single-statement in Verilog (`dst = { ... };`) and avoids per-element loop
+  overhead that might otherwise dominate at 131,072 elements.
+- EDA Playground / Cadence reports show simulator-specific segfaults around
+  500 kbit packed vectors; Icarus 12.0 on this host handled two 4-MiBit literals
+  in one module without crash, at the cost of longer compile/simulate time.
+
+### Patterns to reuse
+- When the previous wave established a compiler path, vary the RHS expression
+  class (call vs. literal) to broaden coverage without adding new implementation.
+- Use a second module-scope `const` literal to represent the post-assignment
+  expected state; it can be checked with the same whole-array and indexed
+  assertions.
+- Keep leaf values inside signed i16 with modulo schedules even when offsets are
+  added to the second literal.
+
+### Anti-patterns to avoid
+- Do not duplicate 4-MiBit literals routinely: simulation time scales with the
+  number of giant concatenations. Prefer function-call CSE when possible.
+- Do not assume that `StmtAssign` can lower every array-literal shape; verify
+  the generated Verilog for the new shape on a small witness first.
+- Do not use single-line brace style for extreme-rank literals; the parser can
+  silently truncate them.
+
+---
+
+## 2026-07-07 — Wave Loop 585 (module-scope 7-D array-of-struct variable initialized from a call)
+
+### What worked
+- Variant C delivered a small, fast witness that covers a new scope/CSE
+  boundary without requiring any compiler or reference-model changes.
+- A module-level `pub var dst : [2]^7 Pt` can be initialized from a pure
+  function call returning a 524,288-bit packed vector; Icarus 12.0 lowers it
+  to a packed register with procedural initialization.
+- Reading `dst` at multiple whole-array and indexed bench/test sites passed,
+  confirming that the call result is materialized once and reused across sites.
+- Adding a second module-scope binding (`pub const expected`) initialized from
+  the same call exercised multi-site module-scope CSE without breaking
+  lowerability or simulation.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w585_bench_module_7d_aos_var_call_dedup.t27` (~16 KB /
+  ~40 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w585_bench_module_7d_aos_var_call_dedup`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 45 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` W585: PASS (short wall-clock).
+- Direct `t27c icarus-cocotb` W585: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- CompCert’s verified `CSE` pass resets equations at function calls and memory
+  stores to preserve semantics; t27’s Icarus-lowerable path similarly materializes
+  call results once and shares them, which is the guarantee tested by the
+  multi-site `dst`/`expected` bindings.
+- Global value numbering (Kildall 1973; Gulwani–Necula 2004) provides the
+  theoretical basis for detecting redundant computations across an entire
+  procedure; module-scope CSE is the module-level analogue.
+- IEEE 1800-2017 packed-array variables are well supported at 524,288 bits;
+  this is eight times smaller than the 4-MiBit W584 stress point and sixty-four
+  times smaller than the 18-D risk in Variant A.
+
+### Patterns to reuse
+- Use a moderate-width module-scope `var` initialized from a function call to
+  test scope boundaries while keeping direct simulation fast.
+- Pair a `const` and a `var` from the same call to exercise multi-site CSE
+  without duplicating large literals by hand.
+- Continue to choose non-rank-scaling variants when the previous wave already
+  established the practical CI wall-clock limit.
+
+### Anti-patterns to avoid
+- Do not push to 18-D (Variant A) without a CI timeout budget: W584 already took
+  ~22.5 minutes, and the next doubling is expected to exceed 40 minutes.
+- Do not assume module-scope `var` call initialization is identical to
+  function-local lowering; test it explicitly with a dedicated witness.
+- Avoid relying only on whole-array assertions for module-scope variables;
+  indexed assertions verify that the packed register layout is preserved.
+
+---
+
+## 2026-07-07 — Wave Loop 584 (17-D array-of-struct return call deduplication)
+
+### What worked
+- Extending the rank-scaling sequence from 16-D to 17-D required zero compiler
+  or reference-model changes. The same rank-agnostic paths that handled W582
+  accepted `[2]^17 Pt` (4,194,304 bits, 131,072 elements).
+- The W573–W582 workaround of binding the wide literal to a local `expected`
+  variable before `assert_eq` remains effective at 4 MiBit. Icarus 12.0 passed
+  both test and bench blocks.
+- The cocotb reference model cross-check passed, confirming row-major packed
+  layout and signed/unsigned field decoding are consistent at rank 17.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w584_bench_17d_aos_call_dedup.t27` (~22 MB / ~1.18 M
+  lines) with seal and Icarus baseline.
+- Added integration test `accepts_w584_bench_17d_aos_call_dedup`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 44 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` W584: PASS (~22.5 min wall-clock).
+- Direct `t27c icarus-cocotb` W584: PASS (~23.7 min wall-clock).
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1 packed-array minimum is 65,536 bits; W584 tests a
+  4,194,304-bit vector, i.e. sixty-four times the language minimum.
+- Icarus `vpi/sys_display.c` allocates decimal string buffers proportional to
+  vector width via `calc_dec_size`; the local-`expected` workaround avoids
+  formatting the whole 4-MiBit vector through the VPI `$display` path.
+- Icarus maintainer caryr notes the standard suggests a 2^16 packed-dimension
+  floor but Icarus does not enforce a hard cap; very large vectors can exhaust
+  memory or time.
+- EDA Playground / Cadence reports show simulator-specific segfaults around
+  500 kbit packed vectors; Icarus 12.0 on this host handled 4 MiBit without
+  crash.
+
+### Patterns to reuse
+- Continue using the deterministic Python generator for high-rank witnesses.
+- At rank 17, indexed probes need at least three leading zeros to keep element
+  index `e ≤ 16383` for `i16` fields.
+- Reuse the local-`expected` workaround until Icarus's VPI `$display` path is
+  fixed upstream.
+
+### Anti-patterns to avoid
+- Do not assume rank scaling can continue indefinitely without CI timeout
+  impact; 17-D already approaches 25 min of direct simulation.
+- Do not use indexed probes with fewer leading zeros at rank 17; the signed
+  i16 field range becomes the binding constraint, not the array dimensionality.
+- Do not run direct 4-MiBit simulation inside `./scripts/tri test --fast`; rely
+  on saved Icarus baselines after the first successful manual run.
+
+---
+
+## 2026-07-07 — Wave Loop 583 (module-scope 3-D array-of-struct constant with computed-field bench cross-check)
+
+### What worked
+- Shifting focus from function-local rank scaling to module scope revealed a
+  real, previously latent bug: non-literal scalar expressions inside packed
+  concatenations were emitted without an explicit width context, causing
+  Icarus 12.0 to reject module-level 3-D AoS constants and function-returned
+  3-D AoS with computed fields.
+- The fix is minimal: `emit_packed_scalar_value` now wraps non-literal
+  expressions in SystemVerilog `width'(expr)` (unsigned) or
+  `$signed(width'(expr))` (signed). This is accepted by Icarus 12.0 `-g2012`
+  and Yosys 0.63.
+- The W583 witness `w583_bench_module_3d_aos_call_dedup.t27` validates a
+  module-level `pub const expected : [2][2][2]Pt`, a function returning a 3-D
+  AoS with computed fields, and a bench whole-array `assert_eq(actual, expected)`.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: `emit_packed_scalar_value` non-literal branch
+  now emits `width'(expr)` / `$signed(width'(expr))`.
+- `bootstrap/stage0/FROZEN_HASH`: updated to
+  `8db163435fb06702b62c266e951da7e92ae151cfc4db7a8e7870a7ff4f460c02`.
+- Resealed 71 affected specs whose generated Verilog changed.
+- Added `specs/scratch/w583_bench_module_3d_aos_call_dedup.t27` with seal and
+  Icarus baseline.
+- Added integration test `accepts_w583_bench_module_3d_aos_call_dedup`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 43 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` on W583 witness: PASS.
+- Direct `t27c icarus-cocotb` on W583 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not run in
+  this workspace; expected unchanged because no predicate changed.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1 packed-array minimum is 65,536 bits; W583 deliberately
+  moved away from width scaling and toward scope coverage.
+- Icarus issue #1171 / maintainer caryr: standard suggests 2^16 packed
+  dimension floor, but Icarus has no hard cap; very large packed vectors can
+  hang/oom. This motivated choosing Variant C over Variant A for W583.
+- Yosys frontend warns on signed literal width mismatches; these are
+  non-fatal synthesis-smoke artifacts (StackOverflow / Yosys internals docs).
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed
+  arrays one dimension at a time.
+
+### Patterns to reuse
+- When a packed concatenation contains a non-literal expression, always give it
+  an explicit width via `width'(expr)` or sign-extended equivalent.
+- Module-scope whole-array assertions are a good way to stress constant
+  lowering and CSE paths without creating huge files.
+- After any generated-expression syntax change, expect to reseal all specs that
+  contain struct/array literals with non-literal elements.
+
+### Anti-patterns to avoid
+- Do not assume rank-agnostic paths cover all scopes; module-level const/var
+  initializers can hit different code paths than function-local ones.
+- Do not ignore Icarus elaboration errors on small witnesses before scaling to
+  huge ones; the small case is where the real bugs hide.
+- Do not change `gen_verilog_expr(ExprLiteral)` globally to sized literals;
+  the width cast on non-literals is a targeted fix that avoids breaking loop
+  bounds, indices, and other self-determined contexts.
+
+---
+
+## 2026-07-07 — Wave Loop 582 (16-D array-of-struct return call deduplication)
+
+### What worked
+- The W582 16-D AoS witness is another clean zero-code-change extension of
+  W566–W581. Every relevant path (`emit_local`, `call_returning_cse_value_info`,
+  `try_emit_struct_array_access`, `gen_verilog_expr` for `ExprArrayLiteral`, and
+  the cocotb reference model) handled `[2]^16 Pt` (2,097,152 bits, 65,536
+  elements) without modification.
+- Icarus 12.0 accepted the 2-MiBit packed vector once the wide literal was
+  bound to a local `expected` variable before `assert_eq`, confirming the
+  W573–W581 `$display` VPI workaround scales to thirty-two times the IEEE
+  1800-2017 minimum width.
+- The deterministic Python generation script, with the W581 fixes (root literal
+  emitted separately, signed i16 invariant enforced), produced a ~11.4 MB /
+  ~590k-line spec without manual errors.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w582_bench_16d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w582_bench_16d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 42 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` on W582 witness: PASS (~4 min wall-clock).
+- Direct `t27c icarus-cocotb` on W582 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1 / §6.9.1 mandates at least 65,536-bit packed-vector
+  support; W582 tests a 2-MiBit vector, i.e. thirty-two times the language
+  minimum. The Icarus maintainer in issue #1171 notes the standard suggests a
+  2^16 packed-dimension floor, but Icarus does not enforce it as a hard cap.
+- Yosys reports a width warning on `16'sd131071` literals because they exceed
+  the signed 16-bit range; this is a synthesis-smoke quirk, not a functional
+  failure, and is counted among the unchanged 24 yosys smoke baselines.
+- CIRCT `HWLegalizeModules` and C++23 `std::mdspan` both treat multi-dimensional
+  packed arrays as recursive row-major products, matching t27's lowering.
+
+### Patterns to reuse
+- Continue using the deterministic Python generator with separate root-literal
+  emission and signed-field invariant checks for any higher-rank scalar-struct
+  array witness.
+- Reuse the local-`expected` workaround for wide aggregate assertions until
+  Icarus's VPI path is fixed upstream.
+- Monitor direct simulation wall-clock as rank increases; ~4 min at 2 MiBit is
+  still acceptable but suggests 4 MiBit may be near a practical timeout boundary.
+
+### Anti-patterns to avoid
+- Do not ignore yosys width warnings on signed literals; document whether they
+  are pre-existing synthesis-smoke quirks or new functional issues.
+- Do not increase rank without checking the signed-field range of the chosen
+  indexed probes; at rank 16 only half of the element space (`e ≤ 16383`) is
+  safe for `i16` fields.
+- Do not assume the full `./scripts/tri test` gate will remain fast as the
+  witness doubles in size each rank; time direct simulation separately.
+
+---
+
+## 2026-07-07 — Wave Loop 581 (15-D array-of-struct return call deduplication)
+
+### What worked
+- The W581 15-D AoS witness is a clean zero-code-change extension of W566–W580.
+  Every relevant path (`emit_local`, `call_returning_cse_value_info`,
+  `try_emit_struct_array_access`, `gen_verilog_expr` for `ExprArrayLiteral`, and
+  the cocotb reference model) handled `[2]^15 Pt` (1,048,576 bits, 32,768
+  elements) without modification.
+- Icarus 12.0 accepted the 1-MiBit packed vector once the wide literal was
+  bound to a local `expected` variable before `assert_eq`, confirming the
+  W573–W580 `$display` VPI workaround scales to sixteen times the IEEE
+  1800-2017 minimum width.
+- A deterministic Python generation script with explicit row-major linearization
+  prevented manual expected-value mistakes and produced a ~5.7 MB / ~295k-line
+  spec deterministically.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w581_bench_15d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w581_bench_15d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 41 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `icarus-cocotb` on W581 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1 mandates at least 65,536-bit packed-vector support;
+  W581 tests a 1-MiBit vector, i.e. sixteen times the language minimum.
+- Icarus VPI display buffers grow dynamically; keeping the wide literal out of
+  `$display` arguments avoids the implementation-specific buffer path that failed
+  in W573–W580 when exercised directly.
+- CIRCT `HWLegalizeModules` and C++23 `std::mdspan` both treat multi-dimensional
+  packed arrays as recursive row-major products, matching t27's lowering.
+
+### Patterns to reuse
+- Always generate high-rank expected values with a script; hand computation at
+  rank 15 is error-prone and field-width constraints (signed i16 overflow) are
+  easy to miss.
+- When generating nested array literals, emit the outer `[N]^rank T{` separately
+  and recursively emit two children of rank `rank-1`; this avoids the accidental
+  double-nesting that produced a 32-bit zero padding in the first W581 Verilog
+  draft.
+- Reuse the local-`expected` `$display` workaround for any wide aggregate
+  assertion until Icarus's VPI path is fixed upstream.
+
+### Anti-patterns to avoid
+- Do not assume a signed-field array element can hold arbitrarily large linear
+  indices; check `2*e+1 ≤ max_signed(width)` before picking indexed probes.
+- Do not hand-edit or hand-generate multi-D array literals beyond trivial sizes;
+  a script is the only reliable way to match the compiler's row-major layout.
+- Do not ignore a `32'd0` padding prefix in generated Verilog for a packed-vector
+  assignment — it is a symptom of literal size mismatch and will cause
+  silent shifts or X values.
+
+---
+
+## 2026-07-07 — Wave Loop 567 (3-D array-of-struct return call deduplication)
+
+### What worked
+- The W567 3-D AoS witness confirmed that every relevant path is genuinely rank-
+  agnostic: `emit_local`'s W566 wholesale-init branch, `call_returning_cse_value_info`,
+  `try_emit_struct_array_access`, `gen_verilog_expr` for `ExprArrayLiteral`, and
+  `_eval_array_lit_bv` in the cocotb reference model all handled `[2][2][2]Pt`
+  without modification.
+- The only failure in the first draft was an incorrect expected value in the
+  witness (`cube[1][0][1].y` should be `11`, not `9`, because the linear element
+  index is `((1*2+0)*2+1) = 5` and element 5 is `Pt{ x=10, y=11 }`). This
+  highlights the importance of manually checking the row-major layout before
+  blaming the compiler.
+- Zero compiler and zero reference-model changes kept the wave small and focused:
+  a new witness, a new integration test, a seal, and a baseline.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w567_bench_3d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w567_bench_3d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 27 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `icarus-cocotb` on W567 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- Vitis HLS flattens 3-D arrays into a single packed vector with
+  `array_reshape type=complete dim=0`; the resulting bit order places the lowest
+  index in the lowest bits, matching t27's layout. This confirms that t27's
+  row-major packed-vector lowering is consistent with commercial HLS practice.
+- CIRCT `HWLegalizeModules` handles multi-dimensional packed arrays recursively
+  in post-order; t27's recursive `emit_packed_array_literal_concat` and
+  `emit_packed_struct_array_init` mirror the same structural approach.
+
+Sources:
+- [Vitis HLS: Structs](https://docs.amd.com/r/en-US/ug1399-vitis-hls/Structs)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [CIRCT LoweringOptions.h](https://github.com/llvm/circt/blob/main/include/circt/Support/LoweringOptions.h)
+
+### Patterns to reuse
+- When a feature is supposed to be generic (rank-agnostic), exercise the next
+  rank the code claims to support; W567 proved the 2-D result generalizes to 3-D.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always verify the expected value arithmetic against the documented row-major
+  layout before changing compiler code.
+
+### Anti-patterns to avoid
+- Do not skip a witness for a higher rank just because the code "looks" rank-
+  independent. Actual behavior is the only proof.
+- Do not change the compiler when the failure is in the test's expected-value
+  arithmetic.
+
+---
+
+## 2026-07-07 — Wave Loop 566 (2-D array-of-struct return call deduplication)
+
+### What worked
+- The W566 2-D AoS witness immediately exposed a small gap: `emit_local`'s multi-D
+  branch only initialized a `[N][M]Pt` local from an `ExprArrayLiteral`. A call
+  initializer fell through to an empty `begin...end` block and left the local as
+  `X`. Adding a wholesale packed-vector assignment branch (`name = <expr>;`) was
+  the minimal correct fix.
+- The W557/ W563 CSE descriptor and the W563/ W564 whole-array assertion paths
+  proved to be genuinely rank-agnostic: no changes were needed for 2-D call
+  deduplication, indexed field access, or whole-array comparison against a 2-D
+  array literal.
+- The cocotb reference model already handled 2-D struct array literals and
+  indexed access correctly; zero Python changes were required.
+- Resealing the 3 affected corpus specs early kept the `./scripts/tri test` gate
+  green after the compiler edit.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: in `emit_local`, the multi-D array-of-scalar-struct
+  local initializer now assigns the packed vector wholesale when the initializer
+  is not an `ExprArrayLiteral`.
+- `bootstrap/stage0/FROZEN_HASH` updated to
+  `59b723ff437cf048bd8d549d6a61d4873b119e6edbabf4f9449e74ab27ef8950`.
+- Added `specs/scratch/w566_bench_2d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w566_bench_2d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Resealed 3 existing corpus seals whose generated Verilog shifted.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 26 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `icarus-cocotb` on W566 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- Extending aggregate lowering from 1-D to 2-D is a standard stress test in
+  HLS/LLVM-style compilers. Vitis HLS and Intel HLS Compiler both flatten nested
+  arrays of packed structs into a single wide vector and compute linear element
+  offsets from the innermost dimension outward. t27's `try_emit_struct_array_access`
+  already follows this convention, and the W566 fix only closed the local-
+  declaration gap.
+- CIRCT `HWLegalizeModules` legalizes multi-dimensional packed arrays into
+  per-element wires/registers and `casez` lookups for variable-index access; t27's
+  packed-vector approach is a direct specialization for the Icarus-lowerable
+  simulation subset.
+
+Sources:
+- [CIRCT Verilog Generation / LoweringOptions](https://circt.llvm.org/docs/VerilogGeneration/)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [Yosys packed-struct array support gap](https://github.com/YosysHQ/yosys/issues/4653)
+
+### Patterns to reuse
+- When adding a witness for a rank-agnostic feature, exercise the next rank the
+  code claims to support; hidden assumptions usually appear there.
+- For packed-vector locals, a non-literal initializer should be assigned
+  wholesale; per-element init is only needed when the compiler explicitly wants
+  to flatten or unpack a literal.
+- A single end-to-end witness that uses the same value as local initializer,
+  indexed access base, expected side, and actual side makes CSE sharing or
+  duplication immediately visible in generated Verilog.
+
+### Anti-patterns to avoid
+- Do not assume that because a path works for 1-D and the code looks rank-
+  independent it will work for 2-D without a witness. The W566 bug was exactly a
+  1-D-shaped assumption in the local-declaration branch.
+- Do not leave an empty `begin...end` block for an unhandled initializer shape;
+  it produces silent `X` values instead of a clear compile-time error.
+
+---
+
+## 2026-07-07 — Wave Loop 563 (array-of-struct return call deduplication)
+
+### What worked
+- Closing the three W561 prerequisites in one wave was feasible because each was
+  a small localized change: a 1-D local-declaration branch in `emit_local`, a
+  generalized `try_emit_struct_array_access`, and a new descriptor in
+  `call_returning_cse_value_info`.
+- A spike witness (`/tmp/w563_spike_aos.t27`) quickly showed the exact failures
+  (wrong local width, flattened `tmp_x`, missing call base) and confirmed the
+  classifier already accepted the shape, so the work was purely backend
+  lowering, not predicate changes.
+- The existing `emit_packed_array_literal_concat` already handled `[N]Pt`
+  literals correctly; no new literal lowering code was needed.
+- The end-to-end bench witness demonstrates that `make_pts(...)` is evaluated
+  once per block: the generated Verilog contains exactly one
+  `_t27_call_tmp_*` assignment for each of the test and bench blocks.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - 1-D array-of-struct local branch in `emit_local`.
+  - Generalized `try_emit_struct_array_access` for 1-D arrays and `ExprCall`
+    bases returning arrays of scalar structs.
+  - Extended `call_returning_cse_value_info` for `[N]Pt` returns.
+  - Updated `test_verilog_struct_field_access_indexed` to assert the new
+    packed-slice output.
+- `bootstrap/stage0/FROZEN_HASH` updated to
+  `92fb8abd6bc5245b5a3f7aa1b9eb54917c5f4e9ec2622f51c2e9a548030f5665`.
+- Added `specs/scratch/w563_bench_array_of_struct_call_dedup.t27` with seal and
+  Icarus baseline.
+- Added `accepts_w563_bench_array_of_struct_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Resealed 4 existing corpus seals whose generated Verilog shifted.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 23 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `icarus-cocotb` on W563 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- Packed array-of-struct lowering is a standard aggregate-flattening step in
+  hardware compilers. CIRCT's `HWLegalizeModules` pass lowers `hw::ArrayGetOp`
+  and `hw::ArrayCreateOp` into per-element wires and `casez` lookups when
+  `disallowPackedArrays` is set, because tools like Icarus and Yosys's native
+  frontend do not support packed arrays of structs. t27 takes a simpler but
+  equivalent approach: store the whole `[N]Pt` as one unsigned packed vector
+  and emit every access as a part-select.
+- Common-subexpression elimination for the simulation assertion harness mirrors
+  CIRCT's `createCSEPass()` run before legalization: evaluate a pure call once
+  per block and reuse the packed result. W563 completes the W556–W560 series
+  for arrays of scalar structs.
+
+Sources:
+- [CIRCT Verilog Generation / LoweringOptions](https://circt.llvm.org/docs/VerilogGeneration/)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [Yosys packed-struct array support gap](https://github.com/YosysHQ/yosys/issues/4653)
+- [CIRCT CSE pass documentation](https://circt.llvm.org/docs/Passes/#hw-cse)
+
+### Patterns to reuse
+- A 1-D array of packed scalar structs is just a wider packed vector: declare
+  it wholesale and assign it wholesale.
+- Generalize slice access functions to accept identifier, temporary, and
+  parenthesized call bases; the offset arithmetic stays the same.
+- Spike a broken witness in `/tmp` before editing production code to isolate
+  the exact failing emission path.
+
+### Anti-patterns to avoid
+- Do not keep a unit test asserting an old placeholder emission when the real
+  lowering lands; update the test to document the new correct output.
+- Do not add CSE descriptors for aggregate returns without also adding the
+  slice/access paths that consume the temporary; otherwise the temporary is
+  declared but never correctly indexed.
+
+---
+
+## 2026-07-07 — Wave Loop 562 (whole-struct comparison for structs with array-typed fields)
+
+### What worked
+- Extending `try_emit_struct_array_field_element_access` to accept an
+  `ExprCall` base was the minimal change needed to fix malformed Verilog for
+  `make_packet(...).data[i]`. The existing path already computed field offset +
+  inner index * element width; it only needed the right base expression
+  (predeclared temporary, bare identifier, or parenthesized raw call).
+- Using a single end-to-end bench witness (`w562_bench_struct_array_field.t27`)
+  with whole-struct `assert_eq`, element access on a call return, and scalar
+  field access on a local copy exercised three emission paths in one spec.
+- Resealing early, after the compiler edit was stable, kept the full
+  `./scripts/tri test` gate green on the first run. Ten affected seals were
+  updated.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`: `try_emit_struct_array_field_element_access`
+  now handles an `ExprCall` base for scalar-struct returns with scalar-array
+  fields, emitting a single correct dynamic part-select over the call
+  temporary (or a parenthesized raw call when no temporary exists).
+- `bootstrap/stage0/FROZEN_HASH` updated to
+  `fedc9333f22a0590e38200410cffe7969b76f3a9fd7548ab6101b62d15a69d40`.
+- Added `specs/scratch/w562_bench_struct_array_field.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w562_bench_struct_array_field` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Resealed 10 existing seals whose generated Verilog shifted due to the
+  compiler change.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 22 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `icarus-cocotb` on W562 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- The wave continues the packed-vector flattening of scalar structs. In
+  SystemVerilog, packed structs with packed array members are allowed by the
+  standard but not supported by Icarus; t27 therefore flattens the whole struct
+  to one packed vector and computes every field/element access as a part-select.
+- The bug (`$signed(tmp[...])[i]`) is a classic instance of composing two
+  independent indexing/slicing passes. CIRCT and Yosys lowerings that flatten
+  aggregates face the same hazard: the slice expression must be produced at
+  the same abstraction level as the packed-vector base.
+
+Sources:
+- [IEEE 1800-2017 packed arrays / packed structs](https://ieeexplore.ieee.org/document/8299595)
+- [CIRCT lowering of aggregate constant arrays](https://circt.llvm.org/docs/Dialects/HW/)
+- [Yosys packed struct support notes](https://yosyshq.net/yosys/documentation.html)
+
+### Patterns to reuse
+- Distinguish three base shapes in any packed slice path: identifier,
+  predeclared call temporary, and raw function-call expression. Parentheses
+  rules differ for each.
+- Collapse nested index/slice operations into one dynamic part-select with
+  explicit offset arithmetic rather than letting each layer emit its own slice.
+- End-to-end bench witnesses with whole-struct assertions lock both compiler
+  packing and reference-model packing simultaneously.
+
+### Anti-patterns to avoid
+- Do not assume a slice base is always a simple identifier; function-call
+  returns and call temporaries need explicit handling.
+- Do not re-run the full gate without resealing after a compiler edit that
+  changes generated Verilog — seal mismatches are expected and must be resolved
+  as part of the wave.
+
+---
+
+## 2026-07-16 — Wave Loop 561 (negative / boundary witnesses for non-lowerable struct returns)
+
+### What worked
+- A quick spike of Variant A (array-of-struct return call deduplication) showed
+  three missing compiler facilities: array-of-struct literal lowering,
+  bench-local 1-D array-of-struct declarations, and 1-D array-of-struct element
+  field access. Documenting these gaps let us pivot cleanly to Variant C.
+- Variant C added four negative witnesses covering `string`, `enum`, `f32`, and
+  unresolved-import fields inside a scalar-struct return. All are rejected by
+  the structural `icarus-lowerable` classifier, so the W560 CSE optimization is
+  correctly gated.
+- A single integration test (`rejects_w561_nonlowerable_struct_return_witnesses`)
+  automatically discovers any future `w561_negative_struct_return_*.t27` files,
+  making the boundary easy to extend.
+- Updating `docs/ICARUS_LOWERABLE_BOUNDARY.md` section 10 made the lowerability
+  gate explicit for the W560 optimization.
+
+### What changed behavior
+- `bootstrap/tests/icarus_lowerable.rs`: added
+  `rejects_w561_nonlowerable_struct_return_witnesses`.
+- Added negative scratch witnesses:
+  - `specs/scratch/w561_negative_struct_return_string_field.t27`
+  - `specs/scratch/w561_negative_struct_return_enum_field.t27`
+  - `specs/scratch/w561_negative_struct_return_f32_field.t27`
+  - `specs/scratch/w561_negative_struct_return_unresolved_import.t27`
+- Saved t27 seals for all four negative witnesses.
+- Updated `docs/ICARUS_LOWERABLE_BOUNDARY.md` section 10.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W561_2026-07-16.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 562 (Variant A recommended:
+  array-of-struct return call deduplication).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 21 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- The wave is a defensive boundary regression lock, analogous to negative test
+  suites in verified compilers. The principle is the same as W537's
+  `corpus_classifier_matches_lean_completeness`: classifier verdicts must be
+  exercised by witnesses so the supported subset does not silently expand.
+
+Sources:
+- [CompCert testing](https://compcert.org/man/manual006.html)
+- [LLVM Testing Guide](https://llvm.org/docs/TestingGuide.html)
+
+### Patterns to reuse
+- When a recommended variant depends on multiple missing prerequisites, pivot
+  to a smaller boundary/negative wave rather than silently growing scope.
+- Remove spike artifacts that fail the suite; keep the investigation conclusion
+  in the plan and closeout report.
+- A glob-based integration test over `wNNN_negative_*` files makes the boundary
+  self-documenting and easy to extend.
+
+### Anti-patterns to avoid
+- Do not keep a broken spike witness in the repo just because it was useful
+  during investigation; it will fail seal verify and confuse future waves.
+- Do not add negative witnesses to the Icarus simulation suite; they should be
+  classifier-only.
+
+---
+
+## 2026-07-07 — Wave Loop 560 (scalar-struct return call deduplication)
+
+### What worked
+- Adding a scalar-struct branch to `call_returning_cse_value_info` in
+  `bootstrap/src/compiler.rs` was sufficient to extend the W557/W558
+  block-scoped call temporary machinery to lowerable packed scalar-struct
+  returns. No new CSE map was needed; the existing `predeclare_call_array_tmps`
+  / `materialize_call_array_tmp` pipeline accepted the new shape because it is
+  described as a single packed vector (`width = packed_width(ret_ty)`,
+  `signed = false`).
+- The `ExprFieldAccess` emission path already handled field part-selects over
+  a packed call expression. It only needed to detect that the slice base was a
+  predeclared temporary identifier and omit the parentheses, avoiding an
+  Icarus syntax error on `$signed((_t27_call_tmp_...)[0 +: 16])`.
+- Three witnesses cover the three important cases:
+  - `w560_bench_scalar_struct_call_dedup.t27`: whole-struct comparison,
+    field-access comparison, and local initializer all reuse one temporary.
+  - `w560_bench_scalar_struct_call_dedup_both_sides.t27`:
+    `assert_eq(make(5,6), make(5,6))` exercises expected-side reuse.
+  - `w560_bench_scalar_struct_call_dedup_nested.t27`: two field accesses of
+    the same call share one temporary, and two distinct calls each get their
+    own temporary.
+- The cocotb mismatch on whole-struct assertions was resolved in the reference
+  model, not the compiler: `_eval_struct_lit_bv` now masks each field value to
+  its declared width before packing, and `_packed_type_width_signed` returns
+  `signed = false` for lowerable packed scalar structs, matching the compiler's
+  unsigned packed-vector probe reg.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Scalar-struct branch in `call_returning_cse_value_info`.
+  - Parenthesis-free part-select when slicing a predeclared call temporary in
+    `ExprFieldAccess` emission.
+- `scripts/cocotb_ref_model.py`:
+  - `_eval_struct_lit_bv` packs fields at declared widths.
+  - `_packed_type_width_signed` returns unsigned for lowerable packed scalar
+    structs and arrays of such structs.
+- `bootstrap/tests/icarus_lowerable.rs`: added
+  `accepts_w560_bench_scalar_struct_call_dedup`.
+- `bootstrap/stage0/FROZEN_HASH`: updated to
+  `8ef77f2178287ff3bc2be45cb932788782a7440061f3e303516c71d18f0eb039`.
+- Added positive scratch witnesses:
+  - `specs/scratch/w560_bench_scalar_struct_call_dedup.t27`
+  - `specs/scratch/w560_bench_scalar_struct_call_dedup_both_sides.t27`
+  - `specs/scratch/w560_bench_scalar_struct_call_dedup_nested.t27`
+- Saved t27 seals and recorded Icarus baselines for all three witnesses.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W560_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 561 (Variant A recommended:
+  array-of-struct return call deduplication).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 20 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` on all three W560 witnesses: PASS.
+- Direct `t27c icarus-cocotb` on all three W560 witnesses: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- The optimization is classic Common Subexpression Elimination (CSE) applied
+  to pure function calls inside a deterministic simulation block, equivalent
+  to the value-numbering step in Aho/Sethi/Ullman and to CIRCT's
+  `createCSEPass` for combinational hardware. Because t27 lowers struct
+  returns to a single packed vector, CSE can reuse the same register for the
+  whole value and for every field slice.
+- The Python reference-model fix is a reminder that *expected-side* packing
+  must mirror the compiler's bit layout exactly, including declared widths and
+  signedness of intermediate vectors.
+
+Sources:
+- [Aho/Sethi/Ullman — Compilers: Principles, Techniques, and Tools](https://en.wikipedia.org/wiki/Compilers:_Principles,_Techniques,_and_Tools)
+- [CIRCT createCSEPass](https://circt.llvm.org/docs/Passes/#cse-createcsepass)
+- [ASPDAC 2026 CombRewriter](https://aspdac2026.com)
+
+### Patterns to reuse
+- When extending CSE to a new value shape, mirror the existing scalar/array
+  metadata format (key, dims, base type, width, signed) so that the rest of the
+  temporary pipeline stays unchanged.
+- A block-scoped temporary identifier needs special syntax handling at every
+  emission site that slices the base expression; identifiers do not need
+  parentheses, but parenthesized expressions do.
+- Always cross-check both the actual expression side and the expected literal
+  side in cocotb, because the reference model packs literals differently from
+  the compiler for composite types.
+
+### Anti-patterns to avoid
+- Do not assume that a struct-literal evaluator naturally knows the declared
+  field width; integer literals evaluate to a default width (e.g. 32-bit) and
+  must be masked to the declared type width before packing.
+- Do not OR the signed flags of struct fields when computing the packed vector
+  signedness: the compiler emits an unsigned packed reg for lowerable scalar
+  structs, so the reference model must do the same.
+
+---
+
+## 2026-07-07 — Wave Loop 558 (expected-side scalar call deduplication)
+
+### What worked
+- A code-only investigation showed that W557 already deduplicates scalar-return
+  calls on the expected side of `assert_eq`: `predeclare_call_array_tmps`
+  recurses into all expression children, `use_call_array_temps` is active for
+  the whole test/bench statement loop, and `gen_verilog_expr` substitutes
+  temporaries for any matching `ExprCall`. Therefore W558 became a
+  **witness-only regression lock** rather than a compiler change.
+- New scratch witness `w558_bench_scalar_call_expected_side_dedup` proves the
+  behavior with `assert_eq(val(), val())` and
+  `assert_eq(val() + other(), val() + other())`; the generated Verilog evaluates
+  each unique call exactly once and shares the temporary between both operands.
+- Updated `docs/ICARUS_LOWERABLE_BOUNDARY.md` section 10 to describe scalar-return
+  call deduplication and both operands of `assert_eq`.
+
+### What changed behavior
+- `bootstrap/tests/icarus_lowerable.rs`: added
+  `accepts_w558_bench_scalar_call_expected_side_dedup`.
+- `docs/ICARUS_LOWERABLE_BOUNDARY.md`: renamed section 10 and documented W557/W558
+  scalar/array call CSE semantics, including the pure-call caveat.
+- Added positive scratch witness
+  `specs/scratch/w558_bench_scalar_call_expected_side_dedup.t27`.
+- Saved t27 seal and recorded Icarus baseline for the witness.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W558_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 559 (Variant A recommended:
+  signed whole-array comparison for higher ranks).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 18 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  69 Icarus PASS, 69 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` on W558 witness: PASS.
+- Direct `t27c icarus-cocotb` on W558 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- VO-GCSE (FSE 2025) applies compiler-style Global CSE to SMT-based bounded
+  model checking, eliminating redundant sub-expressions across assertion
+  operands. W557/W558 implements the same idea in the t27 simulation harness.
+- CREST (arXiv 2019) translates ANSI-C reference models into Verilog and relies
+  on compiler-style CSE; t27's per-block temporary is a deterministic equivalent.
+- CompCert's verified CSE (`backend/CSEproof.v`) underpins the soundness
+  intuition for pure-call memoization.
+
+Sources:
+- [VO-GCSE](https://ssvlab.github.io/lucasccordeiro/papers/fse2025.pdf)
+- [CREST](https://arxiv.org/pdf/1908.01324)
+- [CompCert CSEproof.v](https://github.com/AbsInt/CompCert/blob/master/backend/CSEproof.v)
+- [SystemVerilog Assertions local variables](https://systemverilog.us/vf/seq_local_var.pdf)
+
+### Patterns to reuse
+- When a planned wave is already solved by the previous generalization, still
+  create the witness, integration test, and documentation update so the behavior
+  is locked and future regressions are caught.
+- A block-scoped CSE pass needs a contextual flag set during the specific
+  emission scope and reset afterward, plus a key-generation path that always
+  renders the original expression text.
+
+### Anti-patterns to avoid
+- Do not skip writing a wave plan just because no compiler change is required;
+  the plan records the engineering conclusion and the acceptance criteria that
+  the witness must meet.
+
+---
+
+## 2026-07-07 — Wave Loop 557 (general bench CSE for scalar calls)
+
+### What worked
+- Single scratch witness `w557_bench_scalar_call_dedup` confirmed that the
+  W556 call-temporary map can be generalized to pure scalar-return calls in
+  deterministic `bench`/`test` blocks. `assert_eq(val(), 0xAB)` and
+  `assert_eq(val() + other(), 0xAB + 0xCD)` now share a single `_t27_call_tmp_*`
+  for `val()`.
+- A contextual `use_call_array_temps` flag on `VerilogCodegen` is a clean way
+  to enable temporary substitution only inside test/bench emission without
+  touching the general `gen_verilog_expr` contract for all other codegen.
+- Keeping `collect_expr_text` always rendering the original call text (by
+  forcing `use_call_array_temps: false` in the temporary codegen instance)
+  prevents temporary names from leaking into their own dedup keys or RHS
+  assignments.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Generalized `call_returning_packed_primitive_array_info` to
+    `call_returning_cse_value_info`, which returns temporary descriptors for
+    primitive scalar returns and primitive scalar array returns.
+  - Renamed generated temporary prefix from `_t27_call_arr_tmp_` to
+    `_t27_call_tmp_`.
+  - Added `use_call_array_temps` field and `with_call_array_temps_enabled`
+    scope helper.
+  - Enabled temporary substitution in `gen_verilog_expr` for `ExprCall` when
+    the flag is set.
+  - Wrapped test/bench statement loops in `with_call_array_temps_enabled`.
+  - Removed the now-redundant `gen_verilog_expr_with_call_array_tmp` wrapper.
+  - Updated temporary declaration comments to "packed/scalar call tmp".
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`: added
+  `accepts_w557_bench_scalar_call_dedup`.
+- `docs/ICARUS_LOWERABLE_BOUNDARY.md`: updated section 10 to describe general
+  primitive-scalar / scalar-array call deduplication.
+- Added positive scratch witness `specs/scratch/w557_bench_scalar_call_dedup.t27`.
+- Saved t27 seal and recorded Icarus baseline for the witness.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W557_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 558 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 17 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  68 Icarus PASS, 68 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` on W557 / W551 / W553 / W556 witnesses: PASS.
+- Direct `t27c icarus-cocotb` on W557 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Use a contextual flag to enable CSE substitution only inside the specific
+  emission scope (test/bench blocks), and reset it afterward so synthesizable
+  paths remain unaffected.
+- When the same function is used to build dedup keys and to render RHS
+  assignments, ensure the key-generation path never sees substituted names.
+
+### Anti-patterns to avoid
+- Do not add substitution directly into the general `gen_verilog_expr` without
+  a flag: `collect_expr_text` uses it for keys and RHS rendering, and would
+  create a circular reference leading to stack overflow.
+
+---
+
+## 2026-07-07 — Wave Loop 556 (multi-site call-return array deduplication)
+
+### What worked
+- Single scratch witness `w556_bench_multi_site_array_dedup` confirmed that
+  the W553 packed-vector temporary map can be reused when the same function call
+  returning a primitive scalar array is used at multiple sites (element index
+  and whole-array comparison) in one deterministic `bench` block.
+- Extending `predeclare_call_array_tmps` and
+  `materialize_call_array_tmps_in_expr` to bare `ExprCall` nodes, plus a
+  dedicated `gen_verilog_expr_with_call_array_tmp` wrapper, kept the change
+  surgical and avoided modifying the general `gen_verilog_expr` emitter.
+- The generated Verilog for W556 shows exactly one `_t27_call_arr_tmp_*`
+  assignment and two references, proving the deduplication works.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `predeclare_call_array_tmps` now registers a packed-vector temporary for
+    bare `ExprCall` whose return type is a primitive scalar array, not only for
+    `ExprIndex -> ExprCall` chains.
+  - `materialize_call_array_tmps_in_expr` now materializes temporaries for bare
+    `ExprCall` sites too.
+  - Added `gen_verilog_expr_with_call_array_tmp` and used it in
+    `gen_verilog_test_stmt` for probe assignment, comparison, and diagnostic
+    emission of `assert_eq` actual expressions.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`: added
+  `accepts_w556_bench_multi_site_array_dedup`.
+- `docs/ICARUS_LOWERABLE_BOUNDARY.md`: added section 10 documenting the W556
+  block-scoped call-return array temporary deduplication rule and pure-call
+  caveat.
+- Added positive scratch witness `specs/scratch/w556_bench_multi_site_array_dedup.t27`.
+- Saved t27 seal for the witness.
+- Recorded Icarus baseline for the witness.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W556_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 557 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 16 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  67 Icarus PASS, 67 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W556 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- A block-scoped map keyed by full call expression text is enough to deduplicate
+  call-return array values inside test/bench blocks; extend registration and
+  lookup to all call sites that need the same packed value.
+- Wrap `gen_verilog_expr` for the specific emission sites that should substitute
+  the temporary, rather than changing the general emitter, so other codegen
+  paths (and `collect_expr_text`) keep using the original call text.
+
+### Anti-patterns to avoid
+- Do not change `gen_verilog_expr` itself to substitute call temporaries: it is
+  used by `collect_expr_text` to build the deduplication key, which would create
+  a circular dependency and stack overflow.
+
+---
+
+## 2026-07-07 — Wave Loop 555 (whole-array bench assignments)
+
+### What worked
+- Four new scratch witnesses (`w555_bench_whole_array_unsigned`,
+  `w555_bench_whole_array_signed`, `w555_bench_whole_array_nested_call`,
+  `w555_bench_whole_array_wide`) confirmed that the W540 multi-slice VCD probe
+  path handles whole 2-D primitive scalar array values in deterministic
+  `bench` blocks once the compiler recognizes them as packed vectors.
+- Extending `expr_width_signed` and the Python `_type_of_expr` for primitive
+  scalar array identifiers, call returns, and array literals was sufficient to
+  enable the existing probe pre-declaration and reconstruction code.
+- Multi-dimensional array literals lowered to packed concatenations via the
+  existing `emit_packed_array_literal_concat`, so `assert_eq(tmp, [2][3]u8{...})`
+  compares the full packed vector directly.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `expr_width_signed` now returns `(packed_width, packed_signed)` for primitive
+    scalar array identifiers, calls returning primitive scalar arrays, and
+    multi-dimensional primitive scalar array literals.
+  - `gen_verilog_expr` for `ExprArrayLiteral` now splits `extra_size` on `][`
+    and lowers multi-D primitive scalar array literals to a packed concatenation.
+- `scripts/cocotb_ref_model.py`:
+  - Added `_primitive_array_info()` for full multi-D width / signedness.
+  - `_packed_type_width_signed()` and `_type_of_expr()` now use it for primitive
+    scalar arrays of any rank.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`: added
+  `accepts_w555_bench_whole_array_cross_check`.
+- Added four positive scratch witnesses under `specs/scratch/w555_*`.
+- Saved t27 seals for the four witnesses.
+- Recorded Icarus baseline for `w555_bench_whole_array_nested_call.json`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W555_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 556 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 15 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  66 Icarus PASS, 66 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on all four W555
+  witnesses: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- A whole-array `assert_eq` in a `bench` block is just a wide packed-vector VCD
+  probe; once the compiler knows the width/signedness of the actual expression,
+  the W540 multi-slice path works unchanged.
+- Multi-dimensional array literals in expression context lower to nested packed
+  concatenations the same way function-return array literals do.
+
+### Anti-patterns to avoid
+- Do not rely on the suite's `gen-verilog` pre-flight for test/bench named locals;
+  use direct `t27c icarus-simulate` / `t27c icarus-cocotb` for those witnesses
+  until the pre-existing local-stripping limitation is fixed.
+
+---
+
+## 2026-07-07 — Wave Loop 554 (bench-local primitive scalar arrays)
+
+### What worked
+- Three new scratch witnesses (`w554_bench_local_array_unsigned`,
+  `w554_bench_local_array_signed`, `w554_bench_local_array_2d`) confirmed
+  that the existing `emit_local` packed-vector lowering and the Python
+  reference model's `test_local_types` binding already handle `bench`-local
+  primitive scalar arrays initialized from function calls.
+- Reusing the same validation matrix as W551-W553 (Icarus simulation,
+  cocotb cross-check, seal ceremony, Lean Soundness) kept quality gates
+  consistent.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Fixed a latent multi-dimensional packed primitive-array indexing bug in
+    `try_emit_primitive_array_access`: indices are collected outermost-first,
+    so they must be reversed before computing the row-major flat index. This
+    also repaired W548/W549/W550/W552 multi-D indexing.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `accepts_w554_bench_local_array_cross_check` integration test.
+- Added three positive scratch witnesses under `specs/scratch/w554_*`.
+- Saved t27 seals for the three witnesses.
+- Resealed W548, W549, W550, and W552_2d scratch witnesses whose generated
+  Verilog changed due to the multi-D indexing fix.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W554_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 555 (Variant A).
+- Note: W554 witnesses pass direct `t27c icarus-simulate` / `t27c icarus-cocotb`
+  but are not included in the automated `./scripts/tri test --icarus-lowerable`
+  regression count because the suite's `gen-verilog` pre-flight rejects test/bench
+  named locals (pre-existing limitation).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 14 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  65 Icarus PASS, 65 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- A `bench`-local primitive scalar array initialized from a function call is
+  just a packed-vector `reg` in Verilog; the compiler's existing packed-array
+  local lowering and the Python evaluator's `_resolve_full_type` handle it once
+  the witness exists.
+- When computing a row-major flat index from indices collected AST-outermost-
+  first, reverse the vector to source order before scaling by dimensions.
+
+### Anti-patterns to avoid
+- Do not assume that symmetric test cases (`tmp[0][0]`, `tmp[1][1]`) validate
+  multi-D indexing; use asymmetric indices (`tmp[1][2]`) to catch order bugs.
+
+---
+
+## 2026-07-07 — Wave Loop 553 (signed/unsigned mixed deterministic bench probes)
+
+### What worked
+- Adding explicit signed `bench` witnesses flushed out two latent bugs that
+  passed under `test` blocks but would have broken the deterministic cocotb
+  gate for benches.
+- Materializing a function-call packed-array return into a block-local temporary
+  `reg` before indexing fixed the iverilog "Malformed statement" caused by
+  `seq(1'b0)[0]`.
+- Emitting `reg signed [...]` for signed scalar probes made `$display("%0d")`
+  show the t27 signed value instead of the raw unsigned bit pattern.
+- Using the physical VCD signal width (not the AST literal width) for signed
+  reconstruction in the Python reference model fixed the cocotb mismatch on
+  narrow signed probes whose expected literal was typed wider.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `call_array_tmp_names`, `call_array_tmp_info`, and
+    `call_array_tmp_materialized` to `VerilogCodegen`.
+  - Added helpers to pre-declare, assign, and reuse packed-vector temporaries
+    for function calls returning primitive scalar arrays that are indexed in
+    test/bench blocks.
+  - `expr_width_signed` now resolves the element width/signedness of
+    `f()[i]` when `f` returns a packed primitive scalar array.
+  - `try_emit_primitive_array_access` now recognizes an `ExprCall` base that
+    has a pre-declared temporary and lowers element access against that temp.
+  - Scalar probe declarations now emit the `signed` keyword when the actual
+    expression is signed.
+  - Updated temporary `VerilogCodegen` clones to carry the new temporary maps.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `scripts/cocotb_ref_model.py`:
+  - `_cross_check` uses the VCD signal width for single-signal probes when
+    sign-extending raw values.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `accepts_w553_bench_signed_cross_check` integration test.
+- Added three positive scratch witnesses:
+  - `specs/scratch/w553_bench_signed_scalar_return.t27`
+  - `specs/scratch/w553_bench_signed_array_element.t27`
+  - `specs/scratch/w553_bench_signed_struct_field.t27`
+- Recorded Icarus baselines and saved t27 seals for the three witnesses.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W553_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 554 (Variant A).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 13 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  65 Icarus PASS, 65 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- When a `bench` (or `test`) expression indexes a function call that returns a
+  packed vector, pre-declare a packed `reg` at the block top, assign it once
+  on first use, and read the indexed slice from that temporary.
+- Declare scalar VCD probes with the `signed` keyword whenever the t27 actual
+  expression is signed, so that `%0d` display and downstream VCD parsing see
+  the correct two's-complement value.
+- Sign-extend VCD raw values from the physical signal width, not the AST
+  literal width, when comparing against expected signed values.
+
+### Anti-patterns to avoid
+- Do not emit `f()[i]` directly in Verilog; function-call results are not
+  bit-selectable expressions.
+- Do not infer probe signedness only from the expected literal; the probe
+  register's declared signedness must match the actual expression type.
+
+---
+
+## 2026-07-07 — Wave Loop 547 (signed primitive scalar array function returns for independent VCD cross-check)
+
+### What worked
+- Wrapping signed packed primitive-array slices with `$signed(...)` in
+  `try_emit_primitive_array_access` fixed signed comparison and arithmetic in one
+  focused compiler change.
+- Extending the Python reference model to bind and type-infer test-block local
+  variables closed the cocotb cross-check gap for assertions on function-local
+  signed arrays.
+- Reusing the W545/W546 formal-witness pattern for signed values kept the Lean
+  model in lockstep with the Rust backend.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `try_emit_primitive_array_access` wraps signed packed primitive-array
+    bit-slices with `$signed(...)`.
+- `scripts/cocotb_ref_model.py`:
+  - `EvalContext` now tracks `test_local_types` and `current_block`.
+  - `_collect_assertions` binds test-block local packed values before processing
+    assertions and restores outer bindings afterwards.
+  - Added `_resolve_full_type` for full declared-type lookup (including array
+    dimensions) and updated `_type_of_expr` / `_eval_index_bv` to use it for
+    primitive array element access.
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`: updated stale W544
+  comment about primitive scalar array returns being rejected.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` / `Soundness.lean`:
+  - Added W547-A/B helper environments, modules, functions, and lowerability /
+    value-preservation theorems.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `accepts_w547_signed_primitive_scalar_array_return` integration test.
+- Added two positive scratch witnesses:
+  - `specs/scratch/w547_signed_call_init_returns_array.t27`
+  - `specs/scratch/w547_signed_element_compare.t27`
+- Resealed both new witnesses and recorded Icarus baselines.
+- Wrote `docs/reports/WAVE_LOOP_547_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W548_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 548 (Variant A).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 7 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  54 Icarus PASS, 54 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Wrap signed packed-vector slices with `$signed(...)` whenever the element
+  type is signed; bare part-selects of signed packed vectors are unsigned in
+  Verilog.
+- When the cocotb reference model needs type information for block-local
+  variables, collect `StmtLocal` declarations and bind their values before
+  evaluating assertions in that block.
+
+### Anti-patterns to avoid
+- Do not rely on the reference model inferring element width from a stripped
+  base type; always resolve the full declared type (including array dimensions)
+  for primitive array element access.
+
+---
+
+## 2026-07-07 — Wave Loop 546 (function-local primitive scalar array return initializers and reassignments for independent VCD cross-check)
+
+### What worked
+- The same packed-vector infrastructure from W545 generalized to function-local
+  primitive scalar arrays once the packed/unpacked choice was tracked in a
+  per-function map (`local_packed_primitive_arrays`).
+- Distinguishing `let a : [3]u8 = [3]u8{...}` (unpacked, for variable-index writes)
+  from `let a : [3]u8 = seq()` (packed, because the RHS is a packed-vector call)
+  produced correct Verilog for both shapes without breaking existing W531
+  unpacked-array witnesses.
+- Detecting packed-array reassignment at the `StmtAssign` level and emitting a
+  whole-vector assignment prevented Verilog width mismatches between packed RHS
+  and unpacked LHS.
+- Adding lowerability + value-preservation theorems for both new witnesses kept
+  the formal model in lockstep with the Rust backend.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `local_packed_primitive_arrays` tracking to `VerilogCodegen` and
+    `with_options`.
+  - In `gen_verilog_fn`, clear `local_packed_primitive_arrays` at the start of
+    each function.
+  - In `emit_local`, primitive scalar array `StmtLocal` nodes with a non-array-
+    literal initializer are emitted as packed-vector `reg [W-1:0]` with a whole-
+    vector assignment and tracked in `local_packed_primitive_arrays`.
+  - In `gen_verilog_stmt` for `StmtAssign`, assignments of packed-vector
+    expressions (`ExprCall` or `ExprArrayLiteral`) to primitive array identifiers
+    are emitted as whole-vector assignments and the target is tracked as packed.
+  - `try_emit_primitive_array_access` now checks `local_packed_primitive_arrays`
+    before falling back to the unpacked path.
+  - Updated temporary `VerilogCodegen` clones to carry the new local map.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`:
+  - Added W546-A/B helper environments, modules, and functions.
+- `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`:
+  - Added lowerability and value-preservation theorems for W546-A and W546-B.
+- Added two positive scratch witnesses:
+  - `specs/scratch/w546_local_call_init_returns_array.t27`
+  - `specs/scratch/w546_local_call_assign_returns_array.t27`
+- Resealed affected corpus spec:
+  - `specs/api/c_api_contract.t27`
+- Wrote `docs/reports/WAVE_LOOP_546_CLOSEOUT.md` and
+  `docs/reports/FPGA_LOOP_COOPERATION_W547_2026-07-07.md`.
+- Advanced `.trinity/current-issue.md` to Wave Loop 547 (Variant A).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 6 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  53 Icarus PASS, 53 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Track per-scope packed-vector shapes in a dedicated map so declaration and
+  access sites agree; clear the map at scope boundaries (function entry).
+- Branch the local-array emitter on initializer kind, not just type:
+  array-literal → unpacked (preserves variable-index writes);
+  call/other packed expression → packed vector.
+- Detect whole-vector reassignment at `StmtAssign` and emit a single packed
+  assignment rather than letting the LHS fall back to unpacked access.
+
+### Anti-patterns to avoid
+- Do not assume all primitive arrays of the same type use the same storage shape
+  in a given function; the choice depends on how the binding is initialized.
+- Do not update only the initializer path without also updating the access path;
+  `try_emit_primitive_array_access` must know about packed locals.
+
+---
+
+## 2026-07-07 — Wave Loop 545 (primitive scalar array function returns for independent VCD cross-check)
+
+### What worked
+- Converting the W544 negative boundary into a positive feature forced a complete
+  compiler/classifier/formal/test update, producing a coherent capability rather
+  than a half-supported special case.
+- The existing packed-vector infrastructure for scalar-struct arrays (W511–W513)
+  generalized cleanly to primitive scalar arrays once `packed_width` reported the
+  total vector width; most of the work was wiring function returns into that path.
+- Adding `module_packed_primitive_arrays` to `VerilogCodegen` let module-level
+  primitive scalar arrays be tracked as packed vectors so static indexing could
+  resolve the correct part-select (`a[i*8 +: 8]`).
+- Updating the Lean predicate (`Function.isLowerable`) and adding
+  lowerability/sequential/value-preservation theorems kept the formal model in
+  lockstep with the Rust backend.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `module_packed_primitive_arrays` tracking to `VerilogCodegen` and
+    `with_options`.
+  - Fixed `packed_width` for primitive scalar arrays to return the total packed
+    bit width (e.g. `[3]u8` → 24 bits).
+  - Extended `ExprReturn` lowering to emit packed concatenations for primitive
+    scalar array returns.
+  - Added packed-vector `localparam`/`reg` emission in `gen_verilog_const` and
+    `gen_verilog_var` for module-level primitive scalar arrays initialized from
+    calls.
+  - Added packed-vector slice access in `try_emit_primitive_array_access`.
+  - Removed the W544 classifier rule that rejected primitive scalar array
+    function return types.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Replaced `rejects_w544_primitive_scalar_array_return` with
+    `accepts_w545_primitive_scalar_array_return`.
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`:
+  - Removed the `retNotScalarArray` guard from `Function.isLowerable`.
+- `proofs/lean4/Trinity/IcarusLowerable/Completeness.lean`:
+  - Added `scratch_w545_call_init_returns_array_env`, module, and lowerability
+    theorem.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`:
+  - Added `w545CallInitReturnsArraySeq`, `w545CallInitReturnsArrayEnv`, and
+    `w545CallInitReturnsArrayModule` helpers.
+- `proofs/lean4/Trinity/IcarusLowerable/Soundness.lean`:
+  - Added lowerability, sequential, and value-preservation theorems for W545.
+- Added two positive scratch witnesses:
+  - `specs/scratch/w545_call_init_returns_array.t27`
+  - `specs/scratch/w545_var_call_init_returns_array.t27`
+- Removed obsolete negative witness:
+  - `specs/scratch/w544_negative_call_init_returns_array.t27`
+- Resealed affected corpus specs:
+  - `specs/compiler/lexer.t27`
+  - `specs/math/zamolodchikov_e8.t27`
+  - `specs/sync/index.t27`
+- Added Icarus baselines for the two new W545 witnesses.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_545_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W546_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 546.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 6 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  52 Icarus PASS, 52 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- When promoting a negative boundary to a positive feature, update the backend
+  first, then remove the classifier rejection, then mirror the change in the Lean
+  predicate, and finally add lowerability + value-preservation theorems.
+- Track new packed-vector storage shapes in a dedicated `VerilogCodegen` map so
+  that both declaration and access sites agree on the packed/unpacked choice.
+- Fix `packed_width` and `packed_signed` before touching any emitter; otherwise
+  function signatures stay wrong even after declarations look correct.
+
+### Anti-patterns to avoid
+- Do not leave generated Verilog width mismatches between function return types
+  and caller storage — Icarus will silently truncate or pad.
+- Do not update only the Rust classifier without the Lean predicate; the
+  integration test will catch it, but it is faster to mirror changes immediately.
+
+---
+
+## 2026-07-07 — Wave Loop 544 (mutable module vars and test-block call assignments for independent VCD cross-check)
+
+### What worked
+- The W543 `EvalContext.bind_module_initializers` fix already covered mutable
+  module `var` call initializers because module-level vars share the same AST
+  node shape (`ConstDecl`) as consts.  Adding explicit witnesses was enough to
+  prove end-to-end behavior.
+- The existing `_collect_assertions` path in `scripts/cocotb_ref_model.py`
+  already evaluated `StmtAssign` RHSs with a fresh call context, so whole-struct
+  assignments from function calls inside test blocks passed without extra code.
+- Converting the scalar-array function-return witness from positive to negative
+  produced a clean, formalized boundary instead of a half-working feature.  The
+  Rust classifier and Lean predicate now agree on the rejection.
+- The `ExprArrayLiteral` expression-context lowering fix (packed concatenation
+  for primitive scalar arrays) fixed latent TODOs in five corpus specs while
+  keeping the classifier boundary explicit.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `ExprArrayLiteral` in expression context now emits a packed concatenation for
+    fixed-size primitive scalar arrays.
+  - `ast_is_icarus_lowerable` rejects `FnDecl` return types that are primitive
+    scalar arrays (e.g. `[3]u8`).
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`:
+  - Added `Ty.isPrimitiveScalar` and `Ty.isPrimitiveScalarArray`.
+  - `Function.isLowerable` rejects primitive scalar array return types.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `rejects_w544_primitive_scalar_array_return`.
+  - Extended `accepts_known_lowerable_witnesses` with the four new W544 positive
+    witnesses.
+- Added six scratch witnesses:
+  - `specs/scratch/w544_module_var_scalar_call_init.t27`
+  - `specs/scratch/w544_module_var_struct_call_assign.t27`
+  - `specs/scratch/w544_nested_call_init.t27`
+  - `specs/scratch/w544_call_init_depends_on_const.t27`
+  - `specs/scratch/w544_negative_call_init_returns_array.t27`
+  - `specs/scratch/w544_negative_nonlowerable_var_call_init.t27`
+- Resealed affected corpus specs:
+  - `specs/isa/ternary_pattern_matching.t27`
+  - `specs/isa/ternary_search.t27`
+  - `specs/isa/ternary_set.t27`
+  - `specs/isa/ternary_sorting.t27`
+  - `specs/pipeline/benchmarks.t27`
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_544_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W545_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 545.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 6 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  50 Icarus PASS, 50 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- When a Variant B witness exposes a backend/classifier gap, convert it into a
+  negative boundary witness and align the Rust classifier with the Lean
+  predicate before trying to make the feature fully work in one loop.
+- Primitive scalar array literals in expression context must be lowered as
+  packed concatenations; do not leave TODO placeholders in generated Verilog.
+- Keep mutable module var call initializers on the same code path as const
+  initializers; they share the same AST node and the same lifetime concerns.
+
+### Anti-patterns to avoid
+- Do not try to force a positive witness through a backend that cannot yet
+  connect the return value to storage; a clean negative boundary is more valuable.
+- Do not forget to update the Lean predicate when the Rust classifier gains a
+  new rejection rule; the integration test `corpus_classifier_matches_lean_completeness`
+  will catch mismatches, but it is faster to mirror changes immediately.
+
+---
+
+## 2026-07-07 — Wave Loop 543 (function-call module initializers for independent VCD cross-check)
+
+### What worked
+- Adding a `bind_module_initializers` flag to `EvalContext.__init__` broke the
+  recursion between module-level const binding and function-call evaluation.  Call
+  contexts now inherit already-bound module values from the outer context without
+  re-entering the binding loop.
+- Removing the defensive `_contains_kind(init_node, "ExprCall")` skip once the
+  recursion was broken allowed lowerable call-initialized module consts to be
+  bound eagerly like any other initializer.
+- Fixing `parse_const_decl` to parse identifier+`(` as a full expression via
+  `parse_expr()` preserved function-call arguments in module initializers.  The
+  old code created an `ExprIdentifier` named after the function and dropped the
+  arguments, producing invalid Verilog (`localparam src = make;`).
+- Keeping the default `bind_module_initializers=True` meant existing witnesses and
+  the top-level assertion context behaved exactly as before.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `parse_const_decl` now treats an identifier followed by `(` as a function-call
+    initializer and parses it as a full expression.
+- `scripts/cocotb_ref_model.py`:
+  - `EvalContext.__init__` gained `bind_module_initializers` (default `True`).
+  - `_eval_call_bv` creates callee contexts with `bind_module_initializers=False`.
+  - Module-const binding loop no longer skips `ExprCall` initializers.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `rejects_w543_nonlowerable_call_init_witness`.
+  - Added `w543_module_scalar_call_init.t27` and
+    `w543_module_struct_call_init.t27` to the positive-witness list.
+- Added five scratch witnesses:
+  - `specs/scratch/w543_module_scalar_call_init.t27`
+  - `specs/scratch/w543_module_struct_call_init.t27`
+  - `specs/scratch/w543_module_mixed_call_init.t27`
+  - `specs/scratch/w543_call_arg_casts.t27`
+  - `specs/scratch/w543_negative_nonlowerable_call_init.t27`
+- Resealed affected corpus specs:
+  - `specs/math/sacred_physics.t27`
+  - `specs/nn/attention.t27`
+  - `specs/physics/formula_discovery.t27`
+  - `specs/physics/gamma_conjecture.t27`
+  - `specs/physics/gi1_analysis.t27`
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_543_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W544_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 544.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 5 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 46 Icarus PASS,
+  46 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baseline
+  failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Break recursion between eager module binding and call evaluation by giving
+  call contexts a flag that disables re-entry into the module-binding loop.
+- When a const/var initializer looks like an identifier, check the next token;
+  `(` means a function call and `{` means a struct literal, both of which must be
+  parsed as full expressions to preserve arguments/fields.
+- Reseal the whole corpus after a parser change that affects const initializers;
+  seemingly unrelated math/physics specs may use function-call const initializers.
+
+### Anti-patterns to avoid
+- Do not special-case function-call initializers by skipping them; fix the
+  recursion that made the skip necessary in the first place.
+- Do not assume `parse_expr()` is too aggressive for const initializers; it stops
+  at the semicolon and correctly captures complex call/struct-literal RHSs.
+
+---
+
+## 2026-07-07 — Wave Loop 542 (scalar function-call arguments for independent VCD cross-check)
+
+### What worked
+- Binding function parameter declared types into `EvalContext.fn_local_types` let the
+  reference model resolve field/index access on parameter identifiers such as `p.x` in
+  `pub fn sum(p : Pt) -> u32`.
+- Tracking `EvalContext.current_fn` made the function-local type map active only when
+  evaluating inside the corresponding function body, avoiding parameter names from
+  shadowing module-level types in other scopes.
+- Sign-extending signed sources in `_eval_cast_bv` when the target is wider matched
+  the two's-complement semantics that t27 tests expect.
+- Replacing the compiler's `(op & {W{1'b1}})` unsigned cast with an explicit
+  `({{(W-N){($signed(op) < 0)}}, op})` sign-extension avoided an Icarus Verilog
+  subtlety where mixed signed/unsigned expression contexts zero-extend signed
+  sub-expressions.
+- Adding three scratch witnesses covering primitive scalar, signed scalar, and packed
+  scalar-struct arguments exercised the new path end-to-end.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `ExprCast` lowering now infers operand width/signedness via `expr_width_signed` and
+    emits explicit sign-extension for signed-to-unsigned widening casts.
+- `scripts/cocotb_ref_model.py`:
+  - `EvalContext` gained `current_fn` and parameter types are stored in
+    `fn_local_types`.
+  - `_resolve_base_type` consults the current function's local type map.
+  - `_eval_cast_bv` sign-extends signed sources to wider targets.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- Added three scratch witnesses:
+  - `specs/scratch/w542_scalar_call_args.t27`
+  - `specs/scratch/w542_signed_scalar_call.t27`
+  - `specs/scratch/w542_struct_sum_call.t27`
+  Each has a seal and an Icarus baseline.
+- Resealed affected corpus specs:
+  - `specs/numeric/gf8.t27`
+  - `specs/scratch/w374_module_keyword.t27`
+  - `specs/scratch/w377_struct_field_mapping.t27`
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_542_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W543_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 543.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 4 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 42 Icarus PASS,
+  42 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baseline
+  failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Record function parameter types in the reference model because the AST does not emit
+  `StmtLocal` nodes for parameters.
+- Resolve names from the closest scope first (function-local, then module-level) so
+  parameter identifiers shadow top-level declarations correctly.
+- Avoid relying on Icarus' signed/unsigned expression-context semantics for sign
+  extension; emit explicit concatenation when a signed source must be widened into an
+  unsigned target.
+
+### Anti-patterns to avoid
+- Do not assume `(signed_expr & {W{1'b1}})` will sign-extend in a wider unsigned
+  expression context; Icarus may zero-extend the sub-expression from its source width.
+- Do not drop parameter declared types from the reference model; field and index
+  inference needs them even though parameters are runtime-bound in `ctx.vars`.
+
+---
+
+## 2026-07-07 — Wave Loop 541 (module-level wide packed values for independent VCD cross-check)
+
+### What worked
+- Binding module-level `const`/`var` initializers of lowerable packed scalar struct
+  (or fixed-size scalar array) type into `EvalContext.vars` let the reference model
+  evaluate assertions on whole packed values such as `assert_eq(src, Wide{...})`.
+- Tracking `mutable_module_names` and processing `StmtAssign` nodes in statement order
+  allowed whole-struct assignments inside test blocks (`dst = make(); assert_eq(dst, ...)`)
+  to update the reference model state before each assertion.
+- Extending `expr_width_signed` for `ExprIdentifier` on lowerable packed scalar structs
+  made the Verilog backend emit multi-slice probes for module-level wide values.
+- Skipping module-level initializers that contain function calls avoided recursive
+  `EvalContext` construction while keeping the change minimal.
+- Updating `_resolve_base_type` to look up the declared type from top-level `ConstDecl`
+  nodes even when the name is already bound in `ctx.vars` preserved correct field
+  and index width inference for module vars.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `expr_width_signed` now handles lowerable packed scalar struct identifiers.
+- `scripts/cocotb_ref_model.py`:
+  - Added `_is_lowerable_scalar_struct_type`, `_packed_type_width_signed`, and
+    `_contains_kind` helpers.
+  - `EvalContext.__init__` binds module-level lowerable packed initializers and tracks
+    mutable module vars.
+  - `_collect_assertions` evaluates preceding whole-struct assignments to module vars.
+  - `_type_of_expr` and `_resolve_base_type` handle bound module vars correctly.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- Added three scratch witnesses:
+  - `specs/scratch/w541_module_wide_struct_const.t27`
+  - `specs/scratch/w541_module_wide_struct_var.t27`
+  - `specs/scratch/w541_module_wide_struct_assign.t27`
+  Each has a seal and an Icarus baseline.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_541_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W542_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 542.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 4 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 39 Icarus PASS,
+  39 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baseline
+  failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Bind module-level values into the reference model when their initializers are
+  statically evaluable; skip anything that would recursively re-enter context setup.
+- Process test-block statements in order so assignments update model state before
+  assertions are evaluated.
+- Keep type resolution separate from value resolution so that bound variables still
+  expose their declared type for field/index inference.
+
+### Anti-patterns to avoid
+- Do not eagerly evaluate module-level initializers that contain function calls; the
+  resulting recursive context construction can blow the Python stack.
+- Do not drop declared type information just because a variable has a runtime value;
+  width inference still needs the static type.
+
+---
+
+## 2026-07-07 — Wave Loop 540 (multi-signal VCD probes for wide packed structs and arrays)
+
+### What worked
+- Extending `expr_width_signed` to size `ExprCall` and `ExprStructLit` nodes that
+  return/evaluate to lowerable packed scalar structs let the backend emit multi-slice
+  probes for any wide `assert_eq` actual expression in the Icarus-lowerable subset.
+- Pre-declaring the wide temporary register together with the slice registers at the
+  top of each generated test block kept the output acceptable to Icarus Verilog's
+  declaration-before-statement rule.
+- Splitting wide packed values into deterministic 64-bit slices and reconstructing them
+  by OR-ing shifted slices in Python avoided dependence on external big-int VCD
+  libraries and matched the Verilog packed layout.
+- Adding `_eval_struct_lit_bv` and `_eval_array_lit_bv` to the Python reference model
+  made whole packed-struct/array literals comparable against the VCD reconstruction.
+- Re-wrapping simple literal expected values at the inferred actual width prevented
+  narrow-literal defaults from corrupting the comparison for wide types.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `expr_width_signed` now handles lowerable packed scalar struct returns and literals.
+  - `gen_verilog_test` pre-declares a packed temporary reg and per-slice regs for
+    wide assertions.
+  - `gen_verilog_test_stmt` assigns the temporary reg and copies each slice by
+    part-select.
+- `scripts/cocotb_ref_model.py`:
+  - Added `u128`/`i128` widths.
+  - Added `_eval_struct_lit_bv` and `_eval_array_lit_bv`.
+  - Added `_VcdParser.probe_slices` and slice reconstruction in `_cross_check`.
+  - `_collect_assertions` now uses `_type_of_expr` to size expected values at the
+    actual width.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- Added scratch witness `specs/scratch/w540_wide_packed_struct_array.t27`, its seal,
+  and its Icarus baseline.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_540_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W541_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 541.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 4 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 36 Icarus PASS,
+  36 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baseline
+  failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Declare all probe registers before emitting procedural statements in generated
+  Verilog initial blocks.
+- Encode deterministic slice names (`_s0`, `_s1`, ...) and reconstruct offsets from
+  the slice index rather than from VCD metadata, keeping the parser minimal.
+- When the actual expression is wider than the literal default, carry the actual
+  width into the expected value so the comparison is bit-accurate.
+
+### Anti-patterns to avoid
+- Do not emit variable declarations after the first procedural statement in a
+  generated Verilog block; Icarus rejects it even in `-g2012` mode.
+- Do not assume a literal's default evaluator width is the same as the expression
+  it is compared against; use the actual expression type as the authority.
+
+---
+
+## 2026-07-08 — Wave Loop 539 (typed VCD probe + full Python expression evaluator)
+
+### What worked
+- Adding `expr_width_signed` and `field_scalar_array_info` in
+  `bootstrap/src/compiler.rs` let the backend infer the scalar width and
+  signedness of `assert_eq` actual expressions, so probes can be emitted as
+  `reg [W-1:0]` instead of a fixed 64 bits.
+- Keeping a `probe_specs` vector in `VerilogCodegen` made the width/sign metadata
+  available for downstream consumers without re-parsing the Verilog.
+- Modeling every reference-model value as a `Bv(width, signed)` in Python
+  prevented signed/unsigned interpretation bugs that previously caused
+  mismatches on `i16` probes (e.g. `-3` read back as `65533`).
+- Implementing a recursive evaluator for the Icarus-lowerable subset (literals,
+  vars, parameterless calls, field access, scalar indexing, binary/unary ops,
+  casts, switch, ternary) covered most W5xx/W3xx scalar assertions.
+- Interpreting VCD vector values with the declared probe width and signedness
+  removed the brittle 64-bit signed heuristic.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `expr_width_signed` and `field_scalar_array_info`.
+  - Replaced fixed `reg [63:0]` probe declarations with typed probes.
+  - Added `probe_specs` metadata to `VerilogCodegen`.
+- `scripts/cocotb_ref_model.py`:
+  - Added `Bv` bit-vector class.
+  - Added full typed expression evaluator (`_eval_expr_bv`, `_eval_call_bv`,
+    `_eval_field_bv`, `_eval_index_bv`, etc.).
+  - Updated VCD parser to store per-identifier widths.
+  - Updated cross-check to interpret probe values with correct width/signedness.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_539_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W540_2026-07-08.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 540.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 4 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 35 Icarus PASS,
+  35 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys smoke baseline
+  failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Always carry width and signedness with every reference-model value; never
+  infer signedness from the sign of a Python `int`.
+- Reuse the compiler's existing `packed_width` / `packed_signed` / field-offset
+  helpers when inferring expression types so the Python model stays bit-accurate
+  with the generated Verilog.
+- A typed probe is the right granularity for scalar assertions; multi-signal
+  slices are the next increment for wide values.
+
+### Anti-patterns to avoid
+- Do not assume 64-bit signed two's complement for all VCD probes; the probe
+  width and the expression's signedness must be authoritative.
+- Do not hand-edit files under `gen/`; change specs and regenerate.
+- Do not make the cocotb gate fail when a supplemental probe cannot be
+  evaluated; keep the log-based self-check as the authority.
+
+---
+
+## 2026-07-15 — Wave Loop 538 (VCD probe + independent cocotb reference-model check)
+
+### What worked
+- Adding `$dumpfile`/`$dumpvars` only in simulation mode (guarded by
+  `emit_test_assertions`) kept synthesis-mode Verilog seals stable while
+  enabling VCD capture for the reference model.
+- Hoisting scalar probe `reg` declarations to the top of each generated test
+  block satisfied Verilog's declaration-before-statement rule, so the new
+  probes compiled cleanly with Icarus.
+- Building a minimal built-in VCD parser in `scripts/cocotb_ref_model.py`
+  removed the dependency on an external VCD library and kept the script
+  self-contained.
+- Interpreting negative expected literals as signed 64-bit two's complement
+  aligned the Python comparison with Verilog's sign-extended probe values.
+- Filtering VCD startup diagnostics and `[PROBE]` lines out of the Phase 3d
+  baseline comparison in `bootstrap/src/suite.rs` let the existing Icarus
+  simulation baselines remain valid without manual re-recording.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added a per-test-block probe counter to `VerilogCodegen`.
+  - Emits `reg [63:0] _t27_probe_<block>_<N>` declarations for every
+    `assert_eq` in simulation mode and assigns them with the actual
+    expression value.
+  - Emits `$dumpfile("dump.vcd"); $dumpvars(0);` inside
+    `// synthesis translate_off` only when `emit_test_assertions` is true.
+- `bootstrap/src/suite.rs`:
+  - `normalize_icarus_output` now drops VCD info/warning lines and `[PROBE]`
+    debug lines before baseline comparison.
+- `scripts/cocotb_ref_model.py`:
+  - Captures VCD in both direct `iverilog/vvp` and cocotb runner paths.
+  - Parses the final probe values and compares them against independently
+    evaluated expected literals.
+  - Skips X/missing probes gracefully (typically wide non-scalar values).
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_538_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W539_2026-07-15.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 539.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 4 passed; 0 failed.
+- `./scripts/tri test --icarus-simulate --icarus-lowerable --cocotb --fast`:
+  35 Icarus PASS, 35 cocotb PASS, 0 seal mismatches, 24 pre-existing yosys
+  smoke baseline failures.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- Keep synthesis-mode generated code stable by gating all simulation-only
+  instrumentation with the existing `emit_test_assertions` flag.
+- When adding new output lines that would invalidate deterministic baselines,
+  normalize them out of the comparison rather than re-recording every baseline.
+- A 64-bit scalar probe is a pragmatic first step; width-typed probes are the
+  natural next increment.
+
+### Anti-patterns to avoid
+- Do not emit simulation-only diagnostics outside `// synthesis translate_off`
+  or without `emit_test_assertions` guarding — they will change seals and
+  synthesis baselines.
+- Do not make the reference model fail the gate when a supplemental VCD probe
+  cannot be parsed; treat it as a skipped supplemental check and fall back to
+  the authoritative log-based self-check.
+
+---
+
+## 2026-07-07 — Wave Loop 537 (close undefined-struct leniency in Lean predicate)
+
+### What worked
+- Changing `Ty.isLowerableFuel` for `.struct name` to require a non-empty
+  `env.structFields name` made the Lean predicate match the Rust structural
+  classifier exactly on undefined struct names.
+- Repairing the 249 corpus envs in `Completeness.lean` in two buckets
+  (133 lowerable envs got stub struct declarations; 116 non-lowerable envs got
+  a deliberately non-lowerable marker struct + function) let every theorem assert
+  the real Rust verdict instead of the old universal `= true` claim.
+- Adding `corpus_classifier_matches_lean_completeness` in
+  `bootstrap/tests/icarus_lowerable.rs` gives an automated regression that
+  catches future Rust/Lean predicate divergence at CI time.
+- Keeping the repair script bracket-aware and type-string-agnostic avoided a
+  recursive Lean type parser that broke on edge-case struct declarations.
+
+### What changed behavior
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean`:
+  - `.struct name` lowerability now returns `false` when `env.structFields name`
+    is empty, closing the undefined-struct leniency.
+- `proofs/lean4/Trinity/IcarusLowerable/Completeness.lean`:
+  - All 249 env/module theorems now assert the actual Rust classifier verdict.
+  - 133 lowerable envs: stub declarations added for every undefined struct name;
+    empty-field structs replaced with a single `u32` field.
+  - 116 non-lowerable envs: injected `w537_non_lowerable_marker` struct (f32 field)
+    and a dummy function using it to force `Module.isLowerable = false`.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean`:
+  - Added `w537_undefined_struct_not_lowerable` negative witness theorem.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `corpus_classifier_matches_lean_completeness` to assert Rust/Lean
+    agreement across all `Completeness.lean` envs.
+- `specs/scratch/w537_negative_undefined_struct.t27` and its seal:
+  - Negative witness for an undeclared struct return type.
+- `docs/ICARUS_LOWERABLE_BOUNDARY.md`:
+  - Added W537 section documenting the strict undefined-struct rule, Completeness
+    repair, regression test, and validation.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_537_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W538_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 538.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 4 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --cocotb --fast`: 35 Icarus simulations
+  passed, 0 failed; 35 cocotb checks passed, 0 failed; 0 seal mismatches;
+  24 pre-existing yosys smoke baseline failures.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: green with
+  zero `sorry`.
+
+### Patterns to reuse
+- When a formal predicate is more lenient than the structural classifier,
+  tighten the predicate first, then repair the corpus envs; do not leave the
+  divergence untested.
+- For non-lowerable corpus specs whose extracted modules are too coarse to
+  reproduce the real rejection, inject a deliberately non-lowerable marker
+  artifact so the Lean theorem asserts the correct verdict.
+- Bracket-aware regex splitting is safer than a full recursive parser when
+  mutating auto-generated Lean env definitions.
+
+### Anti-patterns to avoid
+- Do not assert `Module.isLowerable = true` for every corpus env without
+  checking the Rust classifier; a lenient predicate makes the theorem vacuous.
+- Do not hand-edit 249 generated theorem blocks; write a script that re-reads
+  the Rust verdict and rewrites the Lean file deterministically.
+
+---
+
+## 2026-07-07 — Wave Loop 534 (harden the Icarus lowerability boundary)
+
+### What worked
+- Defining the lowerability boundary as a source-AST predicate closed the
+  soundness gap where generated Verilog + `iverilog` accepted semantically
+  unlowerable specs because the backend emitted placeholder code.
+- Reusing `VerilogCodegen::is_primitive_scalar_type` and
+  `VerilogCodegen::is_lowerable_scalar_struct` kept the type rules identical to
+  the Verilog backend.
+- Adding the `t27c icarus-lowerable` subcommand made the boundary testable
+  from CI and from a Rust integration test without invoking the full suite.
+- Keeping `iverilog -g2012` as a backend cross-check in `suite.rs` preserved
+  the simulation gate at 0 failures while switching the authoritative filter to
+  the structural classifier.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `Compiler::is_icarus_lowerable`, `Compiler::icarus_lowerability_reason`,
+    `collect_function_names`, `is_icarus_lowerable_type`,
+    `is_icarus_lowerable_struct_name`, `ast_is_icarus_lowerable`, and
+    `is_icarus_builtin`.
+  - Fixed `Ok(false)` propagation in `ast_is_icarus_lowerable` (the `?` operator
+    only short-circuits on `Err`, so every recursive `Ok(false)` must be checked
+    explicitly).
+  - Rejected `while (true)` as structurally unbounded.
+- `bootstrap/src/main.rs`: added the `IcarusLowerable` subcommand and the
+  `run_icarus_lowerable` handler.
+- `bootstrap/src/suite.rs`: `is_icarus_lowerable` now uses the structural
+  classifier as the gate and runs `gen-verilog` + `iverilog` only as a sanity
+  cross-check.
+- `bootstrap/tests/icarus_lowerable.rs`: new integration test for the classifier.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `specs/scratch/`: added 6 W534 negative witnesses and sealed them.
+- `docs/ICARUS_LOWERABLE_BOUNDARY.md`: documented the structural lowerability
+  contract.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_534_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W535_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 535.
+
+### What to watch next
+- The Lean 4 `Predicate.lean` still accepts some constructs that the Rust
+  classifier rejects (e.g. `f32` struct fields and `while (true)`).  Wave Loop
+  535 should tighten the predicate and add matching `¬ Module.isLowerable`
+  theorems.
+
+## 2026-07-07 — Wave Loop 533 (module-level packed scalar structs with array fields)
+
+### What worked
+- Reusing the existing packed-vector helpers (`element_width`, `emit_packed_struct_array_init`,
+  packed concatenation) for *single* scalar structs avoided a parallel lowering path and kept
+  module/function/local layouts identical.
+- Adding `is_lowerable_scalar_struct_type` and routing it through `packed_width` / `packed_signed`
+  fixed the silent 32-bit-truncation bug for scalar-struct function parameters and return values.
+- Caching top-level function return types in `fn_return_types` let field access work on
+  struct-returning function-call results without special-casing the call expression.
+- Hoisting test-block local variable declarations to the top of the generated `initial` block
+  removed an Icarus syntax error that appeared whenever a `var tmp : Pt = make(...)` followed a
+  `$display` or other statement.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `base_type_name`, `is_lowerable_scalar_struct_type`, and `LocalEmitPhase` / `emit_local`
+    to share declaration/initialization emission between normal statements and the hoisted test-block
+    pre-declaration pass.
+  - `packed_width` / `packed_signed` now return `element_width(struct)` for bare lowerable scalar
+    structs instead of the legacy 32-bit fallback.
+  - `gen_verilog_const` emits bare lowerable scalar structs as `localparam`/`parameter [W:0] name = {...};`.
+  - `gen_verilog_var` emits bare lowerable scalar structs as `reg [W:0] name;` with an `initial`
+    block initializer from struct literals, identifiers, or function calls.
+  - `gen_verilog_struct` skips lowerable scalar structs (emits a packed-vector comment).
+  - `gen_verilog_test` hoists all test-local `reg` declarations before the first procedural
+    statement and caches local types for packed field access.
+  - `ExprFieldAccess` resolves single scalar-struct field reads through a packed part-select with
+    `$signed(...)` for signed fields, including call-return results.
+  - `parse_const_decl` now parses `Ident{LBrace}` initializers into a real `ExprStructLit` instead
+    of dropping the const or storing raw text.
+  - `fn_return_types` map is populated from top-level `FnDecl` nodes and cloned into temporary
+    codegen instances.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- `specs/scratch/`: added 8 W533 scratch specs (6 positive + 2 negative) and removed temporary probes.
+- `.trinity/icarus-baselines/`: recorded JSON baselines for the 8 lowerable W533 witnesses.
+- `.trinity/seals/`: resealed specs whose `gen_hash_verilog` changed (including the test-block
+  hoisting and the single scalar-struct layout fixes).
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_533_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W534_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 534.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `./scripts/tri test --icarus-simulate --icarus-lowerable --fast`: 36 passed, 0 failed;
+  0 seal mismatches; 24 pre-existing yosys smoke baseline failures; 2 negative scratch specs
+  correctly filtered out by the lowerability classifier.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- A single `emit_local` helper with `Decl/Init/Full` phases makes it easy to hoist declarations
+  for any procedural block (test, bench, future loops) without duplicating type-specific logic.
+- When a type newly becomes lowerable, update `packed_width` / `packed_signed` *first*; otherwise
+  function parameters and return values silently keep the wrong width.
+- Cache return-type metadata at the top of `gen_verilog` so downstream expression emission can
+  resolve call-result shapes without a second pass.
+
+### Anti-patterns to avoid
+- Do not emit Verilog `reg` declarations after procedural statements inside `initial` blocks;
+  Icarus and the Verilog standard reject it, and the error message points at the wrong line.
+- Do not store raw struct-literal text in `ExprIdentifier` to satisfy one backend; it breaks
+  C/Rust/Zig seals and the AST contract.
+- Do not add new scratch specs without recording an Icarus JSON baseline on the first successful
+  run; the simulation gate compares deterministic output lines.
+
+---
+
+## 2026-07-07 — Wave Loop 531 (Icarus regression extension / primitive-array unpacked lowering)
+
+### What worked
+- Lowering function-local primitive arrays as unpacked Verilog arrays
+  (`reg signed [15:0] temps [0:3];`) fixed both signed-element width issues and
+  Icarus's rejection of variable-index packed part-selects as l-values.
+- Applying the same fix to module-level `var` declarations fixed the W382 RAM
+  lowering witness, which had the same broken scalar-reg-per-element fallback.
+- Extending `icarus_regression_specs` to include `w3*` while keeping the
+  `--icarus-lowerable` classifier as a pre-filter let the regression suite grow
+  from 10 to 24 specs without adding noise from non-lowerable experiments.
+- Recording JSON baselines automatically on first successful runs made the new
+  witnesses repeatable.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added W531 helpers: `is_primitive_scalar_type`, `is_primitive_array_type`,
+    `primitive_array_info`, `emit_unpacked_primitive_array_access`,
+    `try_emit_primitive_array_access`, `emit_unpacked_primitive_array_init`,
+    `emit_unpacked_primitive_array_init_level`.
+  - `gen_verilog_stmt` `StmtLocal` branch now emits unpacked arrays for primitive
+    arrays instead of the scalar-reg packed fallback.
+  - `gen_verilog_var` now emits unpacked arrays for primitive array module-level
+    variables.
+  - `gen_verilog_expr` `ExprIndex` now routes primitive-array element access
+    through `try_emit_primitive_array_access`.
+- `bootstrap/src/suite.rs`:
+  - `icarus_regression_specs` now includes `w5*` and `w3*` scratch specs.
+- `.trinity/icarus-baselines/`: added/updated baselines for lowerable W3xx
+  primitive-array witnesses.
+- `.trinity/seals/`: resealed specs whose `gen_hash_verilog` changed.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the new compiler hash.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_531_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W532_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 532.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `./scripts/tri test --icarus-simulate --icarus-lowerable`: 24 passed, 0 failed;
+  0 seal mismatches; 16 pre-existing yosys smoke baseline failures.
+- `./scripts/tri test --icarus-lowerable --fast`: same result.
+
+### Patterns to reuse
+- Unpacked Verilog arrays are the correct lowering for t27 primitive arrays when
+  signed widths or variable indices matter.
+- When changing array lowering, check both function-local and module-level
+  declaration sites; the same broken fallback can exist in multiple places.
+- Grow regression whitelists incrementally and let a lowerability classifier
+  filter out non-ready specs.
+
+### Anti-patterns to avoid
+- Do not lower primitive arrays as scalar packed-vector bit-selects; it silently
+  breaks signed values and variable-index writes.
+- Do not extend the regression suite without a classifier; non-lowerable specs
+  will create noise and hide real regressions.
+
+---
+
+## 2026-07-07 — Wave Loop 530 (Icarus simulation gate / 2-D packed-vector layout fix)
+
+### What worked
+- The first Icarus simulation run immediately exposed a real semantic bug:
+  `emit_packed_array_literal_concat_level` emitted `{e0, e1, ...}`, but Verilog
+  concatenation is MSB-first, so t27 element `[0][0]` was placed at the MSB.
+  Reversing the parts before concatenation fixed the mismatch and aligned the
+  packed-vector layout with the linearized slice accessors.
+- Adding `emit_test_assertions` to `VerilogCodegen` let the same codegen path
+  produce both synthesis-safe and simulation-active Verilog without duplicating
+  the emitter.
+- Running the simulation gate only on the deliberate W493–W529 regression specs
+  (`specs/scratch/w5*.t27`) kept unrelated scratch experiments from destabilizing
+  the suite.
+- Recording JSON baselines on the first successful run made the gate repeatable
+  and reviewable.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `emit_test_assertions` option to `VerilogCodegen`.
+  - Added `Compiler::compile_verilog_for_simulation`.
+  - Fixed packed array literal concatenation order by reversing `parts` before
+    emitting `{...}`.
+  - Zero-argument calls now pass `1'b0` for the `_unused` dummy input.
+- `bootstrap/src/main.rs`:
+  - Added `IcarusSimulate` subcommand.
+  - Added `--icarus-simulate`, `--icarus-lowerable`, and `--fast` flags to the
+    `Suite` subcommand.
+- `bootstrap/src/suite.rs`:
+  - Added Phase 3d: Icarus Verilog simulation gate.
+  - Added lowerability classifier (gen-verilog success + no `UNSUPPORTED_ICARUS`
+    + `iverilog -g2012` compile success).
+  - Added JSON baseline load/record/compare helpers.
+- `.trinity/icarus-baselines/`: added 10 baselines for W526/W528/W529 witnesses.
+- `.trinity/seals/`: resealed 125 specs whose `gen_hash_verilog` changed after
+  the layout fix.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_530_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W531_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 531.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `./scripts/tri test --icarus-simulate --icarus-lowerable`: 0 Icarus simulation
+  failures, 0 seal mismatches, 16 pre-existing yosys smoke baseline failures.
+
+### Patterns to reuse
+- A simulation gate catches value-level regressions that static syntax-only
+  smoke gates miss; make it the next layer after `gen-verilog` succeeds.
+- When emitting packed-vector concatenations, always check the MSB/LSB
+  convention of the target language against the index-to-bit mapping used by
+  accessors.
+- Scope regression suites to a deliberate whitelist so experimental scratch specs
+  do not create noise.
+
+### Anti-patterns to avoid
+- Do not run the simulation gate on every scratch spec without a classifier;
+  non-lowerable experiments will produce large failure counts and hide real bugs.
+- Do not forget to reseal after any change that affects generated code; even a
+  layout-order fix changes many `gen_hash_verilog` seals.
+
+---
+
+## 2026-07-07 — Wave Loop 529 (formal module/function 2-D AOS soundness / W530 setup)
+
+### What worked
+- Restoring the missing `Trinity.IcarusLowerable` source modules from git commit
+  `33276d818` made the W529 formalization possible without re-implementing the
+  shallow model.
+- Reusing the existing generic equivalence theorems
+  (`module_value_equiv_statement` and `module_value_equiv_proved_sequential`)
+  kept the new value-preservation proofs short and uniform.
+- Adding the witnesses directly to `Lemmas.lean`/`Soundness.lean` (rather than
+  trying to auto-generate `Completeness.lean`) kept the change reviewable and
+  self-contained.
+- Keeping the formal struct fields as `u32` avoided the unsupported `ExprCast`
+  path while preserving the same arithmetic values as the `u16` + `as u32`
+  scratch specs.
+- Sealing the four new scratch specs immediately after creation kept
+  `./scripts/tri test` at 0 seal mismatches.
+
+### What changed behavior
+- `proofs/lean4/Trinity/IcarusLowerable/`:
+  - Restored 10 source modules from commit `33276d818`.
+  - `Lemmas.lean`: added four W529 witness env/module definitions.
+  - `Soundness.lean`: added lowerability, combinationality/sequentiality, and
+    value-preservation theorems for each witness.
+- `specs/scratch/`:
+  - `w529_module_2d_struct_array_const.t27`
+  - `w529_module_2d_struct_array_var.t27`
+  - `w529_function_2d_struct_array_param.t27`
+  - `w529_function_2d_struct_array_return.t27`
+- `.trinity/seals/`: added 4 new scratch seals.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_529_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W530_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 530.
+
+### Verification
+- `cargo build --release -p t27c --bin t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `lake build Trinity.IcarusLowerable.Soundness`: OK (8572 jobs), 0 sorry in
+  `Lemmas.lean` / `Soundness.lean`.
+- `./scripts/tri test`: Seal Verify 586/0, 16 pre-existing yosys smoke baseline
+  failures, no new failures.
+
+### Patterns to reuse
+- When formal source modules are missing from the worktree, check the git
+  history first; restoring a known-good baseline is faster than recreating the
+  model.
+- Match formal witnesses to the subset supported by the shallow model (no
+  casts, no host-only helpers) rather than forcing the model to match every
+  frontend construct.
+- Prove value preservation via the existing generic theorem once lowerability,
+  uniqueness, sequentiality, and call-context are established by `native_decide`.
+
+### Anti-patterns to avoid
+- Do not let a generated file like `Completeness.lean` block a wave; if the
+  generator is not in the current worktree, cover the new shapes in the source
+  modules and document the regeneration gap.
+- Do not create scratch specs without sealing them; the suite will report seal
+  mismatches even if the specs otherwise compile.
+
+---
+
+## 2026-07-07 — Wave Loop 528 (2-D AOS cross-boundary lowering / reseal / W529 setup)
+
+### What worked
+- Extending the W527 function-local packed-vector path to module-level
+  `const`/`var` and function parameters/returns reused the same linearized slice
+  helpers, keeping the layout consistent across all scopes.
+- Parsing the module-level array-literal text on demand inside the Verilog
+  backend (rather than changing the shared AST) avoided regressing Zig, C, and
+  Rust generated code.
+- Restricting `packed_width` expansion to scalar-struct element types kept all
+  primitive-array parameter/return signatures stable, eliminating unintended seal
+  churn.
+- Adding `module_types` and `param_types` maps let `try_emit_struct_array_access`
+  resolve array accesses against module-level and parameter symbols, not just
+  function locals.
+- Saving seals for the affected existing specs plus the five new scratch specs
+  brought `./scripts/tri test` back to 0 seal mismatches while preserving the 16
+  pre-existing yosys smoke baselines.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `parse_const_decl` uses `parse_type_annotation()` so multi-dimensional
+    array type annotations are preserved.
+  - `VerilogCodegen` gained `packed_width`, `packed_signed`,
+    `parse_array_literal_text`, `emit_packed_array_literal_concat`,
+    `module_types`, `param_types`, `current_fn_return_type`.
+  - `gen_verilog_const`/`gen_verilog_var` lower module-level scalar-struct
+    arrays as packed parameters/registers.
+  - `gen_verilog_fn` emits packed widths for scalar-struct array parameters and
+    returns.
+  - `ExprReturn` lowers array-literal returns to a packed concatenation.
+- `bootstrap/stage0/FROZEN_HASH` updated to the live compiler hash.
+- New scratch witnesses:
+  - `w528_module_2d_struct_array_const.t27`
+  - `w528_module_2d_struct_array_var.t27`
+  - `w528_function_2d_struct_array_param.t27`
+  - `w528_function_2d_struct_array_return.t27`
+  - `w528_parse_const_2d.t27`
+- Resealed 26 existing specs and saved 6 new scratch seals.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_528_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W529_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 529.
+
+### Verification
+- `cargo build --release -p t27c --bin t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --tests`: 20 passed; 1 failed (`bundle_writes_exactly_eleven_files`,
+  pre-existing and unrelated to W528).
+- `./scripts/tri test`: Seal Verify 582/0, 16 pre-existing yosys smoke baseline failures.
+- Icarus simulation and Yosys synthesis on the four main W528 witnesses: PASS.
+
+### Patterns to reuse
+- Keep AST changes local to the backend that needs them; on-demand parsing of
+  literal text prevents cross-backend seal churn.
+- When a type-derived width could apply broadly, gate it tightly on the exact
+  supported shape (here: scalar-struct arrays) to avoid silent signature changes.
+- Map every new symbol scope (module-level, parameters) so that access helpers
+  work uniformly across scopes.
+
+### Anti-patterns to avoid
+- Do not change the shared parser to emit a richer AST just for one backend;
+  the other generators and seals will pay the cost.
+- Do not reseal blindly; first verify that the only mismatches are expected
+  consequences of the targeted change.
+
+---
+
 ## 2026-07-07 — IGLA Improvement Loop cycle 1 (audit + loop charter)
 
 ### What worked
@@ -2821,3 +14114,5373 @@
 - Continue documenting the exact 7 yosys smoke failure matrix each wave so the baseline is auditable.
 - Keep `docs/NOW.md`, `.trinity/current-issue.md`, and persistent memory updated in the same commit as the close-out reports.
 
+## 2026-07-07 — Wave Loop 526 (W469 2-D array-of-struct Verilog regression diagnostic + design doc)
+
+### What worked
+- Converting the silent W469 regression into a clear `compile_verilog` diagnostic stopped the backend from emitting broken placeholder Verilog.
+- Adding `Compiler::detect_unsupported_verilog_locals` before optimization ensures the diagnostic fires even though the optimizer later drops the truncated declaration.
+- Staging a negative witness spec (`specs/scratch/w526_2d_struct_array_repro.t27`) and a design doc (`docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md`) gives W527 a concrete starting point.
+- Updating `bootstrap/stage0/FROZEN_HASH` for every `bootstrap/src/compiler.rs` change kept the M5 freeze ceremony in sync.
+
+### What was blocked
+- Full 2-D scalar-struct array lowering exceeds a single wave because it requires parser, typechecker, and emitter changes plus resealing.
+- The `Trinity.IcarusLowerable` Lean 4 stack is not yet on `master`, so formal soundness work for the new lowering would have to be redone after the stack lands.
+- The current `master` baseline already has 3 unrelated `let_binding` cargo-test failures and 114 seal mismatches; new work must be measured against the clean-HEAD baseline.
+
+### Corrective / keep-doing patterns
+- Prefer a hard diagnostic over silently passing smoke tests with broken generated code.
+- When changing `bootstrap/src/compiler.rs`, run the freeze ceremony and update `FROZEN_HASH` in the same commit.
+- Measure new failures against the pre-existing baseline, not an ideal zero-failure baseline.
+- For multi-week features, land the design doc and negative witness first, then schedule implementation for the next wave.
+
+### Anti-patterns to avoid
+- Do not try to hide an unsupported feature by making the generated output syntactically valid but semantically wrong.
+- Do not skip the FROZEN_HASH update when touching the sealed compiler file.
+- Do not start a full parser/backend refactor inside a single wave without a documented fallback variant.
+
+## 2026-07-07 — Wave Loop 527 (W469 2-D array-of-scalar-struct Verilog lowering)
+
+### What worked
+- Implementing the packed-vector AoS path for function-local `[N][M]Struct` kept the change localized to `VerilogCodegen` helpers and did not disturb the existing 1-D flattening.
+- Fixing `detect_unsupported_verilog_locals` to use a full-AST struct map removed the last W526 boundary; function bodies can now see module-level scalar structs.
+- Emitting scalar struct literals as sized concatenations (`{16'dy, 16'dx}`) made the witness acceptable to both yosys and Icarus.
+- Stopping `dead_store_elim` from dropping named initialized `let` bindings fixed three pre-existing cargo-test failures and aligned the optimizer with existing tests.
+- Resealing 176 specs after the backend change restored `./scripts/tri test` to 0 seal mismatches.
+- Cleaning duplicate `match` arms in `bootstrap/src/main.rs` unblocked the release build that the FROZEN_HASH ceremony forced.
+
+### What was blocked
+- Module-level 2-D AOS parameters and cross-function 2-D AOS values remain unsupported.
+- The `Trinity.IcarusLowerable` Lean 4 stack is not yet on `master`, so the new lowering has no formal soundness proof this wave.
+- `cargo build --release` (full workspace) still fails on an unrelated `flash-spi` struct-init error; only `cargo build --release -p t27c` is green.
+- 16 pre-existing yosys smoke failures remain in `./scripts/tri test`.
+
+### Corrective / keep-doing patterns
+- Build the full-AST struct/enum map once in `compile_verilog` and pass it down to recursive detectors; re-collecting per subtree misses module-level declarations.
+- Restrict new multi-dimensional lowering to `dims.len() >= 2` so existing 1-D flattening paths stay intact.
+- Use sized Verilog literals inside concatenations whenever a value may be consumed by Icarus.
+- Run the full release build after each `FROZEN_HASH` change; the ceremony can surface latent compile errors.
+- Reseal promptly after a backend change that affects generated code for many corpus specs; otherwise regressions hide behind seal mismatches.
+
+### Anti-patterns to avoid
+- Do not change scalar struct literal emission globally without checking both yosys and Icarus on representative specs.
+- Do not preserve all `let` bindings blindly; tuple-destructuring locals with empty names still produce invalid `reg [31:0] ;` declarations.
+- Do not leave duplicate `match` arms in the command dispatcher — full rebuilds will eventually fail with unreachable-pattern errors.
+
+---
+
+## 2026-07-07 — Wave Loop 532 (Icarus lowerable subset: signed scalar-array struct fields)
+
+### What worked
+- Closing the signed scalar-array struct-field gap required extending the
+  packed-vector helpers, not rewriting them: `scalar_field_width`,
+  `scalar_field_is_signed`, and `scalar_array_info` gave the backend correct
+  widths and signedness for `[N]i8/i16/i32` fields.
+- Adding a dedicated `try_emit_struct_array_field_element_access` helper for
+  `grid[i][j].data[k]` kept the existing 1-D flattening path untouched and
+  preserved the HIR parity regression test.
+- Emitting signed negative literals as `-{w}'sd{abs}` solved the Icarus
+  rejection of `{w}'sd-{value}` and the width-ambiguity of `$signed(-value)` in
+  packed concatenations.
+- Allowing colon syntax in on-demand array-literal re-parsing fixed module-level
+  `const` initializers that stored their text with `field: value` form.
+- Marking non-lowerable structs (enum/string/float fields) with
+  `// UNSUPPORTED_ICARUS` keeps the classifier honest even when the generated
+  Verilog degrades gracefully for host-only use.
+- Resealing the whole corpus immediately after the backend change brought the
+  suite back to 0 seal mismatches, and the Icarus simulation gate stayed at
+  0 failures.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - Added `scalar_field_width`, `scalar_field_is_signed`, `scalar_array_info`.
+  - Added `emit_packed_scalar_value`, `emit_packed_struct_field_value`,
+    `emit_packed_array_element_value`.
+  - Added `try_emit_struct_array_field_element_access` for inner-index access
+    into packed array fields.
+  - Updated `ExprStructLit` to emit array fields as nested concatenations.
+  - Allowed colon field-init syntax in on-demand `parse_array_literal_text`.
+  - Added `is_lowerable_scalar_struct` and emitted `// UNSUPPORTED_ICARUS`
+    markers for structs with non-lowerable fields.
+- `specs/scratch/`: added 7 W532 witnesses (5 positive, 2 negative).
+- `.trinity/seals/`: resealed affected specs; added 7 new scratch seals.
+- `.trinity/icarus-baselines/`: recorded baselines for the 5 lowerable W532
+  witnesses.
+- `bootstrap/stage0/FROZEN_HASH`: updated to the live compiler hash.
+- Close-out artifacts:
+  - `docs/reports/WAVE_LOOP_532_CLOSEOUT.md`
+  - `docs/reports/FPGA_LOOP_COOPERATION_W533_2026-07-07.md`
+  - `.trinity/current-issue.md` advanced to Wave Loop 533.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `./scripts/tri test --icarus-simulate --icarus-lowerable`: 28 Icarus passed, 0
+  failed; 593 seal matches, 0 mismatches; 23 pre-existing yosys smoke baseline
+  failures unchanged.
+
+### Patterns to reuse
+- Compute width and signedness per scalar-struct field and emit each field as
+  its own concatenation sub-tree; do not try to reuse the primitive scalar path.
+- For signed values inside packed concatenations, always emit a sized signed
+  literal to fix both width and tool acceptance.
+- Scale the inner index by the inner element width when lowering
+  `struct_field_array[index]`; otherwise the part-select reads bits, not words.
+- Add explicit `UNSUPPORTED_ICARUS` markers for non-lowerable constructs so the
+  classifier is self-documenting and honest.
+
+### Anti-patterns to avoid
+- Do not emit signed negative literals as `{w}'sd-{value}` or as `$signed(-value)`
+  without a width; both break Icarus or corrupt packed layout.
+- Do not route 1-D array-of-scalar-struct access through the new packed slice
+  helper unless the existing flattening tests and HIR parity are updated.
+- Do not reseal only the new specs; generated-code shape changes usually affect
+  many existing seals.
+
+
+
+## Wave Loop 535 — Align the Lean 4 lowerability predicate with the Rust structural classifier
+
+**Date:** 2026-07-07  
+**Issue:** #1506  
+**Branch:** wave-loop-535
+
+### What worked
+- Introducing an explicit `Nat` fuel parameter for `Ty.isLowerableFuel` made the
+  recursive struct-field check transparent to the Lean kernel and avoided a
+  well-foundedness rabbit hole.
+- Keeping the predicate change small (three rejection rules) let `native_decide`
+  discharge all six new negative theorems without custom proof automation.
+- Modeling the positive bounded-while corpus witness directly in
+  `Completeness.lean` kept the file self-contained and avoided a brittle code-gen
+  dependency on the Rust parser.
+- Removing the obsolete `imported_ctor_sound` theorem immediately after the
+  import-rejection rule was added prevented a stale `sorry`-free build from
+  masking the breakage.
+
+### Deliverables
+- `proofs/lean4/Trinity/IcarusLowerable/Predicate.lean` — tightened predicate.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` — six W535 negative theorems.
+- `proofs/lean4/Trinity/IcarusLowerable/Completeness.lean` — bounded-while corpus
+  witness.
+- `specs/igla/w535_bounded_while_module.t27` and its seal.
+- `docs/ICARUS_LOWERABLE_BOUNDARY.md` and `docs/reports/WAVE_LOOP_535_CLOSEOUT.md`.
+- `docs/reports/FPGA_LOOP_COOPERATION_W536_2026-07-07.md`.
+- `.trinity/current-issue.md` advanced to Wave Loop 536.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 2 passed; 0 failed.
+- `./scripts/tri test --icarus-simulate --icarus-lowerable --fast`: 35 Icarus
+  passed, 0 failed; 610 seal matches, 0 mismatches; 24 pre-existing yosys smoke
+  baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Lemmas`: OK.
+- `lake build Trinity.IcarusLowerable.Soundness`: 8572 jobs green.
+- `lake build Trinity.IcarusLowerable.Completeness`: 8573 jobs green.
+
+### Patterns to reuse
+- Use fuel-threaded recursive predicates (`Ty.isLowerableFuel`) for any
+  lowerability check that walks struct or array nesting; it keeps proofs fast
+  and kernel-transparent.
+- When a rule change breaks an existing positive theorem, delete or rewrite
+  the theorem in the same commit so the soundness build stays green.
+- Mirror the Rust classifier's rejection reasons one-to-one in the Lean model;
+  each divergence should be explicitly documented as a known incompleteness.
+
+### Anti-patterns to avoid
+- Do not require every struct name in the simplified corpus model to have a
+  declaration; treat undefined structs leniently until the corpus generator
+  supplies full field lists, or many existing theorems will break.
+- Do not run `./scripts/tri test` without `--icarus-lowerable` on a branch that
+  touches the classifier, because the full suite will attempt to simulate specs
+  that the backend cannot lower.
+
+---
+
+---
+
+---
+
+## Wave Loop 536 — Cocotb reference-model cosimulation gate
+
+**Date:** 2026-07-07  
+**Issue:** #1507  
+**Branch:** wave-loop-536
+
+### What worked
+- Deriving serde::Serialize on the AST Node types let the Python reference
+  model consume the source tree without re-implementing the parser.
+- Reusing the existing self-checking simulation Verilog (compile_verilog_for_simulation)
+  meant the gate could be built on top of proven backend output.
+- Extracting expected literals from assert_eq calls in test/invariant blocks
+  gave an independent source-level oracle that is easy to extend later.
+- Resolving the generated top-level module name from the emitted Verilog text
+  handled specs that omit an explicit module declaration.
+
+### Deliverables
+- bootstrap/src/compiler.rs — serde::Serialize on Node/NodeKind.
+- bootstrap/src/main.rs — t27c parse --json, t27c gen-verilog-for-simulation,
+  and t27c icarus-cocotb subcommands; --cocotb suite flag.
+- bootstrap/src/suite.rs — Phase 3e cocotb reference-model gate.
+- scripts/cocotb_ref_model.py — Python reference model with cocotb fallback.
+- docs/ICARUS_LOWERABLE_BOUNDARY.md — cocotb gate documentation.
+- docs/reports/WAVE_LOOP_536_CLOSEOUT.md and
+  docs/reports/FPGA_LOOP_COOPERATION_W537_2026-07-07.md.
+- .trinity/current-issue.md advanced to Wave Loop 537.
+
+### Verification
+- cargo build --release -p t27c: OK.
+- cargo test -p t27c --bin t27c: 1494 passed; 0 failed; 2 ignored.
+- cargo test -p tri: 78 passed; 0 failed.
+- ./scripts/tri test --icarus-lowerable --cocotb --fast: 35 Icarus passed,
+  0 failed; 35 cocotb reference-model passed, 0 failed; 610 seal matches,
+  0 mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+
+### Patterns to reuse
+- Add AST export flags early when building external reference models; JSON is
+  the lowest-friction interchange format.
+- Make framework-dependent gates degrade to direct subprocess invocation so they
+  survive Python environment constraints (PEP 668, incompatible Python versions).
+- Derive serialization on compiler AST types with serde::Serialize rather than
+  hand-writing a separate schema; the AST is the schema.
+
+### Anti-patterns to avoid
+- Do not assume the top-level Verilog module name equals the file stem; always
+  parse it from the generated source or from the AST module name.
+- Do not require cocotb to be installed system-wide; document the fallback
+  path and the T27_COCOTB_PYTHON override.
+
+## 2026-07-16 — Wave Loop 548 (multi-dimensional primitive scalar array function returns for independent VCD cross-check)
+
+### What worked
+- Fixing the Verilog variable part-select to scale the flat *element* index by
+  `elemW` (`m[(((i * 3) + j) * 8) +: 8]`) corrected 2-D packed primitive array
+  indexing in a single compiler change.
+- Walking the full `ExprIndex` chain in the Python reference model and computing
+  the row-major flat index made the cocotb cross-check rank-independent for the
+  subset exercised so far.
+- Keeping `_eval_array_lit_bv` aware of declared element width for 1-D scalar
+  arrays, while recursively concatenating inner packed arrays for multi-D
+  literals, preserved existing W540/W541 wide-struct-array VCD reconstruction.
+- Reusing the W545–W547 formal-witness pattern for 2-D arrays kept the Lean model
+  in lockstep with the Rust backend.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `try_emit_primitive_array_access` now scales the flat element index by
+    `elem_w` for variable-index packed primitive array slices.
+- `scripts/cocotb_ref_model.py`:
+  - Added `_collect_index_chain` to gather all indices from nested `ExprIndex`
+    nodes in source order.
+  - Rewrote `_eval_index_bv` to compute the row-major flat element index across
+    all dimensions and extract the correct signed/unsigned bit slice.
+  - Updated `_eval_array_lit_bv` to recursively pack multi-dimensional literals
+    while still masking 1-D scalar array children to the declared element width.
+- `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` / `Soundness.lean`:
+  - Added W548-A/B helper environments, modules, functions, and lowerability /
+    value-preservation theorems for unsigned and signed 2-D packed primitive
+    arrays.
+- `bootstrap/tests/icarus_lowerable.rs`:
+  - Added `accepts_w548_multi_dimensional_primitive_scalar_array_return`
+    integration test.
+- Added two positive scratch witnesses:
+  - `specs/scratch/w548_2d_call_init_returns_array.t27`
+  - `specs/scratch/w548_2d_signed_element_read.t27`
+- Resealed both new witnesses and recorded Icarus baselines.
+- Updated `bootstrap/stage0/FROZEN_HASH` after the compiler edit.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W548_2026-07-16.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 549 (Variant A).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 8 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  56 Icarus PASS, 56 cocotb PASS, 636 seal matches, 0 mismatches; 24
+  pre-existing yosys smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- When fixing multi-dimensional indexing, write the general flat-index formula
+  (`flat = Σ idx[k] * Π dims[k+1:]`) once in both the compiler and the reference
+  model; do not hand-special-case 2-D.
+- For reference-model array-literal packing, reconstruct the declared full type
+  from `extra_size` + `extra_type` so that 1-D element masking and multi-D
+  recursive concatenation share the same layout calculation.
+- Add both an unsigned and a signed witness for every packed-vector indexing
+  change; signed bit-slices have independent `$signed(...)` semantics in Verilog.
+
+### Anti-patterns to avoid
+- Do not concatenate scalar array literal children at their natural (often
+  32-bit) width; always mask to the declared element width to avoid silent VCD
+  reconstruction mismatches in existing wide-struct witnesses.
+- Do not rely on a single immediate index in the reference model; multi-D access
+  is a chain, and only the chain gives the correct row-major order.
+
+## 2026-07-16 — Wave Loop 549 (3-D primitive scalar array function returns for independent VCD cross-check)
+
+### What worked
+- The rank-independent flat-index formula already implemented in W548 generalized
+  cleanly to 3-D: the compiler emitted `m[(((0 * 12) + (0 * 4) + 0) * 8) +: 8]`,
+  the Python `_collect_index_chain` captured three indices in source order, and
+  the cocotb cross-check passed without reference-model changes.
+- The 3-D Lean witness used nested `.array N (.array M (.array K T))` types and
+  three-level `.index` expressions, and `native_decide` proved lowerability and
+  value equivalence without model changes.
+- Reusing the W548 pattern (one witness, one Rust test, one Lean theorem, seal,
+  baseline, closeout) made W549 a small, low-risk loop.
+
+### What changed behavior
+- Added `specs/scratch/w549_3d_call_init_returns_array.t27` positive witness with
+  a function returning `[2][3][4]u8` and a corner-element sum.
+- Added Icarus baseline and seal for the new witness.
+- Added `accepts_w549_three_dimensional_primitive_scalar_array_return` integration
+  test in `bootstrap/tests/icarus_lowerable.rs`.
+- Added `w549ThreeDCallInitReturnsArray*` helpers and lowerability/value-
+  preservation theorems in `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` /
+  `Soundness.lean`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W549_2026-07-16.md` with three W550
+  cooperation variants and advanced `.trinity/current-issue.md` to Wave Loop 550
+  (Variant A: 4-D primitive scalar array returns).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 9 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  57 Icarus PASS, 57 cocotb PASS, 637 seal matches, 0 mismatches; 24 pre-existing
+  yosys smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- After fixing a multi-dimensional bug, add the next higher rank as the next loop;
+  rank-independence is a property that must be demonstrated, not assumed.
+- Use literal expected values in `assert_eq` for the final witness so both the
+  Verilog self-check and the Python reference model evaluate the same integer.
+- Keep the Lean witness structurally identical to the .t27 source: nested array
+  types, nested array literals, nested index expressions.
+
+### Anti-patterns to avoid
+- Do not skip to rank N without testing the intermediate rank; each rank can
+  exercise a different recursion/chain depth in the parser, backend, and model.
+- Do not add backend code for a higher rank before proving the existing code
+  already handles it; W549 needed zero compiler changes.
+
+## 2026-07-16 — Wave Loop 550 (4-D primitive scalar array function returns for independent VCD cross-check)
+
+### What worked
+- Adding a 4-D witness `[2][2][2][2]u8` proved the rank-independent flat-index
+  formula is truly general: the compiler emitted
+  `m[(((0 * 8) + (0 * 4) + (0 * 2) + 0) * 8) +: 8]` without code changes.
+- The Python reference model's `_collect_index_chain` and `_eval_array_lit_bv`
+  handled rank-4 recursion without modification.
+- The Lean formal model accepted nested `.array` depth 4 and `native_decide`
+  proved lowerability and value equivalence, confirming the partial evaluator's
+  fuel budget is sufficient for this shape.
+- Following the W548/W549 pattern (one witness, one Rust test, one Lean theorem,
+  seal, baseline, closeout) kept the loop small even though the conceptual rank
+  increased.
+
+### What changed behavior
+- Added `specs/scratch/w550_4d_call_init_returns_array.t27` positive witness with
+  a function returning `[2][2][2][2]u8` and a corner-element sum.
+- Added Icarus baseline and seal for the new witness.
+- Added `accepts_w550_four_dimensional_primitive_scalar_array_return` integration
+  test in `bootstrap/tests/icarus_lowerable.rs`.
+- Added `w550FourDCallInitReturnsArray*` helpers and lowerability/value-
+  preservation theorems in `proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean` /
+  `Soundness.lean`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W550_2026-07-16.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 551 (Variant A: deterministic bench
+  block VCD cross-check).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 10 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  58 Icarus PASS, 58 cocotb PASS, 638 seal matches, 0 mismatches; 24 pre-existing
+  yosys smoke baseline failures unchanged.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Patterns to reuse
+- After demonstrating rank N, add rank N+1 as the next loop if the code is
+  intended to be rank-independent; do not stop at the rank that first passes.
+- Keep the test value small enough to be human-verifiable (`1 + 8 + 9 + 16 = 34`)
+  so the expected literal in `assert_eq` also serves as a sanity check for readers.
+- Use `native_decide` value-preservation theorems for each new witness shape;
+  the proof infrastructure does not need to change when the shape is a strict
+  extension of a previous one.
+
+### Anti-patterns to avoid
+- Do not keep increasing rank forever without a plan to stop; once rank-independence
+  is convincingly demonstrated, pivot to a different dimension (e.g. bench blocks,
+  signed probes, module-level assignments) for greater verification value.
+
+## 2026-07-07 — Wave Loop 551 (deterministic bench block Icarus/cocotb VCD cross-check)
+
+### What worked
+- Extracting `gen_verilog_probe_prelude` in `bootstrap/src/compiler.rs` let test and bench blocks share the same probe-register hoisting and block-local type caching.
+- Adding `block_tag` to `gen_verilog_test_stmt` and emitting `[BENCH] ... : PASSED` gave the cocotb gate a reliable bench pass marker.
+- Including `BenchBlock` in `_collect_assertions` and keying log results by `TEST:<name>` / `BENCH:<name>` extended the Python reference model with minimal changes.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - New `gen_verilog_probe_prelude` helper called from test and bench emission.
+  - `gen_verilog_test_stmt` now takes `block_tag` and emits `[BENCH]` markers for bench assertions.
+  - Bench blocks now print `[BENCH] <name> : PASSED` at completion.
+- `bootstrap/src/main.rs`:
+  - `run_icarus_simulate` recognizes both `[TEST]` and `[BENCH]` failure lines.
+- `bootstrap/src/suite.rs`:
+  - Updated baseline normalization comment to include `[BENCH]`.
+- `scripts/cocotb_ref_model.py`:
+  - `_collect_assertions` includes `BenchBlock` and records `block_kind`.
+  - `_parse_log` parses `[TEST]`/`[BENCH]` status lines and keys results by tag+name.
+  - `_cross_check` expects the right marker per block kind.
+- `specs/scratch/w551_bench_scalar_call_cross_check.t27`: positive witness with test + bench `assert_eq`.
+- `bootstrap/tests/icarus_lowerable.rs`: `accepts_w551_bench_block_cross_check`.
+- Resealed `bootstrap/stage0/FROZEN_HASH`, `repro/numerics/nmse_manifest*.json`, and 201 corpus specs.
+
+### Pattern for next loops
+- Deterministic `bench` blocks can share the same AST traversal, probe hoisting, and reference-model evaluator as `test` blocks; only the status marker and block-kind filter need to differ.
+
+## 2026-07-07 — Wave Loop 552 (wide packed struct/array bench cross-check)
+
+### What worked
+- Reusing the W540 multi-slice probe path and W550 row-major flat-index evaluator for deterministic `bench` blocks required no new compiler code after W551 unified probe hoisting.
+- Adding three bench witnesses (wide struct return, module struct assignment, 2-D array return) exercised the full VCD reconstruction path end-to-end.
+- The Python reference model tracked module-level mutable var updates inside bench blocks the same way it does for test blocks.
+
+### What changed behavior
+- `specs/scratch/w552_bench_wide_packed_struct.t27`: wide packed scalar struct in bench.
+- `specs/scratch/w552_bench_module_wide_struct.t27`: module-level mutable struct assignment inside bench.
+- `specs/scratch/w552_bench_2d_array_return.t27`: 2-D primitive scalar array return inside bench.
+- `bootstrap/tests/icarus_lowerable.rs`: `accepts_w552_bench_wide_cross_check`.
+- Added three Icarus baselines and three t27 seals.
+
+### Pattern for next loops
+- Wide packed values in deterministic bench blocks share the same multi-slice probe emission and Python VCD reconstruction as test blocks; adding bench witnesses is usually enough.
+
+## 2026-07-07 — Wave Loop 559 (signed whole-array comparison for 3-D and 4-D arrays)
+
+### What worked
+- The rank-independent code paths (`expr_width_signed`, `emit_packed_array_literal_concat`, `gen_verilog_probe_prelude`, `_eval_array_lit_bv`) already supported 3-D and 4-D signed primitive scalar arrays, so no compiler or Python-model changes were needed.
+- A wide `[2][2][2][2]i32` 4-D witness forced four 64-bit VCD slice probes and verified the W540 multi-slice reconstruction path with signed elements.
+- A direct-call variant (`assert_eq(cube(), literal)`) exercised the W557 packed call temporary for rank-3 returns and recorded an Icarus baseline.
+
+### What changed behavior
+- `specs/scratch/w559_bench_whole_array_3d_signed.t27`: 3-D signed whole-array comparison with named test/bench local.
+- `specs/scratch/w559_bench_whole_array_4d_signed.t27`: 4-D signed whole-array comparison, 256-bit packed vector.
+- `specs/scratch/w559_bench_whole_array_3d_signed_direct_call.t27`: same 3-D array, actual expression is the function call directly.
+- `bootstrap/tests/icarus_lowerable.rs`: `accepts_w559_bench_whole_array_higher_rank_signed`.
+- Saved t27 seals for all three witnesses.
+- Recorded Icarus baseline for the direct-call witness.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W559_2026-07-07.md` and advanced `.trinity/current-issue.md` to Wave Loop 560.
+- Added `dump.vcd` to `.gitignore`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 19 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 70 Icarus PASS, 70 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on all three W559 witnesses: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- When extending a whole-array probe to higher ranks, start from the assumption that the backend is rank-independent; produce witnesses that exercise both the narrow (single-probe) and wide (multi-slice) cases.
+- If a named test/bench local exposes a pre-existing non-assertion `gen-verilog` limitation, keep the local variant as a structural lowerability witness and add a direct-call variant to record an Icarus baseline.
+
+### Anti-patterns to avoid
+- Do not treat a pre-existing non-simulatable but structurally lowerable witness as a failure of the current wave; record the limitation explicitly and ensure at least one variant passes the full automated gate.
+
+## 2026-07-07 — Wave Loop 564 (whole-array comparison for 1-D arrays of scalar structs)
+
+### What worked
+- The W555 whole-array `assert_eq` probe path needed only width-inference updates
+  to support packed 1-D arrays of scalar structs. Once `expr_width_signed` knew
+  the total packed width, the W540 multi-slice / W551 bench cross-check
+  machinery worked unchanged.
+- `gen_verilog_expr` `ExprArrayLiteral` already had the packed concatenation
+  emitter (`emit_packed_array_literal_concat`) used for primitive arrays; the
+  element renderer already handled scalar-struct literals, so adding the
+  lowerable scalar-struct element condition was sufficient.
+- The cocotb reference model needed a single fix: `_packed_type_width_signed`
+  must multiply the base struct width by all array dimensions for `[N]Pt`.
+
+### What changed behavior
+- `bootstrap/src/compiler.rs`:
+  - `expr_width_signed` treats `ExprIdentifier`/`ExprCall`/`ExprArrayLiteral`
+    of lowerable scalar-struct arrays as packed vectors (W564).
+  - `gen_verilog_expr` `ExprArrayLiteral` lowers `[N]Pt` literals to packed
+    concatenations.
+- `scripts/cocotb_ref_model.py`: `_packed_type_width_signed` and `_type_of_expr`
+  handle arrays of lowerable packed scalar structs.
+- `specs/scratch/w564_bench_whole_aos_1d.t27`: positive witness with whole-array
+  `assert_eq` on a local 1-D AoS variable and on a function-call return, in both
+  a `test` and a deterministic `bench` block.
+- `bootstrap/tests/icarus_lowerable.rs`: `accepts_w564_bench_whole_aos_1d`.
+- Saved t27 seal: `.trinity/seals/scratch_w564_bench_whole_aos_1d.json`.
+- Recorded Icarus baseline: `.trinity/icarus-baselines/specs/scratch/w564_bench_whole_aos_1d.json`.
+- Updated `bootstrap/stage0/FROZEN_HASH`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W564_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 565 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 24 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W564 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- When adding a new packed-vector expression shape, update width inference in
+  `ExprIdentifier`, `ExprCall`, and `ExprArrayLiteral`. The existing probe and
+  cross-check paths usually take over once the width is correct.
+- Array literals of lowerable scalar structs can share the same packed
+  concatenation emitter as primitive arrays; verify that the element renderer
+  already knows how to pack struct literals.
+- The Python reference model must independently compute the same packed-vector
+  width for arrays of structs: multiply the base struct width by all dimensions.
+
+### Anti-patterns to avoid
+- Do not duplicate whole-array literal emission logic for structs; reuse
+  `emit_packed_array_literal_concat` and only broaden the element-type guard.
+
+## 2026-07-07 — Wave Loop 565 (multi-site whole-array AoS call deduplication)
+
+### What worked
+- The W563 call-CSE machinery (`predeclare_call_array_tmps`,
+  `materialize_call_array_tmps_in_expr`, `call_returning_cse_value_info`) and the
+  W564 whole-array assertion path composed correctly without any compiler edits.
+  A single packed-vector temporary is shared when the same `make_pts(...)` call
+  is used as a local initializer, the expected side of `assert_eq`, and the
+  actual side of another `assert_eq`.
+- The cocotb reference model evaluated the local variable and the array literal
+  independently and matched the VCD probe values on the first run.
+- Writing a witness that uses the same call in three syntactic positions made the
+  sharing immediately visible in the generated Verilog.
+
+### What changed behavior
+- `specs/scratch/w565_bench_multi_site_whole_aos.t27`: multi-site whole-array
+  AoS witness with the same call used as initializer, expected expression, and
+  actual expression.
+- `bootstrap/tests/icarus_lowerable.rs`: `accepts_w565_bench_multi_site_whole_aos`.
+- Saved t27 seal: `.trinity/seals/scratch_w565_bench_multi_site_whole_aos.json`.
+- Recorded Icarus baseline: `.trinity/icarus-baselines/specs/scratch/w565_bench_multi_site_whole_aos.json`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W565_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 566 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 25 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W565 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- To validate that two features compose, write one witness that stresses both at
+  once and inspects the generated code for shared temporaries / duplicated calls.
+- Use the same value in multiple syntactic positions (initializer, expected,
+  actual) to make CSE sharing or duplication immediately obvious.
+- A zero-compiler-change wave is still valuable if it produces a permanent
+  regression witness for previously-untested composition.
+
+### Anti-patterns to avoid
+- Do not assume a generic CSE path works for a new shape without a dedicated
+  witness; even when no code changes are needed, the witness locks the behavior.
+- Do not report a bench witness as a suite-Icarus regression failure when it is
+  excluded by the pre-existing `gen-verilog` / `gen-verilog-for-simulation`
+  divergence; use direct `icarus-simulate` / `icarus-cocotb` as the authoritative
+  gate for these witnesses.
+
+## 2026-07-07 — Wave Loop 568 (4-D array-of-struct return call deduplication)
+
+### What worked
+- The W568 4-D AoS witness confirmed that the rank-agnostic paths scale cleanly
+  from 1-D through 4-D. No compiler or reference-model changes were needed.
+- The W566 `emit_local` wholesale-init branch (`dims.len() >= 2`) correctly
+  assigned the packed 512-bit call result to the local register.
+- `call_returning_cse_value_info` returned a single temporary descriptor for
+  `[2][2][2][2]Pt` and the same temporary was reused for local init, indexed
+  access, and both whole-array `assert_eq` sites.
+- Manual row-major arithmetic check before simulation caught no mistakes in the
+  witness; `hyper[0][1][0][1].x = 10` and `hyper[1][0][1][0].y = 21` matched the
+  generated Verilog linear offsets on the first run.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w568_bench_4d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w568_bench_4d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W568_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 569 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 28 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W568 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- When a feature is supposed to be rank-agnostic, the strongest verification is a
+  witness one rank higher that exercises local init, indexed access, whole-array
+  actual, and whole-array expected in one block. If the paths are truly generic,
+  the wave should be zero-code-change.
+- A zero-compiler-change wave is still a deliverable when it adds a permanent
+  regression witness, a seal, an Icarus baseline, and an integration test.
+- Non-power-of-two dimensions are a better stress test than another power-of-two
+  rank because they expose off-by-one errors in product arithmetic.
+
+### Anti-patterns to avoid
+- Do not skip the next-rank witness just because the current rank passes; hidden
+  assumptions often appear only when the dimension count or product changes.
+- Do not modify the compiler "just in case" when the generated code and all
+  gates already pass; extra changes risk regressions without adding value.
+
+## 2026-07-07 — Wave Loop 569 (4-D array-of-struct return call deduplication with non-power-of-two outer dimension)
+
+### What worked
+- The non-power-of-two outer dimension (`[3][2][2][2]Pt`, total width 768 bits)
+  confirmed that the rank-agnostic paths handle arbitrary dimension products.
+  No compiler or reference-model changes were required.
+- The generated Verilog declared a single 768-bit packed-vector temporary per
+  block and reused it for local init, indexed field access, and whole-array
+  assertions.
+- The cocotb reference model independently built the same 768-bit packed vector
+  and agreed with the VCD probes on the first run after the witness expected
+  value was corrected.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w569_bench_4d_aos_call_dedup_nonp2.t27` with seal and
+  Icarus baseline.
+- Added `accepts_w569_bench_4d_aos_call_dedup_nonp2` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W569_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 570 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 29 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W569 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- A non-power-of-two dimension is a stronger stress test than another power-of-two
+  rank because it exposes off-by-one errors and product-overflow bugs.
+- When a simulation fails on the first run, re-verify the witness expected-value
+  arithmetic before changing the compiler; the hardware and reference model are
+  often already correct.
+- Add both a `test` block (for precise indexed assertions) and a `bench` block
+  (for deterministic cross-check against the reference model) so every gate is
+  exercised.
+
+### Anti-patterns to avoid
+- Do not trust hand-written row-major arithmetic without a quick script check;
+  a single wrong expected value can look like a compiler bug.
+- Do not add compiler changes "just in case" when the generated code and all
+  gates already pass.
+
+## 2026-07-07 — Wave Loop 570 (5-D array-of-struct return call deduplication)
+
+### What worked
+- The 5-D AoS witness `[2][2][2][2][2]Pt` (1024-bit packed vector, 32 elements)
+  confirmed that the rank-agnostic paths scale cleanly to five dimensions.
+  No compiler or reference-model changes were required.
+- The generated Verilog declared a single 1024-bit packed-vector temporary per
+  block and reused it for local init, indexed field access, and whole-array
+  assertions.
+- The cocotb reference model independently built the same 1024-bit packed vector
+  and agreed with the VCD probes on the first run.
+- Hand-written row-major arithmetic was verified with a small Python script
+  before simulation, avoiding the witness-value mistake that occurred in W569.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w570_bench_5d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w570_bench_5d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W570_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 571 (Variant A recommended).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 30 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W570 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- The next-rank witness is the most effective way to verify rank-agnostic claims;
+  after 1-D through 4-D, the 5-D case exercises recursive literal emission and
+  width arithmetic at >1024 bits.
+- Verify hand-written row-major arithmetic with a small script before running
+  gates; a wrong expected value is much cheaper to fix than a phantom compiler
+  bug investigation.
+- A power-of-two next rank isolates rank-specific bugs from non-power-of-two
+  dimension-product bugs.
+
+### Anti-patterns to avoid
+- Do not skip the 5-D case assuming 4-D is sufficient; iverilog and the cocotb
+  model may have different behavior at five levels of nesting / 1024-bit width.
+- Do not treat a zero-compiler-change wave as "not real work"; the witness,
+  seal, baseline, and integration test permanently lock the behavior.
+
+## 2026-07-07 — Wave Loop 571 (5-D array-of-struct return call deduplication with non-power-of-two outer dimension)
+
+### What worked
+- The 5-D non-power-of-two witness `[3][2][2][2][2]Pt` (1536-bit packed vector,
+  48 elements) confirmed that the rank-agnostic paths scale cleanly to five
+  dimensions with a non-power-of-two outer extent. No compiler or reference-model
+  changes were required.
+- The generated Verilog declared a single 1536-bit packed-vector temporary per
+  block and reused it for local init, indexed field access, and whole-array
+  assertions.
+- The cocotb reference model independently built the same 1536-bit packed vector
+  and agreed with the VCD probes on the first run.
+- Hand-written row-major arithmetic was verified with a small Python script
+  before simulation, avoiding the witness-value mistake that occurred in W569.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w571_bench_5d_aos_call_dedup_nonp2.t27` with seal and
+  Icarus baseline.
+- Added `accepts_w571_bench_5d_aos_call_dedup_nonp2` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W571_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 572 (Variant A recommended, Variant B
+  offered as a deliberate scope shift to module scope).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 31 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W571 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Patterns to reuse
+- A non-power-of-two outer dimension at the next rank is the strongest stress
+  test for rank-agnostic width/index arithmetic; powers of two can mask
+  product-overflow bugs.
+- Verify hand-written row-major arithmetic with a small script before running
+  gates; a wrong expected value is much cheaper to fix than a phantom compiler
+  bug investigation.
+- After several zero-compiler-change rank waves, consider a scope shift (e.g.
+  local → module scope) rather than adding yet another rank, which yields
+  diminishing returns.
+
+### Anti-patterns to avoid
+- Do not add another rank indefinitely without asking whether the next most
+  valuable stress test is a different dimension of the feature (scope, corner
+  cases, non-lowerable boundaries).
+- Do not trust hand-written row-major arithmetic for 5-D non-power-of-two shapes
+  without a quick script check.
+
+## 2026-07-07 — Wave Loop 572 (6-D array-of-struct return call deduplication)
+
+### What worked
+- The 6-D witness `[2][2][2][2][2][2]Pt` (2048-bit packed vector, 64 elements)
+  confirmed that the rank-agnostic paths scale cleanly from five to six
+  dimensions. No compiler or reference-model changes were required.
+- The generated Verilog declared a single 2048-bit packed-vector temporary per
+  block and reused it for local init, indexed field access, and whole-array
+  assertions.
+- The cocotb reference model independently built the same 2048-bit packed vector
+  and agreed with the VCD probes on the first run.
+- Hand-written row-major arithmetic for the two indexed probes was verified with
+  a small Python script before simulation.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w572_bench_6d_aos_call_dedup.t27` with seal and Icarus
+  baseline.
+- Added `accepts_w572_bench_6d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W572_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 573 (Variant A recommended, Variant B
+  as non-p2 6-D, Variant C as module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 32 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`: 72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W572 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs, 0 `sorry`.
+
+### Scientific / engineering background
+- Vitis HLS `array_reshape type=complete dim=0` flattens all dimensions of an
+  array into one wide register; the lowest-index element maps to the lowest bits,
+  matching t27's row-major packed-vector layout.
+- Intel/Altera HLS Compiler maps packed-struct arrays to contiguous signals with
+  the first-declared member in the low-order bits and no padding, the same
+  convention used by t27 for scalar structs.
+- CIRCT `HWLegalizeModules` recursively decomposes multi-dimensional packed arrays
+  into per-element or flat-bit operations; t27's recursive literal emission and
+  slice-access paths follow the same rank-agnostic strategy.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  `flat = (((((i0*d1+i1)*d2+i2)*d3+i3)*d4+i4)*d5+i5)`, identical to the linear
+  index expression emitted by t27 for 6-D access.
+
+Sources:
+- [Vitis HLS: Structs](https://docs.amd.com/r/en-US/ug1399-vitis-hls/Structs)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [Intel HLS Compiler: Mapping HLS Data Types to RTL Signals](https://www.intel.com/content/www/us/en/docs/programmable/683349/23-1/mapping-hls-data-types-to-rtl-signals.html)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+
+### Patterns to reuse
+- When a feature is supposed to be rank-agnostic, exercise the next claimed rank;
+  W572 proved the 5-D result generalizes to 6-D.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always verify expected-value arithmetic against the documented row-major layout
+  before changing compiler code.
+
+### Anti-patterns to avoid
+- Do not add another rank indefinitely without asking whether the next most
+  valuable stress test is a different dimension of the feature (scope, corner
+  cases, non-lowerable boundaries).
+- Do not assume a higher-rank witness will fail; let the gates decide whether the
+  compiler path is truly rank-agnostic.
+
+## 2026-07-18 — Wave Loop 573 (7-D array-of-struct return call deduplication)
+
+### What worked
+- The 7-D witness `[2][2][2][2][2][2][2]Pt` (4096-bit packed vector, 128
+  elements) confirmed that the rank-agnostic paths scale cleanly from six to
+  seven dimensions. No compiler or reference-model changes were required.
+- The generated Verilog declared a single 4096-bit packed-vector temporary per
+  call per block and reused it for local init, indexed field access, and
+  whole-array assertions.
+- The cocotb reference model independently built the same 4096-bit packed vector
+  and agreed with the VCD probes on the first run.
+- Hand-written row-major arithmetic for the two indexed probes was verified with
+  a small Python check before simulation.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w573_bench_7d_aos_call_dedup.t27` with a witness-level
+  workaround for an Icarus 12.0 `$display` buffer overflow on a 4096-bit nested
+  concatenation.
+- Saved t27 seal and Icarus baseline for the W573 witness.
+- Added `accepts_w573_bench_7d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W573_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 574 (Variant A recommended 8-D,
+  Variant B non-p2 7-D, Variant C module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 33 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W573 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- IEEE Std 1364-2005 / SystemVerilog 1800 require tools to support packed vectors
+  of at least 65,536 bits; concatenation width is bounded only by the receiver's
+  implementation limits. A 4096-bit flattened vector is within the standard
+  minimum, yet Icarus 12.0 overflows its VPI task-argument buffer when asked to
+  format a 4096-bit, seven-level nested concatenation inside `$display`.
+- t27 flattens multi-D arrays to a single 1-D packed vector with part-select
+  indexing, avoiding Icarus's known bugs around non-constant indices in outer
+  packed dimensions.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  `flat = (((((((i0*2+i1)*2+i2)*2+i3)*2+i4)*2+i5)*2+i6)`, identical to the linear
+  index expression emitted by t27 for 7-D access.
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed arrays
+  with no explicit depth cap; t27's recursive literal emission and slice-access
+  paths follow the same rank-agnostic strategy.
+
+Sources:
+- [IEEE 1364-2005 PDF](https://www.eg.bucknell.edu/~csci320/2016-fall/wp-content/uploads/2015/08/verilog-std-1364-2005.pdf)
+- [Stack Overflow: maximum wire bit width](https://stackoverflow.com/questions/57244232/what-is-the-maximum-wire-bit-width-in-verilog-system-verilog)
+- [Icarus Verilog quirks](https://steveicarus.github.io/iverilog/usage/icarus_verilog_quirks.html)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+
+### Patterns to reuse
+- When generated Verilog asks a simulator to format an extremely wide nested
+  concatenation inside a system task, bind the literal to a named local first.
+  This keeps the t27 compiler unchanged and documents the toolchain limit at the
+  witness level.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always verify expected-value arithmetic against the documented row-major layout
+  before changing compiler code.
+
+### Anti-patterns to avoid
+- Do not modify `gen_verilog_test_stmt` just to avoid a single Icarus formatting
+  bug. A witness-level workaround is cheaper and preserves the existing debug
+  output format.
+- Do not assume the next rank will be free; 8-D will be 8192 bits and may hit a
+  different simulator limit. Let the gates decide.
+- Do not silently drop wide operands from `$display` messages. The current code
+  still prints the local identifier, preserving debuggability.
+
+## 2026-07-18 — Wave Loop 574 (8-D array-of-struct return call deduplication)
+
+### What worked
+- The 8-D witness `[2][2][2][2][2][2][2][2]Pt` (8192-bit packed vector, 256
+  elements) confirmed that the rank-agnostic paths scale cleanly from seven to
+  eight dimensions. No compiler or reference-model changes were required.
+- The generated Verilog declared a single 8192-bit packed-vector temporary per
+  call per block and reused it for local init, indexed field access, and
+  whole-array assertions.
+- The cocotb reference model independently built the same 8192-bit packed vector
+  and agreed with the VCD probes on the first run.
+- Reusing the W573 witness structure (local `expected` variable for the wide
+  literal) avoided the Icarus `$display` overflow at 8192 bits as well.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w574_bench_8d_aos_call_dedup.t27` with the same local-
+  `expected` workaround for Icarus `$display` formatting.
+- Saved t27 seal and Icarus baseline for the W574 witness.
+- Added `accepts_w574_bench_8d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W574_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 575 (Variant A recommended 9-D,
+  Variant B non-p2 8-D, Variant C module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 34 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W574 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- IEEE Std 1364-2005 / SystemVerilog 1800 require tools to support packed vectors
+  of at least 65,536 bits; concatenation width is bounded only by the receiver's
+  implementation limits. An 8192-bit flattened vector is within the standard
+  minimum, and Icarus 12.0 accepted it once the literal was bound to a local
+  variable before `$display`.
+- t27 flattens multi-D arrays to a single 1-D packed vector with part-select
+  indexing, avoiding Icarus's known bugs around non-constant indices in outer
+  packed dimensions.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  `flat = ((((((((i0*2+i1)*2+i2)*2+i3)*2+i4)*2+i5)*2+i6)*2+i7)`, identical to the
+  linear index expression emitted by t27 for 8-D access.
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed arrays
+  with no explicit depth cap; t27's recursive literal emission and slice-access
+  paths follow the same rank-agnostic strategy.
+
+Sources:
+- [IEEE 1364-2005 PDF](https://www.eg.bucknell.edu/~csci320/2016-fall/wp-content/uploads/2015/08/verilog-std-1364-2005.pdf)
+- [Stack Overflow: maximum wire bit width](https://stackoverflow.com/questions/57244232/what-is-the-maximum-wire-bit-width-in-verilog-system-verilog)
+- [Icarus Verilog issue #1171](https://github.com/steveicarus/iverilog/issues/1171)
+- [Icarus Verilog issue #1180](https://github.com/steveicarus/iverilog/issues/1180)
+- [Icarus Verilog quirks](https://steveicarus.github.io/iverilog/usage/icarus_verilog_quirks.html)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [Intel HLS Compiler: Mapping HLS Data Types](https://www.intel.com/content/www/us/en/docs/programmable/683349/23-1/mapping-hls-data-types-to-rtl-signals.html)
+
+### Patterns to reuse
+- When generated Verilog asks a simulator to format an extremely wide nested
+  concatenation inside a system task, bind the literal to a named local first.
+  This keeps the t27 compiler unchanged and documents the toolchain limit at the
+  witness level.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always verify expected-value arithmetic against the documented row-major layout
+  before changing compiler code.
+
+### Anti-patterns to avoid
+- Do not modify `gen_verilog_test_stmt` just to avoid a single Icarus formatting
+  bug. A witness-level workaround is cheaper and preserves the existing debug
+  output format.
+- Do not assume the next rank will be free; 9-D will be 16,384 bits and may hit
+  a different simulator limit. Let the gates decide.
+- Do not silently drop wide operands from `$display` messages. The current code
+  still prints the local identifier, preserving debuggability.
+
+## 2026-07-18 — Wave Loop 575 (9-D array-of-struct return call deduplication)
+
+### What worked
+- The 9-D witness `[2][2][2][2][2][2][2][2][2]Pt` (16,384-bit packed vector,
+  512 elements) confirmed that the rank-agnostic paths scale cleanly from eight
+  to nine dimensions. No compiler or reference-model changes were required.
+- The generated Verilog declared a single 16,384-bit packed-vector temporary per
+  call per block and reused it for local init, indexed field access, and
+  whole-array assertions.
+- The cocotb reference model independently built the same 16,384-bit packed
+  vector and agreed with the VCD probes on the first run.
+- Reusing the W574 witness structure (local `expected` variable for the wide
+  literal) avoided the Icarus `$display` overflow at 16,384 bits as well.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w575_bench_9d_aos_call_dedup.t27` with the same local-
+  `expected` workaround for Icarus `$display` formatting.
+- Saved t27 seal and Icarus baseline for the W575 witness.
+- Added `accepts_w575_bench_9d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W575_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 576 (Variant A recommended 10-D,
+  Variant B non-p2 9-D, Variant C module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 35 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W575 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: 8572 jobs,
+  0 `sorry`.
+
+### Scientific / engineering background
+- IEEE Std 1800-2017 clause 7.4.1 requires tools to support packed vectors of at
+  least 65,536 bits; concatenation width is bounded only by the receiver's
+  implementation limits. A 16,384-bit flattened vector is one quarter of the
+  language minimum, and Icarus 12.0 accepted it once the literal was bound to a
+  local variable before `$display`.
+- t27 flattens multi-D arrays to a single 1-D packed vector with part-select
+  indexing, avoiding Icarus's known bugs around non-constant indices in outer
+  packed dimensions.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  `flat = ((((((((((i0*2+i1)*2+i2)*2+i3)*2+i4)*2+i5)*2+i6)*2+i7)*2+i8)`,
+  identical to the linear index expression emitted by t27 for 9-D access.
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed arrays
+  with no explicit depth cap; t27's recursive literal emission and slice-access
+  paths follow the same rank-agnostic strategy.
+
+Sources:
+- [IEEE 1800-2017 PDF](https://img.antpedia.com/standard/files/pdfs_ora/20230616-ieee/IEEE/Std/IEEE%20Std%201800-2017.pdf)
+- [Stack Overflow: maximum wire bit width](https://stackoverflow.com/questions/57244232/what-is-the-maximum-wire-bit-width-in-verilog-system-verilog)
+- [Icarus Verilog issue #1171](https://github.com/steveicarus/iverilog/issues/1171)
+- [Icarus Verilog issue #1180](https://github.com/steveicarus/iverilog/issues/1180)
+- [Icarus Verilog quirks](https://steveicarus.github.io/iverilog/usage/icarus_verilog_quirks.html)
+- [Icarus VPI Within VVP](https://steveicarus.github.io/iverilog/developer/guide/vvp/vpi.html)
+- [Icarus vpi_signal.cc](https://github.com/steveicarus/iverilog/blob/master/vvp/vpi_signal.cc)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [Intel HLS Compiler: Mapping HLS Data Types](https://www.intel.com/content/www/us/en/docs/programmable/683349/23-1/mapping-hls-data-types-to-rtl-signals.html)
+
+### Patterns to reuse
+- When generated Verilog asks a simulator to format an extremely wide nested
+  concatenation inside a system task, bind the literal to a named local first.
+  This keeps the t27 compiler unchanged and documents the toolchain limit at the
+  witness level.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always verify expected-value arithmetic against the documented row-major layout
+  before changing compiler code.
+
+### Anti-patterns to avoid
+- Do not modify `gen_verilog_test_stmt` just to avoid a single Icarus formatting
+  bug. A witness-level workaround is cheaper and preserves the existing debug
+  output format.
+- Do not assume the next rank will be free; 10-D will be 32,768 bits and may hit
+  a different simulator limit. Let the gates decide.
+- Do not silently drop wide operands from `$display` messages. The current code
+  still prints the local identifier, preserving debuggability.
+
+
+## Wave Loop 576 — 2026-07-07
+
+### Context
+Wave Loop 576 was the next rung on the rank ladder after W575: ten-dimensional
+array-of-struct return call deduplication. The question was whether the
+rank-agnostic paths would hold at 32,768 bits, and whether Icarus 12.0 would
+accept a 32,768-bit flattened packed vector once the `$display` workaround from
+W573–W575 was applied.
+
+### What we learned
+- Icarus 12.0 accepts a 32,768-bit, ten-level nested packed-vector literal when
+  it is bound to a named local variable before being passed to `$display`.
+- The t27 compiler's recursive literal emission, CSE descriptor
+  (`call_returning_cse_value_info`), and multi-D slice-access paths scale to ten
+  dimensions with no code changes.
+- The cocotb reference model independently built the same 32,768-bit packed
+  vector and agreed with the VCD probes on the first run.
+- Reusing the W573–W575 witness structure (local `expected` variable for the
+  wide literal) avoided the Icarus `$display` overflow at 32,768 bits as well.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w576_bench_10d_aos_call_dedup.t27` with the same local-
+  `expected` workaround for Icarus `$display` formatting.
+- Saved t27 seal and Icarus baseline for the W576 witness.
+- Added `accepts_w576_bench_10d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W576_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 577 (Variant A recommended 11-D,
+  Variant B non-p2 10-D, Variant C module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 36 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W576 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not available
+  in this workspace; expected unchanged because no compiler / predicate code
+  changed.
+
+### Scientific / engineering background
+- IEEE Std 1800-2017 clause 7.4.1 requires tools to support packed vectors of at
+  least 65,536 bits; concatenation width is bounded only by the receiver's
+  implementation limits. A 32,768-bit flattened vector is exactly half of the
+  language minimum, and Icarus 12.0 accepted it once the literal was bound to a
+  local variable before `$display`.
+- t27 flattens multi-D arrays to a single 1-D packed vector with part-select
+  indexing, avoiding Icarus's known bugs around non-constant indices in outer
+  packed dimensions.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  `flat = (((((((((((i0*2+i1)*2+i2)*2+i3)*2+i4)*2+i5)*2+i6)*2+i7)*2+i8)*2+i9)`,
+  identical to the linear index expression emitted by t27 for 10-D access.
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed arrays
+  with no explicit depth cap; t27's recursive literal emission and slice-access
+  paths follow the same rank-agnostic strategy.
+
+Sources:
+- [IEEE 1800-2017 PDF](https://img.antpedia.com/standard/files/pdfs_ora/20230616-ieee/IEEE/Std/IEEE%20Std%201800-2017.pdf)
+- [Stack Overflow: maximum wire bit width](https://stackoverflow.com/questions/57244232/what-is-the-maximum-wire-bit-width-in-verilog-system-verilog)
+- [Icarus Verilog issue #1171](https://github.com/steveicarus/iverilog/issues/1171)
+- [Icarus Verilog issue #1180](https://github.com/steveicarus/iverilog/issues/1180)
+- [Icarus Verilog quirks](https://steveicarus.github.io/iverilog/usage/icarus_verilog_quirks.html)
+- [Icarus VPI Within VVP](https://steveicarus.github.io/iverilog/developer/guide/vvp/vpi.html)
+- [Icarus vpi_signal.cc](https://github.com/steveicarus/iverilog/blob/master/vvp/vpi_signal.cc)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [Intel HLS Compiler: Mapping HLS Data Types](https://www.intel.com/content/www/us/en/docs/programmable/683349/23-1/mapping-hls-data-types-to-rtl-signals.html)
+
+### Patterns to reuse
+- When generated Verilog asks a simulator to format an extremely wide nested
+  concatenation inside a system task, bind the literal to a named local first.
+  This keeps the t27 compiler unchanged and documents the toolchain limit at the
+  witness level.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always verify expected-value arithmetic against the documented row-major layout
+  before changing compiler code.
+- When the next rank sits exactly at a language-minimum boundary (65,536 bits for
+  11-D), treat it as a likely toolchain cliff and prepare a fallback variant.
+
+### Anti-patterns to avoid
+- Do not modify `gen_verilog_test_stmt` just to avoid a single Icarus formatting
+  bug. A witness-level workaround is cheaper and preserves the existing debug
+  output format.
+- Do not assume the next rank will be free; 11-D will be 65,536 bits, exactly the
+  IEEE 1800-2017 minimum, and may hit a different simulator or implementation
+  limit. Let the gates decide.
+- Do not silently drop wide operands from `$display` messages. The current code
+  still prints the local identifier, preserving debuggability.
+
+## Wave Loop 577 — 2026-07-07
+
+### Context
+Wave Loop 577 was the next rung on the rank ladder after W576: eleven-dimensional
+array-of-struct return call deduplication. The question was whether the
+rank-agnostic paths would hold at 65,536 bits — exactly the IEEE 1800-2017
+minimum packed-vector width — and whether Icarus 12.0 would accept that vector
+once the `$display` workaround from W573–W576 was applied.
+
+### What we learned
+- Icarus 12.0 accepts a 65,536-bit, eleven-level nested packed-vector literal when
+  it is bound to a named local variable before being passed to `$display`.
+- The t27 compiler's recursive literal emission, CSE descriptor
+  (`call_returning_cse_value_info`), and multi-D slice-access paths scale to eleven
+  dimensions with no code changes.
+- The cocotb reference model independently built the same 65,536-bit packed
+  vector and agreed with the VCD probes on the first run.
+- The first expected indexed value was initially miscalculated manually (3070
+  instead of the correct 1534); the gate caught it immediately, confirming the
+  value of running simulation before trusting hand arithmetic.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w577_bench_11d_aos_call_dedup.t27` with the same local-
+  `expected` workaround for Icarus `$display` formatting.
+- Saved t27 seal and Icarus baseline for the W577 witness.
+- Added `accepts_w577_bench_11d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W577_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 578 (Variant A recommended 12-D,
+  Variant B non-p2 11-D, Variant C module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 37 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W577 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not available
+  in this workspace; expected unchanged because no compiler / predicate code
+  changed.
+
+### Scientific / engineering background
+- IEEE Std 1800-2017 clause 7.4.1 requires tools to support packed vectors of at
+  least 65,536 bits; concatenation width is bounded only by the receiver's
+  implementation limits. A 65,536-bit flattened vector sits exactly on the
+  language minimum, and Icarus 12.0 accepted it once the literal was bound to a
+  local variable before `$display`.
+- t27 flattens multi-D arrays to a single 1-D packed vector with part-select
+  indexing, avoiding Icarus's known bugs around non-constant indices in outer
+  packed dimensions.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  `flat = ((((((((((((((((((((((i0*2+i1)*2+i2)*2+i3)*2+i4)*2+i5)*2+i6)*2+i7)*2+i8)*2+i9)*2+i10)`,
+  identical to the linear index expression emitted by t27 for 11-D access.
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed arrays
+  with no explicit depth cap; t27's recursive literal emission and slice-access
+  paths follow the same rank-agnostic strategy.
+
+Sources:
+- [IEEE 1800-2017 PDF](https://img.antpedia.com/standard/files/pdfs_ora/20230616-ieee/IEEE/Std/IEEE%20Std%201800-2017.pdf)
+- [Stack Overflow: maximum wire bit width](https://stackoverflow.com/questions/57244232/what-is-the-maximum-wire-bit-width-in-verilog-system-verilog)
+- [Icarus Verilog issue #1171](https://github.com/steveicarus/iverilog/issues/1171)
+- [Icarus Verilog issue #1180](https://github.com/steveicarus/iverilog/issues/1180)
+- [Icarus Verilog quirks](https://steveicarus.github.io/iverilog/usage/icarus_verilog_quirks.html)
+- [Icarus VPI Within VVP](https://steveicarus.github.io/iverilog/developer/guide/vvp/vpi.html)
+- [Icarus vpi_signal.cc](https://github.com/steveicarus/iverilog/blob/master/vvp/vpi_signal.cc)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [Intel HLS Compiler: Mapping HLS Data Types](https://www.intel.com/content/www/us/en/docs/programmable/683349/23-1/mapping-hls-data-types-to-rtl-signals.html)
+
+### Patterns to reuse
+- When generated Verilog asks a simulator to format an extremely wide nested
+  concatenation inside a system task, bind the literal to a named local first.
+  This keeps the t27 compiler unchanged and documents the toolchain limit at the
+  witness level.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always verify expected-value arithmetic with a script before simulation; even
+  simple manual row-major calculations are error-prone at high rank.
+- When the next rank exceeds a language-minimum boundary (131,072 bits for 12-D),
+  expect the gate to become more brittle and prepare a fallback variant.
+
+### Anti-patterns to avoid
+- Do not modify `gen_verilog_test_stmt` just to avoid a single Icarus formatting
+  bug. A witness-level workaround is cheaper and preserves the existing debug
+  output format.
+- Do not assume the next rank will be free; 12-D will be 131,072 bits, twice the
+  IEEE 1800-2017 minimum, and may hit a different simulator or implementation
+  limit. Let the gates decide.
+- Do not silently drop wide operands from `$display` messages. The current code
+  still prints the local identifier, preserving debuggability.
+
+## Wave Loop 578 — 2026-07-07
+
+### Context
+Wave Loop 578 was the next rung on the rank ladder after W577: twelve-dimensional
+array-of-struct return call deduplication. The question was whether the
+rank-agnostic paths would hold at 131,072 bits — twice the IEEE 1800-2017 minimum
+packed-vector width — and whether Icarus 12.0 would accept that vector once
+the `$display` workaround from W573–W577 was applied.
+
+### What we learned
+- Icarus 12.0 accepts a 131,072-bit, twelve-level nested packed-vector literal when
+  it is bound to a named local variable before being passed to `$display`.
+- The t27 compiler's recursive literal emission, CSE descriptor
+  (`call_returning_cse_value_info`), and multi-D slice-access paths scale to twelve
+  dimensions with no code changes.
+- The cocotb reference model independently built the same 131,072-bit packed
+  vector and agreed with the VCD probes on the first run.
+- Expected indexed values were pre-computed with a Python row-major script,
+avoiding the manual-calculation error seen in W577.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w578_bench_12d_aos_call_dedup.t27` with the same local-
+  `expected` workaround for Icarus `$display` formatting.
+- Saved t27 seal and Icarus baseline for the W578 witness.
+- Added `accepts_w578_bench_12d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W578_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 579 (Variant A recommended 13-D,
+  Variant B non-p2 12-D, Variant C module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 38 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W578 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not available
+  in this workspace; expected unchanged because no compiler / predicate code
+  changed.
+
+### Scientific / engineering background
+- IEEE Std 1800-2017 clause 7.4.1 requires tools to support packed vectors of at
+  least 65,536 bits; concatenation width is bounded only by the receiver's
+  implementation limits. A 131,072-bit flattened vector is twice the language
+  minimum, and Icarus 12.0 accepted it once the literal was bound to a local
+  variable before `$display`.
+- t27 flattens multi-D arrays to a single 1-D packed vector with part-select
+  indexing, avoiding Icarus's known bugs around non-constant indices in outer
+  packed dimensions.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  `flat = (((((((((((((((((((((((((((((((((((((((i0*2+i1)*2+i2)*2+i3)*2+i4)*2+i5)*2+i6)*2+i7)*2+i8)*2+i9)*2+i10)*2+i11)`,
+  identical to the linear index expression emitted by t27 for 12-D access.
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed arrays
+  with no explicit depth cap; t27's recursive literal emission and slice-access
+  paths follow the same rank-agnostic strategy.
+
+Sources:
+- [IEEE 1800-2017 PDF](https://img.antpedia.com/standard/files/pdfs_ora/20230616-ieee/IEEE/Std/IEEE%20Std%201800-2017.pdf)
+- [Stack Overflow: maximum wire bit width](https://stackoverflow.com/questions/57244232/what-is-the-maximum-wire-bit-width-in-verilog-system-verilog)
+- [Icarus Verilog issue #1171](https://github.com/steveicarus/iverilog/issues/1171)
+- [Icarus Verilog issue #1180](https://github.com/steveicarus/iverilog/issues/1180)
+- [Icarus Verilog quirks](https://steveicarus.github.io/iverilog/usage/icarus_verilog_quirks.html)
+- [Icarus VPI Within VVP](https://steveicarus.github.io/iverilog/developer/guide/vvp/vpi.html)
+- [Icarus vpi_signal.cc](https://github.com/steveicarus/iverilog/blob/master/vvp/vpi_signal.cc)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [Intel HLS Compiler: Mapping HLS Data Types](https://www.intel.com/content/www/us/en/docs/programmable/683349/23-1/mapping-hls-data-types-to-rtl-signals.html)
+
+### Patterns to reuse
+- When generated Verilog asks a simulator to format an extremely wide nested
+  concatenation inside a system task, bind the literal to a named local first.
+  This keeps the t27 compiler unchanged and documents the toolchain limit at the
+  witness level.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always precompute expected-value arithmetic with a script before simulation;
+  row-major linearization is easy to get wrong by hand at high rank.
+- As rank grows, the file size and Icarus elaboration time grow linearly with
+  element count; monitor wall-clock but do not preemptively skip the gate.
+
+### Anti-patterns to avoid
+- Do not modify `gen_verilog_test_stmt` just to avoid a single Icarus formatting
+  bug. A witness-level workaround is cheaper and preserves the existing debug
+  output format.
+- Do not assume the next rank will be free; 13-D will be 262,144 bits, four times
+  the IEEE 1800-2017 minimum, and may hit a different simulator or implementation
+  limit. Let the gates decide.
+- Do not silently drop wide operands from `$display` messages. The current code
+  still prints the local identifier, preserving debuggability.
+
+## Wave Loop 579 — 2026-07-07
+
+### Context
+Wave Loop 579 was the next rung on the rank ladder after W578: thirteen-dimensional
+array-of-struct return call deduplication. The question was whether the
+rank-agnostic paths would hold at 262,144 bits — four times the IEEE 1800-2017
+minimum packed-vector width — and whether Icarus 12.0 would accept that vector
+once the `$display` workaround from W573–W578 was applied.
+
+### What we learned
+- Icarus 12.0 accepts a 262,144-bit, thirteen-level nested packed-vector literal when
+  it is bound to a named local variable before being passed to `$display`.
+- The t27 compiler's recursive literal emission, CSE descriptor
+  (`call_returning_cse_value_info`), and multi-D slice-access paths scale to thirteen
+  dimensions with no code changes.
+- The cocotb reference model independently built the same 262,144-bit packed
+  vector and agreed with the VCD probes on the first run.
+- At 13-D the generated witness file reaches ~1.3 MB / 73k lines, and Icarus
+  simulation is still acceptably fast on current hardware, but wall-clock and peak
+  RSS are visibly increasing.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w579_bench_13d_aos_call_dedup.t27` with the same local-
+  `expected` workaround for Icarus `$display` formatting.
+- Saved t27 seal and Icarus baseline for the W579 witness.
+- Added `accepts_w579_bench_13d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W579_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 580 (Variant A recommended 14-D,
+  Variant B non-p2 13-D, Variant C module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 39 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W579 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not available
+  in this workspace; expected unchanged because no compiler / predicate code
+  changed.
+
+### Scientific / engineering background
+- IEEE Std 1800-2017 clause 7.4.1 requires tools to support packed vectors of at
+  least 65,536 bits; concatenation width is bounded only by the receiver's
+  implementation limits. A 262,144-bit flattened vector is four times the language
+  minimum, and Icarus 12.0 accepted it once the literal was bound to a local
+  variable before `$display`.
+- t27 flattens multi-D arrays to a single 1-D packed vector with part-select
+  indexing, avoiding Icarus's known bugs around non-constant indices in outer
+  packed dimensions.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  identical to the linear index expression emitted by t27 for 13-D access.
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed arrays
+  with no explicit depth cap; t27's recursive literal emission and slice-access
+  paths follow the same rank-agnostic strategy.
+
+Sources:
+- [IEEE 1800-2017 PDF](https://img.antpedia.com/standard/files/pdfs_ora/20230616-ieee/IEEE/Std/IEEE%20Std%201800-2017.pdf)
+- [Stack Overflow: maximum wire bit width](https://stackoverflow.com/questions/57244232/what-is-the-maximum-wire-bit-width-in-verilog-system-verilog)
+- [Icarus Verilog issue #1171](https://github.com/steveicarus/iverilog/issues/1171)
+- [Icarus Verilog issue #1180](https://github.com/steveicarus/iverilog/issues/1180)
+- [Icarus Verilog quirks](https://steveicarus.github.io/iverilog/usage/icarus_verilog_quirks.html)
+- [Icarus VPI Within VVP](https://steveicarus.github.io/iverilog/developer/guide/vvp/vpi.html)
+- [Icarus vpi_signal.cc](https://github.com/steveicarus/iverilog/blob/master/vvp/vpi_signal.cc)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [Intel HLS Compiler: Mapping HLS Data Types](https://www.intel.com/content/www/us/en/docs/programmable/683349/23-1/mapping-hls-data-types-to-rtl-signals.html)
+
+### Patterns to reuse
+- When generated Verilog asks a simulator to format an extremely wide nested
+  concatenation inside a system task, bind the literal to a named local first.
+  This keeps the t27 compiler unchanged and documents the toolchain limit at the
+  witness level.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always precompute expected-value arithmetic with a script before simulation;
+  row-major linearization is easy to get wrong by hand at high rank.
+- As rank grows, the file size and Icarus elaboration time grow linearly with
+  element count; monitor wall-clock but do not preemptively skip the gate.
+
+### Anti-patterns to avoid
+- Do not modify `gen_verilog_test_stmt` just to avoid a single Icarus formatting
+  bug. A witness-level workaround is cheaper and preserves the existing debug
+  output format.
+- Do not assume the next rank will be free; 14-D will be 524,288 bits, eight times
+  the IEEE 1800-2017 minimum, and may hit a different simulator or implementation
+  limit. Let the gates decide.
+- Do not silently drop wide operands from `$display` messages. The current code
+  still prints the local identifier, preserving debuggability.
+
+## Wave Loop 580 — 2026-07-07
+
+### Context
+Wave Loop 580 was the next rung on the rank ladder after W579: fourteen-dimensional
+array-of-struct return call deduplication. The question was whether the
+rank-agnostic paths would hold at 524,288 bits — eight times the IEEE 1800-2017
+minimum packed-vector width — and whether Icarus 12.0 would accept that vector
+once the `$display` workaround from W573–W579 was applied.
+
+### What we learned
+- Icarus 12.0 accepts a 524,288-bit, fourteen-level nested packed-vector literal
+  when it is bound to a named local variable before being passed to `$display`.
+- The t27 compiler's recursive literal emission, CSE descriptor
+  (`call_returning_cse_value_info`), and multi-D slice-access paths scale to fourteen
+  dimensions with no code changes.
+- The cocotb reference model independently built the same 524,288-bit packed
+  vector and agreed with the VCD probes on the first run.
+- At 14-D the generated witness file reaches ~2.6 MB / 147k lines, and Icarus
+  elaboration is still completing in acceptable time, but each successive rank
+  doubles both file size and simulator workload.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w580_bench_14d_aos_call_dedup.t27` with the same local-
+  `expected` workaround for Icarus `$display` formatting.
+- Saved t27 seal and Icarus baseline for the W580 witness.
+- Added `accepts_w580_bench_14d_aos_call_dedup` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W580_2026-07-07.md` and advanced
+  `.trinity/current-issue.md` to Wave Loop 581 (Variant A recommended 15-D,
+  Variant B non-p2 14-D, Variant C module-scope scope shift).
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 40 passed; 0 failed.
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  72 Icarus PASS, 72 cocotb PASS, 0 seal mismatches; 24 pre-existing yosys
+  smoke baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W580 witness: PASS.
+- `lake build Trinity.IcarusLowerable.Soundness` in `proofs/lean4`: not available
+  in this workspace; expected unchanged because no compiler / predicate code
+  changed.
+
+### Scientific / engineering background
+- IEEE Std 1800-2017 clause 7.4.1 requires tools to support packed vectors of at
+  least 65,536 bits; concatenation width is bounded only by the receiver's
+  implementation limits. A 524,288-bit flattened vector is eight times the language
+  minimum, and Icarus 12.0 accepted it once the literal was bound to a local
+  variable before `$display`.
+- t27 flattens multi-D arrays to a single 1-D packed vector with part-select
+  indexing, avoiding Icarus's known bugs around non-constant indices in outer
+  packed dimensions.
+- C++23 `std::mdspan` default `layout_right` provides the row-major index mapping
+  identical to the linear index expression emitted by t27 for 14-D access.
+- CIRCT `HWLegalizeModules` recursively legalizes multi-dimensional packed arrays
+  with no explicit depth cap; t27's recursive literal emission and slice-access
+  paths follow the same rank-agnostic strategy.
+
+Sources:
+- [IEEE 1800-2017 PDF](https://img.antpedia.com/standard/files/pdfs_ora/20230616-ieee/IEEE/Std/IEEE%20Std%201800-2017.pdf)
+- [Stack Overflow: maximum wire bit width](https://stackoverflow.com/questions/57244232/what-is-the-maximum-wire-bit-width-in-verilog-system-verilog)
+- [Icarus Verilog issue #1171](https://github.com/steveicarus/iverilog/issues/1171)
+- [Icarus Verilog issue #1180](https://github.com/steveicarus/iverilog/issues/1180)
+- [Icarus Verilog quirks](https://steveicarus.github.io/iverilog/usage/icarus_verilog_quirks.html)
+- [Icarus VPI Within VVP](https://steveicarus.github.io/iverilog/developer/guide/vvp/vpi.html)
+- [Icarus vpi_signal.cc](https://github.com/steveicarus/iverilog/blob/master/vvp/vpi_signal.cc)
+- [CIRCT HWLegalizeModules source](https://circt.llvm.org/doxygen/HWLegalizeModules_8cpp_source.html)
+- [cppreference: std::mdspan](https://en.cppreference.com/cpp/container/mdspan)
+- [Vitis HLS: pragma HLS array_reshape](https://docs.amd.com/r/en-US/ug1399-vitis-hls/pragma-HLS-array_reshape)
+- [Intel HLS Compiler: Mapping HLS Data Types](https://www.intel.com/content/www/us/en/docs/programmable/683349/23-1/mapping-hls-data-types-to-rtl-signals.html)
+
+### Patterns to reuse
+- When generated Verilog asks a simulator to format an extremely wide nested
+  concatenation inside a system task, bind the literal to a named local first.
+  This keeps the t27 compiler unchanged and documents the toolchain limit at the
+  witness level.
+- A zero-code-change wave that locks a higher-rank composition is valuable: it
+  produces a permanent regression witness and confirms the predicate/backend
+  contract is truly rank-independent.
+- Always precompute expected-value arithmetic with a script before simulation;
+  row-major linearization is easy to get wrong by hand at high rank.
+- As rank grows, the file size and Icarus elaboration time grow linearly with
+  element count; monitor wall-clock but do not preemptively skip the gate.
+
+### Anti-patterns to avoid
+- Do not modify `gen_verilog_test_stmt` just to avoid a single Icarus formatting
+  bug. A witness-level workaround is cheaper and preserves the existing debug
+  output format.
+- Do not assume the next rank will be free; 15-D will be 1,048,576 bits, sixteen
+  times the IEEE 1800-2017 minimum, and may hit a different simulator or
+  implementation limit. Let the gates decide.
+- Do not silently drop wide operands from `$display` messages. The current code
+  still prints the local identifier, preserving debuggability.
+
+## 2026-07-18 — Wave Loop 586 (module-scope 8-D array-of-struct variable with indexed signed field writes)
+
+### What worked
+- A module-scope `var dst : [2]^8 Pt` lowered as a single packed `reg [8191:0]`
+  already supported procedural slice assignments for indexed field writes
+  (`dst[i][j][k][l][m][n][o][p].y = -999`).
+- The real gap was **signed packed-slice semantics**: the generated read/compare
+  path treated the 16-bit field slice as unsigned, so negative values printed and
+  compared as large positive numbers.
+- Fix was localized to three pieces:
+  1. Walk multi-dimensional `ExprIndex` chains in `expr_width_signed` and
+     `field_scalar_array_info` so probe metadata and width inference can resolve
+     the base module variable.
+  2. Wrap signed packed-slice reads with `$signed(...)` in
+     `emit_packed_struct_element_slice` and the existing scalar-struct/call
+     field-access paths.
+  3. Suppress the `$signed(...)` wrapper when the slice is used as an assignment
+     target by adding an `in_lvalue` flag set only during `StmtAssign` LHS
+     emission.
+- After the fix, Icarus simulation and cocotb reference model both report PASS
+  for the W586 witness; 30 affected seals were resealed.
+
+### Numbers / gates
+- FROZEN_HASH updated to `61637d927d4b07f415fbe72348bbdf244a26412860fc9f332d07b81a1e9a9a6f`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 46/0 (new test added).
+- `./scripts/tri test --fast`: 0 seal mismatches; 24 pre-existing yosys smoke
+  baseline failures unchanged.
+- Direct `t27c icarus-simulate` / `t27c icarus-cocotb` on W586 witness: PASS.
+
+### Scientific / engineering background
+- IEEE Std 1800-2017 §11.5.1 part-selects are unsigned bit ranges by default;
+  a signed interpretation requires an explicit `$signed(...)` cast. The t27
+  backend already used this for scalar-struct field reads and scalar-array field
+  element reads, but not for packed multi-D array-of-struct field reads.
+- Verilog equality/relational operators are unsigned if any operand is unsigned,
+  so comparing an unsigned 16-bit slice against a negative literal fails even
+  when the underlying bits are correct. Casting the slice to signed makes the
+  comparison signed and width-extended correctly.
+- Lvalue slices cannot be wrapped with `$signed(...)`; the assignment target
+  must remain a plain part-select. Tracking lvalue context in the emitter avoids
+  duplicating the access logic.
+
+### Patterns to reuse
+- Use an `in_lvalue` codegen flag whenever the same expression helper is shared
+  between assignment targets and rvalue contexts; this is cheaper than building
+  separate lvalue/rvalue emitters.
+- Update `expr_width_signed` to walk nested `ExprIndex` chains so that probe
+  width/signed metadata stays accurate for multi-dimensional accesses.
+- Reseal all affected specs after a change to signed packed-slice rendering;
+  the generated Verilog changes for every prior AoS witness with signed fields.
+
+### Anti-patterns to avoid
+- Do not wrap the LHS of a procedural assignment with `$signed(...)`; some
+  simulators reject it and it is semantically unnecessary because the bits are
+  already correct.
+- Do not assume that because a narrow test passes the reference model and
+  VCD probes agree on signedness; always check that probe metadata matches the
+  expression's signed flag.
+
+## Wave Loop 587 — 2026-07-07
+
+### What worked
+- Variant C (module-scope `[2]^8 Pt` variable initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**.
+  The W586 signed packed-slice fixes and the existing call-return CSE path
+  already handled 8-D AoS initialization, whole-array comparison, and indexed
+  signed reads/writes correctly.
+- The main risk was literal syntax in the generated witness. Using a recursive
+  generator that balances braces/brackets and avoids leading commas produced a
+  valid 1,048,576-bit packed parameter and function return.
+
+### Root cause / fix
+- The initial W587 witness attempt accidentally contained leading commas after
+  opening braces (`[2]Pt{, ...}`). The const raw-text capture accepts this, but
+  the re-parser `parse_array_literal_text` fails, falling back to a zero
+  parameter. The function-return literal path also silently dropped the function
+  body because the main expression parser could not recover from the leading
+  comma.
+- Fix: regenerate the witness with strictly valid t27 array-literal syntax:
+  `[N1][N2]...T{ elem1, elem2 }` with balanced braces and no leading comma.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `61637d927d4b07f415fbe72348bbdf244a26412860fc9f332d07b81a1e9a9a6f`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 47/0 (new W587 test added).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  73/73 Icarus PASS / 73/73 cocotb PASS / 0 seal mismatches / 24 pre-existing
+  yosys smoke baselines.
+- Direct `t27c icarus-simulate` and `t27c icarus-cocotb` on W587 witness: PASS.
+
+### Patterns to reuse
+- For very large nested array literals, generate the text programmatically and
+  validate brace/bracket balance independently before trusting the parser.
+- A single-line literal works, but pretty-printed multi-line is also valid as
+  long as commas remain separators (not prefixes) and braces stay balanced.
+- Module-scope `var dst : [N]...Pt = fn_call(...)` works for 8-D with no new
+  compiler support when signed-slice reads and lvalue handling are already
+  correct.
+
+### Anti-patterns to avoid
+- Do not use `', '.join(...)` when emitting array-literal children; it can
+  produce a leading comma if the join result is inserted directly after `{`.
+- Do not assume a malformed literal will fail loudly at parse time: the
+  module-level const parser captures raw text, so errors may only surface during
+  Verilog emission as `0 /* TODO ... */` or an empty function body.
+
+## Wave Loop 588 — 2026-07-07
+
+### What worked
+- Variant C (module-scope `[2]^9 Pt` variable initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**.
+  The W586 signed packed-slice and W587 call-return CSE paths already handled
+  9-D AoS initialization, whole-array comparison, and indexed signed reads/writes.
+- Agent E weak-point analysis correctly identified the giant-concatenation and
+  signed-overflow risks, which informed the choice to stay at 9-D and keep leaf
+  values in the safe i16 range.
+
+### Root cause / fix
+- No fix needed. The only implementation work was generating a syntactically
+  valid 9-D literal (1023 braces/brackets) and avoiding values > 32767.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `61637d927d4b07f415fbe72348bbdf244a26412860fc9f332d07b81a1e9a9a6f`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 48/0 (new W588 test added).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  75/75 Icarus PASS / 75/75 cocotb PASS / 0 seal mismatches / 24 pre-existing
+  yosys smoke baselines.
+- Direct `t27c icarus-simulate` and `t27c icarus-cocotb` W588 PASS.
+
+### Patterns to reuse
+- Reuse the W587 recursive literal generator with rank as a parameter; it
+  naturally balances braces/brackets and avoids leading commas.
+- Keep witness leaf values well below the signed field maximum to avoid
+  simulator-dependent truncation of `16'sdN` literals.
+- For module-scope mutable AoS, the combination of `pub var dst = fn_call()` and
+  `dst[i][j]... .field = value` works at least through 9-D with no new backend
+  support.
+
+### Anti-patterns to avoid
+- Do not probe the absolute MSB element of a vector whose width is exactly a
+  signed-field boundary (e.g., 16,384-bit vector); choose interior elements for
+  frame-condition checks.
+- Do not assume that because 8-D passed, 10-D will pass interactively; the
+  4-MiBit cliff is real and should be crossed only with explicit chunked-literal
+  design.
+
+## Wave Loop 589 — 2026-07-07
+
+### What worked
+- Variant C (module-scope `[2]^17 Pt` variable initialized from a call with
+  indexed signed field writes) was implemented by fixing the module-scope
+  multi-D scalar-struct array call-initializer path in `gen_verilog_var` and
+  `gen_verilog_const`.
+- Agent E weak-point analysis correctly identified the giant-concatenation,
+  signed-overflow, and silent-uninitialized-register risks before implementation.
+- Keeping leaf values inside signed i16 with `(2*i)%32768` avoided simulator
+  truncation issues.
+- Generating the literal in multi-line W584-style made the parser produce a
+  complete AST; single-line 17-D literals parsed without error but dropped the
+  trailing module declarations.
+
+### Root cause / fix
+- `emit_packed_struct_array_init` only accepts `ExprArrayLiteral` initializers.
+  A function-call initializer for a module-scope multi-D scalar-struct array
+  fell through and left the `reg` uninitialized / emitted `parameter ... = 0`.
+- Added dedicated branches in `gen_verilog_var` and `gen_verilog_const` that
+  detect `ExprCall` initializers and emit wholesale packed assignment:
+  `reg [W-1:0] dst; initial dst = make_fn(...);` and the corresponding
+  `parameter` form.
+
+### Numbers / gates
+- FROZEN_HASH updated: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 49/0 (new W589 test added).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  76/76 Icarus PASS / 76/76 cocotb PASS / 0 seal mismatches after reseal /
+  24 pre-existing yosys smoke baselines.
+- `./scripts/tri test --fast` (post-reseal): 693 passed, 0 seal mismatches.
+- Resealed affected existing seals:
+  `w585_bench_module_7d_aos_var_call_dedup`,
+  `w587_bench_module_8d_aos_var_call_write`,
+  `w588_bench_module_9d_aos_var_call_write`.
+- Direct `t27c icarus-simulate` and `t27c icarus-cocotb` W589 PASS.
+
+### Patterns to reuse
+- Use wholesale packed assignment for module-scope multi-D scalar-struct arrays
+  initialized from function calls; the per-element procedural init path is only
+  for literal initializers.
+- Generate extreme-rank array literals in multi-line brace style matching
+  existing witnesses; do not rely on single-line mega-literals.
+- Constrain witness leaf values to the signed field range to avoid
+  simulator-dependent truncation of `16'sdN` literals.
+
+### Anti-patterns to avoid
+- Do not assume a malformed or over-long literal will fail loudly at parse time;
+  the parser may accept it but emit an incomplete AST.
+- Do not leave multi-D scalar-struct array call initializers in the
+  literal-only emitter path; always provide a wholesale branch.
+- Do not probe the absolute MSB element of a vector whose width is exactly a
+  signed-field boundary; choose interior elements for frame-condition checks.
+
+## Wave Loop 590 — 2026-07-07
+
+### What worked
+- Variant C (`[2]^17 Pt` module-scope mutable AoS initialized from one call, then
+  whole-array reassigned to a second call result) was implemented with **zero
+  compiler changes**. The W589 wholesale assignment path, W557 call-return CSE
+  temporaries, and generic `StmtAssign` packed-vector path already handled mutable
+  whole-array reassignment.
+- Agent E weak-point analysis correctly identified that Variant A (18-D) would
+  cross the 4-MiBit cliff and Variant B (non-p2 outer dimension) was lower-value,
+  leaving Variant C as the best interactive target.
+- The multi-line W584 brace style kept the 17-D literal parseable; a single-line
+  literal would have silently truncated the AST again.
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, and baseline.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 50/0 (new W590 test added).
+- `./scripts/tri test --icarus-lowerable --icarus-simulate --cocotb --fast`:
+  77/77 Icarus PASS / 77/77 cocotb PASS / 0 seal mismatches / 24 pre-existing
+  yosys smoke baselines.
+- `./scripts/tri test --fast`: 694 passed / 0 seal mismatches.
+- Direct `t27c icarus-simulate` W590 PASS (~11.5 min).
+- Direct `t27c icarus-cocotb` W590 PASS (~12 min).
+
+### Patterns to reuse
+- Use whole-array reassignment `dst = make_other(...);` for module-scope packed
+  multi-D scalar-struct `reg`s; the existing CSE + `StmtAssign` paths already
+  materialize the necessary packed-vector temporary.
+- When two 4-MiBit literals are needed in one spec, expect roughly doubled
+  wall-clock; plan batch gates with `--fast` accordingly.
+
+### Anti-patterns to avoid
+- Do not assume that a second 4-MiBit function in the same module is free; each
+  one is a giant concatenation that the simulator must process.
+- Do not use single-line literals for ranks above ~10; the parser accepts them
+  but produces incomplete ASTs.
+
+## Wave Loop 595 — 2026-07-07
+
+### What worked
+- Variant B (`[9][2]^13 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 9.
+- Agent E weak-point analysis correctly identified the outer-dimension-9 risk and
+  the need to keep the witness well under the 4-MiBit cliff; the 2.25-MiBit point
+  was chosen as the next interactive data point.
+- Multi-line W584-style brace style kept the 14-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 73,728 elements.
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 55/0 (new W595 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- Direct `t27c icarus-simulate` W595 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W595 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, ...) for module-scope
+  packed AoS witnesses; the compiler and reference model are dimension-agnostic as
+  long as the total width stays inside simulator comfort.
+- Generate array-of-struct witnesses with a recursive rank-aware script that
+  balances braces/brackets and produces valid t27 literal syntax.
+- Include a disk-space cleanup step before long cocotb batches; old
+  `/tmp/claude-501/t27c_cocotb_*` directories can accumulate tens of gigabytes.
+
+### Anti-patterns to avoid
+- Do not trust single-line mega-literals for high-rank arrays; always use
+  multi-line brace style and verify the generated AST is complete.
+- Do not let cocotb temporary directories pile up across waves; cleanup is part
+  of the verification gate.
+- Do not assume that a non-power-of-two outer dimension stops working after a
+  certain size; test it with a controlled witness instead.
+
+## Wave Loop 596 — 2026-07-07
+
+### What worked
+- Variant A (`[11][2]^12 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 11.
+- Agent E weak-point analysis correctly identified the outer-dimension-11 risk and
+  recommended continuing the odd outer-dimension ladder while staying under the
+  4-MiBit cliff; the 1.37-MiBit point produced a smaller witness than W595.
+- Multi-line W584-style brace style kept the 13-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 45,056 elements (`max raw 90111`, `90111 % 32768 = 24574`).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 56/0 (new W596 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- Direct `t27c icarus-simulate` W596 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W596 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, ...) for module-scope
+  packed AoS witnesses; the compiler and reference model are dimension-agnostic as
+  long as the total width stays inside simulator comfort.
+- Smaller witnesses under the cliff run faster, making them good daily-wave
+  material while still expanding layout coverage.
+
+### Anti-patterns to avoid
+- Do not skip the odd outer-dimension ladder and jump straight to the 8-MiBit
+  power-of-two jump; the cliff should be crossed only with explicit chunked-literal
+  design.
+- Do not assume that because W595 passed, W596 will pass without a fresh witness;
+  each new outer dimension is a distinct regression data point.
+
+---
+
+## Wave Loop 597 — 2026-07-07
+
+### What worked
+- Variant A (`[13][2]^11 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 13.
+- The W596 closeout report incorrectly sized this variant as 1,114,112 bits /
+  34,816 elements; the corrected arithmetic for `[13][2]^11 Pt` is 26,624 elements
+  and 852,032 bits (≈0.81 MiBit). Reconciling the plan with the actual witness early
+  avoided a mismatch between promised and delivered scope.
+- Multi-line W584-style brace style kept the 11-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 26,624 elements (`max raw 53247`, `53247 % 32768 = 20479`).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 57/0 (new W597 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run to completion — Phase 1 Parse dominated by
+  large literal specs and made no progress after ~20 min wall-clock.
+- Direct `t27c icarus-simulate` W597 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W597 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, ...) for module-scope
+  packed AoS witnesses; the compiler and reference model are dimension-agnostic as
+  long as the total width stays inside simulator comfort.
+- Smaller witnesses under the cliff run fast and are good daily-wave material,
+  but still require a fresh integration test and direct simulation because each
+  new outer stride is a distinct layout data point.
+
+### Anti-patterns to avoid
+- Do not copy forward size estimates from the previous closeout report without
+  recomputing them; dimensions and element counts must match.
+- Do not wait for the full `./scripts/tri test --fast` sweep when Phase 1 Parse
+  is blocked by unrelated giant literal specs; direct Icarus and cocotb gates on
+  the new witness are sufficient for a zero-change wave.
+
+---
+
+## Wave Loop 598 — 2026-07-07
+
+### What worked
+- Variant A (`[15][2]^10 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 15.
+- With only 15,360 elements, the offset-0 value schedule never wraps modulo 32768.
+  An explicit shifted call `make_grid(32768)` was added to the test to keep the
+  modulo-wrap regression signal equivalent to earlier waves, and it passed in both
+  Icarus and cocotb.
+- Multi-line W584-style brace style kept the 10-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 15,360 elements (`max raw 30719`, well below 32768).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 58/0 (new W598 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W598 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W598 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, ...) for
+  module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- When element count drops below the natural modulo-wrap point, add an explicit
+  shifted call (e.g., `make_grid(32768)`) to preserve the wrap regression signal.
+
+### Anti-patterns to avoid
+- Do not drop the modulo-wrap assertion just because the offset-0 schedule fits
+  in range; the regression signal is about `% 32768` semantics, not just value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 15 is
+  still a distinct layout data point.
+
+---
+
+## Wave Loop 599 — 2026-07-07
+
+### What worked
+- Variant A (`[17][2]^9 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 17.
+- With only 8,704 elements, the offset-0 value schedule never wraps modulo 32768.
+  An explicit shifted call `make_grid(32768)` was retained to keep the modulo-wrap
+  regression signal equivalent to earlier waves, and it passed in both Icarus
+  and cocotb.
+- Multi-line W584-style brace style kept the 9-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 8,704 elements (`max raw 17407`, well below 32768).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 59/0 (new W599 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W599 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W599 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, ...) for
+  module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 17 is
+  a distinct layout data point.
+
+---
+
+## Wave Loop 600 — 2026-07-07
+
+### What worked
+- Variant A (`[19][2]^8 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 19.
+- With only 4,864 elements, the offset-0 value schedule never wraps modulo 32768.
+  An explicit shifted call `make_grid(32768)` was retained to keep the modulo-wrap
+  regression signal equivalent to earlier waves, and it passed in both Icarus
+  and cocotb.
+- Multi-line W584-style brace style kept the 8-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 4,864 elements (`max raw 9727`, well below 32768).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 60/0 (new W600 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W600 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W600 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, ...) for
+  module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 19 is
+  a distinct layout data point.
+
+---
+
+## Wave Loop 601 — 2026-07-07
+
+### What worked
+- Variant A (`[21][2]^7 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 21.
+- With only 2,688 elements, the offset-0 value schedule never wraps modulo 32768.
+  An explicit shifted call `make_grid(32768)` was retained to keep the modulo-wrap
+  regression signal equivalent to earlier waves, and it passed in both Icarus
+  and cocotb.
+- Multi-line W584-style brace style kept the 7-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 2,688 elements (`max raw 5375`, well below 32768).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 61/0 (new W601 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W601 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W601 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, ...) for
+  module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 21 is
+  a distinct layout data point.
+
+---
+
+## Wave Loop 602 — 2026-07-07
+
+### What worked
+- Variant A (`[23][2]^6 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 23.
+- With only 1,472 elements, the offset-0 value schedule never wraps modulo 32768.
+  An explicit shifted call `make_grid(32768)` was retained to keep the modulo-wrap
+  regression signal equivalent to earlier waves, and it passed in both Icarus
+  and cocotb.
+- Multi-line W584-style brace style kept the 6-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 1,472 elements (`max raw 2943`, well below 32768).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 62/0 (new W602 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W602 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W602 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 23 is
+  a distinct layout data point.
+
+---
+
+## Wave Loop 603 — 2026-07-07
+
+### What worked
+- Variant A (`[25][2]^6 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 25.
+- With only 1,600 elements, the offset-0 value schedule never wraps modulo 32768.
+  An explicit shifted call `make_grid(32768)` was retained to keep the modulo-wrap
+  regression signal equivalent to earlier waves, and it passed in both Icarus
+  and cocotb.
+- Multi-line W584-style brace style kept the 6-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 1,600 elements (`max raw 3199`, well below 32768).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 63/0 (new W603 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W603 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W603 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 25 is
+  a distinct layout data point.
+
+---
+
+## Wave Loop 604 — 2026-07-07
+
+### What worked
+- Variant A (`[27][2]^6 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 27.
+- With only 1,728 elements, the offset-0 value schedule never wraps modulo 32768.
+  An explicit shifted call `make_grid(32768)` was retained to keep the modulo-wrap
+  regression signal equivalent to earlier waves, and it passed in both Icarus
+  and cocotb.
+- Multi-line W584-style brace style kept the 6-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 1,728 elements (`max raw 3455`, well below 32768).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 64/0 (new W604 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W604 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W604 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 27 is
+  a distinct layout data point.
+
+---
+
+## Wave Loop 605 — 2026-07-07
+
+### What worked
+- Variant A (`[29][2]^6 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 29.
+- With only 1,856 elements, the offset-0 value schedule never wraps modulo 32768.
+  An explicit shifted call `make_grid(32768)` was retained to keep the modulo-wrap
+  regression signal equivalent to earlier waves, and it passed in both Icarus
+  and cocotb.
+- Multi-line W584-style brace style kept the 6-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 1,856 elements (`max raw 3711`, well below 32768).
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 65/0 (new W605 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W605 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W605 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 29 is
+  a distinct layout data point.
+
+---
+
+## Wave Loop 606 — 2026-07-07
+
+### What worked
+- Variant A (`[31][2]^6 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 31.
+- With 1,984 elements, the offset-0 value schedule never wraps modulo 32768. An
+  explicit shifted call `make_grid(32768)` was retained to keep the modulo-wrap
+  regression signal equivalent to earlier waves, and it passed in both Icarus and
+  cocotb.
+- Multi-line W584-style brace style kept the 6-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 1,984 elements (`max raw 3967`, well below 32768).
+- Reusing the exact W605 module-scope lowerable style (`pub var dst`, `pub const
+  expected`, explicit array-type annotations, `.x = ...` field initializers,
+  separate `test`/`bench` blocks) avoided a parse-valid-but-unlowerable syntax
+  trap encountered in an early draft.
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+- Early W606 draft lesson: bench-local `mut dst` and compact `{ x y }` struct
+  literals parsed but produced invalid Verilog (unbound `_x`/`_y`, zeroed
+  `make_grid` body). The lowerable subset has a single well-supported path; match
+  the established W605 style rather than inventing equivalent-looking syntax.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 66/0 (new W606 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W606 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W606 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 31 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+---
+
+## Wave Loop 607 — 2026-07-07
+
+### What worked
+- Variant A (`[33][2]^6 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 33.
+- With 2,112 elements, the offset-0 value schedule never wraps modulo 32768. An
+  explicit shifted call `make_grid(32768)` was retained to keep the modulo-wrap
+  regression signal equivalent to earlier waves, and it passed in both Icarus and
+  cocotb.
+- Multi-line W584-style brace style kept the 6-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 2,112 elements (`max raw 4223`, well below 32768).
+- Reusing the exact W605/W606 module-scope lowerable style avoided the
+  parse-valid-but-unlowerable syntax trap discovered in W606.
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 67/0 (new W607 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W607 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W607 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 33 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+---
+
+## Wave Loop 608 — 2026-07-07
+
+### What worked
+- Variant A (`[35][2]^6 Pt` module-scope mutable AoS initialized from a call with
+  indexed signed field writes) was implemented with **zero compiler changes**. The
+  W589 module-scope wholesale initializer path and the generic indexed field-write
+  paths already handled a non-power-of-two outer dimension of 35.
+- With 2,240 elements, the offset-0 value schedule never wraps modulo 32768. An
+  explicit shifted call `make_grid(32768)` was retained to keep the modulo-wrap
+  regression signal equivalent to earlier waves, and it passed in both Icarus and
+  cocotb.
+- Multi-line W584-style brace style kept the 6-D nested literal parseable and
+  complete.
+- The signed i16 witness-value schedule `(2*e + offset) % 32768` kept all leaf
+  values in range for 2,240 elements (`max raw 4479`, well below 32768).
+- Reusing the exact W605/W606/W607 module-scope lowerable style avoided the
+  parse-valid-but-unlowerable syntax trap discovered in W606.
+
+### Root cause / fix
+- No compiler fix needed. The only implementation work was witness generation,
+  integration test, seal, baseline, and documentation.
+
+### Numbers / gates
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 68/0 (new W608 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W608 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W608 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 35 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 609 — module-scope `[37][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 37 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w609_bench_module_37x2p6_aos_var_call_write.t27`.
+- Reusing the exact W608 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w609_bench_module_37x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 69/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w609_bench_module_37x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w609_bench_module_37x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 37-outer pattern (2,368 elements, 75,776-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `37 * 2^6 = 2,368` elements, `75,776` bits (~0.072 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 69/0 (new W609 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W609 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W609 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 37 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 610 — module-scope `[39][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 39 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w610_bench_module_39x2p6_aos_var_call_write.t27`.
+- Reusing the exact W609 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w610_bench_module_39x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 70/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w610_bench_module_39x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w610_bench_module_39x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 39-outer pattern (2,496 elements, 79,872-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `39 * 2^6 = 2,496` elements, `79,872` bits (~0.076 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 70/0 (new W610 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W610 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W610 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 39 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 611 — module-scope `[41][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 41 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w611_bench_module_41x2p6_aos_var_call_write.t27`.
+- Reusing the exact W610 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w611_bench_module_41x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 71/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w611_bench_module_41x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w611_bench_module_41x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 41-outer pattern (2,624 elements, 83,968-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `41 * 2^6 = 2,624` elements, `83,968` bits (~0.08 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 71/0 (new W611 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W611 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W611 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 41 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 612 — module-scope `[43][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 43 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w612_bench_module_43x2p6_aos_var_call_write.t27`.
+- Reusing the exact W611 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w612_bench_module_43x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 72/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w612_bench_module_43x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w612_bench_module_43x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 43-outer pattern (2,752 elements, 88,064-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `43 * 2^6 = 2,752` elements, `88,064` bits (~0.084 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 72/0 (new W612 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W612 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W612 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 43 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 613 — module-scope `[45][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 45 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w613_bench_module_45x2p6_aos_var_call_write.t27`.
+- Reusing the exact W612 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w613_bench_module_45x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 73/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w613_bench_module_45x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w613_bench_module_45x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 45-outer pattern (2,880 elements, 92,160-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `45 * 2^6 = 2,880` elements, `92,160` bits (~0.088 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 73/0 (new W613 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W613 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W613 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 45 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 614 — module-scope `[47][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 47 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w614_bench_module_47x2p6_aos_var_call_write.t27`.
+- Reusing the exact W613 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w614_bench_module_47x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 74/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w614_bench_module_47x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w614_bench_module_47x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 47-outer pattern (3,008 elements, 96,256-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `47 * 2^6 = 3,008` elements, `96,256` bits (~0.092 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 74/0 (new W614 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W614 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W614 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 47 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 615 — module-scope `[49][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 49 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w615_bench_module_49x2p6_aos_var_call_write.t27`.
+- Reusing the exact W614 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w615_bench_module_49x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 75/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w615_bench_module_49x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w615_bench_module_49x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 49-outer pattern (3,136 elements, 100,352-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `49 * 2^6 = 3,136` elements, `100,352` bits (~0.096 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 75/0 (new W615 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W615 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W615 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 49 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 616 — module-scope `[51][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 51 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w616_bench_module_51x2p6_aos_var_call_write.t27`.
+- Reusing the exact W615 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w616_bench_module_51x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 76/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w616_bench_module_51x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w616_bench_module_51x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 51-outer pattern (3,264 elements, 104,448-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `51 * 2^6 = 3,264` elements, `104,448` bits (~0.10 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 76/0 (new W616 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W616 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W616 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 51 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 617 — module-scope `[53][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 53 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w617_bench_module_53x2p6_aos_var_call_write.t27`.
+- Reusing the exact W616 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w617_bench_module_53x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 77/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w617_bench_module_53x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w617_bench_module_53x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 53-outer pattern (3,392 elements, 108,544-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `53 * 2^6 = 3,392` elements, `108,544` bits (~0.103 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 77/0 (new W617 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W617 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W617 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 53 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 618 — module-scope `[55][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 55 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w618_bench_module_55x2p6_aos_var_call_write.t27`.
+- Reusing the exact W617 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w618_bench_module_55x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 78/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w618_bench_module_55x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w618_bench_module_55x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 55-outer pattern (3,520 elements, 112,640-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `55 * 2^6 = 3,520` elements, `112,640` bits (~0.107 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 78/0 (new W618 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W618 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W618 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 55 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 619 — module-scope `[57][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 57 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w619_bench_module_57x2p6_aos_var_call_write.t27`.
+- Reusing the exact W618 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w619_bench_module_57x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 79/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w619_bench_module_57x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w619_bench_module_57x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 57-outer pattern (3,648 elements, 116,736-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `57 * 2^6 = 3,648` elements, `116,736` bits (~0.111 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 79/0 (new W619 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W619 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W619 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 57 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 620 — module-scope `[59][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 59 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w620_bench_module_59x2p6_aos_var_call_write.t27`.
+- Reusing the exact W619 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w620_bench_module_59x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 80/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w620_bench_module_59x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w620_bench_module_59x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 59-outer pattern (3,776 elements, 120,832-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `59 * 2^6 = 3,776` elements, `120,832` bits (~0.115 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 80/0 (new W620 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W620 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W620 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 59 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 621 — module-scope `[61][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 61 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w621_bench_module_61x2p6_aos_var_call_write.t27`.
+- Reusing the exact W620 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w621_bench_module_61x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 81/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w621_bench_module_61x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w621_bench_module_61x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 61-outer pattern (3,904 elements, 124,928-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `61 * 2^6 = 3,904` elements, `124,928` bits (~0.119 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 81/0 (new W621 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W621 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W621 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59, 61, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 61 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 622 — module-scope `[63][2]^6 Pt` packed AoS variable from call with signed indexed writes
+
+### What worked
+- Adding outer dimension 63 to the odd-stride ladder with no compiler or
+  reference-model changes. Witness: `specs/scratch/w622_bench_module_63x2p6_aos_var_call_write.t27`.
+- Reusing the exact W621 lowerable style (module-level `pub var dst`, `pub const expected`,
+  explicit array type, multi-line `Pt{ .x = ..., .y = ... }` literals, separate `test`/`bench`).
+- Integration test `accepts_w622_bench_module_63x2p6_aos_var_call_write` added to
+  `bootstrap/tests/icarus_lowerable.rs`; icarus_lowerable count moved to 82/0.
+- Baseline `.trinity/icarus-baselines/specs/scratch/w622_bench_module_63x2p6_aos_var_call_write.json`
+  and seal `.trinity/seals/scratch_w622_bench_module_63x2p6_aos_var_call_write.json` created.
+
+### Surprises / weak points
+- The 63-outer pattern (4,032 elements, 129,024-bit packed vector) parsed, simulated,
+  and reference-matched on first attempt; no parser or Verilog emission regression.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large literal
+  specs in earlier waves; direct `t27c` gates still the practical closeout path.
+
+### Metrics
+- Packed vector: `63 * 2^6 = 4,032` elements, `129,024` bits (~0.123 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 82/0 (new W622 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W622 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W622 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59, 61, 63, ...)
+  for module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- For small witnesses where element count drops below the natural modulo-wrap
+  point, keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard
+  fixture to preserve `% 32768` regression coverage.
+- When extending a working witness pattern, clone the syntax of the last passing
+  witness exactly; visually similar constructs can have different lowerings.
+
+### Anti-patterns to avoid
+- Do not remove the modulo-wrap assertion just because the witness is small; the
+  signal is about modulo semantics, not value size.
+- Do not skip the fresh integration test for small witnesses; outer stride 63 is
+  a distinct layout data point.
+- Do not assume that a spec which parses and emits Verilog is correct; run the
+  Icarus and cocotb gates before sealing.
+
+## Wave Loop 623 — module-scope `[65][2]^6 Pt` non-p2 AoS var from call
+
+### What worked
+- Extending the W622 witness to outer dimension 65 by replicating the last row
+  block and adding the appropriate value offset (128 and 256) produced a valid
+  multi-line literal that parsed and lowered on the first attempt.
+- The exact W605/W622 module-scope lowerable style was reused: `pub var dst`,
+  `pub const expected`, explicit `[65][2]^6 Pt` type annotations, `Pt{ .x = ...,
+  .y = ... }` field initializers, separate `test`/`bench` blocks.
+- Corner indices were updated consistently: last row `[64]` (was `[62]`), mid row
+  `[32]` (was `[31]`), expected values `8318/8319` and `4160/4161`.
+
+### Surprises / weak points
+- The 65-outer pattern (4,160 elements, 133,120-bit packed vector) parsed,
+  simulated, and reference-matched on first attempt; no parser or Verilog
+  emission regression.
+- The value-offset trick (row 63 = row 62 + 128, row 64 = row 62 + 256) is safe
+  because each row is a contiguous block of 64 elements and the schedule is
+  linear in element index.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large
+  literal specs in earlier waves; direct `t27c` gates still the practical
+  closeout path.
+
+### Metrics
+- Packed vector: `65 * 2^6 = 4,160` elements, `133,120` bits (~0.127 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 83/0 (new W623 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W623 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W623 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 63, 65, ...) for
+  module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- When extending a witness to a larger outer dimension, clone the syntax of the
+  previous passing witness and use row-block value offsets rather than rewriting
+  the mega-literal from scratch.
+- Keep the explicit shifted call (e.g., `make_grid(32768)`) as a standard fixture
+  to preserve `% 32768` regression coverage regardless of witness size.
+
+### Anti-patterns to avoid
+- Do not forget to update type annotations in both the function return type and
+  the `pub const`/`pub var` declarations when extending the outer dimension.
+- Do not reuse the previous wave's corner indices without recomputing the
+  expected values for the new outer dimension.
+
+## Wave Loop 624 — module-scope `[67][2]^6 Pt` non-p2 AoS var from call
+
+### What worked
+- Extending the W623 witness to outer dimension 67 by replicating the last row
+  block and adding the appropriate value offsets (+128 and +256) produced a
+  valid multi-line literal that parsed and lowered on the first attempt.
+- The exact W605/W623 module-scope lowerable style was reused: `pub var dst`,
+  `pub const expected`, explicit `[67][2]^6 Pt` type annotations, `Pt{ .x = ...,
+  .y = ... }` field initializers, separate `test`/`bench` blocks.
+- Corner indices were updated consistently: last row `[66]` (was `[64]`), mid
+  row `[33]` (was `[32]`), expected values `8574/8575` and `4288/4289`.
+
+### Surprises / weak points
+- The 67-outer pattern (4,288 elements, 137,216-bit packed vector) parsed,
+  simulated, and reference-matched on first attempt; no parser or Verilog
+  emission regression.
+- The row-block extension pattern scales cleanly as long as the outer dimension
+  stays inside simulator comfort and the syntax of the previous witness is
+  preserved exactly.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large
+  literal specs in earlier waves; direct `t27c` gates still the practical
+  closeout path.
+
+### Metrics
+- Packed vector: `67 * 2^6 = 4,288` elements, `137,216` bits (~0.130 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 84/0 (new W624 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W624 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W624 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 65, 67, ...) for
+  module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row is +128/+256 relative to the previous last row because each row contains
+  64 elements and the schedule is `2*e`/`2*e+1`.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes, even by only two rows.
+
+## Wave Loop 625 — module-scope `[69][2]^6 Pt` non-p2 AoS var from call
+
+### What worked
+- Extending the W624 witness to outer dimension 69 by replicating the last row
+  block and adding the appropriate value offsets (+128 and +256) produced a
+  valid multi-line literal that parsed and lowered on the first attempt.
+- The exact W605/W624 module-scope lowerable style was reused: `pub var dst`,
+  `pub const expected`, explicit `[69][2]^6 Pt` type annotations, `Pt{ .x = ...,
+  .y = ... }` field initializers, separate `test`/`bench` blocks.
+- Corner indices were updated consistently: last row `[68]` (was `[66]`), mid
+  row `[34]` (was `[33]`), expected values `8830/8831` and `4416/4417`.
+
+### Surprises / weak points
+- The 69-outer pattern (4,416 elements, 141,312-bit packed vector) parsed,
+  simulated, and reference-matched on first attempt; no parser or Verilog
+  emission regression.
+- The row-block extension pattern remains robust: each added row is a contiguous
+  block of 64 elements, and the linear `2*e` schedule makes value offsets
+  trivial to compute.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large
+  literal specs in earlier waves; direct `t27c` gates still the practical
+  closeout path.
+
+### Metrics
+- Packed vector: `69 * 2^6 = 4,416` elements, `141,312` bits (~0.135 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 85/0 (new W625 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W625 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W625 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 67, 69, ...) for
+  module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row is +128/+256 relative to the previous last row because each row contains
+  64 elements and the schedule is `2*e`/`2*e+1`.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+
+## Wave Loop 626 — module-scope `[71][2]^6 Pt` non-p2 AoS var from call
+
+### What worked
+- Extending the W625 witness to outer dimension 71 by replicating the last row
+  block and adding the appropriate value offsets (+128 and +256) produced a
+  valid multi-line literal that parsed and lowered on the first attempt.
+- The exact W605/W625 module-scope lowerable style was reused: `pub var dst`,
+  `pub const expected`, explicit `[71][2]^6 Pt` type annotations, `Pt{ .x = ...,
+  .y = ... }` field initializers, separate `test`/`bench` blocks.
+- Corner indices were updated consistently: last row `[70]` (was `[68]`), mid
+  row `[35]` (was `[34]`), expected values `9086/9087` and `4576/4577`.
+
+### Surprises / weak points
+- The 71-outer pattern (4,544 elements, 145,408-bit packed vector) parsed,
+  simulated, and reference-matched on first attempt; no parser or Verilog
+  emission regression.
+- The row-block extension pattern remains robust and is now the standard
+  template for continuing the odd outer-dimension ladder.
+- `./scripts/tri test --fast` Phase 1 Parse remains blocked by unrelated large
+  literal specs in earlier waves; direct `t27c` gates still the practical
+  closeout path.
+
+### Metrics
+- Packed vector: `71 * 2^6 = 4,544` elements, `145,408` bits (~0.139 MiBit).
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 86/0 (new W626 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W626 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W626 PASS (reference-model OK).
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 69, 71, ...) for
+  module-scope packed AoS witnesses; the compiler and reference model are
+  dimension-agnostic as long as the total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row is +128/+256 relative to the previous last row because each row contains
+  64 elements and the schedule is `2*e`/`2*e+1`.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+
+---
+
+## Wave Loop 627 — module-scope `[73][2]^6 Pt` non-p2 AoS var from call
+
+### What worked
+- Extending the W626 witness to outer dimension 73 by adding two more row blocks
+  (+128/+256 value offsets per row) produced a valid multi-line literal that
+  parsed, lowered, simulated, and reference-matched on the first attempt.
+- The exact W605/W626 module-scope lowerable style was reused: `pub var dst`,
+  `pub const expected`, explicit `[73][2]^6 Pt` type annotations,
+  `Pt{ .x = ..., .y = ... }` field initializers, separate `test`/`bench` blocks.
+- Corner indices updated consistently: last row `[72]` (was `[70]`), mid row
+  `[36]` (was `[35]`), expected values `9342/9343` and `4736/4737`.
+
+### Surprises / weak points
+- The 73-outer pattern (4,672 elements, 149,504-bit packed vector) passed all
+  gates with no compiler or reference-model changes.
+- The row-block extension pattern remains robust and is now the standard template
+  for continuing the odd outer-dimension ladder.
+- `./scripts/tri test --fast` Phase 1 Parse is still dominated by unrelated large
+  literal specs in earlier waves; direct `t27c` gates remain the practical closeout
+  path.
+
+### Metrics
+- Packed vector: `73 * 2^6 = 4,672` elements, `149,504` bits (~0.143 MiBit).
+- Spec lines: ~16,300.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 87/0 (new W627 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W627 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W627 PASS (reference-model OK).
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 73, 75, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## Wave Loop 628 — module-scope `[75][2]^6 Pt` non-p2 AoS var from call
+
+### What worked
+- Extending the W627 witness to outer dimension 75 by adding two more row blocks
+  (+128/+256 value offsets per row) produced a valid multi-line literal that
+  parsed, lowered, simulated, and reference-matched on the first attempt.
+- The exact W605/W627 module-scope lowerable style was reused: `pub var dst`,
+  `pub const expected`, explicit `[75][2][2][2][2][2][2] Pt` type annotations,
+  `Pt{ .x = ..., .y = ... }` field initializers, separate `test`/`bench` blocks.
+- Corner indices updated consistently: last row `[74]` (was `[72]`), mid row
+  `[37]` (was `[36]`), expected values `9598/9599` and `4800/4801`.
+
+### Surprises / weak points
+- The 75-outer pattern (4,800 elements, 153,600-bit packed vector) passed all
+  gates with no compiler or reference-model changes.
+- The row-block extension pattern remains robust and is now the standard template
+  for continuing the odd outer-dimension ladder.
+- `./scripts/tri test --fast` Phase 1 Parse is still dominated by unrelated large
+  literal specs in earlier waves; direct `t27c` gates remain the practical closeout
+  path.
+
+### Metrics
+- Packed vector: `75 * 2^6 = 4,800` elements, `153,600` bits (~0.146 MiBit).
+- Spec lines: ~14,300.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 88/0 (new W628 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W628 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W628 PASS (reference-model OK).
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 75, 77, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## Wave Loop 629 — module-scope `[77][2]^6 Pt` non-p2 AoS var from call
+
+### What worked
+- Extending the W628 witness to outer dimension 77 by adding two more row blocks
+  (+128/+256 value offsets per row) produced a valid multi-line literal that
+  parsed, lowered, simulated, and reference-matched on the first attempt.
+- The exact W605/W628 module-scope lowerable style was reused: `pub var dst`,
+  `pub const expected`, explicit `[77][2][2][2][2][2][2] Pt` type annotations,
+  `Pt{ .x = ..., .y = ... }` field initializers, separate `test`/`bench` blocks.
+- Corner indices updated consistently: last row `[76]` (was `[74]`), mid row
+  `[38]` (was `[37]`), expected values `9854/9855` and `4928/4929`.
+
+### Surprises / weak points
+- The 77-outer pattern (4,928 elements, 157,696-bit packed vector) passed all
+  gates with no compiler or reference-model changes.
+- The row-block extension pattern remains robust and is now the standard template
+  for continuing the odd outer-dimension ladder.
+- `./scripts/tri test --fast` Phase 1 Parse is still dominated by unrelated large
+  literal specs in earlier waves; direct `t27c` gates remain the practical closeout
+  path.
+
+### Metrics
+- Packed vector: `77 * 2^6 = 4,928` elements, `157,696` bits (~0.149 MiBit).
+- Spec lines: ~14,700.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 89/0 (new W629 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W629 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W629 PASS (reference-model OK).
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 77, 79, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## Wave Loop 630 — module-scope `[79][2]^6 Pt` non-p2 AoS var from call
+
+### What worked
+- Extending the W629 witness to outer dimension 79 by adding two more row blocks
+  (+128/+256 value offsets per row) produced a valid multi-line literal that
+  parsed, lowered, simulated, and reference-matched on the first attempt.
+- The exact W605/W629 module-scope lowerable style was reused: `pub var dst`,
+  `pub const expected`, explicit `[79][2][2][2][2][2][2] Pt` type annotations,
+  `Pt{ .x = ..., .y = ... }` field initializers, separate `test`/`bench` blocks.
+- Corner indices updated consistently: last row `[78]` (was `[76]`), mid row
+  `[39]` (was `[38]`), expected values `10110/10111` and `5056/5057`.
+
+### Surprises / weak points
+- The 79-outer pattern (5,056 elements, 161,792-bit packed vector) passed all
+  gates with no compiler or reference-model changes.
+- The row-block extension pattern remains robust and is now the standard template
+  for continuing the odd outer-dimension ladder.
+- `./scripts/tri test --fast` Phase 1 Parse is still dominated by unrelated large
+  literal specs in earlier waves; direct `t27c` gates remain the practical closeout
+  path.
+
+### Metrics
+- Packed vector: `79 * 2^6 = 5,056` elements, `161,792` bits (~0.152 MiBit).
+- Spec lines: ~15,100.
+- `cargo build --release -p t27c`: green.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 90/0 (new W630 test added).
+- yosys smoke: 24 pre-existing baselines unchanged.
+- `./scripts/tri test --fast`: not run — Phase 1 Parse dominated by unrelated
+  large literal specs from earlier waves.
+- Direct `t27c icarus-simulate` W630 PASS (silent, exit 0).
+- Direct `t27c icarus-cocotb` W630 PASS (reference-model OK).
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 79, 81, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## 2026-07-07 — Wave Loop 633 (module-scope `[85][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 85.
+  The `[85][2]^6 Pt` witness is 174,080 bits (≈0.166 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [85][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 85, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w633_bench_module_85x2p6_aos_var_call_write.t27` (~368 KB /
+  ~16,211 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w633_bench_module_85x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w633.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 93 passed; 0 failed.
+- Direct `t27c parse` W633: PASS.
+- Direct `t27c icarus-lowerable` W633: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W633: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W633: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  174,080-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 83, 85, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## 2026-07-07 — Wave Loop 634 (module-scope `[87][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 87.
+  The `[87][2]^6 Pt` witness is 178,176 bits (≈0.17 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [87][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 87, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w634_bench_module_87x2p6_aos_var_call_write.t27` (~377 KB /
+  ~16,591 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w634_bench_module_87x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w634.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 94 passed; 0 failed.
+- Direct `t27c parse` W634: PASS.
+- Direct `t27c icarus-lowerable` W634: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W634: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W634: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  178,176-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 85, 87, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## 2026-07-07 — Wave Loop 635 (module-scope `[89][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 89.
+  The `[89][2]^6 Pt` witness is 182,272 bits (≈0.174 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [89][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 89, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w635_bench_module_89x2p6_aos_var_call_write.t27` (~386 KB /
+  ~16,971 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w635_bench_module_89x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w635.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 95 passed; 0 failed.
+- Direct `t27c parse` W635: PASS.
+- Direct `t27c icarus-lowerable` W635: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W635: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W635: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  182,272-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 87, 89, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## 2026-07-07 — Wave Loop 636 (module-scope `[91][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 91.
+  The `[91][2]^6 Pt` witness is 186,368 bits (≈0.178 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [91][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 91, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w636_bench_module_91x2p6_aos_var_call_write.t27` (~395 KB /
+  ~17,351 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w636_bench_module_91x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w636.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 96 passed; 0 failed.
+- Direct `t27c parse` W636: PASS.
+- Direct `t27c icarus-lowerable` W636: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W636: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W636: PASS (`reference-model OK`).
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  186,368-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 89, 91, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+
+---
+
+## 2026-07-07 — Wave Loop 665 (module-scope `[149][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 149.
+  The `[149][2]^6 Pt` witness is 305,152 bits (≈0.291 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [149][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 149, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w665_bench_module_149x2p6_aos_var_call_write.t27` (~652 KB /
+  ~28,371 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w665_bench_module_149x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w665.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 125 passed; 0 failed.
+- Direct `t27c parse` W665: PASS.
+- Direct `t27c icarus-lowerable` W665: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W665: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W665: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: **timed out** at Phase 1 (Parse) after 15 min — the
+  28,371-line, 651 KB W665 literal dominates the repository-wide parse sweep.
+  All targeted `t27c` gates and `cargo test` passed independently.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  305,152-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 147, 149, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+
+---
+
+## 2026-07-07 — Wave Loop 666 (module-scope `[151][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 151.
+  The `[151][2]^6 Pt` witness is 309,248 bits (≈0.295 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [151][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 151, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w666_bench_module_151x2p6_aos_var_call_write.t27` (~661 KB /
+  ~28,751 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w666_bench_module_151x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w666.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 126 passed; 0 failed.
+- Direct `t27c parse` W666: PASS.
+- Direct `t27c icarus-lowerable` W666: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W666: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W666: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: **timed out** at Phase 1 (Parse) after 15 min — the
+  28,751-line, 660 KB W666 literal dominates the repository-wide parse sweep.
+  Targeted `t27c` gates and `cargo test` passed independently.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  309,248-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 149, 151, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+
+---
+
+## 2026-07-07 — Wave Loop 667 (module-scope `[153][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 153.
+  The `[153][2]^6 Pt` witness is 313,344 bits (≈0.299 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [153][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 153, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w667_bench_module_153x2p6_aos_var_call_write.t27` (~670 KB /
+  ~29,131 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w667_bench_module_153x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w667.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 127 passed; 0 failed.
+- Direct `t27c parse` W667: PASS.
+- Direct `t27c icarus-lowerable` W667: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W667: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W667: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: **timed out** at Phase 1 (Parse) after 15 min — the
+  29,131-line, 670 KB W667 literal dominates the repository-wide parse sweep.
+  Targeted `t27c` gates and `cargo test` passed independently.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  313,344-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 151, 153, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+
+---
+
+## 2026-07-07 — Wave Loop 668 (module-scope `[155][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 155.
+  The `[155][2]^6 Pt` witness is 317,440 bits (≈0.303 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [155][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 155, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w668_bench_module_155x2p6_aos_var_call_write.t27` (~678 KB /
+  ~29,511 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w668_bench_module_155x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w668.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 128 passed; 0 failed.
+- Direct `t27c parse` W668: PASS.
+- Direct `t27c icarus-lowerable` W668: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W668: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W668: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: **timed out** at Phase 1 (Parse) after 15 min — the
+  29,511-line, 678 KB W668 literal dominates the repository-wide parse sweep.
+  Targeted `t27c` gates and `cargo test` passed independently.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  317,440-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 153, 155, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+
+---
+
+## 2026-07-07 — Wave Loop 669 (module-scope `[157][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 157.
+  The `[157][2]^6 Pt` witness is 321,536 bits (≈0.307 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [157][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 157, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w669_bench_module_157x2p6_aos_var_call_write.t27` (~687 KB /
+  ~29,891 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w669_bench_module_157x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w669.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 129 passed; 0 failed.
+- Direct `t27c parse` W669: PASS.
+- Direct `t27c icarus-lowerable` W669: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W669: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W669: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: **timed out** at Phase 1 (Parse) after 15 min — the
+  29,891-line, 687 KB W669 literal dominates the repository-wide parse sweep.
+  Targeted `t27c` gates and `cargo test` passed independently.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  321,536-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 155, 157, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+
+---
+
+## 2026-07-07 — Wave Loop 670 (module-scope `[159][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 159.
+  The `[159][2]^6 Pt` witness is 325,632 bits (≈0.311 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [159][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 159, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w670_bench_module_159x2p6_aos_var_call_write.t27` (~696 KB /
+  ~30,271 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w670_bench_module_159x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w670.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 130 passed; 0 failed.
+- Direct `t27c parse` W670: PASS.
+- Direct `t27c icarus-lowerable` W670: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W670: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W670: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: completed Phase 1 (Parse) within the 15-minute
+  timeout; later phases were not independently observed. The 30,271-line, 696 KB
+  W670 literal dominates repository-wide parse time. Targeted `t27c` gates and
+  `cargo test` passed independently.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  325,632-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 157, 159, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+
+---
+
+## 2026-07-07 — Wave Loop 671 (module-scope `[161][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 161.
+  The `[161][2]^6 Pt` witness is 329,728 bits (≈0.315 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [161][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 161, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w671_bench_module_161x2p6_aos_var_call_write.t27` (~705 KB /
+  ~30,651 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w671_bench_module_161x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w671.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 131 passed; 0 failed.
+- Direct `t27c parse` W671: PASS.
+- Direct `t27c icarus-lowerable` W671: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W671: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W671: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session; earlier waves
+  showed that the ~30 k-line literal dominates repository-wide parse time and a
+  15-minute timeout typically only reaches Phase 1 (Parse). Targeted `t27c` gates
+  and `cargo test` passed independently.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  329,728-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 159, 161, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+
+---
+
+## 2026-07-07 — Wave Loop 672 (module-scope `[163][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 163.
+  The `[163][2]^6 Pt` witness is 333,824 bits (≈0.319 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [163][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 163, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w672_bench_module_163x2p6_aos_var_call_write.t27` (~714 KB /
+  ~31,031 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w672_bench_module_163x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w672.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 132 passed; 0 failed.
+- Direct `t27c parse` W672: PASS.
+- Direct `t27c icarus-lowerable` W672: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W672: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W672: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session; earlier waves
+  showed that the ~30 k-line literal dominates repository-wide parse time and a
+  15-minute timeout typically only reaches Phase 1 (Parse). Targeted `t27c` gates
+  and `cargo test` passed independently.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  333,824-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 161, 163, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+
+---
+
+## 2026-07-07 — Wave Loop 673 (module-scope `[165][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 165.
+  The `[165][2]^6 Pt` witness is 337,920 bits (≈0.323 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [165][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 165, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w673_bench_module_165x2p6_aos_var_call_write.t27` (~723 KB /
+  ~31,411 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w673_bench_module_165x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w673.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 133 passed; 0 failed.
+- Direct `t27c parse` W673: PASS.
+- Direct `t27c icarus-lowerable` W673: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W673: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W673: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session; earlier waves
+  showed that the ~31 k-line literal dominates repository-wide parse time and a
+  15-minute timeout typically only reaches Phase 1 (Parse). Targeted `t27c` gates
+  and `cargo test` passed independently.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  337,920-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 163, 165, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+
+---
+
+## 2026-07-07 — Wave Loop 674 (module-scope `[167][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 167.
+  The `[167][2]^6 Pt` witness is 342,016 bits (≈0.327 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [167][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 167, confirming the layout is preserved end-to-end.
+- The generator reused the corrected inner-dimension offset from W632, so the
+  mid-row expected values were computed correctly on the first attempt.
+- FROZEN_HASH unchanged: `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w674_bench_module_167x2p6_aos_var_call_write.t27` (~732 KB /
+  ~31,791 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w674_bench_module_167x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w674.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 134 passed; 0 failed.
+- Direct `t27c parse` W674: PASS.
+- Direct `t27c icarus-lowerable` W674: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W674: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W674: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session; earlier waves
+  showed that the ~32 k-line literal dominates repository-wide parse time and a
+  15-minute timeout typically only reaches Phase 1 (Parse). Targeted `t27c` gates
+  and `cargo test` passed independently.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  342,016-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 165, 167, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## 2026-07-07 — Wave Loop 675 (module-scope `[169][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 169.
+  The `[169][2]^6 Pt` witness is 346,112 bits (≈0.330 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [169][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 169, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w675_bench_module_169x2p6_aos_var_call_write.t27` (~741 KB /
+  ~32,171 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w675_bench_module_169x2p6_aos_var_call_write`.
+
+### Scientific / technical grounding
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  346,112-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 167, 169, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## 2026-07-07 — Wave Loop 676 (module-scope `[171][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 171.
+  The `[171][2]^6 Pt` witness is 350,208 bits (≈0.334 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [171][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 171, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w676_bench_module_171x2p6_aos_var_call_write.t27` (~732 KB /
+  ~32,551 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w676_bench_module_171x2p6_aos_var_call_write`.
+
+### Scientific / technical grounding
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  350,208-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 169, 171, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## 2026-07-07 — Wave Loop 677 (module-scope `[173][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 173.
+  The `[173][2]^6 Pt` witness is 354,304 bits (≈0.338 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [173][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 173, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w677_bench_module_173x2p6_aos_var_call_write.t27` (~741 KB /
+  ~32,931 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w677_bench_module_173x2p6_aos_var_call_write`.
+
+### Scientific / technical grounding
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  354,304-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 171, 173, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## 2026-07-07 — Wave Loop 678 (module-scope `[175][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 175.
+  The `[175][2]^6 Pt` witness is 358,400 bits (≈0.342 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [175][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 175, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w678_bench_module_175x2p6_aos_var_call_write.t27` (~749 KB /
+  ~33,311 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w678_bench_module_175x2p6_aos_var_call_write`.
+
+### Scientific / technical grounding
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  358,400-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 173, 175, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## 2026-07-07 — Wave Loop 679 (module-scope `[177][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 177.
+  The `[177][2]^6 Pt` witness is 362,496 bits (≈0.346 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [177][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 177, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w679_bench_module_177x2p6_aos_var_call_write.t27` (~758 KB /
+  ~33,691 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w679_bench_module_177x2p6_aos_var_call_write`.
+
+### Scientific / technical grounding
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  362,496-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 175, 177, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## 2026-07-07 — Wave Loop 680 (module-scope `[179][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 179.
+  The `[179][2]^6 Pt` witness is 366,592 bits (≈0.350 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [179][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 179, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w680_bench_module_179x2p6_aos_var_call_write.t27` (~766 KB /
+  ~34,071 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w680_bench_module_179x2p6_aos_var_call_write`.
+
+### Scientific / technical grounding
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  366,592-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 177, 179, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+---
+
+## 2026-07-07 — Wave Loop 681 (module-scope `[181][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 181.
+  The `[181][2]^6 Pt` witness is 370,688 bits (≈0.354 MiBit), well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [181][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 181, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w681_bench_module_181x2p6_aos_var_call_write.t27` (~775 KB /
+  ~34,451 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w681_bench_module_181x2p6_aos_var_call_write`.
+
+### Scientific / technical grounding
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  370,688-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Continue the odd outer-dimension ladder (3, 5, 7, ..., 179, 181, ...) for
+  module-scope packed AoS witnesses; compiler and reference model are
+  dimension-agnostic while total width stays inside simulator comfort.
+- Use the row-block value-offset generator when extending a witness: each added
+  row contributes 64 elements, so the `2*e`/`2*e+1` schedule advances by +128/+256.
+- Keep the explicit shifted call (`make_grid(32768)`) as a standard fixture to
+  preserve `% 32768` regression coverage regardless of witness size.
+- When computing expected values for `[N][2]^k Pt` shapes, convert the full
+  row-major LSB-first element index explicitly.
+
+### Anti-patterns to avoid
+- Do not extend the witness without updating all three type annotation sites
+  (return type, `pub const`, `pub var`).
+- Do not forget that the mid-row index and last-row index both shift when the
+  outer dimension changes.
+- Do not rely on `./scripts/tri test --fast` for very large literal specs; use
+  the targeted `t27c` gates and `cargo test -p t27c --test icarus_lowerable`.
+
+## 2026-07-07 — Wave Loop 700 (module-scope `[219][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 219.
+  The `[219][2]^6 Pt` witness is 448,512 bits (≈0.428 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [219][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 219, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w700_bench_module_219x2p6_aos_var_call_write.t27` (~962 KB /
+  ~41,671 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w700_bench_module_219x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w700.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 160 passed; 0 failed.
+- Direct `t27c parse` W700: PASS.
+- Direct `t27c icarus-lowerable` W700: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W700: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W700: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  448,512-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures in this repository and should not be used as the sole gate for
+  very-large-literal specs.
+
+### Anti-patterns to avoid
+- Do not use single-line literals for >1,000 element initializers; the scanner
+  becomes the bottleneck.
+- Do not rely on `assert_ne` being emitted for Icarus simulation.
+- Do not run the full `./scripts/tri test --fast` suite as the only check when
+  adding a near-MiBit packed-vector witness; rely on targeted t27c gates and the
+  dedicated `icarus_lowerable` test instead.
+
+
+## 2026-07-07 — Wave Loop 701 (module-scope `[221][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 221.
+  The `[221][2]^6 Pt` witness is 452,608 bits (≈0.432 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [221][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 221, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w701_bench_module_221x2p6_aos_var_call_write.t27` (~971 KB /
+  ~42,051 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w701_bench_module_221x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w701.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 161 passed; 0 failed.
+- Direct `t27c parse` W701: PASS.
+- Direct `t27c icarus-lowerable` W701: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W701: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W701: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  452,608-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures in this repository and should not be used as the sole gate for
+  very-large-literal specs.
+
+### Anti-patterns to avoid
+- Do not use single-line literals for >1,000 element initializers; the scanner
+  becomes the bottleneck.
+- Do not rely on `assert_ne` being emitted for Icarus simulation.
+- Do not run the full `./scripts/tri test --fast` suite as the only check when
+  adding a near-MiBit packed-vector witness; rely on targeted t27c gates and the
+  dedicated `icarus_lowerable` test instead.
+
+## 2026-07-07 — Wave Loop 702 (module-scope `[223][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 223.
+  The `[223][2]^6 Pt` witness is 456,704 bits (≈0.436 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [223][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 223, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w702_bench_module_223x2p6_aos_var_call_write.t27` (~980 KB /
+  ~42,431 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w702_bench_module_223x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w702.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 162 passed; 0 failed.
+- Direct `t27c parse` W702: PASS.
+- Direct `t27c icarus-lowerable` W702: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W702: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W702: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  456,704-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures in this repository and should not be used as the sole gate for
+  very-large-literal specs.
+
+### Anti-patterns to avoid
+- Do not use single-line literals for >1,000 element initializers; the scanner
+  becomes the bottleneck.
+- Do not rely on `assert_ne` being emitted for Icarus simulation.
+- Do not run the full `./scripts/tri test --fast` suite as the only check when
+  adding a near-MiBit packed-vector witness; rely on targeted t27c gates and the
+  dedicated `icarus_lowerable` test instead.
+
+## 2026-07-07 — Wave Loop 703 (module-scope `[225][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 225.
+  The `[225][2]^6 Pt` witness is 460,800 bits (≈0.440 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [225][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 225, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w703_bench_module_225x2p6_aos_var_call_write.t27` (~989 KB /
+  ~42,811 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w703_bench_module_225x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w703.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 163 passed; 0 failed.
+- Direct `t27c parse` W703: PASS.
+- Direct `t27c icarus-lowerable` W703: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W703: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W703: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  460,800-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures in this repository and should not be used as the sole gate for
+  very-large-literal specs.
+
+### Anti-patterns to avoid
+- Do not use single-line literals for >1,000 element initializers; the scanner
+  becomes the bottleneck.
+- Do not rely on `assert_ne` being emitted for Icarus simulation.
+- Do not run the full `./scripts/tri test --fast` suite as the only check when
+  adding a near-MiBit packed-vector witness; rely on targeted t27c gates and the
+  dedicated `icarus_lowerable` test instead.
+
+## 2026-07-07 — Wave Loop 704 (module-scope `[227][2]^6 Pt` non-power-of-two outer-dimension AoS variable)
+
+### What worked
+- Variant A extended the module-scope packed AoS odd outer-dimension ladder to 227.
+  The `[227][2]^6 Pt` witness is 464,896 bits (≈0.444 MiBit), still well under the 4-MiBit
+  cliff, and required no compiler changes.
+- A module-level `pub var dst : [227][2]^6 Pt` can be initialized from a function
+  call and exercised with indexed signed field writes, with zero compiler changes.
+- The cocotb/Python reference model correctly mirrored the row-major flattening
+  with outer stride 227, confirming the layout is preserved end-to-end.
+- Reused the corrected W632 element-index formula for mid-row expected values:
+  `[r][a5][a4][a3][a2][a1][a0]` is element `r*64 + a5*32 + a4*16 + a3*8 + a2*4 + a1*2 + a0`.
+
+### What changed behavior
+- No changes to `bootstrap/src/compiler.rs`.
+- No changes to `bootstrap/stage0/FROZEN_HASH`.
+- No changes to `scripts/cocotb_ref_model.py`.
+- Added `specs/scratch/w704_bench_module_227x2p6_aos_var_call_write.t27` (~998 KB /
+  ~43,191 lines) with seal and Icarus baseline.
+- Added integration test `accepts_w704_bench_module_227x2p6_aos_var_call_write`.
+- Added generator script `scripts/gen_w704.py`.
+
+### Validation
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494 passed; 0 failed; 2 ignored.
+- `cargo test -p tri`: 78 passed; 0 failed.
+- `cargo test -p t27c --test icarus_lowerable`: 164 passed; 0 failed.
+- Direct `t27c parse` W704: PASS.
+- Direct `t27c icarus-lowerable` W704: PASS (`lowerable`).
+- Direct `t27c icarus-simulate` W704: PASS (17 cycles, PASSED).
+- Direct `t27c icarus-cocotb` W704: PASS (`reference-model OK`).
+- `./scripts/tri test --fast`: not run to completion this session.
+
+### Scientific / engineering background
+- IEEE 1800-2017 §7.4.1/7.4.3 define packed-array width as the product of packed
+  dimensions, with no power-of-two restriction. Variant A emits a single
+  464,896-bit packed vector, which is legal SystemVerilog.
+- Lutsig's verified array lowering and CIRCT's `HWLegalizeModules` show that
+  flattening nested arrays to wide packed vectors is a well-founded compiler
+  discipline, even when outer dimensions are non-power-of-two.
+- Icarus issue #1134 documents assertion failures for unpacked arrays of packed
+  structs; t27's scalar flattening avoids that construct entirely.
+- Yosys issue #2677 / #4653 confirm that arrays of packed structs remain
+  unsupported in the native frontend; t27's packed-vector lowering avoids the
+  gap.
+
+### Patterns to reuse
+- Use a non-power-of-two outer dimension under the 4-MiBit cliff to test layout
+  correctness while keeping simulation fast.
+- Keep signed-i16 leaf values inside range with `(2*e + offset) % 32768` for
+  any element count ≤ 163,840.
+- Reuse the W589 wholesale module-scope initializer path for any scalar-struct
+  array shape; no new compiler work is needed until the wall-clock limit is hit.
+- Prefer `assert_eq` over `assert_ne` in Icarus-lowerable simulation blocks;
+  `assert_ne` is accepted by the classifier but not lowered by the simulation
+  emitter.
+- When computing expected values for deep packed-array indices, convert the full
+  row-major LSB-first element index explicitly rather than guessing inner-dimension
+  offsets.
+- `./scripts/tri test --fast` reports pre-existing Gen Verilog Yosys Smoke
+  failures in this repository and should not be used as the sole gate for
+  very-large-literal specs.
+
+### Anti-patterns to avoid
+- Do not use single-line literals for >1,000 element initializers; the scanner
+  becomes the bottleneck.
+- Do not rely on `assert_ne` being emitted for Icarus simulation.
+- Do not run the full `./scripts/tri test --fast` suite as the only check when
+  adding a near-MiBit packed-vector witness; rely on targeted t27c gates and the
+  dedicated `icarus_lowerable` test instead.

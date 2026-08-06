@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e3c630bd7169aac23679adb4b6547dd8c18b5f35a807b8233e4ec5d023e17719",
   "module": "TriAsyncStream",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:13Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:1a9efda5c73821e94c0d937d952ca5a2c0c235792b7674716943a5275c14a011",
   "spec_path": "specs/tri/net/async_stream.t27"
 }

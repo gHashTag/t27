@@ -1,0 +1,22 @@
+// W553 witness: deterministic bench block asserting equality on a packed
+// scalar struct whose fixed-size scalar array field is signed. Exercises signed
+// field slice wrapping and signed VCD reconstruction inside a bench block.
+module w553_bench_signed_struct_field;
+
+struct Pt {
+    data: [3]i16,
+}
+
+pub fn make() -> Pt {
+    return Pt{ .data = [3]i16{ 1, -2, 3 } };
+}
+
+test signed_struct_field_test {
+    assert_eq(make(), Pt{ .data = [3]i16{ 1, -2, 3 } });
+}
+
+bench "signed_struct_field_bench" {
+    assert_eq(make(), Pt{ .data = [3]i16{ 1, -2, 3 } });
+}
+
+endmodule

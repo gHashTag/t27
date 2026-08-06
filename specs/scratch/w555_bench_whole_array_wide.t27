@@ -1,0 +1,35 @@
+// W555 witness: deterministic bench block asserting equality on a 2-D primitive
+// scalar array whose packed width exceeds 64 bits. Exercises the W540 multi-slice
+// VCD probe path for wide packed primitive arrays inside a bench block.
+module w555_bench_whole_array_wide;
+
+pub fn mat() -> [4][4]u16 {
+    return [4][4]u16{
+        [4]u16{ 1, 2, 3, 4 },
+        [4]u16{ 5, 6, 7, 8 },
+        [4]u16{ 9, 10, 11, 12 },
+        [4]u16{ 13, 14, 15, 16 }
+    };
+}
+
+test whole_array_wide_test {
+    let tmp : [4][4]u16 = mat();
+    assert_eq(tmp, [4][4]u16{
+        [4]u16{ 1, 2, 3, 4 },
+        [4]u16{ 5, 6, 7, 8 },
+        [4]u16{ 9, 10, 11, 12 },
+        [4]u16{ 13, 14, 15, 16 }
+    });
+}
+
+bench "whole_array_wide_bench" {
+    let tmp : [4][4]u16 = mat();
+    assert_eq(tmp, [4][4]u16{
+        [4]u16{ 1, 2, 3, 4 },
+        [4]u16{ 5, 6, 7, 8 },
+        [4]u16{ 9, 10, 11, 12 },
+        [4]u16{ 13, 14, 15, 16 }
+    });
+}
+
+endmodule

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:9632baabe7b580c5aac70a8d6b416fa416d2ce97ed993a4c2f01e3ef8e578228",
+  "gen_hash_rust": "sha256:848208da8279a83072bfe3523e1eeb7412372697ce89c4a2bf3b0457fc1c9e1d",
+  "gen_hash_verilog": "sha256:094cdffe8840cf9c346d421dde8bd771ed51be96a18c510f1d09408f7b0325f3",
+  "gen_hash_zig": "sha256:e6cc1cfdfd40583fe6a5bf323a501f8c5fae7b7f30c45eef0526b66eb32a1584",
+  "module": "w547_signed_element_compare",
+  "ring": 12,
+  "sealed_at": "2026-07-16T12:10:20Z",
+  "spec_hash": "sha256:d6b52d1f7e1a1df4dfbbc382222ce7844435c9715766e1e4a6074d675191b8eb",
+  "spec_path": "specs/scratch/w547_signed_element_compare.t27"
+}

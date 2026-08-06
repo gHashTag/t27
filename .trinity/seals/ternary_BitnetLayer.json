@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:18c0f6899ba765b40ffc7d3acdf50395f33a354a183d27dbad6e5ce85d85c285",
+  "gen_hash_rust": "sha256:e6febbf84236b3dabb8a44d2cab6465f18fe0171d4b9f56e9be1106e8f7e0499",
+  "gen_hash_verilog": "sha256:a0fd00d883082d260b2aec01409ffacdc816c4cfb126f0ae5202737985ca3b62",
+  "gen_hash_zig": "sha256:1eff40445d3fa25cbc6f869b21bcd8365926388f679ec773cc2a8f0ed117f548",
+  "module": "BitnetLayer",
+  "ring": 12,
+  "sealed_at": "2026-08-06T09:00:57Z",
+  "spec_hash": "sha256:e3bed8021f3e981f48a6c7c7dd5cc67ff9765cb7fe7d2825d51a9a8d74652373",
+  "spec_path": "specs/ternary/bitnet_layer.t27"
+}

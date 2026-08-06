@@ -1,0 +1,17 @@
+// W547 positive witness: a function-local signed primitive scalar array is
+// initialized from a function call, and a static element read is compared
+// against a signed literal.  The bit-slice must be wrapped with $signed(...) in
+// generated Verilog for the comparison to match t27's two's-complement
+// semantics.
+module w547_signed_element_compare;
+
+pub fn seq() -> [3]i8 {
+    return [3]i8{ -1, -2, -3 };
+}
+
+test signed_element_compare {
+    let a : [3]i8 = seq();
+    assert_eq(a[0], -1);
+}
+
+endmodule

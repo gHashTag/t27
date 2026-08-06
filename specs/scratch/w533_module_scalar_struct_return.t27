@@ -1,0 +1,26 @@
+// W533 witness: function returning a packed scalar struct and module-level
+// assignment from a call. Issue #1504.
+module w533_module_scalar_struct_return;
+
+struct Pt {
+    x: i16,
+    y: i16,
+    z: u16,
+}
+
+pub fn make(a : i16, b : i16, c : u16) -> Pt {
+    return Pt{ .x = a, .y = b, .z = c };
+}
+
+var dst : Pt;
+
+test return_copy {
+    dst = make(-5, 6, 7);
+    assert_eq(dst.x, -5);
+    assert_eq(dst.y, 6);
+    assert_eq(dst.z, 7);
+    var tmp : Pt = make(1, 2, 3);
+    assert_eq(tmp.x, 1);
+}
+
+endmodule
