@@ -598,7 +598,7 @@ Last updated: 2026-07-29
 ### Not changed
 
 - `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
-- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged.
 - `scripts/cocotb_ref_model.py` — unchanged.
 
 ### Verification
@@ -618,7 +618,7 @@ Last updated: 2026-07-29
 - `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
   compiler lowering issue, tracked for separate issue).
 - FPGA E2E CI red (`sby` missing + Yosys static-cast error in generated `uart.v`).
-- 626 release warnings need a dedicated cleanup sprint.
+- Release warnings need a dedicated cleanup sprint.
 - Vivado-in-Docker CI gap (private image not yet published).
 
 ---
