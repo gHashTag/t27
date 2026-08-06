@@ -3820,3 +3820,11 @@
 - **Commit:** chore(w426): merge wave-loop-425 close-out into W426 branch
 - **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md,docs/reports/FPGA_LOOP_COOPERATION_W427_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W426_2026-07-05.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/W426_WEAK_POINTS_AND_COMPETITORS.md,docs/reports/WAVE_LOOP_426_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-05T07:58:07Z — wave-loop-427
+- **Commit:** feat(igla): Wave Loop 426 — finite-grid PVT theorems, machine-readable tri fpga JSON, competitor refresh (Variant C)
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-05T08:11:55Z — wave-loop-427
+- **Commit:** docs(w427): set up current issue for Wave Loop 427 (#1379)
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W428_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W427_2026-07-05.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/W427_WEAK_POINTS_AND_COMPETITORS.md,docs/reports/WAVE_LOOP_427_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+

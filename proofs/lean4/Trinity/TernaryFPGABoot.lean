@@ -1026,6 +1026,27 @@ theorem measured_2_5mhz_50duty_satisfies_flash_spec :
   measured_cclk_satisfies_flash_spec 2_500_000 50 = true := by
   decide
 
+-- ============================================================================
+-- OSCFSEL 0..7 PVT half-period envelope theorems (W427)
+-- ============================================================================
+
+/-- The nominal CCLK half-period for a documented OSCFSEL selection is at least
+    the PVT-aware minimum half-period at the worst-case operating corner. This
+    is the key safety fact behind the Rust `pvt_envelope_margin_ns` field: it
+    lets the CLI assert non-negative margin for every variant without re-running
+    the operating-rectangle proof at each call. -/
+theorem cclk_variant_within_pvt_envelope (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_period_ns oscfsel / 2 ≥ n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+  interval_cases oscfsel <;> decide
+
+/-- Corollary: every documented OSCFSEL variant (0..7) has non-negative PVT
+    envelope margin in nanoseconds at the worst-case corner. -/
+theorem cclk_variant_pvt_envelope_margin_nonneg (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_period_ns oscfsel / 2 - n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT ≥ 0 := by
+  have h_env : cclk_period_ns oscfsel / 2 ≥ n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT :=
+    cclk_variant_within_pvt_envelope oscfsel h
+  omega
+
 /-- Concrete example: a measured 25 MHz CCLK with 50% duty cycle satisfies the
     flash timing predicate. This is the nominal rate for OSCFSEL=6. -/
 theorem measured_25mhz_50duty_satisfies_flash_spec :

@@ -348,11 +348,48 @@ Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emit
 - `specs/scratch/w388_2d_local_array_init.t27` declares, reads, and writes a `[2][3]u16` initialized from a literal.
 - `t27c gen-verilog` + `yosys read_verilog -sv` + `synth` pass; the backend emits six per-element reg assignments in row-major order.
 
-## Open work after W388
+## Residual yosys smoke failures on `wave-loop-*` branches (W422–W427)
+
+The `trinity-rust-rings`/`wave-loop-*` branch carries the same `gen-verilog`
+backend as `master` up to the W422 keyword-escape fix. After W422 the yosys
+smoke gate regressed on **7 specs** because the full fix set for tuple-return,
+`let` destructuring, ROM arrays, and CORDIC structural changes lives only on
+`master` (commit `701d79b3b`). The wave-loop strategy is to apply only narrow,
+regression-free sub-fixes; none of these 7 failures is narrow enough for a
+single wave.
+
+### Failing specs
+
+| Spec | Failure mode | Why it is not a safe single-wave fix |
+|---|---|---|
+| `specs/igla/race/cordic.t27` | `syntax error, unexpected '='` | CORDIC uses tuple-return / `let` destructuring; a syntax fix would require re-landing the W380–W381 tuple-return generation scaffolding. |
+| `specs/igla/race/cordic_top.t27` | `syntax error, unexpected '='` | Same CORDIC/tuple-return dependency as `cordic.t27`. |
+| `specs/scratch/w378_let_destructuring.t27` | `syntax error, unexpected '='` | Requires the full semantically-aware `let` destructuring lowering (W378/W379) plus tuple-return call lowering (W381). |
+| `specs/scratch/w379_let_destructuring_generalized.t27` | `syntax error, unexpected '='` | Generalized `let` destructuring; same broad dependency. |
+| `specs/scratch/w380_tuple_return.t27` | `syntax error, unexpected '='` | Tuple return generation (W380) is a major feature, not a narrow sub-fix. |
+| `specs/scratch/w381_tuple_call_chain.t27` | `syntax error, unexpected '='` | Slot-aware nested tuple-return call lowering (W381). |
+| `specs/scratch/w383_rom_array.t27` | `syntax error, unexpected '['` | Module-level ROM array lowering (W383) changes how `const lut : [N]T = ...` is emitted. |
+
+### Triage decision for W427
+
+**Deferred.** The fix set on `master` (`701d79b3b`) is broad and touches the
+same major features. Landing it as a single wave on `wave-loop-427` would
+violate the narrow-sub-fix safety rule and risk destabilizing the current
+FPGA/formal work. The failures are tracked here and will be resolved by either:
+
+1. Merging `master` into the wave-loop branch in a dedicated merge/rebase wave
+   after W427 closes, or
+2. Cherry-picking the exact fix commits once the FPGA boot-evidence line is no
+   longer the primary wave focus.
+
+The 7-failure count is accepted as a known, documented baseline for W427.
+
+## Open work after W388 / W427
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.
-- No other tracked gen-verilog syntax/semantic defects remain on `trinity-rust-rings`.
+- **Merge `master` fix set (`701d79b3b`) into wave-loop branch** to clear the
+  7 residual yosys smoke failures.
 
 ---
 
