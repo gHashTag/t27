@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:c2125cdaf479aabf66cfa45d81bf3b1889d7c80c9cb078fa10b16535f0e0212d",
   "gen_hash_rust": "sha256:a080ad9b885d3d45fb9b2dfe0a85820c6e7bba33d2f9499bcc8f786b4586f4af",
-  "gen_hash_verilog": "sha256:8d6e0180b04b1b7959b0a52a8b091e62d009488f24ed15f58263a5616ce2bac6",
+  "gen_hash_verilog": "sha256:dd9d483391bcf72b5202a543ebadca2342f6f04ca06148bd9a4daabce622872b",
   "gen_hash_zig": "sha256:ecef2a016bd193ed3ff3fa31d148c8206f8f3eca258245cdac8063b4d29cedec",
   "module": "IglaChampionCapsule",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:08Z",
+  "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:d8ca3cf6feb27648ea781750913aaef0f7c8288be4a6b1d3f8ed1e514db17fa4",
   "spec_path": "specs/ml/igla_champion_capsule.t27"
 }

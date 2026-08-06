@@ -1,0 +1,15 @@
+// W534 negative witness: an unresolved imported function call is NOT
+// Icarus-lowerable. Issue #1505.
+module w534_negative_unresolved_import;
+
+use some::external::magic;
+
+pub fn synth() -> i32 {
+    return magic(1, 2);
+}
+
+test should_not_be_icarus_lowerable {
+    // Intentionally empty: exercises the lowerability classifier boundary.
+}
+
+endmodule

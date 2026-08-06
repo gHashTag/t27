@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:32ccf436c117c7011f659075c86beff5039a69a5bf122647f2fcedc87e6d803a",
   "module": "FormatsCatalog",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:09Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:24b6faabc1428b0d37c50b16854110dd16f046b707d77eae5a356f90baf17984",
   "spec_path": "specs/numeric/formats_catalog.t27"
 }

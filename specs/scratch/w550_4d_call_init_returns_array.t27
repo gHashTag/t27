@@ -1,0 +1,40 @@
+// W550 positive witness: a function returning a 4-D unsigned primitive scalar
+// array initializes a function-local let binding.  Validates that the row-major
+// flat-index formula is truly rank-independent for rank 4.
+module w550_4d_call_init_returns_array;
+
+pub fn hyper() -> [2][2][2][2]u8 {
+    return [2][2][2][2]u8{
+        [2][2][2]u8{
+            [2][2]u8{
+                [2]u8{  1,  2 },
+                [2]u8{  3,  4 }
+            },
+            [2][2]u8{
+                [2]u8{  5,  6 },
+                [2]u8{  7,  8 }
+            }
+        },
+        [2][2][2]u8{
+            [2][2]u8{
+                [2]u8{  9, 10 },
+                [2]u8{ 11, 12 }
+            },
+            [2][2]u8{
+                [2]u8{ 13, 14 },
+                [2]u8{ 15, 16 }
+            }
+        }
+    };
+}
+
+pub fn check() -> u32 {
+    let m : [2][2][2][2]u8 = hyper();
+    return (m[0][0][0][0] as u32) + (m[0][1][1][1] as u32) + (m[1][0][0][0] as u32) + (m[1][1][1][1] as u32);
+}
+
+test four_d_corner_sum {
+    assert_eq(check(), 34);
+}
+
+endmodule

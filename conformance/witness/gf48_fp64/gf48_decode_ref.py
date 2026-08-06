@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -161,7 +162,8 @@ def python_check_pack(pack_path):
 if __name__ == "__main__":
     import sys
     p = sys.argv[1] if len(sys.argv) > 1 else \
-        "/home/user/workspace/t27/conformance/vectors/gf48_conformance_v0.json"
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "..", "..", "vectors", "gf48_conformance_v0.json")
     ok, tot, fails = python_check_pack(p)
     print(f"gf48 golden (Fraction, FP64-target) vs pack: {ok}/{tot} exact")
     for lbl, msg in fails:

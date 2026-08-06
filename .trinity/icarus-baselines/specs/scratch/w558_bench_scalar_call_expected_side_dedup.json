@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] scalar_call_expected_side_dedup_test : starting",
+    "[TEST] scalar_call_expected_side_dedup_test : PASSED",
+    "[BENCH] scalar_call_expected_side_dedup_bench : starting",
+    "[BENCH] scalar_call_expected_side_dedup_bench : %0d cycles          2",
+    "[BENCH] scalar_call_expected_side_dedup_bench : PASSED"
+  ]
+}

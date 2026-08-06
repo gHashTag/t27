@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:470058b2a70fb21fe2dcdfffdd24309e53053db9204bae1d6eb53435f10e7e8d",
+  "gen_hash_c": "sha256:67f2244ee8848600eec589856b6dff7adea54843465c64bcd682fe425bbea4a0",
   "gen_hash_rust": "sha256:d0212221a80fdd7cdc7e8e6cda93074873a62b21042f6849e4594f7d6ded16c5",
-  "gen_hash_verilog": "sha256:2fd14449416a196e2f40f2ea2e7c838f054244c003ba5b678554bb2ee0b0fe90",
-  "gen_hash_zig": "sha256:26ac7e69997a823b5f9d6710b7f62796b4250754a31bdf68bf9bc50cdc230f7a",
+  "gen_hash_verilog": "sha256:7f0eceeede9902cf022afbd217658c07724f44c07f60a8279668edcf6177923e",
+  "gen_hash_zig": "sha256:596de1b4cd6a5ccfb1f8fee10925a13453cb7c1ec4c9274728ce99f8235cd28b",
   "module": "enrichment::audio_overview",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:06Z",
+  "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:baae843a9ba5aa64a51752b5feab3e3cde36a085f31e63f6467d5590e9b64f7a",
   "spec_path": "specs/enrichment/audio_overview.t27"
 }

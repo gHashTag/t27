@@ -1,0 +1,33 @@
+// W529 witness: function returning a 2-D scalar-struct array as a packed
+// vector; caller reads the returned elements.
+module w529_function_2d_struct_array_return;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub fn make_grid() -> [2][3]Pt {
+    return [2][3]Pt{
+        [3]Pt{ Pt{.x = 1, .y = 2}, Pt{.x = 3, .y = 4}, Pt{.x = 5, .y = 6} },
+        [3]Pt{ Pt{.x = 7, .y = 8}, Pt{.x = 9, .y = 10}, Pt{.x = 11, .y = 12} }
+    };
+}
+
+pub fn sum_returned() -> u32 {
+    var m : [2][3]Pt = make_grid();
+    return (m[0][0].x as u32) + (m[0][2].y as u32) + (m[1][1].x as u32) + (m[1][2].y as u32);
+}
+
+pub fn varidx_returned(i : u32, j : u32) -> u32 {
+    var m : [2][3]Pt = make_grid();
+    return (m[i][j].x as u32) + (m[i][j].y as u32);
+}
+
+test function_return_2d {
+    assert_eq(sum_returned(), 28);
+    assert_eq(varidx_returned(0, 0), 3);
+    assert_eq(varidx_returned(1, 2), 23);
+}
+
+endmodule

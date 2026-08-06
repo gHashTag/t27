@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:2fd50fba0b6a284968bb5b6175dbb6a7fee15ddd5325d8a2ad3272eccdcbbca6",
-  "gen_hash_rust": "sha256:7ed63bb0f16d6d031facaae9711bea3a7113cb3edbce0a23f1483da70d18ab6a",
-  "gen_hash_verilog": "sha256:7d587ac6226cb53180bc690658160d5f5d01ebe316f02f46103626b04ebe9032",
-  "gen_hash_zig": "sha256:9257020182c776af382c091dd4978d45040f500e977eae81c646e9b19040b3d9",
+  "gen_hash_c": "sha256:9e5a79233be7512ccf7f8c7ede329507813da65e5f70dcb470f0653fc56daeec",
+  "gen_hash_rust": "sha256:118a87914b973b8cf9312abe9cdc51ef90aa4c65dafa0f150f4341e5af210b41",
+  "gen_hash_verilog": "sha256:ed0063d74320427c35e1e3093e96295dd861300404a310a908468c52a9a2db69",
+  "gen_hash_zig": "sha256:1c61ce90bcbdf8fbd004936d6a2f7bf6d678a54768a0142603cb2927c05f8b80",
   "module": "GF8",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:10Z",
+  "sealed_at": "2026-07-18T16:36:16Z",
   "spec_hash": "sha256:f0d9f7f0c9030d184d281076ea93c44834770ef67ff8dc8aefb004c50c39457b",
   "spec_path": "specs/numeric/gf8.t27"
 }

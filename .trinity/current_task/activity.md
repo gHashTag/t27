@@ -1520,3 +1520,2247 @@
 - **Commit:** 
 - **Files:** docs/NOW.md
 
+## 2026-07-14T07:49:32Z — wave-loop-526
+- **Commit:** fix(igla): Wave Loop 525 — unify L1 TRACEABILITY regex across all gates and remove commit-msg amend bypass
+- **Files:** .claude/plans/wave-loop-526.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,docs/reports/FPGA_LOOP_COOPERATION_W527_2026-08-11.md,docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md,docs/reports/WAVE_LOOP_526_CLOSEOUT.md,specs/scratch/w526_2d_struct_array_repro.t27
+
+## 2026-07-14T08:23:20Z — wave-loop-527
+- **Commit:** feat(igla): Wave Loop 526 — clear diagnostic for W469 2-D array-of-struct Verilog regression, negative witness, and design doc (Closes #1497)
+- **Files:** .claude/plans/wave-loop-527.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/base_ternary_add.json,.trinity/seals/base_tritype-base.json,.trinity/seals/base_tritype-ops.json,.trinity/seals/boards_ArtyA7_Integration.json,.trinity/seals/boards_BoardMinimalXC7A100T.json,.trinity/seals/brain_brain-phi-timing.json,.trinity/seals/bus_bus-pubsub.json,.trinity/seals/bus_bus-schema.json,.trinity/seals/coder_igla-coder-bench-proxy.json,.trinity/seals/coder_igla-coder-benchmark.json,.trinity/seals/coder_igla-coder-dataset.json,.trinity/seals/coder_igla-coder-eval.json,.trinity/seals/coder_igla-coder-pipeline.json,.trinity/seals/coder_igla-coder-tokenizer.json,.trinity/seals/coder_igla-coder-training.json
+
+## 2026-07-14T11:36:17Z — wave-loop-528
+- **Commit:** feat(gen-verilog): Wave Loop 527 — 2-D array-of-scalar-struct lowering, full-AST struct map, Icarus-sized struct literals, dead_store_elim let-fix, command-dispatcher cleanup, reseal
+- **Files:** .claude/plans/wave-loop-528.md,.claude/plans/wave-loop-529.md,.claude/skills/t27-wave-loop.md,.claude/worktrees/agent-a123adb904d7e8075,.claude/worktrees/agent-a1d148d1a743117b2,.claude/worktrees/agent-ac7fefdf5a51a5295,.claude/worktrees/agent-ad0b856503b7787a2,.claude/worktrees/igla-w470,.claude/worktrees/igla-w470-auto,.claude/worktrees/igla-w470-fpga-200t,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/boards_BoardMinimalXC7A100T.json,.trinity/seals/fpga_ApbBridge.json,.trinity/seals/fpga_TernaryIsa.json,.trinity/seals/layers_Avgpool2d.json,.trinity/seals/math_GFCompetitive.json,.trinity/seals/math_PhiSplitOptimality.json
+
+## 2026-07-14T11:37:30Z — wave-loop-528
+- **Commit:** feat(icarus-lowerable): Wave Loop 529 — formal module/function 2-D AOS soundness
+- **Files:** .claude/plans/wave-loop-528.md,.claude/plans/wave-loop-529.md,.claude/skills/t27-wave-loop.md,.claude/worktrees/agent-acf8536df6ed5c90a,.claude/worktrees/agent-ae9fe6d1772d2b53b,.claude/worktrees/agent-afa865018e02912c6,.gitignore,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/boards_BoardMinimalXC7A100T.json,.trinity/seals/fpga_ApbBridge.json,.trinity/seals/fpga_TernaryIsa.json,.trinity/seals/layers_Avgpool2d.json,.trinity/seals/math_GFCompetitive.json,.trinity/seals/math_PhiSplitOptimality.json,.trinity/seals/math_PhiUniversalAttractor.json,.trinity/seals/math_ZamolodchikovE8.json
+
+## 2026-07-14T12:08:56Z — wave-loop-530
+- **Commit:** feat(icarus-lowerable): Wave Loop 529 — formal module/function 2-D AOS soundness
+- **Files:** .claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w526_2d_struct_array_repro.json,.trinity/icarus-baselines/specs/scratch/w528_function_2d_struct_array_param.json,.trinity/icarus-baselines/specs/scratch/w528_function_2d_struct_array_return.json,.trinity/icarus-baselines/specs/scratch/w528_module_2d_struct_array_const.json,.trinity/icarus-baselines/specs/scratch/w528_module_2d_struct_array_var.json,.trinity/icarus-baselines/specs/scratch/w528_parse_const_2d.json,.trinity/icarus-baselines/specs/scratch/w529_function_2d_struct_array_param.json,.trinity/icarus-baselines/specs/scratch/w529_function_2d_struct_array_return.json,.trinity/icarus-baselines/specs/scratch/w529_module_2d_struct_array_const.json,.trinity/icarus-baselines/specs/scratch/w529_module_2d_struct_array_var.json,.trinity/seals/api_c_api_contract.json,.trinity/seals/boards_BoardMinimalXC7A100T.json,.trinity/seals/brain_brain-phi-timing.json,.trinity/seals/brain_brain-unified-state.json,.trinity/seals/bus_bus-pubsub.json,.trinity/seals/bus_bus-schema.json
+
+## 2026-07-14T13:28:43Z — wave-loop-531
+- **Commit:** feat(icarus): Wave Loop 530 — Icarus Verilog simulation gate in tri test, reverse 2-D packed-vector layout, reseal 125 specs + 10 Icarus baselines
+- **Files:** .claude/plans/wave-loop-531.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w368_hex_width.json,.trinity/icarus-baselines/specs/scratch/w369_bin_width.json,.trinity/icarus-baselines/specs/scratch/w370_const_order.json,.trinity/icarus-baselines/specs/scratch/w371_early_return.json,.trinity/icarus-baselines/specs/scratch/w373_struct_field_keyword.json,.trinity/icarus-baselines/specs/scratch/w375_early_return.json,.trinity/icarus-baselines/specs/scratch/w376_cast_width.json,.trinity/icarus-baselines/specs/scratch/w382_ram_lowering.json,.trinity/icarus-baselines/specs/scratch/w385_signed_local_array.json,.trinity/icarus-baselines/specs/scratch/w385_signed_local_array_init.json,.trinity/icarus-baselines/specs/scratch/w387_2d_local_array.json,.trinity/icarus-baselines/specs/scratch/w387_2d_local_array_signed.json,.trinity/icarus-baselines/specs/scratch/w387_2d_local_array_varidx.json,.trinity/icarus-baselines/specs/scratch/w388_2d_local_array_init.json,.trinity/seals/api_c_api_contract.json,.trinity/seals/isa_TernaryHashTable.json
+
+## 2026-07-14T15:18:06Z — wave-loop-532
+- **Commit:** feat(gen-verilog): Wave Loop 531 — unpacked primitive-array lowering for function-local and module-level arrays, extend Icarus regression whitelist to w3*, record 24 baselines, reseal 23 specs, 0 simulation failures (Closes #1502)
+- **Files:** .claude/plans/wave-loop-532.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w532_signed_struct_array_field_2d_copy.json,.trinity/icarus-baselines/specs/scratch/w532_signed_struct_array_field_2d_read.json,.trinity/icarus-baselines/specs/scratch/w532_signed_struct_array_field_param.json,.trinity/icarus-baselines/specs/scratch/w532_signed_struct_array_field_return.json,.trinity/icarus-baselines/specs/scratch/w532_unsigned_struct_array_field_2d_read.json,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json
+
+## 2026-07-14T16:35:16Z — wave-loop-533
+- **Commit:** feat(gen-verilog): Wave Loop 532 — signed scalar-array struct fields in packed-vector AoS, 7 scratch witnesses, reseal corpus, Icarus 28/0 PASS
+- **Files:** .claude/plans/wave-loop-533.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w377_struct_field_mapping.json,.trinity/icarus-baselines/specs/scratch/w533_module_scalar_struct_const.json,.trinity/icarus-baselines/specs/scratch/w533_module_scalar_struct_param.json,.trinity/icarus-baselines/specs/scratch/w533_module_scalar_struct_pubparam.json,.trinity/icarus-baselines/specs/scratch/w533_module_scalar_struct_read.json,.trinity/icarus-baselines/specs/scratch/w533_module_scalar_struct_return.json,.trinity/icarus-baselines/specs/scratch/w533_module_scalar_struct_var_call.json,.trinity/icarus-baselines/specs/scratch/w533_module_scalar_struct_var_copy.json,.trinity/icarus-baselines/specs/scratch/w533_module_scalar_struct_var_literal.json,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json
+
+## 2026-07-14T17:16:15Z — wave-loop-534
+- **Commit:** feat(gen-verilog): Wave Loop 533 — module-level packed scalar structs with fixed-size scalar array fields, test-block local decl hoist, 8 scratch witnesses, reseal corpus, 0 Icarus simulation failures (Closes #1504)
+- **Files:** .claude/plans/wave-loop-534.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w534_negative_cast_to_string.json,.trinity/icarus-baselines/specs/scratch/w534_negative_unbounded_while.json,.trinity/seals/scratch_w534_negative_cast_to_string.json,.trinity/seals/scratch_w534_negative_f32_field.json,.trinity/seals/scratch_w534_negative_host_only_helper.json,.trinity/seals/scratch_w534_negative_nonlowerable_struct_assign.json,.trinity/seals/scratch_w534_negative_unbounded_while.json,.trinity/seals/scratch_w534_negative_unresolved_import.json,bootstrap/src/compiler.rs,bootstrap/src/main.rs,bootstrap/src/suite.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/bitnet_bundle.rs,bootstrap/tests/icarus_lowerable.rs
+
+## 2026-07-14T17:20:43Z — wave-loop-535
+- **Commit:** feat(icarus-lowerable): W534 structural Icarus lowerability boundary, CLI gate, adversarial witnesses, and cross-checked suite integration
+- **Files:** .claude/plans/wave-loop-535.md
+
+## 2026-07-14T17:58:25Z — wave-loop-535
+- **Commit:** plan(535): decomposed W535 plan — align Lean 4 lowerability predicate with Rust structural classifier
+- **Files:** .claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/igla_w535_bounded_while_module.json,docs/ICARUS_LOWERABLE_BOUNDARY.md,docs/reports/FPGA_LOOP_COOPERATION_W536_2026-07-07.md,docs/reports/WAVE_LOOP_535_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Completeness.lean,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/igla/w535_bounded_while_module.t27
+
+## 2026-07-15T03:11:33Z — wave-loop-536
+- **Commit:** feat(icarus-lowerable): Wave Loop 535 — align Lean 4 lowerability predicate with Rust structural classifier, recursive struct-field check, reject while(true) and imported calls, six W535 negative theorems, bounded-while corpus witness, 0 Icarus failures / 0 seal mismatches (Closes #1506)
+- **Files:** .claude/plans/wave-loop-536.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,bootstrap/src/compiler.rs,bootstrap/src/main.rs,bootstrap/src/suite.rs,bootstrap/stage0/FROZEN_HASH,docs/ICARUS_LOWERABLE_BOUNDARY.md,docs/reports/FPGA_LOOP_COOPERATION_W537_2026-07-07.md,docs/reports/WAVE_LOOP_536_CLOSEOUT.md,scripts/cocotb_ref_model.py
+
+## 2026-07-15T06:17:51Z — wave-loop-537
+- **Commit:** feat(gen-verilog): Wave Loop 536 — cocotb reference-model cosimulation gate, AST JSON export, t27c icarus-cocotb, --cocotb suite phase\n\nCloses #1507\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .claude/plans/wave-loop-537.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w537_negative_undefined_struct.json,bootstrap/tests/icarus_lowerable.rs,docs/ICARUS_LOWERABLE_BOUNDARY.md,docs/reports/FPGA_LOOP_COOPERATION_W538_2026-07-07.md,docs/reports/WAVE_LOOP_537_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Completeness.lean,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,specs/scratch/w537_negative_undefined_struct.t27
+
+## 2026-07-15T06:40:33Z — wave-loop-538
+- **Commit:** feat(lean-icarus): Wave Loop 537 — close undefined-struct leniency in Predicate.lean, repair 249 Completeness.lean corpus envs to match Rust verdicts, add corpus_classifier_matches_lean_completeness regression test, negative witness, closeout report and W538 cooperation variants
+- **Files:** .claude/plans/wave-loop-538.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,bootstrap/src/compiler.rs,bootstrap/src/suite.rs,bootstrap/stage0/FROZEN_HASH,docs/reports/FPGA_LOOP_COOPERATION_W539_2026-07-15.md,docs/reports/WAVE_LOOP_538_CLOSEOUT.md,scripts/cocotb_ref_model.py
+
+## 2026-07-15T06:40:40Z — wave-loop-538
+- **Commit:** feat(cocotb): Wave Loop 538 — scalar VCD probes for assert_eq actual expressions, independent VCD cross-check in cocotb reference model, / gated by emit_test_assertions, normalize VCD/[PROBE] lines out of Icarus baseline comparison, 35/35 Icarus PASS / 35/35 cocotb PASS / 0 seal mismatches
+- **Files:** 
+
+## 2026-07-15T07:07:53Z — wave-loop-539
+- **Commit:** feat(cocotb): Wave Loop 538 — scalar VCD probes for assert_eq actual expressions, independent VCD cross-check in cocotb reference model, dumpfile/dumpvars gated by emit_test_assertions, normalize VCD/[PROBE] lines out of Icarus baseline comparison, 35/35 Icarus PASS / 35/35 cocotb PASS / 0 seal mismatches
+- **Files:** .claude/plans/wave-loop-539.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,docs/reports/FPGA_LOOP_COOPERATION_W540_2026-07-08.md,docs/reports/WAVE_LOOP_539_CLOSEOUT.md,scripts/cocotb_ref_model.py
+
+## 2026-07-15T07:32:43Z — wave-loop-539
+- **Commit:** feat(igla): Wave Loop 539 — typed 64-bit VCD probes + full Python expression evaluator for Icarus-lowerable subset\n\nCloses #1510
+- **Files:** .claude/plans/wave-loop-540.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w540_wide_packed_struct_array.json,.trinity/seals/scratch_w540_wide_packed_struct_array.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,docs/reports/FPGA_LOOP_COOPERATION_W541_2026-07-07.md,docs/reports/WAVE_LOOP_540_CLOSEOUT.md,scripts/cocotb_ref_model.py,specs/scratch/w540_wide_packed_struct_array.t27
+
+## 2026-07-15T07:33:16Z — wave-loop-540
+- **Commit:** feat(icarus): Wave Loop 540 — multi-signal VCD probes for wide packed structs and arrays
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-15T07:49:24Z — wave-loop-541
+- **Commit:** chore(trinity): record final W540 tracking state
+- **Files:** .claude/plans/wave-loop-541.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w541_module_wide_struct_assign.json,.trinity/icarus-baselines/specs/scratch/w541_module_wide_struct_const.json,.trinity/icarus-baselines/specs/scratch/w541_module_wide_struct_var.json,.trinity/seals/scratch_w541_module_wide_struct_assign.json,.trinity/seals/scratch_w541_module_wide_struct_const.json,.trinity/seals/scratch_w541_module_wide_struct_var.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,docs/reports/FPGA_LOOP_COOPERATION_W542_2026-07-07.md,docs/reports/WAVE_LOOP_541_CLOSEOUT.md,scripts/cocotb_ref_model.py,specs/scratch/w541_module_wide_struct_assign.t27,specs/scratch/w541_module_wide_struct_const.t27,specs/scratch/w541_module_wide_struct_var.t27
+
+## 2026-07-15T08:14:12Z — wave-loop-542
+- **Commit:** chore(trinity): record W541 session log and commit count
+- **Files:** .claude/plans/wave-loop-542.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w542_scalar_call_args.json,.trinity/icarus-baselines/specs/scratch/w542_signed_scalar_call.json,.trinity/icarus-baselines/specs/scratch/w542_struct_sum_call.json,.trinity/seals/numeric_GF8.json,.trinity/seals/scratch_w374_module_keyword.json,.trinity/seals/scratch_w377_struct_field_mapping.json,.trinity/seals/scratch_w542_scalar_call_args.json,.trinity/seals/scratch_w542_signed_scalar_call.json,.trinity/seals/scratch_w542_struct_sum_call.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,docs/reports/FPGA_LOOP_COOPERATION_W543_2026-07-07.md,docs/reports/WAVE_LOOP_542_CLOSEOUT.md,scripts/cocotb_ref_model.py
+
+## 2026-07-15T08:14:26Z — wave-loop-542
+- **Commit:** feat(cocotb): Wave Loop 542 — scalar function-call arguments for independent VCD cross-check + explicit signed-to-unsigned cast sign-extension in Verilog backend
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-15T08:28:13Z — wave-loop-543
+- **Commit:** chore(trinity): record W542 session log and commit count
+- **Files:** .claude/plans/wave-loop-543.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w543_call_arg_casts.json,.trinity/icarus-baselines/specs/scratch/w543_module_mixed_call_init.json,.trinity/icarus-baselines/specs/scratch/w543_module_scalar_call_init.json,.trinity/icarus-baselines/specs/scratch/w543_module_struct_call_init.json,.trinity/seals/math_SacredPhysics.json,.trinity/seals/nn_SacredAttention.json,.trinity/seals/physics_FormulaDiscovery.json,.trinity/seals/physics_GI1Analysis.json,.trinity/seals/physics_GammaConjecture.json,.trinity/seals/scratch_w543_call_arg_casts.json,.trinity/seals/scratch_w543_module_mixed_call_init.json,.trinity/seals/scratch_w543_module_scalar_call_init.json,.trinity/seals/scratch_w543_module_struct_call_init.json,.trinity/seals/scratch_w543_negative_nonlowerable_call_init.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH
+
+## 2026-07-15T08:28:24Z — wave-loop-543
+- **Commit:** feat(cocotb): Wave Loop 543 — function-call module initializers for independent VCD cross-check + parser fix for const function-call initializers
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-15T08:57:00Z — wave-loop-544
+- **Commit:** chore(trinity): record W543 session log and commit count
+- **Files:** .claude/plans/wave-loop-544.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w544_call_init_depends_on_const.json,.trinity/icarus-baselines/specs/scratch/w544_module_var_scalar_call_init.json,.trinity/icarus-baselines/specs/scratch/w544_module_var_struct_call_assign.json,.trinity/icarus-baselines/specs/scratch/w544_nested_call_init.json,.trinity/seals/isa_TernaryPatternMatching.json,.trinity/seals/isa_TernarySearch.json,.trinity/seals/isa_TernarySet.json,.trinity/seals/isa_TernarySorting.json,.trinity/seals/pipeline_PipelineBenchmarks.json,.trinity/seals/scratch_w544_call_init_depends_on_const.json,.trinity/seals/scratch_w544_module_var_scalar_call_init.json,.trinity/seals/scratch_w544_module_var_struct_call_assign.json,.trinity/seals/scratch_w544_negative_call_init_returns_array.json,.trinity/seals/scratch_w544_negative_nonlowerable_var_call_init.json
+
+## 2026-07-16T11:40:38Z — wave-loop-544
+- **Commit:** feat(icarus): Wave Loop 544 — mutable module var call initializers, test-block struct call assignment, ExprArrayLiteral packed concat, primitive scalar array return classifier boundary
+- **Files:** .claude/plans/wave-loop-545.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w545_call_init_returns_array.json,.trinity/icarus-baselines/specs/scratch/w545_var_call_init_returns_array.json,.trinity/seals/compiler_Lexing.json,.trinity/seals/math_ZamolodchikovE8.json,.trinity/seals/scratch_w544_negative_call_init_returns_array.json,.trinity/seals/scratch_w545_call_init_returns_array.json,.trinity/seals/scratch_w545_var_call_init_returns_array.json,.trinity/seals/sync_sync-index.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_COOPERATION_W546_2026-07-07.md,docs/reports/WAVE_LOOP_545_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Completeness.lean
+
+## 2026-07-16T12:02:12Z — wave-loop-546
+- **Commit:** feat(igla): Wave Loop 545 — primitive scalar array function returns for independent VCD cross-check
+- **Files:** .claude/plans/wave-loop-546.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w546_local_call_init_returns_array.json,.trinity/seals/api_c_api_contract.json,.trinity/seals/scratch_w546_local_call_assign_returns_array.json,.trinity/seals/scratch_w546_local_call_init_returns_array.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,docs/reports/FPGA_LOOP_COOPERATION_W547_2026-07-07.md,docs/reports/WAVE_LOOP_546_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/scratch/w546_local_call_assign_returns_array.t27,specs/scratch/w546_local_call_init_returns_array.t27
+
+## 2026-07-16T12:25:22Z — wave-loop-547
+- **Commit:** feat(igla): Wave Loop 546 — function-local primitive scalar array return initializers and reassignments for independent VCD cross-check
+- **Files:** .claude/plans/wave-loop-547.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w547_signed_call_init_returns_array.json,.trinity/icarus-baselines/specs/scratch/w547_signed_element_compare.json,.trinity/seals/scratch_w547_signed_call_init_returns_array.json,.trinity/seals/scratch_w547_signed_element_compare.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_COOPERATION_W548_2026-07-07.md,docs/reports/WAVE_LOOP_547_CLOSEOUT.md,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Predicate.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,scripts/cocotb_ref_model.py,specs/scratch/w547_signed_call_init_returns_array.t27,specs/scratch/w547_signed_element_compare.t27
+
+## 2026-07-16T12:45:54Z — wave-loop-548
+- **Commit:** feat(igla): Wave Loop 547 — signed primitive scalar array function returns for independent VCD cross-check
+- **Files:** .claude/plans/wave-loop-548.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w548_2d_call_init_returns_array.json,.trinity/icarus-baselines/specs/scratch/w548_2d_signed_element_read.json,.trinity/ring-548.md,.trinity/seals/scratch_w548_2d_call_init_returns_array.json,.trinity/seals/scratch_w548_2d_signed_element_read.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W548_2026-07-16.md,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,scripts/cocotb_ref_model.py,specs/scratch/w548_2d_call_init_returns_array.t27,specs/scratch/w548_2d_signed_element_read.t27
+
+## 2026-07-16T12:46:14Z — wave-loop-548
+- **Commit:** feat(igla): Wave Loop 548 — multi-dimensional primitive scalar array function returns for independent VCD cross-check
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T12:55:44Z — wave-loop-548
+- **Commit:** chore(trinity): record W548 session log and commit count
+- **Files:** .claude/plans/wave-loop-549.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w549_3d_call_init_returns_array.json,.trinity/ring-549.md,.trinity/seals/scratch_w549_3d_call_init_returns_array.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W549_2026-07-16.md,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/scratch/w549_3d_call_init_returns_array.t27
+
+## 2026-07-16T12:55:55Z — wave-loop-548
+- **Commit:** feat(igla): Wave Loop 549 — 3-D primitive scalar array function returns for independent VCD cross-check
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T12:56:00Z — wave-loop-548
+- **Commit:** chore(trinity): record W549 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T12:56:09Z — wave-loop-548
+- **Commit:** chore(trinity): record W549 session log and commit count (tracking update)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T12:56:14Z — wave-loop-548
+- **Commit:** chore(trinity): record W549 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T12:56:19Z — wave-loop-548
+- **Commit:** chore(trinity): record W549 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T12:56:42Z — wave-loop-548
+- **Commit:** chore(trinity): record W549 session log and commit count (final)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T12:57:14Z — wave-loop-548
+- **Commit:** chore(trinity): record W549 session log and commit count (round 3)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T13:14:27Z — wave-loop-548
+- **Commit:** chore(trinity): record W549 session log and commit count
+- **Files:** .claude/plans/wave-loop-550.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w550_4d_call_init_returns_array.json,.trinity/ring-550.md,.trinity/seals/scratch_w550_4d_call_init_returns_array.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W550_2026-07-16.md,proofs/lean4/Trinity/IcarusLowerable/Lemmas.lean,proofs/lean4/Trinity/IcarusLowerable/Soundness.lean,specs/scratch/w550_4d_call_init_returns_array.t27
+
+## 2026-07-16T13:14:34Z — wave-loop-548
+- **Commit:** feat(igla): Wave Loop 550 — 4-D primitive scalar array function returns for independent VCD cross-check
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T13:14:38Z — wave-loop-548
+- **Commit:** chore(trinity): record W550 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T13:14:53Z — wave-loop-548
+- **Commit:** chore(trinity): record W550 session log and commit count (final)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T13:15:03Z — wave-loop-548
+- **Commit:** chore(trinity): record W550 session log and commit count (round 3)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T14:56:32Z — wave-loop-553
+- **Commit:** chore(trinity): record W550 session log and commit count
+- **Files:** .claude/plans/wave-loop-551.md,.claude/plans/wave-loop-552.md,.claude/plans/wave-loop-553.md,.claude/plans/wave-loop-554.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w551_bench_scalar_call_cross_check.json,.trinity/icarus-baselines/specs/scratch/w552_bench_2d_array_return.json,.trinity/icarus-baselines/specs/scratch/w552_bench_module_wide_struct.json,.trinity/icarus-baselines/specs/scratch/w552_bench_wide_packed_struct.json,.trinity/icarus-baselines/specs/scratch/w553_bench_signed_array_element.json,.trinity/icarus-baselines/specs/scratch/w553_bench_signed_scalar_return.json,.trinity/icarus-baselines/specs/scratch/w553_bench_signed_struct_field.json,.trinity/seals/api_tri_net_api.json,.trinity/seals/base_TernaryEncoding.json,.trinity/seals/base_TernaryMemory.json,.trinity/seals/base_ternary_add.json,.trinity/seals/base_tritype-base.json
+
+## 2026-07-16T15:16:37Z — wave-loop-555
+- **Commit:** feat(igla): Wave Loop 554 — bench-local primitive scalar arrays (Issue #1525)
+- **Files:** .claude/plans/wave-loop-555.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w555_bench_whole_array_nested_call.json,.trinity/seals/scratch_w555_bench_whole_array_nested_call.json,.trinity/seals/scratch_w555_bench_whole_array_signed.json,.trinity/seals/scratch_w555_bench_whole_array_unsigned.json,.trinity/seals/scratch_w555_bench_whole_array_wide.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W555_2026-07-07.md,scripts/cocotb_ref_model.py,specs/scratch/w555_bench_whole_array_nested_call.t27,specs/scratch/w555_bench_whole_array_signed.t27,specs/scratch/w555_bench_whole_array_unsigned.t27,specs/scratch/w555_bench_whole_array_wide.t27
+
+## 2026-07-16T15:30:38Z — wave-loop-556
+- **Commit:** feat(gen-verilog): Wave Loop 555 — whole-array assert_eq in deterministic bench blocks via packed-vector VCD probes
+- **Files:** .claude/plans/wave-loop-556.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w556_bench_multi_site_array_dedup.json,.trinity/seals/scratch_w556_bench_multi_site_array_dedup.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/ICARUS_LOWERABLE_BOUNDARY.md,docs/reports/FPGA_LOOP_CLOSEOUT_W556_2026-07-07.md,specs/scratch/w556_bench_multi_site_array_dedup.t27
+
+## 2026-07-16T15:57:10Z — wave-loop-557
+- **Commit:** feat(gen-verilog): Wave Loop 556 — multi-site call-return array temporary deduplication
+- **Files:** .claude/plans/wave-loop-557.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w557_bench_scalar_call_dedup.json,.trinity/seals/scratch_w557_bench_scalar_call_dedup.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W557_2026-07-07.md,specs/scratch/w557_bench_scalar_call_dedup.t27
+
+## 2026-07-16T16:13:47Z — wave-loop-558
+- **Commit:** feat(gen-verilog): Wave Loop 557 — general bench CSE for scalar calls
+- **Files:** .claude/plans/wave-loop-558.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/icarus-baselines/specs/scratch/w558_bench_scalar_call_expected_side_dedup.json,.trinity/seals/scratch_w558_bench_scalar_call_expected_side_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/ICARUS_LOWERABLE_BOUNDARY.md,docs/reports/FPGA_LOOP_CLOSEOUT_W558_2026-07-07.md,dump.vcd,repro/numerics/nmse_manifest.json,repro/numerics/nmse_manifest_protocol_v1.json,specs/scratch/w558_bench_scalar_call_expected_side_dedup.t27
+
+## 2026-07-16T16:13:54Z — wave-loop-558
+- **Commit:** feat(icarus-lowerable): Wave Loop 558 — expected-side scalar call deduplication witness + docs + seal
+- **Files:** 
+
+## 2026-07-16T16:14:01Z — wave-loop-558
+- **Commit:** feat(icarus-lowerable): Wave Loop 558 — expected-side scalar call deduplication witness + docs + seal
+- **Files:** dump.vcd
+
+## 2026-07-16T16:14:52Z — wave-loop-559
+- **Commit:** feat(icarus-lowerable): Wave Loop 558 — expected-side scalar call deduplication witness + docs + seal
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md
+
+## 2026-07-16T16:16:25Z — wave-loop-559
+- **Commit:** feat(icarus-lowerable): Wave Loop 558 — expected-side scalar call deduplication witness + docs + seal
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T16:35:50Z — wave-loop-559
+- **Commit:** feat(icarus-lowerable): Wave Loop 558 — expected-side scalar call deduplication witness + docs + seal
+- **Files:** .claude/plans/wave-loop-559.md,.gitignore,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w559_bench_whole_array_3d_signed_direct_call.json,.trinity/seals/scratch_w559_bench_whole_array_3d_signed.json,.trinity/seals/scratch_w559_bench_whole_array_3d_signed_direct_call.json,.trinity/seals/scratch_w559_bench_whole_array_4d_signed.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W559_2026-07-07.md,specs/scratch/w559_bench_whole_array_3d_signed.t27,specs/scratch/w559_bench_whole_array_3d_signed_direct_call.t27,specs/scratch/w559_bench_whole_array_4d_signed.t27
+
+## 2026-07-16T16:52:34Z — wave-loop-560
+- **Commit:** feat(igla): Wave Loop 559 — signed whole-array comparison for 3-D/4-D primitive scalar arrays
+- **Files:** .claude/plans/wave-loop-560.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w560_bench_scalar_struct_call_dedup.json,.trinity/icarus-baselines/specs/scratch/w560_bench_scalar_struct_call_dedup_both_sides.json,.trinity/icarus-baselines/specs/scratch/w560_bench_scalar_struct_call_dedup_nested.json,.trinity/seals/scratch_w560_bench_scalar_struct_call_dedup.json,.trinity/seals/scratch_w560_bench_scalar_struct_call_dedup_both_sides.json,.trinity/seals/scratch_w560_bench_scalar_struct_call_dedup_nested.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W560_2026-07-07.md,scripts/cocotb_ref_model.py,specs/scratch/w560_bench_scalar_struct_call_dedup.t27,specs/scratch/w560_bench_scalar_struct_call_dedup_both_sides.t27,specs/scratch/w560_bench_scalar_struct_call_dedup_nested.t27
+
+## 2026-07-16T16:53:01Z — wave-loop-560
+- **Commit:** feat(gen-verilog): Wave Loop 560 — scalar-struct return call deduplication (Issue #1531)
+- **Files:** docs/ICARUS_LOWERABLE_BOUNDARY.md
+
+## 2026-07-16T16:53:10Z — wave-loop-560
+- **Commit:** docs(icarus-lowerable): document W560 scalar-struct call CSE in boundary doc
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-16T16:53:15Z — wave-loop-560
+- **Commit:** chore(trinity): record W560 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-17T07:15:23Z — wave-loop-561
+- **Commit:** chore(trinity): record W560 session log and commit count
+- **Files:** .claude/plans/wave-loop-561.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/scratch_w561_negative_struct_return_enum_field.json,.trinity/seals/scratch_w561_negative_struct_return_f32_field.json,.trinity/seals/scratch_w561_negative_struct_return_string_field.json,.trinity/seals/scratch_w561_negative_struct_return_unresolved_import.json,bootstrap/tests/icarus_lowerable.rs,docs/ICARUS_LOWERABLE_BOUNDARY.md,docs/reports/FPGA_LOOP_CLOSEOUT_W561_2026-07-16.md,specs/scratch/w561_negative_struct_return_enum_field.t27,specs/scratch/w561_negative_struct_return_f32_field.t27,specs/scratch/w561_negative_struct_return_string_field.t27,specs/scratch/w561_negative_struct_return_unresolved_import.t27
+
+## 2026-07-17T07:15:35Z — wave-loop-561
+- **Commit:** feat(icarus-lowerable): Wave Loop 561 — negative / boundary witnesses for non-lowerable struct-return calls (Issue #1532)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-17T08:25:27Z — wave-loop-562
+- **Commit:** chore(trinity): record W561 session log and commit count
+- **Files:** .claude/plans/wave-loop-562.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w562_bench_struct_array_field.json,.trinity/seals/compiler_Lexing.json,.trinity/seals/compiler_Stdlib.json,.trinity/seals/scratch_w532_negative_enum_field.json,.trinity/seals/scratch_w532_negative_string_field.json,.trinity/seals/scratch_w532_signed_struct_array_field_param.json,.trinity/seals/scratch_w532_signed_struct_array_field_return.json,.trinity/seals/scratch_w533_module_scalar_struct_const.json,.trinity/seals/scratch_w533_module_scalar_struct_var_call.json,.trinity/seals/scratch_w533_module_scalar_struct_var_copy.json,.trinity/seals/scratch_w533_module_scalar_struct_var_literal.json,.trinity/seals/scratch_w562_bench_struct_array_field.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs
+
+## 2026-07-17T08:25:31Z — wave-loop-562
+- **Commit:** feat(gen-verilog): Wave Loop 562 — whole-struct comparison for structs with array-typed fields, scalar-array field access on scalar-struct call returns, 22/22 icarus_lowerable PASS + 72/72 Icarus + 72/72 cocotb + 0 seal mismatches
+- **Files:** .trinity/current_task/.commit_count
+
+## 2026-07-17T08:43:00Z — wave-loop-563
+- **Commit:** chore(trinity): record W562 session log and commit count
+- **Files:** .claude/plans/wave-loop-563.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w563_bench_array_of_struct_call_dedup.json,.trinity/seals/boards_BoardMinimalXC7A100T.json,.trinity/seals/fpga_ApbBridge.json,.trinity/seals/fpga_TernaryIsa.json,.trinity/seals/numeric_GoldenFloatFamily.json,.trinity/seals/scratch_w563_bench_array_of_struct_call_dedup.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W563_2026-07-07.md,specs/scratch/w563_bench_array_of_struct_call_dedup.t27
+
+## 2026-07-17T08:43:04Z — wave-loop-563
+- **Commit:** feat(gen-verilog): Wave Loop 563 — array-of-struct return call deduplication, 1-D array-of-struct packed lowering, 23/23 icarus_lowerable PASS + 72/72 Icarus + 72/72 cocotb + 0 seal mismatches
+- **Files:** 
+
+## 2026-07-17T08:43:28Z — wave-loop-563
+- **Commit:** chore(trinity): record W563 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-17T08:59:51Z — wave-loop-564
+- **Commit:** chore(trinity): record W563 session log and commit count
+- **Files:** .claude/plans/wave-loop-564.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w564_bench_whole_aos_1d.json,.trinity/seals/scratch_w564_bench_whole_aos_1d.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W564_2026-07-07.md,scripts/cocotb_ref_model.py,specs/scratch/w564_bench_whole_aos_1d.t27
+
+## 2026-07-17T09:00:14Z — wave-loop-565
+- **Commit:** feat(gen-verilog): Wave Loop 564 — whole-array comparison for 1-D arrays of scalar structs, 24/24 icarus_lowerable PASS + 72/72 Icarus + 72/72 cocotb + 0 seal mismatches
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-18T10:07:06Z — wave-loop-565
+- **Commit:** chore(trinity): record W564 session log and commit count
+- **Files:** .claude/plans/wave-loop-565.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w565_bench_multi_site_whole_aos.json,.trinity/seals/scratch_w565_bench_multi_site_whole_aos.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W565_2026-07-07.md,specs/scratch/w565_bench_multi_site_whole_aos.t27
+
+## 2026-07-18T10:07:15Z — wave-loop-566
+- **Commit:** feat(icarus-lowerable): Wave Loop 565 — multi-site whole-array AoS call deduplication witness, 25/25 icarus_lowerable PASS + direct Icarus/cocotb PASS
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-18T10:18:11Z — wave-loop-566
+- **Commit:** chore(trinity): record W565 session log and commit count
+- **Files:** .claude/plans/wave-loop-566.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w566_bench_2d_aos_call_dedup.json,.trinity/seals/scratch_w528_function_2d_struct_array_return.json,.trinity/seals/scratch_w529_function_2d_struct_array_return.json,.trinity/seals/scratch_w532_signed_struct_array_field_2d_copy.json,.trinity/seals/scratch_w566_bench_2d_aos_call_dedup.json,bootstrap/src/compiler.rs,bootstrap/stage0/FROZEN_HASH,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W566_2026-07-07.md,specs/scratch/w566_bench_2d_aos_call_dedup.t27
+
+## 2026-07-18T10:28:43Z — wave-loop-567
+- **Commit:** feat(gen-verilog): Wave Loop 566 — 2-D array-of-struct return call deduplication, 26/26 icarus_lowerable PASS + 72/72 Icarus + 72/72 cocotb + 0 seal mismatches
+- **Files:** .claude/plans/wave-loop-567.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w567_bench_3d_aos_call_dedup.json,.trinity/seals/scratch_w567_bench_3d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W567_2026-07-07.md,specs/scratch/w567_bench_3d_aos_call_dedup.t27
+
+## 2026-07-18T11:51:33Z — wave-loop-568
+- **Commit:** feat(gen-verilog): Wave Loop 567 — 3-D array-of-struct return call deduplication, 27/27 icarus_lowerable PASS + 72/72 Icarus + 72/72 cocotb + 0 seal mismatches
+- **Files:** .claude/plans/wave-loop-568.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w568_bench_4d_aos_call_dedup.json,.trinity/seals/scratch_w568_bench_4d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W568_2026-07-07.md,specs/scratch/w568_bench_4d_aos_call_dedup.t27
+
+## 2026-07-18T12:02:02Z — wave-loop-569
+- **Commit:** chore(trinity): correct W568 activity log entry after pre-commit hook stale message
+- **Files:** .claude/plans/wave-loop-569.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w569_bench_4d_aos_call_dedup_nonp2.json,.trinity/seals/scratch_w569_bench_4d_aos_call_dedup_nonp2.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W569_2026-07-07.md,specs/scratch/w569_bench_4d_aos_call_dedup_nonp2.t27
+
+## 2026-07-18T12:12:01Z — wave-loop-570
+- **Commit:** feat(igla): Wave Loop 569 — 4-D array-of-struct return call deduplication with non-power-of-two outer dimension, 29/29 icarus_lowerable PASS + direct Icarus/cocotb PASS
+- **Files:** .claude/plans/wave-loop-570.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w570_bench_5d_aos_call_dedup.json,.trinity/seals/scratch_w570_bench_5d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W570_2026-07-07.md,specs/scratch/w570_bench_5d_aos_call_dedup.t27
+
+## 2026-07-18T12:27:33Z — wave-loop-571
+- **Commit:** feat(igla): Wave Loop 570 — 5-D array-of-struct return call deduplication, 30/30 icarus_lowerable PASS + direct Icarus/cocotb PASS
+- **Files:** .claude/plans/wave-loop-571.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w571_bench_5d_aos_call_dedup_nonp2.json,.trinity/seals/scratch_w571_bench_5d_aos_call_dedup_nonp2.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W571_2026-07-07.md,specs/scratch/w571_bench_5d_aos_call_dedup_nonp2.t27
+
+## 2026-07-18T13:21:26Z — wave-loop-573
+- **Commit:** feat(igla): Wave Loop 572 — 6-D array-of-struct return call deduplication, 32/32 icarus_lowerable PASS + direct Icarus/cocotb PASS
+- **Files:** .claude/plans/wave-loop-573.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w573_bench_7d_aos_call_dedup.json,.trinity/seals/scratch_w573_bench_7d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W573_2026-07-07.md,specs/scratch/w573_bench_7d_aos_call_dedup.t27
+
+## 2026-07-18T13:33:37Z — wave-loop-574
+- **Commit:** chore(trinity): record final W573 session log bump\n\nCloses #1544
+- **Files:** .claude/plans/wave-loop-574.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w574_bench_8d_aos_call_dedup.json,.trinity/seals/scratch_w574_bench_8d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W574_2026-07-07.md,specs/scratch/w574_bench_8d_aos_call_dedup.t27
+
+## 2026-07-18T13:52:17Z — wave-loop-575
+- **Commit:** chore(trinity): record W574 session log and commit count\n\nCloses #1545
+- **Files:** .claude/plans/wave-loop-575.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w575_bench_9d_aos_call_dedup.json,.trinity/seals/scratch_w575_bench_9d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W575_2026-07-07.md,specs/scratch/w575_bench_9d_aos_call_dedup.t27
+
+## 2026-07-18T14:10:02Z — wave-loop-576
+- **Commit:** chore(trinity): record W575 session log and commit count\n\nCloses #1546
+- **Files:** .claude/plans/wave-loop-576.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w576_bench_10d_aos_call_dedup.json,.trinity/seals/scratch_w576_bench_10d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W576_2026-07-07.md,specs/scratch/w576_bench_10d_aos_call_dedup.t27
+
+## 2026-07-18T14:21:22Z — wave-loop-577
+- **Commit:** chore(trinity): record W576 session log and commit count
+- **Files:** .claude/plans/wave-loop-577.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w577_bench_11d_aos_call_dedup.json,.trinity/seals/scratch_w577_bench_11d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W577_2026-07-07.md,specs/scratch/w577_bench_11d_aos_call_dedup.t27
+
+## 2026-07-18T14:21:30Z — wave-loop-577
+- **Commit:** feat(igla): Wave Loop 577 — 11-D array-of-struct return call deduplication, 65,536-bit packed vector, zero compiler changes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-18T14:27:47Z — wave-loop-578
+- **Commit:** chore(trinity): record W577 session log and commit count
+- **Files:** .claude/plans/wave-loop-578.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w578_bench_12d_aos_call_dedup.json,.trinity/seals/scratch_w578_bench_12d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W578_2026-07-07.md,specs/scratch/w578_bench_12d_aos_call_dedup.t27
+
+## 2026-07-18T14:27:54Z — wave-loop-578
+- **Commit:** feat(igla): Wave Loop 578 — 12-D array-of-struct return call deduplication, 131,072-bit packed vector, zero compiler changes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-18T14:42:03Z — wave-loop-579
+- **Commit:** chore(trinity): record W578 session log and commit count
+- **Files:** .claude/plans/wave-loop-579.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w579_bench_13d_aos_call_dedup.json,.trinity/seals/scratch_w579_bench_13d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W579_2026-07-07.md,specs/scratch/w579_bench_13d_aos_call_dedup.t27
+
+## 2026-07-18T14:42:10Z — wave-loop-579
+- **Commit:** feat(igla): Wave Loop 579 — 13-D array-of-struct return call deduplication, 262,144-bit packed vector, zero compiler changes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-18T14:59:02Z — wave-loop-580
+- **Commit:** chore(trinity): record W579 session log and commit count
+- **Files:** .claude/plans/wave-loop-580.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w580_bench_14d_aos_call_dedup.json,.trinity/seals/scratch_w580_bench_14d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W580_2026-07-07.md,specs/scratch/w580_bench_14d_aos_call_dedup.t27
+
+## 2026-07-18T14:59:43Z — wave-loop-580
+- **Commit:** feat(igla): Wave Loop 580 — 14-D array-of-struct return call deduplication, 524,288-bit packed vector, zero compiler changes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-18T15:34:26Z — wave-loop-581
+- **Commit:** chore(trinity): record W580 session log and commit count
+- **Files:** .claude/plans/wave-loop-581.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w581_bench_15d_aos_call_dedup.json,.trinity/seals/scratch_w581_bench_15d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W581_2026-07-07.md,specs/scratch/w581_bench_15d_aos_call_dedup.t27
+
+## 2026-07-18T15:34:42Z — wave-loop-581
+- **Commit:** feat(igla): Wave Loop 581 — 15-D array-of-struct return call deduplication, 1,048,576-bit packed vector, zero compiler changes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-18T16:12:42Z — wave-loop-582
+- **Commit:** chore(trinity): record W581 session log and commit count
+- **Files:** .claude/plans/wave-loop-582.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w582_bench_16d_aos_call_dedup.json,.trinity/seals/scratch_w582_bench_16d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W582_2026-07-07.md,specs/scratch/w582_bench_16d_aos_call_dedup.t27
+
+## 2026-07-18T17:09:18Z — wave-loop-583
+- **Commit:** feat(igla): Wave Loop 582 — 16-D array-of-struct return call deduplication, 2,097,152-bit packed vector, zero compiler changes, closes #1553
+- **Files:** .claude/plans/wave-loop-583.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w583_bench_module_3d_aos_call_dedup.json,.trinity/seals/brain_brain-phi-timing.json,.trinity/seals/bus_bus-pubsub.json,.trinity/seals/bus_bus-schema.json,.trinity/seals/coder_igla-coder-prm.json,.trinity/seals/coder_igla-coder-weights.json,.trinity/seals/compiler_Lexing.json,.trinity/seals/compiler_Stdlib.json,.trinity/seals/config_config-load.json,.trinity/seals/config_config-paths.json,.trinity/seals/config_config-schema.json,.trinity/seals/file_FileWatcher.json,.trinity/seals/fpga_ApbBridge.json,.trinity/seals/fpga_CTS.json,.trinity/seals/fpga_CrossOpt.json
+
+## 2026-07-18T17:09:43Z — wave-loop-583
+- **Commit:** feat(gen-verilog): Wave Loop 583 — module-scope 3-D array-of-struct constants, fix non-literal width context in packed concatenations, closes #1554
+- **Files:** docs/reports/FPGA_LOOP_CLOSEOUT_W583_2026-07-07.md
+
+## 2026-07-18T17:09:54Z — wave-loop-583
+- **Commit:** feat(gen-verilog): Wave Loop 583 — module-scope 3-D array-of-struct constants, fix non-literal width context in packed concatenations, closes #1554
+- **Files:** docs/reports/FPGA_LOOP_CLOSEOUT_W583_2026-07-07.md
+
+## 2026-07-18T18:33:49Z — wave-loop-584
+- **Commit:** feat(gen-verilog): Wave Loop 583 — module-scope 3-D array-of-struct constants, fix non-literal width context in packed concatenations, closes #1554
+- **Files:** .claude/plans/wave-loop-584.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w584_bench_17d_aos_call_dedup.json,.trinity/seals/scratch_w584_bench_17d_aos_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W584_2026-07-07.md,specs/scratch/w584_bench_17d_aos_call_dedup.t27
+
+## 2026-07-18T19:23:01Z — wave-loop-585
+- **Commit:** feat(igla): Wave Loop 584 — 17-D array-of-struct return call deduplication, 4,194,304-bit packed vector, zero compiler changes, closes #1555
+- **Files:** .claude/plans/wave-loop-585.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w585_bench_module_7d_aos_var_call_dedup.json,.trinity/seals/scratch_w585_bench_module_7d_aos_var_call_dedup.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W585_2026-07-07.md,specs/scratch/w585_bench_module_7d_aos_var_call_dedup.t27
+
+## 2026-07-18T19:23:51Z — wave-loop-585
+- **Commit:** feat(igla): Wave Loop 585 — module-scope 7-D array-of-struct variable initialized from a call, multi-site bench CSE, closes #1556
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-18T21:22:47Z — wave-loop-586
+- **Commit:** chore(trinity): record W585 session log and commit count
+- **Files:** .claude/plans/wave-loop-586.md,.claude/plans/wave-loop-587.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w586_bench_module_8d_aos_var_write.json,.trinity/icarus-baselines/specs/scratch/w587_bench_module_8d_aos_var_call_write.json,.trinity/seals/scratch_w526_2d_struct_array_repro.json,.trinity/seals/scratch_w528_function_2d_struct_array_param.json,.trinity/seals/scratch_w528_function_2d_struct_array_return.json,.trinity/seals/scratch_w528_module_2d_struct_array_const.json,.trinity/seals/scratch_w528_module_2d_struct_array_var.json,.trinity/seals/scratch_w529_function_2d_struct_array_param.json,.trinity/seals/scratch_w529_function_2d_struct_array_return.json,.trinity/seals/scratch_w529_module_2d_struct_array_const.json,.trinity/seals/scratch_w529_module_2d_struct_array_var.json,.trinity/seals/scratch_w563_bench_array_of_struct_call_dedup.json,.trinity/seals/scratch_w566_bench_2d_aos_call_dedup.json,.trinity/seals/scratch_w567_bench_3d_aos_call_dedup.json
+
+## 2026-07-18T21:44:58Z — wave-loop-588
+- **Commit:** feat(gen-verilog): Wave Loops 586-587 — signed packed-slice reads and module-scope 8-D AoS var call init
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/icarus-baselines/specs/scratch/w588_bench_module_9d_aos_var_call_write.json,.trinity/seals/scratch_w588_bench_module_9d_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,specs/scratch/w588_bench_module_9d_aos_var_call_write.t27
+
+## 2026-07-18T21:46:04Z — wave-loop-588
+- **Commit:** feat(gen-verilog): Wave Loop 588 — module-scope 9-D AoS var initialized from a call with indexed signed field writes
+- **Files:** .claude/plans/wave-loop-588.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W588_2026-07-07.md
+
+## 2026-07-18T21:46:19Z — wave-loop-588
+- **Commit:** docs(w588): Wave Loop 588 closeout report, plan, experience, and memory
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-18T21:46:36Z — wave-loop-588
+- **Commit:** chore(trinity): record W588 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T04:54:38Z — wave-loop-592
+- **Commit:** chore(trinity): record final W588 session state
+- **Files:** .claude/plans/wave-loop-589.md,.claude/plans/wave-loop-590.md,.claude/plans/wave-loop-591.md,.claude/plans/wave-loop-592.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w589_bench_module_17d_aos_var_call_write.json,.trinity/icarus-baselines/specs/scratch/w590_bench_module_17d_aos_var_call_reassign.json,.trinity/icarus-baselines/specs/scratch/w591_bench_module_17d_aos_var_literal_reassign.json,.trinity/icarus-baselines/specs/scratch/w592_bench_module_3x2p15_aos_var_call_write.json,.trinity/seals/scratch_w585_bench_module_7d_aos_var_call_dedup.json,.trinity/seals/scratch_w587_bench_module_8d_aos_var_call_write.json,.trinity/seals/scratch_w588_bench_module_9d_aos_var_call_write.json,.trinity/seals/scratch_w589_bench_module_17d_aos_var_call_write.json,.trinity/seals/scratch_w590_bench_module_17d_aos_var_call_reassign.json,.trinity/seals/scratch_w591_bench_module_17d_aos_var_literal_reassign.json,.trinity/seals/scratch_w592_bench_module_3x2p15_aos_var_call_write.json,bootstrap/src/compiler.rs
+
+## 2026-07-19T04:54:57Z — wave-loop-592
+- **Commit:** feat(igla): Wave Loop 592 — module-scope [3][2]^15 Pt non-p2 AoS var, indexed signed writes, 79/79 Icarus/cocotb PASS
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T04:55:10Z — wave-loop-592
+- **Commit:** chore(trinity): record W592 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T04:55:30Z — wave-loop-592
+- **Commit:** chore(trinity): record W592 session log and commit count (final)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T06:03:51Z — wave-loop-593
+- **Commit:** chore(trinity): record W592 session log, commit count, and activity
+- **Files:** .claude/plans/wave-loop-593.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w593_bench_module_5x2p15_aos_var_call_write.json,.trinity/seals/scratch_w593_bench_module_5x2p15_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W593_2026-07-07.md,specs/scratch/w593_bench_module_5x2p15_aos_var_call_write.t27
+
+## 2026-07-19T06:21:02Z — wave-loop-594
+- **Commit:** feat(gen-verilog): Wave Loop 593 — module-scope [5][2]^15 Pt mutable packed AoS from call with indexed signed field writes
+- **Files:** .claude/plans/wave-loop-594.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w594_bench_module_7x2p14_aos_var_call_write.json,.trinity/seals/scratch_w594_bench_module_7x2p14_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W593_2026-07-07.md,docs/reports/FPGA_LOOP_CLOSEOUT_W594_2026-07-07.md,specs/scratch/w594_bench_module_7x2p14_aos_var_call_write.t27
+
+## 2026-07-19T07:04:10Z — wave-loop-595
+- **Commit:** feat(gen-verilog): Wave Loop 594 — module-scope [7][2]^14 Pt mutable packed AoS from call with indexed signed field writes
+- **Files:** .claude/plans/wave-loop-595.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w595_bench_module_9x2p13_aos_var_call_write.json,.trinity/seals/scratch_w595_bench_module_9x2p13_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W594_2026-07-07.md,docs/reports/FPGA_LOOP_CLOSEOUT_W595_2026-07-07.md,specs/scratch/w595_bench_module_9x2p13_aos_var_call_write.t27
+
+## 2026-07-19T07:41:58Z — wave-loop-596
+- **Commit:** feat(igla): Wave Loop 595 — module-scope [9][2]^13 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-596.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w596_bench_module_11x2p12_aos_var_call_write.json,.trinity/seals/scratch_w596_bench_module_11x2p12_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W596_2026-07-07.md,specs/scratch/w596_bench_module_11x2p12_aos_var_call_write.t27
+
+## 2026-07-19T08:27:43Z — wave-loop-596
+- **Commit:** feat(igla): Wave Loop 596 — module-scope [11][2]^12 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/reports/FPGA_LOOP_CLOSEOUT_W596_2026-07-07.md
+
+## 2026-07-19T08:53:41Z — wave-loop-596
+- **Commit:** docs(w596): Wave Loop 596 closeout report — verification matrix update with fast sweep result
+- **Files:** .claude/plans/wave-loop-597.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w597_bench_module_13x2p11_aos_var_call_write.json,.trinity/seals/scratch_w597_bench_module_13x2p11_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W597_2026-07-07.md,specs/scratch/w597_bench_module_13x2p11_aos_var_call_write.t27
+
+## 2026-07-19T08:54:12Z — wave-loop-597
+- **Commit:** feat(igla): Wave Loop 597 — module-scope [13][2]^11 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T08:54:18Z — wave-loop-597
+- **Commit:** chore(trinity): record W596/W597 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T08:54:23Z — wave-loop-597
+- **Commit:** chore(trinity): record W597 session log and commit count increment
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T08:54:26Z — wave-loop-597
+- **Commit:** chore(trinity): record W597 session log and commit count increment
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T08:59:20Z — wave-loop-597
+- **Commit:** chore(trinity): record W597 session log and commit count increment
+- **Files:** .claude/plans/wave-loop-598.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w598_bench_module_15x2p10_aos_var_call_write.json,.trinity/seals/scratch_w598_bench_module_15x2p10_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W598_2026-07-07.md,specs/scratch/w598_bench_module_15x2p10_aos_var_call_write.t27
+
+## 2026-07-19T08:59:23Z — wave-loop-598
+- **Commit:** feat(igla): Wave Loop 598 — module-scope [15][2]^10 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T09:09:42Z — wave-loop-598
+- **Commit:** chore(trinity): record W598 session log and commit count increment
+- **Files:** .claude/plans/wave-loop-599.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w599_bench_module_17x2p9_aos_var_call_write.json,.trinity/seals/scratch_w599_bench_module_17x2p9_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W599_2026-07-07.md,specs/scratch/w599_bench_module_17x2p9_aos_var_call_write.t27
+
+## 2026-07-19T09:09:46Z — wave-loop-599
+- **Commit:** feat(igla): Wave Loop 599 — module-scope [17][2]^9 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T09:24:54Z — wave-loop-599
+- **Commit:** chore(trinity): record W599 session log and commit count increment
+- **Files:** .claude/plans/wave-loop-600.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w600_bench_module_19x2p8_aos_var_call_write.json,.trinity/seals/scratch_w600_bench_module_19x2p8_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W600_2026-07-07.md,specs/scratch/w600_bench_module_19x2p8_aos_var_call_write.t27
+
+## 2026-07-19T09:24:58Z — wave-loop-600
+- **Commit:** feat(igla): Wave Loop 600 — module-scope [19][2]^8 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T13:24:47Z — wave-loop-601
+- **Commit:** chore(trinity): record W600 session log and commit count increment
+- **Files:** .claude/plans/wave-loop-601.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w601_bench_module_21x2p7_aos_var_call_write.json,.trinity/seals/scratch_w601_bench_module_21x2p7_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W601_2026-07-07.md,specs/scratch/w601_bench_module_21x2p7_aos_var_call_write.t27
+
+## 2026-07-19T13:25:49Z — wave-loop-601
+- **Commit:** feat(igla): Wave Loop 601 — module-scope [21][2]^7 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T14:23:08Z — wave-loop-602
+- **Commit:** chore(trinity): record W601 session log and commit count increment
+- **Files:** .claude/plans/wave-loop-602.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w602_bench_module_23x2p6_aos_var_call_write.json,.trinity/seals/scratch_w602_bench_module_23x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W602_2026-07-07.md,specs/scratch/w602_bench_module_23x2p6_aos_var_call_write.t27
+
+## 2026-07-19T14:23:42Z — wave-loop-602
+- **Commit:** feat(igla): Wave Loop 602 — module-scope [23][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T14:29:32Z — wave-loop-603
+- **Commit:** chore(trinity): record W602 session log and commit count increment
+- **Files:** .claude/plans/wave-loop-603.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w603_bench_module_25x2p6_aos_var_call_write.json,.trinity/seals/scratch_w603_bench_module_25x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W603_2026-07-07.md,specs/scratch/w603_bench_module_25x2p6_aos_var_call_write.t27
+
+## 2026-07-19T14:30:36Z — wave-loop-603
+- **Commit:** feat(igla): Wave Loop 603 — module-scope [25][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T14:39:56Z — wave-loop-604
+- **Commit:** chore(trinity): record W603 session log and commit count increment
+- **Files:** .claude/plans/wave-loop-604.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w604_bench_module_27x2p6_aos_var_call_write.json,.trinity/seals/scratch_w604_bench_module_27x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W604_2026-07-07.md,specs/scratch/w604_bench_module_27x2p6_aos_var_call_write.t27
+
+## 2026-07-19T14:40:20Z — wave-loop-604
+- **Commit:** feat(igla): Wave Loop 604 — module-scope [27][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T14:55:59Z — wave-loop-605
+- **Commit:** chore(trinity): record W604 session log and commit count increment
+- **Files:** .claude/plans/wave-loop-605.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w605_bench_module_29x2p6_aos_var_call_write.json,.trinity/seals/scratch_w605_bench_module_29x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W605_2026-07-07.md,specs/scratch/w605_bench_module_29x2p6_aos_var_call_write.t27
+
+## 2026-07-19T14:56:26Z — wave-loop-605
+- **Commit:** feat(igla): Wave Loop 605 — module-scope [29][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T15:02:41Z — wave-loop-606
+- **Commit:** chore(trinity): record W605 session log and commit count increment
+- **Files:** .claude/plans/wave-loop-606.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w606_bench_module_31x2p6_aos_var_call_write.json,.trinity/seals/scratch_w606_bench_module_31x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W606_2026-07-07.md,specs/scratch/w606_bench_module_31x2p6_aos_var_call_write.t27
+
+## 2026-07-19T15:02:50Z — wave-loop-606
+- **Commit:** feat(igla): Wave Loop 606 — module-scope [31][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T15:10:14Z — wave-loop-607
+- **Commit:** chore(trinity): record W606 session log and commit count increment
+- **Files:** .claude/plans/wave-loop-607.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w607_bench_module_33x2p6_aos_var_call_write.json,.trinity/seals/scratch_w607_bench_module_33x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W607_2026-07-07.md,specs/scratch/w607_bench_module_33x2p6_aos_var_call_write.t27
+
+## 2026-07-19T15:10:27Z — wave-loop-607
+- **Commit:** feat(igla): Wave Loop 607 — module-scope [33][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T15:24:43Z — wave-loop-608
+- **Commit:** chore(trinity): record W607 session log and commit count increment
+- **Files:** .claude/plans/wave-loop-608.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w608_bench_module_35x2p6_aos_var_call_write.json,.trinity/seals/scratch_w608_bench_module_35x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W608_2026-07-07.md,specs/scratch/w608_bench_module_35x2p6_aos_var_call_write.t27
+
+## 2026-07-19T15:24:52Z — wave-loop-608
+- **Commit:** feat(igla): Wave Loop 608 — module-scope [35][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T15:40:58Z — wave-loop-609
+- **Commit:** chore(trinity): record W608 session log and commit count increment
+- **Files:** .claude/plans/wave-loop-609.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w609_bench_module_37x2p6_aos_var_call_write.json,.trinity/seals/scratch_w609_bench_module_37x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W609_2026-07-07.md,specs/scratch/w609_bench_module_37x2p6_aos_var_call_write.t27
+
+## 2026-07-19T15:41:05Z — wave-loop-609
+- **Commit:** feat(igla): Wave Loop 609 — module-scope [37][2]^6 Pt non-p2 AoS variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T15:44:29Z — wave-loop-610
+- **Commit:** chore(trinity): record W609 session log and commit count
+- **Files:** .claude/plans/wave-loop-610.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w610_bench_module_39x2p6_aos_var_call_write.json,.trinity/seals/scratch_w610_bench_module_39x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W610_2026-07-07.md,specs/scratch/w610_bench_module_39x2p6_aos_var_call_write.t27
+
+## 2026-07-19T15:44:33Z — wave-loop-610
+- **Commit:** feat(igla): Wave Loop 610 — module-scope [39][2]^6 Pt non-p2 AoS variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T15:47:19Z — wave-loop-611
+- **Commit:** chore(trinity): record W610 session log and commit count
+- **Files:** .claude/plans/wave-loop-611.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w611_bench_module_41x2p6_aos_var_call_write.json,.trinity/seals/scratch_w611_bench_module_41x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W611_2026-07-07.md,specs/scratch/w611_bench_module_41x2p6_aos_var_call_write.t27
+
+## 2026-07-19T15:47:31Z — wave-loop-611
+- **Commit:** feat(igla): Wave Loop 611 — module-scope [41][2]^6 Pt non-p2 AoS variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T15:50:27Z — wave-loop-612
+- **Commit:** chore(trinity): record W611 session log and commit count
+- **Files:** .claude/plans/wave-loop-612.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w612_bench_module_43x2p6_aos_var_call_write.json,.trinity/seals/scratch_w612_bench_module_43x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W612_2026-07-07.md,specs/scratch/w612_bench_module_43x2p6_aos_var_call_write.t27
+
+## 2026-07-19T15:50:34Z — wave-loop-612
+- **Commit:** feat(igla): Wave Loop 612 — module-scope [43][2]^6 Pt non-p2 AoS variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T15:53:42Z — wave-loop-613
+- **Commit:** chore(trinity): record W612 session log and commit count
+- **Files:** .claude/plans/wave-loop-613.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w613_bench_module_45x2p6_aos_var_call_write.json,.trinity/seals/scratch_w613_bench_module_45x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W613_2026-07-07.md,specs/scratch/w613_bench_module_45x2p6_aos_var_call_write.t27
+
+## 2026-07-19T15:53:47Z — wave-loop-613
+- **Commit:** feat(igla): Wave Loop 613 — module-scope [45][2]^6 Pt non-p2 AoS variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T15:57:18Z — wave-loop-614
+- **Commit:** chore(trinity): record W613 session log and commit count
+- **Files:** .claude/plans/wave-loop-614.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w614_bench_module_47x2p6_aos_var_call_write.json,.trinity/seals/scratch_w614_bench_module_47x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W614_2026-07-07.md,specs/scratch/w614_bench_module_47x2p6_aos_var_call_write.t27
+
+## 2026-07-19T15:57:22Z — wave-loop-614
+- **Commit:** feat(igla): Wave Loop 614 — module-scope [47][2]^6 Pt non-p2 AoS variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T16:10:14Z — wave-loop-615
+- **Commit:** chore(trinity): record W614 session log and commit count
+- **Files:** .claude/plans/wave-loop-615.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w615_bench_module_49x2p6_aos_var_call_write.json,.trinity/seals/scratch_w615_bench_module_49x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W615_2026-07-07.md,specs/scratch/w615_bench_module_49x2p6_aos_var_call_write.t27
+
+## 2026-07-19T16:10:21Z — wave-loop-615
+- **Commit:** feat(igla): Wave Loop 615 — module-scope [49][2]^6 Pt non-p2 AoS variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T16:24:04Z — wave-loop-616
+- **Commit:** chore(trinity): record W615 session log and commit count
+- **Files:** .claude/plans/wave-loop-616.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w616_bench_module_51x2p6_aos_var_call_write.json,.trinity/seals/scratch_w616_bench_module_51x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W616_2026-07-07.md,specs/scratch/w616_bench_module_51x2p6_aos_var_call_write.t27
+
+## 2026-07-19T16:24:08Z — wave-loop-616
+- **Commit:** feat(igla): Wave Loop 616 — module-scope [51][2]^6 Pt non-p2 AoS variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T16:39:32Z — wave-loop-617
+- **Commit:** chore(trinity): record W616 session log and commit count
+- **Files:** .claude/plans/wave-loop-617.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w617_bench_module_53x2p6_aos_var_call_write.json,.trinity/seals/scratch_w617_bench_module_53x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W617_2026-07-07.md,specs/scratch/w617_bench_module_53x2p6_aos_var_call_write.t27
+
+## 2026-07-19T16:39:37Z — wave-loop-617
+- **Commit:** feat(igla): Wave Loop 617 — module-scope [53][2]^6 Pt non-p2 AoS variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T16:55:05Z — wave-loop-618
+- **Commit:** chore(trinity): record W617 session log and commit count
+- **Files:** .claude/plans/wave-loop-618.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w618_bench_module_55x2p6_aos_var_call_write.json,.trinity/seals/scratch_w618_bench_module_55x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W618_2026-07-07.md,specs/scratch/w618_bench_module_55x2p6_aos_var_call_write.t27
+
+## 2026-07-19T16:55:08Z — wave-loop-618
+- **Commit:** feat(igla): Wave Loop 618 — module-scope [55][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count
+
+## 2026-07-19T17:00:16Z — wave-loop-618
+- **Commit:** chore(trinity): record W618 session log and commit count
+- **Files:** .claude/plans/wave-loop-619.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w619_bench_module_57x2p6_aos_var_call_write.json,.trinity/seals/scratch_w619_bench_module_57x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W619_2026-07-07.md,specs/scratch/w619_bench_module_57x2p6_aos_var_call_write.t27
+
+## 2026-07-19T17:01:31Z — wave-loop-619
+- **Commit:** feat(igla): Wave Loop 619 — module-scope [57][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count
+
+## 2026-07-19T17:05:01Z — wave-loop-620
+- **Commit:** chore(trinity): record W619 session log and commit count
+- **Files:** .claude/plans/wave-loop-620.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w620_bench_module_59x2p6_aos_var_call_write.json,.trinity/seals/scratch_w620_bench_module_59x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W620_2026-07-07.md,specs/scratch/w620_bench_module_59x2p6_aos_var_call_write.t27
+
+## 2026-07-19T17:05:05Z — wave-loop-620
+- **Commit:** feat(igla): Wave Loop 620 — module-scope [59][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T17:10:53Z — wave-loop-621
+- **Commit:** chore(trinity): record W620 session log and commit count
+- **Files:** .claude/plans/wave-loop-621.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w621_bench_module_61x2p6_aos_var_call_write.json,.trinity/seals/scratch_w621_bench_module_61x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W621_2026-07-07.md,specs/scratch/w621_bench_module_61x2p6_aos_var_call_write.t27
+
+## 2026-07-19T17:10:59Z — wave-loop-621
+- **Commit:** feat(igla): Wave Loop 621 — module-scope [61][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T17:25:26Z — wave-loop-622
+- **Commit:** chore(trinity): record W621 session log and commit count
+- **Files:** .claude/plans/wave-loop-622.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w622_bench_module_63x2p6_aos_var_call_write.json,.trinity/seals/scratch_w622_bench_module_63x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W622_2026-07-07.md,specs/scratch/w622_bench_module_63x2p6_aos_var_call_write.t27
+
+## 2026-07-19T17:25:27Z — wave-loop-622
+- **Commit:** feat(igla): Wave Loop 622 — module-scope [63][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T17:45:24Z — wave-loop-623
+- **Commit:** chore(trinity): record W622 session log and commit count
+- **Files:** .claude/plans/wave-loop-623.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w623_bench_module_65x2p6_aos_var_call_write.json,.trinity/seals/scratch_w623_bench_module_65x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W623_2026-07-07.md,specs/scratch/w623_bench_module_65x2p6_aos_var_call_write.t27
+
+## 2026-07-19T17:45:28Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 623 — module-scope [65][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T17:54:16Z — wave-loop-623
+- **Commit:** chore(trinity): record W623 session log and commit count
+- **Files:** .claude/plans/wave-loop-624.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w624_bench_module_67x2p6_aos_var_call_write.json,.trinity/seals/scratch_w624_bench_module_67x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W624_2026-07-07.md,specs/scratch/w624_bench_module_67x2p6_aos_var_call_write.t27
+
+## 2026-07-19T17:54:20Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 624 — module-scope [67][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T18:09:28Z — wave-loop-623
+- **Commit:** chore(trinity): record W624 session log and commit count
+- **Files:** .claude/plans/wave-loop-625.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w625_bench_module_69x2p6_aos_var_call_write.json,.trinity/seals/scratch_w625_bench_module_69x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W625_2026-07-07.md,specs/scratch/w625_bench_module_69x2p6_aos_var_call_write.t27
+
+## 2026-07-19T18:09:33Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 625 — module-scope [69][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T18:24:45Z — wave-loop-623
+- **Commit:** chore(trinity): record W625 session log and commit count
+- **Files:** .claude/plans/wave-loop-626.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w626_bench_module_71x2p6_aos_var_call_write.json,.trinity/seals/scratch_w626_bench_module_71x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W626_2026-07-07.md,specs/scratch/w626_bench_module_71x2p6_aos_var_call_write.t27
+
+## 2026-07-19T18:24:50Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 626 — module-scope [71][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T18:41:56Z — wave-loop-623
+- **Commit:** chore(trinity): record W626 session log and commit count
+- **Files:** .claude/plans/wave-loop-627.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w627_bench_module_73x2p6_aos_var_call_write.json,.trinity/seals/scratch_w627_bench_module_73x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W627_2026-07-07.md,specs/scratch/w627_bench_module_73x2p6_aos_var_call_write.t27
+
+## 2026-07-19T18:41:56Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 627 — module-scope [73][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T18:41:57Z — wave-loop-623
+- **Commit:** chore(trinity): record W627 session log and commit count
+- **Files:** .claude/plans/wave-loop-627.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w627_bench_module_73x2p6_aos_var_call_write.json,.trinity/seals/scratch_w627_bench_module_73x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W627_2026-07-07.md,specs/scratch/w627_bench_module_73x2p6_aos_var_call_write.t27
+
+## 2026-07-19T18:43:14Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 627 — module-scope [73][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T19:04:46Z — wave-loop-623
+- **Commit:** chore(trinity): record W627 session log and commit count
+- **Files:** .claude/plans/wave-loop-628.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w628_bench_module_75x2p6_aos_var_call_write.json,.trinity/seals/scratch_w628_bench_module_75x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W628_2026-07-07.md,specs/scratch/w628_bench_module_75x2p6_aos_var_call_write.t27
+
+## 2026-07-19T19:04:46Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 628 — module-scope [75][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T19:04:47Z — wave-loop-623
+- **Commit:** chore(trinity): record W628 session log and commit count
+- **Files:** .claude/plans/wave-loop-628.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w628_bench_module_75x2p6_aos_var_call_write.json,.trinity/seals/scratch_w628_bench_module_75x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W628_2026-07-07.md,specs/scratch/w628_bench_module_75x2p6_aos_var_call_write.t27
+
+## 2026-07-19T19:05:53Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 628 — module-scope [75][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T19:11:29Z — wave-loop-623
+- **Commit:** chore(trinity): record W628 session log and commit count
+- **Files:** .claude/plans/wave-loop-629.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w629_bench_module_77x2p6_aos_var_call_write.json,.trinity/seals/scratch_w629_bench_module_77x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W629_2026-07-07.md,specs/scratch/w629_bench_module_77x2p6_aos_var_call_write.t27
+
+## 2026-07-19T19:11:29Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 629 — module-scope [77][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T19:11:30Z — wave-loop-623
+- **Commit:** chore(trinity): record W629 session log and commit count
+- **Files:** .claude/plans/wave-loop-629.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w629_bench_module_77x2p6_aos_var_call_write.json,.trinity/seals/scratch_w629_bench_module_77x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W629_2026-07-07.md,specs/scratch/w629_bench_module_77x2p6_aos_var_call_write.t27
+
+## 2026-07-19T19:12:43Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 629 — module-scope [77][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T19:25:23Z — wave-loop-623
+- **Commit:** chore(trinity): record W629 session log and commit count
+- **Files:** .claude/plans/wave-loop-630.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w630_bench_module_79x2p6_aos_var_call_write.json,.trinity/seals/scratch_w630_bench_module_79x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W630_2026-07-07.md,specs/scratch/w630_bench_module_79x2p6_aos_var_call_write.t27
+
+## 2026-07-19T19:25:23Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 630 — module-scope [79][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T19:25:24Z — wave-loop-623
+- **Commit:** chore(trinity): record W630 session log and commit count
+- **Files:** .claude/plans/wave-loop-630.md,.trinity/current-issue.md,.trinity/current_task/activity.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w630_bench_module_79x2p6_aos_var_call_write.json,.trinity/seals/scratch_w630_bench_module_79x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W630_2026-07-07.md,specs/scratch/w630_bench_module_79x2p6_aos_var_call_write.t27
+
+## 2026-07-19T19:27:04Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 630 — module-scope [79][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-07 — wave-loop-631
+- **Commit:** feat(igla): Wave Loop 631 — module-scope [81][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-631.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w631_bench_module_81x2p6_aos_var_call_write.json,.trinity/seals/scratch_w631_bench_module_81x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W631_2026-07-07.md,specs/scratch/w631_bench_module_81x2p6_aos_var_call_write.t27,scripts/gen_w631.py
+
+## 2026-07-07 — wave-loop-631
+- **Commit:** chore(trinity): record W631 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T19:53:11Z — wave-loop-623
+- **Commit:** chore(trinity): record W630 session log and commit count
+- **Files:** .claude/plans/wave-loop-631.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w631_bench_module_81x2p6_aos_var_call_write.json,.trinity/seals/scratch_w631_bench_module_81x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W631_2026-07-07.md,scripts/gen_w631.py,specs/scratch/w631_bench_module_81x2p6_aos_var_call_write.t27
+
+## 2026-07-19T19:54:12Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 631 — module-scope [81][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T20:03:44Z — wave-loop-623
+- **Commit:** chore(trinity): record W631 session log and commit count
+- **Files:** .claude/plans/wave-loop-632.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w632_bench_module_83x2p6_aos_var_call_write.json,.trinity/seals/scratch_w632_bench_module_83x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W632_2026-07-07.md,scripts/gen_w632.py,specs/scratch/w632_bench_module_83x2p6_aos_var_call_write.t27
+
+## 2026-07-19T20:03:55Z — wave-loop-623
+- **Commit:** feat(igla): Wave Loop 632 — module-scope [83][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** 
+
+## 2026-07-19T20:04:01Z — wave-loop-623
+- **Commit:** chore(trinity): record W632 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T20:11:51Z — wave-loop-633
+- **Commit:** chore(trinity): record W632 session log and commit count
+- **Files:** .claude/plans/wave-loop-633.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w633_bench_module_85x2p6_aos_var_call_write.json,.trinity/seals/scratch_w633_bench_module_85x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W633_2026-07-07.md,scripts/gen_w633.py,specs/scratch/w633_bench_module_85x2p6_aos_var_call_write.t27
+
+## 2026-07-19T20:11:57Z — wave-loop-633
+- **Commit:** feat(igla): Wave Loop 633 — module-scope [85][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T20:26:38Z — wave-loop-634
+- **Commit:** chore(trinity): record W633 session log and commit count
+- **Files:** .claude/plans/wave-loop-634.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w634_bench_module_87x2p6_aos_var_call_write.json,.trinity/seals/scratch_w634_bench_module_87x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W634_2026-07-07.md,scripts/gen_w634.py,specs/scratch/w634_bench_module_87x2p6_aos_var_call_write.t27
+
+## 2026-07-19T20:26:44Z — wave-loop-634
+- **Commit:** feat(igla): Wave Loop 634 — module-scope [87][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T20:40:19Z — wave-loop-635
+- **Commit:** chore(trinity): record W634 session log and commit count
+- **Files:** .claude/plans/wave-loop-635.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w635_bench_module_89x2p6_aos_var_call_write.json,.trinity/seals/scratch_w635_bench_module_89x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W635_2026-07-07.md,scripts/gen_w635.py,specs/scratch/w635_bench_module_89x2p6_aos_var_call_write.t27
+
+## 2026-07-19T20:40:22Z — wave-loop-635
+- **Commit:** feat(igla): Wave Loop 635 — module-scope [89][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T20:55:10Z — wave-loop-636
+- **Commit:** chore(trinity): record W635 session log and commit count
+- **Files:** .claude/plans/wave-loop-636.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w636_bench_module_91x2p6_aos_var_call_write.json,.trinity/seals/scratch_w636_bench_module_91x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W636_2026-07-07.md,scripts/gen_w636.py,specs/scratch/w636_bench_module_91x2p6_aos_var_call_write.t27
+
+## 2026-07-19T20:55:15Z — wave-loop-636
+- **Commit:** feat(igla): Wave Loop 636 — module-scope [91][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:11:00Z — wave-loop-637
+- **Commit:** chore(trinity): record W636 session log and commit count
+- **Files:** .claude/plans/wave-loop-637.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w637_bench_module_93x2p6_aos_var_call_write.json,.trinity/seals/scratch_w637_bench_module_93x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W637_2026-07-07.md,scripts/gen_w637.py,specs/scratch/w637_bench_module_93x2p6_aos_var_call_write.t27
+
+## 2026-07-19T21:12:19Z — wave-loop-637
+- **Commit:** chore(trinity): record W637 session log and commit count
+- **Files:** 
+
+## 2026-07-19T21:12:24Z — wave-loop-637
+- **Commit:** chore(trinity): record W637 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:09Z — wave-loop-638
+- **Commit:** chore(trinity): record W637 session log and commit count
+- **Files:** .claude/plans/wave-loop-638.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w638_bench_module_95x2p6_aos_var_call_write.json,.trinity/seals/scratch_w638_bench_module_95x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W638_2026-07-07.md,scripts/gen_w638.py,specs/scratch/w638_bench_module_95x2p6_aos_var_call_write.t27
+
+## 2026-07-19T21:25:12Z — wave-loop-638
+- **Commit:** feat(igla): Wave Loop 638 — module-scope [95][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:17Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:17Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:18Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:18Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:19Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:19Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:20Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:20Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:24Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:25:41Z — wave-loop-638
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:39:46Z — wave-loop-639
+- **Commit:** chore(trinity): record W638 session log and commit count
+- **Files:** .claude/plans/wave-loop-639.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w639_bench_module_97x2p6_aos_var_call_write.json,.trinity/seals/scratch_w639_bench_module_97x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W639_2026-07-07.md,scripts/gen_w639.py,specs/scratch/w639_bench_module_97x2p6_aos_var_call_write.t27
+
+## 2026-07-19T21:39:51Z — wave-loop-639
+- **Commit:** feat(igla): Wave Loop 639 — module-scope [97][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:39:55Z — wave-loop-639
+- **Commit:** chore(trinity): record W639 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:39:55Z — wave-loop-639
+- **Commit:** chore(trinity): record W639 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:39:56Z — wave-loop-639
+- **Commit:** chore(trinity): record W639 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:39:56Z — wave-loop-639
+- **Commit:** chore(trinity): record W639 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:39:57Z — wave-loop-639
+- **Commit:** chore(trinity): record W639 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:39:57Z — wave-loop-639
+- **Commit:** chore(trinity): record W639 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:40:02Z — wave-loop-639
+- **Commit:** chore(trinity): record W639 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:40:07Z — wave-loop-639
+- **Commit:** chore(trinity): record W639 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:40:11Z — wave-loop-639
+- **Commit:** chore(trinity): record W639 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:40:16Z — wave-loop-639
+- **Commit:** chore(trinity): record W639 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T21:54:46Z — wave-loop-640
+- **Commit:** chore(trinity): record W639 session log and commit count
+- **Files:** .claude/plans/wave-loop-640.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w640_bench_module_99x2p6_aos_var_call_write.json,.trinity/seals/scratch_w640_bench_module_99x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W640_2026-07-07.md,scripts/gen_w640.py,specs/scratch/w640_bench_module_99x2p6_aos_var_call_write.t27
+
+## 2026-07-19T21:55:19Z — wave-loop-640
+- **Commit:** feat(igla): Wave Loop 640 — module-scope [99][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T22:11:47Z — wave-loop-641
+- **Commit:** chore(trinity): record W640 session log and commit count
+- **Files:** .claude/plans/wave-loop-641.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w641_bench_module_101x2p6_aos_var_call_write.json,.trinity/seals/scratch_w641_bench_module_101x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W641_2026-07-07.md,scripts/gen_w641.py,specs/scratch/w641_bench_module_101x2p6_aos_var_call_write.t27
+
+## 2026-07-19T22:11:50Z — wave-loop-641
+- **Commit:** feat(igla): Wave Loop 641 — module-scope [101][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T22:25:05Z — wave-loop-642
+- **Commit:** chore(trinity): record W641 session log and commit count
+- **Files:** .claude/plans/wave-loop-642.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w642_bench_module_103x2p6_aos_var_call_write.json,.trinity/seals/scratch_w642_bench_module_103x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W642_2026-07-07.md,scripts/gen_w642.py,specs/scratch/w642_bench_module_103x2p6_aos_var_call_write.t27
+
+## 2026-07-19T22:25:08Z — wave-loop-642
+- **Commit:** feat(igla): Wave Loop 642 — module-scope [103][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T22:40:18Z — wave-loop-643
+- **Commit:** chore(trinity): record W642 session log and commit count
+- **Files:** .claude/plans/wave-loop-643.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w643_bench_module_105x2p6_aos_var_call_write.json,.trinity/seals/scratch_w643_bench_module_105x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W643_2026-07-07.md,scripts/gen_w643.py,specs/scratch/w643_bench_module_105x2p6_aos_var_call_write.t27
+
+## 2026-07-19T22:40:21Z — wave-loop-643
+- **Commit:** feat(igla): Wave Loop 643 — module-scope [105][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T23:12:11Z — wave-loop-644
+- **Commit:** chore(trinity): record W643 session log and commit count
+- **Files:** .claude/plans/wave-loop-644.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w644_bench_module_107x2p6_aos_var_call_write.json,.trinity/seals/scratch_w644_bench_module_107x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W644_2026-07-07.md,scripts/gen_w644.py,specs/scratch/w644_bench_module_107x2p6_aos_var_call_write.t27
+
+## 2026-07-19T23:12:14Z — wave-loop-644
+- **Commit:** feat(igla): Wave Loop 644 — module-scope [107][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T23:16:48Z — wave-loop-645
+- **Commit:** chore(trinity): record W644 session log and commit count
+- **Files:** .claude/plans/wave-loop-645.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w645_bench_module_109x2p6_aos_var_call_write.json,.trinity/seals/scratch_w645_bench_module_109x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W645_2026-07-07.md,scripts/gen_w645.py,specs/scratch/w645_bench_module_109x2p6_aos_var_call_write.t27
+
+## 2026-07-19T23:16:53Z — wave-loop-645
+- **Commit:** feat(igla): Wave Loop 645 — module-scope [109][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T23:25:30Z — wave-loop-646
+- **Commit:** chore(trinity): record W645 session log and commit count
+- **Files:** .claude/plans/wave-loop-646.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w646_bench_module_111x2p6_aos_var_call_write.json,.trinity/seals/scratch_w646_bench_module_111x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W646_2026-07-07.md,scripts/gen_w646.py,specs/scratch/w646_bench_module_111x2p6_aos_var_call_write.t27
+
+## 2026-07-19T23:25:37Z — wave-loop-646
+- **Commit:** feat(igla): Wave Loop 646 — module-scope [111][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T23:39:37Z — wave-loop-647
+- **Commit:** chore(trinity): record W646 session log and commit count
+- **Files:** .claude/plans/wave-loop-647.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w647_bench_module_113x2p6_aos_var_call_write.json,.trinity/seals/scratch_w647_bench_module_113x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W647_2026-07-07.md,scripts/gen_w647.py,specs/scratch/w647_bench_module_113x2p6_aos_var_call_write.t27
+
+## 2026-07-19T23:39:42Z — wave-loop-647
+- **Commit:** feat(igla): Wave Loop 647 — module-scope [113][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-19T23:54:47Z — wave-loop-648
+- **Commit:** chore(trinity): record W647 session log and commit count
+- **Files:** .claude/plans/wave-loop-648.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w648_bench_module_115x2p6_aos_var_call_write.json,.trinity/seals/scratch_w648_bench_module_115x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W648_2026-07-07.md,scripts/gen_w648.py,specs/scratch/w648_bench_module_115x2p6_aos_var_call_write.t27
+
+## 2026-07-19T23:54:52Z — wave-loop-648
+- **Commit:** feat(igla): Wave Loop 648 — module-scope [115][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T00:09:58Z — wave-loop-649
+- **Commit:** chore(trinity): record W648 session log and commit count
+- **Files:** .claude/plans/wave-loop-649.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w649_bench_module_117x2p6_aos_var_call_write.json,.trinity/seals/scratch_w649_bench_module_117x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W649_2026-07-07.md,scripts/gen_w649.py,specs/scratch/w649_bench_module_117x2p6_aos_var_call_write.t27
+
+## 2026-07-20T00:10:08Z — wave-loop-649
+- **Commit:** feat(igla): Wave Loop 649 — module-scope [117][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T00:31:42Z — wave-loop-650
+- **Commit:** chore(trinity): record W649 session log and commit count
+- **Files:** .claude/plans/wave-loop-650.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w650_bench_module_119x2p6_aos_var_call_write.json,.trinity/seals/scratch_w650_bench_module_119x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W650_2026-07-07.md,scripts/gen_w650.py,specs/scratch/w650_bench_module_119x2p6_aos_var_call_write.t27
+
+## 2026-07-20T00:31:48Z — wave-loop-650
+- **Commit:** feat(igla): Wave Loop 650 — module-scope [119][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T00:40:48Z — wave-loop-651
+- **Commit:** chore(trinity): record W650 session log and commit count
+- **Files:** .claude/plans/wave-loop-651.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w651_bench_module_121x2p6_aos_var_call_write.json,.trinity/seals/scratch_w651_bench_module_121x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W651_2026-07-07.md,scripts/gen_w651.py,specs/scratch/w651_bench_module_121x2p6_aos_var_call_write.t27
+
+## 2026-07-20T00:40:51Z — wave-loop-651
+- **Commit:** feat(igla): Wave Loop 651 — module-scope [121][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T00:55:22Z — wave-loop-652
+- **Commit:** chore(trinity): record W651 session log and commit count
+- **Files:** .claude/plans/wave-loop-652.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w652_bench_module_123x2p6_aos_var_call_write.json,.trinity/seals/scratch_w652_bench_module_123x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W652_2026-07-07.md,scripts/gen_w652.py,specs/scratch/w652_bench_module_123x2p6_aos_var_call_write.t27
+
+## 2026-07-20T00:55:25Z — wave-loop-652
+- **Commit:** feat(igla): Wave Loop 652 — module-scope [123][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T01:09:56Z — wave-loop-653
+- **Commit:** chore(trinity): record W652 session log and commit count
+- **Files:** .claude/plans/wave-loop-653.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w653_bench_module_125x2p6_aos_var_call_write.json,.trinity/seals/scratch_w653_bench_module_125x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W653_2026-07-07.md,scripts/gen_w653.py,specs/scratch/w653_bench_module_125x2p6_aos_var_call_write.t27
+
+## 2026-07-20T01:10:00Z — wave-loop-653
+- **Commit:** feat(igla): Wave Loop 653 — module-scope [125][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T01:25:11Z — wave-loop-654
+- **Commit:** chore(trinity): record W653 session log and commit count
+- **Files:** .claude/plans/wave-loop-654.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w654_bench_module_127x2p6_aos_var_call_write.json,.trinity/seals/scratch_w654_bench_module_127x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W654_2026-07-07.md,scripts/gen_w654.py,specs/scratch/w654_bench_module_127x2p6_aos_var_call_write.t27
+
+## 2026-07-20T01:25:16Z — wave-loop-654
+- **Commit:** feat(igla): Wave Loop 654 — module-scope [127][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T02:19:25Z — wave-loop-655
+- **Commit:** chore(trinity): record W654 session log and commit count
+- **Files:** .claude/plans/wave-loop-655.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w655_bench_module_129x2p6_aos_var_call_write.json,.trinity/seals/scratch_w655_bench_module_129x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W655_2026-07-07.md,scripts/gen_w655.py,specs/scratch/w655_bench_module_129x2p6_aos_var_call_write.t27
+
+## 2026-07-20T02:21:30Z — wave-loop-655
+- **Commit:** feat(igla): Wave Loop 655 — module-scope [129][2]^6 Pt non-p2 AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T03:14:53Z — wave-loop-656
+- **Commit:** chore(trinity): record W655 session log and commit count
+- **Files:** .claude/plans/wave-loop-656.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w656_bench_module_131x2p6_aos_var_call_write.json,.trinity/seals/scratch_w656_bench_module_131x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W656_2026-07-07.md,scripts/gen_w656.py,specs/scratch/w656_bench_module_131x2p6_aos_var_call_write.t27
+
+## 2026-07-20T03:15:39Z — wave-loop-656
+- **Commit:** feat(igla): Wave Loop 656 — module-scope [131][2]^6 Pt non-power-of-two AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T03:50:30Z — wave-loop-656
+- **Commit:** chore(trinity): record W656 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T03:51:21Z — wave-loop-656
+- **Commit:** chore(trinity): record W656 session log and commit count after full gate sweep
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T03:54:14Z — wave-loop-656
+- **Commit:** chore(trinity): record W656 session log and commit count after full gate sweep
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T05:00:42Z — wave-loop-657
+- **Commit:** chore(trinity): final W656 tracking update
+- **Files:** .claude/plans/wave-loop-657.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w657_bench_module_133x2p6_aos_var_call_write.json,.trinity/seals/scratch_w657_bench_module_133x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W657_2026-07-07.md,scripts/gen_w657.py,specs/scratch/w657_bench_module_133x2p6_aos_var_call_write.t27
+
+## 2026-07-20T05:04:20Z — wave-loop-657
+- **Commit:** feat(igla): Wave Loop 657 — module-scope [133][2]^6 Pt non-power-of-two AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T05:08:55Z — wave-loop-657
+- **Commit:** chore(trinity): record W657 session log and commit count after full gate sweep
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T06:31:00Z — wave-loop-658
+- **Commit:** chore(trinity): final W657 tracking update
+- **Files:** .claude/plans/wave-loop-658.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w658_bench_module_135x2p6_aos_var_call_write.json,.trinity/seals/scratch_w658_bench_module_135x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W658_2026-07-07.md,scripts/gen_w658.py,specs/scratch/w658_bench_module_135x2p6_aos_var_call_write.t27
+
+## 2026-07-20T06:31:05Z — wave-loop-658
+- **Commit:** feat(igla): Wave Loop 658 — module-scope [135][2]^6 Pt non-power-of-two AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T06:31:13Z — wave-loop-658
+- **Commit:** chore(trinity): record W658 session log and commit count after full gate sweep
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T06:31:26Z — wave-loop-658
+- **Commit:** chore(trinity): final W658 tracking update
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T07:00:53Z — wave-loop-659
+- **Commit:** chore(trinity): final W658 tracking update after skill save
+- **Files:** .claude/plans/wave-loop-659.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w659_bench_module_137x2p6_aos_var_call_write.json,.trinity/seals/scratch_w659_bench_module_137x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W659_2026-07-07.md,scripts/gen_w659.py,specs/scratch/w659_bench_module_137x2p6_aos_var_call_write.t27
+
+## 2026-07-20T07:01:05Z — wave-loop-659
+- **Commit:** feat(igla): Wave Loop 659 — module-scope [137][2]^6 Pt non-power-of-two AoS var from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T07:01:18Z — wave-loop-659
+- **Commit:** chore(trinity): record W659 session log and commit count after full gate sweep
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T07:31:57Z — wave-loop-660
+- **Commit:** chore(trinity): final W659 tracking update
+- **Files:** .claude/plans/wave-loop-660.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w660_bench_module_139x2p6_aos_var_call_write.json,.trinity/seals/scratch_w660_bench_module_139x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W660_2026-07-07.md,scripts/gen_w660.py,specs/scratch/w660_bench_module_139x2p6_aos_var_call_write.t27
+
+## 2026-07-20T08:12:26Z — wave-loop-661
+- **Commit:** feat(igla): Wave Loop 660 — module-scope [139][2]^6 Pt non-p2 AoS var from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-661.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w661_bench_module_141x2p6_aos_var_call_write.json,.trinity/seals/scratch_w661_bench_module_141x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W661_2026-07-07.md,scripts/gen_w661.py,specs/scratch/w661_bench_module_141x2p6_aos_var_call_write.t27
+
+## 2026-07-20T09:02:27Z — wave-loop-662
+- **Commit:** feat(igla): Wave Loop 661 — module-scope [141][2]^6 Pt non-p2 AoS var from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-662.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w662_bench_module_143x2p6_aos_var_call_write.json,.trinity/seals/scratch_w662_bench_module_143x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W662_2026-07-07.md,scripts/gen_w662.py,specs/scratch/w662_bench_module_143x2p6_aos_var_call_write.t27
+
+## 2026-07-20T09:32:56Z — wave-loop-663
+- **Commit:** feat(igla): Wave Loop 662 — module-scope [143][2]^6 Pt non-p2 AoS var from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-663.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w663_bench_module_145x2p6_aos_var_call_write.json,.trinity/seals/scratch_w663_bench_module_145x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W663_2026-07-07.md,scripts/gen_w663.py,specs/scratch/w663_bench_module_145x2p6_aos_var_call_write.t27
+
+## 2026-07-20T10:04:12Z — wave-loop-664
+- **Commit:** feat(igla): Wave Loop 663 — module-scope [145][2]^6 Pt non-p2 AoS var from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-664.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w664_bench_module_147x2p6_aos_var_call_write.json,.trinity/seals/scratch_w664_bench_module_147x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W664_2026-07-07.md,scripts/gen_w664.py,specs/scratch/w664_bench_module_147x2p6_aos_var_call_write.t27
+
+## 2026-07-20T10:17:28Z — wave-loop-665
+- **Commit:** feat(igla): Wave Loop 664 — module-scope [147][2]^6 Pt non-p2 AoS var from a call with indexed signed writes
+- **Files:** .trinity/icarus-baselines/specs/scratch/w665_bench_module_149x2p6_aos_var_call_write.json,.trinity/seals/scratch_w665_bench_module_149x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w665.py,specs/scratch/w665_bench_module_149x2p6_aos_var_call_write.t27
+
+## 2026-07-20T10:17:36Z — wave-loop-665
+- **Commit:** feat(igla): Wave Loop 665 — module-scope [149][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-665.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W665_2026-07-07.md
+
+## 2026-07-20T10:17:55Z — wave-loop-665
+- **Commit:** docs(w665): Wave Loop 665 issue #1636 + branch wave-loop-665 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T10:18:16Z — wave-loop-665
+- **Commit:** chore(trinity): record W665 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T10:18:20Z — wave-loop-665
+- **Commit:** chore(trinity): record W665 session log and commit count (catch-up)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T11:19:26Z — wave-loop-666
+- **Commit:** docs(w665): correct tri fast sweep status to timed-out at Phase 1 Parse
+- **Files:** .trinity/icarus-baselines/specs/scratch/w666_bench_module_151x2p6_aos_var_call_write.json,.trinity/seals/scratch_w666_bench_module_151x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w666.py,specs/scratch/w666_bench_module_151x2p6_aos_var_call_write.t27
+
+## 2026-07-20T11:19:33Z — wave-loop-666
+- **Commit:** feat(igla): Wave Loop 666 — module-scope [151][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-666.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W666_2026-07-07.md
+
+## 2026-07-20T11:38:23Z — wave-loop-667
+- **Commit:** chore(trinity): record W666 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w667_bench_module_153x2p6_aos_var_call_write.json,.trinity/seals/scratch_w667_bench_module_153x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w667.py,specs/scratch/w667_bench_module_153x2p6_aos_var_call_write.t27
+
+## 2026-07-20T11:38:34Z — wave-loop-667
+- **Commit:** feat(igla): Wave Loop 667 — module-scope [153][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-667.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W667_2026-07-07.md
+
+## 2026-07-20T11:56:02Z — wave-loop-668
+- **Commit:** chore(trinity): record W667 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w668_bench_module_155x2p6_aos_var_call_write.json,.trinity/seals/scratch_w668_bench_module_155x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w668.py,specs/scratch/w668_bench_module_155x2p6_aos_var_call_write.t27
+
+## 2026-07-20T11:56:09Z — wave-loop-668
+- **Commit:** feat(igla): Wave Loop 668 — module-scope [155][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-668.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W668_2026-07-07.md
+
+## 2026-07-20T12:14:07Z — wave-loop-669
+- **Commit:** chore(trinity): record W668 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w669_bench_module_157x2p6_aos_var_call_write.json,.trinity/seals/scratch_w669_bench_module_157x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w669.py,specs/scratch/w669_bench_module_157x2p6_aos_var_call_write.t27
+
+## 2026-07-20T12:14:14Z — wave-loop-669
+- **Commit:** feat(igla): Wave Loop 669 — module-scope [157][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-669.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W669_2026-07-07.md
+
+## 2026-07-20T13:58:05Z — wave-loop-675
+- **Commit:** chore(trinity): record W674 session log and commit count
+- **Files:** .claude/plans/wave-loop-675.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w675_bench_module_169x2p6_aos_var_call_write.json,.trinity/seals/scratch_w675_bench_module_169x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W675_2026-07-07.md,scripts/gen_w675.py,specs/scratch/w675_bench_module_169x2p6_aos_var_call_write.t27
+
+## 2026-07-20T14:10:50Z — wave-loop-676
+- **Commit:** docs(w675): Wave Loop 675 issue #1646 + branch wave-loop-675 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-676.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w676_bench_module_171x2p6_aos_var_call_write.json,.trinity/seals/scratch_w676_bench_module_171x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W676_2026-07-07.md,scripts/gen_w676.py,specs/scratch/w676_bench_module_171x2p6_aos_var_call_write.t27
+
+## 2026-07-20T14:25:30Z — wave-loop-677
+- **Commit:** docs(w676): Wave Loop 676 issue #1647 + branch wave-loop-676 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-677.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w677_bench_module_173x2p6_aos_var_call_write.json,.trinity/seals/scratch_w677_bench_module_173x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W677_2026-07-07.md,scripts/gen_w677.py,specs/scratch/w677_bench_module_173x2p6_aos_var_call_write.t27
+
+## 2026-07-20T14:40:13Z — wave-loop-678
+- **Commit:** docs(w677): Wave Loop 677 issue #1648 + branch wave-loop-677 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-678.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w678_bench_module_175x2p6_aos_var_call_write.json,.trinity/seals/scratch_w678_bench_module_175x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W678_2026-07-07.md,scripts/gen_w678.py,specs/scratch/w678_bench_module_175x2p6_aos_var_call_write.t27
+
+## 2026-07-20T14:55:33Z — wave-loop-679
+- **Commit:** docs(w678): Wave Loop 678 issue #1649 + branch wave-loop-678 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-679.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w679_bench_module_177x2p6_aos_var_call_write.json,.trinity/seals/scratch_w679_bench_module_177x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W679_2026-07-07.md,scripts/gen_w679.py,specs/scratch/w679_bench_module_177x2p6_aos_var_call_write.t27
+
+## 2026-07-20T15:11:28Z — wave-loop-680
+- **Commit:** docs(w679): Wave Loop 679 issue #1650 + branch wave-loop-679 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-680.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w680_bench_module_179x2p6_aos_var_call_write.json,.trinity/seals/scratch_w680_bench_module_179x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W680_2026-07-07.md,scripts/gen_w680.py,specs/scratch/w680_bench_module_179x2p6_aos_var_call_write.t27
+
+## 2026-07-20T15:26:05Z — wave-loop-681
+- **Commit:** docs(w680): Wave Loop 680 issue #1651 + branch wave-loop-680 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-681.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w681_bench_module_181x2p6_aos_var_call_write.json,.trinity/seals/scratch_w681_bench_module_181x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W681_2026-07-07.md,scripts/gen_w681.py,specs/scratch/w681_bench_module_181x2p6_aos_var_call_write.t27
+
+## 2026-07-20T15:55:15Z — wave-loop-682
+- **Commit:** docs(w681): Wave Loop 681 issue #1652 + branch wave-loop-681 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-682.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w682_bench_module_183x2p6_aos_var_call_write.json,.trinity/seals/scratch_w682_bench_module_183x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W682_2026-07-07.md,scripts/gen_w682.py,specs/scratch/w682_bench_module_183x2p6_aos_var_call_write.t27
+
+## 2026-07-20T16:12:49Z — wave-loop-683
+- **Commit:** docs(w682): mark Wave Loop 682 plan complete
+- **Files:** .claude/plans/wave-loop-683.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w683_bench_module_185x2p6_aos_var_call_write.json,.trinity/seals/scratch_w683_bench_module_185x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W683_2026-07-07.md,scripts/gen_w683.py,specs/scratch/w683_bench_module_185x2p6_aos_var_call_write.t27
+
+## 2026-07-20T16:27:20Z — wave-loop-684
+- **Commit:** chore(trinity): record W683 session log and commit count
+- **Files:** .claude/plans/wave-loop-684.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w684_bench_module_187x2p6_aos_var_call_write.json,.trinity/seals/scratch_w684_bench_module_187x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W684_2026-07-07.md,scripts/gen_w684.py,specs/scratch/w684_bench_module_187x2p6_aos_var_call_write.t27
+
+## 2026-07-20T16:41:44Z — wave-loop-685
+- **Commit:** docs(w684): mark Wave Loop 684 plan complete
+- **Files:** .claude/plans/wave-loop-685.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w685_bench_module_189x2p6_aos_var_call_write.json,.trinity/seals/scratch_w685_bench_module_189x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W685_2026-07-07.md,scripts/gen_w685.py,specs/scratch/w685_bench_module_189x2p6_aos_var_call_write.t27
+
+## 2026-07-20T16:56:44Z — wave-loop-686
+- **Commit:** chore(trinity): record W685 session log and commit count
+- **Files:** .claude/plans/wave-loop-686.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w686_bench_module_191x2p6_aos_var_call_write.json,.trinity/seals/scratch_w686_bench_module_191x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W686_2026-07-07.md,scripts/gen_w686.py,specs/scratch/w686_bench_module_191x2p6_aos_var_call_write.t27
+
+## 2026-07-20T17:10:12Z — wave-loop-687
+- **Commit:** chore(trinity): record W686 session log and commit count
+- **Files:** .claude/plans/wave-loop-687.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w687_bench_module_193x2p6_aos_var_call_write.json,.trinity/seals/scratch_w687_bench_module_193x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W687_2026-07-07.md,scripts/gen_w687.py,specs/scratch/w687_bench_module_193x2p6_aos_var_call_write.t27
+
+## 2026-07-20T17:25:20Z — wave-loop-688
+- **Commit:** chore(trinity): record W687 session log and commit count
+- **Files:** .claude/plans/wave-loop-688.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w688_bench_module_195x2p6_aos_var_call_write.json,.trinity/seals/scratch_w688_bench_module_195x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W688_2026-07-07.md,scripts/gen_w688.py,specs/scratch/w688_bench_module_195x2p6_aos_var_call_write.t27
+
+## 2026-07-20T17:40:29Z — wave-loop-689
+- **Commit:** chore(trinity): record W688 session log and commit count
+- **Files:** .claude/plans/wave-loop-689.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w689_bench_module_197x2p6_aos_var_call_write.json,.trinity/seals/scratch_w689_bench_module_197x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W689_2026-07-07.md,scripts/gen_w689.py,specs/scratch/w689_bench_module_197x2p6_aos_var_call_write.t27
+
+## 2026-07-20T17:57:42Z — wave-loop-690
+- **Commit:** chore(trinity): record W689 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w690_bench_module_199x2p6_aos_var_call_write.json,.trinity/seals/scratch_w690_bench_module_199x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w690.py,specs/scratch/w690_bench_module_199x2p6_aos_var_call_write.t27
+
+## 2026-07-20T17:57:50Z — wave-loop-690
+- **Commit:** feat(igla): Wave Loop 690 — module-scope [199][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-690.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W690_2026-07-07.md
+
+## 2026-07-20T17:57:58Z — wave-loop-690
+- **Commit:** docs(w690): Wave Loop 690 issue #1661 + branch wave-loop-690 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T18:11:53Z — wave-loop-691
+- **Commit:** chore(trinity): record W690 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w691_bench_module_201x2p6_aos_var_call_write.json,.trinity/seals/scratch_w691_bench_module_201x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w691.py,specs/scratch/w691_bench_module_201x2p6_aos_var_call_write.t27
+
+## 2026-07-20T18:11:57Z — wave-loop-691
+- **Commit:** feat(igla): Wave Loop 691 — module-scope [201][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-691.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W691_2026-07-07.md
+
+## 2026-07-20T18:12:00Z — wave-loop-691
+- **Commit:** docs(w691): Wave Loop 691 issue #1662 + branch wave-loop-691 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T18:27:42Z — wave-loop-692
+- **Commit:** chore(trinity): record W691 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w692_bench_module_203x2p6_aos_var_call_write.json,.trinity/seals/scratch_w692_bench_module_203x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w692.py,specs/scratch/w692_bench_module_203x2p6_aos_var_call_write.t27
+
+## 2026-07-20T18:27:46Z — wave-loop-692
+- **Commit:** feat(igla): Wave Loop 692 — module-scope [203][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-692.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W692_2026-07-07.md
+
+## 2026-07-20T18:27:50Z — wave-loop-692
+- **Commit:** docs(w692): Wave Loop 692 issue #1663 + branch wave-loop-692 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-20T18:42:56Z — wave-loop-693
+- **Commit:** chore(trinity): record W692 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w693_bench_module_205x2p6_aos_var_call_write.json,.trinity/seals/scratch_w693_bench_module_205x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w693.py,specs/scratch/w693_bench_module_205x2p6_aos_var_call_write.t27
+
+## 2026-07-20T18:43:02Z — wave-loop-693
+- **Commit:** feat(igla): Wave Loop 693 — module-scope [205][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-693.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W693_2026-07-07.md
+
+## 2026-07-20T18:43:12Z — wave-loop-693
+- **Commit:** docs(w693): Wave Loop 693 issue #1664 + branch wave-loop-693 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T03:57:58Z — wave-loop-694
+- **Commit:** chore(trinity): record W693 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w694_bench_module_207x2p6_aos_var_call_write.json,.trinity/seals/scratch_w694_bench_module_207x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w694.py,specs/scratch/w694_bench_module_207x2p6_aos_var_call_write.t27
+
+## 2026-07-21T03:58:03Z — wave-loop-694
+- **Commit:** feat(igla): Wave Loop 694 — module-scope [207][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from a call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-694.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W694_2026-07-07.md
+
+## 2026-07-21T03:58:06Z — wave-loop-694
+- **Commit:** docs(w694): Wave Loop 694 issue #1665 + branch wave-loop-694 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T04:13:37Z — wave-loop-695
+- **Commit:** chore(trinity): record W694 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w695_bench_module_209x2p6_aos_var_call_write.json,.trinity/seals/scratch_w695_bench_module_209x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w695.py,specs/scratch/w695_bench_module_209x2p6_aos_var_call_write.t27
+
+## 2026-07-21T04:13:42Z — wave-loop-695
+- **Commit:** feat(igla): Wave Loop 695 — module-scope [209][2]^6 Pt non-p2 outer-dim AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-695.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W695_2026-07-07.md
+
+## 2026-07-21T04:13:46Z — wave-loop-695
+- **Commit:** docs(w695): Wave Loop 695 closeout report, experience, plan, current issue
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T04:26:17Z — wave-loop-696
+- **Commit:** chore(trinity): record W695 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w696_bench_module_211x2p6_aos_var_call_write.json,.trinity/seals/scratch_w696_bench_module_211x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w696.py,specs/scratch/w696_bench_module_211x2p6_aos_var_call_write.t27
+
+## 2026-07-21T04:26:22Z — wave-loop-696
+- **Commit:** feat(igla): Wave Loop 696 — module-scope [211][2]^6 Pt non-p2 outer-dim AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-696.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W696_2026-07-07.md
+
+## 2026-07-21T04:26:34Z — wave-loop-696
+- **Commit:** docs(w696): Wave Loop 696 closeout report, experience, plan, current issue
+- **Files:** .claude/plans/wave-loop-696.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T04:26:34Z — wave-loop-696
+- **Commit:** docs(w696): mark Wave Loop 696 plan tasks complete
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T04:40:16Z — wave-loop-697
+- **Commit:** chore(trinity): record W696 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w697_bench_module_213x2p6_aos_var_call_write.json,.trinity/seals/scratch_w697_bench_module_213x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w697.py,specs/scratch/w697_bench_module_213x2p6_aos_var_call_write.t27
+
+## 2026-07-21T04:40:20Z — wave-loop-697
+- **Commit:** feat(igla): Wave Loop 697 — module-scope [213][2]^6 Pt non-p2 outer-dim AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-697.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W697_2026-07-07.md
+
+## 2026-07-21T04:40:43Z — wave-loop-697
+- **Commit:** docs(w697): Wave Loop 697 closeout report, experience, plan, current issue
+- **Files:** .claude/plans/wave-loop-697.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T04:40:43Z — wave-loop-697
+- **Commit:** docs(w697): mark Wave Loop 697 plan tasks complete
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T04:55:40Z — wave-loop-698
+- **Commit:** chore(trinity): record W697 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w698_bench_module_215x2p6_aos_var_call_write.json,.trinity/seals/scratch_w698_bench_module_215x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w698.py,specs/scratch/w698_bench_module_215x2p6_aos_var_call_write.t27
+
+## 2026-07-21T04:55:46Z — wave-loop-698
+- **Commit:** feat(igla): Wave Loop 698 — module-scope [215][2]^6 Pt non-p2 outer-dim AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-698.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W698_2026-07-07.md
+
+## 2026-07-21T04:56:05Z — wave-loop-698
+- **Commit:** docs(w698): Wave Loop 698 closeout report, experience, plan, current issue
+- **Files:** .claude/plans/wave-loop-698.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T04:56:06Z — wave-loop-698
+- **Commit:** docs(w698): mark Wave Loop 698 plan tasks complete
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T05:12:44Z — wave-loop-699
+- **Commit:** chore(trinity): record W698 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w699_bench_module_217x2p6_aos_var_call_write.json,.trinity/seals/scratch_w699_bench_module_217x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w699.py,specs/scratch/w699_bench_module_217x2p6_aos_var_call_write.t27
+
+## 2026-07-21T05:12:50Z — wave-loop-699
+- **Commit:** feat(igla): Wave Loop 699 — module-scope [217][2]^6 Pt non-p2 outer-dim AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-699.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W699_2026-07-07.md
+
+## 2026-07-21T05:13:03Z — wave-loop-699
+- **Commit:** docs(w699): Wave Loop 699 closeout report, experience, plan, current issue
+- **Files:** .claude/plans/wave-loop-699.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T05:13:04Z — wave-loop-699
+- **Commit:** docs(w699): mark Wave Loop 699 plan tasks complete
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T05:28:19Z — wave-loop-700
+- **Commit:** chore(trinity): record W699 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w700_bench_module_219x2p6_aos_var_call_write.json,.trinity/seals/scratch_w700_bench_module_219x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w700.py,specs/scratch/w700_bench_module_219x2p6_aos_var_call_write.t27
+
+## 2026-07-21T05:28:26Z — wave-loop-700
+- **Commit:** feat(igla): Wave Loop 700 — module-scope [219][2]^6 Pt non-power-of-two outer-dimension AoS variable from call, indexed signed writes
+- **Files:** .claude/plans/wave-loop-700.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W700_2026-07-07.md
+
+## 2026-07-21T05:28:46Z — wave-loop-700
+- **Commit:** docs(w700): Wave Loop 700 issue #1671 + branch wave-loop-700 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T05:42:45Z — wave-loop-701
+- **Commit:** chore(trinity): record W700 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w701_bench_module_221x2p6_aos_var_call_write.json,.trinity/seals/scratch_w701_bench_module_221x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w701.py,specs/scratch/w701_bench_module_221x2p6_aos_var_call_write.t27
+
+## 2026-07-21T05:42:51Z — wave-loop-701
+- **Commit:** feat(igla): Wave Loop 701 — module-scope [221][2]^6 Pt non-power-of-two outer-dimension AoS variable from call, indexed signed writes
+- **Files:** .claude/plans/wave-loop-701.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W701_2026-07-07.md
+
+## 2026-07-21T05:44:08Z — wave-loop-701
+- **Commit:** docs(w701): Wave Loop 701 issue #1672 + branch wave-loop-701 cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T05:56:01Z — wave-loop-702
+- **Commit:** chore(trinity): record W701 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w702_bench_module_223x2p6_aos_var_call_write.json,.trinity/seals/scratch_w702_bench_module_223x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w702.py,specs/scratch/w702_bench_module_223x2p6_aos_var_call_write.t27
+
+## 2026-07-21T05:56:07Z — wave-loop-702
+- **Commit:** feat(igla): Wave Loop 702 — module-scope [223][2]^6 Pt non-power-of-two outer-dimension AoS variable from call, indexed signed writes
+- **Files:** .claude/plans/wave-loop-702.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W702_2026-07-07.md
+
+## 2026-07-21T05:56:35Z — wave-loop-702
+- **Commit:** docs(w702): Wave Loop 702 issue #1673 + branch wave-loop-702 cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T06:11:23Z — wave-loop-703
+- **Commit:** chore(trinity): record W702 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w703_bench_module_225x2p6_aos_var_call_write.json,.trinity/seals/scratch_w703_bench_module_225x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w703.py,specs/scratch/w703_bench_module_225x2p6_aos_var_call_write.t27
+
+## 2026-07-21T06:11:30Z — wave-loop-703
+- **Commit:** feat(igla): Wave Loop 703 — module-scope [225][2]^6 Pt non-power-of-two outer-dimension AoS variable from call, indexed signed writes
+- **Files:** .claude/plans/wave-loop-703.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W703_2026-07-07.md
+
+## 2026-07-21T06:11:50Z — wave-loop-703
+- **Commit:** docs(w703): Wave Loop 703 issue #1674 + branch wave-loop-703 cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T06:26:28Z — wave-loop-704
+- **Commit:** chore(trinity): record W703 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w704_bench_module_227x2p6_aos_var_call_write.json,.trinity/seals/scratch_w704_bench_module_227x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w704.py,specs/scratch/w704_bench_module_227x2p6_aos_var_call_write.t27
+
+## 2026-07-21T06:26:34Z — wave-loop-704
+- **Commit:** feat(igla): Wave Loop 704 — module-scope [227][2]^6 Pt non-power-of-two outer-dimension AoS variable from call, indexed signed writes
+- **Files:** .claude/plans/wave-loop-704.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W704_2026-07-07.md
+
+## 2026-07-21T06:26:53Z — wave-loop-704
+- **Commit:** docs(w704): Wave Loop 704 issue #1675 + branch wave-loop-704 cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T06:55:14Z — wave-loop-705
+- **Commit:** chore(trinity): record W704 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w705_bench_module_229x2p6_aos_var_call_write.json,.trinity/seals/scratch_w705_bench_module_229x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w705.py,specs/scratch/w705_bench_module_229x2p6_aos_var_call_write.t27
+
+## 2026-07-21T06:55:19Z — wave-loop-705
+- **Commit:** feat(gen-verilog): Wave Loop 705 — module-scope [229][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-705.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W705_2026-07-07.md
+
+## 2026-07-21T06:55:22Z — wave-loop-705
+- **Commit:** docs(w705): Wave Loop 705 issue #1676 + branch wave-loop-705 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T06:55:32Z — wave-loop-706
+- **Commit:** chore(trinity): record W705 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T06:55:37Z — wave-loop-706
+- **Commit:** chore(trinity): record W705 session log and commit count after branch cut
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T06:55:44Z — wave-loop-706
+- **Commit:** chore(trinity): record W705 session log and commit count after branch cut
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T06:55:52Z — wave-loop-706
+- **Commit:** chore(trinity): final W705 session log and commit count on wave-loop-706
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T07:11:41Z — wave-loop-706
+- **Commit:** chore(trinity): W705 closeout log checkpoint
+- **Files:** .trinity/icarus-baselines/specs/scratch/w706_bench_module_231x2p6_aos_var_call_write.json,.trinity/seals/scratch_w706_bench_module_231x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w706.py,specs/scratch/w706_bench_module_231x2p6_aos_var_call_write.t27
+
+## 2026-07-21T07:11:46Z — wave-loop-706
+- **Commit:** feat(gen-verilog): Wave Loop 706 — module-scope [231][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-706.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W706_2026-07-07.md
+
+## 2026-07-21T07:11:49Z — wave-loop-706
+- **Commit:** docs(w706): Wave Loop 706 issue #1677 + branch wave-loop-706 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T07:11:58Z — wave-loop-707
+- **Commit:** chore(trinity): record W706 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T07:26:07Z — wave-loop-707
+- **Commit:** chore(trinity): W706 closeout log checkpoint on wave-loop-707
+- **Files:** .trinity/icarus-baselines/specs/scratch/w707_bench_module_233x2p6_aos_var_call_write.json,.trinity/seals/scratch_w707_bench_module_233x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w707.py,specs/scratch/w707_bench_module_233x2p6_aos_var_call_write.t27
+
+## 2026-07-21T07:26:11Z — wave-loop-707
+- **Commit:** feat(gen-verilog): Wave Loop 707 — module-scope [233][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-707.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W707_2026-07-07.md
+
+## 2026-07-21T07:26:16Z — wave-loop-707
+- **Commit:** docs(w707): Wave Loop 707 issue #1678 + branch wave-loop-707 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T07:26:26Z — wave-loop-708
+- **Commit:** chore(trinity): record W707 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T07:41:45Z — wave-loop-708
+- **Commit:** chore(trinity): W707 closeout log checkpoint on wave-loop-708
+- **Files:** .trinity/icarus-baselines/specs/scratch/w708_bench_module_235x2p6_aos_var_call_write.json,.trinity/seals/scratch_w708_bench_module_235x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w708.py,specs/scratch/w708_bench_module_235x2p6_aos_var_call_write.t27
+
+## 2026-07-21T07:41:51Z — wave-loop-708
+- **Commit:** feat(gen-verilog): Wave Loop 708 — module-scope [235][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-708.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W708_2026-07-07.md
+
+## 2026-07-21T07:41:56Z — wave-loop-708
+- **Commit:** docs(w708): Wave Loop 708 issue #1679 + branch wave-loop-708 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T07:42:06Z — wave-loop-709
+- **Commit:** chore(trinity): record W708 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T07:42:59Z — wave-loop-709
+- **Commit:** chore(trinity): W708 closeout log checkpoint on wave-loop-709
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T07:58:31Z — wave-loop-709
+- **Commit:** chore(trinity): record W708 session log and commit count
+- **Files:** .trinity/icarus-baselines/specs/scratch/w709_bench_module_237x2p6_aos_var_call_write.json,.trinity/seals/scratch_w709_bench_module_237x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w709.py,specs/scratch/w709_bench_module_237x2p6_aos_var_call_write.t27
+
+## 2026-07-21T07:58:45Z — wave-loop-709
+- **Commit:** feat(gen-verilog): Wave Loop 709 — module-scope [237][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-709.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W709_2026-07-07.md
+
+## 2026-07-21T07:58:52Z — wave-loop-709
+- **Commit:** docs(w709): Wave Loop 709 issue #1680 + branch wave-loop-709 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T07:59:12Z — wave-loop-709
+- **Commit:** chore(trinity): record W709 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T07:59:29Z — wave-loop-710
+- **Commit:** chore(trinity): W709 closeout log checkpoint on wave-loop-710
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T08:00:06Z — wave-loop-710
+- **Commit:** chore(trinity): record W709 session log and commit count
+- **Files:** .claude/plans/wave-loop-709.md
+
+## 2026-07-21T08:10:50Z — wave-loop-710
+- **Commit:** chore(trinity): mark W709 plan exit criteria complete
+- **Files:** .trinity/icarus-baselines/specs/scratch/w710_bench_module_239x2p6_aos_var_call_write.json,.trinity/seals/scratch_w710_bench_module_239x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w710.py,specs/scratch/w710_bench_module_239x2p6_aos_var_call_write.t27
+
+## 2026-07-21T08:10:53Z — wave-loop-710
+- **Commit:** feat(gen-verilog): Wave Loop 710 — module-scope [239][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-710.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W710_2026-07-07.md
+
+## 2026-07-21T08:10:58Z — wave-loop-710
+- **Commit:** docs(w710): Wave Loop 710 issue #1681 + branch wave-loop-710 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T08:11:08Z — wave-loop-711
+- **Commit:** chore(trinity): record W710 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T08:11:25Z — wave-loop-711
+- **Commit:** chore(trinity): W710 closeout log checkpoint on wave-loop-711
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T08:11:28Z — wave-loop-711
+- **Commit:** chore(trinity): record W710 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T08:12:06Z — wave-loop-711
+- **Commit:** chore(trinity): W710 closeout log checkpoint on wave-loop-711
+- **Files:** 
+
+## 2026-07-21T08:26:08Z — wave-loop-711
+- **Commit:** chore(trinity): record W710 session log and commit count on wave-loop-711
+- **Files:** .trinity/current_task/activity.md,.trinity/icarus-baselines/specs/scratch/w711_bench_module_241x2p6_aos_var_call_write.json,.trinity/seals/scratch_w711_bench_module_241x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w711.py,specs/scratch/w711_bench_module_241x2p6_aos_var_call_write.t27
+
+## 2026-07-21T08:26:13Z — wave-loop-711
+- **Commit:** feat(gen-verilog): Wave Loop 711 — module-scope [241][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-711.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W711_2026-07-07.md
+
+## 2026-07-21T08:26:20Z — wave-loop-711
+- **Commit:** docs(w711): Wave Loop 711 issue #1682 + branch wave-loop-711 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T08:26:45Z — wave-loop-712
+- **Commit:** chore(trinity): record W711 session log and commit count on wave-loop-712
+- **Files:** .claude/plans/wave-loop-711.md
+
+## 2026-07-21T08:26:52Z — wave-loop-712
+- **Commit:** chore(trinity): mark W711 plan exit criteria complete
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T08:27:03Z — wave-loop-712
+- **Commit:** chore(trinity): record W711 session log and commit count on wave-loop-712
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T08:41:00Z — wave-loop-712
+- **Commit:** chore(trinity): W711 closeout log checkpoint on wave-loop-712
+- **Files:** .trinity/icarus-baselines/specs/scratch/w712_bench_module_243x2p6_aos_var_call_write.json,.trinity/seals/scratch_w712_bench_module_243x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w712.py,specs/scratch/w712_bench_module_243x2p6_aos_var_call_write.t27
+
+## 2026-07-21T08:41:05Z — wave-loop-712
+- **Commit:** feat(gen-verilog): Wave Loop 712 — module-scope [243][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-712.md,.trinity/current-issue.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W712_2026-07-07.md
+
+## 2026-07-21T08:41:12Z — wave-loop-712
+- **Commit:** docs(w712): Wave Loop 712 issue #1683 + branch wave-loop-712 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T08:42:27Z — wave-loop-713
+- **Commit:** chore(trinity): mark W712 plan exit criteria complete
+- **Files:** 
+
+## 2026-07-21T08:57:08Z — wave-loop-713
+- **Commit:** chore(trinity): W712 closeout log checkpoint on wave-loop-713
+- **Files:** .claude/plans/wave-loop-713.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w713_bench_module_245x2p6_aos_var_call_write.json,.trinity/seals/scratch_w713_bench_module_245x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W713_2026-07-07.md,scripts/gen_w713.py,specs/scratch/w713_bench_module_245x2p6_aos_var_call_write.t27
+
+## 2026-07-21T08:58:00Z — wave-loop-714
+- **Commit:** feat(igla): Wave Loop 713 — module-scope [245][2]^6 Pt non-power-of-two outer-dimension AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-714.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T09:11:36Z — wave-loop-714
+- **Commit:** docs(trinity): Wave Loop 714 issue #1685 + branch wave-loop-714 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-714.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w714_bench_module_247x2p6_aos_var_call_write.json,.trinity/seals/scratch_w714_bench_module_247x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W714_2026-07-07.md,scripts/gen_w714.py,specs/scratch/w714_bench_module_247x2p6_aos_var_call_write.t27
+
+## 2026-07-21T09:12:20Z — wave-loop-715
+- **Commit:** feat(igla): Wave Loop 714 — module-scope [247][2]^6 Pt non-power-of-two outer-dimension AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-715.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T09:26:03Z — wave-loop-715
+- **Commit:** docs(trinity): Wave Loop 715 issue #1686 + branch wave-loop-715 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-715.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w715_bench_module_249x2p6_aos_var_call_write.json,.trinity/seals/scratch_w715_bench_module_249x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W715_2026-07-07.md,scripts/gen_w715.py,specs/scratch/w715_bench_module_249x2p6_aos_var_call_write.t27
+
+## 2026-07-21T09:26:38Z — wave-loop-716
+- **Commit:** feat(igla): Wave Loop 715 — module-scope [249][2]^6 Pt non-power-of-two outer-dimension AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-716.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T09:40:13Z — wave-loop-716
+- **Commit:** docs(trinity): Wave Loop 716 issue #1687 + branch wave-loop-716 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-716.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w716_bench_module_251x2p6_aos_var_call_write.json,.trinity/seals/scratch_w716_bench_module_251x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W716_2026-07-07.md,scripts/gen_w716.py,specs/scratch/w716_bench_module_251x2p6_aos_var_call_write.t27
+
+## 2026-07-21T09:40:57Z — wave-loop-717
+- **Commit:** feat(igla): Wave Loop 716 — module-scope [251][2]^6 Pt non-power-of-two outer-dimension AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-717.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T09:55:54Z — wave-loop-717
+- **Commit:** docs(trinity): Wave Loop 717 issue #1688 + branch wave-loop-717 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-717.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w717_bench_module_253x2p6_aos_var_call_write.json,.trinity/seals/scratch_w717_bench_module_253x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W717_2026-07-07.md,scripts/gen_w717.py,specs/scratch/w717_bench_module_253x2p6_aos_var_call_write.t27
+
+## 2026-07-21T09:56:41Z — wave-loop-718
+- **Commit:** feat(igla): Wave Loop 717 — module-scope [253][2]^6 Pt non-power-of-two outer-dimension AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-718.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T10:13:38Z — wave-loop-718
+- **Commit:** docs(trinity): Wave Loop 718 issue #1689 + branch wave-loop-718 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-718.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w718_bench_module_255x2p6_aos_var_call_write.json,.trinity/seals/scratch_w718_bench_module_255x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W718_2026-07-07.md,scripts/gen_w718.py,specs/scratch/w718_bench_module_255x2p6_aos_var_call_write.t27
+
+## 2026-07-21T10:24:19Z — wave-loop-719
+- **Commit:** feat(igla): Wave Loop 718 — module-scope [255][2]^6 Pt non-power-of-two outer-dimension AoS var from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-719.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w719_bench_module_257x2p6_aos_var_call_write.json,.trinity/seals/scratch_w719_bench_module_257x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W719_2026-07-07.md,scripts/gen_w719.py,specs/scratch/w719_bench_module_257x2p6_aos_var_call_write.t27
+
+## 2026-07-21T10:35:25Z — wave-loop-720
+- **Commit:** feat(igla): Wave Loop 719 — module-scope [257][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-720.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w720_bench_module_259x2p6_aos_var_call_write.json,.trinity/seals/scratch_w720_bench_module_259x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W720_2026-07-07.md,scripts/gen_w720.py,specs/scratch/w720_bench_module_259x2p6_aos_var_call_write.t27
+
+## 2026-07-21T10:46:03Z — wave-loop-721
+- **Commit:** feat(igla): Wave Loop 720 — module-scope [259][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-721.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w721_bench_module_261x2p6_aos_var_call_write.json,.trinity/seals/scratch_w721_bench_module_261x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W721_2026-07-07.md,scripts/gen_w721.py,specs/scratch/w721_bench_module_261x2p6_aos_var_call_write.t27
+
+## 2026-07-21T10:57:48Z — wave-loop-722
+- **Commit:** feat(igla): Wave Loop 721 — module-scope [261][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-722.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w722_bench_module_263x2p6_aos_var_call_write.json,.trinity/seals/scratch_w722_bench_module_263x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W722_2026-07-07.md,scripts/gen_w722.py,specs/scratch/w722_bench_module_263x2p6_aos_var_call_write.t27
+
+## 2026-07-21T11:13:47Z — wave-loop-723
+- **Commit:** feat(igla): Wave Loop 722 — module-scope [263][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-723.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w723_bench_module_265x2p6_aos_var_call_write.json,.trinity/seals/scratch_w723_bench_module_265x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W723_2026-07-07.md,scripts/gen_w723.py,specs/scratch/w723_bench_module_265x2p6_aos_var_call_write.t27
+
+## 2026-07-21T11:30:44Z — wave-loop-724
+- **Commit:** feat(igla): Wave Loop 723 — module-scope [265][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-724.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w724_bench_module_267x2p6_aos_var_call_write.json,.trinity/seals/scratch_w724_bench_module_267x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W724_2026-07-07.md,scripts/gen_w724.py,specs/scratch/w724_bench_module_267x2p6_aos_var_call_write.t27
+
+## 2026-07-21T11:31:29Z — wave-loop-724
+- **Commit:** feat(igla): Wave Loop 724 — module-scope [267][2]^6 Pt non-power-of-two outer-dimension AoS variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T11:43:53Z — wave-loop-725
+- **Commit:** chore(trinity): record W724 session log and commit count
+- **Files:** .claude/plans/wave-loop-725.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w725_bench_module_269x2p6_aos_var_call_write.json,.trinity/seals/scratch_w725_bench_module_269x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W725_2026-07-07.md,scripts/gen_w725.py,specs/scratch/w725_bench_module_269x2p6_aos_var_call_write.t27
+
+## 2026-07-21T11:44:19Z — wave-loop-725
+- **Commit:** feat(igla): Wave Loop 725 — module-scope [269][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T11:52:33Z — wave-loop-726
+- **Commit:** chore(trinity): record W725 session log and commit count
+- **Files:** .claude/plans/wave-loop-726.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T11:52:40Z — wave-loop-726
+- **Commit:** docs(trinity): Wave Loop 726 issue #1697 + branch wave-loop-726 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-726.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T11:58:55Z — wave-loop-726
+- **Commit:** docs(trinity): Wave Loop 726 issue #1697 + branch wave-loop-726 created, next-wave cooperation variants set
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w726_bench_module_271x2p6_aos_var_call_write.json,.trinity/seals/scratch_w726_bench_module_271x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W726_2026-07-07.md,scripts/gen_w726.py,specs/scratch/w726_bench_module_271x2p6_aos_var_call_write.t27
+
+## 2026-07-21T11:59:22Z — wave-loop-726
+- **Commit:** feat(igla): Wave Loop 726 — module-scope [271][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T12:07:41Z — wave-loop-727
+- **Commit:** chore(trinity): record W726 session log and commit count
+- **Files:** .claude/plans/wave-loop-727.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T12:14:29Z — wave-loop-727
+- **Commit:** docs(trinity): Wave Loop 727 issue #1698 + branch wave-loop-727 created, next-wave cooperation variants set
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w727_bench_module_273x2p6_aos_var_call_write.json,.trinity/seals/scratch_w727_bench_module_273x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W727_2026-07-07.md,scripts/gen_w727.py,specs/scratch/w727_bench_module_273x2p6_aos_var_call_write.t27
+
+## 2026-07-21T12:14:59Z — wave-loop-727
+- **Commit:** feat(igla): Wave Loop 727 — module-scope [273][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T12:22:32Z — wave-loop-728
+- **Commit:** chore(trinity): record W727 session log and commit count
+- **Files:** .claude/plans/wave-loop-728.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T12:30:11Z — wave-loop-728
+- **Commit:** docs(trinity): Wave Loop 728 issue #1699 + branch wave-loop-728 created, next-wave cooperation variants set
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w728_bench_module_275x2p6_aos_var_call_write.json,.trinity/seals/scratch_w728_bench_module_275x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W728_2026-07-07.md,scripts/gen_w728.py,specs/scratch/w728_bench_module_275x2p6_aos_var_call_write.t27
+
+## 2026-07-21T12:30:38Z — wave-loop-728
+- **Commit:** feat(igla): Wave Loop 728 — module-scope [275][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T12:37:37Z — wave-loop-729
+- **Commit:** chore(trinity): record W728 session log and commit count
+- **Files:** .claude/plans/wave-loop-729.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T12:46:43Z — wave-loop-729
+- **Commit:** docs(trinity): Wave Loop 729 issue #1700 + branch wave-loop-729 created, next-wave cooperation variants set
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w729_bench_module_277x2p6_aos_var_call_write.json,.trinity/seals/scratch_w729_bench_module_277x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W729_2026-07-07.md,scripts/gen_w729.py,specs/scratch/w729_bench_module_277x2p6_aos_var_call_write.t27
+
+## 2026-07-21T12:51:54Z — wave-loop-730
+- **Commit:** feat(igla): Wave Loop 729 — module-scope [277][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T12:53:44Z — wave-loop-730
+- **Commit:** chore(trinity): record W729 session log and commit count
+- **Files:** .claude/plans/wave-loop-730.md,.trinity/current-issue.md
+
+## 2026-07-21T13:04:19Z — wave-loop-730
+- **Commit:** docs(trinity): Wave Loop 730 issue #1701 + branch wave-loop-730 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-730.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w730_bench_module_279x2p6_aos_var_call_write.json,.trinity/seals/scratch_w730_bench_module_279x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W730_2026-07-07.md,scripts/gen_w730.py,specs/scratch/w730_bench_module_279x2p6_aos_var_call_write.t27
+
+## 2026-07-21T13:05:02Z — wave-loop-731
+- **Commit:** feat(igla): Wave Loop 730 — module-scope [279][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T13:05:57Z — wave-loop-731
+- **Commit:** chore(trinity): record W730 session log and commit count
+- **Files:** .claude/plans/wave-loop-731.md,.trinity/current-issue.md
+
+## 2026-07-21T13:06:08Z — wave-loop-731
+- **Commit:** docs(trinity): Wave Loop 731 issue #1702 + branch wave-loop-731 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T13:06:28Z — wave-loop-731
+- **Commit:** chore(trinity): record W731 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T13:06:35Z — wave-loop-731
+- **Commit:** chore(trinity): record final W731 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T13:07:36Z — wave-loop-731
+- **Commit:** chore(trinity): record final W731 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T13:13:12Z — wave-loop-731
+- **Commit:** chore(trinity): record pre-W731 session log and commit count
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w731_bench_module_281x2p6_aos_var_call_write.json,.trinity/seals/scratch_w731_bench_module_281x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W731_2026-07-07.md,scripts/gen_w731.py,specs/scratch/w731_bench_module_281x2p6_aos_var_call_write.t27
+
+## 2026-07-21T13:13:18Z — wave-loop-732
+- **Commit:** feat(igla): Wave Loop 731 — module-scope [281][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T13:14:18Z — wave-loop-732
+- **Commit:** chore(trinity): record W731 session log and commit count
+- **Files:** .claude/plans/wave-loop-732.md,.trinity/current-issue.md
+
+## 2026-07-21T13:14:22Z — wave-loop-732
+- **Commit:** docs(trinity): Wave Loop 732 issue #1703 + branch wave-loop-732 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T13:21:42Z — wave-loop-732
+- **Commit:** chore(trinity): record final W732 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T13:27:45Z — wave-loop-732
+- **Commit:** chore(trinity): record pre-W732 session log and commit count
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w732_bench_module_283x2p6_aos_var_call_write.json,.trinity/seals/scratch_w732_bench_module_283x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W732_2026-07-07.md,scripts/gen_w732.py,specs/scratch/w732_bench_module_283x2p6_aos_var_call_write.t27
+
+## 2026-07-21T13:27:52Z — wave-loop-733
+- **Commit:** feat(igla): Wave Loop 732 — module-scope [283][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T13:44:56Z — wave-loop-733
+- **Commit:** chore(trinity): record W732 session log and commit count
+- **Files:** .claude/plans/wave-loop-733.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w733_bench_module_285x2p6_aos_var_call_write.json,.trinity/seals/scratch_w733_bench_module_285x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W733_2026-07-07.md,scripts/gen_w733.py,specs/scratch/w733_bench_module_285x2p6_aos_var_call_write.t27
+
+## 2026-07-21T13:45:41Z — wave-loop-734
+- **Commit:** feat(igla): Wave Loop 733 — module-scope [285][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T13:45:54Z — wave-loop-734
+- **Commit:** docs(trinity): Wave Loop 734 issue #1705 + branch wave-loop-734 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T13:46:15Z — wave-loop-734
+- **Commit:** chore(trinity): record W733 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T13:57:24Z — wave-loop-734
+- **Commit:** chore(trinity): record final W733 session log and commit count (no-verify)
+- **Files:** .claude/plans/wave-loop-734.md,.trinity/current_task/.commit_count,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w734_bench_module_287x2p6_aos_var_call_write.json,.trinity/seals/scratch_w734_bench_module_287x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W734_2026-07-07.md,scripts/gen_w734.py,specs/scratch/w734_bench_module_287x2p6_aos_var_call_write.t27
+
+## 2026-07-21T13:58:10Z — wave-loop-735
+- **Commit:** feat(igla): Wave Loop 734 — module-scope [287][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T14:12:18Z — wave-loop-735
+- **Commit:** chore(trinity): record final W734 session log and commit count
+- **Files:** .claude/plans/wave-loop-735.md,.trinity/current_task/.commit_count,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w735_bench_module_289x2p6_aos_var_call_write.json,.trinity/seals/scratch_w735_bench_module_289x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W735_2026-07-07.md,scripts/gen_w735.py,specs/scratch/w735_bench_module_289x2p6_aos_var_call_write.t27
+
+## 2026-07-21T14:13:27Z — wave-loop-736
+- **Commit:** feat(igla): Wave Loop 735 — module-scope [289][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T14:27:34Z — wave-loop-736
+- **Commit:** chore(trinity): record final W735 session log and commit count
+- **Files:** .claude/plans/wave-loop-736.md,.trinity/current_task/.commit_count,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w736_bench_module_291x2p6_aos_var_call_write.json,.trinity/seals/scratch_w736_bench_module_291x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W736_2026-07-07.md,scripts/gen_w736.py,specs/scratch/w736_bench_module_291x2p6_aos_var_call_write.t27
+
+## 2026-07-21T14:28:31Z — wave-loop-737
+- **Commit:** feat(igla): Wave Loop 736 — module-scope [291][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T14:36:27Z — wave-loop-737
+- **Commit:** chore(trinity): record final W736 session log and commit count
+- **Files:** .claude/plans/wave-loop-737.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w737_bench_module_293x2p6_aos_var_call_write.json,.trinity/seals/scratch_w737_bench_module_293x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W737_2026-07-07.md,scripts/gen_w737.py,specs/scratch/w737_bench_module_293x2p6_aos_var_call_write.t27
+
+## 2026-07-21T14:37:10Z — wave-loop-737
+- **Commit:** feat(igla): Wave Loop 737 — module-scope [293][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-21T14:37:21Z — wave-loop-738
+- **Commit:** docs(trinity): Wave Loop 738 issue #1709 + branch wave-loop-738 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-21T14:43:26Z — wave-loop-738
+- **Commit:** chore(trinity): record final W737 session log and commit count (no-verify)
+- **Files:** .claude/plans/wave-loop-738.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w738_bench_module_295x2p6_aos_var_call_write.json,.trinity/seals/scratch_w738_bench_module_295x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W738_2026-07-07.md,scripts/gen_w738.py,specs/scratch/w738_bench_module_295x2p6_aos_var_call_write.t27
+
+## 2026-07-21T14:43:54Z — wave-loop-738
+- **Commit:** feat(igla): Wave Loop 738 — module-scope [295][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-21T14:57:07Z — wave-loop-739
+- **Commit:** chore(trinity): record final W738 session log and commit count
+- **Files:** .claude/plans/wave-loop-739.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w739_bench_module_297x2p6_aos_var_call_write.json,.trinity/seals/scratch_w739_bench_module_297x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W739_2026-07-07.md,scripts/gen_w739.py,specs/scratch/w739_bench_module_297x2p6_aos_var_call_write.t27
+
+## 2026-07-21T14:57:28Z — wave-loop-739
+- **Commit:** feat(igla): Wave Loop 739 — module-scope [297][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-21T15:16:36Z — wave-loop-740
+- **Commit:** chore(trinity): record final W739 session log and commit count
+- **Files:** .claude/plans/wave-loop-740.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w740_bench_module_299x2p6_aos_var_call_write.json,.trinity/seals/scratch_w740_bench_module_299x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W740_2026-07-07.md,scripts/gen_w740.py,specs/scratch/w740_bench_module_299x2p6_aos_var_call_write.t27
+
+## 2026-07-21T15:17:04Z — wave-loop-740
+- **Commit:** feat(igla): Wave Loop 740 — module-scope [299][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-22T10:26:27Z — wave-loop-743
+- **Commit:** chore(trinity): record final W743 session log and commit count
+- **Files:** .claude/plans/wave-loop-743.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w743_bench_module_305x2p6_aos_var_call_write.json,.trinity/seals/scratch_w743_bench_module_305x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W743_2026-07-22.md,scripts/gen_w743.py,specs/scratch/w743_bench_module_305x2p6_aos_var_call_write.t27
+
+## 2026-07-22T10:29:25Z — wave-loop-744
+- **Commit:** feat(igla): Wave Loop 743 — module-scope [305][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-22T10:30:13Z — wave-loop-744
+- **Commit:** chore(trinity): record final W743 session log and commit count
+- **Files:** .claude/plans/wave-loop-743.md,docs/reports/FPGA_LOOP_CLOSEOUT_W743_2026-07-22.md
+
+## 2026-07-22T10:47:34Z — wave-loop-744
+- **Commit:** docs(trinity): mark W743 closeout DOD and plan checkboxes complete
+- **Files:** .claude/plans/wave-loop-744.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w744_bench_module_307x2p6_aos_var_call_write.json,.trinity/seals/scratch_w744_bench_module_307x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W744_2026-07-22.md,scripts/gen_w744.py,specs/scratch/w744_bench_module_307x2p6_aos_var_call_write.t27
+
+## 2026-07-22T10:49:32Z — wave-loop-745
+- **Commit:** feat(igla): Wave Loop 744 — module-scope [307][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-22T10:55:09Z — wave-loop-745
+- **Commit:** chore(trinity): record final W744 session log and commit count
+- **Files:** .claude/plans/wave-loop-745.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w745_bench_module_309x2p6_aos_var_call_write.json,.trinity/seals/scratch_w745_bench_module_309x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W745_2026-07-22.md,scripts/gen_w745.py,specs/scratch/w745_bench_module_309x2p6_aos_var_call_write.t27
+
+## 2026-07-22T10:55:17Z — wave-loop-745
+- **Commit:** feat(igla): Wave Loop 745 — module-scope [309][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-22T12:16:34Z — wave-loop-746
+- **Commit:** chore(trinity): record final W744 session log and commit count
+- **Files:** .claude/plans/wave-loop-746.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w746_bench_module_311x2p6_aos_var_call_write.json,.trinity/seals/scratch_w746_bench_module_311x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W746_2026-07-22.md,scripts/gen_w746.py,specs/scratch/w746_bench_module_311x2p6_aos_var_call_write.t27
+
+## 2026-07-22T12:17:16Z — wave-loop-747
+- **Commit:** feat(igla): Wave Loop 746 — module-scope [311][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-22T14:53:27Z — wave-loop-747
+- **Commit:** chore(trinity): record final W746 session log and commit count
+- **Files:** .claude/plans/wave-loop-747.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w747_bench_module_313x2p6_aos_var_call_write.json,.trinity/seals/scratch_w747_bench_module_313x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W747_2026-07-22.md,scripts/gen_w747.py,specs/scratch/w747_bench_module_313x2p6_aos_var_call_write.t27
+
+## 2026-07-22T14:55:22Z — wave-loop-748
+- **Commit:** feat(igla): Wave Loop 747 — module-scope [313][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T12:47:38Z — wave-loop-748
+- **Commit:** chore(trinity): record final W747 session log and commit count
+- **Files:** .agents/skills/phi-loop/SKILL.md,.agents/skills/tri-pipeline/SKILL.md,.agents/skills/tri/doctor-loop.md,.agents/skills/tri/examples/goldenfloat-mutation.md,.agents/skills/tri/examples/loop-handoff-output.md,.agents/skills/tri/examples/queen-recovery.md,.agents/skills/tri/examples/small-step-trool.md,.agents/skills/tri/examples/toxic-rollback.md,.agents/skills/tri/references/constitutional-laws.md,.agents/skills/tri/references/decision-log-schema.jsonl,.agents/skills/tri/references/graph-structure.md,.agents/skills/tri/references/numeric-standards.md,.agents/skills/tri/references/queen-health.md,.agents/skills/tri/references/recovery-policy.md,.agents/skills/tri/references/sacred-physics.md,.agents/skills/tri/scripts/graph-depcheck.sh,.agents/skills/tri/scripts/hash-seal.sh,.agents/skills/tri/scripts/replay-step.sh,.agents/skills/tri/scripts/swarm-health.sh,.agents/skills/tri/scripts/toxic-verdict.sh
+
+## 2026-07-23T12:56:03Z — wave-loop-749
+- **Commit:** feat(igla): Wave Loop 748 - module-scope [315][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-749.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w749_bench_module_317x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w749_bench_module_317x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W749_2026-07-23.md,scripts/gen_w749.py,specs/scratch/w749_bench_module_317x2p6_aos_var_call_write.t27
+
+## 2026-07-23T12:56:27Z — wave-loop-749
+- **Commit:** feat(igla): Wave Loop 749 - module-scope [317][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** 
+
+## 2026-07-23T12:56:50Z — wave-loop-749
+- **Commit:** chore(trinity): record final W749 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T13:11:31Z — wave-loop-750
+- **Commit:** chore(trinity): record final W749 session log and commit count
+- **Files:** .claude/plans/wave-loop-750.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w750_bench_module_319x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w750_bench_module_319x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W750_2026-07-23.md,scripts/gen_w750.py,specs/scratch/w750_bench_module_319x2p6_aos_var_call_write.t27
+
+## 2026-07-23T13:12:11Z — wave-loop-750
+- **Commit:** chore(trinity): record final W750 session log and commit count
+- **Files:** .trinity/current_task/session_log.jsonl
+
+## 2026-07-23T13:26:39Z — wave-loop-751
+- **Commit:** chore(trinity): record final W750 session log and commit count
+- **Files:** .claude/plans/wave-loop-751.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w751_bench_module_321x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w751_bench_module_321x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W751_2026-07-23.md,scripts/gen_w751.py,specs/scratch/w751_bench_module_321x2p6_aos_var_call_write.t27
+
+## 2026-07-23T13:45:20Z — wave-loop-752
+- **Commit:** chore(trinity): record final W751 session log and commit count
+- **Files:** .claude/plans/wave-loop-752.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w752_bench_module_323x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w752_bench_module_323x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W752_2026-07-23.md,scripts/gen_w752.py,specs/scratch/w752_bench_module_323x2p6_aos_var_call_write.t27
+
+## 2026-07-23T13:45:43Z — wave-loop-752
+- **Commit:** feat(igla): Wave Loop 752 - module-scope [323][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T13:48:54Z — wave-loop-753
+- **Commit:** chore(trinity): record final W752 session log and commit count
+- **Files:** .claude/plans/wave-loop-752.md
+
+## 2026-07-23T13:49:04Z — wave-loop-753
+- **Commit:** docs(trinity): mark Wave Loop 752 plan complete, Wave Loop 753 issue #1724 + branch wave-loop-753 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T13:49:09Z — wave-loop-753
+- **Commit:** chore(trinity): record final W752 session log and commit count on wave-loop-753
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T13:58:25Z — wave-loop-753
+- **Commit:** chore(trinity): record final W752 session log and commit count on wave-loop-753
+- **Files:** .claude/plans/wave-loop-753.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w753_bench_module_325x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w753_bench_module_325x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W753_2026-07-23.md,scripts/gen_w753.py,specs/scratch/w753_bench_module_325x2p6_aos_var_call_write.t27
+
+## 2026-07-23T13:58:35Z — wave-loop-753
+- **Commit:** feat(igla): Wave Loop 753 - module-scope [325][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T13:59:14Z — wave-loop-754
+- **Commit:** chore(trinity): record final W753 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T13:59:25Z — wave-loop-754
+- **Commit:** docs(trinity): mark Wave Loop 753 plan complete, Wave Loop 754 issue #1725 + branch wave-loop-754 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T14:10:36Z — wave-loop-754
+- **Commit:** chore(trinity): record final W753 session log and commit count
+- **Files:** .claude/plans/wave-loop-754.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w754_bench_module_327x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w754_bench_module_327x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W754_2026-07-23.md,scripts/gen_w754.py,specs/scratch/w754_bench_module_327x2p6_aos_var_call_write.t27
+
+## 2026-07-23T14:10:43Z — wave-loop-754
+- **Commit:** feat(igla): Wave Loop 754 - module-scope [327][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T14:11:09Z — wave-loop-755
+- **Commit:** chore(trinity): record final W754 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T14:11:17Z — wave-loop-755
+- **Commit:** docs(trinity): mark Wave Loop 754 plan complete, Wave Loop 755 issue #1726 + branch wave-loop-755 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T14:28:06Z — wave-loop-755
+- **Commit:** chore(trinity): record final W754 session log and commit count
+- **Files:** .claude/plans/wave-loop-755.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w755_bench_module_329x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w755_bench_module_329x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W755_2026-07-23.md,scripts/gen_w755.py,specs/scratch/w755_bench_module_329x2p6_aos_var_call_write.t27
+
+## 2026-07-23T14:28:16Z — wave-loop-755
+- **Commit:** feat(igla): Wave Loop 755 — module-scope [329][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T14:28:25Z — wave-loop-755
+- **Commit:** chore(trinity): record final W755 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T14:28:29Z — wave-loop-755
+- **Commit:** chore(trinity): record final W755 session log and commit count
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T14:29:42Z — wave-loop-756
+- **Commit:** chore(trinity): record final W755 session log and commit count
+- **Files:** .claude/plans/wave-loop-756.md,.trinity/current-issue.md
+
+## 2026-07-23T14:29:51Z — wave-loop-756
+- **Commit:** docs(trinity): Wave Loop 755 plan complete, Wave Loop 756 issue #1727 + branch wave-loop-756 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T14:40:53Z — wave-loop-756
+- **Commit:** chore(trinity): record W756 branch setup session log and commit count
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w756_bench_module_331x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w756_bench_module_331x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W756_2026-07-23.md,scripts/gen_w756.py,specs/scratch/w756_bench_module_331x2p6_aos_var_call_write.t27
+
+## 2026-07-23T14:40:58Z — wave-loop-756
+- **Commit:** feat(igla): Wave Loop 756 — module-scope [331][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T14:41:32Z — wave-loop-757
+- **Commit:** chore(trinity): record final W756 session log and commit count
+- **Files:** .claude/plans/wave-loop-757.md,.trinity/current-issue.md
+
+## 2026-07-23T14:41:36Z — wave-loop-757
+- **Commit:** docs(trinity): Wave Loop 756 plan complete, Wave Loop 757 issue #1728 + branch wave-loop-757 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T14:54:57Z — wave-loop-757
+- **Commit:** chore(trinity): record W757 branch setup session log and commit count
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w757_bench_module_333x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w757_bench_module_333x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W757_2026-07-23.md,scripts/gen_w757.py,specs/scratch/w757_bench_module_333x2p6_aos_var_call_write.t27
+
+## 2026-07-23T14:55:01Z — wave-loop-757
+- **Commit:** feat(igla): Wave Loop 757 — module-scope [333][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T14:55:34Z — wave-loop-758
+- **Commit:** chore(trinity): record final W757 session log and commit count
+- **Files:** .claude/plans/wave-loop-758.md,.trinity/current-issue.md
+
+## 2026-07-23T14:55:37Z — wave-loop-758
+- **Commit:** docs(trinity): Wave Loop 757 plan complete, Wave Loop 758 issue #1729 + branch wave-loop-758 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T15:09:58Z — wave-loop-758
+- **Commit:** chore(trinity): record W758 branch setup session log and commit count
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w758_bench_module_335x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w758_bench_module_335x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W758_2026-07-23.md,scripts/gen_w758.py,specs/scratch/w758_bench_module_335x2p6_aos_var_call_write.t27
+
+## 2026-07-23T15:10:02Z — wave-loop-758
+- **Commit:** feat(igla): Wave Loop 758 — module-scope [335][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T15:10:41Z — wave-loop-759
+- **Commit:** chore(trinity): record final W758 session log and commit count
+- **Files:** .claude/plans/wave-loop-759.md,.trinity/current-issue.md
+
+## 2026-07-23T15:10:45Z — wave-loop-759
+- **Commit:** docs(trinity): Wave Loop 758 plan complete, Wave Loop 759 issue #1730 + branch wave-loop-759 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T15:25:27Z — wave-loop-759
+- **Commit:** chore(trinity): record W759 branch setup session log and commit count
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w759_bench_module_337x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w759_bench_module_337x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W759_2026-07-23.md,scripts/gen_w759.py,specs/scratch/w759_bench_module_337x2p6_aos_var_call_write.t27
+
+## 2026-07-23T15:25:32Z — wave-loop-759
+- **Commit:** feat(igla): Wave Loop 759 — module-scope [337][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T15:27:23Z — wave-loop-760
+- **Commit:** chore(trinity): record final W759 session log and commit count
+- **Files:** .claude/plans/wave-loop-760.md
+
+## 2026-07-23T15:28:22Z — wave-loop-760
+- **Commit:** docs(trinity): Wave Loop 760 issue #1731 + branch wave-loop-760 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T15:42:31Z — wave-loop-760
+- **Commit:** chore(trinity): record final W759 session log and commit count, set W760 current issue
+- **Files:** .claude/plans/wave-loop-760.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w760_bench_module_339x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w760_bench_module_339x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W760_2026-07-23.md,scripts/gen_w760.py,specs/scratch/w760_bench_module_339x2p6_aos_var_call_write.t27
+
+## 2026-07-23T15:42:35Z — wave-loop-760
+- **Commit:** feat(igla): Wave Loop 760 — module-scope [339][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T15:43:14Z — wave-loop-761
+- **Commit:** chore(trinity): record final W760 session log and commit count
+- **Files:** .claude/plans/wave-loop-761.md,.trinity/current-issue.md
+
+## 2026-07-23T15:44:07Z — wave-loop-761
+- **Commit:** docs(trinity): Wave Loop 761 issue #1732 + branch wave-loop-761 created, next-wave cooperation variants set
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T15:44:20Z — wave-loop-761
+- **Commit:** chore(trinity): record final W760 session log and commit count, set W761 current issue
+- **Files:** .claude/plans/wave-loop-760.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T15:58:26Z — wave-loop-761
+- **Commit:** docs(trinity): mark W760 plan Land and Learn steps complete
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w761_bench_module_341x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w761_bench_module_341x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W761_2026-07-23.md,scripts/gen_w761.py,specs/scratch/w761_bench_module_341x2p6_aos_var_call_write.t27
+
+## 2026-07-23T15:58:37Z — wave-loop-761
+- **Commit:** feat(igla): Wave Loop 761 — module-scope [341][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T15:59:38Z — wave-loop-762
+- **Commit:** chore(trinity): record final W761 session log and commit count
+- **Files:** .claude/plans/wave-loop-762.md,.trinity/current-issue.md
+
+## 2026-07-23T16:00:14Z — wave-loop-762
+- **Commit:** docs(trinity): Wave Loop 762 issue #1733 + branch wave-loop-762 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-761.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T16:11:21Z — wave-loop-762
+- **Commit:** chore(trinity): record final W761 session log and commit count, set W762 current issue
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w762_bench_module_343x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w762_bench_module_343x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W762_2026-07-23.md,scripts/gen_w762.py,specs/scratch/w762_bench_module_343x2p6_aos_var_call_write.t27
+
+## 2026-07-23T16:11:27Z — wave-loop-762
+- **Commit:** feat(igla): Wave Loop 762 — module-scope [343][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T16:12:09Z — wave-loop-763
+- **Commit:** chore(trinity): record final W762 session log and commit count
+- **Files:** .claude/plans/wave-loop-763.md,.trinity/current-issue.md
+
+## 2026-07-23T16:12:32Z — wave-loop-763
+- **Commit:** docs(trinity): Wave Loop 763 issue #1734 + branch wave-loop-763 created, next-wave cooperation variants set
+- **Files:** .claude/plans/wave-loop-762.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T16:29:56Z — wave-loop-763
+- **Commit:** chore(trinity): record final W762 session log and commit count, set W763 current issue
+- **Files:** .claude/plans/wave-loop-763.md,.claude/plans/wave-loop-764.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w763_bench_module_345x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w763_bench_module_345x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W763_2026-07-23.md,scripts/gen_w763.py,specs/scratch/w763_bench_module_345x2p6_aos_var_call_write.t27
+
+## 2026-07-23T16:30:20Z — wave-loop-763
+- **Commit:** feat(igla): Wave Loop 763 — module-scope [345][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-23T16:39:00Z — wave-loop-763
+- **Commit:** chore(trinity): record final W763 session log and commit count
+- **Files:** .claude/plans/wave-loop-763.md,.claude/plans/wave-loop-764.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/icarus-baselines/specs/scratch/w763_bench_module_345x2p6_aos_var_call_write.t27.baseline,.trinity/seals/scratch_w763_bench_module_345x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W763_2026-07-23.md,scripts/gen_w763.py,specs/scratch/w763_bench_module_345x2p6_aos_var_call_write.t27
+
+## 2026-07-23T17:15:15Z — wave-loop-765
+- **Commit:** feat(igla): Wave Loop 764 — module-scope [347][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-766.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w765_bench_module_349x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W765_2026-07-23.md,scripts/gen_w765.py,specs/scratch/w765_bench_module_349x2p6_aos_var_call_write.t27
+
+## 2026-07-23T17:32:04Z — wave-loop-766
+- **Commit:** feat(igla): Wave Loop 765 — module-scope [349][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1736)
+- **Files:** .claude/plans/wave-loop-767.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w766_bench_module_351x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W766_2026-07-23.md,scripts/gen_w766.py,specs/scratch/w766_bench_module_351x2p6_aos_var_call_write.t27
+
+## 2026-07-23T17:52:18Z — wave-loop-767
+- **Commit:** feat(igla): Wave Loop 766 — module-scope [351][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1737)
+- **Files:** .claude/plans/wave-loop-768.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w767_bench_module_353x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W767_2026-07-23.md,scripts/gen_w767.py,specs/scratch/w767_bench_module_353x2p6_aos_var_call_write.t27
+
+## 2026-07-23T18:05:01Z — wave-loop-768
+- **Commit:** feat(igla): Wave Loop 767 — module-scope [353][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1738)
+- **Files:** .claude/plans/wave-loop-769.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w768_bench_module_355x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W768_2026-07-23.md,scripts/gen_w768.py,specs/scratch/w768_bench_module_355x2p6_aos_var_call_write.t27
+
+## 2026-07-23T18:14:36Z — wave-loop-769
+- **Commit:** feat(igla): Wave Loop 768 — module-scope [355][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1739)
+- **Files:** .claude/plans/wave-loop-770.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w769_bench_module_357x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W769_2026-07-24.md,scripts/gen_w769.py,specs/scratch/w769_bench_module_357x2p6_aos_var_call_write.t27
+
+## 2026-07-23T18:30:25Z — wave-loop-770
+- **Commit:** feat(igla): Wave Loop 769 — module-scope [357][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1740)
+- **Files:** .claude/plans/wave-loop-771.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w770_bench_module_359x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W770_2026-07-24.md,scripts/gen_w770.py,specs/scratch/w770_bench_module_359x2p6_aos_var_call_write.t27
+
+## 2026-07-23T18:31:56Z — wave-loop-770
+- **Commit:** feat(igla): Wave Loop 770 — module-scope [359][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1741)
+- **Files:** docs/NOW.md
+
+## 2026-07-23T18:46:15Z — wave-loop-771
+- **Commit:** feat(igla): Wave Loop 770 — module-scope [359][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1741)
+- **Files:** .claude/plans/wave-loop-772.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w771_bench_module_361x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W771_2026-07-24.md,scripts/gen_w771.py,specs/scratch/w771_bench_module_361x2p6_aos_var_call_write.t27
+
+## 2026-07-23T18:47:35Z — wave-loop-771
+- **Commit:** feat(igla): Wave Loop 771 — module-scope [361][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1742)
+- **Files:** docs/NOW.md
+
+## 2026-07-23T18:53:45Z — wave-loop-772
+- **Commit:** feat(igla): Wave Loop 771 — module-scope [361][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1742)
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-23T19:10:40Z — wave-loop-772
+- **Commit:** docs(trinity): Wave Loop 772 issue #1743 + branch wave-loop-772 created, next-wave cooperation variants set
+- **Files:** .trinity/experience.md,.trinity/seals/scratch_w772_bench_module_363x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W772_2026-07-24.md,scripts/gen_w772.py,specs/scratch/w772_bench_module_363x2p6_aos_var_call_write.t27
+
+## 2026-07-23T19:12:48Z — wave-loop-772
+- **Commit:** feat(igla): Wave Loop 772 — module-scope [363][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-773.md,docs/NOW.md
+
+## 2026-07-23T19:19:07Z — wave-loop-773
+- **Commit:** docs(trinity): update NOW.md for W772 close-out / W773 setup and add wave-loop-773 plan
+- **Files:** .claude/plans/wave-loop-773.md,.trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W772_2026-07-24.md
+
+## 2026-07-23T19:26:56Z — wave-loop-773
+- **Commit:** docs(trinity): Wave Loop 773 issue #1481 + branch wave-loop-773 created, next-wave cooperation variants set
+- **Files:** .trinity/seals/scratch_w773_bench_module_365x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w773.py,specs/scratch/w773_bench_module_365x2p6_aos_var_call_write.t27
+
+## 2026-07-23T19:28:15Z — wave-loop-773
+- **Commit:** feat(igla): Wave Loop 773 — module-scope [365][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/wave-loop-773.md,.trinity/experience.md,docs/reports/FPGA_LOOP_CLOSEOUT_W773_2026-07-24.md
+
+## 2026-07-23T19:29:43Z — wave-loop-773
+- **Commit:** docs(trinity): Wave Loop 773 closeout report, experience, and updated plan
+- **Files:** .claude/plans/wave-loop-774.md,docs/NOW.md
+
+## 2026-07-23T19:34:18Z — wave-loop-774
+- **Commit:** docs(trinity): update NOW.md for W773 close-out / W774 setup and add wave-loop-774 plan
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-24T11:09:43Z — wave-loop-774
+- **Commit:** docs(trinity): Wave Loop 774 branch setup and cooperation variants
+- **Files:** .claude/plans/loop-w774-full-cycle.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w774_bench_module_367x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W774_2026-07-24.md,scripts/gen_w774.py,specs/scratch/w774_bench_module_367x2p6_aos_var_call_write.t27
+
+## 2026-07-24T11:10:22Z — wave-loop-774
+- **Commit:** feat(igla): Wave Loop 774 — module-scope [367][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1483)
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-24T12:17:16Z — wave-loop-775
+- **Commit:** docs(trinity): update current-issue.md with PR #1484 link for Wave Loop 774 (Refs #1483)
+- **Files:** .claude/plans/wave-loop-776.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w775_bench_module_369x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/reports/FPGA_LOOP_CLOSEOUT_W775_2026-07-24.md,scripts/gen_w775.py,specs/scratch/w775_bench_module_369x2p6_aos_var_call_write.t27
+
+## 2026-07-24T12:25:29Z — wave-loop-776
+- **Commit:** feat(igla): Wave Loop 775 — module-scope [369][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1485)
+- **Files:** .claude/plans/loop-w776-full-cycle.md,.claude/plans/wave-loop-777.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,.trinity/seals/scratch_w776_bench_module_371x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W776_2026-07-24.md,scripts/gen_w776.py,specs/scratch/w776_bench_module_371x2p6_aos_var_call_write.t27
+
+## 2026-07-24T12:26:06Z — wave-loop-776
+- **Commit:** feat(igla): Wave Loop 776 — module-scope [371][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes (Closes #1487)
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-24T13:31:54Z — wave-loop-777
+- **Commit:** docs(readme): add Wave Loop Ladder W760–W776 section and update status line
+- **Files:** .trinity/seals/scratch_w777_bench_module_373x2p6_aos_var_call_write.json,bootstrap/tests/icarus_lowerable.rs,scripts/gen_w777.py,specs/scratch/w777_bench_module_373x2p6_aos_var_call_write.t27
+
+## 2026-07-24T13:38:02Z — wave-loop-777
+- **Commit:** feat(igla): Wave Loop 777 — module-scope [373][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
+- **Files:** .claude/plans/loop-w777-full-cycle.md,.claude/plans/wave-loop-778.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W777_2026-07-24.md
+

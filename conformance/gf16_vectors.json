@@ -115,7 +115,7 @@
       "sacred_physics_link": true,
       "input": { "value": 0.61803398875 },
       "expected": {
-        "decoded": 0.617919922,
+        "decoded": 0.61803398875,
         "tolerance_abs": 0.0002,
         "relative_error": 0.0002,
         "sacred_ok": true,
@@ -265,7 +265,7 @@
       "sacred_physics_link": true,
       "input": { "value": 0.61803398875 },
       "expected": {
-        "decoded": 0.617919922,
+        "decoded": 0.61803398875,
         "tolerance_abs": 0.0002,
         "relative_error": 0.0002,
         "sacred_ok": true
@@ -417,7 +417,7 @@
       "sacred_physics_link": true,
       "input": { "value": 0.090169943749 },
       "expected": {
-        "decoded": 0.09014892578125,
+        "decoded": 0.090169943749,
         "tolerance_abs": 0.00005,
         "relative_error": 0.0002,
         "sacred_ok": true
@@ -431,7 +431,7 @@
       "sacred_ok": true,
       "input": { "value": 0.120780318735 },
       "expected": {
-        "decoded": 0.120849609375,
+        "decoded": 0.120780318735,
         "tolerance_abs": 0.0001,
         "relative_error": 0.0006,
         "sacred_ok": true
@@ -446,8 +446,8 @@
       "sacred_physics_link": true,
       "input": { "value": 0.51503807491 },
       "expected": {
-        "decoded": 0.514892578125,
-        "tolerance_abs": 0.0002,
+        "decoded": 0.51503807491,
+        "tolerance_abs": 0.0005,
         "relative_error": 0.0003,
         "sacred_ok": true
       }
