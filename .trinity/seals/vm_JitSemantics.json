@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-16T13:46:55Z",
   "spec_hash": "sha256:cd40b46f482a14ccc0d64c88486ed925016445f7205a83abbe93f90b710f6f60",
-  "spec_path": "specs/vm/jit_semantics.t27"
+  "spec_path": "/Users/playra/t27/specs/vm/jit_semantics.t27"
 }

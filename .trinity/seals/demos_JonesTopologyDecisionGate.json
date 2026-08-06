@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:ea7424b6943fa1656a3f57f9177ad549219cc234459486b04e800788a2ea9d68",
-  "spec_path": "specs/demos/jones_topology_decision_gate.t27"
+  "spec_path": "/Users/playra/t27/specs/demos/jones_topology_decision_gate.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:1bd1509c54f273f4e03143aed3f38415b7cd589327e3a7f8126905a84073ce1b",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:d6843ccc4ee77e193697b557e3341bf24f1778770d37f8fb3779e7870e0956b8",
-  "gen_hash_zig": "sha256:3ca6c16a2818d57ef2a5ace1833652289e6fd1602c956fff02b10e26d614512d",
+  "gen_hash_c": "sha256:83920ed9855ed14b0f63b072820d41577238a551ce6668ec01d3f2015963b1f2",
+  "gen_hash_rust": "sha256:93fd7cc21fe98f1dbfb7d92d7d8af53122dd248f5f0400cf8cb1e2e3d5cc5060",
+  "gen_hash_verilog": "sha256:67ed3bb29ecbfdd2bfe7d11fbaed5b053760b34d666c24315b15ac41ff543aa5",
+  "gen_hash_zig": "sha256:529a123624beb08202cc3ec2e64fc3428461373dd554b9ba9a318357f0ed1c92",
   "module": "base-ring-32",
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:6bcf3942f1f175d1c3708484d4cb216a6e6ba7492a6ebf7e6320887c7d13a42b",
-  "spec_path": "specs/base/ring_32.t27"
+  "spec_path": "/Users/playra/t27/specs/base/ring_32.t27"
 }

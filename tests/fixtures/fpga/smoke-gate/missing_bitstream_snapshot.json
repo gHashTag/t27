@@ -1,0 +1,17 @@
+{
+  "bit_config": {
+    "bitstream": "<TMP>/tri_smoke_gate_missing_bitstream.bit",
+    "reason": "bitstream not found",
+    "status": "skipped"
+  },
+  "dry_run_sweep": null,
+  "passed": false,
+  "schema_version": "1.0",
+  "theorem_matrix": null,
+  "validate_lean_standalone": null,
+  "verify_lean": null,
+  "yosys_synthesis": {
+    "reason": "demo Verilog sources not found",
+    "status": "skipped"
+  }
+}
