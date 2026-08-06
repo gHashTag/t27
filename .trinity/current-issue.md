@@ -9,6 +9,11 @@
 **Status:** implementation pending, plan ready
 
 ## Goal
+Implement the missing `gen-verilog` backend support for tuple return types,
+`let` destructuring, and module-level `const` array literal lowering (Variant B
+default), with live-capture fallback (Variant A) if the bench unblocks, and
+additional adversarial/robustness theorems (Variant C) if neither hardware nor the
+compiler work is available.
 
 Close Wave Loop 778 by validating a module-scope `[375][2]^6 Pt` packed
 array-of-struct variable initialized from a function call, with indexed signed

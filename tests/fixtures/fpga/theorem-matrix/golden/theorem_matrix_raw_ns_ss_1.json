@@ -1,0 +1,6 @@
+{
+  "period_ns": 238,
+  "sck_low_ns": 119,
+  "sck_high_ns": 119,
+  "source": "synthetic ss oscfsel 1"
+}

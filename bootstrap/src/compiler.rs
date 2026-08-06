@@ -7861,7 +7861,7 @@ impl VerilogCodegen {
                             _ => String::new(),
                         };
                         let flat_name = format!("{}_{}", base_name, node.name);
-                        self.write(&flat_name);
+                        self.write(&Self::verilog_safe_identifier(&flat_name));
                     } else if child.kind == NodeKind::ExprIdentifier {
                         self.write(&Self::verilog_safe_identifier(&child.name));
                         self.write("_");

@@ -1,0 +1,14 @@
+{
+  "branch": "wave-loop-440",
+  "description": "Pre-existing gen-verilog yosys smoke failures tracked in issue #1245. These specs fail because the full fix set on master (commit 701d79b3b) has not yet been merged into the wave-loop branch. They are NOT regressions introduced by the boot-evidence pipeline work.",
+  "expected_failures": [
+    "specs/igla/race/cordic.t27",
+    "specs/igla/race/cordic_top.t27",
+    "specs/scratch/w378_let_destructuring.t27",
+    "specs/scratch/w379_let_destructuring_generalized.t27",
+    "specs/scratch/w380_tuple_return.t27",
+    "specs/scratch/w381_tuple_call_chain.t27",
+    "specs/scratch/w383_rom_array.t27"
+  ],
+  "source": "docs/reports/GEN_VERILOG_DEFECTS_REPRO.md"
+}
