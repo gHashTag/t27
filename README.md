@@ -689,7 +689,7 @@ Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 **Maintained by**: [Trinity Project](https://github.com/gHashTag) — [Dmitrii Vasilev](https://github.com/gHashTag)
 
-**Status:** Ring 31 Complete (2026-04-08) — 31 rings sealed, 45 specs, 112 gen files, 34 conformance vectors, 48 seals, CI enforced.
+**Status:** Ring 31 Complete (2026-04-08) — 31 rings sealed, 45 specs, 112 gen files, 34 conformance vectors, 48 seals, CI enforced. **Wave Loop Ladder W760–W776 merged to master (2026-07-24)** — 15 module-scope packed-array-of-struct witnesses (339–371 outer dims), zero compiler/FROZEN_HASH changes, all Icarus + cocotb gates green.
 
 **Wave 11 (2026-05-22):** 12 Rust crates `ring-088`..`ring-099` written (≈ 9 930 LOC, 33 `Cargo.toml`), **compilation not yet verified** — toolchain unavailable in sandbox; verification deferred to Wave 12. See the *Wave 11 / Wave 12* sections above for the honest status table and the four-track plan.
 
@@ -724,3 +724,40 @@ Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 **Wave 24 (2026-05-22):** Chain-of-Thought import — [`rings/ring-097-rust`](rings/ring-097-rust) lands the tenth honestly-authored Wave-11 crate (823 LOC, 29 tests). Mirrors `specs/ar/proof_trace.t27` byte-for-byte: `MAX_STEPS=10` (DARPA CLARA bound on reasoning chain length); K3 ternary logic (`Trit::{True=1, Unknown=0, False=-1, Null=2}`) with `k3_and` (min lattice), `k3_or` (max lattice), `k3_not`; fixed-capacity heap-free `ProofStep` (interned ASCII operation name up to 24 chars, fixed-arity inputs up to 3 trits, `output`, `timestamp_us`); `ProofTrace` with `[ProofStep; MAX_STEPS]` buffer + `start_timestamp_us` / `end_timestamp_us` / `verified` flag; operations `new_proof_trace`, `add_step`, `verify_trace`, `trace_length`, `is_at_capacity`, `finalize_trace`, `step_at`, `format_trace`, `trit_to_string`; `VerifyStatus::{Valid, Empty, TooManySteps, NullOutput(usize)}` enforcing all three spec invariants (`empty_trace_fails`, `trace_verification_catches_overflow`, `valid_trace_passes`). The crate is `#![no_std]` and heap-free; `format_trace` writes into a caller-supplied buffer. `cot_phi_identity` is the **ninth cross-kernel anchor test** in the project, routing `phi^2 + 1/phi^2 = 3` through a 6-step bounded reasoning chain: symbolic premises, `k3_and`, a numeric-witness step that evaluates `pow_u64(phi, 2) + pow_u64(phi, -2)` and produces `True` iff the result is within 1e-9 of 3.0, a `k3_or` alternative-path step, and a conclusion -- then verifies and finalises the trace, plus a separate mass-conservation hook for φ²-weighted Pos and φ⁻²-weighted Neg priorities. Wave-11 narrative claimed 624 LOC; honest measurement is 823 LOC. All 29 tests green on Rust 1.83.0. See [COMPILE_STATUS](rings/COMPILE_STATUS.md).
 
 **DOI:** [10.5281/zenodo.19456875](https://doi.org/10.5281/zenodo.19456875)
+
+## Wave Loop Ladder — 760s series (2026-07-24)
+
+A parallel **FPGA/IGLA hardening ladder** (distinct from the numbered Waves above) exercises progressively larger **module-scope packed array-of-struct variables** with **non-power-of-two outer dimensions** and **indexed signed field writes**. All loops land as `.t27` witnesses and are fully simulated through the Icarus + cocotb gates.
+
+| Wave | Outer | Elements | Packed bits | MiBit | Issue | Witness |
+|------|------:|---------:|------------:|------:|:------|:--------|
+| W760 | 339 | 21,696 | 694,272 | 0.663 | #1731 | `specs/scratch/w760_bench_module_339x2p6_aos_var_call_write.t27` |
+| W761 | 341 | 21,824 | 698,368 | 0.666 | #1732 | `specs/scratch/w761_bench_module_341x2p6_aos_var_call_write.t27` |
+| W762 | 343 | 21,952 | 702,464 | 0.670 | #1733 | `specs/scratch/w762_bench_module_343x2p6_aos_var_call_write.t27` |
+| W765 | 349 | 22,336 | 714,752 | 0.682 | #1736 | `specs/scratch/w765_bench_module_349x2p6_aos_var_call_write.t27` |
+| W766 | 351 | 22,464 | 718,848 | 0.686 | #1737 | `specs/scratch/w766_bench_module_351x2p6_aos_var_call_write.t27` |
+| W767 | 353 | 22,592 | 722,944 | 0.690 | #1738 | `specs/scratch/w767_bench_module_353x2p6_aos_var_call_write.t27` |
+| W768 | 355 | 22,720 | 727,040 | 0.694 | #1739 | `specs/scratch/w768_bench_module_355x2p6_aos_var_call_write.t27` |
+| W769 | 357 | 22,848 | 731,136 | 0.697 | #1740 | `specs/scratch/w769_bench_module_357x2p6_aos_var_call_write.t27` |
+| W770 | 359 | 22,976 | 735,232 | 0.701 | #1741 | `specs/scratch/w770_bench_module_359x2p6_aos_var_call_write.t27` |
+| W771 | 361 | 23,104 | 739,328 | 0.705 | #1742 | `specs/scratch/w771_bench_module_361x2p6_aos_var_call_write.t27` |
+| W772 | 363 | 23,232 | 743,424 | 0.709 | #1743 | `specs/scratch/w772_bench_module_363x2p6_aos_var_call_write.t27` |
+| W773 | 365 | 23,360 | 747,520 | 0.713 | #1481 | `specs/scratch/w773_bench_module_365x2p6_aos_var_call_write.t27` |
+| W774 | 367 | 23,488 | 751,616 | 0.717 | #1483 | `specs/scratch/w774_bench_module_367x2p6_aos_var_call_write.t27` |
+| W775 | 369 | 23,616 | 755,712 | 0.721 | #1485 | `specs/scratch/w775_bench_module_369x2p6_aos_var_call_write.t27` |
+| W776 | 371 | 23,744 | 759,808 | 0.725 | #1487 | `specs/scratch/w776_bench_module_371x2p6_aos_var_call_write.t27` |
+
+Each witness:
+- Declares `pub var dst : [N][2]^6 Pt` at module scope, initialized from a function call.
+- Uses indexed signed writes to `dst[i].x` / `dst[i].y` and `assert_eq` read-back in a `bench` block (the Icarus path accepts `assert_ne` structurally but does not emit it).
+- Has a deterministic generator under `scripts/gen_w7*.py` so the witness can be regenerated.
+- Carries a SHA-256 seal under `.trinity/seals/` and an integration test in `bootstrap/tests/icarus_lowerable.rs`.
+- Passes `t27c parse`, `icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, and `seal --save`.
+
+**Important invariants observed across the ladder:**
+- **Zero compiler changes** — `bootstrap/src/compiler.rs` is untouched and `bootstrap/stage0/FROZEN_HASH` remains `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- **Zero reference-model changes** — `scripts/cocotb_ref_model.py` is unchanged.
+- All generator scripts reuse the corrected W632 inner-dimension offset formula, so mid-row values compute correctly on the first attempt.
+- Every loop includes an explicit `make_grid(32768)` period-identity check because `32768 ≡ 0 (mod 32768)`.
+
+Live log: [`docs/NOW.md`](docs/NOW.md) · Per-loop closeouts: [`docs/reports/`](docs/reports/) · Next-wave plan: [`.claude/plans/wave-loop-777.md`](.claude/plans/wave-loop-777.md)

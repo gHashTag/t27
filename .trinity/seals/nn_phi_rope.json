@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:99ee47f25bbf868e6b16ee35611140805c5dbc1b06117722c37fc1a02fe685a3",
   "module": "phi_rope",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:09Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:76483e0f7da1650b1481b60303334b3240a0872f02c2ae3ccfb9f61b7cadbeb7",
-  "spec_path": "specs/nn/phi_rope.t27"
+  "spec_path": "/Users/playra/t27/specs/nn/phi_rope.t27"
 }

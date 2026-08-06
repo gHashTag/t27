@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:8e6e8144773c0c6a7c367d0b87c23697095c3f65cefafb5d0b4d6ba4b3e96eb5",
   "gen_hash_rust": "sha256:e4d61092cfc69ee573721fd35cc05a6d7c827fe95811cff01d6e0bcd784dd4fa",
-  "gen_hash_verilog": "sha256:56e584f722c39ea3a397a97684479849dc77262e854f66e69d1c819e04a55f80",
+  "gen_hash_verilog": "sha256:95979a6caf52343dd47551b2bbb1853d611d8a4e478a7213560995fcda98a6e6",
   "gen_hash_zig": "sha256:05d1b1f0d98921f00472892c4a22fc47cf7157a631c1a522cb129c78efed0a5a",
   "module": "triformat-gf512",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:09Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:22c9574b8227a4657984fb35dafb67509a85e52c4ac5952cc1453c92222ba08e",
-  "spec_path": "specs/numeric/gf512.t27"
+  "spec_path": "/Users/playra/t27/specs/numeric/gf512.t27"
 }

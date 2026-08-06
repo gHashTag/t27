@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:bb11f220dc5d3bd9ce36fe15d165fd23f0a6d39e2374b61f497c375e0ce432f7",
   "gen_hash_rust": "sha256:2fc0bb468df8fbc9ecef7a74204459602ef99f97c12eeeee3c38aaec6525a46b",
-  "gen_hash_verilog": "sha256:2a75773baf9011a146ba1f105c4a4f40fa127f593f5f2d2a050a9b137329a193",
+  "gen_hash_verilog": "sha256:e501b2f275761c27b58728305da1c361bf699bc49889b74daae9dfee2c2fd22d",
   "gen_hash_zig": "sha256:55b77f9bdae4323ed468cf34501fcd3bd15e626c457f0194e81d49629ea4f9c4",
   "module": "TriTerminal",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:14Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:a015c6ca01d82d5d3065dc789181b38e18e2287d95b7e63641fdaeb564ed9cb6",
-  "spec_path": "specs/tri/utils/terminal.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/utils/terminal.t27"
 }

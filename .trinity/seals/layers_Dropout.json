@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3184b515a374f1d7c24337b49fe8fc3ec2c393e7e81a70a444653af38d06dc46",
   "gen_hash_rust": "sha256:313bc796093d70b34c8f56a9715f43e5f9fb853568711c25294da02401209d75",
-  "gen_hash_verilog": "sha256:e7ad1d526b65a53892641425d282bd87fcd001f728b1cd864736e0c37f6d2518",
+  "gen_hash_verilog": "sha256:05fc2a5b69f62baab9377acaac5b5e2aa265b618f54bd5f23e5dafb0bceffd0b",
   "gen_hash_zig": "sha256:1651d72ffa28e8657c527d144c187e3fde5ce6f3dd2d0699c99e33971a61d091",
   "module": "Dropout",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:08Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:3d62664b21a7e9bd7b6d63879764780b5c5af3cf661f04eee7b90a8adbaa5d1d",
-  "spec_path": "specs/ml/layers/dropout_layer.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/layers/dropout_layer.t27"
 }

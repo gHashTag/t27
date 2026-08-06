@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9c6659cd51c019d49892263010a6a7b27797e5724d5d5be8682f51ef57fb78df",
   "gen_hash_rust": "sha256:0807fc5470110d4558318e904ddba28573c3aec7ad0f8adc96b143d9fdfacf3f",
-  "gen_hash_verilog": "sha256:2370df24c866d1675d2fce8e1fba628079c6cc5491727ecd3714c009d255204c",
+  "gen_hash_verilog": "sha256:4e6a9750f215c0306c2531a01afa38ae93432b87fe93ede6473fe1709e2a104e",
   "gen_hash_zig": "sha256:105e4797f713dfcfafbd26117fef0be8017a2c7bf22933820c25bb429c655b25",
   "module": "Gelu",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:08Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:3c34e36a16bc732572de54cd5a41ff1139c2f0d05b28cccb1fe8c1dc29c21e65",
-  "spec_path": "specs/ml/activation/gelu_activation.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/activation/gelu_activation.t27"
 }

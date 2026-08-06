@@ -6,11 +6,13 @@
 
 use std::default::Default;
 
+use serde::Serialize;
+
 // ============================================================================
 // AST Node Types (from parser.t27)
 // ============================================================================
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum NodeKind {
     Module,
     UseDecl,
@@ -35,6 +37,7 @@ pub enum NodeKind {
     ExprIf,
     ExprStructLit,
     ExprArrayLiteral,
+    ExprTuple,
     ExprCast,
     ExprRange, // start..end
     // Statement nodes for fn bodies
@@ -49,7 +52,7 @@ pub enum NodeKind {
     StmtExpr, // bare expression statement: func(a, b);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 #[allow(dead_code)]
 pub struct Node {
     pub kind: NodeKind,
@@ -60,6 +63,7 @@ pub struct Node {
     pub extra_size: String,
     pub extra_kind: String,
     pub extra_op: String,
+    pub extra_pragma: String,
     pub extra_pub: bool,
     pub extra_mutable: bool,
     pub extra_return_type: String,
@@ -79,6 +83,7 @@ impl Default for Node {
             extra_size: String::new(),
             extra_kind: String::new(),
             extra_op: String::new(),
+            extra_pragma: String::new(),
             extra_pub: false,
             extra_mutable: false,
             extra_return_type: String::new(),
@@ -100,6 +105,7 @@ impl Node {
             extra_size: String::new(),
             extra_kind: String::new(),
             extra_op: String::new(),
+            extra_pragma: String::new(),
             extra_pub: false,
             extra_mutable: false,
             extra_return_type: String::new(),
@@ -150,6 +156,7 @@ pub enum TokenKind {
     KwBreak,
     KwContinue,
     KwIn,
+    KwPragma,
 
     // Literals
     Ident,
@@ -197,6 +204,8 @@ pub enum TokenKind {
     ShiftRight,
     PlusEquals,
     PlusPercent,
+    MinusPercent,
+    StarPercent,
 
     // Special
     Semicolon,
@@ -213,6 +222,7 @@ pub struct Token {
     pub col: usize,
 }
 
+#[derive(Debug, Clone)]
 pub struct Lexer {
     source: Vec<u8>,
     pos: usize,
@@ -358,6 +368,7 @@ impl Lexer {
             "var" => TokenKind::KwVar,
             "using" => TokenKind::KwUsing,
             "use" => TokenKind::KwUse,
+            "pragma" => TokenKind::KwPragma,
             "void" => TokenKind::KwVoid,
             "true" => TokenKind::KwTrue,
             "false" => TokenKind::KwFalse,
@@ -597,6 +608,28 @@ impl Lexer {
                 };
             }
 
+            if two == [b'-', b'%'] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::MinusPercent,
+                    lexeme: String::from("-%"),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'*', b'%'] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::StarPercent,
+                    lexeme: String::from("*%"),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
             if two == [b'.', b'.'] {
                 self.advance();
                 self.advance();
@@ -800,6 +833,15 @@ pub struct Parser {
     lexer: Lexer,
     current: Token,
     peek: Token,
+    pending_pragma: String,
+}
+
+#[derive(Clone)]
+struct ParserCheckpoint {
+    lexer: Lexer,
+    current: Token,
+    peek: Token,
+    pending_pragma: String,
 }
 
 impl Parser {
@@ -810,7 +852,26 @@ impl Parser {
             lexer,
             current: first,
             peek: second,
+            pending_pragma: String::new(),
         }
+    }
+
+    /// Save the current parser state so it can be restored later. Used for
+    /// lookahead that needs to inspect more than one token ahead.
+    fn save_state(&self) -> ParserCheckpoint {
+        ParserCheckpoint {
+            lexer: self.lexer.clone(),
+            current: self.current.clone(),
+            peek: self.peek.clone(),
+            pending_pragma: self.pending_pragma.clone(),
+        }
+    }
+
+    fn restore_state(&mut self, checkpoint: ParserCheckpoint) {
+        self.lexer = checkpoint.lexer;
+        self.current = checkpoint.current;
+        self.peek = checkpoint.peek;
+        self.pending_pragma = checkpoint.pending_pragma;
     }
 
     fn advance(&mut self) {
@@ -1000,11 +1061,21 @@ impl Parser {
 
         self.parse_module_body(&mut module)?;
 
+        // W458: semicolon-style modules close with `endmodule`; consume it so
+        // it is not parsed as a stray top-level expression statement.
+        if self.current.kind == TokenKind::Ident && self.current.lexeme == "endmodule" {
+            self.advance();
+        }
+
         Ok(module)
     }
 
     fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
-        while self.current.kind != TokenKind::Eof && self.current.kind != TokenKind::RBrace {
+        while self.current.kind != TokenKind::Eof
+            && self.current.kind != TokenKind::RBrace
+            && !(self.current.kind == TokenKind::Ident
+                && self.current.lexeme == "endmodule")
+        {
             // Parse use/using statements into UseDecl nodes
             if self.current.kind == TokenKind::KwUse || self.current.kind == TokenKind::KwUsing {
                 self.advance(); // consume 'use'/'using'
@@ -1088,17 +1159,108 @@ impl Parser {
                 continue;
             }
 
-            match self.parse_top_level_decl() {
-                Ok(decl) => {
-                    module.children.push(decl);
+            if self.current.kind == TokenKind::KwPragma {
+                self.parse_pragma()?;
+                continue;
+            }
+
+            // W458: allow bare expression / assignment statements at module
+            // level so functions with array parameters can be called from the
+            // module body (e.g. `read_mem(rom_array, idx);`). These are emitted
+            // as Verilog statements inside the module.
+            let is_top_level_decl = matches!(
+                self.current.kind,
+                TokenKind::KwPub
+                    | TokenKind::KwConst
+                    | TokenKind::KwVar
+                    | TokenKind::KwFn
+                    | TokenKind::KwEnum
+                    | TokenKind::KwStruct
+                    | TokenKind::KwTest
+                    | TokenKind::KwInvariant
+                    | TokenKind::KwBench
+            );
+            if is_top_level_decl {
+                match self.parse_top_level_decl() {
+                    Ok(decl) => {
+                        module.children.push(decl);
+                    }
+                    Err(_) => {
+                        // On parse error, skip to next top-level declaration and continue
+                        self.skip_to_next_top_level();
+                    }
                 }
-                Err(_) => {
-                    // On parse error, skip to next top-level declaration and continue
+            } else if self.is_top_level_start() {
+                // Stray top-level keyword (e.g. `module` inside a module, or an
+                // unhandled `use`). Run it through the top-level parser so we
+                // error out and advance at least one token; otherwise
+                // skip_to_next_top_level can stop immediately on the same token
+                // and loop forever.
+                if self.parse_top_level_decl().is_err() {
                     self.skip_to_next_top_level();
+                }
+            } else {
+                match self.parse_body_stmt() {
+                    Ok(stmt) => {
+                        module.children.push(stmt);
+                    }
+                    Err(_) => {
+                        self.skip_to_next_top_level();
+                    }
                 }
             }
         }
 
+        Ok(())
+    }
+
+    /// Parse `pragma name = "value";` at module top level and store it as the
+    /// pending pragma to be applied to the next module-level declaration.
+    fn parse_pragma(&mut self) -> Result<(), String> {
+        self.advance(); // consume 'pragma'
+
+        if self.current.kind != TokenKind::Ident {
+            return Err(format!(
+                "Expected identifier after 'pragma', got {:?}",
+                self.current.kind
+            ));
+        }
+        let pragma_name = self.current.lexeme.clone();
+        self.advance();
+
+        if self.current.kind != TokenKind::Equals {
+            return Err(format!(
+                "Expected '=' after pragma name, got {:?}",
+                self.current.kind
+            ));
+        }
+        self.advance();
+
+        if self.current.kind != TokenKind::String {
+            return Err(format!(
+                "Expected string literal after pragma '=', got {:?}",
+                self.current.kind
+            ));
+        }
+        let pragma_value = self.current.lexeme.clone();
+        self.advance();
+
+        // W457/W459: ram_style and rom_style are supported; store the full
+        // attribute text so codegen can emit it verbatim.
+        if pragma_name == "ram_style" {
+            self.pending_pragma = format!("ram_style = \"{}\"", pragma_value);
+        } else if pragma_name == "rom_style" {
+            self.pending_pragma = format!("rom_style = \"{}\"", pragma_value);
+        } else {
+            return Err(format!(
+                "Unknown pragma '{}', expected 'ram_style' or 'rom_style'",
+                pragma_name
+            ));
+        }
+
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
         Ok(())
     }
 
@@ -1136,6 +1298,12 @@ impl Parser {
     fn parse_const_decl(&mut self, is_pub: bool) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::ConstDecl);
         decl.extra_pub = is_pub;
+        // W457: apply any pending pragma to this declaration and clear it so it
+        // is not accidentally reused for a later declaration.
+        if !self.pending_pragma.is_empty() {
+            decl.extra_pragma = self.pending_pragma.clone();
+            self.pending_pragma.clear();
+        }
 
         self.advance(); // consume 'const'
 
@@ -1153,29 +1321,9 @@ impl Parser {
         // Optional type annotation `: Type`
         if self.current.kind == TokenKind::Colon {
             self.advance(); // consume :
-                            // Type can be complex: u8, i8, []Trit, [N]T, etc.
-            let mut type_str = String::new();
-            // Handle [] prefix for slice types
-            if self.current.kind == TokenKind::LBracket {
-                type_str.push('[');
-                self.advance();
-                // Might have a size expression
-                while self.current.kind != TokenKind::RBracket
-                    && self.current.kind != TokenKind::Eof
-                {
-                    type_str.push_str(&self.current.lexeme);
-                    self.advance();
-                }
-                type_str.push(']');
-                if self.current.kind == TokenKind::RBracket {
-                    self.advance();
-                }
-            }
-            if self.current.kind == TokenKind::Ident {
-                type_str.push_str(&self.current.lexeme);
-                self.advance();
-            }
-            decl.extra_type = type_str;
+            // W528: use the shared type parser so multi-dimensional array
+            // annotations like `[2][3]Pt` are preserved correctly.
+            decl.extra_type = self.parse_type_annotation();
         }
 
         // = value
@@ -1210,17 +1358,34 @@ impl Parser {
                 self.expect(TokenKind::RBrace)?;
             } else if self.current.kind == TokenKind::LBracket {
                 // pub const TernaryWord = [WORD_BYTES]u8; or [_]u8{...} ** N
-                // Collect the full expression as value text
-                let mut val_text = String::new();
-                while self.current.kind != TokenKind::Semicolon
-                    && self.current.kind != TokenKind::Eof
-                {
-                    val_text.push_str(&self.current.lexeme);
-                    self.advance();
+                // W383: try to parse the bracket expression as an array literal.
+                // If it carries element children (e.g. [4]u16{...}), it is a ROM
+                // initializer and should be emitted as a Verilog memory. If it
+                // has no children (e.g. [WORD_BYTES]u8), it is a type alias and
+                // we restore the parser state and preserve the legacy text form.
+                // If parse_array_literal cannot handle the shape (e.g. ['T','R']),
+                // fall back to the legacy text collection so old specs keep parsing.
+                let save = self.save_state();
+                let array_literal_result = self.parse_array_literal();
+                let use_literal = match &array_literal_result {
+                    Ok(lit) => !lit.children.is_empty(),
+                    Err(_) => false,
+                };
+                if use_literal {
+                    decl.children.push(array_literal_result.unwrap());
+                } else {
+                    self.restore_state(save);
+                    let mut val_text = String::new();
+                    while self.current.kind != TokenKind::Semicolon
+                        && self.current.kind != TokenKind::Eof
+                    {
+                        val_text.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                    let mut val_node = Node::new(NodeKind::ExprIdentifier);
+                    val_node.name = val_text;
+                    decl.children.push(val_node);
                 }
-                let mut val_node = Node::new(NodeKind::ExprIdentifier);
-                val_node.name = val_text;
-                decl.children.push(val_node);
                 if self.current.kind == TokenKind::Semicolon {
                     self.advance();
                 }
@@ -1240,11 +1405,21 @@ impl Parser {
                 decl.children.push(val_node);
                 self.advance();
             } else if self.current.kind == TokenKind::Ident {
-                // Type alias or expression start: pub const PackedTrit = u8;
-                let mut val_node = Node::new(NodeKind::ExprIdentifier);
-                val_node.name = self.current.lexeme.clone();
-                decl.children.push(val_node);
-                self.advance();
+                // W533/W543: a scalar struct literal initializer `const x : T = T{...}`
+                // or a function-call initializer `const x : T = make(5)` is parsed as
+                // a full expression so the AST preserves arguments and field values.
+                // Plain identifiers stay as `ExprIdentifier` for type aliases and
+                // cross-const references.
+                let name = self.current.lexeme.clone();
+                if self.peek.kind == TokenKind::LBrace || self.peek.kind == TokenKind::LParen {
+                    let lit = self.parse_expr()?;
+                    decl.children.push(lit);
+                } else {
+                    let mut val_node = Node::new(NodeKind::ExprIdentifier);
+                    val_node.name = name;
+                    decl.children.push(val_node);
+                    self.advance();
+                }
             } else if self.current.kind == TokenKind::KwTrue
                 || self.current.kind == TokenKind::KwFalse
             {
@@ -1254,7 +1429,10 @@ impl Parser {
                 self.advance();
             } else if self.current.kind == TokenKind::String {
                 let mut val_node = Node::new(NodeKind::ExprLiteral);
+                // W458: mark string literals so the Verilog backend can escape
+                // newlines/tabs/quotes before emitting them.
                 val_node.value = self.current.lexeme.clone();
+                val_node.extra_kind = "string".to_string();
                 decl.children.push(val_node);
                 self.advance();
             } else {
@@ -1293,6 +1471,11 @@ impl Parser {
         let mut decl = Node::new(NodeKind::ConstDecl);
         decl.extra_pub = is_pub;
         decl.extra_mutable = true;
+
+        if !self.pending_pragma.is_empty() {
+            decl.extra_pragma = self.pending_pragma.clone();
+            self.pending_pragma.clear();
+        }
 
         self.advance(); // consume 'var'
 
@@ -1403,6 +1586,37 @@ impl Parser {
     /// Parse a type annotation like `Trit`, `*Trit`, `[]u8`, `[N]u8`, `[]const u8`, `anytype`
     fn parse_type_annotation(&mut self) -> String {
         let mut ty = String::new();
+
+        // Handle tuple type: (T1, T2, ...). Keep the raw textual form so that
+        // named tuples like (a: T, b: T) do not hang the parser and are stored
+        // as-is for backends that do not need to unpack them.
+        if self.current.kind == TokenKind::LParen {
+            ty.push('(');
+            self.advance(); // consume (
+            while self.current.kind != TokenKind::RParen
+                && self.current.kind != TokenKind::Eof
+            {
+                let before = self.current.kind;
+                let elem = self.parse_type_annotation();
+                ty.push_str(&elem);
+                if self.current.kind == TokenKind::Comma {
+                    ty.push(',');
+                    self.advance();
+                } else if self.current.kind != TokenKind::RParen {
+                    // Not a clean tuple-type element (e.g. named-field syntax);
+                    // consume the raw token so we cannot spin forever.
+                    if self.current.kind == before && elem.is_empty() {
+                        ty.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                }
+            }
+            if self.current.kind == TokenKind::RParen {
+                ty.push(')');
+                self.advance();
+            }
+            return ty;
+        }
 
         // Handle pointer prefix: *Type or *const Type
         if self.current.kind == TokenKind::Star {
@@ -1553,8 +1767,11 @@ impl Parser {
             self.advance(); // consume !
         }
 
-        // Return type (identifier, or []T / [N]T / [][]const u8 slice/array types, or void)
-        if self.current.kind == TokenKind::Ident {
+        // Return type (identifier, tuple, or []T / [N]T / [][]const u8 slice/array types, or void)
+        if self.current.kind == TokenKind::LParen {
+            // Tuple return type: (u32, u32)
+            decl.extra_return_type = self.parse_type_annotation();
+        } else if self.current.kind == TokenKind::Ident {
             decl.extra_return_type = self.current.lexeme.clone();
             self.advance();
             // Handle generic return types like Option<Foo>
@@ -1630,6 +1847,26 @@ impl Parser {
                 decl.extra_return_type = format!("*{}", self.current.lexeme);
                 self.advance();
             }
+        } else if self.current.kind == TokenKind::LParen {
+            // Tuple return type: `(T, U, ...)`. Previously unhandled: the parser
+            // fell through, desynced on `(` and silently dropped the whole
+            // function. Capture it as a canonical `(T, U)` string so the
+            // function survives and backends can lower it.
+            let mut rt = String::from("(");
+            self.advance(); // consume (
+            while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
+                if self.current.kind == TokenKind::Comma {
+                    rt.push_str(", ");
+                } else {
+                    rt.push_str(&self.current.lexeme);
+                }
+                self.advance();
+            }
+            if self.current.kind == TokenKind::RParen {
+                self.advance(); // consume )
+            }
+            rt.push(')');
+            decl.extra_return_type = rt;
         }
 
         // Skip optional 'const' qualifier before the body
@@ -1688,6 +1925,13 @@ impl Parser {
     fn parse_body_stmt(&mut self) -> Result<Node, String> {
         // const / var declaration
         if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
+            // `let` is lexed as KwConst. Detect destructuring form `let (a, b, c) = expr;`
+            // where the next token after let/const is '('.
+            if self.current.kind == TokenKind::KwConst
+                && self.peek.kind == TokenKind::LParen
+            {
+                return self.parse_let_destructuring();
+            }
             return self.parse_local_decl();
         }
 
@@ -1799,10 +2043,28 @@ impl Parser {
         decl.extra_mutable = self.current.kind == TokenKind::KwVar;
         self.advance(); // consume const/var
 
-        // Name
+        // Name, or a tuple-destructuring pattern `(a, b, ...)`.
         if self.current.kind == TokenKind::Ident {
             decl.name = self.current.lexeme.clone();
             self.advance();
+        } else if self.current.kind == TokenKind::LParen {
+            // `let (a, b) = expr` — store the comma-joined pattern in
+            // extra_field; name stays empty. Previously `(` was not consumed
+            // here, so the binding desynced and emitted `let ;`.
+            self.advance(); // consume (
+            let mut pat = String::new();
+            while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
+                match self.current.kind {
+                    TokenKind::Comma => pat.push_str(", "),
+                    TokenKind::Ident => pat.push_str(&self.current.lexeme),
+                    _ => {}
+                }
+                self.advance();
+            }
+            if self.current.kind == TokenKind::RParen {
+                self.advance(); // consume )
+            }
+            decl.extra_field = pat; // e.g. "a, b"
         }
 
         // Optional type annotation: : Type
@@ -1822,6 +2084,48 @@ impl Parser {
             self.advance();
         }
         Ok(decl)
+    }
+
+    /// Parse `let (a, b, c) = expr;` destructuring.
+    /// `let` is lexed as KwConst, so this is reached from `parse_body_stmt` when
+    /// KwConst is followed by '('. The result is a StmtAssign whose LHS is an
+    /// ExprArrayLiteral marker node (extra_kind == "tuple") containing the
+    /// bound identifiers, and whose RHS is the initializer expression.
+    fn parse_let_destructuring(&mut self) -> Result<Node, String> {
+        let mut assign = Node::new(NodeKind::StmtAssign);
+        assign.line = self.current.line as u32;
+        self.advance(); // consume let/const
+
+        self.expect(TokenKind::LParen)?;
+
+        let mut lhs = Node::new(NodeKind::ExprArrayLiteral);
+        lhs.extra_kind = "tuple".to_string();
+
+        while self.current.kind != TokenKind::RParen
+            && self.current.kind != TokenKind::Eof
+        {
+            if self.current.kind == TokenKind::Ident {
+                let mut ident = Node::new(NodeKind::ExprIdentifier);
+                ident.name = self.current.lexeme.clone();
+                lhs.children.push(ident);
+                self.advance();
+            } else if self.current.kind == TokenKind::Comma {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+        self.expect(TokenKind::RParen)?;
+
+        self.expect(TokenKind::Equals)?;
+        let rhs = self.parse_expr()?;
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
+
+        assign.children.push(lhs);
+        assign.children.push(rhs);
+        Ok(assign)
     }
 
     /// Parse return statement
@@ -2195,7 +2499,10 @@ impl Parser {
         let mut left = self.parse_expr_multiplicative()?;
         while matches!(
             self.current.kind,
-            TokenKind::Plus | TokenKind::Minus | TokenKind::PlusPercent
+            TokenKind::Plus
+                | TokenKind::Minus
+                | TokenKind::PlusPercent
+                | TokenKind::MinusPercent
         ) {
             let op = self.current.lexeme.clone();
             self.advance();
@@ -2210,12 +2517,16 @@ impl Parser {
         Ok(left)
     }
 
-    /// Parse multiplicative expressions (*, /, %, **)
+    /// Parse multiplicative expressions (*, /, %, **, *%)
     fn parse_expr_multiplicative(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_unary()?;
         while matches!(
             self.current.kind,
-            TokenKind::Star | TokenKind::Slash | TokenKind::Percent | TokenKind::Power
+            TokenKind::Star
+                | TokenKind::Slash
+                | TokenKind::Percent
+                | TokenKind::Power
+                | TokenKind::StarPercent
         ) {
             let op = self.current.lexeme.clone();
             self.advance();
@@ -2416,7 +2727,8 @@ impl Parser {
                 self.advance();
                 Ok(Node {
                     kind: NodeKind::ExprLiteral,
-                    value: format!("\"{}\"", val),
+                    value: val,
+                    extra_kind: "string".to_string(),
                     ..Default::default()
                 })
             }
@@ -2496,12 +2808,32 @@ impl Parser {
                 })
             }
 
-            // Parenthesized expression
+            // Parenthesized expression or tuple literal
             TokenKind::LParen => {
                 self.advance(); // consume (
                 let inner = self.parse_expr()?;
-                self.expect(TokenKind::RParen)?;
-                Ok(inner)
+                if self.current.kind == TokenKind::Comma {
+                    // Tuple literal `(e0, e1, ...)`. Without this the parser
+                    // errored on the comma and the enclosing expression (e.g. a
+                    // tuple `return`) was dropped.
+                    let mut elems = vec![inner];
+                    while self.current.kind == TokenKind::Comma {
+                        self.advance(); // consume ,
+                        if self.current.kind == TokenKind::RParen {
+                            break; // trailing comma
+                        }
+                        elems.push(self.parse_expr()?);
+                    }
+                    self.expect(TokenKind::RParen)?;
+                    Ok(Node {
+                        kind: NodeKind::ExprTuple,
+                        children: elems,
+                        ..Default::default()
+                    })
+                } else {
+                    self.expect(TokenKind::RParen)?;
+                    Ok(inner)
+                }
             }
 
             // if expression: if (cond) expr else expr
@@ -2570,8 +2902,8 @@ impl Parser {
             } else if self.current.kind == TokenKind::Ident {
                 // Allow field = expr without dot prefix
                 let n = self.current.lexeme.clone();
-                // Peek: only treat as field init if followed by '='
-                if self.peek.kind == TokenKind::Equals {
+                // Peek: only treat as field init if followed by '=' or ':'
+                if self.peek.kind == TokenKind::Equals || self.peek.kind == TokenKind::Colon {
                     field_name = n;
                     self.advance(); // consume field name
                 } else {
@@ -2581,8 +2913,8 @@ impl Parser {
                 break;
             }
 
-            if self.current.kind == TokenKind::Equals {
-                self.advance(); // consume =
+            if self.current.kind == TokenKind::Equals || self.current.kind == TokenKind::Colon {
+                self.advance(); // consume = or :
             }
 
             let val = self.parse_expr()?;
@@ -2599,22 +2931,38 @@ impl Parser {
         Ok(lit)
     }
 
-    /// Parse array literal: [_]Type{ values } or [N]Type{ values }
+    /// Parse array literal: [_]Type{ values }, [N]Type{ values }, or
+    /// [N][M]Type{ values } (multi-dimensional). W527: consumes all leading
+    /// bracket dimensions and the element type before the brace.
     fn parse_array_literal(&mut self) -> Result<Node, String> {
         let mut node = Node::new(NodeKind::ExprArrayLiteral);
-        self.advance();
+        self.advance(); // consume first '['
 
-        if self.current.kind == TokenKind::RBracket {
-            self.advance();
-        } else {
-            let mut bracket_content = String::new();
-            while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
-                bracket_content.push_str(&self.current.lexeme);
+        let mut dims: Vec<String> = Vec::new();
+        loop {
+            // Collect the contents of the current bracket pair.
+            if self.current.kind == TokenKind::RBracket {
+                dims.push(String::new());
                 self.advance();
+            } else {
+                let mut bracket_content = String::new();
+                while self.current.kind != TokenKind::RBracket
+                    && self.current.kind != TokenKind::Eof
+                {
+                    bracket_content.push_str(&self.current.lexeme);
+                    self.advance();
+                }
+                dims.push(bracket_content.trim().to_string());
+                self.expect(TokenKind::RBracket)?;
             }
-            node.extra_size = bracket_content.trim().to_string();
-            self.expect(TokenKind::RBracket)?;
+            // Another leading bracket -> multi-dimensional literal.
+            if self.current.kind == TokenKind::LBracket {
+                self.advance(); // consume next '['
+            } else {
+                break;
+            }
         }
+        node.extra_size = dims.join("][");
 
         if self.current.kind == TokenKind::Ident {
             node.extra_type = self.current.lexeme.clone();
@@ -3096,6 +3444,19 @@ impl Codegen {
         self.write_line("};");
     }
 
+    /// Map a t27 tuple type `(T, U, ...)` to a Zig anonymous tuple-struct type
+    /// `struct { T, U, ... }`. Returns None for non-tuple types.
+    fn t27_tuple_type_to_zig(ty: &str) -> Option<String> {
+        let t = ty.trim();
+        if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+            let inner = &t[1..t.len() - 1];
+            let elems: Vec<&str> = inner.split(',').map(|e| e.trim()).collect();
+            Some(format!("struct {{ {} }}", elems.join(", ")))
+        } else {
+            None
+        }
+    }
+
     fn gen_fn_decl(&mut self, node: &Node) {
         if node.extra_pub {
             self.write("pub ");
@@ -3108,7 +3469,10 @@ impl Codegen {
         let return_type = if node.extra_return_type.is_empty() {
             "void".to_string()
         } else {
-            node.extra_return_type.clone()
+            // A tuple return type `(T, U)` lowers to a Zig anonymous tuple
+            // struct; scalar/other types pass through unchanged.
+            Self::t27_tuple_type_to_zig(&node.extra_return_type)
+                .unwrap_or_else(|| node.extra_return_type.clone())
         };
 
         // Check if this is a method (first param is "self")
@@ -3225,20 +3589,40 @@ impl Codegen {
             }
             NodeKind::StmtLocal => {
                 self.write_indent();
-                if node.extra_mutable {
-                    self.write("var ");
+                if node.name.is_empty() && !node.extra_field.is_empty() {
+                    // Tuple-destructuring `let (s, d) = init`. Zig destructuring
+                    // needs a binding keyword per element:
+                    // `const s, const d = init;`.
+                    let kw = if node.extra_mutable { "var" } else { "const" };
+                    let binds: Vec<String> = node
+                        .extra_field
+                        .split(',')
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| format!("{} {}", kw, s))
+                        .collect();
+                    self.write(&binds.join(", "));
+                    if !node.children.is_empty() {
+                        self.write(" = ");
+                        self.gen_expr(&node.children[0]);
+                    }
+                    self.write_line(";");
                 } else {
-                    self.write("const ");
+                    if node.extra_mutable {
+                        self.write("var ");
+                    } else {
+                        self.write("const ");
+                    }
+                    self.write(&node.name);
+                    if !node.extra_type.is_empty() {
+                        self.write(&format!(": {}", node.extra_type));
+                    }
+                    if !node.children.is_empty() {
+                        self.write(" = ");
+                        self.gen_expr(&node.children[0]);
+                    }
+                    self.write_line(";");
                 }
-                self.write(&node.name);
-                if !node.extra_type.is_empty() {
-                    self.write(&format!(": {}", node.extra_type));
-                }
-                if !node.children.is_empty() {
-                    self.write(" = ");
-                    self.gen_expr(&node.children[0]);
-                }
-                self.write_line(";");
             }
             NodeKind::StmtAssign => {
                 self.write_indent();
@@ -3648,6 +4032,17 @@ impl Codegen {
                     self.write("))");
                 }
             }
+            NodeKind::ExprTuple => {
+                // Zig anonymous tuple value: `(e0, e1)` -> `.{ e0, e1 }`.
+                self.write(".{ ");
+                for (i, elem) in node.children.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.gen_expr(elem);
+                }
+                self.write(" }");
+            }
             _ => {}
         }
     }
@@ -3662,27 +4057,139 @@ pub struct VerilogCodegen {
     indent: u32,
     module_name: String,
     current_fn_name: String,
+    current_fn_return_type: String,
+    // When true, top-level function-body local declarations have already been
+    // hoisted to the top of the body block, so a direct-child StmtLocal must
+    // emit only its assignment (Init phase), not a fresh `reg` declaration.
+    hoist_fn_locals: bool,
     // Width of the parameters of the function currently being lowered, keyed by
     // parameter name. Populated in `gen_verilog_fn`. Used by `ExprCast` lowering
     // to skip a redundant truncation mask when the operand is a parameter that is
     // no wider than the cast target (a widening or same-width cast).
     param_widths: std::collections::HashMap<String, usize>,
+    // W527: top-level struct declarations -> field names and types, for
+    // packed-vector scalar-struct array lowering.
+    struct_decls: std::collections::HashMap<String, Vec<(String, String)>>,
+    // W527: function-local variable names -> declared type string, used to
+    // resolve multi-dimensional array-of-struct indexing and field access.
+    local_types: std::collections::HashMap<String, String>,
+    // W528: module-level const/var names -> declared type string.
+    module_types: std::collections::HashMap<String, String>,
+    // W528: function parameter names -> declared type string.
+    param_types: std::collections::HashMap<String, String>,
+    // W533: top-level function names -> declared return type string, used to
+    // resolve field access on scalar-struct function-call results.
+    fn_return_types: std::collections::HashMap<String, String>,
+    // W545: module-level const/var primitive scalar arrays that are stored as
+    // packed vectors (key: name, value: (dims, elem_type)).  These are created
+    // when the initializer is a function call returning the array; indexing is
+    // lowered as bit-slices instead of unpacked array access.
+    module_packed_primitive_arrays: std::collections::HashMap<String, (Vec<usize>, String)>,
+    // W546: function-local primitive scalar arrays that are stored as packed
+    // vectors.  The same bit-slice access path applies inside the function scope.
+    local_packed_primitive_arrays: std::collections::HashMap<String, (Vec<usize>, String)>,
+    // W530: when true, emit active test assertions for Icarus simulation
+    // instead of commented-out placeholders.
+    emit_test_assertions: bool,
+    // W538: monotonic probe index for assert_eq VCD probes inside test blocks.
+    probe_counter: usize,
+    // W539: per-test-block probe metadata: (probe_name, width_bits, is_signed).
+    // W540: extended to include an optional slice offset for multi-signal probes.
+    probe_specs: Vec<(String, u32, bool, Option<u32>)>,
+    // W553: pre-declared packed-vector temporaries for function calls that return
+    // primitive scalar arrays. Key is the call expression text; value is the
+    // generated temporary name. The associated packed width/signedness and array
+    // info are stored in call_array_tmp_info.
+    call_array_tmp_names: std::collections::HashMap<String, String>,
+    call_array_tmp_info: std::collections::HashMap<String, (Vec<usize>, String, u32, bool)>,
+    // W553: set of call-array temporaries already assigned in the current block.
+    call_array_tmp_materialized: std::collections::HashSet<String>,
+    // W557: while true, gen_verilog_expr substitutes pre-declared call temporaries
+    // for raw ExprCall nodes. This is set only while emitting test/bench blocks.
+    use_call_array_temps: bool,
+    // W586: true while emitting the left-hand side of an assignment. Signed packed
+    // slice expressions must not be wrapped with `$signed(...)` in lvalue position.
+    in_lvalue: bool,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum LocalEmitPhase {
+    Decl,
+    Init,
+    Full,
 }
 
 impl VerilogCodegen {
     pub fn new() -> Self {
+        Self::with_options(false)
+    }
+
+    pub fn with_options(emit_test_assertions: bool) -> Self {
         Self {
             output: String::new(),
             indent: 0,
             module_name: String::new(),
             current_fn_name: String::new(),
+            current_fn_return_type: String::new(),
+            hoist_fn_locals: false,
             param_widths: std::collections::HashMap::new(),
+            struct_decls: std::collections::HashMap::new(),
+            local_types: std::collections::HashMap::new(),
+            module_types: std::collections::HashMap::new(),
+            param_types: std::collections::HashMap::new(),
+            fn_return_types: std::collections::HashMap::new(),
+            module_packed_primitive_arrays: std::collections::HashMap::new(),
+            local_packed_primitive_arrays: std::collections::HashMap::new(),
+            emit_test_assertions,
+            probe_counter: 0,
+            probe_specs: Vec::new(),
+            call_array_tmp_names: std::collections::HashMap::new(),
+            call_array_tmp_info: std::collections::HashMap::new(),
+            call_array_tmp_materialized: std::collections::HashSet::new(),
+            use_call_array_temps: false,
+            in_lvalue: false,
         }
     }
 
     fn sanitize_identifier(name: &str) -> String {
         name.replace('-', "_")
             .replace(|c: char| !c.is_alphanumeric() && c != '_', "_")
+    }
+
+    /// Verilog-2001 reserved keywords. If a user identifier collides with one,
+    /// escape it with the \\identifier<space> form so it is treated as an
+    /// ordinary identifier and not parsed as a keyword.
+    fn verilog_keywords() -> &'static [&'static str] {
+        &[
+            "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
+            "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
+            "defparam", "design", "disable", "edge", "else", "end", "endcase", "endconfig",
+            "endfunction", "endgenerate", "endmodule", "endprimitive", "endspecify",
+            "endtable", "endtask", "event", "for", "force", "forever", "fork", "function",
+            "generate", "genvar", "highz0", "highz1", "if", "ifnone", "incdir", "include",
+            "initial", "inout", "input", "instance", "integer", "join", "large", "liblist",
+            "library", "localparam", "macromodule", "medium", "module", "nand", "negedge",
+            "nmos", "nor", "noshowcancelled", "not", "notif0", "notif1", "or", "output",
+            "parameter", "pmos", "posedge", "primitive", "pull0", "pull1", "pulldown",
+            "pullup", "pulsestyle_onevent", "pulsestyle_ondetect", "rcmos", "real", "realtime",
+            "reg", "release", "repeat", "rnmos", "rpmos", "rtran", "rtranif0", "rtranif1",
+            "scalared", "showcancelled", "signed", "small", "specify", "specparam", "strong0",
+            "strong1", "supply0", "supply1", "table", "task", "time", "tran", "tranif0",
+            "tranif1", "tri", "tri0", "tri1", "triand", "trior", "trireg", "unsigned", "use",
+            "vectored", "wait", "wand", "weak0", "weak1", "while", "wire", "wor", "xnor", "xor",
+        ]
+    }
+
+    /// Escape identifiers that collide with Verilog keywords. Returns the
+    /// escaped form \\name<space> when the name is a keyword, otherwise the
+    /// original name. The trailing space is part of the escaped identifier
+    /// syntax and must be preserved wherever the identifier is emitted.
+    fn verilog_safe_identifier(name: &str) -> String {
+        if Self::verilog_keywords().contains(&name) {
+            format!("\\{} ", name)
+        } else {
+            name.to_string()
+        }
     }
 
     fn write(&mut self, s: &str) {
@@ -3732,12 +4239,1598 @@ impl VerilogCodegen {
         matches!(ty, "i8" | "i16" | "i32" | "i64")
     }
 
+    /// W532: total bit width of a scalar-struct field that may be a bare scalar
+    /// or a fixed-size array of scalars (e.g. `[3]i16` -> 48).
+    fn scalar_field_width(ty: &str) -> u32 {
+        let trimmed = ty.trim();
+        if let Some(close) = trimmed.find(']') {
+            let inner = trimmed[1..close].trim();
+            let count: u32 = inner.parse().unwrap_or(1);
+            let base = trimmed[close + 1..].trim();
+            count * Self::type_to_width(base)
+        } else {
+            Self::type_to_width(trimmed)
+        }
+    }
+
+    /// W532: true if a scalar-struct field is signed (bare signed scalar or fixed-
+    /// size array of signed scalars).
+    fn scalar_field_is_signed(ty: &str) -> bool {
+        let trimmed = ty.trim();
+        let base = if let Some(close) = trimmed.find(']') {
+            trimmed[close + 1..].trim()
+        } else {
+            trimmed
+        };
+        Self::type_is_signed(base)
+    }
+
+    /// W532: if `ty` is a fixed-size array of primitive scalars, return
+    /// (count, element_width, signed).
+    fn scalar_array_info(ty: &str) -> Option<(usize, u32, bool)> {
+        let trimmed = ty.trim();
+        let close = trimmed.find(']')?;
+        let inner = trimmed[1..close].trim();
+        let count: usize = inner.parse().ok()?;
+        let base = trimmed[close + 1..].trim();
+        if !Self::is_primitive_scalar_type(base) {
+            return None;
+        }
+        Some((count, Self::type_to_width(base), Self::type_is_signed(base)))
+    }
+
+    /// W532: emit a single scalar value (literal or expression) as a Verilog
+    /// expression string of the given width and signedness.
+    fn emit_packed_scalar_value(&self,
+        val: &Node,
+        width: u32,
+        signed: bool,
+    ) -> String {
+        // Helper: signed negative literal as a sized expression accepted by
+        // Icarus (e.g. -16'sd2) so the result occupies exactly `width` bits.
+        let signed_negative = |n: i128| {
+            let abs = (-n) as u128;
+            format!("-{}'sd{}", width, abs)
+        };
+
+        if val.kind == NodeKind::ExprLiteral {
+            match val.value.as_str() {
+                "true" => return "1'b1".to_string(),
+                "false" => return "1'b0".to_string(),
+                v => {
+                    if signed {
+                        if let Ok(n) = v.parse::<i128>() {
+                            if n < 0 {
+                                return signed_negative(n);
+                            } else {
+                                return format!("{}'sd{}", width, n.to_string());
+                            }
+                        }
+                        return format!("{}'sd{}", width, v);
+                    }
+                    return format!("{}'d{}", width, v);
+                }
+            }
+        }
+
+        // Unary minus on a numeric literal is common for negative initializers
+        // and is not parsed as a single ExprLiteral in t27.
+        if signed
+            && val.kind == NodeKind::ExprUnary
+            && val.extra_op.trim() == "-"
+            && val.children.len() == 1
+            && val.children[0].kind == NodeKind::ExprLiteral
+        {
+            let v = val.children[0].value.as_str();
+            if let Ok(n) = v.parse::<i128>() {
+                return signed_negative(-n);
+            }
+        }
+
+        let mut buf = String::new();
+        self.collect_expr_text(val, &mut buf);
+        // W583: non-literal expressions inside packed concatenations need an
+        // explicit width context. SystemVerilog `width'(expr)` gives the
+        // expression a self-determined size of exactly `width` bits, which
+        // prevents Icarus/Yosys from reporting "indefinite width" in a
+        // concatenation. For signed fields the result is then reinterpreted with
+        // $signed so the packed bits represent a two's-complement value.
+        if signed {
+            format!("$signed({}'({}))", width, buf)
+        } else {
+            format!("{}'({})", width, buf)
+        }
+    }
+
+    /// W532: emit the value for one scalar-struct field (bare scalar or fixed-
+    /// size scalar array) as a Verilog expression string suitable for a packed
+    /// concatenation.
+    fn emit_packed_struct_field_value(&self,
+        val: &Node,
+        ftype: &str,
+    ) -> String {
+        if let Some((count, elem_w, signed)) = Self::scalar_array_info(ftype) {
+            if val.kind == NodeKind::ExprArrayLiteral {
+                let mut parts = Vec::new();
+                for elem in val.children.iter().take(count) {
+                    parts.push(
+                        self.emit_packed_scalar_value(elem, elem_w, signed),
+                    );
+                }
+                while parts.len() < count {
+                    parts.push(format!("{}'d0", elem_w));
+                }
+                // Verilog concatenation is MSB-first; t27 element [0] is LSB.
+                parts.reverse();
+                return format!("{{{}}}", parts.join(", "));
+            }
+            return format!("{}'d0", count as u32 * elem_w);
+        }
+        let fwidth = Self::scalar_field_width(ftype);
+        let signed = Self::scalar_field_is_signed(ftype);
+        self.emit_packed_scalar_value(val, fwidth, signed)
+    }
+
+    /// W532: emit a scalar array-literal element (primitive scalar or scalar
+    /// struct) as a Verilog expression string for a packed concatenation.
+    fn emit_packed_array_element_value(&self,
+        val: &Node,
+        elem_type: &str,
+    ) -> String {
+        if self.struct_decls.contains_key(elem_type) {
+            let mut buf = String::new();
+            self.collect_expr_text(val, &mut buf);
+            return buf;
+        }
+        let width = Self::type_to_width(elem_type.trim());
+        let signed = Self::type_is_signed(elem_type.trim());
+        self.emit_packed_scalar_value(val, width, signed)
+    }
+
+    /// W459: recursively collect `ExprCall` nodes under `node` whose callee name
+    /// matches `name`. Used to discover array-parameter call sites inside
+    /// test/invariant/bench blocks as well as module-level statements.
+    fn collect_expr_calls<'n>(node: &'n Node, name: &str, out: &mut Vec<&'n Node>) {
+        if node.kind == NodeKind::ExprCall && node.name == name {
+            out.push(node);
+        }
+        for child in &node.children {
+            Self::collect_expr_calls(child, name, out);
+        }
+    }
+
     /// Format a Verilog range declaration like [31:0]
     fn range_decl(width: u32) -> String {
         if width == 1 {
             String::new()
         } else {
             format!("[{}:0]", width - 1)
+        }
+    }
+
+    /// W528/W533: total packed bit width of any t27 type. Multi-dimensional
+    /// arrays of scalar structs and bare scalar structs are expanded into a
+    /// packed-vector width; primitive arrays (and all other types) preserve the
+    /// legacy scalar width so existing parameter/return signatures stay stable.
+    fn packed_width(&self, ty: &str) -> u32 {
+        let t = ty.trim();
+        if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+            // Tuple type `(T, U, ...)`: packed width is the sum of element widths.
+            let inner = &t[1..t.len() - 1];
+            return inner.split(',').map(|e| self.packed_width(e.trim())).sum();
+        }
+        if let Some((dims, elem_type)) = Self::parse_array_type(ty) {
+            if self.is_lowerable_scalar_struct_type(&elem_type) {
+                let elem_w = self.element_width(&elem_type) as u32;
+                return dims.iter().fold(elem_w, |acc, d| acc * (*d as u32));
+            }
+            // W545: primitive scalar arrays (e.g. [3]u8) are lowered as a single
+            // packed vector whose width is the product of dimensions and element
+            // width.  This aligns function return declarations with the packed
+            // concatenation emitted for array literals.
+            if Self::is_primitive_scalar_type(&elem_type) {
+                let elem_w = Self::type_to_width(&elem_type);
+                return dims.iter().fold(elem_w, |acc, d| acc * (*d as u32));
+            }
+        }
+        if self.is_lowerable_scalar_struct_type(ty) {
+            return self.element_width(&Self::base_type_name(ty));
+        }
+        Self::type_to_width(ty)
+    }
+
+    /// W528/W533: signedness of the packed representation of a t27 type. Scalar
+    /// structs and scalar-struct arrays are emitted as unsigned packed vectors;
+    /// primitive arrays keep the scalar signedness of their element type;
+    /// non-array types keep their original signedness.
+    fn packed_signed(&self, ty: &str) -> bool {
+        if let Some((_dims, elem_type)) = Self::parse_array_type(ty) {
+            if self.is_lowerable_scalar_struct_type(&elem_type) {
+                return false;
+            }
+            return Self::type_is_signed(&elem_type);
+        }
+        if self.is_lowerable_scalar_struct_type(ty) {
+            return false;
+        }
+        Self::type_is_signed(ty)
+    }
+
+    /// W553/W557: if `node` is a function call whose return type is a primitive
+    /// scalar (including fixed-size scalar arrays), return a temporary descriptor
+    /// and a stable textual key for the call.
+    fn call_returning_cse_value_info(
+        &self,
+        node: &Node,
+    ) -> Option<(String, Vec<usize>, String, u32, bool)> {
+        if node.kind != NodeKind::ExprCall {
+            return None;
+        }
+        let ret_ty = self.fn_return_types.get(&node.name)?;
+        let mut key = String::new();
+        self.collect_expr_text(node, &mut key);
+        if Self::is_primitive_scalar_type(ret_ty) {
+            let width = Self::type_to_width(ret_ty);
+            let signed = Self::type_is_signed(ret_ty);
+            return Some((key, Vec::new(), ret_ty.to_string(), width, signed));
+        }
+        // W560: packed scalar-struct returns are also lowerable to a single packed
+        // vector and can be shared across sites via the call-CSE temporary.
+        if self.is_lowerable_scalar_struct_type(ret_ty)
+            && Self::parse_array_type(ret_ty).is_none()
+        {
+            let width = self.packed_width(ret_ty);
+            let signed = self.packed_signed(ret_ty);
+            return Some((
+                key,
+                Vec::new(),
+                Self::base_type_name(ret_ty),
+                width,
+                signed,
+            ));
+        }
+        // W563: arrays of lowerable packed scalar structs are treated like packed
+        // primitive scalar arrays: one temporary per call, indexed by element/field.
+        let (dims, elem_type) = Self::parse_array_type(ret_ty)?;
+        if Self::is_primitive_scalar_type(&elem_type)
+            || self.is_lowerable_scalar_struct_type(&elem_type)
+        {
+            let width = self.packed_width(ret_ty);
+            let signed = self.packed_signed(ret_ty);
+            return Some((key, dims, elem_type, width, signed));
+        }
+        None
+    }
+
+    /// W553/W556: recursively scan an expression subtree and pre-declare
+    /// packed-vector temporaries for any primitive-scalar-array value returned by a
+    /// function call, whether indexed or used as a whole-array value.
+    /// Declarations are emitted in `probe_prelude` before any procedural statement.
+    fn predeclare_call_array_tmps(
+        &mut self,
+        node: &Node,
+        block_name: &str,
+    ) {
+        // If this is an index expression rooted at a function call, register a
+        // temporary for the call's packed return value.
+        if node.kind == NodeKind::ExprIndex {
+            let mut base = node;
+            while base.kind == NodeKind::ExprIndex {
+                base = match base.children.first() {
+                    Some(c) => c,
+                    None => break,
+                };
+            }
+            if base.kind == NodeKind::ExprCall {
+                if let Some((key, dims, elem_type, width, signed)) =
+                    self.call_returning_cse_value_info(base)
+                {
+                    if !self.call_array_tmp_names.contains_key(&key) {
+                        let tmp_name = format!(
+                            "_t27_call_tmp_{}_{}",
+                            Self::sanitize_identifier(block_name),
+                            self.call_array_tmp_names.len()
+                        );
+                        self.call_array_tmp_names.insert(key.clone(), tmp_name.clone());
+                        self.call_array_tmp_info
+                            .insert(tmp_name, (dims, elem_type, width, signed));
+                    }
+                }
+            }
+        }
+        // W556/W557: a bare function call whose return type is a primitive scalar
+        // or scalar array also needs a packed-vector / scalar temporary so the
+        // same value can be used at multiple sites in one block.
+        if node.kind == NodeKind::ExprCall {
+            if let Some((key, dims, elem_type, width, signed)) =
+                self.call_returning_cse_value_info(node)
+            {
+                if !self.call_array_tmp_names.contains_key(&key) {
+                    let tmp_name = format!(
+                        "_t27_call_tmp_{}_{}",
+                        Self::sanitize_identifier(block_name),
+                        self.call_array_tmp_names.len()
+                    );
+                    self.call_array_tmp_names.insert(key.clone(), tmp_name.clone());
+                    self.call_array_tmp_info
+                        .insert(tmp_name, (dims, elem_type, width, signed));
+                }
+            }
+        }
+        for child in &node.children {
+            self.predeclare_call_array_tmps(child, block_name);
+        }
+    }
+
+    /// W553/W557: emit the temporary assignment for a call returning a primitive
+    /// scalar or scalar array if it has not already been materialized in this
+    /// block.
+    fn materialize_call_array_tmp(
+        &mut self,
+        call_node: &Node,
+    ) {
+        let Some((key, _dims, _elem_type, _width, _signed)) =
+            self.call_returning_cse_value_info(call_node)
+        else {
+            return;
+        };
+        let Some(tmp_name) = self.call_array_tmp_names.get(&key).cloned() else {
+            return;
+        };
+        if self.call_array_tmp_materialized.contains(&tmp_name) {
+            return;
+        }
+        let mut call_text = String::new();
+        self.collect_expr_text(call_node, &mut call_text);
+        self.write_indent();
+        self.write_line(&format!("{} = {};", tmp_name, call_text),
+        );
+        self.call_array_tmp_materialized.insert(tmp_name);
+    }
+
+    /// W557: enable call-temporary substitution while emitting a test/bench
+    /// block, then disable it again so synthesizable code paths keep raw calls.
+    fn with_call_array_temps_enabled<F, R>(&mut self,
+        f: F,
+    ) -> R
+    where
+        F: FnOnce(&mut Self) -> R,
+    {
+        self.use_call_array_temps = true;
+        let result = f(self);
+        self.use_call_array_temps = false;
+        result
+    }
+
+    /// W553/W556: recursively scan an expression and materialize every
+    /// packed-vector temporary that backs a function-call-return array value,
+    /// whether indexed or used as a whole-array value.
+    fn materialize_call_array_tmps_in_expr(
+        &mut self,
+        node: &Node,
+    ) {
+        if node.kind == NodeKind::ExprIndex {
+            let mut base = node;
+            while base.kind == NodeKind::ExprIndex {
+                base = match base.children.first() {
+                    Some(c) => c,
+                    None => break,
+                };
+            }
+            if base.kind == NodeKind::ExprCall {
+                self.materialize_call_array_tmp(base);
+            }
+        }
+        // W556: materialize the temporary for a bare call returning a primitive
+        // scalar array before the statement that uses it.
+        if node.kind == NodeKind::ExprCall {
+            self.materialize_call_array_tmp(node);
+        }
+        for child in &node.children {
+            self.materialize_call_array_tmps_in_expr(child);
+        }
+    }
+
+    /// W539: infer the scalar bit width and signedness of an expression in the
+    /// Icarus-lowerable subset. Returns None for non-scalar or unresolvable
+    /// expressions (structs, arrays, strings, etc.).
+    fn expr_width_signed(&self, node: &Node) -> Option<(u32, bool)> {
+        match node.kind {
+            NodeKind::ExprLiteral => {
+                // Booleans are scalar; numeric literals default to the width of
+                // their inferred type when the literal carries an explicit type
+                // annotation, otherwise to the platform int width.
+                let lit = node.value.as_str();
+                if lit == "true" || lit == "false" {
+                    return Some((1, false));
+                }
+                let ty = node.extra_type.as_str();
+                if !ty.is_empty() {
+                    return Some((Self::type_to_width(ty), Self::type_is_signed(ty)));
+                }
+                // Untyped integer literal: default to 32-bit signed (matches
+                // the Verilog expression context).
+                Some((32, true))
+            }
+            NodeKind::ExprIdentifier => {
+                let ty = self.local_types.get(&node.name)
+                    .or_else(|| self.param_types.get(&node.name))
+                    .or_else(|| self.module_types.get(&node.name))?;
+                // Primitive scalar identifiers are probe-able as before.
+                if Self::is_primitive_scalar_type(ty) {
+                    Some((Self::type_to_width(ty), Self::type_is_signed(ty)))
+                } else if self.is_lowerable_scalar_struct_type(ty)
+                    || Self::is_primitive_array_type(ty)
+                {
+                    // W541/W555/W564: lowerable packed scalar structs, arrays of
+                    // scalar structs, and primitive scalar arrays all lower to a
+                    // single packed vector that can be probed / compared directly.
+                    Some((self.packed_width(ty), self.packed_signed(ty)))
+                } else {
+                    None
+                }
+            }
+            NodeKind::ExprCall => {
+                // Parameterless function calls whose return type is scalar, a
+                // lowerable packed scalar struct (W540 wide probe path), or a
+                // primitive scalar array (W555 whole-array bench assert_eq), or
+                // a packed 1-D array of lowerable scalar structs (W564).
+                let ret_ty = self.fn_return_types.get(&node.name)?;
+                if Self::is_primitive_scalar_type(ret_ty) {
+                    Some((Self::type_to_width(ret_ty), Self::type_is_signed(ret_ty)))
+                } else if self.is_lowerable_scalar_struct_type(ret_ty) {
+                    // W564: this also covers arrays of scalar structs because
+                    // packed_width folds array dimensions into the total width.
+                    Some((self.packed_width(ret_ty), self.packed_signed(ret_ty)))
+                } else if Self::is_primitive_array_type(ret_ty) {
+                    Some((self.packed_width(ret_ty), self.packed_signed(ret_ty)))
+                } else {
+                    None
+                }
+            }
+            NodeKind::ExprFieldAccess => {
+                if node.children.is_empty() {
+                    return None;
+                }
+                let child = &node.children[0];
+                // W527/W533/W586: field access on packed scalar struct or array
+                // element. The base may be a bare identifier or a chain of
+                // ExprIndex nodes for multi-dimensional array access.
+                let base_name = match child.kind {
+                    NodeKind::ExprIdentifier => child.name.clone(),
+                    NodeKind::ExprIndex => {
+                        let mut current = child;
+                        while current.kind == NodeKind::ExprIndex {
+                            current = match current.children.first() {
+                                Some(c) => c,
+                                None => return None,
+                            };
+                        }
+                        if current.kind == NodeKind::ExprIdentifier {
+                            current.name.clone()
+                        } else {
+                            return None;
+                        }
+                    }
+                    _ => return None,
+                };
+                let local_ty = self.local_types.get(&base_name)
+                    .or_else(|| self.param_types.get(&base_name))
+                    .or_else(|| self.module_types.get(&base_name))?;
+                let base_ty = Self::base_type_name(local_ty);
+                let struct_name = if self.is_lowerable_scalar_struct_type(local_ty) {
+                    base_ty
+                } else if Self::parse_array_type(local_ty).is_some()
+                    && self.is_lowerable_scalar_struct_type(&base_ty)
+                {
+                    base_ty
+                } else {
+                    return None;
+                };
+                let fields = self.struct_decls.get(&struct_name)?;
+                let ftype = fields.iter()
+                    .find(|(n, _)| n == &node.name)
+                    .map(|(_, t)| t.clone())?;
+                if Self::is_primitive_scalar_type(&ftype) {
+                    Some((Self::type_to_width(&ftype), Self::type_is_signed(&ftype)))
+                } else {
+                    Self::scalar_array_info(&ftype)
+                        .map(|(count, w, signed)| (count as u32 * w, signed))
+                }
+            }
+            NodeKind::ExprIndex => {
+                if node.children.len() < 2 {
+                    return None;
+                }
+                // Try to resolve the base as a primitive scalar array.
+                let mut current = &node.children[0];
+                while current.kind == NodeKind::ExprIndex {
+                    current = current.children.first()?;
+                }
+                if current.kind == NodeKind::ExprCall {
+                    // W553: indexing the packed primitive scalar array returned by a
+                    // function call (e.g. seq()[0]).
+                    if let Some((_key, _dims, elem_type, _width, _signed)) =
+                        self.call_returning_cse_value_info(current)
+                    {
+                        return Some((
+                            Self::type_to_width(&elem_type),
+                            Self::type_is_signed(&elem_type),
+                        ));
+                    }
+                    return None;
+                }
+                if current.kind != NodeKind::ExprIdentifier {
+                    return None;
+                }
+                let local_ty = self.local_types.get(&current.name)
+                    .or_else(|| self.param_types.get(&current.name))
+                    .or_else(|| self.module_types.get(&current.name))?;
+                if let Some((_, elem_type)) = Self::parse_array_type(local_ty) {
+                    if Self::is_primitive_scalar_type(&elem_type) {
+                        return Some((
+                            Self::type_to_width(&elem_type),
+                            Self::type_is_signed(&elem_type),
+                        ));
+                    }
+                }
+                // Scalar-struct array field element access: base is a field
+                // access, the field is a fixed-size scalar array.
+                if node.children[0].kind == NodeKind::ExprFieldAccess {
+                    if let Some(info) = self.field_scalar_array_info(&node.children[0]
+                    ) {
+                        return Some((info.1, info.2));
+                    }
+                }
+                None
+            }
+            NodeKind::ExprBinary => {
+                if node.children.len() < 2 {
+                    return None;
+                }
+                let op = node.extra_op.as_str();
+                // Logical operators return bool (1 bit unsigned).
+                if matches!(op, "&&" | "||" | "and" | "or") {
+                    return Some((1, false));
+                }
+                if matches!(op, "==" | "!=" | "<" | "<=" | ">" | ">=") {
+                    return Some((1, false));
+                }
+                // Arithmetic / bitwise operators inherit width/sign from the
+                // left operand when both operands are scalar; otherwise fall back.
+                let left = self.expr_width_signed(&node.children[0])?;
+                let right = self.expr_width_signed(&node.children[1])?;
+                // Result width is the max operand width for non-shift ops.
+                if matches!(op, "<<" | ">>") {
+                    // Shift result width equals the left operand width.
+                    return Some(left);
+                }
+                let width = left.0.max(right.0);
+                let signed = left.1 || right.1;
+                Some((width, signed))
+            }
+            NodeKind::ExprUnary => {
+                if node.children.is_empty() {
+                    return None;
+                }
+                let op = node.extra_op.as_str();
+                let child = self.expr_width_signed(&node.children[0])?;
+                // Logical negation returns bool.
+                if op == "!" || op == "not" {
+                    return Some((1, false));
+                }
+                // Bitwise/arithmetic negation preserves width/sign.
+                Some(child)
+            }
+            NodeKind::ExprCast => {
+                if node.children.is_empty() {
+                    return None;
+                }
+                let base_ty = node
+                    .extra_type
+                    .split('[')
+                    .next()
+                    .unwrap_or("")
+                    .to_string();
+                let width = Self::type_to_width(&base_ty);
+                let signed = Self::type_is_signed(&base_ty);
+                Some((width, signed))
+            }
+            NodeKind::ExprArrayLiteral => {
+                // W555/W564: a primitive scalar array literal or a lowerable packed
+                // scalar-struct array literal has the packed width of its element
+                // type times all dimensions.
+                let elem = node.extra_type.trim();
+                let dims: Vec<usize> = node.extra_size.split("][")
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                let dims_count = node.extra_size.split("][").count();
+                if !dims.is_empty()
+                    && dims.len() == dims_count
+                    && (Self::is_primitive_scalar_type(elem)
+                        || self.is_lowerable_scalar_struct_type(elem))
+                {
+                    let ty = format!("[{}]{}", node.extra_size, elem);
+                    Some((self.packed_width(&ty), self.packed_signed(&ty)))
+                } else {
+                    None
+                }
+            }
+            NodeKind::ExprSwitch => {
+                // Result type is the type of any case result; use the first one.
+                node.children.get(1)
+                    .and_then(|c| self.expr_width_signed(c))
+            }
+            NodeKind::ExprStructLit => {
+                // A literal of a lowerable packed scalar struct has the packed
+                // vector width of that struct (W540 wide probe path).
+                let ty = node.extra_type.as_str();
+                let struct_name = if !ty.is_empty() {
+                    ty.to_string()
+                } else {
+                    node.name.clone()
+                };
+                if self.is_lowerable_scalar_struct_type(&struct_name) {
+                    Some((self.element_width(&struct_name), false))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// W539: helper to extract (count, element_width, signed) for a scalar-array
+    /// field inside a scalar struct, given a field-access expression node.
+    fn field_scalar_array_info(
+        &self,
+        field_access: &Node,
+    ) -> Option<(usize, u32, bool)> {
+        if field_access.kind != NodeKind::ExprFieldAccess || field_access.children.is_empty() {
+            return None;
+        }
+        let child = &field_access.children[0];
+        let base_name = match child.kind {
+            NodeKind::ExprIdentifier => child.name.clone(),
+            NodeKind::ExprIndex => {
+                let mut current = child;
+                while current.kind == NodeKind::ExprIndex {
+                    current = match current.children.first() {
+                        Some(c) => c,
+                        None => return None,
+                    };
+                }
+                if current.kind == NodeKind::ExprIdentifier {
+                    current.name.clone()
+                } else {
+                    return None;
+                }
+            }
+            _ => return None,
+        };
+        let local_ty = self.local_types.get(&base_name)
+            .or_else(|| self.param_types.get(&base_name))
+            .or_else(|| self.module_types.get(&base_name))?;
+        let base_ty = Self::base_type_name(local_ty);
+        let struct_name = if self.is_lowerable_scalar_struct_type(local_ty) {
+            base_ty
+        } else if Self::parse_array_type(local_ty).is_some()
+            && self.is_lowerable_scalar_struct_type(&base_ty)
+        {
+            base_ty
+        } else {
+            return None;
+        };
+        let fields = self.struct_decls.get(&struct_name)?;
+        let ftype = fields.iter()
+            .find(|(n, _)| n == &field_access.name)
+            .map(|(_, t)| t.clone())?;
+        Self::scalar_array_info(&ftype)
+    }
+
+    /// W527: parse a t27 array type string like "[2][3]Pt" into a list of
+    /// dimension sizes and the element type name. Returns None for malformed or
+    /// non-array types.
+    fn parse_array_type(ty: &str) -> Option<(Vec<usize>, String)> {
+        let trimmed = ty.trim();
+        let mut rest = trimmed;
+        let mut dims = Vec::new();
+        while rest.starts_with('[') {
+            let close = rest.find(']')?;
+            let inner = rest[1..close].trim();
+            let size: usize = inner.parse().ok()?;
+            dims.push(size);
+            rest = rest[close + 1..].trim();
+        }
+        if dims.is_empty() || rest.is_empty() {
+            return None;
+        }
+        Some((dims, rest.to_string()))
+    }
+
+    /// W533: strip array brackets from a type string, returning the base type
+    /// name. For non-array types the input is returned unchanged.
+    fn base_type_name(ty: &str) -> String {
+        let trimmed = ty.trim();
+        if let Some((_, elem)) = Self::parse_array_type(trimmed) {
+            return elem;
+        }
+        trimmed.to_string()
+    }
+
+    /// W527: total bit width of a scalar struct element, or of a primitive
+    /// element type. Fixed-size scalar-array fields are counted as
+    /// `width * count`.
+    fn element_width(&self,
+        elem_type: &str,
+    ) -> u32 {
+        if let Some(fields) = self.struct_decls.get(elem_type) {
+            let mut w = 0u32;
+            for (_, ft) in fields {
+                let trimmed = ft.trim();
+                if let Some(close) = trimmed.find(']') {
+                    let inner = trimmed[1..close].trim();
+                    let count: u32 = inner.parse().unwrap_or(1);
+                    let base = trimmed[close + 1..].trim();
+                    w += count * Self::type_to_width(base);
+                } else {
+                    w += Self::type_to_width(trimmed);
+                }
+            }
+            return w.max(1);
+        }
+        Self::type_to_width(elem_type)
+    }
+
+    /// W527: for a scalar struct, return the bit offset (from the LSB of the
+    /// element) and width of the named field.
+    fn struct_field_offset(&self,
+        struct_name: &str,
+        field_name: &str,
+    ) -> Option<(u32, u32)> {
+        let fields = self.struct_decls.get(struct_name)?;
+        let mut offset = 0u32;
+        for (name, ftype) in fields {
+            let trimmed = ftype.trim();
+            let fw = if let Some(close) = trimmed.find(']') {
+                let inner = trimmed[1..close].trim();
+                let count: u32 = inner.parse().unwrap_or(1);
+                let base = trimmed[close + 1..].trim();
+                count * Self::type_to_width(base)
+            } else {
+                Self::type_to_width(trimmed)
+            };
+            if name == field_name {
+                return Some((offset, fw));
+            }
+            offset += fw;
+        }
+        None
+    }
+
+    /// W527/W586: emit a Verilog part-select expression for one element of a packed
+    /// multi-dimensional array-of-struct local. `linear_expr` is the pre-quoted
+    /// textual expression for the linearized element index. If `signed` is true the
+    /// resulting slice is reinterpreted with `$signed(...)` so that Icarus treats
+    /// the packed bits as two's-complement instead of unsigned.
+    fn emit_packed_struct_element_slice(
+        &mut self,
+        var: &str,
+        linear_expr: &str,
+        elem_width: u32,
+        field_offset: u32,
+        field_width: u32,
+        signed: bool,
+    ) {
+        if field_offset == 0 && field_width == elem_width {
+            // Whole element: no inner offset needed.
+            self.write(&format!(
+                "{}[({}) * {} +: {}]",
+                var, linear_expr, elem_width, elem_width
+            ));
+        } else {
+            let slice = format!(
+                "{}[(({}) * {} + {}) +: {}]",
+                var, linear_expr, elem_width, field_offset, field_width
+            );
+            if signed && !self.in_lvalue {
+                self.write(&format!("$signed({})", slice));
+            } else {
+                self.write(&slice);
+            }
+        }
+    }
+
+    /// W527/W563: walk a chain of ExprIndex nodes rooted at a local
+    /// array-of-struct identifier or a call returning an array of scalar structs,
+    /// and emit the corresponding packed slice. `trailing_field` is Some("x")
+    /// for `m[i][j].x`, None for `m[i][j]`. Returns true if the chain was
+    /// recognized and emitted.
+    fn try_emit_struct_array_access(
+        &mut self,
+        node: &Node,
+        trailing_field: Option<&str>,
+    ) -> bool {
+        // Walk down ExprIndex nodes to find the base identifier or call.
+        let mut current = node;
+        let mut indices: Vec<String> = Vec::new();
+        while current.kind == NodeKind::ExprIndex {
+            if current.children.len() >= 2 {
+                let mut idx_buf = String::new();
+                self.collect_expr_text(&current.children[1], &mut idx_buf);
+                indices.push(idx_buf);
+            }
+            current = match current.children.first() {
+                Some(c) => c,
+                None => return false,
+            };
+        }
+
+        // Resolve the base expression, dimensions, and element struct type.
+        let (base_expr, dims, elem_type) = match current.kind {
+            NodeKind::ExprIdentifier if !current.name.is_empty() => {
+                let base_name = current.name.clone();
+                let local_ty = match self.local_types.get(&base_name)
+                    .or_else(|| self.param_types.get(&base_name))
+                    .or_else(|| self.module_types.get(&base_name))
+                {
+                    Some(t) => t.clone(),
+                    None => return false,
+                };
+                let (dims, elem_type) = match Self::parse_array_type(&local_ty) {
+                    Some(v) => v,
+                    None => return false,
+                };
+                if !self.struct_decls.contains_key(&elem_type) {
+                    return false;
+                }
+                (base_name, dims, elem_type)
+            }
+            NodeKind::ExprCall if !current.name.is_empty() => {
+                let ret_ty = match self.fn_return_types.get(&current.name) {
+                    Some(t) => t.clone(),
+                    None => return false,
+                };
+                let (dims, elem_type) = match Self::parse_array_type(&ret_ty) {
+                    Some(v) => v,
+                    None => return false,
+                };
+                if !self.struct_decls.contains_key(&elem_type) {
+                    return false;
+                }
+                let mut call_key = String::new();
+                self.collect_expr_text(current, &mut call_key);
+                let base_expr = if self.use_call_array_temps
+                    && !self.call_array_tmp_names.is_empty()
+                {
+                    self.call_array_tmp_names
+                        .get(&call_key)
+                        .cloned()
+                        .unwrap_or_else(|| format!("({})", call_key))
+                } else {
+                    format!("({})", call_key)
+                };
+                (base_expr, dims, elem_type)
+            }
+            _ => return false,
+        };
+
+        // Indices were collected from outermost to innermost; reverse to row-major.
+        indices.reverse();
+        if indices.len() != dims.len() {
+            return false;
+        }
+
+        let elem_width = self.element_width(&elem_type);
+        let linear = if dims.len() == 1 {
+            indices[0].clone()
+        } else {
+            let mut expr = indices[0].clone();
+            for (i, dim) in dims.iter().enumerate().skip(1) {
+                expr = format!("(({}) * {} + {})", expr, dim, indices[i]);
+            }
+            expr
+        };
+
+        let (field_offset, field_width, signed) = if let Some(fname) = trailing_field {
+            let (off, fw) = match self.struct_field_offset(&elem_type, fname) {
+                Some(v) => v,
+                None => return false,
+            };
+            let ftype = self.struct_decls.get(&elem_type)
+                .and_then(|fs| fs.iter().find(|(n, _)| n == fname).map(|(_, t)| t.clone()))
+                .unwrap_or_default();
+            (off, fw, Self::scalar_field_is_signed(&ftype))
+        } else {
+            (0u32, elem_width, false)
+        };
+
+        self.emit_packed_struct_element_slice(
+            &base_expr,
+            &linear,
+            elem_width,
+            field_offset,
+            field_width,
+            signed,
+        );
+        true
+    }
+
+    /// W532/W562: emit a packed slice for `base[outer...].field[inner]` where
+    /// `field` is a fixed-size scalar array inside a scalar struct. Handles both
+    /// single scalar structs (`p.data[k]`) and arrays of scalar structs
+    /// (`grid[i][j].data[k]`). Also handles the case where the base is a call
+    /// returning a scalar struct with a scalar-array field, slicing a
+    /// pre-declared packed-vector temporary if one exists. Returns true if the
+    /// access was recognised.
+    fn try_emit_struct_array_field_element_access(
+        &mut self,
+        node: &Node,
+    ) -> bool {
+        if node.kind != NodeKind::ExprIndex || node.children.len() < 2 {
+            return false;
+        }
+        let field_access = match node.children.first() {
+            Some(fa) if fa.kind == NodeKind::ExprFieldAccess => fa,
+            _ => return false,
+        };
+        let field_name = &field_access.name;
+        if field_access.children.is_empty() {
+            return false;
+        }
+
+        // W562: the base may be a function call returning a scalar struct.
+        // Determine the base expression text, optional call temporary, and the
+        // struct element type that owns the scalar-array field.
+        let base_child = &field_access.children[0];
+        let mut base_expr = String::new();
+        let mut elem_type = String::new();
+        let mut needs_parens = true;
+        let mut base_is_array_of_struct = false;
+        let mut outer_indices: Vec<String> = Vec::new();
+
+        match base_child.kind {
+            NodeKind::ExprCall if !base_child.name.is_empty() => {
+                self.collect_expr_text(base_child, &mut base_expr);
+                if let Some(ret_ty) = self.fn_return_types.get(&base_child.name) {
+                    elem_type = Self::base_type_name(ret_ty);
+                    if !self.is_lowerable_scalar_struct_type(&elem_type)
+                        || Self::parse_array_type(ret_ty).is_some()
+                    {
+                        return false;
+                    }
+                    // W562: if a call temporary exists, slice it directly.
+                    if self.use_call_array_temps
+                        && !self.call_array_tmp_names.is_empty()
+                    {
+                        if let Some(tmp_name) =
+                            self.call_array_tmp_names.get(&base_expr).cloned()
+                        {
+                            base_expr = tmp_name;
+                            needs_parens = false;
+                        }
+                    }
+                } else {
+                    return false;
+                }
+            }
+            _ => {
+                // Walk the outer ExprIndex chain inside the field access to find
+                // the base identifier (existing W532 path).
+                let mut current = base_child;
+                while current.kind == NodeKind::ExprIndex {
+                    if current.children.len() >= 2 {
+                        let mut idx_buf = String::new();
+                        self.collect_expr_text(&current.children[1], &mut idx_buf);
+                        outer_indices.push(idx_buf);
+                    }
+                    current = match current.children.first() {
+                        Some(c) => c,
+                        None => return false,
+                    };
+                }
+                let base_name = match current.kind {
+                    NodeKind::ExprIdentifier if !current.name.is_empty() => {
+                        current.name.clone()
+                    }
+                    _ => return false,
+                };
+                let local_ty = match self.local_types.get(&base_name)
+                    .or_else(|| self.param_types.get(&base_name))
+                    .or_else(|| self.module_types.get(&base_name))
+                {
+                    Some(t) => t.clone(),
+                    None => return false,
+                };
+
+                // Resolve the element type and outer dimensions.
+                let (dims, et) = match Self::parse_array_type(&local_ty) {
+                    Some((d, et)) => {
+                        base_is_array_of_struct = true;
+                        (d, et)
+                    }
+                    None => (Vec::new(), local_ty.clone()),
+                };
+                if !self.struct_decls.contains_key(&et) {
+                    return false;
+                }
+                elem_type = et;
+                outer_indices.reverse();
+                if outer_indices.len() != dims.len() {
+                    return false;
+                }
+                base_expr = base_name;
+                needs_parens = false;
+            }
+        }
+
+        if elem_type.is_empty() {
+            return false;
+        }
+
+        let field_offset = match self.struct_field_offset(&elem_type, field_name,
+        ) {
+            Some((off, _)) => off,
+            None => return false,
+        };
+        let field_type = match self.struct_decls.get(&elem_type) {
+            Some(fields) => match fields.iter().find(|(n, _)| n == field_name) {
+                Some((_, ft)) => ft.clone(),
+                None => return false,
+            },
+            None => return false,
+        };
+        let (_count, inner_w, signed) = match Self::scalar_array_info(&field_type
+        ) {
+            Some(v) => v,
+            None => return false,
+        };
+        let mut inner_idx = String::new();
+        self.collect_expr_text(&node.children[1], &mut inner_idx);
+
+        let slice_expr = if base_is_array_of_struct {
+            let elem_width = self.element_width(&elem_type);
+            let linear = if outer_indices.is_empty() {
+                "0".to_string()
+            } else {
+                let mut expr = outer_indices[0].clone();
+                for (i, dim) in Self::parse_array_type(
+                    &format!("[{}]", outer_indices.iter().map(|_| "1").collect::<Vec<_>>().join("]["))).unwrap_or_default().0.iter().enumerate().skip(1)
+                {
+                    let _ = dim;
+                    expr = format!("(({}) * 1 + {})", expr, outer_indices[i]);
+                }
+                for (i, dim) in Self::parse_array_type(
+                    &format!("[{}]dummy", outer_indices.iter().map(|_| "1").collect::<Vec<_>>().join("]["))).unwrap_or_default().0.iter().enumerate().skip(1)
+                {
+                    let _ = dim;
+                    expr = format!("(({}) * 1 + {})", expr, outer_indices[i]);
+                }
+                // Reconstruct actual dims from the base type for correct stride.
+                let (dims, _et) = Self::parse_array_type(
+                    &self.local_types.get(&base_expr).or_else(|| self.param_types.get(&base_expr)).or_else(|| self.module_types.get(&base_expr)).cloned().unwrap_or_default()
+                ).unwrap_or_default();
+                let mut expr = outer_indices[0].clone();
+                for (i, dim) in dims.iter().enumerate().skip(1) {
+                    expr = format!("(({}) * {} + {})", expr, dim, outer_indices[i]);
+                }
+                expr
+            };
+            format!(
+                "{}[(({}) * {} + {} + ({} * {})) +: {}]",
+                base_expr, linear, elem_width, field_offset, inner_idx, inner_w, inner_w
+            )
+        } else {
+            // Single scalar-struct base (or call temporary): no outer element
+            // stride, just field offset + inner index * element width.
+            format!(
+                "{}[({} + ({} * {})) +: {}]",
+                base_expr, field_offset, inner_idx, inner_w, inner_w
+            )
+        };
+
+        // W560/W562: parenthesize the base expression only if it is a raw
+        // function call; identifiers and temporaries do not need parentheses
+        // around a part-select.
+        let final_expr = if needs_parens {
+            format!("({})[({} + ({} * {})) +: {}]", base_expr, field_offset, inner_idx, inner_w, inner_w)
+        } else {
+            slice_expr
+        };
+
+        if signed && !self.in_lvalue {
+            self.write(&format!("$signed({})", final_expr));
+        } else {
+            self.write(&final_expr);
+        }
+        true
+    }
+
+    /// W527: helper that renders an expression subtree into a buffer without
+    /// touching `self.output`. Used to build index expressions for dynamic
+    /// part-selects and to build stable textual keys for call CSE.
+    fn collect_expr_text(&self,
+        node: &Node,
+        buf: &mut String,
+    ) {
+        // Dispatch into a temporary codegen instance so we reuse the existing
+        // expression emitter without mutating the real output.
+        // W557: the temporary instance must never substitute call temporaries,
+        // because this function is used both to build deduplication keys and to
+        // render the RHS of the temporary assignment itself.
+        let mut tmp = VerilogCodegen {
+            output: String::new(),
+            indent: 0,
+            module_name: String::new(),
+            current_fn_name: String::new(),
+            current_fn_return_type: String::new(),
+            hoist_fn_locals: false,
+            param_widths: self.param_widths.clone(),
+            struct_decls: self.struct_decls.clone(),
+            local_types: self.local_types.clone(),
+            module_types: self.module_types.clone(),
+            param_types: self.param_types.clone(),
+            fn_return_types: self.fn_return_types.clone(),
+            module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
+            local_packed_primitive_arrays: self.local_packed_primitive_arrays.clone(),
+            emit_test_assertions: self.emit_test_assertions,
+            probe_counter: 0,
+            probe_specs: Vec::new(),
+            call_array_tmp_names: self.call_array_tmp_names.clone(),
+            call_array_tmp_info: self.call_array_tmp_info.clone(),
+            call_array_tmp_materialized: std::collections::HashSet::new(),
+            use_call_array_temps: false,
+            in_lvalue: false,
+        };
+        tmp.gen_verilog_expr(node);
+        buf.push_str(&tmp.output);
+    }
+
+    /// W527: emit procedural assignments that initialize a packed multi-
+    /// dimensional array-of-struct local from a nested array literal.
+    fn emit_packed_struct_array_init(
+        &mut self,
+        var: &str,
+        ty: &str,
+        init: &Node,
+    ) {
+        let (dims, elem_type) = match Self::parse_array_type(ty) {
+            Some(v) => v,
+            None => return,
+        };
+        let elem_width = self.element_width(&elem_type) as usize;
+        self.emit_packed_struct_array_init_level(var, &dims, 0, elem_width, init, "");
+    }
+
+    fn emit_packed_struct_array_init_level(
+        &mut self,
+        var: &str,
+        dims: &[usize],
+        depth: usize,
+        elem_width: usize,
+        node: &Node,
+        base_expr: &str,
+    ) {
+        if depth + 1 == dims.len() {
+            // Innermost dimension: `node` should be an array literal of elements.
+            if node.kind != NodeKind::ExprArrayLiteral {
+                return;
+            }
+            let current_dim = dims[depth];
+            for (i, elem) in node.children.iter().enumerate() {
+                if i >= current_dim {
+                    break;
+                }
+                let idx = if base_expr.is_empty() {
+                    i.to_string()
+                } else {
+                    format!("({}) * {} + {}", base_expr, current_dim, i)
+                };
+                let mut rhs = String::new();
+                self.collect_expr_text(elem, &mut rhs);
+                self.write_indent();
+                self.write_line(&format!(
+                    "{}[({}) * {} +: {}] = {};",
+                    var, idx, elem_width, elem_width, rhs
+                ));
+            }
+            return;
+        }
+
+        // Outer dimension: `node` is an array literal of sub-arrays.
+        if node.kind != NodeKind::ExprArrayLiteral {
+            return;
+        }
+        let current_dim = dims[depth];
+        for (i, sub) in node.children.iter().enumerate() {
+            if i >= current_dim {
+                break;
+            }
+            let idx = if base_expr.is_empty() {
+                i.to_string()
+            } else {
+                format!("({}) * {} + {}", base_expr, current_dim, i)
+            };
+            self.emit_packed_struct_array_init_level(
+                var, dims, depth + 1, elem_width, sub, &idx,
+            );
+        }
+    }
+
+    /// W528: parse an array-literal text fragment (e.g. the ExprIdentifier
+    /// stored for a module-level const like `[2][3]Pt{...}`) into an
+    /// ExprArrayLiteral on demand. This avoids changing the shared AST for
+    /// other backends.
+    fn parse_array_literal_text(&self, text: &str) -> Option<Node> {
+        let lexer = Lexer::new(text);
+        let mut parser = Parser::new(lexer);
+        parser.parse_array_literal().ok()
+    }
+
+    /// W528: emit a nested array literal as a single packed concatenation,
+    /// suitable for a module-level parameter/localparam initializer. Each
+    /// innermost element is rendered through `emit_packed_array_element_value`
+    /// so primitive scalars are sized correctly and scalar struct literals lower
+    /// to their packed concatenation. Missing entries are padded with sized zero.
+    fn emit_packed_array_literal_concat(
+        &mut self,
+        node: &Node,
+        ty: &str,
+    ) {
+        let (dims, elem_type) = match Self::parse_array_type(ty) {
+            Some(v) => v,
+            None => {
+                self.write("0 /* TODO: packed array literal for non-array type */");
+                return;
+            }
+        };
+        let elem_w = self.element_width(&elem_type) as usize;
+        self.emit_packed_array_literal_concat_level(
+            node, &dims, 0, elem_w, &elem_type,
+        );
+    }
+
+    fn emit_packed_array_literal_concat_level(
+        &mut self,
+        node: &Node,
+        dims: &[usize],
+        depth: usize,
+        elem_w: usize,
+        elem_type: &str,
+    ) {
+        let current_dim = dims[depth];
+        let mut parts = Vec::new();
+        if depth + 1 == dims.len() {
+            // Innermost dimension: elements are scalar struct literals or
+            // primitive expressions. Render each element to a string.
+            let inner = if node.kind == NodeKind::ExprArrayLiteral {
+                &node.children[..]
+            } else {
+                &node.children[..0]
+            };
+            for elem in inner.iter().take(current_dim) {
+                parts.push(self.emit_packed_array_element_value(elem, elem_type));
+            }
+        } else {
+            // Outer dimensions: each child is a sub-array literal.
+            let outer = if node.kind == NodeKind::ExprArrayLiteral {
+                &node.children[..]
+            } else {
+                &node.children[..0]
+            };
+            for sub in outer.iter().take(current_dim) {
+                let mut tmp = VerilogCodegen {
+                    output: String::new(),
+                    indent: 0,
+                    module_name: String::new(),
+                    current_fn_name: String::new(),
+                    current_fn_return_type: String::new(),
+                    hoist_fn_locals: false,
+                    param_widths: self.param_widths.clone(),
+                    struct_decls: self.struct_decls.clone(),
+                    local_types: self.local_types.clone(),
+                    module_types: self.module_types.clone(),
+                    param_types: self.param_types.clone(),
+                    fn_return_types: self.fn_return_types.clone(),
+                    module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
+                    local_packed_primitive_arrays: self.local_packed_primitive_arrays.clone(),
+                    emit_test_assertions: self.emit_test_assertions,
+                    probe_counter: 0,
+                    probe_specs: Vec::new(),
+                    call_array_tmp_names: self.call_array_tmp_names.clone(),
+                    call_array_tmp_info: self.call_array_tmp_info.clone(),
+                    call_array_tmp_materialized: std::collections::HashSet::new(),
+                    use_call_array_temps: false,
+                    in_lvalue: false,
+                };
+                tmp.emit_packed_array_literal_concat_level(
+                    sub, dims, depth + 1, elem_w, elem_type,
+                );
+                parts.push(tmp.output);
+            }
+        }
+        // Pad missing entries with sized zero.
+        while parts.len() < current_dim {
+            parts.push(format!("{}'d0", elem_w));
+        }
+        // Verilog concatenation is MSB-first, but t27 element [0] is stored at
+        // the LSB of the packed vector, so emit elements in reverse order.
+        parts.reverse();
+        self.write(&format!("{{{}}}", parts.join(", ")));
+    }
+
+    /// W531: primitive scalar types that can be packed into a bit vector.
+    fn is_primitive_scalar_type(ty: &str) -> bool {
+        matches!(
+            ty.trim(),
+            "u8" | "u16" | "u32" | "u64" | "i8" | "i16" | "i32" | "i64" | "bool"
+        )
+    }
+
+    /// W532: a scalar struct is lowerable to a packed vector iff every field is
+    /// either a primitive scalar or a fixed-size array of primitive scalars.
+    /// Fields of type string, enum, float, or nested aggregate are rejected.
+    fn is_lowerable_scalar_struct(
+        name: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> bool {
+        let Some(fields) = structs.get(name) else {
+            return false;
+        };
+        !fields.is_empty()
+            && fields.iter().all(|(_, t)| {
+                let trimmed = t.trim();
+                if let Some(end) = trimmed.find(']') {
+                    let base = trimmed[end + 1..].trim();
+                    return Self::is_primitive_scalar_type(base);
+                }
+                Self::is_primitive_scalar_type(trimmed)
+            })
+    }
+
+    /// W533: true if `ty` (possibly an array of scalar structs, or a bare scalar
+    /// struct) is lowerable to a packed vector.
+    fn is_lowerable_scalar_struct_type(
+        &self,
+        ty: &str,
+    ) -> bool {
+        let base = Self::base_type_name(ty);
+        Self::is_lowerable_scalar_struct(&base, &self.struct_decls)
+    }
+
+    /// W531: true if `ty` is an array whose element type is a primitive scalar.
+    fn is_primitive_array_type(ty: &str) -> bool {
+        let Some((_, elem_type)) = Self::parse_array_type(ty) else {
+            return false;
+        };
+        Self::is_primitive_scalar_type(&elem_type)
+    }
+
+    /// W531: return the dimension sizes and element type of a primitive array.
+    fn primitive_array_info(ty: &str) -> Option<(Vec<usize>, String)> {
+        let (dims, elem_type) = Self::parse_array_type(ty)?;
+        if !Self::is_primitive_scalar_type(&elem_type) {
+            return None;
+        }
+        Some((dims, elem_type))
+    }
+
+    /// W531: emit an element access expression for an unpacked primitive array
+    /// using Verilog multidimensional indexing (e.g. `m[i][j]`).
+    fn emit_unpacked_primitive_array_access(
+        &mut self,
+        var: &str,
+        indices: &[String],
+    ) {
+        self.write(var);
+        for idx in indices {
+            self.write("[");
+            self.write(idx);
+            self.write("]");
+        }
+    }
+
+    /// W531: walk a chain of ExprIndex nodes rooted at a primitive array
+    /// identifier and emit the corresponding unpacked element access. Returns
+    /// true if the chain was recognized and emitted.
+    fn try_emit_primitive_array_access(&mut self, node: &Node) -> bool {
+        // Walk down ExprIndex nodes to find the base identifier.
+        let mut current = node;
+        let mut indices: Vec<String> = Vec::new();
+        while current.kind == NodeKind::ExprIndex {
+            if current.children.len() >= 2 {
+                let mut idx_buf = String::new();
+                self.collect_expr_text(&current.children[1], &mut idx_buf);
+                indices.push(idx_buf);
+            }
+            current = match current.children.first() {
+                Some(c) => c,
+                None => return false,
+            };
+        }
+        let (base_name, packed_info) = match current.kind {
+            NodeKind::ExprIdentifier if !current.name.is_empty() => {
+                let info = self.module_packed_primitive_arrays.get(&current.name)
+                    .or_else(|| self.local_packed_primitive_arrays.get(&current.name))
+                    .cloned()
+                    .or_else(|| {
+                        // #1745: an array-typed parameter is lowered to a single
+                        // packed vector, so its elements must be indexed by
+                        // element-wide slices too -- otherwise `xs[i]` is a
+                        // bit-select and reads one bit instead of the element.
+                        self.param_types
+                            .get(&current.name)
+                            .and_then(|ty| Self::primitive_array_info(ty))
+                    });
+                (current.name.clone(), info)
+            }
+            NodeKind::ExprCall => {
+                // W553: indexing a function call that returns a packed primitive
+                // scalar array. A pre-declared packed-vector temporary is used as
+                // the indexing base because Verilog does not allow bit-select on a
+                // function-call expression directly.
+                let mut call_text = String::new();
+                self.collect_expr_text(current, &mut call_text);
+                match self.call_array_tmp_names.get(&call_text).cloned() {
+                    Some(tmp_name) => {
+                        let info = self
+                            .call_array_tmp_info
+                            .get(&tmp_name)
+                            .map(|(dims, elem_type, _width, _signed)| {
+                                (dims.clone(), elem_type.clone())
+                            });
+                        (tmp_name, info)
+                    }
+                    None => return false,
+                }
+            }
+            _ => return false,
+        };
+
+        // W545/W546/W553: primitive scalar arrays stored as packed vectors are
+        // indexed by bit-slices.
+        let packed_info = packed_info.as_ref();
+        if let Some((dims, elem_type)) = packed_info {
+            let elem_w = Self::type_to_width(elem_type).max(1) as usize;
+            if indices.len() != dims.len() {
+                return false;
+            }
+            // Multi-dimensional packed layout: row-major linearization in element
+            // units.  For [2][3]u8 with element width 8, element [i][j] is at
+            // flat element index (i * 3 + j).  The bit offset is that index times
+            // elem_w.
+            // W554: indices are collected outermost-first; put them in source order
+            // before computing the row-major flat index.
+            indices.reverse();
+            let flat_idx = if indices.len() == 1 {
+                indices[0].clone()
+            } else {
+                // W548: compute the flat element index first.
+                let mut stride = 1usize;
+                let mut parts = Vec::new();
+                for (idx, dim) in indices.iter().zip(dims.iter()).rev() {
+                    if stride == 1 {
+                        parts.push(idx.clone());
+                    } else {
+                        parts.push(format!("({} * {})", idx, stride));
+                    }
+                    stride *= dim;
+                }
+                parts.reverse();
+                parts.join(" + ")
+            };
+            // W547: a part-select of a signed packed vector is unsigned in
+            // Verilog.  Wrap the slice with $signed(...) when the element type is
+            // signed so that comparisons, arithmetic, and probes preserve t27's
+            // two's-complement semantics.
+            let elem_signed = Self::type_is_signed(&elem_type);
+            if elem_signed {
+                self.write("$signed(");
+            }
+            let is_literal_idx = flat_idx.parse::<u32>().is_ok();
+            if is_literal_idx {
+                // Literal flat index: scale by elem_w to get bit offset.
+                let i: usize = flat_idx.parse().unwrap_or(0);
+                let hi = (i + 1) * elem_w - 1;
+                let lo = i * elem_w;
+                self.write(&format!("{}[{}:{}]", base_name, hi, lo));
+            } else {
+                // W548: scale the flat element index by elem_w to get the bit
+                // offset for the variable part-select.
+                self.write(&format!(
+                    "{}[(({}) * {}) +: {}]",
+                    base_name, flat_idx, elem_w, elem_w
+                ));
+            }
+            if elem_signed {
+                self.write(")");
+            }
+            return true;
+        }
+
+        let local_ty = match self.local_types.get(&base_name)
+            .or_else(|| self.param_types.get(&base_name))
+            .or_else(|| self.module_types.get(&base_name))
+        {
+            Some(t) => t.clone(),
+            None => return false,
+        };
+        let (dims, _elem_type) = match Self::primitive_array_info(&local_ty) {
+            Some(v) => v,
+            None => return false,
+        };
+
+        // Indices were collected from outermost to innermost; reverse to row-major.
+        indices.reverse();
+        if indices.len() != dims.len() {
+            return false;
+        }
+
+        self.emit_unpacked_primitive_array_access(&base_name, &indices);
+        true
+    }
+
+    /// W531: emit procedural assignments that initialize an unpacked primitive
+    /// multi-dimensional array from a nested array literal.
+    fn emit_unpacked_primitive_array_init(
+        &mut self,
+        var: &str,
+        ty: &str,
+        init: &Node,
+    ) {
+        let (dims, _elem_type) = match Self::primitive_array_info(ty) {
+            Some(v) => v,
+            None => return,
+        };
+        let mut indices: Vec<String> = Vec::new();
+        self.emit_unpacked_primitive_array_init_level(
+            var, &dims, 0, init, &mut indices,
+        );
+    }
+
+    fn emit_unpacked_primitive_array_init_level(
+        &mut self,
+        var: &str,
+        dims: &[usize],
+        depth: usize,
+        node: &Node,
+        indices: &mut Vec<String>,
+    ) {
+        if depth + 1 == dims.len() {
+            // Innermost dimension: `node` should be an array literal of elements.
+            if node.kind != NodeKind::ExprArrayLiteral {
+                return;
+            }
+            let current_dim = dims[depth];
+            for (i, elem) in node.children.iter().enumerate() {
+                if i >= current_dim {
+                    break;
+                }
+                indices.push(i.to_string());
+                let mut rhs = String::new();
+                self.collect_expr_text(elem, &mut rhs);
+                self.write_indent();
+                self.emit_unpacked_primitive_array_access(var, indices);
+                self.write_line(&format!(" = {};", rhs));
+                indices.pop();
+            }
+            return;
+        }
+
+        // Outer dimension: `node` is an array literal of sub-arrays.
+        if node.kind != NodeKind::ExprArrayLiteral {
+            return;
+        }
+        let current_dim = dims[depth];
+        for (i, sub) in node.children.iter().enumerate() {
+            if i >= current_dim {
+                break;
+            }
+            indices.push(i.to_string());
+            self.emit_unpacked_primitive_array_init_level(
+                var, dims, depth + 1, sub, indices,
+            );
+            indices.pop();
         }
     }
 
@@ -3771,6 +5864,9 @@ impl VerilogCodegen {
         let mut tests: Vec<&Node> = Vec::new();
         let mut invariants: Vec<&Node> = Vec::new();
         let mut benches: Vec<&Node> = Vec::new();
+        // W458: bare module-level statements (e.g. calls to functions that take
+        // array parameters). Emitted inside an always @(*) block.
+        let mut module_stmts: Vec<&Node> = Vec::new();
 
         for decl in &ast.children {
             match decl.kind {
@@ -3781,8 +5877,157 @@ impl VerilogCodegen {
                 NodeKind::TestBlock => tests.push(decl),
                 NodeKind::InvariantBlock => invariants.push(decl),
                 NodeKind::BenchBlock => benches.push(decl),
+                NodeKind::StmtExpr | NodeKind::StmtAssign => module_stmts.push(decl),
                 _ => {}
             }
+        }
+
+        // W527: cache struct declarations for packed-vector AoS lowering.
+        for s in &structs {
+            let fields: Vec<(String, String)> = s
+                .children
+                .iter()
+                .map(|f| (f.name.clone(), f.extra_type.clone()))
+                .collect();
+            self.struct_decls.insert(s.name.clone(), fields);
+        }
+
+        // W528: cache module-level const/var type annotations so function-local
+        // and test-bench code can resolve packed array-of-struct accesses.
+        for c in &consts {
+            if !c.extra_type.is_empty() {
+                self.module_types.insert(c.name.clone(), c.extra_type.clone());
+            }
+        }
+
+        // W533: cache top-level function return types for field access on call
+        // results.
+        for f in &functions {
+            if !f.extra_return_type.is_empty() {
+                self.fn_return_types
+                    .insert(f.name.clone(), f.extra_return_type.clone());
+            }
+        }
+
+        // W458: resolve module-level array parameter bindings. For each
+        // function that accepts an array parameter, inspect the single
+        // module-level call site (bare StmtExpr -> ExprCall in the module
+        // body) to determine which module-level array identifier is passed
+        // for that parameter. Multiple call sites or non-identifier
+        // arguments are recorded as errors and the function is skipped.
+        {
+            let mut bindings: std::collections::HashMap<
+                String,
+                std::collections::HashMap<String, String>,
+            > = std::collections::HashMap::new();
+            let mut indices: std::collections::HashMap<
+                String,
+                std::collections::HashSet<usize>,
+            > = std::collections::HashMap::new();
+            let mut errors: std::collections::HashMap<String, String> =
+                std::collections::HashMap::new();
+
+            for f in &functions {
+                let array_param_indices: Vec<usize> = f
+                    .params
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, (_, ptype))| Self::parse_array_type(ptype).is_some())
+                    .map(|(i, _)| i)
+                    .collect();
+                if array_param_indices.is_empty() {
+                    continue;
+                }
+
+                // W459: collect call sites from module-level statements and from
+                // test/invariant/bench blocks. All sites must agree on the same
+                // module-level array identifier for each array parameter.
+                let mut call_sites: Vec<&Node> = Vec::new();
+                for decl in &ast.children {
+                    match decl.kind {
+                        NodeKind::StmtExpr => {
+                            if let Some(expr) = decl.children.first() {
+                                if expr.kind == NodeKind::ExprCall && expr.name == f.name {
+                                    call_sites.push(expr);
+                                }
+                            }
+                        }
+                        NodeKind::TestBlock
+                        | NodeKind::InvariantBlock
+                        | NodeKind::BenchBlock => {
+                            Self::collect_expr_calls(decl, &f.name, &mut call_sites);
+                        }
+                        _ => {}
+                    }
+                }
+
+                if call_sites.is_empty() {
+                    errors.insert(
+                        f.name.clone(),
+                        format!(
+                            "function {} has array parameter(s) but no call site",
+                            f.name
+                        ),
+                    );
+                    continue;
+                }
+
+                let mut fn_bindings: std::collections::HashMap<String, String> =
+                    std::collections::HashMap::new();
+                let mut broken = false;
+                for idx in &array_param_indices {
+                    let (pname, _ptype) = &f.params[*idx];
+                    let mut arg_names: Vec<String> = Vec::new();
+                    for call in &call_sites {
+                        if let Some(arg) = call.children.get(*idx) {
+                            if arg.kind == NodeKind::ExprIdentifier && !arg.name.is_empty() {
+                                arg_names.push(arg.name.clone());
+                            } else {
+                                arg_names.push("W458_NON_ID".to_string());
+                            }
+                        } else {
+                            arg_names.push("W458_MISSING".to_string());
+                        }
+                    }
+                    let unique: std::collections::HashSet<String> =
+                        arg_names.iter().cloned().collect();
+                    if unique.len() != 1 {
+                        errors.insert(
+                            f.name.clone(),
+                            format!(
+                                "function {} array parameter {} has conflicting call-site arguments",
+                                f.name, pname
+                            ),
+                        );
+                        broken = true;
+                        break;
+                    }
+                    let bound = arg_names.into_iter().next().unwrap();
+                    if bound == "W458_NON_ID" || bound == "W458_MISSING" {
+                        errors.insert(
+                            f.name.clone(),
+                            format!(
+                                "function {} array parameter {} must be passed a module-level array identifier",
+                                f.name, pname
+                            ),
+                        );
+                        broken = true;
+                        break;
+                    }
+                    fn_bindings.insert(pname.clone(), bound);
+                }
+                if !broken {
+                    bindings.insert(f.name.clone(), fn_bindings);
+                    indices.insert(
+                        f.name.clone(),
+                        array_param_indices.into_iter().collect(),
+                    );
+                }
+            }
+
+            self.array_param_bindings = bindings;
+            self.array_param_indices = indices;
+            self.array_param_errors = errors;
         }
 
         // Emit top-level module
@@ -3920,6 +6165,26 @@ impl VerilogCodegen {
             }
         }
 
+        // Section: Module-level statements (e.g. calls to array-param functions)
+        if !module_stmts.is_empty() {
+            self.write_indent();
+            self.write_line("// -------------------------------------------------------");
+            self.write_indent();
+            self.write_line("// Module-level statements");
+            self.write_indent();
+            self.write_line("// -------------------------------------------------------");
+            self.write_indent();
+            self.write_line("always @(*) begin");
+            self.indent();
+            for stmt in &module_stmts {
+                self.gen_verilog_stmt(stmt);
+            }
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+            self.write_line("");
+        }
+
         // Section: Tests → assertions (SystemVerilog-style)
         if !tests.is_empty() {
             self.write_indent();
@@ -3930,11 +6195,26 @@ impl VerilogCodegen {
             self.write_line("// -------------------------------------------------------");
             self.write_indent();
             self.write_line("// synthesis translate_off");
+            // W538: enable VCD waveform capture only in simulation mode (when
+            // active test assertions are emitted).  Synthesis-mode output must
+            // remain unchanged so seals stay stable.
+            if self.emit_test_assertions {
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                self.write_indent();
+                self.write_line("$dumpfile(\"dump.vcd\");");
+                self.write_indent();
+                self.write_line("$dumpvars(0);");
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            }
             for t in &tests {
                 self.gen_verilog_test(t);
             }
             self.write_indent();
-            self.write_line("// synthesis translate_on");
+            self.write_line("`endif");
             self.write_line("");
         }
 
@@ -3968,7 +6248,7 @@ impl VerilogCodegen {
             self.write_line("// -------------------------------------------------------");
             // Module-scope counter declarations (R-VD-1 fix).
             self.write_indent();
-            self.write_line("// synthesis translate_off");
+            self.write_line("`ifndef SIMULATION");
             for b in &benches {
                 let counter = format!(
                     "_bench_{}_cycles",
@@ -3978,35 +6258,39 @@ impl VerilogCodegen {
                 self.write_line(&format!("integer {} = 0;", counter));
             }
             self.write_indent();
-            self.write_line("// synthesis translate_on");
+            self.write_line("`endif");
             for b in &benches {
                 let counter = format!(
                     "_bench_{}_cycles",
                     Self::sanitize_identifier(&b.name)
                 );
-                // R-TR-1 (wave-30): emit `// synthesis translate_off` and
-                // `// synthesis translate_on` on STANDALONE comment lines
-                // wrapping the full `initial begin ... end` block. Inline
-                // placement (on the same line as `initial begin :NAME` or
-                // `end`) causes Yosys to consume the matching `end` inside
-                // the skipped region and emit `unexpected TOK_INITIAL` at
-                // the next initial block.
+                // W458: use standard `ifndef SIMULATION` / `endif` guards instead
+                // of the non-standard `// synthesis translate_off` comments.
+                // Keep the guards on STANDALONE lines wrapping the full initial
+                // block so Yosys does not consume the matching `end` inside the
+                // skipped region.
                 self.write_indent();
-                self.write_line("// synthesis translate_off");
+                self.write_line("`ifndef SIMULATION");
                 self.write_indent();
                 self.write_line(&format!(
                     "initial begin : {}_bench",
                     Self::sanitize_identifier(&b.name)
                 ));
                 self.indent();
+                let block_locals = self.gen_verilog_probe_prelude(b, &b.name);
                 self.write_indent();
                 self.write_line(&format!("$display(\"[BENCH] {} : starting\");", b.name));
                 self.write_indent();
                 self.write_line(&format!("{} = 0;", counter));
-                for child in &b.children {
-                    self.gen_verilog_test_stmt(child, &b.name);
-                    self.write_indent();
-                    self.write_line(&format!("{} = {} + 1;", counter, counter));
+                self.with_call_array_temps_enabled(|this| {
+                    for child in &b.children {
+                        this.gen_verilog_test_stmt(child, &b.name, "BENCH");
+                        this.write_indent();
+                        this.write_line(&format!("{} = {} + 1;", counter, counter));
+                    }
+                });
+                for name in block_locals {
+                    self.local_types.remove(&name);
                 }
                 self.write_indent();
                 self.write_line(&format!(
@@ -4014,12 +6298,12 @@ impl VerilogCodegen {
                     b.name, counter
                 ));
                 self.write_indent();
-                self.write_line(&format!("$display(\"[BENCH] {} : DONE\");", b.name));
+                self.write_line(&format!("$display(\"[BENCH] {} : PASSED\");", b.name));
                 self.dedent();
                 self.write_indent();
                 self.write_line("end");
                 self.write_indent();
-                self.write_line("// synthesis translate_on");
+                self.write_line("`endif");
             }
             self.write_line("");
         }
@@ -4056,16 +6340,195 @@ impl VerilogCodegen {
             }
         }
 
+        // W533: bare scalar structs are lowered as a single packed
+        // parameter/localparam. Arrays of scalar structs keep the W528 path below.
+        if Self::parse_array_type(&node.extra_type).is_none()
+            && self.is_lowerable_scalar_struct_type(&node.extra_type)
+        {
+            let base = Self::base_type_name(&node.extra_type);
+            let width = self.element_width(&base);
+            let range = Self::range_decl(width);
+            self.write_indent();
+            if node.extra_pub {
+                self.write("parameter ");
+            } else {
+                self.write("localparam ");
+            }
+            if !range.is_empty() {
+                self.write(&format!("{} ", range));
+            }
+            self.write(&format!("{} = ", node.name));
+            if !node.children.is_empty() {
+                self.gen_verilog_expr(&node.children[0]);
+            } else {
+                self.write(&format!("{}'d0", width));
+            }
+            self.write_line(";");
+            return;
+        }
+
+        // W589: module-level multi-dimensional arrays of scalar structs
+        // initialized by a function call are lowered as a single packed
+        // parameter/localparam, assigned directly from the function's packed
+        // return value.
+        if let Some((_dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            if self.struct_decls.contains_key(&elem_type)
+                && !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprCall
+            {
+                let width = self.packed_width(&node.extra_type);
+                let signed = self.packed_signed(&node.extra_type);
+                let range = Self::range_decl(width);
+                self.write_indent();
+                if node.extra_pub {
+                    self.write("parameter ");
+                } else {
+                    self.write("localparam ");
+                }
+                if signed {
+                    self.write("signed ");
+                }
+                if !range.is_empty() {
+                    self.write(&format!("{} ", range));
+                }
+                self.write(&format!("{} = ", node.name));
+                self.gen_verilog_expr(&node.children[0]);
+                self.write_line(";");
+                return;
+            }
+        }
+
+        // W528: multi-dimensional arrays of scalar structs are lowered as a
+        // single packed parameter/localparam, matching the function-local
+        // packed-vector AoS layout.
+        if let Some((_dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            if self.struct_decls.contains_key(&elem_type) {
+                let width = self.packed_width(&node.extra_type);
+                let signed = self.packed_signed(&node.extra_type);
+                self.write_indent();
+                if node.extra_pub {
+                    self.write("parameter ");
+                } else {
+                    self.write("localparam ");
+                }
+                if signed {
+                    self.write("signed ");
+                }
+                let range = Self::range_decl(width);
+                if !range.is_empty() {
+                    self.write(&format!("{} ", range));
+                }
+                self.write(&format!("{} = ", node.name));
+                let init_node = if !node.children.is_empty() {
+                    match node.children[0].kind {
+                        NodeKind::ExprArrayLiteral => Some(node.children[0].clone()),
+                        NodeKind::ExprIdentifier => {
+                            self.parse_array_literal_text(&node.children[0].name)
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+                if let Some(init) = init_node {
+                    self.emit_packed_array_literal_concat(
+                        &init, &node.extra_type);
+                } else {
+                    self.write(&format!("{}'d0", width));
+                }
+                self.write_line(";");
+                return;
+            }
+        }
+
+        // W545: module-level primitive scalar arrays initialized by a function
+        // call are stored as a packed vector so the function's packed return
+        // value can be assigned directly.  Static indexing is lowered as
+        // bit-slices in try_emit_primitive_array_access.
+        if let Some((dims, elem_type)) = Self::primitive_array_info(&node.extra_type
+        ) {
+            if !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprCall
+            {
+                let width = self.packed_width(&node.extra_type);
+                let signed = self.packed_signed(&node.extra_type);
+                let range = Self::range_decl(width);
+                self.write_indent();
+                if node.extra_pub {
+                    self.write("parameter ");
+                } else {
+                    self.write("localparam ");
+                }
+                if signed {
+                    self.write("signed ");
+                }
+                if !range.is_empty() {
+                    self.write(&format!("{} ", range));
+                }
+                self.write(&format!("{} = ", node.name));
+                self.gen_verilog_expr(&node.children[0]);
+                self.write_line(";");
+                self.module_packed_primitive_arrays.insert(
+                    node.name.clone(),
+                    (dims.clone(), elem_type.clone()),
+                );
+                return;
+            }
+        }
+
         // Determine if this is an array constant (LUT)
         let is_array = !node.extra_size.is_empty();
 
         if is_array {
-            // Emit as localparam array — use initial block or parameter
-            self.write(&format!("// LUT: {} [{}]", node.name, node.extra_size));
-            self.write_line("");
-            // For array constants, emit as individual localparams for each element
-            if !node.children.is_empty() {
-                // If children represent array elements, emit them
+            // W383: array-constant lowering. If the type annotation is an array
+            // type (e.g. "[4]u16") and the initializer is an array literal, emit a
+            // synthesizable Verilog memory initialized in an initial block.
+            let safe_name = Self::verilog_safe_identifier(&node.name);
+            let has_array_literal = !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprArrayLiteral;
+
+            if let Some((array_size, elem_type)) = type_array {
+                let elem_width = Self::type_to_width(&elem_type);
+                let elem_signed = Self::type_is_signed(&elem_type);
+                let elem_signed_str = if elem_signed { "signed " } else { "" };
+                let elem_range = Self::range_decl(elem_width);
+                let elem_range_str = if elem_range.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", elem_range)
+                };
+                self.write_line(&format!("// LUT: {} [{}] {}", safe_name, array_size, elem_type)
+                );
+                // W459: emit optional ROM-style attribute (block/distributed).
+                if !node.extra_pragma.is_empty() {
+                    self.write_indent();
+                    self.write_line(&format!("(* {} *)", node.extra_pragma));
+                }
+                self.write_indent();
+                self.write_line(&format!(
+                    "reg {}{} {} [0:{}];",
+                    elem_signed_str, elem_range_str, safe_name, array_size - 1
+                ));
+                if has_array_literal {
+                    self.write_indent();
+                    self.write_line("initial begin");
+                    self.indent();
+                    let child = &node.children[0];
+                    for (i, elem) in child.children.iter().enumerate() {
+                        if i >= array_size {
+                            break;
+                        }
+                        self.write_indent();
+                        self.write(&format!("{}[{}] = ", safe_name, i));
+                        self.gen_verilog_expr(elem);
+                        self.write_line(";");
+                    }
+                    self.dedent();
+                    self.write_indent();
+                    self.write_line("end");
+                }
+            } else if !node.children.is_empty() {
+                // Legacy extra_size path: emit as individual localparams for each element
                 let child = &node.children[0];
                 // R-CA-1 (Wave 28): array-of-struct / array-of-array initializers
                 // currently degrade into `/* array ... */` block-comments through
@@ -4103,7 +6566,10 @@ impl VerilogCodegen {
                     if !range.is_empty() {
                         self.write(&format!("{} ", range));
                     }
-                    self.write(&format!("{} = ", node.name));
+                    self.write(&format!(
+                        "{} = ",
+                        Self::verilog_safe_identifier(&node.name)
+                    ));
                     if is_unsupported_aggregate {
                         // R-CA-1 fix: emit a synthesizable scalar zero in place
                         // of the unsupported aggregate initializer.
@@ -4128,24 +6594,35 @@ impl VerilogCodegen {
             }
         } else {
             // Simple scalar constant
+            let is_float = Self::type_is_float(&node.extra_type);
             if node.extra_pub {
                 self.write("parameter ");
             } else {
                 self.write("localparam ");
             }
 
-            // Determine width from type
-            let width = Self::type_to_width(&node.extra_type);
-            let signed = Self::type_is_signed(&node.extra_type);
-            if signed {
-                self.write("signed ");
-            }
-            let range = Self::range_decl(width);
-            if !range.is_empty() {
-                self.write(&format!("{} ", range));
+            if is_float {
+                // W458: real-valued constants must use the `real` keyword, not a
+                // bit-vector range, or Yosys emits "real-value assignment
+                // to non-real variable" warnings.
+                self.write("real ");
+            } else {
+                // Determine width from type
+                let width = Self::type_to_width(&node.extra_type);
+                let signed = Self::type_is_signed(&node.extra_type);
+                if signed {
+                    self.write("signed ");
+                }
+                let range = Self::range_decl(width);
+                if !range.is_empty() {
+                    self.write(&format!("{} ", range));
+                }
             }
 
-            self.write(&format!("{} = ", node.name));
+            self.write(&format!(
+                "{} = ",
+                Self::verilog_safe_identifier(&node.name)
+            ));
             if !node.children.is_empty() {
                 let child = &node.children[0];
                 // R-CA-1 (Wave 28): aggregate literals (ExprArrayLiteral /
@@ -4176,6 +6653,188 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_var(&mut self, node: &Node) {
+        // W533: bare scalar structs are lowered as a single packed-vector register
+        // with procedural whole-struct init.
+        if Self::parse_array_type(&node.extra_type).is_none()
+            && self.is_lowerable_scalar_struct_type(&node.extra_type)
+        {
+            let base = Self::base_type_name(&node.extra_type);
+            let width = self.element_width(&base);
+            self.write_indent();
+            self.write_line(&format!("reg [{}:0] {};", width.saturating_sub(1), node.name),
+            );
+            if !node.children.is_empty() {
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                self.write_indent();
+                self.write(&format!("{} = ", node.name));
+                self.gen_verilog_expr(&node.children[0]);
+                self.write_line(";");
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            }
+            self.write_line("");
+            return;
+        }
+
+        // W589: module-level multi-dimensional arrays of scalar structs
+        // initialized by a function call are lowered as a single packed-vector
+        // register, assigned wholesale from the function's packed return value.
+        if let Some((_dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            if self.struct_decls.contains_key(&elem_type)
+                && !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprCall
+            {
+                let width = self.packed_width(&node.extra_type);
+                let signed = self.packed_signed(&node.extra_type);
+                let signed_str = if signed { "signed " } else { "" };
+                let range = Self::range_decl(width);
+                self.write_indent();
+                self.write(&format!("reg {}{}", signed_str, range));
+                if !range.is_empty() {
+                    self.write(" ");
+                }
+                self.write_line(&format!("{};", node.name),
+                );
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                self.write_indent();
+                self.write(&format!("{} = ", node.name));
+                self.gen_verilog_expr(&node.children[0]);
+                self.write_line(";");
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+                self.write_line("");
+                return;
+            }
+        }
+
+        // W528: multi-dimensional arrays of scalar structs are lowered as a
+        // single packed-vector register with procedural per-element init.
+        if let Some((_dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            if self.struct_decls.contains_key(&elem_type) {
+                let width = self.packed_width(&node.extra_type);
+                self.write_indent();
+                self.write_line(
+                    &format!("reg [{}:0] {};", width.saturating_sub(1), node.name),
+                );
+                if !node.children.is_empty() {
+                    self.write_indent();
+                    self.write_line("initial begin");
+                    self.indent();
+                    let init_node = match node.children[0].kind {
+                        NodeKind::ExprArrayLiteral => node.children[0].clone(),
+                        NodeKind::ExprIdentifier => {
+                            self.parse_array_literal_text(&node.children[0].name)
+                                .unwrap_or_else(|| node.children[0].clone())
+                        }
+                        _ => node.children[0].clone(),
+                    };
+                    self.emit_packed_struct_array_init(
+                        &node.name,
+                        &node.extra_type,
+                        &init_node,
+                    );
+                    self.dedent();
+                    self.write_indent();
+                    self.write_line("end");
+                }
+                self.write_line("");
+                return;
+            }
+        }
+
+        // W545: module-level primitive scalar arrays initialized by a function
+        // call are stored as a packed vector so the function's packed return
+        // value can be assigned directly in an initial block.
+        if let Some((dims, elem_type)) = Self::primitive_array_info(
+            &node.extra_type
+        ) {
+            if !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprCall
+            {
+                let width = self.packed_width(&node.extra_type);
+                let signed = self.packed_signed(&node.extra_type);
+                let signed_str = if signed { "signed " } else { "" };
+                let range = Self::range_decl(width);
+                self.write_indent();
+                self.write(&format!("reg {}{}", signed_str, range));
+                if !range.is_empty() {
+                    self.write(" ");
+                }
+                self.write_line(&format!("{};", node.name));
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                self.write_indent();
+                self.write(&format!("{} = ", node.name));
+                self.gen_verilog_expr(&node.children[0]);
+                self.write_line(";");
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+                self.write_line("");
+                self.module_packed_primitive_arrays.insert(
+                    node.name.clone(),
+                    (dims.clone(), elem_type.clone()),
+                );
+                return;
+            }
+        }
+
+        // W531: module-level arrays of primitive scalars are lowered as
+        // unpacked Verilog arrays so that signed widths and variable indices
+        // are preserved.
+        if Self::is_primitive_array_type(&node.extra_type) {
+            let (dims, elem_type) = Self::primitive_array_info(&node.extra_type
+            ).unwrap_or((Vec::new(), "u32".to_string()));
+            let elem_w = Self::type_to_width(&elem_type).max(1) as usize;
+            let signed = Self::type_is_signed(
+                &Self::parse_array_type(&node.extra_type)
+                    .map(|(_, et)| et)
+                    .unwrap_or_default(),
+            );
+            let signed_str = if signed { "signed " } else { "" };
+            let dims_str = dims
+                .iter()
+                .map(|d| format!("[0:{}]", d - 1))
+                .collect::<String>();
+            self.write_indent();
+            self.write_line(
+                &format!(
+                    "reg {}{}[{}:0] {}{};",
+                    signed_str, "", elem_w - 1, node.name, dims_str
+                ),
+            );
+            if !node.children.is_empty() {
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                let init_node = match node.children[0].kind {
+                    NodeKind::ExprArrayLiteral => node.children[0].clone(),
+                    NodeKind::ExprIdentifier => {
+                        self.parse_array_literal_text(&node.children[0].name
+                        ).unwrap_or_else(|| node.children[0].clone())
+                    }
+                    _ => node.children[0].clone(),
+                };
+                self.emit_unpacked_primitive_array_init(
+                    &node.name,
+                    &node.extra_type,
+                    &init_node,
+                );
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            }
+            self.write_line("");
+            return;
+        }
+
         let width = Self::type_to_width(&node.extra_type);
         let signed = Self::type_is_signed(&node.extra_type);
         let signed_str = if signed { "signed " } else { "" };
@@ -4185,14 +6844,64 @@ impl VerilogCodegen {
         } else {
             format!("{} ", range)
         };
-        let is_array = !node.extra_size.is_empty();
+        // W382: array type may come from the type annotation (e.g. "[4]u16") in
+        // addition to the legacy extra_size path used by array literals.
+        let type_array = Self::parse_array_type(&node.extra_type);
+        let is_array = !node.extra_size.is_empty() || type_array.is_some();
+        let safe_name = Self::verilog_safe_identifier(&node.name);
 
-        if is_array {
+        if let Some((array_size, elem_type)) = type_array {
+            // W382: emit a true synthesizable Verilog memory so that indexing
+            // expressions like mem[i] resolve to memory access, not bit-select.
+            let elem_width = Self::type_to_width(&elem_type);
+            let elem_signed = Self::type_is_signed(&elem_type);
+            let elem_signed_str = if elem_signed { "signed " } else { "" };
+            let elem_range = Self::range_decl(elem_width);
+            let elem_range_str = if elem_range.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", elem_range)
+            };
+            if !node.extra_pragma.is_empty() {
+                self.write_line(&format!("(* {} *)", node.extra_pragma));
+            }
+            self.write_line(&format!(
+                "reg {}{} {} [0:{}];",
+                elem_signed_str, elem_range_str, safe_name, array_size - 1
+            ));
+            if !node.children.is_empty() {
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                let child = &node.children[0];
+                if child.kind == NodeKind::ExprArrayLiteral {
+                    for (i, elem) in child.children.iter().enumerate() {
+                        if i < array_size {
+                            self.write_indent();
+                            self.write(&format!("{}[{}] = ", safe_name, i));
+                            self.gen_verilog_expr(elem);
+                            self.write_line(";");
+                        }
+                    }
+                } else {
+                    self.write_indent();
+                    self.write("// initializer: ");
+                    self.gen_verilog_expr(child);
+                    self.write_line("");
+                }
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            }
+        } else if is_array {
             self.write_line(&format!("// var: {} [{}]", node.name, node.extra_size));
             let array_size: usize = node.extra_size.parse().unwrap_or(1);
             for i in 0..array_size {
                 self.write_indent();
-                self.write_line(&format!("reg {}{}{}_{};", signed_str, range_str, node.name, i));
+                self.write_line(&format!(
+                    "reg {}{}{}_{};",
+                    signed_str, range_str, safe_name, i
+                ));
             }
             if !node.children.is_empty() {
                 self.write_indent();
@@ -4203,7 +6912,7 @@ impl VerilogCodegen {
                     for (i, elem) in child.children.iter().enumerate() {
                         if i < array_size {
                             self.write_indent();
-                            self.write(&format!("{}_{} = ", node.name, i));
+                            self.write(&format!("{}_{} = ", safe_name, i));
                             self.gen_verilog_expr(elem);
                             self.write_line(";");
                         }
@@ -4219,14 +6928,17 @@ impl VerilogCodegen {
                 self.write_line("end");
             }
         } else {
-            self.write(&format!("reg {}{}{};", signed_str, range_str, node.name));
+            self.write(&format!(
+                "reg {}{}{};",
+                signed_str, range_str, safe_name
+            ));
             self.write_line("");
             if !node.children.is_empty() {
                 self.write_indent();
                 self.write_line("initial begin");
                 self.indent();
                 self.write_indent();
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", safe_name));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 self.dedent();
@@ -4259,6 +6971,23 @@ impl VerilogCodegen {
     fn gen_verilog_struct(&mut self, node: &Node, reg_prefix: &str) {
         self.write_indent();
         self.write_line(&format!("// struct {}", node.name));
+        if Self::is_lowerable_scalar_struct(&node.name, &self.struct_decls) {
+            // W533: lowerable scalar structs are emitted as packed vectors at their
+            // use sites (module-level const/var or function-local reg). No per-field
+            // registers are needed.
+            self.write_indent();
+            self.write_line(&format!(
+                "// struct {} lowered as packed vector ({} bits)",
+                node.name,
+                self.element_width(&node.name)
+            ));
+            return;
+        }
+        self.write_indent();
+        self.write_line(&format!(
+                "// UNSUPPORTED_ICARUS: struct {} contains non-lowerable fields",
+                node.name
+            ));
         for field in &node.children {
             self.write_indent();
             let width = Self::type_to_width(&field.extra_type);
@@ -4296,23 +7025,56 @@ impl VerilogCodegen {
 
     fn gen_verilog_fn(&mut self, node: &Node) {
         self.current_fn_name = node.name.clone();
+        self.current_fn_return_type = node.extra_return_type.clone();
         self.param_widths.clear();
+        self.local_types.clear();
+        self.param_types.clear();
+        self.local_packed_primitive_arrays.clear();
+        // W527: cache local variable types for array-of-struct resolution.
+        for stmt in &node.children {
+            if stmt.kind == NodeKind::StmtLocal && !stmt.name.is_empty() {
+                self.local_types
+                    .insert(stmt.name.clone(), stmt.extra_type.clone());
+            }
+        }
         for (pname, ptype) in &node.params {
+            // W528: packed width for array-of-struct parameters; primitive width
+            // for scalar parameters.
             self.param_widths
-                .insert(pname.clone(), Self::type_to_width(ptype) as usize);
+                .insert(pname.clone(), self.packed_width(ptype) as usize);
+            self.param_types
+                .insert(pname.clone(), ptype.clone());
         }
         self.write_line("");
         self.write_indent();
         self.write_line(&format!("// function: {}", node.name));
 
+        // W458: if this function has array parameter(s) and the binding could
+        // not be resolved from the module-level call site, emit an error
+        // comment and skip the function entirely.
+        let array_param_error = self.array_param_errors.get(&node.name).cloned();
+        if let Some(err) = array_param_error {
+            self.write_indent();
+            self.write_line(&format!("// ERROR: {}", err));
+            self.write_indent();
+            self.write_line("// (skipping function due to unsupported array parameter binding)");
+            self.current_fn_name.clear();
+            self.current_fn_name_original.clear();
+            self.current_fn_return_type.clear();
+            self.param_widths.clear();
+            self.local_arrays.clear();
+            return;
+        }
+
         // Emit as a Verilog function declaration
+        // W380: tuple return types are packed; non-tuple types keep scalar width.
         let ret_width = if !node.extra_return_type.is_empty() {
-            Self::type_to_width(&node.extra_return_type)
+            self.packed_width(&node.extra_return_type)
         } else {
             32
         };
         let ret_signed = if !node.extra_return_type.is_empty() {
-            Self::type_is_signed(&node.extra_return_type)
+            self.packed_signed(&node.extra_return_type)
         } else {
             false
         };
@@ -4325,17 +7087,19 @@ impl VerilogCodegen {
             format!("{} ", range)
         };
 
+        let fn_name = Self::verilog_safe_identifier(&node.name);
+
         // void functions → task; others → function
         if node.extra_return_type == "void" {
             self.write_indent();
-            self.write_line(&format!("task {};", node.name));
+            self.write_line(&format!("task {};", fn_name));
         } else {
             self.write_indent();
             self.write_line(&format!(
                 "function {}{}{}; // -> {}",
                 signed_str,
                 range_str,
-                node.name,
+                fn_name,
                 if node.extra_return_type.is_empty() {
                     "auto"
                 } else {
@@ -4346,11 +7110,22 @@ impl VerilogCodegen {
 
         self.indent();
 
-        // Emit parameters as input declarations
+        // Emit parameters as input declarations. W458: array parameters that
+        // are bound to a module-level array are not emitted as scalar inputs;
+        // the function body references the module array by name directly.
         for (pname, ptype) in &node.params {
+            if Self::parse_array_type(ptype).is_some() {
+                if self
+                    .array_param_bindings
+                    .get(&node.name)
+                    .map_or(false, |b| b.contains_key(pname))
+                {
+                    continue;
+                }
+            }
             self.write_indent();
-            let pw = Self::type_to_width(ptype);
-            let ps = Self::type_is_signed(ptype);
+            let pw = self.packed_width(ptype);
+            let ps = self.packed_signed(ptype);
             let ps_str = if ps { "signed " } else { "" };
             let pr = Self::range_decl(pw);
             let pr_str = if pr.is_empty() {
@@ -4358,7 +7133,8 @@ impl VerilogCodegen {
             } else {
                 format!("{} ", pr)
             };
-            self.write_line(&format!("input {}{}{};", ps_str, pr_str, pname));
+            let safe_pname = Self::verilog_safe_identifier(pname);
+            self.write_line(&format!("input {}{}{};", ps_str, pr_str, safe_pname));
         }
         // Verilog requires a function to have at least one input port. A
         // zero-argument function reads module state and returns a value; give it
@@ -4379,7 +7155,22 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line(&format!("begin : {}_body", node.name));
             self.indent();
+            // #1741: Verilog forbids a declaration after a procedural statement
+            // (iverilog rejects it, in the body block AND in nested loop/if
+            // blocks), so hoist every local's `reg` declaration -- at any depth
+            // -- to the top of the function body block, then emit the body with
+            // each StmtLocal reduced to its assignment (Init phase). A reg
+            // declared inside a loop is fine to declare once and reassign each
+            // iteration.
+            let mut decls: Vec<&Node> = Vec::new();
+            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+            Self::collect_fn_local_decls(&node.children, &mut decls, &mut seen);
+            for d in decls {
+                self.emit_local(d, LocalEmitPhase::Decl);
+            }
+            self.hoist_fn_locals = true;
             self.gen_verilog_fn_body(&node.children);
+            self.hoist_fn_locals = false;
             self.dedent();
             self.write_indent();
             self.write_line("end");
@@ -4395,7 +7186,10 @@ impl VerilogCodegen {
             self.write_line("endfunction");
         }
         self.current_fn_name.clear();
+        self.current_fn_name_original.clear();
+        self.current_fn_return_type.clear();
         self.param_widths.clear();
+        self.local_arrays.clear();
     }
 
     /// Emit a Verilog function body statement list, rewriting the
@@ -4405,6 +7199,30 @@ impl VerilogCodegen {
     /// name, a bare fall-through would let the trailing statements clobber
     /// the guarded assignment (last write wins). Wrapping the remainder in an
     /// else preserves the early-return semantics.
+    /// #1741: recursively collect every `StmtLocal` in a function body (at any
+    /// nesting depth) so its `reg` declaration can be hoisted to the top of the
+    /// body block. Deduped by binding name (tuple-pattern locals by their
+    /// comma-joined field list) so a name declared once is emitted once.
+    fn collect_fn_local_decls<'a>(
+        stmts: &'a [Node],
+        out: &mut Vec<&'a Node>,
+        seen: &mut std::collections::HashSet<String>,
+    ) {
+        for s in stmts {
+            if s.kind == NodeKind::StmtLocal {
+                let key = if s.name.is_empty() {
+                    s.extra_field.clone()
+                } else {
+                    s.name.clone()
+                };
+                if !key.is_empty() && seen.insert(key) {
+                    out.push(s);
+                }
+            }
+            Self::collect_fn_local_decls(&s.children, out, seen);
+        }
+    }
+
     fn gen_verilog_fn_body(&mut self, stmts: &[Node]) {
         for (idx, stmt) in stmts.iter().enumerate() {
             let is_guarded_return = stmt.kind == NodeKind::StmtIf
@@ -4433,23 +7251,217 @@ impl VerilogCodegen {
                 self.write_line("end");
                 return;
             }
-            self.gen_verilog_stmt(stmt);
+            // #1741: top-level locals had their `reg` declaration hoisted, so
+            // emit only the assignment here.
+            if self.hoist_fn_locals && stmt.kind == NodeKind::StmtLocal {
+                self.emit_local(stmt, LocalEmitPhase::Init);
+            } else {
+                self.gen_verilog_stmt(stmt);
+            }
         }
     }
 
+    // W551: hoist probe registers and block-local variable declarations for
+    // any simulation block (test or deterministic bench) that contains
+    // assert_eq statements. Returns the names of block-local variables whose
+    // types were cached so the caller can clean them up after the block.
+    fn gen_verilog_probe_prelude(&mut self, node: &Node, block_name: &str) -> Vec<String> {
+        // W538: probe indices are per-block.
+        self.probe_counter = 0;
+        // W533: cache block-local variable types for packed scalar-struct
+        // field access (e.g. `var tmp : Pt = make(...); assert_eq(tmp.x, 1);`).
+        let mut block_locals: Vec<String> = Vec::new();
+        for child in &node.children {
+            if child.kind == NodeKind::StmtLocal
+                && !child.name.is_empty()
+                && !child.extra_type.is_empty()
+            {
+                self.local_types
+                    .insert(child.name.clone(), child.extra_type.clone());
+                block_locals.push(child.name.clone());
+            }
+        }
+        // W533: hoist block-local variable declarations to the top of the
+        // initial block. Verilog requires all `reg` declarations before any
+        // procedural statements.
+        // W538: also hoist scalar assert_eq probe registers for VCD capture.
+        // W539: probe width/signedness is inferred from the actual expression.
+        self.probe_specs.clear();
+        // W553: each test/bench block gets its own set of call-return packed-array
+        // temporaries. They are declared here and assigned on first use.
+        self.call_array_tmp_names.clear();
+        self.call_array_tmp_info.clear();
+        self.call_array_tmp_materialized.clear();
+        if self.emit_test_assertions {
+            self.predeclare_call_array_tmps(node, block_name);
+            let mut probe_idx = 0usize;
+            for child in &node.children {
+                if child.kind == NodeKind::StmtLocal
+                    && !child.name.is_empty()
+                    && !child.extra_type.is_empty()
+                {
+                    self.write_indent();
+                    self.emit_local(child, LocalEmitPhase::Decl);
+                }
+                // Pre-declare a probe for every assert_eq in the block.
+                let stmt = if child.kind == NodeKind::StmtExpr {
+                    child.children.first()
+                } else {
+                    None
+                };
+                let is_assert = stmt.map_or(false, |s| {
+                    s.kind == NodeKind::ExprCall
+                        && s.name == "assert_eq"
+                        && s.children.len() == 2
+                });
+                if is_assert {
+                    let actual = &stmt.unwrap().children[0];
+                    let (width, signed) = self.expr_width_signed(actual)
+                        .unwrap_or((64, false));
+                    if width <= 64 {
+                        let probe_name = format!(
+                            "_t27_probe_{}_{}",
+                            Self::sanitize_identifier(block_name),
+                            probe_idx
+                        );
+                        let signed_kw = if signed { " signed" } else { "" };
+                        let decl = if width == 1 {
+                            format!("reg{}", signed_kw)
+                        } else {
+                            format!("reg{} [{}:0]", signed_kw, width - 1)
+                        };
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "{} {}; // W539 typed probe w={} signed={}",
+                            decl, probe_name, width, signed
+                        ));
+                        self.probe_specs.push((probe_name, width, signed, None));
+                        probe_idx += 1;
+                    } else {
+                        // W540: split the wide expression into 64-bit (or final
+                        // partial) slice probes.  Declare a temporary packed reg
+                        // here so all variable declarations precede procedural
+                        // statements in the test block.
+                        let tmp_name = format!(
+                            "_t27_probe_tmp_{}_{}",
+                            Self::sanitize_identifier(block_name),
+                            probe_idx
+                        );
+                        self.write_indent();
+                        self.write_line(&format!(
+                            "reg [{}:0] {}; // W540 wide probe tmp",
+                            width - 1,
+                            tmp_name
+                        ));
+                        let mut offset = 0u32;
+                        let mut slice_idx = 0usize;
+                        while offset < width {
+                            let slice_width = (width - offset).min(64);
+                            let slice_name = format!(
+                                "_t27_probe_{}_{}_s{}",
+                                Self::sanitize_identifier(block_name),
+                                probe_idx,
+                                slice_idx
+                            );
+                            let range = Self::range_decl(slice_width);
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "reg {}{} {}; // W540 slice offset={} w={} signed={}",
+                                range,
+                                if range.is_empty() { "" } else { " " },
+                                slice_name,
+                                offset,
+                                slice_width,
+                                signed
+                            ));
+                            self.probe_specs.push((slice_name, slice_width, signed, Some(offset)));
+                            offset += slice_width;
+                            slice_idx += 1;
+                        }
+                        probe_idx += 1;
+                    }
+                }
+            }
+            // W553/W557: after probe registers, declare temporaries for any
+            // function calls returning primitive scalars or scalar arrays that are
+            // used at multiple sites in this block.
+            let tmp_decls: Vec<(String, u32, bool)> = self
+                .call_array_tmp_info
+                .iter()
+                .map(|(n, (_, _, w, s))| (n.clone(), *w, *s))
+                .collect();
+            for (tmp_name, width, signed) in tmp_decls {
+                let range = Self::range_decl(width);
+                let signed_kw = if signed { " signed" } else { "" };
+                self.write_indent();
+                if range.is_empty() {
+                    self.write_line(&format!(
+                        "reg{} {}; // W557 packed/scalar call tmp w={} signed={}",
+                        signed_kw, tmp_name, width, signed
+                    ));
+                } else {
+                    self.write_line(&format!(
+                        "reg{} [{}:0] {}; // W557 packed/scalar call tmp w={} signed={}",
+                        signed_kw, width - 1, tmp_name, width, signed
+                    ));
+                }
+            }
+        }
+        block_locals
+    }
+
+    /// W459: true if the test block contains any bare function-call statement
+    /// (other than `assert` / `assert_eq`, which are emitted as SV assertions).
+    /// Recursively scans nested statements for calls that need a dummy result
+    /// register.
+    fn test_block_has_bare_call(node: &Node) -> bool {
+        fn scan(n: &Node) -> bool {
+            if n.kind == NodeKind::StmtExpr {
+                if let Some(expr) = n.children.first() {
+                    if expr.kind == NodeKind::ExprCall
+                        && expr.name != "assert"
+                        && expr.name != "assert_eq"
+                    {
+                        return true;
+                    }
+                }
+            }
+            n.children.iter().any(scan)
+        }
+        node.children.iter().any(scan)
+    }
+
     fn gen_verilog_test(&mut self, node: &Node) {
+        let safe_test_name = Self::sanitize_identifier(&node.name);
         self.write_indent();
         self.write_line(&format!("// test: {}", node.name));
+        // W459: declare a module-scope dummy register for consuming the return
+        // value of bare function calls in this test block. Verilog-2001 requires
+        // function-call results to be used in an expression; assigning to a
+        // local reg keeps the call legal while preserving the side effect.
+        if Self::test_block_has_bare_call(node) {
+            self.write_indent();
+            self.write_line(&format!(
+                "reg [31:0] {}_w459_tmp;",
+                safe_test_name
+            ));
+        }
         self.write_indent();
         self.write_line(&format!(
             "initial begin : {}_test",
-            Self::sanitize_identifier(&node.name)
+            safe_test_name
         ));
         self.indent();
+        let block_locals = self.gen_verilog_probe_prelude(node, &node.name);
         self.write_indent();
         self.write_line(&format!("$display(\"[TEST] {} : starting\");", node.name));
-        for child in &node.children {
-            self.gen_verilog_test_stmt(child, &node.name);
+        self.with_call_array_temps_enabled(|this| {
+            for child in &node.children {
+                this.gen_verilog_test_stmt(child, &node.name, "TEST");
+            }
+        });
+        for name in block_locals {
+            self.local_types.remove(&name);
         }
         self.write_indent();
         self.write_line(&format!("$display(\"[TEST] {} : PASSED\");", node.name));
@@ -4458,31 +7470,155 @@ impl VerilogCodegen {
         self.write_line("end");
     }
 
-    fn gen_verilog_test_stmt(&mut self, node: &Node, _test_name: &str) {
-        match node.kind {
-            NodeKind::StmtExpr => {
-                if let Some(expr) = node.children.first() {
-                    if expr.kind == NodeKind::ExprCall {
-                        self.write_indent();
-                        self.write("// ");
-                        self.gen_verilog_expr(expr);
-                        self.write_line(";");
+    fn gen_verilog_test_stmt(&mut self, node: &Node, test_name: &str, block_tag: &str) {
+        if self.emit_test_assertions {
+            match node.kind {
+                NodeKind::StmtExpr => {
+                    // W553: materialize any call-return packed-array temporaries
+                    // before the statement that uses them.
+                    self.materialize_call_array_tmps_in_expr(node);
+                    if let Some(expr) = node.children.first() {
+                        if expr.kind == NodeKind::ExprCall
+                            && expr.name == "assert_eq"
+                            && expr.children.len() == 2
+                        {
+                            // W538: assign the scalar probe that captures the
+                            // actual expression value for independent VCD cross-check.
+                            // W539: probe metadata was recorded during hoisting.
+                            // W540: wide expressions are split into slice probes.
+                            let probe_idx = self.probe_counter;
+                            self.probe_counter += 1;
+                            let base_name = format!(
+                                "_t27_probe_{}_{}",
+                                Self::sanitize_identifier(test_name),
+                                probe_idx
+                            );
+                            let slice_prefix = format!("{}_s", base_name);
+                            let specs: Vec<(String, u32, bool, Option<u32>)> = self
+                                .probe_specs
+                                .iter()
+                                .filter(|(n, _, _, _)| {
+                                    n == &base_name || n.starts_with(&slice_prefix)
+                                })
+                                .cloned()
+                                .collect();
+                            let is_wide = specs.iter().any(|(_, _, _, off)| off.is_some());
+                            if is_wide {
+                                // W540: multi-slice probe.  Determine the full
+                                // packed width from the slice coverage.
+                                let full_width = specs
+                                    .iter()
+                                    .map(|(_, w, _, off)| off.unwrap_or(0) + w)
+                                    .max()
+                                    .unwrap_or(64);
+                                // The packed temporary reg was declared with
+                                // the probe slices; just assign it here.
+                                let tmp_name = format!(
+                                    "_t27_probe_tmp_{}_{}",
+                                    Self::sanitize_identifier(test_name),
+                                    probe_idx
+                                );
+                                self.write_indent();
+                                self.write(&format!("{} = (", tmp_name));
+                                self.gen_verilog_expr(&expr.children[0]);
+                                self.write_line(");");
+                                for (slice_name, slice_width, _signed, offset) in &specs {
+                                    let off = offset.unwrap_or(0);
+                                    self.write_indent();
+                                    self.write_line(&format!(
+                                        "{} = {}[{} +: {}];",
+                                        slice_name, tmp_name, off, slice_width
+                                    ));
+                                    self.write_indent();
+                                    self.write_line(&format!(
+                                        "$display(\"[PROBE] {} {} = %0d\", {});",
+                                        test_name, probe_idx, slice_name
+                                    ));
+                                }
+                            } else {
+                                self.write_indent();
+                                self.write(&format!("{} = (", base_name));
+                                self.gen_verilog_expr(&expr.children[0]);
+                                self.write_line(");");
+                                self.write_indent();
+                                self.write_line(&format!(
+                                    "$display(\"[PROBE] {} {} = %0d\", {});",
+                                    test_name, probe_idx, base_name
+                                ));
+                            }
+                            self.write_indent();
+                            self.write("if (((");
+                            self.gen_verilog_expr(&expr.children[0]);
+                            self.write(") != (");
+                            self.gen_verilog_expr(&expr.children[1]);
+                            self.write("))) begin\n");
+                            self.indent();
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "$display(\"[{}] {} : FAILED\");",
+                                block_tag, test_name
+                            ));
+                            self.write_indent();
+                            self.write("$display(\"  expected %0d, got %0d\", (");
+                            self.gen_verilog_expr(&expr.children[1]);
+                            self.write("), (");
+                            self.gen_verilog_expr(&expr.children[0]);
+                            self.write_line("));");
+                            self.dedent();
+                            self.write_indent();
+                            self.write_line("end");
+                        } else {
+                            self.write_indent();
+                            self.gen_verilog_expr(expr);
+                            self.write_line(";");
+                        }
                     }
                 }
+                NodeKind::StmtLocal => {
+                    // W553: materialize any call-return packed-array temporaries
+                    // before the local initializer that uses them.
+                    self.materialize_call_array_tmps_in_expr(node);
+                    self.write_indent();
+                    self.emit_local(node, LocalEmitPhase::Init);
+                }
+                NodeKind::StmtAssign => {
+                    // W553: materialize any call-return packed-array temporaries
+                    // before the assignment that uses them.
+                    self.materialize_call_array_tmps_in_expr(node);
+                    self.write_indent();
+                    self.gen_verilog_stmt(node);
+                }
+                _ => {
+                    self.write_indent();
+                    self.write_line(&format!("// (stmt: {:?})", node.kind));
+                }
             }
-            NodeKind::StmtLocal => {
-                self.write_indent();
-                self.write("// ");
-                self.gen_verilog_stmt(node);
-            }
-            NodeKind::StmtAssign => {
-                self.write_indent();
-                self.write("// ");
-                self.gen_verilog_stmt(node);
-            }
-            _ => {
-                self.write_indent();
-                self.write_line(&format!("// (stmt: {:?})", node.kind));
+        } else {
+            match node.kind {
+                NodeKind::StmtExpr => {
+                    if let Some(expr) = node.children.first() {
+                        if expr.kind == NodeKind::ExprCall {
+                            self.write_indent();
+                            self.write("// ");
+                            self.gen_verilog_expr(expr);
+                            self.write_line(";");
+                        }
+                    }
+                }
+                NodeKind::StmtLocal => {
+                    self.write_indent();
+                    self.write("// ");
+                    self.gen_verilog_stmt(node);
+                }
+                NodeKind::StmtAssign => {
+                    self.write_indent();
+                    self.write("// ");
+                    self.gen_verilog_stmt(node);
+                }
+                _ => {
+                    self.write_indent();
+                    self.write_line(&format!("// (stmt: {:?})", node.kind));
+                }
             }
         }
     }
@@ -4503,6 +7639,281 @@ impl VerilogCodegen {
         }
     }
 
+    /// Resolve the element types of a tuple-destructuring local
+    /// `let (a, b) = expr`. The tuple type comes from an explicit annotation
+    /// when present, otherwise from the return type of the initializing call.
+    fn tuple_local_elem_types(&self, node: &Node) -> Option<Vec<String>> {
+        let ty = if !node.extra_type.trim().is_empty() {
+            node.extra_type.trim().to_string()
+        } else {
+            let init = node.children.first()?;
+            if init.kind != NodeKind::ExprCall {
+                return None;
+            }
+            self.fn_return_types.get(&init.name)?.clone()
+        };
+        let t = ty.trim();
+        if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+            let inner = &t[1..t.len() - 1];
+            Some(inner.split(',').map(|e| e.trim().to_string()).collect())
+        } else {
+            None
+        }
+    }
+
+    /// Emit a local variable declaration and/or initialization. `phase` selects
+    /// whether to output only the `reg` declaration, only the procedural
+    /// assignment, or the full original combined form.
+    fn emit_local(&mut self, node: &Node, phase: LocalEmitPhase) {
+        // Tuple-destructuring local `let (s, d) = call(...)`: the binding names
+        // live in extra_field (comma-joined) with an empty node.name. Lower to a
+        // packed temp holding the callee's tuple, then slice each binding out
+        // with element 0 in the LSB -- matching the ExprTuple concatenation and
+        // the packed_width sum.
+        if node.name.is_empty() && !node.extra_field.is_empty() {
+            if let Some(elem_types) = self.tuple_local_elem_types(node) {
+                let names: Vec<String> = node
+                    .extra_field
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                if !names.is_empty() && names.len() == elem_types.len() {
+                    let widths: Vec<u32> =
+                        elem_types.iter().map(|t| self.packed_width(t).max(1)).collect();
+                    let total: u32 = widths.iter().sum();
+                    // Deterministic temp name (stable across Decl/Init phases).
+                    let tmp = format!("__tup_l{}", node.line);
+                    if phase != LocalEmitPhase::Init {
+                        self.write_indent();
+                        self.write_line(&format!("reg [{}:0] {};", total - 1, tmp));
+                        for (nm, w) in names.iter().zip(widths.iter()) {
+                            self.write_indent();
+                            self.write_line(&format!("reg [{}:0] {};", w - 1, nm));
+                        }
+                    }
+                    if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
+                        self.write_indent();
+                        self.write(&format!("{} = ", tmp));
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write_line(";");
+                        let mut off = 0u32;
+                        for (nm, w) in names.iter().zip(widths.iter()) {
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "{} = {}[{}:{}];",
+                                nm,
+                                tmp,
+                                off + w - 1,
+                                off
+                            ));
+                            off += w;
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+        // W533: bare scalar structs are lowered as a single packed-vector
+        // register with whole-struct initialization.
+        if Self::parse_array_type(&node.extra_type).is_none()
+            && self.is_lowerable_scalar_struct_type(&node.extra_type)
+        {
+            let base = Self::base_type_name(&node.extra_type);
+            let width = self.element_width(&base);
+            if phase != LocalEmitPhase::Init {
+                self.write_indent();
+                self.write_line(&format!("reg [{}:0] {};", width - 1, node.name));
+            }
+            if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
+                if phase == LocalEmitPhase::Full {
+                    self.write_line("");
+                }
+                self.write_indent();
+                self.write(&format!("{} = ", node.name));
+                self.gen_verilog_expr(&node.children[0]);
+                self.write_line(";");
+            } else if phase == LocalEmitPhase::Full {
+                self.write_line("");
+            }
+            return;
+        }
+
+        // W563: one-dimensional arrays of scalar structs are lowered as a single
+        // packed-vector register and assigned wholesale (from a call or from a
+        // packed array literal).
+        if let Some((dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            if dims.len() == 1 && self.struct_decls.contains_key(&elem_type) {
+                let elem_w = self.element_width(&elem_type) as usize;
+                let total_width = dims[0] * elem_w;
+                if phase != LocalEmitPhase::Init {
+                    self.write_indent();
+                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, node.name));
+                }
+                if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
+                    let child = &node.children[0];
+                    self.write_indent();
+                    self.write(&format!("{} = ", node.name));
+                    if child.kind == NodeKind::ExprArrayLiteral {
+                        self.emit_packed_array_literal_concat(child, &node.extra_type);
+                    } else {
+                        self.gen_verilog_expr(child);
+                    }
+                    self.write_line(";");
+                } else if phase == LocalEmitPhase::Full {
+                    self.write_line("");
+                }
+                return;
+            }
+        }
+
+        // W527: multi-dimensional arrays of scalar structs are lowered as a
+        // single packed-vector register with procedural per-element
+        // initialization.
+        if let Some((dims, elem_type)) = Self::parse_array_type(&node.extra_type) {
+            if dims.len() >= 2 && self.struct_decls.contains_key(&elem_type) {
+                let elem_w = self.element_width(&elem_type) as usize;
+                let total_width: usize = dims.iter().product::<usize>() * elem_w;
+                if phase != LocalEmitPhase::Init {
+                    self.write_indent();
+                    self.write_line(&format!("reg [{}:0] {};", total_width - 1, node.name));
+                }
+                if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
+                    let child = &node.children[0];
+                    // W566: a 2-D array of scalar structs initialized from a packed-vector
+                    // expression (function call or other non-literal) can be assigned
+                    // wholesale because the layout matches the packed-vector register.
+                    if child.kind != NodeKind::ExprArrayLiteral {
+                        self.write_indent();
+                        self.write(&format!("{} = ", node.name));
+                        self.gen_verilog_expr(child);
+                        self.write_line(";");
+                    } else {
+                        self.write_indent();
+                        self.write_line("begin");
+                        self.indent();
+                        self.emit_packed_struct_array_init(
+                            &node.name,
+                            &node.extra_type,
+                            child,
+                        );
+                        self.dedent();
+                        self.write_indent();
+                        self.write_line("end");
+                    }
+                } else if phase == LocalEmitPhase::Full {
+                    self.write_line("");
+                }
+                return;
+            }
+        }
+
+        // W531/W546: 1-D and multi-D arrays of primitive scalars are lowered as
+        // unpacked Verilog arrays when initialized by an array literal, so that
+        // variable-index writes are preserved.  When initialized by a function call
+        // (or any other packed-vector expression), they are stored as a packed
+        // vector and assigned wholesale.
+        if Self::is_primitive_array_type(&node.extra_type) {
+            let (dims, elem_type) = Self::primitive_array_info(&node.extra_type
+            ).unwrap_or((Vec::new(), "u32".to_string()));
+            let child = node.children.first();
+            let is_packed_init = child.map_or(false, |c| {
+                c.kind != NodeKind::ExprArrayLiteral
+            });
+            if is_packed_init {
+                let width = self.packed_width(&node.extra_type) as usize;
+                let signed = self.packed_signed(&node.extra_type);
+                let signed_str = if signed { "signed " } else { "" };
+                let range = Self::range_decl(width as u32);
+                let range_str = if range.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", range)
+                };
+                if phase != LocalEmitPhase::Init {
+                    self.write_indent();
+                    self.write_line(&format!(
+                        "reg {}{}{};",
+                        signed_str, range_str, node.name
+                    ));
+                }
+                if phase != LocalEmitPhase::Decl && child.is_some() {
+                    self.write_indent();
+                    self.write(&format!("{} = ", node.name));
+                    self.gen_verilog_expr(child.unwrap());
+                    self.write_line(";");
+                } else if phase == LocalEmitPhase::Full {
+                    self.write_line("");
+                }
+                self.local_packed_primitive_arrays.insert(
+                    node.name.clone(),
+                    (dims.clone(), elem_type.clone()),
+                );
+                return;
+            }
+            let elem_w = Self::type_to_width(&elem_type).max(1) as usize;
+            let signed = Self::type_is_signed(
+                &Self::parse_array_type(&node.extra_type)
+                    .map(|(_, et)| et)
+                    .unwrap_or_default(),
+            );
+            let signed_str = if signed { "signed " } else { "" };
+            let dims_str = dims
+                .iter()
+                .map(|d| format!("[0:{}]", d - 1))
+                .collect::<String>();
+            if phase != LocalEmitPhase::Init {
+                self.write_indent();
+                self.write_line(&format!(
+                    "reg {}{}[{}:0] {}{};",
+                    signed_str, "", elem_w - 1, node.name, dims_str
+                ));
+            }
+            if phase != LocalEmitPhase::Decl && child.is_some() {
+                let child = child.unwrap();
+                self.write_indent();
+                self.write_line("begin");
+                self.indent();
+                self.emit_unpacked_primitive_array_init(
+                    &node.name,
+                    &node.extra_type,
+                    child,
+                );
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            } else if phase == LocalEmitPhase::Full {
+                self.write_line("");
+            }
+            return;
+        }
+
+        if phase != LocalEmitPhase::Init {
+            self.write_indent();
+            let kw = "reg";
+            let width = Self::type_to_width(&node.extra_type);
+            let signed = Self::type_is_signed(&node.extra_type);
+            let signed_str = if signed { "signed " } else { "" };
+            let range = Self::range_decl(width);
+            let range_str = if range.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", range)
+            };
+            self.write(&format!("{} {}{}{};", kw, signed_str, range_str, node.name));
+            if phase != LocalEmitPhase::Init {
+                self.write_line("");
+            }
+        }
+        if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
+            self.write_indent();
+            self.write(&node.name);
+            self.write(" = ");
+            self.gen_verilog_expr(&node.children[0]);
+            self.write_line(";");
+        }
+    }
+
     fn gen_verilog_stmt(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprReturn => {
@@ -4515,47 +7926,97 @@ impl VerilogCodegen {
                         self.current_fn_name.clone()
                     };
                     self.write(&format!("{} = ", fn_name));
-                    self.gen_verilog_expr(&node.children[0]);
+                    // W528: when returning a nested array literal of scalar structs,
+                    // lower it to a single packed concatenation matching the
+                    // function's declared return width.
+                    // W545: extend the same treatment to primitive scalar arrays so
+                    // that [3]u8{...} is returned as a 24-bit packed vector.
+                    let return_type = self.current_fn_return_type.clone();
+                    let is_packed_array_return = node.children[0].kind
+                        == NodeKind::ExprArrayLiteral
+                        && Self::parse_array_type(&return_type)
+                            .map(|(_, et)| {
+                                self.struct_decls.contains_key(&et)
+                                    || Self::is_primitive_scalar_type(&et)
+                            })
+                            .unwrap_or(false);
+                    if is_packed_array_return {
+                        self.emit_packed_array_literal_concat(
+                            &node.children[0],
+                            &return_type,
+                        );
+                    } else {
+                        self.gen_verilog_expr(&node.children[0]);
+                    }
                     self.write_line(";");
                 }
             }
             NodeKind::StmtLocal => {
-                self.write_indent();
-                let kw = "reg";
-                let width = Self::type_to_width(&node.extra_type);
-                let signed = Self::type_is_signed(&node.extra_type);
-                let signed_str = if signed { "signed " } else { "" };
-                let range = Self::range_decl(width);
-                let range_str = if range.is_empty() {
-                    String::new()
+                // #1741: inside a function body being hoisted, the declaration
+                // was already emitted at the top; emit only the assignment.
+                let phase = if self.hoist_fn_locals {
+                    LocalEmitPhase::Init
                 } else {
-                    format!("{} ", range)
+                    LocalEmitPhase::Full
                 };
-
-                self.write(&format!("{} {}{}{};", kw, signed_str, range_str, node.name));
-                if !node.children.is_empty() {
-                    self.write_line("");
-                    self.write_indent();
-                    self.write(&node.name);
-                    self.write(" = ");
-                    self.gen_verilog_expr(&node.children[0]);
-                    self.write_line(";");
-                } else {
-                    self.write_line("");
-                }
+                self.emit_local(node, phase);
             }
             NodeKind::StmtAssign => {
+                // W378/W379: detect tuple destructuring on the LHS of an
+                // assignment: `let (a, b, c) = f(...)` is parsed as a
+                // StmtAssign whose LHS is an ExprArrayLiteral with
+                // extra_kind == "tuple" containing identifier children.
+                if node.children.len() >= 2
+                    && node.children[0].kind == NodeKind::ExprArrayLiteral
+                    && node.children[0].extra_kind == "tuple"
+                    && !node.children[0].children.is_empty()
+                {
+                    self.gen_verilog_let_destructuring(
+                        &node.children[0],
+                        &node.children[1],
+                    );
+                    return;
+                }
                 self.write_indent();
                 if node.children.len() >= 2 {
-                    self.gen_verilog_expr(&node.children[0]);
-                    if node.extra_op == "+=" {
-                        self.write(" = ");
-                        self.gen_verilog_expr(&node.children[0]);
-                        self.write(" + ");
+                    let lhs = &node.children[0];
+                    let rhs = &node.children[1];
+                    // W546: detect assignment of a packed-vector expression to a
+                    // function-local primitive scalar array.  The target identifier
+                    // must be tracked as packed, and the RHS must be a call or
+                    // array literal that produces a packed vector of the same width.
+                    let is_packed_array_assign = lhs.kind == NodeKind::ExprIdentifier
+                        && !lhs.name.is_empty()
+                        && Self::is_primitive_array_type(&lhs.extra_type)
+                        && (rhs.kind == NodeKind::ExprCall
+                            || rhs.kind == NodeKind::ExprArrayLiteral);
+                    if is_packed_array_assign {
+                        let (dims, elem_type) = Self::primitive_array_info(&lhs.extra_type
+                        ).unwrap_or((Vec::new(), "u32".to_string()));
+                        self.write(&format!("{} = ", lhs.name));
+                        if rhs.kind == NodeKind::ExprArrayLiteral {
+                            self.emit_packed_array_literal_concat(rhs, &lhs.extra_type);
+                        } else {
+                            self.gen_verilog_expr(rhs);
+                        }
+                        self.write_line(";");
+                        self.local_packed_primitive_arrays.insert(
+                            lhs.name.clone(),
+                            (dims.clone(), elem_type.clone()),
+                        );
                     } else {
-                        self.write(" = ");
+                        self.in_lvalue = true;
+                        self.gen_verilog_expr(lhs);
+                        self.in_lvalue = false;
+                        if node.extra_op == "+=" {
+                            self.write(" = ");
+                            self.gen_verilog_expr(lhs);
+                            self.write(" + ");
+                        } else {
+                            self.write(" = ");
+                        }
+                        self.gen_verilog_expr(rhs);
                     }
-                    self.gen_verilog_expr(&node.children[1]);
                 }
                 self.write_line(";");
             }
@@ -4694,11 +8155,12 @@ impl VerilogCodegen {
         let body_idx = node.children.len().saturating_sub(1);
 
         // Use capture variable name if available, else default to __i
-        let iter_var = if !node.params.is_empty() {
+        let iter_var_raw = if !node.params.is_empty() {
             node.params[0].0.clone()
         } else {
             "__i".to_string()
         };
+        let iter_var = Self::verilog_safe_identifier(&iter_var_raw);
 
         // Try to extract the range/iterable from children[0]
         // For range-based: for (iter_var = 0; iter_var < upper; iter_var = iter_var + 1)
@@ -4728,7 +8190,7 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_for_range_stmt(&mut self, node: &Node) {
-        let var = &node.name;
+        let var = Self::verilog_safe_identifier(&node.name);
         self.write_indent();
         if node.children.len() >= 2 {
             self.write(&format!("for ({var} = "));
@@ -4753,6 +8215,19 @@ impl VerilogCodegen {
         match node.kind {
             NodeKind::ExprLiteral => {
                 let val = &node.value;
+                // W458: string literals must escape newlines (and tabs / embedded
+                // quotes) before they are written into a Verilog string literal,
+                // otherwise Yosys emits "unterminated string" / "unknown escape
+                // sequence" warnings.
+                if node.extra_kind == "string" {
+                    let escaped = val
+                        .replace('\\', "\\\\")
+                        .replace('\n', "\\n")
+                        .replace('\t', "\\t")
+                        .replace('"', "\\\"");
+                    self.write(&format!("\"{}\"", escaped));
+                    return;
+                }
                 // Render integer literals as plain decimal (valid Verilog).
                 // Verilog rejects `0x..`/`0b..` and Rust-style `_` separators,
                 // so parse the numeric value and print it in base 10.
@@ -4778,18 +8253,64 @@ impl VerilogCodegen {
                     self.write(val);
                 }
             }
-            NodeKind::ExprIdentifier => self.write(&node.name),
+            NodeKind::ExprIdentifier => {
+                // W458: if this identifier is a function parameter bound to a
+                // module-level array, emit the module array name instead.
+                if let Some(bindings) = self
+                    .array_param_bindings
+                    .get(&self.current_fn_name_original)
+                {
+                    if let Some(bound) = bindings.get(&node.name) {
+                        self.write(&Self::verilog_safe_identifier(bound));
+                    } else {
+                        self.write(&Self::verilog_safe_identifier(&node.name));
+                    }
+                } else {
+                    self.write(&Self::verilog_safe_identifier(&node.name));
+                }
+            }
             NodeKind::ExprEnumValue => {
-                self.write(&node.name);
+                self.write(&Self::verilog_safe_identifier(&node.name));
             }
             NodeKind::ExprCall => {
+                // W557: inside test/bench blocks, reference a pre-declared temporary
+                // for pure calls instead of re-invoking them. The temporary was
+                // assigned earlier in the block by materialize_call_array_tmp.
+                if self.use_call_array_temps && !self.call_array_tmp_names.is_empty() {
+                    let mut call_text = String::new();
+                    self.collect_expr_text(node, &mut call_text);
+                    if let Some(tmp_name) = self.call_array_tmp_names.get(&call_text).cloned() {
+                        self.write(&tmp_name);
+                        return;
+                    }
+                }
                 self.write(&node.name);
                 self.write("(");
+                // W458: drop module-level array arguments from the emitted
+                // Verilog argument list. The function body references the bound
+                // module array by name directly, so the array value is not passed
+                // through a scalar input port.
+                let skip_indices = self
+                    .array_param_indices
+                    .get(&node.name)
+                    .cloned()
+                    .unwrap_or_default();
+                let mut first = true;
                 for (i, arg) in node.children.iter().enumerate() {
-                    if i > 0 {
+                    if skip_indices.contains(&i) {
+                        continue;
+                    }
+                    if !first {
                         self.write(", ");
                     }
+                    first = false;
                     self.gen_verilog_expr(arg);
+                }
+                // W530: zero-argument functions are emitted with a dummy `_unused`
+                // input by gen_verilog_fn, so Icarus Verilog needs a placeholder
+                // argument at call sites.
+                if node.children.is_empty() {
+                    self.write("1'b0");
                 }
                 self.write(")");
             }
@@ -4798,14 +8319,15 @@ impl VerilogCodegen {
                     // R-SI-1: Multiplication must not appear as `*` operator in
                     // synthesizable RTL. Emit `__mul_noop(a, b)` instead — the
                     // function definition is injected once per module preamble.
-                    if node.extra_op.as_str() == "*" {
+                    if matches!(node.extra_op.as_str(), "*" | "*%") {
                         self.write("__mul_noop(");
                         self.gen_verilog_expr(&node.children[0]);
                         self.write(", ");
                         self.gen_verilog_expr(&node.children[1]);
                         self.write(")");
                     } else {
-                        // Map operators
+                        // Map operators. Wrapping operators (+% -%) collapse to the
+                        // plain operator: Verilog arithmetic already wraps by width.
                         let op = match node.extra_op.as_str() {
                             "&&" | "and" => "&&",
                             "||" | "or" => "||",
@@ -4815,8 +8337,8 @@ impl VerilogCodegen {
                             "<=" => "<=",
                             ">" => ">",
                             "<" => "<",
-                            "+" => "+",
-                            "-" => "-",
+                            "+" | "+%" => "+",
+                            "-" | "-%" => "-",
                             "/" => "/",
                             "%" => "%",
                             "&" => "&",
@@ -4848,16 +8370,123 @@ impl VerilogCodegen {
             }
             NodeKind::ExprFieldAccess => {
                 if !node.children.is_empty() {
+                    // W527: packed array-of-struct field access (e.g. m[i][j].x).
+                    if self.try_emit_struct_array_access(&node.children[0], Some(&node.name)) {
+                        return;
+                    }
                     let child = &node.children[0];
+                    // W533: packed single scalar-struct field access (e.g. p.x).
+                    let base_name = match child.kind {
+                        NodeKind::ExprIdentifier => child.name.clone(),
+                        NodeKind::ExprIndex if !child.children.is_empty() => {
+                            match child.children[0].kind {
+                                NodeKind::ExprIdentifier => child.children[0].name.clone(),
+                                _ => String::new(),
+                            }
+                        }
+                        _ => String::new(),
+                    };
+                    if !base_name.is_empty() {
+                        if let Some(local_ty) = self.local_types
+                            .get(&base_name)
+                            .or_else(|| self.param_types.get(&base_name))
+                            .or_else(|| self.module_types.get(&base_name))
+                        {
+                            let base_ty = Self::base_type_name(local_ty);
+                            if self.is_lowerable_scalar_struct_type(local_ty)
+                                && Self::parse_array_type(local_ty).is_none()
+                            {
+                                if let Some((off, fw)) =
+                                    self.struct_field_offset(&base_ty, &node.name)
+                                {
+                                    let ftype = self.struct_decls.get(&base_ty)
+                                        .and_then(|fs| {
+                                            fs.iter()
+                                                .find(|(n, _)| n == &node.name)
+                                                .map(|(_, t)| t.clone())
+                                        })
+                                        .unwrap_or_default();
+                                    let signed = Self::scalar_field_is_signed(&ftype);
+                                    let slice = format!("{}[{} +: {}]", base_name, off, fw);
+                                    if signed && !self.in_lvalue {
+                                        self.write(&format!("$signed({})", slice));
+                                    } else {
+                                        self.write(&slice);
+                                    }
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    // W533: packed scalar-struct field access on a function-call
+                    // result (e.g. make().x).
+                    if child.kind == NodeKind::ExprCall && !child.name.is_empty() {
+                        if let Some(ret_ty) = self.fn_return_types.get(&child.name) {
+                            let base_ty = Self::base_type_name(ret_ty);
+                            if self.is_lowerable_scalar_struct_type(ret_ty)
+                                && Self::parse_array_type(ret_ty).is_none()
+                            {
+                                if let Some((off, fw)) =
+                                    self.struct_field_offset(&base_ty, &node.name)
+                                {
+                                    let ftype = self.struct_decls.get(&base_ty)
+                                        .and_then(|fs| {
+                                            fs.iter()
+                                                .find(|(n, _)| n == &node.name)
+                                                .map(|(_, t)| t.clone())
+                                        })
+                                        .unwrap_or_default();
+                                    let signed = Self::scalar_field_is_signed(&ftype);
+                                    let mut call_key = String::new();
+                                    self.collect_expr_text(child, &mut call_key);
+                                    // W560: if a call temporary has been pre-declared
+                                    // for this scalar-struct return, slice the temporary
+                                    // instead of re-invoking the function.
+                                    let (base_expr, needs_parens) =
+                                        if self.use_call_array_temps
+                                            && !self.call_array_tmp_names.is_empty()
+                                        {
+                                            if let Some(tmp_name) =
+                                                self.call_array_tmp_names.get(&call_key).cloned()
+                                            {
+                                                // W560: slice the pre-declared temporary
+                                                // directly; parentheses are unnecessary and
+                                                // some simulators reject them around a part-
+                                                // select of a temporary identifier.
+                                                (tmp_name, false)
+                                            } else {
+                                                (call_key, true)
+                                            }
+                                        } else {
+                                            (call_key, true)
+                                        };
+                                    let slice = if needs_parens {
+                                        format!("({})[{} +: {}]", base_expr, off, fw)
+                                    } else {
+                                        format!("{}[{} +: {}]", base_expr, off, fw)
+                                    };
+                                    if signed && !self.in_lvalue {
+                                        self.write(&format!("$signed({})", slice));
+                                    } else {
+                                        self.write(&slice);
+                                    }
+                                    return;
+                                }
+                            }
+                        }
+                    }
+
                     if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
                         let base_name = match child.children[0].kind {
-                            NodeKind::ExprIdentifier => child.children[0].name.clone(),
+                            NodeKind::ExprIdentifier => {
+                                Self::verilog_safe_identifier(&child.children[0].name)
+                            }
                             _ => String::new(),
                         };
                         let flat_name = format!("{}_{}", base_name, node.name);
-                        self.write(&flat_name);
+                        self.write(&Self::verilog_safe_identifier(&flat_name));
                     } else if child.kind == NodeKind::ExprIdentifier {
-                        self.write(&child.name);
+                        self.write(&Self::verilog_safe_identifier(&child.name));
                         self.write("_");
                         self.write(&node.name);
                     } else {
@@ -4866,34 +8495,110 @@ impl VerilogCodegen {
                         self.write(&node.name);
                     }
                 } else {
-                    self.write(&node.name);
+                    self.write(&Self::verilog_safe_identifier(&node.name));
                 }
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
+                    // W532: packed scalar-struct field-with-index access
+                    // (e.g. p.data[k] or grid[i][j].data[k]).
+                    if self.try_emit_struct_array_field_element_access(node) {
+                        return;
+                    }
+                    // W527: packed array-of-struct element access (e.g. m[i][j]).
+                    if self.try_emit_struct_array_access(node, None) {
+                        return;
+                    }
+                    // W531: packed primitive array element access (e.g. temps[i]).
+                    if self.try_emit_primitive_array_access(node) {
+                        return;
+                    }
                     self.gen_verilog_expr(&node.children[0]);
                     self.write("[");
-                    self.gen_verilog_expr(&node.children[1]);
+                    self.gen_verilog_expr(idx);
                     self.write("]");
                 }
             }
             NodeKind::ExprArrayLiteral => {
-                // R-CA-2 (wave-31): array literals in expression context
-                // (e.g. as function-call arguments) used to emit a
-                // comment-only token `/* array [...]{} */`, which Yosys
-                // rejects with `syntax error, unexpected ','` when the
-                // argument list reduces to whitespace + comma. We follow
-                // the precedent established by `ExprStructLit` below and
-                // emit a synthesizable scalar `0` plus an explanatory
-                // TODO comment, so the surrounding expression remains
-                // parseable Verilog.
-                self.write(&format!(
-                    "0 /* TODO: array literal [{}]{} not yet lowered to Verilog */",
-                    node.extra_size, node.extra_type
-                ));
+                // W544/W555/W564: fixed-size scalar array literals in expression
+                // context (e.g. function return values and assert_eq expected
+                // values) lower to a packed concatenation when the element type is
+                // a primitive scalar or a lowerable packed scalar struct.
+                // Multi-dimensional literals are handled by splitting extra_size
+                // on "][".
+                let elem = node.extra_type.trim();
+                let dims: Vec<usize> = node.extra_size.split("][")
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                let dims_count = node.extra_size.split("][").count();
+                if !dims.is_empty()
+                    && dims.len() == dims_count
+                    && (Self::is_primitive_scalar_type(elem)
+                        || self.is_lowerable_scalar_struct_type(elem))
+                {
+                    let ty = format!("[{}]{}", node.extra_size, elem);
+                    self.emit_packed_array_literal_concat(node, &ty);
+                } else {
+                    self.write(&format!(
+                        "0 /* TODO: array literal [{}]{} not yet lowered to Verilog */",
+                        node.extra_size, node.extra_type
+                    ));
+                }
+            }
+            NodeKind::ExprTuple => {
+                // Tuple literal -> packed concatenation with element 0 in the
+                // LSB: `(e0, e1)` -> `{e1, e0}`. Matches the packed_width sum and
+                // the destructuring slice order.
+                self.write("{");
+                let last = node.children.len().saturating_sub(1);
+                for (i, child) in node.children.iter().enumerate().rev() {
+                    if i != last {
+                        self.write(", ");
+                    }
+                    self.gen_verilog_expr(child);
+                }
+                self.write("}");
             }
             NodeKind::ExprStructLit => {
-                // Verilog has no struct literals — emit as comment + value 0
+                // W527/W532: scalar struct literals lower to a concatenation of
+                // their field values in reverse declaration order (last field
+                // becomes MSB), matching the packed-vector AoS layout used for
+                // arrays. Fixed-size scalar-array fields are rendered as nested
+                // concatenations of their elements.
+                if let Some(fields) = self.struct_decls.get(&node.name) {
+                    let all_scalar = !fields.is_empty()
+                        && fields.iter().all(|(_, ft)| {
+                            let trimmed = ft.trim();
+                            let base = if let Some(close) = trimmed.find(']') {
+                                trimmed[close + 1..].trim()
+                            } else {
+                                trimmed
+                            };
+                            Self::is_primitive_scalar_type(base)
+                        });
+                    if all_scalar {
+                        let mut parts = Vec::new();
+                        for (fname, ftype) in fields.iter().rev() {
+                            let child = node.children.iter().find(|c| {
+                                c.kind == NodeKind::ExprFieldAccess
+                                    && c.name == *fname
+                                    && !c.children.is_empty()
+                            });
+                            if let Some(c) = child {
+                                let val = &c.children[0];
+                                parts.push(
+                                    self.emit_packed_struct_field_value(val, ftype),
+                                );
+                            } else {
+                                let fwidth = Self::scalar_field_width(ftype);
+                                parts.push(format!("{}'d0", fwidth));
+                            }
+                        }
+                        self.write(&format!("{{{}}}", parts.join(", ")));
+                        return;
+                    }
+                }
+                // Fallback for non-scalar structs.
                 self.write(&format!("0 /* {} {{...}} */", node.name));
             }
             NodeKind::ExprSwitch => {
@@ -4970,8 +8675,11 @@ impl VerilogCodegen {
                 //   * signed target -> `$signed(op)` so the value sign-extends
                 //     when it feeds a wider expression context;
                 //   * unsigned scalar target of width W < 64 -> `(op & {W{1'b1}})`
-                //     which truncates a wider operand to exactly W bits and is a
-                //     no-op on a narrower operand (zero-extension on assignment);
+                //     which truncates a wider operand to exactly W bits.  When the
+                //     operand is signed and narrower than W, emit an explicit
+                //     W-bit concatenation `({(W-N){($signed(op) < 0)}}, op)` that
+                //     sign-extends without relying on Icarus' mixed signed/unsigned
+                //     expression-context semantics;
                 //   * 64-bit / array / unknown -> emit the operand verbatim.
                 if node.children.is_empty() {
                     return;
@@ -4985,24 +8693,39 @@ impl VerilogCodegen {
                 let signed = Self::type_is_signed(&base_ty);
                 let width = Self::type_to_width(&base_ty) as usize;
                 let is_array = node.extra_type.contains('[');
-                // If the operand is a parameter we know the width of, we can tell
-                // whether this cast widens (or keeps the same width). A widening
-                // unsigned cast needs no truncation mask: the value already fits.
+                // Infer the operand's scalar width/signedness so we can decide
+                // whether to emit a mask, sign-extend, or skip the mask for a
+                // widening unsigned cast.
                 let operand = &node.children[0];
-                let operand_width = if operand.kind == NodeKind::ExprIdentifier {
-                    self.param_widths.get(&operand.name).copied()
-                } else {
-                    None
-                };
-                let is_widening = operand_width.map(|ow| ow <= width).unwrap_or(false);
+                let operand_ws = self.expr_width_signed(operand);
+                let operand_signed = operand_ws.map(|(_, s)| s).unwrap_or(false);
+                let operand_width = operand_ws.map(|(w, _)| w as usize);
+                let is_widening_unsigned =
+                    operand_width.map(|ow| ow <= width).unwrap_or(false) && !operand_signed;
+                let needs_sign_ext =
+                    operand_signed && operand_width.map(|ow| ow < width).unwrap_or(false);
                 if signed {
                     self.write("$signed(");
                     self.gen_verilog_expr(operand);
                     self.write(")");
-                } else if !is_array && width >= 1 && width < 64 && !is_widening {
-                    self.write("(");
-                    self.gen_verilog_expr(operand);
-                    self.write(&format!(" & {{{}{{1'b1}}}})", width));
+                } else if !is_array && width >= 1 && width < 64 && !is_widening_unsigned {
+                    if needs_sign_ext {
+                        let ext = width - operand_width.unwrap();
+                        // Explicit sign-extension: replicate the sign bit (computed
+                        // via comparison so it works for any operand expression)
+                        // and concatenate with the original operand.
+                        self.write("({{");
+                        self.write(&ext.to_string());
+                        self.write("{($signed(");
+                        self.gen_verilog_expr(operand);
+                        self.write(") < 0)}}, ");
+                        self.gen_verilog_expr(operand);
+                        self.write("})");
+                    } else {
+                        self.write("(");
+                        self.gen_verilog_expr(operand);
+                        self.write(&format!(" & {{{}{{1'b1}}}})", width));
+                    }
                 } else {
                     self.gen_verilog_expr(operand);
                 }
@@ -5022,6 +8745,12 @@ pub struct CCodegen {
     output: String,
     indent: u32,
     module_name: String,
+    /// Function name -> t27 return type, used to resolve tuple element types at
+    /// a `let (a, b) = call()` destructuring site.
+    fn_return_types: std::collections::HashMap<String, String>,
+    /// t27 tuple return type of the function currently being emitted, so an
+    /// `ExprTuple` in a `return` can be cast to the right C compound-literal type.
+    current_ret_tuple_type: Option<String>,
 }
 
 impl CCodegen {
@@ -5030,6 +8759,33 @@ impl CCodegen {
             output: String::new(),
             indent: 0,
             module_name: String::new(),
+            fn_return_types: std::collections::HashMap::new(),
+            current_ret_tuple_type: None,
+        }
+    }
+
+    /// Map a t27 tuple type `(T, U, ...)` to a deterministic C typedef name and
+    /// its element C types. Returns None for non-tuple types.
+    fn c_tuple_info(ty: &str) -> Option<(String, Vec<String>)> {
+        let t = ty.trim();
+        if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
+            let inner = &t[1..t.len() - 1];
+            let elems: Vec<String> = inner
+                .split(',')
+                .map(|e| Self::param_type_to_c(e.trim()))
+                .collect();
+            let sanitized: String = elems
+                .iter()
+                .map(|c| {
+                    c.chars()
+                        .map(|ch| if ch.is_alphanumeric() { ch } else { '_' })
+                        .collect::<String>()
+                })
+                .collect::<Vec<_>>()
+                .join("_");
+            Some((format!("t27_tuple_{}", sanitized), elems))
+        } else {
+            None
         }
     }
 
@@ -5145,6 +8901,64 @@ impl CCodegen {
                 NodeKind::InvariantBlock => invariants.push(decl),
                 NodeKind::BenchBlock => benches.push(decl),
                 _ => {}
+            }
+        }
+
+        // Record function return types so tuple-destructuring sites can resolve
+        // the element types of a called function.
+        for f in &functions {
+            if !f.extra_return_type.is_empty() {
+                self.fn_return_types
+                    .insert(f.name.clone(), f.extra_return_type.clone());
+            }
+        }
+
+        // Hoist a C struct typedef for every distinct tuple shape used as a
+        // function return type or produced by a destructured call. C has no
+        // anonymous tuples, so `(u32, u32)` becomes a named struct with fields
+        // f0, f1, ....
+        {
+            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+            let mut typedefs: Vec<(String, Vec<String>)> = Vec::new();
+            let mut consider = |ty: &str,
+                                seen: &mut std::collections::HashSet<String>,
+                                typedefs: &mut Vec<(String, Vec<String>)>| {
+                if let Some((name, elems)) = Self::c_tuple_info(ty) {
+                    if seen.insert(name.clone()) {
+                        typedefs.push((name, elems));
+                    }
+                }
+            };
+            for f in &functions {
+                consider(&f.extra_return_type, &mut seen, &mut typedefs);
+                for stmt in &f.children {
+                    if stmt.kind == NodeKind::StmtLocal
+                        && stmt.name.is_empty()
+                        && !stmt.extra_field.is_empty()
+                    {
+                        if let Some(init) = stmt.children.first() {
+                            if init.kind == NodeKind::ExprCall {
+                                if let Some(rt) = self.fn_return_types.get(&init.name) {
+                                    consider(&rt.clone(), &mut seen, &mut typedefs);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if !typedefs.is_empty() {
+                self.write_line("/* -------------------------------------------------------");
+                self.write_line("   Tuple types");
+                self.write_line("   ------------------------------------------------------- */");
+                self.write_line("");
+                for (name, elems) in &typedefs {
+                    self.write("typedef struct { ");
+                    for (i, e) in elems.iter().enumerate() {
+                        self.write(&format!("{} f{}; ", e, i));
+                    }
+                    self.write_line(&format!("}} {};", name));
+                }
+                self.write_line("");
             }
         }
 
@@ -5363,8 +9177,18 @@ impl CCodegen {
         self.write_line("");
     }
 
+    /// C return type for a t27 return type: a tuple lowers to its hoisted
+    /// struct typedef name, everything else to the usual C type.
+    fn c_return_type(ty: &str) -> String {
+        if let Some((name, _)) = Self::c_tuple_info(ty) {
+            name
+        } else {
+            Self::param_type_to_c(ty)
+        }
+    }
+
     fn gen_c_fn_prototype(&mut self, node: &Node) {
-        let ret_type = Self::param_type_to_c(&node.extra_return_type);
+        let ret_type = Self::c_return_type(&node.extra_return_type);
         let ret_type = if ret_type.is_empty() {
             "void".to_string()
         } else {
@@ -5386,12 +9210,16 @@ impl CCodegen {
     }
 
     fn gen_c_fn(&mut self, node: &Node) {
-        let ret_type = Self::param_type_to_c(&node.extra_return_type);
+        let ret_type = Self::c_return_type(&node.extra_return_type);
         let ret_type = if ret_type.is_empty() {
             "void".to_string()
         } else {
             ret_type
         };
+        // Track a tuple return type so an `ExprTuple` in a `return` can be
+        // emitted as the matching C compound literal.
+        self.current_ret_tuple_type =
+            Self::c_tuple_info(&node.extra_return_type).map(|_| node.extra_return_type.clone());
 
         self.write(&format!("{} {}(", ret_type, node.name));
         for (i, (pname, ptype)) in node.params.iter().enumerate() {
@@ -5508,6 +9336,52 @@ impl CCodegen {
                     self.gen_c_expr(&node.children[0]);
                 }
                 self.write_line(";");
+            }
+            NodeKind::StmtLocal
+                if node.name.is_empty() && !node.extra_field.is_empty() =>
+            {
+                // Tuple-destructuring `let (s, d) = call()`: bind the call result
+                // through a temp of the callee's hoisted tuple struct, then copy
+                // each field (f0, f1, ...) into a typed local.
+                let names: Vec<String> = node
+                    .extra_field
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                let tuple_ty = node.children.first().and_then(|init| {
+                    if init.kind == NodeKind::ExprCall {
+                        self.fn_return_types.get(&init.name).cloned()
+                    } else {
+                        None
+                    }
+                });
+                let info = tuple_ty.as_deref().and_then(Self::c_tuple_info);
+                match info {
+                    Some((tname, elems)) if elems.len() == names.len() => {
+                        let tmp = format!("__t_c{}", node.line);
+                        self.write_indent();
+                        self.write(&format!("{} {} = ", tname, tmp));
+                        if let Some(init) = node.children.first() {
+                            self.gen_c_expr(init);
+                        }
+                        self.write_line(";");
+                        for (i, (nm, ety)) in names.iter().zip(elems.iter()).enumerate() {
+                            self.write_indent();
+                            self.write_line(&format!("{} {} = {}.f{};", ety, nm, tmp, i));
+                        }
+                    }
+                    _ => {
+                        // Fallback: keep the (invalid) original shape rather than
+                        // silently dropping the statement.
+                        self.write_indent();
+                        self.write(&format!("/* tuple destructure ({}) */ ", node.extra_field));
+                        if let Some(init) = node.children.first() {
+                            self.gen_c_expr(init);
+                        }
+                        self.write_line(";");
+                    }
+                }
             }
             NodeKind::StmtLocal => {
                 self.write_indent();
@@ -5889,6 +9763,11 @@ impl CCodegen {
                         let c_op = match op {
                             "and" => "&&",
                             "or" => "||",
+                            // Wrapping operators collapse to the plain operator:
+                            // C unsigned arithmetic already wraps modulo 2^N.
+                            "+%" => "+",
+                            "-%" => "-",
+                            "*%" => "*",
                             other => other,
                         };
                         self.write("(");
@@ -6006,6 +9885,27 @@ impl CCodegen {
                     self.gen_c_expr(&node.children[0]);
                     self.write("))");
                 }
+            }
+            NodeKind::ExprTuple => {
+                // Tuple literal -> C99 compound literal of the current
+                // function's hoisted tuple struct: `(T){ e0, e1 }`. The field
+                // order matches the typedef (f0, f1, ...).
+                if let Some((name, _)) = self
+                    .current_ret_tuple_type
+                    .as_deref()
+                    .and_then(Self::c_tuple_info)
+                {
+                    self.write(&format!("({}){{ ", name));
+                } else {
+                    self.write("{ ");
+                }
+                for (i, elem) in node.children.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.gen_c_expr(elem);
+                }
+                self.write(" }");
             }
             _ => {
                 self.write(&format!("/* unsupported: {:?} */", node.kind));
@@ -6170,12 +10070,93 @@ impl Compiler {
         Ok(codegen.into_string())
     }
 
+    /// W526/W527: reject multi-dimensional arrays of aggregate types that the
+    /// Verilog backend cannot yet lower cleanly. Scalar-struct arrays with only
+    /// primitive scalar fields are allowed through because W527 adds packed-vector
+    /// AoS lowering for them. Returns a clear diagnostic the caller can surface.
+    fn detect_unsupported_verilog_locals(
+        ast: &Node,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> Result<(), String> {
+        static PRIMITIVE_TYPES: &[&str] = &[
+            "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f32", "f64",
+            "bool", "void", "string",
+        ];
+        fn is_primitive(t: &str) -> bool {
+            PRIMITIVE_TYPES.contains(&t.trim())
+        }
+
+        for child in &ast.children {
+            if child.kind != NodeKind::StmtLocal {
+                continue;
+            }
+            let ty = &child.extra_type;
+            // Only multi-dimensional array types trigger this boundary.
+            if !ty.contains("][") {
+                continue;
+            }
+            // Extract element type after the last closing bracket.
+            let elem = ty.rsplit_once(']').map(|(_, e)| e).unwrap_or(ty).trim();
+            if elem.is_empty() || is_primitive(elem) {
+                continue;
+            }
+            if VerilogCodegen::is_lowerable_scalar_struct(elem, structs) {
+                continue;
+            }
+            return Err(format!(
+                "unsupported multi-dimensional array of aggregate type `{}` for local variable `{}` at line {}: 2-D array-of-struct lowering is not yet implemented for non-scalar structs/enums (see docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md)",
+                ty, child.name, child.line
+            ));
+        }
+        // Module-level declarations live directly under the Module node; nested
+        // bodies (functions) are also scanned recursively with the same struct map.
+        for child in &ast.children {
+            Self::detect_unsupported_verilog_locals(child, structs)?;
+        }
+        Ok(())
+    }
+
+    fn collect_struct_decls(
+        ast: &Node,
+    ) -> std::collections::HashMap<String, Vec<(String, String)>> {
+        let mut structs = std::collections::HashMap::new();
+        fn walk(node: &Node, structs: &mut std::collections::HashMap<String, Vec<(String, String)>>) {
+            if node.kind == NodeKind::StructDecl {
+                let fields: Vec<(String, String)> = node
+                    .children
+                    .iter()
+                    .map(|f| (f.name.clone(), f.extra_type.clone()))
+                    .collect();
+                structs.insert(node.name.clone(), fields);
+            }
+            for child in &node.children {
+                walk(child, structs);
+            }
+        }
+        walk(ast, &mut structs);
+        structs
+    }
+
     pub fn compile_verilog(source: &str) -> Result<String, String> {
+        Self::compile_verilog_with_options(source, false)
+    }
+
+    pub fn compile_verilog_for_simulation(source: &str) -> Result<String, String> {
+        Self::compile_verilog_with_options(source, true)
+    }
+
+    fn compile_verilog_with_options(source: &str, emit_test_assertions: bool) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let mut ast = parser.parse()?;
+        // W526: catch unsupported multi-dimensional aggregate arrays before the
+        // optimizer drops the declaration or before we emit broken placeholders.
+        // Build the struct map from the *full* module AST so nested function bodies
+        // can still recognize module-level scalar structs as lowerable.
+        let structs = Self::collect_struct_decls(&ast);
+        Self::detect_unsupported_verilog_locals(&ast, &structs)?;
         optimize(&mut ast, &OptConfig::default());
-        let mut codegen = VerilogCodegen::new();
+        let mut codegen = VerilogCodegen::with_options(emit_test_assertions);
         codegen.gen_verilog(&ast);
         Ok(codegen.into_string())
     }
@@ -6250,6 +10231,302 @@ impl Compiler {
         let ast = parser.parse()?;
         let hir = AstToHir::convert(&ast)?;
         Ok(format!("{:#?}", hir))
+    }
+
+    /// W534: structural Icarus-lowerability classifier.
+    ///
+    /// Returns `Ok(true)` when the source uses only constructs that the Verilog
+    /// backend can lower to synthesizable Icarus Verilog.  Returns `Ok(false)`
+    /// with a reason string when a non-lowerable construct is found.
+    ///
+    /// This is the Rust side of the lowerability boundary; it is designed to
+    /// align with `Trinity.IcarusLowerable.Module.isLowerable` in Lean 4.
+    pub fn is_icarus_lowerable(source: &str) -> Result<bool, String> {
+        let ast = Self::parse_ast(source)?;
+        let structs = Self::collect_struct_decls(&ast);
+        let mut functions = std::collections::HashSet::new();
+        Self::collect_function_names(&ast, &mut functions);
+        Self::ast_is_icarus_lowerable(&ast, &structs, &functions, false)
+    }
+
+    /// W534: reason string version of the structural classifier.
+    pub fn icarus_lowerability_reason(source: &str) -> Result<String, String> {
+        match Self::is_icarus_lowerable(source) {
+            Ok(true) => Ok(String::new()),
+            Ok(false) => Err("not lowerable".to_string()),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn collect_function_names(
+        node: &Node,
+        functions: &mut std::collections::HashSet<String>,
+    ) {
+        if node.kind == NodeKind::FnDecl && !node.name.is_empty() {
+            functions.insert(node.name.clone());
+        }
+        for child in &node.children {
+            Self::collect_function_names(child, functions);
+        }
+    }
+
+    /// W534: true when `ty` is a scalar primitive or an array of lowerable
+    /// scalar primitives / scalar structs.
+    fn is_icarus_lowerable_type(
+        ty: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> bool {
+        let trimmed = ty.trim();
+        if trimmed.is_empty() {
+            return true; // untyped / inferred
+        }
+        if VerilogCodegen::is_primitive_scalar_type(trimmed) {
+            return true;
+        }
+        // Strip array dimensions: "[3][4]Pt" -> "Pt", "[3]i16" -> "i16".
+        let mut rest = trimmed;
+        while rest.starts_with('[') {
+            if let Some(end) = rest.find(']') {
+                rest = rest[end + 1..].trim();
+            } else {
+                return false;
+            }
+        }
+        if rest.is_empty() {
+            return false;
+        }
+        if VerilogCodegen::is_primitive_scalar_type(rest) {
+            return true;
+        }
+        VerilogCodegen::is_lowerable_scalar_struct(rest, structs)
+    }
+
+    /// W534: true when `name` refers to a lowerable scalar struct or a primitive
+    /// scalar/array type.
+    fn is_icarus_lowerable_struct_name(
+        name: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> bool {
+        VerilogCodegen::is_lowerable_scalar_struct(name, structs)
+    }
+
+    /// W534: structural lowerability check for the whole module AST.
+    fn ast_is_icarus_lowerable(
+        node: &Node,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+        functions: &std::collections::HashSet<String>,
+        in_loop: bool,
+    ) -> Result<bool, String> {
+        match node.kind {
+            NodeKind::Module => {
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::UseDecl => Ok(true), // imports themselves are not lowerability blockers
+            NodeKind::ConstDecl | NodeKind::EnumDecl | NodeKind::EnumVariant => Ok(true),
+            NodeKind::StructDecl => {
+                if let Some(fields) = structs.get(&node.name) {
+                    for (_, ty) in fields {
+                        if !Self::is_icarus_lowerable_type(ty, structs) {
+                            return Ok(false);
+                        }
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::FnDecl => {
+                // Return type and parameter types must be lowerable.
+                if !node.extra_return_type.is_empty()
+                    && !Self::is_icarus_lowerable_type(&node.extra_return_type, structs)
+                {
+                    return Ok(false);
+                }
+                for (_, ty) in &node.params {
+                    if !ty.is_empty() && !Self::is_icarus_lowerable_type(ty, structs) {
+                        return Ok(false);
+                    }
+                }
+                // Function body.
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::TestBlock | NodeKind::BenchBlock | NodeKind::InvariantBlock => {
+                // Tests/benches/invariants are host-side harness code and are not
+                // part of the synthesizable Icarus model.
+                Ok(true)
+            }
+            NodeKind::StmtLocal | NodeKind::StmtAssign => {
+                if !node.extra_type.is_empty()
+                    && !Self::is_icarus_lowerable_type(&node.extra_type, structs)
+                {
+                    return Ok(false);
+                }
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::StmtIf => {
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::StmtFor => {
+                // Iterator-style `for` is not lowerable; only range-for is.
+                return Ok(false);
+            }
+            NodeKind::StmtForRange => {
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::StmtWhile => {
+                // Unbounded `while (true)` cannot be lowered to a fuel-bounded
+                // Icarus model.  Bounded while loops (e.g. `while (i < N)`) are
+                // accepted structurally; termination is checked by the Lean
+                // soundness layer.
+                if let Some(cond) = node.children.first() {
+                    if cond.kind == NodeKind::ExprLiteral
+                        && matches!(cond.value.as_str(), "true" | "1")
+                    {
+                        return Ok(false);
+                    }
+                    if !Self::ast_is_icarus_lowerable(cond, structs, functions, false)? {
+                        return Ok(false);
+                    }
+                }
+                for child in node.children.iter().skip(1) {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, true)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::StmtBreak | NodeKind::StmtContinue => {
+                // Break/continue are lowerable only inside a loop body.
+                Ok(in_loop)
+            }
+            NodeKind::StmtExpr => {
+                if let Some(expr) = node.children.first() {
+                    if !Self::ast_is_icarus_lowerable(expr, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprReturn => {
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprLiteral | NodeKind::ExprIdentifier | NodeKind::ExprEnumValue => {
+                Ok(true)
+            }
+            NodeKind::ExprBinary | NodeKind::ExprUnary | NodeKind::ExprIndex
+            | NodeKind::ExprFieldAccess => {
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprCast => {
+                if !node.extra_type.is_empty()
+                    && !Self::is_icarus_lowerable_type(&node.extra_type, structs)
+                {
+                    return Ok(false);
+                }
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprCall => {
+                let callee = &node.name;
+                // Qualified calls (namespace::name) cannot be resolved in the
+                // synthesizable Icarus model.
+                if callee.contains("::") {
+                    return Ok(false);
+                }
+                // Calls to functions not defined in this module are rejected,
+                // except for a small set of builtins that the Verilog backend
+                // injects or handles specially.
+                if !functions.contains(callee) && !Self::is_icarus_builtin(callee) {
+                    return Ok(false);
+                }
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprStructLit => {
+                // The struct being constructed must itself be lowerable.
+                if !Self::is_icarus_lowerable_struct_name(&node.name, structs) {
+                    return Ok(false);
+                }
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprArrayLiteral => {
+                if !node.extra_type.is_empty()
+                    && !Self::is_icarus_lowerable_type(&node.extra_type, structs)
+                {
+                    return Ok(false);
+                }
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            NodeKind::ExprSwitch => {
+                for child in &node.children {
+                    if !Self::ast_is_icarus_lowerable(child, structs, functions, in_loop)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            _ => Ok(true),
+        }
+    }
+
+    /// W534: built-in functions that the Verilog backend handles without a
+    /// source-level definition.
+    fn is_icarus_builtin(name: &str) -> bool {
+        matches!(
+            name,
+            "__mul_noop" // injected R-SI-1 multiplication helper
+        )
     }
 }
 
@@ -6498,13 +10775,133 @@ fn parse_int_value(s: &str) -> Option<i64> {
     }
 }
 
+/// Collect all local names that are reassigned anywhere in a statement list.
+/// This includes:
+/// - Simple assignments: `x = expr` → x is mutable
+/// - Index assignments: `arr[i] = expr` → arr is mutable (Rust requires `let mut`)
+/// - Field assignments: `s.f = expr` → s is mutable
+/// Recurses into if/while/for bodies.
+/// Collect names of functions declared with a `bool` return type, at any depth.
+fn collect_bool_fns(node: &Node, out: &mut std::collections::HashSet<String>) {
+    if node.kind == NodeKind::FnDecl && node.extra_return_type.trim() == "bool" {
+        out.insert(node.name.clone());
+    }
+    for child in &node.children {
+        collect_bool_fns(child, out);
+    }
+}
+
+/// Collect names of locals declared with an explicit `bool` type.
+fn collect_bool_locals(nodes: &[Node], out: &mut std::collections::HashSet<String>) {
+    for n in nodes {
+        if n.kind == NodeKind::StmtLocal && n.extra_type.trim() == "bool" {
+            out.insert(n.name.clone());
+        }
+        collect_bool_locals(&n.children, out);
+    }
+}
+
+/// Collect the declared return type of every function, at any depth, keyed by
+/// name. Used by the Rust backend to widen/narrow a returned call to the
+/// return type of the function doing the returning.
+fn collect_fn_ret_types(node: &Node, out: &mut std::collections::HashMap<String, String>) {
+    if node.kind == NodeKind::FnDecl && !node.extra_return_type.trim().is_empty() {
+        out.insert(
+            node.name.clone(),
+            RustCodegen::t27_type_to_rust(&node.extra_return_type),
+        );
+    }
+    for child in &node.children {
+        collect_fn_ret_types(child, out);
+    }
+}
+
+/// Collect the Rust type of every explicitly typed constant, at any depth.
+/// Constants are module-scoped, so this runs once per module.
+fn collect_const_types(node: &Node, out: &mut std::collections::HashMap<String, String>) {
+    if node.kind == NodeKind::ConstDecl
+        && !node.name.is_empty()
+        && !node.extra_type.trim().is_empty()
+    {
+        out.insert(
+            node.name.clone(),
+            RustCodegen::t27_type_to_rust(&node.extra_type),
+        );
+    }
+    for child in &node.children {
+        collect_const_types(child, out);
+    }
+}
+
+/// Collect the Rust type of every explicitly typed local in a function body.
+fn collect_typed_locals(nodes: &[Node], out: &mut std::collections::HashMap<String, String>) {
+    for n in nodes {
+        if n.kind == NodeKind::StmtLocal && !n.name.is_empty() && !n.extra_type.trim().is_empty() {
+            out.insert(n.name.clone(), RustCodegen::t27_type_to_rust(&n.extra_type));
+        }
+        collect_typed_locals(&n.children, out);
+    }
+}
+
+fn collect_mutable_names(stmts: &[Node], set: &mut std::collections::HashSet<String>) {
+    for stmt in stmts {
+        collect_mutable_names_one(stmt, set);
+    }
+}
+
+fn collect_mutable_names_one(stmt: &Node, set: &mut std::collections::HashSet<String>) {
+    match stmt.kind {
+        NodeKind::StmtAssign if !stmt.children.is_empty() => {
+            let lhs = &stmt.children[0];
+            // Simple identifier: `x = expr`
+            if lhs.kind == NodeKind::ExprIdentifier {
+                set.insert(lhs.name.clone());
+            }
+            // Index assignment: `arr[i] = expr` → arr needs mut
+            // The LHS is ExprIndex with children[0] = base identifier
+            if lhs.kind == NodeKind::ExprIndex && !lhs.children.is_empty() {
+                let base = &lhs.children[0];
+                if base.kind == NodeKind::ExprIdentifier {
+                    set.insert(base.name.clone());
+                }
+            }
+            // Field assignment: `s.f = expr` → s needs mut
+            if lhs.kind == NodeKind::ExprFieldAccess && !lhs.children.is_empty() {
+                let base = &lhs.children[0];
+                if base.kind == NodeKind::ExprIdentifier {
+                    set.insert(base.name.clone());
+                }
+            }
+        }
+        NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange => {
+            // Recurse into condition + body blocks
+            for c in &stmt.children {
+                if c.kind == NodeKind::Module {
+                    collect_mutable_names(&c.children, set);
+                } else {
+                    collect_mutable_names_one(c, set);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
 fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+    // Recursive reassignment check: a `let X = Y` where X is reassigned later
+    // (including inside if/while/for bodies) must NOT be copy-propagated —
+    // doing so leaves dangling `X = ...` reassignments in the emitted Rust
+    // with no declaration of X.
+    let mut reassigned_set = std::collections::HashSet::new();
+    collect_mutable_names(stmts, &mut reassigned_set);
+
     let mut replacements: Vec<(String, String)> = Vec::new();
     for stmt in stmts.iter() {
         if stmt.kind == NodeKind::StmtLocal
             && stmt.children.len() == 1
             && stmt.children[0].kind == NodeKind::ExprIdentifier
             && stmt.name != stmt.children[0].name
+            && !reassigned_set.contains(&stmt.name)
         {
             replacements.push((stmt.name.clone(), stmt.children[0].name.clone()));
         }
@@ -6530,13 +10927,13 @@ fn const_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             && is_literal(&stmt.children[0])
         {
             let name = stmt.name.clone();
-            let reassigned = stmts.iter().any(|s| {
-                s.kind == NodeKind::StmtAssign
-                    && !s.children.is_empty()
-                    && s.children[0].kind == NodeKind::ExprIdentifier
-                    && s.children[0].name == name
-            });
-            if !reassigned {
+            // Recursive reassignment check: scan into if/while/for/for-range bodies
+            // so a `let X = <literal>` that's reassigned INSIDE a control-flow block
+            // is not incorrectly inlined (which would leave dangling `X = ...` without
+            // a declaration in the emitted Rust).
+            let mut reassigned_set = std::collections::HashSet::new();
+            collect_mutable_names(stmts, &mut reassigned_set);
+            if !reassigned_set.contains(&name) {
                 consts.push((name, stmt.children[0].value.clone()));
             }
         }
@@ -6798,45 +11195,79 @@ fn find_first_non_local(stmts: &[Node]) -> usize {
     stmts.len()
 }
 
-fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
-    let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
+fn collect_reads_in_stmts(stmts: &[Node], reads: &mut std::collections::HashSet<String>) {
+    // Walk each statement and collect every identifier that is READ (RHS of
+    // assignment/local, return expression, standalone expression, and any
+    // subexpression inside if/while/for/for-range condition + body). Without
+    // recursing into control-flow bodies, a `let i = 0;` at the top of a
+    // function that is only read inside `while` would be seen as dead and
+    // eliminated, leaving `i` reassigned but never declared in the emit.
     for stmt in stmts.iter() {
         match stmt.kind {
             NodeKind::StmtLocal if !stmt.children.is_empty() => {
-                collect_reads(&stmt.children[0], &mut reads);
+                collect_reads(&stmt.children[0], reads);
             }
             NodeKind::StmtAssign if stmt.children.len() >= 2 => {
-                collect_reads(&stmt.children[1], &mut reads);
+                // LHS may itself contain reads (arr[i] = ..., s.f = ...) but a
+                // *simple* identifier LHS is a pure write — counting it as a
+                // read would prevent legitimate dead-store elimination.
+                let lhs = &stmt.children[0];
+                if lhs.kind != NodeKind::ExprIdentifier {
+                    collect_reads(lhs, reads);
+                }
+                collect_reads(&stmt.children[1], reads);
             }
             NodeKind::ExprReturn if !stmt.children.is_empty() => {
-                collect_reads(&stmt.children[0], &mut reads);
+                collect_reads(&stmt.children[0], reads);
             }
             NodeKind::StmtExpr if !stmt.children.is_empty() => {
-                collect_reads(&stmt.children[0], &mut reads);
+                collect_reads(&stmt.children[0], reads);
+            }
+            NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange => {
+                for c in &stmt.children {
+                    if c.kind == NodeKind::Module {
+                        collect_reads_in_stmts(&c.children, reads);
+                    } else {
+                        // Condition / range expressions live directly as child
+                        // nodes (not wrapped in Module) — read them fully.
+                        collect_reads(c, reads);
+                    }
+                }
             }
             _ => {}
         }
     }
+}
+
+fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+    let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
+    collect_reads_in_stmts(stmts, &mut reads);
     let before = stmts.len();
     stmts.retain(|s| {
-        // R-OPT-1 (#918, W46): for StmtLocal the target name lives on
-        // `s.name` directly, but for StmtAssign the target is the LHS
+        // R-OPT-1 (#918, W46): the target of StmtAssign is the LHS
         // expression stored in `s.children[0]` and `s.name` is the empty
         // string. The previous code tested `reads.contains(&s.name)` on
-        // both kinds, so for *every* StmtAssign the test was
-        // `reads.contains("")`, which is always false, and the assignment
-        // was unconditionally dropped. This removed every assignment
-        // from every optimised program.
+        // StmtAssign, so the test was `reads.contains("")`, which is always
+        // false, and the assignment was unconditionally dropped. This removed
+        // every assignment from every optimised program.
         //
-        // Even with the right name, we must only eliminate an assignment
-        // whose LHS is a *simple identifier*: `arr[i] = x` and
-        // `s.field = x` write through a base that may be live, and
-        // dropping them is unsound. We therefore guard on the LHS kind
-        // before consulting `reads`.
-        if s.kind == NodeKind::StmtLocal && !s.children.is_empty()
-            && !reads.contains(&s.name) {
-                return false;
-            }
+        // We must only eliminate an assignment whose LHS is a *simple
+        // identifier*: `arr[i] = x` and `s.field = x` write through a base
+        // that may be live, and dropping them is unsound. We therefore guard on
+        // the LHS kind before consulting `reads`.
+        //
+        // Initialized local bindings (`let y = x`) are kept even when their
+        // only use is inlined by copy-propagation, because the backends emit
+        // the declaration as a named register. Tuple-destructuring locals have
+        // no name and are still eliminated if they are never read.
+        if s.kind == NodeKind::StmtLocal
+            && !s.children.is_empty()
+            && s.name.is_empty()
+            && s.extra_field.is_empty() // keep tuple-destructuring locals (pattern in extra_field)
+            && !reads.contains(&s.name)
+        {
+            return false;
+        }
         if s.kind == NodeKind::StmtAssign && s.children.len() >= 2 {
             let lhs = &s.children[0];
             if lhs.kind == NodeKind::ExprIdentifier
@@ -7310,6 +11741,29 @@ fn check_stmt(node: &Node, symbols: &mut Vec<SymbolEntry>, fns: &[FnEntry], resu
                         ));
                     }
                 }
+                // W456: assignments into an element of an immutable array (const
+                // ROM) are also illegal, even though the LHS is an ExprIndex rather
+                // than a bare ExprIdentifier.
+                if node.children[0].kind == NodeKind::ExprIndex
+                    && !node.children[0].children.is_empty()
+                    && node.children[0].children[0].kind == NodeKind::ExprIdentifier
+                {
+                    let base_name = &node.children[0].children[0].name;
+                    if let Some(sym) = symbols.iter().find(|s| s.name == *base_name) {
+                        if !sym.is_mutable {
+                            let line = if node.line > 0 {
+                                format!(":{}", node.line)
+                            } else {
+                                String::new()
+                            };
+                            result.error_count += 1;
+                            result.errors.push(format!(
+                                "error: cannot assign to immutable array element '{}[...]'{}",
+                                base_name, line
+                            ));
+                        }
+                    }
+                }
                 let target_type = infer_expr(&node.children[0], symbols, fns);
                 if node.children.len() > 1 {
                     let value_type = infer_expr(&node.children[1], symbols, fns);
@@ -7610,6 +12064,24 @@ fn resolve_type_str(s: &str) -> TypeInfo {
 pub struct RustCodegen {
     output: String,
     indent: usize,
+    /// Names of locals that are reassigned in the current function body
+    /// (via simple assignment `x = ...` or index assignment `arr[i] = ...`).
+    /// Used to infer `let mut` for locals declared with `let`.
+    mut_names: std::collections::HashSet<String>,
+    /// Rust return type of the function currently being emitted. Used to
+    /// coerce t27's integer-valued booleans into the declared return type.
+    fn_ret_type: String,
+    /// Functions in this module whose declared return type is `bool`.
+    bool_fns: std::collections::HashSet<String>,
+    /// Parameters and locals of the current function declared `bool`.
+    bool_vars: std::collections::HashSet<String>,
+    /// Rust type of every explicitly typed parameter/local of the current
+    /// function. Feeds `infer_int_type`.
+    var_types: std::collections::HashMap<String, String>,
+    /// Rust type of every explicitly typed constant in this module.
+    const_types: std::collections::HashMap<String, String>,
+    /// Declared Rust return type of every function in this module.
+    fn_ret_types: std::collections::HashMap<String, String>,
 }
 
 #[allow(dead_code)]
@@ -7618,6 +12090,13 @@ impl RustCodegen {
         RustCodegen {
             output: String::new(),
             indent: 0,
+            mut_names: std::collections::HashSet::new(),
+            fn_ret_type: String::new(),
+            bool_fns: std::collections::HashSet::new(),
+            bool_vars: std::collections::HashSet::new(),
+            var_types: std::collections::HashMap::new(),
+            const_types: std::collections::HashMap::new(),
+            fn_ret_types: std::collections::HashMap::new(),
         }
     }
 
@@ -7658,6 +12137,21 @@ impl RustCodegen {
     }
 
     pub fn gen_rust(&mut self, ast: &Node) {
+        // Pre-pass over the whole tree: functions declared `-> bool` return a
+        // real Rust bool, so a call to one must not get a `!= 0` guard added in
+        // condition position. Declarations may sit at file level or inside a
+        // module node, so the scan is recursive.
+        self.bool_fns.clear();
+        collect_bool_fns(ast, &mut self.bool_fns);
+
+        // Same pre-pass, for the integer widths used by `infer_int_type`:
+        // callee return types and module-level constants are both visible from
+        // any function body, so they are collected once over the whole tree.
+        self.fn_ret_types.clear();
+        collect_fn_ret_types(ast, &mut self.fn_ret_types);
+        self.const_types.clear();
+        collect_const_types(ast, &mut self.const_types);
+
         // Header
         self.write_line("// Generated from .t27 spec");
         self.write_line("// DO NOT EDIT — generated by t27c");
@@ -7741,7 +12235,7 @@ impl RustCodegen {
         let value = if node.children.is_empty() {
             "()".to_string()
         } else {
-            Self::expr_to_rust(&node.children[0])
+            self.expr_to_rust(&node.children[0])
         };
         self.write_line(&format!(
             "pub const {}: {} = {};",
@@ -7764,6 +12258,7 @@ impl RustCodegen {
             Self::t27_type_to_rust(node.extra_return_type.as_str())
         };
 
+        self.fn_ret_type = ret_type.clone();
         self.write(&format!(
             "pub fn {}({}) -> {} {{",
             fn_name, params_str, ret_type
@@ -7774,6 +12269,34 @@ impl RustCodegen {
             matches!(c.kind, NodeKind::ExprReturn | NodeKind::StmtExpr | NodeKind::StmtLocal | NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange)
         });
 
+        // Infer which locals need `let mut`: scan body for any assignment.
+        self.mut_names.clear();
+        collect_mutable_names(&node.children, &mut self.mut_names);
+
+        // Same reason as bool_fns, for parameters and locals declared `bool`.
+        self.bool_vars.clear();
+        for (pname, ptype) in &params {
+            if ptype.trim() == "bool" {
+                self.bool_vars.insert(pname.clone());
+            }
+        }
+        collect_bool_locals(&node.children, &mut self.bool_vars);
+
+        // Declared widths of this function's parameters and locals, so a
+        // `return` of a narrower/wider value can be cast to the return type.
+        self.var_types.clear();
+        for (pname, ptype) in &params {
+            if !ptype.trim().is_empty() {
+                self.var_types
+                    .insert(pname.clone(), Self::t27_type_to_rust(ptype));
+            }
+        }
+        collect_typed_locals(&node.children, &mut self.var_types);
+        // A local declared without a type still has one — `let n = x as u16`
+        // is a u16. Recorded after the explicit types above, so a declared
+        // type always wins over an inferred one.
+        self.record_inferred_locals(&node.children);
+
         if has_body {
             self.output.push('\n');
             self.indent += 1;
@@ -7783,18 +12306,29 @@ impl RustCodegen {
                         let val = if child.children.is_empty() {
                             "()".to_string()
                         } else {
-                            Self::expr_to_rust(&child.children[0])
+                            { let rt = self.fn_ret_type.clone(); self.expr_to_rust_as(&child.children[0], &rt) }
                         };
                         self.write_line(&format!("return {};", val));
                     }
                     NodeKind::StmtExpr => {
                         if child.children.len() == 1 {
-                            let expr = Self::expr_to_rust(&child.children[0]);
+                            let expr = self.expr_to_rust(&child.children[0]);
                             self.write_line(&format!("{};", expr));
                         }
                     }
+                    NodeKind::StmtLocal
+                        if child.name.is_empty() && !child.extra_field.is_empty() =>
+                    {
+                        // Tuple-destructuring binding: `let (a, b) = init`.
+                        let val = if child.children.is_empty() {
+                            "()".to_string()
+                        } else {
+                            self.expr_to_rust(&child.children[0])
+                        };
+                        self.write_line(&format!("let ({}) = {};", child.extra_field, val));
+                    }
                     NodeKind::StmtLocal => {
-                        let mutable = child.extra_mutable;
+                        let mutable = child.extra_mutable || self.mut_names.contains(&child.name);
                         let kw = if mutable { "let mut" } else { "let" };
                         let var_name = &child.name;
                         let typ = Self::t27_type_to_rust(&child.extra_type);
@@ -7805,7 +12339,7 @@ impl RustCodegen {
                                 self.write_line(&format!("{} {}: {};", kw, var_name, typ));
                             }
                         } else {
-                            let val = Self::expr_to_rust(&child.children[0]);
+                            let val = self.expr_to_rust(&child.children[0]);
                             if child.extra_type.is_empty() {
                                 self.write_line(&format!("{} {} = {};", kw, var_name, val));
                             } else {
@@ -7820,10 +12354,10 @@ impl RustCodegen {
                         let target = if child.children.is_empty() {
                             child.name.clone()
                         } else {
-                            Self::expr_to_rust(&child.children[0])
+                            self.expr_to_rust(&child.children[0])
                         };
                         if child.children.len() >= 2 {
-                            let val = Self::expr_to_rust(&child.children[1]);
+                            let val = self.expr_to_rust(&child.children[1]);
                             self.write_line(&format!("{} = {};", target, val));
                         } else {
                             self.write_line(&format!("{};", target));
@@ -7833,7 +12367,7 @@ impl RustCodegen {
                         self.write_indent();
                         self.write("if ");
                         if !child.children.is_empty() {
-                            self.write(&Self::expr_to_rust(&child.children[0]));
+                            self.write(&self.expr_to_rust_cond(&child.children[0]));
                         }
                         self.write(" {\n");
                         self.indent += 1;
@@ -7858,7 +12392,7 @@ impl RustCodegen {
                         self.write_indent();
                         self.write("while ");
                         if !child.children.is_empty() {
-                            self.write(&Self::expr_to_rust(&child.children[0]));
+                            self.write(&self.expr_to_rust_cond(&child.children[0]));
                         }
                         self.write(" {\n");
                         self.indent += 1;
@@ -7878,7 +12412,7 @@ impl RustCodegen {
                         }
                         self.write(" in ");
                         if !child.children.is_empty() {
-                            self.write(&Self::expr_to_rust(&child.children[0]));
+                            self.write(&self.expr_to_rust(&child.children[0]));
                         }
                         self.write(" {\n");
                         self.indent += 1;
@@ -7894,9 +12428,9 @@ impl RustCodegen {
                         self.write_indent();
                         self.write(&format!("for {} in ", child.name));
                         if child.children.len() >= 2 {
-                            self.write(&Self::expr_to_rust(&child.children[0]));
+                            self.write(&self.expr_to_rust(&child.children[0]));
                             self.write("..");
-                            self.write(&Self::expr_to_rust(&child.children[1]));
+                            self.write(&self.expr_to_rust(&child.children[1]));
                         }
                         self.write(" {\n");
                         self.indent += 1;
@@ -7925,17 +12459,28 @@ impl RustCodegen {
                 let val = if stmt.children.is_empty() {
                     "()".to_string()
                 } else {
-                    Self::expr_to_rust(&stmt.children[0])
+                    { let rt = self.fn_ret_type.clone(); self.expr_to_rust_as(&stmt.children[0], &rt) }
                 };
                 self.write_line(&format!("return {};", val));
             }
             NodeKind::StmtExpr => {
                 if stmt.children.len() == 1 {
-                    self.write_line(&format!("{};", Self::expr_to_rust(&stmt.children[0])));
+                    self.write_line(&format!("{};", self.expr_to_rust(&stmt.children[0])));
                 }
             }
             NodeKind::StmtLocal => {
-                let kw = if stmt.extra_mutable { "let mut" } else { "let" };
+                // Tuple-destructuring binding: `let (a, b) = init` (name empty,
+                // pattern stored in extra_field by parse_local_decl).
+                if stmt.name.is_empty() && !stmt.extra_field.is_empty() {
+                    let val = if stmt.children.is_empty() {
+                        "()".to_string()
+                    } else {
+                        self.expr_to_rust(&stmt.children[0])
+                    };
+                    self.write_line(&format!("let ({}) = {};", stmt.extra_field, val));
+                    return;
+                }
+                let kw = if stmt.extra_mutable || self.mut_names.contains(&stmt.name) { "let mut" } else { "let" };
                 let typ = Self::t27_type_to_rust(&stmt.extra_type);
                 if stmt.children.is_empty() {
                     if stmt.extra_type.is_empty() {
@@ -7944,7 +12489,7 @@ impl RustCodegen {
                         self.write_line(&format!("{} {}: {};", kw, stmt.name, typ));
                     }
                 } else {
-                    let val = Self::expr_to_rust(&stmt.children[0]);
+                    let val = self.expr_to_rust(&stmt.children[0]);
                     if stmt.extra_type.is_empty() {
                         self.write_line(&format!("{} {} = {};", kw, stmt.name, val));
                     } else {
@@ -7954,8 +12499,8 @@ impl RustCodegen {
             }
             NodeKind::StmtAssign => {
                 if stmt.children.len() >= 2 {
-                    let target = Self::expr_to_rust(&stmt.children[0]);
-                    let val = Self::expr_to_rust(&stmt.children[1]);
+                    let target = self.expr_to_rust(&stmt.children[0]);
+                    let val = self.expr_to_rust(&stmt.children[1]);
                     self.write_line(&format!("{} = {};", target, val));
                 }
             }
@@ -7963,7 +12508,7 @@ impl RustCodegen {
                 self.write_indent();
                 self.write("if ");
                 if !stmt.children.is_empty() {
-                    self.write(&Self::expr_to_rust(&stmt.children[0]));
+                    self.write(&self.expr_to_rust_cond(&stmt.children[0]));
                 }
                 self.write(" {\n");
                 self.indent += 1;
@@ -7988,7 +12533,7 @@ impl RustCodegen {
                 self.write_indent();
                 self.write("while ");
                 if !stmt.children.is_empty() {
-                    self.write(&Self::expr_to_rust(&stmt.children[0]));
+                    self.write(&self.expr_to_rust_cond(&stmt.children[0]));
                 }
                 self.write(" {\n");
                 self.indent += 1;
@@ -8014,7 +12559,7 @@ impl RustCodegen {
                 }
                 self.write(" in ");
                 if !stmt.children.is_empty() {
-                    self.write(&Self::expr_to_rust(&stmt.children[0]));
+                    self.write(&self.expr_to_rust(&stmt.children[0]));
                 }
                 self.write(" {\n");
                 self.indent += 1;
@@ -8030,9 +12575,9 @@ impl RustCodegen {
                 self.write_indent();
                 self.write(&format!("for {} in ", stmt.name));
                 if stmt.children.len() >= 2 {
-                    self.write(&Self::expr_to_rust(&stmt.children[0]));
+                    self.write(&self.expr_to_rust(&stmt.children[0]));
                     self.write("..");
-                    self.write(&Self::expr_to_rust(&stmt.children[1]));
+                    self.write(&self.expr_to_rust(&stmt.children[1]));
                 }
                 self.write(" {\n");
                 self.indent += 1;
@@ -8069,6 +12614,24 @@ impl RustCodegen {
                 let inner = &t[2..];
                 format!("Vec<{}>", Self::t27_type_to_rust(inner))
             }
+            // [T; N] form (Rust-style fixed array). Must stay a real array:
+            // dropping the element type produced `Vec<>`, which does not compile.
+            t if t.starts_with('[') && t.ends_with(']') && t[1..].contains(';') => {
+                let body = &t[1..t.len() - 1];
+                match body.split_once(';') {
+                    Some((elem, len)) => {
+                        let elem_rust = Self::t27_type_to_rust(elem.trim());
+                        let len = len.trim();
+                        if len.chars().all(|c| c.is_ascii_digit()) {
+                            format!("[{}; {}]", elem_rust, len)
+                        } else {
+                            // Named constants are emitted as u32; array lengths must be usize.
+                            format!("[{}; {} as usize]", elem_rust, len)
+                        }
+                    }
+                    None => t.to_string(),
+                }
+            }
             t if t.starts_with('[') && t.contains(']') => {
                 // [N]T format - convert to Vec
                 if let Some(bracket_end) = t.find(']') {
@@ -8088,14 +12651,205 @@ impl RustCodegen {
         }
     }
 
-    fn expr_to_rust(node: &Node) -> String {
+    /// Syntactic test: does this expression already evaluate to a Rust `bool`?
+    /// t27 treats comparisons as integers; Rust does not, so every crossing
+    /// between the two has to be made explicit.
+    fn expr_is_bool(&self, node: &Node) -> bool {
+        match node.kind {
+            NodeKind::ExprBinary => matches!(
+                node.extra_op.as_str(),
+                "==" | "!=" | "<" | "<=" | ">" | ">=" | "and" | "or" | "&&" | "||"
+            ),
+            NodeKind::ExprUnary => node.extra_op == "!" || node.extra_op == "not",
+            NodeKind::ExprLiteral => node.value == "true" || node.value == "false",
+            NodeKind::ExprIdentifier => self.bool_vars.contains(&node.name),
+            NodeKind::ExprCall => self.bool_fns.contains(&node.name),
+            _ => false,
+        }
+    }
+
+    /// Emit an expression in a condition position (`if`, `while`).
+    fn expr_to_rust_cond(&self, node: &Node) -> String {
+        let s = self.expr_to_rust(node);
+        if self.expr_is_bool(node) {
+            s
+        } else {
+            format!("({}) != 0", s)
+        }
+    }
+
+    fn is_int_type(ty: &str) -> bool {
+        matches!(
+            ty.trim(),
+            "u8" | "u16" | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" | "usize" | "isize"
+        )
+    }
+
+    /// Best-effort width inference for an integer-valued expression, in Rust
+    /// type names. `None` means "no declared width to go on" — either the
+    /// expression is an unsuffixed literal (which Rust infers at the use site)
+    /// or its type was never declared — and callers must not force a cast on
+    /// that, since the inference is what makes the existing output compile.
+    fn infer_int_type(&self, node: &Node) -> Option<String> {
+        let known = |t: &String| {
+            if Self::is_int_type(t) {
+                Some(t.clone())
+            } else {
+                None
+            }
+        };
+        match node.kind {
+            NodeKind::ExprIdentifier => self
+                .var_types
+                .get(&node.name)
+                .or_else(|| self.const_types.get(&node.name))
+                .and_then(known),
+            NodeKind::ExprCall => self.fn_ret_types.get(&node.name).and_then(known),
+            NodeKind::ExprCast => {
+                let target = node.extra_type.split('[').next().unwrap_or("").trim();
+                if Self::is_int_type(target) {
+                    Some(target.to_string())
+                } else {
+                    None
+                }
+            }
+            NodeKind::ExprUnary if node.children.len() == 1 => {
+                self.infer_int_type(&node.children[0])
+            }
+            NodeKind::ExprBinary if node.children.len() >= 2 => {
+                // Comparisons and logical ops are `bool`, not integers.
+                if self.expr_is_bool(node) {
+                    return None;
+                }
+                // A shift takes the width of its left operand.
+                let left = self.infer_int_type(&node.children[0]);
+                if node.extra_op == "<<" || node.extra_op == ">>" {
+                    return left;
+                }
+                // Otherwise the result is whatever `coerce_binary_operands`
+                // widened both sides to; the two must stay in agreement.
+                match (left, self.infer_int_type(&node.children[1])) {
+                    (Some(a), Some(b)) => Some(Self::join_int_types(&a, &b)),
+                    (Some(a), None) => Some(a),
+                    (None, right) => right,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Record the width of every untyped local whose initialiser has one, in
+    /// source order so a local may be inferred from an earlier local. Locals
+    /// initialised from a bare literal are deliberately left unknown — Rust
+    /// infers those at the use site, and pinning a width here could conflict.
+    fn record_inferred_locals(&mut self, nodes: &[Node]) {
+        for n in nodes {
+            if n.kind == NodeKind::StmtLocal
+                && !n.name.is_empty()
+                && n.extra_type.trim().is_empty()
+                && !n.children.is_empty()
+                && !self.var_types.contains_key(&n.name)
+            {
+                if let Some(t) = self.infer_int_type(&n.children[0]) {
+                    self.var_types.insert(n.name.clone(), t);
+                }
+            }
+            self.record_inferred_locals(&n.children);
+        }
+    }
+
+    /// Bit width of a Rust integer type name. `usize`/`isize` are treated as
+    /// 64-bit, matching every target this repo builds for.
+    fn int_rank(ty: &str) -> u32 {
+        match ty.trim() {
+            "u8" | "i8" => 8,
+            "u16" | "i16" => 16,
+            "u32" | "i32" => 32,
+            "u64" | "i64" | "usize" | "isize" => 64,
+            "u128" | "i128" => 128,
+            _ => 0,
+        }
+    }
+
+    /// Common type for a mixed-width binary operation: the wider operand wins.
+    /// Equal ranks that still differ (`u32`/`i32`, `u64`/`usize`) resolve to
+    /// the left operand, matching the left-biased inference above.
+    fn join_int_types(a: &str, b: &str) -> String {
+        if Self::int_rank(a) >= Self::int_rank(b) {
+            a.to_string()
+        } else {
+            b.to_string()
+        }
+    }
+
+    /// Rust requires both operands of an arithmetic/bitwise/comparison operator
+    /// to have the *same* integer type; t27 does not. Cast the narrower side up
+    /// so the emitted operator compiles. Shifts are exempt — Rust already
+    /// accepts any integer type as the shift amount.
+    fn coerce_binary_operands(&self, node: &Node, left: &mut String, right: &mut String) {
+        if matches!(node.extra_op.as_str(), "<<" | ">>") {
+            return;
+        }
+        let (lt, rt) = match (
+            self.infer_int_type(&node.children[0]),
+            self.infer_int_type(&node.children[1]),
+        ) {
+            (Some(lt), Some(rt)) => (lt, rt),
+            _ => return,
+        };
+        if lt == rt {
+            return;
+        }
+        let common = Self::join_int_types(&lt, &rt);
+        if lt != common {
+            *left = format!("({} as {})", left, common);
+        }
+        if rt != common {
+            *right = format!("({} as {})", right, common);
+        }
+    }
+
+    /// Emit an expression in an integer position (return value, typed local).
+    fn expr_to_rust_as(&self, node: &Node, ty: &str) -> String {
+        let s = self.expr_to_rust(node);
+        let ty = ty.trim();
+        if !Self::is_int_type(ty) {
+            return s;
+        }
+        if self.expr_is_bool(node) {
+            return format!("({}) as {}", s, ty);
+        }
+        // Rust has no implicit integer widening: returning a `u8` parameter or
+        // a `u64` expression from a `-> u32` function is E0308. t27 accepts the
+        // mixed widths, so the cast has to be materialised here.
+        match self.infer_int_type(node) {
+            Some(actual) if actual != ty => format!("({}) as {}", s, ty),
+            _ => s,
+        }
+    }
+
+    fn expr_to_rust(&self, node: &Node) -> String {
         match node.kind {
             NodeKind::ExprLiteral => node.value.clone(),
             NodeKind::ExprIdentifier => node.name.clone(),
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
-                    let left = Self::expr_to_rust(&node.children[0]);
-                    let right = Self::expr_to_rust(&node.children[1]);
+                    let mut left = self.expr_to_rust(&node.children[0]);
+                    let mut right = self.expr_to_rust(&node.children[1]);
+                    self.coerce_binary_operands(node, &mut left, &mut right);
+                    // Zig-style wrapping operators (+% -% *%) have no infix form
+                    // in Rust; lower them to the wrapping_* methods. Emitting the
+                    // literal operator produced uncompilable Rust. Checked +/-/*
+                    // stay infix so the Rust backend keeps the same overflow-panic
+                    // semantics as the Zig backend.
+                    if let Some(method) = match node.extra_op.as_str() {
+                        "+%" => Some("wrapping_add"),
+                        "-%" => Some("wrapping_sub"),
+                        "*%" => Some("wrapping_mul"),
+                        _ => None,
+                    } {
+                        return format!("({}).{}({})", left, method, right);
+                    }
                     let op = match node.extra_op.as_str() {
                         "and" => "&&",
                         "or" => "||",
@@ -8110,7 +12864,7 @@ impl RustCodegen {
                 let args: Vec<String> = node
                     .children
                     .iter()
-                    .map(Self::expr_to_rust)
+                    .map(|c| self.expr_to_rust(c))
                     .collect();
                 format!("{}({})", node.name, args.join(", "))
             }
@@ -8118,9 +12872,17 @@ impl RustCodegen {
                 let elems: Vec<String> = node
                     .children
                     .iter()
-                    .map(Self::expr_to_rust)
+                    .map(|c| self.expr_to_rust(c))
                     .collect();
                 format!("vec![{}]", elems.join(", "))
+            }
+            NodeKind::ExprTuple => {
+                let elems: Vec<String> = node
+                    .children
+                    .iter()
+                    .map(|c| self.expr_to_rust(c))
+                    .collect();
+                format!("({})", elems.join(", "))
             }
             NodeKind::ExprStructLit => {
                 let fields: Vec<String> = node
@@ -8130,7 +12892,7 @@ impl RustCodegen {
                         let val = if c.children.is_empty() {
                             "{}".to_string()
                         } else {
-                            Self::expr_to_rust(&c.children[0])
+                            self.expr_to_rust(&c.children[0])
                         };
                         format!("{}: {}", c.name, val)
                     })
@@ -8140,43 +12902,55 @@ impl RustCodegen {
             NodeKind::ExprEnumValue => format!("{}::{}", node.name, node.extra_field),
             NodeKind::ExprUnary => {
                 if !node.children.is_empty() {
-                    format!(
-                        "{}({})",
-                        node.extra_op,
-                        Self::expr_to_rust(&node.children[0])
-                    )
+                    let operand = &node.children[0];
+                    // `!x` on an integer is logical negation in t27 but bitwise
+                    // negation in Rust; emit an explicit zero test instead.
+                    // On an operand that is already a Rust `bool` (comparison,
+                    // `bool` parameter/local, or call to a `-> bool` function)
+                    // the zero test is itself uncompilable — `bool == {integer}`
+                    // is E0308 — so `!` has to stay `!`.
+                    if (node.extra_op == "!" || node.extra_op == "not")
+                        && !self.expr_is_bool(operand)
+                    {
+                        format!("(({}) == 0)", self.expr_to_rust(operand))
+                    } else {
+                        format!("{}({})", node.extra_op, self.expr_to_rust(operand))
+                    }
                 } else {
                     node.extra_op.clone()
                 }
             }
             NodeKind::ExprFieldAccess => {
                 if !node.children.is_empty() {
-                    format!("{}.{}", Self::expr_to_rust(&node.children[0]), node.name)
+                    format!("{}.{}", self.expr_to_rust(&node.children[0]), node.name)
                 } else {
                     node.name.clone()
                 }
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
-                    format!(
-                        "{}[{}]",
-                        Self::expr_to_rust(&node.children[0]),
-                        Self::expr_to_rust(&node.children[1])
-                    )
+                    let base = self.expr_to_rust(&node.children[0]);
+                    let idx = self.expr_to_rust(&node.children[1]);
+                    // t27 indices are u32; Rust requires usize.
+                    if idx.chars().all(|c| c.is_ascii_digit()) {
+                        format!("{}[{}]", base, idx)
+                    } else {
+                        format!("{}[({}) as usize]", base, idx)
+                    }
                 } else {
                     "()".to_string()
                 }
             }
             NodeKind::ExprIf => {
-                let mut s = format!("if {} {{ ", Self::expr_to_rust(&node.children[0]));
+                let mut s = format!("if {} {{ ", self.expr_to_rust(&node.children[0]));
                 if node.children.len() > 1 {
-                    s.push_str(&Self::expr_to_rust(&node.children[1]));
+                    s.push_str(&self.expr_to_rust(&node.children[1]));
                 }
                 s.push_str(" }");
                 if node.children.len() > 2 {
                     s.push_str(&format!(
                         " else {{ {} }}",
-                        Self::expr_to_rust(&node.children[2])
+                        self.expr_to_rust(&node.children[2])
                     ));
                 }
                 s
@@ -8185,7 +12959,7 @@ impl RustCodegen {
                 if node.children.is_empty() {
                     return "/* switch */".to_string();
                 }
-                let scrutinee = Self::expr_to_rust(&node.children[0]);
+                let scrutinee = self.expr_to_rust(&node.children[0]);
                 let mut s = format!("match {} {{\n", scrutinee);
                 for i in 1..node.children.len() {
                     let arm = &node.children[i];
@@ -8196,7 +12970,7 @@ impl RustCodegen {
                             "_".to_string()
                         };
                         let body = if !arm.children.is_empty() {
-                            Self::expr_to_rust(&arm.children[0])
+                            self.expr_to_rust(&arm.children[0])
                         } else {
                             "()".to_string()
                         };
@@ -8210,7 +12984,7 @@ impl RustCodegen {
                 if node.children.is_empty() {
                     "()".to_string()
                 } else {
-                    let operand = Self::expr_to_rust(&node.children[0]);
+                    let operand = self.expr_to_rust(&node.children[0]);
                     let target = node
                         .extra_type
                         .split('[')
@@ -19630,8 +24404,19 @@ mod tests_hir_pipeline_parity {
     }
 }"#;
         let v = Compiler::compile_verilog(src).unwrap();
-        assert!(!v.contains("pairsa"), "indexed field access must use underscore: got 'pairsa'");
-        assert!(v.contains("pairs_a"), "expected flattened name pairs_a");
+        assert!(
+            !v.contains("pairsa"),
+            "indexed field access must not concatenate names: got 'pairsa'"
+        );
+        assert!(
+            !v.contains("pairs_a"),
+            "indexed field access must not use flattened name pairs_a"
+        );
+        assert!(
+            v.contains("pairs[((idx) * 16 + 0) +: 8]"),
+            "expected packed slice for indexed field access, got:\n{}",
+            v
+        );
     }
 
     #[test]
@@ -19720,6 +24505,74 @@ mod tests_hir_pipeline_parity {
         assert!(
             v.contains("function signed [15:0] signedcast;"),
             "i16 return should declare a signed 16-bit function, got:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn test_verilog_keyword_parameter_escaped() {
+        // Regression for gen-verilog weak point #1245: a function parameter whose
+        // name is a Verilog keyword (`task`) must be emitted as the escaped
+        // identifier `\\task ` so Yosys/iverilog accept the module.
+        let src = r#"module KeywordParamTest {
+    pub fn evaluate_task_at_k(task: u32, k: u32) -> bool {
+        return task == k
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(
+            v.contains("input [31:0] \\task "),
+            "parameter named `task` must be escaped as `\\\\task `, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("input [31:0] task;"),
+            "parameter named `task` must NOT be emitted as bare keyword, got:\n{}",
+            v
+        );
+        // The function body references the parameter; the reference must also
+        // use the escaped form so it resolves to the escaped declaration.
+        assert!(
+            v.contains("\\task  == k"),
+            "reference to escaped parameter must use `\\\\task `, got:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn test_verilog_keyword_local_and_module_escaped() {
+        // Extension of the keyword-escape fix: local variables and module-level
+        // consts/vars that collide with Verilog keywords must be escaped in both
+        // declaration and reference sites so the emitted Verilog is
+        // internally consistent.
+        let src = r#"module KeywordLocalTest {
+    pub const wire : u16 = 1
+    pub var reg : u32 = 2
+
+    pub fn use_module_level() -> u32 {
+        var task : u32 = 3
+        return wire as u32 + reg + task
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(
+            v.contains("[15:0] \\wire ") || v.contains("localparam \\wire ") || v.contains("parameter \\wire "),
+            "module-level const `wire` must be escaped, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("reg [31:0] \\reg "),
+            "module-level var `reg` must be escaped, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("reg [31:0] \\task "),
+            "local variable `task` must be escaped, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("\\wire ") && v.contains("\\reg ") && v.contains("\\task "),
+            "all references to escaped identifiers must use escaped form, got:\n{}",
             v
         );
     }
@@ -22516,6 +27369,319 @@ mod tests_phase40_coverage {
         assert!(out.contains("for i in 0..8"), "Rust output: {}", out);
     }
 
+    // A function with a tuple return type `-> (T, U)` used to be silently
+    // dropped: the return-type parser had no `(` branch, desynced, and the
+    // whole function vanished (breaking every backend). It must now survive
+    // parsing with its tuple signature intact. (Body-lowering + `let (a,b)`
+    // destructuring are separate follow-ups; this only fixes the silent drop.)
+    #[test]
+    fn test_tuple_return_type_not_dropped() {
+        let code = "module M { pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("-> (u32, u32)"),
+            "tuple-return function was dropped or its signature mangled: {}",
+            out
+        );
+    }
+
+    // gen-rust tuple support end-to-end: tuple literal `(a, b)` in a return and
+    // `let (s, d) = call()` destructuring must both emit valid Rust (they used
+    // to drop to `let ;` / `unimplemented!()`). Compiles under rustc.
+    #[test]
+    fn test_tuple_literal_and_destructuring_rust() {
+        let code = "module M { \
+            pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } \
+            pub fn use_it(a: u32, b: u32) -> u32 { let (s, d) = dm(a, b); return s + d; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("let (s, d) = dm(a, b)"),
+            "tuple destructuring not emitted: {}",
+            out
+        );
+        assert!(
+            out.contains("((a + b), (a - b))"),
+            "tuple literal not emitted: {}",
+            out
+        );
+        assert!(!out.contains("let ;"), "empty let leaked: {}", out);
+        assert!(
+            !out.contains("unimplemented!()"),
+            "tuple-return body stubbed to unimplemented: {}",
+            out
+        );
+    }
+
+    // #1702: gen-verilog tuple lowering. A tuple-return function packs its
+    // elements into one vector (element 0 in the LSB) whose width is the sum of
+    // the element widths, and `let (s, d) = call()` destructures via a packed
+    // temp sliced back out. Used to emit `/* unsupported expr: ExprTuple */` and
+    // `reg [31:0] ;`.
+    #[test]
+    fn test_tuple_literal_and_destructuring_verilog() {
+        let code = "module M { \
+            pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } \
+            pub fn use_it(a: u32, b: u32) -> u32 { let (s, d) = dm(a, b); return s + d; } }";
+        let out = Compiler::compile_verilog(code).expect("compile should succeed");
+        // Tuple-return width is the packed sum (32 + 32 = 64), not a bare 32.
+        assert!(
+            out.contains("function [63:0] dm;"),
+            "tuple-return width not packed to 64: {}",
+            out
+        );
+        // Element 0 (a + b) sits in the LSB of the concatenation.
+        assert!(
+            out.contains("dm = {(a - b), (a + b)};"),
+            "tuple literal not lowered to LSB-first concat: {}",
+            out
+        );
+        // Destructuring: packed temp, then LSB/MSB slices into the bindings.
+        assert!(
+            out.contains("s = __tup_l1[31:0];") && out.contains("d = __tup_l1[63:32];"),
+            "tuple destructuring slices not emitted: {}",
+            out
+        );
+        assert!(
+            !out.contains("unsupported expr: ExprTuple"),
+            "ExprTuple left unlowered: {}",
+            out
+        );
+        assert!(!out.contains("reg [31:0] ;"), "empty reg decl leaked: {}", out);
+    }
+
+    // #1702: gen-zig tuple lowering. A tuple-return type `(T, U)` lowers to a Zig
+    // anonymous tuple struct, the tuple literal to `.{ ... }`, and
+    // `let (s, d) = call()` to `const s, const d = call();`. Used to emit an
+    // invalid `(u32, u32)` return type, `return ;`, and `const  = dm(a, b);`.
+    // The emitted forms compile + comptime-evaluate under Zig 0.15.2.
+    #[test]
+    fn test_tuple_literal_and_destructuring_zig() {
+        let code = "module M { \
+            pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } \
+            pub fn use_it(a: u32, b: u32) -> u32 { let (s, d) = dm(a, b); return s + d; } }";
+        let out = Compiler::compile(code).expect("compile should succeed");
+        assert!(
+            out.contains("pub fn dm(a: u32, b: u32) struct { u32, u32 } {"),
+            "tuple return type not lowered to Zig tuple struct: {}",
+            out
+        );
+        assert!(
+            out.contains("return .{ a + b, a - b };"),
+            "tuple literal not lowered to Zig `.{{ ... }}`: {}",
+            out
+        );
+        assert!(
+            out.contains("const s, const d = dm(a, b);"),
+            "tuple destructuring not lowered to Zig `const s, const d = ...`: {}",
+            out
+        );
+        assert!(!out.contains("const  ="), "empty binding leaked: {}", out);
+        assert!(!out.contains("return ;"), "empty return leaked: {}", out);
+    }
+
+    // #1702: gen-c tuple lowering. C has no anonymous tuples, so a tuple return
+    // type gets a hoisted `typedef struct { ... }`, the literal a C99 compound
+    // literal, and `let (s, d) = call()` a temp-struct + per-field copies. Used
+    // to emit `(u32, u32) dm(...)`, `return /* unsupported: ExprTuple */;` and
+    // `int  = dm(a, b);`. The emitted C compiles (-std=c99 -Wall) and runs.
+    #[test]
+    fn test_tuple_literal_and_destructuring_c() {
+        let code = "module M { \
+            pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } \
+            pub fn use_it(a: u32, b: u32) -> u32 { let (s, d) = dm(a, b); return s + d; } }";
+        let out = Compiler::compile_c(code).expect("compile should succeed");
+        assert!(
+            out.contains("typedef struct { uint32_t f0; uint32_t f1; } t27_tuple_uint32_t_uint32_t;"),
+            "tuple typedef not hoisted: {}",
+            out
+        );
+        assert!(
+            out.contains("t27_tuple_uint32_t_uint32_t dm(uint32_t a, uint32_t b)"),
+            "tuple return type not lowered to the struct: {}",
+            out
+        );
+        assert!(
+            out.contains("return (t27_tuple_uint32_t_uint32_t){ (a + b), (a - b) };"),
+            "tuple literal not lowered to a C compound literal: {}",
+            out
+        );
+        assert!(
+            out.contains("uint32_t s = __t_c1.f0;") && out.contains("uint32_t d = __t_c1.f1;"),
+            "tuple destructuring not lowered to per-field copies: {}",
+            out
+        );
+        assert!(!out.contains("unsupported: ExprTuple"), "ExprTuple left unlowered: {}", out);
+        assert!(!out.contains("int  = "), "empty binding leaked: {}", out);
+    }
+
+    // #1659: Zig-style wrapping operators +% -% *% must lower per backend.
+    // Rust has no infix form -> wrapping_* methods. Verilog and C already wrap
+    // by width, so they collapse to the plain operator (Verilog * / *% share the
+    // __mul_noop path). Zig has the operators natively and passes them through.
+    #[test]
+    fn test_wrapping_ops_all_backends_1659() {
+        let code =
+            "module M { pub fn f(a: u32, b: u32) -> u32 { return (a +% b) *% (a -% b); } }";
+
+        let rust = Compiler::compile_rust(code).expect("rust compile");
+        assert!(
+            rust.contains("wrapping_add")
+                && rust.contains("wrapping_sub")
+                && rust.contains("wrapping_mul"),
+            "rust missing wrapping_* methods: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("+%") && !rust.contains("-%") && !rust.contains("*%"),
+            "literal wrapping op leaked into Rust: {}",
+            rust
+        );
+
+        let c = Compiler::compile_c(code).expect("c compile");
+        assert!(
+            !c.contains("+%") && !c.contains("-%") && !c.contains("*%"),
+            "literal wrapping op leaked into C: {}",
+            c
+        );
+
+        let vlog = Compiler::compile_verilog(code).expect("verilog compile");
+        assert!(
+            !vlog.contains("+%") && !vlog.contains("-%") && !vlog.contains("*%"),
+            "literal wrapping op leaked into Verilog: {}",
+            vlog
+        );
+        assert!(
+            vlog.contains("__mul_noop"),
+            "verilog *% should route through __mul_noop: {}",
+            vlog
+        );
+
+        // Zig has +% -% *% natively; the emitter passes them through verbatim.
+        let zig = Compiler::compile(code).expect("zig compile");
+        assert!(
+            zig.contains("+%") && zig.contains("-%") && zig.contains("*%"),
+            "zig should keep native wrapping ops: {}",
+            zig
+        );
+    }
+
+    // gen-rust regression: `!x` where `x` is already a Rust `bool` (a `bool`
+    // parameter or a call to a `-> bool` function) was lowered to the integer
+    // zero test `(x) == 0`, which is `bool == {integer}` -> E0308. The zero
+    // test is only correct for integer operands.
+    #[test]
+    fn test_not_on_bool_stays_not_rust() {
+        let code = "module M { \
+                    pub fn seen(x: u32) -> bool { return x > 0; } \
+                    pub fn accept(seen_any: bool, n: u32) -> bool { \
+                    if (!seen_any) { return true; } \
+                    if (!seen(n)) { return true; } \
+                    return false; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            !out.contains("(seen_any) == 0"),
+            "`!` on a bool parameter must not become an integer zero test: {}",
+            out
+        );
+        assert!(
+            out.contains("if !(seen_any)"),
+            "`!seen_any` should lower to Rust `!`: {}",
+            out
+        );
+        assert!(
+            out.contains("if !(seen(n))"),
+            "`!` on a `-> bool` call should lower to Rust `!`: {}",
+            out
+        );
+    }
+
+    // gen-rust regression: `!` on an *integer* still needs the zero test,
+    // since Rust's `!` is bitwise negation there.
+    #[test]
+    fn test_not_on_int_stays_zero_test_rust() {
+        let code = "module M { pub fn f(n: u32) -> u32 { if (!n) { return 1; } return 0; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("(n) == 0"),
+            "`!` on an integer must stay an explicit zero test: {}",
+            out
+        );
+    }
+
+    // gen-rust regression: Rust has no implicit integer widening, so a
+    // `return` whose value is a different width than the declared return type
+    // is E0308. t27 accepts the mismatch, so gen-rust must materialise the cast.
+    #[test]
+    fn test_return_widens_to_declared_type_rust() {
+        let code = "module M { pub fn nonce_byte(dir: u8, i: u32, ctr: u64) -> u32 { \
+                    if (i == 0) { return dir; } \
+                    return (ctr >> 8) & 255; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("(dir) as u32"),
+            "u8 parameter returned from a -> u32 fn must be cast: {}",
+            out
+        );
+        assert!(
+            out.contains("as u32;") && out.contains("ctr >> 8"),
+            "u64 expression returned from a -> u32 fn must be cast: {}",
+            out
+        );
+    }
+
+    // ...and must NOT add a cast when the widths already agree, so existing
+    // generated output is left untouched.
+    #[test]
+    fn test_return_matching_type_not_cast_rust() {
+        let code = "module M { pub fn f(a: u32, b: u32) -> u32 { return a + b; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            !out.contains("as u32"),
+            "matching-width return must not gain a redundant cast: {}",
+            out
+        );
+    }
+
+    // gen-rust regression: Rust requires both operands of an arithmetic or
+    // comparison operator to share one integer type. t27 allows mixed widths,
+    // so `u16 * u8` (E0277) and `u32 * u64` (E0308) reached rustc unchanged.
+    #[test]
+    fn test_binary_operands_widened_rust() {
+        let code = "module M { pub const K : u8 = 5; \
+                    pub fn f(n: u16) -> u16 { return n * K; } \
+                    pub fn g(cycle: u32, period: u64) -> u64 { return cycle * period; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("(K as u16)"),
+            "narrower const operand must widen to the other operand: {}",
+            out
+        );
+        assert!(
+            out.contains("(cycle as u64)"),
+            "narrower param operand must widen to the other operand: {}",
+            out
+        );
+    }
+
+    // ...and equal-width operands must not gain redundant casts, nor may a
+    // shift amount be coerced (Rust already accepts any integer type there).
+    #[test]
+    fn test_binary_operands_not_over_coerced_rust() {
+        let code = "module M { pub fn f(a: u32, b: u32, ctr: u64, sh: u32) -> u64 { \
+                    let x = a + b; return ctr >> sh; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("(a + b)"),
+            "matching-width operands must not gain casts: {}",
+            out
+        );
+        assert!(
+            out.contains("(ctr >> sh)"),
+            "shift amount must not be coerced: {}",
+            out
+        );
+    }
+
     // #1401 regression: a `let` local binding must survive into generated
     // Rust (previously the lexer emitted a bare Ident for `let`, the binding
     // was dropped, and downstream references became undeclared E0425).
@@ -23362,5 +28528,245 @@ mod tests_local_scope_920_bug2 {
         let r = Compiler::typecheck(src).expect("typecheck should parse");
         let caught = r.errors.iter().any(|e| e.contains("type mismatch"));
         assert!(caught, "cross-sign assignment between locals must be caught; errors: {:?}", r.errors);
+    }
+}
+
+#[cfg(test)]
+mod tests_w456_rom_readonly {
+    use super::Compiler;
+
+    #[test]
+    fn rom_readonly_array_element_assign_is_rejected() {
+        let src = "module M { const lut : [4]u16 = [4]u16{1,2,3,4} pub fn f() -> void { lut[0] = 0xFFFF } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let caught = r
+            .errors
+            .iter()
+            .any(|e| e.contains("cannot assign to immutable array element"));
+        assert!(
+            caught,
+            "writing to a const ROM array element must be rejected; errors: {:?}",
+            r.errors
+        );
+    }
+
+    #[test]
+    fn var_array_element_assign_still_allowed() {
+        let src = "module M { pub fn f() -> u16 { var buf : [4]u16 buf[0] = 0xA1B2 return buf[0] } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let rejected = r
+            .errors
+            .iter()
+            .any(|e| e.contains("cannot assign to immutable array element"));
+        assert!(!rejected, "writable local arrays must remain assignable; errors: {:?}", r.errors);
+    }
+}
+
+#[cfg(test)]
+mod tests_w457_ram_style {
+    use super::Compiler;
+
+    #[test]
+    fn ram_style_block_pragma_emitted() {
+        let src = r#"module M {
+            pragma ram_style = "block";
+            var mem : [4]u16 = [4]u16{0,0,0,0};
+            pub fn f(i: u32) -> u16 { return mem[i]; }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("(* ram_style = \"block\" *)"),
+            "expected block RAM style pragma in generated Verilog:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn ram_style_distributed_pragma_emitted() {
+        let src = r#"module M {
+            pragma ram_style = "distributed";
+            var mem : [4]u16 = [4]u16{0,0,0,0};
+            pub fn f(i: u32) -> u16 { return mem[i]; }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("(* ram_style = \"distributed\" *)"),
+            "expected distributed RAM style pragma in generated Verilog:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn unknown_pragma_rejected() {
+        let src = r#"module M {
+            pragma unknown = "value";
+            var mem : [4]u16 = [4]u16{0,0,0,0};
+        }"#;
+        let r = Compiler::compile_verilog(src);
+        assert!(r.is_err(), "unknown pragma must be rejected");
+        assert!(
+            r.unwrap_err().contains("Unknown pragma"),
+            "error should mention unknown pragma"
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests_w458 {
+    use super::Compiler;
+
+    #[test]
+    fn array_param_read_emitted() {
+        let src = r#"module M {
+            const rom : [4]u16 = [4]u16{0x1234, 0x5678, 0x9ABC, 0xDEF0};
+            pub fn read_mem(mem : [4]u16, i : u32) -> u16 { return mem[i]; }
+            var idx : u32 = 0;
+            read_mem(rom, idx);
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        // The array parameter must not be emitted as a scalar input port.
+        assert!(
+            !v.contains("input [15:0] mem"),
+            "array parameter must not be emitted as scalar input:\n{}",
+            v
+        );
+        // The function body must reference the bound module array directly.
+        assert!(
+            v.contains("rom[i]"),
+            "expected function body to reference module array rom[i]:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn float_param_emits_real() {
+        let src = r#"module M { pub const X : f32 = 0.1; }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("parameter real X = 0.1;"),
+            "expected parameter real declaration:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn string_newline_escaped() {
+        // Use a scalar-typed constant so the string initializer flows through
+        // gen_verilog_expr and the newline escaping path is exercised.
+        let src = r#"module M { const MSG : u32 = "a\nb"; }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("\"a\\nb\""),
+            "expected newline escaped to \\n in Verilog string literal:\n{}",
+            v
+        );
+        // The raw newline must not appear inside the generated string literal.
+        assert!(
+            !v.contains("\"a\nb\""),
+            "raw newline must not appear inside Verilog string literal:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn no_translate_off_comments() {
+        let src = r#"module M {
+            pub fn f() -> u32 { return 1; }
+            test t { assert_eq(f(), 1); }
+            bench b { const x : u32 = 0; }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            !v.contains("// synthesis translate_off"),
+            "generated Verilog must not contain // synthesis translate_off:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("// synthesis translate_on"),
+            "generated Verilog must not contain // synthesis translate_on:\n{}",
+            v
+        );
+    }
+
+    mod tests_w459 {
+        use super::Compiler;
+
+        #[test]
+        fn array_param_bound_from_test_block() {
+            // W459: a function with a fixed-size array parameter called only from a
+            // test block must still resolve its module-level array binding, so the
+            // function is not skipped and the generated Verilog contains a real call
+            // inside the test initial block.
+            let src = r#"module m;
+                var mem : [4]u16 = [4]u16{0,0,0,0};
+                pub fn set(arr: [4]u16, i: u32, v: u16) { arr[i] = v; }
+                test write_read { set(mem, 1, 0xABCD); assert_eq(mem[1], 0xABCD); }
+            }"#;
+            let v = Compiler::compile_verilog(src).expect("compile should succeed");
+            // The function should be emitted (not skipped with an error comment).
+            assert!(
+                v.contains("set; // -> auto"),
+                "set should be emitted:\n{}",
+                v
+            );
+            // The test initial block should contain a real call, not a commented one.
+            assert!(
+                v.contains("set(1, 43981);"),
+                "test block should emit a real call to set:\n{}",
+                v
+            );
+            assert!(
+                !v.contains("// set(1, 43981);"),
+                "test block should not comment out the set call:\n{}",
+                v
+            );
+        }
+
+        #[test]
+        fn test_block_emits_real_function_call() {
+            // W459: a bare function call inside a test block must be emitted as a
+            // real statement, not as a comment.
+            let src = r#"module m;
+                var mem : [4]u16 = [4]u16{0,0,0,0};
+                pub fn set(i: u32, v: u16) { mem[i] = v; }
+                pub fn get(i: u32) -> u16 { return mem[i]; }
+                test write_read { set(1, 0xABCD); assert_eq(get(1), 0xABCD); }
+            }"#;
+            let v = Compiler::compile_verilog(src).expect("compile should succeed");
+            assert!(
+                v.contains("set(1, 43981);"),
+                "bare set call should be emitted as a real statement:\n{}",
+                v
+            );
+            assert!(
+                !v.contains("// set(1, 43981);"),
+                "bare set call should not be commented out:\n{}",
+                v
+            );
+            // assert_eq should also be emitted as a real check (if branch).
+            assert!(
+                v.contains("if (!("),
+                "assert_eq should emit a real comparison:\n{}",
+                v
+            );
+        }
+
+        #[test]
+        fn rom_style_block_pragma_emitted() {
+            // W459: a const array with a rom_style pragma should emit the attribute
+            // before the memory declaration.
+            let src = r#"module m;
+                pragma rom_style = "block";
+                const rom : [4]u16 = [4]u16{0x1234, 0x5678, 0x9ABC, 0xDEF0};
+                pub fn lookup(i: u32) -> u16 { return rom[i]; }
+                test first { assert_eq(lookup(0), 0x1234); }
+            }"#;
+            let v = Compiler::compile_verilog(src).expect("compile should succeed");
+            assert!(
+                v.contains("(* rom_style = \"block\" *)"),
+                "rom_style pragma should be emitted before the reg declaration:\n{}",
+                v
+            );
+        }
     }
 }

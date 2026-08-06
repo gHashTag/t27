@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:7633df38c3cb143d721b71f744831754f182dfb9ccd7df190c598afd5e6bd7b2",
-  "gen_hash_rust": "sha256:9e842e13141d6dc82fa397c5898578f01c8abe6c3f92a098930280ec5a99d957",
-  "gen_hash_verilog": "sha256:d596801be3b484871e1b803a2d9507ac463ed59f1ab1ef3bfbee29936fada99c",
-  "gen_hash_zig": "sha256:463e47fb07681a0a6aae516032fd91d11275d5af97445fd4282f6ed7964de657",
+  "gen_hash_c": "sha256:db9c38a3b9e9c2be0a61e46bef2353cc42cec46782c76649900a33c282d2c886",
+  "gen_hash_rust": "sha256:480c647f4c7273a135c28c7b341c933744e89a12eea53df4a85db05387426aac",
+  "gen_hash_verilog": "sha256:68f8c31f99011b2ddce167e0ea8dbca6c90540e52068fa724900a37dcd1a71c1",
+  "gen_hash_zig": "sha256:7c9ccc6937ea47cde6386b7bcf95da58e7bf69f3ae20752243760e93b938da8d",
   "module": "TriToT27Converter",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:11Z",
+  "sealed_at": "2026-07-16T13:46:55Z",
   "spec_hash": "sha256:7abd3f624fa0938c88e2ca78016af141b213aa31840f7aab968b34ac534a91f0",
-  "spec_path": "specs/tools/tri_to_t27_converter.t27"
+  "spec_path": "/Users/playra/t27/specs/tools/tri_to_t27_converter.t27"
 }

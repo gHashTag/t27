@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7eb521be2d6a61ca51ce884c1229e65a0a1288820ad04f15d7f98947b9f43bdf",
   "module": "TriBitset",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:12Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:f6e28351c3de17a876cbe077207413866dafddb5b1251c5e6b54f1ed9d3bcb11",
-  "spec_path": "specs/tri/collections/bitset.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/collections/bitset.t27"
 }

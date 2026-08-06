@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:6ccef8e789460f36317cf57f3328a15cf27c6464a67f575d069f6e414fd2c798",
-  "gen_hash_rust": "sha256:fd3a6bc8f3dbb39e6c91961e42c3a8885635d5eb996c8e28054e009343c39280",
-  "gen_hash_verilog": "sha256:957df0a8ba4edfb8f35bcafe58ec32e40182f1d82928e72eea5ec612a7ccf7ff",
-  "gen_hash_zig": "sha256:d6f206fbb688ca95a5e0ba7e133027e257768435be0688b95fcb8a8a6d1afc38",
+  "gen_hash_c": "sha256:fe511a416cae45d25818f285fe1b8e3eec17437170f2a1f92fac404191f842fc",
+  "gen_hash_rust": "sha256:3a71dbfe0e6ddb169c4f63de9c0f082c02e755538a6df0f2ed5f43be663ebb56",
+  "gen_hash_verilog": "sha256:97378206c7a4e35df81c5fc74429806affe4ca8e53ddae61616fb5cdaf8f8d37",
+  "gen_hash_zig": "sha256:c9d0128e4dd38772e034708e33ad76a452156ffad7f801f425857df1606a0ca2",
   "module": "GatedLinearAttention",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:09Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:004529e85abd9c48919785e32e065358c561574356ddff82ef9bdf5c387fa195",
-  "spec_path": "specs/nn/gla.t27"
+  "spec_path": "/Users/playra/t27/specs/nn/gla.t27"
 }

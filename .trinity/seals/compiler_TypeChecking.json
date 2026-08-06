@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d0eb1b2cbee3f9c4fe447e691e6b0bfa82249af5c6a61d086492fd7ee2df83ed",
   "gen_hash_rust": "sha256:d318cfe69367f591c4cdc95d1b5582e96e19229c11221d3b7df2b658f1627842",
-  "gen_hash_verilog": "sha256:b1f46c6ca907685254cf3a128f69132c06d27490f0eeb03477f7bca9f5069283",
+  "gen_hash_verilog": "sha256:3e17733f6b40a39e08f655e495599c95c48fda180675ee12f60c3a696481cd23",
   "gen_hash_zig": "sha256:2298914e5a6baaf660c4c8604c469c0b300c4617c2642a1e0b2f4d725340b5a9",
   "module": "TypeChecking",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:06Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:b051b3ca6f807af462602eb5f0474773b4ccbca27de39134b302713ad3575999",
-  "spec_path": "specs/compiler/typechecker.t27"
+  "spec_path": "/Users/playra/t27/specs/compiler/typechecker.t27"
 }

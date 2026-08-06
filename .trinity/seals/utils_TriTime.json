@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:0b91a6269f7fde549b0f2a9dccc37bad956dd880b720f50847436841b240e8a4",
   "gen_hash_rust": "sha256:61f43756a365b06ea5ef5003e1d37531fbd5162ab3a9036e416dfe364a60e291",
-  "gen_hash_verilog": "sha256:31e450c6ab2d152d2d332d7882ebb5dc5d60163724028c39f5de28189bd5d5da",
+  "gen_hash_verilog": "sha256:f8b868d7d99166aa61e45a9941a03224a0896346710aa37b48c9d5310a1a352a",
   "gen_hash_zig": "sha256:235d11a70fe8bdd41fc36a2733e9a4636187bdd10c87e06a106ee8ca5e596a79",
   "module": "TriTime",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:14Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:3bc8d058f4b301edc4f1584510910da792098ecc9fb60f6d4e38f16ba3bcdf74",
-  "spec_path": "specs/tri/utils/time.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/utils/time.t27"
 }

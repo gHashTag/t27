@@ -2,14 +2,18 @@
   "hooks": {
     "PreToolUse": [
       {
-        "pattern": "*",
-        "command": ".claude/hooks/check-l1-traceability.sh"
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/check-l1-traceability.sh" }
+        ]
       }
     ],
     "Stop": [
       {
-        "pattern": "*",
-        "command": ".claude/hooks/stop-hook-guard.sh"
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/stop-hook-guard.sh" }
+        ]
       }
     ]
   },

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 ################################################################################
-# QMTECH XC7A100T (Wukong Board) XDC Constraints File
+# QMTECH XC7A200T (Wukong Board) XDC Constraints File
 # For ZeroDSP FPGA Implementation
 # phi^2 + 1/phi^2 = 3 | TRINITY
 ################################################################################
-# Board: QMTECH XC7A100T-324 Core Board + Wukong Expansion
-# FPGA:  Xilinx Artix-7 XC7A100T-CSG324
+# Board: QMTECH XC7A200T-FGG676 Core Board + Wukong Expansion
+# FPGA:  Xilinx Artix-7 XC7A200T-FGG676
 # Clock: 12 MHz input clock
 ################################################################################
 # Pin conflict fix: UART changed from 8-bit parallel to 1-bit serial.

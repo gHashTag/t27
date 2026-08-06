@@ -34,5 +34,8 @@ hyper-util = { version = "0.1", features = ["tokio", "client-legacy", "http1"] }
 http-body-util = "0.1"
 lazy_static = "1.5"
 regex = "1"
-candle-core = "0.10.2"
+candle-core = "0.11.0"
 candle-nn = "0.10.2"
+
+[build-dependencies]
+sha2 = "0.10"

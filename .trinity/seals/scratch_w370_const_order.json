@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:788d6a2281873eb9c8b865d50acaeda0f004162d7d527bd3f28c63ec74a1f7d0",
   "gen_hash_rust": "sha256:c4e027027812e3bf5055e0556fe992c356446cd9bc24f59e7d8a3353dd83fd1c",
-  "gen_hash_verilog": "sha256:5d64edd3d1115fe86f34573f0f3fdc56871f458b20bdc5c90e0f5e4ed957d811",
+  "gen_hash_verilog": "sha256:4081dc094d2f81122fb81396b23e7b12a095806b34a5ca1bbc4533bd2746bc99",
   "gen_hash_zig": "sha256:5a08a48ffef7a47b5bfa4316a5545df8d93a82538a019f7315292bbdd277f209",
   "module": "w370_const_order",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:11Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:d566d5926f061567ead1d158cb5a62df9592d6e1c430c816a776818fcb8718b5",
-  "spec_path": "specs/scratch/w370_const_order.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w370_const_order.t27"
 }

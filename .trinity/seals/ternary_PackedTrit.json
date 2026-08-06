@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:7f8a46887f797b108864c926f7178847342f9a58aa44288f325603e17d7ad00b",
   "gen_hash_rust": "sha256:e37fc930bfdfc37df93e1c9823ba59a28efadce5bb8aecdf786c4ce929784326",
-  "gen_hash_verilog": "sha256:e7becaec1507746f2d813fe035042fb68a498945bbf4ef28ecaa1f1a3f0c9d77",
+  "gen_hash_verilog": "sha256:7e3dc469b6fa470ecba932f2ac3369165e3138889c79f1e4306265ec553941f0",
   "gen_hash_zig": "sha256:c1233821582fd861300832cb770b0ccffd6cf25f1aefbcac464ac1b8adbf3744",
   "module": "PackedTrit",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:11Z",
+  "sealed_at": "2026-07-16T13:46:55Z",
   "spec_hash": "sha256:01abf020304a8dc0ce0df51ec4596f8d0e743cfce6785505b8414b7aca0c65b3",
-  "spec_path": "specs/ternary/packed_trit.t27"
+  "spec_path": "/Users/playra/t27/specs/ternary/packed_trit.t27"
 }

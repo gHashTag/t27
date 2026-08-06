@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:22757dda0e6f758d984fd891a116472d2d27bc5182dfaaba93632d94cd12d13f",
-  "gen_hash_rust": "sha256:6c2b54c3ddda873adc0a917d5a5c5e105ebecb3ae2b52b0216b2e813d73bd8aa",
-  "gen_hash_verilog": "sha256:f07e073b9ec0388c2bdadae52b1a49f1cf30f84b0a1f51da8613501ea725e83f",
-  "gen_hash_zig": "sha256:b2df81b1ae2ff9eec9d6672df82a11e8a8438b2fb7f0dc963857bfacf2724aec",
+  "gen_hash_c": "sha256:fd730bd8b15de0cfba14c7b68433d114fcb42b0dfabd77362aace78e3d740f40",
+  "gen_hash_rust": "sha256:c37dcfc9e004f4c60c0bc662cf3d97f438885d25f18603b8c481b4131b5d7a08",
+  "gen_hash_verilog": "sha256:60f3c9e73324934d1d4a9c85a070aa8d193ccdad8b0ad498fd07066f3a2e0e70",
+  "gen_hash_zig": "sha256:5deb7db06d7189856317d7816a3ccc1f5ef589f6efdf9f7cb5ec5057feb49ebb",
   "module": "sync-index",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:11Z",
+  "sealed_at": "2026-07-18T16:36:16Z",
   "spec_hash": "sha256:ce88e96540e925752640868cee20c7e9ad63d0044bae71b0a3ab175474ca2df8",
-  "spec_path": "specs/sync/index.t27"
+  "spec_path": "/Users/playra/t27/specs/sync/index.t27"
 }

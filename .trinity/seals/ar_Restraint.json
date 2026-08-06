@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:99ee47f25bbf868e6b16ee35611140805c5dbc1b06117722c37fc1a02fe685a3",
   "module": "restraint",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:05Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:3bb0ac54f93b9e634edcff94be2b49a1ed578791302ca8ecd3ad730a2b2713f0",
-  "spec_path": "specs/ar/restraint.t27"
+  "spec_path": "/Users/playra/t27/specs/ar/restraint.t27"
 }

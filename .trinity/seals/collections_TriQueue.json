@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:075d664e8b97cedb99a22cf041ea64a208552172b91aae137e37aad77738e9a2",
-  "gen_hash_rust": "sha256:8b223936822802590a86c08824cdf18c0bbbf9fa06c14172624c1a1682d21623",
-  "gen_hash_verilog": "sha256:63bc4334ad6a90b6610789002e8b0d0ce6e069a7a19dc328ed7ca03e28fc7c94",
-  "gen_hash_zig": "sha256:4b24a81522e909b21a3bacbd9d50f34892c10dbc65b0318c7d4abc7b9ec66ba7",
+  "gen_hash_c": "sha256:722958057633ac7725b3b87c7a7d4b5d5473eaa0f5b6213f2acf9dec7a0df800",
+  "gen_hash_rust": "sha256:25a570c9b14385e5d9589be7db286af925edc485f2d1d21b28bc324ef856d72d",
+  "gen_hash_verilog": "sha256:cee22e72302b1f08a7d7fee51e15e2821f927bf8b9a46e123d801f4d75b8ec02",
+  "gen_hash_zig": "sha256:5dc5440ef0b84ca96394cf9515089c44e04465efbda6934ebce72c4c101fbc26",
   "module": "TriQueue",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:12Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:3175c9ed4dcef7978d7d871df08836c40c88965cb9c45b83d6d9c53fa8a9d463",
-  "spec_path": "specs/tri/collections/queue.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/collections/queue.t27"
 }

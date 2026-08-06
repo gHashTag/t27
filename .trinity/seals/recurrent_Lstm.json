@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:437f5aba896e4719e81d9a63608d793177f084ab1996e73eee4615d7797f602b",
   "gen_hash_rust": "sha256:4edec2b56bf7d95979507eb0f0b7d7cb40e6d2e3f7961a92a9140f5cb027f105",
-  "gen_hash_verilog": "sha256:11b1e471380bc8e8042afe23d3e2ac6a0eb6ac1f5314156b5a90e4e9d44891af",
+  "gen_hash_verilog": "sha256:3cc67be568be725a9ebf4a081bc7cf1e4c6d7a30cdbf3eb90591d03d84dc942d",
   "gen_hash_zig": "sha256:b4cfb49d766728609fa55160d2316eaac7a1fcdb8aa9b329972fbeea1ad4109b",
   "module": "Lstm",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:09Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:b59a2bc4b80d44dd510559f38fc195bd72be88a0433938e519020fc5b8e57256",
-  "spec_path": "specs/ml/recurrent/lstm_cell.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/recurrent/lstm_cell.t27"
 }

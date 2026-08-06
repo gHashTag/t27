@@ -1,0 +1,16 @@
+// W544 Variant B witness: a function-call initializer that depends on another
+// previously declared module const.
+module w544_call_init_depends_on_const;
+
+pub fn add(x : u32, y : u32) -> u32 {
+    return x + y;
+}
+
+const base : u32 = 10;
+const a : u32 = add(base, 5);
+
+test call_init_depends_on_const {
+    assert_eq(a, 15);
+}
+
+endmodule

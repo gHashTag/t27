@@ -23,7 +23,7 @@ fi
 if git rev-parse -q --verify HEAD >/dev/null; then
     # Check if HEAD has an issue ref - if so, allow amend without new one
     HEAD_MSG=$(git log -1 --pretty=%B HEAD)
-    if echo "$HEAD_MSG" | grep -qE "(Closes #|Fixes #|Resolves #|closes #|fixes #|resolves #)"; then
+    if echo "$HEAD_MSG" | grep -qiE "(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+"; then
         exit 0
     fi
 fi
@@ -32,20 +32,22 @@ fi
 COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
 
 # Check for issue references
-if echo "$COMMIT_MSG" | grep -qE "(Closes #|Fixes #|Resolves #|closes #|fixes #|resolves #)"; then
+if echo "$COMMIT_MSG" | grep -qiE "(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+"; then
     echo -e "${GREEN}✅ L1 TRACEABILITY check passed${NC}"
     exit 0
 fi
 
 # Check for standalone issue numbers (e.g., "#123" without verb)
 if echo "$COMMIT_MSG" | grep -qE "(^| )#[0-9]+( |$)"; then
-    echo -e "${YELLOW}⚠️  Warning: Found issue number but without 'Closes/Fixes/Resolves' verb${NC}"
-    echo -e "${YELLOW}   Please use 'Closes #N', 'Fixes #N', or 'Resolves #N' format${NC}"
+    echo -e "${YELLOW}⚠️  Warning: Found issue number but without a recognized verb${NC}"
+    echo -e "${YELLOW}   Please use 'Closes #N', 'Fixes #N', 'Resolves #N', 'Refs #N', or 'Updates #N' format${NC}"
     echo ""
     echo "Allowed formats:"
     echo "  Closes #123"
     echo "  Fixes #123"
     echo "  Resolves #123"
+    echo "  Refs #123"
+    echo "  Updates #123"
     echo ""
     echo -e "${RED}❌ L1 TRACEABILITY violation${NC}"
     echo -e "${RED}   Commit must reference an issue with proper verb${NC}"

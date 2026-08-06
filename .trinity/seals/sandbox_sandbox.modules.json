@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3df311f9524d8866cdc72187604fa7a1b5972db40e5fcfc7cf4f2ec36c3c7520",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:0cf5085ffadf446354bab90583fed3cd0fbfc87be7f408f099916809fbab4543",
+  "gen_hash_verilog": "sha256:df1049c9ad0ffff7c26e582aab6045020f708815a93af3ef44c7ae38631fc8b4",
   "gen_hash_zig": "sha256:37e813e8418d81a979ca5414a7ddfc9376ce16f94fe7c52d45657b63abaacc52",
   "module": "sandbox.modules",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:10Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:6f66bc2f462f1671aedd59cda7c323cd448739b2edbae3f9c386d2225bdebe3f",
-  "spec_path": "specs/sandbox/modules.t27"
+  "spec_path": "/Users/playra/t27/specs/sandbox/modules.t27"
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d4b49b982e03d27275b9eb3694d62325f3f95750d26c2a834890ca323226612b",
   "gen_hash_rust": "sha256:71efd622a8c7279d92ced36f44b1b5d567985430f66f843ea6ba26a8f6673122",
-  "gen_hash_verilog": "sha256:724691b4074a474d0efbfa0ca4b365c31e01008eea097e865285ac9e486be0f6",
+  "gen_hash_verilog": "sha256:f998ad0945f9b6b5782384ecafe7ad89d6dae1ce3befa6a9a090482a501d1e8e",
   "gen_hash_zig": "sha256:ff6a821b8c8e18920fbd748d85bb820c4139bd3d82cab6c19bdbee5bf836e949",
   "module": "TriOctree",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:13Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:d2cf6df1b58bd432a6a45baf815781216cfad662bbbbb64e090248d8d00c80f3",
-  "spec_path": "specs/tri/trees/octree.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/trees/octree.t27"
 }

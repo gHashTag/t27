@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:bc35896660561120e6d848e1e9751ecb046a61493d5c16e7ed03619051a2ef7e",
   "gen_hash_rust": "sha256:fa58283e6c064f333c65eaae372fc2cbdca190069dfbc8daea6e5c4716172372",
-  "gen_hash_verilog": "sha256:496da8926dda5ffa4dfb2f57a90c20bc9055a15b694cec45259e059bba7e590e",
+  "gen_hash_verilog": "sha256:f0ef9428ebe7fbe8173efea92bc1bdd24247daa49bac4594a83f6a5d5f33fdad",
   "gen_hash_zig": "sha256:e998029a3099c646adb0c784671cfe29f3bd75d115bfc0ad3a1813219c448616",
   "module": "ZeroDSP_MAC",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:06Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:136aee0b279e14e2d44bbf40b8c858c61b4b2f275ecb5a598ab5b8a4dcba4e83",
-  "spec_path": "specs/fpga/mac.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/mac.t27"
 }

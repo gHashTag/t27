@@ -1,0 +1,121 @@
+{
+  "schema_version": "1.0",
+  "loop": "IGLA",
+  "canonical_doc": "docs/nona-03-manifest/IGLA_IMPROVEMENT_LOOP.md",
+  "last_audit": "docs/reports/IGLA_AUDIT_W470_2026-07-07.md",
+  "cycle": 1,
+  "status": "in_progress",
+  "metrics": {
+    "open_wave_prs": 20,
+    "failing_wave_branch_checks": 5,
+    "compiler_seal_drift": true,
+    "unmerged_branches": 112,
+    "active_worktrees": 4,
+    "prunable_worktrees": 0,
+    "specs_without_tests_or_invariants": 176,
+    "deadcode_ratio_percent": 60.6,
+    "shell_scripts_newer_than_frozen": 26
+  },
+  "current_needle": "workflow-dupes",
+  "backlog": [
+    {
+      "rank": 1,
+      "id": "workflow-dupes",
+      "needle": "Remove duplicate .github/workflows/workflows/ stubs and no-op issue gate",
+      "severity": "P0",
+      "owner": "B",
+      "estimated_hours": 1,
+      "issue": 1438,
+      "pr": 1439,
+      "status": "in_progress",
+      "lie": "CI status checks may be empty shells or a no-op duplicate gate"
+    },
+    {
+      "rank": 2,
+      "id": "frozen-hash-enforce",
+      "needle": "Enforce bootstrap/stage0/FROZEN_HASH in bootstrap/build.rs",
+      "severity": "P0",
+      "owner": "C+B",
+      "estimated_hours": 2,
+      "issue": 1438,
+      "pr": 1439,
+      "status": "in_progress",
+      "lie": "Compiler cryptographic baseline is decorative"
+    },
+    {
+      "rank": 3,
+      "id": "l1-regex-unify",
+      "needle": "Unify L1 traceability regexes across issue-gate, l1-traceability, commit-msg, and Claude hooks",
+      "severity": "P1",
+      "owner": "B",
+      "estimated_hours": 1,
+      "issue": 1438,
+      "pr": 1439,
+      "status": "in_progress",
+      "lie": "Issue linkage can be bypassed depending on which gate runs"
+    },
+    {
+      "rank": 4,
+      "id": "auto-workflow-harden",
+      "needle": "Harden auto-merge-ready-prs and brain-seal-refresh workflows (dry-run, traceability, permissions)",
+      "severity": "P1",
+      "owner": "B+T",
+      "estimated_hours": 2,
+      "issue": 1440,
+      "pr": 1441,
+      "status": "in_progress",
+      "lie": "Automated workflows can merge or commit without issue linkage or review"
+    },
+    {
+      "rank": 5,
+      "id": "worktree-stash-cleanup",
+      "needle": "Prune stale git worktrees and stashes; preserve real changes from agent-ae9fe6d1772d2b53b",
+      "severity": "P2",
+      "owner": "W",
+      "estimated_hours": 1,
+      "issue": 1442,
+      "pr": null,
+      "status": "completed",
+      "lie": "Stale worktrees hide unmerged compiler changes and consume state"
+    },
+    {
+      "rank": 6,
+      "id": "w469-yosys-regression",
+      "needle": "Fix gen-verilog lowering for 2D arrays of structs in specs/scratch/w469_2d_struct_array_param.t27",
+      "severity": "P0",
+      "owner": "C",
+      "estimated_hours": 4,
+      "issue": 1443,
+      "pr": null,
+      "status": "blocked",
+      "lie": "Latest wave work generates illegal Verilog"
+    },
+    {
+      "rank": 7,
+      "id": "fpga-target-200t",
+      "needle": "Align fpga/vivado scripts, cli defaults, and docs with HARDWARE_SSOT XC7A200T-FGG676",
+      "severity": "P1",
+      "owner": "K",
+      "estimated_hours": 3,
+      "issue": 1444,
+      "pr": 1445,
+      "status": "in_progress",
+      "lie": "Synthesis and reports target the wrong FPGA device"
+    },
+    {
+      "rank": 8,
+      "id": "dlc10-digilent",
+      "needle": "Add Digilent FTDI 0x0403:0x6014 cable support to cli/dlc10",
+      "severity": "P1",
+      "owner": "K+X",
+      "estimated_hours": 4,
+      "issue": 1446,
+      "pr": null,
+      "status": "blocked",
+      "lie": "In-tree cable driver cannot talk to the real bench cable"
+    }
+  ],
+  "completed": [
+    "worktree-stash-cleanup"
+  ]
+}

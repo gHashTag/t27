@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d22eed05a065adbe1d6dc4c0ed35c17fbf833ee2bf2c6637762a2262b4cf2187",
   "gen_hash_rust": "sha256:a2b0a80fa0c8d00c18775bad95783821219ab27cbda2c2f3c3c4d82f0b429d49",
-  "gen_hash_verilog": "sha256:be5ef9b1add2611263429de70ac13d1dc2ee95077ad43e7d932a91644571e5e5",
+  "gen_hash_verilog": "sha256:acb6c89db98cb0f20bd66ee46169826d51f871322e6b14ca31284929ce534966",
   "gen_hash_zig": "sha256:047258089359d9b6eca07a496481bfcea6785da2436e9eb9048b8c0bf51cb397",
   "module": "TriBellmanFord",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:12Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:89a7740fd5e445abd9fa8e839ea57020591daa228f2a83719af15e3e82c15b68",
-  "spec_path": "specs/tri/graph/bellman_ford.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/graph/bellman_ford.t27"
 }

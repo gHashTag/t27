@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a5a792f64a0e8d3449a9f567b8c9889c544862ba82717b4ffd440ed0b46cbfae",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:b45629cf8af1ec8bb4ee243184b8f495a6f9cb26569c52b65b5ce448ec11c6ee",
+  "gen_hash_verilog": "sha256:d1231acab8ddbfee90b87957a624b7b512a95597ab1d122f52323462cf351c94",
   "gen_hash_zig": "sha256:38a181f007fe825705e15a621b446bccac60002fd15353fb8d09908746285a58",
   "module": "GFCrossLanguageConformance",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:08Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:22ec37d31525c27ed5f219116127c524ac6dc86af073c289ab14a6f6430c7a35",
-  "spec_path": "specs/interop/gf_cross_language.t27"
+  "spec_path": "/Users/playra/t27/specs/interop/gf_cross_language.t27"
 }

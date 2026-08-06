@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] struct_array_field_test : starting",
+    "[TEST] struct_array_field_test : PASSED",
+    "[BENCH] struct_array_field_bench : starting",
+    "[BENCH] struct_array_field_bench : %0d cycles          4",
+    "[BENCH] struct_array_field_bench : PASSED"
+  ]
+}

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:14b58dcb706a813f03437ae5bde770352e2ac5ededfff0ab1f91cba4baec7bc6",
   "gen_hash_rust": "sha256:d06be0ae3804fa59276784245688f57d97c67d71c78b362e8f55fc7935af3646",
-  "gen_hash_verilog": "sha256:819b8f29e69c6183d56209464069a63da38bffbe77b7059b170db2211e5e2fe9",
+  "gen_hash_verilog": "sha256:0fea8d48b9c637c53e463df7af93915648edefd5cad2dc7166d4f9597472336f",
   "gen_hash_zig": "sha256:dc35a87d247df3d52b8d73747afd767561d36e1f110ed25de5605c51f31d0004",
   "module": "TriAvlTree",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:13Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:3d3bc18bcf65a59556cd172cc4e52c02674e3f4cf369a3b648b9e98187bf3a02",
-  "spec_path": "specs/tri/trees/avl_tree.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/trees/avl_tree.t27"
 }

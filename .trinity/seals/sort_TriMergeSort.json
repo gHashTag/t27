@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:12a59599da8db13277bc3ea06d39d931f0d343435effe0eda6ed4b2b8b421526",
   "gen_hash_rust": "sha256:c7f9df35b7aa01ff8ad60110facc90e1deecf63d07d46879ef3e607fbe9e596d",
-  "gen_hash_verilog": "sha256:2a65f0bcc172a2d4ae78cc834c3c4e81ef4ca20674f18f70f0b58c3ac1ecf403",
+  "gen_hash_verilog": "sha256:f7c595a0e0e71b3e2ac915ecf7626d23714cf117282c0ea5dc69341ed9a148cb",
   "gen_hash_zig": "sha256:d4320a009b4a1028567ba1195f03988621fe46c2762b31553f7f5aede81ba6af",
   "module": "TriMergeSort",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:13Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:3d3f312ccb3cbfaf519387106ed9dd1453c09e42747b98e8f9efb8492fb14bd2",
-  "spec_path": "specs/tri/sort/merge_sort.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/sort/merge_sort.t27"
 }

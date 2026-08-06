@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:a0a453e9ac0274a4cb7d5905cf3491774dc0c6f9238543546a9b5f4b7e4d266b",
-  "gen_hash_rust": "sha256:ce889496fd87e7152c53cab59961b8723b1db9129b447d568d1eab847d9134d4",
-  "gen_hash_verilog": "sha256:d3e8713ffb141410529574666fd6593df61ef0964b15526e0153b6a578a233b4",
-  "gen_hash_zig": "sha256:b274a98e8c2d3b01347b43b3a62fbb7a803c750b4f577031565101bc1490c4e6",
+  "gen_hash_c": "sha256:692b021de3642e0aab61ba9a4ff68a427ad9c07338246b1c8a7e45da6e216d30",
+  "gen_hash_rust": "sha256:29fb6b66118f7fd4a2824fae830649cae8dd0ed3fc7635aea9aac02eda7b36cc",
+  "gen_hash_verilog": "sha256:f93045d7e31a7545c9ca3ce6c9d586ad3785ba4582893a1fe2e7b8a46852e8bb",
+  "gen_hash_zig": "sha256:37322c3f48eecb7870b792015cc2aa6a6f94b0e673ed6ecfa751b04aae8bcee5",
   "module": "PinsIR",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:10Z",
+  "sealed_at": "2026-07-16T13:46:55Z",
   "spec_hash": "sha256:8f46ba7ad0a214121f9f767a1d34411f435bf8fa19f3368b3182021b738bd4de",
-  "spec_path": "specs/pins/ir.t27"
+  "spec_path": "/Users/playra/t27/specs/pins/ir.t27"
 }

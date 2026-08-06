@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:b7b6e38112d3de15c8ea16a42b120f5492093ca8335639de6b58a5ab272f1c7c",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:56691a64aa4f79872363f57f06f071f4899e876f449f8e10923e885985eccc98",
-  "gen_hash_zig": "sha256:9fa68fe2e4fc48ba87c5c9ff25153fbebe9672d69fedbc819acd6973bbbb2ef3",
+  "gen_hash_c": "sha256:f8b8d13fc950582232ec5d9c978359c839faaa9defef76a3056b6d5082d79bf4",
+  "gen_hash_rust": "sha256:9943ad0711141956d29b623b60439caab391b4db9c8f3ba38b5aa6c047e3e16b",
+  "gen_hash_verilog": "sha256:4cc0185e7253815e23c098bbef1c0cd6422575c8a08b84c238af87a8f9b4ae5c",
+  "gen_hash_zig": "sha256:72d116c2937c429dd03f94ee6348e1d532f3c6b9a4af76efc0b4855712ebd0f0",
   "module": "compiler-mod-structure",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:05Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:aa68e993cc9415a7df4fda9e3366a8cb1c8de9e0f35f2b499f550f2bf45b2936",
-  "spec_path": "specs/compiler/mod_structure.t27"
+  "spec_path": "/Users/playra/t27/specs/compiler/mod_structure.t27"
 }

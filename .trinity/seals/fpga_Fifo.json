@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e259684ff681b611f101bdb49a00fbd1cd6c5c5c58ae8aa1c9c46a32597ad51d",
-  "gen_hash_rust": "sha256:e26015c847fcd0d5b6552ca5f20088e1219f535da09d09dc9939013f1d17d9f3",
-  "gen_hash_verilog": "sha256:1a3fed60c9041109a30a337d1fe60490f347fcb7afcf7a26b1d5a211eb2a0a6a",
-  "gen_hash_zig": "sha256:afca859cf301dab194c4800d1b2a44e39b9cad1657df6fa28a4a0ff2ca9f9bb5",
+  "gen_hash_c": "sha256:6db3750edfece330e0e5064aafd59cc12c4e82ca4056d40426bd6c8d04f5ab9d",
+  "gen_hash_rust": "sha256:7672eef50cfac25328b720d148ea853efb33cd0579bb51c655d2359896fab410",
+  "gen_hash_verilog": "sha256:544019878a02e545d1a8ecde11f8b1fcc6689b48044efaa05d23ef25116576d9",
+  "gen_hash_zig": "sha256:1d21e626d684adea872c88e161aaa6214970c0e848dd193b9fe1d177f6d18af1",
   "module": "Fifo",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:06Z",
+  "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:dc1f5cc35b718263017c6e2b2ec619da0eb7c0665907963b93900d6b6b98dcfd",
-  "spec_path": "specs/fpga/fifo.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/fifo.t27"
 }

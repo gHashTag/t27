@@ -395,8 +395,9 @@ fn adder_tree_27_has_three_reduction_levels() {
         "adder_tree_27 must have a 9-entry signed [2:0] level1 array"
     );
     assert!(
-        body.contains("wire signed [3:0] l2 [0:2];"),
-        "adder_tree_27 must have a 3-entry signed [3:0] level2 array"
+        body.contains("wire signed [4:0] l2 [0:2];"),
+        "adder_tree_27 level2 array must be signed [4:0] to hold [-9, +9] \
+         without overflow (signed [3:0] truncated +/-9 -> wrong dot product)"
     );
     // Three explicit level-2 reductions and one final level-3 sum.
     assert!(body.contains("assign l2[0] = l1[0] + l1[1] + l1[2];"));

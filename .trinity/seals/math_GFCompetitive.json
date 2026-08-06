@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:9dd757d1a4a738718b61b5d668ce2a0a4a00a20b69762ffcf7c286d8dbd228a7",
+  "gen_hash_c": "sha256:48a7df0229ebf1ef826cc40a6d333d27ed5c0c5f3283b1cc05fc4dcf8e6369d2",
   "gen_hash_rust": "sha256:211f86379d7e8e8cdaed3de0add179d56ba00c9fb683a868eab135f9e1bed475",
-  "gen_hash_verilog": "sha256:df4098ce582622c86a0b4fb1a2c4076e90fb24810978ccd341fc0145cd6dac92",
-  "gen_hash_zig": "sha256:111d61586d1bd189154d1c4c70d38381c5e8d7a0329b9ea30c877cfe6c643243",
+  "gen_hash_verilog": "sha256:6fda9e0c0c65a9633fec65a19a98931b5e35b019336bb536d7518754b31b5571",
+  "gen_hash_zig": "sha256:c3b1c9fab68ff799d886c5055d852a9c54b2653597fa146afcb432f42a78d3f1",
   "module": "GFCompetitive",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:08Z",
+  "sealed_at": "2026-07-16T13:46:55Z",
   "spec_hash": "sha256:5552a07e096e60a67d0ee5e2a395c9fa2f9d092d28bca339aad05046dc579169",
-  "spec_path": "specs/math/gf_competitive.t27"
+  "spec_path": "/Users/playra/t27/specs/math/gf_competitive.t27"
 }

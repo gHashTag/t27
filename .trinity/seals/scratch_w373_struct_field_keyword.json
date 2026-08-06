@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:1ebbed9a0d575b8bcdabed1555dbc5ee106d1ce5aa6ad456b4c75794c792c678",
-  "gen_hash_rust": "sha256:95d0868493620dd4d54b54b4c0967e28fea625af38487a9f214f69458ac72adc",
-  "gen_hash_verilog": "sha256:e3e4b41f5eb41766446f42abdea25df5257ac01883000a02c86576297a5a714e",
-  "gen_hash_zig": "sha256:66f8356486bfd73a480a12a633eb76d319664817f22324c64390a95146aafe85",
+  "gen_hash_c": "sha256:ce3121077dbcc23ac7465a3daf11a97410bf42beb163ffcc4bf8bcc19b42290a",
+  "gen_hash_rust": "sha256:b60e9f49c2d86b86bab151138e9b6e658e754acc5fd9ad8afec7b9359b222625",
+  "gen_hash_verilog": "sha256:d29a73a82b07f14e77fa274953765e55b99f4f5862fa2e27bdfe97d818dcaf83",
+  "gen_hash_zig": "sha256:5259d775f34e0c0c315a7b1d180c59b86147848cf42e67bc73f58a4a3d004421",
   "module": "w373_struct_field_keyword",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:11Z",
+  "sealed_at": "2026-07-18T16:36:16Z",
   "spec_hash": "sha256:2b43fc560f0592e7df18a0c4e9edbe4f2ccfe6100de33dbfc6a047eb2dbb1156",
-  "spec_path": "specs/scratch/w373_struct_field_keyword.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w373_struct_field_keyword.t27"
 }

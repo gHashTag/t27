@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:bc497fa57e92441865e4bce63154bc26de17f4c79fc30fc15d47482a6ea7f71b",
   "gen_hash_rust": "sha256:a119b357a4e61c786d48fcbeba5d2a990ae84c5b57e00f359030e320b224e5e8",
-  "gen_hash_verilog": "sha256:661bafd1ad8872b9d823af25bb4d6701ad08b86237d50003b06fbe163d469e52",
+  "gen_hash_verilog": "sha256:d20533536296611a5b80c08e19c2255198a47a9960ff5f838c7ec36f21f253ae",
   "gen_hash_zig": "sha256:90e8764e8a70ec599ae8ab0657920f9e6276ee00acff6bd86d1cd828e64ee91f",
   "module": "String",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:10Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:ad98ed47c35feba495e6de7e3cf342a608496ed635c62ce32a55a85d4915133a",
-  "spec_path": "specs/sacred/sacred_identity.t27"
+  "spec_path": "/Users/playra/t27/specs/sacred/sacred_identity.t27"
 }

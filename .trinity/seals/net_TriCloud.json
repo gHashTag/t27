@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5bd4d942de122bbd5e086f0c677a13207c7e51cca3665e9a00c1751128387ad0",
   "module": "TriCloud",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:13Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:888f09cac9289bcb34d7779dab42458bdcab259b85f0d8d3dca65e634e7cb0f5",
-  "spec_path": "specs/tri/net/cloud.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/net/cloud.t27"
 }

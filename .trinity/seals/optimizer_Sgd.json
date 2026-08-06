@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:121563415b665ef744c61d258e57b6e8f2db3aa3e665098e87cf22ed41aef5c1",
   "gen_hash_rust": "sha256:3054144f65313d9555a68ed9b6f70434e70427b997e9ef0a2c6674ec8065ff0f",
-  "gen_hash_verilog": "sha256:cbacf52ad66910054f1f02271f543cf3f83a52ca192dd8fa316ec4aa9c3aa0e8",
+  "gen_hash_verilog": "sha256:6b44bd2ab1bb93048379f9f832a3bda25e5f9442a52f853f1b9dd1f1dae9f359",
   "gen_hash_zig": "sha256:3bcb7b20986e85eebbe5fee3db8f83da4075a9370b470e3f3ddf814b930b29fb",
   "module": "Sgd",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:09Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:751431cc3b541194897283a0f63b82af55129c2166636be7e411fb1a73266e03",
-  "spec_path": "specs/ml/optimizer/sgd.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/optimizer/sgd.t27"
 }

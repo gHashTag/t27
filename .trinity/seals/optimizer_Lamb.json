@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:738551c5f955b3aa6b246d5f009f8bb137926ce9e5bc422a9864328f72fb662d",
   "gen_hash_rust": "sha256:d5d5f14639e4b582e81acc27acf44fbf004221dc01fb1d5faa089715e40f0203",
-  "gen_hash_verilog": "sha256:e06a9eba5e9c7429d5c96e6004288d913724d5346ab674ea6e6f1edb6ff0db38",
+  "gen_hash_verilog": "sha256:21663fe93a077ddcd68b1b88267ff019100a68f7ee594f6a870c638538714634",
   "gen_hash_zig": "sha256:9cf053141668879edbaceff49fd699b9159ef0cfb332fb172d8086f60b043ce6",
   "module": "Lamb",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:09Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:d8bd6eba31a437f911eec4ea0d056b1cd4a3b34039e40e207aa2aaa852e11f21",
-  "spec_path": "specs/ml/optimizer/lamb.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/optimizer/lamb.t27"
 }

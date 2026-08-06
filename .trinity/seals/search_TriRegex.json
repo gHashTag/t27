@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:efd8d905269aa45806347afb53b7e0716b048d380cc1de203ef3cf3808bf37d9",
   "module": "TriRegex",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:13Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:4e0b80ad075dac6274040a5327d17244dc1e1206368598cccc5883d96de30ccb",
-  "spec_path": "specs/tri/search/regex.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/search/regex.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:68134c55ce4875d2f4e8d044e145f8623ef5282526bcd8cd3bccb7f48cc9a70e",
-  "gen_hash_rust": "sha256:2054b692e488c502837251aa47ecd2930b7e0d2f7b129d3670aea8322a6e1073",
-  "gen_hash_verilog": "sha256:2bc4e4fa0bbc8d58a132f715e7c21096fd031c167ddbfd59b6b78e6f4534e295",
-  "gen_hash_zig": "sha256:acb56f2f0ce8f812e6700522e7f6eceda79d9ceb5b24169823e04010f66e0e8e",
+  "gen_hash_c": "sha256:b87b8a4cf4aaf57197097c177b9a5dd2824478139f8c15ce08e1c78e7971cb74",
+  "gen_hash_rust": "sha256:4c2882ab61027eb072a462eedc9696c7e618a8a57ca227ea59dbf21eaeee5e2b",
+  "gen_hash_verilog": "sha256:4738e4c9f175bba4b43e5588d342273d29f53bb280a877338649244ba1d36043",
+  "gen_hash_zig": "sha256:552856c46c6993d9502cbab15abe46d0a0be2e9b0ddd934b6e908dd69000bf06",
   "module": "LayerNorm",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:09Z",
+  "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:094222aaee6baf1f769008f2adc84ef15355ff58c9313e44285f16cdda26ae18",
-  "spec_path": "specs/ml/transformer/norm.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/transformer/norm.t27"
 }

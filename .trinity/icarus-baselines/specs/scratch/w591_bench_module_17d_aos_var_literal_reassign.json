@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] module_var_17d_literal_reassign : starting",
+    "[TEST] module_var_17d_literal_reassign : PASSED",
+    "[BENCH] module_bench_17d_literal_reassign : starting",
+    "[BENCH] module_bench_17d_literal_reassign : %0d cycles         15",
+    "[BENCH] module_bench_17d_literal_reassign : PASSED"
+  ]
+}

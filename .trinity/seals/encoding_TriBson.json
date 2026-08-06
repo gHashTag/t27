@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:e0836226ce833a6b1b51870935952c84494efcb3eab6e5cf6c4461a09ca86979",
   "gen_hash_rust": "sha256:164ad7b4ffed6fd94d97254ffbf10633a56c82e93759ae36d70f1ae8c0083acb",
-  "gen_hash_verilog": "sha256:c6efdd171376d4f08f8b50cae196d7ddb402e8a70e492b9f15d4e2356252c4d3",
+  "gen_hash_verilog": "sha256:444a5ff67276db6df81f4359fe61558a3cf97b0002d90485138d5b2a3029ccce",
   "gen_hash_zig": "sha256:5eea2370d046fa3d5e0189ccf7f3a992cd4e0d8706efdb7f9726cee9eda88106",
   "module": "TriBson",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:12Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:7ed6aca7a17af29b1cae74b8e6bfddb1cef19c748ebc840b09a9ce2f6b3ecc54",
-  "spec_path": "specs/tri/encoding/bson.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/encoding/bson.t27"
 }

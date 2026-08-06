@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1c3f40fda4437f83171c33cd6309f5ce5bd2de45afaa62e931b780bc77755ea7",
   "module": "TriCircularBuffer",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:12Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:089c5a092639f361684384a25291fbecdee0b3ba5476d25cd1fc62c2456fabd5",
-  "spec_path": "specs/tri/collections/circular_buffer.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/collections/circular_buffer.t27"
 }

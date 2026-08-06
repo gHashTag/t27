@@ -1,0 +1,51 @@
+// W559 witness: deterministic bench block asserting equality directly on the
+// function-call expression returning a 3-D signed primitive scalar array.
+// Exercises the W557 packed call temporary for a higher-rank array return.
+module w559_bench_whole_array_3d_signed_direct_call;
+
+pub fn cube() -> [2][3][4]i8 {
+    return [2][3][4]i8{
+        [3][4]i8{
+            [4]i8{ -1,  -2,  -3,  -4 },
+            [4]i8{ -5,  -6,  -7,  -8 },
+            [4]i8{ -9, -10, -11, -12 }
+        },
+        [3][4]i8{
+            [4]i8{ -13, -14, -15, -16 },
+            [4]i8{ -17, -18, -19, -20 },
+            [4]i8{ -21, -22, -23, -24 }
+        }
+    };
+}
+
+test whole_array_3d_signed_direct_call_test {
+    assert_eq(cube(), [2][3][4]i8{
+        [3][4]i8{
+            [4]i8{ -1,  -2,  -3,  -4 },
+            [4]i8{ -5,  -6,  -7,  -8 },
+            [4]i8{ -9, -10, -11, -12 }
+        },
+        [3][4]i8{
+            [4]i8{ -13, -14, -15, -16 },
+            [4]i8{ -17, -18, -19, -20 },
+            [4]i8{ -21, -22, -23, -24 }
+        }
+    });
+}
+
+bench "whole_array_3d_signed_direct_call_bench" {
+    assert_eq(cube(), [2][3][4]i8{
+        [3][4]i8{
+            [4]i8{ -1,  -2,  -3,  -4 },
+            [4]i8{ -5,  -6,  -7,  -8 },
+            [4]i8{ -9, -10, -11, -12 }
+        },
+        [3][4]i8{
+            [4]i8{ -13, -14, -15, -16 },
+            [4]i8{ -17, -18, -19, -20 },
+            [4]i8{ -21, -22, -23, -24 }
+        }
+    });
+}
+
+endmodule
