@@ -2254,6 +2254,36 @@ Wave Loop 837 advanced the odd outer-dimension module-scope packed AoS ladder to
 - Updated skill tracker to wave 838, autopilot run-list to mark W837 closed, and
   persistent memory with W837 closeout details.
 
+### Worked example — Wave Loop 838
+
+Wave Loop 838 advanced the odd outer-dimension module-scope packed AoS ladder to
+`[495][2]^6 Pt`:
+
+- Issue #1616, branch `wave-loop-838` from `wave-loop-837` HEAD.
+- Generator `scripts/gen_w838.py` copied from W837 and fixed for copy hazard:
+  destination path and module header updated to `w838` / `495`, `OUTER = 495`,
+  `MID_IDX = 247`.
+- Generated `specs/scratch/w838_bench_module_495x2p6_aos_var_call_write.t27`
+  (31,680 elements, 1,013,760-bit packed vector, ~0.967 MiBit).
+- Added integration test `accepts_w838_bench_module_495x2p6_aos_var_call_write`
+  in `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb`, and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test -p t27c --test icarus_lowerable` 298/0.
+- Zero changes to `bootstrap/src/compiler.rs`, reference model, or `FROZEN_HASH`.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W838_2026-08-04.md` and
+  next-wave plan `.claude/plans/wave-loop-839.md` with variants A/B/C.
+- Updated skill tracker to wave 839, autopilot run-list to mark W838 closed, and
+  persistent memory with W838 closeout details.
+
+Key learning: the mechanical ladder is now 65 waves deep (W774–W838) with zero
+compiler changes, confirming the packed-vector AoS lowering is robust up to at
+least `[495][2]^6 Pt` (31,680 elements, ~0.967 MiBit). The generator copy hazard
+continues to be the only manual failure mode, and it spans three text locations
+(destination path, module header f-string, and `MID_IDX` comment). Parameterizing
+the wave prefix and outer dimension in the generator template remains the top
+tooling investment to make the flow fully mechanical.
+
 ## Live Wave Loop Tracker
 
 This section is updated at the end of every completed Wave Loop. It is the
@@ -2262,13 +2292,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 838 |
-| **Issue** | #1616 (expected) |
-| **Branch** | `wave-loop-838` |
-| **Parent branch** | `wave-loop-837` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[495][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Current wave** | 839 |
+| **Issue** | #1618 (expected) |
+| **Branch** | `wave-loop-839` |
+| **Parent branch** | `wave-loop-838` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[497][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
 | **Status** | READY TO START |
-| **Next wave variants queued** | W839 Variant A `[497][2]^6 Pt`; Variant B `[495][3]^6 Pt` stride scaling; Variant C `[495][2]^6 Pt` negative-index wrap-around |
+| **Next wave variants queued** | W840 Variant A `[499][2]^6 Pt`; Variant B `[497][3]^6 Pt` stride scaling; Variant C `[497][2]^6 Pt` negative-index wrap-around |
 
 ### Open backlog (non-blocking)
 

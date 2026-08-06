@@ -414,7 +414,7 @@ Last updated: 2026-08-05
 
 # NOW — scripts: cocotb_ref_model is importable again (2026-08-01)
 
-Last updated: 2026-08-01
+Last updated: 2026-08-04
 
 ## scripts: cocotb_ref_model is importable again (Closes #1592)
 
@@ -616,7 +616,7 @@ Last updated: 2026-07-29
 - `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
   compiler lowering issue, tracked for separate issue).
 - FPGA E2E CI red (`sby` missing + Yosys static-cast error in generated `uart.v`).
-- 626 release warnings need a dedicated cleanup sprint.
+- 627 release warnings need a dedicated cleanup sprint.
 - Vivado-in-Docker CI gap (private image not yet published).
 
 ---
