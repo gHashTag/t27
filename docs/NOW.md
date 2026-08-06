@@ -8,6 +8,20 @@ Last updated: 2026-08-06
 
 ### Что легло
 The codegen repair #1790 (fixing all 7 gen-verilog regressions from batch-merge #1783) changed the generated output of every spec with a test block (the `` `ifndef SIMULATION `` guard + real test-block call/assert emission), so the committed seals encoded the OLD broken output. This is the deliberate reseal step (per seal-staleness policy): regenerated all spec seals to match the corrected output (~959 specs with real gen-hash changes; timestamp-only churn filtered out). Verified: 1535 unit tests pass on the same compiler. Spec seals are non-blocking (no required gate), but this clears the staleness and keeps the seals a true record of the generated RTL.
+---
+
+# NOW — feat: signed GF-T MAC + RNE dot4 (oracle-accurate) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): signed GF-T16 MAC (negatives + cancellation) + RNE 4-term MAC (Refs #1764)
+
+- Branch: `feat/gft-signed-and-rne`
+
+### Что легло
+- `specs/ternary/gft_signed_mac.t27` (`GftSignedMac`) + seal + test + vectors: **a SIGNED GF-T16 MAC** `y = a1*b1 + a2*b2` with round-to-nearest-even — the arithmetic real NN inference needs (negative weights/activations + cancellation). Signed mul = sign XOR + RNE magnitude mul; signed add = same-sign RNE add, or (different sign) subtract the smaller magnitude from the larger with 14 guard bits + bounded left-normalization + RNE, result taking the larger operand's sign or **zero on exact cancellation**. Algorithm prototyped in Python vs the oracle first (0/20000 mismatches), then transcribed. Verified: typecheck 0 err; in-spec (2.0 and cancel→0); **iverilog cross-check vs the ideal oracle gft16_ref.py = ALL_PASS 300 signed vectors (bit-exact)**.
+- `specs/ternary/gft_dot4_rne.t27` (`GftDot4Rne`) + seal + test + vectors: the fully round-to-nearest-even **4-term MAC** (accurate matmul/attention tile), bit-exact to the oracle balanced tree over 300 vectors — more accurate than the truncating-silicon gft_dot4.
+No compiler change (uses `on_comb`, already on master via #1791); 1535 unit tests pass. GF-T ladder now: truncating {dot2,4,8,layer2}, RNE {mul,add,dot2,dot4}, **signed MAC**.
 
 ---
 
