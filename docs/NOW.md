@@ -1598,6 +1598,17 @@ Expected 25,664 elements, 821,248-bit packed vector (~0.783 MiBit), still under
 
 # NOW — IGLA cycle 1 + Wave Loop 469 context (2026-07-07)
 
+Last updated: 2026-07-10
+
+## Rust/C codegen fixes (Closes #1455, Refs #1457)
+
+- PR #1456: removed the AST optimizer from the Rust and C source backends
+  (`compile_rust`/`compile_c`) so they emit faithful code; the optimizer was
+  dropping reassigned mutable locals (E0425) and const-inlining `let`.
+- Array/index codegen: `[T; N]` -> `[T; N as usize]` (was `Vec<>`), non-literal
+  indices cast to `usize`. t27c suite 1494/1 (pre-existing Verilog HIR fail).
+  Downstream gHashTag/tri-net regenerates with 2609 E0425 -> 0.
+
 ## t27c codegen: mut-inference for reassigned locals (Fixes #1463)
 
 - PR #1461 adds mutability inference to the Rust codegen backend.
