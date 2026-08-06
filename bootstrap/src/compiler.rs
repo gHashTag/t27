@@ -63,6 +63,7 @@ pub struct Node {
     pub extra_size: String,
     pub extra_kind: String,
     pub extra_op: String,
+    pub extra_pragma: String,
     pub extra_pub: bool,
     pub extra_mutable: bool,
     pub extra_return_type: String,
@@ -82,6 +83,7 @@ impl Default for Node {
             extra_size: String::new(),
             extra_kind: String::new(),
             extra_op: String::new(),
+            extra_pragma: String::new(),
             extra_pub: false,
             extra_mutable: false,
             extra_return_type: String::new(),
@@ -103,6 +105,7 @@ impl Node {
             extra_size: String::new(),
             extra_kind: String::new(),
             extra_op: String::new(),
+            extra_pragma: String::new(),
             extra_pub: false,
             extra_mutable: false,
             extra_return_type: String::new(),
@@ -153,6 +156,7 @@ pub enum TokenKind {
     KwBreak,
     KwContinue,
     KwIn,
+    KwPragma,
 
     // Literals
     Ident,
@@ -218,6 +222,7 @@ pub struct Token {
     pub col: usize,
 }
 
+#[derive(Debug, Clone)]
 pub struct Lexer {
     source: Vec<u8>,
     pos: usize,
@@ -363,6 +368,7 @@ impl Lexer {
             "var" => TokenKind::KwVar,
             "using" => TokenKind::KwUsing,
             "use" => TokenKind::KwUse,
+            "pragma" => TokenKind::KwPragma,
             "void" => TokenKind::KwVoid,
             "true" => TokenKind::KwTrue,
             "false" => TokenKind::KwFalse,
@@ -827,6 +833,15 @@ pub struct Parser {
     lexer: Lexer,
     current: Token,
     peek: Token,
+    pending_pragma: String,
+}
+
+#[derive(Clone)]
+struct ParserCheckpoint {
+    lexer: Lexer,
+    current: Token,
+    peek: Token,
+    pending_pragma: String,
 }
 
 impl Parser {
@@ -837,7 +852,26 @@ impl Parser {
             lexer,
             current: first,
             peek: second,
+            pending_pragma: String::new(),
         }
+    }
+
+    /// Save the current parser state so it can be restored later. Used for
+    /// lookahead that needs to inspect more than one token ahead.
+    fn save_state(&self) -> ParserCheckpoint {
+        ParserCheckpoint {
+            lexer: self.lexer.clone(),
+            current: self.current.clone(),
+            peek: self.peek.clone(),
+            pending_pragma: self.pending_pragma.clone(),
+        }
+    }
+
+    fn restore_state(&mut self, checkpoint: ParserCheckpoint) {
+        self.lexer = checkpoint.lexer;
+        self.current = checkpoint.current;
+        self.peek = checkpoint.peek;
+        self.pending_pragma = checkpoint.pending_pragma;
     }
 
     fn advance(&mut self) {
@@ -1027,11 +1061,21 @@ impl Parser {
 
         self.parse_module_body(&mut module)?;
 
+        // W458: semicolon-style modules close with `endmodule`; consume it so
+        // it is not parsed as a stray top-level expression statement.
+        if self.current.kind == TokenKind::Ident && self.current.lexeme == "endmodule" {
+            self.advance();
+        }
+
         Ok(module)
     }
 
     fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
-        while self.current.kind != TokenKind::Eof && self.current.kind != TokenKind::RBrace {
+        while self.current.kind != TokenKind::Eof
+            && self.current.kind != TokenKind::RBrace
+            && !(self.current.kind == TokenKind::Ident
+                && self.current.lexeme == "endmodule")
+        {
             // Parse use/using statements into UseDecl nodes
             if self.current.kind == TokenKind::KwUse || self.current.kind == TokenKind::KwUsing {
                 self.advance(); // consume 'use'/'using'
@@ -1115,17 +1159,108 @@ impl Parser {
                 continue;
             }
 
-            match self.parse_top_level_decl() {
-                Ok(decl) => {
-                    module.children.push(decl);
+            if self.current.kind == TokenKind::KwPragma {
+                self.parse_pragma()?;
+                continue;
+            }
+
+            // W458: allow bare expression / assignment statements at module
+            // level so functions with array parameters can be called from the
+            // module body (e.g. `read_mem(rom_array, idx);`). These are emitted
+            // as Verilog statements inside the module.
+            let is_top_level_decl = matches!(
+                self.current.kind,
+                TokenKind::KwPub
+                    | TokenKind::KwConst
+                    | TokenKind::KwVar
+                    | TokenKind::KwFn
+                    | TokenKind::KwEnum
+                    | TokenKind::KwStruct
+                    | TokenKind::KwTest
+                    | TokenKind::KwInvariant
+                    | TokenKind::KwBench
+            );
+            if is_top_level_decl {
+                match self.parse_top_level_decl() {
+                    Ok(decl) => {
+                        module.children.push(decl);
+                    }
+                    Err(_) => {
+                        // On parse error, skip to next top-level declaration and continue
+                        self.skip_to_next_top_level();
+                    }
                 }
-                Err(_) => {
-                    // On parse error, skip to next top-level declaration and continue
+            } else if self.is_top_level_start() {
+                // Stray top-level keyword (e.g. `module` inside a module, or an
+                // unhandled `use`). Run it through the top-level parser so we
+                // error out and advance at least one token; otherwise
+                // skip_to_next_top_level can stop immediately on the same token
+                // and loop forever.
+                if self.parse_top_level_decl().is_err() {
                     self.skip_to_next_top_level();
+                }
+            } else {
+                match self.parse_body_stmt() {
+                    Ok(stmt) => {
+                        module.children.push(stmt);
+                    }
+                    Err(_) => {
+                        self.skip_to_next_top_level();
+                    }
                 }
             }
         }
 
+        Ok(())
+    }
+
+    /// Parse `pragma name = "value";` at module top level and store it as the
+    /// pending pragma to be applied to the next module-level declaration.
+    fn parse_pragma(&mut self) -> Result<(), String> {
+        self.advance(); // consume 'pragma'
+
+        if self.current.kind != TokenKind::Ident {
+            return Err(format!(
+                "Expected identifier after 'pragma', got {:?}",
+                self.current.kind
+            ));
+        }
+        let pragma_name = self.current.lexeme.clone();
+        self.advance();
+
+        if self.current.kind != TokenKind::Equals {
+            return Err(format!(
+                "Expected '=' after pragma name, got {:?}",
+                self.current.kind
+            ));
+        }
+        self.advance();
+
+        if self.current.kind != TokenKind::String {
+            return Err(format!(
+                "Expected string literal after pragma '=', got {:?}",
+                self.current.kind
+            ));
+        }
+        let pragma_value = self.current.lexeme.clone();
+        self.advance();
+
+        // W457/W459: ram_style and rom_style are supported; store the full
+        // attribute text so codegen can emit it verbatim.
+        if pragma_name == "ram_style" {
+            self.pending_pragma = format!("ram_style = \"{}\"", pragma_value);
+        } else if pragma_name == "rom_style" {
+            self.pending_pragma = format!("rom_style = \"{}\"", pragma_value);
+        } else {
+            return Err(format!(
+                "Unknown pragma '{}', expected 'ram_style' or 'rom_style'",
+                pragma_name
+            ));
+        }
+
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
         Ok(())
     }
 
@@ -1163,6 +1298,12 @@ impl Parser {
     fn parse_const_decl(&mut self, is_pub: bool) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::ConstDecl);
         decl.extra_pub = is_pub;
+        // W457: apply any pending pragma to this declaration and clear it so it
+        // is not accidentally reused for a later declaration.
+        if !self.pending_pragma.is_empty() {
+            decl.extra_pragma = self.pending_pragma.clone();
+            self.pending_pragma.clear();
+        }
 
         self.advance(); // consume 'const'
 
@@ -1217,17 +1358,34 @@ impl Parser {
                 self.expect(TokenKind::RBrace)?;
             } else if self.current.kind == TokenKind::LBracket {
                 // pub const TernaryWord = [WORD_BYTES]u8; or [_]u8{...} ** N
-                // Collect the full expression as value text
-                let mut val_text = String::new();
-                while self.current.kind != TokenKind::Semicolon
-                    && self.current.kind != TokenKind::Eof
-                {
-                    val_text.push_str(&self.current.lexeme);
-                    self.advance();
+                // W383: try to parse the bracket expression as an array literal.
+                // If it carries element children (e.g. [4]u16{...}), it is a ROM
+                // initializer and should be emitted as a Verilog memory. If it
+                // has no children (e.g. [WORD_BYTES]u8), it is a type alias and
+                // we restore the parser state and preserve the legacy text form.
+                // If parse_array_literal cannot handle the shape (e.g. ['T','R']),
+                // fall back to the legacy text collection so old specs keep parsing.
+                let save = self.save_state();
+                let array_literal_result = self.parse_array_literal();
+                let use_literal = match &array_literal_result {
+                    Ok(lit) => !lit.children.is_empty(),
+                    Err(_) => false,
+                };
+                if use_literal {
+                    decl.children.push(array_literal_result.unwrap());
+                } else {
+                    self.restore_state(save);
+                    let mut val_text = String::new();
+                    while self.current.kind != TokenKind::Semicolon
+                        && self.current.kind != TokenKind::Eof
+                    {
+                        val_text.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                    let mut val_node = Node::new(NodeKind::ExprIdentifier);
+                    val_node.name = val_text;
+                    decl.children.push(val_node);
                 }
-                let mut val_node = Node::new(NodeKind::ExprIdentifier);
-                val_node.name = val_text;
-                decl.children.push(val_node);
                 if self.current.kind == TokenKind::Semicolon {
                     self.advance();
                 }
@@ -1271,7 +1429,10 @@ impl Parser {
                 self.advance();
             } else if self.current.kind == TokenKind::String {
                 let mut val_node = Node::new(NodeKind::ExprLiteral);
+                // W458: mark string literals so the Verilog backend can escape
+                // newlines/tabs/quotes before emitting them.
                 val_node.value = self.current.lexeme.clone();
+                val_node.extra_kind = "string".to_string();
                 decl.children.push(val_node);
                 self.advance();
             } else {
@@ -1310,6 +1471,11 @@ impl Parser {
         let mut decl = Node::new(NodeKind::ConstDecl);
         decl.extra_pub = is_pub;
         decl.extra_mutable = true;
+
+        if !self.pending_pragma.is_empty() {
+            decl.extra_pragma = self.pending_pragma.clone();
+            self.pending_pragma.clear();
+        }
 
         self.advance(); // consume 'var'
 
@@ -1420,6 +1586,37 @@ impl Parser {
     /// Parse a type annotation like `Trit`, `*Trit`, `[]u8`, `[N]u8`, `[]const u8`, `anytype`
     fn parse_type_annotation(&mut self) -> String {
         let mut ty = String::new();
+
+        // Handle tuple type: (T1, T2, ...). Keep the raw textual form so that
+        // named tuples like (a: T, b: T) do not hang the parser and are stored
+        // as-is for backends that do not need to unpack them.
+        if self.current.kind == TokenKind::LParen {
+            ty.push('(');
+            self.advance(); // consume (
+            while self.current.kind != TokenKind::RParen
+                && self.current.kind != TokenKind::Eof
+            {
+                let before = self.current.kind;
+                let elem = self.parse_type_annotation();
+                ty.push_str(&elem);
+                if self.current.kind == TokenKind::Comma {
+                    ty.push(',');
+                    self.advance();
+                } else if self.current.kind != TokenKind::RParen {
+                    // Not a clean tuple-type element (e.g. named-field syntax);
+                    // consume the raw token so we cannot spin forever.
+                    if self.current.kind == before && elem.is_empty() {
+                        ty.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                }
+            }
+            if self.current.kind == TokenKind::RParen {
+                ty.push(')');
+                self.advance();
+            }
+            return ty;
+        }
 
         // Handle pointer prefix: *Type or *const Type
         if self.current.kind == TokenKind::Star {
@@ -1570,8 +1767,11 @@ impl Parser {
             self.advance(); // consume !
         }
 
-        // Return type (identifier, or []T / [N]T / [][]const u8 slice/array types, or void)
-        if self.current.kind == TokenKind::Ident {
+        // Return type (identifier, tuple, or []T / [N]T / [][]const u8 slice/array types, or void)
+        if self.current.kind == TokenKind::LParen {
+            // Tuple return type: (u32, u32)
+            decl.extra_return_type = self.parse_type_annotation();
+        } else if self.current.kind == TokenKind::Ident {
             decl.extra_return_type = self.current.lexeme.clone();
             self.advance();
             // Handle generic return types like Option<Foo>
@@ -1725,6 +1925,13 @@ impl Parser {
     fn parse_body_stmt(&mut self) -> Result<Node, String> {
         // const / var declaration
         if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
+            // `let` is lexed as KwConst. Detect destructuring form `let (a, b, c) = expr;`
+            // where the next token after let/const is '('.
+            if self.current.kind == TokenKind::KwConst
+                && self.peek.kind == TokenKind::LParen
+            {
+                return self.parse_let_destructuring();
+            }
             return self.parse_local_decl();
         }
 
@@ -1877,6 +2084,48 @@ impl Parser {
             self.advance();
         }
         Ok(decl)
+    }
+
+    /// Parse `let (a, b, c) = expr;` destructuring.
+    /// `let` is lexed as KwConst, so this is reached from `parse_body_stmt` when
+    /// KwConst is followed by '('. The result is a StmtAssign whose LHS is an
+    /// ExprArrayLiteral marker node (extra_kind == "tuple") containing the
+    /// bound identifiers, and whose RHS is the initializer expression.
+    fn parse_let_destructuring(&mut self) -> Result<Node, String> {
+        let mut assign = Node::new(NodeKind::StmtAssign);
+        assign.line = self.current.line as u32;
+        self.advance(); // consume let/const
+
+        self.expect(TokenKind::LParen)?;
+
+        let mut lhs = Node::new(NodeKind::ExprArrayLiteral);
+        lhs.extra_kind = "tuple".to_string();
+
+        while self.current.kind != TokenKind::RParen
+            && self.current.kind != TokenKind::Eof
+        {
+            if self.current.kind == TokenKind::Ident {
+                let mut ident = Node::new(NodeKind::ExprIdentifier);
+                ident.name = self.current.lexeme.clone();
+                lhs.children.push(ident);
+                self.advance();
+            } else if self.current.kind == TokenKind::Comma {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+        self.expect(TokenKind::RParen)?;
+
+        self.expect(TokenKind::Equals)?;
+        let rhs = self.parse_expr()?;
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
+
+        assign.children.push(lhs);
+        assign.children.push(rhs);
+        Ok(assign)
     }
 
     /// Parse return statement
@@ -2478,7 +2727,8 @@ impl Parser {
                 self.advance();
                 Ok(Node {
                     kind: NodeKind::ExprLiteral,
-                    value: format!("\"{}\"", val),
+                    value: val,
+                    extra_kind: "string".to_string(),
                     ..Default::default()
                 })
             }
@@ -2558,7 +2808,7 @@ impl Parser {
                 })
             }
 
-            // Parenthesized expression
+            // Parenthesized expression or tuple literal
             TokenKind::LParen => {
                 self.advance(); // consume (
                 let inner = self.parse_expr()?;
@@ -3906,6 +4156,42 @@ impl VerilogCodegen {
             .replace(|c: char| !c.is_alphanumeric() && c != '_', "_")
     }
 
+    /// Verilog-2001 reserved keywords. If a user identifier collides with one,
+    /// escape it with the \\identifier<space> form so it is treated as an
+    /// ordinary identifier and not parsed as a keyword.
+    fn verilog_keywords() -> &'static [&'static str] {
+        &[
+            "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
+            "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
+            "defparam", "design", "disable", "edge", "else", "end", "endcase", "endconfig",
+            "endfunction", "endgenerate", "endmodule", "endprimitive", "endspecify",
+            "endtable", "endtask", "event", "for", "force", "forever", "fork", "function",
+            "generate", "genvar", "highz0", "highz1", "if", "ifnone", "incdir", "include",
+            "initial", "inout", "input", "instance", "integer", "join", "large", "liblist",
+            "library", "localparam", "macromodule", "medium", "module", "nand", "negedge",
+            "nmos", "nor", "noshowcancelled", "not", "notif0", "notif1", "or", "output",
+            "parameter", "pmos", "posedge", "primitive", "pull0", "pull1", "pulldown",
+            "pullup", "pulsestyle_onevent", "pulsestyle_ondetect", "rcmos", "real", "realtime",
+            "reg", "release", "repeat", "rnmos", "rpmos", "rtran", "rtranif0", "rtranif1",
+            "scalared", "showcancelled", "signed", "small", "specify", "specparam", "strong0",
+            "strong1", "supply0", "supply1", "table", "task", "time", "tran", "tranif0",
+            "tranif1", "tri", "tri0", "tri1", "triand", "trior", "trireg", "unsigned", "use",
+            "vectored", "wait", "wand", "weak0", "weak1", "while", "wire", "wor", "xnor", "xor",
+        ]
+    }
+
+    /// Escape identifiers that collide with Verilog keywords. Returns the
+    /// escaped form \\name<space> when the name is a keyword, otherwise the
+    /// original name. The trailing space is part of the escaped identifier
+    /// syntax and must be preserved wherever the identifier is emitted.
+    fn verilog_safe_identifier(name: &str) -> String {
+        if Self::verilog_keywords().contains(&name) {
+            format!("\\{} ", name)
+        } else {
+            name.to_string()
+        }
+    }
+
     fn write(&mut self, s: &str) {
         self.output.push_str(s);
     }
@@ -4099,6 +4385,18 @@ impl VerilogCodegen {
         let width = Self::type_to_width(elem_type.trim());
         let signed = Self::type_is_signed(elem_type.trim());
         self.emit_packed_scalar_value(val, width, signed)
+    }
+
+    /// W459: recursively collect `ExprCall` nodes under `node` whose callee name
+    /// matches `name`. Used to discover array-parameter call sites inside
+    /// test/invariant/bench blocks as well as module-level statements.
+    fn collect_expr_calls<'n>(node: &'n Node, name: &str, out: &mut Vec<&'n Node>) {
+        if node.kind == NodeKind::ExprCall && node.name == name {
+            out.push(node);
+        }
+        for child in &node.children {
+            Self::collect_expr_calls(child, name, out);
+        }
     }
 
     /// Format a Verilog range declaration like [31:0]
@@ -5566,6 +5864,9 @@ impl VerilogCodegen {
         let mut tests: Vec<&Node> = Vec::new();
         let mut invariants: Vec<&Node> = Vec::new();
         let mut benches: Vec<&Node> = Vec::new();
+        // W458: bare module-level statements (e.g. calls to functions that take
+        // array parameters). Emitted inside an always @(*) block.
+        let mut module_stmts: Vec<&Node> = Vec::new();
 
         for decl in &ast.children {
             match decl.kind {
@@ -5576,6 +5877,7 @@ impl VerilogCodegen {
                 NodeKind::TestBlock => tests.push(decl),
                 NodeKind::InvariantBlock => invariants.push(decl),
                 NodeKind::BenchBlock => benches.push(decl),
+                NodeKind::StmtExpr | NodeKind::StmtAssign => module_stmts.push(decl),
                 _ => {}
             }
         }
@@ -5605,6 +5907,127 @@ impl VerilogCodegen {
                 self.fn_return_types
                     .insert(f.name.clone(), f.extra_return_type.clone());
             }
+        }
+
+        // W458: resolve module-level array parameter bindings. For each
+        // function that accepts an array parameter, inspect the single
+        // module-level call site (bare StmtExpr -> ExprCall in the module
+        // body) to determine which module-level array identifier is passed
+        // for that parameter. Multiple call sites or non-identifier
+        // arguments are recorded as errors and the function is skipped.
+        {
+            let mut bindings: std::collections::HashMap<
+                String,
+                std::collections::HashMap<String, String>,
+            > = std::collections::HashMap::new();
+            let mut indices: std::collections::HashMap<
+                String,
+                std::collections::HashSet<usize>,
+            > = std::collections::HashMap::new();
+            let mut errors: std::collections::HashMap<String, String> =
+                std::collections::HashMap::new();
+
+            for f in &functions {
+                let array_param_indices: Vec<usize> = f
+                    .params
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, (_, ptype))| Self::parse_array_type(ptype).is_some())
+                    .map(|(i, _)| i)
+                    .collect();
+                if array_param_indices.is_empty() {
+                    continue;
+                }
+
+                // W459: collect call sites from module-level statements and from
+                // test/invariant/bench blocks. All sites must agree on the same
+                // module-level array identifier for each array parameter.
+                let mut call_sites: Vec<&Node> = Vec::new();
+                for decl in &ast.children {
+                    match decl.kind {
+                        NodeKind::StmtExpr => {
+                            if let Some(expr) = decl.children.first() {
+                                if expr.kind == NodeKind::ExprCall && expr.name == f.name {
+                                    call_sites.push(expr);
+                                }
+                            }
+                        }
+                        NodeKind::TestBlock
+                        | NodeKind::InvariantBlock
+                        | NodeKind::BenchBlock => {
+                            Self::collect_expr_calls(decl, &f.name, &mut call_sites);
+                        }
+                        _ => {}
+                    }
+                }
+
+                if call_sites.is_empty() {
+                    errors.insert(
+                        f.name.clone(),
+                        format!(
+                            "function {} has array parameter(s) but no call site",
+                            f.name
+                        ),
+                    );
+                    continue;
+                }
+
+                let mut fn_bindings: std::collections::HashMap<String, String> =
+                    std::collections::HashMap::new();
+                let mut broken = false;
+                for idx in &array_param_indices {
+                    let (pname, _ptype) = &f.params[*idx];
+                    let mut arg_names: Vec<String> = Vec::new();
+                    for call in &call_sites {
+                        if let Some(arg) = call.children.get(*idx) {
+                            if arg.kind == NodeKind::ExprIdentifier && !arg.name.is_empty() {
+                                arg_names.push(arg.name.clone());
+                            } else {
+                                arg_names.push("W458_NON_ID".to_string());
+                            }
+                        } else {
+                            arg_names.push("W458_MISSING".to_string());
+                        }
+                    }
+                    let unique: std::collections::HashSet<String> =
+                        arg_names.iter().cloned().collect();
+                    if unique.len() != 1 {
+                        errors.insert(
+                            f.name.clone(),
+                            format!(
+                                "function {} array parameter {} has conflicting call-site arguments",
+                                f.name, pname
+                            ),
+                        );
+                        broken = true;
+                        break;
+                    }
+                    let bound = arg_names.into_iter().next().unwrap();
+                    if bound == "W458_NON_ID" || bound == "W458_MISSING" {
+                        errors.insert(
+                            f.name.clone(),
+                            format!(
+                                "function {} array parameter {} must be passed a module-level array identifier",
+                                f.name, pname
+                            ),
+                        );
+                        broken = true;
+                        break;
+                    }
+                    fn_bindings.insert(pname.clone(), bound);
+                }
+                if !broken {
+                    bindings.insert(f.name.clone(), fn_bindings);
+                    indices.insert(
+                        f.name.clone(),
+                        array_param_indices.into_iter().collect(),
+                    );
+                }
+            }
+
+            self.array_param_bindings = bindings;
+            self.array_param_indices = indices;
+            self.array_param_errors = errors;
         }
 
         // Emit top-level module
@@ -5742,6 +6165,26 @@ impl VerilogCodegen {
             }
         }
 
+        // Section: Module-level statements (e.g. calls to array-param functions)
+        if !module_stmts.is_empty() {
+            self.write_indent();
+            self.write_line("// -------------------------------------------------------");
+            self.write_indent();
+            self.write_line("// Module-level statements");
+            self.write_indent();
+            self.write_line("// -------------------------------------------------------");
+            self.write_indent();
+            self.write_line("always @(*) begin");
+            self.indent();
+            for stmt in &module_stmts {
+                self.gen_verilog_stmt(stmt);
+            }
+            self.dedent();
+            self.write_indent();
+            self.write_line("end");
+            self.write_line("");
+        }
+
         // Section: Tests → assertions (SystemVerilog-style)
         if !tests.is_empty() {
             self.write_indent();
@@ -5771,7 +6214,7 @@ impl VerilogCodegen {
                 self.gen_verilog_test(t);
             }
             self.write_indent();
-            self.write_line("// synthesis translate_on");
+            self.write_line("`endif");
             self.write_line("");
         }
 
@@ -5805,7 +6248,7 @@ impl VerilogCodegen {
             self.write_line("// -------------------------------------------------------");
             // Module-scope counter declarations (R-VD-1 fix).
             self.write_indent();
-            self.write_line("// synthesis translate_off");
+            self.write_line("`ifndef SIMULATION");
             for b in &benches {
                 let counter = format!(
                     "_bench_{}_cycles",
@@ -5815,21 +6258,19 @@ impl VerilogCodegen {
                 self.write_line(&format!("integer {} = 0;", counter));
             }
             self.write_indent();
-            self.write_line("// synthesis translate_on");
+            self.write_line("`endif");
             for b in &benches {
                 let counter = format!(
                     "_bench_{}_cycles",
                     Self::sanitize_identifier(&b.name)
                 );
-                // R-TR-1 (wave-30): emit `// synthesis translate_off` and
-                // `// synthesis translate_on` on STANDALONE comment lines
-                // wrapping the full `initial begin ... end` block. Inline
-                // placement (on the same line as `initial begin :NAME` or
-                // `end`) causes Yosys to consume the matching `end` inside
-                // the skipped region and emit `unexpected TOK_INITIAL` at
-                // the next initial block.
+                // W458: use standard `ifndef SIMULATION` / `endif` guards instead
+                // of the non-standard `// synthesis translate_off` comments.
+                // Keep the guards on STANDALONE lines wrapping the full initial
+                // block so Yosys does not consume the matching `end` inside the
+                // skipped region.
                 self.write_indent();
-                self.write_line("// synthesis translate_off");
+                self.write_line("`ifndef SIMULATION");
                 self.write_indent();
                 self.write_line(&format!(
                     "initial begin : {}_bench",
@@ -5862,7 +6303,7 @@ impl VerilogCodegen {
                 self.write_indent();
                 self.write_line("end");
                 self.write_indent();
-                self.write_line("// synthesis translate_on");
+                self.write_line("`endif");
             }
             self.write_line("");
         }
@@ -6039,12 +6480,55 @@ impl VerilogCodegen {
         let is_array = !node.extra_size.is_empty();
 
         if is_array {
-            // Emit as localparam array — use initial block or parameter
-            self.write(&format!("// LUT: {} [{}]", node.name, node.extra_size));
-            self.write_line("");
-            // For array constants, emit as individual localparams for each element
-            if !node.children.is_empty() {
-                // If children represent array elements, emit them
+            // W383: array-constant lowering. If the type annotation is an array
+            // type (e.g. "[4]u16") and the initializer is an array literal, emit a
+            // synthesizable Verilog memory initialized in an initial block.
+            let safe_name = Self::verilog_safe_identifier(&node.name);
+            let has_array_literal = !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprArrayLiteral;
+
+            if let Some((array_size, elem_type)) = type_array {
+                let elem_width = Self::type_to_width(&elem_type);
+                let elem_signed = Self::type_is_signed(&elem_type);
+                let elem_signed_str = if elem_signed { "signed " } else { "" };
+                let elem_range = Self::range_decl(elem_width);
+                let elem_range_str = if elem_range.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", elem_range)
+                };
+                self.write_line(&format!("// LUT: {} [{}] {}", safe_name, array_size, elem_type)
+                );
+                // W459: emit optional ROM-style attribute (block/distributed).
+                if !node.extra_pragma.is_empty() {
+                    self.write_indent();
+                    self.write_line(&format!("(* {} *)", node.extra_pragma));
+                }
+                self.write_indent();
+                self.write_line(&format!(
+                    "reg {}{} {} [0:{}];",
+                    elem_signed_str, elem_range_str, safe_name, array_size - 1
+                ));
+                if has_array_literal {
+                    self.write_indent();
+                    self.write_line("initial begin");
+                    self.indent();
+                    let child = &node.children[0];
+                    for (i, elem) in child.children.iter().enumerate() {
+                        if i >= array_size {
+                            break;
+                        }
+                        self.write_indent();
+                        self.write(&format!("{}[{}] = ", safe_name, i));
+                        self.gen_verilog_expr(elem);
+                        self.write_line(";");
+                    }
+                    self.dedent();
+                    self.write_indent();
+                    self.write_line("end");
+                }
+            } else if !node.children.is_empty() {
+                // Legacy extra_size path: emit as individual localparams for each element
                 let child = &node.children[0];
                 // R-CA-1 (Wave 28): array-of-struct / array-of-array initializers
                 // currently degrade into `/* array ... */` block-comments through
@@ -6082,7 +6566,10 @@ impl VerilogCodegen {
                     if !range.is_empty() {
                         self.write(&format!("{} ", range));
                     }
-                    self.write(&format!("{} = ", node.name));
+                    self.write(&format!(
+                        "{} = ",
+                        Self::verilog_safe_identifier(&node.name)
+                    ));
                     if is_unsupported_aggregate {
                         // R-CA-1 fix: emit a synthesizable scalar zero in place
                         // of the unsupported aggregate initializer.
@@ -6107,24 +6594,35 @@ impl VerilogCodegen {
             }
         } else {
             // Simple scalar constant
+            let is_float = Self::type_is_float(&node.extra_type);
             if node.extra_pub {
                 self.write("parameter ");
             } else {
                 self.write("localparam ");
             }
 
-            // Determine width from type
-            let width = Self::type_to_width(&node.extra_type);
-            let signed = Self::type_is_signed(&node.extra_type);
-            if signed {
-                self.write("signed ");
-            }
-            let range = Self::range_decl(width);
-            if !range.is_empty() {
-                self.write(&format!("{} ", range));
+            if is_float {
+                // W458: real-valued constants must use the `real` keyword, not a
+                // bit-vector range, or Yosys emits "real-value assignment
+                // to non-real variable" warnings.
+                self.write("real ");
+            } else {
+                // Determine width from type
+                let width = Self::type_to_width(&node.extra_type);
+                let signed = Self::type_is_signed(&node.extra_type);
+                if signed {
+                    self.write("signed ");
+                }
+                let range = Self::range_decl(width);
+                if !range.is_empty() {
+                    self.write(&format!("{} ", range));
+                }
             }
 
-            self.write(&format!("{} = ", node.name));
+            self.write(&format!(
+                "{} = ",
+                Self::verilog_safe_identifier(&node.name)
+            ));
             if !node.children.is_empty() {
                 let child = &node.children[0];
                 // R-CA-1 (Wave 28): aggregate literals (ExprArrayLiteral /
@@ -6346,14 +6844,64 @@ impl VerilogCodegen {
         } else {
             format!("{} ", range)
         };
-        let is_array = !node.extra_size.is_empty();
+        // W382: array type may come from the type annotation (e.g. "[4]u16") in
+        // addition to the legacy extra_size path used by array literals.
+        let type_array = Self::parse_array_type(&node.extra_type);
+        let is_array = !node.extra_size.is_empty() || type_array.is_some();
+        let safe_name = Self::verilog_safe_identifier(&node.name);
 
-        if is_array {
+        if let Some((array_size, elem_type)) = type_array {
+            // W382: emit a true synthesizable Verilog memory so that indexing
+            // expressions like mem[i] resolve to memory access, not bit-select.
+            let elem_width = Self::type_to_width(&elem_type);
+            let elem_signed = Self::type_is_signed(&elem_type);
+            let elem_signed_str = if elem_signed { "signed " } else { "" };
+            let elem_range = Self::range_decl(elem_width);
+            let elem_range_str = if elem_range.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", elem_range)
+            };
+            if !node.extra_pragma.is_empty() {
+                self.write_line(&format!("(* {} *)", node.extra_pragma));
+            }
+            self.write_line(&format!(
+                "reg {}{} {} [0:{}];",
+                elem_signed_str, elem_range_str, safe_name, array_size - 1
+            ));
+            if !node.children.is_empty() {
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                let child = &node.children[0];
+                if child.kind == NodeKind::ExprArrayLiteral {
+                    for (i, elem) in child.children.iter().enumerate() {
+                        if i < array_size {
+                            self.write_indent();
+                            self.write(&format!("{}[{}] = ", safe_name, i));
+                            self.gen_verilog_expr(elem);
+                            self.write_line(";");
+                        }
+                    }
+                } else {
+                    self.write_indent();
+                    self.write("// initializer: ");
+                    self.gen_verilog_expr(child);
+                    self.write_line("");
+                }
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            }
+        } else if is_array {
             self.write_line(&format!("// var: {} [{}]", node.name, node.extra_size));
             let array_size: usize = node.extra_size.parse().unwrap_or(1);
             for i in 0..array_size {
                 self.write_indent();
-                self.write_line(&format!("reg {}{}{}_{};", signed_str, range_str, node.name, i));
+                self.write_line(&format!(
+                    "reg {}{}{}_{};",
+                    signed_str, range_str, safe_name, i
+                ));
             }
             if !node.children.is_empty() {
                 self.write_indent();
@@ -6364,7 +6912,7 @@ impl VerilogCodegen {
                     for (i, elem) in child.children.iter().enumerate() {
                         if i < array_size {
                             self.write_indent();
-                            self.write(&format!("{}_{} = ", node.name, i));
+                            self.write(&format!("{}_{} = ", safe_name, i));
                             self.gen_verilog_expr(elem);
                             self.write_line(";");
                         }
@@ -6380,14 +6928,17 @@ impl VerilogCodegen {
                 self.write_line("end");
             }
         } else {
-            self.write(&format!("reg {}{}{};", signed_str, range_str, node.name));
+            self.write(&format!(
+                "reg {}{}{};",
+                signed_str, range_str, safe_name
+            ));
             self.write_line("");
             if !node.children.is_empty() {
                 self.write_indent();
                 self.write_line("initial begin");
                 self.indent();
                 self.write_indent();
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", safe_name));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 self.dedent();
@@ -6498,7 +7049,25 @@ impl VerilogCodegen {
         self.write_indent();
         self.write_line(&format!("// function: {}", node.name));
 
+        // W458: if this function has array parameter(s) and the binding could
+        // not be resolved from the module-level call site, emit an error
+        // comment and skip the function entirely.
+        let array_param_error = self.array_param_errors.get(&node.name).cloned();
+        if let Some(err) = array_param_error {
+            self.write_indent();
+            self.write_line(&format!("// ERROR: {}", err));
+            self.write_indent();
+            self.write_line("// (skipping function due to unsupported array parameter binding)");
+            self.current_fn_name.clear();
+            self.current_fn_name_original.clear();
+            self.current_fn_return_type.clear();
+            self.param_widths.clear();
+            self.local_arrays.clear();
+            return;
+        }
+
         // Emit as a Verilog function declaration
+        // W380: tuple return types are packed; non-tuple types keep scalar width.
         let ret_width = if !node.extra_return_type.is_empty() {
             self.packed_width(&node.extra_return_type)
         } else {
@@ -6518,17 +7087,19 @@ impl VerilogCodegen {
             format!("{} ", range)
         };
 
+        let fn_name = Self::verilog_safe_identifier(&node.name);
+
         // void functions → task; others → function
         if node.extra_return_type == "void" {
             self.write_indent();
-            self.write_line(&format!("task {};", node.name));
+            self.write_line(&format!("task {};", fn_name));
         } else {
             self.write_indent();
             self.write_line(&format!(
                 "function {}{}{}; // -> {}",
                 signed_str,
                 range_str,
-                node.name,
+                fn_name,
                 if node.extra_return_type.is_empty() {
                     "auto"
                 } else {
@@ -6539,8 +7110,19 @@ impl VerilogCodegen {
 
         self.indent();
 
-        // Emit parameters as input declarations
+        // Emit parameters as input declarations. W458: array parameters that
+        // are bound to a module-level array are not emitted as scalar inputs;
+        // the function body references the module array by name directly.
         for (pname, ptype) in &node.params {
+            if Self::parse_array_type(ptype).is_some() {
+                if self
+                    .array_param_bindings
+                    .get(&node.name)
+                    .map_or(false, |b| b.contains_key(pname))
+                {
+                    continue;
+                }
+            }
             self.write_indent();
             let pw = self.packed_width(ptype);
             let ps = self.packed_signed(ptype);
@@ -6551,7 +7133,8 @@ impl VerilogCodegen {
             } else {
                 format!("{} ", pr)
             };
-            self.write_line(&format!("input {}{}{};", ps_str, pr_str, pname));
+            let safe_pname = Self::verilog_safe_identifier(pname);
+            self.write_line(&format!("input {}{}{};", ps_str, pr_str, safe_pname));
         }
         // Verilog requires a function to have at least one input port. A
         // zero-argument function reads module state and returns a value; give it
@@ -6603,8 +7186,10 @@ impl VerilogCodegen {
             self.write_line("endfunction");
         }
         self.current_fn_name.clear();
+        self.current_fn_name_original.clear();
         self.current_fn_return_type.clear();
         self.param_widths.clear();
+        self.local_arrays.clear();
     }
 
     /// Emit a Verilog function body statement list, rewriting the
@@ -6825,13 +7410,46 @@ impl VerilogCodegen {
         block_locals
     }
 
+    /// W459: true if the test block contains any bare function-call statement
+    /// (other than `assert` / `assert_eq`, which are emitted as SV assertions).
+    /// Recursively scans nested statements for calls that need a dummy result
+    /// register.
+    fn test_block_has_bare_call(node: &Node) -> bool {
+        fn scan(n: &Node) -> bool {
+            if n.kind == NodeKind::StmtExpr {
+                if let Some(expr) = n.children.first() {
+                    if expr.kind == NodeKind::ExprCall
+                        && expr.name != "assert"
+                        && expr.name != "assert_eq"
+                    {
+                        return true;
+                    }
+                }
+            }
+            n.children.iter().any(scan)
+        }
+        node.children.iter().any(scan)
+    }
+
     fn gen_verilog_test(&mut self, node: &Node) {
+        let safe_test_name = Self::sanitize_identifier(&node.name);
         self.write_indent();
         self.write_line(&format!("// test: {}", node.name));
+        // W459: declare a module-scope dummy register for consuming the return
+        // value of bare function calls in this test block. Verilog-2001 requires
+        // function-call results to be used in an expression; assigning to a
+        // local reg keeps the call legal while preserving the side effect.
+        if Self::test_block_has_bare_call(node) {
+            self.write_indent();
+            self.write_line(&format!(
+                "reg [31:0] {}_w459_tmp;",
+                safe_test_name
+            ));
+        }
         self.write_indent();
         self.write_line(&format!(
             "initial begin : {}_test",
-            Self::sanitize_identifier(&node.name)
+            safe_test_name
         ));
         self.indent();
         let block_locals = self.gen_verilog_probe_prelude(node, &node.name);
@@ -7344,6 +7962,21 @@ impl VerilogCodegen {
                 self.emit_local(node, phase);
             }
             NodeKind::StmtAssign => {
+                // W378/W379: detect tuple destructuring on the LHS of an
+                // assignment: `let (a, b, c) = f(...)` is parsed as a
+                // StmtAssign whose LHS is an ExprArrayLiteral with
+                // extra_kind == "tuple" containing identifier children.
+                if node.children.len() >= 2
+                    && node.children[0].kind == NodeKind::ExprArrayLiteral
+                    && node.children[0].extra_kind == "tuple"
+                    && !node.children[0].children.is_empty()
+                {
+                    self.gen_verilog_let_destructuring(
+                        &node.children[0],
+                        &node.children[1],
+                    );
+                    return;
+                }
                 self.write_indent();
                 if node.children.len() >= 2 {
                     let lhs = &node.children[0];
@@ -7522,11 +8155,12 @@ impl VerilogCodegen {
         let body_idx = node.children.len().saturating_sub(1);
 
         // Use capture variable name if available, else default to __i
-        let iter_var = if !node.params.is_empty() {
+        let iter_var_raw = if !node.params.is_empty() {
             node.params[0].0.clone()
         } else {
             "__i".to_string()
         };
+        let iter_var = Self::verilog_safe_identifier(&iter_var_raw);
 
         // Try to extract the range/iterable from children[0]
         // For range-based: for (iter_var = 0; iter_var < upper; iter_var = iter_var + 1)
@@ -7556,7 +8190,7 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_for_range_stmt(&mut self, node: &Node) {
-        let var = &node.name;
+        let var = Self::verilog_safe_identifier(&node.name);
         self.write_indent();
         if node.children.len() >= 2 {
             self.write(&format!("for ({var} = "));
@@ -7581,6 +8215,19 @@ impl VerilogCodegen {
         match node.kind {
             NodeKind::ExprLiteral => {
                 let val = &node.value;
+                // W458: string literals must escape newlines (and tabs / embedded
+                // quotes) before they are written into a Verilog string literal,
+                // otherwise Yosys emits "unterminated string" / "unknown escape
+                // sequence" warnings.
+                if node.extra_kind == "string" {
+                    let escaped = val
+                        .replace('\\', "\\\\")
+                        .replace('\n', "\\n")
+                        .replace('\t', "\\t")
+                        .replace('"', "\\\"");
+                    self.write(&format!("\"{}\"", escaped));
+                    return;
+                }
                 // Render integer literals as plain decimal (valid Verilog).
                 // Verilog rejects `0x..`/`0b..` and Rust-style `_` separators,
                 // so parse the numeric value and print it in base 10.
@@ -7606,9 +8253,24 @@ impl VerilogCodegen {
                     self.write(val);
                 }
             }
-            NodeKind::ExprIdentifier => self.write(&node.name),
+            NodeKind::ExprIdentifier => {
+                // W458: if this identifier is a function parameter bound to a
+                // module-level array, emit the module array name instead.
+                if let Some(bindings) = self
+                    .array_param_bindings
+                    .get(&self.current_fn_name_original)
+                {
+                    if let Some(bound) = bindings.get(&node.name) {
+                        self.write(&Self::verilog_safe_identifier(bound));
+                    } else {
+                        self.write(&Self::verilog_safe_identifier(&node.name));
+                    }
+                } else {
+                    self.write(&Self::verilog_safe_identifier(&node.name));
+                }
+            }
             NodeKind::ExprEnumValue => {
-                self.write(&node.name);
+                self.write(&Self::verilog_safe_identifier(&node.name));
             }
             NodeKind::ExprCall => {
                 // W557: inside test/bench blocks, reference a pre-declared temporary
@@ -7624,10 +8286,24 @@ impl VerilogCodegen {
                 }
                 self.write(&node.name);
                 self.write("(");
+                // W458: drop module-level array arguments from the emitted
+                // Verilog argument list. The function body references the bound
+                // module array by name directly, so the array value is not passed
+                // through a scalar input port.
+                let skip_indices = self
+                    .array_param_indices
+                    .get(&node.name)
+                    .cloned()
+                    .unwrap_or_default();
+                let mut first = true;
                 for (i, arg) in node.children.iter().enumerate() {
-                    if i > 0 {
+                    if skip_indices.contains(&i) {
+                        continue;
+                    }
+                    if !first {
                         self.write(", ");
                     }
+                    first = false;
                     self.gen_verilog_expr(arg);
                 }
                 // W530: zero-argument functions are emitted with a dummy `_unused`
@@ -7802,13 +8478,15 @@ impl VerilogCodegen {
 
                     if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
                         let base_name = match child.children[0].kind {
-                            NodeKind::ExprIdentifier => child.children[0].name.clone(),
+                            NodeKind::ExprIdentifier => {
+                                Self::verilog_safe_identifier(&child.children[0].name)
+                            }
                             _ => String::new(),
                         };
                         let flat_name = format!("{}_{}", base_name, node.name);
-                        self.write(&flat_name);
+                        self.write(&Self::verilog_safe_identifier(&flat_name));
                     } else if child.kind == NodeKind::ExprIdentifier {
-                        self.write(&child.name);
+                        self.write(&Self::verilog_safe_identifier(&child.name));
                         self.write("_");
                         self.write(&node.name);
                     } else {
@@ -7817,7 +8495,7 @@ impl VerilogCodegen {
                         self.write(&node.name);
                     }
                 } else {
-                    self.write(&node.name);
+                    self.write(&Self::verilog_safe_identifier(&node.name));
                 }
             }
             NodeKind::ExprIndex => {
@@ -7837,7 +8515,7 @@ impl VerilogCodegen {
                     }
                     self.gen_verilog_expr(&node.children[0]);
                     self.write("[");
-                    self.gen_verilog_expr(&node.children[1]);
+                    self.gen_verilog_expr(idx);
                     self.write("]");
                 }
             }
@@ -11061,6 +11739,29 @@ fn check_stmt(node: &Node, symbols: &mut Vec<SymbolEntry>, fns: &[FnEntry], resu
                             "warning: cannot assign to immutable '{}'{}",
                             name, line
                         ));
+                    }
+                }
+                // W456: assignments into an element of an immutable array (const
+                // ROM) are also illegal, even though the LHS is an ExprIndex rather
+                // than a bare ExprIdentifier.
+                if node.children[0].kind == NodeKind::ExprIndex
+                    && !node.children[0].children.is_empty()
+                    && node.children[0].children[0].kind == NodeKind::ExprIdentifier
+                {
+                    let base_name = &node.children[0].children[0].name;
+                    if let Some(sym) = symbols.iter().find(|s| s.name == *base_name) {
+                        if !sym.is_mutable {
+                            let line = if node.line > 0 {
+                                format!(":{}", node.line)
+                            } else {
+                                String::new()
+                            };
+                            result.error_count += 1;
+                            result.errors.push(format!(
+                                "error: cannot assign to immutable array element '{}[...]'{}",
+                                base_name, line
+                            ));
+                        }
                     }
                 }
                 let target_type = infer_expr(&node.children[0], symbols, fns);
@@ -23809,6 +24510,74 @@ mod tests_hir_pipeline_parity {
     }
 
     #[test]
+    fn test_verilog_keyword_parameter_escaped() {
+        // Regression for gen-verilog weak point #1245: a function parameter whose
+        // name is a Verilog keyword (`task`) must be emitted as the escaped
+        // identifier `\\task ` so Yosys/iverilog accept the module.
+        let src = r#"module KeywordParamTest {
+    pub fn evaluate_task_at_k(task: u32, k: u32) -> bool {
+        return task == k
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(
+            v.contains("input [31:0] \\task "),
+            "parameter named `task` must be escaped as `\\\\task `, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("input [31:0] task;"),
+            "parameter named `task` must NOT be emitted as bare keyword, got:\n{}",
+            v
+        );
+        // The function body references the parameter; the reference must also
+        // use the escaped form so it resolves to the escaped declaration.
+        assert!(
+            v.contains("\\task  == k"),
+            "reference to escaped parameter must use `\\\\task `, got:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn test_verilog_keyword_local_and_module_escaped() {
+        // Extension of the keyword-escape fix: local variables and module-level
+        // consts/vars that collide with Verilog keywords must be escaped in both
+        // declaration and reference sites so the emitted Verilog is
+        // internally consistent.
+        let src = r#"module KeywordLocalTest {
+    pub const wire : u16 = 1
+    pub var reg : u32 = 2
+
+    pub fn use_module_level() -> u32 {
+        var task : u32 = 3
+        return wire as u32 + reg + task
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(
+            v.contains("[15:0] \\wire ") || v.contains("localparam \\wire ") || v.contains("parameter \\wire "),
+            "module-level const `wire` must be escaped, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("reg [31:0] \\reg "),
+            "module-level var `reg` must be escaped, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("reg [31:0] \\task "),
+            "local variable `task` must be escaped, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("\\wire ") && v.contains("\\reg ") && v.contains("\\task "),
+            "all references to escaped identifiers must use escaped form, got:\n{}",
+            v
+        );
+    }
+
+    #[test]
     fn test_parser_rejects_unknown_cast_type() {
         // Variant E: `parse_cast_target_type` validates the base type so a typo
         // like `x as widget` cannot silently lower to a 32-bit default cast.
@@ -27759,5 +28528,245 @@ mod tests_local_scope_920_bug2 {
         let r = Compiler::typecheck(src).expect("typecheck should parse");
         let caught = r.errors.iter().any(|e| e.contains("type mismatch"));
         assert!(caught, "cross-sign assignment between locals must be caught; errors: {:?}", r.errors);
+    }
+}
+
+#[cfg(test)]
+mod tests_w456_rom_readonly {
+    use super::Compiler;
+
+    #[test]
+    fn rom_readonly_array_element_assign_is_rejected() {
+        let src = "module M { const lut : [4]u16 = [4]u16{1,2,3,4} pub fn f() -> void { lut[0] = 0xFFFF } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let caught = r
+            .errors
+            .iter()
+            .any(|e| e.contains("cannot assign to immutable array element"));
+        assert!(
+            caught,
+            "writing to a const ROM array element must be rejected; errors: {:?}",
+            r.errors
+        );
+    }
+
+    #[test]
+    fn var_array_element_assign_still_allowed() {
+        let src = "module M { pub fn f() -> u16 { var buf : [4]u16 buf[0] = 0xA1B2 return buf[0] } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let rejected = r
+            .errors
+            .iter()
+            .any(|e| e.contains("cannot assign to immutable array element"));
+        assert!(!rejected, "writable local arrays must remain assignable; errors: {:?}", r.errors);
+    }
+}
+
+#[cfg(test)]
+mod tests_w457_ram_style {
+    use super::Compiler;
+
+    #[test]
+    fn ram_style_block_pragma_emitted() {
+        let src = r#"module M {
+            pragma ram_style = "block";
+            var mem : [4]u16 = [4]u16{0,0,0,0};
+            pub fn f(i: u32) -> u16 { return mem[i]; }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("(* ram_style = \"block\" *)"),
+            "expected block RAM style pragma in generated Verilog:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn ram_style_distributed_pragma_emitted() {
+        let src = r#"module M {
+            pragma ram_style = "distributed";
+            var mem : [4]u16 = [4]u16{0,0,0,0};
+            pub fn f(i: u32) -> u16 { return mem[i]; }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("(* ram_style = \"distributed\" *)"),
+            "expected distributed RAM style pragma in generated Verilog:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn unknown_pragma_rejected() {
+        let src = r#"module M {
+            pragma unknown = "value";
+            var mem : [4]u16 = [4]u16{0,0,0,0};
+        }"#;
+        let r = Compiler::compile_verilog(src);
+        assert!(r.is_err(), "unknown pragma must be rejected");
+        assert!(
+            r.unwrap_err().contains("Unknown pragma"),
+            "error should mention unknown pragma"
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests_w458 {
+    use super::Compiler;
+
+    #[test]
+    fn array_param_read_emitted() {
+        let src = r#"module M {
+            const rom : [4]u16 = [4]u16{0x1234, 0x5678, 0x9ABC, 0xDEF0};
+            pub fn read_mem(mem : [4]u16, i : u32) -> u16 { return mem[i]; }
+            var idx : u32 = 0;
+            read_mem(rom, idx);
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        // The array parameter must not be emitted as a scalar input port.
+        assert!(
+            !v.contains("input [15:0] mem"),
+            "array parameter must not be emitted as scalar input:\n{}",
+            v
+        );
+        // The function body must reference the bound module array directly.
+        assert!(
+            v.contains("rom[i]"),
+            "expected function body to reference module array rom[i]:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn float_param_emits_real() {
+        let src = r#"module M { pub const X : f32 = 0.1; }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("parameter real X = 0.1;"),
+            "expected parameter real declaration:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn string_newline_escaped() {
+        // Use a scalar-typed constant so the string initializer flows through
+        // gen_verilog_expr and the newline escaping path is exercised.
+        let src = r#"module M { const MSG : u32 = "a\nb"; }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("\"a\\nb\""),
+            "expected newline escaped to \\n in Verilog string literal:\n{}",
+            v
+        );
+        // The raw newline must not appear inside the generated string literal.
+        assert!(
+            !v.contains("\"a\nb\""),
+            "raw newline must not appear inside Verilog string literal:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn no_translate_off_comments() {
+        let src = r#"module M {
+            pub fn f() -> u32 { return 1; }
+            test t { assert_eq(f(), 1); }
+            bench b { const x : u32 = 0; }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            !v.contains("// synthesis translate_off"),
+            "generated Verilog must not contain // synthesis translate_off:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("// synthesis translate_on"),
+            "generated Verilog must not contain // synthesis translate_on:\n{}",
+            v
+        );
+    }
+
+    mod tests_w459 {
+        use super::Compiler;
+
+        #[test]
+        fn array_param_bound_from_test_block() {
+            // W459: a function with a fixed-size array parameter called only from a
+            // test block must still resolve its module-level array binding, so the
+            // function is not skipped and the generated Verilog contains a real call
+            // inside the test initial block.
+            let src = r#"module m;
+                var mem : [4]u16 = [4]u16{0,0,0,0};
+                pub fn set(arr: [4]u16, i: u32, v: u16) { arr[i] = v; }
+                test write_read { set(mem, 1, 0xABCD); assert_eq(mem[1], 0xABCD); }
+            }"#;
+            let v = Compiler::compile_verilog(src).expect("compile should succeed");
+            // The function should be emitted (not skipped with an error comment).
+            assert!(
+                v.contains("set; // -> auto"),
+                "set should be emitted:\n{}",
+                v
+            );
+            // The test initial block should contain a real call, not a commented one.
+            assert!(
+                v.contains("set(1, 43981);"),
+                "test block should emit a real call to set:\n{}",
+                v
+            );
+            assert!(
+                !v.contains("// set(1, 43981);"),
+                "test block should not comment out the set call:\n{}",
+                v
+            );
+        }
+
+        #[test]
+        fn test_block_emits_real_function_call() {
+            // W459: a bare function call inside a test block must be emitted as a
+            // real statement, not as a comment.
+            let src = r#"module m;
+                var mem : [4]u16 = [4]u16{0,0,0,0};
+                pub fn set(i: u32, v: u16) { mem[i] = v; }
+                pub fn get(i: u32) -> u16 { return mem[i]; }
+                test write_read { set(1, 0xABCD); assert_eq(get(1), 0xABCD); }
+            }"#;
+            let v = Compiler::compile_verilog(src).expect("compile should succeed");
+            assert!(
+                v.contains("set(1, 43981);"),
+                "bare set call should be emitted as a real statement:\n{}",
+                v
+            );
+            assert!(
+                !v.contains("// set(1, 43981);"),
+                "bare set call should not be commented out:\n{}",
+                v
+            );
+            // assert_eq should also be emitted as a real check (if branch).
+            assert!(
+                v.contains("if (!("),
+                "assert_eq should emit a real comparison:\n{}",
+                v
+            );
+        }
+
+        #[test]
+        fn rom_style_block_pragma_emitted() {
+            // W459: a const array with a rom_style pragma should emit the attribute
+            // before the memory declaration.
+            let src = r#"module m;
+                pragma rom_style = "block";
+                const rom : [4]u16 = [4]u16{0x1234, 0x5678, 0x9ABC, 0xDEF0};
+                pub fn lookup(i: u32) -> u16 { return rom[i]; }
+                test first { assert_eq(lookup(0), 0x1234); }
+            }"#;
+            let v = Compiler::compile_verilog(src).expect("compile should succeed");
+            assert!(
+                v.contains("(* rom_style = \"block\" *)"),
+                "rom_style pragma should be emitted before the reg declaration:\n{}",
+                v
+            );
+        }
     }
 }

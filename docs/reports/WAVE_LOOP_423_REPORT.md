@@ -1,0 +1,236 @@
+# Wave Loop 423 — instrument-import depth: CSV time units, VCD slope filter, PVT worst-case theorem (Closes #1368)
+
+**Branch:** `wave-loop-423`  
+**Issue:** #1368  
+**Date:** 2026-07-05  
+**Variant executed:** B instrument depth + C VCD robustness (bench still partially blocked)
+
+---
+
+## Executive summary
+
+Wave 423 could not execute the full Variant A physical plan because pin P12
+remains unwired and no relay/remote-power gate is available. Instead, the wave
+landed the Variant B instrument-import depth that makes future physical captures
+usable, plus the Variant C VCD-robustness items that keep the parser safe
+against real-world instrument exports:
+
+1. CSV time-column unit detection and normalization for `time_ms`, `time_us`,
+   `time_ns`, and sample-number columns (`Sample`, `index`, `point`), with
+   `--csv-samplerate` for the sample-number case.
+2. VCD real-net slope filter (`--vcd-slope-min-v`, `--vcd-slope-min-s`) to reject
+   noise glitches on analog probe captures, plus a threshold-crossing model that
+   uses the VCD sample timestamp rather than linear interpolation.
+3. `--pvt-worstcase` mode for `tri fpga measured-to-lean` that validates against
+   the combined-monotonicity corner (85 °C, 900 mV, ss) without requiring a
+   `--pvt-context` JSON file.
+4. VCD parser hardening: unknown `$timescale` units default to 1 ns with a
+   warning; `$dumpoff`/`$dumpon` directives without a preceding `#` timestamp keep
+   the last known time and ignore suspended samples.
+5. Ten new regression tests in `cli/tri/src/fpga.rs`; the full `tri` FPGA test
+   suite now stands at 60 PASS.
+
+The single deferred item is a safe gen-verilog #1245 sub-fix. All 7 remaining
+yosys smoke failures are tied to major features (let destructuring, tuple
+returns, ROM arrays, CORDIC) that are not narrow regression-free fixes; any fix
+would require the full codegen refactor on `master` rather than a branch-local
+patch.
+
+All conformance gates pass: **576/576** spec checks, **0 seal mismatches**,
+**7 pre-existing** gen-verilog yosys smoke failures (none new), **0** FPGA smoke
+failures, and **60/60** `tri` fpga unit tests.
+
+---
+
+## What changed
+
+### 1. `cli/tri/src/fpga.rs` — instrument-import depth and VCD robustness
+
+#### CSV timestamp units
+
+- Added `CsvTimeUnit` enum (`Seconds`, `Milliseconds`, `Microseconds`,
+  `Nanoseconds`, `SampleNumber`) and conversion to seconds.
+- Added `detect_csv_time_unit_from_header` and
+  `csv_times_look_like_sample_numbers` helpers.
+- `parse_cclk_csv_reader` now normalizes the time column to seconds before
+  computing frequency/duty.
+- A leading metadata row such as `samplerate,100000000` (PulseView export) is no
+  longer accepted as the column header, because it lacks a `time`-like column.
+- New regression tests:
+  - `test_parse_cclk_csv_ms_header`
+  - `test_parse_cclk_csv_us_header`
+  - `test_parse_cclk_csv_ns_header`
+  - `test_parse_cclk_csv_sample_numbers`
+  - `test_parse_cclk_csv_sample_numbers_require_samplerate`
+
+#### VCD real-net slope filter and threshold model
+
+- `parse_vcd_to_raw_ns` now accepts `vcd_slope_min_v` and `vcd_slope_min_s`.
+- For real-valued nets the threshold crossing is associated with the new VCD
+  sample timestamp, not with a linear interpolation between samples, because
+  VCD value changes are events at exact simulation times.
+- A transition is rejected if its voltage step is below `vcd_slope_min_v` or if
+  it is closer than `vcd_slope_min_s` to the previously accepted transition.
+- A filtered-out transition no longer creates a duplicate state change because
+  the loop now tracks `last_high` for real-valued nets as well.
+- New regression tests:
+  - `test_parse_vcd_real_slope_filter_rejects_glitch`
+  - updated `test_parse_vcd_real_to_raw_ns_25mhz` and
+    `test_parse_vcd_real_auto_threshold` to the new event-time semantics.
+
+#### `--pvt-worstcase`
+
+- Added `pvt_worstcase` flag to the `measured-to-lean` CLI and function.
+- When enabled, validation uses the worst-case operating point
+  (`temp_c=85`, `vccint_mv=900`, `ProcessCorner::Ss`) instead of requiring a
+  `--pvt-context` JSON file.
+- New regression tests:
+  - `test_validate_pvt_worstcase_accepts_in_spec_raw_ns`
+  - `test_validate_pvt_worstcase_rejects_out_of_spec_raw_ns`
+  - `test_measured_to_lean_raw_ns_pvt_emits_pvt_theorem`
+
+#### VCD robustness
+
+- Unknown `$timescale` units emit a warning and default to 1 ns.
+- `$dumpoff` / `$dumpon` directives may appear on lines without a preceding `#`
+  timestamp; the parser keeps the last known time and ignores value changes while
+  dumping is suspended.
+- New regression tests:
+  - `test_parse_vcd_unknown_timescale_defaults_to_1ns`
+  - `test_parse_vcd_dumpoff_dumpon_without_timestamp`
+
+### 2. `fpga/HARDWARE_SSOT.md` — §3.6.20
+
+Documents the new CSV unit matrix, VCD slope-filter flags, unknown-timescale
+behavior, dumpoff/dumpon handling, and the PVT worst-case theorem path.
+
+### 3. No `proofs/lean4/Trinity/TernaryFPGABoot.lean` changes
+
+The PVT worst-case theorem is generated by `measured-to-lean` from the existing
+`TernaryFPGABoot` lemmas; no new Lean code was required.
+
+### 4. Seal status
+
+No compiler or spec changes affected generated-code hashes. The suite reports
+**0 seal mismatches**.
+
+---
+
+## Verification
+
+| Gate | Result |
+|------|--------|
+| `./scripts/tri test` / `t27c suite --repo-root .` | **576 passed**, 0 seal mismatches, 7 pre-existing gen-verilog yosys smoke failures, 0 FPGA smoke failures |
+| `cargo test -p tri fpga::tests` | **60 passed** |
+| `cargo test -p tri` | **93 passed** |
+| `cargo build --release` in `bootstrap/` | **PASS** |
+| `lake build Trinity.TernaryFPGABoot` | **PASS** (2967 jobs) |
+
+The 7 remaining yosys smoke failures are pre-existing weak point #1245 defects
+and are tracked in `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`:
+
+- `specs/scratch/w378_let_destructuring.t27`
+- `specs/scratch/w379_let_destructuring_generalized.t27`
+- `specs/scratch/w380_tuple_return.t27`
+- `specs/scratch/w381_tuple_call_chain.t27`
+- `specs/scratch/w383_rom_array.t27`
+- `specs/igla/race/cordic.t27`
+- `specs/igla/race/cordic_top.t27`
+
+None of these are keyword-collision failures; they relate to `let`
+destructuring syntax, tuple returns, ROM array lowering, and CORDIC-specific
+generated constructs. A safe branch-local sub-fix is not available.
+
+---
+
+## Acceptance criteria status
+
+From `.trinity/current-issue.md`:
+
+### Bundle A (physical)
+
+- [ ] AC-A1: real CCLK capture for OSCFSEL 6/7 — **blocked** (P12 unwired).
+- [ ] AC-A2: `measured-to-lean --standalone` with real capture — **blocked**.
+- [ ] AC-A3: PVT-aware flash-spec validation of real capture — **blocked**.
+- [ ] AC-A4: cold-POR SPI flash boot for OSCFSEL 6/7 — **blocked** (no relay gate).
+
+### Bundle B (instrument depth)
+
+- [x] AC-B1: CSV fractional-second / millisecond / sample-number timestamp columns
+    parsed correctly with regression tests.
+- [x] AC-B2: VCD real-net slope filter rejects noisy transitions with a
+    regression test.
+- [x] AC-B3: `--pvt-worstcase` mode validates against the combined-monotonicity
+    corner with regression tests.
+
+### Bundle C (fallback)
+
+- [x] AC-C1: VCD parser hardening lands with unit tests (unknown timescale unit
+    handling and dumpoff without timestamp).
+- [ ] AC-C2: one safe gen-verilog #1245 sub-fix — **deferred**. All remaining
+    failures are from major codegen features, not narrow regression-free fixes.
+- [x] AC-C3: competitor snapshot refreshed with 2026 developments:
+    Sparkle/Verilean PR #66 / RV32 divider verification, Clash issue #3153,
+    CIRCT firtool 1.143.0 / LTL/Verif / PR #10392.
+
+### Invariant checks
+
+- [x] `./scripts/tri test` parse/typecheck/gen/seal-verify phases pass.
+- [x] `lake build Trinity.TernaryFPGABoot` passes.
+- [x] `cargo test -p tri fpga::tests` passes.
+
+---
+
+## Weak points investigated
+
+1. **gen-verilog #1245 — remaining subclasses:** the 7 remaining failures are
+   `let` destructuring, tuple returns, ROM arrays, and CORDIC. Each requires a
+   codegen-level refactor, not a one-file tweak. The wave explicitly deferred
+   these to avoid destabilizing the release branch.
+2. **Physical bench readiness:** the board remains reachable via JTAG/SRAM, but
+   the CCLK probe (P12) is still unwired and the cold-POR relay gate is still
+   absent. Variant A remains on hold.
+3. **Instrument import coverage:** the CSV/VCD import path now handles the most
+   common unit and noise cases, reducing the risk that a future real capture will
+   be unparseable.
+
+---
+
+## Competitor note
+
+The formal-HDL competitor snapshot in `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+was refreshed during W423 with the most recent 2026 developments:
+
+- **Sparkle / Verilean:** PR #66 (June 2026) expanded the IP catalog with a USB
+  web server, memcached ASCII server, TLS 1.3 client/server, and additional
+  crypto/bus/networking IPs. Commit `9c7809c` added formal verification of the
+  RV32 divider against its pure-FSM model and synthesized circuit.
+- **Clash:** issue #3153 tracks formal-verification gaps in the Haskell HDL
+  ecosystem; Clash remains strong on Haskell-native typed synthesis but weaker on
+  a closed-loop physical-measurement proof path.
+- **CIRCT / firtool:** release 1.143.0 (June 2026) continues incremental LTL
+  property support and Verif integration (PR #10392), moving FIRRTL/Verif toward
+  industrial formal sign-off but still without a ternary compute layer or sealed
+  spec-first pipeline.
+
+Sparkle/Verilean remains the closest Lean-native competitor. t27's
+differentiation still rests on the ternary compute layer, the spec-first sealed
+`*.t27 → gen/` pipeline, and the physical boot-evidence instrumentation loop.
+
+---
+
+## Files touched
+
+- `cli/tri/src/fpga.rs`
+- `fpga/HARDWARE_SSOT.md`
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+
+## Close-out artifacts
+
+- `docs/reports/WAVE_LOOP_423_REPORT.md` (this file)
+- `docs/reports/FPGA_LOOP_EVIDENCE_W423_2026-07-05.md`
+- `docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-05.md`
+
+---
+
+*φ² + φ⁻² = 3 | TRINITY*

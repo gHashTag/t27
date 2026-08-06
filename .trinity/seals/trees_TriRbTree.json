@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:6e7314f664d45e80ed132829c617b1485c95fd263f8dbda7244c058800cecbfe",
-  "spec_path": "specs/tri/trees/red_black_tree.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/trees/red_black_tree.t27"
 }
