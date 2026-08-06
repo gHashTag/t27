@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-06  
+**Date:** 2026-07-06 (refreshed 2026-07-01 session)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -17,8 +17,8 @@ strengths t27 does not yet match, but none occupies the exact intersection t27
 targets: **Lean 4 native proof + ternary/balanced-trit compute + spec-first
 `*.t27 → gen/` sealed pipeline + physical boot-evidence instrumentation**.
 
-This note documents the competitive landscape as input for Wave Loop 421 and
-subsequent waves.
+This note documents the competitive landscape as input for Wave Loops 421–423
+and subsequent waves.
 
 ---
 
@@ -39,18 +39,31 @@ subsequent waves.
 ## Sparkle / Verilean — the closest Lean-native threat
 
 Sparkle (GitHub: [`Verilean/sparkle`](https://github.com/Verilean/sparkle)) is
-a Lean 4 hardware compiler created in early 2026 by Junji Hashimoto. It is the
-most direct competitor to t27's "Lean-native proof → synthesis" positioning.
+a Lean 4 hardware compiler created in early 2026. It is the most direct
+competitor to t27's "Lean-native proof → synthesis" positioning.
 
 **What Sparkle has that t27 does not (yet):**
-- A growing **IP catalog**: RV32IMA SoC (boots Linux, 102 formal proofs),
-  BitNet b1.58 accelerator, YOLOv8n accelerator, H.264 codec, networking stack
-  (UART/SLIP/IPv4/TCP/HTTP/USB), crypto (AES-GCM, SHA-256/Keccak, Ed25519,
-  ECDSA, RSA-PSS, TLS 1.3), and bus protocols (AXI4, PCIe, CAN, I²C, SPI).
+- A rapidly growing **IP catalog**: RV32IMA RISC-V SoC (boots Linux 6.6.0,
+  102 formal proofs), BitNet b1.58 LLM accelerator, YOLOv8n-WorldV2 object
+  detection, SV→Sparkle transpiler, H.264 baseline encoder/decoder, USB web
+  server, memcached ASCII server, full networking stack
+  (UART/SLIP/IPv4/ARP/ICMP/TCP/HTTP/USB), crypto
+  (AES/AES-GCM/GHASH, SHA-256/SHA-512/Keccak, Ed25519/X25519, P-256/secp256k1
+  ECDSA, BLS12-381, RSA-PSS), TLS 1.3 client/server, and buses/interconnects
+  (AXI4-Lite/Full, PCIe TLP, CAN/CAN-FD/CANopen/DroneCAN, LIN/I²C/SPI,
+  SBUS/CRSF, MIL-STD-1553B).
 - A polished **Signal DSL** with cycle-accurate simulation, JIT native backend,
   and `#synthesizeVerilog` / `#verify_eq` commands.
-- Active 2026 development: compiler performance work, multi-clock domains,
-  formal divider proofs.
+- Active 2026 development:
+  - **PR #66** (June 2026): IP.Net expansion — USB web server on Tang Nano 50K,
+    memcached server, compiler performance improvements, TLS/crypto/bus/networking
+    IPs.
+  - **Commit `9c7809c`** (June 2026): Formal verification of the RV32 divider
+    against its pure-FSM model and the synthesized circuit, covering signed/
+    unsigned division and divide-by-zero behavior.
+  - Infrastructure for zero-knowledge (Merkle tree / polynomial commitment,
+    mini-STARK verifier, Goldilocks field) and verified GPU programming
+    (Hesper repo).
 
 **Where t27 still differentiates:**
 1. **Ternary compute and balanced-trit proof lattice.** Sparkle is binary
@@ -64,10 +77,12 @@ most direct competitor to t27's "Lean-native proof → synthesis" positioning.
   VCD/CSV import path ties captured CCLK waveforms to generated Lean theorems.
   Sparkle has no equivalent closed-loop bench-to-proof flow.
 
-**Strategic implication:** Sparkle is the competitor to watch. If it adds a
-spec-first sealed pipeline or a physical measurement import path, the gap
-closes quickly. t27 should accelerate its own IP catalog and keep the
-ternary/formal-boot-evidence line unique.
+**Strategic implication:** Sparkle remains the competitor to watch. The June
+2026 divider proof and the IP.Net expansion show it is pushing both formal
+depth and catalog breadth. If Sparkle adds a spec-first sealed pipeline or a
+physical measurement import path, the gap closes quickly. t27 should
+accelerate its own ternary IP catalog and keep the formal-boot-evidence line
+unique.
 
 ---
 
@@ -80,8 +95,10 @@ Clash compiles Haskell to VHDL/Verilog/SystemVerilog. Recent 2026 work includes:
 - **CIRCT integration** (LATTE 2026 paper) — three lowering strategies into
   CIRCT, including a new lambda-calculus dialect preserving ADTs and pattern
   matching.
-- Bug-fix activity for `Clash.Verification` operator translations to
-  Yosys/SymbiYosys.
+- **Bug-fix activity for `Clash.Verification`** (Issue #3153, February 2026):
+  operator translations to Yosys/SymbiYosys are still being fixed (`lit True` →
+  `true`, `implies` → `->`, etc.), highlighting the difficulty of building a
+  robust open-source formal-verification backend.
 
 Clash is broader and older than Sparkle, but its proof story is still
 "Haskell + external tools" rather than a single dependent-type prover. t27's
@@ -94,12 +111,19 @@ Lean-native proof lattice and ternary focus remain differentiated.
 The industry-standard Chisel flow is adding formal verification rapidly:
 
 - **CIRCT LTL dialect** — first-class Linear Temporal Logic IR for SVA and
-  formal tools.
+  formal tools; supports sequences/properties, `delay`, `concat`,
+  `implication`, `eventually`, `until`, `repeat`, `clock`, `past`, `$rose`,
+  `$stable`.
 - **CIRCT Verif dialect** — `assert`/`assume`/`cover`, contracts (`require`/
-  `ensure`), `bmc`, `lec`, `refines`.
-- **Chisel 7.x LTL front-end** — `AssertProperty`, `AssumeProperty`, `CoverProperty`,
-  `Sequence`, `Property`, `Delay`.
-- 2026 fixes for explicit clocking of `past` intrinsics (PR #10392).
+  `ensure`), `verif.formal`, `verif.bmc`, `verif.lec`, `verif.symbolic_value`.
+- **Chisel 7.11.0 LTL front-end** — `AssertProperty`, `AssumeProperty`,
+  `CoverProperty`, `RequireProperty`, `EnsureProperty`, `Property`/`Sequence`
+  composition.
+- **firtool 1.143.0** (March 2026): new `FoldAssume` pass, improved
+  `CombineAssertLike`, BTOR2 backend improvements for `verif.formal` and
+  symbolic values, and LTL `past` clock-operand lowering.
+- **May 2026 CIRCT PR #10392 / Chisel PR #5291**: explicit clocking for
+  `ltl.past` — implicit clocking was removed because it complicated lowering.
 
 This stack wins on **adoption and tooling integration**. Its weakness relative
 to t27 is that formal reasoning happens at RTL/SVA or via external checkers,
@@ -129,14 +153,16 @@ It also has no ternary compute line and no physical boot-evidence loop.
 - Sparkle / Verilean: <https://github.com/Verilean/sparkle>
 - Sparkle PR #66 (IP.Net + compiler perf): <https://github.com/Verilean/sparkle/pull/66>
 - Sparkle RV32 divider verification commit: <https://github.com/Verilean/sparkle/commit/9c7809c13cc2d2abd8d5aa0b7c2943ac76340a75>
+- Verilean organization: <https://github.com/Verilean>
 - Clash homepage: <https://clash-lang.org/>
 - Clash Formal project: <https://trustworthy-it.com/en/projekte/clash-formal>
 - Clash compiler repo: <https://github.com/clash-lang/clash-compiler/>
 - LATTE 2026 Clash/CIRCT paper: <https://www.cs.princeton.edu/~ad4048/pdfs/latte-2026-submission-14.pdf>
 - CIRCT LTL dialect: <https://circt.llvm.org/docs/Dialects/LTL/>
 - CIRCT Verif dialect: <https://circt.llvm.org/docs/Dialects/Verif/>
+- firtool 1.143.0 release (March 2026): <https://github.com/llvm/circt/releases/tag/firtool-1.143.0>
 - CIRCT LTL past-op clocking PR #10392: <https://github.com/llvm/circt/pull/10392>
-- Chisel LTL API: <https://www.chisel-lang.org/api/latest/chisel3/ltl/index.html>
+- Chisel LTL API (7.11.0): <https://www.chisel-lang.org/api/latest/chisel3/ltl/index.html>
 
 ---
 
