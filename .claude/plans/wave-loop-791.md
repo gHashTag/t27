@@ -88,17 +88,17 @@ Stay at W790 width and add conditional indexed signed field writes:
 
 ## 5. Completion criteria
 
-- [ ] `wave-loop-791` branch created from `wave-loop-790` HEAD.
-- [ ] `scripts/gen_w791.py` committed and executable.
-- [ ] Witness `specs/scratch/w791_bench_module_401x2p6_aos_var_call_write.t27` generated.
-- [ ] Integration test added and passes.
-- [ ] `t27c parse` / `icarus-lowerable` / `icarus-simulate` / `icarus-cocotb` / `seal --save` pass.
-- [ ] `cargo test -p t27c --test icarus_lowerable` passes (251/0 expected).
-- [ ] Closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W791_2026-07-24.md` written.
-- [ ] Plan `.claude/plans/wave-loop-792.md` with three variants.
-- [ ] `.trinity/experience.md`, `.trinity/current-issue.md`, `docs/NOW.md`, `.claude/skills/t27-wave-loop.md` updated.
-- [ ] Memory `wave-loop-790.md` saved and `MEMORY.md` index updated.
-- [ ] Commit with `Closes #N`, push, open PR.
+- [x] `wave-loop-791` branch created from `wave-loop-790` HEAD.
+- [x] `scripts/gen_w791.py` committed and executable.
+- [x] Witness `specs/scratch/w791_bench_module_401x2p6_aos_var_call_write.t27` generated.
+- [x] Integration test added and passes.
+- [x] `t27c parse` / `icarus-lowerable` / `icarus-simulate` / `icarus-cocotb` / `seal --save` pass.
+- [x] `cargo test -p t27c --test icarus_lowerable` passes (251/0 expected).
+- [x] Closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W791_2026-07-24.md` written.
+- [x] Plan `.claude/plans/wave-loop-792.md` with three variants.
+- [x] `.trinity/experience.md`, `.trinity/current-issue.md`, `docs/NOW.md`, `.claude/skills/t27-wave-loop.md` updated.
+- [x] Memory `wave-loop-791.md` saved and `MEMORY.md` index updated.
+- [x] Commit with `Closes #1511`, push, open PR.
 
 ---
 
