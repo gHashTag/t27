@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:5c5512dbc0ec52a4d782551681425c9f4baf824c44f60624a82581a9dbe69c15",
-  "gen_hash_rust": "sha256:c7ff4d9db506c86aabe88ab55dd3e9685f0f273be0a5f67438077a39f32fb5c6",
-  "gen_hash_verilog": "sha256:1a7664638011942415a3f441117e8c752d92fc3cc29d9ff4528d089b03fc39ee",
-  "gen_hash_zig": "sha256:24d4f6c104e892298c245045998ee7b9ae55739089bad3135a355e450c0ac094",
+  "gen_hash_c": "sha256:5d715c0bfce38ccdb3712aee43d4a55218a47e466d818e79518ba57837e1aa43",
+  "gen_hash_rust": "sha256:a49f3c24e6893dafe73cd1cd85bdb4da76739082bfe7303714610ac64eea9631",
+  "gen_hash_verilog": "sha256:d55bd9b8635acd212f01cba47fb4bbb05e58f213a5dd7ce1bdae6dafc8eed2d1",
+  "gen_hash_zig": "sha256:f1c327f0117030b81e888639b4e7320c048db563e400c6919e7bd61b62f9731f",
   "module": "Formal",
   "ring": 12,
-  "sealed_at": "2026-07-16T13:46:56Z",
+  "sealed_at": "2026-08-06T14:05:53Z",
   "spec_hash": "sha256:090f5fe32fbec3c6907143f4087ae455ec0f77ec0c8d2bde1c985cba52b6c29c",
-  "spec_path": "/Users/playra/t27/specs/fpga/formal.t27"
+  "spec_path": "specs/fpga/formal.t27"
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:ea28248d34e2a59808002d1007848bc9ddb4b68a2368bc992e4bc603ab716cc7",
   "gen_hash_rust": "sha256:d0212221a80fdd7cdc7e8e6cda93074873a62b21042f6849e4594f7d6ded16c5",
-  "gen_hash_verilog": "sha256:7f0eceeede9902cf022afbd217658c07724f44c07f60a8279668edcf6177923e",
-  "gen_hash_zig": "sha256:596de1b4cd6a5ccfb1f8fee10925a13453cb7c1ec4c9274728ce99f8235cd28b",
+  "gen_hash_verilog": "sha256:6c2e71b55095009a926852c9feee96ddb681f729d3ed3b88201e72465239fbea",
+  "gen_hash_zig": "sha256:a0e1df776d7254622b7a9b7b5a6cb3c89119513c9d429cdd5b4aabf105b7e920",
   "module": "enrichment::audio_overview",
   "ring": 12,
-  "sealed_at": "2026-07-16T13:46:56Z",
+  "sealed_at": "2026-08-06T14:05:54Z",
   "spec_hash": "sha256:baae843a9ba5aa64a51752b5feab3e3cde36a085f31e63f6467d5590e9b64f7a",
-  "spec_path": "/Users/playra/t27/specs/enrichment/audio_overview.t27"
+  "spec_path": "specs/enrichment/audio_overview.t27"
 }

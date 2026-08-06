@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:73b151d0d2ad574264355abcec888aeccb29a949ecfa3966440c80896f7eb571",
   "gen_hash_rust": "sha256:2d5c356f053ce58983a03306edf5e2a1c29615ad054e3d984b2559eac6f5416f",
-  "gen_hash_verilog": "sha256:47c5881e2534151723673483e016c66c71d795e3d1dc2ffc5a16629c533d6f3b",
+  "gen_hash_verilog": "sha256:8df9d4f6a97030dd6a5efd4bfdb4a766efdcd8f11b238ac74dd4b035ecd3bb26",
   "gen_hash_zig": "sha256:350e0bfc23adb453c279dcd834600ac24a3497313f59c3d21acf7394dd0d5adf",
   "module": "TriText",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:06b46cd587689d5c28c0b3546cac9ec68aebee940d55610087634c759ef2401c",
-  "spec_path": "/Users/playra/t27/specs/tri/utils/text.t27"
+  "spec_path": "specs/tri/utils/text.t27"
 }

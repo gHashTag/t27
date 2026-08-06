@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:9e5a79233be7512ccf7f8c7ede329507813da65e5f70dcb470f0653fc56daeec",
-  "gen_hash_rust": "sha256:118a87914b973b8cf9312abe9cdc51ef90aa4c65dafa0f150f4341e5af210b41",
-  "gen_hash_verilog": "sha256:ed0063d74320427c35e1e3093e96295dd861300404a310a908468c52a9a2db69",
-  "gen_hash_zig": "sha256:1c61ce90bcbdf8fbd004936d6a2f7bf6d678a54768a0142603cb2927c05f8b80",
+  "gen_hash_c": "sha256:d143ff0296bdfe580175f88f12cce053cdabde618f12ba1fb0ecf778866b4022",
+  "gen_hash_rust": "sha256:f658bf02ba0aa69a7e27505d02e2c1c957d50e25d5f7d1913c2a84283291401d",
+  "gen_hash_verilog": "sha256:29a4cdeba6235c4f51e5a9822c9388d874bba9023c3ff12f152129fca7f8740a",
+  "gen_hash_zig": "sha256:8ab8084b1ba702072b99088051954f94c5aed9e45cbeb3af01e20079002225bf",
   "module": "GF8",
   "ring": 12,
-  "sealed_at": "2026-07-18T16:36:16Z",
+  "sealed_at": "2026-08-06T14:05:52Z",
   "spec_hash": "sha256:f0d9f7f0c9030d184d281076ea93c44834770ef67ff8dc8aefb004c50c39457b",
-  "spec_path": "/Users/playra/t27/specs/numeric/gf8.t27"
+  "spec_path": "specs/numeric/gf8.t27"
 }

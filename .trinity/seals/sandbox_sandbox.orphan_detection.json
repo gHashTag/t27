@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:525e65eb9534b1ed25cc62a31603496b495a2ea7c9b5983344f7f4043fc494b4",
   "gen_hash_rust": "sha256:ed5437781d3e8f65eeb561baa0aca3e5140e002406b1efc368037444dca8ffe3",
-  "gen_hash_verilog": "sha256:3640e756493631a06252bdc4c5963336bdcc88650c3c21243a61ff49d8f24a6e",
+  "gen_hash_verilog": "sha256:250775bea916212c4dfd495dd7863797160a3a52626d1b0852f61b406a90394d",
   "gen_hash_zig": "sha256:23c0a57c1589923a73f36dfed6c657cc54229d4ae47d8dbb712524c7446117da",
   "module": "sandbox.orphan_detection",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:52Z",
   "spec_hash": "sha256:3076c6f6ada328638763f370697f192fea2be5b311c3dab795e995d798a7b91e",
-  "spec_path": "/Users/playra/t27/specs/sandbox/orphan_detection.t27"
+  "spec_path": "specs/sandbox/orphan_detection.t27"
 }

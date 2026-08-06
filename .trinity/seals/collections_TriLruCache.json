@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a8cf88e9998fe9fd68f26037af1006845dd30ee6bfc5a9db3c13ede343a5b8bb",
   "gen_hash_rust": "sha256:15ef87f537c932c5874a813eaaaaf316af7d00c96a03981b3fb7ed6cedacd62e",
-  "gen_hash_verilog": "sha256:b221197d0c16b9fe8ae713adc6b17c32c23089e461c931179db54c5c63f09a7f",
+  "gen_hash_verilog": "sha256:6baaded30a89406a9f4d3df91fef02dc140b9a01184e2ff752c204f109a9cf60",
   "gen_hash_zig": "sha256:7b55f1b6f4f078558411b300ef46ccc532823568c705ea1973bbef21fd09d4f9",
   "module": "TriLruCache",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:346a15f33a83f1587b8c61955907f492ac291d4c687970a47a655ceb52d9be35",
-  "spec_path": "/Users/playra/t27/specs/tri/collections/lru_cache.t27"
+  "spec_path": "specs/tri/collections/lru_cache.t27"
 }

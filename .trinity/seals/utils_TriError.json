@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4c21c83d83c88cc6310d698898ca039217ea57b9054ac529794fe573058b982f",
   "module": "TriError",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:83fd64fdf3b8a0001d74c1769230ca11b7a0d7f3729c46881b92320b51708b7f",
-  "spec_path": "/Users/playra/t27/specs/tri/utils/error.t27"
+  "spec_path": "specs/tri/utils/error.t27"
 }

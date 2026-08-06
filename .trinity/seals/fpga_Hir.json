@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:fe69780c871d60bdd6baa6fa76ca838d0c33b15dba4a442a5173b346d23964f2",
-  "gen_hash_rust": "sha256:6d9ad4a683cec0850dc87fb5317686f161723b1bfee1b864690d423a80a870a5",
-  "gen_hash_verilog": "sha256:b514e9c4e6c186e0c2eee460048f1009efaf9f81e72d7a763e604aad0140e9bd",
-  "gen_hash_zig": "sha256:05b1c02d83cdc8facf4169acad460e09410835fab31c4dfbf24ead9c8d9b6a01",
+  "gen_hash_c": "sha256:08fab30b92dcd76857885545dc4a5d0c799312e29b5034265f33aa8e8b3840d4",
+  "gen_hash_rust": "sha256:0b8ee9d0971732f3132c20c7f2d8089ff10e0f208538371f2e677c786b43f8f4",
+  "gen_hash_verilog": "sha256:15ab4937ddc67a7632ff0da3bedbab2b38fc770cc4a93d5a035876e20aaaa55e",
+  "gen_hash_zig": "sha256:d30c7a610a1fa8a8c33cedac75bb00724b8ec81ad2d4b0a2e5196808107c6769",
   "module": "Hir",
   "ring": 12,
-  "sealed_at": "2026-07-16T13:46:56Z",
+  "sealed_at": "2026-08-06T14:05:53Z",
   "spec_hash": "sha256:0a8c8fb8b35a2791fbab26a8a95f310c75edeff390902cda5972dabee26abcaa",
-  "spec_path": "/Users/playra/t27/specs/fpga/hir.t27"
+  "spec_path": "specs/fpga/hir.t27"
 }

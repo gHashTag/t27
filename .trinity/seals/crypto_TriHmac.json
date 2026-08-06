@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:40855f295093b7cfe3091b88ad32d9d434c3c3c0473bed731e57bac2f0666ea6",
   "module": "TriHmac",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:20Z",
   "spec_hash": "sha256:357ef72e7b4d971cc3711e664fe4fded7b6ab4514247831507baa0641e3d1eed",
-  "spec_path": "/Users/playra/t27/specs/tri/crypto/hmac.t27"
+  "spec_path": "specs/tri/crypto/hmac.t27"
 }

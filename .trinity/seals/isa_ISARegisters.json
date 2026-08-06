@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:04f60983507ea07721c5d6b4ddb9f8c3b964ba92cd48ba1e6f6647e91db3eb2b",
-  "gen_hash_rust": "sha256:0caf4db66c845cb68f2367d844dd13f7192e12516b26efac03b86ccc64f0f5e2",
-  "gen_hash_verilog": "sha256:de64a210211e9f8e87a639e193e098950769db0ffcb2d7555b09cc6da3924e60",
+  "gen_hash_rust": "sha256:1fdc4cee69cf342ccd0f9eb2408e5e64898564cab63c156d84dda48f1bbf1855",
+  "gen_hash_verilog": "sha256:50d756f4dd4bbca3a6fe5841bb0d712dbd366bdede911f6da4cc44105d2203cf",
   "gen_hash_zig": "sha256:d4e0e31eba898ecf50cc227a76f077f880aef11774c7cba3daee9ce8f570d74e",
   "module": "ISARegisters",
   "ring": 12,
-  "sealed_at": "2026-07-16T13:46:55Z",
+  "sealed_at": "2026-08-06T13:55:22Z",
   "spec_hash": "sha256:d2df328caaa443bbddd18b1fe0a2d63c82c8c0a31e0705d2e60dbde805f740e7",
-  "spec_path": "/Users/playra/t27/specs/isa/registers.t27"
+  "spec_path": "specs/isa/registers.t27"
 }

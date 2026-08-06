@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:5d039230001a982cd434f57dfa440530a2a9bc02fa24f6abf95557e4b1ac3870",
   "gen_hash_rust": "sha256:6f92fd150dae619a7a13cba85699b0f83b535486ac682a3b7cf4daf6f4cfb057",
-  "gen_hash_verilog": "sha256:0d41c0f78237ec76878e4c496310933bb9e936b2b58fd8a192c163baf37d0b43",
+  "gen_hash_verilog": "sha256:84ce9a8e12baebb4196d33a13acda971f50ef0dc263fe110b292719ca20290ea",
   "gen_hash_zig": "sha256:1c281e645b9d351d6e3dee8b7d0bbb8462bf77d21a0e2e7c900d385a21d6c243",
   "module": "DqnTarget",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T14:05:53Z",
   "spec_hash": "sha256:f07180e5dbd5e9cd375c6711c3e58a8250327ade0df9f3ba888d49712fb423df",
-  "spec_path": "/Users/playra/t27/specs/ml/rl/dqn_target_network.t27"
+  "spec_path": "specs/ml/rl/dqn_target_network.t27"
 }

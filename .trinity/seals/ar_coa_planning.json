@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:99ee47f25bbf868e6b16ee35611140805c5dbc1b06117722c37fc1a02fe685a3",
   "module": "coa_planning",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:54Z",
   "spec_hash": "sha256:d6b1c23a9296e687435aa23bb3dff4adac3b81e5ff938ac41294d8936a62a7c8",
-  "spec_path": "/Users/playra/t27/specs/ar/coa_planning.t27"
+  "spec_path": "specs/ar/coa_planning.t27"
 }

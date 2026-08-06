@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:cedcb6abf2abb991b3e1f881c77c7b3751d791b820e13201c89b8246ef0eb981",
   "gen_hash_rust": "sha256:1d742d2ea05130318ab3645e019dae9857f2c34c139156f087df9f905bf8d224",
-  "gen_hash_verilog": "sha256:6879dba30639a1390b9a8c0a563cbd8a9088920596816cbf514579b9308e4169",
+  "gen_hash_verilog": "sha256:2c83325dc98d47801c67b18d2c54717a47b72c4bc87051a0952d4db34c936511",
   "gen_hash_zig": "sha256:a2a1e4120b4deba31b993cb9b2ace7eee634fb672c8d5b12e6cb9b862fe280d9",
   "module": "formula_registry",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:54Z",
   "spec_hash": "sha256:c6c888eead59d10c6030023702fa4faf2457e75a595c1dafe65a00f70626f17c",
-  "spec_path": "/Users/playra/t27/specs/physics/formula_registry.t27"
+  "spec_path": "specs/physics/formula_registry.t27"
 }

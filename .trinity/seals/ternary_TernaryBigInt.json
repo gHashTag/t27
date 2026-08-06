@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:5cccd8ce5b89733d66695c24e41bf0260ebb508cae14e3af173b1e103d75164b",
   "gen_hash_rust": "sha256:ab9d4b09e7f60abd05334c37b97fe090b949d38c4ad18380307879347401b1c5",
-  "gen_hash_verilog": "sha256:49afe1d7026fa35498c590f4de4ee113269d3191bbe1c136c587016b08fb072a",
+  "gen_hash_verilog": "sha256:c8cf47dc5523d167acbdc72f71d5c16998fa25578af0ce74af8ff194560726dd",
   "gen_hash_zig": "sha256:06e339b1c14e7dba3db1f9f4471296b23e0f164904030084d1bb72668cd55ac8",
   "module": "TernaryBigInt",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T13:55:20Z",
   "spec_hash": "sha256:4725977139ac9ad1a26f03a40ca7238289043e5754923d144eb4e021cb22f9c7",
-  "spec_path": "/Users/playra/t27/specs/ternary/bigint.t27"
+  "spec_path": "specs/ternary/bigint.t27"
 }

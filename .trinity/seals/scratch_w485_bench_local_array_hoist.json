@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:03f51d33f24b3ab261cbacc08b7cf5e75492ad7ad50960532b24a00ecdec2490",
+  "gen_hash_rust": "sha256:827a65734cb604b5673ade1366cc41db2a14a4e519b30e38d818f328b7027c1d",
+  "gen_hash_verilog": "sha256:41eaa3ca8b00e965e6003ed90a2cb59572930c7bfccb39d052396d8a01343765",
+  "gen_hash_zig": "sha256:ab10546abef96e2d7f8b6a306b03361333f4cf905c8438ab8a3cbc8d65abefd6",
+  "module": "w485_bench_local_array_hoist",
+  "ring": 12,
+  "sealed_at": "2026-08-06T14:01:09Z",
+  "spec_hash": "sha256:e94dac943ae8a6e00774ea7ba315f8d69e699ecee962017d65b2be56c61ecd40",
+  "spec_path": "specs/scratch/w485_bench_local_array_hoist.t27"
+}

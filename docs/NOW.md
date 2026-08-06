@@ -1,3 +1,16 @@
+# NOW — chore: reseal specs after the codegen repair #1790 (2026-08-06)
+
+Last updated: 2026-08-06
+
+## chore(seals): repo-wide reseal after the W457/W458/W459 codegen fix (Refs #1790)
+
+- Branch: `chore/reseal-after-1790`
+
+### Что легло
+The codegen repair #1790 (fixing all 7 gen-verilog regressions from batch-merge #1783) changed the generated output of every spec with a test block (the `` `ifndef SIMULATION `` guard + real test-block call/assert emission), so the committed seals encoded the OLD broken output. This is the deliberate reseal step (per seal-staleness policy): regenerated all spec seals to match the corrected output (~959 specs with real gen-hash changes; timestamp-only churn filtered out). Verified: 1535 unit tests pass on the same compiler. Spec seals are non-blocking (no required gate), but this clears the staleness and keeps the seals a true record of the generated RTL.
+
+---
+
 # NOW — feat: land the spec-first hardware stack (ports + GF-T MAC ladder) (2026-08-06)
 
 Last updated: 2026-08-06

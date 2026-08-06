@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:fb55080b911b463c6ed6096f636c21486b494c4f8f5e2c8c86478905328cc2e3",
-  "gen_hash_rust": "sha256:b1126c40bfcaf7962ce917961183c6ab481ebc26955601f40e9bdc9a83297a87",
-  "gen_hash_verilog": "sha256:fd98bdb0fbcbb22cd7e37938db70fe0c0bd642c16f64e97d0630c9021fbb0664",
-  "gen_hash_zig": "sha256:e7a91670d7fb6b65164b087b7853b3b83a4d11591f967d46e4aa0d69ddea781a",
+  "gen_hash_c": "sha256:c166f9fb5b2049aed3b7abf0580f63552098a0b42907b8715530bff8378af427",
+  "gen_hash_rust": "sha256:446bb54f35725f4545c0422586a814496a28f4ff9cca45c6e1693bf970981727",
+  "gen_hash_verilog": "sha256:fa00e9a6b2d1c43b7d773105bc6d064da414ee5fc4ea0dac5371028717626860",
+  "gen_hash_zig": "sha256:95468e13572af84642d4fbd04178d2e5629bec5990beac844a178b25dc9fc580",
   "module": "PositionalEncoding",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:52Z",
   "spec_hash": "sha256:22b7fd16cc3e23432ab550205a19de7e72f9f80efb73a000a1c9ce56b3c136b6",
-  "spec_path": "/Users/playra/t27/specs/ml/transformer/positional_enc.t27"
+  "spec_path": "specs/ml/transformer/positional_enc.t27"
 }

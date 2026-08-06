@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6bc4cbf4fe2d43ac3286cacc63c733e44a9ca3bad322d4f261fb1ab529a4e6da",
   "module": "w371_verilog_keyword",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T13:56:56Z",
   "spec_hash": "sha256:fd562dea922c4042ba42d30aa8fa98ec51b142d3e8292db27acf2b971367ce92",
-  "spec_path": "/Users/playra/t27/specs/scratch/w371_verilog_keyword.t27"
+  "spec_path": "specs/scratch/w371_verilog_keyword.t27"
 }

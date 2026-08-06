@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3daa726f2a4ed866739e4610dfafdbc887d77f9bc123cbda8ec292ea7f710aa3",
-  "gen_hash_rust": "sha256:827690e5907169b030651f2e136b1564af02e6c48ec5c7116df7ba782724e159",
-  "gen_hash_verilog": "sha256:0022de45f0d1099c7ec90276526f8039afc934b39ae490d0ceba8d9a6b4e8a14",
+  "gen_hash_rust": "sha256:cfcd1e85b9059d19930ec79915f9fc1cb000182a9d5bcdb4ce9c366eae1d2fa2",
+  "gen_hash_verilog": "sha256:c57a02621cb1bbcc26a00fcaa54d86f231cc114f53956cc62731ecfa1685cf57",
   "gen_hash_zig": "sha256:5be4862a8e1db154484aa53fe2c4a3cea06f6d2c71c4b87b747cfe980d611a9e",
   "module": "igla-race-systolic-array",
   "ring": 12,
-  "sealed_at": "2026-07-18T16:36:15Z",
+  "sealed_at": "2026-08-06T14:05:54Z",
   "spec_hash": "sha256:a60d3223f545f242cf732114bd2d2a932512aea8f77c690103833ed2056a5b84",
-  "spec_path": "/Users/playra/t27/specs/igla/race/systolic_array.t27"
+  "spec_path": "specs/igla/race/systolic_array.t27"
 }

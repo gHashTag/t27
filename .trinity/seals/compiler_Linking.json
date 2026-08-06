@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:124adf83eeaa68053d62401325a42d35b57cf516d15f173703fdcb7d39801c11",
-  "gen_hash_rust": "sha256:4f27f16c44f5554bcf54a8eadc6e796e2786acab0e91611f5b28db41ec48621c",
+  "gen_hash_c": "sha256:bfee778309dbd45d8250dc758f2dbba248217683cfac48fa19b79e3268c013cc",
+  "gen_hash_rust": "sha256:1295851e4bb16c6d4056aa163fd1a29f9cf94436feffae8f0c70ec227ee56ff2",
   "gen_hash_verilog": "sha256:81c9861a6010dc631050687c37d0e22bdc8b31dd08e7e62cec596cb1960b899f",
-  "gen_hash_zig": "sha256:95d03ea4263536fe3cdb1fed75995d3ff68d5c67f2674ad0aea2baac37b8ba03",
+  "gen_hash_zig": "sha256:3f0ea7d1e8024bfdbec403a420478f533a19973eb345d93b569fab40f0b5710c",
   "module": "Linking",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:56Z",
   "spec_hash": "sha256:b636530a07cd52d3c26a184307aeaf56846fc9697b40d0bf38391253c6d68b16",
-  "spec_path": "/Users/playra/t27/specs/compiler/linker.t27"
+  "spec_path": "specs/compiler/linker.t27"
 }

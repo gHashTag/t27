@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:54ae4f41e4a8e88679be527ec055eac91e56f6076658ce004b9ac91e15d867c9",
   "module": "w371_early_return",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:00:05Z",
   "spec_hash": "sha256:8af23fae7fda8a12d49896839641fdd5bf3dedda59d6d7f4080ac787497870f2",
-  "spec_path": "/Users/playra/t27/specs/scratch/w371_early_return.t27"
+  "spec_path": "specs/scratch/w371_early_return.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:41929594b8434fee2cf74ee8068ec755ba9fca90da36c2eb5a78b25f763cd68a",
   "module": "TriMath",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:7acc3ed7813ca1bf6b8aa5e0836279f1221cb7beab5596b9c03feae7e141857f",
-  "spec_path": "/Users/playra/t27/specs/tri/math/math.t27"
+  "spec_path": "specs/tri/math/math.t27"
 }

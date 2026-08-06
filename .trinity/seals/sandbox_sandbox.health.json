@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:253464e2b4d082dedfca45da1774138a6ead191d5338bc048e4ee9dc961abcb8",
   "module": "sandbox.health",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:52Z",
   "spec_hash": "sha256:240ee005d77e830f32a5e8bc7b49d4eb99b0ec4d6b15a24e40bcdf0e68159602",
-  "spec_path": "/Users/playra/t27/specs/sandbox/health.t27"
+  "spec_path": "specs/sandbox/health.t27"
 }

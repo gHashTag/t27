@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:8891347ec11aa9832b69710dd9ad2fc5e79676ca6f2ad3e0a7f72b9598badb13",
   "gen_hash_rust": "sha256:7ae77b026344ee06a757e70d37a8801fa4d4c4b66bccebaa88d4b2bbe924c46d",
-  "gen_hash_verilog": "sha256:7a98e48603039018c6e72970a2fa018b8c7c123fac4aab773a40187c83582436",
+  "gen_hash_verilog": "sha256:61e6d8da05e80d4f411d2e7ef0d1c8599d1a363d768a15b8057131f57f9bcc20",
   "gen_hash_zig": "sha256:ad5515dd917c1348d6d533d252bb8106e959f71feda4633f6bba77fe09b2beeb",
   "module": "TriRandom",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:1ac48181d58fe5733740c1cb738f315f5abfbd2d36b6c6cdfe2ff44bc5788573",
-  "spec_path": "/Users/playra/t27/specs/tri/utils/random.t27"
+  "spec_path": "specs/tri/utils/random.t27"
 }

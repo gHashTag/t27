@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e9e5a96e178f90e2da51e74cd2efd8f87a6d63c727cc4ff8c694ada254b4c561",
   "module": "w599_bench_module_17x2p9_aos_var_call_write",
   "ring": 12,
-  "sealed_at": "2026-07-19T09:08:22Z",
+  "sealed_at": "2026-08-06T13:57:01Z",
   "spec_hash": "sha256:dd7fbea447421146dce5cb7ce94e224f38be8e9b2722085acce0614c413520f7",
-  "spec_path": "/Users/playra/t27/specs/scratch/w599_bench_module_17x2p9_aos_var_call_write.t27"
+  "spec_path": "specs/scratch/w599_bench_module_17x2p9_aos_var_call_write.t27"
 }

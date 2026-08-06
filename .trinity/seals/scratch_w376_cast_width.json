@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0a286c9ee04ac5624aea278b76e17f547d778caeedf964a8fb3dacc4e077a449",
   "module": "w376_cast_width",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T13:56:36Z",
   "spec_hash": "sha256:2fec9aef757bfcbbd37e3e8242703dfd7d591e5b315a595d58310825ac10913f",
-  "spec_path": "/Users/playra/t27/specs/scratch/w376_cast_width.t27"
+  "spec_path": "specs/scratch/w376_cast_width.t27"
 }
