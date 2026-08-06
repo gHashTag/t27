@@ -1,3 +1,18 @@
+# NOW — ring-105: ecosystem .tri rewrite (7 repos -> t27 SSOT) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## ring-105: ecosystem .tri rewrite (Closes #1454)
+
+- Branch: `ring-105-ecosystem-tri-rewrite`
+
+### Что легло
+- Schema-first `.tri` specifications derived from a 7-repo ecosystem (t27, trinity, trios, trios-mcp, 999-multibots-tma, 999-multibots-telegraf, IGLA) as upstream SSOT under `specs/**`: `specs/experience/experience.tri`, `specs/organism/{mozg,dna}.tri`, `specs/git/orchestrator.tri`, `specs/mcp/tool_registry.tri`, `specs/scenes/scene_schema.tri`, `specs/runtime/ring_runtime.tri`, `specs/dataset/igla_coder_manifest.tri`, plus `dataset/igla-coder/v0.1/**` and `docs/wave_ecosystem_2026-07-08/*`.
+- Hard rule enforced: no hand-written `.zig`/`.rs` anywhere; all targets are auto-generated from `.tri` or marked STUB.
+- Weakness audit openly recorded in `docs/wave_ecosystem_2026-07-08/WEAKNESS_AUDIT.md`.
+
+---
+
 # NOW — ci(trust): OpenSSF Scorecard, SBOM, Sigstore-signed releases (2026-08-06)
 
 Last updated: 2026-08-06
