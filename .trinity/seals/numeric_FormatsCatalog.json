@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:383f56a43bd49d9a0c2232578e0908b8655abc3b199a79ee342d9aa93c3d1817",
-  "gen_hash_rust": "sha256:26313538ad548e21d513e3eae855e1add058bf15fa3306abc549ae6ae8ad427e",
-  "gen_hash_verilog": "sha256:bb174c162b55879d5ed8fbc24177c106ce5de15c9d784a7df20a4e67ff6b35b4",
-  "gen_hash_zig": "sha256:32ccf436c117c7011f659075c86beff5039a69a5bf122647f2fcedc87e6d803a",
+  "gen_hash_c": "sha256:f39afe48b085bb700cf97b02f9c59364311c6dce8f091e2c89fe345723b08f56",
+  "gen_hash_rust": "sha256:bf55cc90003b9059794b50ce5bdcc392bd0681bb0a7c6f2daf13b2821b52ebc5",
+  "gen_hash_verilog": "sha256:ceee175b6f48489b2aae58c35b989bce4cdf2af0dfa0d04b9c848ac9672d87e4",
+  "gen_hash_zig": "sha256:826307d0cfde4b9b897b0c8c72b188e2a0f0359ecef1114a63784418dbf49efe",
   "module": "FormatsCatalog",
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:24b6faabc1428b0d37c50b16854110dd16f046b707d77eae5a356f90baf17984",
-  "spec_path": "specs/numeric/formats_catalog.t27"
+  "spec_path": "/Users/playra/t27/specs/numeric/formats_catalog.t27"
 }

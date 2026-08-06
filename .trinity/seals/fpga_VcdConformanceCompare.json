@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:f4725c1e5baf34cd48150fccccaf061f585340ffd5963986293fb3262ce8e6e3",
-  "spec_path": "specs/fpga/vcd_conformance_compare.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/vcd_conformance_compare.t27"
 }

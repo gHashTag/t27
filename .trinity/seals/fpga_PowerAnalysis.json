@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-18T16:36:15Z",
   "spec_hash": "sha256:60f9bd3929b53410b8ecc6f586991f33731ba60aa9fb1a2228b062e3ef550a16",
-  "spec_path": "specs/fpga/power_analysis.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/power_analysis.t27"
 }

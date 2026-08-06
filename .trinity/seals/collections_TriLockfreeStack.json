@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:05f3fec4bc98246246aa5cfa04b845862c7f71326f9892120aad67a1dfc8e670",
-  "spec_path": "specs/tri/collections/lockfree_stack.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/collections/lockfree_stack.t27"
 }

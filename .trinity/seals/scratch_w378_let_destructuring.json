@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:6eade20ed4cd3c4512df60f90046b647b9fab73ff1998bb0827f335d2c436f49",
   "gen_hash_rust": "sha256:6a4a87159e740b770685e33c392a7712046d3b78f50b02e7edf10568e2ce1986",
-  "gen_hash_verilog": "sha256:d9943075314a1cf40c4a58a996072134bcf6350174286f65a79e18141c501f81",
+  "gen_hash_verilog": "sha256:51556b25928323c54cd9ef6d427fc4118131e68f50e364b355c22778b91396a1",
   "gen_hash_zig": "sha256:2bc599b2e8dff853df2290c2b6f3a1c2bf09266d28e225c3456c38d7e5cdfbf2",
   "module": "w378_let_destructuring",
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:e7b3ed233b548c98db11d957731068956a26a08a1468f291319518a3a529ccb2",
-  "spec_path": "specs/scratch/w378_let_destructuring.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w378_let_destructuring.t27"
 }

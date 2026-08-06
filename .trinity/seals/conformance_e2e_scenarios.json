@@ -1,5 +1,5 @@
 {
-  "gen_hash_c": "sha256:9da786eaf8feaa9893fac22d3dccbbd0b01309fe2c8fd785649d879747f4b19a",
+  "gen_hash_c": "sha256:47e817be4bdd17ec65a603dec0099afa64b9042a81d1190d82e9011a531d712f",
   "gen_hash_rust": "sha256:8f2bafdb0372c88125bd06a9e3b48a3fcfbe794a0cf2f4aec6acdd4d2700b28b",
   "gen_hash_verilog": "sha256:2ad7b8449b0cb035a9641b8b57574d1c794871bcb0971e631615531ec9821afd",
   "gen_hash_zig": "sha256:876fbb4b1ee46d1421acfeb5bd3facd4627b63303a25613a87d4fd0d25122b3e",
@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:20bbd8ea737137c7d5aaf81e7afd3087475790ec60e9c684d89172adab8bd5b7",
-  "spec_path": "specs/conformance/e2e_scenarios.t27"
+  "spec_path": "/Users/playra/t27/specs/conformance/e2e_scenarios.t27"
 }

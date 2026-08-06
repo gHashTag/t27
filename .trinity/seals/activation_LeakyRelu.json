@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:c6cf3e0b7de5d05674b0dcf9c9f2dd1c7efe0a507a99644025f58261c5b15efe",
-  "spec_path": "specs/ml/activation/leaky_relu_activation.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/activation/leaky_relu_activation.t27"
 }

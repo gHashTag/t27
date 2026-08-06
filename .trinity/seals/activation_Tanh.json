@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:d14b698293100dd48dcbc0741dc4ad592c0a499b34d827515586e70551ff6747",
-  "spec_path": "specs/ml/activation/tanh_activation.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/activation/tanh_activation.t27"
 }

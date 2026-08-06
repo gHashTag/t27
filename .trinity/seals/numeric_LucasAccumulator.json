@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:786f94b80c9cc8da149e371886d2c2a515bb29a289dd287d9d8c2986692e0b1e",
-  "spec_path": "specs/numeric/lucas_accumulator.t27"
+  "spec_path": "/Users/playra/t27/specs/numeric/lucas_accumulator.t27"
 }

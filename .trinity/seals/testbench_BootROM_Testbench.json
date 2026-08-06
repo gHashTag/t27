@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:824b57fc33a864a5185e313d43e48b5fbeed0a99a796651014f7f9de5c9a11c4",
-  "spec_path": "specs/fpga/testbench/bootrom_tb.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/testbench/bootrom_tb.t27"
 }

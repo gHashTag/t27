@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-18T16:36:15Z",
   "spec_hash": "sha256:febf87624d67aa679c451ceba324033bcca3e9bd351a150bdd57a3e38e79122f",
-  "spec_path": "specs/fpga/crossopt.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/crossopt.t27"
 }

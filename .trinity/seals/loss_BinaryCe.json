@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:7ef7acd6dea18076e9b87ed6b1cc6fa16ef8c0de91a59ce03bb66cb5f4d01e48",
-  "spec_path": "specs/ml/loss/binary_crossentropy_loss.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/loss/binary_crossentropy_loss.t27"
 }

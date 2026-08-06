@@ -1490,19 +1490,105 @@ Expected 25,664 elements, 821,248-bit packed vector (~0.783 MiBit), still under
   fixtures with a whitelist path) is left to the owner. SSOT=83 untouched.
 - Status tag: [доказано] for the counts; [ТРЕБУЕТ ДЕЙСТВИЯ ПОЛЬЗОВАТЕЛЯ] for A vs B.
 
-## Wave Loop 458 — Next wave (to be selected from cooperation plan) (Closes #1429)
+## Wave Loop 459 — Next wave (to be selected from cooperation plan) (Closes #1431)
 
-- Branch: `wave-loop-458` (to create from W457 land commit)
-- Issue: #1429 (to create)
+- Branch: `wave-loop-459` (to create from W458 land commit)
+- Issue: #1431 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W458_2026-07-01.md`
-- Cooperation W459: (to be written at W458 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W459_2026-07-01.md`
+- Cooperation W460: (to be written at W459 close-out)
 
 ### Not started
 
-- Create issue #1429 and branch `wave-loop-458` from the W457 land commit.
-- Select one of the three W458 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W458_2026-07-01.md`.
+- Create issue #1431 and branch `wave-loop-459` from the W458 land commit.
+- Select one of the three W459 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W459_2026-07-01.md`.
+
+---
+
+## Wave Loop 458 — gen-verilog warning hygiene + module-level array parameters (Variant B default) (Closes #1429)
+
+- Branch: `wave-loop-458`
+- Issue: #1429
+- PR: (to open after close-out)
+- Report: `docs/reports/WAVE_LOOP_458_REPORT.md`
+- Evidence W458: `docs/reports/FPGA_LOOP_EVIDENCE_W458_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W458_2026-07-01.md`
+- Cooperation W459: `docs/reports/FPGA_LOOP_COOPERATION_W459_2026-07-01.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Replaced `// synthesis translate_off/on` guards with `` `ifndef SIMULATION `` /
+    `` `endif `` for test and bench blocks.
+  - `f32`/`f64` scalar constants now emit `parameter real` / `localparam real`
+    instead of bit-vector declarations.
+  - String literals are escaped (`\\`, `\\n`, `\\t`, `\\"`) before Verilog emission.
+  - Bare module-level statements are now parsed and emitted inside an
+    `always @(*)` block.
+  - Functions inside a module can reference module-level arrays by name.
+  - `pub fn` array parameters can be bound to a module-level array through a single
+    module-level call site; the bound array is referenced by name inside the
+    function and omitted from the scalar port list.
+  - Added `tests_w458` unit-test module:
+    - `array_param_read_emitted`
+    - `float_param_emits_real`
+    - `string_newline_escaped`
+    - `no_translate_off_comments`
+  - Fixed a module-body recovery infinite-loop edge case on stray top-level keywords.
+
+- `specs/scratch/w458_array_param_read.t27`
+  - Regression spec with module-level `const [4]u16` ROM and a function reading
+    from it.
+
+- `specs/scratch/w458_array_param_write.t27`
+  - Regression spec with module-level `var [4]u16` RAM and functions writing to
+    and reading from it.
+
+- `.trinity/seals/scratch_w458_array_param_read.json`
+- `.trinity/seals/scratch_w458_array_param_write.json`
+  - Seals for the two new regression specs.
+
+- All 581 `.trinity/seals/*.json` files re-sealed to the new gen-verilog output.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_458_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W458_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W459_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W458_OPERATING_POINT` — bench unavailable.
+- Known-warnings gate in `bootstrap/src/suite.rs` — deferred to W459 (Variant B).
+- Array-parameter support for test/invariant/bench call sites — deferred to W459
+  (Variant B).
+- ROM style pragma — deferred to a future wave.
+
+### Verification
+
+- `cargo test -p t27c --bin t27c tests_w458`: **PASS** (4/4).
+- `t27c gen-verilog specs/scratch/w458_array_param_read.t27` +
+  `yosys read_verilog -sv; synth -top w458_array_param_read`: **PASS**.
+- `t27c gen-verilog specs/scratch/w458_array_param_write.t27` +
+  `yosys read_verilog -sv; synth -top w458_array_param_write`: **PASS**.
+- `./scripts/tri test --fast --json /tmp/tri_test_w458_fast.json`: **ALL TESTS PASSED**.
+  - Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C / Seal Verify:
+    581/581 PASS.
+  - Gen Verilog Yosys Smoke: **61 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**, 24-variant theorem matrix,
+    `envelope_check: "ok"`, `schema_version: "1.0"`, `passed: true`.
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `ACCEPTABLE: yes`.
+- Full `./scripts/tri test` (no `--fast`): Phase 3c smoke gate reports `passed: true`,
+  but Phase 3c-standalone stalls on an external `lake` download of `batteries`
+  from `reservoir.lean-lang.org`. The `--fast` path is fully green.
+- `cargo test -p t27c --bin t27c`: 1518 passed, **3 pre-existing failures**
+  (`let_binding_is_lowered_1401`, `test_let_binding_emitted_c_1401`,
+  `test_let_binding_emitted_rust_1401`) that also fail on `HEAD~1`.
 
 ---
 
