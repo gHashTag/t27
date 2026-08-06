@@ -1,3 +1,20 @@
+# NOW — feat(spec): GF-T SGD weight update — training loop closed (2026-08-07)
+
+Last updated: 2026-08-07
+
+## feat(spec): GF-T SGD step w' = w − η·g — the on-device training loop is complete (Refs #1764)
+
+- Branch: `feat/gft-sgd-step` (stacked on `feat/gft-softmax-grad`)
+
+### Что легло
+- `specs/ternary/gft_sgd_step.t27` (`GftSgdStep`): a GF-T **SGD weight update** `w' = w − η·g` — the final brick of an on-device training step. `η` positive learning rate, `g` the (signed) gradient, `w` the (signed) weight. Composes a **signed** multiply `smul` (sign = XOR of signs, magnitude = the verified RNE magnitude mul) with subtract (`sadd`+`neg`). Bit-exact to the integer oracle **500/500** (iverilog); accuracy to GF-T16 precision (≤1 ULP, ~0.03 abs at the largest magnitudes). Spot: `w=1,g=0.5,η=0.5 → 0.75` exact; `g=0 → w` unchanged; `w=1,g=−1,η=1 → 2.0` (ascent) exact.
+- Fresh seal for `GftSgdStep` (`seal --verify` MATCH). No compiler change.
+
+**The full on-device training loop is now expressible spec-first on GF-T:**
+`logits → softmax → prob → NLL loss` (forward) → `gradient p−y` (backward) → `w' = w − η·g` (**update**). Every stage iverilog-verified bit-exact. Combined with the BitNet×GF-T layers/MLP/classifier, GF-T now spans a complete train+infer stack in synthesizable spec-first hardware.
+
+---
+
 # NOW — feat(spec): GF-T softmax+cross-entropy gradient (backward pass) (2026-08-07)
 
 Last updated: 2026-08-07
