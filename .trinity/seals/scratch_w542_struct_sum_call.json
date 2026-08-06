@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c18eea03432589efcc8956590e7754fc3425c946f02940b9115bdafd11194912",
   "module": "w542_struct_sum_call",
   "ring": 12,
-  "sealed_at": "2026-07-15T08:08:46Z",
+  "sealed_at": "2026-08-06T13:43:22Z",
   "spec_hash": "sha256:b38069668a911ac8e9f22abac7728cfcd4f3300e131cbacc48fbb20361ac6bd0",
-  "spec_path": "specs/scratch/w542_struct_sum_call.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w542_struct_sum_call.t27"
 }

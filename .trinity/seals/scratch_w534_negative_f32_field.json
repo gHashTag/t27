@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c0ce683d2126efae783c9b2cf3309f66e0a3d82c46dda8a9352fcfe531e3e9a3",
   "module": "w534_negative_f32_field",
   "ring": 12,
-  "sealed_at": "2026-07-14T17:00:10Z",
+  "sealed_at": "2026-08-06T13:43:13Z",
   "spec_hash": "sha256:111144733788ccb1370f5ff5af94eb0d97c5cac0c3d5321ef3e39d95452a807d",
   "spec_path": "/Users/playra/t27/specs/scratch/w534_negative_f32_field.t27"
 }

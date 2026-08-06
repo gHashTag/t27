@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5a6e3927c2982924e20a05b640727ad2db9d55ed19d6b1c39020133b008c7110",
   "module": "w534_negative_unresolved_import",
   "ring": 12,
-  "sealed_at": "2026-07-14T17:00:10Z",
+  "sealed_at": "2026-08-06T13:43:13Z",
   "spec_hash": "sha256:e959efa8d29ed11f468113ca4ff5fe5de046a6836aa874341a80079a1bede2de",
   "spec_path": "/Users/playra/t27/specs/scratch/w534_negative_unresolved_import.t27"
 }

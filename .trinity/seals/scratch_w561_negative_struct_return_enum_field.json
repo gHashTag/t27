@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d56ab1055a377f6a354f87c1d230e88afd14f7826cdf99130048be001dee878b",
   "module": "w561_negative_struct_return_enum_field",
   "ring": 12,
-  "sealed_at": "2026-07-17T07:12:33Z",
+  "sealed_at": "2026-08-06T13:43:14Z",
   "spec_hash": "sha256:d828a43f423439b298d9f682e0faab760c90050c677453bf9ba5ee2c0e95f035",
-  "spec_path": "specs/scratch/w561_negative_struct_return_enum_field.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w561_negative_struct_return_enum_field.t27"
 }

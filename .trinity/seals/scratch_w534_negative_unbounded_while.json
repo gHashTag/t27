@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:32e5749a9e4ce59c805d1a76de626577b2a0b410da574aed5fe3d69807bd7c68",
   "module": "w534_negative_unbounded_while",
   "ring": 12,
-  "sealed_at": "2026-07-14T17:00:10Z",
+  "sealed_at": "2026-08-06T13:43:23Z",
   "spec_hash": "sha256:1e3df7a8aa0a64d1271e0dc44b240769da4741485856c83dd945e66f79936c45",
   "spec_path": "/Users/playra/t27/specs/scratch/w534_negative_unbounded_while.t27"
 }

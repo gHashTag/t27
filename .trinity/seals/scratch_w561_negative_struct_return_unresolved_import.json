@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f2cd93284b9c2f6457655c53ce43f164f0e5038016a14854724b1e374172d455",
   "module": "w561_negative_struct_return_unresolved_import",
   "ring": 12,
-  "sealed_at": "2026-07-17T07:12:33Z",
+  "sealed_at": "2026-08-06T13:43:20Z",
   "spec_hash": "sha256:5c239db50b4b7254dc7e6a562d2252e00831f5117f53a3c5ea328221f3e0898c",
-  "spec_path": "specs/scratch/w561_negative_struct_return_unresolved_import.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w561_negative_struct_return_unresolved_import.t27"
 }

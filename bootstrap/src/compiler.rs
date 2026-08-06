@@ -6457,7 +6457,7 @@ impl VerilogCodegen {
                 self.gen_verilog_test(t);
             }
             self.write_indent();
-            self.write_line("`endif");
+            self.write_line("// synthesis translate_on");
             self.write_line("");
         }
 
@@ -29018,21 +29018,23 @@ mod tests_w458 {
     }
 
     #[test]
-    fn no_translate_off_comments() {
+    fn translate_off_on_balanced() {
         let src = r#"module M {
             pub fn f() -> u32 { return 1; }
             test t { assert_eq(f(), 1); }
             bench b { const x : u32 = 0; }
         }"#;
         let v = Compiler::compile_verilog(src).expect("compile should succeed");
-        assert!(
-            !v.contains("// synthesis translate_off"),
-            "generated Verilog must not contain // synthesis translate_off:\n{}",
-            v
+        let off_count = v.matches("// synthesis translate_off").count();
+        let on_count = v.matches("// synthesis translate_on").count();
+        assert_eq!(
+            off_count, on_count,
+            "generated Verilog must contain balanced // synthesis translate_off/on ({} vs {}):\n{}",
+            off_count, on_count, v
         );
         assert!(
-            !v.contains("// synthesis translate_on"),
-            "generated Verilog must not contain // synthesis translate_on:\n{}",
+            off_count > 0,
+            "generated Verilog must contain at least one // synthesis translate_off/on pair:\n{}",
             v
         );
     }

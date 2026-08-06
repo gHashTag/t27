@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1a48dd224cb657904e0c96c35afc1bbfc440d22bc639d64c6dc917c1507cb7ba",
   "module": "w544_negative_nonlowerable_var_call_init",
   "ring": 12,
-  "sealed_at": "2026-07-15T08:47:51Z",
+  "sealed_at": "2026-08-06T13:43:31Z",
   "spec_hash": "sha256:03e22cf8408d59f0b05c229e634b6cfc373222feafa3d798791c076497aab144",
-  "spec_path": "specs/scratch/w544_negative_nonlowerable_var_call_init.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w544_negative_nonlowerable_var_call_init.t27"
 }

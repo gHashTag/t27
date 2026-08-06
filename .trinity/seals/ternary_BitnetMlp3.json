@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a90972007bbd99f1967f02e9885fa6315d3a41fa260a78a91588a86b4d0acfd5",
   "gen_hash_rust": "sha256:a5b22c350be8cef1db3d4266669a46ec0ffe562c9b01dd444d11dd20d6ff4503",
-  "gen_hash_verilog": "sha256:e63724975a15db77fa682a902372f57afa1730a398bc811bc016ada491065ee7",
+  "gen_hash_verilog": "sha256:40141d35e9f69f8597dccc7eee7459d6ddb6d9aafe42f59b859f97b978a1f333",
   "gen_hash_zig": "sha256:8c9c7b5c1e889c89e7b13e21ca82dde297dee5f38818cec53daa3eb4f6205fd6",
   "module": "BitnetMlp3",
   "ring": 12,
-  "sealed_at": "2026-08-06T09:30:15Z",
+  "sealed_at": "2026-08-06T13:42:36Z",
   "spec_hash": "sha256:463c46dc9a737aa9c80655cf83c075f797fa8c96e57fb1429ceb0cc685d68dfa",
-  "spec_path": "specs/ternary/bitnet_mlp3.t27"
+  "spec_path": "/Users/playra/t27/specs/ternary/bitnet_mlp3.t27"
 }

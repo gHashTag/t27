@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2f5391a45345196eee787987efea150c8e555bb6fde8c74d8daa1bdb35783c48",
   "module": "w544_nested_call_init",
   "ring": 12,
-  "sealed_at": "2026-07-15T08:47:51Z",
+  "sealed_at": "2026-08-06T13:43:13Z",
   "spec_hash": "sha256:04f8182f36087cd18b4c1d9b8c9027517971fd5389c256b1f0832121f5f2a336",
-  "spec_path": "specs/scratch/w544_nested_call_init.t27"
+  "spec_path": "/Users/playra/t27/specs/scratch/w544_nested_call_init.t27"
 }
