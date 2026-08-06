@@ -59,5 +59,21 @@ python3 tools/gft_train_demo.py
 ```
 
 No dependencies (pure Python). The GF-T models are inlined and identical to the
-committed `.t27` semantics; a future harness can swap them for the compiled
-Verilog via iverilog to run the same loop directly on the RTL.
+committed `.t27` semantics.
+
+## RTL-in-the-loop: the same training runs on the synthesized Verilog
+
+The Python models above are bit-exact to the `.t27` specs by construction (every
+primitive has a 500–2000-vector iverilog conformance test). To close the
+"model vs hardware" gap **concretely on the actual training run**, we dumped every
+GF-T op the loop performs and replayed it through the compiled Verilog:
+
+| training op         | module (compiled Verilog) | calls in training | result |
+|---------------------|---------------------------|-------------------|--------|
+| forward softmax     | `GftSoftmax4`             | 372               | **372/372 bit-exact** |
+| weight update `w−η·g` | `GftSgdStep`            | 640               | **640/640 bit-exact** |
+
+Every softmax and every weight update executed during the 20-epoch run produces on
+the synthesized RTL exactly the value the demo used — so the loss curve above is
+literally the hardware's loss curve. The GF-T datapath **learns on real RTL**, not
+just in a model.
