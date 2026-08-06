@@ -3872,3 +3872,19 @@
 - **Commit:** feat(igla): Wave Loop 431 — XADC→PVT context bridge, computable envelope, measured-to-lean --json summary hardening
 - **Files:** .trinity/experience.md,docs/NOW.md
 
+## 2026-07-05T11:58:14Z — wave-loop-432
+- **Commit:** chore(merge): bring origin/master (gf128 promotion) into wave-loop-432
+- **Files:** .claude/plans/wave-loop-432.md,.trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W433_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W432_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_432_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T11:59:08Z — wave-loop-433
+- **Commit:** feat(igla): Wave Loop 432 — per-process-corner raw-ns OSCFSEL theorems, master-merge feasibility probe, W432 close-out artifacts
+- **Files:** .trinity/experience.md
+
+## 2026-07-05T12:07:23Z — wave-loop-433
+- **Commit:** docs(experience): W432 learnings — per-process-corner theorem, master-merge probe, blocked bench redirect
+- **Files:** .claude/plans/wave-loop-433.md,.trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W434_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W433_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_433_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T12:08:33Z — wave-loop-433
+- **Commit:** feat(igla): Wave Loop 433 — formal bridge fallback, compose W431 XADC envelope with W432 per-corner raw-ns OSCFSEL theorem
+- **Files:** .claude/plans/wave-loop-429.md,.claude/plans/wave-loop-430.md,.claude/plans/wave-loop-431.md,.trinity/experience.md
+

@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 431)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 433)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -22,18 +22,25 @@ hardware proof backend, plus ternary compute projects **TernaryCore** and
 **BitNet-RISCV-Multicore** — validate t27's direction while raising the bar for
 differentiation.
 
-This note documents the competitive landscape as input for Wave Loops 421–431
+This note documents the competitive landscape as input for Wave Loops 421–433
 and subsequent waves. W429 added raw-ns quantified OSCFSEL theorems and a
 machine-readable `--json` path for `tri fpga measured-to-lean`, reinforcing the
 physical boot-evidence loop. W430 added live XADC readout via `tri fpga
 read-xadc` and a formal bridge (`xadc_operating_point_envelope_implies_worst_case_bound`)
 that justifies replacing a measured in-envelope operating point with the
-conservative worst-case PVT context in proof goals. **W431 hardens the bridge by
+conservative worst-case PVT context in proof goals. W431 hardened the bridge by
 making the XADC → PVT context conversion explicit in `cli/tri/src/fpga.rs`, adding
 a computable `Bool` envelope check with a proven `Decidable` equivalence, and
 emitting a closed-vocabulary `recommendation` field in the `measured-to-lean --json`
-summary — none of the listed competitors currently exposes a boot-to-proof loop
-with live silicon operating points and a machine-readable recommendation.**
+summary. W432 extended the formal boot-evidence line with per-process-corner
+(`ff`/`tt`/`ss`) raw-ns OSCFSEL theorems, quantifying the PVT-aware safety claim
+over all documented Artix-7 CCLK variants and all process corners. **W433
+composes the W431 XADC envelope bound with the W432 per-process-corner theorem,
+adding `xadc_envelope_justifies_cclk_variant_raw_ns_pvt` and its transaction
+variant — a single theorem that says any live in-envelope XADC operating point
+justifies the nominal raw-ns CCLK capture for any OSCFSEL. The physical bench and
+the master-merge debt remain blocked, so the 7 residual `gen-verilog` yosys
+smoke failures are documented but not cleared.**
 
 ---
 
@@ -93,11 +100,14 @@ competitor to t27's "Lean-native proof → synthesis" positioning.
     broader Lean-for-hardware strategy.
   - Infrastructure for zero-knowledge (Merkle tree / polynomial commitment,
     mini-STARK verifier, Goldilocks field) and verified GPU programming.
-  - **July 2026 activity signals:** the public repository shows a last push on
+  - **Late-July 2026 activity signals:** the public repository shows a last push on
     **2026-07-03** and PR #66 (IP.Net + compiler perf) remains open with passing
-    tests. No additional public PRs or commits surfaced between the W430 and W431
-    boundaries, but the open PR continues to expand Sparkle's networking / IP
-    catalog breadth.
+    tests as of the W433 boundary. No additional public PRs or commits surfaced
+    between the W431 and W433 boundaries. The IP.Net PR adds UART, SLIP, IPv4/ARP/ICMP,
+    TCP, HTTP, a USB-tethered web server, a memcached ASCII server, Ethernet framing,
+    CRC32, and HFT-over-TLS/HTTPS demo blocks, plus compiler performance fixes
+    (`SPARKLE_TRANSLATE_LIMIT`, `getWireWidth` caching, multi-output submodule
+    wiring).
 
 **Where t27 still differentiates:**
 1. **Ternary compute and balanced-trit proof lattice.** Sparkle is binary
@@ -126,10 +136,9 @@ formal-boot-evidence line unique.
 
 Clash compiles Haskell to VHDL/Verilog/SystemVerilog. Recent 2026 work includes:
 
-- **Clash 1.11.0** appeared as a Hackage candidate on July 4 2026, uploaded by
-  QBayLogic. It is **not yet an official release** and has no published changelog
-  or verification-specific notes at this boundary. The latest official release
-  remains **Clash 1.10** (April 23 2026).
+- **Clash 1.11.0** remains a Hackage candidate as of late July 2026; it has not
+  been promoted to the main Hackage index. The latest official release remains
+  **Clash 1.10** (April 23 2026).
 - **Clash 1.10** (April 23 2026) — the first release under the new QBayLogic
   lead; removes deprecated `Clash.Prelude.DataFlow`, adds `Clash.Class.NumConvert`,
   time-domain helpers, and zero-width improvements.
@@ -176,7 +185,7 @@ The industry-standard Chisel flow is adding formal verification rapidly:
 - **Chisel 7.11.0 LTL front-end** — `AssertProperty`, `AssumeProperty`,
   `CoverProperty`, `RequireProperty`, `EnsureProperty`, `Property`/`Sequence`
   composition.
-- **firtool 1.152.0** (July 4 2026): the latest available release at the W431
+- **firtool 1.152.0** (July 2026): the latest available release at the W432
   boundary. It is a maintenance release focusing on ImportVerilog/Moore
   (`$fscanf`/`$sscanf`, `$timeformat`, `%l`/`%L` format specifiers), Arc-dialect
   coroutine work, FIRRTL NLA/inliner fixes, and string lowering. A public
@@ -226,8 +235,10 @@ parts of t27's thesis and may become relevant:
   hardware proof backend** is gaining traction beyond Sparkle/t27.
 - **Aria-HDL / fpga-meta-compiler-public** (2026): a Rust-based “FPGA
   meta-compiler” with `--emit-lean4` proof extraction and `--emit-sby`
-  SVA/SymbiYosys backend. Targets low-cost boards through AWS F2. Shows that
-  spec→proof→bitstream pipelines are a general direction, not unique to t27.
+  SVA/SymbiYosys backend. Recent 2026 updates add Leiserson-Saxe retiming,
+  constraint annotations, and a PCIe BAR test. Targets low-cost boards through
+  AWS F2. Shows that spec→proof→bitstream pipelines are a general direction,
+  not unique to t27.
 - **TernaryCore** (2026): open-source FPGA accelerator for BitNet b1.58
   ternary inference with native `{-1,0,+1}` MAC/dot/GEMM units. Reports 31/31
   RTL simulation tests passing, cross-verified against Python, but no formal
@@ -258,8 +269,12 @@ parts of t27's thesis and may become relevant:
    `tri fpga sweep-report --json`, added `tri fpga pvt-envelope --json`, and in
    W429 added raw-ns quantified OSCFSEL theorems plus a machine-readable
    `--json` summary to `tri fpga measured-to-lean` so the bench-to-proof bridge
-   can be consumed by downstream automation. Next: relay automation, real PVT
-   corner captures, and Lean theorems per captured corner.
+   can be consumed by downstream automation. W432 added quantified per-process-corner
+   (`ff`/`tt`/`ss`) raw-ns OSCFSEL theorems, closing the formal corner-envelope gap.
+   W433 composed the live-XADC envelope bound with the corner theorem, producing
+   `xadc_envelope_justifies_cclk_variant_raw_ns_pvt` — a single theorem that covers
+   any in-envelope XADC operating point and any documented OSCFSEL. Next: relay
+   automation, real PVT corner captures, and Lean theorems per captured corner.
 3. **Grow the ternary IP catalog.** Sparkle's broad IP list is its headline
    advantage; the RV32 divider proof in PR #65 shows it can do deep IP-level
    correctness. Signals like TernaryCore and BitNet-RISCV-Multicore confirm that
