@@ -57,6 +57,41 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
+## Worked example — Wave Loop 859
+
+Wave Loop 859 continued the mechanical packed-vector ladder in the 1-MiBit
+range:
+
+- Selected Variant A: module-scope `[537][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w859.py` from `gen_w858.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment).
+- Produced `specs/scratch/w859_bench_module_537x2p6_aos_var_call_write.t27`
+  (34,368 elements, 1,099,776-bit packed vector).
+- Added integration test `accepts_w859_bench_module_537x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates all PASS:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save`.
+  - Full `cargo test --release --test icarus_lowerable`: 319/0.
+- Research background: Icarus Verilog has no 1-MiBit hard cap (LRM minimum is
+  65,536 bits; Icarus warns near 1 Gbit; upstream commit `128c621` fixed a
+  bound-normalization path that could accidentally create billion-bit vectors;
+  historical Icarus 0.8 had a ~256 K-entry allocator assertion for huge packed
+  vectors, but modern versions do not hit it). Siracusa et al. (IEEE TC 2021)
+  Roofline model frames the ladder as a memory-quanta `Q` probe; Vericert/CompCert
+  and Vitis HLS UG1399 provide verified-HLS and commercial analogs for packed AoS.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W859_2026-08-05.md` and
+  next-wave plan `.claude/plans/wave-loop-860.md` with variants A/B/C.
+- Created issue #1664 and branch `wave-loop-860` for the next wave.
+- Updated `.trinity/current-issue.md`, `.trinity/experience.md`, `docs/NOW.md`,
+  autopilot run-list, master plan, and persistent memory.
+
+Key learning: the 1-MiBit range is still a soft boundary for Icarus and t27c.
+The next meaningful watch-point remains the established 4-MiBit soft cliff.
+Generator copy-hazard checks must be performed before every generator run; the
+master plan skill tracks the live backlog and update cadence.
+
 ## Worked example — Wave Loop 858
 
 Wave Loop 858 continued the mechanical packed-vector ladder in the 1-MiBit
@@ -2836,13 +2871,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 847 |
-| **Issue** | #1634 (expected) |
-| **Branch** | `wave-loop-847` |
-| **Parent branch** | `wave-loop-846` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[513][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Current wave** | 860 |
+| **Issue** | #1664 (expected) |
+| **Branch** | `wave-loop-860` |
+| **Parent branch** | `wave-loop-859` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[539][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
 | **Status** | READY TO START |
-| **Next wave variants queued** | W848 Variant A `[515][2]^6 Pt`; Variant B `[513][3]^6 Pt` stride scaling; Variant C `[513][2]^6 Pt` negative-index wrap-around |
+| **Next wave variants queued** | W861 Variant A `[541][2]^6 Pt`; Variant B `[539][3]^6 Pt` stride scaling; Variant C `[539][2]^6 Pt` negative-index wrap-around |
 
 ### Open backlog (non-blocking)
 

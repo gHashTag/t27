@@ -1,7 +1,7 @@
 # Wave Loop 859 — Cooperation Plan
 
 **Date:** 2026-08-05  
-**Issue:** #1658 (expected)  
+**Issue:** #1662  
 **Branch:** `wave-loop-859` (from `wave-loop-858` HEAD)  
 
 ## Goal
@@ -51,8 +51,8 @@ array-of-struct variable from call with indexed signed writes.
      `.claude/skills/wave-loop-autopilot.md`, `.claude/skills/t27-wave-loop.md`.
    - Update `.trinity/experience.md` and `docs/NOW.md`.
    - Save persistent memory entry.
-   - Commit with `Closes #1658`, push, open PR.
-   - Create issue #1660 / branch `wave-loop-860`.
+   - Commit with `Closes #1662`, push, open PR.
+   - Create issue #1664 / branch `wave-loop-860`.
 
 ## Stop conditions
 
