@@ -1,0 +1,16 @@
+{
+  "pair_id": "0007-ring-runtime",
+  "spec_path_in_t27": "specs/organism/ring_runtime.tri",
+  "spec_local_path": "pairs/0007-ring-runtime/spec.tri",
+  "spec_sha256": "ba5421b4fb88095c3edb629415d12fb2ed6bc1a7392934f6426799d430ae2979",
+  "spec_bytes": 3848,
+  "gen_path_in_t27": null,
+  "gen_sha256": null,
+  "target_lang": "Rust",
+  "ring_id": "ring-105-006",
+  "license": "Apache-2.0-anonymised",
+  "decontam_status": "Skipped",
+  "codegen_status": "codegen_stub_pending_wave2",
+  "l3_ascii_pass": true,
+  "l3_non_ascii_bytes": 0
+}

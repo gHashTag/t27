@@ -1,0 +1,16 @@
+{
+  "pair_id": "0005-mcp-tool-registry",
+  "spec_path_in_t27": "specs/mcp/tool_registry.tri",
+  "spec_local_path": "pairs/0005-mcp-tool-registry/spec.tri",
+  "spec_sha256": "d00d00154073aa13a376b762702a36c50c4b5c2ea83ac1cd6afdfa5696c2872b",
+  "spec_bytes": 3959,
+  "gen_path_in_t27": null,
+  "gen_sha256": null,
+  "target_lang": "Rust",
+  "ring_id": "ring-105-004",
+  "license": "Apache-2.0",
+  "decontam_status": "Skipped",
+  "codegen_status": "codegen_stub_pending_wave2",
+  "l3_ascii_pass": true,
+  "l3_non_ascii_bytes": 0
+}

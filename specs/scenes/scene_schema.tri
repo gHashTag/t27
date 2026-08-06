@@ -1,0 +1,138 @@
+spec multibot_scene_schema
+
+-- Ring 105-005: Generic multibot scene state machine (public-safe abstraction)
+-- Target path in t27 repo: specs/scenes/scene_schema.tri
+-- Source repo: gHashTag/999-multibots-telegraf (PRIVATE, TypeScript)
+-- Codegen target: TypeScript -> DEFERRED to Wave-3 (compiler/codegen/typescript/ does not exist yet)
+-- Anonymisation: NO real bot names, NO real tariffs, NO real user ids, NO payment amounts
+-- Law compliance: L1 (Closes t27#new-6), L3, L4, HR-anonymise
+
+pub const SCENE_ID_MAX_LEN u32 = 64
+pub const MESSAGE_KIND_COUNT u32 = 6
+
+pub type SceneStateKind = enum(u8) {
+  Idle = 0,
+  Awaiting = 1,   -- awaiting user input
+  Processing = 2, -- LLM/service call in flight
+  Terminal = 3    -- scene closed
+}
+
+pub type MessageKind = enum(u8) {
+  Text = 0,
+  Command = 1,
+  Callback = 2,
+  Media = 3,
+  System = 4,
+  Timeout = 5
+}
+
+pub type SceneError = enum(u8) {
+  None = 0,
+  InvalidTransition = 1,
+  MessageKindUnsupported = 2,
+  SceneIdInvalid = 3
+}
+
+pub type SceneState = struct {
+  kind: SceneStateKind,
+  scene_id: str,
+  cycle: u64,
+  last_message_kind: MessageKind,
+  last_error: SceneError
+}
+
+pub type Transition = struct {
+  from: SceneStateKind,
+  to: SceneStateKind,
+  trigger: MessageKind
+}
+
+-- Core functions (mandatory 3)
+pub fn scene_step(s SceneState, m MessageKind) -> SceneState
+pub fn scene_transition_allowed(from SceneStateKind, to SceneStateKind, trigger MessageKind) -> bool
+pub fn scene_is_terminal(s SceneState) -> bool
+
+-- Invariants (mandatory 3)
+
+invariant scene_no_infinite_loop {
+  given s SceneState
+  -- transitions must form a DAG when trigger is not System/Timeout
+  assert (s.cycle < 1000000) or (s.kind == SceneStateKind.Terminal)
+}
+
+invariant terminal_is_absorbing {
+  given s SceneState
+  given m MessageKind
+  let s2 = scene_step(s, m)
+  assert (s.kind != SceneStateKind.Terminal) or (s2.kind == SceneStateKind.Terminal)
+}
+
+invariant scene_id_ascii_only {
+  given s SceneState
+  assert forall b in s.scene_id : b >= 0x20 and b <= 0x7E
+}
+
+-- Tests (mandatory 8)
+
+test idle_to_awaiting_on_text {
+  let s0 = scene_new("welcome", SceneStateKind.Idle)
+  let s1 = scene_step(s0, MessageKind.Text)
+  assert s1.kind == SceneStateKind.Awaiting
+}
+
+test awaiting_to_processing_on_command {
+  let mut s = scene_new("welcome", SceneStateKind.Awaiting)
+  let s2 = scene_step(s, MessageKind.Command)
+  assert s2.kind == SceneStateKind.Processing
+}
+
+test processing_to_terminal_on_system {
+  let s = scene_new("welcome", SceneStateKind.Processing)
+  let s2 = scene_step(s, MessageKind.System)
+  assert s2.kind == SceneStateKind.Terminal
+}
+
+test terminal_stays_terminal {
+  let s = scene_new("welcome", SceneStateKind.Terminal)
+  let s2 = scene_step(s, MessageKind.Text)
+  assert s2.kind == SceneStateKind.Terminal
+}
+
+test invalid_transition_sets_error {
+  let s = scene_new("welcome", SceneStateKind.Idle)
+  let s2 = scene_step(s, MessageKind.Callback)  -- Idle+Callback illegal
+  assert s2.last_error == SceneError.InvalidTransition
+}
+
+test cycle_monotone_on_step {
+  let s = scene_new("welcome", SceneStateKind.Idle)
+  let s2 = scene_step(s, MessageKind.Text)
+  assert s2.cycle >= s.cycle
+}
+
+test scene_id_non_ascii_rejected {
+  let s = scene_new("bad\xE2id", SceneStateKind.Idle)
+  assert s.last_error == SceneError.SceneIdInvalid
+}
+
+test timeout_message_always_ends_scene {
+  let s = scene_new("welcome", SceneStateKind.Processing)
+  let s2 = scene_step(s, MessageKind.Timeout)
+  assert s2.kind == SceneStateKind.Terminal
+}
+
+-- Benchmarks (mandatory 2)
+
+bench scene_step_throughput {
+  measure nanoseconds to scene_step(s, MessageKind.Text)
+  target 500_000_000
+  warmup 3
+  runs 100
+}
+
+bench transition_allowed_lookup {
+  measure nanoseconds to scene_transition_allowed(SceneStateKind.Idle, SceneStateKind.Awaiting, MessageKind.Text)
+  target 1_000_000_000
+  warmup 3
+  runs 100
+}

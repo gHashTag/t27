@@ -1,0 +1,133 @@
+spec trinity_mozg
+
+-- Ring 105-002 (part 1 of 2): Trinity Mozg (cognitive layer) state machine
+-- Target path in t27 repo: specs/organism/mozg.tri
+-- Source repo: gHashTag/trinity (Zig)
+-- Codegen target: Zig -> gen/organism/mozg.zig
+-- Law compliance: L1 (Closes trinity#new-3), L3, L4, L5 (phi tolerance), L6 (no new formats)
+
+numericformat gf16
+
+pub const PHI f64 = 1.6180339887498948482
+pub const TRINITY f64 = 3.0
+
+-- 27-letter agent alphabet (constitutional; matches docs/agents/AGENTS_ALPHABET.md)
+pub const ALPHABET_LEN u32 = 27
+
+-- MozgState: one slot per agent letter, encoding activation level
+pub type Activation = i8   -- -1 quiescent, 0 neutral, 1 active
+pub type LetterIdx = u8    -- 0..26
+
+pub type MozgState = struct {
+  activations: [27]Activation,
+  cycle: u64,
+  law_priority_bits: u8,  -- bit N set -> law N+1 currently observed
+  last_transition: u32
+}
+
+-- Transition: which letter fired and what caused it
+pub type TransitionCause = enum(u8) {
+  ExternalInput = 0,
+  LawPriorityShift = 1,
+  IntraAgentSignal = 2,
+  Quiescence = 3
+}
+
+pub type Transition = struct {
+  from_letter: LetterIdx,
+  to_letter: LetterIdx,
+  cause: TransitionCause,
+  cycle: u64
+}
+
+-- Core functions (mandatory 3)
+pub fn mozg_step(s MozgState, input Transition) -> MozgState
+pub fn mozg_law_priority_ok(s MozgState) -> bool
+pub fn mozg_quiescent(s MozgState) -> bool
+
+-- Invariants (mandatory 3)
+
+invariant activation_domain_ternary {
+  given s MozgState
+  assert forall a in s.activations : a >= -1 and a <= 1
+}
+
+invariant cycle_monotone_across_step {
+  given s MozgState
+  given t Transition
+  let s2 = mozg_step(s, t)
+  assert s2.cycle >= s.cycle
+}
+
+invariant law_priority_l1_always_first {
+  given s MozgState
+  -- L1 TRACEABILITY must be observed whenever any other law bit is set
+  assert (s.law_priority_bits & 0x01) == 0x01 or s.law_priority_bits == 0
+}
+
+-- Tests (mandatory 8)
+
+test mozg_step_increments_cycle {
+  let s0 = mozg_state_new()
+  let t = transition_new(0, 1, TransitionCause.ExternalInput, 1)
+  let s1 = mozg_step(s0, t)
+  assert s1.cycle == s0.cycle + 1
+}
+
+test mozg_step_updates_last_transition {
+  let s0 = mozg_state_new()
+  let t = transition_new(2, 5, TransitionCause.IntraAgentSignal, 1)
+  let s1 = mozg_step(s0, t)
+  assert s1.last_transition == 5
+}
+
+test mozg_all_neutral_is_quiescent {
+  let s = mozg_state_new()
+  assert mozg_quiescent(s) == true
+}
+
+test mozg_any_active_is_not_quiescent {
+  let mut s = mozg_state_new()
+  s.activations[3] = 1
+  assert mozg_quiescent(s) == false
+}
+
+test mozg_law_priority_l1_bit_set_ok {
+  let mut s = mozg_state_new()
+  s.law_priority_bits = 0x03  -- L1 + L2
+  assert mozg_law_priority_ok(s) == true
+}
+
+test mozg_law_priority_l2_only_rejected {
+  let mut s = mozg_state_new()
+  s.law_priority_bits = 0x02  -- L2 without L1 -> priority violated
+  assert mozg_law_priority_ok(s) == false
+}
+
+test mozg_activation_ternary_bound {
+  let s = mozg_state_new()
+  assert forall a in s.activations : a >= -1 and a <= 1
+}
+
+test mozg_step_preserves_activation_bounds {
+  let s0 = mozg_state_new()
+  let t = transition_new(0, 26, TransitionCause.LawPriorityShift, 1)
+  let s1 = mozg_step(s0, t)
+  assert forall a in s1.activations : a >= -1 and a <= 1
+}
+
+-- Benchmarks (mandatory 2)
+
+bench mozg_step_throughput {
+  measure nanoseconds to mozg_step(s0, t)
+  target 500_000_000
+  warmup 3
+  runs 100
+}
+
+bench mozg_quiescence_check {
+  measure nanoseconds to mozg_quiescent(s0)
+  target 1_000_000_000
+  warmup 3
+  runs 100
+}

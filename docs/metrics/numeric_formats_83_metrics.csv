@@ -1,0 +1,84 @@
+id,name,bits,layout,bias,decimal_digits,dyn_range_dec,phi_distance,cluster,gf_relation,status,standard,use_case,sw_kind,sw_vectors,decode_hw,compute_hw,source
+gfternary,GFTernary,2,1/0/2,0,0.9,,0.0,GoldenFloat,self,Verified,"this work; {-phi, 0, +phi}",bulk layers (hybrid),bitexact,4,0,0,BENCH-007
+gf4,GF4,4,1/1/2,0,0.9,-0.1,0.118,GoldenFloat,self,Experimental,this work; F0 minimal,proof-of-concept,bitexact,16,0,0,specs/numeric/gf4.t27
+mxgf4,MXGF4 (microscaling GF4),4,1/1/2,0,0.9,-0.1,0.118,GoldenFloat,experimental,Experimental,this work; OCP MX block + GF4,OPEN R&D: phi-aligned MX-4 candidate,bitexact,16,0,0,section12.5
+gf6,GF6 (predicted),6,1/2/3,1,1.2,0.6,0.05,GoldenFloat,experimental,Experimental,"this work; e=round(5/phi^2)=2, fills FP6 gap",OPEN R&D: bridge GF4-GF8; FP6 E2M3 hint,bitexact,64,0,1 [измерено: 512/512 bit-exact; E:#199 artifact 7931202948],section12.5
+mxgf6,MXGF6 (microscaling GF6),6,1/2/3,1,1.2,0.6,0.05,GoldenFloat,experimental,Experimental,this work; OCP MX block + GF6,OPEN R&D: phi-aligned MX-6 candidate,bitexact,64,0,0,section12.5
+gf8,GF8,8,1/3/4,3,1.5,1.8,0.132,GoldenFloat,self,Verified,this work; L1 Lucas,edge / sensors,bitexact,256,0,1 [измерено: 512/512 bit-exact; E:#199 post-fix c0d24cac2],BENCH-007 (specs/numeric/gf8.t27)
+gf8_bfp,GF8-BFP (block FP atop GF8),8,1/3/4,3,1.5,1.8,0.132,GoldenFloat,experimental,Experimental,this work; per-tile shared exponent,OPEN R&D: LLM-quantization-friendly GF8,bitexact,256,0,0,section12.5
+gf10,GoldenFloat GF10 (10-bit),10,1/3/6,3,2.1,1.8,,GoldenFloat,self,Experimental,Trinity GoldenFloat,расширенный диапазон GF-семейства,bitexact,8,0,0,specs/numeric/gf10.t27
+gf12,GF12,12,1/4/7,7,2.4,4.2,0.047,GoldenFloat,self,Verified,this work; L0/F3,mid-range / audio,bitexact,8,0,0,BENCH-007 (specs/numeric/gf12.t27)
+gf14,GoldenFloat GF14 (14-bit),14,1/5/8,15,2.7,9.0,,GoldenFloat,self,Experimental,Trinity GoldenFloat,расширенный диапазон GF-семейства,bitexact_selfconsistent,,0,0,specs/numeric/gf14.t27
+gf16,GF16,16,1/6/9,31,3.0,18.7,0.049,GoldenFloat,self,Verified,this work; PHI_BIAS=60; FPGA 35/35 at 323 MHz Artix-7,training and inference (production),bitexact,,0,0,specs/numeric/gf16.t27; zenodo 10.5281/zenodo.19227877 (HW archive)
+gf_lns_hybrid,GF + LNS hybrid (dual-space),16,1/6/9,31,3.0,18.7,0.049,GoldenFloat,experimental,Experimental,"this work; mul in log-space, accumulate Lucas-closed",OPEN R&D: dual-space arithmetic,bitexact,8,0,0,section12.5
+gf20,GF20,20,1/7/12,63,3.9,37.9,0.035,GoldenFloat,self,Experimental,this work; 17-squared empirical PHI_BIAS=289,high-precision edge,bitexact,8,0,0,specs/numeric/gf20.t27 (spec only)
+gf24,GF24,24,1/9/14,255,4.5,153.5,0.025,GoldenFloat,self,Experimental,this work; L15 PHI_BIAS=1364,server inference,bitexact,8,0,0,specs/numeric/gf24.t27 (spec only)
+gf32,GF32,32,1/12/19,2047,6.0,1232.1,0.014,GoldenFloat,self,Verified,this work; F0 resolved,fp32 drop-in,bitexact,8,0,0,BENCH-012 (specs/numeric/gf32.t27)
+gf48,GoldenFloat GF48 (48-bit),48,1/18/29,131071,9.0,78912.3,,GoldenFloat,self,Experimental,Trinity GoldenFloat,расширенный диапазон GF-семейства,bitexact_selfconsistent,,0,0,specs/numeric/gf48.t27
+gf64,GF64,64,1/24/39,8388607,12.0,5050444.4,0.003,GoldenFloat,self,Verified,this work; EXP_MAX - BIAS,scientific / double,bitexact,8,0,0,BENCH-007b (specs/numeric/gf64.t27)
+gf96,GoldenFloat GF96 (96-bit),96,1/36/59,34359738367,18.1,20686623783.0,,GoldenFloat,self,Experimental,Trinity GoldenFloat,расширенный диапазон GF-семейства,bitexact_selfconsistent,,0,0,specs/numeric/gf96.t27
+gf128,GF128 (predicted),128,1/48/79,0,24.1,84732411018727.1,0.008,GoldenFloat,experimental,Experimental,this work; e=round(127/phi^2)=48 (Open: bias TBD),OPEN R&D: phi-aligned binary128 alternative,bitexact_selfconsistent,,0,0,section12.5
+gf256,GF256 (predicted),256,1/97/158,0,47.9,4.770010683626838e+28,0.005,GoldenFloat,experimental,Experimental,this work; e=round(255/phi^2)=97 (Open: bias ~2^71 unconfirmed),OPEN R&D: phi-aligned binary256 alternative,structural,0,0,0,section12.5; bias Open per skill
+gf512,GoldenFloat GF512 (512-bit),512,1/195/316,25108406941546723055343157692830665664409421777856138051583,95.4,1.511676726548657e+58,,GoldenFloat,self,Experimental,Trinity GoldenFloat,расширенный диапазон GF-семейства,bitexact_selfconsistent,,0,0,specs/numeric/gf512.t27
+gf1024,GoldenFloat GF1024 (1024-bit),1024,1/391/632,2521728396569246669585858566409191283525103313309788586748690777871726193375821479130513040312634601011624191379636223,190.6,1.5182317765699572e+117,,GoldenFloat,self,Experimental,Trinity GoldenFloat,расширенный диапазон GF-семейства,bitexact_selfconsistent,,0,0,specs/numeric/gf1024.t27
+binary16,"binary16 (fp16, half)",16,1/5/10,15,3.3,9.0,0.118,Ieee754Binary,competitor,Verified,IEEE 754-2008,"GPU activations, inference",bitexact,8,0,0,IEEE 754-2008
+binary32,"binary32 (fp32, single)",32,1/8/23,127,7.2,76.5,0.27,Ieee754Binary,competitor,Verified,IEEE 754-1985,industry default,bitexact,8,0,0,IEEE 754-1985
+binary64,"binary64 (fp64, double)",64,1/11/52,1023,16.0,615.9,0.406,Ieee754Binary,competitor,Verified,IEEE 754-1985,scientific computing,bitexact,8,0,0,IEEE 754-1985
+binary128,"binary128 (fp128, quad)",128,1/15/112,16383,34.0,9863.2,0.484,Ieee754Binary,competitor,Verified,IEEE 754-2008,high-precision simulations,bitexact,8,0,0,IEEE 754-2008
+binary256,binary256 (octuple),256,1/19/236,262143,71.3,157825.5,0.538,Ieee754Binary,competitor,Verified,IEEE 754-2008,"astronomy, cryptography",bitexact,8,0,0,IEEE 754-2008
+fp4_e2m1,FP4 E2M1,4,1/2/1,1,0.6,0.5,1.382,MlLowPrecision,competitor,Verified,OCP MX,extreme quant inference,bitexact,16,0,0,OCP MX v1.0 (2023)
+fp6_e2m3,FP6 E2M3,6,1/2/3,1,1.2,0.6,0.049,MlLowPrecision,ally,Verified,OCP MX,mantissa-heavy quant,bitexact,64,0,0,OCP MX v1.0 (2023)
+fp6_e3m2,FP6 E3M2,6,1/3/2,3,0.9,1.7,0.882,MlLowPrecision,competitor,Verified,OCP MX,aggressive quant inference,bitexact,64,0,0,OCP MX v1.0 (2023)
+fp8_e4m3,FP8 E4M3,8,1/4/3,7,1.2,4.2,0.715,MlLowPrecision,competitor,Verified,OCP / NVIDIA / Arm / Intel,"inference, gradient ranges",bitexact,,"1 [измерено: 256/256 exhaustive; C:design on main, log≠#199]",0,Micikevicius 2022 (arXiv:2209.05433)
+fp8_e5m2,FP8 E5M2,8,1/5/2,15,0.9,9.0,1.882,MlLowPrecision,competitor,Verified,OCP / NVIDIA,"activations, wide range",bitexact,,0,0,Micikevicius 2022
+bfloat16,bfloat16 (BF16),16,1/8/7,127,2.4,76.5,0.525,MlLowPrecision,competitor,Verified,Google Brain,training (range > precision),bitexact,,1 [измерено: 8/8 corner; E:#199 run 28326217079],0,Wang-Kanwar 2019
+tf32,TensorFloat-32 (TF32),19,1/8/10,127,3.3,76.5,0.27,MlLowPrecision,competitor,Verified,NVIDIA Ampere,A100/H100 mixed precision,bitexact,8,0,0,NVIDIA Ampere whitepaper
+mxfp4,MXFP4,4,1/2/1,1,0.6,0.5,1.382,Microscaling,ally,Verified,OCP MX v1.0,extreme quant,bitexact,,0,0,Rouhani 2023
+mxfp6,MXFP6,6,1/3/2,3,0.9,1.7,0.882,Microscaling,ally,Verified,OCP MX v1.0,aggressive inference,bitexact,64,0,0,Rouhani 2023
+mxfp8,MXFP8,8,1/4/3,7,1.2,4.2,0.715,Microscaling,ally,Verified,OCP MX v1.0,LLM inference,bitexact,256,0,0,Rouhani 2023 (arXiv:2310.10537)
+nf4,NF4 (NormalFloat 4-bit),4,0/0/4,0,1.5,,-1.0,QuantTuned,orthogonal,Verified,Dettmers 2023 (QLoRA),"LLM weight quantization (quantile-based on N(0,1))",bitexact,16,"1 [измерено: 16/16 exhaustive; C:design on main, log≠#199]",0,Dettmers 2023 (arXiv:2305.14314)
+afp,AFP (Adaptive Floating-Point),16,1/8/7,127,2.4,76.5,-1.0,QuantTuned,orthogonal,Verified,Tambe 2020,efficient training,structural,0,0,0,Tambe 2020 (DAC)
+posit8,Posit8,8,1/2/0,0,0.3,0.3,-1.0,PositUnumIII,ally,Verified,Posit Standard 2022 (es=2),inference,bitexact,256,0,0,Posit Standard 2022 (posithub.org)
+takum8,takum8,8,1/0/0,0,0.3,,-1.0,PositUnumIII,ally,Verified,Hunhold 2024 (tapered-precision),IEEE-754 backward-compatible tapered,bitexact,256,0,0,Hunhold 2024 (arXiv:2412.20273)
+posit16,Posit16,16,1/2/0,0,0.3,0.3,-1.0,PositUnumIII,ally,Verified,Posit Standard 2022 (es=2),mixed-precision training,bitexact,8,0,0,Posit Standard 2022
+takum16,takum16,16,1/0/0,0,0.3,,-1.0,PositUnumIII,ally,Verified,Hunhold 2024,single-rule ladder counterexample,structural,0,0,0,Hunhold 2024 (arXiv:2412.20273)
+posit32,Posit32,32,1/2/0,0,0.3,0.3,-1.0,PositUnumIII,ally,Verified,Posit Standard 2022 (es=2),f32 replacement,bitexact,8,0,0,Posit Standard 2022
+takum32,takum32,32,1/0/0,0,0.3,,-1.0,PositUnumIII,ally,Verified,Hunhold 2024,tapered fp32-class,structural,0,0,0,Hunhold 2024
+posit64,Posit64,64,1/2/0,0,0.3,0.3,-1.0,PositUnumIII,ally,Verified,Posit Standard 2022 (es=2),f64 replacement,bitexact,8,0,0,Posit Standard 2022
+takum64,takum64,64,1/0/0,0,0.3,,-1.0,PositUnumIII,ally,Verified,Hunhold 2024,tapered fp64-class,structural,0,0,0,Hunhold 2024
+lns8,LNS-8,8,1/7/0,0,0.3,37.6,-1.0,Lns,orthogonal,Verified,Arnold 1990; LNS-Madam (2021),"DSP, signal processing",bitexact,256,0,0,Alam 2021 (arXiv:2106.13914)
+lns16,LNS-16,16,1/15/0,0,0.3,9863.2,-1.0,Lns,orthogonal,Verified,LNS-Madam (2021),log-domain training (mul -> add),bitexact,5,0,0,Alam 2021
+lns32,LNS-32,32,1/31/0,0,0.3,646456992.3,-1.0,Lns,orthogonal,Verified,LNS-Madam (2021),log-domain DSP,bitexact,5,0,0,Alam 2021
+lns64,LNS-64,64,1/63/0,0,0.3,2.7765116442616786e+18,-1.0,Lns,orthogonal,Verified,LNS-Madam (2021),scientific log-domain,bitexact,5,0,0,Alam 2021
+x87_fp80,x87 FP80,80,1/15/64,16383,19.6,9863.2,-1.0,ExtendedFloat,orthogonal,Historical,Intel x87 (explicit integer bit),legacy long double on x86,bitexact,8,0,0,Intel SDM
+double_double,double-double,128,2/22/104,0,31.6,1262610.4,-1.0,ExtendedFloat,orthogonal,Verified,Bailey/Hida (software),software extended precision,bitexact,8,0,0,Bailey-Hida 2001
+quad_double,quad-double,256,4/44/208,0,62.9,5295775688669.6,-1.0,ExtendedFloat,orthogonal,Verified,Bailey/Hida (software),"astrophysics, quad-precision sims",bitexact,8,0,0,Bailey-Hida 2001
+decimal32,decimal32,32,1/11/20,101,6.3,615.6,-1.0,Ieee754Decimal,orthogonal,Verified,IEEE 754-2008 (DPD/BID),"banking, GAAP",bitexact,7,0,0,IEEE 754-2008
+decimal64,decimal64,64,1/13/50,398,15.4,2465.1,-1.0,Ieee754Decimal,orthogonal,Verified,IEEE 754-2008,financial databases,bitexact,7,0,0,IEEE 754-2008
+decimal128,decimal128,128,1/17/110,6176,33.4,39455.7,-1.0,Ieee754Decimal,orthogonal,Verified,IEEE 754-2008,audit ledgers,bitexact,8,0,0,IEEE 754-2008
+bcd,BCD (binary-coded decimal),0,0/0/0,0,0.3,,-1.0,IntegerFixed,orthogonal,Historical,IBM 1959,"calculators, GAAP",structural,0,0,0,ISO/IEC 8859
+q_format,Q-format (Qm.n),0,1/0/0,0,0.3,,-1.0,IntegerFixed,orthogonal,Verified,TI fixed-point,"audio DSP, fixed-point ML",structural,0,0,0,TI SPRA704
+int4,INT4 / UINT4,4,1/0/3,0,1.2,,-1.0,IntegerFixed,competitor,Verified,two complement,aggressive quantization,bitexact,16,0,0,ISO/IEC 9899
+int8,INT8 / UINT8,8,1/0/7,0,2.4,,-1.0,IntegerFixed,competitor,Verified,two complement,"INT8 inference, per-channel scale",bitexact,256,"1 [измерено: 256/256 exhaustive; C:design on main, log≠#199]",0,ISO/IEC 9899
+int16,INT16 / UINT16,16,1/0/15,0,4.8,,-1.0,IntegerFixed,competitor,Verified,two complement,"DSP, embedded ML",bitexact,7,0,0,ISO/IEC 9899
+int32,INT32 / UINT32,32,1/0/31,0,9.6,,-1.0,IntegerFixed,competitor,Verified,two complement,general CPU integer,bitexact,7,0,0,ISO/IEC 9899
+int64,INT64 / UINT64,64,1/0/63,0,19.3,,-1.0,IntegerFixed,competitor,Verified,two complement,"databases, timestamps",bitexact,7,0,0,ISO/IEC 9899
+int128,INT128 / UINT128,128,1/0/127,0,38.5,,-1.0,IntegerFixed,competitor,Verified,two complement,"crypto, big-int",bitexact,7,0,0,Rust/Clang u128
+ibm_hfp32,IBM HFP (single),32,1/7/24,64,7.5,37.9,-1.0,HistoricalVendor,orthogonal,Historical,IBM System/360 (1964); base-16 exponent,legacy mainframe,bitexact,8,0,0,IBM POO
+ms_mbf32,Microsoft MBF (single),32,1/8/23,129,7.2,76.5,-1.0,HistoricalVendor,orthogonal,Historical,MS BASIC / MS-DOS (pre-IEEE),MS BASIC legacy,bitexact,8,0,0,MS-DOS docs
+vax_f,VAX F-float,32,1/8/23,128,7.2,76.5,-1.0,HistoricalVendor,orthogonal,Historical,DEC VAX,DEC legacy,bitexact,8,0,0,VAX Architecture Reference
+cray_float,Cray float,64,1/15/48,16384,14.8,9863.2,-1.0,HistoricalVendor,orthogonal,Historical,"Cray-1 (1976); no NaN/Inf, unrounded mul",Cray legacy,bitexact,8,0,0,Cray-1 Hardware Reference
+ibm_hfp64,IBM HFP (double),64,1/7/56,64,17.2,37.9,-1.0,HistoricalVendor,orthogonal,Historical,IBM System/360 (1964),legacy mainframe,bitexact,8,0,0,IBM POO
+ms_mbf64,Microsoft MBF (double),64,1/8/55,129,16.9,76.5,-1.0,HistoricalVendor,orthogonal,Historical,MS BASIC,MS BASIC legacy,bitexact,8,0,0,MS-DOS docs
+vax_d,VAX D-float,64,1/8/55,128,16.9,76.5,-1.0,HistoricalVendor,orthogonal,Historical,DEC VAX,DEC legacy double,bitexact,8,0,0,VAX Architecture Reference
+vax_g,VAX G-float,64,1/11/52,1024,16.0,615.9,-1.0,HistoricalVendor,orthogonal,Historical,DEC VAX (IEEE-like),DEC legacy,bitexact,8,0,0,VAX Architecture Reference
+ibm_hfp128,IBM HFP (extended),128,1/7/120,64,36.4,37.9,-1.0,HistoricalVendor,orthogonal,Historical,IBM z/Architecture,legacy mainframe,bitexact,8,0,0,IBM POO
+vax_h,VAX H-float,128,1/15/112,16384,34.0,9863.2,-1.0,HistoricalVendor,orthogonal,Historical,DEC VAX,DEC quad,bitexact,8,0,0,VAX Architecture Reference
+block_fp,block floating point (BFP),0,0/0/0,0,0.3,,-1.0,CompressionTrick,ally,Verified,Wilkinson 1965; modern revivals,per-tile shared exponent,structural,0,0,0,Darvish-Rouhani 2020
+shared_exp,shared-exponent formats,0,0/0/0,0,0.3,,-1.0,CompressionTrick,ally,Verified,generalised BFP,LLM quantization,structural,0,0,0,Darvish-Rouhani 2020
+stochastic_rounding,stochastic rounding (technique),0,0/0/0,0,0.3,,-1.0,CompressionTrick,ally,Verified,Gupta 2015,training small networks at low precision,structural,0,0,0,Gupta 2015 (ICML)
+per_channel_scale,INT8 with per-channel scale,8,1/0/7,0,2.4,,-1.0,CompressionTrick,competitor,Verified,Jacob 2018 (TFLite),standard quant inference,structural,0,0,0,Jacob 2018 (CVPR)
+minifloat,"minifloat (arbitrary E:M, <=16 bits)",0,1/0/0,0,0.3,,-1.0,Theoretical,ally,Experimental,parametric framework,design space of GF4/GF8/GF12/GF16,structural,0,0,0,Higham 1996
+tapered_fp,tapered floating point,0,1/0/0,0,0.3,,-1.0,Theoretical,ally,Experimental,Morris 1971; posit ancestor,variable mantissa via regime bits,structural,0,0,0,Morris 1971 (IEEE TC)
+unum_i,Unum I (tapered + ubound),0,1/0/0,0,0.3,,-1.0,Theoretical,ally,Experimental,Gustafson 2015 (predecessor to posit),interval arithmetic,structural,0,0,0,Gustafson 2015 (The End of Error)
+unum_ii,Unum II (SORN projective),0,0/0/0,0,0.3,,-1.0,Theoretical,orthogonal,Experimental,Gustafson 2016,lookup-table real arithmetic; not GF-comparable,structural,0,0,0,Gustafson 2016

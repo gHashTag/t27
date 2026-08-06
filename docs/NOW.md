@@ -8,6 +8,34 @@ Last updated: 2026-08-06
 
 ### Что легло
 - `master` did not compile at all: PR #1783 (`batch-merge-wave-loops-w420-w459`) resolved its conflicts by keeping the wave-loop **call sites** while dropping the **declarations** they depend on. The failure was masked — `build.rs` panics on the stale `FROZEN_HASH` seal before rustc runs, so the seal error hid 27 real compile errors. Restored from their originating commits (recovered, not hand-reconstructed): six `VerilogCodegen` fields (`local_arrays`, `array_param_bindings`, `array_param_indices`, `array_param_errors`, `current_fn_name_original`, `let_tmp_counter`) plus their initializers in all three constructors; the methods `type_is_float`, `gen_verilog_let_destructuring`, `tuple_element_widths`, `is_simple_tuple_type`; the `let type_array = Self::parse_array_type(..)` binding at both consumer sites (adapted to master's newer multi-dimensional `Option<(Vec<usize>, String)>` API by folding the dims); and the `base`/`idx` bindings with the W383 function-local-array flattening block. In `suite.rs`/`main.rs`: the lost `json_out` plumbing (`SuiteOptions` field + `--json` CLI arg, from WL440), the `HashSet` import, and `fast` -> `opts.fast`. Also fixed two silent behaviour losses: `let (a, b) = expr` was routed to a `StmtAssign`+`ExprArrayLiteral` shape only the Verilog backend reads (Rust emitted `vec![s, d] = dm(a, b);`), now back through `parse_local_decl` whose `extra_field` shape all four backends lower; and `parse_type_annotation` joined tuple elements with `,` instead of the canonical `, `. FROZEN_HASH resealed (M5). Result: **master compiles again, 1528/1535 unit tests pass**, from a state where nothing built. Seven tests remain red — Verilog lowering features (w457 `ram_style`, w458/w459 array params, keyword escaping) lost by the same merge; left for their authors rather than reconstructed by inference, since guessed RTL semantics would be worse than a visible failure. Tracked in #1787.
+# NOW — docs(metrics): сводка ключевых метрик 83 числовых форматов (2026-08-06)
+
+Last updated: 2026-08-06
+
+## docs(metrics): сводка ключевых метрик 83 числовых форматов (SSOT-derived) (Closes #1225)
+
+- Branch: `docs/metrics-83-compendium`
+
+### Что легло
+- `docs/metrics/NUMERIC_FORMATS_83_METRICS.md` — compendium of key metrics across all 83 numeric formats in the catalog.
+- `docs/metrics/numeric_formats_83_metrics.csv` — machine-readable table derived from SSOT (`specs/numeric/formats_catalog.t27`).
+- `docs/metrics/build_metrics.py` — generator from SSOT; SSOT itself is not touched.
+- Honesty: catalog = **83** formats (not 84; divergence from arXiv:2606.09686 is logged as erratum); HW tiry: decode-HW 4/83, compute-HW 2/83 (E/C), SW-bitexact 62/83.
+
+---
+
+# NOW — ring-105: ecosystem .tri rewrite (7 repos -> t27 SSOT) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## ring-105: ecosystem .tri rewrite (Closes #1454)
+
+- Branch: `ring-105-ecosystem-tri-rewrite`
+
+### Что легло
+- Schema-first `.tri` specifications derived from a 7-repo ecosystem (t27, trinity, trios, trios-mcp, 999-multibots-tma, 999-multibots-telegraf, IGLA) as upstream SSOT under `specs/**`: `specs/experience/experience.tri`, `specs/organism/{mozg,dna}.tri`, `specs/git/orchestrator.tri`, `specs/mcp/tool_registry.tri`, `specs/scenes/scene_schema.tri`, `specs/runtime/ring_runtime.tri`, `specs/dataset/igla_coder_manifest.tri`, plus `dataset/igla-coder/v0.1/**` and `docs/wave_ecosystem_2026-07-08/*`.
+- Hard rule enforced: no hand-written `.zig`/`.rs` anywhere; all targets are auto-generated from `.tri` or marked STUB.
+- Weakness audit openly recorded in `docs/wave_ecosystem_2026-07-08/WEAKNESS_AUDIT.md`.
 
 ---
 
@@ -21,6 +49,25 @@ Last updated: 2026-08-06
 
 ### Что легло
 - Three new workflow files (+242/-0, no existing workflow modified): `.github/workflows/scorecard.yml` — OpenSSF Scorecard, continuous scoring of repository security posture published as SARIF; `.github/workflows/sbom.yml` — a bill of materials per build so consumers can audit the dependency graph against advisories; `.github/workflows/sign-release.yml` — Sigstore keyless signing via OIDC, so release artifacts carry verifiable provenance without long-lived signing keys. `sign-release.yml` is `workflow_dispatch`-triggered, defaults to `contents: read`, and elevates to `contents: write` + `id-token: write` only inside the signing job, using `secrets.GITHUB_TOKEN` alone — no third-party secrets. Moves the repo toward the reproducible-builds / SLSA-provenance direction already named in [FROZEN.md](../FROZEN.md) section 1.3, beyond today's source-hash seal. CI only — no source change.
+
+---
+
+# NOW — fix(gen): untrack stale gen/numeric catalog artifacts that drift against SSOT (2026-08-06)
+
+Last updated: 2026-08-06
+
+## fix(gen): untrack stale `gen/numeric/` catalog artifacts (Closes #1120)
+
+- Branch: `fix/untrack-stale-gen-numeric-catalog-1120`
+
+### Что легло
+- Deletes the 16 tracked codegen artifacts under `gen/numeric/` (`formats_catalog.{md,json,py,rs,h,hpp,ts,go,zig,swift,kt,vh,ml}` + `FormatsCatalog.{hs,java,jl}`). No spec, tool, or test file is changed.
+- Issue #1120 reported that the committed `gen/numeric/formats_catalog.json` declared 77 formats while the SSOT `specs/numeric/formats_catalog.t27` carries 83 (`grep -c '// CATALOG:'` == 83), a delta of 6 (GoldenFloat rungs `gf10/gf14/gf48/gf96/gf512/gf1024`) plus 15 field mismatches, including a substantive numeric one: gf128 stored `e_bits=48/m_bits=79` in the stale committed file vs the SSOT-correct `e_bits=49/m_bits=78` (the SSOT line annotates "corrects v1.1 typo e=48").
+- Root cause: the committed artifacts are a pre-correction codegen snapshot that was never refreshed, and the repo constitution (L2 GENERATION) treats `gen/` as DERIVED and never hand-committed — `gen/` is in `.gitignore`, and the catalog-count gate regenerates fresh into a temp dir rather than diffing the committed file. The 16 artifacts were historically force-added into tracking. This PR removes them from tracking (status D, which the L2 gate permits — it blocks only M under `gen/`). After this change, a fresh `python3 tools/gen_formats_catalog.py specs/numeric/formats_catalog.t27 <out>` is the single source of these files, so the 83-vs-77 drift class can no longer exist.
+- Nothing reads the committed `gen/numeric/formats_catalog.json` at build, test, or CI time (only the codegen tool references its own output path in a comment), so deletion is non-breaking.
+
+---
+
 # NOW — chore: align license metadata to Apache-2.0 (2026-08-06)
 
 Last updated: 2026-08-06

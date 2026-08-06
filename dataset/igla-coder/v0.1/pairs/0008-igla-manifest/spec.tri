@@ -1,0 +1,152 @@
+spec igla_coder_manifest
+
+-- Ring 105-007: IGLA CODER dataset v0.1 manifest schema
+-- Target path in t27 repo: specs/dataset/igla_coder_manifest.tri
+-- Purpose: define the shape of dataset/igla-coder/v0.1/MANIFEST.json
+-- Law compliance: L1 (Closes t27#new-8), L3, L4, HR-decontam
+
+pub const PAIR_ID_MAX_LEN u32 = 64
+pub const MANIFEST_SCHEMA_VERSION u32 = 1
+
+pub type Bytes32 = [32]u8
+
+pub type TargetLang = enum(u8) {
+  Zig = 0,
+  Rust = 1,
+  Verilog = 2,
+  C = 3,
+  Python = 4,
+  TypeScript = 5,   -- reserved; codegen deferred to Wave-3
+  None = 255        -- spec-only pair, no gen file
+}
+
+pub type License = enum(u8) {
+  Apache2 = 0,
+  MIT = 1,
+  BSD3 = 2,
+  Other = 255
+}
+
+pub type DecontamStatus = enum(u8) {
+  Clean = 0,
+  Skipped = 1,   -- e.g. v0.1: no held-out eval yet
+  Failed = 2
+}
+
+pub type Pair = struct {
+  pair_id: str,
+  spec_path: str,
+  spec_sha256: Bytes32,
+  gen_path_opt: str,
+  gen_sha256_opt: Bytes32,
+  target_lang: TargetLang,
+  ring_id: str,
+  license: License,
+  decontam_status: DecontamStatus
+}
+
+pub type Manifest = struct {
+  schema_version: u32,
+  dataset_version: str,
+  built_at_epoch: i64,
+  pair_count: u32,
+  decontam_bidirectional: bool
+}
+
+-- Core functions (mandatory 3)
+pub fn manifest_new(dataset_version str) -> Manifest
+pub fn manifest_add_pair(m Manifest, p Pair) -> Manifest
+pub fn manifest_validate(m Manifest, pairs [Pair]) -> bool
+
+-- Invariants (mandatory 3)
+
+invariant schema_version_locked {
+  given m Manifest
+  assert m.schema_version == MANIFEST_SCHEMA_VERSION
+}
+
+invariant pair_ids_unique_in_manifest {
+  given m Manifest
+  given pairs [Pair]
+  -- for any two pairs at different indices, their pair_id differ
+  assert forall i, j in 0..m.pair_count : i != j implies pairs[i].pair_id != pairs[j].pair_id
+}
+
+invariant spec_sha256_length_is_32 {
+  given p Pair
+  assert len(p.spec_sha256) == 32
+}
+
+-- Tests (mandatory 8)
+
+test manifest_new_starts_empty {
+  let m = manifest_new("0.1")
+  assert m.pair_count == 0
+  assert m.schema_version == MANIFEST_SCHEMA_VERSION
+}
+
+test add_pair_increments_count {
+  let m0 = manifest_new("0.1")
+  let p = pair_new("0001-mozg-state-machine", "specs/organism/mozg.tri", sha256_of("m"),
+                    "gen/organism/mozg.zig", sha256_of("g"), TargetLang.Zig,
+                    "ring-105-002", License.Apache2, DecontamStatus.Skipped)
+  let m1 = manifest_add_pair(m0, p)
+  assert m1.pair_count == 1
+}
+
+test add_duplicate_pair_id_rejected {
+  let m0 = manifest_new("0.1")
+  let p = pair_new("0001-dup", "s", sha256_of("m"), "g", sha256_of("g"),
+                    TargetLang.Zig, "ring-105-002", License.Apache2, DecontamStatus.Skipped)
+  let m1 = manifest_add_pair(m0, p)
+  let m2 = manifest_add_pair(m1, p)  -- second time -> no increment
+  assert m2.pair_count == m1.pair_count
+}
+
+test spec_only_pair_target_none_allowed {
+  let p = pair_new("0002-experience-format", "specs/organism/experience.tri", sha256_of("m"),
+                    "", zero_bytes32(), TargetLang.None,
+                    "ring-105-001", License.Apache2, DecontamStatus.Skipped)
+  assert p.target_lang == TargetLang.None
+}
+
+test v01_decontam_status_defaults_to_skipped {
+  let p = pair_new("0003-orch", "s", sha256_of("m"), "g", sha256_of("g"),
+                    TargetLang.Zig, "ring-105-003", License.Apache2, DecontamStatus.Skipped)
+  assert p.decontam_status == DecontamStatus.Skipped
+}
+
+test manifest_bidirectional_flag_false_at_v01 {
+  let m = manifest_new("0.1")
+  assert m.decontam_bidirectional == false
+}
+
+test pair_id_ascii_only {
+  let p = pair_new("0004-test", "s", sha256_of("m"), "g", sha256_of("g"),
+                    TargetLang.Zig, "ring-105-002", License.Apache2, DecontamStatus.Skipped)
+  assert forall b in p.pair_id : b >= 0x20 and b <= 0x7E
+}
+
+test validate_manifest_ok_when_all_hashes_match {
+  let m0 = manifest_new("0.1")
+  let p1 = pair_new("0001", "s1", sha256_of("m1"), "g1", sha256_of("g1"),
+                     TargetLang.Zig, "ring-105-002", License.Apache2, DecontamStatus.Skipped)
+  let m1 = manifest_add_pair(m0, p1)
+  assert manifest_validate(m1, [p1]) == true
+}
+
+-- Benchmarks (mandatory 2)
+
+bench manifest_add_1k_pairs {
+  measure nanoseconds to manifest_add_pair(m, p)
+  target 100_000_000
+  warmup 3
+  runs 100
+}
+
+bench manifest_validate_100_pairs {
+  measure nanoseconds to manifest_validate(m, pairs_100)
+  target 10_000_000
+  warmup 3
+  runs 100
+}

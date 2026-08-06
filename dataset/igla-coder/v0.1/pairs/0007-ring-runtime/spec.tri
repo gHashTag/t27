@@ -1,0 +1,143 @@
+spec multibot_ring_runtime
+
+-- Ring 105-006: Ring runtime worker state machine (public-safe abstraction)
+-- Target path in t27 repo: specs/organism/ring_runtime.tri
+-- Source repo: gHashTag/999-multibots-rust (PRIVATE, Rust)
+-- Codegen target: Rust -> gen/organism/ring_runtime.rs (STUB codegen from ring-105-004)
+-- Anonymisation: NO wallet keys, NO seed phrases, NO bot tokens, NO user IDs
+-- Law compliance: L1 (Closes t27#new-7), L3, L4, HR-anonymise
+
+pub const WORKER_ID_MAX_LEN u32 = 64
+pub const RETRY_MAX_COUNT u32 = 8
+
+pub type WorkerStatus = enum(u8) {
+  Spawned = 0,
+  Running = 1,
+  Retrying = 2,
+  ShutDown = 3
+}
+
+pub type DispatchQueueKind = enum(u8) {
+  Fifo = 0
+}
+
+pub type RuntimeError = enum(u8) {
+  None = 0,
+  RetryExceeded = 1,
+  WorkerAlreadyShutdown = 2,
+  DispatchQueueFull = 3,
+  InvalidWorkerId = 4
+}
+
+pub type RetryPolicy = struct {
+  max_attempts: u32,
+  base_backoff_ms: u32
+}
+
+pub type RingWorker = struct {
+  id: str,
+  status: WorkerStatus,
+  retry_count: u32,
+  policy: RetryPolicy,
+  queue_kind: DispatchQueueKind,
+  last_error: RuntimeError
+}
+
+pub type Dispatch = struct {
+  worker_id: str,
+  payload_sha256: [32]u8
+}
+
+-- Core functions (mandatory 3)
+pub fn worker_spawn(id str, policy RetryPolicy) -> RingWorker
+pub fn worker_dispatch(w RingWorker, d Dispatch) -> RingWorker
+pub fn worker_shutdown(w RingWorker) -> RingWorker
+
+-- Invariants (mandatory 3)
+
+invariant retry_count_bounded {
+  given w RingWorker
+  assert w.retry_count <= RETRY_MAX_COUNT
+  assert w.retry_count <= w.policy.max_attempts
+}
+
+invariant shutdown_is_absorbing {
+  given w RingWorker
+  given d Dispatch
+  let w2 = worker_dispatch(w, d)
+  assert (w.status != WorkerStatus.ShutDown) or (w2.status == WorkerStatus.ShutDown)
+}
+
+invariant fifo_queue_order_preserved {
+  given w RingWorker
+  assert w.queue_kind == DispatchQueueKind.Fifo
+}
+
+-- Tests (mandatory 8)
+
+test spawn_defaults_to_spawned {
+  let w = worker_spawn("worker-a", retry_policy_default())
+  assert w.status == WorkerStatus.Spawned
+  assert w.retry_count == 0
+}
+
+test dispatch_moves_to_running {
+  let w0 = worker_spawn("worker-a", retry_policy_default())
+  let d = dispatch_new("worker-a", sha256_of("payload"))
+  let w1 = worker_dispatch(w0, d)
+  assert w1.status == WorkerStatus.Running
+}
+
+test shutdown_is_idempotent {
+  let w0 = worker_spawn("worker-a", retry_policy_default())
+  let w1 = worker_shutdown(w0)
+  let w2 = worker_shutdown(w1)
+  assert w2.status == WorkerStatus.ShutDown
+}
+
+test dispatch_to_shutdown_worker_rejected {
+  let w0 = worker_spawn("worker-a", retry_policy_default())
+  let w1 = worker_shutdown(w0)
+  let w2 = worker_dispatch(w1, dispatch_new("worker-a", sha256_of("x")))
+  assert w2.last_error == RuntimeError.WorkerAlreadyShutdown
+}
+
+test retry_exceeded_sets_error {
+  let mut w = worker_spawn("worker-a", retry_policy_new(2, 100))
+  w.retry_count = 2
+  w.status = WorkerStatus.Retrying
+  let w2 = worker_dispatch(w, dispatch_new("worker-a", sha256_of("x")))
+  assert w2.last_error == RuntimeError.RetryExceeded
+}
+
+test invalid_worker_id_rejected {
+  let w = worker_spawn("bad\xE2id", retry_policy_default())
+  assert w.last_error == RuntimeError.InvalidWorkerId
+}
+
+test dispatch_mismatched_worker_id_rejected {
+  let w0 = worker_spawn("worker-a", retry_policy_default())
+  let w1 = worker_dispatch(w0, dispatch_new("worker-b", sha256_of("x")))
+  assert w1.last_error == RuntimeError.InvalidWorkerId
+}
+
+test worker_id_ascii_only {
+  let w = worker_spawn("worker-a-42", retry_policy_default())
+  assert forall b in w.id : b >= 0x20 and b <= 0x7E
+}
+
+-- Benchmarks (mandatory 2)
+
+bench worker_dispatch_throughput {
+  measure nanoseconds to worker_dispatch(w, d)
+  target 500_000_000
+  warmup 3
+  runs 100
+}
+
+bench worker_spawn_1k {
+  measure nanoseconds to worker_spawn("worker-x", retry_policy_default())
+  target 100_000_000
+  warmup 3
+  runs 100
+}

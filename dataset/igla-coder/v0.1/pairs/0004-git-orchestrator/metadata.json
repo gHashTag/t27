@@ -1,0 +1,16 @@
+{
+  "pair_id": "0004-git-orchestrator",
+  "spec_path_in_t27": "specs/git/orchestrator.tri",
+  "spec_local_path": "pairs/0004-git-orchestrator/spec.tri",
+  "spec_sha256": "0eebd8a9045fd16b1c3bd46fc1518d5c82dcf51cdc579006222c91fcfeb4e244",
+  "spec_bytes": 4263,
+  "gen_path_in_t27": null,
+  "gen_sha256": null,
+  "target_lang": "Zig",
+  "ring_id": "ring-105-003",
+  "license": "Apache-2.0",
+  "decontam_status": "Skipped",
+  "codegen_status": "codegen_pending_train_box",
+  "l3_ascii_pass": true,
+  "l3_non_ascii_bytes": 0
+}

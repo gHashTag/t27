@@ -1,0 +1,16 @@
+{
+  "pair_id": "0003-dna-schema",
+  "spec_path_in_t27": "specs/organism/dna.tri",
+  "spec_local_path": "pairs/0003-dna-schema/spec.tri",
+  "spec_sha256": "e17879a9431831d03d101417be6eb36748e07112de95cedadac917742abcad37",
+  "spec_bytes": 3399,
+  "gen_path_in_t27": null,
+  "gen_sha256": null,
+  "target_lang": "Zig",
+  "ring_id": "ring-105-002",
+  "license": "Apache-2.0",
+  "decontam_status": "Skipped",
+  "codegen_status": "codegen_pending_train_box",
+  "l3_ascii_pass": true,
+  "l3_non_ascii_bytes": 0
+}

@@ -1,0 +1,16 @@
+{
+  "pair_id": "0001-experience-format",
+  "spec_path_in_t27": "specs/organism/experience.tri",
+  "spec_local_path": "pairs/0001-experience-format/spec.tri",
+  "spec_sha256": "ea43af76d3c1214721cd40dbc624062cc17707525c55c824612e3941b3c3c7ef",
+  "spec_bytes": 4096,
+  "gen_path_in_t27": null,
+  "gen_sha256": null,
+  "target_lang": "None",
+  "ring_id": "ring-105-001",
+  "license": "Apache-2.0",
+  "decontam_status": "Skipped",
+  "codegen_status": "spec_only",
+  "l3_ascii_pass": true,
+  "l3_non_ascii_bytes": 0
+}

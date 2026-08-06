@@ -1,0 +1,16 @@
+{
+  "pair_id": "0008-igla-manifest",
+  "spec_path_in_t27": "specs/dataset/igla_coder_manifest.tri",
+  "spec_local_path": "pairs/0008-igla-manifest/spec.tri",
+  "spec_sha256": "a09c423ceda7d99360a66e60c661feb39a35ddc53453b6aeb788bf325894219e",
+  "spec_bytes": 4366,
+  "gen_path_in_t27": null,
+  "gen_sha256": null,
+  "target_lang": "None",
+  "ring_id": "ring-105-007",
+  "license": "Apache-2.0",
+  "decontam_status": "Skipped",
+  "codegen_status": "spec_only",
+  "l3_ascii_pass": true,
+  "l3_non_ascii_bytes": 0
+}
