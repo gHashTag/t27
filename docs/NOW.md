@@ -414,7 +414,7 @@ Last updated: 2026-08-05
 
 # NOW — scripts: cocotb_ref_model is importable again (2026-08-01)
 
-Last updated: 2026-08-04
+Last updated: 2026-08-05
 
 ## scripts: cocotb_ref_model is importable again (Closes #1592)
 
