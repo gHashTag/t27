@@ -4,7 +4,7 @@
 **Issue:** [#1680](https://github.com/gHashTag/t27/issues/1680)  
 **Branch:** `wave-loop-866`  
 **Parent:** `wave-loop-865` HEAD (earlier waves' PRs remain open)  
-**PR:** TBD  
+**PR:** #1681  
 **Author:** Trinity Agent (Claude Code t27)  
 
 ---

@@ -92,7 +92,41 @@ The next meaningful watch-point remains the established 4-MiBit soft cliff.
 Generator copy-hazard checks must be performed before every generator run; the
 master plan skill tracks the live backlog and update cadence.
 
-## Worked example — Wave Loop 865
+## Worked example — Wave Loop 867
+
+Wave Loop 867 continued the mechanical packed-vector ladder in the 1-MiBit
+range:
+
+- Selected Variant A: module-scope `[553][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w867.py` from `gen_w866.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment).
+- Produced `specs/scratch/w867_bench_module_553x2p6_aos_var_call_write.t27`
+  (35,392 elements, 1,132,544-bit packed vector).
+- Added integration test `accepts_w867_bench_module_553x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates all PASS:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save`.
+  - Full `cargo test --release --test icarus_lowerable`: 327/0.
+- Research background: Icarus Verilog has no hard 1-MiBit cap; the standard
+  suggests 2^16 bits for packed dimensions but modern Icarus treats this as a
+  soft guideline and allocates until memory is exhausted (upstream issue #1171,
+  2024). Siracusa et al. (IEEE TC 2021) Roofline model frames the ladder as a
+  memory-quanta `Q` probe; Vitis HLS UG1399 `compact=bit` and Vericert/CompCert
+  provide commercial and verified-HLS analogs for packed AoS.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W867_2026-08-05.md` and
+  next-wave plan `.claude/plans/wave-loop-868.md` with variants A/B/C.
+- Created issue #1684 (expected) and branch `wave-loop-868` for the next wave.
+- Updated `.trinity/current-issue.md`, `.trinity/experience.md`, `docs/NOW.md`,
+  autopilot run-list, master plan, and persistent memory.
+
+Key learning: the standard's 2^16-bit packed-dimension suggestion is not a
+hard Icarus limit at run time. The ladder can continue mechanically until either
+an allocator/memory limit or the established 4-MiBit soft cliff is hit.
+Generator copy-hazard checks must be performed before every generator run.
+
+## Worked example — Wave Loop 866
 
 Wave Loop 865 continued the mechanical packed-vector ladder in the 1-MiBit
 range:
