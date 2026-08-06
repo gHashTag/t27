@@ -2467,6 +2467,27 @@ Key learning: the same copy-hazard checklist still prevents defects when
 progressing by a single outer-dimension step; parameterizing `WAVE`/`OUTER`
 remains the highest-value automation for the ladder.
 
+## Worked example — Wave Loop 846
+
+Wave Loop 846 continued the mechanical packed-vector AoS ladder with zero
+compiler changes, bringing the witness to just under 1 MiBit:
+
+- Copied `scripts/gen_w845.py` → `scripts/gen_w846.py` and fixed the recurring
+  generator copy hazard (destination path, module header f-string, `MID_IDX` comment).
+- Generated `specs/scratch/w846_bench_module_511x2p6_aos_var_call_write.t27`:
+  `OUTER = 511`, 32,704 elements, 1,046,528-bit packed vector (~0.998 MiBit).
+- Added integration test `accepts_w846_bench_module_511x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Saved seal for the W846 scratch witness.
+- Validation: `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` PASS;
+  full `icarus_lowerable` suite **306/0**.
+- Closed with commit `Closes #1632`, pushed branch `wave-loop-846`, opened PR #1633.
+- Updated this skill's Live Wave Loop Tracker to wave 847.
+
+Key learning: the ladder is now approaching the 1-MiBit packed-vector line
+(~0.998 MiBit). The t27c lowering path and Icarus simulation remain stable,
+which strengthens confidence in the width/stride implementation up to this size.
+
 ## Live Wave Loop Tracker
 
 This section is updated at the end of every completed Wave Loop. It is the
@@ -2475,13 +2496,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 846 |
-| **Issue** | #1632 (expected) |
-| **Branch** | `wave-loop-846` |
-| **Parent branch** | `wave-loop-845` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[511][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Current wave** | 847 |
+| **Issue** | #1634 (expected) |
+| **Branch** | `wave-loop-847` |
+| **Parent branch** | `wave-loop-846` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[513][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
 | **Status** | READY TO START |
-| **Next wave variants queued** | W847 Variant A `[513][2]^6 Pt`; Variant B `[511][3]^6 Pt` stride scaling; Variant C `[511][2]^6 Pt` negative-index wrap-around |
+| **Next wave variants queued** | W848 Variant A `[515][2]^6 Pt`; Variant B `[513][3]^6 Pt` stride scaling; Variant C `[513][2]^6 Pt` negative-index wrap-around |
 
 ### Open backlog (non-blocking)
 
