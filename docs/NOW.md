@@ -1,3 +1,18 @@
+# NOW — feat(spec): 3-layer GF-T MLP (4→3→2→1) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): 3-layer BitNet×GF-T MLP — deep inference on the layer3 brick (Refs #1764)
+
+- Branch: `feat/gft-mlp3`
+
+### Что легло
+- `specs/ternary/gft_mlp3.t27` (`GftMlp3`): a spec-first **3-layer BitNet×GF-T MLP (4→3→2→1)**. Four shared GF-T16 activations → layer 1 (3 neurons) → 3 hidden trits, re-embedded {N→−1.0, Z→0, P→+1.0} → layer 2 (2 neurons) → 2 trits, re-embedded → layer 3 (1 output neuron) → output trit. Every neuron is `sign(Σ w_i·a_i)` in signed GF-T (RNE, zero-aware). Builds directly on last cycle's `gft_layer3` (the M→N brick) + `gft_mlp2`'s inter-layer re-embed — this is the first genuinely **deep** (3-layer) spec-first GF-T net.
+- Verification: **bit-exact to the ideal oracle over 400 vectors** (`tests/gft_mlp3_vectors.txt`), iverilog `$fscanf` in `bootstrap/tests/gft_mlp3.rs`. Same **doubly-grounded** oracle as layer3 — vectors emitted only where the faithful integer GF-T model AND an independent exact-float64 layer-by-layer sign composition agree (0/400 disagreements). Two in-spec `test`s (`all_pos`, `cancel_out`) cross-checked against the Python oracle.
+- No compiler change (`on_comb`, 24 ports: 20 trit weights + 4 acts). Fresh seal `.trinity/seals/ternary_GftMlp3.json` (`seal --verify` MATCH). New integration test 400/400.
+
+---
+
 # NOW — feat(spec): GF-T BitNet layer of 3 neurons (2026-08-06)
 
 Last updated: 2026-08-06
