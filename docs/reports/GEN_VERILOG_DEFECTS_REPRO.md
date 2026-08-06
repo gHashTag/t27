@@ -3,7 +3,7 @@
 **Branch:** `wave-loop-436`  
 **Last updated:** 2026-07-01 (Wave Loop 436)  
 
-This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
+This document tracks the lowering defects in the `t27c gen-verilog` backend. The full fix set was originally landed on `master` (commit `701d79b3b`) and on the historical `wave-loop-383` compiler line; Wave Loop 455 ported the missing parser and backend pieces into the current `wave-loop-455` branch and cleared the 7 residual yosys smoke failures.
 
 **W430 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W430 is
 hardware-constrained and focuses on the live XADC readout path (`tri fpga
@@ -530,8 +530,9 @@ re-confirmed as the baseline**. No new narrow defect was introduced.
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.
-- **Merge `master` fix set (`701d79b3b`) into wave-loop branch** to clear the
-  7 residual yosys smoke failures.
+- **Hardware execution:** physical bench remains unavailable (DLC10 cable not
+  detected, P12 unwired); a future wave with the bench unblocked can run live
+  CCLK sweeps and mint live-fixture theorems.
 
 ---
 

@@ -1,8 +1,8 @@
 {
-  "gen_hash_c": "sha256:d09e20c9ed3dc0aed3af95480ab7af8fa76e7f715bd664766c2dacbc5c66ee44",
-  "gen_hash_rust": "sha256:96fa4da6d8f962d6578ce82049d9c34d01a12f9520366b7002f9e776a9528d4f",
-  "gen_hash_verilog": "sha256:ff97a4f8be8ebf23b4a414e6060b05e29d8bae4d94f4f4459f1dfd0005bca843",
-  "gen_hash_zig": "sha256:e52435c666f7077dd0d5393022f5b4063b820fc5f5c17593e09907b2e128e3ab",
+  "gen_hash_c": "sha256:2a123a601200330d2ed1e70cd0af9cbb78dbde93af5f18a32999aed0cd3bedfa",
+  "gen_hash_rust": "sha256:afe69b59548412627aaf271d07c900145d6fd97793ef102a2ba6c05bc8481d46",
+  "gen_hash_verilog": "sha256:db3979b5e62e1916d177e9844997e46129b3cd3b2356df80f6f78ae8f1fa255c",
+  "gen_hash_zig": "sha256:1f189209fb6823c02868b261c214bb5eba102aeba02183a795a7f0d82fc4bb05",
   "module": "w381_tuple_call_chain",
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",

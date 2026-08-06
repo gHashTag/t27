@@ -66,6 +66,21 @@ vocabulary. `TernaryFPGABoot.lean` adds the quantified
 smoke failures remain the documented baseline; physical bench execution is still
 blocked by the missing DLC10 cable.**
 
+**W455 selects Variant B (clear the documented `gen-verilog` tuple/`let`/ROM
+    baseline) and refreshes the competitor boundary.** The wave ports the missing
+    parser and Verilog backend support for tuple return types, tuple literals,
+    `let` destructuring, and ROM/function-local array lowering that were developed
+    on the historical compiler branch `wave-loop-383` but are absent from the
+    current FPGA-focused line. Implementation is in flight; verification will
+    update the `gen_verilog_smoke_baseline.json` expected-failure set. Public
+    competitor signals as of the W455 boundary: Sparkle / Verilean now cites
+    roughly **250 formal proofs/theorems** across its IP catalog (including the
+    RV32IMA SoC, BitNet b1.58, networking/crypto, and the recent divider proof);
+    the 関数型まつり2026 talk on **2026-07-11** remains the next public
+    checkpoint. CIRCT `firtool-1.152.0` (2026-07-04), Clash 1.11.0, and Bluespec
+    have not shipped material new formal-HDL signals since the W454 refresh, and no
+    Lean-native ternary-FPGA competitor has surfaced.
+
 ---
 
 ## Competitor matrix

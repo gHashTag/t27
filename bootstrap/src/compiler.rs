@@ -63,6 +63,7 @@ pub struct Node {
     pub extra_size: String,
     pub extra_kind: String,
     pub extra_op: String,
+    pub extra_pragma: String,
     pub extra_pub: bool,
     pub extra_mutable: bool,
     pub extra_return_type: String,
@@ -82,6 +83,7 @@ impl Default for Node {
             extra_size: String::new(),
             extra_kind: String::new(),
             extra_op: String::new(),
+            extra_pragma: String::new(),
             extra_pub: false,
             extra_mutable: false,
             extra_return_type: String::new(),
@@ -103,6 +105,7 @@ impl Node {
             extra_size: String::new(),
             extra_kind: String::new(),
             extra_op: String::new(),
+            extra_pragma: String::new(),
             extra_pub: false,
             extra_mutable: false,
             extra_return_type: String::new(),
@@ -153,6 +156,7 @@ pub enum TokenKind {
     KwBreak,
     KwContinue,
     KwIn,
+    KwPragma,
 
     // Literals
     Ident,
@@ -218,6 +222,7 @@ pub struct Token {
     pub col: usize,
 }
 
+#[derive(Debug, Clone)]
 pub struct Lexer {
     source: Vec<u8>,
     pos: usize,
@@ -363,6 +368,7 @@ impl Lexer {
             "var" => TokenKind::KwVar,
             "using" => TokenKind::KwUsing,
             "use" => TokenKind::KwUse,
+            "pragma" => TokenKind::KwPragma,
             "void" => TokenKind::KwVoid,
             "true" => TokenKind::KwTrue,
             "false" => TokenKind::KwFalse,
@@ -827,6 +833,15 @@ pub struct Parser {
     lexer: Lexer,
     current: Token,
     peek: Token,
+    pending_pragma: String,
+}
+
+#[derive(Clone)]
+struct ParserCheckpoint {
+    lexer: Lexer,
+    current: Token,
+    peek: Token,
+    pending_pragma: String,
 }
 
 impl Parser {
@@ -837,7 +852,26 @@ impl Parser {
             lexer,
             current: first,
             peek: second,
+            pending_pragma: String::new(),
         }
+    }
+
+    /// Save the current parser state so it can be restored later. Used for
+    /// lookahead that needs to inspect more than one token ahead.
+    fn save_state(&self) -> ParserCheckpoint {
+        ParserCheckpoint {
+            lexer: self.lexer.clone(),
+            current: self.current.clone(),
+            peek: self.peek.clone(),
+            pending_pragma: self.pending_pragma.clone(),
+        }
+    }
+
+    fn restore_state(&mut self, checkpoint: ParserCheckpoint) {
+        self.lexer = checkpoint.lexer;
+        self.current = checkpoint.current;
+        self.peek = checkpoint.peek;
+        self.pending_pragma = checkpoint.pending_pragma;
     }
 
     fn advance(&mut self) {
@@ -1115,6 +1149,11 @@ impl Parser {
                 continue;
             }
 
+            if self.current.kind == TokenKind::KwPragma {
+                self.parse_pragma()?;
+                continue;
+            }
+
             match self.parse_top_level_decl() {
                 Ok(decl) => {
                     module.children.push(decl);
@@ -1126,6 +1165,51 @@ impl Parser {
             }
         }
 
+        Ok(())
+    }
+
+    /// Parse `pragma name = "value";` at module top level and store it as the
+    /// pending pragma to be applied to the next module-level declaration.
+    fn parse_pragma(&mut self) -> Result<(), String> {
+        self.advance(); // consume 'pragma'
+
+        if self.current.kind != TokenKind::Ident {
+            return Err(format!(
+                "Expected identifier after 'pragma', got {:?}",
+                self.current.kind
+            ));
+        }
+        let pragma_name = self.current.lexeme.clone();
+        self.advance();
+
+        if self.current.kind != TokenKind::Equals {
+            return Err(format!(
+                "Expected '=' after pragma name, got {:?}",
+                self.current.kind
+            ));
+        }
+        self.advance();
+
+        if self.current.kind != TokenKind::String {
+            return Err(format!(
+                "Expected string literal after pragma '=', got {:?}",
+                self.current.kind
+            ));
+        }
+        let pragma_value = self.current.lexeme.clone();
+        self.advance();
+
+        // W457: only ram_style is supported for now; store the full attribute text
+        // so codegen can emit it verbatim.
+        if pragma_name == "ram_style" {
+            self.pending_pragma = format!("ram_style = \"{}\"", pragma_value);
+        } else {
+            return Err(format!("Unknown pragma '{}', expected 'ram_style'", pragma_name));
+        }
+
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
         Ok(())
     }
 
@@ -1163,6 +1247,12 @@ impl Parser {
     fn parse_const_decl(&mut self, is_pub: bool) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::ConstDecl);
         decl.extra_pub = is_pub;
+        // W457: apply any pending pragma to this declaration and clear it so it
+        // is not accidentally reused for a later declaration.
+        if !self.pending_pragma.is_empty() {
+            decl.extra_pragma = self.pending_pragma.clone();
+            self.pending_pragma.clear();
+        }
 
         self.advance(); // consume 'const'
 
@@ -1217,17 +1307,34 @@ impl Parser {
                 self.expect(TokenKind::RBrace)?;
             } else if self.current.kind == TokenKind::LBracket {
                 // pub const TernaryWord = [WORD_BYTES]u8; or [_]u8{...} ** N
-                // Collect the full expression as value text
-                let mut val_text = String::new();
-                while self.current.kind != TokenKind::Semicolon
-                    && self.current.kind != TokenKind::Eof
-                {
-                    val_text.push_str(&self.current.lexeme);
-                    self.advance();
+                // W383: try to parse the bracket expression as an array literal.
+                // If it carries element children (e.g. [4]u16{...}), it is a ROM
+                // initializer and should be emitted as a Verilog memory. If it
+                // has no children (e.g. [WORD_BYTES]u8), it is a type alias and
+                // we restore the parser state and preserve the legacy text form.
+                // If parse_array_literal cannot handle the shape (e.g. ['T','R']),
+                // fall back to the legacy text collection so old specs keep parsing.
+                let save = self.save_state();
+                let array_literal_result = self.parse_array_literal();
+                let use_literal = match &array_literal_result {
+                    Ok(lit) => !lit.children.is_empty(),
+                    Err(_) => false,
+                };
+                if use_literal {
+                    decl.children.push(array_literal_result.unwrap());
+                } else {
+                    self.restore_state(save);
+                    let mut val_text = String::new();
+                    while self.current.kind != TokenKind::Semicolon
+                        && self.current.kind != TokenKind::Eof
+                    {
+                        val_text.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                    let mut val_node = Node::new(NodeKind::ExprIdentifier);
+                    val_node.name = val_text;
+                    decl.children.push(val_node);
                 }
-                let mut val_node = Node::new(NodeKind::ExprIdentifier);
-                val_node.name = val_text;
-                decl.children.push(val_node);
                 if self.current.kind == TokenKind::Semicolon {
                     self.advance();
                 }
@@ -1310,6 +1417,11 @@ impl Parser {
         let mut decl = Node::new(NodeKind::ConstDecl);
         decl.extra_pub = is_pub;
         decl.extra_mutable = true;
+
+        if !self.pending_pragma.is_empty() {
+            decl.extra_pragma = self.pending_pragma.clone();
+            self.pending_pragma.clear();
+        }
 
         self.advance(); // consume 'var'
 
@@ -1420,6 +1532,37 @@ impl Parser {
     /// Parse a type annotation like `Trit`, `*Trit`, `[]u8`, `[N]u8`, `[]const u8`, `anytype`
     fn parse_type_annotation(&mut self) -> String {
         let mut ty = String::new();
+
+        // Handle tuple type: (T1, T2, ...). Keep the raw textual form so that
+        // named tuples like (a: T, b: T) do not hang the parser and are stored
+        // as-is for backends that do not need to unpack them.
+        if self.current.kind == TokenKind::LParen {
+            ty.push('(');
+            self.advance(); // consume (
+            while self.current.kind != TokenKind::RParen
+                && self.current.kind != TokenKind::Eof
+            {
+                let before = self.current.kind;
+                let elem = self.parse_type_annotation();
+                ty.push_str(&elem);
+                if self.current.kind == TokenKind::Comma {
+                    ty.push(',');
+                    self.advance();
+                } else if self.current.kind != TokenKind::RParen {
+                    // Not a clean tuple-type element (e.g. named-field syntax);
+                    // consume the raw token so we cannot spin forever.
+                    if self.current.kind == before && elem.is_empty() {
+                        ty.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                }
+            }
+            if self.current.kind == TokenKind::RParen {
+                ty.push(')');
+                self.advance();
+            }
+            return ty;
+        }
 
         // Handle pointer prefix: *Type or *const Type
         if self.current.kind == TokenKind::Star {
@@ -1570,8 +1713,11 @@ impl Parser {
             self.advance(); // consume !
         }
 
-        // Return type (identifier, or []T / [N]T / [][]const u8 slice/array types, or void)
-        if self.current.kind == TokenKind::Ident {
+        // Return type (identifier, tuple, or []T / [N]T / [][]const u8 slice/array types, or void)
+        if self.current.kind == TokenKind::LParen {
+            // Tuple return type: (u32, u32)
+            decl.extra_return_type = self.parse_type_annotation();
+        } else if self.current.kind == TokenKind::Ident {
             decl.extra_return_type = self.current.lexeme.clone();
             self.advance();
             // Handle generic return types like Option<Foo>
@@ -1725,6 +1871,13 @@ impl Parser {
     fn parse_body_stmt(&mut self) -> Result<Node, String> {
         // const / var declaration
         if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
+            // `let` is lexed as KwConst. Detect destructuring form `let (a, b, c) = expr;`
+            // where the next token after let/const is '('.
+            if self.current.kind == TokenKind::KwConst
+                && self.peek.kind == TokenKind::LParen
+            {
+                return self.parse_let_destructuring();
+            }
             return self.parse_local_decl();
         }
 
@@ -1877,6 +2030,48 @@ impl Parser {
             self.advance();
         }
         Ok(decl)
+    }
+
+    /// Parse `let (a, b, c) = expr;` destructuring.
+    /// `let` is lexed as KwConst, so this is reached from `parse_body_stmt` when
+    /// KwConst is followed by '('. The result is a StmtAssign whose LHS is an
+    /// ExprArrayLiteral marker node (extra_kind == "tuple") containing the
+    /// bound identifiers, and whose RHS is the initializer expression.
+    fn parse_let_destructuring(&mut self) -> Result<Node, String> {
+        let mut assign = Node::new(NodeKind::StmtAssign);
+        assign.line = self.current.line as u32;
+        self.advance(); // consume let/const
+
+        self.expect(TokenKind::LParen)?;
+
+        let mut lhs = Node::new(NodeKind::ExprArrayLiteral);
+        lhs.extra_kind = "tuple".to_string();
+
+        while self.current.kind != TokenKind::RParen
+            && self.current.kind != TokenKind::Eof
+        {
+            if self.current.kind == TokenKind::Ident {
+                let mut ident = Node::new(NodeKind::ExprIdentifier);
+                ident.name = self.current.lexeme.clone();
+                lhs.children.push(ident);
+                self.advance();
+            } else if self.current.kind == TokenKind::Comma {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+        self.expect(TokenKind::RParen)?;
+
+        self.expect(TokenKind::Equals)?;
+        let rhs = self.parse_expr()?;
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
+
+        assign.children.push(lhs);
+        assign.children.push(rhs);
+        Ok(assign)
     }
 
     /// Parse return statement
@@ -2558,7 +2753,7 @@ impl Parser {
                 })
             }
 
-            // Parenthesized expression
+            // Parenthesized expression or tuple literal
             TokenKind::LParen => {
                 self.advance(); // consume (
                 let inner = self.parse_expr()?;
@@ -6075,12 +6270,50 @@ impl VerilogCodegen {
         let is_array = !node.extra_size.is_empty();
 
         if is_array {
-            // Emit as localparam array — use initial block or parameter
-            self.write(&format!("// LUT: {} [{}]", node.name, node.extra_size));
-            self.write_line("");
-            // For array constants, emit as individual localparams for each element
-            if !node.children.is_empty() {
-                // If children represent array elements, emit them
+            // W383: array-constant lowering. If the type annotation is an array
+            // type (e.g. "[4]u16") and the initializer is an array literal, emit a
+            // synthesizable Verilog memory initialized in an initial block.
+            let safe_name = Self::verilog_safe_identifier(&node.name);
+            let has_array_literal = !node.children.is_empty()
+                && node.children[0].kind == NodeKind::ExprArrayLiteral;
+
+            if let Some((array_size, elem_type)) = type_array {
+                let elem_width = Self::type_to_width(&elem_type);
+                let elem_signed = Self::type_is_signed(&elem_type);
+                let elem_signed_str = if elem_signed { "signed " } else { "" };
+                let elem_range = Self::range_decl(elem_width);
+                let elem_range_str = if elem_range.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", elem_range)
+                };
+                self.write_line(&format!("// LUT: {} [{}] {}", safe_name, array_size, elem_type)
+                );
+                self.write_indent();
+                self.write_line(&format!(
+                    "reg {}{} {} [0:{}];",
+                    elem_signed_str, elem_range_str, safe_name, array_size - 1
+                ));
+                if has_array_literal {
+                    self.write_indent();
+                    self.write_line("initial begin");
+                    self.indent();
+                    let child = &node.children[0];
+                    for (i, elem) in child.children.iter().enumerate() {
+                        if i >= array_size {
+                            break;
+                        }
+                        self.write_indent();
+                        self.write(&format!("{}[{}] = ", safe_name, i));
+                        self.gen_verilog_expr(elem);
+                        self.write_line(";");
+                    }
+                    self.dedent();
+                    self.write_indent();
+                    self.write_line("end");
+                }
+            } else if !node.children.is_empty() {
+                // Legacy extra_size path: emit as individual localparams for each element
                 let child = &node.children[0];
                 // R-CA-1 (Wave 28): array-of-struct / array-of-array initializers
                 // currently degrade into `/* array ... */` block-comments through
@@ -6388,10 +6621,56 @@ impl VerilogCodegen {
         } else {
             format!("{} ", range)
         };
-        let is_array = !node.extra_size.is_empty();
+        // W382: array type may come from the type annotation (e.g. "[4]u16") in
+        // addition to the legacy extra_size path used by array literals.
+        let type_array = Self::parse_array_type(&node.extra_type);
+        let is_array = !node.extra_size.is_empty() || type_array.is_some();
         let safe_name = Self::verilog_safe_identifier(&node.name);
 
-        if is_array {
+        if let Some((array_size, elem_type)) = type_array {
+            // W382: emit a true synthesizable Verilog memory so that indexing
+            // expressions like mem[i] resolve to memory access, not bit-select.
+            let elem_width = Self::type_to_width(&elem_type);
+            let elem_signed = Self::type_is_signed(&elem_type);
+            let elem_signed_str = if elem_signed { "signed " } else { "" };
+            let elem_range = Self::range_decl(elem_width);
+            let elem_range_str = if elem_range.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", elem_range)
+            };
+            if !node.extra_pragma.is_empty() {
+                self.write_line(&format!("(* {} *)", node.extra_pragma));
+            }
+            self.write_line(&format!(
+                "reg {}{} {} [0:{}];",
+                elem_signed_str, elem_range_str, safe_name, array_size - 1
+            ));
+            if !node.children.is_empty() {
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                let child = &node.children[0];
+                if child.kind == NodeKind::ExprArrayLiteral {
+                    for (i, elem) in child.children.iter().enumerate() {
+                        if i < array_size {
+                            self.write_indent();
+                            self.write(&format!("{}[{}] = ", safe_name, i));
+                            self.gen_verilog_expr(elem);
+                            self.write_line(";");
+                        }
+                    }
+                } else {
+                    self.write_indent();
+                    self.write("// initializer: ");
+                    self.gen_verilog_expr(child);
+                    self.write_line("");
+                }
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            }
+        } else if is_array {
             self.write_line(&format!("// var: {} [{}]", node.name, node.extra_size));
             let array_size: usize = node.extra_size.parse().unwrap_or(1);
             for i in 0..array_size {
@@ -6548,6 +6827,7 @@ impl VerilogCodegen {
         self.write_line(&format!("// function: {}", node.name));
 
         // Emit as a Verilog function declaration
+        // W380: tuple return types are packed; non-tuple types keep scalar width.
         let ret_width = if !node.extra_return_type.is_empty() {
             self.packed_width(&node.extra_return_type)
         } else {
@@ -6657,6 +6937,7 @@ impl VerilogCodegen {
         self.current_fn_name.clear();
         self.current_fn_return_type.clear();
         self.param_widths.clear();
+        self.local_arrays.clear();
     }
 
     /// Emit a Verilog function body statement list, rewriting the
@@ -7396,6 +7677,21 @@ impl VerilogCodegen {
                 self.emit_local(node, phase);
             }
             NodeKind::StmtAssign => {
+                // W378/W379: detect tuple destructuring on the LHS of an
+                // assignment: `let (a, b, c) = f(...)` is parsed as a
+                // StmtAssign whose LHS is an ExprArrayLiteral with
+                // extra_kind == "tuple" containing identifier children.
+                if node.children.len() >= 2
+                    && node.children[0].kind == NodeKind::ExprArrayLiteral
+                    && node.children[0].extra_kind == "tuple"
+                    && !node.children[0].children.is_empty()
+                {
+                    self.gen_verilog_let_destructuring(
+                        &node.children[0],
+                        &node.children[1],
+                    );
+                    return;
+                }
                 self.write_indent();
                 if node.children.len() >= 2 {
                     let lhs = &node.children[0];
@@ -7892,7 +8188,7 @@ impl VerilogCodegen {
                     }
                     self.gen_verilog_expr(&node.children[0]);
                     self.write("[");
-                    self.gen_verilog_expr(&node.children[1]);
+                    self.gen_verilog_expr(idx);
                     self.write("]");
                 }
             }
@@ -11116,6 +11412,29 @@ fn check_stmt(node: &Node, symbols: &mut Vec<SymbolEntry>, fns: &[FnEntry], resu
                             "warning: cannot assign to immutable '{}'{}",
                             name, line
                         ));
+                    }
+                }
+                // W456: assignments into an element of an immutable array (const
+                // ROM) are also illegal, even though the LHS is an ExprIndex rather
+                // than a bare ExprIdentifier.
+                if node.children[0].kind == NodeKind::ExprIndex
+                    && !node.children[0].children.is_empty()
+                    && node.children[0].children[0].kind == NodeKind::ExprIdentifier
+                {
+                    let base_name = &node.children[0].children[0].name;
+                    if let Some(sym) = symbols.iter().find(|s| s.name == *base_name) {
+                        if !sym.is_mutable {
+                            let line = if node.line > 0 {
+                                format!(":{}", node.line)
+                            } else {
+                                String::new()
+                            };
+                            result.error_count += 1;
+                            result.errors.push(format!(
+                                "error: cannot assign to immutable array element '{}[...]'{}",
+                                base_name, line
+                            ));
+                        }
                     }
                 }
                 let target_type = infer_expr(&node.children[0], symbols, fns);
@@ -27882,5 +28201,85 @@ mod tests_local_scope_920_bug2 {
         let r = Compiler::typecheck(src).expect("typecheck should parse");
         let caught = r.errors.iter().any(|e| e.contains("type mismatch"));
         assert!(caught, "cross-sign assignment between locals must be caught; errors: {:?}", r.errors);
+    }
+}
+
+#[cfg(test)]
+mod tests_w456_rom_readonly {
+    use super::Compiler;
+
+    #[test]
+    fn rom_readonly_array_element_assign_is_rejected() {
+        let src = "module M { const lut : [4]u16 = [4]u16{1,2,3,4} pub fn f() -> void { lut[0] = 0xFFFF } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let caught = r
+            .errors
+            .iter()
+            .any(|e| e.contains("cannot assign to immutable array element"));
+        assert!(
+            caught,
+            "writing to a const ROM array element must be rejected; errors: {:?}",
+            r.errors
+        );
+    }
+
+    #[test]
+    fn var_array_element_assign_still_allowed() {
+        let src = "module M { pub fn f() -> u16 { var buf : [4]u16 buf[0] = 0xA1B2 return buf[0] } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let rejected = r
+            .errors
+            .iter()
+            .any(|e| e.contains("cannot assign to immutable array element"));
+        assert!(!rejected, "writable local arrays must remain assignable; errors: {:?}", r.errors);
+    }
+}
+
+#[cfg(test)]
+mod tests_w457_ram_style {
+    use super::Compiler;
+
+    #[test]
+    fn ram_style_block_pragma_emitted() {
+        let src = r#"module M {
+            pragma ram_style = "block";
+            var mem : [4]u16 = [4]u16{0,0,0,0};
+            pub fn f(i: u32) -> u16 { return mem[i]; }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("(* ram_style = \"block\" *)"),
+            "expected block RAM style pragma in generated Verilog:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn ram_style_distributed_pragma_emitted() {
+        let src = r#"module M {
+            pragma ram_style = "distributed";
+            var mem : [4]u16 = [4]u16{0,0,0,0};
+            pub fn f(i: u32) -> u16 { return mem[i]; }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        assert!(
+            v.contains("(* ram_style = \"distributed\" *)"),
+            "expected distributed RAM style pragma in generated Verilog:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn unknown_pragma_rejected() {
+        let src = r#"module M {
+            pragma unknown = "value";
+            var mem : [4]u16 = [4]u16{0,0,0,0};
+        }"#;
+        let r = Compiler::compile_verilog(src);
+        assert!(r.is_err(), "unknown pragma must be rejected");
+        assert!(
+            r.unwrap_err().contains("Unknown pragma"),
+            "error should mention unknown pragma"
+        );
     }
 }

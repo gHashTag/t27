@@ -1490,24 +1490,232 @@ Expected 25,664 elements, 821,248-bit packed vector (~0.783 MiBit), still under
   fixtures with a whitelist path) is left to the owner. SSOT=83 untouched.
 - Status tag: [доказано] for the counts; [ТРЕБУЕТ ДЕЙСТВИЯ ПОЛЬЗОВАТЕЛЯ] for A vs B.
 
-## Wave Loop 455 — Implement missing `gen-verilog` tuple/array backend (Variant B default) (Closes #1425)
+## Wave Loop 458 — Next wave (to be selected from cooperation plan) (Closes #1429)
 
-- Branch: `wave-loop-455` (to create from W454 land commit)
-- Issue: #1425 (to create)
+- Branch: `wave-loop-458` (to create from W457 land commit)
+- Issue: #1429 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W455_2026-07-01.md`
-- Cooperation W456: (to be written at W455 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W458_2026-07-01.md`
+- Cooperation W459: (to be written at W458 close-out)
 
 ### Not started
 
-- Create issue #1425 and branch `wave-loop-455` from the W454 land commit.
-- Variant B default: implement missing `gen-verilog` backend support for tuple
-  return types, `let (a, b, c)` destructuring, and module-level `const` array
-  literal lowering to clear the 7 residual yosys smoke failures (#1245).
-- Variant A if bench unblocks (DLC10 cable + P12/relay): live-capture CCLK sweep
-  and mint an `XADC_LIVE_W455_OPERATING_POINT` theorem.
-- Variant C fallback: additional adversarial/robustness theorems in
-  `TernaryFPGABoot.lean` without hardware or compiler changes.
+- Create issue #1429 and branch `wave-loop-458` from the W457 land commit.
+- Select one of the three W458 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W458_2026-07-01.md`.
+
+---
+
+## Wave Loop 457 — RAM style pragma support for module-level arrays (Variant B default) (Closes #1428)
+
+- Branch: `wave-loop-457`
+- Issue: #1428
+- PR: (to open after close-out)
+- Report: `docs/reports/WAVE_LOOP_457_REPORT.md`
+- Evidence W457: `docs/reports/FPGA_LOOP_EVIDENCE_W457_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W457_2026-07-01.md`
+- Cooperation W458: `docs/reports/FPGA_LOOP_COOPERATION_W458_2026-07-01.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Added `KwPragma` token and `pragma` keyword lexer mapping.
+  - Added `extra_pragma: String` to `Node`; initialized in `Default` and `new`.
+  - Added `pending_pragma` to `Parser` and `ParserCheckpoint` with save/restore.
+  - Added `parse_pragma` for `pragma name = "value";` top-level statements;
+    currently accepts `ram_style = "block"` / `ram_style = "distributed"`
+    and rejects unknown pragma names.
+  - `parse_module_body` now consumes `pragma` directives before the next
+    module-level declaration.
+  - `parse_const_decl` and `parse_var_decl` capture the pending pragma into the
+    declaration node and clear it so it is not accidentally reused.
+  - `gen_verilog_var` emits `(* {pragma} *)` before the synthesizable `reg ... [0:N]`
+    memory declaration for true array types (e.g. `[4]u16`), giving Vivado/Yosys
+    a synthesizer-controllable RAM style attribute.
+  - Added `tests_w457_ram_style` unit-test module:
+    - `ram_style_block_pragma_emitted`
+    - `ram_style_distributed_pragma_emitted`
+    - `unknown_pragma_rejected`
+
+- `specs/scratch/w457_ram_style_block.t27`
+  - New regression spec exercising `pragma ram_style = "block";` on a module-level
+    writable `[4]u16` array with write/read and loop-sum tests.
+
+- `specs/scratch/w457_ram_style_distributed.t27`
+  - New regression spec exercising `pragma ram_style = "distributed";` on a
+    module-level writable `[4]u16` array with write/read tests.
+
+- `.trinity/seals/scratch_w457_ram_style_block.json`
+- `.trinity/seals/scratch_w457_ram_style_distributed.json`
+  - Seals for the two new regression specs.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W457 competitor boundary section.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_457_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W457_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W458_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W457_OPERATING_POINT` — bench unavailable.
+- Pragmas for module-level `const`/ROM style (`rom_style`) or per-port RAM
+  attributes — deferred to a future wave.
+
+### Verification
+
+- `cargo test -p t27c --bin t27c tests_w457_ram_style`: **PASS** (3/3).
+- `t27c gen-verilog specs/scratch/w457_ram_style_block.t27` +
+  `yosys read_verilog -sv; synth -top w457_ram_style_block`: **PASS**,
+  emits `(* ram_style = "block" *)`.
+- `t27c gen-verilog specs/scratch/w457_ram_style_distributed.t27` +
+  `yosys read_verilog -sv; synth -top w457_ram_style_distributed`: **PASS**,
+  emits `(* ram_style = "distributed" *)`.
+- `./scripts/tri test --json /tmp/tri_test_w457.json`: **ALL TESTS PASSED**.
+  - Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C / Seal Verify:
+    579/579 PASS.
+  - Gen Verilog Yosys Smoke: **59 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**.
+  - FPGA Standalone Lake-Package Build: **OK**.
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `ACCEPTABLE: yes`.
+
+---
+
+## Wave Loop 456 — ROM read-only enforcement (Variant B, narrowed scope) (Closes #1427)
+
+- Branch: `wave-loop-456`
+- Issue: #1427
+- PR: (to open after close-out)
+- Report: `docs/reports/WAVE_LOOP_456_REPORT.md`
+- Evidence W456: `docs/reports/FPGA_LOOP_EVIDENCE_W456_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W456_2026-07-01.md`
+- Cooperation W457: `docs/reports/FPGA_LOOP_COOPERATION_W457_2026-07-01.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B narrowed to ROM read-only — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - `typecheck_ast` / `check_stmt` now rejects assignments to elements of immutable
+    `const [N]T` arrays (`lut[i] = ...`) with a typecheck error.
+  - Existing immutable scalar assignment remains a warning.
+  - Added `tests_w456_rom_readonly` unit-test module:
+    - `rom_readonly_array_element_assign_is_rejected`
+    - `var_array_element_assign_still_allowed`
+
+- `specs/scratch/w456_rom_readonly.t27`
+  - New regression spec with module-level `const [4]u16` ROM and read-only lookups.
+
+- `.trinity/seals/scratch_w456_rom_readonly.json`
+  - Seal for the new regression spec.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W456 competitor boundary section.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_456_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W456_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W457_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W456_OPERATING_POINT` — bench unavailable.
+- RAM style pragmas / module-level array parameters / warning hygiene — deferred to W457.
+
+### Verification
+
+- `cargo test -p t27c --bin t27c tests_w456_rom_readonly`: **PASS** (2/2).
+- `t27c gen-verilog specs/scratch/w456_rom_readonly.t27` + `yosys read_verilog -sv; synth -top w456_rom_readonly`: **PASS**.
+- `./scripts/tri test --json /tmp/tri_test_w456.json`: **ALL TESTS PASSED**.
+  - Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C / Seal Verify:
+    577/577 PASS.
+  - Gen Verilog Yosys Smoke: **57 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**.
+  - FPGA Standalone Lake-Package Build: **OK**.
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `ACCEPTABLE: yes**.
+
+---
+
+## Wave Loop 455 — Implement missing `gen-verilog` tuple/array backend (Variant B default) (Closes #1425)
+
+- Branch: `wave-loop-455`
+- Issue: #1425
+- PR: (to open after close-out)
+- Report: `docs/reports/WAVE_LOOP_455_REPORT.md`
+- Evidence W455: `docs/reports/FPGA_LOOP_EVIDENCE_W455_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W455_2026-07-01.md`
+- Cooperation W456: `docs/reports/FPGA_LOOP_COOPERATION_W456_2026-07-01.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Parser support for tuple return types `-> (T1, T2, ...)`.
+  - Parser support for tuple literals `(a, b, c)`.
+  - Parser support for `let (a, b, c) = expr` destructuring assignment.
+  - Verilog backend: packed function result register for tuple returns.
+  - Verilog backend: tuple literal as packed concatenation.
+  - Verilog backend: `let` destructuring lowering with per-binding width inference
+    from the callee's tuple return type.
+  - Verilog backend: module-level `const [N]T{...}` ROM lowering.
+  - Verilog backend: function-local `var [N]T` array lowering (numeric/variable
+    indices, signed elements, `for` loops, 2D arrays, array-literal initializers).
+  - Keyword-safe full-token identifier escaping for flattened local-array element
+    names (`\buf_0 ` instead of `\buf _0`).
+  - Added `ParserCheckpoint` save/restore helpers used for safe lookahead in the
+    tuple/array literal parser.
+
+- `cli/flash-spi/src/main.rs`
+  - Restored workspace build by supplying the new `FlashOpts` fields
+    (`no_jprogram: false`, `bitswap: true`) that the updated flash driver now
+    requires.
+
+- `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+  - Updated branch header to `wave-loop-455`.
+  - Documented the W455 triage decision and the cleared 7-residual-failure matrix.
+
+- `docs/reports/gen_verilog_smoke_baseline.json`
+  - Expected-failure set updated to empty; the 7 baseline failures are now cleared.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W455 boundary paragraph; refreshed competitor numbers.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_455_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W455_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W456_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W455_OPERATING_POINT` — bench unavailable.
+- RAM style inference / block-vs-distributed pragma hints — out of scope for W455.
+
+### Verification
+
+- `cargo build --release`: **PASS**.
+- `t27c gen-verilog` + `yosys read_verilog -sv` on the 7 previously failing specs:
+  **PASS** (0 failures).
+- `./scripts/tri test --json /tmp/tri_test_w455.json`: **ALL TESTS PASSED**.
+  - Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C / Seal Verify:
+    576/576 PASS.
+  - Gen Verilog Yosys Smoke: **56 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**.
+  - FPGA Standalone Lake-Package Build: **OK**.
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `ACCEPTABLE: yes`.
+- 67 affected `.trinity/seals/*.json` files resealed to the new compiler output.
 
 ---
 
