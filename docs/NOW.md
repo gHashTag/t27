@@ -1,3 +1,18 @@
+# NOW — feat: 2-layer GF-T MLP + fix negative-zero cancellation bug (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): end-to-end 2-layer BitNet×GF-T MLP + signed-add cancellation fix (Refs #1764)
+
+- Branch: `feat/gft-mlp2`
+
+### Что легло
+- `specs/ternary/gft_mlp2.t27` (`GftMlp2`) + seal + test + vectors: a spec-first **2-layer BitNet×GF-T MLP** — GF-T16 activations (a1,a2) → layer 1 (2 neurons, trit weights) → 2 hidden trits → re-embedded as GF-T {N→-1,Z→0,P→+1} → layer 2 (1 neuron) → output trit. End-to-end multi-layer inference, bit-exact to the ideal oracle composition over 3000 vectors.
+- **Correctness fix (latent bug in 4 merged signed specs):** `sadd(-1.0, +1.0)` returned `0x10000` (a wrong NEGATIVE ZERO) instead of `0` on exact cancellation when the larger operand is negative. Root cause: gen-verilog does not lower a `return` NESTED inside an `if` block as an early return, so `if (ma>=mb){ ...; if(r==0) return 0; return (sa<<16)|r; }` fell through to `(sa<<16)|0` when r==0. Restructured `sadd` to a single TOP-LEVEL `if (r==0) return 0` guard in `gft_signed_mac`, `gft_signed_dot4`, `gft_bitnet_neuron`, `gft_neuron_full`, `gft_mlp2`; re-verified all (signed_mac now with cancellation-heavy vectors that catch the bug). The MLP was the first design to hit it (inter-layer ±1.0 activations cancel exactly).
+No compiler change (uses `on_comb`); 1535 unit tests pass. gen-verilog nested-early-return is a compiler limitation to fix separately.
+
+---
+
 # NOW — feat: complete BitNet×GF-T neuron (MAC + activation) + synth fix (2026-08-06)
 
 Last updated: 2026-08-06

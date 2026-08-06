@@ -1,26 +1,16 @@
-module GftSignedDot4;
-// #1764 + GF-T: a spec-first SIGNED GF-T16 4-term MAC (y = sum_{i=1..4} a_i*b_i),
-// round-to-nearest-even, robust to sign cancellation (zero-aware add). The real-
-// valued matmul/attention tile with negatives -- the length-4 signed companion of
-// gft_signed_mac. Bit-exact to the ideal oracle balanced tree over 3000 vectors.
+module GftMlp2;
+// #1764 + GF-T: a spec-first 2-LAYER BitNet×GF-T MLP -- end-to-end inference.
+//   Layer 1: two neurons over the shared GF-T16 activation (a1, a2), each with
+//            its own trit weights -> two hidden TRITS (h1, h2).
+//   Between: the hidden trits are re-embedded as GF-T activations {N->-1, Z->0,
+//            P->+1} (the quantized inter-layer activations, BitNet-style).
+//   Layer 2: one neuron over (h1, h2) with trit weights -> the output TRIT.
+// Every neuron is quantize(sign) of a signed GF-T dot product (ternary weight x
+// GF-T activation, RNE, zero-aware). Bit-exact to the ideal oracle composition.
 //
-// Signed GF-T16 [ sign(1):offset(7):mant(9) ] in a u32.
+// Inputs: a1,a2 signed GF-T16 (u32); w11,w12,w21,w22,v1,v2 trits u8 {N=0,Z=1,P=2}.
+// Output: trit u8 {N=0, Z=1, P=2}.
 
-fn magmul(a: i32, b: i32) -> i32 {
-    var ao : i32 = a >> 9; var am : i32 = a & 511;
-    var bo : i32 = b >> 9; var bm : i32 = b & 511;
-    var prod : i32 = (512 + am) * (512 + bm); var carry : i32 = 0;
-    if (prod >= 524288) { carry = 1; }
-    var q : i32 = prod >> 9; var r : i32 = prod & 511; var half : i32 = 256;
-    if (carry == 1) { q = prod >> 10; r = prod & 1023; half = 512; }
-    var mant : i32 = q - 512;
-    if (r > half) { mant = mant + 1; }
-    if (r == half) { if ((q & 1) == 1) { mant = mant + 1; } }
-    var s : i32 = ao + bo + carry; var off : i32 = 0;
-    if (s >= 40) { var rr : i32 = s - 40; if (rr >= 80) { off = 80; } else { off = rr; } }
-    if (mant >= 512) { mant = 0; off = off + 1; if (off >= 80) { off = 80; } }
-    return (off << 9) | mant;
-}
 fn magadd(a: i32, b: i32) -> i32 {
     var ao : i32 = a >> 9; var am : i32 = a & 511;
     var bo : i32 = b >> 9; var bm : i32 = b & 511;
@@ -50,7 +40,6 @@ fn magsub(hi: i32, lo: i32) -> i32 {
     if (d >= 26) { la = 0; sticky = 1; }
     else { var ls : i32 = (512 + lm) << 14; la = ls >> d; if ((ls - (la << d)) > 0) { sticky = 1; } }
     var diff : i32 = hs - la; var off : i32 = ho;
-    // flat (unrolled) left-normalization -- max ~9 shifts; no loop -> yosys-synthesizable.
     if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
     if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
     if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
@@ -69,31 +58,55 @@ fn magsub(hi: i32, lo: i32) -> i32 {
     if (mant >= 512) { mant = 0; off = off + 1; if (off >= 80) { off = 80; } }
     return (off << 9) | mant;
 }
-fn smul(a: u32, b: u32) -> u32 {
-    var sa : i32 = (a >> 16) as i32; var sb : i32 = (b >> 16) as i32;
-    var mag : i32 = magmul((a & 65535) as i32, (b & 65535) as i32);
-    return (((sa ^ sb) << 16) | mag) as u32;
-}
 fn sadd(a: u32, b: u32) -> u32 {
     if (a == 0) { return b; }
     if (b == 0) { return a; }
     var sa : i32 = (a >> 16) as i32; var ma : i32 = (a & 65535) as i32;
     var sb : i32 = (b >> 16) as i32; var mb : i32 = (b & 65535) as i32;
     if (sa == sb) { return ((sa << 16) | magadd(ma, mb)) as u32; }
-    // different signs: a top-level r==0 guard (NOT nested inside the ma>=mb
-    // branch -- gen-verilog does not lower that as an early return, so it fell
-    // through to (sign<<16)|0 = a wrong negative zero on exact cancellation).
+    // different signs: subtract smaller magnitude from larger; a top-level r==0
+    // guard (NOT nested inside the ma>=mb branch, which gen-verilog does not lower
+    // as an early return -> it fell through to (sign<<16)|0 = negative zero).
     var bsign : i32 = sa;
     var r : i32 = magsub(ma, mb);
     if (ma < mb) { r = magsub(mb, ma); bsign = sb; }
     if (r == 0) { return 0; }
     return ((bsign << 16) | r) as u32;
 }
-fn dot2(a1: u32, b1: u32, a2: u32, b2: u32) -> u32 { return sadd(smul(a1, b1), smul(a2, b2)); }
-fn on_comb(a1: u32, b1: u32, a2: u32, b2: u32, a3: u32, b3: u32, a4: u32, b4: u32) -> u32 {
-    return sadd(dot2(a1, b1, a2, b2), dot2(a3, b3, a4, b4));
+fn contrib(w: u8, a: u32) -> u32 {
+    if (w == 2) { return a; }
+    if (a == 0) { return 0; }
+    if (w == 0) { return a ^ 65536; }
+    return 0;
+}
+fn activate(s: u32) -> u8 {
+    if (s == 0) { return 1; }
+    if ((s >> 16) == 1) { return 0; }
+    return 2;
+}
+// a 2-input neuron: sign(w1*a1 + w2*a2), trit weights x GF-T activations.
+fn neuron2(w1: u8, a1: u32, w2: u8, a2: u32) -> u8 {
+    return activate(sadd(contrib(w1, a1), contrib(w2, a2)));
+}
+// re-embed a hidden trit as a GF-T activation: N->-1.0, Z->0, P->+1.0.
+fn trit2gft(t: u8) -> u32 {
+    if (t == 2) { return 20480; }        // +1.0
+    if (t == 0) { return 86016; }        // -1.0 (0x15000)
+    return 0;                            // Z -> zero
 }
 
-// (+1*+1)+(-1*+1)+(+1*+1)+(-1*+1) = 1-1+1-1 = 0.
-test cancel { assert_eq(on_comb(20480,20480, 86016,20480, 20480,20480, 86016,20480), 0); }
+// The MLP: two hidden neurons, re-embed, one output neuron.
+fn on_comb(a1: u32, a2: u32, w11: u8, w12: u8, w21: u8, w22: u8, v1: u8, v2: u8) -> u8 {
+    var h1 : u8 = neuron2(w11, a1, w12, a2);
+    var h2 : u8 = neuron2(w21, a1, w22, a2);
+    var g1 : u32 = trit2gft(h1);
+    var g2 : u32 = trit2gft(h2);
+    return neuron2(v1, g1, v2, g2);
+}
+
+// a=+1.0,+1.0 ; layer1 w all +1 -> h1=h2=P ; layer2 v all +1 -> +1+1=+2 -> P(2).
+test all_pos { assert_eq(on_comb(20480, 20480, 2,2,2,2, 2,2), 2); }
+// a=+1.0,+1.0 ; w1=+1,+1 (h1=P), w2=-1,-1 (h2=N) ; v=+1,-1 -> +1 -(-1) = +2 -> P(2).
+test mixed { assert_eq(on_comb(20480, 20480, 2,2,0,0, 2,0), 2); }
+
 endmodule

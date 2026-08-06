@@ -67,8 +67,14 @@ fn sadd(a: u32, b: u32) -> u32 {
     var sa : i32 = (a >> 16) as i32; var ma : i32 = (a & 65535) as i32;
     var sb : i32 = (b >> 16) as i32; var mb : i32 = (b & 65535) as i32;
     if (sa == sb) { return ((sa << 16) | magadd(ma, mb)) as u32; }
-    if (ma >= mb) { var r : i32 = magsub(ma, mb); if (r == 0) { return 0; } return ((sa << 16) | r) as u32; }
-    var r2 : i32 = magsub(mb, ma); if (r2 == 0) { return 0; } return ((sb << 16) | r2) as u32;
+    // different signs: a top-level r==0 guard (NOT nested inside the ma>=mb
+    // branch -- gen-verilog does not lower that as an early return, so it fell
+    // through to (sign<<16)|0 = a wrong negative zero on exact cancellation).
+    var bsign : i32 = sa;
+    var r : i32 = magsub(ma, mb);
+    if (ma < mb) { r = magsub(mb, ma); bsign = sb; }
+    if (r == 0) { return 0; }
+    return ((bsign << 16) | r) as u32;
 }
 
 // weight trit {2:+1, 0:-1, 1:0} selects +a / -a / 0 of the activation.
