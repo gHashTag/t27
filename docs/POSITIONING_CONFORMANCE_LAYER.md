@@ -86,7 +86,7 @@ competitor on accuracy. This is a hard rule, mirrored from the Corona ROM
 governing sentence.
 
 - **takum** (Hunhold,
-  [arXiv:2412.20273](https://arxiv.org/abs/2412.20273),
+  [arXiv:2404.18603](https://arxiv.org/abs/2404.18603),
   [arXiv:2404.18603](https://arxiv.org/abs/2404.18603),
   [arXiv:2504.21197](https://arxiv.org/abs/2504.21197)) is the **standing
   counterexample**: at low precision takum is competitive with or better than
@@ -127,6 +127,6 @@ credibility we trade on.
 - IEEE P3109 4-parameter model: [arXiv:2606.04028](https://arxiv.org/abs/2606.04028)
 - FLoPS Lean formalization: [arXiv:2602.15965](https://arxiv.org/abs/2602.15965)
 - Imandra P3109: https://github.com/imandra-ai/ieee-p3109
-- takum: [arXiv:2412.20273](https://arxiv.org/abs/2412.20273)
+- takum: [arXiv:2404.18603](https://arxiv.org/abs/2404.18603)
 - GoldenFloat preprint: arXiv:2606.05017
 - Catalog paper #3: arXiv:2606.09686 (count reconciled in `ERRATA_2026-06-14.md`)

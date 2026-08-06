@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/scratch/w376_cast_width.t27
+// Regression spec for W376 gen-verilog cast and bitwise width correctness.
+// Narrowing casts followed by bitwise operators must produce Verilog that
+// parses cleanly in yosys and matches intended t27 semantics.
+
+module w376_cast_width;
+use base::types;
+
+fn lower_byte(x : u16) -> u8 {
+    return (x as u8) & 0x0F;
+}
+
+fn lower_nibble_signed(x : i16) -> i8 {
+    return (x as i8) & 0x0F;
+}
+
+fn or_low_byte(x : u16, y : u16) -> u8 {
+    return ((x as u8) | (y as u8));
+}
+
+fn xor_low_byte(x : u16, y : u16) -> u8 {
+    return ((x as u8) ^ (y as u8));
+}
+
+test w376_cast_width_basic {
+    assert lower_byte(0x1234) == 0x04;
+    assert lower_byte(0x00FF) == 0x0F;
+    assert lower_byte(0xFF00) == 0x00;
+    assert or_low_byte(0x1203, 0x3405) == 0x07;
+    assert xor_low_byte(0x1203, 0x3405) == 0x06;
+}
+
+endmodule

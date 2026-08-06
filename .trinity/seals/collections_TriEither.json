@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:453a47582a4d28db224dff52353c64fd727952370a27abdf078997c0f2679882",
+  "gen_hash_rust": "sha256:2f1a9aa00b417241eac60e5dfe49018b2df8d819fcf7b5d6dcb8beb8253b3158",
+  "gen_hash_verilog": "sha256:f3fec6527e7ef8edc2e23b4bdb8f0f4e6a016647dbc962a5ef56412b2f687eb9",
+  "gen_hash_zig": "sha256:576b2e1e1f7953dd1d231f03cf4edc042d2a00b604b42de6b6690d21e346d4b7",
+  "module": "TriEither",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:50Z",
+  "spec_hash": "sha256:e67d13adcf989dad50feda8d7c5a53a0fa8f96486804feb26b22a582ebb7582d",
+  "spec_path": "/Users/playra/t27/specs/tri/collections/either.t27"
+}

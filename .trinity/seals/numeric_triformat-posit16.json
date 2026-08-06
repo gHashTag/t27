@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:48b62995366757ee351ac48854281944f39da18aca62f13bfa0e3b0a0eddf37f",
+  "gen_hash_rust": "sha256:c1477cc00bc1d13ea2dd6d735cff759a729ebf38df24f9c4d70976b8dd3cff6a",
+  "gen_hash_verilog": "sha256:62cd831aa656b45d0a3849124eb5cd3d0d7c95996dae32a2660cd5fdad2b0b7d",
+  "gen_hash_zig": "sha256:6e1eaf72bd488e779c9f9da1b1e8e8ee42974532154cbb46112143441134dd37",
+  "module": "triformat-posit16",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:27Z",
+  "spec_hash": "sha256:9f773893706694c68605d20bf9b1569996dbe4e2d55b78acb655503c9f95dcc5",
+  "spec_path": "specs/numeric/posit16.t27"
+}

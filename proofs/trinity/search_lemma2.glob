@@ -1,0 +1,4 @@
+DIGEST 88f009d29cf216f0f931a05e2aeae471
+FTrinity.search_lemma2
+R24:28 Coq.Reals.Reals <> <> lib
+R37:53 Coq.Reals.RIneq <> Rmult_lt_0_compat thm

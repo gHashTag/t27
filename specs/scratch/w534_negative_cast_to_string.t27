@@ -1,0 +1,13 @@
+// W534 negative witness: a cast to a non-lowerable type (string) is NOT
+// Icarus-lowerable. Issue #1505.
+module w534_negative_cast_to_string;
+
+pub fn make_label(v : i32) -> String {
+    return v as String;
+}
+
+test should_not_be_icarus_lowerable {
+    // Intentionally empty: exercises the lowerability classifier boundary.
+}
+
+endmodule

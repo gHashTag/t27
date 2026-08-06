@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:8656eb086a3ff18ed93b7fc804662c8820b2776e0cb1f59c80b2b7c2e8acf5a5",
-  "gen_hash_rust": "sha256:9d445415a8e660f5425c4065e3ebd956d2d3a029a03398e6133ad264070dd357",
-  "gen_hash_verilog": "sha256:e9305b86f4e0b07837008d8c94b1c045024ac229e61b5ddae81304fbd92747ab",
-  "gen_hash_zig": "sha256:f5ee7104c354a16c9b79f3d477fa3eb9a01785d3d4af0da1846763b2ca2bc206",
+  "gen_hash_c": "sha256:4b13fb51426f508fa778aa878cc6df60c9b0d9e0fa4bb299c63ca87e6c9c5cb9",
+  "gen_hash_rust": "sha256:757724e9dc3384fc05b869164fe2d12ccf5b4daf1c54d196640690b145068bb1",
+  "gen_hash_verilog": "sha256:0cbe722470b1231c1867818b7a6b282240280167e70a375ba199c6e4884688af",
+  "gen_hash_zig": "sha256:79749e6832020b79d5308d4b2997e8c395b6b27194a07f249dff82eddf968b89",
   "module": "Constants",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:a2dd3a0fd05206b5075f2370c675551288975fdfb9a3054a10373aeccaaa52f4",
-  "spec_path": "specs/math/constants.t27"
+  "sealed_at": "2026-07-16T13:46:55Z",
+  "spec_hash": "sha256:240bf4ced1259db2a1ed7a2944ae452bbae611d5de017c65f85012502183f44d",
+  "spec_path": "/Users/playra/t27/specs/math/constants.t27"
 }

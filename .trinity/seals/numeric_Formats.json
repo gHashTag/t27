@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:6250fffaab36991fcc5ea2c0eb8753cffce272f6c4a9d64097c4c5075621aa8e",
   "gen_hash_rust": "sha256:17d16f45af85af18ac7b5f09ed4c8f8353a670178fc2f309549c9f7845de7a2e",
-  "gen_hash_verilog": "sha256:6e98160a7260968df9d0c84ed074480c9959e0ea9016686729bf3ec7270566ea",
+  "gen_hash_verilog": "sha256:4e23e065d403b6c3b1ea8730df5ff3497f6edeec617700133f813936eaed604f",
   "gen_hash_zig": "sha256:8d5c31b7d87487918bf4f798e2b5c18255fafb26dd6803891b0a60585683f40c",
   "module": "Formats",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:d8d03fabaa03bb05776ae7a1227e97cffb8a249d64b083402d956231d6e8111e",
-  "spec_path": "specs/numeric/formats.t27"
+  "sealed_at": "2026-07-16T13:46:56Z",
+  "spec_hash": "sha256:2d30ea9a0f5d27d1cd7dd4ffff0508fe4726bca539686074a8a380fe3e3e9fdd",
+  "spec_path": "/Users/playra/t27/specs/numeric/formats.t27"
 }

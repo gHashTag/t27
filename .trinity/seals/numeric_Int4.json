@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:6e86db63c61918097d1b3bd88654ae8ca814c575813fe1cd1ab69cd1dccad7fc",
+  "gen_hash_rust": "sha256:7b2e5c7147234725cd1d464321dc2272c1906fa2f322e0a4eed2b9a39d90c872",
+  "gen_hash_verilog": "sha256:fdd23a210fb7aea074d0ee4e38a1d6e7aea412289c4c95ba456e477ffa02aca9",
+  "gen_hash_zig": "sha256:e6784c0d0e1bb56cc7d92814f2c5bc282daa64282d53935e8452681504dafb5d",
+  "module": "Int4",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:27Z",
+  "spec_hash": "sha256:da84a1caec404bba08f5a4ce128fc4a35ff9793e75e8e5a73e9e94fc345bdb41",
+  "spec_path": "specs/numeric/int4.t27"
+}

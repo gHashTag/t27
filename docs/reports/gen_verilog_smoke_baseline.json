@@ -1,0 +1,6 @@
+{
+  "branch": "wave-loop-455",
+  "description": "Residual gen-verilog yosys smoke failures tracked in issue #1245. Wave Loop 455 cleared the tuple-return, let-destructuring, and ROM/function-local-array lowering gaps, so this baseline is now empty. The file is kept as a schema/conformance artifact.",
+  "expected_failures": [],
+  "source": "docs/reports/GEN_VERILOG_DEFECTS_REPRO.md"
+}

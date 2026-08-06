@@ -19,7 +19,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 hex = "0.4"
 axum = "0.8"
 tokio = { version = "1", features = ["full"] }
-ed25519-dalek = { version = "2", features = ["serde"] }
+ed25519-dalek = { version = "3", features = ["serde"] }
 tower = "0.5"
 http-body-util = "0.1"
 dlc10 = { path = "../dlc10" }

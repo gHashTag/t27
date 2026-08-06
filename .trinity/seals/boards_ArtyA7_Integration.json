@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:1fe61b54d7caaedda653b51be9f92efb949d83bf3cef92d3da6d30cad13c8e4a",
-  "gen_hash_rust": "sha256:1adf2361b8d59d36200d1a9601504dba765fafd03eb966c9bf6558524f6e9844",
-  "gen_hash_verilog": "sha256:7142b719464702c931125818ca62620ec788a8806620928e595d43e7190512d0",
-  "gen_hash_zig": "sha256:10c81fba6c59637f6440f87998563459fc777b6436153f72cf3f1466a9968253",
+  "gen_hash_c": "sha256:d7a9c521cff2f15e8552c69c7dfd98d11fe50380b447a145e6c86cf6a33e7591",
+  "gen_hash_rust": "sha256:e7f972296a5d755451bc4905cd13c9bd7afd24894c591d2477b9e64b95392238",
+  "gen_hash_verilog": "sha256:0fff728fbef62040da6749eb1b38100a0170edf72f7fdd4e88704e175a0c4d61",
+  "gen_hash_zig": "sha256:9f61f5ac83ad6d12a06fdf010d188a0de0901b95d45d8aced198a457aac35995",
   "module": "ArtyA7_Integration",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
+  "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:008af9aea4cc3d4324c4c41b9418da42908be55e79790bf12301afb74c9328d7",
   "spec_path": "specs/fpga/boards/arty_a7_integration.t27"
 }

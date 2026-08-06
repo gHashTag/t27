@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:3ed133921acda54702b682c4221e059b7fcb9a62d0ee34d385650439f4578217",
+  "gen_hash_rust": "sha256:2725070c2fbb29a0b9f107b2660355be2ad99be43b78509637c1781e44a98a0d",
+  "gen_hash_verilog": "sha256:3f1ca5d06e32a624597055298fe9a84703d2caf9d5c8f4fb25b649676d3c6a3c",
+  "gen_hash_zig": "sha256:acd2b153d40f63ff8147a9f86d5b0c4f13d0e5df3a8bab6e92522180fde7008e",
+  "module": "igla-race-eda",
+  "ring": 12,
+  "sealed_at": "2026-06-23T07:33:22Z",
+  "spec_hash": "sha256:c01f0dc9d0c38f565e301ee40a21286f30331ab738ed7f82a5c924123cce25cd",
+  "spec_path": "/Users/playra/t27/specs/igla/race/eda.t27"
+}

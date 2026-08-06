@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:379d26a3f0f79fb664771a28245dd0c1a4ae91ad1b1d9d1b1fbe473a022e3c4c",
+  "gen_hash_rust": "sha256:278775132be096c2d0e03923d23ff338612bb37a9e3a1ef6ac5714c0e3ead2e7",
+  "gen_hash_verilog": "sha256:d18551b7aad20557602f6048886ce0db281708472687bbdaf626d5c3cb0c0a52",
+  "gen_hash_zig": "sha256:c7edea9a0bdca2bddda4b03da2464673c83282a1402085f563d0f759cf4171c3",
+  "module": "igla-coder-prm",
+  "ring": 12,
+  "sealed_at": "2026-07-18T16:36:15Z",
+  "spec_hash": "sha256:0c29e3033a5837280eda4c6d0d6b5a587678f453105d2a2a9e4a81565154827c",
+  "spec_path": "/Users/playra/t27/specs/igla/coder/prm.t27"
+}

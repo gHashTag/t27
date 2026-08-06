@@ -2,7 +2,7 @@
 // t27/specs/
 // Result of applying governance to an action | φ² + 1/φ² = 3 | TRINITY
 
-module String;
+module SacredGovernance;
     use base::types;
     use math::constants;
 

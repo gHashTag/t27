@@ -1,0 +1,22 @@
+module w382_ram_lowering;
+
+var mem : [4]u16;
+
+fn write_read() -> u16 {
+    mem[0] = 0xABCD;
+    mem[1] = 0x1234;
+    return mem[0];
+}
+
+test ram_write_read {
+    assert_eq(write_read(), 0xABCD);
+}
+
+test ram_distinct_addresses {
+    mem[2] = 0xBEEF;
+    mem[3] = 0xCAFE;
+    assert_eq(mem[2], 0xBEEF);
+    assert_eq(mem[3], 0xCAFE);
+}
+
+endmodule

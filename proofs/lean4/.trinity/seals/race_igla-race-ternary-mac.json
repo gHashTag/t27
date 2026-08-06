@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:8c055462cc108d08b69788760e0b03694cf444c1ab927ae2a4683af67b83144c",
+  "gen_hash_rust": "sha256:6b6bb960826216cc31a2e666b392b29167097d7cf913c66b95542178b6f94b44",
+  "gen_hash_verilog": "sha256:c2603fffbba9441829053c91ada73722de206bbcf8cc9b28c214bc0e1889a7cb",
+  "gen_hash_zig": "sha256:d05a42a66061c7d68866594cb9edb8fdbba956d0a1d518ef13d8f96b71600829",
+  "module": "igla-race-ternary-mac",
+  "ring": 12,
+  "sealed_at": "2026-06-23T07:33:23Z",
+  "spec_hash": "sha256:5b7da1ecbdd319447a4731d0aa400783ee388b9cc0d4cb73865003486d49dd2a",
+  "spec_path": "/Users/playra/t27/specs/igla/race/ternary_mac.t27"
+}

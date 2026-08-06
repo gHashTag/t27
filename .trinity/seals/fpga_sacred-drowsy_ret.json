@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:5803c791b984cc75cd497739c72f71cb722a364367eec3b87c15ebb5545a9b06",
+  "gen_hash_rust": "sha256:9028dc50b64e50c2cb299a29cc4898f12706da4a1b659d27589ecd06249b7d4f",
+  "gen_hash_verilog": "sha256:64c617db725725e66d2bc8cf7c12da165d53ff87e7fca0b5827782c680f00518",
+  "gen_hash_zig": "sha256:e64f3036e96daf23e99bbff64727f4fa732a2f70ee559d2d2edecdf22e6d426c",
+  "module": "sacred-drowsy_ret",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:25Z",
+  "spec_hash": "sha256:5469641560c8dc73d41597e61dfd5764e82499c451e3bc22ed9e8ddaec2f77f6",
+  "spec_path": "specs/fpga/drowsy_ret.t27"
+}

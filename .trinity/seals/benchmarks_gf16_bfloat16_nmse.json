@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:12925436bedacd829dd0bda483a00759c4d78be37b716d70433c7667831eb4d4",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:1cefe3fb28505da6475e6e57dcaeb52c62dc1aa706270db5dbe2c06e42a76e87",
+  "gen_hash_zig": "sha256:1ea2f4d9b1323d6734fccd13d58b7550d37a7fb9a535896ed09564a02628f559",
+  "module": "gf16_bfloat16_nmse",
+  "ring": 12,
+  "sealed_at": "2026-07-16T13:46:56Z",
+  "spec_hash": "sha256:1d810343f5e26d852c7ebd931bba310d28129b26915bf4a6ec71c066d1199e1c",
+  "spec_path": "/Users/playra/t27/specs/benchmarks/gf16_bfloat16_nmse.t27"
+}

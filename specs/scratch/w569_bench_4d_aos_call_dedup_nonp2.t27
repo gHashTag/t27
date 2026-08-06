@@ -1,0 +1,66 @@
+module w569_bench_4d_aos_call_dedup_nonp2;
+
+pub struct Pt {
+    x : i16,
+    y : i16,
+}
+
+pub fn make_hyper() -> [3][2][2][2]Pt {
+    return [3][2][2][2]Pt{
+        [2][2][2]Pt{ [2][2]Pt{ [2]Pt{ Pt{ .x = 0, .y = 1 }, Pt{ .x = 2, .y = 3 } },
+                                [2]Pt{ Pt{ .x = 4, .y = 5 }, Pt{ .x = 6, .y = 7 } } },
+                      [2][2]Pt{ [2]Pt{ Pt{ .x = 8, .y = 9 }, Pt{ .x = 10, .y = 11 } },
+                                [2]Pt{ Pt{ .x = 12, .y = 13 }, Pt{ .x = 14, .y = 15 } } } },
+        [2][2][2]Pt{ [2][2]Pt{ [2]Pt{ Pt{ .x = 16, .y = 17 }, Pt{ .x = 18, .y = 19 } },
+                                [2]Pt{ Pt{ .x = 20, .y = 21 }, Pt{ .x = 22, .y = 23 } } },
+                      [2][2]Pt{ [2]Pt{ Pt{ .x = 24, .y = 25 }, Pt{ .x = 26, .y = 27 } },
+                                [2]Pt{ Pt{ .x = 28, .y = 29 }, Pt{ .x = 30, .y = 31 } } } },
+        [2][2][2]Pt{ [2][2]Pt{ [2]Pt{ Pt{ .x = 32, .y = 33 }, Pt{ .x = 34, .y = 35 } },
+                                [2]Pt{ Pt{ .x = 36, .y = 37 }, Pt{ .x = 38, .y = 39 } } },
+                      [2][2]Pt{ [2]Pt{ Pt{ .x = 40, .y = 41 }, Pt{ .x = 42, .y = 43 } },
+                                [2]Pt{ Pt{ .x = 44, .y = 45 }, Pt{ .x = 46, .y = 47 } } } }
+    };
+}
+
+test hyper_test {
+    let hyper : [3][2][2][2]Pt = make_hyper();
+    assert_eq(hyper[0][1][0][1].x, 10);
+    assert_eq(hyper[2][0][1][0].y, 37);
+    assert_eq(hyper, make_hyper());
+    assert_eq(make_hyper(), [3][2][2][2]Pt{
+        [2][2][2]Pt{ [2][2]Pt{ [2]Pt{ Pt{ .x = 0, .y = 1 }, Pt{ .x = 2, .y = 3 } },
+                                [2]Pt{ Pt{ .x = 4, .y = 5 }, Pt{ .x = 6, .y = 7 } } },
+                      [2][2]Pt{ [2]Pt{ Pt{ .x = 8, .y = 9 }, Pt{ .x = 10, .y = 11 } },
+                                [2]Pt{ Pt{ .x = 12, .y = 13 }, Pt{ .x = 14, .y = 15 } } } },
+        [2][2][2]Pt{ [2][2]Pt{ [2]Pt{ Pt{ .x = 16, .y = 17 }, Pt{ .x = 18, .y = 19 } },
+                                [2]Pt{ Pt{ .x = 20, .y = 21 }, Pt{ .x = 22, .y = 23 } } },
+                      [2][2]Pt{ [2]Pt{ Pt{ .x = 24, .y = 25 }, Pt{ .x = 26, .y = 27 } },
+                                [2]Pt{ Pt{ .x = 28, .y = 29 }, Pt{ .x = 30, .y = 31 } } } },
+        [2][2][2]Pt{ [2][2]Pt{ [2]Pt{ Pt{ .x = 32, .y = 33 }, Pt{ .x = 34, .y = 35 } },
+                                [2]Pt{ Pt{ .x = 36, .y = 37 }, Pt{ .x = 38, .y = 39 } } },
+                      [2][2]Pt{ [2]Pt{ Pt{ .x = 40, .y = 41 }, Pt{ .x = 42, .y = 43 } },
+                                [2]Pt{ Pt{ .x = 44, .y = 45 }, Pt{ .x = 46, .y = 47 } } } }
+    });
+}
+
+bench "hyper_bench" {
+    let hyper : [3][2][2][2]Pt = make_hyper();
+    assert_eq(hyper[0][0][0][0].x, 0);
+    assert_eq(hyper, make_hyper());
+    assert_eq(make_hyper(), [3][2][2][2]Pt{
+        [2][2][2]Pt{ [2][2]Pt{ [2]Pt{ Pt{ .x = 0, .y = 1 }, Pt{ .x = 2, .y = 3 } },
+                                [2]Pt{ Pt{ .x = 4, .y = 5 }, Pt{ .x = 6, .y = 7 } } },
+                      [2][2]Pt{ [2]Pt{ Pt{ .x = 8, .y = 9 }, Pt{ .x = 10, .y = 11 } },
+                                [2]Pt{ Pt{ .x = 12, .y = 13 }, Pt{ .x = 14, .y = 15 } } } },
+        [2][2][2]Pt{ [2][2]Pt{ [2]Pt{ Pt{ .x = 16, .y = 17 }, Pt{ .x = 18, .y = 19 } },
+                                [2]Pt{ Pt{ .x = 20, .y = 21 }, Pt{ .x = 22, .y = 23 } } },
+                      [2][2]Pt{ [2]Pt{ Pt{ .x = 24, .y = 25 }, Pt{ .x = 26, .y = 27 } },
+                                [2]Pt{ Pt{ .x = 28, .y = 29 }, Pt{ .x = 30, .y = 31 } } } },
+        [2][2][2]Pt{ [2][2]Pt{ [2]Pt{ Pt{ .x = 32, .y = 33 }, Pt{ .x = 34, .y = 35 } },
+                                [2]Pt{ Pt{ .x = 36, .y = 37 }, Pt{ .x = 38, .y = 39 } } },
+                      [2][2]Pt{ [2]Pt{ Pt{ .x = 40, .y = 41 }, Pt{ .x = 42, .y = 43 } },
+                                [2]Pt{ Pt{ .x = 44, .y = 45 }, Pt{ .x = 46, .y = 47 } } } }
+    });
+}
+
+endmodule

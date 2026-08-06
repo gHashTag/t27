@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:59b4ce7f648b87787d37fe630b075437386c8a4ac012053d09e8d08fd05f6ebf",
+  "gen_hash_rust": "sha256:295adf24cc8476e70a118e8bfa7506a97ced6643e895f9024bd4b5eb5a0727fc",
+  "gen_hash_verilog": "sha256:effc892157c3bc77b4b500008cc50f90e5c63ae8d05a6045155bc629de7629a6",
+  "gen_hash_zig": "sha256:cc14806eaae8ab1d0e1604d07c70cf08f9f69ae0a9a62cba86ee319a8693ccb9",
+  "module": "Binary16",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:26Z",
+  "spec_hash": "sha256:97b49ba506b232e350b47ad6c381c56a13b59213dbac2feb55ef5cfd41bd3513",
+  "spec_path": "specs/numeric/binary16.t27"
+}

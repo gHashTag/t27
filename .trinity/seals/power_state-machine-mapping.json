@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:92a1518adffff75bd0699c5632a5da88d89e78addd85619487e5a8c2915a3c00",
+  "gen_hash_rust": "sha256:60582952a566437cb730eca4b438da49d6771cdb845ef44b8e1451ba02a76edf",
+  "gen_hash_verilog": "sha256:429be93d3650413863c4e444a475fc9056942b5562e58edb861b18caba42313e",
+  "gen_hash_zig": "sha256:20830d15220bffb343ed4c1e4ee675b865a344fe8223b0d2ebc7fa942339ce22",
+  "module": "state-machine-mapping",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:58:19Z",
+  "spec_hash": "sha256:1474ecda52b802d691f839fdbec24c109a91297cba9c25c131420f2841c51292",
+  "spec_path": "specs/power/state_machine_mapping.t27"
+}

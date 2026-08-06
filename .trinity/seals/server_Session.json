@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:1cda1134f5b5547c56d84cf3e42e56fc00e9cc2b7cfed6a3ad6f1624586f7370",
-  "gen_hash_rust": "sha256:58769e09750d5727cb052ed1e5836d3b2ec8ebeb01adf6107c846af152113b59",
-  "gen_hash_verilog": "sha256:a77ec616e6146c2911b87f188673feebc9aba3a6d247a9d75598ac3873adb379",
-  "gen_hash_zig": "sha256:19c4c061ae8aab63e054f50d1388588052c21c0edba134df7784e0b0fb53e201",
+  "gen_hash_c": "sha256:6b5f147dec45882480e1da2e0b68bae9c8429350a7b239f73ca20c1476160025",
+  "gen_hash_rust": "sha256:707f552a33e1cf215278a1709d7eb43d98c430a409ad2dc73a0038a84e89bc0f",
+  "gen_hash_verilog": "sha256:74510247bba7ccfe906977240e3b88fef4e81b8f1bd3fb7102ecfe8d442757e0",
+  "gen_hash_zig": "sha256:4db7998a5171cbf97967d1bee58e7f7a0fdfa55680d1fbf957c29342094e17d7",
   "module": "Session",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:e81651b1d0842d9f48f5342f292c4d6f0ba7a609191906193b568309cfe5c374",
+  "sealed_at": "2026-07-14T16:05:49Z",
+  "spec_hash": "sha256:94e35496e81c873a42165d46580afa6fd5d8fd30303756743158a60740a7d72f",
   "spec_path": "specs/server/session.t27"
 }

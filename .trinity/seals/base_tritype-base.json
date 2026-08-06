@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:5cea299aac2ad50bc4a932f75ef852bc9b38760514a3d99b69ea9a6e9a259491",
-  "gen_hash_rust": "sha256:64f0a53e0fad1615f669c051221cad00672fb79f90212f5a9819bbc718b1ea78",
-  "gen_hash_verilog": "sha256:21e4d19a98cf2d44b76ffee22d68dbb6000807f40da2bb461a81bd5cf328e1a0",
-  "gen_hash_zig": "sha256:451855a8fbd5936b2077ca842aa596d004df372911c9d15a1923a204ec4133f7",
+  "gen_hash_c": "sha256:335aa02c27e6d1ad2358f82cc842b3832189ad78f82407bba1d610b1ba46b458",
+  "gen_hash_rust": "sha256:84e5dc797b3bbb328bbacb5d097df1141f5d14b5501de4bcb2c4df40c06871dc",
+  "gen_hash_verilog": "sha256:5149a2ca9c2c4619066156e53a473b983ce0954ae1cc73c65be6308bc838e983",
+  "gen_hash_zig": "sha256:6da0438555f67d4d010cb1046a1ff70df86f81f886a85215c51dc09dec302622",
   "module": "tritype-base",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:40Z",
-  "spec_hash": "sha256:12d9ca3f44b081970a88c4d24c10ee9dbf36eb614cf18404ff571475552c10db",
+  "sealed_at": "2026-07-16T13:46:56Z",
+  "spec_hash": "sha256:b7c62e2917fa968666604f9b8d921689c6330c1d8a23a5fa318b445507e37b8f",
   "spec_path": "specs/base/types.t27"
 }

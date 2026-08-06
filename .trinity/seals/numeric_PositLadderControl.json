@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:6876a93948296413a5cbc9127a77396dc3c13ac934fe66ba095cd77b8abdc8ab",
-  "gen_hash_rust": "sha256:22ee8b5c04ab22a3cba335b53a90933293ca34880bf549d53d7f236659b9d19e",
-  "gen_hash_verilog": "sha256:6646ed1e7a749451a98486b41716e22e9cd18b1037ec8b16c7b2ff250873187d",
-  "gen_hash_zig": "sha256:58892a744c0ef895ec57815669aeafe6b02c33c1daa8e62f3f4fc342c5c5c15d",
+  "gen_hash_c": "sha256:6efaa40d2997475ea7404d6519e62f542e2320def5ad2500c15f4b8bba876a3a",
+  "gen_hash_rust": "sha256:6fd2a396dc369d7180dcc28f0a338c0294406b4619ce6b7d662808f352b7a817",
+  "gen_hash_verilog": "sha256:20f755594842d333cd972a0eb81880be97d4f78980b4572832c8935d4f426ae6",
+  "gen_hash_zig": "sha256:98b0dd202b64904187a4505b1f29f52266f6e88b7d8ab4c74bdfe81d83264ea2",
   "module": "PositLadderControl",
   "ring": 12,
-  "sealed_at": "2026-05-31T13:05:51Z",
+  "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:faa036d013136104c32830264768cb1d0342781e3066fabc393f358ed4b4ee3a",
-  "spec_path": "specs/numeric/posit_ladder_control.t27"
+  "spec_path": "/Users/playra/t27/specs/numeric/posit_ladder_control.t27"
 }

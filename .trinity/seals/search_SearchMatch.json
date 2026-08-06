@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:167ca67c7347cad1ee84aa13d74a31f1bd3e5efe09543306f13c4ac18633d746",
+  "gen_hash_rust": "sha256:56c33b6dcd7146031dab1a636c3f4d5ebb314864b7d67fdf3a16d1e56a8c4fab",
+  "gen_hash_verilog": "sha256:893a2a8e7a261c6b26edb0baf536bc5fc95c3cbce64287fe18d918fbd03d699f",
+  "gen_hash_zig": "sha256:42814169ad823b37c41f2d80878fa5ff896bd8ea62bf4da965efb188745ec3c5",
+  "module": "SearchMatch",
+  "ring": 12,
+  "sealed_at": "2026-06-18T13:50:04Z",
+  "spec_hash": "sha256:e19fa84eaf65dc512b85def59b39cb7dcb70c9b846c3e6faad52eb8be670c4fb",
+  "spec_path": "specs/tri/search/match.t27"
+}

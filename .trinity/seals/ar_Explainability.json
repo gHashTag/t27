@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:6a713e954176707aebe1effbc8565808f4785aa4d9ce3bec57444752fcf0fbae",
-  "gen_hash_rust": "sha256:4fb83876a803fc39d90e1ade155c985247357d0f64f9f8a3e863c3730a6a5d53",
-  "gen_hash_verilog": "sha256:ad74612668dfc6adad96d2e6a11838a746fb1eb1cc4c1ae40ba281362c442068",
-  "gen_hash_zig": "sha256:c739c9eac9ba94783e07283727a0420ed841153714e2ac45714bae9730a1ce34",
-  "module": "Explainability",
+  "gen_hash_c": "sha256:bc789553d5845fb5da7807fabe1214b11021e40db3f72b4aee6faa0363bc6e05",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:a0f029e4f435a3996a91b60b3f0e7632c510e1d368462aacbc3c652b9eba0d56",
+  "gen_hash_zig": "sha256:99ee47f25bbf868e6b16ee35611140805c5dbc1b06117722c37fc1a02fe685a3",
+  "module": "explainability",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:808286e72a7ebafa786374aec4a19526556dad5f500673f80142441eab520c66",
-  "spec_path": "specs/ar/explainability.t27"
+  "sealed_at": "2026-07-14T16:05:49Z",
+  "spec_hash": "sha256:80e970c2be2a313cfca43bc0bbb20397259952dd2d26af5b1359e1d26ea1a4b3",
+  "spec_path": "/Users/playra/t27/specs/ar/explainability.t27"
 }

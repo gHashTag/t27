@@ -1,6 +1,20 @@
-# JTAG Wiring Reference — QMTECH Wukong V1 (XC7A100T)
+# JTAG Wiring Reference — QMTECH Wukong V1
 
-## JTAG Header Pinout
+> **DEPRECATED — 2026-07-06**
+> This file is kept only for the JTAG header pinout table. All other details
+> (cable drivers, IDCODE, expected values, tooling commands) are superseded by
+> `fpga/HARDWARE_SSOT.md`. When the two files disagree, **HARDWARE_SSOT.md wins**.
+>
+> Key corrections:
+> - The connected board is an **XC7A200T** (`IDCODE 0x03636093`), not XC7A100T.
+> - The connected cable is a **Digilent FTDI probe** (`0x0403:0x6014`), not the
+>   Xilinx DLC10 (`0x03FD`).
+> - The in-tree driver is Rust `cli/dlc10/`; the legacy Python `tools/dlc10_jtag.py`
+>   path no longer exists.
+> - The canonical programming tool is **openFPGALoader** with cable profile
+>   `digilent_hs2`.
+
+## JTAG Header Pinout (retained)
 
 | JTAG Pin | Signal | FPGA Ball | DSLogic CH |
 |----------|--------|-----------|------------|
@@ -15,51 +29,15 @@
 | 9        | DET    | —         | —          |
 | 10       | GND    | —         | GND        |
 
-## Cable Options
+## Current canonical commands
 
-### Digilent DLC-10 (Xilinx Platform Cable USB II)
-- Driver: `tools/dlc10_jtag.py` (commit `f5ad8be0`)
-- VID: `0x03FD`, PID: `0x0008` (after firmware load)
-- Known working: IDCODE=`0x03631093`, STATUS=`0x401079FC`
-
-### ESP32 XVC (broken)
-- Firmware: `firmware/esp32-xvc-firmware.bin`
-- Known broken: IDCODE=`0x00001388`
-- Issue: `shift:` commands produce garbage TDO
-- Root cause: TBD (DSLogic diagnostics needed)
-
-## DSView Capture
-
-Config: `fpga/diagnostics/dsview_jtag_config.json`
+See `fpga/HARDWARE_SSOT.md` §2–§3 for the authoritative program/flash path:
 
 ```bash
-# 1. Open DSView, load config
-# 2. Start capture
-# 3. Run JTAG operation:
-python3 tools/dlc10_jtag.py --detect
-# or
-openFPGALoader --cable xvc-client --ip 192.168.1.30 --detect
-# 4. Stop capture, save to fpga/diagnostics/captures/
+openFPGALoader --detect -c digilent_hs2
+tri fpga program-flash fpga/verilog/ternary_mac_demo_top_200t.bit --spi-buswidth 1 --verify
+tri fpga stat --pre-jtag-reset --repeat 5
+tri fpga boot-log fpga/verilog/ternary_mac_demo_top_200t.bit
 ```
 
-## Expected JTAG Sequence (IDCODE read)
-
-1. TMS: 5x TCK high (Test-Logic-Reset)
-2. TMS: 0 (Run-Test/Idle)
-3. TMS: 1,1,0 (Select-DR -> Capture-DR -> Shift-DR)
-4. TDI: shift 32 bits of IDCODE instruction (0x09 for XC7A)
-5. TDO: should return `0x03631093` for XC7A100T
-
-## XC7A100T IDCODE Breakdown
-
-```
-0x03631093 = 0000 0011 0110 0011 0001 0000 1001 0011
-              |----|----| |-version-| |---part---| |mfg|
-              mfg=0x049 (Xilinx)  part=0x631  ver=0x3
-```
-
-## Reference
-
-- `docs/fpga/clocking.md` — full pin mapping
-- Issue #590 — DSLogic diagnostics tracking
-- Issue #14 — FPGA flash verification
+DSLogic capture config remains at `fpga/diagnostics/dsview_jtag_config.json`.

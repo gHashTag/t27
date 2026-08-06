@@ -1,0 +1,288 @@
+DIGEST 9b36121c681f516ed2b4b5800080e8c1
+FTrinity.DerivationLevels
+R137:147 Coq.Reals.Reals <> <> lib
+R165:170 Coq.Strings.String <> <> lib
+R209:215 Trinity.CorePhi <> <> lib
+R233:243 Trinity.FormulaEval <> <> lib
+ind 590:605 <> derivation_level
+constr 621:622 <> L1
+constr 684:685 <> L2
+constr 748:749 <> L3
+constr 809:810 <> L4
+constr 870:871 <> L5
+constr 933:934 <> L6
+constr 1017:1018 <> L7
+R626:641 Trinity.DerivationLevels <> derivation_level:1 ind
+R689:704 Trinity.DerivationLevels <> derivation_level:1 ind
+R753:768 Trinity.DerivationLevels <> derivation_level:1 ind
+R814:829 Trinity.DerivationLevels <> derivation_level:1 ind
+R875:890 Trinity.DerivationLevels <> derivation_level:1 ind
+R938:953 Trinity.DerivationLevels <> derivation_level:1 ind
+R1022:1037 Trinity.DerivationLevels <> derivation_level:1 ind
+scheme 590:605 <> derivation_level_rect
+scheme 590:605 <> derivation_level_ind
+scheme 590:605 <> derivation_level_rec
+scheme 590:605 <> derivation_level_sind
+ind 1161:1168 <> level_le
+constr 1224:1235 <> le_reflexive
+constr 1266:1273 <> le_trans
+constr 1355:1362 <> le_L1_L2
+constr 1385:1392 <> le_L2_L3
+constr 1415:1422 <> le_L3_L4
+constr 1445:1452 <> le_L4_L5
+constr 1475:1482 <> le_L5_L6
+constr 1505:1512 <> le_L6_L7
+R1188:1191 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1172:1187 Trinity.DerivationLevels <> derivation_level ind
+R1208:1211 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1192:1207 Trinity.DerivationLevels <> derivation_level ind
+binder 1246:1246 <> l:5
+R1249:1256 Trinity.DerivationLevels <> level_le:3 ind
+R1260:1260 Trinity.DerivationLevels <> l:5 var
+R1258:1258 Trinity.DerivationLevels <> l:5 var
+binder 1284:1285 <> l1:6
+binder 1287:1288 <> l2:7
+binder 1290:1291 <> l3:8
+R1314:1317 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1300:1307 Trinity.DerivationLevels <> level_le:3 ind
+R1312:1313 Trinity.DerivationLevels <> l2:7 var
+R1309:1310 Trinity.DerivationLevels <> l1:6 var
+R1332:1335 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1318:1325 Trinity.DerivationLevels <> level_le:3 ind
+R1330:1331 Trinity.DerivationLevels <> l3:8 var
+R1327:1328 Trinity.DerivationLevels <> l2:7 var
+R1336:1343 Trinity.DerivationLevels <> level_le:3 ind
+R1348:1349 Trinity.DerivationLevels <> l3:8 var
+R1345:1346 Trinity.DerivationLevels <> l1:6 var
+R1366:1373 Trinity.DerivationLevels <> level_le:3 ind
+R1378:1379 Trinity.DerivationLevels <> L2 constr
+R1375:1376 Trinity.DerivationLevels <> L1 constr
+R1396:1403 Trinity.DerivationLevels <> level_le:3 ind
+R1408:1409 Trinity.DerivationLevels <> L3 constr
+R1405:1406 Trinity.DerivationLevels <> L2 constr
+R1426:1433 Trinity.DerivationLevels <> level_le:3 ind
+R1438:1439 Trinity.DerivationLevels <> L4 constr
+R1435:1436 Trinity.DerivationLevels <> L3 constr
+R1456:1463 Trinity.DerivationLevels <> level_le:3 ind
+R1468:1469 Trinity.DerivationLevels <> L5 constr
+R1465:1466 Trinity.DerivationLevels <> L4 constr
+R1486:1493 Trinity.DerivationLevels <> level_le:3 ind
+R1498:1499 Trinity.DerivationLevels <> L6 constr
+R1495:1496 Trinity.DerivationLevels <> L5 constr
+R1516:1523 Trinity.DerivationLevels <> level_le:3 ind
+R1528:1529 Trinity.DerivationLevels <> L7 constr
+R1525:1526 Trinity.DerivationLevels <> L6 constr
+scheme 1161:1168 <> level_le_ind
+scheme 1161:1168 <> level_le_sind
+def 1795:1813 <> monomial_complexity
+R1820:1827 Trinity.FormulaEval <> monomial ind
+binder 1816:1816 <> m:9
+R1832:1834 Coq.Init.Datatypes <> nat ind
+R1847:1847 Trinity.DerivationLevels <> m:9 var
+R1858:1864 Trinity.FormulaEval <> M_const constr
+R1877:1883 Trinity.FormulaEval <> M_three constr
+R1896:1900 Trinity.FormulaEval <> M_phi constr
+R1913:1916 Trinity.FormulaEval <> M_pi constr
+R1929:1933 Trinity.FormulaEval <> M_exp constr
+R1946:1950 Trinity.FormulaEval <> M_mul constr
+R1983:1985 Coq.Init.Peano <> ::nat_scope:x_'+'_x not
+R1961:1979 Trinity.DerivationLevels <> monomial_complexity:10 def
+R1986:2004 Trinity.DerivationLevels <> monomial_complexity:10 def
+def 2028:2050 <> classify_monomial_level
+R2057:2064 Trinity.FormulaEval <> monomial ind
+binder 2053:2053 <> m:12
+R2069:2084 Trinity.DerivationLevels <> derivation_level ind
+R2097:2097 Trinity.DerivationLevels <> m:12 var
+R2108:2114 Trinity.FormulaEval <> M_const constr
+R2121:2122 Trinity.DerivationLevels <> L1 constr
+R2128:2132 Trinity.FormulaEval <> M_phi constr
+R2139:2140 Trinity.DerivationLevels <> L1 constr
+R2146:2150 Trinity.FormulaEval <> M_mul constr
+R2163:2167 Trinity.FormulaEval <> M_phi constr
+R2153:2157 Trinity.FormulaEval <> M_phi constr
+R2175:2176 Trinity.DerivationLevels <> L1 constr
+R2182:2188 Trinity.FormulaEval <> M_three constr
+R2195:2196 Trinity.DerivationLevels <> L2 constr
+R2202:2205 Trinity.FormulaEval <> M_pi constr
+R2212:2213 Trinity.DerivationLevels <> L2 constr
+R2219:2223 Trinity.FormulaEval <> M_mul constr
+R2238:2242 Trinity.FormulaEval <> M_phi constr
+R2226:2232 Trinity.FormulaEval <> M_three constr
+R2250:2251 Trinity.DerivationLevels <> L2 constr
+R2257:2261 Trinity.FormulaEval <> M_mul constr
+R2273:2277 Trinity.FormulaEval <> M_phi constr
+R2264:2267 Trinity.FormulaEval <> M_pi constr
+R2285:2286 Trinity.DerivationLevels <> L2 constr
+R2292:2296 Trinity.FormulaEval <> M_mul constr
+R2311:2314 Trinity.FormulaEval <> M_pi constr
+R2299:2305 Trinity.FormulaEval <> M_three constr
+R2322:2323 Trinity.DerivationLevels <> L3 constr
+R2329:2333 Trinity.FormulaEval <> M_exp constr
+R2340:2341 Trinity.DerivationLevels <> L4 constr
+R2347:2351 Trinity.FormulaEval <> M_mul constr
+R2364:2368 Trinity.FormulaEval <> M_exp constr
+R2354:2358 Trinity.FormulaEval <> M_phi constr
+R2376:2377 Trinity.DerivationLevels <> L5 constr
+R2383:2387 Trinity.FormulaEval <> M_mul constr
+R2399:2403 Trinity.FormulaEval <> M_exp constr
+R2390:2393 Trinity.FormulaEval <> M_pi constr
+R2411:2412 Trinity.DerivationLevels <> L4 constr
+R2418:2422 Trinity.FormulaEval <> M_mul constr
+R2437:2441 Trinity.FormulaEval <> M_exp constr
+R2425:2431 Trinity.FormulaEval <> M_three constr
+R2449:2450 Trinity.DerivationLevels <> L4 constr
+R2456:2460 Trinity.FormulaEval <> M_mul constr
+R2491:2494 Trinity.FormulaEval <> M_pi constr
+R2463:2467 Trinity.FormulaEval <> M_mul constr
+R2480:2484 Trinity.FormulaEval <> M_exp constr
+R2470:2474 Trinity.FormulaEval <> M_phi constr
+R2502:2503 Trinity.DerivationLevels <> L6 constr
+R2509:2513 Trinity.FormulaEval <> M_mul constr
+R2546:2549 Trinity.FormulaEval <> M_pi constr
+R2516:2520 Trinity.FormulaEval <> M_mul constr
+R2535:2539 Trinity.FormulaEval <> M_exp constr
+R2523:2529 Trinity.FormulaEval <> M_three constr
+R2557:2558 Trinity.DerivationLevels <> L6 constr
+R2569:2570 Trinity.DerivationLevels <> L7 constr
+prf 2875:2893 <> L1_trinity_identity
+R2897:2900 Coq.Init.Logic <> True ind
+R2971:2971 Coq.Init.Logic <> I constr
+R2971:2971 Coq.Init.Logic <> I constr
+prf 2988:3000 <> L1_phi_square
+R3004:3007 Coq.Init.Logic <> True ind
+R3068:3068 Coq.Init.Logic <> I constr
+R3068:3068 Coq.Init.Logic <> I constr
+prf 3085:3094 <> L1_phi_inv
+R3098:3101 Coq.Init.Logic <> True ind
+R3161:3161 Coq.Init.Logic <> I constr
+R3161:3161 Coq.Init.Logic <> I constr
+prf 3178:3188 <> L1_phi_neg3
+R3192:3195 Coq.Init.Logic <> True ind
+R3256:3256 Coq.Init.Logic <> I constr
+R3256:3256 Coq.Init.Logic <> I constr
+prf 3273:3295 <> L1_closed_under_algebra
+R3301:3304 Coq.Init.Logic <> True ind
+R3368:3368 Coq.Init.Logic <> I constr
+R3368:3368 Coq.Init.Logic <> I constr
+prf 3624:3638 <> L2_pi_over_phi4
+R3644:3647 Coq.Init.Logic <> True ind
+R3709:3709 Coq.Init.Logic <> I constr
+R3709:3709 Coq.Init.Logic <> I constr
+def 3729:3746 <> L2_example_formula
+R3750:3750 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R3757:3760 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R3768:3768 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R3755:3756 Coq.Reals.Rtrigo1 <> PI def
+R3764:3766 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R3761:3763 Trinity.CorePhi <> phi def
+prf 3816:3830 <> L2_example_eval
+R3836:3839 Coq.Init.Logic <> True ind
+R3903:3903 Coq.Init.Logic <> I constr
+R3903:3903 Coq.Init.Logic <> I constr
+prf 4147:4162 <> L3_3_phi_scaling
+R4168:4171 Coq.Init.Logic <> True ind
+R4230:4230 Coq.Init.Logic <> I constr
+R4230:4230 Coq.Init.Logic <> I constr
+def 4250:4267 <> L3_example_formula
+R4271:4271 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R4276:4276 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R4282:4285 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R4278:4280 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R4286:4288 Trinity.CorePhi <> phi def
+prf 4347:4361 <> L3_example_eval
+R4367:4370 Coq.Init.Logic <> True ind
+R4428:4428 Coq.Init.Logic <> I constr
+R4428:4428 Coq.Init.Logic <> I constr
+prf 4679:4695 <> L4_phi_e_coupling
+R4701:4704 Coq.Init.Logic <> True ind
+R4767:4767 Coq.Init.Logic <> I constr
+R4767:4767 Coq.Init.Logic <> I constr
+def 4787:4804 <> L4_example_formula
+R4808:4808 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R4818:4821 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R4831:4831 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R4816:4816 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R4813:4815 Trinity.CorePhi <> phi def
+R4827:4829 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R4822:4824 Coq.Reals.Rtrigo_def <> exp def
+prf 4883:4897 <> L4_example_eval
+R4903:4906 Coq.Init.Logic <> True ind
+R4956:4956 Coq.Init.Logic <> I constr
+R4956:4956 Coq.Init.Logic <> I constr
+prf 5229:5244 <> L5_phi_e_squared
+R5250:5253 Coq.Init.Logic <> True ind
+R5316:5316 Coq.Init.Logic <> I constr
+R5316:5316 Coq.Init.Logic <> I constr
+def 5336:5353 <> L5_example_formula
+R5357:5357 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R5365:5368 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R5378:5378 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R5362:5364 Trinity.CorePhi <> phi def
+R5374:5376 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R5369:5371 Coq.Reals.Rtrigo_def <> exp def
+prf 5425:5439 <> L5_example_eval
+R5445:5448 Coq.Init.Logic <> True ind
+R5496:5496 Coq.Init.Logic <> I constr
+R5496:5496 Coq.Init.Logic <> I constr
+def 5769:5782 <> L6_sin_theta_W
+R5786:5786 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R5793:5796 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R5804:5804 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R5791:5792 Coq.Reals.Rtrigo1 <> PI def
+R5800:5802 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R5797:5799 Trinity.CorePhi <> phi def
+def 5818:5831 <> L6_cos_theta_W
+R5835:5835 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R5840:5843 Coq.Reals.R_sqrt <> sqrt def
+R5846:5848 Coq.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R5849:5849 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R5864:5865 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R5852:5855 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R5863:5863 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R5850:5851 Coq.Reals.Rtrigo1 <> PI def
+R5859:5861 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R5856:5858 Trinity.CorePhi <> phi def
+prf 5879:5903 <> L6_trigonometric_identity
+R5909:5912 Coq.Init.Logic <> True ind
+R5968:5968 Coq.Init.Logic <> I constr
+R5968:5968 Coq.Init.Logic <> I constr
+prf 5985:6004 <> L6_sin_theta_W_is_L2
+R6010:6013 Coq.Init.Logic <> True ind
+R6085:6085 Coq.Init.Logic <> I constr
+R6085:6085 Coq.Init.Logic <> I constr
+def 6380:6397 <> L7_complex_formula
+R6401:6401 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R6425:6428 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R6438:6438 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R6419:6421 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R6413:6415 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R6409:6411 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R6416:6416 Coq.Reals.Rdefinitions <> ::R_scope:'/'_x not
+R6417:6418 Coq.Reals.Rtrigo1 <> PI def
+R6422:6424 Trinity.CorePhi <> phi def
+R6434:6436 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R6429:6431 Coq.Reals.Rtrigo_def <> exp def
+prf 6513:6525 <> L7_is_level_7
+R6531:6534 Coq.Init.Logic <> True ind
+R6616:6616 Coq.Init.Logic <> I constr
+R6616:6616 Coq.Init.Logic <> I constr
+prf 6886:6915 <> multiplication_increases_level
+R6921:6924 Coq.Init.Logic <> True ind
+R7005:7005 Coq.Init.Logic <> I constr
+R7005:7005 Coq.Init.Logic <> I constr
+prf 7022:7047 <> level_monotonic_complexity
+R7053:7056 Coq.Init.Logic <> True ind
+R7129:7129 Coq.Init.Logic <> I constr
+R7129:7129 Coq.Init.Logic <> I constr
+prf 7398:7416 <> G01_derivation_path
+R7422:7425 Coq.Init.Logic <> True ind
+R7556:7556 Coq.Init.Logic <> I constr
+R7556:7556 Coq.Init.Logic <> I constr
+prf 7573:7591 <> Q07_derivation_path
+R7597:7600 Coq.Init.Logic <> True ind
+R7730:7730 Coq.Init.Logic <> I constr
+R7730:7730 Coq.Init.Logic <> I constr
+prf 7928:7952 <> derivation_levels_summary
+R7958:7961 Coq.Init.Logic <> True ind
+R8022:8022 Coq.Init.Logic <> I constr
+R8022:8022 Coq.Init.Logic <> I constr

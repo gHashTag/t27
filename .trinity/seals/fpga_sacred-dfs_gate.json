@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:6774ce5383c571556fc383628f750bc791f32a7cdf058da6f5238416f1ea6eef",
+  "gen_hash_rust": "sha256:4b8fc5f029772720375a4086c988f3597f4fa8ce75e23347ba43430e9e0c1f46",
+  "gen_hash_verilog": "sha256:018bbd3f3e4b45ca2c0b5c29006fdabd1588cd0a0842b2c78c8268808592df4d",
+  "gen_hash_zig": "sha256:9d57e351c0d4e300a0a43b7472c75ab18e30708084c9475fc63ed2d9fbe355c3",
+  "module": "sacred-dfs_gate",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:25Z",
+  "spec_hash": "sha256:eb93f27444a6765b35df60ab51c328a21e72cd49684dfc3ff494b29b3f00a905",
+  "spec_path": "specs/fpga/dfs_gate.t27"
+}

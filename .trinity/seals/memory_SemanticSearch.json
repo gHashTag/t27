@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:7c54b1fc4bef6cfb661cf1cfe5e0169852282c528a69eb35b0a17546e56e656e",
+  "gen_hash_rust": "sha256:0526b98b7d27edee36120e58847ede7c87044f62b4cc61cd423ba7d852c49f1a",
+  "gen_hash_verilog": "sha256:85328016e62453ea49e603491afedb053fe1a26d4d5e56535b0fb76dd6083fd8",
+  "gen_hash_zig": "sha256:0083454c84237ce9e890b00013861ad3e3150ec9e6074827984b62c9732c7cc1",
+  "module": "SemanticSearch",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:49Z",
+  "spec_hash": "sha256:513b6a22de6436f9269e7422c67954b6836990fa5ddeb147df0c992e698e56ee",
+  "spec_path": "specs/memory/semantic_search.t27"
+}

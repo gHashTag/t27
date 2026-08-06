@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:383a0fc367f2392fbce74e56680028c93141842c8c472aad00b0e42e31a4ad2c",
+  "gen_hash_rust": "sha256:7a2bb7163638b1dfcb912e3af27acbc9858a152a37580091140a7f0483db602e",
+  "gen_hash_verilog": "sha256:b2fac370bfbc73864cddb391bc728a27bb4c777fb9c6f09cf7c39a191ae5a2e6",
+  "gen_hash_zig": "sha256:5046d59cebe39e932ecdb3922e5d4d359c35c2153682a2e86eb00d6e358a07bb",
+  "module": "gf16-mx-alliance-anchoring",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:24Z",
+  "spec_hash": "sha256:33a5745e128bb4a5bd76acd8ca58a09a2afd1fcd44b87661070855a39754a214",
+  "spec_path": "specs/claims/gf16_mx_alliance_anchoring.t27"
+}

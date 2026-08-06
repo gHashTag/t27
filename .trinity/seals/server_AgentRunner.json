@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:6606f51821ab0760104a6058cad14fe4c18e872cc60d8c086f74820d5f7392ab",
-  "gen_hash_rust": "sha256:052155d6fc98bf5968277cd5b567cf229b7df3ea1f6192d96feca24beb0b97e1",
-  "gen_hash_verilog": "sha256:c2d9ea33c7d33b8480be5fc0c20b6ae02a9daf89db2a63c16b8b186145166a02",
-  "gen_hash_zig": "sha256:ab2d641f9815edc3e5c56450f69045906ab95d54023a96832e853ad6c1363b82",
+  "gen_hash_c": "sha256:bc093f0f0e5469db09b78d09d9c312f7b8099954d51e652bdd3aba1c2bf735ab",
+  "gen_hash_rust": "sha256:166586321495e3a3f1f6cc2f9bf9ff7264cc1338f1e9e352d3b20310c7358376",
+  "gen_hash_verilog": "sha256:34fcdd868d817c2d9f3643003f65e830c83f563decb75f35e51cd9e1fc133c93",
+  "gen_hash_zig": "sha256:0e674f2b568df1d7054785fd04075d1e403ce7b4c7f224da9ea6f2f99271ade4",
   "module": "AgentRunner",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:959e06da2849febdf16205273e4592a5390ce6c4d2be52caf2b7a5b80e3f5a1e",
+  "sealed_at": "2026-07-14T16:05:49Z",
+  "spec_hash": "sha256:cffb49f5744b1d9bca34556103501e0761f3ca5aed1079628cadc50f9425f4fa",
   "spec_path": "specs/server/agent-runner.t27"
 }

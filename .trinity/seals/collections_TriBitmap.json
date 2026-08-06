@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:735742adb493a4859969bb952ca6331aeec42f19cdeeff2c83d6a18410da01eb",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:2efc8efffec16db0abe95e1e8908de317d037846beb4f7aa02b88f85e5e3f7f2",
+  "gen_hash_zig": "sha256:5e60252c49838ad8a2d9910613148d593676250789bccbbd3e4f22209aee7034",
+  "module": "TriBitmap",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:50Z",
+  "spec_hash": "sha256:afd5d67ecd9d8c1810b896e0d522f3ef6fbbad00717a26b19edbf7d3b766e31d",
+  "spec_path": "/Users/playra/t27/specs/tri/collections/bitmap.t27"
+}

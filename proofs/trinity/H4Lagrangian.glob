@@ -1,0 +1,147 @@
+DIGEST b55858293da41db5a44f0cdd07e1ae50
+FTrinity.H4Lagrangian
+R640:644 Coq.Reals.Reals <> <> lib
+R662:667 Coq.ZArith.ZArith <> <> lib
+R699:704 Interval.Tactic <> <> lib
+R743:749 Trinity.CorePhi <> <> lib
+R767:779 Trinity.H4Derivations <> <> lib
+def 1908:1920 <> H4_root_count
+R1924:1924 Coq.Numbers.BinNums <> Z ind
+def 2011:2024 <> H4_hilbert_dim
+R2028:2028 Coq.Numbers.BinNums <> Z ind
+R2047:2049 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2034:2046 Trinity.H4Lagrangian <> H4_root_count def
+def 3962:3964 <> f_0
+R3968:3968 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+def 4019:4021 <> f_2
+R4025:4025 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+def 4080:4082 <> f_4
+R4086:4086 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+def 4177:4187 <> Lambda_unif
+R4191:4191 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+def 6463:6466 <> V_H4
+R6478:6478 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 6469:6474 <> phi_sq:1
+R6496:6496 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 6482:6492 <> phi_quartic:2
+R6524:6524 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 6500:6504 <> mu_sq:3
+binder 6506:6512 <> lambda1:4
+binder 6514:6520 <> lambda2:5
+R6529:6529 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R6572:6574 Coq.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R6551:6553 Coq.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R6542:6544 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R6536:6536 Coq.Reals.Rdefinitions <> ::R_scope:'-'_x not
+R6537:6541 Trinity.H4Lagrangian <> mu_sq:3 var
+R6545:6550 Trinity.H4Lagrangian <> phi_sq:1 var
+R6561:6563 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R6554:6560 Trinity.H4Lagrangian <> lambda1:4 var
+R6570:6570 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R6564:6569 Trinity.H4Lagrangian <> phi_sq:1 var
+R6582:6584 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R6575:6581 Trinity.H4Lagrangian <> lambda2:5 var
+R6585:6595 Trinity.H4Lagrangian <> phi_quartic:2 var
+def 8923:8931 <> yukawa_H4
+R8945:8945 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 8934:8941 <> h4_coeff:6
+R8961:8961 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 8949:8957 <> rg_factor:7
+R8977:8977 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 8965:8973 <> hierarchy:8
+R8982:8982 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R9009:9011 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R8997:8999 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R8989:8996 Trinity.H4Lagrangian <> h4_coeff:6 var
+R9000:9008 Trinity.H4Lagrangian <> rg_factor:7 var
+R9012:9020 Trinity.H4Lagrangian <> hierarchy:8 var
+def 9082:9104 <> projection_defect_ratio
+R9108:9108 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+def 9171:9191 <> hierarchy_suppression
+R9195:9195 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R9204:9206 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+def 9267:9279 <> mass_ratio_H4
+R9293:9293 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 9282:9289 <> h4_coeff:9
+R9298:9298 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R9305:9313 Trinity.H4Lagrangian <> yukawa_H4 def
+R9315:9322 Trinity.H4Lagrangian <> h4_coeff:9 var
+R9330:9332 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R9325:9327 Coq.Reals.Rtrigo_def <> exp def
+R9333:9334 Coq.Reals.Rtrigo1 <> PI def
+R9337:9357 Trinity.H4Lagrangian <> hierarchy_suppression def
+def 9660:9678 <> L01_from_lagrangian
+R9682:9682 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R9689:9701 Trinity.H4Lagrangian <> mass_ratio_H4 def
+R9703:9725 Trinity.H4Lagrangian <> projection_defect_ratio def
+prf 9737:9769 <> L01_lagrangian_order_of_magnitude
+R9778:9781 Coq.Reals.Rdefinitions <> ::R_scope:x_'<='_x_'<='_x not
+R9801:9804 Coq.Reals.Rdefinitions <> ::R_scope:x_'<='_x_'<='_x not
+R9782:9800 Trinity.H4Lagrangian <> L01_from_lagrangian def
+R9782:9800 Trinity.H4Lagrangian <> L01_from_lagrangian def
+R9824:9842 Trinity.H4Lagrangian <> L01_from_lagrangian def
+R9845:9857 Trinity.H4Lagrangian <> mass_ratio_H4 def
+R9860:9868 Trinity.H4Lagrangian <> yukawa_H4 def
+R9880:9902 Trinity.H4Lagrangian <> projection_defect_ratio def
+R9905:9925 Trinity.H4Lagrangian <> hierarchy_suppression def
+def 11492:11499 <> Koide_H4
+R11513:11513 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+binder 11502:11503 <> c1:10
+binder 11505:11506 <> c2:11
+binder 11508:11509 <> c3:12
+R11518:11518 Coq.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R11541:11543 Coq.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R11536:11538 Coq.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R11534:11535 Trinity.H4Lagrangian <> c1:10 var
+R11539:11540 Trinity.H4Lagrangian <> c2:11 var
+R11544:11545 Trinity.H4Lagrangian <> c3:12 var
+binder 11529:11529 <> s:13
+R11578:11580 Coq.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R11568:11570 Coq.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R11561:11564 Coq.Reals.R_sqrt <> sqrt def
+R11566:11567 Trinity.H4Lagrangian <> c1:10 var
+R11571:11574 Coq.Reals.R_sqrt <> sqrt def
+R11576:11577 Trinity.H4Lagrangian <> c2:11 var
+R11581:11584 Coq.Reals.R_sqrt <> sqrt def
+R11586:11587 Trinity.H4Lagrangian <> c3:12 var
+binder 11556:11556 <> t:14
+R11595:11598 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R11602:11602 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R11594:11594 Trinity.H4Lagrangian <> s:13 var
+R11600:11600 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R11599:11599 Trinity.H4Lagrangian <> t:14 var
+prf 11657:11669 <> Koide_H4_test
+R11714:11716 Coq.Reals.Rdefinitions <> ::R_scope:x_'<'_x not
+R11706:11709 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R11713:11713 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R11675:11678 Coq.Reals.Rbasic_fun <> Rabs def
+R11699:11701 Coq.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R11681:11688 Trinity.H4Lagrangian <> Koide_H4 def
+R11703:11703 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R11711:11711 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R11736:11743 Trinity.H4Lagrangian <> Koide_H4 def
+R11753:11756 Coq.Reals.Rbasic_fun <> Rabs def
+R11768:11776 Coq.Reals.Rbasic_fun <> Rcase_abs thm
+prf 12149:12168 <> H4_Lagrangian_status
+R12196:12201 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R12188:12190 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R12174:12187 Trinity.H4Lagrangian <> H4_hilbert_dim def
+R12202:12202 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R12234:12241 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R12285:12285 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R12206:12209 Coq.Reals.Rdefinitions <> ::R_scope:x_'<='_x_'<='_x not
+R12229:12232 Coq.Reals.Rdefinitions <> ::R_scope:x_'<='_x_'<='_x not
+R12210:12228 Trinity.H4Lagrangian <> L01_from_lagrangian def
+R12210:12228 Trinity.H4Lagrangian <> L01_from_lagrangian def
+R12281:12283 Coq.Reals.Rdefinitions <> ::R_scope:x_'<'_x not
+R12273:12276 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R12280:12280 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R12242:12245 Coq.Reals.Rbasic_fun <> Rabs def
+R12266:12268 Coq.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R12248:12255 Trinity.H4Lagrangian <> Koide_H4 def
+R12270:12270 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R12278:12278 Coq.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R12332:12364 Trinity.H4Lagrangian <> L01_lagrangian_order_of_magnitude thm
+R12332:12364 Trinity.H4Lagrangian <> L01_lagrangian_order_of_magnitude thm
+R12373:12385 Trinity.H4Lagrangian <> Koide_H4_test thm
+R12373:12385 Trinity.H4Lagrangian <> Koide_H4_test thm

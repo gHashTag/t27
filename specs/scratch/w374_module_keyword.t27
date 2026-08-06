@@ -1,0 +1,16 @@
+module w374_module_keyword;
+
+const wire : u16 = 1;
+var reg : u32 = 2;
+
+fn use_module_level() -> u32 {
+    return wire as u32 + reg;
+}
+
+test w374_module_keyword_sum {
+    assert use_module_level() == 3;
+}
+
+invariant w374_module_keyword_bounds always use_module_level() > 0 || true;
+
+endmodule

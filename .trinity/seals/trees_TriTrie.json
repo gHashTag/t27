@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:ffdca020e811e22d39d469ee86c7b0a7892099e009a9f4a1d42a40182a6c4086",
+  "gen_hash_rust": "sha256:64158bef5ed2d3a05042bb88365832dc0a67fe5d2a95dae17ab1f387f0245235",
+  "gen_hash_verilog": "sha256:ffa98d6cf11871b91f721fd6913d8b40ae2fb7dd3826bc1465d4b97c9da1550b",
+  "gen_hash_zig": "sha256:3419822bc0be1e565601c3f7f98d56d6ea912d764e67c91c0bf5b355f5931698",
+  "module": "TriTrie",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:50Z",
+  "spec_hash": "sha256:b0439804871b40fdec6d6bd98dfe3f658e7a091e0f7d378d5d9b78999a5335de",
+  "spec_path": "/Users/playra/t27/specs/tri/trees/trie.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:f8bc829dab071918aa6becdc23c0f3cb05057574ec8cc87a2c5591203b9a4f17",
+  "gen_hash_rust": "sha256:a4630173bf3f298c337a277f309430c8d7d4307282189c2170dd4f5004717f32",
+  "gen_hash_verilog": "sha256:dafa723cb8c2555b58d129d6d156f286fa727c996a224667452651839f47d3fe",
+  "gen_hash_zig": "sha256:50e026292ea348ce3032197870dde9d538004d5f97aeab0ef97f4f06e602d2ef",
+  "module": "GF16VsBFloat16NMSE",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:24Z",
+  "spec_hash": "sha256:9881aa0a80b4c89eb61f18910d7d200f9f6ab167e3d88738ea2f0d346877c7d9",
+  "spec_path": "specs/benchmarks/gf16_vs_bfloat16_nmse.t27"
+}

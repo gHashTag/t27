@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:3f1c6dcd1ee31f0e73edee70716d5af809438513fee710b57ce8e664960e3e93",
+  "gen_hash_rust": "sha256:1a297da60bf8d6b843d999455659ba64bb224ddf71732491765bf95e9353096d",
+  "gen_hash_verilog": "sha256:92e84fa520f1e1dca57be0334ee60111b06667711ad9f7a4c3f90c17f385c5a2",
+  "gen_hash_zig": "sha256:3e79cc6a317bba8e670625bbb3217eff81dee99269cddde1a88e3b80e99164d2",
+  "module": "NF4",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:27Z",
+  "spec_hash": "sha256:3224406c5d9b53ca274552a1da0ad1eaad28faa8bbf5a0a6abda061ec5fc44c7",
+  "spec_path": "specs/numeric/nf4.t27"
+}

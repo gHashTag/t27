@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:fd730bd8b15de0cfba14c7b68433d114fcb42b0dfabd77362aace78e3d740f40",
+  "gen_hash_rust": "sha256:c37dcfc9e004f4c60c0bc662cf3d97f438885d25f18603b8c481b4131b5d7a08",
+  "gen_hash_verilog": "sha256:60f3c9e73324934d1d4a9c85a070aa8d193ccdad8b0ad498fd07066f3a2e0e70",
+  "gen_hash_zig": "sha256:5deb7db06d7189856317d7816a3ccc1f5ef589f6efdf9f7cb5ec5057feb49ebb",
+  "module": "sync-index",
+  "ring": 12,
+  "sealed_at": "2026-07-18T16:36:16Z",
+  "spec_hash": "sha256:ce88e96540e925752640868cee20c7e9ad63d0044bae71b0a3ab175474ca2df8",
+  "spec_path": "/Users/playra/t27/specs/sync/index.t27"
+}

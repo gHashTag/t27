@@ -1,0 +1,23 @@
+{
+  "flash_min_half_period_ns": 9,
+  "margin": false,
+  "margin_ns": 11,
+  "operating_point": {
+    "process_corner": "tt",
+    "source": "synthetic",
+    "temp_c": 42,
+    "vccaux_mv": 1800,
+    "vccint_mv": 1000
+  },
+  "predicate": "measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec",
+  "pvt_context": {
+    "process_corner": "tt",
+    "temp_c": 42,
+    "vccaux_mv": 1800,
+    "vccint_mv": 1000
+  },
+  "raw_ns": true,
+  "recommendation": "in_spec",
+  "source": "synthetic tt oscfsel 6",
+  "theorem_base": "smoke_gate_tt_oscfsel_6_synthetic_tt_oscfsel_6_40_20_20"
+}

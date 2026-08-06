@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1cbf5c4d0443cc35fae140fac193342f5147ad472c28f21886fa8870edfaed49",
+  "gen_hash_rust": "sha256:53a700ea2f2c4ade50596e4801790aa1c8e4a07871aae89e4892e934cd2adbcc",
+  "gen_hash_verilog": "sha256:23db29830fcee0d824e61621658d872c30edeb19382b1ca4ef65dbca75b7e6e9",
+  "gen_hash_zig": "sha256:05d796e5b23ae29e2c8b046d1296b725a31ef9e9a537ed16fb240198ffac6ee5",
+  "module": "igla-coder-weights",
+  "ring": 12,
+  "sealed_at": "2026-06-23T07:33:23Z",
+  "spec_hash": "sha256:bc792f4def7a9cbc149706e8f0df32eca7e7f07b00ff726881da4c1b3c5b1326",
+  "spec_path": "/Users/playra/t27/specs/igla/coder/weights.t27"
+}

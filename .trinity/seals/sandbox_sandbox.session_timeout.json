@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:f3a037655cc203cf61bf87acc087c4c696a8597acbdf60223573598cf5fe2368",
-  "gen_hash_rust": "sha256:1c6c1ea7588515439904d79b24a5bb0ef32435a96170434f59be658875c41777",
-  "gen_hash_verilog": "sha256:3aee4b2749ffede60d4f74fa591901509b51c959f7962bef97bf4c3d9ee2d3e7",
-  "gen_hash_zig": "sha256:276ae1282217b6af6247180c5b40ec8b24a4b52ce3433a7e3de3f2c1c5c3949d",
+  "gen_hash_c": "sha256:563fbe4d36d80a0906e6f79cfe149e4fc87cc8077cf9c5dfa73c4d75c8cbe202",
+  "gen_hash_rust": "sha256:d41b074cc07473ecc9dbe9d12784063e7946698ed2fb63fd96647cd67de4c953",
+  "gen_hash_verilog": "sha256:18e486c1be4a2ba4d456c25e82c1f1e7832b144aab16941f44120cd989e2cd9b",
+  "gen_hash_zig": "sha256:cb75918380b7c7d9c6acd85eaf6c0f01fe0cd0a0ae5b923cd2ac444a679d13c7",
   "module": "sandbox.session_timeout",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:8015bf2fd623128d21e50cf1b1f55524aa3f75d3ebded4629c730e5cd9a8c578",
-  "spec_path": "specs/sandbox/session_timeout.t27"
+  "sealed_at": "2026-07-14T16:05:49Z",
+  "spec_hash": "sha256:7fe03e3d8f098653484085d3fda151da0344f8b33845d45a46b20c56dd6f283e",
+  "spec_path": "/Users/playra/t27/specs/sandbox/session_timeout.t27"
 }

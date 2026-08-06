@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:f70ca641121d225785882275b0a88edf3eb15c87d5ac4cac6fa54f695f2caa9e",
+  "gen_hash_rust": "sha256:b2b957a65c8a9c928c04007622d2f579f2e74420b253a2df3ecfbd65f262f09a",
+  "gen_hash_verilog": "sha256:3faeaf8c1bf7ea349f960eef9aeace5c2e945cc2d5b5b4946f66af464346e684",
+  "gen_hash_zig": "sha256:4ea1602aa7bf65005435bd38f51647c9a3e0ffd9249088cc5f616d1c0041460d",
+  "module": "tops-w-22fdx",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:27Z",
+  "spec_hash": "sha256:bb6761a3ed4efd563f3b4f4a030ab541e3d27c6ce718af24259e82307c7166e0",
+  "spec_path": "specs/performance/tops_w_22fdx.t27"
+}

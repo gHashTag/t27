@@ -7,7 +7,15 @@ analog of the catalog-count gate. Checks, as DISTINCT failures (CertifiedData v2
 "which surface drifted" discipline):
 
   A. pack-set name-set == SSOT format id-set (no missing / no extra)
-  B. INDEX total/bitexact/structural counts == recount from the pack files
+  B. INDEX total/bitexact/selfconsistent/structural counts == recount from the pack
+     files. THREE pack kinds are recognised: "bitexact" (an independent oracle, e.g.
+     a silicon ROM or a second reference impl, witnesses every vector), "structural"
+     (no value vectors, n_vectors=0), and "bitexact_selfconsistent" (dyadic-exact
+     vectors that re-derive under ONE decode law and carry honest abs_error, but have
+     NO independent second witness). The selfconsistent kind is counted separately so
+     a pack is never silently promoted to the stronger "bitexact" label. The INDEX key
+     "selfconsistent_packs" is OPTIONAL and defaults to 0 (backward compatible: an
+     INDEX with no selfconsistent packs and no key still recounts 0 and stays CLEAN).
   C. per-pack SHA-256 in INDEX == file hash (manifest freshness)
   D. FINITE-VALUE row arithmetic consistency: for every row carrying input_f64 +
      decoded_f64 + abs_error whose values are finite, the stored abs_error must equal
@@ -163,28 +171,43 @@ def run_gate(ssot_path, vectors_dir, allowlist_path=None):
     if missing or extra:
         report["failures"].append({"check": "A", "missing": missing, "extra": extra})
 
-    # ---- Check B: INDEX counts == recount ----
-    be = st = 0
+    # ---- Check B: INDEX counts == recount (tri-state: bitexact / selfconsistent / structural) ----
+    be = sc = st = 0
+    unknown_kind = []
     file_missing = []
     for p in packs:
         fn = os.path.join(vectors_dir, p["file"])
         if not os.path.isfile(fn):
             file_missing.append(p["file"])
             continue
-        if p.get("kind") == "structural":
+        kind = p.get("kind")
+        if kind == "structural":
             st += 1
-        else:
+        elif kind == "bitexact_selfconsistent":
+            sc += 1
+        elif kind == "bitexact":
             be += 1
-    claimed = (index.get("total_packs"), index.get("bitexact_packs"), index.get("structural_packs"))
-    recount = (len(packs), be, st)
+        else:
+            # An unrecognised kind is drift, NOT silently folded into bitexact.
+            unknown_kind.append({"file": p["file"], "kind": str(kind)})
+    # "selfconsistent_packs" is OPTIONAL; default 0 keeps a legacy 2-kind INDEX green.
+    claimed = (
+        index.get("total_packs"),
+        index.get("bitexact_packs"),
+        index.get("selfconsistent_packs", 0),
+        index.get("structural_packs"),
+    )
+    recount = (len(packs), be, sc, st)
     report["checks"]["B_index_counts"] = {
-        "claimed_total_bitexact_structural": list(claimed),
-        "recount_total_bitexact_structural": list(recount),
+        "claimed_total_bitexact_selfconsistent_structural": list(claimed),
+        "recount_total_bitexact_selfconsistent_structural": list(recount),
+        "unknown_kind": unknown_kind,
         "file_missing": file_missing,
-        "ok": claimed == recount and not file_missing,
+        "ok": claimed == recount and not file_missing and not unknown_kind,
     }
-    if claimed != recount or file_missing:
-        report["failures"].append({"check": "B", "claimed": claimed, "recount": recount, "file_missing": file_missing})
+    if claimed != recount or file_missing or unknown_kind:
+        report["failures"].append({"check": "B", "claimed": claimed, "recount": recount,
+                                   "file_missing": file_missing, "unknown_kind": unknown_kind})
 
     # ---- Check C: SHA freshness ----
     sha_drift = []

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:dcecd5c820a72c616ba18d97dce89a23eee0342a03e14ecf2cfd591dce5a4d11",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:41085de2299fe26d7a40e2f80b92c4d97e80a8e70baf3b13838982c06cbc4969",
+  "gen_hash_zig": "sha256:9c751adf9dcb2ecb9ee4af08a3a5c798d6429a14cc80c1bfcf6ac6833882486d",
+  "module": "TriPriorityQueue",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:50Z",
+  "spec_hash": "sha256:9bab098fcc7065874c346143e85bec43b9966b0669b6647871e573c7a90ed6c9",
+  "spec_path": "/Users/playra/t27/specs/tri/collections/priority_queue.t27"
+}

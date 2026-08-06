@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e04f7cb834deb238dd40b66c065932af9fa25e4b6dc0d8412feec476177f9373",
+  "gen_hash_rust": "sha256:edc496ab355083f8e954e26b26389f86a72daa417d31f97a38a3ba3d7ece80fd",
+  "gen_hash_verilog": "sha256:fb9e5ce2bdcf893fa876d29a4cb8fd5ced8dd57d224870e45a5dad2e6cf6c77f",
+  "gen_hash_zig": "sha256:b3750ccdc2b819c6c94b586d9192c31f83a05b48392a8abebaf3386aa281eecc",
+  "module": "igla-coder-training",
+  "ring": 12,
+  "sealed_at": "2026-06-23T07:33:23Z",
+  "spec_hash": "sha256:b6af78e0d33e9602cb98e00de6c18ee6068b624af4dc0d0b925e3284f1d07280",
+  "spec_path": "/Users/playra/t27/specs/igla/coder/training.t27"
+}

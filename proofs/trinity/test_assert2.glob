@@ -1,0 +1,25 @@
+DIGEST 0bfb903de7b6f728a425d658d0feaa71
+FTrinity.test_assert2
+R24:28 Coq.Reals.Reals <> <> lib
+R55:57 Coq.micromega.Lra <> <> lib
+R89:94 Interval.Tactic <> <> lib
+R132:138 Trinity.CorePhi <> <> lib
+R156:176 Trinity.SpectralAction600Cell <> <> lib
+R194:216 Trinity.HiggsFromSpectralAction <> <> lib
+prf 248:251 <> test
+R268:270 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R266:266 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R255:265 Trinity.CorePhi <> phi def
+R272:274 Coq.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R276:278 Coq.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R279:282 Coq.Reals.R_sqrt <> sqrt def
+R316:316 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R305:315 Trinity.CorePhi <> phi def
+R329:329 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R326:328 Trinity.SpectralAction600Cell <> phi def
+R316:316 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R305:315 Trinity.CorePhi <> phi def
+R329:329 Coq.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R326:328 Trinity.SpectralAction600Cell <> phi def
+R357:365 Trinity.CorePhi <> phi_sixth thm
+R357:365 Trinity.CorePhi <> phi_sixth thm

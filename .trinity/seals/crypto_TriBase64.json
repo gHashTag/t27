@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1182f6c43a7e9932e829e8fffe36b25f57d5c42422a54f9bc5f7bf44635a1466",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:1c760c6c5a14456fc2ffbc6400e4ba6a2caa4c6cf5c95694e72cadc85d8ae0a6",
+  "gen_hash_zig": "sha256:134e2cabfddb9d86cf3081d08cc39cebf38287bc4c121f9cd06b755d509edece",
+  "module": "TriBase64",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:50Z",
+  "spec_hash": "sha256:570efb578996b026b3572669478b17ce90e70aee9b0f304f2fce1a5f241ad84e",
+  "spec_path": "/Users/playra/t27/specs/tri/crypto/base64.t27"
+}

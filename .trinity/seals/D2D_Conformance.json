@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:sha256:fbbd02b5c2b95578db5b58372999c32b117b4381bae77b827580cebf128bdae3",
+  "gen_hash_rust": "sha256:sha256:e3247523c8a1ed711024312cbecffed05b60d30476a02b1ede6c7610a62bce66",
+  "gen_hash_verilog": "sha256:sha256:693755b77ded0e867f29c4b8c37d4c4a9ef357d419aff6fe3f318a79660606c3",
+  "gen_hash_zig": "sha256:sha256:de52e206c06058992ffb9bd9d6e5f12d6bb42bc741948d2d82785edbcc50d42c",
+  "module": "D2D_Conformance",
+  "ring": 12,
+  "sealed_at": "2026-06-17T07:35:00Z",
+  "spec_hash": "sha256:sha256:2e560bae2a336ae72fddba75c142d303d452eb9cb718fe5a08b835e651d2252f",
+  "spec_path": "specs/network/d2d_conformance.t27"
+}

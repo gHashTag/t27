@@ -225,7 +225,7 @@ We are not aware of another published float family whose E:M split across a
 **methodology claim** (`Conj`), not a performance claim: optimality is OPEN,
 and throughput/accuracy are measured only for GF16. Posit (Gustafson 2017),
 OCP-MX (Rouhani 2023), LNS (Arnold/Parhami), and takum (Hunhold 2024,
-[arXiv:2412.20273](https://arxiv.org/abs/2412.20273)) are **allies and
+[arXiv:2404.18603](https://arxiv.org/abs/2404.18603)) are **allies and
 falsification targets**, not competitors crushed. The honest shield is
 **multiplier-free at the anchor** (φ² = φ + 1 collapses gain to unity), not
 uniqueness of φ as a base — Daubechies et al. (Golden Ratio Encoder,

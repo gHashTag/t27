@@ -12,4 +12,12 @@ if [[ ! -x "$T27C" ]]; then
   echo "tri: t27c not found. Run: cd bootstrap && cargo build --release" >&2
   exit 1
 fi
-exec "$T27C" --repo-root "$REPO_ROOT" "$@"
+# `t27c suite` is the only subcommand that accepts --repo-root.
+# Map `tri test` to the suite subcommand; pass other commands through unchanged.
+cmd="${1:-}"
+if [[ "$cmd" == "test" || "$cmd" == "suite" ]]; then
+    # Forward everything after the subcommand to t27c suite, including --json.
+    exec "$T27C" suite --repo-root "$REPO_ROOT" "${@:2}"
+else
+    exec "$T27C" "$@"
+fi

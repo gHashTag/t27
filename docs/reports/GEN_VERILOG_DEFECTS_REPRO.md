@@ -1,0 +1,539 @@
+# `gen-verilog` Backend — Known Defects and Roadmap
+
+**Branch:** `wave-loop-436`  
+**Last updated:** 2026-07-01 (Wave Loop 436)  
+
+This document tracks the lowering defects in the `t27c gen-verilog` backend. The full fix set was originally landed on `master` (commit `701d79b3b`) and on the historical `wave-loop-383` compiler line; Wave Loop 455 ported the missing parser and backend pieces into the current `wave-loop-455` branch and cleared the 7 residual yosys smoke failures.
+
+**W430 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W430 is
+hardware-constrained and focuses on the live XADC readout path (`tri fpga
+read-xadc`) and the formal PVT-envelope bridge. The remaining 7 residual yosys
+smoke failures (tuple-return / `let` destructuring / ROM arrays / CORDIC) stay
+tracked here and will be re-evaluated once the `trinity-rust-rings` branch is
+rebased or merged to `master`.
+
+**W436 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W436
+focuses on extending the live XADC → PVT context pipeline into cold-POR boot
+logs, sweep-report JSON, and the `measured-to-lean` source-label path. The 7
+residual yosys smoke failures remain the documented baseline; they will be
+addressed in a future wave after the master-merge debt is cleared or a safe
+regression-free sub-fix is identified.
+
+---
+
+## Fixed / Partially Fixed
+
+### Defect 1 — Only the first `const` declaration is emitted (FIXED in W370)
+
+**Symptom:** Multiple `const` declarations in a module caused only the first one to be emitted; subsequent ones were dropped.
+
+**Repro:**
+```t27
+module repro_const_order;
+const A : u8 = 1;
+const B : u8 = 2;
+const C : u8 = 3;
+endmodule
+```
+
+**Root cause:** `parse_const_decl` in `bootstrap/src/compiler.rs` returned before consuming the trailing semicolon of simple scalar constants, leaving the semicolon as an unexpected top-level token. Error recovery then swallowed the following `const` declaration.
+
+**Fix:** Removed the early `return Ok(decl)` in `parse_const_decl` so all scalar const paths fall through to the existing trailing semicolon consumption.
+
+**Verification:** `specs/scratch/w370_const_order.t27`; generated Verilog contains `localparam A`, `B`, and `C`; `yosys read_verilog` passes.
+
+### Defect 2 — Scalar hex literal width padding (FIXED)
+
+**Symptom:** `const MASK : u16 = 0x1;` was emitted as `MASK = 1;` without a width suffix, causing Verilog simulators/synthesis tools to infer a 32-bit value or emit width warnings.
+
+**Fix history:**
+- W367: pad positive hex literals in scalar `const` declarations.
+- W368: extend padding to scalar `var` / `let` initializers and `return` statements via `current_fn_return_type`.
+
+**Verification:** `specs/scratch/w369_bin_width.t27` exercises both hex and binary paths.
+
+### Defect 2b — Scalar binary literal width padding (FIXED in W369)
+
+**Symptom:** `const MASK : u16 = 0b1;` was emitted as `MASK = 1;` with the same width-inference risk.
+
+**Fix:** W369 added `0b` handling in `gen_verilog_const`, `gen_verilog_var`, `StmtLocal`, and `ExprReturn`, mirroring the `0x` logic but with 1 bit per literal digit.
+
+**Verification:** `t27c gen-verilog specs/scratch/w369_bin_width.t27` produces `16'b1` and `16'b100`, which parse cleanly in `yosys`.
+
+### Defect 2c — Verilog keyword identifier collision (FIXED in W371, EXTENDED in W372, STRUCT-FIELD TOKENIZATION CORRECTED in W373)
+
+**Symptom:** User identifiers that collide with Verilog reserved keywords caused `yosys read_verilog` syntax errors. Example: a parameter named `task` in `specs/igla/coder/benchmark.t27` was emitted as `input [31:0] task;`, which Yosys rejected with `syntax error, unexpected TOK_TASK`.
+
+**Repro:**
+```t27
+module repro_verilog_keyword;
+fn evaluate_task_at_k(bank : u32, task : u32, k : u32) -> bool {
+    if (k == 0) { return false; }
+    return evaluate_task_at_k_inner(bank, task, k, 0);
+}
+endmodule
+```
+
+**Fix history:**
+- W371: Added `verilog_keywords()` and `verilog_safe_identifier()` helpers in `bootstrap/src/compiler.rs`. Function names, parameter declarations, function-call names, and bare identifier expressions are escaped as `\name ` when they collide with a Verilog keyword.
+- W372: Extended `verilog_safe_identifier()` to escape identifiers that **contain** a keyword as an underscore-delimited component (e.g., `task_foo`, `foo_task`, `foo_task_bar`). Applied the safe identifier to `StmtLocal` declarations/assignments and struct-field register names.
+- W373: Corrected a tokenization bug in the W372 struct-field path. The W372 implementation escaped the field name in isolation (`\reg `) and then prepended the struct type name, producing `word_\reg `, which Verilog tokenizes as the separate identifiers `word_` and `\reg `. W373 now builds the full flattened name first (`word_reg`) and escapes the entire token as `\word_reg ` when needed. The same full-token escaping is applied to `ExprFieldAccess` in `gen_verilog_expr`.
+
+**Fix history:**
+- W374: Applied `verilog_safe_identifier()` to module-level `const` and `var` declarations. Top-level names like `wire` or `reg` are now emitted as escaped identifiers (`\wire ` / `\reg `) in `localparam`, `reg`, and initializer statements. Array var elements use the escaped base name (`\wire_0`, `\reg_0`).
+
+**Verification:**
+- `specs/scratch/w371_verilog_keyword.t27` — parameter `task` escaped; yosys clean.
+- `specs/scratch/w372_local_keyword.t27` — local variables named `task` and `wire` escaped; yosys `read_verilog -sv` + `synth_xilinx` pass.
+- `specs/scratch/w373_struct_field_keyword.t27` — struct fields named `reg` and `wire`; generated regs are `\word_reg ` / `\word_wire ` and parse cleanly through `yosys read_verilog -sv` + `synth_xilinx`.
+- `specs/scratch/w374_module_keyword.t27` — top-level const `wire` and var `reg` escaped; `t27c gen-verilog` + `yosys read_verilog -sv` + `synth_xilinx` pass.
+- `specs/igla/coder/benchmark.t27` now passes `yosys read_verilog`.
+
+### Defect 3 — Early `return` inside bare `if` lacks if-else chaining (FIXED in W375)
+
+**Repro:**
+```t27
+fn sign(x : i8) -> i8 {
+    if (x < 0) { return -1; }
+    if (x > 0) { return 1; }
+    return 0;
+}
+```
+
+**Observed Verilog (before W375):** all three assignments were emitted as sequential bare statements:
+```verilog
+if ((x < 0)) begin sign = -1; end
+if ((x > 0)) begin sign = 1; end
+sign = 0;
+```
+The final `sign = 0;` always executed last, so the function returned `0` for all inputs.
+
+**Fix:** `bootstrap/src/compiler.rs` `gen_verilog_fn` now walks the function body and collapses contiguous bare-if early-return statements into a single Verilog `if ... else if ... else` chain, with each branch assigning to the function-name register. Statements that do not match the chain pattern remain on the original code path.
+
+**Verification:** `specs/scratch/w375_early_return.t27` passes `t27c gen-verilog` and `yosys read_verilog -sv`; generated `sign` function emits:
+```verilog
+if ((x < 0)) begin sign = -1; end
+else if ((x > 0)) begin sign = 1; end
+else begin sign = 0; end
+```
+
+---
+
+## Remaining Defects
+
+### Defect 4 — `as` cast and bitwise operator width correctness (VERIFIED FIXED in W376)
+
+**Repro:**
+```t27
+fn cast_and_mask(x : u16) -> u8 {
+    return (x as u8) & 0x0F;
+}
+```
+
+**Observed Verilog (W376):** the expression is emitted as `((x & {8{1'b1}}) & 8'h0F)`. The `as u8` narrowing is implemented as a bitwise mask `{8{1'b1}}`, and the bitwise body is preserved. Generated Verilog for `or`/`xor` casts follows the same pattern.
+
+**Root cause:** operator-lowering for `as` and bitwise `&` / `|` / `^` / `~` in `gen_verilog_expr` already masks the operand to the target width; the W376 work formalized the regression spec and added an in-runner yosys smoke gate so the behavior stays correct.
+
+**Verification:**
+- `specs/scratch/w376_cast_width.t27` exercises narrowing `u16 -> u8` and `i16 -> i8` casts followed by `&`, `|`, and `^`, with `test` assertions covering both high-byte truncation and low-byte preservation.
+- `t27c gen-verilog specs/scratch/w376_cast_width.t27` + `yosys read_verilog -sv` pass.
+- The W376 CI smoke gate in `bootstrap/src/suite.rs` now runs `yosys read_verilog -sv` on every scratch spec automatically when `yosys` is on `PATH`.
+
+**Status:** Closed as verified-correct. No compiler change was required; the existing ExprCast lowering already emits width-safe masks.
+
+---
+
+### Defect 3b — Named tuple return types with `::` namespaces (FIXED in W380)
+
+**Symptom:** The new tuple return-type parser introduced in W380 entered an infinite loop on named/namespaced tuple elements such as `-> (gf16::GF16, gf16::GF16, gf16::GF16)` and `-> (added: u32, deleted: u32, modified: u32)`.
+
+**Root cause:** The initial tuple parser consumed `Ident` followed by a single `:` as a named-field label. For namespaced types like `gf16::GF16`, the first colon belongs to `::`, so the parser consumed the namespace identifier and half of the namespace separator, leaving a bare `:` that caused an infinite loop.
+
+**Fix (W380):** The tuple return-type loop now parses the element type first, then detects a named-field label only when the next token is a single colon whose successor is **not** another colon (i.e., not `::`).
+
+**Verification:** `specs/ml/optimizer/adamw.t27` and `specs/git/diff.t27` now parse cleanly; full `t27c suite` passes 560/560.
+
+---
+
+### Defect 5 — Struct-field reg name mismatch (FIXED in W377)
+
+**Repro:**
+```t27
+struct Pt { x : u8; y : u8; }
+fn get_x(p : Pt) -> u8 {
+    return p.x;
+}
+```
+
+**Observed Verilog (before W377):** field access on a struct-typed parameter was emitted using the parameter-variable name as a prefix, e.g. `p_x`, while the struct declaration emitted module-level registers named after the struct type, e.g. `pt_x`. This mismatch caused unresolved identifiers in simulation/synthesis.
+
+**Observed Verilog (after W377):** the codegen now tracks parameter types and emitted struct-field register names. When a function parameter has a struct type, field access resolves to the struct-type register name (`pt_x`) instead of the variable-qualified name (`p_x`).
+
+**Root cause:** `gen_verilog_expr` lowered `ExprFieldAccess` as `{base}_{field}` without knowing whether `base` was a struct-typed parameter and without a registry of the struct-type register names emitted by `gen_verilog_struct`.
+
+**Fix (W377):**
+- Added `param_types: HashMap<String, String>` to `VerilogCodegen` to record the declared type of each function parameter.
+- Added `struct_field_regs: HashSet<String>` to record the flattened register names emitted for each struct field (e.g. `word_data`).
+- In `gen_verilog_fn`, populate `param_types` from `node.params` before emitting the function body.
+- In `gen_verilog_struct`, insert each emitted register name into `struct_field_regs`.
+- In `ExprFieldAccess` lowering, if the base identifier's declared type is a struct, build the candidate struct-type register name (`{type}_{field}`). If it exists in `struct_field_regs`, use it; otherwise fall back to the original `{base}_{field}` behavior.
+
+**Verification:** `specs/scratch/w377_struct_field_mapping.t27` exercises field reads on a struct-typed parameter. `t27c gen-verilog` emits `word_data` / `word_tag` references, and `yosys read_verilog -sv` + `synth_xilinx` pass.
+
+### Defect 6 — `let` destructuring is emitted verbatim (SEMANTICALLY-AWARE SYNTAX FIX in W378/W379)
+
+**Repro:**
+```t27
+fn cordic_top_batch_inner(angles : u32, idx : u32, acc : i32) -> i32 {
+    if (idx >= angles.len()) { return acc; }
+    let(s, _c, _r) = cordic_top(1, 1, angles[idx], 1);
+    return cordic_top_batch_inner(angles, idx + 1, acc + s);
+}
+```
+
+**Observed Verilog (before W378):** the `let(s, _c, _r) = ...` statement was emitted verbatim as `let(s, _c, _r) = cordic_top(...);`, which is not valid Verilog and caused `yosys read_verilog` to fail with a syntax error.
+
+**Observed Verilog (after W378/W379):** the codegen detects the `let(...)` pattern in `StmtAssign` and emits a packed temporary plus scalar `reg` declarations and slice assignments. After W379 the packed width and slice offsets are inferred from the LHS pattern rather than hardcoded:
+```verilog
+// 3 bindings (W378 example)
+reg [95:0] _let_tmp_0;
+_let_tmp_0 = cordic_top(...);
+reg [31:0] s;  s = _let_tmp_0[95:64];
+reg [31:0] _c; _c = _let_tmp_0[63:32];
+reg [31:0] _r; _r = _let_tmp_0[31:0];
+
+// 2 bindings (W379 regression)
+reg [63:0] _let_tmp_0;
+_let_tmp_0 = make_pair(...);
+reg [31:0] x; x = _let_tmp_0[63:32];
+reg [31:0] _y; _y = _let_tmp_0[31:0];
+```
+
+**Root cause (syntax level):** `gen_verilog_stmt` did not recognize the `let(...)` call pattern on the LHS of an assignment and emitted it verbatim.
+
+**Fix (W378/W379):**
+- W378: Added `let_tmp_counter` to `VerilogCodegen`; added `gen_verilog_let_destructuring` helper; routed `let(...)` LHS patterns to it in `StmtAssign`; reset the counter per function.
+- W379: Generalized the helper so it infers:
+  - `N` from the number of identifier children in the `let(...)` LHS.
+  - Per-binding width from `child.extra_type` when present, falling back to 32 bits.
+  - Total packed width as the sum of per-binding widths.
+  - Slice offsets computed from the running cursor, not hardcoded 32-bit slots.
+
+**Remaining semantic gap (before W380):** the backend still does not implement first-class tuple-return function generation. The LHS pattern is used to size the packed temporary, but the RHS function call must already return a value of the matching shape. Full semantic correctness requires multi-return function types, tuple literals, and slot-aware function-call lowering.
+
+**Update (W380):** Tuple-return generation scaffolding is now in place:
+- Parser accepts tuple return types `-> (T1, T2, ...)` and tuple literals `(a, b, c)`.
+- `gen_verilog_fn` emits a packed function result register whose width equals the sum of element widths.
+- `gen_verilog_expr` for tuple literals emits packed concatenations.
+- `gen_verilog_let_destructuring` infers per-binding widths from the callee's tuple return type when LHS bindings are untyped.
+
+**Update (W381):** Slot-aware nested tuple-return call lowering is now complete. `gen_verilog_expr` recognizes tuple-return function calls in expression position, emits a packed temporary sized to the callee's tuple width, and lets the consuming tuple literal slice the temporary by slot. The regression spec `specs/scratch/w381_tuple_call_chain.t27` exercises a two-level chain and passes `yosys read_verilog -sv`.
+
+**Status:** Closed as implemented and verified.
+
+**Verification:**
+- `specs/scratch/w378_let_destructuring.t27` — 3-binding `let (x, y, z)` and `let (x, _y)` pass `yosys read_verilog -sv`.
+- `specs/scratch/w379_let_destructuring_generalized.t27` — 2-binding and 4-binding patterns pass `yosys read_verilog -sv`.
+- `specs/igla/race/cordic.t27` and `specs/igla/race/cordic_top.t27` now pass `yosys read_verilog -sv`.
+- `bootstrap/src/suite.rs` smoke gate covers all 27 IGLA specs.
+
+---
+
+## Recommended Triage Order
+
+1. **Tuple-return function generation** — the remaining semantic gap behind Defect 6. Implement multi-return function types, tuple literals, and slot-aware function-call lowering so `let(a, b, c) = f(...)` is correct for arbitrary multi-return calls, not only the current syntax-level workaround.
+2. **Incremental array/RAM lowering** — #1258 (datapath specs such as FIFOs and memories).
+
+## Open work after W382
+
+- **Array/RAM sub-gaps remaining:**
+  - Multi-dimensional arrays (`[[T; M]; N]`).
+  - Non-literal (variable) index access on function-local arrays.
+  - RAM style inference / block-vs-distributed pragma hints.
+- No other tracked gen-verilog syntax/semantic defects remain on `trinity-rust-rings`.
+
+## Fixed in W382 — Module-level array/RAM lowering
+
+**Symptom:** `var mem : [4]u16` at module scope emitted a scalar `reg [31:0] mem;`, so indexing expressions `mem[i]` were interpreted as scalar bit-selects instead of memory accesses.
+
+**Fix:** `gen_verilog_var` now detects array type annotations via `parse_array_type` and emits a true Verilog memory declaration:
+```verilog
+reg [15:0] mem [0:3];
+```
+Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emitted valid Verilog syntax and now resolve to memory accesses.
+
+**Verification:** `specs/scratch/w382_ram_lowering.t27` exercises write/read on a 4-entry `u16` memory; `yosys read_verilog -sv` + `synth -top w382_ram_lowering` pass with 0 problems.
+
+---
+
+## Verification Checklist
+
+- [x] `0x` scalar width padding (`const`, `var`, `let`, `return`)
+- [x] `0b` scalar width padding (`const`, `var`, `let`, `return`)
+- [x] Multiple `const` declarations
+- [x] Verilog keyword identifier collision (exact and underscore-delimited component matches)
+- [x] Module-level const/var keyword-safe emission
+- [x] Early `return` if-else chaining (FIXED in W375)
+- [x] `as` / bitwise operator width correctness (FIXED/VERIFIED in W376)
+- [x] Struct-field reg naming (keyword-safe, full-token escape)
+- [x] Local variable keyword-safe emission
+- [x] `let` destructuring lowering — semantically-aware syntax fix in W378/W379; full semantic tuple-return support completed in W381
+- [x] CI smoke gate for `gen-verilog` + `yosys read_verilog` on scratch specs (W376)
+- [x] CI smoke gate expanded to 25 yosys-clean IGLA specs (W377)
+- [x] CI smoke gate expanded to all 27 IGLA specs (W378)
+- [x] Struct-field reg mapping from struct-type registers (`pt_x`) instead of parameter-variable registers (`p_x`) (W377)
+- [x] Tuple-return function generation for full semantic multi-return support (W380/W381)
+- [x] Module-level array/RAM lowering — `var mem : [N]T`, read `mem[i]`, write `mem[i] = x` (W382)
+- [x] Module-level ROM lowering — `const lut : [N]T = [N]T{...}` (W383)
+- [x] Function-local array variables with numeric-literal index access (W383)
+- [x] Function-local array variable-index access — read via priority mux, write via if-else chain, full-token keyword escape (W384)
+- [x] Function-local array signed element types (`[N]i8`, `[N]i16`, etc.) (W385)
+- [x] Function-local array literal initialization at declaration time (`var buf : [N]T = [N]T{...}`) (W385)
+- [x] Function-local arrays inside `for` loops, constant and parameter bounds (W386)
+- [x] Multi-dimensional function-local arrays with numeric/variable indices and signed elements (W387)
+- [x] Multi-dimensional function-local array-literal initialization (`var m : [2][3]u16 = [2][3]u16{...}`) (W388)
+
+## Fixed in W384 — Function-local array variable-index access
+
+**Symptom:** Local array declarations inside a function, e.g. `var buf : [4]u16`, could only be accessed with numeric-literal indices (`buf[0]`). A variable index such as `buf[idx]` was emitted as `buf[idx]`, which is invalid Verilog because `buf` had already been lowered to per-element registers `buf_0`, `buf_1`, ... by W383.
+
+**Fix:** `bootstrap/src/compiler.rs` now tracks function-local arrays and emits synthesizable variable-index access:
+- Read: priority mux chain `((idx == 0) ? buf_0 : ((idx == 1) ? buf_1 : ...))`.
+- Write: if-else chain `if (idx == 0) begin buf_0 = val; end else if (idx == 1) begin buf_1 = val; end ...`.
+- Keyword escape is applied to the full flattened token (`\buf_0 `) rather than the base name alone, preventing tokenization bugs with keyword-named arrays such as `buf`.
+
+**Verification:** `specs/scratch/w384_variable_index.t27` exercises variable-index read and write on `var buf : [4]u16` with keyword-named array `buf`. `t27c gen-verilog` + `yosys read_verilog -sv` + `synth -top w384_variable_index` pass.
+
+## Fixed in W385 — Signed element types and array-literal initialization for function-local arrays
+
+**Symptom:** Function-local arrays only supported unsigned element types and could not be initialized at declaration with an array literal. `var temps : [4]i16` emitted signed regs but had no regression coverage, and `var buf : [4]u16 = [4]u16{...}` emitted a broken TODO placeholder instead of initializing the per-element regs.
+
+**Fix:** `bootstrap/src/compiler.rs` now detects an `ExprArrayLiteral` initializer on a function-local array and emits a scalar assignment for each element to the corresponding per-element reg. Width padding is applied to `0x` and `0b` element literals. Signed element types already worked via the existing `elem_signed` path; W385 added regression coverage and verified sign extension through `yosys`.
+
+**Verification:**
+- `specs/scratch/w385_signed_local_array.t27` — signed `i16` local array with variable-index read/write.
+- `specs/scratch/w385_local_array_init.t27` — `u16` local array initialized from `[4]u16{...}`.
+- `specs/scratch/w385_signed_local_array_init.t27` — combined signed `i16` array with initializer.
+- All three pass `t27c gen-verilog` + `yosys read_verilog -sv` + `synth`.
+
+## Fixed in W386 — Function-local arrays inside `for` loops
+
+**Symptom:** No regression coverage existed for using function-local arrays inside `for` loops, even though the W384 variable-index lowering and W385 signed/init lowering made the pattern feasible. Without smoke-gate coverage the feature could regress silently.
+
+**Observation:** The existing backend already lowered the pattern correctly:
+- Constant-bound loops (`for i in 0..4`) are unrolled into scalar per-element assignments.
+- Parameter-bound loops (`for i in 0..n`) remain as Verilog `for` loops with variable-index reads via priority mux chains and writes via if-else chains.
+
+**Fix:** Added regression specs only; no compiler change was required.
+
+**Verification:**
+- `specs/scratch/w386_for_local_array.t27` — constant-bound fill-and-sum and copy-reverse on `[4]u16`.
+- `specs/scratch/w386_for_local_array_i8.t27` — constant-bound signed `[4]i8` sum and in-place negation.
+- `specs/scratch/w386_for_local_array_param.t27` — parameter-bound loop with variable-index write/read on `[4]u16`.
+- All three pass `t27c gen-verilog` + `yosys read_verilog -sv` + `synth`.
+
+## Fixed in W387 — Multi-dimensional function-local arrays
+
+**Symptom:** Declarations such as `var m : [2][3]u16` were parsed and typechecked, but the gen-verilog backend treated them as a 1D array of array-typed elements. It emitted per-row regs with the default 32-bit width and accessed elements via Verilog bit-selects (`m_0[0]`, `m_0[1]`), which silently corrupted data widths.
+
+**Fix:** `bootstrap/src/compiler.rs` now parses the full dimension list, flattens multi-dimensional arrays into per-element regs in row-major order, and lowers nested index chains (`m[r][c]`) to a linear offset.
+
+- Numeric constant indices (`m[1][2]`) resolve directly to the flattened reg (`m_5`).
+- Variable indices (`m[row][col]`) emit a priority mux chain over all flattened regs using the linearized expression `(row * 3) + col` as the select.
+- Signed leaf element types and nested `for` loops over 2D arrays work without additional changes.
+- Non-local-array constant index fallback (`base_idx`) is preserved so module-level arrays and slice parameters are unaffected.
+
+**Verification:**
+- `specs/scratch/w387_2d_local_array.t27` — numeric-index read/write.
+- `specs/scratch/w387_2d_local_array_varidx.t27` — variable-index read/write.
+- `specs/scratch/w387_2d_local_array_signed.t27` — signed `[2][3]i8` sum.
+- `specs/scratch/w387_2d_local_array_for.t27` — nested loops filling/summing a 2D array.
+- All four pass `t27c gen-verilog` + `yosys read_verilog -sv` + `synth`.
+
+**Limitation:** multi-dimensional array-literal initialization (`var m : [2][3]u16 = [2][3]u16{...}`) is not yet supported by the parser and is tracked as remaining work.
+
+## Fixed in W388 — Multi-dimensional array-literal initialization
+
+**Symptom:** The parser did not recognize array-literal syntax for multi-dimensional function-local arrays. A declaration such as `var m : [2][3]u16 = [2][3]u16{1, 2, 3, 4, 5, 6}` parsed the right-hand side as an index operation with an empty literal, dropping the six initializer values.
+
+**Fix:** `bootstrap/src/compiler.rs` `parse_array_literal` now consumes the additional `[N]` dimensions and the base element type before the `{...}` block. The resulting `ExprArrayLiteral` carries the full dimension/type suffix in `extra_type`, and all initializer expressions are preserved as children.
+
+**Verification:**
+- `specs/scratch/w388_2d_local_array_init.t27` declares, reads, and writes a `[2][3]u16` initialized from a literal.
+- `t27c gen-verilog` + `yosys read_verilog -sv` + `synth` pass; the backend emits six per-element reg assignments in row-major order.
+
+## Residual yosys smoke failures on `wave-loop-*` branches (W422–W427)
+
+The `trinity-rust-rings`/`wave-loop-*` branch carries the same `gen-verilog`
+backend as `master` up to the W422 keyword-escape fix. After W422 the yosys
+smoke gate regressed on **7 specs** because the full fix set for tuple-return,
+`let` destructuring, ROM arrays, and CORDIC structural changes lives only on
+`master` (commit `701d79b3b`). The wave-loop strategy is to apply only narrow,
+regression-free sub-fixes; none of these 7 failures is narrow enough for a
+single wave.
+
+### Failing specs
+
+| Spec | Failure mode | Why it is not a safe single-wave fix |
+|---|---|---|
+| `specs/igla/race/cordic.t27` | `syntax error, unexpected '='` | CORDIC uses tuple-return / `let` destructuring; a syntax fix would require re-landing the W380–W381 tuple-return generation scaffolding. |
+| `specs/igla/race/cordic_top.t27` | `syntax error, unexpected '='` | Same CORDIC/tuple-return dependency as `cordic.t27`. |
+| `specs/scratch/w378_let_destructuring.t27` | `syntax error, unexpected '='` | Requires the full semantically-aware `let` destructuring lowering (W378/W379) plus tuple-return call lowering (W381). |
+| `specs/scratch/w379_let_destructuring_generalized.t27` | `syntax error, unexpected '='` | Generalized `let` destructuring; same broad dependency. |
+| `specs/scratch/w380_tuple_return.t27` | `syntax error, unexpected '='` | Tuple return generation (W380) is a major feature, not a narrow sub-fix. |
+| `specs/scratch/w381_tuple_call_chain.t27` | `syntax error, unexpected '='` | Slot-aware nested tuple-return call lowering (W381). |
+| `specs/scratch/w383_rom_array.t27` | `syntax error, unexpected '['` | Module-level ROM array lowering (W383) changes how `const lut : [N]T = ...` is emitted. |
+
+### Triage decision for W427
+
+**Deferred.** The fix set on `master` (`701d79b3b`) is broad and touches the
+same major features. Landing it as a single wave on `wave-loop-427` would
+violate the narrow-sub-fix safety rule and risk destabilizing the current
+FPGA/formal work. The failures are tracked here and will be resolved by either:
+
+1. Merging `master` into the wave-loop branch in a dedicated merge/rebase wave
+   after W427 closes, or
+2. Cherry-picking the exact fix commits once the FPGA boot-evidence line is no
+   longer the primary wave focus.
+
+The 7-failure count is accepted as a known, documented baseline for W427.
+
+### Triage decision for W428
+
+**Still deferred.** The W428 start-of-wave probe re-ran `./scripts/tri test` on
+`wave-loop-428` and confirmed the same 7 yosys smoke failures. No new
+narrow subclass appeared; the failures remain tied to tuple-return generation,
+`let` destructuring lowering, ROM arrays, and CORDIC structural changes. The
+wave-loop strategy of one narrow, regression-free sub-fix per wave is therefore
+not applicable. The 7-failure count is accepted as the documented baseline for
+W428; resolution continues to depend on a future master merge/rebase wave.
+
+### Triage decision for W429
+
+**Still deferred.** W429 focused on the FPGA boot-evidence formal bridge (raw-ns
+OSCFSEL theorems and `tri fpga measured-to-lean --json`). The start-of-wave probe
+re-ran the yosys smoke gate on `wave-loop-429` and confirmed the same 7 failures.
+No new narrow gen-verilog defect surfaced, and none of the existing 7 failures is
+safe to address as a side task while the wave is closing out the formal
+boot-evidence line. The 7-failure count remains the documented baseline.
+
+### Triage decision for W430
+
+**Still deferred.** W430 landed live XADC readout and the formal PVT-envelope
+bridge (`xadc_operating_point_envelope_implies_worst_case_bound`). The start-of-wave
+probe on `wave-loop-430` confirmed the same 7 yosys smoke failures. No new narrow
+gen-verilog defect appeared, and the hardware-constrained wave could not safely
+absorb the broad master fix set.
+
+### Triage decision for W431
+
+**Still deferred.** W431 executed Variant C (formal/tooling fallback) because P12
+and the relay gate remain blocked. Work focused on the XADC → PVT context
+conversion, the `--json` summary hardening for `tri fpga measured-to-lean`, and
+further Lean 4 computable envelope lemmas. The start-of-wave probe on
+`wave-loop-431` confirmed the same 7 yosys smoke failures.
+
+No new narrow gen-verilog defect surfaced. The failing specs still require the
+full W380–W381 tuple-return / `let` destructuring / ROM-array / CORDIC fix set that
+lives on `master` (`701d79b3b`). The wave-loop strategy of one narrow,
+regression-free sub-fix per wave is not applicable.
+
+**Recommended resolution path for W432:** schedule a dedicated merge/rebase wave
+whose sole purpose is to bring in the `master` fix set (`701d79b3b`) and clear
+these 7 failures. Until then, continue to accept the count and keep the failure
+matrix in this document current.
+
+### Triage decision for W432
+
+**Still deferred; master-merge attempted and found not feasible.** W432 opened by
+probing the `origin/master` merge path for the `701d79b3b` fix set. The merge
+completed for the gf128/gf96 conformance promotion, but the gen-verilog fix commits
+`701d79b3b` and `507408f47` are on a divergent `master` lineage that is not
+reachable from `origin/master` relative to `wave-loop-432`. A direct cherry-pick of
+`507408f47` also conflicts heavily with the wave-loop compiler state
+(`bootstrap/src/compiler.rs`, `.trinity/seals/fpga_ZeroDSP_BPSK.json`, `docs/NOW.md`).
+Rather than land a risky broad merge as a side task while the wave is closing out
+formal boot-evidence work, the W432 deliverable was redirected to a board-less
+formal lemma: per-process-corner raw-ns OSCFSEL theorems in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+
+The 7 yosys smoke failures are **re-confirmed as the documented baseline** for
+W432:
+
+| Spec | Failure mode |
+|---|---|
+| `specs/igla/race/cordic.t27` | `syntax error, unexpected '='` |
+| `specs/igla/race/cordic_top.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w378_let_destructuring.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w379_let_destructuring_generalized.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w380_tuple_return.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w381_tuple_call_chain.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w383_rom_array.t27` | `syntax error, unexpected '['` |
+
+**Recommended resolution path for W433 / later:** attempt a rebase of the wave-loop
+branch onto the reachable `master` line (or a topic-branch merge) only when the
+FPGA boot-evidence line is not the primary wave focus; until then, keep the
+failure matrix current and treat the 7 failures as a known baseline.
+
+### Triage decision for W433
+
+**Still deferred; W433 focused on formal composition instead of merge risk.** W433
+executed Variant C3 and added `xadc_envelope_justifies_cclk_variant_raw_ns_pvt` in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean` — a board-less theorem that composes
+the live-XADC envelope bound with the per-process-corner raw-ns OSCFSEL theorem.
+The physical bench and the master-merge path remain blocked, so no compiler work
+was attempted.
+
+The 7 yosys smoke failures are **re-confirmed as the documented baseline** for
+W433 (same matrix as W432). They will be addressed only in a dedicated future
+merge/rebase wave, or once the FPGA boot-evidence line is no longer the primary
+wave focus.
+
+### Triage decision for W434
+
+**Still deferred; W434 executed Variant B (live XADC validation + synthetic CCLK
+proof-of-pipeline).** W434 captured a real XADC operating point from the live
+board (temp≈41 °C, VCCINT≈1.00 V, VCCAUX≈1.81 V), validated it inside the PVT
+envelope, generated a `measured-to-lean --raw-ns --pvt-context` theorem, and added
+`xadc_live_w434_justifies_cclk_variant_raw_ns_pvt` in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean` to apply the W431/W432 formal bridge
+to real silicon data. The physical capture path (P12 wiring, relay gate) and the
+master-merge path for the gen-verilog fix set remain blocked, so no compiler work
+was attempted.
+
+The 7 yosys smoke failures are **re-confirmed as the documented baseline** for
+W434 (same matrix as W432/W433). They will be addressed only in a dedicated future
+merge/rebase wave, or once the FPGA boot-evidence line is no longer the primary
+wave focus.
+
+## W435 triage (2026-07-01)
+
+Wave Loop 435 selected **Variant B** of the W435 cooperation plan (harden the live
+XADC → PVT context → `measured-to-lean` pipeline). The wave did not touch the
+gen-verilog backend, so the 7 residual yosys smoke failures remain **unchanged and
+re-confirmed as the baseline**. No new narrow defect was introduced.
+
+**Defect status matrix after W435:**
+
+| Defect | Status | Notes |
+|--------|--------|-------|
+| 1 — const order | FIXED (W370) | stable |
+| 2 / 2b / 2c — width padding + keyword escape | FIXED (W371–W374) | stable |
+| 3 — early-return if-else chaining | FIXED (W375) | stable |
+| 3b — named tuple `::` namespaces | FIXED (W380) | stable |
+| 4 — `as` / bitwise width | VERIFIED FIXED (W376) | stable |
+| 5 — struct-field reg mapping | FIXED (W377) | stable |
+| 6 — `let` destructuring | PARTIALLY FIXED (W378–W381) | stable; residual cases in 7 failures |
+| 7 residual yosys smoke failures (#1245) | **BASELINE** | tuple-return / `let` destructuring / ROM arrays / CORDIC; deferred to master-merge |
+
+## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435
+
+- **Array/RAM sub-gaps remaining:**
+  - RAM style inference / block-vs-distributed pragma hints.
+- **Hardware execution:** physical bench remains unavailable (DLC10 cable not
+  detected, P12 unwired); a future wave with the bench unblocked can run live
+  CCLK sweeps and mint live-fixture theorems.
+
+---
+
+*phi² + 1/phi² = 3 | TRINITY*

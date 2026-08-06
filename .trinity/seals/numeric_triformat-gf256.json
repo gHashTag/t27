@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4e618506f87a5e3e1ae87b9515bece5a6283b8fcfcb35592a6342ef4fbd26e80",
+  "gen_hash_rust": "sha256:bb65ec6799cfb62c49f11d824b977b4c50a6ad26ff5ab9f9e41613bfed0af0ea",
+  "gen_hash_verilog": "sha256:4d6ed1cdd6886ce9e9d42e989f1f1cab5b1e26f55f7f9807cc64c58c9312f801",
+  "gen_hash_zig": "sha256:d21727593dd027b34f990bad4360adc85aa7fdeb18b9fe1135eb367212c51d24",
+  "module": "triformat-gf256",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:49Z",
+  "spec_hash": "sha256:c27c25ebbad1b2652c1911e528ea5e586fe6344fbc6f8ada46aa11587c5e2799",
+  "spec_path": "/Users/playra/t27/specs/numeric/gf256.t27"
+}

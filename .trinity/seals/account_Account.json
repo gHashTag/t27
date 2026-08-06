@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:fd5c72f47cd35285a21817d00190f3c03d0cd53e8c318e4d4a95eee4491c5b3b",
-  "gen_hash_rust": "sha256:909f064e954c3aaefd748b1e390ec7713fc19cafdfbda660bf0a1440f90afea2",
-  "gen_hash_verilog": "sha256:cdc00327f47d5e4c9048e989d18888a47c6375bc0e8bbfcdb04e3a4790a92d16",
-  "gen_hash_zig": "sha256:3c8cba9576a9db5d0c52b30203e1c74dfd70f84e3df69a79190211dcfcf804b8",
+  "gen_hash_c": "sha256:64877f5ce89002848e7fd63ca90f6d5b08a5b1129dea53281bf5ab602a3efd11",
+  "gen_hash_rust": "sha256:8f2c9ccb804301416a06939db35512caf6163f6be08912ede9c5fa57457dc6ad",
+  "gen_hash_verilog": "sha256:b36162e43314ccb15b6a056cada29d6e08aa2f8a3a1f412a13a54ee827e328bd",
+  "gen_hash_zig": "sha256:26db03eeddf03c40916e226d23faa7472ea71bb44df768ff362b882bc9e03481",
   "module": "Account",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:40Z",
-  "spec_hash": "sha256:d59450c1d1f357b44340e8a90413e3685bd34a7c02bcc60dd5efdaa5d44f2fc3",
+  "sealed_at": "2026-07-14T16:05:49Z",
+  "spec_hash": "sha256:32609ddba28bb4aac267de6c2c63ae585ffece941132585f3238344791bee994",
   "spec_path": "specs/account/schema.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:a9aadc59e284798d68200d5f18f2fda37aa817e9a4382796f62a531a3098a2a7",
+  "gen_hash_c": "sha256:411764de5023e38bbe74aeaa0b084db5179c0b4ac81db9a0f0b5d9b5b1f97158",
   "gen_hash_rust": "sha256:d6e7fb35725ce1fc61c5ca494a4039c62808fb5caec7272e4a488a426e588cc5",
-  "gen_hash_verilog": "sha256:3685fc591ccbff5b2972abd4ba592c89fff8a3f75c08da422eb2772104514aad",
-  "gen_hash_zig": "sha256:19c6553c6158e8bade4517821516eb57c8f9e9e76b94bfac3f0bd088c3b62c0a",
+  "gen_hash_verilog": "sha256:a9faeb2c14b3bf40a7e771385f6124ac6b0455f210a0936984ce8550aa21c998",
+  "gen_hash_zig": "sha256:d81a2551539f9f3fd11b57f9b1532d6be081b4c433c368b755ba610eb0385d6a",
   "module": "neural_gamma",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:cc9da4035f4a4680089c5468df381219aba33afeb2c21c1ff37fd9edd2443fdd",
+  "sealed_at": "2026-07-14T16:05:49Z",
+  "spec_hash": "sha256:17b752d50b7ce33978766df2fd79795e20ab8af9c998c1d5a00b63d6a2a17bb7",
   "spec_path": "specs/brain/neural_gamma.t27"
 }

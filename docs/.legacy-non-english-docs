@@ -15,5 +15,31 @@ specs/demos/PYTHON_L7_VIOLATION_REPORT.md
 # RU companion: compiler verification impact (NOW links here; Cyrillic allowed only in allowlisted paths)
 docs/COMPILER_VERIFICATION_IMPACT_RU.md
 docs/README_RU_UPDATE.md
+docs/reports/WAVE_LOOP_110_REPORT.md
 README.md
 docs/rfc/tri-language-core.md
+conformance/vectors/README.md
+docs/reports/WAVE_LOOP_136_PLAN.md
+docs/reports/WAVE_LOOP_136_REPORT.md
+docs/reports/WAVE_LOOP_136_COOPERATION.md
+docs/reports/WAVE_LOOP_137_PLAN.md
+docs/reports/WAVE_LOOP_137_REPORT.md
+docs/reports/WAVE_LOOP_137_COOPERATION.md
+docs/reports/WAVE_LOOP_138_REPORT.md
+docs/reports/WAVE_LOOP_138_COOPERATION.md
+docs/reports/WAVE_LOOP_139_REPORT.md
+docs/reports/WAVE_LOOP_139_COOPERATION.md
+docs/reports/WAVE_LOOP_140_REPORT.md
+docs/reports/WAVE_LOOP_140_COOPERATION.md
+docs/reports/WAVE_LOOP_180_REPORT.md
+docs/reports/WAVE_LOOP_181_REPORT.md
+docs/reports/WAVE_LOOP_182_REPORT.md
+docs/reports/WAVE_LOOP_285_COOPERATION.md
+docs/reports/WAVE_LOOP_286_COOPERATION.md
+docs/reports/WAVE_LOOP_321_COOPERATION.md
+docs/reports/WAVE_LOOP_304_COOPERATION.md
+docs/reports/WAVE_LOOP_305_COOPERATION.md
+conformance/vectors/CROSSWALK_sw_hw.md  # Russian SW/HW cross-walk, added W417 while CI blocked
+docs/NOW.md
+architecture/ADR-007-verilog-in-specs.md
+conformance/README_structural_instances.md

@@ -1,0 +1,23 @@
+module w373_struct_field_keyword;
+
+const Word = struct {
+    reg : u32,
+    wire : u32,
+};
+
+fn make_word(r : u32, w : u32) -> Word {
+    return Word { reg: r, wire: w };
+}
+
+fn sum_word(w : Word) -> u32 {
+    return w.reg + w.wire;
+}
+
+test w373_struct_field_keyword_sum {
+    var item : Word = make_word(3, 4);
+    assert sum_word(item) == 7;
+}
+
+invariant w373_struct_field_keyword_bounds always sum_word(Word { reg: 1, wire: 2 }) >= 0;
+
+endmodule

@@ -2,7 +2,7 @@
 
 ## Abstract
 
-We introduce Golden Float 16 (GF16), a 16-bit floating-point format with a phi-anchored exponent bias of 31. GF16 uses a 1/6/9 bit layout (sign/exponent/mantissa) and achieves 323 MHz combinational throughput on a Xilinx Artix-7 XC7A100T FPGA using the open-source openXC7 toolchain (Yosys + nextpnr). We present a complete dot-product (N=4) and 4x4 matrix multiplication accelerator verified on silicon, with 35/35 RTL tests passing and 0 timing violations at 100 MHz. The design has been submitted for ASIC fabrication on Sky130 via the TinyTapeout TTSKY26a shuttle (May 2026).
+We introduce Golden Float 16 (GF16), a 16-bit floating-point format with a phi-anchored exponent bias of 31. GF16 uses a 1/6/9 bit layout (sign/exponent/mantissa) and achieves 323 MHz combinational throughput on a Xilinx Artix-7 XC7A100T FPGA using the open-source openXC7 toolchain (Yosys + nextpnr). We present a complete dot-product (N=4) and 4x4 matrix multiplication accelerator verified in FPGA synthesis and RTL simulation, with 35/35 tests passing and 0 timing violations at 100 MHz. The design has been submitted for ASIC fabrication on Sky130 via the TinyTapeout TTSKY26b TT4913 Gamma shuttle (submission closed May 2026); silicon has not yet been returned (expected late 2026), so no on-chip measurement is claimed.
 
 ## 1. Introduction
 
@@ -156,7 +156,7 @@ All designs verified on FPGA via XVC programming:
 | GF16 ops/sec (matmul) | 41.2 GOPS @ 323 MHz |
 | GF16 ops/sec @ 100 MHz | 12.8 GOPS |
 
-## 5. ASIC Path (TinyTapeout TTSKY26a)
+## 5. ASIC Path (TinyTapeout TTSKY26b TT4913 Gamma)
 
 ### 5.1 Submission
 
@@ -194,7 +194,7 @@ A complete Python reference (encode/decode/mul/add/dot4) is provided in `conform
 
 We have demonstrated a complete implementation of the Trinity GF16 floating-point format, from specification through FPGA verification to ASIC submission. The phi-anchored bias=31 provides a natural centering for ML and scientific computation values, while the 6/9 exponent/mantissa split offers 65x wider dynamic range than float16 with better precision than bfloat16.
 
-All verified numbers (323 MHz, 40,350 LUTs, 64 DSP48E1, 35/35 tests, 0 latches, 0 timing violations) are from actual hardware runs, not simulation estimates.
+All verified numbers (323 MHz, 40,350 LUTs, 64 DSP48E1, 35/35 tests, 0 latches, 0 timing violations) are from actual FPGA hardware runs (Artix-7 XC7A100T), not ASIC silicon nor simulation estimates.
 
 ## References
 

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:6c26f5ebc410c398b64d6e6831187bdbba8dbe02bbc0a54b6e65ef61250c5f63",
   "gen_hash_rust": "sha256:1c3beaf95812d782e41496c10f03117b634883ea6f851e6e13ecaf207b644dc2",
-  "gen_hash_verilog": "sha256:55bc4c477cd662f9d1783406e38f880fcb91a5790dff16d2e002f6d726a4ef37",
+  "gen_hash_verilog": "sha256:9cff8df2bb82ddd0557ee8a1c964bc8118a1dd31bad4bf5ab482d7848d1a6118",
   "gen_hash_zig": "sha256:e986d2f2fc9862081b2b4644463db6331e66b121c17310c905aa78d8de89893b",
   "module": "KnowledgeGraph",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:6ff24c8034abee79a6c63dedb39fe1bd331327c3641efc8e797fd784ae0ee9bd",
-  "spec_path": "specs/graph/knowledge_graph.t27"
+  "sealed_at": "2026-07-16T13:46:55Z",
+  "spec_hash": "sha256:1f7bdc794a3db5cfcbab6daaef618585bf48982543a6afddaa2a03db86aee076",
+  "spec_path": "/Users/playra/t27/specs/graph/knowledge_graph.t27"
 }

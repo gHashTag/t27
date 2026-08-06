@@ -1,0 +1,31 @@
+module w387_2d_local_array_varidx;
+
+fn read_var_idx(row : u32, col : u32) -> u16 {
+    var m : [2][3]u16;
+    m[0][0] = 0xA1B2;
+    m[0][1] = 0xC3D4;
+    m[0][2] = 0xE5F6;
+    m[1][0] = 0x1234;
+    m[1][1] = 0x5678;
+    m[1][2] = 0x9ABC;
+    return m[row][col];
+}
+
+fn write_var_idx(row : u32, col : u32, val : u16) -> u16 {
+    var m : [2][3]u16;
+    m[0][0] = 0x0000;
+    m[0][1] = 0x0000;
+    m[0][2] = 0x0000;
+    m[1][0] = 0x0000;
+    m[1][1] = 0x0000;
+    m[1][2] = 0x0000;
+    m[row][col] = val;
+    return m[row][col];
+}
+
+test read_var_idx_00 { assert_eq(read_var_idx(0, 0), 0xA1B2); }
+test read_var_idx_01 { assert_eq(read_var_idx(0, 1), 0xC3D4); }
+test read_var_idx_12 { assert_eq(read_var_idx(1, 2), 0x9ABC); }
+test write_var_idx_11 { assert_eq(write_var_idx(1, 1, 0xDEAD), 0xDEAD); }
+
+endmodule

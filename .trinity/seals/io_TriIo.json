@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:21ca031dadde7120e87cb0da112b4e5f65c22771e240b5352b5418938e080c71",
+  "gen_hash_rust": "sha256:838d1c06fee44a9b758b71119c0f27994bc3cff3397b3599ef0396b6217f9ad0",
+  "gen_hash_verilog": "sha256:851061dbff2cc1acfffde68b074c40c209f5add62b356421e610a82a8edf6a49",
+  "gen_hash_zig": "sha256:b2838a6e0a0325d2bd233854d43f0225c0b7f344b47ebc9f1001fd53ddc0dd90",
+  "module": "TriIo",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:50Z",
+  "spec_hash": "sha256:9aa3f120d7149de57f33abba748180cf7cfa0876bbee28cb4a4fb6459b1cad31",
+  "spec_path": "/Users/playra/t27/specs/tri/io/io.t27"
+}

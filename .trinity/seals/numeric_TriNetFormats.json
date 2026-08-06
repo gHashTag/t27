@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:8744d3dcb8e8962c5ffa6c5b6af9ddacd6e74270cfd4500f192cb42027f43e06",
+  "gen_hash_rust": "sha256:2b6a2977feb263b2f4d18d8e4464ac070c4b12bf4d0fa3025fcbdd439a6f64f0",
+  "gen_hash_verilog": "sha256:c301b6c1e5ec5957c9d9b17f19c8c7719238c48a04ae7b37ff3b462e86d7f5da",
+  "gen_hash_zig": "sha256:379f62f2b29eaf1b852aa39eec3898528c514c37ad4cac2e055e4430cb5845f7",
+  "module": "TriNetFormats",
+  "ring": 12,
+  "sealed_at": "2026-06-17T21:07:27Z",
+  "spec_hash": "sha256:25f8892a3caf19e9c4c3079e2db7867ce9f8b2704d209a2723046f2abecf5ad0",
+  "spec_path": "specs/numeric/tri_net_formats.t27"
+}

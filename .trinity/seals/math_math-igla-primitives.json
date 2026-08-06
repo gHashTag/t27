@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e418e6176fbe46f0b2347e07a50479510df52d0eaae7570910022344e80f17e0",
+  "gen_hash_rust": "sha256:e561a507a4cfee8708bf04affc122726539cbac3add301243f119d097e0b9e6a",
+  "gen_hash_verilog": "sha256:1d2f6e43bf72708ae7a45cbdead60f0ed9e6c8599c7fa527811d58e88019045b",
+  "gen_hash_zig": "sha256:bf9eb726bd2b9b6dacd0d5e276952824b5a7286c4957728c6f8bea13bc74c598",
+  "module": "math-igla-primitives",
+  "ring": 12,
+  "sealed_at": "2026-06-18T06:57:28Z",
+  "spec_hash": "sha256:16b90e7910c6a62c7633f35bf2677e2a3039366dd19108832da50b3239f8b1ce",
+  "spec_path": "specs/math/igla_primitives.t27"
+}

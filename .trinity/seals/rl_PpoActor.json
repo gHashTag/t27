@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:3ebc462c2a672679fedb3f688688547919bbf0062b65803abfb4d01a20c6daf4",
+  "gen_hash_rust": "sha256:397c64e919b84ed651854c0d2b47ee4570d64e39e332ceb0eb99fab9ab19a0bd",
+  "gen_hash_verilog": "sha256:96c29149245186a32674f73283049df468665974def351aed5e9b95999cb46cb",
+  "gen_hash_zig": "sha256:dc73c9bd99b3740dc7de405b1a8a98a8b57d4655e2dd5fce3f9cdcb50a82c806",
+  "module": "PpoActor",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:50Z",
+  "spec_hash": "sha256:db1da1f335f5455e94952bcbc2187cf3ae0aa0a68de09914b5105b69d18cb939",
+  "spec_path": "/Users/playra/t27/specs/ml/rl/ppo_actor.t27"
+}

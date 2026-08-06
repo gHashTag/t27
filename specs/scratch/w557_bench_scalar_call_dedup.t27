@@ -1,0 +1,25 @@
+// W557 witness: deterministic bench block using the same scalar-returning
+// function call at multiple sites. Exercises general call CSE in the
+// simulation-only assertion harness: one temporary is assigned once and shared
+// between assert_eq sites.
+module w557_bench_scalar_call_dedup;
+
+pub fn val() -> u32 {
+    return 0xAB;
+}
+
+pub fn other() -> u32 {
+    return 0xCD;
+}
+
+test scalar_call_dedup_test {
+    assert_eq(val(), 0xAB);
+    assert_eq(val() + other(), 0xAB + 0xCD);
+}
+
+bench "scalar_call_dedup_bench" {
+    assert_eq(val(), 0xAB);
+    assert_eq(val() + other(), 0xAB + 0xCD);
+}
+
+endmodule

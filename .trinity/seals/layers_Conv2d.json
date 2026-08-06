@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:b0e3c8f1c5e1306b51754dcb4e4fe17c905097bf45158fdd0b6e790e5fa78a70",
+  "gen_hash_rust": "sha256:b2b376c86ceaedfe7c7910632bb8619900f2013521e750f4f45708f3eb2a8ea4",
+  "gen_hash_verilog": "sha256:7c8b71b30dd3067caabe09ee1a4cb5cafeaffdfa6160c481d17e7b28834a4a40",
+  "gen_hash_zig": "sha256:ad6157fbd71cb1c1bfc6ff54c36191199423182268add0546e2033d285eb91e3",
+  "module": "Conv2d",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:49Z",
+  "spec_hash": "sha256:bde6d67dbe20541b56e501032706f53025dd6ec72b76ca204a86379dc56f0d1f",
+  "spec_path": "/Users/playra/t27/specs/ml/layers/conv2d_layer.t27"
+}

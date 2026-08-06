@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1b1a1ad7bf36a1d9aadf28868bf110540d12fd7df52a8d193a3aa5f1ea016fa0",
+  "gen_hash_rust": "sha256:205a61180e2d2f09f8fdd87068ac264431e2fc063214fcd93b95277e91b91cd5",
+  "gen_hash_verilog": "sha256:065ce218e2d3b7c075ec357e54e74d6d616a4ca7cc1b6624ebad28b9ac30fe66",
+  "gen_hash_zig": "sha256:2da24e5012f4f182ef4ed174f5f4750b50e2c0e3c0b2f14fb8f573bb7f876005",
+  "module": "TriMaybe",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:50Z",
+  "spec_hash": "sha256:da83784231ce7b0004279a51913a711527f55d8b2150da9a39fb39b307fab17f",
+  "spec_path": "/Users/playra/t27/specs/tri/collections/maybe.t27"
+}

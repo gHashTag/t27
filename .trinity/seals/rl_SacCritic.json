@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:bb6fdfec66f06d1982e47df7ff3d61e37728130138d6737a1eb9299937f631d4",
+  "gen_hash_rust": "sha256:f0b0420ab8ab2177700e9d1ffcf874dc206f8a026efdce1152624da570e5646f",
+  "gen_hash_verilog": "sha256:d599d55875d2dfb9eac52de9438b157234134f34b7b3495920f62297e00d55a9",
+  "gen_hash_zig": "sha256:4fa554cdc5f09086a2f342835630f5dcf7ed44a6a4fc50cbc3c9206092d0d6f3",
+  "module": "SacCritic",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:50Z",
+  "spec_hash": "sha256:87f4df6699be1253d8cb35dc7ff8065613c923bfb72af25822078017897d1177",
+  "spec_path": "/Users/playra/t27/specs/ml/rl/sac_critic.t27"
+}

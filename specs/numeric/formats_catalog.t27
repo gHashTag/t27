@@ -39,7 +39,7 @@
 //   - GFTernary 0.000 and GF64 0.003 are Verified arithmetic; the moat
 //     (per-rung quality beating posit / takum / OCP-MX / LNS) stays Open
 //     conjecture and lives ONLY in the FL-002 ledger with Fpath F1/F2/F3.
-//   - takum (arXiv:2412.20273), posit, OCP-MX, LNS are ALLIES and
+//   - takum (arXiv:2404.18603), posit, OCP-MX, LNS are ALLIES and
 //     falsification targets, never "competitors to dismiss" and never
 //     "the only" formats.
 
@@ -174,10 +174,10 @@ module FormatsCatalog {
 
   // takum -- the strongest live counterexample to GF breadth-as-moat.
 
-  // CATALOG: id=takum8 name="takum8" bits=8 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=u8 cluster=PositUnumIII status=Verified standard="Hunhold 2024 (tapered-precision)" use_case="IEEE-754 backward-compatible tapered" gf_relation=ally source="Hunhold 2024 (arXiv:2412.20273)"
+  // CATALOG: id=takum8 name="takum8" bits=8 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=u8 cluster=PositUnumIII status=Verified standard="Hunhold 2024 (tapered-precision)" use_case="IEEE-754 backward-compatible tapered" gf_relation=ally source="Hunhold 2024 (arXiv:2404.18603)"
   fn takum8() -> str { return "takum8"; }
 
-  // CATALOG: id=takum16 name="takum16" bits=16 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=u16 cluster=PositUnumIII status=Verified standard="Hunhold 2024" use_case="single-rule ladder counterexample" gf_relation=ally source="Hunhold 2024 (arXiv:2412.20273)"
+  // CATALOG: id=takum16 name="takum16" bits=16 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=u16 cluster=PositUnumIII status=Verified standard="Hunhold 2024" use_case="single-rule ladder counterexample" gf_relation=ally source="Hunhold 2024 (arXiv:2404.18603)"
   fn takum16() -> str { return "takum16"; }
 
   // CATALOG: id=takum32 name="takum32" bits=32 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=u32 cluster=PositUnumIII status=Verified standard="Hunhold 2024" use_case="tapered fp32-class" gf_relation=ally source="Hunhold 2024"

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:2c41a3011a92e1980f23f7729c48132b209e769f8483e847c9b663129243a551",
+  "gen_hash_rust": "sha256:210ad50cb9293fe56867f6ef15cfdb3a152d2398d7c98fe37ffbb0d73ce81853",
+  "gen_hash_verilog": "sha256:3dbb6728725fa98c751d2d6e2df79e4508fe512ef0bb0d57d69118ddaa3ad985",
+  "gen_hash_zig": "sha256:7dcfdea2fffbc43618b2a238b186375c00d25045d37bb1d9d1565c76b6f1ef18",
+  "module": "w544_call_init_depends_on_const",
+  "ring": 12,
+  "sealed_at": "2026-07-15T08:47:51Z",
+  "spec_hash": "sha256:435cf77beff922ddffbe825f97605da21bb37eb80c1db94317160f75b9c1ceee",
+  "spec_path": "specs/scratch/w544_call_init_depends_on_const.t27"
+}

@@ -1,0 +1,22 @@
+// W545 positive witness: a mutable module var initialized by a function
+// returning a fixed-size primitive scalar array, then reassigned from the same
+// function inside a test block.
+module w545_var_call_init_returns_array;
+
+pub fn seq() -> [3]u8 {
+    return [3]u8{ 1, 2, 3 };
+}
+
+var a : [3]u8 = seq();
+
+test var_call_init_returns_array {
+    assert_eq(a[0], 1);
+    assert_eq(a[1], 2);
+    assert_eq(a[2], 3);
+    a = seq();
+    assert_eq(a[0], 1);
+    assert_eq(a[1], 2);
+    assert_eq(a[2], 3);
+}
+
+endmodule

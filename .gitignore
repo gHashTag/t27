@@ -37,20 +37,23 @@ test-ledger/
 # Temporary files
 *.tmp
 *.bak
+*.bak[0-9]*
+*.backup
 *.orig
+*.rej
+/*.patch
 tmp/
 .artifacts/
+dump.vcd
 
 # Trinity State (should stay local/deterministic)
 .trinity/claims/
 .trinity/queues/
 #.trinity/events/ # Keeping events might be okay if they are small, but they grow.
 
-<<<<<<< Updated upstream
 # Python cache
 __pycache__/
 *.pyc
-=======
 # Keep notebook gate files tracked (L7 UNITY requirement)
 !.trinity/current_task/.notebook_id
 !.trinity/current_task/notebook_meta.json
@@ -58,7 +61,6 @@ __pycache__/
 # But not local session data and bypass logs
 .trinity/current_task/session_log.jsonl
 .trinity/gate_bypasses.log
->>>>>>> Stashed changes
 
 # Specific project paths (vendored upstream lives under external/)
 external/opencode/dist/
@@ -78,3 +80,9 @@ bootstrap/.trinity/
 docker/wi_authentication_key
 docker/FPGAs_AdaptiveSoCs_Unified_SDI_*.bin
 docker/Xilinx_Unified_*.bin
+
+# Ignore stray git-stash leftovers in working tree
+*~Stashed changes*
+
+# Ephemeral agent worktrees (created by Claude Code / tooling)
+.claude/worktrees/

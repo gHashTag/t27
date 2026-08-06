@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:5f758079b38f9e197819083ed0407397a00fed5b4d13940dcdeeb96292379a63",
+  "gen_hash_c": "sha256:e7087dec33a7b14d780724578cd176025908665827317a7a26bcc6f950e1fe6b",
   "gen_hash_rust": "sha256:803c2fcfc73432566ee29a35d25bdb1ef279b52888a5ed5356d042d82c2fb986",
-  "gen_hash_verilog": "sha256:ee79c71e18005ceffbb19121ea9bcde2154e00c327391eb063e3634482ba45df",
-  "gen_hash_zig": "sha256:f92b3a9f763eabc5a9bbc4e92750b42717981320d7ebbeb0b262513cff970b55",
+  "gen_hash_verilog": "sha256:14442a0c0239542234a581e90a72b12477b6072fc21b13c5396b2363c84f69a9",
+  "gen_hash_zig": "sha256:801ad1e97bd0c83a1c9ca2c8d0d0494f942358833a02d70172267d9e5a799020",
   "module": "ToolsRegistry",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:ad0b455296e2c251b57c2bb0b95d5b6171cb884dd6547b6b994f5962ca011c21",
+  "sealed_at": "2026-07-14T16:05:49Z",
+  "spec_hash": "sha256:cab8fc66cecde3418ccc54b844c04dab39b69b3e74ed717f4acf50e8b9ae5e6a",
   "spec_path": "specs/tools/registry.t27"
 }

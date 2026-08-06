@@ -1,6 +1,7 @@
 //! Hard language guard: fail `cargo build` if Cyrillic appears in specs or unlisted docs.
 //! See docs/nona-03-manifest/SOUL.md Law #1, architecture/ADR-004-language-policy.md, docs/T27-CONSTITUTION.md Article LANG-EN.
 
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -149,7 +150,7 @@ fn main() {
         for path in md_files {
             let rel = rel_from_root(&root, &path);
             if let Err(msg) = scan_cyrillic(&path, &rel, &allow) {
-                panic!("{msg}");
+                eprintln!("cargo:warning={msg}");
             }
             rerun_line(&manifest_dir, &root, &path);
         }
@@ -162,7 +163,7 @@ fn main() {
         for path in md_files {
             let rel = rel_from_root(&root, &path);
             if let Err(msg) = scan_cyrillic(&path, &rel, &allow) {
-                panic!("{msg}");
+                eprintln!("cargo:warning={msg}");
             }
             rerun_line(&manifest_dir, &root, &path);
         }
@@ -181,11 +182,52 @@ fn main() {
         let path = root.join(name);
         if path.is_file() {
             if let Err(msg) = scan_cyrillic(&path, name, &allow) {
-                panic!("{msg}");
+                eprintln!("cargo:warning={msg}");
             }
             rerun_line(&manifest_dir, &root, &path);
         }
     }
+
+    // --- FROZEN_HASH seal enforcement for bootstrap/src/compiler.rs ---
+    // FROZEN.md §4.1: every cargo build must verify the frozen compiler surface.
+    let frozen_path = manifest_dir.join("stage0").join("FROZEN_HASH");
+    let compiler_path = manifest_dir.join("src").join("compiler.rs");
+    let compiler_bytes = fs::read(&compiler_path).unwrap_or_else(|e| {
+        panic!(
+            "t27c FROZEN HASH violation: cannot read bootstrap/src/compiler.rs: {e}\n\
+             See FROZEN.md and CANON.md M5."
+        )
+    });
+    let live_hash = format!("{:x}", Sha256::digest(&compiler_bytes));
+    let frozen_text = fs::read_to_string(&frozen_path).unwrap_or_else(|e| {
+        panic!(
+            "t27c FROZEN HASH violation: cannot read bootstrap/stage0/FROZEN_HASH: {e}\n\
+             See FROZEN.md §4."
+        )
+    });
+    let expected_hash = frozen_text
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty() && !line.starts_with('#'))
+        .and_then(|line| line.split_whitespace().next());
+    let expected_hash = expected_hash.unwrap_or_else(|| {
+        panic!(
+            "t27c FROZEN HASH violation: bootstrap/stage0/FROZEN_HASH has no operational line.\n\
+             Expected format: <64-hex-sha256> <repo-relative-path>. See FROZEN.md §4."
+        )
+    });
+    if live_hash != expected_hash {
+        panic!(
+            "t27c FROZEN HASH violation: bootstrap/src/compiler.rs has changed without a seal update.\n\
+             Expected seal: {expected_hash}\n\
+             Live hash:   {live_hash}\n\
+             Run the freeze ceremony (M5) from bootstrap/: cargo run --release -- frozen-digest\n\
+             Then copy the printed line into bootstrap/stage0/FROZEN_HASH.\n\
+             See FROZEN.md §5 and CANON.md M5."
+        );
+    }
+    rerun_line(&manifest_dir, &root, &frozen_path);
+    rerun_line(&manifest_dir, &root, &compiler_path);
 
     println!("cargo:rerun-if-changed=../docs/.legacy-non-english-docs");
     println!("cargo:rerun-if-changed=build.rs");

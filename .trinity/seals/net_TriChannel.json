@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:6dc436d93a47a186024ae550175ce885f3167b05868ce8e000864dddcc2e3633",
+  "gen_hash_rust": "sha256:4359c7232b059fb61ea4ef8b8c8754959230f03931e6fd235895afead89dead2",
+  "gen_hash_verilog": "sha256:25639530a5f8fb73d22b38ff885becc9b62a480b52c525c911b54da68e242b62",
+  "gen_hash_zig": "sha256:7e50a653c7dbec9e1c370d8a56fefba6f343b962e74c82fc7fdfb041cb5fe6d7",
+  "module": "TriChannel",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:50Z",
+  "spec_hash": "sha256:8b6fe7a680efb096f89b4f3166bdc6724a7bd3e48fa841b90ac94c4e1f66df01",
+  "spec_path": "/Users/playra/t27/specs/tri/net/channel.t27"
+}

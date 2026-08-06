@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:0d12748241fc86fb1745de4243ef6388ef4a04296b0d495d46ac4e893a8a4f60",
+  "gen_hash_rust": "sha256:0e806f0353fc944f60477a3019c53862a3d6e79dbac097b1f2160033500f68ce",
+  "gen_hash_verilog": "sha256:05e679863e85a16cc5656c1f11049c75f9d71326804c9492948fa4d75dab93ff",
+  "gen_hash_zig": "sha256:f6bb87e917f975d9000b6d977a87266f890a822f724112a1cdd42f50b0d051ab",
+  "module": "depin.prove",
+  "ring": 12,
+  "sealed_at": "2026-07-16T13:46:56Z",
+  "spec_hash": "sha256:b705492899feafbf3edaeec380ca7c5f3fc252230d57b3450f792954d97eeff6",
+  "spec_path": "specs/depin/prove.t27"
+}

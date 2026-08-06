@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:d87774680f34603f64c0867e40e25c3a7419538fef71828b666646c5d8e51e5f",
+  "gen_hash_rust": "sha256:fc613b780851eb34a53d8be4b7f95d35e37f915f708353d09964b02cd65adfd7",
+  "gen_hash_verilog": "sha256:f5d1629c527f49f8607bbca33a0d630a5fe823f2e45785dd4df8998d7957ff73",
+  "gen_hash_zig": "sha256:5e17fed1f69c33639c099bf3f6dcb2b08b9a1681da9f68acecc43638b31b9bed",
+  "module": "chimera",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:49Z",
+  "spec_hash": "sha256:be9b8ff89812a560d4a2cec43336f2e2a5cc3798a9a20f77a5331ca7a2fd4122",
+  "spec_path": "/Users/playra/t27/specs/physics/chimera_best_gamma.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:7e6e78236958fa4946e2d2f8826a3c44c1d4a8898e470917823f4413c8b4c037",
+  "gen_hash_rust": "sha256:35e34564f7644a6aad3858d005a8c06d7512d49cdc21152a0bcb5ba5cf0bb487",
+  "gen_hash_verilog": "sha256:df7351e1293828384921566d90e398fe22ba991206ebe918308744098132c7c8",
+  "gen_hash_zig": "sha256:d0e517b5740df743e70d715f5f88a6afbd9a44c0b3f638bb8e01e6185a61487c",
+  "module": "GF128",
+  "ring": 12,
+  "sealed_at": "2026-05-18T04:24:40Z",
+  "spec_hash": "sha256:14a059af8b8f6a7aba34ec12b15ea9d0636abd0b73f524d460f0117a1d121526",
+  "spec_path": "specs/numeric/gf128.t27"
+}

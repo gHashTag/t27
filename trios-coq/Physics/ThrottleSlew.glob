@@ -1,0 +1,383 @@
+DIGEST f4afd958a411a9b287c64e79fbb19277
+FThrottleSlew
+R1674:1690 Stdlib.ZArith.ZArith <> <> lib
+R1708:1724 Stdlib.micromega.Lia <> <> lib
+def 1991:2006 <> OP_THROTTLE_SLEW
+def 2138:2151 <> OP_POWER_STATE
+def 2196:2212 <> OP_DATA_RETENTION
+def 2255:2269 <> OP_CLOCK_GATING
+def 2314:2328 <> OP_SLEEP_GATING
+def 2373:2393 <> OP_EMERGENCY_SHUTDOWN
+def 2434:2449 <> OP_POWER_CAPPING
+def 2495:2510 <> OP_FREQ_THROTTLE
+def 2555:2570 <> OP_VOLTAGE_GUARD
+def 2615:2630 <> OP_THERMAL_GUARD
+def 2675:2686 <> OP_CAP_BOOST
+def 2735:2747 <> OP_FBB_ACTIVE
+def 2795:2800 <> OP_RBB
+def 2922:2935 <> SACRED_BANK_LO
+def 2970:2983 <> SACRED_BANK_HI
+def 3018:3033 <> SACRED_BANK_SIZE
+prf 3281:3319 <> throttle_slew_distinct_from_power_state
+R3341:3344 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3325:3340 ThrottleSlew <> OP_THROTTLE_SLEW def
+R3345:3358 ThrottleSlew <> OP_POWER_STATE def
+R3375:3390 ThrottleSlew <> OP_THROTTLE_SLEW def
+R3393:3406 ThrottleSlew <> OP_POWER_STATE def
+prf 3426:3467 <> throttle_slew_distinct_from_data_retention
+R3489:3492 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3473:3488 ThrottleSlew <> OP_THROTTLE_SLEW def
+R3493:3509 ThrottleSlew <> OP_DATA_RETENTION def
+R3526:3541 ThrottleSlew <> OP_THROTTLE_SLEW def
+R3544:3560 ThrottleSlew <> OP_DATA_RETENTION def
+prf 3580:3619 <> throttle_slew_distinct_from_clock_gating
+R3641:3644 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3625:3640 ThrottleSlew <> OP_THROTTLE_SLEW def
+R3645:3659 ThrottleSlew <> OP_CLOCK_GATING def
+R3676:3691 ThrottleSlew <> OP_THROTTLE_SLEW def
+R3694:3708 ThrottleSlew <> OP_CLOCK_GATING def
+prf 3728:3767 <> throttle_slew_distinct_from_sleep_gating
+R3789:3792 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3773:3788 ThrottleSlew <> OP_THROTTLE_SLEW def
+R3793:3807 ThrottleSlew <> OP_SLEEP_GATING def
+R3824:3839 ThrottleSlew <> OP_THROTTLE_SLEW def
+R3842:3856 ThrottleSlew <> OP_SLEEP_GATING def
+prf 3876:3921 <> throttle_slew_distinct_from_emergency_shutdown
+R3943:3946 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3927:3942 ThrottleSlew <> OP_THROTTLE_SLEW def
+R3947:3967 ThrottleSlew <> OP_EMERGENCY_SHUTDOWN def
+R3984:3999 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4002:4022 ThrottleSlew <> OP_EMERGENCY_SHUTDOWN def
+prf 4042:4082 <> throttle_slew_distinct_from_power_capping
+R4104:4107 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4088:4103 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4108:4123 ThrottleSlew <> OP_POWER_CAPPING def
+R4140:4155 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4158:4173 ThrottleSlew <> OP_POWER_CAPPING def
+prf 4193:4233 <> throttle_slew_distinct_from_freq_throttle
+R4255:4258 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4239:4254 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4259:4274 ThrottleSlew <> OP_FREQ_THROTTLE def
+R4291:4306 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4309:4324 ThrottleSlew <> OP_FREQ_THROTTLE def
+prf 4344:4384 <> throttle_slew_distinct_from_voltage_guard
+R4406:4409 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4390:4405 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4410:4425 ThrottleSlew <> OP_VOLTAGE_GUARD def
+R4442:4457 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4460:4475 ThrottleSlew <> OP_VOLTAGE_GUARD def
+prf 4495:4535 <> throttle_slew_distinct_from_thermal_guard
+R4557:4560 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4541:4556 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4561:4576 ThrottleSlew <> OP_THERMAL_GUARD def
+R4593:4608 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4611:4626 ThrottleSlew <> OP_THERMAL_GUARD def
+prf 4646:4682 <> throttle_slew_distinct_from_cap_boost
+R4704:4707 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4688:4703 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4708:4719 ThrottleSlew <> OP_CAP_BOOST def
+R4736:4751 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4754:4765 ThrottleSlew <> OP_CAP_BOOST def
+prf 4785:4822 <> throttle_slew_distinct_from_fbb_active
+R4844:4847 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4828:4843 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4848:4860 ThrottleSlew <> OP_FBB_ACTIVE def
+R4877:4892 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4895:4907 ThrottleSlew <> OP_FBB_ACTIVE def
+prf 4927:4957 <> throttle_slew_distinct_from_rbb
+R4979:4982 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4963:4978 ThrottleSlew <> OP_THROTTLE_SLEW def
+R4983:4988 ThrottleSlew <> OP_RBB def
+R5005:5020 ThrottleSlew <> OP_THROTTLE_SLEW def
+R5023:5028 ThrottleSlew <> OP_RBB def
+prf 5279:5308 <> throttle_slew_in_extended_bank
+R5348:5351 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5328:5331 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5314:5327 ThrottleSlew <> SACRED_BANK_LO def
+R5332:5347 ThrottleSlew <> OP_THROTTLE_SLEW def
+R5368:5371 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5352:5367 ThrottleSlew <> OP_THROTTLE_SLEW def
+R5372:5385 ThrottleSlew <> SACRED_BANK_HI def
+R5402:5415 ThrottleSlew <> SACRED_BANK_LO def
+R5418:5433 ThrottleSlew <> OP_THROTTLE_SLEW def
+R5436:5449 ThrottleSlew <> SACRED_BANK_HI def
+prf 5469:5505 <> throttle_slew_adjacent_to_power_state
+R5527:5529 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5511:5526 ThrottleSlew <> OP_THROTTLE_SLEW def
+R5544:5546 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5530:5543 ThrottleSlew <> OP_POWER_STATE def
+R5564:5579 ThrottleSlew <> OP_THROTTLE_SLEW def
+R5582:5595 ThrottleSlew <> OP_POWER_STATE def
+prf 5615:5643 <> tredecuple_decker_consecutive
+R5679:5684 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5665:5667 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5649:5664 ThrottleSlew <> OP_THROTTLE_SLEW def
+R5674:5676 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5668:5673 ThrottleSlew <> OP_RBB def
+R5711:5716 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5698:5700 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5685:5697 ThrottleSlew <> OP_FBB_ACTIVE def
+R5707:5709 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5701:5706 ThrottleSlew <> OP_RBB def
+R5742:5747 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5729:5731 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5717:5728 ThrottleSlew <> OP_CAP_BOOST def
+R5738:5740 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5732:5737 ThrottleSlew <> OP_RBB def
+R5777:5782 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5764:5766 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5748:5763 ThrottleSlew <> OP_THERMAL_GUARD def
+R5773:5775 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5767:5772 ThrottleSlew <> OP_RBB def
+R5812:5817 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5799:5801 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5783:5798 ThrottleSlew <> OP_VOLTAGE_GUARD def
+R5808:5810 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5802:5807 ThrottleSlew <> OP_RBB def
+R5847:5852 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5834:5836 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5818:5833 ThrottleSlew <> OP_FREQ_THROTTLE def
+R5843:5845 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5837:5842 ThrottleSlew <> OP_RBB def
+R5882:5887 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5869:5871 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5853:5868 ThrottleSlew <> OP_POWER_CAPPING def
+R5878:5880 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5872:5877 ThrottleSlew <> OP_RBB def
+R5922:5927 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5909:5911 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5888:5908 ThrottleSlew <> OP_EMERGENCY_SHUTDOWN def
+R5918:5920 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5912:5917 ThrottleSlew <> OP_RBB def
+R5956:5961 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5943:5945 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5928:5942 ThrottleSlew <> OP_SLEEP_GATING def
+R5952:5954 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5946:5951 ThrottleSlew <> OP_RBB def
+R5990:5995 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5977:5979 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5962:5976 ThrottleSlew <> OP_CLOCK_GATING def
+R5986:5988 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5980:5985 ThrottleSlew <> OP_RBB def
+R6027:6032 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6013:6015 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5996:6012 ThrottleSlew <> OP_DATA_RETENTION def
+R6022:6024 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6016:6021 ThrottleSlew <> OP_RBB def
+R6047:6049 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6033:6046 ThrottleSlew <> OP_POWER_STATE def
+R6056:6058 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6050:6055 ThrottleSlew <> OP_RBB def
+R6086:6101 ThrottleSlew <> OP_THROTTLE_SLEW def
+R6104:6109 ThrottleSlew <> OP_RBB def
+R6133:6145 ThrottleSlew <> OP_FBB_ACTIVE def
+R6148:6153 ThrottleSlew <> OP_RBB def
+R6177:6188 ThrottleSlew <> OP_CAP_BOOST def
+R6191:6196 ThrottleSlew <> OP_RBB def
+R6220:6235 ThrottleSlew <> OP_THERMAL_GUARD def
+R6238:6243 ThrottleSlew <> OP_RBB def
+R6267:6282 ThrottleSlew <> OP_VOLTAGE_GUARD def
+R6285:6290 ThrottleSlew <> OP_RBB def
+R6314:6329 ThrottleSlew <> OP_FREQ_THROTTLE def
+R6332:6337 ThrottleSlew <> OP_RBB def
+R6361:6376 ThrottleSlew <> OP_POWER_CAPPING def
+R6379:6384 ThrottleSlew <> OP_RBB def
+R6408:6428 ThrottleSlew <> OP_EMERGENCY_SHUTDOWN def
+R6431:6436 ThrottleSlew <> OP_RBB def
+R6460:6474 ThrottleSlew <> OP_SLEEP_GATING def
+R6477:6482 ThrottleSlew <> OP_RBB def
+R6506:6520 ThrottleSlew <> OP_CLOCK_GATING def
+R6523:6528 ThrottleSlew <> OP_RBB def
+R6552:6568 ThrottleSlew <> OP_DATA_RETENTION def
+R6571:6576 ThrottleSlew <> OP_RBB def
+R6593:6606 ThrottleSlew <> OP_POWER_STATE def
+R6609:6614 ThrottleSlew <> OP_RBB def
+def 6911:6931 <> slew_rate_V_mV_per_ns
+R6937:6937 Corelib.Numbers.BinNums <> Z ind
+def 6986:7007 <> slew_rate_f_MHz_per_ns
+R7012:7012 Corelib.Numbers.BinNums <> Z ind
+def 7102:7122 <> transition_time_90_ns
+R7127:7127 Corelib.Numbers.BinNums <> Z ind
+def 7174:7195 <> transition_time_100_ns
+R7199:7199 Corelib.Numbers.BinNums <> Z ind
+def 7290:7303 <> overshoot_V_mV
+R7307:7307 Corelib.Numbers.BinNums <> Z ind
+def 7347:7361 <> undershoot_V_mV
+R7365:7365 Corelib.Numbers.BinNums <> Z ind
+def 7437:7449 <> damping_ratio
+R7453:7453 Corelib.Numbers.BinNums <> Z ind
+prf 7774:7799 <> slew_rate_V_is_10mV_per_ns
+R7824:7826 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7803:7823 ThrottleSlew <> slew_rate_V_mV_per_ns def
+R7845:7865 ThrottleSlew <> slew_rate_V_mV_per_ns def
+prf 7939:7965 <> slew_rate_f_is_10MHz_per_ns
+R7991:7993 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7969:7990 ThrottleSlew <> slew_rate_f_MHz_per_ns def
+R8012:8033 ThrottleSlew <> slew_rate_f_MHz_per_ns def
+prf 8105:8131 <> transition_time_90_positive
+R8156:8158 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R8135:8155 ThrottleSlew <> transition_time_90_ns def
+R8176:8196 ThrottleSlew <> transition_time_90_ns def
+prf 8265:8290 <> overshoot_undershoot_equal
+R8310:8312 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8296:8309 ThrottleSlew <> overshoot_V_mV def
+R8313:8327 ThrottleSlew <> undershoot_V_mV def
+R8344:8357 ThrottleSlew <> overshoot_V_mV def
+R8360:8374 ThrottleSlew <> undershoot_V_mV def
+prf 8447:8471 <> transition_time_90_is_9ns
+R8496:8498 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8475:8495 ThrottleSlew <> transition_time_90_ns def
+R8516:8536 ThrottleSlew <> transition_time_90_ns def
+prf 8611:8637 <> transition_time_100_is_10ns
+R8663:8665 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8641:8662 ThrottleSlew <> transition_time_100_ns def
+R8684:8705 ThrottleSlew <> transition_time_100_ns def
+prf 8771:8786 <> overshoot_is_5mV
+R8804:8806 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8790:8803 ThrottleSlew <> overshoot_V_mV def
+R8824:8837 ThrottleSlew <> overshoot_V_mV def
+prf 8910:8935 <> sacred_bank_size_preserved
+R8955:8957 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8939:8954 ThrottleSlew <> SACRED_BANK_SIZE def
+R8976:8991 ThrottleSlew <> SACRED_BANK_SIZE def
+prf 9074:9099 <> tredecuple_decker_sequence
+R9117:9122 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9111:9113 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9105:9110 ThrottleSlew <> OP_RBB def
+R9142:9147 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9136:9138 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9123:9135 ThrottleSlew <> OP_FBB_ACTIVE def
+R9166:9171 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9160:9162 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9148:9159 ThrottleSlew <> OP_CAP_BOOST def
+R9194:9199 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9188:9190 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9172:9187 ThrottleSlew <> OP_THERMAL_GUARD def
+R9222:9227 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9216:9218 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9200:9215 ThrottleSlew <> OP_VOLTAGE_GUARD def
+R9250:9255 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9244:9246 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9228:9243 ThrottleSlew <> OP_FREQ_THROTTLE def
+R9278:9283 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9272:9274 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9256:9271 ThrottleSlew <> OP_POWER_CAPPING def
+R9311:9316 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9305:9307 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9284:9304 ThrottleSlew <> OP_EMERGENCY_SHUTDOWN def
+R9338:9343 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9332:9334 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9317:9331 ThrottleSlew <> OP_SLEEP_GATING def
+R9365:9370 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9359:9361 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9344:9358 ThrottleSlew <> OP_CLOCK_GATING def
+R9394:9399 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9388:9390 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9371:9387 ThrottleSlew <> OP_DATA_RETENTION def
+R9420:9425 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9414:9416 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9400:9413 ThrottleSlew <> OP_POWER_STATE def
+R9442:9444 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9426:9441 ThrottleSlew <> OP_THROTTLE_SLEW def
+R9473:9478 ThrottleSlew <> OP_RBB def
+R9510:9522 ThrottleSlew <> OP_FBB_ACTIVE def
+R9554:9565 ThrottleSlew <> OP_CAP_BOOST def
+R9597:9612 ThrottleSlew <> OP_THERMAL_GUARD def
+R9644:9659 ThrottleSlew <> OP_VOLTAGE_GUARD def
+R9691:9706 ThrottleSlew <> OP_FREQ_THROTTLE def
+R9738:9753 ThrottleSlew <> OP_POWER_CAPPING def
+R9785:9805 ThrottleSlew <> OP_EMERGENCY_SHUTDOWN def
+R9837:9851 ThrottleSlew <> OP_SLEEP_GATING def
+R9883:9897 ThrottleSlew <> OP_CLOCK_GATING def
+R9929:9945 ThrottleSlew <> OP_DATA_RETENTION def
+R9977:9990 ThrottleSlew <> OP_POWER_STATE def
+R10015:10030 ThrottleSlew <> OP_THROTTLE_SLEW def
+prf 10102:10128 <> transition_90_less_than_100
+R10155:10157 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R10134:10154 ThrottleSlew <> transition_time_90_ns def
+R10158:10179 ThrottleSlew <> transition_time_100_ns def
+R10198:10218 ThrottleSlew <> transition_time_90_ns def
+R10221:10242 ThrottleSlew <> transition_time_100_ns def
+prf 10313:10339 <> overshoot_within_10_percent
+R10344:10347 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+prf 10424:10457 <> total_overshoot_undershoot_is_10mV
+R10495:10497 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10477:10479 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10463:10476 ThrottleSlew <> overshoot_V_mV def
+R10480:10494 ThrottleSlew <> undershoot_V_mV def
+R10518:10531 ThrottleSlew <> overshoot_V_mV def
+R10534:10548 ThrottleSlew <> undershoot_V_mV def
+prf 10615:10637 <> slew_rate_100mV_in_10ns
+R10648:10650 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10643:10645 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 10731:10754 <> freq_slew_100MHz_in_10ns
+R10765:10767 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10760:10762 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 10852:10872 <> damping_ratio_is_0pt7
+R10877:10879 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 10958:10972 <> transition_fast
+R10998:11000 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R10976:10997 ThrottleSlew <> transition_time_100_ns def
+R11021:11042 ThrottleSlew <> transition_time_100_ns def
+prf 11357:11379 <> throttle_slew_composite
+R11407:11412 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11401:11403 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11385:11400 ThrottleSlew <> OP_THROTTLE_SLEW def
+R11439:11444 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11434:11436 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11413:11433 ThrottleSlew <> slew_rate_V_mV_per_ns def
+R11472:11477 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11467:11469 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11445:11466 ThrottleSlew <> slew_rate_f_MHz_per_ns def
+R11503:11508 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11499:11501 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11478:11498 ThrottleSlew <> transition_time_90_ns def
+R11536:11541 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11531:11533 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11509:11530 ThrottleSlew <> transition_time_100_ns def
+R11560:11565 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11556:11558 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11542:11555 ThrottleSlew <> overshoot_V_mV def
+R11585:11590 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11581:11583 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11566:11580 ThrottleSlew <> undershoot_V_mV def
+R11616:11621 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11612:11614 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R11591:11611 ThrottleSlew <> transition_time_90_ns def
+R11654:11659 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11636:11638 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11622:11635 ThrottleSlew <> overshoot_V_mV def
+R11639:11653 ThrottleSlew <> undershoot_V_mV def
+R11697:11702 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11676:11678 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11660:11675 ThrottleSlew <> OP_THROTTLE_SLEW def
+R11693:11695 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11679:11692 ThrottleSlew <> OP_POWER_STATE def
+R11733:11738 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11719:11721 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11703:11718 ThrottleSlew <> OP_THROTTLE_SLEW def
+R11728:11730 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11722:11727 ThrottleSlew <> OP_RBB def
+R11755:11757 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11739:11754 ThrottleSlew <> SACRED_BANK_SIZE def
+R11785:11800 ThrottleSlew <> OP_THROTTLE_SLEW def
+R11831:11856 ThrottleSlew <> slew_rate_V_is_10mV_per_ns thm
+R11831:11856 ThrottleSlew <> slew_rate_V_is_10mV_per_ns thm
+R11874:11900 ThrottleSlew <> slew_rate_f_is_10MHz_per_ns thm
+R11874:11900 ThrottleSlew <> slew_rate_f_is_10MHz_per_ns thm
+R11918:11942 ThrottleSlew <> transition_time_90_is_9ns thm
+R11918:11942 ThrottleSlew <> transition_time_90_is_9ns thm
+R11960:11986 ThrottleSlew <> transition_time_100_is_10ns thm
+R11960:11986 ThrottleSlew <> transition_time_100_is_10ns thm
+R12004:12019 ThrottleSlew <> overshoot_is_5mV thm
+R12004:12019 ThrottleSlew <> overshoot_is_5mV thm
+R12038:12052 ThrottleSlew <> undershoot_V_mV def
+R12083:12109 ThrottleSlew <> transition_time_90_positive thm
+R12083:12109 ThrottleSlew <> transition_time_90_positive thm
+R12127:12152 ThrottleSlew <> overshoot_undershoot_equal thm
+R12127:12152 ThrottleSlew <> overshoot_undershoot_equal thm
+R12170:12206 ThrottleSlew <> throttle_slew_adjacent_to_power_state thm
+R12170:12206 ThrottleSlew <> throttle_slew_adjacent_to_power_state thm
+R12225:12240 ThrottleSlew <> OP_THROTTLE_SLEW def
+R12243:12248 ThrottleSlew <> OP_RBB def
+R12265:12280 ThrottleSlew <> SACRED_BANK_SIZE def

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:b2bb9554ebf89cffb11e9820e80152afa85f12e543062ed1a4ac1a9148aaa64a",
-  "gen_hash_rust": "sha256:8e3cd939c04802b012ebbdd0e2234a073da670711a610ac302084ed6ee7fe16a",
-  "gen_hash_verilog": "sha256:23dd4eb5eb43aff32ab221d5e8d8312547c7577fae339889d4ccbc933fcd605a",
-  "gen_hash_zig": "sha256:60c0fc376057e2f107a3a71c5c09b9549870223d3dbb687c415647a7099eea64",
+  "gen_hash_c": "sha256:36d38bb6c335b0e986bf9dc51c7f1dc8c357bf7c9254fb2cead992639b1861e3",
+  "gen_hash_rust": "sha256:f50d02de63b4c5edbe13f246d98cf983bddedb5cdac96506b857591ddbbb14c6",
+  "gen_hash_verilog": "sha256:3651df4efb96ce067287a0d7daa06694a5b2ff700721673df675e20f704a493e",
+  "gen_hash_zig": "sha256:1c7d23562ae152e46c1334e74d7184ac929b30ce7855207ced5a75372e3bed73",
   "module": "GoldenFloatFamily",
   "ring": 12,
-  "sealed_at": "2026-05-31T13:22:51Z",
-  "spec_hash": "sha256:eca0b6ea3f630180ad5e5d945697ba95a88407ab1763de706fbe43cc617c52d7",
-  "spec_path": "/tmp/t27/specs/numeric/goldenfloat_family.t27"
+  "sealed_at": "2026-07-17T08:35:57Z",
+  "spec_hash": "sha256:61f85cc2260e90d092a60af66d1f7772faf410eb93bd5fb4bdb7e5585e85b80e",
+  "spec_path": "/Users/playra/t27/specs/numeric/goldenfloat_family.t27"
 }

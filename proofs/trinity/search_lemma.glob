@@ -1,0 +1,5 @@
+DIGEST 9ebd8ab07cdb68d2020d06494f199a0d
+FTrinity.search_lemma
+R24:28 Coq.Reals.Reals <> <> lib
+R46:48 Coq.Init.Peano <> ::nat_scope:x_'>'_x not
+R41:43 Coq.Init.Peano <> ::nat_scope:x_'*'_x not

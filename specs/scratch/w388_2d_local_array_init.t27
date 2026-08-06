@@ -1,0 +1,18 @@
+module w388_2d_local_array_init;
+
+fn read_2d_init() -> u16 {
+    var m : [2][3]u16 = [2][3]u16{0x0100, 0x0200, 0x0300, 0x0400, 0x0500, 0x0600};
+    return m[1][2];
+}
+
+fn write_2d_init(row : u32, col : u32, val : u16) -> u16 {
+    var m : [2][3]u16 = [2][3]u16{0x0100, 0x0200, 0x0300, 0x0400, 0x0500, 0x0600};
+    m[row][col] = val;
+    return m[row][col];
+}
+
+test read_2d_init { assert_eq(read_2d_init(), 0x0600); }
+test write_2d_init_00 { assert_eq(write_2d_init(0, 0, 0xDEAD), 0xDEAD); }
+test write_2d_init_11 { assert_eq(write_2d_init(1, 1, 0xBEEF), 0xBEEF); }
+
+endmodule

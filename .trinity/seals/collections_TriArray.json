@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:02a4ad965bc1767444c2f8625c70bdcf9a6a8e6f87654fd30fbc8f37ea92fda5",
+  "gen_hash_rust": "sha256:7bf2e6588febadfef212c8ca3a48221e8489feb708f1035cfa341ef49953a20a",
+  "gen_hash_verilog": "sha256:fdf2a4194c9affa32600ba2f9db88a7c142565936e63b284d54cff60ab77177b",
+  "gen_hash_zig": "sha256:eda589c6bcb3dbed82a6ec8ad3f4d5d3419712cbc9340234a2455b13347b1301",
+  "module": "TriArray",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:50Z",
+  "spec_hash": "sha256:13e48c4d83b96210f08292167310749a7d7abef43bf769223a0330b72c6cd5e0",
+  "spec_path": "/Users/playra/t27/specs/tri/collections/array.t27"
+}

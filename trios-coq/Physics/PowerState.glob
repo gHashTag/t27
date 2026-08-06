@@ -1,0 +1,395 @@
+DIGEST 2dbfa1fd1882921272cf6c409afd7fcb
+FPowerState
+R1708:1724 Stdlib.ZArith.ZArith <> <> lib
+R1742:1758 Stdlib.micromega.Lia <> <> lib
+def 2025:2038 <> OP_POWER_STATE
+def 2169:2185 <> OP_DATA_RETENTION
+def 2228:2242 <> OP_CLOCK_GATING
+def 2287:2301 <> OP_SLEEP_GATING
+def 2346:2366 <> OP_EMERGENCY_SHUTDOWN
+def 2407:2422 <> OP_POWER_CAPPING
+def 2468:2483 <> OP_FREQ_THROTTLE
+def 2528:2543 <> OP_VOLTAGE_GUARD
+def 2588:2603 <> OP_THERMAL_GUARD
+def 2648:2659 <> OP_CAP_BOOST
+def 2708:2720 <> OP_FBB_ACTIVE
+def 2768:2773 <> OP_RBB
+def 2895:2908 <> SACRED_BANK_LO
+def 2943:2956 <> SACRED_BANK_HI
+def 2991:3006 <> SACRED_BANK_SIZE
+prf 3254:3293 <> power_state_distinct_from_data_retention
+R3313:3316 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3299:3312 PowerState <> OP_POWER_STATE def
+R3317:3333 PowerState <> OP_DATA_RETENTION def
+R3350:3363 PowerState <> OP_POWER_STATE def
+R3366:3382 PowerState <> OP_DATA_RETENTION def
+prf 3402:3439 <> power_state_distinct_from_clock_gating
+R3459:3462 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3445:3458 PowerState <> OP_POWER_STATE def
+R3463:3477 PowerState <> OP_CLOCK_GATING def
+R3494:3507 PowerState <> OP_POWER_STATE def
+R3510:3524 PowerState <> OP_CLOCK_GATING def
+prf 3544:3581 <> power_state_distinct_from_sleep_gating
+R3601:3604 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3587:3600 PowerState <> OP_POWER_STATE def
+R3605:3619 PowerState <> OP_SLEEP_GATING def
+R3636:3649 PowerState <> OP_POWER_STATE def
+R3652:3666 PowerState <> OP_SLEEP_GATING def
+prf 3686:3729 <> power_state_distinct_from_emergency_shutdown
+R3749:3752 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3735:3748 PowerState <> OP_POWER_STATE def
+R3753:3773 PowerState <> OP_EMERGENCY_SHUTDOWN def
+R3790:3803 PowerState <> OP_POWER_STATE def
+R3806:3826 PowerState <> OP_EMERGENCY_SHUTDOWN def
+prf 3846:3884 <> power_state_distinct_from_power_capping
+R3904:3907 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R3890:3903 PowerState <> OP_POWER_STATE def
+R3908:3923 PowerState <> OP_POWER_CAPPING def
+R3940:3953 PowerState <> OP_POWER_STATE def
+R3956:3971 PowerState <> OP_POWER_CAPPING def
+prf 3991:4029 <> power_state_distinct_from_freq_throttle
+R4049:4052 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4035:4048 PowerState <> OP_POWER_STATE def
+R4053:4068 PowerState <> OP_FREQ_THROTTLE def
+R4085:4098 PowerState <> OP_POWER_STATE def
+R4101:4116 PowerState <> OP_FREQ_THROTTLE def
+prf 4136:4174 <> power_state_distinct_from_voltage_guard
+R4194:4197 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4180:4193 PowerState <> OP_POWER_STATE def
+R4198:4213 PowerState <> OP_VOLTAGE_GUARD def
+R4230:4243 PowerState <> OP_POWER_STATE def
+R4246:4261 PowerState <> OP_VOLTAGE_GUARD def
+prf 4281:4319 <> power_state_distinct_from_thermal_guard
+R4339:4342 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4325:4338 PowerState <> OP_POWER_STATE def
+R4343:4358 PowerState <> OP_THERMAL_GUARD def
+R4375:4388 PowerState <> OP_POWER_STATE def
+R4391:4406 PowerState <> OP_THERMAL_GUARD def
+prf 4426:4460 <> power_state_distinct_from_cap_boost
+R4480:4483 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4466:4479 PowerState <> OP_POWER_STATE def
+R4484:4495 PowerState <> OP_CAP_BOOST def
+R4512:4525 PowerState <> OP_POWER_STATE def
+R4528:4539 PowerState <> OP_CAP_BOOST def
+prf 4559:4594 <> power_state_distinct_from_fbb_active
+R4614:4617 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4600:4613 PowerState <> OP_POWER_STATE def
+R4618:4630 PowerState <> OP_FBB_ACTIVE def
+R4647:4660 PowerState <> OP_POWER_STATE def
+R4663:4675 PowerState <> OP_FBB_ACTIVE def
+prf 4695:4723 <> power_state_distinct_from_rbb
+R4743:4746 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R4729:4742 PowerState <> OP_POWER_STATE def
+R4747:4752 PowerState <> OP_RBB def
+R4769:4782 PowerState <> OP_POWER_STATE def
+R4785:4790 PowerState <> OP_RBB def
+prf 5041:5068 <> power_state_in_extended_bank
+R5106:5109 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5088:5091 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5074:5087 PowerState <> SACRED_BANK_LO def
+R5092:5105 PowerState <> OP_POWER_STATE def
+R5124:5127 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5110:5123 PowerState <> OP_POWER_STATE def
+R5128:5141 PowerState <> SACRED_BANK_HI def
+R5158:5171 PowerState <> SACRED_BANK_LO def
+R5174:5187 PowerState <> OP_POWER_STATE def
+R5190:5203 PowerState <> SACRED_BANK_HI def
+prf 5223:5260 <> power_state_adjacent_to_data_retention
+R5280:5282 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5266:5279 PowerState <> OP_POWER_STATE def
+R5300:5302 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5283:5299 PowerState <> OP_DATA_RETENTION def
+R5320:5333 PowerState <> OP_POWER_STATE def
+R5336:5352 PowerState <> OP_DATA_RETENTION def
+prf 5372:5400 <> duodecuple_decker_consecutive
+R5434:5439 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5420:5422 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5406:5419 PowerState <> OP_POWER_STATE def
+R5429:5431 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5423:5428 PowerState <> OP_RBB def
+R5466:5471 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5453:5455 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5440:5452 PowerState <> OP_FBB_ACTIVE def
+R5462:5464 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5456:5461 PowerState <> OP_RBB def
+R5497:5502 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5484:5486 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5472:5483 PowerState <> OP_CAP_BOOST def
+R5493:5495 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5487:5492 PowerState <> OP_RBB def
+R5532:5537 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5519:5521 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5503:5518 PowerState <> OP_THERMAL_GUARD def
+R5528:5530 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5522:5527 PowerState <> OP_RBB def
+R5567:5572 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5554:5556 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5538:5553 PowerState <> OP_VOLTAGE_GUARD def
+R5563:5565 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5557:5562 PowerState <> OP_RBB def
+R5602:5607 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5589:5591 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5573:5588 PowerState <> OP_FREQ_THROTTLE def
+R5598:5600 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5592:5597 PowerState <> OP_RBB def
+R5637:5642 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5624:5626 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5608:5623 PowerState <> OP_POWER_CAPPING def
+R5633:5635 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5627:5632 PowerState <> OP_RBB def
+R5677:5682 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5664:5666 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5643:5663 PowerState <> OP_EMERGENCY_SHUTDOWN def
+R5673:5675 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5667:5672 PowerState <> OP_RBB def
+R5711:5716 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5698:5700 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5683:5697 PowerState <> OP_SLEEP_GATING def
+R5707:5709 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5701:5706 PowerState <> OP_RBB def
+R5745:5750 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5732:5734 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5717:5731 PowerState <> OP_CLOCK_GATING def
+R5741:5743 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5735:5740 PowerState <> OP_RBB def
+R5768:5770 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5751:5767 PowerState <> OP_DATA_RETENTION def
+R5777:5779 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5771:5776 PowerState <> OP_RBB def
+R5807:5820 PowerState <> OP_POWER_STATE def
+R5823:5828 PowerState <> OP_RBB def
+R5852:5864 PowerState <> OP_FBB_ACTIVE def
+R5867:5872 PowerState <> OP_RBB def
+R5896:5907 PowerState <> OP_CAP_BOOST def
+R5910:5915 PowerState <> OP_RBB def
+R5939:5954 PowerState <> OP_THERMAL_GUARD def
+R5957:5962 PowerState <> OP_RBB def
+R5986:6001 PowerState <> OP_VOLTAGE_GUARD def
+R6004:6009 PowerState <> OP_RBB def
+R6033:6048 PowerState <> OP_FREQ_THROTTLE def
+R6051:6056 PowerState <> OP_RBB def
+R6080:6095 PowerState <> OP_POWER_CAPPING def
+R6098:6103 PowerState <> OP_RBB def
+R6127:6147 PowerState <> OP_EMERGENCY_SHUTDOWN def
+R6150:6155 PowerState <> OP_RBB def
+R6179:6193 PowerState <> OP_SLEEP_GATING def
+R6196:6201 PowerState <> OP_RBB def
+R6225:6239 PowerState <> OP_CLOCK_GATING def
+R6242:6247 PowerState <> OP_RBB def
+R6264:6280 PowerState <> OP_DATA_RETENTION def
+R6283:6288 PowerState <> OP_RBB def
+def 6590:6601 <> power_off_mW
+R6612:6612 Corelib.Numbers.BinNums <> Z ind
+def 6649:6667 <> power_deep_sleep_mW
+R6671:6671 Corelib.Numbers.BinNums <> Z ind
+def 6715:6728 <> power_sleep_mW
+R6737:6737 Corelib.Numbers.BinNums <> Z ind
+def 6777:6789 <> power_idle_mW
+R6799:6799 Corelib.Numbers.BinNums <> Z ind
+def 6839:6853 <> power_active_mW
+R6861:6861 Corelib.Numbers.BinNums <> Z ind
+def 6956:6976 <> transition_to_idle_us
+R6982:6982 Corelib.Numbers.BinNums <> Z ind
+def 7030:7051 <> transition_to_sleep_us
+R7056:7056 Corelib.Numbers.BinNums <> Z ind
+def 7103:7123 <> transition_to_deep_us
+R7129:7129 Corelib.Numbers.BinNums <> Z ind
+def 7183:7202 <> transition_to_off_us
+R7209:7209 Corelib.Numbers.BinNums <> Z ind
+prf 7528:7543 <> power_off_is_0mW
+R7559:7561 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7547:7558 PowerState <> power_off_mW def
+R7579:7590 PowerState <> power_off_mW def
+prf 7678:7710 <> power_deep_sleep_greater_than_off
+R7728:7730 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7716:7727 PowerState <> power_off_mW def
+R7731:7749 PowerState <> power_deep_sleep_mW def
+R7766:7784 PowerState <> power_deep_sleep_mW def
+R7787:7798 PowerState <> power_off_mW def
+prf 7872:7900 <> power_sleep_greater_than_deep
+R7925:7927 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7906:7924 PowerState <> power_deep_sleep_mW def
+R7928:7941 PowerState <> power_sleep_mW def
+R7958:7971 PowerState <> power_sleep_mW def
+R7974:7992 PowerState <> power_deep_sleep_mW def
+prf 8054:8082 <> power_idle_greater_than_sleep
+R8102:8104 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R8088:8101 PowerState <> power_sleep_mW def
+R8105:8117 PowerState <> power_idle_mW def
+R8134:8146 PowerState <> power_idle_mW def
+R8149:8162 PowerState <> power_sleep_mW def
+prf 8226:8255 <> power_active_greater_than_idle
+R8274:8276 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R8261:8273 PowerState <> power_idle_mW def
+R8277:8291 PowerState <> power_active_mW def
+R8308:8322 PowerState <> power_active_mW def
+R8325:8337 PowerState <> power_idle_mW def
+prf 8387:8409 <> power_deep_sleep_is_1mW
+R8432:8434 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8413:8431 PowerState <> power_deep_sleep_mW def
+R8452:8470 PowerState <> power_deep_sleep_mW def
+prf 8524:8542 <> power_sleep_is_10mW
+R8560:8562 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8546:8559 PowerState <> power_sleep_mW def
+R8581:8594 PowerState <> power_sleep_mW def
+prf 8648:8666 <> power_idle_is_100mW
+R8683:8685 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8670:8682 PowerState <> power_idle_mW def
+R8705:8717 PowerState <> power_idle_mW def
+prf 8774:8795 <> power_active_is_1000mW
+R8814:8816 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8799:8813 PowerState <> power_active_mW def
+R8837:8851 PowerState <> power_active_mW def
+prf 8925:8950 <> sacred_bank_size_preserved
+R8970:8972 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8954:8969 PowerState <> SACRED_BANK_SIZE def
+R8991:9006 PowerState <> SACRED_BANK_SIZE def
+prf 9088:9113 <> duodecuple_decker_sequence
+R9131:9136 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9125:9127 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9119:9124 PowerState <> OP_RBB def
+R9156:9161 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9150:9152 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9137:9149 PowerState <> OP_FBB_ACTIVE def
+R9180:9185 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9174:9176 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9162:9173 PowerState <> OP_CAP_BOOST def
+R9208:9213 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9202:9204 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9186:9201 PowerState <> OP_THERMAL_GUARD def
+R9236:9241 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9230:9232 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9214:9229 PowerState <> OP_VOLTAGE_GUARD def
+R9264:9269 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9258:9260 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9242:9257 PowerState <> OP_FREQ_THROTTLE def
+R9292:9297 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9286:9288 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9270:9285 PowerState <> OP_POWER_CAPPING def
+R9325:9330 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9319:9321 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9298:9318 PowerState <> OP_EMERGENCY_SHUTDOWN def
+R9352:9357 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9346:9348 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9331:9345 PowerState <> OP_SLEEP_GATING def
+R9379:9384 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9373:9375 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9358:9372 PowerState <> OP_CLOCK_GATING def
+R9408:9413 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R9402:9404 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9385:9401 PowerState <> OP_DATA_RETENTION def
+R9428:9430 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R9414:9427 PowerState <> OP_POWER_STATE def
+R9459:9464 PowerState <> OP_RBB def
+R9496:9508 PowerState <> OP_FBB_ACTIVE def
+R9540:9551 PowerState <> OP_CAP_BOOST def
+R9583:9598 PowerState <> OP_THERMAL_GUARD def
+R9630:9645 PowerState <> OP_VOLTAGE_GUARD def
+R9677:9692 PowerState <> OP_FREQ_THROTTLE def
+R9724:9739 PowerState <> OP_POWER_CAPPING def
+R9771:9791 PowerState <> OP_EMERGENCY_SHUTDOWN def
+R9823:9837 PowerState <> OP_SLEEP_GATING def
+R9869:9883 PowerState <> OP_CLOCK_GATING def
+R9915:9931 PowerState <> OP_DATA_RETENTION def
+R9956:9969 PowerState <> OP_POWER_STATE def
+prf 10042:10070 <> power_states_strictly_ordered
+R10081:10086 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10077:10079 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R10093:10098 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10088:10090 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R10107:10112 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R10101:10103 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R10116:10118 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+prf 10236:10261 <> deep_sleep_is_0pt1_percent
+R10273:10275 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10266:10268 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 10339:10356 <> sleep_is_1_percent
+R10368:10370 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10362:10364 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 10434:10451 <> idle_is_10_percent
+R10463:10465 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10458:10460 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 10539:10567 <> total_off_transition_is_116us
+R10668:10670 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R10645:10647 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10619:10623 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10594:10596 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10573:10593 PowerState <> transition_to_idle_us def
+R10597:10618 PowerState <> transition_to_sleep_us def
+R10624:10644 PowerState <> transition_to_deep_us def
+R10648:10667 PowerState <> transition_to_off_us def
+R10692:10712 PowerState <> transition_to_idle_us def
+R10715:10736 PowerState <> transition_to_sleep_us def
+R10748:10768 PowerState <> transition_to_deep_us def
+R10771:10790 PowerState <> transition_to_off_us def
+prf 11105:11125 <> power_state_composite
+R11151:11156 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11145:11147 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11131:11144 PowerState <> OP_POWER_STATE def
+R11173:11178 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11169:11171 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11157:11168 PowerState <> power_off_mW def
+R11202:11207 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11198:11200 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11179:11197 PowerState <> power_deep_sleep_mW def
+R11227:11232 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11222:11224 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11208:11221 PowerState <> power_sleep_mW def
+R11252:11257 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11246:11248 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11233:11245 PowerState <> power_idle_mW def
+R11280:11285 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11273:11275 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11258:11272 PowerState <> power_active_mW def
+R11320:11325 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11298:11300 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R11286:11297 PowerState <> power_off_mW def
+R11301:11319 PowerState <> power_deep_sleep_mW def
+R11362:11367 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11345:11347 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R11326:11344 PowerState <> power_deep_sleep_mW def
+R11348:11361 PowerState <> power_sleep_mW def
+R11398:11403 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11382:11384 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R11368:11381 PowerState <> power_sleep_mW def
+R11385:11397 PowerState <> power_idle_mW def
+R11435:11440 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11417:11419 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R11404:11416 PowerState <> power_idle_mW def
+R11420:11434 PowerState <> power_active_mW def
+R11479:11484 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11455:11457 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11441:11454 PowerState <> OP_POWER_STATE def
+R11475:11477 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11458:11474 PowerState <> OP_DATA_RETENTION def
+R11513:11518 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R11499:11501 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11485:11498 PowerState <> OP_POWER_STATE def
+R11508:11510 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11502:11507 PowerState <> OP_RBB def
+R11535:11537 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R11519:11534 PowerState <> SACRED_BANK_SIZE def
+R11565:11578 PowerState <> OP_POWER_STATE def
+R11609:11624 PowerState <> power_off_is_0mW thm
+R11609:11624 PowerState <> power_off_is_0mW thm
+R11642:11664 PowerState <> power_deep_sleep_is_1mW thm
+R11642:11664 PowerState <> power_deep_sleep_is_1mW thm
+R11682:11700 PowerState <> power_sleep_is_10mW thm
+R11682:11700 PowerState <> power_sleep_is_10mW thm
+R11718:11736 PowerState <> power_idle_is_100mW thm
+R11718:11736 PowerState <> power_idle_is_100mW thm
+R11754:11775 PowerState <> power_active_is_1000mW thm
+R11754:11775 PowerState <> power_active_is_1000mW thm
+R11793:11825 PowerState <> power_deep_sleep_greater_than_off thm
+R11793:11825 PowerState <> power_deep_sleep_greater_than_off thm
+R11843:11871 PowerState <> power_sleep_greater_than_deep thm
+R11843:11871 PowerState <> power_sleep_greater_than_deep thm
+R11889:11917 PowerState <> power_idle_greater_than_sleep thm
+R11889:11917 PowerState <> power_idle_greater_than_sleep thm
+R11935:11964 PowerState <> power_active_greater_than_idle thm
+R11935:11964 PowerState <> power_active_greater_than_idle thm
+R11982:12019 PowerState <> power_state_adjacent_to_data_retention thm
+R11982:12019 PowerState <> power_state_adjacent_to_data_retention thm
+R12038:12051 PowerState <> OP_POWER_STATE def
+R12054:12059 PowerState <> OP_RBB def
+R12076:12091 PowerState <> SACRED_BANK_SIZE def

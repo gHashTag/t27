@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:65abe1785c448eee406bb25af553c237e7b59947319b6e0736f151b251abf054",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:973931f4c8134ca87f59b66f67eaac56755142af00f02abab939d47b75113992",
+  "gen_hash_zig": "sha256:efd8d905269aa45806347afb53b7e0716b048d380cc1de203ef3cf3808bf37d9",
+  "module": "TriRegex",
+  "ring": 12,
+  "sealed_at": "2026-07-14T16:05:50Z",
+  "spec_hash": "sha256:4e0b80ad075dac6274040a5327d17244dc1e1206368598cccc5883d96de30ccb",
+  "spec_path": "/Users/playra/t27/specs/tri/search/regex.t27"
+}

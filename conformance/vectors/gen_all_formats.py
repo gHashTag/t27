@@ -27,10 +27,22 @@ Anchor identity (ASCII): phi^2 + 1/phi^2 = 3.
 All output ASCII-only. Apache-2.0.
 """
 import json, struct, math, hashlib, os, re
+from fractions import Fraction
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = HERE  # write packs next to the existing ones
-CATALOG_LINES = "/tmp/catalog_lines.txt"
+# The catalog SSOT: specs/numeric/formats_catalog.t27, whose trailing
+# `// CATALOG: id=... ` comments are the canonical machine-readable rows (the same
+# lines catalog-count-gate.yml counts to enforce the 83-format invariant).
+#
+# This used to read /tmp/catalog_lines.txt, which was never in the repository, so
+# on a clean checkout the generator raised FileNotFoundError before producing
+# anything: the corpus could be read but not regenerated. Reading the committed
+# SSOT instead makes the corpus reproducible and removes the second, unversioned
+# copy of the catalog that the /tmp file amounted to.
+CATALOG_LINES = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "specs", "numeric", "formats_catalog.t27")
 
 SSOT = "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json"
 PREPRINT = "https://arxiv.org/abs/2606.05017"
@@ -47,7 +59,87 @@ EXISTING = {
     "fp8_e5m2": "fp8_e5m2_conformance_v0.json",
     "mxfp4": "mxfp4_e2m1_conformance_v0.json",
     "bfloat16": "bf16_golden_conformance_v0.json",
+    # Hand-curated fixed-width INSTANCE packs whose curated vectors evolved beyond
+    # the batch decoder. Preserved verbatim so a re-run does not clobber them:
+    #   * bcd      -> 2-digit packed-BCD 8-bit instance (exhaustive_valid 100/256)
+    #   * takum32/64 -> curated_named fixed-width instances of the tapered format
+    # (These stay bit-exact per their own curated content; the generic wide-domain
+    #  correctly-rounded proof over 2^32/2^64 codes remains out of scope in-sandbox,
+    #  but the curated INSTANCE round-trips are exact and independently witnessed.)
+    "bcd": "bcd_conformance_v0.json",
+    "takum32": "takum32_conformance_v0.json",
+    "takum64": "takum64_conformance_v0.json",
+    # gf14: Phase-A (FP32-width) GoldenFloat wide rung, layout S1E5M8 bias 15.
+    # Unlike the wider Phase-B rungs (gf48/96/128/512/1024), gf14 HAS an
+    # independent second witness: an exhaustive iverilog RTL decode over all
+    # 16384 codes via the parametric gf_decode_param #(14,5,8,15) generator
+    # merged in trinity-fpga PR #239 (merge cb845f75f). Every code round-trips
+    # to f64 with abs_error=0 (also confirmed by a plain IEEE re-decode here).
+    # => bit-precise, NOT self-consistent. The witness is recorded in the pack's
+    #    witnesses[] array (injected below, preserving the WP-29/30 file body).
+    "gf14": "gf14_conformance_v0.json",
 }
+
+# EXISTING packs that additionally carry an explicit independent-witness record.
+# The witness is injected into the pack file's witnesses[] array on generation
+# so the bit-precise claim is self-documenting inside the pack, not only in the
+# index. (encoding != compute != FPGA: this is a SW decode witness.)
+WITNESSES = {
+    "gf14": [{
+        "kind": "rtl_iverilog_exhaustive",
+        "scope": "all 16384 codes (u16 domain of the 14-bit format)",
+        "decoder": "gf_decode_param #(WIDTH=14, E=5, M=8, BIAS=15)",
+        "result": "16384/16384 bit-exact vs golden, abs_error=0",
+        "source": "trinity-fpga PR #239 (merge cb845f75f)",
+        "repo": "https://github.com/gHashTag/trinity-fpga/pull/239",
+        "note": "Independent second witness (RTL simulation) distinct from the "
+                "software encoder that produced these vectors. SW simulation "
+                "witness -- not an on-silicon HW-conformance (Tier-E) claim."
+    }]
+}
+
+# Externally-generated, dyadic-exact packs that re-derive under ONE decode law
+# and carry honest abs_error, but have NO independent second witness (so they are
+# NOT promoted to the stronger "bitexact" label -- only gf16 has a silicon oracle).
+# These files are produced by the wide-rung GoldenFloat oracle (WP-29/WP-30), kept
+# verbatim here, and listed in the index with kind="bitexact_selfconsistent". This
+# registry exists so a re-run of this generator PRESERVES the self-consistent tier
+# instead of re-deriving these wide rungs as plain structural stubs.
+SELFCONSISTENT = {
+    "gf48": "gf48_conformance_v0.json",
+    "gf96": "gf96_conformance_v0.json",
+    "gf128": "gf128_conformance_v0.json",
+    "gf512": "gf512_conformance_v0.json",
+    "gf1024": "gf1024_conformance_v0.json",
+    "gf256": "gf256_conformance_v0.json",
+}
+
+# Why each wide rung was promoted out of the self-consistent tier on 2026-07-05.
+# These strings were written by hand into INDEX_all_formats.json at promotion time
+# and say considerably more than any string the generator could compose -- which
+# decoder, which cross-check, how many codes. Keeping them in the generator means a
+# regeneration preserves the reasoning instead of flattening it to a generic line.
+PROMOTION_SOURCE = {
+    "gf48": "wide-rung GoldenFloat oracle promoted to strict bitexact by an "
+            "independent second decoder (gf_wide_independent_witness.py, "
+            "dyadic-exact, abs_error=0) + golden Fraction oracle + FP64 RTL "
+            "bit-model (224255/224255)",
+    "gf96": "wide-rung GoldenFloat exact-dyadic pack promoted to strict bitexact "
+            "by an analytic zero-rounding separation-bound + two structurally "
+            "independent exact decoders (dyadic gf_wide_independent_witness.py + "
+            "Fraction oracle gf96_decode_ref.py), 15/15 abs_error=0, 201512-code "
+            "cross-check",
+    "gf128": "promoted selfconsistent->strict bitexact (dual exact path + "
+             "separation-bound; gf128 PR)",
+    "gf256": "promoted selfconsistent->strict bitexact (dual exact path + "
+             "separation-bound; bias audit resolved decode-bias=2^96-1 closed "
+             "form; gf256 promote PR)",
+    "gf512": "promoted selfconsistent->strict bitexact (dual exact path + "
+             "separation-bound; gf512 paired PR)",
+    "gf1024": "promoted selfconsistent->strict bitexact (dual exact path + "
+              "separation-bound; gf1024 paired PR)",
+}
+
 
 def f64_hex(x):
     return "0x" + struct.pack(">d", x).hex().upper()
@@ -60,6 +152,14 @@ def parse_catalog(path):
     kv = re.compile(r'(\w+)=("[^"]*"|\S+)')
     for line in open(path):
         line = line.strip()
+        # In the SSOT spec the rows are trailing comments: `// CATALOG: id=...`.
+        # A bare `id=...` line is still accepted so the parser keeps working on a
+        # plain catalog dump.
+        if line.startswith("//"):
+            _, sep, rest = line.partition("CATALOG:")
+            if not sep:
+                continue
+            line = rest.strip()
         if not line.startswith("id="):
             continue
         d = {}
@@ -308,6 +408,143 @@ def make_nf4_decoder():
     return decode
 
 # ---------------------------------------------------------------------------
+# IEEE 754-2008 decimal (BID encoding -- Binary Integer Decimal, Intel form).
+#   Storage is a plain unsigned integer (u32/u64/u128). Layout:
+#     S(1) : combination(ncomb) : trailing-significand(t)
+#   The significand is a PLAIN BINARY INTEGER: implied high bits (from the 5-bit
+#   combination head) concatenated above the t-bit trailing field. The exponent
+#   continuation bits sit in the low (ncomb-5) bits of the combination field.
+#   value = (-1)^S * coeff * 10^(exp - bias).
+#   Decode returns a float (f64); curated_codes keeps only the named values that
+#   are f64-exact (abs_error == 0 by construction). 3.0 is f64-exact.
+# Cross-checked vs an exact-rational (fractions.Fraction) oracle (probe_decoders.py).
+# ---------------------------------------------------------------------------
+DECIMAL_PARAMS = {
+    # id -> (ncomb combination bits, t trailing bits, bias, pmax decimal digits)
+    "decimal32":  (11, 20,  101,  7),
+    "decimal64":  (13, 50,  398,  16),
+    "decimal128": (17, 110, 6176, 34),
+}
+DECIMAL_TOTAL = {"decimal32": 32, "decimal64": 64, "decimal128": 128}
+
+def make_decimal_bid_decoder(name):
+    ncomb, t, bias, pmax = DECIMAL_PARAMS[name]
+    total = DECIMAL_TOTAL[name]
+    ec = ncomb - 5  # exponent-continuation bits in the combination field
+    def decode(bits, total_bits):
+        x = bits
+        sign = (x >> (total - 1)) & 1
+        combo = (x >> t) & ((1 << ncomb) - 1)
+        trailing = x & ((1 << t) - 1)
+        g = combo >> ec  # 5-bit combination head
+        if (g >> 3) == 0b11:  # 11xxx -> special or 'large' significand form
+            if (g >> 1) == 0b1111:  # 11110 -> inf, 11111 -> nan
+                if (g & 1) == 0:
+                    return (math.inf if sign == 0 else -math.inf, "inf")
+                return (math.nan, "nan")
+            exp_msb = (g >> 1) & 0b11
+            sig_hi = 0b100 | (g & 1)         # implied 8 or 9 as the leading group
+            exp_low = combo & ((1 << ec) - 1)
+            exp = (exp_msb << ec) | exp_low
+            coeff = (sig_hi << t) | trailing
+        else:  # normal form
+            exp_msb = g >> 3
+            sig_hi = g & 0b111
+            exp_low = combo & ((1 << ec) - 1)
+            exp = (exp_msb << ec) | exp_low
+            coeff = (sig_hi << t) | trailing
+        e = exp - bias
+        if coeff == 0:
+            return (-0.0 if sign else 0.0, "zero")
+        val = Fraction(coeff) * (Fraction(10) ** e if e >= 0 else Fraction(1, 10 ** (-e)))
+        f = float(-val if sign else val)
+        return (f, "normal")
+    return decode
+
+def make_decimal_bid_encoder(name):
+    """Encode an f64 target into a canonical BID code (normal form). Returns None
+    if the target is not exactly an integer*10^exp within pmax digits and normal
+    form, so curated_codes filters non-exact values."""
+    ncomb, t, bias, pmax = DECIMAL_PARAMS[name]
+    total = DECIMAL_TOTAL[name]
+    ec = ncomb - 5
+    def encode(target):
+        if not isinstance(target, (int, float)):
+            return None
+        if isinstance(target, float) and (math.isnan(target) or math.isinf(target)):
+            return None
+        fr = Fraction(target)
+        sign = 1 if fr < 0 else 0
+        a = -fr if fr < 0 else fr
+        if a == 0:
+            biased = bias
+            return (sign << (total - 1)) | (biased << t)
+        for exp in range(0, -pmax - 1, -1):
+            scaled = a * (Fraction(10) ** (-exp))
+            if scaled.denominator == 1:
+                coeff = scaled.numerator
+                if coeff < 10 ** pmax:
+                    biased = exp + bias
+                    if biased < 0 or biased >= (1 << (ec + 2)):
+                        return None
+                    sig_hi = coeff >> t
+                    if sig_hi > 7:
+                        continue
+                    trailing = coeff & ((1 << t) - 1)
+                    exp_msb = biased >> ec
+                    exp_low = biased & ((1 << ec) - 1)
+                    gh = (exp_msb << 3) | sig_hi
+                    combo = (gh << ec) | exp_low
+                    return (sign << (total - 1)) | (combo << t) | trailing
+        return None
+    return encode
+
+# ---------------------------------------------------------------------------
+# double-double / quad-double (Bailey/Hida): the value is the EXACT SUM of
+# 2 (resp. 4) IEEE-754 binary64 limbs stored most-significant first. Fixed
+# 128-bit (resp. 256-bit) layout; the decode law (sum of limbs) is unambiguous
+# -- analogous to x87's explicit-integer-bit promotion. Decode returns the f64
+# of the exact sum; for named integer/dyadic targets the low limbs are 0 and the
+# value is f64-exact (abs_error == 0).
+# ---------------------------------------------------------------------------
+def make_multidouble_decoder(n_limbs):
+    def decode(bits, total_bits):
+        limbs = []
+        for i in range(n_limbs):
+            shift = (n_limbs - 1 - i) * 64
+            u = (bits >> shift) & ((1 << 64) - 1)
+            limbs.append(struct.unpack(">d", u.to_bytes(8, "big"))[0])
+        hi = limbs[0]
+        if math.isnan(hi):
+            return (math.nan, "nan")
+        if math.isinf(hi):
+            return (hi, "inf")
+        total_fr = Fraction(0)
+        for v in limbs:
+            if math.isnan(v) or math.isinf(v):
+                return (math.nan, "nan")
+            total_fr += Fraction(v)
+        if total_fr == 0:
+            return (0.0, "zero")
+        return (float(total_fr), "normal")
+    return decode
+
+def make_multidouble_encoder(n_limbs):
+    def encode(target):
+        if not isinstance(target, (int, float)):
+            return None
+        if isinstance(target, float) and (math.isnan(target) or math.isinf(target)):
+            return None
+        hi = float(target)
+        if hi != target:
+            return None
+        u_hi = int.from_bytes(struct.pack(">d", hi), "big")
+        bits = u_hi << ((n_limbs - 1) * 64)  # low limbs = +0.0
+        return bits
+    return encode
+
+
+# ---------------------------------------------------------------------------
 # GFTernary: 2-bit discrete set {-phi, 0, +phi}. Four 2-bit codes; one is a
 # spare (we map it to the same +phi for completeness / documented as reserved).
 # Anchor 3.0 is NOT a single code (it arises as phi^2 + 1/phi^2 = 3 over the
@@ -515,12 +752,47 @@ def build_decodable(rec):
     e, m, bias, bits = rec["e"], rec["m"], rec["bias"], rec["bits"]
     storage = rec["storage"]
 
+    # IEEE 754-2008 decimal (BID): fixed bit layout, exact decimal decode.
+    if cluster == "Ieee754Decimal" and cid in DECIMAL_PARAMS:
+        return (make_decimal_bid_decoder(cid),
+                f"IEEE 754-2008 {cid} (BID / Binary Integer Decimal): "
+                f"S1 : combination : trailing significand; significand is a plain "
+                f"binary integer, value = coeff * 10^(exp-bias)",
+                "inf at combo head 11110; nan at 11111; named decimal values f64-exact")
+
+    # Extended-precision multi-double (Bailey/Hida): exact sum of binary64 limbs.
+    if cluster == "ExtendedFloat" and cid == "double_double":
+        return (make_multidouble_decoder(2),
+                "double-double (Bailey/Hida): two IEEE-754 binary64 limbs, "
+                "most-significant first; value = exact sum of the limbs",
+                "no separate inf/nan field; hi-limb specials propagate; "
+                "named integer/dyadic values are f64-exact (low limb 0)")
+    if cluster == "ExtendedFloat" and cid == "quad_double":
+        return (make_multidouble_decoder(4),
+                "quad-double (Bailey/Hida): four IEEE-754 binary64 limbs, "
+                "most-significant first; value = exact sum of the limbs",
+                "no separate inf/nan field; hi-limb specials propagate; "
+                "named integer/dyadic values are f64-exact (low limbs 0)")
+
     # Integer / fixed two's complement
     if cluster == "IntegerFixed" and cid.startswith("int") and bits > 0:
         return (make_int_decoder(m, signed=True),
                 f"two's-complement signed integer, {bits} bits", "no inf/nan; exact integers")
     if cid == "per_channel_scale":
-        return None  # has external fp32 scale -> structural
+        # INT8 payload with an EXTERNAL per-channel fp32 scale. The scale is a
+        # tensor artifact, not part of the code -> we cannot bit-exactly define
+        # the *scaled* value. But the 8-bit two's-complement PAYLOAD decode is a
+        # fixed, unambiguous round-trip (identical to int8). We pack the payload
+        # round-trip bit-exactly and document the external scale in notes. This
+        # is exactly the artifact a bit-exact-inference frontier consumer needs:
+        # the deterministic integer payload, with scale applied downstream.
+        return (make_int_decoder(7, signed=True),
+                "per-channel affine quant (Jacob 2018, TFLite): 8-bit "
+                "two's-complement INT8 PAYLOAD; the real value is "
+                "payload * per_channel_fp32_scale, where the scale is an "
+                "EXTERNAL tensor (not part of the 8-bit code). This pack fixes "
+                "the deterministic payload round-trip; scale is applied downstream.",
+                "no inf/nan in the payload; exact integers; external fp32 scale documented")
 
     # LNS family
     if cluster == "Lns" and bits in (8, 16, 32, 64):
@@ -537,7 +809,7 @@ def build_decodable(rec):
                     "GFTernary 2-bit discrete set {-phi, 0, +phi}; codes 00=0, "
                     "01=+phi, 10=-phi, 11=reserved (duplicate +phi)",
                     "no inf/nan; discrete ternary levels")
-        if e > 0 and m > 0 and bits in (4, 6, 8, 12, 16, 20, 24, 32, 64):
+        if e > 0 and m > 0 and bits in (4, 6, 8, 10, 12, 16, 20, 24, 32, 64):
             dec = make_ieee_decoder(e, m, bias, has_inf=True, has_nan=True)
             return (dec, f"GoldenFloat phi-aligned radix-2 float S{1}E{e}M{m}, bias {bias}",
                     "IEEE-style specials at top exponent")
@@ -605,7 +877,22 @@ def build_decodable(rec):
                     f"bit as MSB of the {m}-bit significand), bias {bias}: "
                     f"value = (SIG/2^{m-1}) * 2^(E-{bias})",
                     "inf at max exp (int=1, frac=0); nan otherwise at max exp")
-        return None  # double_double / quad_double -> structural
+        # double_double / quad_double handled above (multi-double limb-sum decode)
+
+    # QuantTuned: AFP (Tambe 2020) stores a fixed S1E8M7 radix-2 16-bit PAYLOAD
+    # plus an external per-TENSOR exponent shift. The 16-bit payload is a plain
+    # bf16-shaped radix-2 field (e=8, m=7, bias=127) whose decode is unambiguous;
+    # the tensor shift is an external scale applied downstream (documented). We
+    # pack the deterministic payload round-trip bit-exactly.
+    if cluster == "QuantTuned" and cid == "afp":
+        dec = make_ieee_decoder(e, m, bias, has_inf=True, has_nan=True)
+        return (dec,
+                "AFP (Adaptive Floating-Point, Tambe 2020, DAC): 16-bit S1E8M7 "
+                "radix-2 PAYLOAD (bf16-shaped, bias 127) plus an EXTERNAL "
+                "per-tensor exponent shift (not part of the 16-bit code). This "
+                "pack fixes the deterministic payload round-trip; the tensor "
+                "shift is an external scale applied downstream.",
+                "IEEE-style specials at top exponent; external per-tensor shift documented")
 
     # QuantTuned: NF4 is a fixed 16-entry quantile table -> bit-exact lookup.
     if cluster == "QuantTuned" and cid == "nf4":
@@ -731,6 +1018,62 @@ def build_structural_pack(rec):
         "vectors": [],
     }
 
+# ---------------------------------------------------------------------------
+# Takum (Hunhold 2024, arXiv:2404.18603) -- tapered LOGARITHMIC decoder.
+# value = (-1)^S * exp(ell/2);  ell = (-1)^S * (c + m).
+# Cross-checked vs libtakum/src/codec.c (LUT verified formulaically below).
+# Used for takum8 ONLY (exhaustive 256, correctly-rounded f64 [proven];
+# wider takum stay structural pending an external libtakum oracle).
+# ---------------------------------------------------------------------------
+_TAKUM_C_BIAS_LUT = [
+    -255, -127, -63, -31, -15, -7, -3, -1,   # D=0, R_uint=0..7 -> r_eff=7..0
+       0,    1,   3,   7,  15, 31, 63, 127,   # D=1, R_uint=0..7 -> r_eff=0..7
+]
+for _dr in range(16):
+    _D = (_dr >> 3) & 1; _Ru = _dr & 7
+    _re = (7 - _Ru) if _D == 0 else _Ru
+    _exp = -(2 ** (_re + 1) - 1) if _D == 0 else (2 ** _re - 1)
+    assert _TAKUM_C_BIAS_LUT[_dr] == _exp, "takum C_BIAS_LUT mismatch at %d" % _dr
+
+def make_takum_decoder(n):
+    """Return decode(bits, total_bits) -> (value_f64, category) for takum-n.
+    Logarithmic decode per Hunhold 2024 (arXiv:2404.18603).
+    Categories: 'zero' | 'nar' | 'normal'.
+    For takum8 the value is the correctly-rounded-nearest-even f64 of
+    exp(ell/2) (min gap to midpoint = 0.0135 x 0.5 ULP -> 200-bit mpmath is
+    sufficient; proven exhaustively over all 256 codes)."""
+    def decode(bits, total_bits):
+        mask = (1 << n) - 1
+        b = bits & mask
+        if b == 0:
+            return (0.0, "zero")
+        if b == (1 << (n - 1)):
+            return (float("nan"), "nar")
+        S = (b >> (n - 1)) & 1
+        D = (b >> (n - 2)) & 1
+        R_uint = (b >> (n - 5)) & 7
+        c_bias = _TAKUM_C_BIAS_LUT[(D << 3) | R_uint]
+        r_eff = (7 - R_uint) if D == 0 else R_uint
+        p = n - r_eff - 5
+        if p < 0:
+            p = 0
+        lower = b & ((1 << (r_eff + p)) - 1)
+        M_uint = (lower & ((1 << p) - 1)) if p > 0 else 0
+        C_uint = ((lower >> p) & ((1 << r_eff) - 1)) if r_eff > 0 else 0
+        c = c_bias + C_uint
+        m = (M_uint / (2 ** p)) if p > 0 else 0.0
+        ell = (1 - 2 * S) * (c + m)
+        if ell == 0.0:
+            return (1.0 if S == 0 else -1.0, "normal")
+        try:
+            import mpmath
+            mpmath.mp.prec = 200
+            val = float(mpmath.exp(mpmath.mpf(ell) / 2))
+        except ImportError:
+            val = math.exp(abs(ell) / 2)
+        return (-val if S else val, "normal")
+    return decode
+
 def build_bitexact_pack(rec, decode, notes, specials_desc):
     cid = rec["id"]; fmt_key = fmt_key_for(rec); bits = rec["bits"]
     cluster = rec["cluster"]; e = rec["e"]; m = rec["m"]; bias = rec["bias"]
@@ -751,6 +1094,12 @@ def build_bitexact_pack(rec, decode, notes, specials_desc):
         encoder = make_posit_encoder(bits, es=2)
     elif cluster == "Lns":
         encoder = make_lns_encoder(bits)
+    elif cluster == "Ieee754Decimal" and cid in DECIMAL_PARAMS:
+        encoder = make_decimal_bid_encoder(cid)
+    elif cluster == "ExtendedFloat" and cid == "double_double":
+        encoder = make_multidouble_encoder(2)
+    elif cluster == "ExtendedFloat" and cid == "quad_double":
+        encoder = make_multidouble_encoder(4)
     vectors, mode = curated_codes(bits, decode, fmt_key, encoder=encoder)
     # anchor
     if bits <= 16:
@@ -824,8 +1173,48 @@ def main():
 
         if cid in EXISTING:
             existing_file = EXISTING[cid]
-            index.append({"id": cid, "file": existing_file, "kind": "bitexact",
-                          "source": "hand-curated (pre-existing)"})
+            # If this pack has a recorded independent witness, inject it into the
+            # pack file's witnesses[] array (idempotent: replace, don't append).
+            src = "hand-curated (pre-existing)"
+            n_vec = None
+            if cid in WITNESSES:
+                path = os.path.join(OUT, existing_file)
+                pk = json.load(open(path))
+                pk["witnesses"] = WITNESSES[cid]
+                pk["bitexact"] = True
+                with open(path, "w") as f:
+                    json.dump(pk, f, indent=2)
+                src = "pre-existing pack + recorded independent witness"
+                n_vec = len(pk.get("vectors", []))
+            entry = {"id": cid, "file": existing_file, "kind": "bitexact",
+                     "source": src}
+            if n_vec is not None:
+                entry["n_vectors"] = n_vec
+            index.append(entry)
+            continue
+
+        if cid in SELFCONSISTENT:
+            # Externally-generated wide-rung pack kept verbatim, never regenerated.
+            #
+            # Its tier is read from the pack rather than asserted here. These rungs
+            # were self-consistent when this branch was written, then acquired
+            # independent second witnesses on 2026-07-05 and were promoted in the
+            # pack files. A hardcoded "bitexact_selfconsistent" meant that re-running
+            # the generator silently DEMOTED all six back, reverting an honesty-rule
+            # #10 promotion that the packs themselves record.
+            #
+            # The pack is the artefact of record for its own status, so a future
+            # promotion or demotion now flows into the index by itself.
+            sc_file = SELFCONSISTENT[cid]
+            sc_pack = json.load(open(os.path.join(OUT, sc_file)))
+            promoted = bool(sc_pack.get("bitexact")) and bool(sc_pack.get("witnesses"))
+            default_src = ("wide-rung GoldenFloat oracle (single decode law, "
+                           "dyadic-exact), no independent second witness")
+            index.append({"id": cid, "file": sc_file,
+                          "kind": "bitexact" if promoted else "bitexact_selfconsistent",
+                          "n_vectors": len(sc_pack.get("vectors", [])),
+                          "source": (PROMOTION_SOURCE[cid] if promoted and cid in PROMOTION_SOURCE
+                                     else default_src)})
             continue
 
         # posit/takum cluster
@@ -836,16 +1225,87 @@ def main():
                     rec, dec, f"Posit Standard 2022, n={rec['bits']}, es=2",
                     "NaR at 10..0; no separate inf; tapered precision")
                 bitexact += 1
+            elif cid == "takum8":
+                # takum8: dedicated logarithmic decoder, exhaustive 256 codes,
+                # correctly-rounded f64 (min gap 0.0135 x 0.5 ULP) -> bit-precise.
+                # Cross-checked vs libtakum/src/codec.c. [proven]
+                dec = make_takum_decoder(8)
+                pack = build_bitexact_pack(
+                    rec, dec,
+                    "Takum logarithmic (Hunhold 2024, arXiv:2404.18603): "
+                    "value = exp(ell/2), exhaustive 256 codes, correctly-rounded f64",
+                    "zero at 0x00; NaR at 0x80 (MSB-set); n<12 is below the nominal "
+                    "takum standard threshold (recorded, not a decoder error)")
+                bitexact += 1
+            elif cid == "takum16":
+                # takum16: logarithmic, 65536 codes -> still EXHAUSTIVELY
+                # witnessable. Independent second witness (no external libtakum):
+                # ell is re-derived EXACTLY from the bit layout (dyadic rational),
+                # value = exp(ell/2) computed at 400-bit mpmath, rounded to f64.
+                # witness_takum16_bitexact.py proves over all 65536 codes:
+                #   * 0 codes ambiguous near a rounding midpoint
+                #   * min gap to a midpoint = 4.2995803e-5 ULP, STABLE at
+                #     400/800/1600-bit (a real gap, not numerical noise)
+                # => every code is unambiguously correctly-rounded f64; the
+                # high-precision recompute is a genuine independent witness
+                # (abs_error=0). Same criterion that promoted takum8. [proven]
+                dec = make_takum_decoder(16)
+                pack = build_bitexact_pack(
+                    rec, dec,
+                    "Takum logarithmic (Hunhold 2024, arXiv:2404.18603): "
+                    "value = exp(ell/2), exhaustive 65536 codes, correctly-rounded "
+                    "f64 (independent 400-bit witness, min midpoint gap 4.30e-5 ULP)",
+                    "zero at 0x0000; NaR at 0x8000 (MSB-set); exhaustive over all "
+                    "65536 codes")
+                bitexact += 1
             elif cid.startswith("takum"):
-                # takum: tapered logarithmic; decode is nontrivial -> structural
+                # takum32/64: logarithmic; 2^32 / 2^64 codes are NOT exhaustively
+                # witnessable in-sandbox, and a correctly-rounded gap proof over
+                # the full domain needs an external libtakum oracle -> kept
+                # structural HONESTLY (no exhaustive independent second witness).
                 pack = build_structural_pack(rec)
-                pack["structural_reason"] = ("Takum (Hunhold 2024) is a tapered "
-                    "LOGARITHMIC format; its decode is not a plain S:E:M field. "
-                    "It is the live FL-002 counterexample and is recorded "
-                    "structurally pending a dedicated logarithmic decoder.")
+                pack["structural_reason"] = ("Takum (Hunhold 2024, arXiv:2404.18603) "
+                    "is a tapered LOGARITHMIC format; its decode is not a plain "
+                    "S:E:M field. takum8 and takum16 are promoted to bit-precise "
+                    "(exhaustive 256 / 65536 codes, independent high-precision "
+                    "witness); this wider rung stays structural pending an external "
+                    "libtakum oracle for the full-domain correctly-rounded gap proof.")
                 structural += 1
             else:
                 pack = build_structural_pack(rec); structural += 1
+        elif cid == "gf256":
+            # gf256: GoldenFloat wide rung, S1E97M158, bias = 2^96-1 (PROPOSED in
+            # the catalog per rule e=round(255/phi^2)=97). The decode law is fixed
+            # by that proposed layout, so we CAN emit a dyadic-exact self-consistent
+            # pack (named vectors + 3.0 anchor placed directly via the exact
+            # encoder). But at 256-bit width the mantissa exceeds f64 and there is
+            # NO independent second witness (no silicon, no external oracle), and
+            # the bias is still an OPEN R&D parameter -> label bitexact_selfconsistent,
+            # NOT bitexact. Same honest tier as gf128 / the WP-29/30 wide rungs.
+            dec = make_ieee_decoder(rec["e"], rec["m"], rec["bias"], has_inf=True, has_nan=True)
+            pack = build_bitexact_pack(
+                rec, dec,
+                "GoldenFloat wide rung S1E97M158, bias 2^96-1 (PROPOSED layout: "
+                "rule e=round(255/phi^2)=97). Dyadic-exact under one decode law; "
+                "NO independent second witness at 256-bit and the bias is an OPEN "
+                "R&D parameter -> self-consistent tier, not promoted to bitexact.",
+                "IEEE-style specials at top exponent; mantissa exceeds f64 (named "
+                "dyadic vectors are exact, full grid not enumerable)")
+            # honest self-consistent tier: keep the file's own bitexact flag false
+            pack["bitexact"] = False
+            pack["selfconsistent"] = True
+            pack["selfconsistent_reason"] = (
+                "Single decode law, dyadic-exact named vectors, but no independent "
+                "second witness at 256-bit width and bias is an OPEN R&D parameter.")
+            with open(os.path.join(OUT, fname), "w") as f:
+                json.dump(pack, f, indent=2)
+            written += 1
+            index.append({"id": cid, "file": fname, "kind": "bitexact_selfconsistent",
+                          "n_vectors": pack.get("n_vectors", 0),
+                          "source": "generated by gen_all_formats.py (self-consistent "
+                                    "wide-rung: single decode law, no independent "
+                                    "second witness, open bias)"})
+            continue
         else:
             built = build_decodable(rec)
             if built is not None:
@@ -864,11 +1324,19 @@ def main():
                       "n_vectors": pack.get("n_vectors", 0),
                       "source": "generated by gen_all_formats.py"})
 
-    # SHA-256 for every pack file in the index
+    # SHA-256 for every pack file in the index, plus the witness count.
+    #
+    # The witness count is in the index because honesty rule #10 -- a pack is not
+    # promoted to bit-precise without an independent second witness -- is the
+    # corpus's central claim, and until now a consumer could not see which packs
+    # carry a witness record without opening all 83 pack files. The data was
+    # already in the packs; this only makes it reachable from the summary a tool
+    # actually reads.
     for entry in index:
         path = os.path.join(OUT, entry["file"])
-        h = hashlib.sha256(open(path, "rb").read()).hexdigest()
-        entry["sha256"] = h
+        blob = open(path, "rb").read()
+        entry["sha256"] = hashlib.sha256(blob).hexdigest()
+        entry["witnesses"] = len(json.loads(blob).get("witnesses", []) or [])
 
     idx = {
         "schema": "t27-conformance-index/v0.1",
@@ -878,7 +1346,9 @@ def main():
         "total_formats": len(recs),
         "total_packs": len(index),
         "bitexact_packs": sum(1 for e in index if e["kind"] == "bitexact"),
+        "selfconsistent_packs": sum(1 for e in index if e["kind"] == "bitexact_selfconsistent"),
         "structural_packs": sum(1 for e in index if e["kind"] == "structural"),
+        "witnessed_packs": sum(1 for e in index if e.get("witnesses")),
         "packs": index,
     }
     with open(os.path.join(OUT, "INDEX_all_formats.json"), "w") as f:
@@ -887,7 +1357,8 @@ def main():
     print(f"formats: {len(recs)}")
     print(f"written new packs: {written}  (bitexact={bitexact}, structural={structural})")
     print(f"existing kept: {len(EXISTING)}")
-    print(f"index packs: {len(index)}  bitexact={idx['bitexact_packs']}  structural={idx['structural_packs']}")
+    print(f"index packs: {len(index)}  bitexact={idx['bitexact_packs']}  "
+          f"selfconsistent={idx['selfconsistent_packs']}  structural={idx['structural_packs']}")
 
 if __name__ == "__main__":
     main()
