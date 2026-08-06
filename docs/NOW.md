@@ -1,3 +1,17 @@
+# NOW — feat: spec-first GF-T16 4-term MAC (matmul tile) + R-SI-1 finding (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): GF-T16 dot4 (matmul/attention tile), bit-exact to the silicon reduction tree (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Что легло
+- `specs/ternary/gft_dot4.t27` (`GftDot4`) + seal + `bootstrap/tests/gft_dot4.rs`: **a spec-first GF-T16 4-term dot product** `y = a1*b1+a2*b2+a3*b3+a4*b4`, scaling the silicon-proven 2-term GF-T MAC to a real matmul/attention tile length. GF-T float add is non-associative, so the balanced reduction tree `((a1b1+a2b2)+(a3b3+a4b4))` is the contract. Verified: typecheck 0 err; in-spec test passes (4.0 = 21504); **iverilog cross-check vs the SAME tree built from the silicon-proven gft_dot2 + gft_add = ALL_PASS 2000 random inputs, bit-exact**. Uses `on_comb`, no compiler change.
+- **R-SI-1 finding (option: "DSP inference for `*`" -- rejected):** the GF-T MAC's high CARRY4 count is because `gen-verilog` lowers `*` to the shift-add `__mul_noop`. Investigation shows this is **R-SI-1, the project keystone** ("multiplier-free RTL by design" -- per the whitepaper/reports, Trinity's unique differentiator that "no competitor can generate"). Adding DSP48 inference would VIOLATE R-SI-1 and destroy the core thesis. So the shift-add is correct-by-design; the only R-SI-1-compliant win (a width-aware `__mul_noop` doing 10 iterations for 10-bit operands instead of 32) is seal-affecting (changes every `*` spec's output) -> owner-gated reseal decision, not an autonomous change.
+
+---
+
 # NOW — feat: spec-first GF-T16 MAC — bit-exact to the silicon-proven RTL (2026-08-06)
 
 Last updated: 2026-08-06
