@@ -1,3 +1,22 @@
+# NOW — feat: GF-T16 dot8 (attention-tile MAC) + master codegen diagnosis (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): GF-T16 8-term MAC, bit-exact to silicon; + master codegen bug diagnosis (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Что легло
+- `specs/ternary/gft_dot8.t27` (`GftDot8`) + seal + `bootstrap/tests/gft_dot8.rs`: spec-first **GF-T16 8-term dot product** (realistic inference / attention-head tile), balanced reduction tree. Verified: typecheck 0 err; in-spec test (8.0 = 22016); **iverilog cross-check vs the same tree from silicon-proven gft_dot2+gft_add = ALL_PASS 2000, bit-exact**. GF-T dot ladder now: dot2 -> dot4 -> dot8, all silicon-bit-exact. Uses `on_comb`, no compiler change; 1506 unit tests pass.
+
+### Master codegen diagnosis (landing blocker -- for the repair owner)
+Attempted to land the spec-first hardware branch onto current master (tip `493a7a029`, the #1788 repair merge) and found **master is red: 7 internal tests fail + yosys rejects every design**. Root cause = the `#1783` batch merge dropped several gen-verilog pieces; `#1788` repaired some but not all. Precisely:
+1. **Tests-section opener** emits `// synthesis translate_off` (old style) but closes with `` `endif `` -> unbalanced, **breaks yosys repo-wide**. Fix = one line: emit `` `ifndef SIMULATION `` instead (matches the `` `endif `` + the `no_translate_off_comments` test). VERIFIED: fixes yosys + 1 test. **Seal-affecting** (test-bearing specs reseal) -> the committed seals currently encode the BROKEN output, so master's `validate` (seals) and `check` (unit tests) DISAGREE.
+2. **6 more red tests are distinct dropped features**: `tests_w457_ram_style` (block/distributed RAM pragma) x2, `tests_w458::array_param_read_emitted`, `tests_w459::{array_param_bound_from_test_block, test_block_emits_real_function_call}`, `tests_hir_pipeline_parity::verilog_keyword_escaped`.
+Did NOT push a fix (multi-bug repair + reseal sweep in an actively-repaired area = owner decision). The spec-first hardware delta itself APPLIES + BUILDS clean on master; it lands the moment these 7 go green.
+
+---
+
 # NOW — feat: spec-first GF-T16 4-term MAC (matmul tile) + R-SI-1 finding (2026-08-06)
 
 Last updated: 2026-08-06
