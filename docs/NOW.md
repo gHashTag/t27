@@ -1,3 +1,16 @@
+# NOW — ci(trust): OpenSSF Scorecard, SBOM, Sigstore-signed releases (2026-08-06)
+
+Last updated: 2026-08-06
+
+## ci(trust): supply-chain provenance workflows (Closes #1785)
+
+- Branch: `trust/openssf-sbom-sigstore`
+
+### Что легло
+- Three new workflow files (+242/-0, no existing workflow modified): `.github/workflows/scorecard.yml` — OpenSSF Scorecard, continuous scoring of repository security posture published as SARIF; `.github/workflows/sbom.yml` — a bill of materials per build so consumers can audit the dependency graph against advisories; `.github/workflows/sign-release.yml` — Sigstore keyless signing via OIDC, so release artifacts carry verifiable provenance without long-lived signing keys. `sign-release.yml` is `workflow_dispatch`-triggered, defaults to `contents: read`, and elevates to `contents: write` + `id-token: write` only inside the signing job, using `secrets.GITHUB_TOKEN` alone — no third-party secrets. Moves the repo toward the reproducible-builds / SLSA-provenance direction already named in [FROZEN.md](../FROZEN.md) section 1.3, beyond today's source-hash seal. CI only — no source change.
+
+---
+
 # NOW — fix: gen-rust bool negation and integer-width coercion (2026-08-06)
 
 Last updated: 2026-08-06
