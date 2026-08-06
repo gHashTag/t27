@@ -1,3 +1,16 @@
+# NOW — feat: spec-first 2-bit ternary ripple-carry adder (multi-bit datapath) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat: spec-first 2-bit ripple-carry adder add2 (Closes #1774)
+
+- Branch: `feat/spec-first-ripple-adder`
+
+### Что легло
+- `specs/ternary/ternary_ripple_adder.t27`: `add2(a0,a1,b0,b1)` — a 2-bit ripple-carry adder = two full adders (each XOR + majority) with the carry threaded between them, over trit-embedded bits {0→N,1→P}. Output packs sum0[1:0]+sum1[3:2]+carry-out[5:4]. Extends the stack from a single full adder into a **multi-bit arithmetic datapath** — the shape of a real ALU, all from the ternary neural primitives. Verified: typecheck 0 err; icarus-simulate 5/5; seal MATCH; new `tests/ternary_ripple_adder.rs` exhaustively drives all 2^4=16 input pairs vs binary addition = ALL_PASS 16. No compiler change. Also filed **#1773**: no cross-module imports → each spec re-defines the primitives (reuse/ergonomics gap for a real library).
+
+---
+
 # NOW — feat: spec-first ternary full adder (arithmetic from XOR + majority) (2026-08-06)
 
 Last updated: 2026-08-06
