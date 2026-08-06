@@ -205,9 +205,15 @@ pub enum FpgaCmd {
         #[arg(long, default_value_t = 3)]
         repeat: u32,
         /// Seconds to wait for the user to power-cycle before sampling STAT.
-        /// Ignored; the command waits for keyboard input by default.
+        /// With 0 the command waits for keyboard input; with a positive value it
+        /// auto-continues after the timeout (operator may press ENTER early).
         #[arg(long, default_value_t = 0)]
         wait_seconds: u32,
+        /// Optional PVT context JSON file to embed in the boot log. The context
+        /// is not validated against the captured CCLK; it records ambient
+        /// conditions for later comparison.
+        #[arg(long)]
+        pvt_context: Option<PathBuf>,
         /// JSON boot-log directory (default: <repo>/build/fpga).
         #[arg(long)]
         log_dir: Option<PathBuf>,
@@ -227,9 +233,13 @@ pub enum FpgaCmd {
         #[arg(long, default_value_t = 3)]
         repeat: u32,
         /// Seconds to wait for the relay/mock power-cycle before sampling STAT.
-        /// Ignored in MOCK mode.
+        /// In MOCK mode this simulates the operator delay and auto-continues
+        /// after the timeout (operator may press ENTER early).
         #[arg(long, default_value_t = 0)]
         wait_seconds: u32,
+        /// Optional PVT context JSON file to embed in the mock boot log.
+        #[arg(long)]
+        pvt_context: Option<PathBuf>,
         /// JSON boot-log directory (default: <repo>/build/fpga).
         #[arg(long)]
         log_dir: Option<PathBuf>,
@@ -356,6 +366,9 @@ pub enum FpgaCmd {
         /// known and you want to skip the interactive prompt.
         #[arg(long, default_value_t = 0)]
         wait_seconds: u32,
+        /// Optional PVT context JSON file to embed in each sweep log entry.
+        #[arg(long)]
+        pvt_context: Option<PathBuf>,
         /// Sweep only a single specified OSCFSEL value and exit. Useful for
         /// testing one variant at a time or for scripting around manual
         /// power-cycles.
@@ -576,6 +589,11 @@ pub enum FpgaCmd {
         /// detects a sample-number time column and no other unit is found.
         #[arg(long)]
         csv_samplerate: Option<u32>,
+        /// Unit of the voltage column in an analog CSV export. Some instruments
+        /// report millivolts (e.g. 0..3300) instead of volts (0..3.3). Use `mv`
+        /// to scale the column by 1e-3 before threshold detection. Default: `v`.
+        #[arg(long, value_name = "v|mv")]
+        csv_voltage_unit: Option<String>,
         /// Parse a VCD file and convert the first (or `--vcd-signal`) scalar or
         /// multi-bit logic net transitions to a raw-ns theorem. Mutually exclusive
         /// with `--file` and `--csv`.
@@ -703,8 +721,19 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             freq,
             repeat,
             wait_seconds,
+            pvt_context,
             log_dir,
-        } => boot_log(bit, cable, part, bridge.as_ref(), *freq, *repeat, *wait_seconds, log_dir.as_ref()),
+        } => boot_log(
+            bit,
+            cable,
+            part,
+            bridge.as_ref(),
+            *freq,
+            *repeat,
+            *wait_seconds,
+            pvt_context.as_ref(),
+            log_dir.as_ref(),
+        ),
         FpgaCmd::SmokeGate {
             bit,
             top,
@@ -740,6 +769,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             freq,
             repeat,
             wait_seconds,
+            pvt_context,
             single,
         } => {
             let results = cclk_sweep(
@@ -755,6 +785,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
                 *freq,
                 *repeat,
                 *wait_seconds,
+                pvt_context.as_ref(),
                 *single,
             )?;
             if !results.iter().any(|r| r.done) {
@@ -840,6 +871,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             csv,
             csv_channel,
             csv_samplerate,
+            csv_voltage_unit,
             vcd,
             vcd_signal,
             vcd_bit,
@@ -851,6 +883,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             csv.as_ref(),
             csv_channel.as_deref(),
             *csv_samplerate,
+            csv_voltage_unit.as_deref(),
             vcd.as_ref(),
             vcd_signal.as_deref(),
             *vcd_bit,
@@ -872,8 +905,16 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             relay_port,
             repeat,
             wait_seconds,
+            pvt_context,
             log_dir,
-        } => cold_por(bit, relay_port, *repeat, *wait_seconds, log_dir.as_ref()),
+        } => cold_por(
+            bit,
+            relay_port,
+            *repeat,
+            *wait_seconds,
+            pvt_context.as_ref(),
+            log_dir.as_ref(),
+        ),
     }
 }
 
@@ -2004,11 +2045,13 @@ fn cclk_sweep(
     freq: u32,
     repeat: u32,
     wait_seconds: u32,
+    pvt_context: Option<&PathBuf>,
     single: Option<u8>,
 ) -> Result<Vec<SweepResult>> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
+    let pvt_ctx = load_optional_pvt_context(pvt_context)?;
 
     let values: Vec<u8> = if let Some(v) = single {
         if v > 0x3F {
@@ -2016,7 +2059,7 @@ fn cclk_sweep(
         }
         vec![v]
     } else if values.is_empty() {
-        vec![0, 1, 2, 3, 4, 5]
+        vec![0, 1, 2, 3, 4, 5, 6, 7]
     } else {
         values.clone()
     };
@@ -2101,6 +2144,7 @@ fn cclk_sweep(
                     },
                 })
                 .collect();
+            let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
             let log = SweepLog {
                 timestamp: start_time.to_rfc3339(),
                 bitstream: variant_path.to_string_lossy().to_string(),
@@ -2111,6 +2155,8 @@ fn cclk_sweep(
                 repeat: repeat.max(1),
                 conclusion: conclusion.to_string(),
                 samples,
+                pvt_context: pvt_json,
+                xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
             };
             write_sweep_log(&log, &sweep_log_dir)?;
             results.push(SweepResult {
@@ -2141,6 +2187,7 @@ fn cclk_sweep(
             Some("1"),
         ) {
             eprintln!("[cclk-sweep] program-flash failed: {e}");
+            let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
             let log = SweepLog {
                 timestamp: start_time.to_rfc3339(),
                 bitstream: variant_path.to_string_lossy().to_string(),
@@ -2151,6 +2198,8 @@ fn cclk_sweep(
                 repeat: repeat.max(1),
                 conclusion: "PROGRAM_FLASH_FAILED".to_string(),
                 samples: Vec::new(),
+                pvt_context: pvt_json,
+                xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
             };
             write_sweep_log(&log, &sweep_log_dir)?;
             results.push(SweepResult {
@@ -2188,27 +2237,7 @@ fn cclk_sweep(
         }
         eprintln!();
 
-        if wait_seconds > 0 {
-            let start = std::time::Instant::now();
-            let timeout = std::time::Duration::from_secs(wait_seconds as u64);
-            let mut input = String::new();
-            // Best-effort early-exit: try to read a line with a short poll loop.
-            loop {
-                if std::io::stdin().read_line(&mut input).is_ok() && !input.trim().is_empty() {
-                    break;
-                }
-                if start.elapsed() >= timeout {
-                    eprintln!("[cclk-sweep] auto-continuing after {} s", wait_seconds);
-                    break;
-                }
-                std::thread::sleep(std::time::Duration::from_millis(100));
-            }
-        } else {
-            let mut input = String::new();
-            std::io::stdin()
-                .read_line(&mut input)
-                .context("waiting for user confirmation after power-cycle")?;
-        }
+        wait_for_continue(wait_seconds, "cclk-sweep")?;
 
         match capture_stat(cable, true, repeat) {
             Ok(samples) => {
@@ -2220,6 +2249,7 @@ fn cclk_sweep(
                 } else {
                     "H2_CCLK_TIMING: mode OK but DONE=LOW; try CCLK variants".to_string()
                 };
+                let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
                 let log = SweepLog {
                     timestamp: start_time.to_rfc3339(),
                     bitstream: variant_path.to_string_lossy().to_string(),
@@ -2244,6 +2274,8 @@ fn cclk_sweep(
                             diagnosis: b.diagnose(),
                         })
                         .collect(),
+                    pvt_context: pvt_json,
+                    xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
                 };
                 write_sweep_log(&log, &sweep_log_dir)?;
                 results.push(SweepResult {
@@ -2258,6 +2290,7 @@ fn cclk_sweep(
             }
             Err(e) => {
                 eprintln!("[cclk-sweep] STAT capture failed: {e}");
+                let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
                 let log = SweepLog {
                     timestamp: start_time.to_rfc3339(),
                     bitstream: variant_path.to_string_lossy().to_string(),
@@ -2268,6 +2301,8 @@ fn cclk_sweep(
                     repeat: repeat.max(1),
                     conclusion: "STAT_CAPTURE_FAILED".to_string(),
                     samples: Vec::new(),
+                    pvt_context: pvt_json,
+                    xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
                 };
                 write_sweep_log(&log, &sweep_log_dir)?;
                 results.push(SweepResult {
@@ -2408,6 +2443,9 @@ struct SweepLog {
     repeat: u32,
     conclusion: String,
     samples: Vec<SweepSample>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pvt_context: Option<serde_json::Value>,
+    xadc: serde_json::Value,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -2433,6 +2471,65 @@ struct SweepResult {
     crc_error: bool,
     id_error: bool,
     conclusion: String,
+}
+
+/// Wait for the operator to continue. With `wait_seconds == 0` the call blocks
+/// until ENTER is pressed. With `wait_seconds > 0` it auto-continues after the
+/// timeout, while a background stdin reader lets the operator press ENTER to
+/// continue early. This is used by `boot-log`, `cold-por`, and `cclk-sweep`.
+fn wait_for_continue(wait_seconds: u32, label: &str) -> Result<()> {
+    if wait_seconds == 0 {
+        eprintln!("  Press ENTER here when the board and cable are stable.");
+        let mut input = String::new();
+        std::io::stdin()
+            .read_line(&mut input)
+            .context(format!("{} waiting for operator confirmation", label))?;
+        return Ok(());
+    }
+
+    eprintln!(
+        "  Auto-continuing after {} seconds (press ENTER to continue early).",
+        wait_seconds
+    );
+    let timeout = std::time::Duration::from_secs(wait_seconds as u64);
+    let start = std::time::Instant::now();
+    let (tx, rx) = std::sync::mpsc::channel::<()>();
+    std::thread::Builder::new()
+        .name(format!("{}-stdin-wait", label))
+        .spawn(move || {
+            let mut input = String::new();
+            if std::io::stdin().read_line(&mut input).is_ok() {
+                let _ = tx.send(());
+            }
+        })
+        .context(format!("{} spawn stdin watcher", label))?;
+
+    loop {
+        if rx.try_recv().is_ok() {
+            return Ok(());
+        }
+        if start.elapsed() >= timeout {
+            eprintln!("[{}] auto-continuing after {} s", label, wait_seconds);
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+
+/// XADC context placeholder. Real XADC readout is not yet implemented; the
+/// helper still records whether the values were read from the board or taken
+/// from a supplied PVT context file, and the temperature / rail voltages when
+/// available.
+fn xadc_context_json(source: &str, ctx: Option<&PvtContext>) -> serde_json::Value {
+    let temp_c = ctx.map(|c| c.temp_c);
+    let vccint_mv = ctx.map(|c| c.vccint_mv);
+    let vccaux_mv = ctx.map(|c| c.vccaux_mv);
+    serde_json::json!({
+        "source": source,
+        "temp_c": temp_c,
+        "vccint_mv": vccint_mv,
+        "vccaux_mv": vccaux_mv,
+    })
 }
 
 fn write_sweep_log(log: &SweepLog, log_dir: &PathBuf) -> Result<()> {
@@ -2639,7 +2736,7 @@ fn measure_cclk(
             let samplerate = detect_logic_csv_samplerate(path)?.unwrap_or(samplerate);
             parse_logic_csv(path, samplerate)?
         } else {
-            parse_cclk_csv(path, None, None)?
+            parse_cclk_csv(path, None, None, None)?
         };
         (f, d, format!("csv {}", path.display()))
     } else {
@@ -2929,6 +3026,14 @@ fn raw_ns_satisfies_flash_spec_pvt(period_ns: u64, low_ns: u64, high_ns: u64, ct
         && high_ns >= min_half_ns
 }
 
+/// Helper to parse an optional PVT context JSON file.
+fn load_optional_pvt_context(path: Option<&PathBuf>) -> Result<Option<PvtContext>> {
+    match path {
+        Some(p) => Ok(Some(parse_pvt_context(p)?)),
+        None => Ok(None),
+    }
+}
+
 /// Helper to parse a PVT context JSON file.
 fn parse_pvt_context(path: &std::path::Path) -> Result<PvtContext> {
     let text = std::fs::read_to_string(path)
@@ -2971,6 +3076,7 @@ fn measured_to_lean(
     csv: Option<&PathBuf>,
     csv_channel: Option<&str>,
     csv_samplerate: Option<u32>,
+    csv_voltage_unit: Option<&str>,
     vcd: Option<&PathBuf>,
     vcd_signal: Option<&str>,
     vcd_bit: usize,
@@ -2998,8 +3104,9 @@ fn measured_to_lean(
             process_corner: ProcessCorner::Ss,
         });
     }
+    let csv_volt_unit = csv_voltage_unit.map(parse_csv_voltage_unit).transpose()?;
     let text = if let Some(path) = csv {
-        let (period_ns, low_ns, high_ns) = parse_csv_to_raw_ns(path, csv_channel, csv_samplerate)?;
+        let (period_ns, low_ns, high_ns) = parse_csv_to_raw_ns(path, csv_channel, csv_samplerate, csv_volt_unit)?;
         if validate {
             if let Some(ref ctx) = pvt_ctx {
                 if !raw_ns_satisfies_flash_spec_pvt(period_ns, low_ns, high_ns, ctx) {
@@ -3489,11 +3596,16 @@ fn parse_logic_csv(path: &PathBuf, samplerate: u32) -> Result<(f64, f64)> {
 /// The first numeric column is treated as time (seconds) and the next numeric
 /// column as the signal voltage (volts). Rows with non-numeric fields are
 /// skipped.
-fn parse_cclk_csv(path: &PathBuf, channel: Option<&str>, samplerate_hz: Option<u32>) -> Result<(f64, f64)> {
+fn parse_cclk_csv(
+    path: &PathBuf,
+    channel: Option<&str>,
+    samplerate_hz: Option<u32>,
+    voltage_unit: Option<CsvVoltageUnit>,
+) -> Result<(f64, f64)> {
     let file = std::fs::File::open(path)
         .with_context(|| format!("open {}", path.display()))?;
     let reader = std::io::BufReader::new(file);
-    parse_cclk_csv_reader(reader, channel, samplerate_hz)
+    parse_cclk_csv_reader(reader, channel, samplerate_hz, voltage_unit)
 }
 
 /// Time-column unit detected from a logic-analyzer CSV header or data shape.
@@ -3516,6 +3628,33 @@ impl CsvTimeUnit {
             CsvTimeUnit::Nanoseconds => 1.0e-9,
             CsvTimeUnit::SampleNumber => 1.0,
         }
+    }
+}
+
+/// Voltage-column unit for analog CSV exports. Some instruments (e.g. scope
+/// CSVs) report millivolts instead of volts; the multiplier normalises to
+/// volts before threshold detection.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum CsvVoltageUnit {
+    V,
+    Mv,
+}
+
+impl CsvVoltageUnit {
+    /// Multiplier to convert the raw voltage value to volts.
+    fn to_volts_multiplier(self) -> f64 {
+        match self {
+            CsvVoltageUnit::V => 1.0,
+            CsvVoltageUnit::Mv => 1.0e-3,
+        }
+    }
+}
+
+fn parse_csv_voltage_unit(s: &str) -> Result<CsvVoltageUnit> {
+    match s.to_lowercase().as_str() {
+        "v" | "volts" | "volt" => Ok(CsvVoltageUnit::V),
+        "mv" | "millivolts" | "millivolt" => Ok(CsvVoltageUnit::Mv),
+        _ => bail!("unsupported --csv-voltage-unit '{}'; expected 'v' or 'mv'", s),
     }
 }
 
@@ -3569,7 +3708,9 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(
     reader: R,
     channel: Option<&str>,
     samplerate_hz: Option<u32>,
+    voltage_unit: Option<CsvVoltageUnit>,
 ) -> Result<(f64, f64)> {
+    let volts_per_unit = voltage_unit.unwrap_or(CsvVoltageUnit::V).to_volts_multiplier();
     let mut raw_times: Vec<f64> = Vec::new();
     let mut values: Vec<f64> = Vec::new();
     let mut header_seen = false;
@@ -3682,7 +3823,7 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(
 
         if let (Some(t), Some(v)) = (parsed.get(time_idx).copied().flatten(), parsed.get(value_idx).copied().flatten()) {
             raw_times.push(t);
-            values.push(v);
+            values.push(v * volts_per_unit);
         }
     }
 
@@ -3723,6 +3864,9 @@ fn parse_cclk_csv_reader<R: std::io::BufRead>(
             "[measured-to-lean] CSV time-column unit detected as {:?}; converted to seconds",
             time_unit
         );
+    }
+    if voltage_unit == Some(CsvVoltageUnit::Mv) {
+        eprintln!("[measured-to-lean] CSV voltage column scaled from mV to V");
     }
 
     if times.len() < 2 {
@@ -3795,6 +3939,7 @@ fn parse_csv_to_raw_ns(
     path: &PathBuf,
     channel: Option<&str>,
     samplerate: Option<u32>,
+    voltage_unit: Option<CsvVoltageUnit>,
 ) -> Result<(u64, u64, u64)> {
     if !path.is_file() {
         bail!("CSV not found: {}", path.display());
@@ -3813,7 +3958,7 @@ fn parse_csv_to_raw_ns(
         let file = std::fs::File::open(path)
             .with_context(|| format!("open {}", path.display()))?;
         let reader = std::io::BufReader::new(file);
-        let (freq_hz, duty_pct) = parse_cclk_csv_reader(reader, channel, samplerate)?;
+        let (freq_hz, duty_pct) = parse_cclk_csv_reader(reader, channel, samplerate, voltage_unit)?;
         let (period_ns, low_ns, high_ns) = freq_duty_to_raw_ns(freq_hz, duty_pct);
         println!(
             "[measured-to-lean] analog CSV {} -> {} ns period, {} ns low, {} ns high",
@@ -4384,12 +4529,14 @@ fn boot_log(
     bridge: Option<&PathBuf>,
     freq: u32,
     repeat: u32,
-    _wait_seconds: u32,
+    wait_seconds: u32,
+    pvt_context: Option<&PathBuf>,
     log_dir: Option<&PathBuf>,
 ) -> Result<()> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
+    let pvt_ctx = load_optional_pvt_context(pvt_context)?;
     let root = repo_root()?;
     let boot_log_dir = match log_dir {
         Some(d) => d.to_path_buf(),
@@ -4425,13 +4572,15 @@ fn boot_log(
     eprintln!("  4. Reconnect power.");
     eprintln!("  5. Do NOT press the FPGA's PROG_B or RESET button.");
     eprintln!("  6. Wait at least 2 seconds, then reconnect the JTAG cable.");
-    eprintln!("  7. Press ENTER here when the board and cable are stable.");
+    let step7 = if wait_seconds == 0 {
+        "Press ENTER here when the board and cable are stable".to_string()
+    } else {
+        format!("Auto-continuing after {} seconds (press ENTER to continue early)", wait_seconds)
+    };
+    eprintln!("  7. {}.", step7);
     eprintln!();
 
-    let mut input = String::new();
-    std::io::stdin()
-        .read_line(&mut input)
-        .context("waiting for user confirmation after power-cycle")?;
+    wait_for_continue(wait_seconds, "boot-log")?;
 
     eprintln!("[boot-log] Step 3/4: capture STAT without JTAG reset ({} sample[s])", repeat.max(1));
     let stat_result = capture_stat(cable, true, repeat);
@@ -4453,6 +4602,7 @@ fn boot_log(
     };
 
     // Persist a JSON log entry for later comparison across variants.
+    let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
     let log_entry = serde_json::json!({
         "timestamp": start_time.to_rfc3339(),
         "bitstream": bit.to_string_lossy().to_string(),
@@ -4472,6 +4622,8 @@ fn boot_log(
             "mode": b.mode,
             "diagnosis": b.diagnose(),
         })).collect::<Vec<_>>(),
+        "pvt_context": pvt_json,
+        "xadc": xadc_context_json("not_read", pvt_ctx.as_ref()),
     });
     let log_path = boot_log_dir.join(format!(
         "boot-log-{}.json",
@@ -4520,12 +4672,14 @@ fn cold_por(
     bit: &PathBuf,
     relay_port: &str,
     repeat: u32,
-    _wait_seconds: u32,
+    wait_seconds: u32,
+    pvt_context: Option<&PathBuf>,
     log_dir: Option<&PathBuf>,
 ) -> Result<()> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
+    let pvt_ctx = load_optional_pvt_context(pvt_context)?;
 
     let root = repo_root()?;
     let boot_log_dir = match log_dir {
@@ -4546,6 +4700,10 @@ fn cold_por(
     println!("== Cold-POR (relay MOCK) ==");
     println!("Bitstream: {}", bit.display());
     println!("Relay port: MOCK (deterministic, no hardware touched)");
+    if wait_seconds > 0 {
+        println!("Simulating operator delay: auto-continuing after {} seconds (press ENTER to continue early).", wait_seconds);
+        wait_for_continue(wait_seconds, "cold-por")?;
+    }
 
     // Deterministic mock outcome: a successful cold-POR with the canonical W400
     // STAT signature.
@@ -4568,6 +4726,7 @@ fn cold_por(
         .collect();
 
     let conclusion = "DONE=HIGH: board boots from flash (relay mock)";
+    let pvt_json = pvt_ctx.as_ref().map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
     let log_entry = serde_json::json!({
         "timestamp": start_time.to_rfc3339(),
         "bitstream": bit.to_string_lossy().to_string(),
@@ -4576,6 +4735,8 @@ fn cold_por(
         "repeat": repeat.max(1),
         "conclusion": conclusion,
         "samples": samples,
+        "pvt_context": pvt_json,
+        "xadc": xadc_context_json("not_read", pvt_ctx.as_ref()),
     });
     let log_path = boot_log_dir.join(format!(
         "boot-log-cold-por-mock-{}.json",
@@ -4682,6 +4843,7 @@ fn smoke_gate(
                 3,
                 wait_seconds,
                 None,
+                None,
             )
             .with_context(|| "flash-boot CCLK sweep failed")?;
             if !results.iter().any(|r| r.done) {
@@ -4760,6 +4922,7 @@ fn smoke_gate(
             6_000_000,
             3,
             0,
+            None,
             None,
         )?;
         let dry_report = dry_log_dir.join("sweep-report-smoke-gate-dry-run.md");
@@ -5194,7 +5357,7 @@ mod tests {
     #[test]
     fn test_parse_cclk_csv_dsview_header() {
         let csv = square_wave_csv(1.0 / 3.0e6, 10); // 3 MHz, 50% duty
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
         assert!((freq - 3.0e6).abs() < 50_000.0, "freq {} should be ~3 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -5208,7 +5371,7 @@ mod tests {
             let v0 = if i % 20 < 10 { 0.0 } else { 3.3 };
             csv.push_str(&format!("{:.12},{:.1},0.0\n", t, v0));
         }
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
         assert!((freq - 6.0e6).abs() < 100_000.0, "freq {} should be ~6 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -5222,7 +5385,7 @@ mod tests {
             let v = if i % 20 < 8 { 0.0 } else { 3.3 }; // 60% high duty
             csv.push_str(&format!("{:.12},{:.1}\n", t, v));
         }
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
         assert!((freq - 12.0e6).abs() < 200_000.0, "freq {} should be ~12 MHz", freq);
         assert!((duty - 60.0).abs() < 5.0, "duty {} should be ~60%", duty);
     }
@@ -5240,7 +5403,7 @@ mod tests {
             let v = if i % 20 < 10 { 0.0 } else { 3.3 }; // 50% duty 8 MHz
             csv.push_str(&format!("{:.12},{},{}\n", t, counter, v));
         }
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
         assert!((freq - 8.0e6).abs() < 150_000.0, "freq {} should be ~8 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -5248,7 +5411,7 @@ mod tests {
     #[test]
     fn test_parse_cclk_csv_too_few_samples() {
         let csv = "Time,Voltage\n0.0,0.0\n1.0,3.3\n";
-        assert!(parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None).is_err());
+        assert!(parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).is_err());
     }
 
     #[test]
@@ -5263,7 +5426,7 @@ mod tests {
             csv.push_str(&format!("{:.6e},0.0,{:.1}\n", t, v));
         }
         let (freq, duty) =
-            parse_cclk_csv_reader(std::io::Cursor::new(csv), Some("cclk_v"), None).unwrap();
+            parse_cclk_csv_reader(std::io::Cursor::new(csv), Some("cclk_v"), None, None).unwrap();
         assert!((freq - 1.0e6).abs() < 100_000.0, "freq {} should be ~1 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -5279,7 +5442,7 @@ mod tests {
             let v = if i % 20 < 10 { 0.0 } else { 3.3 }; // 100 Hz, 50% duty
             csv.push_str(&format!("{},{:.1}\n", t, v));
         }
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
         assert!((freq - 100.0).abs() < 10.0, "freq {} should be ~100 Hz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -5294,7 +5457,7 @@ mod tests {
             let v = if i % 20 < 10 { 0.0 } else { 3.3 }; // 10 kHz, 50% duty
             csv.push_str(&format!("{},{:.1}\n", t, v));
         }
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
         assert!((freq - 10_000.0).abs() < 1_000.0, "freq {} should be ~10 kHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -5309,7 +5472,7 @@ mod tests {
             let v = if i % 20 < 10 { 0.0 } else { 3.3 }; // 1 MHz, 50% duty
             csv.push_str(&format!("{},{:.1}\n", t, v));
         }
-        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None).unwrap();
+        let (freq, duty) = parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).unwrap();
         assert!((freq - 1.0e6).abs() < 100_000.0, "freq {} should be ~1 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -5324,7 +5487,7 @@ mod tests {
             csv.push_str(&format!("{},{:.1}\n", i, v));
         }
         let (freq, duty) =
-            parse_cclk_csv_reader(std::io::Cursor::new(csv), None, Some(10_000_000)).unwrap();
+            parse_cclk_csv_reader(std::io::Cursor::new(csv), None, Some(10_000_000), None).unwrap();
         assert!((freq - 1.0e6).abs() < 100_000.0, "freq {} should be ~1 MHz", freq);
         assert!((duty - 50.0).abs() < 5.0, "duty {} should be ~50%", duty);
     }
@@ -5333,7 +5496,7 @@ mod tests {
     #[test]
     fn test_parse_cclk_csv_sample_numbers_require_samplerate() {
         let csv = "Sample,cclk_v\n0,0.0\n1,3.3\n2,0.0\n3,3.3\n";
-        assert!(parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None).is_err());
+        assert!(parse_cclk_csv_reader(std::io::Cursor::new(csv), None, None, None).is_err());
     }
 
     #[test]
@@ -5418,7 +5581,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, None, false, false, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, None, false, false, false, false).unwrap();
         assert_eq!(out, ());
         // Clean up.
         std::fs::remove_file(&tmp).unwrap();
@@ -5430,7 +5593,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_margin_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, 0, None, None, None, None, "measured_cclk", true, None, false, false, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", true, None, false, false, false, false).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5442,7 +5605,7 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_standalone_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_standalone_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, 0, None, None, None, Some(&out_path), "measured_cclk", false, None, false, true, false, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, Some(&out_path), "measured_cclk", false, None, false, true, false, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.TernaryFPGABoot"));
@@ -5463,7 +5626,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_raw_ns_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, None, false, false, true, false).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, None, false, false, true, false).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -5474,7 +5637,7 @@ mod tests {
         let csv_tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_csv_raw_ns_{}.csv", std::process::id()));
         generate_synth_cclk_csv(2_500_000.0, samplerate, 1000, &csv_tmp).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_csv_raw_ns_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(None, Some(&csv_tmp), None, None, None, None, 0, None, None, None, Some(&out_path), "measured_csv", false, None, false, true, true, false).unwrap();
+        let out = measured_to_lean(None, Some(&csv_tmp), None, None, None, None, None, 0, None, None, None, Some(&out_path), "measured_csv", false, None, false, true, true, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.TernaryFPGABoot"));
@@ -5528,7 +5691,7 @@ mod tests {
         let vcd_tmp = std::env::temp_dir().join(format!("tri_measured_to_lean_vcd_raw_ns_{}.vcd", std::process::id()));
         std::fs::write(&vcd_tmp, generate_vcd_clock(25_000_000.0, 20)).unwrap();
         let out_path = std::env::temp_dir().join(format!("tri_measured_to_lean_vcd_raw_ns_out_{}.lean", std::process::id()));
-        let out = measured_to_lean(None, None, None, None, Some(&vcd_tmp), None, 0, None, None, None, Some(&out_path), "measured_vcd", false, None, false, true, true, false).unwrap();
+        let out = measured_to_lean(None, None, None, None, None, Some(&vcd_tmp), None, 0, None, None, None, Some(&out_path), "measured_vcd", false, None, false, true, true, false).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
         assert!(content.contains("import Trinity.TernaryFPGABoot"));
@@ -6116,7 +6279,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_in_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, None, false, false, true, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, None, false, false, true, true).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -6132,7 +6295,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_out_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, None, false, false, true, true);
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, None, false, false, true, true);
         assert!(out.is_err(), "expected validation to reject out-of-spec raw-ns capture");
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -6148,7 +6311,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_margin_in_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, 0, None, None, None, None, "measured_cclk", true, None, false, false, true, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", true, None, false, false, true, true).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -6164,7 +6327,7 @@ mod tests {
         let json = serde_json::to_string(&m).unwrap();
         let tmp = std::env::temp_dir().join(format!("tri_validate_margin_out_spec_{}.json", std::process::id()));
         std::fs::write(&tmp, json).unwrap();
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, 0, None, None, None, None, "measured_cclk", true, None, false, false, true, true);
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", true, None, false, false, true, true);
         assert!(out.is_err(), "expected PVT-margin validation to reject 8 ns low time");
         std::fs::remove_file(&tmp).unwrap();
     }
@@ -6197,7 +6360,7 @@ mod tests {
             "worstcase",
             &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
         );
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, Some(&pvt), false, false, true, true).unwrap();
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, Some(&pvt), false, false, true, true).unwrap();
         assert_eq!(out, ());
         std::fs::remove_file(&tmp).unwrap();
         std::fs::remove_file(&pvt).unwrap();
@@ -6219,7 +6382,7 @@ mod tests {
             "worstcase",
             &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
         );
-        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, Some(&pvt), false, false, true, true);
+        let out = measured_to_lean(Some(&tmp), None, None, None, None, None, None, 0, None, None, None, None, "measured_cclk", false, Some(&pvt), false, false, true, true);
         assert!(out.is_err(), "expected PVT worst-case validation to reject 8 ns low time");
         std::fs::remove_file(&tmp).unwrap();
         std::fs::remove_file(&pvt).unwrap();
@@ -6242,7 +6405,7 @@ mod tests {
         );
         let out_path = std::env::temp_dir().join(format!("tri_pvt_lean_out_{}.lean", std::process::id()));
         let out = measured_to_lean(
-            Some(&tmp), None, None, None, None, None, 0, None, None, None, Some(&out_path), "measured_cclk", false, Some(&pvt), false, true, true, true,
+            Some(&tmp), None, None, None, None, None, None, 0, None, None, None, Some(&out_path), "measured_cclk", false, Some(&pvt), false, true, true, true,
         ).unwrap();
         assert_eq!(out, ());
         let content = std::fs::read_to_string(&out_path).unwrap();
@@ -6523,10 +6686,12 @@ mod tests {
             .join("ternary_mac_demo_top_200t.bit");
         let log_dir = std::env::temp_dir().join(format!("tri_cold_por_mock_{}", std::process::id()));
         std::fs::create_dir_all(&log_dir).unwrap();
-        let out = cold_por(&bit,
+        let out = cold_por(
+            &bit,
             "MOCK",
             3,
             0,
+            None,
             Some(&log_dir),
         );
         if bit.is_file() {
@@ -6586,7 +6751,7 @@ mod tests {
             std::process::id()
         ));
         let out = measured_to_lean(
-            Some(&tmp), None, None, None, None, None, 0, None, None, None, Some(&generated), "measured_cclk", false, None, false, true, true, false,
+            Some(&tmp), None, None, None, None, None, None, 0, None, None, None, Some(&generated), "measured_cclk", false, None, false, true, true, false,
         );
         assert!(out.is_ok(), "measured-to-lean standalone should succeed: {:?}", out);
         assert!(generated.is_file(), "generated Lean file should exist");

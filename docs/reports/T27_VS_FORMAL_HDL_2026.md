@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-06 (refreshed 2026-07-01 session)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 424)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -119,9 +119,11 @@ The industry-standard Chisel flow is adding formal verification rapidly:
 - **Chisel 7.11.0 LTL front-end** — `AssertProperty`, `AssumeProperty`,
   `CoverProperty`, `RequireProperty`, `EnsureProperty`, `Property`/`Sequence`
   composition.
+- **firtool 1.152.0** (June 2026): continued LTL/Verif improvements, BTOR2
+  backend hardening for `verif.formal`, and symbolic-value lowering refinements.
 - **firtool 1.143.0** (March 2026): new `FoldAssume` pass, improved
   `CombineAssertLike`, BTOR2 backend improvements for `verif.formal` and
-  symbolic values, and LTL `past` clock-operand lowering.
+  symbolic values, and LTL `past` clock-operand lowering.rand lowering.
 - **May 2026 CIRCT PR #10392 / Chisel PR #5291**: explicit clocking for
   `ltl.past` — implicit clocking was removed because it complicated lowering.
 
@@ -136,9 +138,11 @@ It also has no ternary compute line and no physical boot-evidence loop.
 
 1. **Defend the Lean-native + ternary + spec-first triangle.** This is the only
    intersection no competitor currently occupies.
-2. **Expand the physical boot-evidence story.** The VCD/CSV import path is a
-   genuine differentiator; add relay automation, PVT falsification reports, and
-   Lean theorems per captured corner.
+2. **Expand the physical boot-evidence story.** Wave Loops 423–424 hardened the
+   VCD/CSV import path (`--csv-voltage-unit`, slope filters, unknown-timescale
+   fallbacks), added PVT-worst-case theorem generation, and embedded PVT/XADC
+   context in boot-log JSON. Next: relay automation, PVT falsification reports,
+   and Lean theorems per captured corner.
 3. **Grow the ternary IP catalog.** Sparkle's broad IP list is its headline
    advantage. t27 needs visible ternary MAC/GEMM/encoder blocks with matching
    Lean proofs.
@@ -160,6 +164,7 @@ It also has no ternary compute line and no physical boot-evidence loop.
 - LATTE 2026 Clash/CIRCT paper: <https://www.cs.princeton.edu/~ad4048/pdfs/latte-2026-submission-14.pdf>
 - CIRCT LTL dialect: <https://circt.llvm.org/docs/Dialects/LTL/>
 - CIRCT Verif dialect: <https://circt.llvm.org/docs/Dialects/Verif/>
+- firtool 1.152.0 release (June 2026): <https://github.com/llvm/circt/releases/tag/firtool-1.152.0>
 - firtool 1.143.0 release (March 2026): <https://github.com/llvm/circt/releases/tag/firtool-1.143.0>
 - CIRCT LTL past-op clocking PR #10392: <https://github.com/llvm/circt/pull/10392>
 - Chisel LTL API (7.11.0): <https://www.chisel-lang.org/api/latest/chisel3/ltl/index.html>
