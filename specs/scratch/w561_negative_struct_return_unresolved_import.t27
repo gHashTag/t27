@@ -1,0 +1,20 @@
+// W561 negative witness: a function returning a scalar-struct whose field type
+// comes from an unresolved import must not be treated as lowerable.
+module w561_negative_struct_return_unresolved_import;
+
+use nonexistent::Foreign;
+
+pub struct Bad {
+    foreign : Foreign,
+    value : i16,
+}
+
+pub fn make_bad(v : i16) -> Bad {
+    return Bad{foreign: Foreign{}, value: v};
+}
+
+test negative_struct_return_unresolved_import {
+    assert_eq(make_bad(7).value, 7);
+}
+
+endmodule

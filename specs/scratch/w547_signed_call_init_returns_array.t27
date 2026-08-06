@@ -1,0 +1,19 @@
+// W547 positive witness: a function returning a signed primitive scalar array
+// initializes a function-local let binding.  The packed-vector function result
+// is stored in a signed packed local reg and indexed by signed bit-slices.
+module w547_signed_call_init_returns_array;
+
+pub fn seq() -> [3]i8 {
+    return [3]i8{ -1, -2, -3 };
+}
+
+pub fn check() -> i8 {
+    let a : [3]i8 = seq();
+    return a[0] + a[1] + a[2];
+}
+
+test signed_call_init_returns_array {
+    assert_eq(check(), -6);
+}
+
+endmodule

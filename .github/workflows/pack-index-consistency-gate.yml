@@ -1,0 +1,58 @@
+# Locks INDEX_all_formats.json against the packs it summarises.
+#
+# Sibling to conformance-integrity-gate.yml: that gate checks the vectors inside
+# each pack; this one checks that the index's summary of a pack still matches the
+# pack. The gap it closes is not hypothetical -- gen_all_formats.py hardcoded the
+# tier for the six wide GoldenFloat rungs, so re-running it silently rewrote the
+# index from 75/0/8 back to 69/6/8, reverting an honesty-rule-#10 promotion the
+# pack files themselves record. Nothing in CI would have noticed.
+#
+# stdlib-only Python, no third-party deps, no network. The self-test runs FIRST and
+# must show every check is still FAIL-reachable before the gate is trusted.
+name: pack-index-consistency-gate
+
+on:
+  push:
+    paths:
+      - "conformance/vectors/**"
+      - "tools/pack_index_consistency_gate.py"
+      - ".github/workflows/pack-index-consistency-gate.yml"
+  pull_request:
+    paths:
+      - "conformance/vectors/**"
+      - "tools/pack_index_consistency_gate.py"
+      - ".github/workflows/pack-index-consistency-gate.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  pack-index-consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Self-test (gate must be falsifiable)
+        # If any planted mutant survives, the gate is decoration -> fail here.
+        run: python3 tools/pack_index_consistency_gate.py --selftest
+
+      - name: Run gate against the live corpus
+        run: |
+          python3 tools/pack_index_consistency_gate.py \
+            --vectors conformance/vectors \
+            --json pack_index_report.json
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pack-index-consistency-report
+          path: pack_index_report.json
+          if-no-files-found: ignore

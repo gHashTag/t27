@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:70c871e4e805e7a8b3cae416383475d22b9883e2490a65815e24ecd8595cedf3",
   "module": "w375_early_return",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:11Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:6e450089a993feb7c22f7ba247cd85e334b7d4cf7d9133c2b7eda90c7d181e1f",
   "spec_path": "specs/scratch/w375_early_return.t27"
 }

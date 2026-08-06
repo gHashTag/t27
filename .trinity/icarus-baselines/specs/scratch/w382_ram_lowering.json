@@ -1,0 +1,8 @@
+{
+  "lines": [
+    "[TEST] ram_write_read : starting",
+    "[TEST] ram_write_read : PASSED",
+    "[TEST] ram_distinct_addresses : starting",
+    "[TEST] ram_distinct_addresses : PASSED"
+  ]
+}

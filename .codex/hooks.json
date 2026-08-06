@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/Users/playra/t27/.codex/hooks/check-l1-traceability.sh'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/Users/playra/t27/.codex/hooks/stop-hook-guard.sh'"
+          }
+        ]
+      }
+    ]
+  }
+}

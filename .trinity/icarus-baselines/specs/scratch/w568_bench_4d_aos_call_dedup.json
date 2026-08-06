@@ -1,0 +1,7 @@
+{"lines":[
+"[TEST] hyper_test : starting",
+"[TEST] hyper_test : PASSED",
+"[BENCH] hyper_bench : starting",
+"[BENCH] hyper_bench : %0d cycles          4",
+"[BENCH] hyper_bench : PASSED"
+]}

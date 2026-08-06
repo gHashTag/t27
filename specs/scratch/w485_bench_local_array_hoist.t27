@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0
+; W485 witness: bench-local fixed-size arrays used inside a function called from
+; the bench. Verifies that hoisted module-scope names are referenced correctly.
+; φ² + φ⁻² = 3 | TRINITY
+
+module w485_bench_local_array_hoist;
+
+fn sum_array(a: [4]u32) -> u32 {
+    return a[0] + a[1] + a[2] + a[3];
+}
+
+test bench_local_array_via_function {
+    let data : [4]u32 = [10, 20, 30, 40];
+    assert_eq(sum_array(data), 100);
+}
+
+bench bench_local_array_hoist {
+    let data : [4]u32 = [1, 2, 3, 4];
+    let s : u32 = sum_array(data);
+    assert_eq(s, 10);
+}
+
+endmodule

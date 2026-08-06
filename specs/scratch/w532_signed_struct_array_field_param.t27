@@ -1,0 +1,23 @@
+// W532 witness: pass a scalar struct with a signed fixed-size scalar array
+// field as a function parameter and read one element.
+module w532_signed_struct_array_field_param;
+
+pub struct Pt {
+    data : [3]i16,
+}
+
+pub fn read_from_param(p : Pt, k : u32) -> i16 {
+    return p.data[k];
+}
+
+pub fn make_pt() -> Pt {
+    return Pt{data: [3]i16{1, -2, 3}};
+}
+
+test signed_array_field_param {
+    assert_eq(read_from_param(Pt{data: [3]i16{10, -20, 30}}, 0), 10);
+    assert_eq(read_from_param(Pt{data: [3]i16{10, -20, 30}}, 1), -20);
+    assert_eq(read_from_param(make_pt(), 1), -2);
+}
+
+endmodule

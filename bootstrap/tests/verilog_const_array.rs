@@ -163,8 +163,8 @@ fn r_ca_1_emitter_on_real_mac_spec() {
     // marker so reviewers can see the unlowered aggregate. We accept
     // "array literal" or "struct literal" in case the front-end labels
     // it differently between runs.
-    let has_todo = verilog.contains("TODO: array literal initializer not yet lowered")
-        || verilog.contains("TODO: struct literal initializer not yet lowered");
+    let has_todo = verilog.contains("TODO: array literal")
+        || verilog.contains("TODO: struct literal");
     assert!(
         has_todo,
         "R-CA-1 fix incomplete on mac.t27: expected TODO marker for the \

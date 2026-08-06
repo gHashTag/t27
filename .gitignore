@@ -37,9 +37,14 @@ test-ledger/
 # Temporary files
 *.tmp
 *.bak
+*.bak[0-9]*
+*.backup
 *.orig
+*.rej
+/*.patch
 tmp/
 .artifacts/
+dump.vcd
 
 # Trinity State (should stay local/deterministic)
 .trinity/claims/
@@ -78,3 +83,6 @@ docker/Xilinx_Unified_*.bin
 
 # Ignore stray git-stash leftovers in working tree
 *~Stashed changes*
+
+# Ephemeral agent worktrees (created by Claude Code / tooling)
+.claude/worktrees/

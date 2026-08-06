@@ -394,8 +394,10 @@ module adder_tree_27 (
         end
     endgenerate
 
-    // Level 2: 3 groups of 3, range [-9, +9] -> signed [3:0].
-    wire signed [3:0] l2 [0:2];
+    // Level 2: 3 groups of 3, range [-9, +9] -> signed [4:0].
+    // (signed [3:0] holds only [-8, +7]: a group of 9 same-sign trits sums to
+    //  +/-9 and overflowed, e.g. all-P dot product read -21 instead of +27.)
+    wire signed [4:0] l2 [0:2];
     assign l2[0] = l1[0] + l1[1] + l1[2];
     assign l2[1] = l1[3] + l1[4] + l1[5];
     assign l2[2] = l1[6] + l1[7] + l1[8];

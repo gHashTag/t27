@@ -1,0 +1,7 @@
+{"lines":[
+"[TEST] grid_test : starting",
+"[TEST] grid_test : PASSED",
+"[BENCH] grid_bench : starting",
+"[BENCH] grid_bench : %0d cycles          4",
+"[BENCH] grid_bench : PASSED"
+]}

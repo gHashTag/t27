@@ -1,0 +1,22 @@
+// W543 witness: a module-level const initialized by a function call that mixes
+// signed and unsigned primitive scalar arguments plus a packed scalar struct
+// return value.
+module w543_module_mixed_call_init;
+
+struct Wide {
+    a: u16,
+    b: i16,
+}
+
+pub fn combine(a : u16, b : i16) -> Wide {
+    return Wide{ .a = a, .b = b };
+}
+
+const src : Wide = combine(7, -8);
+
+test mixed_call_init {
+    assert_eq(src.a, 7);
+    assert_eq(src.b, -8);
+}
+
+endmodule
