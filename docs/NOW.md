@@ -602,7 +602,7 @@ Last updated: 2026-07-29
 
 ### Verification
 - `cargo build --release -p t27c`: OK.
-- `cargo clippy -p t27c`: OK (780 warnings, 0 errors).
+- `cargo clippy -p t27c`: OK (626 warnings, 0 errors).
 - `cargo test -p t27c --bin t27c`: 1494/0/2.
 - `cargo test -p tri`: 78/0.
 - `cargo test -p flash-spi`: 2/0.
@@ -616,7 +616,7 @@ Last updated: 2026-07-29
 - `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
   compiler lowering issue, tracked for separate issue).
 - FPGA E2E CI red (`sby` missing + Yosys static-cast error in generated `uart.v`).
-- 627 release warnings and 780 clippy warnings need dedicated cleanup sprint.
+- 627 release warnings and 626 clippy warnings need dedicated cleanup sprint.
 - Vivado-in-Docker CI gap (private image not yet published).
 
 ---
