@@ -10123,6 +10123,48 @@ fn collect_bool_locals(nodes: &[Node], out: &mut std::collections::HashSet<Strin
     }
 }
 
+/// Collect the declared return type of every function, at any depth, keyed by
+/// name. Used by the Rust backend to widen/narrow a returned call to the
+/// return type of the function doing the returning.
+fn collect_fn_ret_types(node: &Node, out: &mut std::collections::HashMap<String, String>) {
+    if node.kind == NodeKind::FnDecl && !node.extra_return_type.trim().is_empty() {
+        out.insert(
+            node.name.clone(),
+            RustCodegen::t27_type_to_rust(&node.extra_return_type),
+        );
+    }
+    for child in &node.children {
+        collect_fn_ret_types(child, out);
+    }
+}
+
+/// Collect the Rust type of every explicitly typed constant, at any depth.
+/// Constants are module-scoped, so this runs once per module.
+fn collect_const_types(node: &Node, out: &mut std::collections::HashMap<String, String>) {
+    if node.kind == NodeKind::ConstDecl
+        && !node.name.is_empty()
+        && !node.extra_type.trim().is_empty()
+    {
+        out.insert(
+            node.name.clone(),
+            RustCodegen::t27_type_to_rust(&node.extra_type),
+        );
+    }
+    for child in &node.children {
+        collect_const_types(child, out);
+    }
+}
+
+/// Collect the Rust type of every explicitly typed local in a function body.
+fn collect_typed_locals(nodes: &[Node], out: &mut std::collections::HashMap<String, String>) {
+    for n in nodes {
+        if n.kind == NodeKind::StmtLocal && !n.name.is_empty() && !n.extra_type.trim().is_empty() {
+            out.insert(n.name.clone(), RustCodegen::t27_type_to_rust(&n.extra_type));
+        }
+        collect_typed_locals(&n.children, out);
+    }
+}
+
 fn collect_mutable_names(stmts: &[Node], set: &mut std::collections::HashSet<String>) {
     for stmt in stmts {
         collect_mutable_names_one(stmt, set);
@@ -11332,6 +11374,13 @@ pub struct RustCodegen {
     bool_fns: std::collections::HashSet<String>,
     /// Parameters and locals of the current function declared `bool`.
     bool_vars: std::collections::HashSet<String>,
+    /// Rust type of every explicitly typed parameter/local of the current
+    /// function. Feeds `infer_int_type`.
+    var_types: std::collections::HashMap<String, String>,
+    /// Rust type of every explicitly typed constant in this module.
+    const_types: std::collections::HashMap<String, String>,
+    /// Declared Rust return type of every function in this module.
+    fn_ret_types: std::collections::HashMap<String, String>,
 }
 
 #[allow(dead_code)]
@@ -11344,6 +11393,9 @@ impl RustCodegen {
             fn_ret_type: String::new(),
             bool_fns: std::collections::HashSet::new(),
             bool_vars: std::collections::HashSet::new(),
+            var_types: std::collections::HashMap::new(),
+            const_types: std::collections::HashMap::new(),
+            fn_ret_types: std::collections::HashMap::new(),
         }
     }
 
@@ -11390,6 +11442,14 @@ impl RustCodegen {
         // module node, so the scan is recursive.
         self.bool_fns.clear();
         collect_bool_fns(ast, &mut self.bool_fns);
+
+        // Same pre-pass, for the integer widths used by `infer_int_type`:
+        // callee return types and module-level constants are both visible from
+        // any function body, so they are collected once over the whole tree.
+        self.fn_ret_types.clear();
+        collect_fn_ret_types(ast, &mut self.fn_ret_types);
+        self.const_types.clear();
+        collect_const_types(ast, &mut self.const_types);
 
         // Header
         self.write_line("// Generated from .t27 spec");
@@ -11474,7 +11534,7 @@ impl RustCodegen {
         let value = if node.children.is_empty() {
             "()".to_string()
         } else {
-            Self::expr_to_rust(&node.children[0])
+            self.expr_to_rust(&node.children[0])
         };
         self.write_line(&format!(
             "pub const {}: {} = {};",
@@ -11521,6 +11581,21 @@ impl RustCodegen {
         }
         collect_bool_locals(&node.children, &mut self.bool_vars);
 
+        // Declared widths of this function's parameters and locals, so a
+        // `return` of a narrower/wider value can be cast to the return type.
+        self.var_types.clear();
+        for (pname, ptype) in &params {
+            if !ptype.trim().is_empty() {
+                self.var_types
+                    .insert(pname.clone(), Self::t27_type_to_rust(ptype));
+            }
+        }
+        collect_typed_locals(&node.children, &mut self.var_types);
+        // A local declared without a type still has one — `let n = x as u16`
+        // is a u16. Recorded after the explicit types above, so a declared
+        // type always wins over an inferred one.
+        self.record_inferred_locals(&node.children);
+
         if has_body {
             self.output.push('\n');
             self.indent += 1;
@@ -11536,7 +11611,7 @@ impl RustCodegen {
                     }
                     NodeKind::StmtExpr => {
                         if child.children.len() == 1 {
-                            let expr = Self::expr_to_rust(&child.children[0]);
+                            let expr = self.expr_to_rust(&child.children[0]);
                             self.write_line(&format!("{};", expr));
                         }
                     }
@@ -11547,7 +11622,7 @@ impl RustCodegen {
                         let val = if child.children.is_empty() {
                             "()".to_string()
                         } else {
-                            Self::expr_to_rust(&child.children[0])
+                            self.expr_to_rust(&child.children[0])
                         };
                         self.write_line(&format!("let ({}) = {};", child.extra_field, val));
                     }
@@ -11563,7 +11638,7 @@ impl RustCodegen {
                                 self.write_line(&format!("{} {}: {};", kw, var_name, typ));
                             }
                         } else {
-                            let val = Self::expr_to_rust(&child.children[0]);
+                            let val = self.expr_to_rust(&child.children[0]);
                             if child.extra_type.is_empty() {
                                 self.write_line(&format!("{} {} = {};", kw, var_name, val));
                             } else {
@@ -11578,10 +11653,10 @@ impl RustCodegen {
                         let target = if child.children.is_empty() {
                             child.name.clone()
                         } else {
-                            Self::expr_to_rust(&child.children[0])
+                            self.expr_to_rust(&child.children[0])
                         };
                         if child.children.len() >= 2 {
-                            let val = Self::expr_to_rust(&child.children[1]);
+                            let val = self.expr_to_rust(&child.children[1]);
                             self.write_line(&format!("{} = {};", target, val));
                         } else {
                             self.write_line(&format!("{};", target));
@@ -11636,7 +11711,7 @@ impl RustCodegen {
                         }
                         self.write(" in ");
                         if !child.children.is_empty() {
-                            self.write(&Self::expr_to_rust(&child.children[0]));
+                            self.write(&self.expr_to_rust(&child.children[0]));
                         }
                         self.write(" {\n");
                         self.indent += 1;
@@ -11652,9 +11727,9 @@ impl RustCodegen {
                         self.write_indent();
                         self.write(&format!("for {} in ", child.name));
                         if child.children.len() >= 2 {
-                            self.write(&Self::expr_to_rust(&child.children[0]));
+                            self.write(&self.expr_to_rust(&child.children[0]));
                             self.write("..");
-                            self.write(&Self::expr_to_rust(&child.children[1]));
+                            self.write(&self.expr_to_rust(&child.children[1]));
                         }
                         self.write(" {\n");
                         self.indent += 1;
@@ -11689,7 +11764,7 @@ impl RustCodegen {
             }
             NodeKind::StmtExpr => {
                 if stmt.children.len() == 1 {
-                    self.write_line(&format!("{};", Self::expr_to_rust(&stmt.children[0])));
+                    self.write_line(&format!("{};", self.expr_to_rust(&stmt.children[0])));
                 }
             }
             NodeKind::StmtLocal => {
@@ -11699,7 +11774,7 @@ impl RustCodegen {
                     let val = if stmt.children.is_empty() {
                         "()".to_string()
                     } else {
-                        Self::expr_to_rust(&stmt.children[0])
+                        self.expr_to_rust(&stmt.children[0])
                     };
                     self.write_line(&format!("let ({}) = {};", stmt.extra_field, val));
                     return;
@@ -11713,7 +11788,7 @@ impl RustCodegen {
                         self.write_line(&format!("{} {}: {};", kw, stmt.name, typ));
                     }
                 } else {
-                    let val = Self::expr_to_rust(&stmt.children[0]);
+                    let val = self.expr_to_rust(&stmt.children[0]);
                     if stmt.extra_type.is_empty() {
                         self.write_line(&format!("{} {} = {};", kw, stmt.name, val));
                     } else {
@@ -11723,8 +11798,8 @@ impl RustCodegen {
             }
             NodeKind::StmtAssign => {
                 if stmt.children.len() >= 2 {
-                    let target = Self::expr_to_rust(&stmt.children[0]);
-                    let val = Self::expr_to_rust(&stmt.children[1]);
+                    let target = self.expr_to_rust(&stmt.children[0]);
+                    let val = self.expr_to_rust(&stmt.children[1]);
                     self.write_line(&format!("{} = {};", target, val));
                 }
             }
@@ -11783,7 +11858,7 @@ impl RustCodegen {
                 }
                 self.write(" in ");
                 if !stmt.children.is_empty() {
-                    self.write(&Self::expr_to_rust(&stmt.children[0]));
+                    self.write(&self.expr_to_rust(&stmt.children[0]));
                 }
                 self.write(" {\n");
                 self.indent += 1;
@@ -11799,9 +11874,9 @@ impl RustCodegen {
                 self.write_indent();
                 self.write(&format!("for {} in ", stmt.name));
                 if stmt.children.len() >= 2 {
-                    self.write(&Self::expr_to_rust(&stmt.children[0]));
+                    self.write(&self.expr_to_rust(&stmt.children[0]));
                     self.write("..");
-                    self.write(&Self::expr_to_rust(&stmt.children[1]));
+                    self.write(&self.expr_to_rust(&stmt.children[1]));
                 }
                 self.write(" {\n");
                 self.indent += 1;
@@ -11894,7 +11969,7 @@ impl RustCodegen {
 
     /// Emit an expression in a condition position (`if`, `while`).
     fn expr_to_rust_cond(&self, node: &Node) -> String {
-        let s = Self::expr_to_rust(node);
+        let s = self.expr_to_rust(node);
         if self.expr_is_bool(node) {
             s
         } else {
@@ -11902,29 +11977,165 @@ impl RustCodegen {
         }
     }
 
-    /// Emit an expression in an integer position (return value, typed local).
-    fn expr_to_rust_as(&self, node: &Node, ty: &str) -> String {
-        let s = Self::expr_to_rust(node);
-        let ty = ty.trim();
-        let is_int = matches!(
-            ty,
+    fn is_int_type(ty: &str) -> bool {
+        matches!(
+            ty.trim(),
             "u8" | "u16" | "u32" | "u64" | "u128" | "i8" | "i16" | "i32" | "i64" | "i128" | "usize" | "isize"
-        );
-        if is_int && self.expr_is_bool(node) {
-            format!("({}) as {}", s, ty)
-        } else {
-            s
+        )
+    }
+
+    /// Best-effort width inference for an integer-valued expression, in Rust
+    /// type names. `None` means "no declared width to go on" — either the
+    /// expression is an unsuffixed literal (which Rust infers at the use site)
+    /// or its type was never declared — and callers must not force a cast on
+    /// that, since the inference is what makes the existing output compile.
+    fn infer_int_type(&self, node: &Node) -> Option<String> {
+        let known = |t: &String| {
+            if Self::is_int_type(t) {
+                Some(t.clone())
+            } else {
+                None
+            }
+        };
+        match node.kind {
+            NodeKind::ExprIdentifier => self
+                .var_types
+                .get(&node.name)
+                .or_else(|| self.const_types.get(&node.name))
+                .and_then(known),
+            NodeKind::ExprCall => self.fn_ret_types.get(&node.name).and_then(known),
+            NodeKind::ExprCast => {
+                let target = node.extra_type.split('[').next().unwrap_or("").trim();
+                if Self::is_int_type(target) {
+                    Some(target.to_string())
+                } else {
+                    None
+                }
+            }
+            NodeKind::ExprUnary if node.children.len() == 1 => {
+                self.infer_int_type(&node.children[0])
+            }
+            NodeKind::ExprBinary if node.children.len() >= 2 => {
+                // Comparisons and logical ops are `bool`, not integers.
+                if self.expr_is_bool(node) {
+                    return None;
+                }
+                // A shift takes the width of its left operand.
+                let left = self.infer_int_type(&node.children[0]);
+                if node.extra_op == "<<" || node.extra_op == ">>" {
+                    return left;
+                }
+                // Otherwise the result is whatever `coerce_binary_operands`
+                // widened both sides to; the two must stay in agreement.
+                match (left, self.infer_int_type(&node.children[1])) {
+                    (Some(a), Some(b)) => Some(Self::join_int_types(&a, &b)),
+                    (Some(a), None) => Some(a),
+                    (None, right) => right,
+                }
+            }
+            _ => None,
         }
     }
 
-    fn expr_to_rust(node: &Node) -> String {
+    /// Record the width of every untyped local whose initialiser has one, in
+    /// source order so a local may be inferred from an earlier local. Locals
+    /// initialised from a bare literal are deliberately left unknown — Rust
+    /// infers those at the use site, and pinning a width here could conflict.
+    fn record_inferred_locals(&mut self, nodes: &[Node]) {
+        for n in nodes {
+            if n.kind == NodeKind::StmtLocal
+                && !n.name.is_empty()
+                && n.extra_type.trim().is_empty()
+                && !n.children.is_empty()
+                && !self.var_types.contains_key(&n.name)
+            {
+                if let Some(t) = self.infer_int_type(&n.children[0]) {
+                    self.var_types.insert(n.name.clone(), t);
+                }
+            }
+            self.record_inferred_locals(&n.children);
+        }
+    }
+
+    /// Bit width of a Rust integer type name. `usize`/`isize` are treated as
+    /// 64-bit, matching every target this repo builds for.
+    fn int_rank(ty: &str) -> u32 {
+        match ty.trim() {
+            "u8" | "i8" => 8,
+            "u16" | "i16" => 16,
+            "u32" | "i32" => 32,
+            "u64" | "i64" | "usize" | "isize" => 64,
+            "u128" | "i128" => 128,
+            _ => 0,
+        }
+    }
+
+    /// Common type for a mixed-width binary operation: the wider operand wins.
+    /// Equal ranks that still differ (`u32`/`i32`, `u64`/`usize`) resolve to
+    /// the left operand, matching the left-biased inference above.
+    fn join_int_types(a: &str, b: &str) -> String {
+        if Self::int_rank(a) >= Self::int_rank(b) {
+            a.to_string()
+        } else {
+            b.to_string()
+        }
+    }
+
+    /// Rust requires both operands of an arithmetic/bitwise/comparison operator
+    /// to have the *same* integer type; t27 does not. Cast the narrower side up
+    /// so the emitted operator compiles. Shifts are exempt — Rust already
+    /// accepts any integer type as the shift amount.
+    fn coerce_binary_operands(&self, node: &Node, left: &mut String, right: &mut String) {
+        if matches!(node.extra_op.as_str(), "<<" | ">>") {
+            return;
+        }
+        let (lt, rt) = match (
+            self.infer_int_type(&node.children[0]),
+            self.infer_int_type(&node.children[1]),
+        ) {
+            (Some(lt), Some(rt)) => (lt, rt),
+            _ => return,
+        };
+        if lt == rt {
+            return;
+        }
+        let common = Self::join_int_types(&lt, &rt);
+        if lt != common {
+            *left = format!("({} as {})", left, common);
+        }
+        if rt != common {
+            *right = format!("({} as {})", right, common);
+        }
+    }
+
+    /// Emit an expression in an integer position (return value, typed local).
+    fn expr_to_rust_as(&self, node: &Node, ty: &str) -> String {
+        let s = self.expr_to_rust(node);
+        let ty = ty.trim();
+        if !Self::is_int_type(ty) {
+            return s;
+        }
+        if self.expr_is_bool(node) {
+            return format!("({}) as {}", s, ty);
+        }
+        // Rust has no implicit integer widening: returning a `u8` parameter or
+        // a `u64` expression from a `-> u32` function is E0308. t27 accepts the
+        // mixed widths, so the cast has to be materialised here.
+        match self.infer_int_type(node) {
+            Some(actual) if actual != ty => format!("({}) as {}", s, ty),
+            _ => s,
+        }
+    }
+
+    fn expr_to_rust(&self, node: &Node) -> String {
         match node.kind {
             NodeKind::ExprLiteral => node.value.clone(),
             NodeKind::ExprIdentifier => node.name.clone(),
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
-                    let left = Self::expr_to_rust(&node.children[0]);
-                    let right = Self::expr_to_rust(&node.children[1]);
+                    let mut left = self.expr_to_rust(&node.children[0]);
+                    let mut right = self.expr_to_rust(&node.children[1]);
+                    self.coerce_binary_operands(node, &mut left, &mut right);
                     // Zig-style wrapping operators (+% -% *%) have no infix form
                     // in Rust; lower them to the wrapping_* methods. Emitting the
                     // literal operator produced uncompilable Rust. Checked +/-/*
@@ -11952,7 +12163,7 @@ impl RustCodegen {
                 let args: Vec<String> = node
                     .children
                     .iter()
-                    .map(Self::expr_to_rust)
+                    .map(|c| self.expr_to_rust(c))
                     .collect();
                 format!("{}({})", node.name, args.join(", "))
             }
@@ -11960,7 +12171,7 @@ impl RustCodegen {
                 let elems: Vec<String> = node
                     .children
                     .iter()
-                    .map(Self::expr_to_rust)
+                    .map(|c| self.expr_to_rust(c))
                     .collect();
                 format!("vec![{}]", elems.join(", "))
             }
@@ -11968,7 +12179,7 @@ impl RustCodegen {
                 let elems: Vec<String> = node
                     .children
                     .iter()
-                    .map(Self::expr_to_rust)
+                    .map(|c| self.expr_to_rust(c))
                     .collect();
                 format!("({})", elems.join(", "))
             }
@@ -11980,7 +12191,7 @@ impl RustCodegen {
                         let val = if c.children.is_empty() {
                             "{}".to_string()
                         } else {
-                            Self::expr_to_rust(&c.children[0])
+                            self.expr_to_rust(&c.children[0])
                         };
                         format!("{}: {}", c.name, val)
                     })
@@ -11993,15 +12204,16 @@ impl RustCodegen {
                     let operand = &node.children[0];
                     // `!x` on an integer is logical negation in t27 but bitwise
                     // negation in Rust; emit an explicit zero test instead.
-                    let operand_is_bool = matches!(operand.kind, NodeKind::ExprBinary)
-                        && matches!(
-                            operand.extra_op.as_str(),
-                            "==" | "!=" | "<" | "<=" | ">" | ">=" | "and" | "or" | "&&" | "||"
-                        );
-                    if (node.extra_op == "!" || node.extra_op == "not") && !operand_is_bool {
-                        format!("(({}) == 0)", Self::expr_to_rust(operand))
+                    // On an operand that is already a Rust `bool` (comparison,
+                    // `bool` parameter/local, or call to a `-> bool` function)
+                    // the zero test is itself uncompilable — `bool == {integer}`
+                    // is E0308 — so `!` has to stay `!`.
+                    if (node.extra_op == "!" || node.extra_op == "not")
+                        && !self.expr_is_bool(operand)
+                    {
+                        format!("(({}) == 0)", self.expr_to_rust(operand))
                     } else {
-                        format!("{}({})", node.extra_op, Self::expr_to_rust(operand))
+                        format!("{}({})", node.extra_op, self.expr_to_rust(operand))
                     }
                 } else {
                     node.extra_op.clone()
@@ -12009,15 +12221,15 @@ impl RustCodegen {
             }
             NodeKind::ExprFieldAccess => {
                 if !node.children.is_empty() {
-                    format!("{}.{}", Self::expr_to_rust(&node.children[0]), node.name)
+                    format!("{}.{}", self.expr_to_rust(&node.children[0]), node.name)
                 } else {
                     node.name.clone()
                 }
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
-                    let base = Self::expr_to_rust(&node.children[0]);
-                    let idx = Self::expr_to_rust(&node.children[1]);
+                    let base = self.expr_to_rust(&node.children[0]);
+                    let idx = self.expr_to_rust(&node.children[1]);
                     // t27 indices are u32; Rust requires usize.
                     if idx.chars().all(|c| c.is_ascii_digit()) {
                         format!("{}[{}]", base, idx)
@@ -12029,15 +12241,15 @@ impl RustCodegen {
                 }
             }
             NodeKind::ExprIf => {
-                let mut s = format!("if {} {{ ", Self::expr_to_rust(&node.children[0]));
+                let mut s = format!("if {} {{ ", self.expr_to_rust(&node.children[0]));
                 if node.children.len() > 1 {
-                    s.push_str(&Self::expr_to_rust(&node.children[1]));
+                    s.push_str(&self.expr_to_rust(&node.children[1]));
                 }
                 s.push_str(" }");
                 if node.children.len() > 2 {
                     s.push_str(&format!(
                         " else {{ {} }}",
-                        Self::expr_to_rust(&node.children[2])
+                        self.expr_to_rust(&node.children[2])
                     ));
                 }
                 s
@@ -12046,7 +12258,7 @@ impl RustCodegen {
                 if node.children.is_empty() {
                     return "/* switch */".to_string();
                 }
-                let scrutinee = Self::expr_to_rust(&node.children[0]);
+                let scrutinee = self.expr_to_rust(&node.children[0]);
                 let mut s = format!("match {} {{\n", scrutinee);
                 for i in 1..node.children.len() {
                     let arm = &node.children[i];
@@ -12057,7 +12269,7 @@ impl RustCodegen {
                             "_".to_string()
                         };
                         let body = if !arm.children.is_empty() {
-                            Self::expr_to_rust(&arm.children[0])
+                            self.expr_to_rust(&arm.children[0])
                         } else {
                             "()".to_string()
                         };
@@ -12071,7 +12283,7 @@ impl RustCodegen {
                 if node.children.is_empty() {
                     "()".to_string()
                 } else {
-                    let operand = Self::expr_to_rust(&node.children[0]);
+                    let operand = self.expr_to_rust(&node.children[0]);
                     let target = node
                         .extra_type
                         .split('[')
@@ -26581,6 +26793,123 @@ mod tests_phase40_coverage {
             zig.contains("+%") && zig.contains("-%") && zig.contains("*%"),
             "zig should keep native wrapping ops: {}",
             zig
+        );
+    }
+
+    // gen-rust regression: `!x` where `x` is already a Rust `bool` (a `bool`
+    // parameter or a call to a `-> bool` function) was lowered to the integer
+    // zero test `(x) == 0`, which is `bool == {integer}` -> E0308. The zero
+    // test is only correct for integer operands.
+    #[test]
+    fn test_not_on_bool_stays_not_rust() {
+        let code = "module M { \
+                    pub fn seen(x: u32) -> bool { return x > 0; } \
+                    pub fn accept(seen_any: bool, n: u32) -> bool { \
+                    if (!seen_any) { return true; } \
+                    if (!seen(n)) { return true; } \
+                    return false; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            !out.contains("(seen_any) == 0"),
+            "`!` on a bool parameter must not become an integer zero test: {}",
+            out
+        );
+        assert!(
+            out.contains("if !(seen_any)"),
+            "`!seen_any` should lower to Rust `!`: {}",
+            out
+        );
+        assert!(
+            out.contains("if !(seen(n))"),
+            "`!` on a `-> bool` call should lower to Rust `!`: {}",
+            out
+        );
+    }
+
+    // gen-rust regression: `!` on an *integer* still needs the zero test,
+    // since Rust's `!` is bitwise negation there.
+    #[test]
+    fn test_not_on_int_stays_zero_test_rust() {
+        let code = "module M { pub fn f(n: u32) -> u32 { if (!n) { return 1; } return 0; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("(n) == 0"),
+            "`!` on an integer must stay an explicit zero test: {}",
+            out
+        );
+    }
+
+    // gen-rust regression: Rust has no implicit integer widening, so a
+    // `return` whose value is a different width than the declared return type
+    // is E0308. t27 accepts the mismatch, so gen-rust must materialise the cast.
+    #[test]
+    fn test_return_widens_to_declared_type_rust() {
+        let code = "module M { pub fn nonce_byte(dir: u8, i: u32, ctr: u64) -> u32 { \
+                    if (i == 0) { return dir; } \
+                    return (ctr >> 8) & 255; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("(dir) as u32"),
+            "u8 parameter returned from a -> u32 fn must be cast: {}",
+            out
+        );
+        assert!(
+            out.contains("as u32;") && out.contains("ctr >> 8"),
+            "u64 expression returned from a -> u32 fn must be cast: {}",
+            out
+        );
+    }
+
+    // ...and must NOT add a cast when the widths already agree, so existing
+    // generated output is left untouched.
+    #[test]
+    fn test_return_matching_type_not_cast_rust() {
+        let code = "module M { pub fn f(a: u32, b: u32) -> u32 { return a + b; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            !out.contains("as u32"),
+            "matching-width return must not gain a redundant cast: {}",
+            out
+        );
+    }
+
+    // gen-rust regression: Rust requires both operands of an arithmetic or
+    // comparison operator to share one integer type. t27 allows mixed widths,
+    // so `u16 * u8` (E0277) and `u32 * u64` (E0308) reached rustc unchanged.
+    #[test]
+    fn test_binary_operands_widened_rust() {
+        let code = "module M { pub const K : u8 = 5; \
+                    pub fn f(n: u16) -> u16 { return n * K; } \
+                    pub fn g(cycle: u32, period: u64) -> u64 { return cycle * period; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("(K as u16)"),
+            "narrower const operand must widen to the other operand: {}",
+            out
+        );
+        assert!(
+            out.contains("(cycle as u64)"),
+            "narrower param operand must widen to the other operand: {}",
+            out
+        );
+    }
+
+    // ...and equal-width operands must not gain redundant casts, nor may a
+    // shift amount be coerced (Rust already accepts any integer type there).
+    #[test]
+    fn test_binary_operands_not_over_coerced_rust() {
+        let code = "module M { pub fn f(a: u32, b: u32, ctr: u64, sh: u32) -> u64 { \
+                    let x = a + b; return ctr >> sh; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("(a + b)"),
+            "matching-width operands must not gain casts: {}",
+            out
+        );
+        assert!(
+            out.contains("(ctr >> sh)"),
+            "shift amount must not be coerced: {}",
+            out
         );
     }
 
