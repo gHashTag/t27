@@ -77,3 +77,30 @@ Every softmax and every weight update executed during the 20-epoch run produces 
 the synthesized RTL exactly the value the demo used — so the loss curve above is
 literally the hardware's loss curve. The GF-T datapath **learns on real RTL**, not
 just in a model.
+
+## Generalization: it learns the rule, not the points
+
+`tools/gft_generalize_demo.py` goes one step further — does GF-T learning
+**generalize** to unseen data, or just memorize the training points? A linear
+4-class classifier (2D points labeled by quadrant) is trained by SGD on a random
+**train** split and evaluated on a held-out **test** split it never saw, all with
+the same GF-T integer models.
+
+```
+train=84 test=44 points (2D, 4 quadrant classes)
+epoch  train_acc  test_acc
+    0      0.655     0.477
+    1      0.976     1.000
+    5      1.000     1.000
+   25      1.000     1.000
+
+FINAL held-out test accuracy: 100.0%
+```
+
+Test accuracy climbs from chance to **100% on data the model never trained on** —
+GF-T SGD learns the underlying rule and generalizes, it doesn't just fit the
+training set.
+
+```bash
+python3 tools/gft_generalize_demo.py
+```
