@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 424)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 426)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -17,7 +17,7 @@ strengths t27 does not yet match, but none occupies the exact intersection t27
 targets: **Lean 4 native proof + ternary/balanced-trit compute + spec-first
 `*.t27 → gen/` sealed pipeline + physical boot-evidence instrumentation**.
 
-This note documents the competitive landscape as input for Wave Loops 421–423
+This note documents the competitive landscape as input for Wave Loops 421–426
 and subsequent waves.
 
 ---
@@ -61,6 +61,12 @@ competitor to t27's "Lean-native proof → synthesis" positioning.
   - **Commit `9c7809c`** (June 2026): Formal verification of the RV32 divider
     against its pure-FSM model and the synthesized circuit, covering signed/
     unsigned division and divide-by-zero behavior.
+  - **関数型まつり2026 talk** (July 11 2026, Track A): *“Lean 4をRTL開発の中核にする
+    — Sparkle におけるJIT、検証、Reverse Synthesis（逆合成）”* by Junji Hashimoto.
+    Sparkle is now being positioned publicly as making Lean 4 the core of RTL
+    development, with a C++ JIT backend reported to outrun Verilator on LiteX
+    1-core, “time-leap” simulation reaching ~49 GHz equivalent, and oracle-based
+    reverse synthesis giving a 2.14× speedup on a carry-save multiplier.
   - Infrastructure for zero-knowledge (Merkle tree / polynomial commitment,
     mini-STARK verifier, Goldilocks field) and verified GPU programming
     (Hesper repo).
@@ -90,6 +96,12 @@ unique.
 
 Clash compiles Haskell to VHDL/Verilog/SystemVerilog. Recent 2026 work includes:
 
+- **Clash 1.8.5** (released March 24 2026) — verification-related fixes for the
+  `Clash.Explicit.Verification.check` blackbox: the clock line is now used
+  correctly instead of assuming a pre-bound identifier (PR #2907), and string
+  literal types match the input provided via `Clash.Explicit.Verification.name`
+  (PR #2908). These are small but concrete signs the open-source verification
+  backend is still being hardened.
 - **Clash Formal** (QBayLogic) — cryptographic cores, RISC-V with CHERI, FIDO2/
   CTAP2 passkey stacks, integrating proof assistants/SMT/model checkers.
 - **CIRCT integration** (LATTE 2026 paper) — three lowering strategies into
@@ -137,12 +149,15 @@ It also has no ternary compute line and no physical boot-evidence loop.
 ## Recommendation for t27
 
 1. **Defend the Lean-native + ternary + spec-first triangle.** This is the only
-   intersection no competitor currently occupies.
-2. **Expand the physical boot-evidence story.** Wave Loops 423–424 hardened the
+   intersection no competitor currently occupies. Sparkle's July 2026 public
+   positioning (“Lean 4 as the core of RTL development”) makes this defence
+   urgent.
+2. **Expand the physical boot-evidence story.** Wave Loops 423–426 hardened the
    VCD/CSV import path (`--csv-voltage-unit`, slope filters, unknown-timescale
-   fallbacks), added PVT-worst-case theorem generation, and embedded PVT/XADC
-   context in boot-log JSON. Next: relay automation, PVT falsification reports,
-   and Lean theorems per captured corner.
+   fallbacks), added PVT-worst-case theorem generation, embedded PVT context in
+   boot-log JSON, and added machine-readable `recommendation` objects plus
+   worst-case PVT margin fields. Next: relay automation, PVT falsification
+   reports, and Lean theorems per captured corner.
 3. **Grow the ternary IP catalog.** Sparkle's broad IP list is its headline
    advantage. t27 needs visible ternary MAC/GEMM/encoder blocks with matching
    Lean proofs.
@@ -157,10 +172,12 @@ It also has no ternary compute line and no physical boot-evidence loop.
 - Sparkle / Verilean: <https://github.com/Verilean/sparkle>
 - Sparkle PR #66 (IP.Net + compiler perf): <https://github.com/Verilean/sparkle/pull/66>
 - Sparkle RV32 divider verification commit: <https://github.com/Verilean/sparkle/commit/9c7809c13cc2d2abd8d5aa0b7c2943ac76340a75>
+- Sparkle / 関数型まつり2026 talk proposal (July 11 2026): <https://fortee.jp/2026fp-matsuri/proposal/0950c519-6c98-4db6-b819-eff0f4f3d06e>
 - Verilean organization: <https://github.com/Verilean>
 - Clash homepage: <https://clash-lang.org/>
 - Clash Formal project: <https://trustworthy-it.com/en/projekte/clash-formal>
 - Clash compiler repo: <https://github.com/clash-lang/clash-compiler/>
+- Clash 1.8.5 release / changelog: <https://github.com/clash-lang/clash-compiler/releases/tag/v1.8.5>
 - LATTE 2026 Clash/CIRCT paper: <https://www.cs.princeton.edu/~ad4048/pdfs/latte-2026-submission-14.pdf>
 - CIRCT LTL dialect: <https://circt.llvm.org/docs/Dialects/LTL/>
 - CIRCT Verif dialect: <https://circt.llvm.org/docs/Dialects/Verif/>
