@@ -104,3 +104,20 @@ training set.
 ```bash
 python3 tools/gft_generalize_demo.py
 ```
+
+## Deep learning: a 2-layer GF-T net solves XOR (full backprop)
+
+`tools/gft_deep_demo.py` proves GF-T supports **multi-layer** training, not just a
+linear model. XOR is not linearly separable, so a 1-layer GF-T classifier can't do
+it; a 2-layer net with a **ReLU hidden layer** (`gft_relu.t27`, exact 0/1 gradient)
+trained by full backprop through the hidden layer does:
+
+```
+LINEAR (1 layer)          XOR test acc: 47.5%   <- fails (not linearly separable)
+2-LAYER ReLU (backprop)   XOR test acc: 98.8%   <- solves it (full backprop on GF-T)
+```
+
+The hidden-layer gradient is `∂L/∂h · relu'(pre)` with `relu'` the exact 0/1 mask —
+no straight-through estimate needed. (A trit/sign hidden layer with STE also learns,
+reaching ~77% on XOR — gradient flows through the estimator, but the ternary
+activation is lossy.) All arithmetic is the bit-exact GF-T hardware models.

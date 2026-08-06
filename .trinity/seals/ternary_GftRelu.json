@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:c09f4b25cf8dfa462a34b12b16d117959b8fa70f335ce046e336a8e872e3b8e1",
+  "gen_hash_rust": "sha256:1c12de52edfd6156aa394a37504c0d8bcb5b057cc627f7c0c7d04f6c3b178b27",
+  "gen_hash_verilog": "sha256:5aa7a9f7a56f760f45db0c8ef7146798e434a1efbb591f8b2f33d28bfbeac95b",
+  "gen_hash_zig": "sha256:e5a7071219a061da61b75ee861332a8d8de72d3789f96dcdb0dfba2df993a011",
+  "module": "GftRelu",
+  "ring": 12,
+  "sealed_at": "2026-08-06T17:38:06Z",
+  "spec_hash": "sha256:67977206cb649dcffe7703ea2aa8d330f67b0dce6b63c3e063d2c4ef5d1112e2",
+  "spec_path": "specs/ternary/gft_relu.t27"
+}
