@@ -3764,3 +3764,135 @@
 - **Commit:** feat(igla): Wave Loop 777 — module-scope [373][2]^6 Pt non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes
 - **Files:** .claude/plans/loop-w777-full-cycle.md,.claude/plans/wave-loop-778.md,.claude/skills/t27-wave-loop.md,.trinity/current-issue.md,.trinity/experience.md,docs/NOW.md,docs/reports/FPGA_LOOP_CLOSEOUT_W777_2026-07-24.md
 
+## 2026-07-04T19:45:56Z — wave-loop-422
+- **Commit:** docs(issue): set current issue to Wave Loop 422\n\nCloses #1365\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-05T06:22:32Z — wave-loop-422
+- **Commit:** docs(issue): set current issue to Wave Loop 422\n\nCloses #1365\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json,.trinity/seals/agent_EternalMonitor.json,.trinity/seals/agent_FacultyBoard.json,.trinity/seals/agent_Handoff.json,".trinity/seals/agent_Str = \"\",.json",.trinity/seals/agent_String  # phi, trinity, gematria, evolution, safety.json
+
+## 2026-07-05T06:23:51Z — wave-loop-423
+- **Commit:** feat(igla): Wave Loop 422 — live XC7A200T SRAM boot, Verilog keyword escape, PVT worst-case bound
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-05T06:47:22Z — wave-loop-423
+- **Commit:** docs(issue): set current issue to Wave Loop 423
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W423_2026-07-05.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_423_REPORT.md,fpga/HARDWARE_SSOT.md
+
+## 2026-07-05T06:48:03Z — wave-loop-424
+- **Commit:** feat(igla): Wave Loop 423 — CSV time units, VCD slope filter, PVT worst-case, competitor refresh (Closes #1368)
+- **Files:** .trinity/current-issue.md,docs/reports/FPGA_LOOP_COOPERATION_W424_2026-07-05.md
+
+## 2026-07-05T07:13:01Z — wave-loop-424
+- **Commit:** setup(igla): Wave Loop 424 branch and issue (#1371)
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W424_2026-07-05.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_424_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T07:13:28Z — wave-loop-424
+- **Commit:** feat(igla): Wave Loop 424 — FPGA tooling hardening, PVT context, CSV voltage units, non-blocking continue, W425 setup
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-07-05T07:15:04Z — wave-loop-424
+- **Commit:** docs(tri): W425 issue + NOW setup (#1374, wave-loop-425)
+- **Files:** docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md
+
+## 2026-07-05T07:15:09Z — wave-loop-424
+- **Commit:** docs(tri): correct W425 issue reference to #1374
+- **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md
+
+## 2026-07-05T07:22:12Z — wave-loop-425
+- **Commit:** docs(tri): correct W425 issue reference to #1374
+- **Files:** .claude/plans/wave-loop-420.md,.claude/plans/wave-loop-421.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json
+
+## 2026-07-05T07:37:43Z — wave-loop-425
+- **Commit:** merge W424 into W425
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md,docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W425_2026-07-05.md,docs/reports/WAVE_LOOP_425_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T07:42:52Z — wave-loop-426
+- **Commit:** docs(w426): set up Wave Loop 426 current issue (#1376)
+- **Files:** .claude/plans/wave-loop-420.md,.claude/plans/wave-loop-421.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json
+
+## 2026-07-05T07:43:03Z — wave-loop-426
+- **Commit:** Merge branch 'wave-loop-425' into wave-loop-426
+- **Files:** .claude/plans/wave-loop-420.md,.claude/plans/wave-loop-421.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json,.trinity/seals/agent_AutonomousUniverse.json
+
+## 2026-07-05T07:57:05Z — wave-loop-426
+- **Commit:** chore(w426): merge wave-loop-425 close-out into W426 branch
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md,docs/reports/FPGA_LOOP_COOPERATION_W427_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W426_2026-07-05.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/W426_WEAK_POINTS_AND_COMPETITORS.md,docs/reports/WAVE_LOOP_426_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T07:58:07Z — wave-loop-427
+- **Commit:** feat(igla): Wave Loop 426 — finite-grid PVT theorems, machine-readable tri fpga JSON, competitor refresh (Variant C)
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-05T08:11:55Z — wave-loop-427
+- **Commit:** docs(w427): set up current issue for Wave Loop 427 (#1379)
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W428_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W427_2026-07-05.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/W427_WEAK_POINTS_AND_COMPETITORS.md,docs/reports/WAVE_LOOP_427_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T08:12:47Z — wave-loop-428
+- **Commit:** feat(igla): Wave Loop 427 — per-OSCFSEL PVT envelope theorems, tri fpga sweep-report --json, competitor refresh (Variant C)
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-05T09:02:33Z — wave-loop-428
+- **Commit:** docs(issue): set current issue to Wave Loop 428 (#1383)
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W429_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W428_2026-07-05.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_428_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T09:04:13Z — wave-loop-429
+- **Commit:** feat(igla): Wave Loop 428 — unified OSCFSEL PVT theorems, tri fpga pvt-envelope --json, competitor refresh
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-05T09:29:29Z — wave-loop-429
+- **Commit:** chore(w429): seed current-issue.md for Wave Loop 429
+- **Files:** cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W430_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_429_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T09:31:50Z — wave-loop-430
+- **Commit:** feat(igla): Wave Loop 429 — raw-ns OSCFSEL theorems, measured-to-lean --json, W429 report and W430 cooperation (Closes #1385)
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-05T09:32:25Z — wave-loop-430
+- **Commit:** docs: Wave Loop 430 current-issue setup (Refs #1388)
+- **Files:** .trinity/experience.md
+
+## 2026-07-05T09:32:29Z — wave-loop-430
+- **Commit:** docs: Wave Loop 429 experience log (Refs #1385)
+- **Files:** .trinity/current_task/activity.md,.trinity/experience.md
+
+## 2026-07-05T10:05:45Z — wave-loop-430
+- **Commit:** docs: Wave Loop 429 experience log
+- **Files:** .trinity/current-issue.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W431_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_430_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T10:06:55Z — wave-loop-431
+- **Commit:** feat(igla): Wave Loop 430 — live XADC readout, PVT-envelope bridge, W431 cooperation\n\n- Add tri fpga read-xadc and --xadc flags on boot-log/cold-por/cclk-sweep.\n- Parse openFPGALoader --read-xadc output and embed live temp/vccint/vccaux in JSON logs.\n- Add XadcOperatingPoint formal bridge and worst-case-bound theorem in TernaryFPGABoot.lean.\n- Update fpga/HARDWARE_SSOT.md, T27_VS_FORMAL_HDL_2026.md, GEN_VERILOG_DEFECTS_REPRO.md.\n- Create WAVE_LOOP_430_REPORT.md and FPGA_LOOP_COOPERATION_W431_2026-07-01.md.\n- Verification: cargo test fpga:: 79/79, lake build pass, tri test pass except 7 pre-existing #1245 failures.\n\nCloses #1388\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .trinity/experience.md
+
+## 2026-07-05T10:42:19Z — wave-loop-431
+- **Commit:** docs(trinity): W431 setup — current issue, NOW, experience (Wave Loop 430 close-out)\n\n- Point .trinity/current-issue.md and docs/NOW.md to W431 (#1389).\n- Add W430 learnings to .trinity/experience.md.\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W432_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W431_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_431_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T10:43:02Z — wave-loop-431
+- **Commit:** feat(igla): Wave Loop 431 — XADC→PVT context bridge, computable envelope, measured-to-lean --json summary hardening
+- **Files:** .trinity/experience.md,docs/NOW.md
+
+## 2026-07-05T11:58:14Z — wave-loop-432
+- **Commit:** chore(merge): bring origin/master (gf128 promotion) into wave-loop-432
+- **Files:** .claude/plans/wave-loop-432.md,.trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W433_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W432_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_432_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T11:59:08Z — wave-loop-433
+- **Commit:** feat(igla): Wave Loop 432 — per-process-corner raw-ns OSCFSEL theorems, master-merge feasibility probe, W432 close-out artifacts
+- **Files:** .trinity/experience.md
+
+## 2026-07-05T12:07:23Z — wave-loop-433
+- **Commit:** docs(experience): W432 learnings — per-process-corner theorem, master-merge probe, blocked bench redirect
+- **Files:** .claude/plans/wave-loop-433.md,.trinity/current-issue.md,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W434_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W433_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_433_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T12:08:33Z — wave-loop-433
+- **Commit:** feat(igla): Wave Loop 433 — formal bridge fallback, compose W431 XADC envelope with W432 per-corner raw-ns OSCFSEL theorem
+- **Files:** .claude/plans/wave-loop-429.md,.claude/plans/wave-loop-430.md,.claude/plans/wave-loop-431.md,.trinity/experience.md
+
+## 2026-07-05T12:23:26Z — wave-loop-434
+- **Commit:** docs(experience): W433 learnings and missing W429-W431 plan files
+- **Files:** .claude/plans/wave-loop-434.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W435_2026-07-01.md,docs/reports/FPGA_LOOP_EVIDENCE_W434_2026-07-01.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_434_REPORT.md,fpga/HARDWARE_SSOT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
+## 2026-07-05T12:24:02Z — wave-loop-434
+- **Commit:** feat(igla): Wave Loop 434 — live XADC → PVT context theorem, synthetic CCLK proof-of-pipeline, W435 issue #1398 + branch
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+

@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:fa851daf9a4c4b0e8cfb4a215dc741378e0756711cb98986e2f2c8000266a4e8",
-  "spec_path": "specs/tri/search/knuth_morris_pratt.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/search/knuth_morris_pratt.t27"
 }

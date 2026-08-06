@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:1d810343f5e26d852c7ebd931bba310d28129b26915bf4a6ec71c066d1199e1c",
-  "spec_path": "specs/benchmarks/gf16_bfloat16_nmse.t27"
+  "spec_path": "/Users/playra/t27/specs/benchmarks/gf16_bfloat16_nmse.t27"
 }

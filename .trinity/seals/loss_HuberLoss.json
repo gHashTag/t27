@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:dc6abda2d082a9007b050ad51b10ae119790ceecbe26b23107a08d024bf0ea29",
-  "spec_path": "specs/ml/loss/huber_loss.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/loss/huber_loss.t27"
 }
