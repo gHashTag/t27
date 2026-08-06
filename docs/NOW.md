@@ -1,3 +1,19 @@
+# NOW — feat(spec): GF-T softmax+cross-entropy gradient (backward pass) (2026-08-07)
+
+Last updated: 2026-08-07
+
+## feat(spec): GF-T softmax+xent gradient — the backward pass, forward+backward complete (Refs #1764)
+
+- Branch: `feat/gft-softmax-grad` (stacked on `feat/gft-log2-nll`)
+
+### Что легло
+- `specs/ternary/gft_softmax_grad4.t27` (`GftSoftmaxGrad4`): the **softmax + cross-entropy gradient** over four signed GF-T16 logits. For a one-hot target `t`, the classic closed form `∂L/∂l_i = p_i − y_i` — so the whole backward pass is just the softmax forward `p_i` minus the one-hot label (`grad = (i==t) ? sadd(p, −1.0) : p`). Composes the verified softmax (max, sadd+neg, exp2, recip, RNE mul). Bit-exact to the integer oracle **1600/1600** (iverilog); gradient accuracy **≤0.0018 abs vs true `p_i−y_i`**. Spot: uniform logits, target 0 → grad₀ = 0.25−1 = **−0.75** exact, grad₁ = **0.25** exact.
+- Fresh seal for `GftSoftmaxGrad4` (`seal --verify` MATCH). No compiler change.
+
+**Forward + backward now complete on GF-T:** `logits → softmax → prob → NLL loss`, and `→ gradient p−y`. Combined with the exp2/log2 inverse pair, the per-sample training step (forward loss + backprop signal into the logits) is fully expressible spec-first and iverilog-verified — the foundation for on-device training.
+
+---
+
 # NOW — feat(spec): GF-T log2 primitive + cross-entropy (NLL) loss (2026-08-06)
 
 Last updated: 2026-08-06
