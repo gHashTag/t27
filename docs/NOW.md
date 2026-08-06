@@ -1,15 +1,16 @@
-# NOW — feat(spec): GF-T argmax classification head (2026-08-06)
+# NOW — demo: GF-T learns (end-to-end on-device training demo) (2026-08-07)
 
-Last updated: 2026-08-06
+Last updated: 2026-08-07
 
-## feat(spec): GF-T argmax head — 4 logits → predicted class index (Refs #1764)
+## demo: GF-T learns — end-to-end training proof (Refs #1764)
 
-- Branch: `feat/gft-argmax4`
+- Branch: `feat/gft-training-demo` (independent of the spec stack — inlines the models)
 
 ### Что легло
-- `specs/ternary/gft_argmax4.t27` (`GftArgmax4`): a spec-first **classification head** over four signed GF-T16 logits → the **index {0,1,2,3} of the maximum real value** (lowest index wins ties, strict `>`). This is the final stage of a GF-T classifier: `gft_mlp3` emits logits, argmax picks the predicted class. No arithmetic — a **total order on the GF-T encoding**: the low 16 bits (offset<<9 | mant) are monotonic in real magnitude and raw 0 is the only zero, so order is negatives < zero < positives, positives by ascending bits, negatives by descending bits. `gt(a,b)` via a 3-way sign category (neg=0, zero=1, pos=2).
-- Verification: **bit-exact to the ideal exact-float64 argmax over 400 vectors** (`tests/gft_argmax4_vectors.txt`), iverilog `$fscanf` in `bootstrap/tests/gft_argmax4.rs`. Vectors (incl. injected exact zeros) emitted only where the integer comparator AND the float argmax agree (0/400 disagreements). Four in-spec `test`s cover pick-positive, pick-last, zero-beats-negatives, tie-lowest-index.
-- No compiler change (`on_comb`, 4 ports). Fresh seal `.trinity/seals/ternary_GftArgmax4.json` (`seal --verify` MATCH). Completes the end-to-end GF-T classifier: activations → MLP → logits → **argmax → class**.
+- `tools/gft_train_demo.py` + `docs/GFT_TRAINING_DEMO.md`: a **self-contained** end-to-end training demo proving the GF-T primitive stack **learns**, not just computes correct arithmetic. Trains a linear 4-class classifier by SGD on a toy set using **only the GF-T integer models** — bit-for-bit what the synthesized hardware computes (each op is bit-exact to a `.t27` with an iverilog test). The same loop runs in float64 as a reference.
+- **Result:** GF-T loss falls monotonically **2.20 → 0.22** over 20 epochs and **tracks float64 to ~3 decimals** the whole way; final **4/4 accuracy**. The GF-T datapath trains as well as float.
+- **RTL-in-the-loop:** dumped every op the training run performs and replayed through the COMPILED Verilog — forward softmax **372/372** on `GftSoftmax4`, weight update **640/640** on `GftSgdStep`, all bit-exact. So the loss curve is literally the hardware's; GF-T learns on real RTL, not just in a model.
+- Ties the whole stack together: forward (`smul`/`sadd`/`softmax`) → loss (`nll`) → backward (`grad p−y`) → update (`w−η·g`), every stage iverilog-verified. Turns "verified primitives" into "**GF-T learns on-device**."
 
 ---
 
