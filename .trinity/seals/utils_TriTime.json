@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:235d11a70fe8bdd41fc36a2733e9a4636187bdd10c87e06a106ee8ca5e596a79",
   "module": "TriTime",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T14:40:19Z",
   "spec_hash": "sha256:3bc8d058f4b301edc4f1584510910da792098ecc9fb60f6d4e38f16ba3bcdf74",
   "spec_path": "specs/tri/utils/time.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6add9fe87033dd386e7eea4639c4ffe70141fbe4a342361f548619460f43e12e",
   "module": "MseLoss",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:52Z",
+  "sealed_at": "2026-08-06T14:40:18Z",
   "spec_hash": "sha256:c638af50d443971716097050d0da73d8afc15857f2253e32afe63b4a49104b36",
   "spec_path": "specs/ml/loss/mse_loss.t27"
 }

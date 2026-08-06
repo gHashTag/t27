@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:aac838434ed0b95a261807581b52f4ca41025eef07d36eb45bcc47d0f3724036",
   "module": "EternalMonitor",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T14:40:19Z",
   "spec_hash": "sha256:b5afb6170a5befb94ac33558fa795f236dd6075d9e05f6a0dd2e673d05aba069",
   "spec_path": "specs/tri/agent/eternal_monitor.t27"
 }

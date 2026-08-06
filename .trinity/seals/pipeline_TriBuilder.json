@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8da1d313db5dc4128c8f5785dfea01df8ba6b5b0a1404ab5816ef1cc149917a4",
   "module": "TriBuilder",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T14:40:19Z",
   "spec_hash": "sha256:18d79f751cfe6da5030c5dad9c7c58c1313c1e9074355cceb2cf5398f69e71cf",
   "spec_path": "specs/tri/pipeline/builder.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:bd6d8ec420c8812feccb8578768a8d266bf9abe1c049fd9b512a8c862941424e",
   "module": "Dqn",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:53Z",
+  "sealed_at": "2026-08-06T14:40:18Z",
   "spec_hash": "sha256:c7195be79157467c96d65abbf92dcaf4e20bc194e8a800cfcde8571cffecf4a2",
   "spec_path": "specs/ml/rl/dqn.t27"
 }

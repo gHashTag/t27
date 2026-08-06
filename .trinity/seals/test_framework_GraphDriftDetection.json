@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:92b32679ec6296485aa00fb993c733d99c16855ea39e5a1c3abbab4484caaf2a",
-  "gen_hash_rust": "sha256:0bef0a14ffb3504c478fc47c76f3fb5ed053c7ad54452d6108d3f051bd7f9e94",
+  "gen_hash_c": "sha256:dc8d3ed0caecc33683fd776abf6ec2e054e0585cc21c9da64273f3ec34638ebd",
+  "gen_hash_rust": "sha256:6ba49c5db51d0e62688179baf8a7594948861c898e9a7ada673f4ea39d7d6d21",
   "gen_hash_verilog": "sha256:3eb0133f8504b611090c84d200f0d77e925e4015ec5d0b719f8a3f122a9f32a6",
   "gen_hash_zig": "sha256:c3e7cc23bef7d7660a8fbf1c687d485904aa8035d8dc86056043a33030456172",
   "module": "GraphDriftDetection",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:54Z",
+  "sealed_at": "2026-08-06T14:40:16Z",
   "spec_hash": "sha256:a49e6be25598157a01a6e9179cbee2685f5043978aa4db8c0beb5139c33064ff",
   "spec_path": "specs/test_framework/graph_drift_detection.t27"
 }

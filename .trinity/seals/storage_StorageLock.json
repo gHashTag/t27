@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:dc74bb58b52216ff299cbf947267a5bef949f70ecc91594198360568746fd37c",
   "module": "StorageLock",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:23Z",
+  "sealed_at": "2026-08-06T14:40:18Z",
   "spec_hash": "sha256:c01972f697f0ed72a1460bcdeac50f61e867a1424edcf5b0c44250d94ed1f29a",
   "spec_path": "specs/storage/lock.t27"
 }

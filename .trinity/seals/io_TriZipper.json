@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9dbab42eb51e428d21fc95a1aa016f5299556e24a5f0c34581889601f7478719",
   "module": "TriZipper",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T14:40:19Z",
   "spec_hash": "sha256:767f91d7c7ff22bcf8464595a5e3a9d32d24af8157cb882dfa4958e61aec6e0f",
   "spec_path": "specs/tri/io/zip.t27"
 }

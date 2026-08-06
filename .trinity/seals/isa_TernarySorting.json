@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ba9843132d84b6f47bc21baf953ae9e5f88d40dbcb128f3940d1af0584df4147",
   "module": "TernarySorting",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T14:40:17Z",
   "spec_hash": "sha256:881cb1ecd624422cbe055e73272343e1fa48151ce41b680fa1b01eaed9a26319",
   "spec_path": "specs/isa/ternary_sorting.t27"
 }

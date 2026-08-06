@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ef16db1b701c630deb519eb4fbd68a4133a696bd67d1b78af9dcafe91d177b02",
   "module": "SDK",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:22Z",
+  "sealed_at": "2026-08-06T14:40:17Z",
   "spec_hash": "sha256:e8103e313f55a9f2a1093ae9f26e02fad9ea7649246b9f9a09d489a76d6c7726",
   "spec_path": "specs/vsa/sdk.t27"
 }

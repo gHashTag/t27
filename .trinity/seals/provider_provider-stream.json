@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:cdbabed406be06048c4c8f00d97dd9fa4cde5f69cac88370b1b25156f360552f",
   "module": "provider-stream",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:22Z",
+  "sealed_at": "2026-08-06T14:40:18Z",
   "spec_hash": "sha256:45784e977fde6e94fc06398b713494335150a946f08c4332505038a063523222",
   "spec_path": "specs/provider/stream.t27"
 }

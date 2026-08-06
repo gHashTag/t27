@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:c707a22c4fdca31c726fc40984dc9fb8873391c015268c3cbbb6feeb9116b554",
-  "gen_hash_rust": "sha256:9537895e0be8913ef203c44587ad4fb5c1f6cea908642667ba948b4641977c61",
+  "gen_hash_c": "sha256:f46e37719d66bc4eb53af0282c3cc00a4cd605a8db87d3d227cfa126e233f4ff",
+  "gen_hash_rust": "sha256:1e79f8bdaae2a452d214fa4b95ff131860d3c8b95991bb7e4c950e98f2c544bc",
   "gen_hash_verilog": "sha256:e5be2750f7b4afcd44f21f5cf7377bd091783be01fc796c6864b64d54e2db1da",
   "gen_hash_zig": "sha256:4c1960b7d91d6bfb3aa349e0c4adaf650148102cea9f34adb4ed4904f193d6a0",
   "module": "igla-coder-arch",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:55Z",
+  "sealed_at": "2026-08-06T14:40:19Z",
   "spec_hash": "sha256:e31b84fa71b8df9e39f2720f1218316ef5c83f293fd1a819cea9d2122ef21ef2",
   "spec_path": "specs/igla/coder/arch.t27"
 }

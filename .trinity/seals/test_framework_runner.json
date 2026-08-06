@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:0562feb725e1f2ee264cdce149c0a9ccf50873acb925e635155b78248248370f",
-  "gen_hash_rust": "sha256:48a10fce8662eee09a45674303768447b41a7a20162bbdd7017ec23e52789c6b",
+  "gen_hash_c": "sha256:80562ec828da6ae8021b16050bb98fa7a88f57e4215c077eaf0f0e9de83ed30a",
+  "gen_hash_rust": "sha256:badeeab75fa44d640a526a7f9959d52a5b81b5a19967f469cc13b6c5604325b5",
   "gen_hash_verilog": "sha256:52c8097866dee072457cc89942af90360f8d7954bb872ce63fc9e6238aa36548",
   "gen_hash_zig": "sha256:33cc2e07dd8af85d6ab24c35f0165d41272cf2cbaa7a85f5e83ab75f74211d73",
   "module": "runner",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:54Z",
+  "sealed_at": "2026-08-06T14:40:16Z",
   "spec_hash": "sha256:5cfa56c009dd16e0297d7e1cec05ea6ab92be4ef6a59d5fdcc113cf5bd305e17",
   "spec_path": "specs/test_framework/runner.t27"
 }

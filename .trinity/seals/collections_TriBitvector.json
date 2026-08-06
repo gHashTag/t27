@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:482673bc4374cd4480db2efd56ccf714e0d27db970808afd1bc4f44e9cdaf41e",
   "module": "TriBitvector",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T14:40:19Z",
   "spec_hash": "sha256:435342ddd91e9a68767defaeab6d9b67279c50dd763056187d89210081b4026e",
   "spec_path": "specs/tri/collections/bitvector.t27"
 }

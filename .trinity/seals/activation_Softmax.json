@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6a5304684af54777e571a9ff90f0043c32c0eb68031de58d21cb8e09f9f413b9",
   "module": "Softmax",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:52Z",
+  "sealed_at": "2026-08-06T14:40:18Z",
   "spec_hash": "sha256:4ea7242baa7a03eeadf68af61c6d58551b24783880fa3319a2d0c34550ecdb44",
   "spec_path": "specs/ml/activation/softmax.t27"
 }

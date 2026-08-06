@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:eafcec59112d9906300f705a519cd70d4c6c1e29b4538e73f52a87b4a4911566",
-  "gen_hash_rust": "sha256:75782cff7943b5ba355d2d8c9b6c2cadd13a94d4631e5b88cdc3b31dbac89d04",
+  "gen_hash_rust": "sha256:de5b5b39a630c3410ffda244d8020102f5caa0ddcfdde5d481d15c286b3779f9",
   "gen_hash_verilog": "sha256:1bdf64d846d350da950e8524568628783043a9d27f1c46a19d5f6672b3d333e9",
   "gen_hash_zig": "sha256:afa3e4c604b7e5e23231a37ece450ec92fb27f84857e9f6be06721e83b302fb9",
   "module": "Stdlib",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:56Z",
+  "sealed_at": "2026-08-06T14:40:16Z",
   "spec_hash": "sha256:fb78ae12983cc5b08cc552910a1088eec6c5b078c40053f127f75b516b3a0c8d",
   "spec_path": "specs/compiler/stdlib.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e3e46207b16af60fddfb63f2a750472313d0919e4fe27205615624772cb9aafe",
   "module": "Rmsprop",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:52Z",
+  "sealed_at": "2026-08-06T14:40:18Z",
   "spec_hash": "sha256:b12ab087d817d07363484cb0dea375c6002c2d8476162fc5792343663de03229",
   "spec_path": "specs/ml/optimizer/rmsprop.t27"
 }

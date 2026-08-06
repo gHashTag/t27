@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:e25d1ac6363e6bcef1b50cc1115a4c1ff23b361e9059a4f4e59c3c815a00c417",
-  "gen_hash_rust": "sha256:9173bde563e291b2990b63ffb71124c6f4786fc4d3334009c45d780366d293e2",
+  "gen_hash_rust": "sha256:8b92f8b4b430c6a7b5cd5f2a77cc2fcde27896f8f687f69b4eec8f7f6a46afd9",
   "gen_hash_verilog": "sha256:9390d9dc4ef50c2f1d58da12f8a3c93a977ec0fb8ec1f541d36e1a8f3ec8cbe1",
   "gen_hash_zig": "sha256:2b10889a1a57c4e8f7f06091f4982136008122e6d6f0cf1661f63c4fa20034fa",
   "module": "BitnetMlp",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T14:40:17Z",
   "spec_hash": "sha256:ef76b7df5174a89b3ec92308edbdf4bf64bccb43c8588f13d7329a31c1178f58",
   "spec_path": "specs/ternary/bitnet_mlp.t27"
 }

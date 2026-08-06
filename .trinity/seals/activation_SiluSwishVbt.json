@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c201cb6d1bdbe96dd579b0e108725448da342e09a106b97004f2edc847c1cd8e",
   "module": "SiluSwishVbt",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:52Z",
+  "sealed_at": "2026-08-06T14:40:18Z",
   "spec_hash": "sha256:faa113fb557328b585439853b8b733b86f97d5df63e7824fe040d2aab10ad6c4",
   "spec_path": "specs/ml/activation/silu_swish_vbt_activation.t27"
 }

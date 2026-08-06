@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4c7d1236112d518e0a6cc5f340b615c20d4f83cc0740c8ba6c06cd98eaaf26c8",
   "module": "runtime-execute",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:22Z",
+  "sealed_at": "2026-08-06T14:40:17Z",
   "spec_hash": "sha256:b0bd4e7b1ea364fe7be9e73786f868cffd64a04d512b68c1b2775124b3cb81a4",
   "spec_path": "specs/runtime/execute.t27"
 }

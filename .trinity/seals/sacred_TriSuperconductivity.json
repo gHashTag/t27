@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:48bcfe1dc20fc067102f61570781e4c7ae99a13904ca15b90b356d48c9bf7328",
   "module": "TriSuperconductivity",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:22Z",
+  "sealed_at": "2026-08-06T14:40:17Z",
   "spec_hash": "sha256:0e053f342b33d78bd69e302ae9afb0c11484b411d895197522c747f35a8f957f",
   "spec_path": "specs/sacred/superconductivity.t27"
 }

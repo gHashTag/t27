@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3502eb1b79b53a016efd5f6e5519ab0cc4a70516ebf491ccd81755dcf931924d",
   "module": "SwarmAgents",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T14:40:19Z",
   "spec_hash": "sha256:189991c3d70f34e820450087b50a7d572be1baa821137533ee3c56b0aee57145",
   "spec_path": "specs/tri/agent/swarm_agents.t27"
 }

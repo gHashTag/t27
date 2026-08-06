@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:83beef368db980a55f408964b024a170f23918d6363b88a8b4022f953c5e2fcf",
   "module": "Mlp",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:53Z",
+  "sealed_at": "2026-08-06T14:40:18Z",
   "spec_hash": "sha256:38e27adb2b1502fe1200eaaaf794baf678bedb3dcf17667cba1c5d1f6eb393ab",
   "spec_path": "specs/ml/pathway/mlp.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7837881439b5a4efbafcf3177a24355226d7fa0b510b617129923cfa684ec0a7",
   "module": "TriMonopoles",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:22Z",
+  "sealed_at": "2026-08-06T14:40:17Z",
   "spec_hash": "sha256:d12076291cf317c67b13cd9a7cd04ac990b6995fa9eeec9828773e28cb36c437",
   "spec_path": "specs/sacred/monopoles.t27"
 }

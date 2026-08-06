@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7e50a653c7dbec9e1c370d8a56fefba6f343b962e74c82fc7fdfb041cb5fe6d7",
   "module": "TriChannel",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T14:40:19Z",
   "spec_hash": "sha256:8b6fe7a680efb096f89b4f3166bdc6724a7bd3e48fa841b90ac94c4e1f66df01",
   "spec_path": "specs/tri/net/channel.t27"
 }

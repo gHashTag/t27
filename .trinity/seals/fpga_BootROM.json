@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2d0eca9064bc76f44519e95d1684fb6dac9e6464b16c8b248767993d5b55e8c1",
   "module": "BootROM",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:53Z",
+  "sealed_at": "2026-08-06T14:40:16Z",
   "spec_hash": "sha256:095347af6f8f5f079b3e9cc138edcc5cc9dc15ecc82a153fab158de646476958",
   "spec_path": "specs/fpga/bootrom.t27"
 }

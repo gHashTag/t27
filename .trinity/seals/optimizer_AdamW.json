@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0cece617def3aa5eaaf5b35a5ff65ba77a39b8b46fa9ac4b0351885fc6c934a3",
   "module": "AdamW",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:52Z",
+  "sealed_at": "2026-08-06T14:40:18Z",
   "spec_hash": "sha256:a6f6cfd8423f58f14d672d49bf6d42194d8b9fb1d145ed2c048b10f8a1d4763e",
   "spec_path": "specs/ml/optimizer/adamw.t27"
 }

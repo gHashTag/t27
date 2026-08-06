@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0ec32b741911475de3160677c669ecb818c192f52933959e8753663b77859123",
   "module": "GftLayer2",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:47:37Z",
+  "sealed_at": "2026-08-06T14:40:17Z",
   "spec_hash": "sha256:35a33a43c6ba2669c285f757c838ae44d8cd5028598ff7912370383a41ee7133",
   "spec_path": "specs/ternary/gft_layer2.t27"
 }

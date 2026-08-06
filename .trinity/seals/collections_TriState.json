@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5ecabeeab3da731d90db8e77bd5ae732ae86572fcf1939570dafd88c3a5df17f",
   "module": "TriState",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T14:40:19Z",
   "spec_hash": "sha256:aa3c58adfab37776f186d26fc60f47aed131db48bb9045875ecae8cbbe62b51c",
   "spec_path": "specs/tri/collections/state.t27"
 }

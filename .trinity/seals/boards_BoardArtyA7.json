@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:910b9ebfb6adba7d85cac042ccad5f4a481fc2ebbe0747c209f03d279c7df8b2",
   "module": "BoardArtyA7",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:54Z",
+  "sealed_at": "2026-08-06T14:40:16Z",
   "spec_hash": "sha256:7b96fe0feb3e7bc3e57acad912c8ab1fba60c054d3e1305abcc27f1e0b94ddd8",
   "spec_path": "specs/boards/arty_a7.t27"
 }

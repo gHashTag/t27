@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4c9545954c0db7bebdd498c94c091446b52c9727399064253db1d6234da7a2c9",
   "module": "PowerAnalysis",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:53Z",
+  "sealed_at": "2026-08-06T14:40:16Z",
   "spec_hash": "sha256:60f9bd3929b53410b8ecc6f586991f33731ba60aa9fb1a2228b062e3ef550a16",
   "spec_path": "specs/fpga/power_analysis.t27"
 }

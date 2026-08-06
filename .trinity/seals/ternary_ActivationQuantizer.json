@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:10cf4efee5b65e92194c15e9606bb07c809ea6a4de819734b531f7c68c732196",
   "module": "ActivationQuantizer",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T14:40:17Z",
   "spec_hash": "sha256:a911eccefdb5ddc3cc09c3acc5bdbf0bbb3775c638bc5ef17a54d75d4a774590",
   "spec_path": "specs/ternary/activation_quantizer.t27"
 }

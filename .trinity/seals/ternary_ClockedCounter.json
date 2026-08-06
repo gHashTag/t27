@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b4847252ab51690dc65b288a7f7d95840a4aa31ff87ee8b9b2d0c268273c13d0",
   "module": "ClockedCounter",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:47:37Z",
+  "sealed_at": "2026-08-06T14:40:17Z",
   "spec_hash": "sha256:12a5bb8e6d0975bfd72b3520ac83e9adaa6f52371be8ef101ef5fd39b8fcbf6f",
   "spec_path": "specs/ternary/clocked_counter.t27"
 }

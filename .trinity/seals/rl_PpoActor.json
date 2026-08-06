@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:dc73c9bd99b3740dc7de405b1a8a98a8b57d4655e2dd5fce3f9cdcb50a82c806",
   "module": "PpoActor",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:53Z",
+  "sealed_at": "2026-08-06T14:40:18Z",
   "spec_hash": "sha256:db1da1f335f5455e94952bcbc2187cf3ae0aa0a68de09914b5105b69d18cb939",
   "spec_path": "specs/ml/rl/ppo_actor.t27"
 }

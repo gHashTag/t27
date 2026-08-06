@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f1a25358d94f5eb8baec12cf80c640edb03f7b5c0140ed7b7e545be4cfa5dac4",
   "module": "TriFs",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T14:40:19Z",
   "spec_hash": "sha256:c3a47ae15cf04f1ca3fb372da482d3fff460b1e2b6b544ede2d15f87c0ac6402",
   "spec_path": "specs/tri/io/fs.t27"
 }

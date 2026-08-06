@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3008ec6c368f916b82a6e0f59c4d1568997ce82cb83daf8ada9b448919f23626",
   "module": "TernaryMemory",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:56Z",
+  "sealed_at": "2026-08-06T14:40:16Z",
   "spec_hash": "sha256:937bd385e715c44fb216c71ed30d20a6242ef4c9c206791301fcedde996cc4a3",
   "spec_path": "specs/base/ternary_memory.t27"
 }
