@@ -1,3 +1,18 @@
+# NOW — feat: complete BitNet×GF-T neuron (MAC + activation) + synth fix (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): full GF-T neuron (weighted sum + sign activation) + synthesizable signed_mac (Refs #1764)
+
+- Branch: `feat/gft-neuron-activation`
+
+### Что легло
+- `specs/ternary/gft_neuron_full.t27` (`GftNeuronFull`) + seal + test + vectors: **a COMPLETE BitNet×GF-T neuron** — ternary weights {-1,0,+1} × real-valued GF-T16 activations summed in signed GF-T (RNE), then a **sign activation quantizes the sum to a TRIT output {N,Z,P}**. So it is **layer-composable** (trit in the weights, trit out), the full inference unit = weighted sum + nonlinearity. Bit-exact to the ideal oracle over 3000 vectors; **yosys synth_xilinx → 9542 LUT (synthesizes to Artix-7)**.
+- `specs/ternary/gft_signed_mac.t27` (fix): the merged signed MAC still had a `while`-loop normalization (iverilog-correct but NOT yosys-synthesizable). Rewrote it flat (12 conditional shifts), re-verified oracle-exact (300 vectors) and **now synthesizes (yosys 0 errors)**. Debt from cycle 14 closed.
+No compiler change (uses `on_comb`, on master); 1535 unit tests pass. The GF-T inference stack is now a complete, synthesizable neuron.
+
+---
+
 # NOW — feat: BitNet×GF-T neuron + signed GF-T dot4 (synthesizable) (2026-08-06)
 
 Last updated: 2026-08-06

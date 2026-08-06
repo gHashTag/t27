@@ -89,11 +89,19 @@ fn magsub(hi: i32, lo: i32) -> i32 {
     var diff : i32 = hs - la;
     var off : i32 = ho;
     // left-normalize into [512<<14, 1024<<14); bounded (max ~9 shifts).
-    var i : i32 = 0;
-    while (i < 20) {
-        if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
-        i = i + 1;
-    }
+    // flat (unrolled) left-normalization -- no loop -> yosys-synthesizable.
+    if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
+    if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
+    if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
+    if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
+    if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
+    if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
+    if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
+    if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
+    if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
+    if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
+    if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
+    if (diff < 8388608) { if (off > 1) { diff = diff << 1; off = off - 1; } }
     var q : i32 = diff >> 14;
     var rem : i32 = diff - (q << 14);
     var half : i32 = 8192;
