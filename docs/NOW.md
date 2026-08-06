@@ -1,3 +1,18 @@
+# NOW — demo: GF-T learns (end-to-end on-device training demo) (2026-08-07)
+
+Last updated: 2026-08-07
+
+## demo: GF-T learns — end-to-end training proof (Refs #1764)
+
+- Branch: `feat/gft-training-demo` (independent of the spec stack — inlines the models)
+
+### Что легло
+- `tools/gft_train_demo.py` + `docs/GFT_TRAINING_DEMO.md`: a **self-contained** end-to-end training demo proving the GF-T primitive stack **learns**, not just computes correct arithmetic. Trains a linear 4-class classifier by SGD on a toy set using **only the GF-T integer models** — bit-for-bit what the synthesized hardware computes (each op is bit-exact to a `.t27` with an iverilog test). The same loop runs in float64 as a reference.
+- **Result:** GF-T loss falls monotonically **2.20 → 0.22** over 20 epochs and **tracks float64 to ~3 decimals** the whole way; final **4/4 accuracy**. The GF-T datapath trains as well as float.
+- Ties the whole stack together: forward (`smul`/`sadd`/`softmax`) → loss (`nll`) → backward (`grad p−y`) → update (`w−η·g`), every stage iverilog-verified. Turns "verified primitives" into "**GF-T learns on-device**."
+
+---
+
 # NOW — feat(spec): 3-layer GF-T MLP (4→3→2→1) (2026-08-06)
 
 Last updated: 2026-08-06
