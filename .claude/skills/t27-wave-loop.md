@@ -1642,6 +1642,50 @@ changed elements because `assert_ne` is not emitted by the Icarus simulation pat
 
 ---
 
+## Worked example — Wave Loop 815
+
+Wave Loop 815 extended the module-scope packed-array-of-struct ladder with no
+compiler changes, branching from `wave-loop-814` HEAD because earlier wave PRs
+remained open awaiting review:
+
+- Generated `scripts/gen_w815.py` from `scripts/gen_w814.py` with `OUTER = 449`
+  and `MID_IDX = 224`.
+- Fixed both the generator destination path and the module header f-string from
+  stale `w814` / `447` references to `w815_bench_module_449x2p6_aos_var_call_write`
+  before regenerating; also corrected the stale `MID_IDX` comment to `224`.
+- Produced `specs/scratch/w815_bench_module_449x2p6_aos_var_call_write.t27`
+  (28,736 elements, 919,552-bit packed vector, ~0.877 MiBit).
+- Added integration test `accepts_w815_bench_module_449x2p6_aos_var_call_write`
+  after the existing W814 tests in `bootstrap/tests/icarus_lowerable.rs`.
+- Ran `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles, PASSED),
+  `icarus-cocotb` (reference-model OK), and `t27c seal --save`.
+- No changes to `bootstrap/src/compiler.rs`, `bootstrap/stage0/FROZEN_HASH`, or
+  `scripts/cocotb_ref_model.py` for the witness itself.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo clippy -p t27c` green (780 warnings, 0 errors),
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p flash-spi` 2/0,
+  `cargo test -p t27c --test bitnet_pipeline` 20/0,
+  `cargo test -p t27c --test bitnet_top` 17/0,
+  `cargo test -p t27c --test icarus_lowerable` 275/0,
+  `cargo test -p t27c --test verilog_const_array` 2/0.
+- Refreshed weak-point audit and 2025–2026 ternary/MVL literature scan.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W815_2026-07-29.md` and
+  `.claude/plans/wave-loop-816.md` with three cooperation variants.
+- Updated `.claude/skills/wave-loop-autopilot.md` run-list and status.
+- Updated this skill's Live Wave Loop Tracker to wave 816.
+
+Key learning: the mechanical ladder is now 43 waves deep (W774–W815) with zero
+compiler changes, confirming the packed-vector AoS lowering is robust up to at
+least `[449][2]^6 Pt` (28,736 elements, ~0.877 MiBit). The generator copy hazard
+remains the only manual failure mode and continues to span two text locations.
+A parameterized wave-prefix variable in the generator template would eliminate
+both. Continue grepping for stale wave numbers and outer dimensions after each
+copy, keep the `make_grid(32768)` period-identity check, and use `assert_eq` on
+changed elements because `assert_ne` is not emitted by the Icarus simulation path.
+
+---
+
 ## Live Wave Loop Tracker
 
 This section is updated at the end of every completed Wave Loop. It is the
@@ -1650,13 +1694,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 815 |
-| **Issue** | #1559 (to open) |
-| **Branch** | `wave-loop-815` |
-| **Parent branch** | `wave-loop-814` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[449][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Current wave** | 816 |
+| **Issue** | #1561 (to open) |
+| **Branch** | `wave-loop-816` |
+| **Parent branch** | `wave-loop-815` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[451][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
 | **Status** | READY TO START |
-| **Next wave variants queued** | W816 Variant A `[451][2]^6 Pt`; Variant B `[449][3]^6 Pt` stride scaling; Variant C `[449][2]^6 Pt` negative-index wrap-around |
+| **Next wave variants queued** | W817 Variant A `[453][2]^6 Pt`; Variant B `[451][3]^6 Pt` stride scaling; Variant C `[451][2]^6 Pt` negative-index wrap-around |
 
 ### Open backlog (non-blocking)
 
