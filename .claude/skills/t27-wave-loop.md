@@ -57,6 +57,39 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
+## Worked example — Wave Loop 849
+
+Wave Loop 849 continued the mechanical packed-vector ladder in the 1-MiBit
+range:
+
+- Selected Variant A: module-scope `[517][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w849.py` from `gen_w848.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment).
+- Produced `specs/scratch/w849_bench_module_517x2p6_aos_var_call_write.t27`
+  (33,088 elements, 1,058,816-bit packed vector).
+- Added integration test `accepts_w849_bench_module_517x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates all PASS:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save`.
+  - Full `cargo test --release --test icarus_lowerable`: 309/0.
+- Research background: Icarus Verilog has no 1-MiBit hard cap (LRM minimum is
+  65,536 bits; Icarus warns near 1 Gbit; upstream commit `128c621` fixed a
+  bound-normalization path that could accidentally create billion-bit vectors;
+  historical Icarus 0.8 had a ~256 K-entry allocator assertion for huge packed
+  vectors, but modern versions do not hit it). Siracusa et al. (IEEE TC 2021)
+  Roofline model frames the ladder as a memory-quanta `Q` probe; Vericert/CompCert
+  and Vitis HLS UG1399 provide verified-HLS and commercial analogs for packed AoS.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W849_2026-08-04.md` and
+  next-wave plan `.claude/plans/wave-loop-850.md` with variants A/B/C.
+- Updated `.trinity/current-issue.md`, `.trinity/experience.md`, `docs/NOW.md`,
+  autopilot run-list, and persistent memory.
+
+Key learning: the 1-MiBit range is still a soft boundary for Icarus and t27c.
+The next meaningful watch-point remains the established 4-MiBit soft cliff.
+Pre-run copy-hazard checks remain essential when copying generator scripts.
+
 ## Worked example — Wave Loop 848
 
 Wave Loop 848 continued the mechanical packed-vector ladder just past the
