@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:08e1e43290f8d31358e1a52c839e0b3c95e595dc9619d2f8ec377fcda6989a93",
+  "gen_hash_rust": "sha256:2b5c1704e128c9804636e9af31a9bd3386dfc043d3d50fe856a31578511b4b5f",
+  "gen_hash_verilog": "sha256:f036f4b111b4b0b7153dfa1cae8062bfa5a45470ed84ee36f19f3eda2ba719a4",
+  "gen_hash_zig": "sha256:5f7069e520a034cf010d0b1e0fa586a6c600833fdd7114cd5be43699ace5f014",
+  "module": "GftDot4Rne",
+  "ring": 12,
+  "sealed_at": "2026-08-06T14:00:58Z",
+  "spec_hash": "sha256:7411a1ca05061742f6bf4dedaaf4fe6b88343896e80971c79f334978f2432d9d",
+  "spec_path": "specs/ternary/gft_dot4_rne.t27"
+}
