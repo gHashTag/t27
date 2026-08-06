@@ -42,7 +42,7 @@ merge) remain open awaiting review, so W778 will be branched from
 - Use `assert_eq` checks on changed elements (Icarus simulation path does not
   emit `assert_ne`).
 - Include `make_grid(32768)` period-identity check because `32768 == 0 (mod 32768)`.
-- Zero compiler / reference-model / FROZEN_HASH changes expected.
+- Zero compiler / reference-model / FROZEN_HASH changes expected for the witness.
 
 ## Cooperation variants for next Wave Loop
 

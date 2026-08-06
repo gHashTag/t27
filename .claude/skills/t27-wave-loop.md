@@ -105,6 +105,31 @@ Key learning: the same broken array-lowering fallback existed in two places
 witnesses broken. Unpacked arrays are the correct Verilog lowering for primitive
 t27 arrays when signed widths or variable indices matter.
 
+## Worked example — Wave Loop 782
+
+Wave Loop 782 continued the module-scope packed-array-of-struct ladder with no
+compiler changes:
+
+- Copied `scripts/gen_w781.py` to `scripts/gen_w782.py` and updated `OUTER = 383`,
+  `MID_IDX = 191`, and the module prefix to `w782_bench_module_383x2p6_aos_var_call_write`.
+- Generated `specs/scratch/w782_bench_module_383x2p6_aos_var_call_write.t27`
+  (24,512 elements, 784,384-bit packed vector, ~0.748 MiBit).
+- Added integration test `accepts_w782_bench_module_383x2p6_aos_var_call_write` in
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Sealed the witness with `t27c seal --save`; `FROZEN_HASH` unchanged.
+- Fixed `bootstrap/src/host/telemetry.rs:242` by replacing literal `3.14` with
+  `std::f64::consts::PI`, keeping `cargo clippy -p t27c` green.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 242/0,
+  direct `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save`
+  W782 all PASS.
+
+Key learning: the generator header still contains a hardcoded wave prefix inside
+an f-string (`w781_...`), so copying the script requires a manual prefix fix even
+after `sed`-style replacements. Automating that prefix in the generator template
+would remove a recurring copy hazard.
+
 ## Worked example — Wave Loop 532
 
 Wave Loop 532 extended the packed-vector subset to signed scalar-array struct

@@ -568,6 +568,112 @@ Last updated: 2026-07-29
 
 Last updated: 2026-07-24
 
+## Wave Loop 782 — module-scope `[383][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1493)
+
+- Branch: `wave-loop-782`
+- Parent branch: `wave-loop-781` HEAD (`a61465608`)
+- Issue: #1493
+- PR: (to open)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W782_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-782.md`
+- Cooperation W783: `.claude/plans/wave-loop-783.md`
+
+### What landed
+- `specs/scratch/w782_bench_module_383x2p6_aos_var_call_write.t27`
+  - 24,512 elements, 784,384-bit packed vector (~0.748 MiBit).
+  - Module-scope `pub var dst : [383][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w782.py`
+  - Generator for the W782 witness; `OUTER = 383`, `MID_IDX = 191`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w782_bench_module_383x2p6_aos_var_call_write`.
+- Weak-point fix in this closeout:
+  - `bootstrap/src/host/telemetry.rs:242` — replaced literal `3.14` with
+    `std::f64::consts::PI` and updated expected formatted output to `"3.142"`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
+  `.claude/plans/wave-loop-783.md`
+  - W782 learnings saved and W783 plan/cooperation variants created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo clippy -p t27c`: OK (780 warnings, 0 errors).
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p flash-spi`: 2/0.
+- `cargo test -p t27c --test bitnet_pipeline`: 20/0.
+- `cargo test -p t27c --test bitnet_top`: 17/0.
+- `cargo test -p t27c --test icarus_lowerable`: 242/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W782: PASS.
+
+### Remaining weak points
+- `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
+  compiler lowering issue, tracked for separate issue).
+- `bootstrap/tests/verilog_const_array.rs` regression (pre-existing, deeper
+  compiler lowering issue, tracked for separate issue).
+- 627 release warnings (unused/dead code) need dedicated cleanup sprint.
+- Vivado-in-Docker CI gap (private image not yet published).
+
+---
+
+## Wave Loop 781 — module-scope `[381][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1492)
+
+- Branch: `wave-loop-781`
+- Parent branch: `wave-loop-780` HEAD (`5828a01ff`)
+- Issue: #1492
+- PR: (to open)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W781_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-781.md`
+- Cooperation W782: `.claude/plans/wave-loop-782.md`
+
+### What landed
+- `specs/scratch/w781_bench_module_381x2p6_aos_var_call_write.t27`
+  - 24,384 elements, 780,288-bit packed vector (~0.745 MiBit).
+  - Module-scope `pub var dst : [381][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w781.py`
+  - Generator for the W781 witness; `OUTER = 381`, `MID_IDX = 190`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w781_bench_module_381x2p6_aos_var_call_write`.
+- Weak-point fixes in this closeout:
+  - `cli/flash-spi/src/main.rs` — wired new `FlashOpts` fields `bitswap`/`no_jprogram`.
+  - `bootstrap/src/sensitivity.rs:126` — replaced literal `3.14` with `std::f64::consts::PI`.
+  - `bootstrap/tests/bitnet_pipeline.rs:143` — updated IDLE-state substring for `done<=0;`.
+  - `bootstrap/tests/bitnet_top.rs` — updated `busy`, `mem_addr`, `mem_rd_en` expectations.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
+  `.claude/plans/wave-loop-782.md`
+  - W781 learnings saved and W782 plan/cooperation variants created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p flash-spi`: 2/0.
+- `cargo clippy -p t27c`: OK.
+- `cargo test -p t27c --test bitnet_pipeline`: 20/0.
+- `cargo test -p t27c --test bitnet_top`: 17/0.
+- `cargo test -p t27c --test icarus_lowerable`: 241/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W781: PASS.
+
+### Remaining weak points
+- `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
+  compiler lowering issue, tracked for separate issue).
+- 627 release warnings (unused/dead code) need dedicated cleanup sprint.
+- Vivado-in-Docker CI gap (private image not yet published).
+
+---
+
 ## Wave Loop 773 — module-scope `[365][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1481)
 
 - Branch: `wave-loop-773`
@@ -703,13 +809,229 @@ Last updated: 2026-07-24
 
 ## Wave Loop 774 — next odd outer-dimension `[367][2]^6 Pt` (Issue TBD)
 
-- Branch: `wave-loop-774` (to create after W773 merge)
-- Issue: TBD
-- Plan: `.claude/plans/wave-loop-774.md`
+- Branch: `wave-loop-776`
+- Parent branch: `wave-loop-775` HEAD (`2e86eb0b8`)
+- Issue: #1487
+- PR: #1488 (to open)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W776_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-776.md`
+- Cooperation W777: `.claude/plans/wave-loop-777.md`
+
+### What landed
+- `specs/scratch/w776_bench_module_371x2p6_aos_var_call_write.t27`
+  - 23,744 elements, 759,808-bit packed vector (~0.725 MiBit).
+  - Module-scope `pub var dst : [371][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w776.py`
+  - Generator for the W776 witness; `OUTER = 371`, `MID_IDX = 185`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w776_bench_module_371x2p6_aos_var_call_write`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
+  `.claude/plans/wave-loop-777.md`
+  - W776 learnings saved and W777 plan/cooperation variants created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 236/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W776: PASS.
+
+### Notes
+- W774 PR #1484 and W775 PR #1486 are still open awaiting review, so W776 was
+  branched from `wave-loop-775` HEAD to keep the ladder unblocked.
+
+---
+
+## Wave Loop 777 — module-scope `[373][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1490)
+
+- Branch: `wave-loop-777`
+- Parent branch: `wave-loop-776` HEAD (`484c41725`)
+- Issue: #1490
+- PR: #1491 (to open / pending review)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W777_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-778.md`
+
+### What landed
+- `specs/scratch/w777_bench_module_373x2p6_aos_var_call_write.t27`
+  - 23,872 elements, 764,416-bit packed vector (~0.729 MiBit).
+  - Module-scope `pub var dst : [373][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w777.py`
+  - Generator for the W777 witness; `OUTER = 373`, `MID_IDX = 186`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w777_bench_module_373x2p6_aos_var_call_write`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
+  `.claude/plans/wave-loop-778.md`
+  - W777 learnings saved and W778 plan/cooperation variants created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 237/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W777: PASS.
+
+### Notes
+- W774 PR #1484, W775 PR #1486, W776 PR #1488, and PR #1489 (README/W774-W776 merge)
+  remain open awaiting review, so W777 was branched from `wave-loop-776` HEAD to keep
+  the ladder unblocked.
+
+---
+
+## Wave Loop 778 — module-scope `[375][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1492)
+
+- Branch: `wave-loop-778`
+- Parent branch: `wave-loop-777` HEAD (`0867846cf`)
+- Issue: #1492
+- PR: #1493 (to open / pending review)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W778_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-779.md`
+
+### What landed
+- `specs/scratch/w778_bench_module_375x2p6_aos_var_call_write.t27`
+  - 24,000 elements, 768,000-bit packed vector (~0.733 MiBit).
+  - Module-scope `pub var dst : [375][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w778.py`
+  - Generator for the W778 witness; `OUTER = 375`, `MID_IDX = 187`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w778_bench_module_375x2p6_aos_var_call_write`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
+  `.claude/plans/wave-loop-779.md`
+  - W778 learnings saved and W779 plan/cooperation variants created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 238/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W778: PASS.
+
+### Notes
+- W774 PR #1484, W775 PR #1486, W776 PR #1488, W777 PR #1491, and PR #1489
+  (README/W774-W776 merge) remain open awaiting review, so W778 was branched from
+  `wave-loop-777` HEAD to keep the ladder unblocked.
+- The `bitnet_pipeline::sequencer_idle_arms_on_start` test drift remains a
+  pre-existing failure unrelated to the wave-loop ladder.
+
+---
+
+## Wave Loop 779 — module-scope `[377][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1494)
+
+- Branch: `wave-loop-779`
+- Parent branch: `wave-loop-778` HEAD (`0c856f5f4`)
+- Issue: #1494
+- PR: #1495 (to open / pending review)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W779_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-780.md`
+
+### What landed
+- `specs/scratch/w779_bench_module_377x2p6_aos_var_call_write.t27`
+  - 24,128 elements, 772,096-bit packed vector (~0.737 MiBit).
+  - Module-scope `pub var dst : [377][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w779.py`
+  - Generator for the W779 witness; `OUTER = 377`, `MID_IDX = 188`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w779_bench_module_377x2p6_aos_var_call_write`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
+  `.claude/plans/wave-loop-780.md`
+  - W779 learnings saved and W780 plan/cooperation variants created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 239/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W779: PASS.
+
+### Notes
+- W774 PR #1484, W775 PR #1486, W776 PR #1488, W777 PR #1491, W778 PR #1493, and
+  PR #1489 (README/W774-W776 merge) remain open awaiting review, so W779 was branched
+  from `wave-loop-778` HEAD to keep the ladder unblocked.
+- The `bitnet_pipeline::sequencer_idle_arms_on_start` test drift remains a
+  pre-existing failure unrelated to the wave-loop ladder.
+
+---
+
+## Wave Loop 780 — module-scope `[379][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1496)
+
+- Branch: `wave-loop-780`
+- Parent branch: `wave-loop-779` HEAD (`eadd9cfbcb`)
+- Issue: #1496
+- PR: #1497 (to open / pending review)
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W780_2026-07-24.md`
+- Plan: `.claude/plans/wave-loop-781.md`
+
+### What landed
+- `specs/scratch/w780_bench_module_379x2p6_aos_var_call_write.t27`
+  - 24,256 elements, 776,192-bit packed vector (~0.741 MiBit).
+  - Module-scope `pub var dst : [379][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w780.py`
+  - Generator for the W780 witness; `OUTER = 379`, `MID_IDX = 189`.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added `accepts_w780_bench_module_379x2p6_aos_var_call_write`.
+- `.trinity/experience.md`, `.trinity/current-issue.md`, `.claude/skills/t27-wave-loop.md`,
+  `.claude/plans/wave-loop-781.md`
+  - W780 learnings saved and W781 plan/cooperation variants created.
+
+### Not changed
+- `bootstrap/src/compiler.rs` — zero compiler changes.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+- `cargo build --release -p t27c`: OK.
+- `cargo test -p t27c --bin t27c`: 1494/0/2.
+- `cargo test -p tri`: 78/0.
+- `cargo test -p t27c --test icarus_lowerable`: 240/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W780: PASS.
+
+### Notes
+- W774 PR #1484, W775 PR #1486, W776 PR #1488, W777 PR #1491, W778 PR #1493, W779
+  PR #1495, and PR #1489 (README/W774-W776 merge) remain open awaiting review, so
+  W780 was branched from `wave-loop-779` HEAD to keep the ladder unblocked.
+- The `bitnet_pipeline::sequencer_idle_arms_on_start` test drift remains a
+  pre-existing failure unrelated to the wave-loop ladder.
+
+---
+
+## Wave Loop 781 — next odd outer-dimension `[381][2]^6 Pt` (Issue #1498)
+
+- Branch: `wave-loop-781` (to create after W780 merge or stack)
+- Issue: #1498
+- Plan: `.claude/plans/wave-loop-781.md`
 
 ### Candidate variants
-- Variant A (recommended): continue the odd outer-dimension ladder with `[367][2]^6 Pt`.
-- Variant B: keep width at ~0.713 MiBit but move the packed var to bench/function scope.
+- Variant A (recommended): continue the odd outer-dimension ladder with `[381][2]^6 Pt`.
+- Variant B: keep width at ~0.741 MiBit but move the packed var to bench/function scope.
 - Variant C: add `if`-guarded indexed signed field writes at the current width.
 
 ---

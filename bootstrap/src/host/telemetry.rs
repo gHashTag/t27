@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn metric_value_display() {
         assert_eq!(MetricValue::U64(42).to_string(), "42");
-        assert_eq!(MetricValue::F64(3.14).to_string(), "3.140");
+        assert_eq!(MetricValue::F64(std::f64::consts::PI).to_string(), "3.142");
     }
 
     #[test]
