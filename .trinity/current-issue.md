@@ -18,10 +18,10 @@ merge) remain open awaiting review, so W778 will be branched from
 `wave-loop-777` HEAD to avoid blocking the sequence.
 
 ## Acceptance criteria
-- [ ] Generator `scripts/gen_w813.py` with `OUTER = 445`, `MID_IDX = 222`; copy hazard fixed before first run.
-- [ ] Witness `specs/scratch/w813_bench_module_445x2p6_aos_var_call_write.t27` generated and parsed.
-- [ ] `t27c icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, and `seal --save` all PASS.
-- [ ] Integration test `accepts_w813_bench_module_445x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
+- [x] Generator `scripts/gen_w813.py` with `OUTER = 445`, `MID_IDX = 222`; copy hazard fixed before first run.
+- [x] Witness `specs/scratch/w813_bench_module_445x2p6_aos_var_call_write.t27` generated and parsed.
+- [x] `t27c icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, and `seal --save` all PASS.
+- [x] Integration test `accepts_w813_bench_module_445x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
 - [ ] `bootstrap/stage0/FROZEN_HASH` unchanged.
 - [ ] Closeout report, next-wave plan, docs, skill tracker, autopilot skill, and persistent memory updated.
 - [ ] Commit with `Closes #1555`, push branch, open PR to `master`.
