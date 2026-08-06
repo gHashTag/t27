@@ -1,3 +1,16 @@
+# NOW — feat: 2-layer spec-first BitNet inference (dot/quantize/repack/dot) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat: spec-first 2-layer BitNet inference mlp2 (Closes #1755)
+
+- Branch: `feat/spec-first-bitnet-mlp`
+
+### Что легло
+- `specs/ternary/bitnet_mlp.t27`: `mlp2` chains two layers — layer 1 (3 `neuronN` over the input activations) → `pack3` repacks the 3 output trits into one hidden chunk → layer 2 (2 single-chunk `neuron1`) → 2 packed output trits. New capability = **inter-layer trit repacking** (`pack3`), what a real multi-layer BitNet inference needs. Verified: typecheck 0 err; icarus-simulate 4/4 scalar test blocks; seal 3 backends MATCH; new `tests/bitnet_mlp.rs` cross-checks `mlp2` vs a fully independent 2-layer reference on 5 direct-packed cases incl. a low-threshold case exercising non-Z layer-2 outputs (P,P→10) = ALL_PASS. Runnable spec-first inference path complete: MAC(#1743)→neuron(#1747/#1752)→layer(#1754)→2-layer MLP. No compiler change, no reseal.
+
+---
+
 # NOW — feat: 2-neuron spec-first BitNet layer with packed trit output (2026-08-06)
 
 Last updated: 2026-08-06
