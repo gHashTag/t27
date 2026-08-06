@@ -31,6 +31,14 @@ struct Cli {
     #[arg(long)]
     no_verify: bool,
 
+    /// Skip the JPROGRAM pulse after flash programming.
+    #[arg(long)]
+    no_jprogram: bool,
+
+    /// Disable per-byte bit-swap (Vivado write_cfgmem default is swapped).
+    #[arg(long)]
+    no_bitswap: bool,
+
     /// Print intent and exit.
     #[arg(long)]
     dry_run: bool,
@@ -80,6 +88,8 @@ fn main() -> Result<()> {
     let total = bytes.len() as u64;
     let opts = FlashOpts {
         verify: !cli.no_verify,
+        no_jprogram: cli.no_jprogram,
+        bitswap: !cli.no_bitswap,
         progress: Some(Box::new(move |w, t| {
             if w == t || w % (1 << 18) < 256 {
                 eprintln!("  {} / {} ({}%)", w, total, 100 * w / total.max(1));

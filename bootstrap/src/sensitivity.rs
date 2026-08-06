@@ -123,7 +123,7 @@ fn evaluate_formula_with_params(formula_id: &str, params: &[(&str, f64)]) -> f64
 pub fn default_param_range(param_name: &str) -> (f64, f64) {
     match param_name {
         "phi" => (1.61, 1.625),
-        "pi" => (3.14, 3.143),
+        "pi" => (std::f64::consts::PI, 3.143),
         "e" => (2.717, 2.72),
         _ => (0.9, 1.1),
     }

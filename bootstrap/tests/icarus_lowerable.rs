@@ -4226,6 +4226,78 @@ fn accepts_w773_bench_module_365x2p6_aos_var_call_write() {
 }
 
 #[test]
+fn accepts_w774_bench_module_367x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w774_bench_module_367x2p6_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W774 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w775_bench_module_369x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w775_bench_module_369x2p6_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W775 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w776_bench_module_371x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w776_bench_module_371x2p6_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W776 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
+fn accepts_w777_bench_module_373x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &[
+        "w777_bench_module_373x2p6_aos_var_call_write.t27",
+    ] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W777 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
+
+#[test]
 fn accepts_known_lowerable_witnesses() {
     let dir = scratch_dir();
     let positive = [
