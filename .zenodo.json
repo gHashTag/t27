@@ -10,13 +10,28 @@
     }
   ],
   "keywords": [
-    "ternary computing", "specification language", "Zig", "Coq",
-    "formal verification", "t27", "tri CLI", "golden ratio",
-    "phi", "floating point", "number format", "software",
-    "spec-first development", "Theorem 3", "generative mechanism"
+    "ternary computing",
+    "specification language",
+    "Zig",
+    "Coq",
+    "formal verification",
+    "t27",
+    "tri CLI",
+    "golden ratio",
+    "phi",
+    "floating point",
+    "number format",
+    "software",
+    "spec-first development",
+    "Theorem 3",
+    "generative mechanism"
   ],
-  "license": "MIT",
-  "communities": [{"identifier": "trinity-s3ai"}],
+  "license": "Apache-2.0",
+  "communities": [
+    {
+      "identifier": "trinity-s3ai"
+    }
+  ],
   "access_right": "open",
   "embargo_date": null,
   "publication_date": "2026-04-07",

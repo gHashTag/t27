@@ -8,7 +8,7 @@ authors:
     given-names: Dmitrii
     orcid: "https://orcid.org/0009-0008-4294-6159"
     affiliation: Trinity Computing
-license: MIT
+license: Apache-2.0
 repository-code: https://github.com/gHashTag/t27
 url: https://github.com/gHashTag/t27
 # Canonical Zenodo source of truth (community-level):

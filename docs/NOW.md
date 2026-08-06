@@ -1,3 +1,16 @@
+# NOW — chore: align license metadata to Apache-2.0 (2026-08-06)
+
+Last updated: 2026-08-06
+
+## chore(license): align README/Cargo.toml/.zenodo.json/CITATION.cff (Closes #1784)
+
+- Branch: `chore/license-align-apache-2.0`
+
+### Что легло
+- License drift fix: `LICENSE` has been Apache-2.0 all along (GitHub API `license.spdx_id = "Apache-2.0"`), but four downstream-facing metadata surfaces still declared **MIT** — `Cargo.toml` (read by `cargo publish`/crates.io/packagers), `.zenodo.json` (archival deposits), `CITATION.cff` (CFF-aware citation tooling) and the `README.md` badge + "## License" section (human readers). Since packagers and archivists consume the metadata rather than the `LICENSE` file, the project was advertising terms it does not ship. All four now say `Apache-2.0`, and the README section points at [LICENSE](../LICENSE) + [NOTICE](../NOTICE). Metadata only — no code change.
+
+---
+
 # NOW — fix: gen-rust bool negation and integer-width coercion (2026-08-06)
 
 Last updated: 2026-08-06
