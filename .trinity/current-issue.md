@@ -30,7 +30,7 @@ merge) remain open awaiting review, so W778 will be branched from
 9. [ ] `.claude/plans/wave-loop-779.md` with three cooperation variants is created.
 10. [ ] PR #1493 reviewed and merged to `master` (or stacked after earlier waves land).
 
-## Technical notes
+## Notes
 
 - Shape: `[375][2]^6 Pt` where `Pt = pub struct Pt { x : i16, y : i16 }`.
 - Total elements: `375 x 64 = 24,000`.
@@ -44,7 +44,7 @@ merge) remain open awaiting review, so W778 will be branched from
 - Include `make_grid(32768)` period-identity check because `32768 == 0 (mod 32768)`.
 - Zero compiler / reference-model / FROZEN_HASH changes expected for the witness.
 
-## Cooperation variants for next Wave Loop
+---
 
 - **Variant A (recommended):** continue the odd outer-dimension ladder with `[377][2]^6 Pt`.
 - **Variant B:** keep width at ~0.733 MiBit but move the packed var to bench/function scope.
