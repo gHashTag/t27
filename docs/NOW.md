@@ -1,3 +1,20 @@
+# NOW — feat(spec): GF-T reciprocal + full GF-T softmax (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): GF-T reciprocal primitive + complete GF-T softmax (Refs #1764)
+
+- Branch: `feat/gft-recip-softmax` (stacked on `feat/gft-exp2-layer4-synth` for exp2)
+
+### Что легло
+- `specs/ternary/gft_recip.t27` (`GftRecip`): a GF-T **reciprocal** `1/x` — the last missing softmax primitive. Closed form (no polynomial): `1/(1+m/512) = 512/(512+m)`, so `512+m' = round(524288/(512+m))`, `off' = 79−o` (+renorm). One rounded integer divide → **EXACT (0 ULP)** vs true `1/x` (verified 30000 samples). iverilog **506/506** bit-exact.
+- `specs/ternary/gft_softmax4.t27` (`GftSoftmax4`): the **complete GF-T softmax** over 4 signed GF-T16 logits, base-2, max-stabilized: `p_i = 2^(l_i−M) / Σ 2^(l_j−M)`, returns `p_sel`. Composes ALL the verified primitives — max (`gt`), subtract (`sadd`+`neg`), **exp2** (≤1 ULP), sum (`sadd`), **reciprocal** (exact), multiply (RNE). Bit-exact to the integer oracle **2000/2000** (iverilog); **accuracy ≤0.0017 abs probability vs true float softmax** (sum-of-probs ∈ [0.9982, 1.0018]; uniform logits → 0.25 exact; [2,1,1,1] → 0.40).
+- Fresh seals for `GftRecip` + `GftSoftmax4` (`seal --verify` MATCH). No compiler change (both `on_comb`).
+
+**The GF-T classifier head is now complete end-to-end: activations → MLP → logits → {argmax → class} OR {softmax → calibrated probabilities}.**
+
+---
+
 # NOW — feat: GF-T exp2 primitive + 4-neuron layer + classifier synth runbook (2026-08-06)
 
 Last updated: 2026-08-06

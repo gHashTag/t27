@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:f7a75ffa403fe0cad383dc525ad321e8bc0eba1a4c1644afe4f0e16a2e2277af",
+  "gen_hash_rust": "sha256:9123d46a1037c9c4a731d18fb893a318d40874e533073e5423a1dba037ca19ff",
+  "gen_hash_verilog": "sha256:f3a3f96ebc601543d7357e8d8ddf719c170fb5022ed95dec174aa1324a372af8",
+  "gen_hash_zig": "sha256:50bd63072a2bf4d6ca27d413afbc08298be4b9bdf7cab039c90d275f795a2693",
+  "module": "GftSoftmax4",
+  "ring": 12,
+  "sealed_at": "2026-08-06T16:37:21Z",
+  "spec_hash": "sha256:8f1855265b9a598a2d50973226ebf78aa05d96c0a03d5873bf1391e54a2137d2",
+  "spec_path": "specs/ternary/gft_softmax4.t27"
+}
