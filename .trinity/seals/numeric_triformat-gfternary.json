@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:07328f15c8f1dc835dcbbc0b743ac458b5962be9ec5f39326a53321a6485c69b",
-  "spec_path": "/Users/playra/t27/specs/numeric/gfternary.t27"
+  "spec_path": "specs/numeric/gfternary.t27"
 }

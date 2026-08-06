@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:20bbd8ea737137c7d5aaf81e7afd3087475790ec60e9c684d89172adab8bd5b7",
-  "spec_path": "/Users/playra/t27/specs/conformance/e2e_scenarios.t27"
+  "spec_path": "specs/conformance/e2e_scenarios.t27"
 }

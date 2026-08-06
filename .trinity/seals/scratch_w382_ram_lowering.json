@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:d7d831634985a6c7a7a4b6982d3c4c1cd26e2198b07566ac5304cbaf60e1b26c",
-  "spec_path": "/Users/playra/t27/specs/scratch/w382_ram_lowering.t27"
+  "spec_path": "specs/scratch/w382_ram_lowering.t27"
 }

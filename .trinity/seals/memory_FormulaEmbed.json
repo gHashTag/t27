@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:cd00efe30f02866b622344a58fd1bc8f5904edbbb0d457d2081ee87ad273a94d",
-  "spec_path": "/Users/playra/t27/specs/memory/formula_embed.t27"
+  "spec_path": "specs/memory/formula_embed.t27"
 }

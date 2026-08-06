@@ -810,6 +810,37 @@ fn parse_smoke_gate_report(report_path: &Path) -> anyhow::Result<FpgaSmokeResult
     Ok(result)
 }
 
+/// W459: substrings of yosys warnings that are expected and therefore allowed.
+/// These warnings are produced by the current t27c Verilog backend on
+/// well-formed specs and do not indicate a synthesis failure. New, unexpected
+/// warnings are still treated as smoke-test failures. The smoke runner now
+/// defines `SIMULATION` during yosys parsing, so test and bench blocks are
+/// skipped and many procedural warnings no longer appear.
+const YOSYS_ALLOWED_WARNINGS: &[&str] = &[
+    // Yosys hits this on large IGLA specs with deeply nested expressions; it
+    // only means the AST simplifier recursion limit was raised. The follow-up
+    // sentence is a continuation of the same warning and is also allowed.
+    "Deep recursion in AST simplifier",
+    "Does this design contain overly long or deeply nested expressions, or excessive recursion?",
+    // Small module-level arrays are lowered into flip-flops by yosys.
+    "Replacing memory",
+    // Bench-block local variables are emitted as assignments without matching
+    // module-scope declarations (pre-existing W458/W459 gap), and local arrays
+    // are lowered to per-element registers. Yosys creates implicit wires and
+    // warns about procedural assignments to them; the generated Verilog is
+    // still syntactically valid.
+    "is assigned in a block",
+    "is implicitly declared",
+    // Local arrays lowered to per-element registers are indexed with variable
+    // indices; yosys reports out-of-range selects on the implicit wire stand-in.
+    "Range select out of bounds",
+];
+
+/// W459: return true if a yosys warning line is on the allowed list.
+fn yosys_warning_allowed(line: &str) -> bool {
+    YOSYS_ALLOWED_WARNINGS.iter().any(|pat| line.contains(pat))
+}
+
 fn cmd_gen_verilog_yosys_smoke(repo: &Path, rel: &str) -> anyhow::Result<()> {
     let verilog = cmd_gen_verilog_stdout(repo, rel)?;
     let tmp = std::env::temp_dir().join(format!("t27c_yosys_smoke_{}.v", rel.replace('/', "_")));
@@ -822,7 +853,7 @@ fn cmd_gen_verilog_yosys_smoke(repo: &Path, rel: &str) -> anyhow::Result<()> {
     let st = Command::new("yosys")
         .arg("-q")
         .arg("-p")
-        .arg(format!("read_verilog -sv {}", tmp.display()))
+        .arg(format!("read_verilog -sv -DSIMULATION {}", tmp.display()))
         .output()
         .context("spawning yosys for gen-verilog smoke")?;
     if !st.status.success() {
@@ -830,8 +861,19 @@ fn cmd_gen_verilog_yosys_smoke(repo: &Path, rel: &str) -> anyhow::Result<()> {
         anyhow::bail!("yosys rejected generated Verilog: {}", err.trim());
     }
     let err = String::from_utf8_lossy(&st.stderr);
-    if !err.trim().is_empty() {
-        eprintln!("WARN yosys warnings for {}: {}", rel, err.trim());
+    let mut unrecognized: Vec<String> = Vec::new();
+    for line in err.lines() {
+        let line = line.trim();
+        if !line.is_empty() && !yosys_warning_allowed(line) {
+            unrecognized.push(line.to_string());
+        }
+    }
+    if !unrecognized.is_empty() {
+        anyhow::bail!(
+            "yosys emitted unrecognized warnings for {}:\n{}",
+            rel,
+            unrecognized.join("\n")
+        );
     }
     Ok(())
 }

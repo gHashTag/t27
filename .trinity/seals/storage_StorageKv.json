@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:b642ac3ac608ff8b1f91f11ee34db4d0683115f0d648d3f7d8a3ef44a604dbdc",
-  "spec_path": "/Users/playra/t27/specs/storage/kv.t27"
+  "spec_path": "specs/storage/kv.t27"
 }

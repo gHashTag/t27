@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:cffb49f5744b1d9bca34556103501e0761f3ca5aed1079628cadc50f9425f4fa",
-  "spec_path": "/Users/playra/t27/specs/server/agent-runner.t27"
+  "spec_path": "specs/server/agent-runner.t27"
 }

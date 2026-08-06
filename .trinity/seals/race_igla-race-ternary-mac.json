@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:b29a9358d98c817faa80067c73c9df717c215b0bdd7890803d2c2441d83ec085",
-  "spec_path": "/Users/playra/t27/specs/igla/race/ternary_mac.t27"
+  "spec_path": "specs/igla/race/ternary_mac.t27"
 }

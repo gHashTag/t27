@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:04b8b03a7a0933cc5beab2e22d62d684f1c5b6ff4be99abaf98adff492567b3d",
-  "spec_path": "/Users/playra/t27/specs/scratch/w385_signed_local_array_init.t27"
+  "spec_path": "specs/scratch/w385_signed_local_array_init.t27"
 }

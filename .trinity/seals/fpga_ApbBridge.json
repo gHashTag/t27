@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-18T16:36:15Z",
   "spec_hash": "sha256:b5d5ab2b04d04b08a4f307d4744cde9b0c95e7aa000f971bf648f33ca50717ca",
-  "spec_path": "/Users/playra/t27/specs/fpga/apb_bridge.t27"
+  "spec_path": "specs/fpga/apb_bridge.t27"
 }

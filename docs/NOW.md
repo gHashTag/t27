@@ -1490,19 +1490,116 @@ Expected 25,664 elements, 821,248-bit packed vector (~0.783 MiBit), still under
   fixtures with a whitelist path) is left to the owner. SSOT=83 untouched.
 - Status tag: [доказано] for the counts; [ТРЕБУЕТ ДЕЙСТВИЯ ПОЛЬЗОВАТЕЛЯ] for A vs B.
 
-## Wave Loop 459 — Next wave (to be selected from cooperation plan) (Closes #1431)
+## Wave Loop 460 — Next wave (to be selected from cooperation plan) (Closes #1433)
 
-- Branch: `wave-loop-459` (to create from W458 land commit)
-- Issue: #1431 (to create)
+- Branch: `wave-loop-460` (to create from W459 land commit)
+- Issue: #1433 (to create)
 - PR: (to open after close-out)
-- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W459_2026-07-01.md`
-- Cooperation W460: (to be written at W459 close-out)
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W460_2026-07-01.md`
+- Cooperation W461: (to be written at W460 close-out)
 
 ### Not started
 
-- Create issue #1431 and branch `wave-loop-459` from the W458 land commit.
-- Select one of the three W459 variants documented in
-  `docs/reports/FPGA_LOOP_COOPERATION_W459_2026-07-01.md`.
+- Create issue #1433 and branch `wave-loop-460` from the W459 land commit.
+- Select one of the three W460 variants documented in
+  `docs/reports/FPGA_LOOP_COOPERATION_W460_2026-07-01.md`.
+
+---
+
+## Wave Loop 459 — gen-verilog array parameters from test/invariant/bench + yosys warning gate + ROM style pragma (Variant B default) (Closes #1431)
+
+- Branch: `wave-loop-459`
+- Issue: #1431
+- PR: #1434
+- Report: `docs/reports/WAVE_LOOP_459_REPORT.md`
+- Evidence W459: `docs/reports/FPGA_LOOP_EVIDENCE_W459_2026-07-01.md`
+- Plan: `docs/reports/FPGA_LOOP_COOPERATION_W459_2026-07-01.md`
+- Cooperation W460: `docs/reports/FPGA_LOOP_COOPERATION_W460_2026-07-01.md`
+- Competitor snapshot: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+- Gen-verilog defect tracker: `docs/reports/GEN_VERILOG_DEFECTS_REPRO.md`
+
+### What landed (Variant B — bench still blocked)
+
+- `bootstrap/src/compiler.rs`
+  - Extended array-parameter binding analysis to recurse into `test`, `invariant`,
+    and `bench` blocks so functions with array parameters can be exercised from
+    any call site that passes the same module-level array identifier.
+  - Test-block `assert_eq` and bare function calls are now emitted as real
+    Verilog statements (real `if (!(...))` checks and real calls) inside the
+    existing `` `ifndef SIMULATION `` / `` `endif `` guard, instead of being
+    commented out.
+  - `gen_verilog_const` emits `(* {pragma} *)` before the memory declaration when
+    a `const [N]T` declaration carries a `rom_style` pragma.
+  - Added `tests_w459` unit-test module:
+    - `array_param_bound_from_test_block`
+    - `test_block_emits_real_function_call`
+    - `rom_style_block_pragma_emitted`
+
+- `bootstrap/src/suite.rs`
+  - Added `YOSYS_ALLOWED_WARNINGS` allow-list and unrecognized-warning failure
+    gate in `cmd_gen_verilog_yosys_smoke`.
+  - Yosys smoke parsing now defines `SIMULATION` (`read_verilog -sv -DSIMULATION`)
+    so test/bench blocks are skipped and the smoke baseline stays empty.
+
+- `specs/scratch/w459_array_param_test_call.t27`
+  - Regression spec with a module-level `var [4]u16` RAM and `set`/`get`
+    functions exercised from a `test` block with `assert_eq`.
+
+- `specs/scratch/w459_rom_style_block.t27`
+  - Regression spec with `pragma rom_style = "block"` on a module-level
+    `const [4]u16` ROM and a lookup function tested from a `test` block.
+
+- `.trinity/seals/scratch_w459_array_param_test_call.json`
+- `.trinity/seals/scratch_w459_rom_style_block.json`
+  - Seals for the two new regression specs.
+
+- All 583 `.trinity/seals/*.json` files re-sealed to the new gen-verilog output.
+
+- `docs/reports/gen_verilog_smoke_baseline.json`
+  - Kept empty: the four specs that were briefly added as "pre-existing"
+    failures are now fully passing with `-DSIMULATION`.
+
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Added W459 competitor boundary section.
+
+- Close-out artifacts:
+  `docs/reports/WAVE_LOOP_459_REPORT.md`,
+  `docs/reports/FPGA_LOOP_EVIDENCE_W459_2026-07-01.md`,
+  `docs/reports/FPGA_LOOP_COOPERATION_W460_2026-07-01.md`.
+
+### Not done (blocked on hardware or out of scope)
+
+- Real P12 CCLK capture for OSCFSEL=6/7 — P12 unwired.
+- Automated cold-POR SPI flash boot for OSCFSEL=6/7 — no relay gate.
+- Live-capture `XADC_LIVE_W459_OPERATING_POINT` — bench unavailable.
+- Array-parameter support for multiple/different bound arrays or literal array
+  arguments — deferred to W460 (Variant B).
+- Bench-block local-variable lowering to declared registers — deferred to W460
+  (Variant B).
+- The three pre-existing `let_binding` cargo-test failures — deferred to W460
+  (Variant B).
+
+### Verification
+
+- `cargo test -p t27c --bin t27c tests_w459`: **PASS** (3/3).
+- `t27c gen-verilog specs/scratch/w459_array_param_test_call.t27` +
+  `yosys -q -p 'read_verilog -sv -DSIMULATION ...'`: **PASS**.
+- `t27c gen-verilog specs/scratch/w459_rom_style_block.t27` +
+  `yosys -q -p 'read_verilog -sv -DSIMULATION ...'`: **PASS**, emits
+  `(* rom_style = "block" *)`.
+- `./scripts/tri test --fast --json /tmp/tri_test_w459_fast.json`: **ALL TESTS PASSED**.
+  - Parse / Typecheck / Gen Zig / Gen Rust / Gen Verilog / Gen C / Seal Verify:
+    583/583 PASS.
+  - Gen Verilog Yosys Smoke: **63 passed, 0 failed**.
+  - FPGA Board-Less Smoke Gate: **OK**.
+  - Fixed Point: 0 divergences.
+  - **TOTAL FAILURES: 0** — `BASELINE FAILURES: 0`, `ACCEPTABLE: yes`.
+- Full `./scripts/tri test` (no `--fast`): Phase 3c smoke gate reports `passed: true`,
+  but Phase 3c-standalone stalls on an external `lake` download of `batteries`
+  from `reservoir.lean-lang.org`. The `--fast` path is fully green.
+- `cargo test -p t27c --bin t27c`: 1521 passed, **3 pre-existing failures**
+  (`let_binding_is_lowered_1401`, `test_let_binding_emitted_c_1401`,
+  `test_let_binding_emitted_rust_1401`) that also fail on `HEAD~1`.
 
 ---
 

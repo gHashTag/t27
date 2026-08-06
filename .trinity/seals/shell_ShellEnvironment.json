@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:1d7e69b59fa2d116b7d6529a7fb967708aa2d5bba76bf3b5357c4f0bc5369c28",
   "gen_hash_rust": "sha256:9fa14396977c2efb5bb6ac3357d0cdfd70fae8db61f19aaf85f4d1cb2ef06630",
-  "gen_hash_verilog": "sha256:ed2a6e69989fd4053e3a08a59b9bdee8364c85823720b9116d5f860a88325794",
+  "gen_hash_verilog": "sha256:8bde2d4eb5ec42d11bd13643a9d5c9f9126cad4a64157337db3c91dabf80d911",
   "gen_hash_zig": "sha256:fa71894044dfe90b7371cd7b06c1c612fe956c4ee83e2cf1530a154168df8d23",
   "module": "ShellEnvironment",
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:d58fc71d9e69156a0b572eb290f73c0bbd5ac953a9abb7a5e2405924ba48f3f6",
-  "spec_path": "/Users/playra/t27/specs/shell/environment.t27"
+  "spec_path": "specs/shell/environment.t27"
 }

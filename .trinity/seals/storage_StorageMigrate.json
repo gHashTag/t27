@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:0c9df6b8d11987d2a35866be3131c1144bedbbdb25b3d2f04921005907ddb3d4",
-  "spec_path": "/Users/playra/t27/specs/storage/migrate.t27"
+  "spec_path": "specs/storage/migrate.t27"
 }

@@ -9,7 +9,7 @@
 **Status:** implementation pending, plan ready
 
 ## Goal
-Select one of three W458 cooperation variants and close the wave with a green
+Select one of three W460 cooperation variants and close the wave with a green
 suite, updated seals, and the standard close-out artifacts (report, evidence,
 next-wave cooperation plan).
 
