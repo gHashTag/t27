@@ -57,6 +57,42 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
+## Worked example — Wave Loop 876
+
+Wave Loop 876 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:
+
+- Selected Variant A: module-scope `[571][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w876.py` from `gen_w875.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment).
+- Produced `specs/scratch/w876_bench_module_571x2p6_aos_var_call_write.t27`
+  (36,544 elements, 1,169,408-bit packed vector).
+- Added integration test `accepts_w876_bench_module_571x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates all PASS:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save`.
+  - Full `cargo test --release --test icarus_lowerable`: 336/0.
+- Research background: Icarus Verilog has no 1-MiBit hard cap (LRM minimum is
+  65,536 bits; Icarus warns near 1 Gbit; upstream commit `128c621` fixed a
+  bound-normalization path that could accidentally create billion-bit vectors;
+  historical Icarus 0.8 had a ~256 K-entry allocator assertion for huge packed
+  vectors, but modern versions do not hit it at this scale). Vitis HLS UG1399
+  `compact=bit` is the commercial analog for packing structs into wide vectors
+  (max packed port width 8192 bits, but our vector is an internal variable).
+  Vericert/CompCert provides the verified-compilation analog. FPGA Roofline
+  (Siracusa et al., IEEE TC 2021) frames the ladder as a memory-quanta `Q` probe.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W876_2026-08-05.md` and
+  next-wave plan `.claude/plans/wave-loop-877.md` with variants A/B/C.
+- Closed with commit `Closes #1701`, pushed branch `wave-loop-876`, opened PR
+  (GitHub-assigned).
+- Updated this skill's Live Wave Loop Tracker to wave 877.
+
+Key learning: the 1-MiBit neighborhood remains a soft boundary for t27c and
+Icarus. The generator copy-hazard checklist continues to prevent first-attempt
+regressions; parameterizing `WAVE`/`OUTER` remains the highest-value automation
+for the ladder.
+
 ## Worked example — Wave Loop 875
 
 Wave Loop 875 continued the mechanical packed-vector ladder past the 1-MiBit line:
@@ -3393,13 +3429,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 864 |
-| **Issue** | #1672 (expected) |
-| **Branch** | `wave-loop-864` |
-| **Parent branch** | `wave-loop-863` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[547][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
-| **Status** | READY TO START |
-| **Next wave variants queued** | W865 Variant A `[549][2]^6 Pt`; Variant B `[547][3]^6 Pt` stride scaling; Variant C `[547][2]^6 Pt` negative-index wrap-around |
+| **Current wave** | 877 |
+| **Issue** | #1702 (expected) |
+| **Branch** | `wave-loop-877` |
+| **Parent branch** | `wave-loop-876` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[573][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes
+| **Status** | READY TO START
+| **Next wave variants queued** | W878 Variant A `[575][2]^6 Pt`; Variant B `[573][3]^6 Pt` stride scaling; Variant C `[573][2]^6 Pt` negative-index wrap-around
 
 ### Open backlog (non-blocking)
 
