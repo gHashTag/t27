@@ -2112,6 +2112,15 @@ theorem xadc_live_w434_oscfsel_6_combined_check_true :
   cclk_variant_and_xadc_envelope_check 6 XADC_LIVE_W434_OPERATING_POINT = true := by
   decide
 
+/-- Quantified combined-check theorem: the dashboard gate holds for every
+    documented OSCFSEL selection under the W434 live XADC operating point.
+    This is the computable counterpart to `xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec`
+    and closes the live-readout → all-CCLK-variants loop in a single `∀` statement. -/
+theorem xadc_live_w434_all_oscfsel_combined_check_true (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_variant_and_xadc_envelope_check oscfsel XADC_LIVE_W434_OPERATING_POINT = true := by
+  rw [cclk_variant_and_xadc_envelope_check_eq]
+  exact ⟨h, xadc_live_w434_operating_point_within_envelope⟩
+
 end BitstreamConfig
 
 end StatRegister

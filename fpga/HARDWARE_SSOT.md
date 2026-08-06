@@ -1037,6 +1037,43 @@ ss corner) without requiring a `--pvt-context` JSON file.
 576 PASS with the same 7 pre-existing gen-verilog yosys smoke failures from
 weak point #1245.
 
+#### 3.6.21 Live XADC → PVT context pipeline (W436)
+
+W436 extends the live-readout path into cold-POR boot logs and the CCLK sweep
+report. The board still cannot be flashed (DLC10 cable not available), but the
+tooling now records *how* the operating point was obtained so a future physical
+run can be replayed and audited.
+
+- **`tri fpga read-xadc --to-pvt-context <ctx.json>`** writes a rounded
+  `PvtContext` from the live XADC readout. The exported file can be fed back
+  into `tri fpga measured-to-lean --pvt-context` and into `tri fpga cold-por`
+  / `tri fpga cclk-sweep`.
+
+- **`tri fpga cold-por` / `tri fpga cclk-sweep`** now accept `--process-corner`
+  (`ff`/`tt`/`ss`, default `ss`) and `--to-pvt-context`. When `--xadc` is set,
+  the live XADC readout is converted to a `PvtContext` using the supplied corner
+  and embedded in the boot log; `--to-pvt-context` persists the same rounded
+  context to a file.
+
+- **Closed-vocabulary `operating_point` source labels.** Every boot log and every
+  sweep-report variant now contains an `operating_point` object with:
+  - `source`: `xadc`, `pvt_context_file`, `worstcase`, or `not_read`;
+  - `temp_c`, `vccint_mv`, `vccaux_mv`, `process_corner`.
+
+- **`tri fpga measured-to-lean --pvt-context-source <label>`** overrides the
+  `source` field emitted in the `--json` summary and in the generated theorem
+  comment, so a theorem derived from a `--to-pvt-context` export can still be
+  tagged `xadc`.
+
+- **Formal coverage.** `TernaryFPGABoot.lean` adds
+  `xadc_live_w434_all_oscfsel_combined_check_true`: for every documented OSCFSEL
+  selection (0..7), the computable `cclk_variant_and_xadc_envelope_check` gate
+  evaluates to `true` under the W434 live XADC operating point.
+
+- **Verification.** `cargo test -p tri` reports 117 PASS; `lake build
+  Trinity.TernaryFPGABoot` succeeds. The 7 residual `gen-verilog` yosys smoke
+  failures remain the documented baseline.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)

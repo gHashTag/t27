@@ -264,6 +264,15 @@ pub enum FpgaCmd {
         /// Optional PVT context JSON file to embed in the mock boot log.
         #[arg(long)]
         pvt_context: Option<PathBuf>,
+        /// Process corner to use when converting a live XADC readout to the
+        /// integer `PvtContext` used by the PVT envelope. Defaults to `ss`.
+        #[arg(long, default_value = "ss", value_parser = clap::builder::PossibleValuesParser::new(["ff", "tt", "ss"]))]
+        process_corner: String,
+        /// Optional output path for the rounded `PvtContext` JSON derived from
+        /// the live XADC readout. When set, the file is written in addition to
+        /// embedding the values in the boot log.
+        #[arg(long)]
+        to_pvt_context: Option<PathBuf>,
         /// JSON boot-log directory (default: <repo>/build/fpga).
         #[arg(long)]
         log_dir: Option<PathBuf>,
@@ -401,6 +410,15 @@ pub enum FpgaCmd {
         /// Optional PVT context JSON file to embed in each sweep log entry.
         #[arg(long)]
         pvt_context: Option<PathBuf>,
+        /// Process corner to use when converting a live XADC readout to the
+        /// integer `PvtContext` used by the PVT envelope. Defaults to `ss`.
+        #[arg(long, default_value = "ss", value_parser = clap::builder::PossibleValuesParser::new(["ff", "tt", "ss"]))]
+        process_corner: String,
+        /// Optional output path for the rounded `PvtContext` JSON derived from
+        /// the live XADC readout. When set, the file is written in addition to
+        /// embedding the values in each sweep log entry.
+        #[arg(long)]
+        to_pvt_context: Option<PathBuf>,
         /// Sweep only a single specified OSCFSEL value and exit. Useful for
         /// testing one variant at a time or for scripting around manual
         /// power-cycles.
@@ -599,6 +617,13 @@ pub enum FpgaCmd {
         /// Mutually exclusive with `--margin` and `--pvt-context`.
         #[arg(long, conflicts_with = "margin", conflicts_with = "pvt_context")]
         pvt_worstcase: bool,
+        /// Override the closed-vocabulary `source` label emitted in the
+        /// `--json` summary and the generated theorem comment. Defaults to
+        /// `pvt_context_file` when `--pvt-context` is used, `worstcase` when
+        /// `--pvt-worstcase` is used, and the measurement source when neither
+        /// is supplied.
+        #[arg(long)]
+        pvt_context_source: Option<String>,
         /// Emit a self-contained `.lean` file with imports and namespace instead
         /// of a bare snippet.
         #[arg(long)]
@@ -847,6 +872,8 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             repeat,
             wait_seconds,
             pvt_context,
+            process_corner,
+            to_pvt_context,
             single,
             xadc,
         } => {
@@ -864,6 +891,8 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
                 *repeat,
                 *wait_seconds,
                 pvt_context.as_ref(),
+                process_corner,
+                to_pvt_context.as_ref(),
                 *single,
                 *xadc,
             )?;
@@ -944,6 +973,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             margin,
             pvt_context,
             pvt_worstcase,
+            pvt_context_source,
             standalone,
             raw_ns,
             validate,
@@ -975,6 +1005,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *margin,
             pvt_context.as_ref(),
             *pvt_worstcase,
+            pvt_context_source.as_deref(),
             *standalone,
             *raw_ns,
             *validate,
@@ -987,6 +1018,8 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             repeat,
             wait_seconds,
             pvt_context,
+            process_corner,
+            to_pvt_context,
             log_dir,
             xadc,
             cable,
@@ -996,6 +1029,8 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *repeat,
             *wait_seconds,
             pvt_context.as_ref(),
+            process_corner,
+            to_pvt_context.as_ref(),
             log_dir.as_ref(),
             *xadc,
             cable,
@@ -2135,30 +2170,37 @@ fn cclk_sweep(
     repeat: u32,
     wait_seconds: u32,
     pvt_context: Option<&PathBuf>,
+    process_corner: &str,
+    to_pvt_context: Option<&PathBuf>,
     single: Option<u8>,
     read_xadc: bool,
 ) -> Result<Vec<SweepResult>> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
-    let pvt_ctx = load_optional_pvt_context(pvt_context)?;
-
-    // Produce the XADC JSON value for each sweep log entry. When `read_xadc`
-    // is set we read the live operating point from the board; otherwise we
-    // fall back to the supplied PVT context file, if any. Dry runs never touch
-    // hardware.
-    let sweep_xadc = || -> serde_json::Value {
-        if dry_run || !read_xadc {
-            return xadc_context_json("not_read", pvt_ctx.as_ref());
-        }
-        match read_xadc_via_openfpgaloader(cable) {
-            Ok(ctx) => ctx.to_json("xadc"),
-            Err(e) => {
-                eprintln!("[cclk-sweep] live XADC read failed: {e}");
-                xadc_context_json("not_read", pvt_ctx.as_ref())
-            }
-        }
+    let corner = parse_process_corner(process_corner)?;
+    // Resolve the PVT context once for the whole sweep. Live readouts are not
+    // repeated per variant so the log stays consistent; the XADC JSON embedded
+    // in each entry still records how the values were obtained.
+    let (pvt_ctx, xadc_json, pvt_from_xadc) = if dry_run {
+        let ctx = load_optional_pvt_context(pvt_context)?;
+        let json = xadc_context_json("not_read", ctx.as_ref());
+        (ctx, json, false)
+    } else {
+        resolve_pvt_context_for_boot(pvt_context, corner, to_pvt_context, cable, read_xadc)?
     };
+    let op_source = if pvt_from_xadc {
+        "xadc"
+    } else if pvt_context.is_some() {
+        "pvt_context_file"
+    } else {
+        "not_read"
+    };
+    let operating_point = operating_point_json(&pvt_ctx, op_source);
+
+    // The XADC JSON value is shared by every sweep log entry because the
+    // operating point was resolved once before the sweep began.
+    let sweep_xadc = || xadc_json.clone();
 
     let values: Vec<u8> = if let Some(v) = single {
         if v > 0x3F {
@@ -2271,6 +2313,7 @@ fn cclk_sweep(
                 conclusion: conclusion.to_string(),
                 samples,
                 pvt_context: pvt_json,
+                operating_point: operating_point.clone(),
                 xadc: sweep_xadc(),
                 pvt_envelope_margin_ns: pvt_envelope_margin_ns(cclk_nominal_hz(*oscfsel)),
                 recommendation: recommendation_from_conclusion(
@@ -2323,6 +2366,7 @@ fn cclk_sweep(
                 conclusion: conclusion.to_string(),
                 samples: Vec::new(),
                 pvt_context: pvt_json,
+                operating_point: operating_point.clone(),
                 xadc: sweep_xadc(),
                 pvt_envelope_margin_ns: pvt_envelope_margin_ns(cclk_nominal_hz(*oscfsel)),
                 recommendation: recommendation_from_conclusion(
@@ -2410,6 +2454,7 @@ fn cclk_sweep(
                         })
                         .collect(),
                     pvt_context: pvt_json,
+                    operating_point: operating_point.clone(),
                     xadc: sweep_xadc(),
                     pvt_envelope_margin_ns: pvt_envelope_margin_ns(cclk_nominal_hz(*oscfsel)),
                     recommendation: recommendation_from_conclusion(
@@ -2446,6 +2491,7 @@ fn cclk_sweep(
                     conclusion: conclusion.to_string(),
                     samples: Vec::new(),
                     pvt_context: pvt_json,
+                    operating_point: operating_point.clone(),
                     xadc: sweep_xadc(),
                     pvt_envelope_margin_ns: pvt_envelope_margin_ns(cclk_nominal_hz(*oscfsel)),
                     recommendation: recommendation_from_conclusion(
@@ -2612,6 +2658,10 @@ struct SweepLog {
     samples: Vec<SweepSample>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pvt_context: Option<serde_json::Value>,
+    /// Human-readable / dashboard-friendly operating point with a closed-vocabulary
+    /// `source` label (`xadc`, `pvt_context_file`, `worstcase`, `not_read`).
+    #[serde(default = "default_operating_point")]
+    operating_point: serde_json::Value,
     xadc: serde_json::Value,
     /// Nominal CCLK half-period margin over the documented PVT worst-case bound,
     /// in nanoseconds. Positive means the nominal timing is safe even at the
@@ -2620,6 +2670,17 @@ struct SweepLog {
     pvt_envelope_margin_ns: Option<i64>,
     /// Machine-readable next action derived from the conclusion.
     recommendation: serde_json::Value,
+}
+
+/// Backward-compatible default for sweep logs written before W436.
+fn default_operating_point() -> serde_json::Value {
+    serde_json::json!({
+        "source": "not_read",
+        "temp_c": serde_json::Value::Null,
+        "vccint_mv": serde_json::Value::Null,
+        "vccaux_mv": serde_json::Value::Null,
+        "process_corner": serde_json::Value::Null,
+    })
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -2872,6 +2933,7 @@ fn sweep_report(log_dir: Option<&PathBuf>, out: Option<&PathBuf>, json: bool) ->
                     "crc_error": e.samples.iter().any(|s| s.crc_error),
                     "id_error": e.samples.iter().any(|s| s.id_error),
                     "conclusion": e.conclusion,
+                    "operating_point": e.operating_point.clone(),
                     "pvt_envelope_margin_ns": e.pvt_envelope_margin_ns,
                     "recommendation": e.recommendation,
                 })
@@ -3576,6 +3638,74 @@ fn parse_pvt_context(path: &std::path::Path) -> Result<PvtContext> {
     Ok(ctx)
 }
 
+/// Resolve the PVT context used to annotate a cold-POR or CCLK-sweep boot log.
+///
+/// Priority:
+/// 1. An explicit `--pvt-context` file (no hardware readout).
+/// 2. A live XADC readout when `--read-xadc` is set, optionally persisted via
+///    `--to-pvt-context`.
+/// 3. None (source `not_read`) when neither is available.
+///
+/// Returns the resolved context, the `xadc` JSON object to store in the log
+/// (`source` tells downstream tooling how the values were obtained),
+/// and a Boolean indicating whether the context came from a live readout.
+fn resolve_pvt_context_for_boot(
+    pvt_context: Option<&PathBuf>,
+    process_corner: ProcessCorner,
+    to_pvt_context: Option<&PathBuf>,
+    cable: &str,
+    read_xadc: bool,
+) -> Result<(
+    Option<PvtContext>,
+    serde_json::Value,
+    bool,
+)> {
+    if let Some(path) = pvt_context {
+        let ctx = load_optional_pvt_context(Some(path))?
+            .ok_or_else(|| anyhow::anyhow!("failed to load PVT context from {}", path.display()))?;
+        let json = xadc_context_json("pvt_context_file", Some(&ctx));
+        return Ok((Some(ctx), json, false));
+    }
+
+    if read_xadc {
+        match read_xadc_via_openfpgaloader(cable) {
+            Ok(xadc) => {
+                let pvt = xadc.to_pvt_context(process_corner)?;
+                if let Some(path) = to_pvt_context {
+                    std::fs::write(path, serde_json::to_string_pretty(&pvt)?)
+                        .with_context(|| format!("write PVT context {}", path.display()))?;
+                    println!("[boot] wrote rounded PVT context to {}", path.display());
+                }
+                let xadc_json = xadc.to_json("xadc");
+                Ok((Some(pvt), xadc_json, true))
+            }
+            Err(e) => {
+                eprintln!("[boot] live XADC read failed: {e}");
+                Ok((None, xadc_context_json("not_read", None), false))
+            }
+        }
+    } else {
+        Ok((None, xadc_context_json("not_read", None), false))
+    }
+}
+
+/// Build the `operating_point` JSON object that accompanies a sweep/boot log.
+/// The `source` label is closed so dashboards can react without parsing free-form
+/// strings.
+fn operating_point_json(pvt_ctx: &Option<PvtContext>, source: &str) -> serde_json::Value {
+    if let Some(ctx) = pvt_ctx {
+        serde_json::json!({
+            "source": source,
+            "temp_c": ctx.temp_c,
+            "vccint_mv": ctx.vccint_mv,
+            "vccaux_mv": ctx.vccaux_mv,
+            "process_corner": serde_json::to_value(&ctx.process_corner).unwrap_or(serde_json::Value::Null),
+        })
+    } else {
+        default_operating_point()
+    }
+}
+
 /// Format a `PvtContext` as a Lean 4 record literal.
 fn format_pvt_context_lean(ctx: &PvtContext) -> String {
     let corner = match ctx.process_corner {
@@ -3716,6 +3846,7 @@ fn measured_to_lean(
     margin: bool,
     pvt_context: Option<&PathBuf>,
     pvt_worstcase: bool,
+    pvt_context_source: Option<&str>,
     standalone: bool,
     raw_ns: bool,
     validate: bool,
@@ -3725,7 +3856,15 @@ fn measured_to_lean(
         Some(path) => Some(parse_pvt_context(path)?),
         None => None,
     };
-    let mut pvt_source = if pvt_context.is_some() { "pvt_context_file" } else { "" };
+    let mut pvt_source = if let Some(source) = pvt_context_source {
+        source
+    } else if pvt_context.is_some() {
+        "pvt_context_file"
+    } else if pvt_worstcase {
+        "worstcase"
+    } else {
+        ""
+    };
     if pvt_worstcase {
         pvt_ctx = Some(PvtContext {
             temp_c: PVT_TEMP_MAX_C,
@@ -3733,7 +3872,9 @@ fn measured_to_lean(
             vccaux_mv: 2700,
             process_corner: ProcessCorner::Ss,
         });
-        pvt_source = "worstcase";
+        if pvt_context_source.is_none() {
+            pvt_source = "worstcase";
+        }
     }
     if json && out.is_none() {
         bail!("--json requires --out so the generated Lean snippet has a destination");
@@ -5396,6 +5537,8 @@ fn cold_por(
     repeat: u32,
     wait_seconds: u32,
     pvt_context: Option<&PathBuf>,
+    process_corner: &str,
+    to_pvt_context: Option<&PathBuf>,
     log_dir: Option<&PathBuf>,
     read_xadc: bool,
     cable: &str,
@@ -5403,7 +5546,17 @@ fn cold_por(
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
-    let pvt_ctx = load_optional_pvt_context(pvt_context)?;
+    let corner = parse_process_corner(process_corner)?;
+    let (pvt_ctx, xadc_json, pvt_from_xadc) =
+        resolve_pvt_context_for_boot(pvt_context, corner, to_pvt_context, cable, read_xadc)?;
+    let op_source = if pvt_from_xadc {
+        "xadc"
+    } else if pvt_context.is_some() {
+        "pvt_context_file"
+    } else {
+        "not_read"
+    };
+    let operating_point = operating_point_json(&pvt_ctx, op_source);
 
     let root = repo_root()?;
     let boot_log_dir = match log_dir {
@@ -5462,18 +5615,9 @@ fn cold_por(
         "conclusion": conclusion,
         "samples": samples,
         "pvt_context": pvt_json,
+        "operating_point": operating_point,
     });
-    let xadc_json = if read_xadc && cable_detected(cable) {
-        match read_xadc_via_openfpgaloader(cable) {
-            Ok(ctx) => ctx.to_json("xadc"),
-            Err(e) => {
-                eprintln!("[cold-por] XADC read failed: {e}");
-                xadc_context_json("not_read", pvt_ctx.as_ref())
-            }
-        }
-    } else {
-        xadc_context_json("not_read", pvt_ctx.as_ref())
-    };
+    // The XADC JSON was already resolved before the mock boot log was built.
     if let Some(obj) = log_entry.as_object_mut() {
         obj.insert("xadc".to_string(), xadc_json);
         obj.insert("pvt_envelope_margin_ns".to_string(), serde_json::json!(Option::<i64>::None));
@@ -5588,6 +5732,8 @@ fn smoke_gate(
                 3,
                 wait_seconds,
                 None,
+                "ss",
+                None,
                 None,
                 false,
             )
@@ -5663,6 +5809,8 @@ fn smoke_gate(
             6_000_000,
             3,
             0,
+            None,
+            "ss",
             None,
             None,
             false,
@@ -6404,6 +6552,7 @@ mod tests {
             false,
             None,
             false,
+            None,
             false,
             false,
             false,
@@ -6441,6 +6590,7 @@ mod tests {
             true,
             None,
             false,
+            None,
             false,
             false,
             false,
@@ -6481,6 +6631,7 @@ mod tests {
             false,
             None,
             false,
+            None,
             true,
             false,
             false,
@@ -6527,6 +6678,7 @@ mod tests {
             false,
             None,
             false,
+            None,
             false,
             true,
             false,
@@ -6633,6 +6785,31 @@ mod tests {
     }
 
     #[test]
+    fn test_measured_to_lean_pvt_context_source_override() {
+        let m = MeasuredCclk::new(25_000_000.0, 50.0, "live".to_string());
+        let json = serde_json::to_string(&m).unwrap();
+        let ctx = PvtContext {
+            temp_c: 41,
+            vccint_mv: 1000,
+            vccaux_mv: 1807,
+            process_corner: ProcessCorner::Ss,
+        };
+        let summary =
+            build_measured_to_lean_summary("measured_cclk", false, false, &Some(ctx), "xadc", &json)
+                .unwrap();
+        assert_eq!(
+            summary["predicate"].as_str().unwrap(),
+            "measured_cclk_with_pvt_satisfies_flash_spec"
+        );
+        let op = summary["operating_point"].as_object().unwrap();
+        assert_eq!(op["source"].as_str().unwrap(), "xadc");
+        assert_eq!(op["temp_c"].as_i64().unwrap(), 41);
+        assert_eq!(op["vccint_mv"].as_u64().unwrap(), 1000);
+        assert_eq!(op["vccaux_mv"].as_u64().unwrap(), 1807);
+        assert_eq!(op["process_corner"].as_str().unwrap(), "ss");
+    }
+
+    #[test]
     fn test_measured_to_lean_csv_raw_ns() {
         let samplerate = 100_000_000_u32;
         let csv_tmp = std::env::temp_dir().join(format!(
@@ -6661,6 +6838,7 @@ mod tests {
             false,
             None,
             false,
+            None,
             true,
             true,
             false,
@@ -6745,6 +6923,7 @@ mod tests {
             false,
             None,
             false,
+            None,
             true,
             true,
             false,
@@ -7445,6 +7624,7 @@ mod tests {
             false,
             None,
             false,
+            None,
             false,
             true,
             true,
@@ -7484,6 +7664,7 @@ mod tests {
             false,
             None,
             false,
+            None,
             false,
             true,
             true,
@@ -7527,6 +7708,7 @@ mod tests {
             true,
             None,
             false,
+            None,
             false,
             true,
             true,
@@ -7568,6 +7750,7 @@ mod tests {
             true,
             None,
             false,
+            None,
             false,
             true,
             true,
@@ -7628,6 +7811,7 @@ mod tests {
             false,
             Some(&pvt),
             false,
+            None,
             false,
             true,
             true,
@@ -7675,6 +7859,7 @@ mod tests {
             false,
             Some(&pvt),
             false,
+            None,
             false,
             true,
             true,
@@ -7722,6 +7907,7 @@ mod tests {
             false,
             Some(&pvt),
             false,
+            None,
             true,
             true,
             true,
@@ -8196,6 +8382,7 @@ mod tests {
                 diagnosis: "FPGA configured".to_string(),
             }],
             pvt_context: None,
+            operating_point: default_operating_point(),
             xadc: serde_json::json!({"source": "not_read"}),
             pvt_envelope_margin_ns: Some(187),
             recommendation: recommendation_from_conclusion(
@@ -8225,6 +8412,7 @@ mod tests {
                 diagnosis: "FPGA NOT configured".to_string(),
             }],
             pvt_context: None,
+            operating_point: default_operating_point(),
             xadc: serde_json::json!({"source": "not_read"}),
             pvt_envelope_margin_ns: Some(106),
             recommendation: recommendation_from_conclusion(
@@ -8255,9 +8443,11 @@ mod tests {
         assert_eq!(variants[0]["oscfsel"], 0);
         assert_eq!(variants[0]["done"], true);
         assert_eq!(variants[0]["pvt_envelope_margin_ns"], 187);
+        assert_eq!(variants[0]["operating_point"]["source"], "not_read");
         assert_eq!(variants[1]["oscfsel"], 1);
         assert_eq!(variants[1]["done"], false);
         assert_eq!(variants[1]["recommendation"]["action"], "try_next_oscfsel");
+        assert_eq!(variants[1]["operating_point"]["source"], "not_read");
 
         let _ = std::fs::remove_dir_all(&dry_log_dir);
     }
@@ -8273,7 +8463,18 @@ mod tests {
         let log_dir =
             std::env::temp_dir().join(format!("tri_cold_por_mock_{}", std::process::id()));
         std::fs::create_dir_all(&log_dir).unwrap();
-        let out = cold_por(&bit, "MOCK", 3, 0, None, Some(&log_dir), false, "digilent_hs2");
+        let out = cold_por(
+            &bit,
+            "MOCK",
+            3,
+            0,
+            None,
+            "ss",
+            None,
+            Some(&log_dir),
+            false,
+            "digilent_hs2",
+        );
         if bit.is_file() {
             out.unwrap();
             let entries: Vec<_> = std::fs::read_dir(&log_dir)
@@ -8347,6 +8548,7 @@ mod tests {
             false,
             None,
             false,
+            None,
             true,
             true,
             false,

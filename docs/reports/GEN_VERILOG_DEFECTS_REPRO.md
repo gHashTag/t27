@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `wave-loop-434`  
-**Last updated:** 2026-07-01 (Wave Loop 434)  
+**Branch:** `wave-loop-436`  
+**Last updated:** 2026-07-01 (Wave Loop 436)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -11,6 +11,13 @@ read-xadc`) and the formal PVT-envelope bridge. The remaining 7 residual yosys
 smoke failures (tuple-return / `let` destructuring / ROM arrays / CORDIC) stay
 tracked here and will be re-evaluated once the `trinity-rust-rings` branch is
 rebased or merged to `master`.
+
+**W436 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W436
+focuses on extending the live XADC → PVT context pipeline into cold-POR boot
+logs, sweep-report JSON, and the `measured-to-lean` source-label path. The 7
+residual yosys smoke failures remain the documented baseline; they will be
+addressed in a future wave after the master-merge debt is cleared or a safe
+regression-free sub-fix is identified.
 
 ---
 
