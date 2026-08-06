@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:366183e979c1505699b966b31754afc26f4541f7627a03a7df318fdb62caff3c",
   "module": "cloud-railway-deploy",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:05Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:fe78e70813d0e3d95b70cbf96474baa05dc866c856d2b6cd4ab7036043071364",
   "spec_path": "specs/cloud/railway_deploy.t27"
 }

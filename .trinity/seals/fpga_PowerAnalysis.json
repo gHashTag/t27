@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:da34b0ad73a7dfc0374ebdb49f586b07bc72491177a4eb0f00bf81ee0c19f90f",
-  "gen_hash_rust": "sha256:d561bf608695d47bf60ab90972f1aa1aaa3a6fe73aeb19e6a3c48ec24546b527",
-  "gen_hash_verilog": "sha256:137ab038d0889d9f581372de3abdb933eca587d2b330f0cd2cfce2ac3f779c1e",
-  "gen_hash_zig": "sha256:3532c544246a2ceb584c68c60e2f8854a70ce0a945c2897d43935a8fd697745b",
+  "gen_hash_c": "sha256:abb30a14344e328b008fb28a6e436afbf6a893574309eba0c0e4ce848762b18b",
+  "gen_hash_rust": "sha256:1450fd1211c240e0bc8ae4018a9b60da59ad66fc53b26d47c484ee3239fe362b",
+  "gen_hash_verilog": "sha256:4e36610f8ba0a04760057ea3b891fbd7cbeb73ebba5bf78f96bbc487ff3ae1aa",
+  "gen_hash_zig": "sha256:57f2720658cac556f2adf723a0094d47861a51c7dd3de930f3aeefad701f8204",
   "module": "PowerAnalysis",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:06Z",
+  "sealed_at": "2026-07-18T16:36:15Z",
   "spec_hash": "sha256:60f9bd3929b53410b8ecc6f586991f33731ba60aa9fb1a2228b062e3ef550a16",
   "spec_path": "specs/fpga/power_analysis.t27"
 }

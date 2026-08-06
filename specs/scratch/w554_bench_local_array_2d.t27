@@ -1,0 +1,15 @@
+pub fn mat() -> [2][3]u8 {
+    return [2][3]u8{ [3]u8{ 1, 2, 3 }, [3]u8{ 4, 5, 6 } };
+}
+
+test matrix_local_test {
+    let tmp : [2][3]u8 = mat();
+    assert_eq(tmp[0][0], 1);
+    assert_eq(tmp[1][2], 6);
+}
+
+bench "matrix_local_bench" {
+    let tmp : [2][3]u8 = mat();
+    assert_eq(tmp[0][0], 1);
+    assert_eq(tmp[1][2], 6);
+}

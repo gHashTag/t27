@@ -1,0 +1,29 @@
+// W529 witness: module-level 2-D scalar-struct constant lowered as a packed
+// parameter and accessed from a function.
+module w529_module_2d_struct_array_const;
+
+pub struct Pt {
+    x : u16,
+    y : u16,
+}
+
+pub const grid : [2][3]Pt = [2][3]Pt{
+    [3]Pt{ Pt{.x = 1, .y = 2}, Pt{.x = 3, .y = 4}, Pt{.x = 5, .y = 6} },
+    [3]Pt{ Pt{.x = 7, .y = 8}, Pt{.x = 9, .y = 10}, Pt{.x = 11, .y = 12} }
+};
+
+pub fn read_const(i : u32, j : u32) -> u32 {
+    return (grid[i][j].x as u32) + (grid[i][j].y as u32);
+}
+
+pub fn read_const_literal() -> u32 {
+    return (grid[0][0].x as u32) + (grid[1][2].y as u32);
+}
+
+test module_const_2d {
+    assert_eq(read_const(0, 0), 3);
+    assert_eq(read_const(1, 2), 23);
+    assert_eq(read_const_literal(), 13);
+}
+
+endmodule

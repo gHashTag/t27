@@ -1,0 +1,18 @@
+// W553 witness: deterministic bench block asserting a signed primitive scalar
+// array element. Exercises $signed(...) slice wrapping and VCD sign-extension
+// inside a bench block.
+module w553_bench_signed_array_element;
+
+pub fn seq() -> [3]i8 {
+    return [3]i8{ -1, -2, -3 };
+}
+
+test signed_element_test {
+    assert_eq(seq()[0], -1);
+}
+
+bench "signed_element_bench" {
+    assert_eq(seq()[0], -1);
+}
+
+endmodule

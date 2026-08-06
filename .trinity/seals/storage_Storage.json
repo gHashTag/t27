@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:189969d28d8e35ed8d68632bccfccf2366016976ec2b7764528f70bfcc1cd71e",
   "gen_hash_rust": "sha256:ad7bbe5eb4337b58aaf9d59abd10dbd6c0fe6c1439b10150f6e3e149e96fed1e",
-  "gen_hash_verilog": "sha256:161b1c49c3d38622e438b2f11a4ff092c58a95b172ae12455bd460483f777337",
+  "gen_hash_verilog": "sha256:ae3f4eb05a01b72a6ad3a3c3ae329f63fe8cb8e3d183b340259db2345fafa6ff",
   "gen_hash_zig": "sha256:61e2939f7218620e16de36319359694dcd84fa038fcb05e634decbc2244ef776",
   "module": "Storage",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:11Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:bc0376617cd87b3e40006d71e6ea96593448eafb8942448c5bd8d5363bb37dcf",
   "spec_path": "specs/storage/schema.t27"
 }

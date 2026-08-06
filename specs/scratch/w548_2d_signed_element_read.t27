@@ -1,0 +1,22 @@
+// W548 positive witness: a function returning a 2-D signed primitive scalar array
+// initializes a function-local let binding.  Signed packed-vector bit-slices are
+// evaluated with the correct row-major flat index and element-width scaling.
+module w548_2d_signed_element_read;
+
+pub fn signs() -> [2][2]i8 {
+    return [2][2]i8{
+        [2]i8{ -1, -2 },
+        [2]i8{ -3, -4 }
+    };
+}
+
+pub fn diag() -> i8 {
+    let m : [2][2]i8 = signs();
+    return m[0][0] + m[1][1];
+}
+
+test two_d_signed_diag {
+    assert_eq(diag(), -5);
+}
+
+endmodule

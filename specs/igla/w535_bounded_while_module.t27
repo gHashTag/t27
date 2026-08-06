@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/igla/w535_bounded_while_module.t27
+// W535 positive corpus witness: a bounded while loop remains Icarus-lowerable
+// after tightening the predicate to reject while(true), non-lowerable struct
+// fields, and imported-function calls.
+//
+// Anchor: φ² + φ⁻² = 3 | TRINITY
+
+module w535_bounded_while_module;
+
+pub fn count_to(n: u32) -> u32 {
+    var i: u32 = 0;
+    var acc: u32 = 0;
+    while (i < n) {
+        acc = acc + 1;
+        i = i + 1;
+    }
+    return acc;
+}
+
+test bounded_while_counts {
+    assert_eq(count_to(0), 0);
+    assert_eq(count_to(3), 3);
+    assert_eq(count_to(7), 7);
+}
+
+endmodule

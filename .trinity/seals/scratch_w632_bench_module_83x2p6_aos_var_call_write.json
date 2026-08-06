@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:98cd888af4c4b858ff435ca28a49ecafa6269d6d737ac9d24d4aa13d1486f648",
+  "gen_hash_rust": "sha256:bd497834f2b83d73d2d844e530d224aa305582339d2ba5ca2ff9cd3bf24ba394",
+  "gen_hash_verilog": "sha256:38b1c707958d0c3d65a349f4be09b22efae4072f432d96cb6ca5a300126f4818",
+  "gen_hash_zig": "sha256:ced8934ad93f3b003e617cb659766a7557034f08282faa828e953415a0e66e0a",
+  "module": "w632_bench_module_83x2p6_aos_var_call_write",
+  "ring": 12,
+  "sealed_at": "2026-07-19T20:01:05Z",
+  "spec_hash": "sha256:58521960b55bbef96a892f72d728bd36a5af21e2b91da3827dfded97d6462500",
+  "spec_path": "specs/scratch/w632_bench_module_83x2p6_aos_var_call_write.t27"
+}

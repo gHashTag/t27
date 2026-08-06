@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] signed_element_test : starting",
+    "[TEST] signed_element_test : PASSED",
+    "[BENCH] signed_element_bench : starting",
+    "[BENCH] signed_element_bench : %0d cycles          1",
+    "[BENCH] signed_element_bench : PASSED"
+  ]
+}

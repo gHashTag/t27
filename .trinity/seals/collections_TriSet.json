@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:06d238442e20343544af33cf9fa98e570ddc26959a4a3787db2e35db48e1f99c",
   "module": "TriSet",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:12Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:8f0a689a5d11faccd87687158f9883028c6f3694c6d278958b2772bafc901a2b",
   "spec_path": "specs/tri/collections/set.t27"
 }

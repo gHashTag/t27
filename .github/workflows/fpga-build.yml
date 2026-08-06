@@ -274,7 +274,7 @@ jobs:
         run: cargo build --release -p t27c
 
       - name: FPGA synthesis (Arty A7-100T, minimal profile)
-        run: ./target/release/t27c fpga-build --docker false --synth-only --board arty-a7 --profile minimal
+        run: ./target/release/t27c fpga-build --docker false --synth-only --minimal
 
       - name: Arty A7 synthesis check
         run: |
@@ -360,7 +360,7 @@ jobs:
       
       - name: Generate bitstream
         run: |
-          ./target/release/t27c fpga-build --board qmtech-a100t --profile minimal
+          ./target/release/t27c fpga-build --minimal
           ls -la build/fpga/
       
       - name: Upload bitstream artifact

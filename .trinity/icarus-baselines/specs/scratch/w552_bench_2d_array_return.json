@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] two_d_unsigned_sum : starting",
+    "[TEST] two_d_unsigned_sum : PASSED",
+    "[BENCH] two_d_array_bench : starting",
+    "[BENCH] two_d_array_bench : %0d cycles          1",
+    "[BENCH] two_d_array_bench : PASSED"
+  ]
+}
