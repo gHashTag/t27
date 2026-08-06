@@ -1854,6 +1854,31 @@ both. Continue grepping for stale wave numbers and outer dimensions after each
 copy, keep the `make_grid(32768)` period-identity check, and use `assert_eq` on
 changed elements because `assert_ne` is not emitted by the Icarus simulation path.
 
+## Worked example — Wave Loop 820
+
+Wave Loop 820 extended the module-scope packed array-of-struct ladder to `[459][2]^6 Pt`:
+
+- Generator `scripts/gen_w820.py` copied from W819 and fixed for copy hazard:
+  destination path and module header updated to `w820` / `459`, `OUTER = 459`,
+  `MID_IDX = 229`.
+- Generated `specs/scratch/w820_bench_module_459x2p6_aos_var_call_write.t27`
+  (29,376 elements, 940,032-bit packed vector, ~0.897 MiBit).
+- All direct gates passed: `t27c parse`, `icarus-lowerable`, `icarus-simulate`
+  (17 cycles), `icarus-cocotb` (reference-model OK), `seal --save`.
+- Added integration test `accepts_w820_bench_module_459x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Validation matrix: `cargo test -p t27c --test icarus_lowerable` 280/0.
+- Zero changes to `bootstrap/src/compiler.rs`, reference model, or `FROZEN_HASH`.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W820_2026-07-29.md` and
+  next-wave plan `.claude/plans/wave-loop-821.md` with variants A/B/C.
+- Updated skill tracker to wave 821, autopilot run-list to mark W820 closed, and
+  persistent memory with W820 closeout details.
+
+Key takeaway: the generator copy hazard (stale wave number and outer dimension
+in both destination path and module header f-string) remains the only manual
+failure mode across W782–W820. Parameterizing `WAVE` and `OUTER` in the
+generator template would eliminate it.
+
 ## Live Wave Loop Tracker
 
 This section is updated at the end of every completed Wave Loop. It is the
@@ -1862,13 +1887,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 820 |
-| **Issue** | #1567 (to open) |
-| **Branch** | `wave-loop-820` |
-| **Parent branch** | `wave-loop-819` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[459][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Current wave** | 821 |
+| **Issue** | #1570 (to open) |
+| **Branch** | `wave-loop-821` |
+| **Parent branch** | `wave-loop-820` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[461][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
 | **Status** | READY TO START |
-| **Next wave variants queued** | W821 Variant A `[461][2]^6 Pt`; Variant B `[459][3]^6 Pt` stride scaling; Variant C `[459][2]^6 Pt` negative-index wrap-around |
+| **Next wave variants queued** | W822 Variant A `[463][2]^6 Pt`; Variant B `[461][3]^6 Pt` stride scaling; Variant C `[461][2]^6 Pt` negative-index wrap-around |
 
 ### Open backlog (non-blocking)
 
