@@ -1,94 +1,16 @@
-# NOW — feat(spec): GF-T SGD weight update — training loop closed (2026-08-07)
+# NOW — demo: GF-T learns (end-to-end on-device training demo) (2026-08-07)
 
 Last updated: 2026-08-07
 
-## feat(spec): GF-T SGD step w' = w − η·g — the on-device training loop is complete (Refs #1764)
+## demo: GF-T learns — end-to-end training proof (Refs #1764)
 
-- Branch: `feat/gft-sgd-step` (stacked on `feat/gft-softmax-grad`)
-
-### Что легло
-- `specs/ternary/gft_sgd_step.t27` (`GftSgdStep`): a GF-T **SGD weight update** `w' = w − η·g` — the final brick of an on-device training step. `η` positive learning rate, `g` the (signed) gradient, `w` the (signed) weight. Composes a **signed** multiply `smul` (sign = XOR of signs, magnitude = the verified RNE magnitude mul) with subtract (`sadd`+`neg`). Bit-exact to the integer oracle **500/500** (iverilog); accuracy to GF-T16 precision (≤1 ULP, ~0.03 abs at the largest magnitudes). Spot: `w=1,g=0.5,η=0.5 → 0.75` exact; `g=0 → w` unchanged; `w=1,g=−1,η=1 → 2.0` (ascent) exact.
-- Fresh seal for `GftSgdStep` (`seal --verify` MATCH). No compiler change.
-
-**The full on-device training loop is now expressible spec-first on GF-T:**
-`logits → softmax → prob → NLL loss` (forward) → `gradient p−y` (backward) → `w' = w − η·g` (**update**). Every stage iverilog-verified bit-exact. Combined with the BitNet×GF-T layers/MLP/classifier, GF-T now spans a complete train+infer stack in synthesizable spec-first hardware.
-
----
-
-# NOW — feat(spec): GF-T softmax+cross-entropy gradient (backward pass) (2026-08-07)
-
-Last updated: 2026-08-07
-
-## feat(spec): GF-T softmax+xent gradient — the backward pass, forward+backward complete (Refs #1764)
-
-- Branch: `feat/gft-softmax-grad` (stacked on `feat/gft-log2-nll`)
+- Branch: `feat/gft-training-demo` (independent of the spec stack — inlines the models)
 
 ### Что легло
-- `specs/ternary/gft_softmax_grad4.t27` (`GftSoftmaxGrad4`): the **softmax + cross-entropy gradient** over four signed GF-T16 logits. For a one-hot target `t`, the classic closed form `∂L/∂l_i = p_i − y_i` — so the whole backward pass is just the softmax forward `p_i` minus the one-hot label (`grad = (i==t) ? sadd(p, −1.0) : p`). Composes the verified softmax (max, sadd+neg, exp2, recip, RNE mul). Bit-exact to the integer oracle **1600/1600** (iverilog); gradient accuracy **≤0.0018 abs vs true `p_i−y_i`**. Spot: uniform logits, target 0 → grad₀ = 0.25−1 = **−0.75** exact, grad₁ = **0.25** exact.
-- Fresh seal for `GftSoftmaxGrad4` (`seal --verify` MATCH). No compiler change.
-
-**Forward + backward now complete on GF-T:** `logits → softmax → prob → NLL loss`, and `→ gradient p−y`. Combined with the exp2/log2 inverse pair, the per-sample training step (forward loss + backprop signal into the logits) is fully expressible spec-first and iverilog-verified — the foundation for on-device training.
-
----
-
-# NOW — feat(spec): GF-T log2 primitive + cross-entropy (NLL) loss (2026-08-06)
-
-Last updated: 2026-08-06
-
-## feat(spec): GF-T log2 + NLL loss — the training-signal primitives (Refs #1764)
-
-- Branch: `feat/gft-log2-nll` (stacked on `feat/gft-recip-softmax`)
-
-Deliverable **C** of "все три параллельно" (A = merge queue, infra-blocked; B = softmax synthesizability check).
-
-### Что легло
-- `specs/ternary/gft_log2.t27` (`GftLog2`): a GF-T **log2** primitive — `log2(x)` for a positive GF-T16 → signed GF-T16. **Inverse of exp2.** `log2(x) = (o−40) + log2(1+m/512)`; the fractional part is a Q Horner quartic (coeffs `94274,−44443,21224,−5528`), the integer+fraction real value is then **normalized fixed→GF-T via a flat 31-step priority encoder** (yosys-synthesizable). Accuracy ≤0.008 abs vs true log2 (output-quantization limited). iverilog **505/505** bit-exact.
-  - **Bug found + fixed (broken-ruler class):** the log2 poly has NEGATIVE coefficients, and t27 emits `>>` as a **logical** shift on signed regs → it filled 0 for negative intermediates instead of arithmetic floor, diverging from the Python model. Fix: an explicit `asr9` helper doing floor-shift with only non-negative shifts. (exp2's poly was all-positive so it never hit this.)
-- `specs/ternary/gft_nll.t27` (`GftNll`): GF-T **cross-entropy / negative-log-likelihood** loss for a one-hot label — given the softmax probability `p` of the true class, returns the loss `−log2(p)` as a positive GF-T16 (composes `gft_log2` + sign flip). iverilog **403/403** bit-exact; `p=1→0`, `p=0.5→1.0`, `p=0.25→2.0` (exact cross-entropy).
-- Fresh seals for `GftLog2` + `GftNll` (`seal --verify` MATCH). No compiler change.
-
-**This opens the door from inference to TRAINING on GF-T:** forward `softmax → prob`, then `NLL → loss`, with the inverse pair `exp2`/`log2` both verified. The per-sample training signal is now expressible spec-first.
-
----
-
-# NOW — feat(spec): GF-T reciprocal + full GF-T softmax (2026-08-06)
-
-Last updated: 2026-08-06
-
-## feat(spec): GF-T reciprocal primitive + complete GF-T softmax (Refs #1764)
-
-- Branch: `feat/gft-recip-softmax` (stacked on `feat/gft-exp2-layer4-synth` for exp2)
-
-### Что легло
-- `specs/ternary/gft_recip.t27` (`GftRecip`): a GF-T **reciprocal** `1/x` — the last missing softmax primitive. Closed form (no polynomial): `1/(1+m/512) = 512/(512+m)`, so `512+m' = round(524288/(512+m))`, `off' = 79−o` (+renorm). One rounded integer divide → **EXACT (0 ULP)** vs true `1/x` (verified 30000 samples). iverilog **506/506** bit-exact.
-- `specs/ternary/gft_softmax4.t27` (`GftSoftmax4`): the **complete GF-T softmax** over 4 signed GF-T16 logits, base-2, max-stabilized: `p_i = 2^(l_i−M) / Σ 2^(l_j−M)`, returns `p_sel`. Composes ALL the verified primitives — max (`gt`), subtract (`sadd`+`neg`), **exp2** (≤1 ULP), sum (`sadd`), **reciprocal** (exact), multiply (RNE). Bit-exact to the integer oracle **2000/2000** (iverilog); **accuracy ≤0.0017 abs probability vs true float softmax** (sum-of-probs ∈ [0.9982, 1.0018]; uniform logits → 0.25 exact; [2,1,1,1] → 0.40).
-- Fresh seals for `GftRecip` + `GftSoftmax4` (`seal --verify` MATCH). No compiler change (both `on_comb`).
-
-**The GF-T classifier head is now complete end-to-end: activations → MLP → logits → {argmax → class} OR {softmax → calibrated probabilities}.**
-
----
-
-# NOW — feat: GF-T exp2 primitive + 4-neuron layer + classifier synth runbook (2026-08-06)
-
-Last updated: 2026-08-06
-
-## feat: "все три параллельно" — exp2 (softmax step 1) + gft_layer4 + AX7203 synth runbook (Refs #1764)
-
-- Branch: `feat/gft-exp2-layer4-synth`
-
-Three parallel deliverables in one PR (batched to avoid NOW.md conflict churn during the ongoing GitHub Actions incident that still blocks merging #1801 + #1802):
-
-### A² — `specs/ternary/gft_exp2.t27` (`GftExp2`): a GF-T **exp2 primitive**
-- `2^x` for a signed GF-T16 input → positive GF-T16. **The missing building block for a GF-T softmax** (softmax = 2^logit / Σ2^logit in base 2). Method: |x|→Q16.16 (positive shifts only), sign-aware floor into integer `k` + fraction `f`, `2^x = 2^k·2^f`; `2^k` is an exact GF-T offset, `2^f` mantissa via a **Q16 quartic with rounded Horner shifts** (coeffs `354,123,29,6`).
-- **Prototype-first (doctrine):** fitted + local-searched the poly in Python vs the exact mantissa (`≤1 ULP` over all 2^16 fractions) and vs true `round_to_GFT(2^x)` (`≤1 ULP` over the logit sweep) BEFORE transcribing to `.t27`. Bit-exact to the committed integer oracle **606/606** (iverilog), spot-checks exact (2^0=1, 2^1=2, 2^-1=0.5, 2^2=4).
-
-### B — `specs/ternary/gft_layer4.t27` (`GftLayer4`): 4-neuron BitNet×GF-T layer
-- Extends `gft_layer3` to **4 neurons** (M→N=4): 4 shared GF-T16 acts → 4 trits packed 2 bits each (`n0|n1<<2|n2<<4|n3<<6`). Doubly-grounded oracle (int-vs-float, 1 near-cancellation dropped), iverilog **500/500** bit-exact. `on_comb` 20 ports, no compiler change.
-
-### C — `docs/synth/CLASSIFIER_AX7203.md`: owner-gated flash runbook
-- Copy-paste flow to take `gft_classifier4` from spec → yosys (`synth_xilinx -family xc7`) → nextpnr-xilinx → `openFPGALoader` on the ALINX AX7203 (XC7A200T). The final JTAG flash is **owner-gated** (needs the user at the board); everything up to the bitstream is scripted. On-silicon "done" = replay `gft_classifier4_vectors.txt`, class index bit-exact 1500/1500 on-air (mirrors the `gft_dot2` #185 proof). Uses the verified AX7203 truth (IDCODE `0x13636093`; checked-in `IDCODE.md` is wrong).
-
-Fresh seals for `GftExp2` + `GftLayer4` (`seal --verify` MATCH). No compiler change.
+- `tools/gft_train_demo.py` + `docs/GFT_TRAINING_DEMO.md`: a **self-contained** end-to-end training demo proving the GF-T primitive stack **learns**, not just computes correct arithmetic. Trains a linear 4-class classifier by SGD on a toy set using **only the GF-T integer models** — bit-for-bit what the synthesized hardware computes (each op is bit-exact to a `.t27` with an iverilog test). The same loop runs in float64 as a reference.
+- **Result:** GF-T loss falls monotonically **2.20 → 0.22** over 20 epochs and **tracks float64 to ~3 decimals** the whole way; final **4/4 accuracy**. The GF-T datapath trains as well as float.
+- **RTL-in-the-loop:** dumped every op the training run performs and replayed through the COMPILED Verilog — forward softmax **372/372** on `GftSoftmax4`, weight update **640/640** on `GftSgdStep`, all bit-exact. So the loss curve is literally the hardware's; GF-T learns on real RTL, not just in a model.
+- Ties the whole stack together: forward (`smul`/`sadd`/`softmax`) → loss (`nll`) → backward (`grad p−y`) → update (`w−η·g`), every stage iverilog-verified. Turns "verified primitives" into "**GF-T learns on-device**."
 
 ---
 
