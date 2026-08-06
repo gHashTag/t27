@@ -596,6 +596,7 @@ Last updated: 2026-07-29
   - W789 learnings saved and W790 plan/cooperation variants created.
 
 ### Not changed
+
 - `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
 - `bootstrap/stage0/FROZEN_HASH` — unchanged `68a0b933c00ba5efd7facb5997f00880c3eecae55e6ac5e8cea2aee399b92adc`.
 - `scripts/cocotb_ref_model.py` — unchanged.
@@ -613,6 +614,7 @@ Last updated: 2026-07-29
 - `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W789: PASS.
 
 ### Remaining weak points
+
 - `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
   compiler lowering issue, tracked for separate issue).
 - FPGA E2E CI red (`sby` missing + Yosys static-cast error in generated `uart.v`).
