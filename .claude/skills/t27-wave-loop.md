@@ -1034,4 +1034,42 @@ Icarus simulation path.
 
 ---
 
+## Live Wave Loop Tracker
+
+This section is updated at the end of every completed Wave Loop. It is the
+single source of truth for "what is the current wave, what is next, and what
+variants are queued."
+
+| Field | Value |
+|-------|-------|
+| **Current wave** | 801 |
+| **Issue** | TBD (open after W800 PR lands or during W801 setup) |
+| **Branch** | `wave-loop-801` |
+| **Parent branch** | `wave-loop-800` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[421][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Status** | READY TO START |
+| **Next wave variants queued** | W802 Variant A `[423][2]^6 Pt`; Variant B function-scope `[421][2]^6 Pt`; Variant C `[421][2]^6 Pt` with `if`-guarded writes |
+
+### Open backlog (non-blocking)
+
+- Parameterize the generator template so the wave prefix and `OUTER` dimension
+  come from a single `WAVE` / `OUTER` pair and the copy hazard disappears.
+- Address pre-existing `verilog_array_literal_expr` regression in a dedicated ring.
+- Unblock FPGA E2E CI (`sby` missing + Yosys static-cast error in generated `uart.v`).
+- Cleanup sprint for 626 release warnings / 780 clippy warnings.
+- Improve 30-day commit traceability (currently ~15–20% of subjects carry `Closes #N`).
+
+### How to update this tracker
+
+After closing a wave:
+
+1. Bump **Current wave** to `N+1`.
+2. Set **Issue** / **Branch** / **Parent branch** / **Recommended variant** for the next wave.
+3. Rotate the **Next wave variants queued** row from the just-written cooperation plan.
+4. Move any completed backlog item to a struck-through line or remove it.
+5. Append a new `Worked example — Wave Loop N` section above this tracker.
+6. Commit the skill update together with the wave closeout.
+
+---
+
 *φ² + φ⁻² = 3 | TRINITY*
