@@ -1,3 +1,27 @@
+# NOW — feat: GF-T exp2 primitive + 4-neuron layer + classifier synth runbook (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat: "все три параллельно" — exp2 (softmax step 1) + gft_layer4 + AX7203 synth runbook (Refs #1764)
+
+- Branch: `feat/gft-exp2-layer4-synth`
+
+Three parallel deliverables in one PR (batched to avoid NOW.md conflict churn during the ongoing GitHub Actions incident that still blocks merging #1801 + #1802):
+
+### A² — `specs/ternary/gft_exp2.t27` (`GftExp2`): a GF-T **exp2 primitive**
+- `2^x` for a signed GF-T16 input → positive GF-T16. **The missing building block for a GF-T softmax** (softmax = 2^logit / Σ2^logit in base 2). Method: |x|→Q16.16 (positive shifts only), sign-aware floor into integer `k` + fraction `f`, `2^x = 2^k·2^f`; `2^k` is an exact GF-T offset, `2^f` mantissa via a **Q16 quartic with rounded Horner shifts** (coeffs `354,123,29,6`).
+- **Prototype-first (doctrine):** fitted + local-searched the poly in Python vs the exact mantissa (`≤1 ULP` over all 2^16 fractions) and vs true `round_to_GFT(2^x)` (`≤1 ULP` over the logit sweep) BEFORE transcribing to `.t27`. Bit-exact to the committed integer oracle **606/606** (iverilog), spot-checks exact (2^0=1, 2^1=2, 2^-1=0.5, 2^2=4).
+
+### B — `specs/ternary/gft_layer4.t27` (`GftLayer4`): 4-neuron BitNet×GF-T layer
+- Extends `gft_layer3` to **4 neurons** (M→N=4): 4 shared GF-T16 acts → 4 trits packed 2 bits each (`n0|n1<<2|n2<<4|n3<<6`). Doubly-grounded oracle (int-vs-float, 1 near-cancellation dropped), iverilog **500/500** bit-exact. `on_comb` 20 ports, no compiler change.
+
+### C — `docs/synth/CLASSIFIER_AX7203.md`: owner-gated flash runbook
+- Copy-paste flow to take `gft_classifier4` from spec → yosys (`synth_xilinx -family xc7`) → nextpnr-xilinx → `openFPGALoader` on the ALINX AX7203 (XC7A200T). The final JTAG flash is **owner-gated** (needs the user at the board); everything up to the bitstream is scripted. On-silicon "done" = replay `gft_classifier4_vectors.txt`, class index bit-exact 1500/1500 on-air (mirrors the `gft_dot2` #185 proof). Uses the verified AX7203 truth (IDCODE `0x13636093`; checked-in `IDCODE.md` is wrong).
+
+Fresh seals for `GftExp2` + `GftLayer4` (`seal --verify` MATCH). No compiler change.
+
+---
+
 # NOW — feat(spec): 3-layer GF-T MLP (4→3→2→1) (2026-08-06)
 
 Last updated: 2026-08-06
