@@ -1,3 +1,18 @@
+# NOW — feat: fully round-to-nearest-even GF-T16 MAC (oracle-accurate) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): RNE GF-T16 adder + full RNE MAC — a spec-first GF-T MORE ACCURATE than silicon (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Что легло
+- `specs/ternary/gft_add_rne.t27` (`GftAddRne`) + seal + test + `tests/gft_add_rne_vectors.txt`: a GF-T16 same-sign ADD with **round-to-nearest-even** — keeps the guard/sticky bits the silicon `gft_add` truncates away (`>> d`), with tie-to-even + mantissa-carry-after-round. Verified bit-exact vs 300 oracle add vectors.
+- `specs/ternary/gft_dot2_rne.t27` (`GftDot2Rne`) + seal + test + `tests/gft_dot2_rne_vectors.txt`: the **full RNE MAC** `y = a1*b1 + a2*b2` composing RNE mul + RNE add — **bit-exact to the ideal oracle** `gft16_add(gft16_mul(a1,b1),gft16_mul(a2,b2))` over 300 normal-range vectors. This is the accurate counterpart of `gft_dot2.t27` (which matches the TRUNCATING silicon, biased ~1 ULP low).
+- Together with `gft_mul_rne.t27` (last cycle) the spec-first stack now has a **complete oracle-accurate GF-T MAC**, more accurate than what runs on silicon. Two GF-T semantics coexist: truncating (silicon SSOT: gft_dot2/4/8, layer2) and RNE (oracle-accurate: gft_mul_rne/gft_add_rne/gft_dot2_rne). No compiler change; 1506 unit tests pass.
+
+---
+
 # NOW — feat: RNE GF-T16 multiply — spec-first GF-T MORE ACCURATE than silicon (2026-08-06)
 
 Last updated: 2026-08-06
