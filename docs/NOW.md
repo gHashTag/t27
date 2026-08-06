@@ -1,6 +1,15 @@
-# NOW — feat: spec-first combinational BitNet NEURON synthesizes to Artix-7 (2026-08-06)
+# NOW — docs: Artix-7 synthesis report for the spec-first ternary stack (2026-08-06)
 
 Last updated: 2026-08-06
+
+## docs(synth): measured FPGA cost of the spec-first ternary hardware designs (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Что легло
+- `docs/SYNTH_REPORT.md`: yosys `synth_xilinx` (Artix-7 XC7A200T) resource measurements for every spec-first hardware design. **A full combinational BitNet neuron (`quantize(dot27)`) = ~319 LUT + 2 CARRY4, 0 FF** (~0.24 % of the 200T's ~133.8k LUTs). Streaming MAC = 346 LUT + 32 FDCE + 10 CARRY4. Combinational dot = 317 LUT. Clocked counter = 8 FDCE. Headroom analysis: hundreds of parallel neurons fit; the gap to a running layer is place-and-route (nextpnr-xilinx) + bitstream, not logic capacity. Docs-only.
+
+---
 
 ## feat(spec): combinational BitNet neuron = MAC + activation in one synthesizable module (Refs #1764)
 
