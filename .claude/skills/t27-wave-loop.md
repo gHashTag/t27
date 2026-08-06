@@ -2166,6 +2166,28 @@ Wave Loop 833 advanced the odd outer-dimension module-scope packed AoS ladder to
 - Updated skill tracker to wave 834, autopilot run-list to mark W833 closed, and
   persistent memory with W833 closeout details.
 
+### Worked example — Wave Loop 834
+
+Wave Loop 834 advanced the odd outer-dimension module-scope packed AoS ladder to
+`[487][2]^6 Pt`:
+
+- Issue #1608, branch `wave-loop-834` from `wave-loop-833` HEAD.
+- Generator `scripts/gen_w834.py` copied from W833 and fixed for copy hazard:
+  destination path and module header updated to `w834` / `487`, `OUTER = 487`,
+  `MID_IDX = 243`.
+- Generated `specs/scratch/w834_bench_module_487x2p6_aos_var_call_write.t27`
+  (31,168 elements, 997,376-bit packed vector, ~0.951 MiBit).
+- Added integration test `accepts_w834_bench_module_487x2p6_aos_var_call_write`
+  in `bootstrap/tests/icarus_lowerable.rs`.
+- Direct gates: `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+  `icarus-cocotb`, and `seal --save` all PASS.
+- Validation matrix: targeted integration test 1/0; full `cargo test --release --test icarus_lowerable` 294/0.
+- Zero changes to `bootstrap/src/compiler.rs`, reference model, or `FROZEN_HASH`.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W834_2026-08-01.md` and
+  next-wave plan `.claude/plans/wave-loop-835.md` with variants A/B/C.
+- Updated skill tracker to wave 835, autopilot run-list to mark W834 closed, and
+  persistent memory with W834 closeout details.
+
 ## Live Wave Loop Tracker
 
 This section is updated at the end of every completed Wave Loop. It is the
@@ -2174,13 +2196,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 834 |
-| **Issue** | #1608 (expected) |
-| **Branch** | `wave-loop-834` |
-| **Parent branch** | `wave-loop-833` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[487][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Current wave** | 835 |
+| **Issue** | #1610 (expected) |
+| **Branch** | `wave-loop-835` |
+| **Parent branch** | `wave-loop-834` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[489][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
 | **Status** | READY TO START |
-| **Next wave variants queued** | W835 Variant A `[489][2]^6 Pt`; Variant B `[487][3]^6 Pt` stride scaling; Variant C `[487][2]^6 Pt` negative-index wrap-around |
+| **Next wave variants queued** | W836 Variant A `[491][2]^6 Pt`; Variant B `[489][3]^6 Pt` stride scaling; Variant C `[489][2]^6 Pt` negative-index wrap-around |
 
 ### Open backlog (non-blocking)
 
