@@ -1,3 +1,16 @@
+# NOW — feat: 2-neuron spec-first BitNet layer with packed trit output (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat: spec-first BitNet layer2 (two neurons, packed trits) (Closes #1753)
+
+- Branch: `feat/spec-first-bitnet-layer`
+
+### Что легло
+- `specs/ternary/bitnet_layer.t27`: `layer2(acts: [8]u64, w0: [8]u64, w1: [8]u64, nchunks, threshold)` runs two `neuronN` units over shared activations + per-neuron weights and packs the two output trits into a byte (`(t1<<2)|t0`). Array params pass straight through to `neuronN` — no new backend work. First spec-first BitNet **layer** (multiple output trits), composing quantizer (#1738) + MAC (#1743) + N-chunk neuron (#1752). Verified: typecheck 0 err; icarus-simulate 4/4 scalar test blocks; seal 3 backends MATCH; new `tests/bitnet_layer.rs` drives layer2 over direct-packed uniform chunks (w0=P,w1=N→2; P,P→10; N,P→8; allZ→5; 0chunks→5) = ALL_PASS. No compiler change, no reseal.
+
+---
+
 # NOW — feat: parameterized N-chunk spec-first BitNet neuron over packed arrays (2026-08-06)
 
 Last updated: 2026-08-06
