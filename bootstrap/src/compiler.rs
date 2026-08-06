@@ -4062,6 +4062,10 @@ pub struct VerilogCodegen {
     // hoisted to the top of the body block, so a direct-child StmtLocal must
     // emit only its assignment (Init phase), not a fresh `reg` declaration.
     hoist_fn_locals: bool,
+    // When true, `StmtAssign` inside a function body emits a nonblocking
+    // assignment (`<=`) instead of a blocking one, so a clocked `fn on_clock`
+    // body lowers to correct sequential logic inside an `always @(posedge clk)`.
+    clocked_nonblocking: bool,
     // Width of the parameters of the function currently being lowered, keyed by
     // parameter name. Populated in `gen_verilog_fn`. Used by `ExprCast` lowering
     // to skip a redundant truncation mask when the operand is a parameter that is
@@ -4132,6 +4136,7 @@ impl VerilogCodegen {
             current_fn_name: String::new(),
             current_fn_return_type: String::new(),
             hoist_fn_locals: false,
+            clocked_nonblocking: false,
             param_widths: std::collections::HashMap::new(),
             struct_decls: std::collections::HashMap::new(),
             local_types: std::collections::HashMap::new(),
@@ -5365,6 +5370,7 @@ impl VerilogCodegen {
             current_fn_name: String::new(),
             current_fn_return_type: String::new(),
             hoist_fn_locals: false,
+            clocked_nonblocking: false,
             param_widths: self.param_widths.clone(),
             struct_decls: self.struct_decls.clone(),
             local_types: self.local_types.clone(),
@@ -5526,6 +5532,7 @@ impl VerilogCodegen {
                     current_fn_name: String::new(),
                     current_fn_return_type: String::new(),
                     hoist_fn_locals: false,
+                    clocked_nonblocking: false,
                     param_widths: self.param_widths.clone(),
                     struct_decls: self.struct_decls.clone(),
                     local_types: self.local_types.clone(),
@@ -6153,16 +6160,26 @@ impl VerilogCodegen {
         self.write_line("");
 
         // Section: Functions → always blocks or sub-modules
-        if !functions.is_empty() {
+        // A function named `on_clock` is the opt-in clocked process: it lowers to
+        // an `always @(posedge clk)` that registers module-level `var` state with
+        // reset and `en` gating. Every other function stays combinational. Specs
+        // without an `on_clock` fn are unaffected (byte-identical output).
+        let (clocked, comb): (Vec<&Node>, Vec<&Node>) =
+            functions.iter().partition(|f| f.name == "on_clock");
+        if !comb.is_empty() {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
             self.write_indent();
             self.write_line("// Combinational logic (from function declarations)");
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
-            for f in &functions {
+            for f in &comb {
                 self.gen_verilog_fn(f);
             }
+        }
+        // Clocked process: register module `var` state on the rising clock edge.
+        for f in &clocked {
+            self.gen_verilog_clocked_fn(f, &consts);
         }
 
         // Section: Module-level statements (e.g. calls to array-param functions)
@@ -7192,6 +7209,66 @@ impl VerilogCodegen {
         self.local_arrays.clear();
     }
 
+    /// #1764: emit a clocked `always @(posedge clk)` process for a `fn on_clock`.
+    /// Module-level `var`s are the registered state: on `!rst_n` they take their
+    /// declared init value, and while `en` is asserted the function body runs
+    /// with nonblocking (`<=`) assignments. This is the opt-in sequential path;
+    /// specs without an `on_clock` fn never reach it, so their output is
+    /// byte-identical to before.
+    fn gen_verilog_clocked_fn(&mut self, node: &Node, consts: &[&Node]) {
+        self.current_fn_name = node.name.clone();
+        self.local_types.clear();
+        self.param_types.clear();
+        // Mirror gen_verilog_fn: cache any body-local variable types.
+        for stmt in &node.children {
+            if stmt.kind == NodeKind::StmtLocal && !stmt.name.is_empty() {
+                self.local_types
+                    .insert(stmt.name.clone(), stmt.extra_type.clone());
+            }
+        }
+        self.write_line("");
+        self.write_indent();
+        self.write_line("// -------------------------------------------------------");
+        self.write_indent();
+        self.write_line("// Sequential logic (from clocked function `on_clock`)");
+        self.write_indent();
+        self.write_line("// -------------------------------------------------------");
+        self.write_indent();
+        self.write_line("always @(posedge clk or negedge rst_n) begin");
+        self.indent();
+        self.write_indent();
+        self.write_line("if (!rst_n) begin");
+        self.indent();
+        // Reset each scalar module-level `var` to its declared init value.
+        for c in consts {
+            let is_scalar = Self::parse_array_type(&c.extra_type).is_none()
+                && !Self::is_primitive_array_type(&c.extra_type)
+                && !self.struct_decls.contains_key(&c.extra_type);
+            if c.extra_mutable && is_scalar && !c.children.is_empty() {
+                self.write_indent();
+                self.write(&format!("{} <= ", c.name));
+                self.gen_verilog_expr(&c.children[0]);
+                self.write_line(";");
+            }
+        }
+        self.dedent();
+        self.write_indent();
+        self.write_line("end else if (en) begin");
+        self.indent();
+        self.clocked_nonblocking = true;
+        self.gen_verilog_fn_body(&node.children);
+        self.clocked_nonblocking = false;
+        self.dedent();
+        self.write_indent();
+        self.write_line("end");
+        self.dedent();
+        self.write_indent();
+        self.write_line("end");
+        self.current_fn_name.clear();
+        self.local_types.clear();
+        self.param_types.clear();
+    }
+
     /// Emit a Verilog function body statement list, rewriting the
     /// `if (c) { return A }  <rest>` shape (guarded early return with no
     /// else) into `if (c) begin ... end else begin <rest> end`. Because a
@@ -8005,15 +8082,18 @@ impl VerilogCodegen {
                             (dims.clone(), elem_type.clone()),
                         );
                     } else {
+                        // Clocked bodies (`fn on_clock`) assign registered state
+                        // with nonblocking `<=`; combinational code keeps `=`.
+                        let asn = if self.clocked_nonblocking { " <= " } else { " = " };
                         self.in_lvalue = true;
                         self.gen_verilog_expr(lhs);
                         self.in_lvalue = false;
                         if node.extra_op == "+=" {
-                            self.write(" = ");
+                            self.write(asn);
                             self.gen_verilog_expr(lhs);
                             self.write(" + ");
                         } else {
-                            self.write(" = ");
+                            self.write(asn);
                         }
                         self.gen_verilog_expr(rhs);
                     }

@@ -8,12 +8,35 @@ Last updated: 2026-08-06
 
 ### Что легло
 - Three new workflow files (+242/-0, no existing workflow modified): `.github/workflows/scorecard.yml` — OpenSSF Scorecard, continuous scoring of repository security posture published as SARIF; `.github/workflows/sbom.yml` — a bill of materials per build so consumers can audit the dependency graph against advisories; `.github/workflows/sign-release.yml` — Sigstore keyless signing via OIDC, so release artifacts carry verifiable provenance without long-lived signing keys. `sign-release.yml` is `workflow_dispatch`-triggered, defaults to `contents: read`, and elevates to `contents: write` + `id-token: write` only inside the signing job, using `secrets.GITHUB_TOKEN` alone — no third-party secrets. Moves the repo toward the reproducible-builds / SLSA-provenance direction already named in [FROZEN.md](../FROZEN.md) section 1.3, beyond today's source-hash seal. CI only — no source change.
+# NOW — chore: align license metadata to Apache-2.0 (2026-08-06)
+
+Last updated: 2026-08-06
+
+## chore(license): align README/Cargo.toml/.zenodo.json/CITATION.cff (Closes #1784)
+
+- Branch: `chore/license-align-apache-2.0`
+
+### Что легло
+- License drift fix: `LICENSE` has been Apache-2.0 all along (GitHub API `license.spdx_id = "Apache-2.0"`), but four downstream-facing metadata surfaces still declared **MIT** — `Cargo.toml` (read by `cargo publish`/crates.io/packagers), `.zenodo.json` (archival deposits), `CITATION.cff` (CFF-aware citation tooling) and the `README.md` badge + "## License" section (human readers). Since packagers and archivists consume the metadata rather than the `LICENSE` file, the project was advertising terms it does not ship. All four now say `Apache-2.0`, and the README section points at [LICENSE](../LICENSE) + [NOTICE](../NOTICE). Metadata only — no code change.
 
 ---
 
 # NOW — fix: gen-rust bool negation and integer-width coercion (2026-08-06)
 
 Last updated: 2026-08-06
+
+## feat(gen-verilog): clocked `on_clock` process — the first sequential spec-first design (Refs #1764)
+
+- Branch: `feat/spec-first-clocked-onclock`
+
+### Что легло
+- `bootstrap/src/compiler.rs`: the **first increment of #1764** — the spec-first path was combinational-only (`gen-verilog` emitted no `always @(posedge clk)`, module-level `var` state was never registered). A function named **`on_clock`** is now the opt-in clocked process: module emission partitions functions into `on_clock` (clocked) vs the rest (combinational, unchanged), and lowers `on_clock` to `always @(posedge clk or negedge rst_n)` — on `!rst_n` every scalar module-level `var` takes its declared init value, and while `en` is asserted the body runs with **nonblocking (`<=`)** assignments (new `clocked_nonblocking` flag routes `StmtAssign` to `<=`; new `gen_verilog_clocked_fn`). This is the registered-state building block a **streamed ternary MAC** needs to accumulate across cycles — the Phase-2 MVP gate.
+- `specs/ternary/clocked_counter.t27` (`ClockedCounter`, `var count` + `fn on_clock`) + `.trinity/seals/ternary_ClockedCounter.json`: minimal proof spec.
+- `bootstrap/tests/clocked_counter.rs`: asserts the generated Verilog contains the edge-triggered always block + nonblocking update, then drives a real clock in iverilog — `count` held at 0 under reset, +1/cycle when `en=1`, **frozen** when `en=0`, resumes on `en=1`, and returns to 0 on async reset = ALL_PASS.
+- **Seal-neutral (proven):** specs without an `on_clock` fn are byte-identical — `seal --verify` MATCH on all 10 existing ternary/bitnet specs (verilog/rust/c/zig). FROZEN_HASH resealed (M5). Verified: build clean; 1506 unit tests pass; the 12-file ternary/bitnet/verilog spec suite green; new clocked sim ALL_PASS. Software backends (`gen`/`gen-c`/`gen-rust`) treat `on_clock` as a plain fn — clocked semantics are a hardware concept, so this is intentional for the minimal slice.
+- Next increment toward #1764: data-input ports so a streamed value can be accumulated into the registered `var` each cycle (wrap the bit-exact `dot27` in a clocked pipeline stage).
+
+---
 
 ## fix(gen-rust): bool negation and integer-width coercion (Closes #1775)
 
