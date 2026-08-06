@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:05d1b1f0d98921f00472892c4a22fc47cf7157a631c1a522cb129c78efed0a5a",
   "module": "triformat-gf512",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:51Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:22c9574b8227a4657984fb35dafb67509a85e52c4ac5952cc1453c92222ba08e",
   "spec_path": "specs/numeric/gf512.t27"
 }

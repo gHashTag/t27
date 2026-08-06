@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5d6ce627fa039672894a3149ef9b33134cdc03105d19188d50690e2768032f6d",
   "module": "GFCompetitive",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:52Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:8deff6f95e04a674b0b6677969b4a46c704f13ec0ac17816ce356230eae6b487",
   "spec_path": "specs/numeric/gf_competitive.t27"
 }

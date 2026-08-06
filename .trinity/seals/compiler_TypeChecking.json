@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2298914e5a6baaf660c4c8604c469c0b300c4617c2642a1e0b2f4d725340b5a9",
   "module": "TypeChecking",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:56Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:b051b3ca6f807af462602eb5f0474773b4ccbca27de39134b302713ad3575999",
   "spec_path": "specs/compiler/typechecker.t27"
 }

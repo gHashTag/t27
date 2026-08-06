@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:22949c2aa1a22d0e35f1b0b89f2b1b9720152d1b216d47cf38ef619e8dc62f91",
   "module": "TriGraph",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:8f72ef2f6711c80cfc323ea331747896aa0fb996af8ed2d8585a65fc45619d82",
   "spec_path": "specs/tri/graph/graph.t27"
 }

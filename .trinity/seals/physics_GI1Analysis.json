@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:910fbdc1cea47895fac99d7eb2e81c3c5c6275de229a54efcee8d1bc960606f9",
   "module": "GI1Analysis",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:54Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:48793199ab1d93dd98ca70e4a7041b50c4f26a9ae24d5ccc0cb95f8a50f50d08",
   "spec_path": "specs/physics/gi1_analysis.t27"
 }

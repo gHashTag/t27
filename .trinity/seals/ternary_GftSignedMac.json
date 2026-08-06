@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8b329c99bde2867798a3005e10b14c64269af34430cf903cdc1f9856968317ef",
   "module": "GftSignedMac",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:50:09Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:0e93c434764d67137310496c31eb5b2a317ccf6b42816724275d34b2b29dad1e",
   "spec_path": "specs/ternary/gft_signed_mac.t27"
 }

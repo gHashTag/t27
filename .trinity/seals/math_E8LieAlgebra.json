@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:f89c603dec9ecb85a0a9fd1497054d2dcd80400e094437ac05d8e1825606a6d4",
-  "gen_hash_rust": "sha256:0d9e3be650c44acad031100a4aa1f428d9824a51ebf455f90a7bd7613e7ce6fa",
+  "gen_hash_c": "sha256:39b3ec45f6622bb67a335dca8c3c799fc116b00d347255da94a8fc5315cb5381",
+  "gen_hash_rust": "sha256:535920ae1923d12e972af328367128795e5171cda032afd9c6950fa4306ce354",
   "gen_hash_verilog": "sha256:99d96218c224446b8579eac83325ef3ce64c7402a232584349f66ac094f8f9d6",
   "gen_hash_zig": "sha256:ac25310ae306d9ac92ef3cee79e2350f53bcca261eb116a5492118e69617b1bb",
   "module": "E8LieAlgebra",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:22Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:5c27c6493f67591c01f263dc89641f0e9422c7737159230ce6d571f80d2ba2b3",
   "spec_path": "specs/math/e8_lie_algebra.t27"
 }

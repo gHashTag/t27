@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7e0acbd1d569fd3e23b631f3231d352ce4b77d7733008cbfb178423596be8147",
   "module": "TriReader",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:460d9c7fa17cba1b4af999b79952e527562fc6aaa3d8b77e240647d477f854b8",
   "spec_path": "specs/tri/io/reader.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:bebe5c7931e9dd231f4b9d006278ff36e2e07a83dfbffac9a5d03fd8270dc861",
   "module": "TriFenwick",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:689d3e8dfffa09bc98609a75404dcfcb83cecbc18087b05b8a5a94e0bfe77ae0",
   "spec_path": "specs/tri/trees/fenwick_tree.t27"
 }

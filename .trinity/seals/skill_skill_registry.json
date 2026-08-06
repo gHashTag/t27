@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:5ad94195f865fe7afb6e03f151059a80a9a760c7d6174f87564c51057b36f690",
-  "gen_hash_rust": "sha256:4a5095dc2795ddfbcd4a66f9765d5fb35e3213195ed7eade18c9ee591ca18cc5",
-  "gen_hash_verilog": "sha256:09966d9204a67ac4e4687877ee6d7f9813bb7e20cc59162d5ac6b64d7759325f",
-  "gen_hash_zig": "sha256:51e18577edea80b39acb327306aa45fd699554593649ff09d97cddc49534d6ab",
+  "gen_hash_c": "sha256:b1eb95e81898e52e35d22aab0c39ed8ee7d5836d0ea580834b40c5ec7c71742a",
+  "gen_hash_rust": "sha256:9abf96e3392f5b46d2fc8d212eb70bee5d8fbb45ca65bc8f982c1f94920a43d6",
+  "gen_hash_verilog": "sha256:bfa6ab67661ed9f064051b2a7a7a9b26bd120fd7a53c20c89417ab08a04a8214",
+  "gen_hash_zig": "sha256:c67ab74e861d5b3ec75d89ce3877b9e475db5392c18691c0db0133a9ab6c4507",
   "module": "skill_registry",
   "ring": 12,
-  "sealed_at": "2026-06-17T01:12:38Z",
+  "sealed_at": "2026-08-06T15:25:17Z",
   "spec_hash": "sha256:5f728426aef91bf0b1c1935aeeee839f27380d0adb70862480edc18dabfab716",
   "spec_path": "compiler/skill/registry.t27"
 }

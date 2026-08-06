@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ac9d9fc4e8caaea8ef3e0bcccd1e31b23c7c4281275d51069bfca541fcc127db",
   "module": "Partition",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:53Z",
+  "sealed_at": "2026-08-06T15:25:17Z",
   "spec_hash": "sha256:dab0282c7d4e40a1eb25d81e743dbfac14b5ec8573beaa299f3dcfedf9c8a3fb",
   "spec_path": "specs/fpga/partition.t27"
 }

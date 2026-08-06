@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c9d0128e4dd38772e034708e33ad76a452156ffad7f801f425857df1606a0ca2",
   "module": "GatedLinearAttention",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:004529e85abd9c48919785e32e065358c561574356ddff82ef9bdf5c387fa195",
   "spec_path": "specs/nn/gla.t27"
 }

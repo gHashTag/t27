@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f68c49a517db5021b0ad2aaa6c4cfb77142faf94e7d503ed087bdd133861c312",
   "module": "Handoff",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T15:25:19Z",
   "spec_hash": "sha256:08f082e9497d687dbc081314395ecc56054ba89a30d0ba1c883f60e710d86a36",
   "spec_path": "specs/tri/agent/handoff.t27"
 }

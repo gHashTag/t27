@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d939a917c9353dcb7768e2fc337eaac705713d9675850c90c59cb0e96177e788",
   "module": "PinsIR",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:8f46ba7ad0a214121f9f767a1d34411f435bf8fa19f3368b3182021b738bd4de",
   "spec_path": "specs/pins/ir.t27"
 }

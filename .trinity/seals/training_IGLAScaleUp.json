@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:500bdca712e5550a666be59fb70ac479c816fec2e5884095f576c52f221b6df7",
   "module": "IGLAScaleUp",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:54Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:c126cb5a3a5abe830917b78d33df0998b58efd6c37b62cbc27efbfe7e1ac9806",
   "spec_path": "specs/igla/training/scale_up.t27"
 }

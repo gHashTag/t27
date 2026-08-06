@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ad5515dd917c1348d6d533d252bb8106e959f71feda4633f6bba77fe09b2beeb",
   "module": "TriRandom",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:1ac48181d58fe5733740c1cb738f315f5abfbd2d36b6c6cdfe2ff44bc5788573",
   "spec_path": "specs/tri/utils/random.t27"
 }

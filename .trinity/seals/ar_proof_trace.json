@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:99ee47f25bbf868e6b16ee35611140805c5dbc1b06117722c37fc1a02fe685a3",
   "module": "proof_trace",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:54Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:6e7467e37315d2937d5a5fe571c201e8c96460d5a2ad7bc26cbc2d059a560135",
   "spec_path": "specs/ar/proof_trace.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2d30d3f59532bd1b2bd1487a89d315f71391770c74c0c281554afb9bb7dfbeb7",
   "module": "TernaryGraph",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:d3c98ac5e5aeec6beab3441ee587c77acebe467ab7773fdd7bd06e51dbf48106",
   "spec_path": "specs/isa/ternary_graph.t27"
 }

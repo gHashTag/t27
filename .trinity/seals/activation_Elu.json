@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:640e11b6d45d4501a5476145692a07347f4a9b70d20d1b80a723105b0abe2f76",
   "module": "Elu",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:52Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:80769686b1cd7de71b5a61a790f882226450793f423b8dab1139be10f4df4748",
   "spec_path": "specs/ml/activation/elu_activation.t27"
 }

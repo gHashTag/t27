@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a67688108dfc2b04aaa0c4fa3d0aff975069c4ae1c05904c59db130e2e60ecba",
-  "gen_hash_rust": "sha256:b930e7238bfb3c7dc3a46069e0eb91f4cee13653601ef24d81c6f98cae888ebb",
+  "gen_hash_rust": "sha256:6e069d0e9cd3184bc807eb7b353e87307ea0cb906d87010a14b0b056a9983371",
   "gen_hash_verilog": "sha256:c1fb05d117a68125014c3e80be2cd60db285061dbe8691290d84436a8da4e975",
   "gen_hash_zig": "sha256:f3eb867585862545d4c3419b19f92302bea6c88efb68e41b2cc87e630e8d58e7",
   "module": "tritype-ops",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:56Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:0f04243af98395a8acc9fcd92aa75ff507130b56b1047c142963b38931d74463",
   "spec_path": "specs/base/ops.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:240ea8513f733f4aedbce045fa8c9c749e059ebef11cd8d5231d11124429639c",
   "module": "TriAsync",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:179cd63eb41991497c2b1624ff8750a9c3665a7771e43ac90c432595217c41f7",
   "spec_path": "specs/tri/net/async.t27"
 }

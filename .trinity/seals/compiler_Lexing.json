@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9955625d453f143e714ab59097537f0f5fe0e4ae5262049386156c9287bae097",
   "module": "Lexing",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:56Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:4bc5143fba34174835090dd6b44f8b82feeb5462e3c52407d60d85efb3d6988a",
   "spec_path": "specs/compiler/lexer.t27"
 }

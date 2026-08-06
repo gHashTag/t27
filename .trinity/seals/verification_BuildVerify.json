@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4d185c13864f4c4bbc0ba19ae46bb092e3f5c141677197f539d9f09d964bed23",
   "module": "BuildVerify",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:53Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:0e7e84a8a4ecec39d3893764fe7374abf2f961d12f9def0d3f607fc4e3a7a296",
   "spec_path": "specs/fpga/verification/build_verify.t27"
 }

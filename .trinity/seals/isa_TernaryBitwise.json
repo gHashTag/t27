@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e694404e965a86de9288962a2515e4a0e661298516ffd657697eee1ec8a41ca0",
   "module": "TernaryBitwise",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:22Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:0c3a98e4729dcb6a87717ea23f6e62584b55afaf81163d027d971699b0d3806f",
   "spec_path": "specs/isa/ternary_bitwise.t27"
 }

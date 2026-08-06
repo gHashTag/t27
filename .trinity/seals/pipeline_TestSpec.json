@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:053ca2b656de7d3b88fc51c58656fdee8454ad3918e463d12b6f4ce5248010da",
   "module": "TestSpec",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:fc14c912253e6b52a302909533c7da0fd963384e66b03eda50a3ca9ca7c68659",
   "spec_path": "specs/tri/pipeline/codegen.t27"
 }

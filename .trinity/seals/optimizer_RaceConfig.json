@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:82a5cdaa814401dfed50e61f331b1c0964662233a51108adb85098453d66e871",
   "module": "RaceConfig",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:52Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:8300963eb4317faad525961661a38a190b274dd3cc6956105938cff153ba5fce",
   "spec_path": "specs/ml/optimizer/race_config.t27"
 }

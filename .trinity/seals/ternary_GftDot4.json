@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c764491d15be4c5df0810cf9b59d2dca43d68059f4e3d54a7bf441e3065f8b03",
   "module": "GftDot4",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:47:37Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:4e80040a11ab6ae72d46b8d4487959caa396ddde34d00ebe15ecef1f4bbbb9ed",
   "spec_path": "specs/ternary/gft_dot4.t27"
 }

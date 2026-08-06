@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:08fab30b92dcd76857885545dc4a5d0c799312e29b5034265f33aa8e8b3840d4",
-  "gen_hash_rust": "sha256:0b8ee9d0971732f3132c20c7f2d8089ff10e0f208538371f2e677c786b43f8f4",
+  "gen_hash_c": "sha256:6c2c7aa3e8d7fcec3d346c9f8e60b740e043f12ecaad7aebc2418719f046bc7d",
+  "gen_hash_rust": "sha256:b00fc156e109b6b921dc2b1f7e673e82b0273d9e39c1c342b261fa65ca54dbd6",
   "gen_hash_verilog": "sha256:15ab4937ddc67a7632ff0da3bedbab2b38fc770cc4a93d5a035876e20aaaa55e",
   "gen_hash_zig": "sha256:d30c7a610a1fa8a8c33cedac75bb00724b8ec81ad2d4b0a2e5196808107c6769",
   "module": "Hir",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:53Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:0a8c8fb8b35a2791fbab26a8a95f310c75edeff390902cda5972dabee26abcaa",
   "spec_path": "specs/fpga/hir.t27"
 }

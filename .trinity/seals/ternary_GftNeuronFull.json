@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:41b6030a30eb5806d3ce6452cbe3fa2266cab4817396d00cf573e4bb6331332d",
   "module": "GftNeuronFull",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:50:09Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:28d193eb857d628c8ba1f0b9739de58eb2b5e931e42843f04f21c3aded0aa243",
   "spec_path": "specs/ternary/gft_neuron_full.t27"
 }

@@ -10576,8 +10576,10 @@ impl Compiler {
     pub fn compile_c(source: &str) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
-        let mut ast = parser.parse()?;
-        optimize(&mut ast, &OptConfig::default());
+        let ast = parser.parse()?;
+        // Emit FAITHFUL C from the AST; the C compiler optimizes downstream. See
+        // the note on compile_rust: t27c's optimizer drops reassigned locals and
+        // const-inlines `let`, corrupting the source-level output. Fixes #1455.
         let mut codegen = CCodegen::new();
         codegen.gen_c(&ast);
         Ok(codegen.into_string())
@@ -10586,8 +10588,15 @@ impl Compiler {
     pub fn compile_rust(source: &str) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
-        let mut ast = parser.parse()?;
-        optimize(&mut ast, &OptConfig::default());
+        let ast = parser.parse()?;
+        // Emit FAITHFUL Rust from the AST. Do NOT run t27c's own optimizer on the
+        // Rust backend: several of its passes (const-propagation and the
+        // unconditional copy-propagation / dead-store passes) corrupt a
+        // reassigned mutable local -- e.g. `var x = 0; ... x = a;` loses its
+        // declaration while its uses remain, producing E0425. rustc/LLVM optimize
+        // the emitted code far more reliably, so faithful codegen is both correct
+        // and sufficient here. Verilog/Zig/C backends keep their own pipelines.
+        // Fixes gHashTag/t27#1455.
         let mut codegen = RustCodegen::new();
         codegen.gen_rust(&ast);
         Ok(codegen.into_string())
@@ -13045,12 +13054,21 @@ impl RustCodegen {
                 }
             }
             t if t.starts_with('[') && t.contains(']') => {
-                // [N]T format - convert to Vec
-                if let Some(bracket_end) = t.find(']') {
-                    let inner = &t[bracket_end + 1..];
-                    format!("Vec<{}>", Self::t27_type_to_rust(inner))
+                let end = t.rfind(']').unwrap();
+                let inside = &t[1..end];
+                if let Some(semi) = inside.find(';') {
+                    // Rust-style fixed-size array `[T; N]`: element before `;`,
+                    // size after. (Previously only the Zig-style `[N]T` form was
+                    // handled; `[T; N]` took the empty suffix after `]` and emitted
+                    // `Vec<>` -> E0107. #1457.) Array lengths must be `usize`, and
+                    // spec size consts are u32, so cast in the const-expr position.
+                    let elem = inside[..semi].trim();
+                    let size = inside[semi + 1..].trim();
+                    format!("[{}; {} as usize]", Self::t27_type_to_rust(elem), size)
                 } else {
-                    t.to_string()
+                    // Zig-style `[N]T`: size in brackets, element after `]`.
+                    let after = &t[end + 1..];
+                    format!("Vec<{}>", Self::t27_type_to_rust(after))
                 }
             }
             t => t.to_string(), // Custom type name
@@ -13342,12 +13360,15 @@ impl RustCodegen {
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
                     let base = self.expr_to_rust(&node.children[0]);
-                    let idx = self.expr_to_rust(&node.children[1]);
-                    // t27 indices are u32; Rust requires usize.
-                    if idx.chars().all(|c| c.is_ascii_digit()) {
-                        format!("{}[{}]", base, idx)
+                    let idx = &node.children[1];
+                    let idx_str = self.expr_to_rust(idx);
+                    // Array/Vec indices must be usize. t27 index expressions are
+                    // u32, so cast non-literal indices. Integer literals infer
+                    // usize in index position, so casting them would trip clippy.
+                    if idx.kind == NodeKind::ExprLiteral {
+                        format!("{}[{}]", base, idx_str)
                     } else {
-                        format!("{}[({}) as usize]", base, idx)
+                        format!("{}[({}) as usize]", base, idx_str)
                     }
                 } else {
                     "()".to_string()
@@ -28104,6 +28125,21 @@ mod tests_phase40_coverage {
         assert!(
             out.contains("let min_role = policy"),
             "let binding dropped from Rust output: {}",
+            out
+        );
+    }
+
+    // #1455 regression: two consecutive reassigned locals must BOTH survive.
+    // The optimizer used to drop the first declaration (and const-inline `let`),
+    // leaving `x` undeclared while its uses remained (E0425). Faithful codegen
+    // on the Rust backend emits both `let mut` bindings.
+    #[test]
+    fn test_two_reassigned_locals_survive_1455() {
+        let code = "module M { pub fn f(a: u32) -> u32 { var x = 0; var y = 1; if (a > x) { x = a; y = 2; } return y; } }";
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains("let mut x = 0") && out.contains("let mut y = 1"),
+            "a reassigned local was dropped from Rust output: {}",
             out
         );
     }

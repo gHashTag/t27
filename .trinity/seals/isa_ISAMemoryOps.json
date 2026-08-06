@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e44dd8c25d9154543de121c36c867a5053ecab3d59ee87fcbb3f39dd84dd2e7b",
-  "gen_hash_rust": "sha256:0bb8b0948631f3cb0ce1742951606fef6e963af2f6cdd19b32558208739f867f",
+  "gen_hash_c": "sha256:2468e3dcccc7465c03cad3f1ea0935948559af27dd8c232d8dcc4cb69fb983e8",
+  "gen_hash_rust": "sha256:858c1ad74813c80a21cebf0ac376c84461f1e78cd76450268d1b277dafe366d9",
   "gen_hash_verilog": "sha256:0ed90bffbf87864a428fd4617bdcaaf1b6b27ebfa9526dc5a0ec5e7510746f04",
   "gen_hash_zig": "sha256:9d2ec0992059bd5a0290eb873bc8b4daa04232696b90fd1ab775861db6018ac2",
   "module": "ISAMemoryOps",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:f7162e965fda731076f2fde81af84ec6c20d34c40b2f10a7938613d13645db5e",
   "spec_path": "specs/isa/ternary_memory.t27"
 }

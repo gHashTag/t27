@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5a7857809a69c1cd98f2fffaba8d7e4929d97892526e3860c26f504947dcd7d3",
   "module": "Session",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:22Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:94e35496e81c873a42165d46580afa6fd5d8fd30303756743158a60740a7d72f",
   "spec_path": "specs/server/session.t27"
 }

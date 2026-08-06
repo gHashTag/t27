@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:63565c8114b1ebbfdb6a84720ca26a364a9081948feedd47d927d7f48156b4be",
   "module": "GftBitnetNeuron",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:50:09Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:0784879b4b6b40c4a1f23bbe6ff3166f72fce63d1e76b7acefab0130b040e031",
   "spec_path": "specs/ternary/gft_bitnet_neuron.t27"
 }

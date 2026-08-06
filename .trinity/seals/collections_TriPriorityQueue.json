@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9c751adf9dcb2ecb9ee4af08a3a5c798d6429a14cc80c1bfcf6ac6833882486d",
   "module": "TriPriorityQueue",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T15:25:19Z",
   "spec_hash": "sha256:9bab098fcc7065874c346143e85bec43b9966b0669b6647871e573c7a90ed6c9",
   "spec_path": "specs/tri/collections/priority_queue.t27"
 }

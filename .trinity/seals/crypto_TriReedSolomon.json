@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e78808d8aa598b65f0cbbea9867526885c8f7f1b1fe8e2fa096796dc82ded0b1",
   "module": "TriReedSolomon",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:fc6550b88f43e488b6920e33f140cb90350cae7b7e8b7d557b6aaa2ba8f642ba",
   "spec_path": "specs/tri/crypto/reed_solomon.t27"
 }

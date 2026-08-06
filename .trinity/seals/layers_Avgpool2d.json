@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:a3d5f0feb2ba5c7eb945b1e5c81f03a4637c93be12003e9684ad1a24ed957cc1",
-  "gen_hash_rust": "sha256:d55a6d05208fd649438f7ce77f5e965ebb846983315bd9a47844b449da379e5b",
+  "gen_hash_rust": "sha256:fb98d45ec9dd7081486bbfb521b4e80328ea0ddb81b8169df28cfbfff486df26",
   "gen_hash_verilog": "sha256:956c8d7d055543bdcc02f7149d72a9665e5682040b552d77479912b22b665bfa",
   "gen_hash_zig": "sha256:2154a177905db493b384f7cf7ee03cf09f312c08414aa052af82f4af359a4493",
   "module": "Avgpool2d",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:52Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:7ae9a57dabd5df99284e1aa0b8d46a8c2987e287dde796b1ec59913895fb4a8f",
   "spec_path": "specs/ml/layers/avgpool2d_layer.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:880cd982bd60d01bcba5e9b65366dc7cffa38af9537ce34595f3787726c8919f",
   "module": "Linker",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:53Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:64a8091d1c5d8163af7ce400dee2b8ffbe713584045340e1126a0b7560b04c6e",
   "spec_path": "specs/fpga/linker.t27"
 }

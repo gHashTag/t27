@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3e54ba577a86f390f317b3ddf22fde26cb7a07f0367c0e140981743d62b37a93",
   "module": "TriMsgpack",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:3c5439b5f1e8cc7f55ea6684770f6e2213008609c07390f017a2fae37a5611e4",
   "spec_path": "specs/tri/encoding/msgpack.t27"
 }

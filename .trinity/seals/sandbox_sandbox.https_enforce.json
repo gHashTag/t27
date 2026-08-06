@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:86939a5b4837b941d331ac87fb7e228293758240cd2e9f029973c7dca391b794",
-  "gen_hash_rust": "sha256:46b82afd379b5b9faa134680056616d2364655265578ddc8ee5c00f0c4f07d58",
+  "gen_hash_c": "sha256:3885224fc6a74f10115ce2228485160cd14ddc1b505ccb5d2baab15f0f277b47",
+  "gen_hash_rust": "sha256:7efff30a3fb6509c57631a987df3c8c485af01312ca156f5e1f1c606d9f2e721",
   "gen_hash_verilog": "sha256:588c55ede9aa15067cfc66311878cfce60f52cf46e1598a222500ea960df64dc",
   "gen_hash_zig": "sha256:37d96b6dda065faa8b72ad3018f5fcafd6054c65a573ee4f4524ccc2e99491a0",
   "module": "sandbox.https_enforce",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:52Z",
+  "sealed_at": "2026-08-06T15:25:17Z",
   "spec_hash": "sha256:e1c387ee2e54fabfdcb363337c56c608d48108946f4b089c91a232e9fa8d0f76",
   "spec_path": "specs/sandbox/https_enforce.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:130228319af62bd88c0ff0428a4b10cab74c5a7dcdb9aefccc37c084602c7951",
   "module": "GoldenFloatFamily",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:52Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:61f85cc2260e90d092a60af66d1f7772faf410eb93bd5fb4bdb7e5585e85b80e",
   "spec_path": "specs/numeric/goldenfloat_family.t27"
 }

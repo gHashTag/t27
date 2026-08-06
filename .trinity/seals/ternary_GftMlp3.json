@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2de37f403cea36c3b566c3fcf48ecb119bc8122ae07d4f90ad27b696cf421037",
   "module": "GftMlp3",
   "ring": 12,
-  "sealed_at": "2026-08-06T15:21:30Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:a1d4b41da36bdf009dd70c6d43cb8bc1d5eaceca135675dbd5d25fcce9cff8c7",
   "spec_path": "specs/ternary/gft_mlp3.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:047258089359d9b6eca07a496481bfcea6785da2436e9eb9048b8c0bf51cb397",
   "module": "TriBellmanFord",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:20Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:89a7740fd5e445abd9fa8e839ea57020591daa228f2a83719af15e3e82c15b68",
   "spec_path": "specs/tri/graph/bellman_ford.t27"
 }

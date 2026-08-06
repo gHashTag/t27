@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3339cbec4d296c08e41a01c09da26c17ea202074d31b698582d2b9889b31262a",
   "module": "TriDeque",
   "ring": 12,
-  "sealed_at": "2026-08-06T13:55:21Z",
+  "sealed_at": "2026-08-06T15:25:19Z",
   "spec_hash": "sha256:57170d1f89805ebf6a9516326884d6d969770839fe4bc1c39193fbc4d0c50a07",
   "spec_path": "specs/tri/collections/deque.t27"
 }

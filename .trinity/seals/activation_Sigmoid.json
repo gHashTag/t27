@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ac793050a1d56ee4493a3db343329295a85abdc85f6b0a270d3cf96e4daaf32d",
   "module": "Sigmoid",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:05:52Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:57354f8525068440df541ffe1bd2e9d059248b1c35fcfc3b1cda4cd0beb8c08a",
   "spec_path": "specs/ml/activation/sigmoid_activation.t27"
 }
