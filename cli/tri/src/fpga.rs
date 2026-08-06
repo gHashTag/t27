@@ -3644,10 +3644,23 @@ fn parse_csv_to_raw_ns(path: &PathBuf, channel: Option<&str>) -> Result<(u64, u6
     }
 }
 
+/// Check whether a trimmed VCD line ends with the exact token `token`
+/// (case-insensitive). Only the last whitespace-delimited token is compared;
+/// substring matches inside a larger token do not count. This prevents a
+/// `$comment` block that contains the literal text `$end` from being terminated
+/// early by the heuristic `ends_with("$end")`.
+fn vcd_line_ends_with_token(line: &str, token: &str) -> bool {
+    line.split_whitespace()
+        .last()
+        .map(|t| t.eq_ignore_ascii_case(token))
+        .unwrap_or(false)
+}
+
 /// Parse a minimal VCD file and return a raw-ns (period, low, high) triple for
 /// the requested (or first) net. Supports scalar `$var` wires/regs, multi-bit
 /// logic buses (selecting `vcd_bit`), and real-valued nets (with an optional
-/// voltage threshold). Handles `$dumpoff` / `$dumpon` by suspending sampling.
+/// voltage threshold, or auto-threshold when omitted). Handles `$dumpoff` /
+/// `$dumpon` by suspending sampling.
 fn parse_vcd_to_raw_ns(
     path: &PathBuf,
     signal: Option<&str>,
@@ -3675,6 +3688,7 @@ fn parse_vcd_to_raw_ns(
     let mut selected_id: Option<String> = None;
     let mut selected_is_real: bool = false;
     let mut transitions: Vec<(f64, bool)> = Vec::new();
+    let mut real_samples: Vec<(f64, f64)> = Vec::new();
     let mut last_high: Option<bool> = None;
 
     for line in text.lines() {
@@ -3685,42 +3699,44 @@ fn parse_vcd_to_raw_ns(
         let tokens: Vec<&str> = trimmed.split_whitespace().collect();
 
         // Header sections that must be skipped entirely so their contents are
-        // never mistaken for `$var` declarations or value changes.
+        // never mistaken for `$var` declarations or value changes. Terminators are
+        // matched by exact token only, so embedded `$end`-like strings inside
+        // comments do not close the section early.
         if trimmed.to_lowercase().starts_with("$date") {
             in_date = true;
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.to_lowercase().contains(" $end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_date = false;
             }
             continue;
         }
         if in_date {
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_date = false;
             }
             continue;
         }
         if trimmed.to_lowercase().starts_with("$version") {
             in_version = true;
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.to_lowercase().contains(" $end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_version = false;
             }
             continue;
         }
         if in_version {
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_version = false;
             }
             continue;
         }
         if trimmed.to_lowercase().starts_with("$comment") {
             in_comment = true;
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.to_lowercase().contains(" $end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_comment = false;
             }
             continue;
         }
         if in_comment {
-            if trimmed.to_lowercase().ends_with("$end") || trimmed.eq_ignore_ascii_case("$end") {
+            if vcd_line_ends_with_token(trimmed, "$end") {
                 in_comment = false;
             }
             continue;
@@ -3916,20 +3932,46 @@ fn parse_vcd_to_raw_ns(
 
             // Real value change: `r<value> <id>`.
             if tokens.len() == 2 && tokens[0].starts_with('r') && selected_is_real {
-                let threshold = vcd_threshold_v.copied()
-                    .ok_or_else(|| anyhow!("VCD signal '{}' is real-valued; supply --vcd-threshold-v", signal.unwrap_or(sel)))?;
                 let value_str = &tokens[0][1..];
                 let id = tokens[1];
                 if id == *sel {
                     if let Ok(v) = value_str.parse::<f64>() {
-                        let high = v > threshold;
-                        if last_high != Some(high) {
-                            transitions.push((current_time_s, high));
-                            last_high = Some(high);
+                        if let Some(threshold) = vcd_threshold_v.copied() {
+                            let high = v > threshold;
+                            if last_high != Some(high) {
+                                transitions.push((current_time_s, high));
+                                last_high = Some(high);
+                            }
+                        } else {
+                            // Defer thresholding until the full voltage swing is
+                            // known; auto-threshold will be computed after the loop.
+                            real_samples.push((current_time_s, v));
                         }
                     }
                 }
                 continue;
+            }
+        }
+    }
+
+    // Auto-threshold for real-valued VCD nets: if no threshold was supplied,
+    // compute the midpoint of the observed voltage swing. This lets users import
+    // real-valued oscilloscope / logic-analyzer exports without manually measuring
+    // the high/low levels first.
+    if selected_is_real && vcd_threshold_v.is_none() && !real_samples.is_empty() {
+        let vmin = real_samples.iter().map(|(_, v)| *v).fold(f64::INFINITY, f64::min);
+        let vmax = real_samples.iter().map(|(_, v)| *v).fold(f64::NEG_INFINITY, f64::max);
+        let threshold = (vmin + vmax) / 2.0;
+        eprintln!(
+            "[measured-to-lean] VCD real-valued signal auto-threshold: {:.3} V (swing {:.3} V .. {:.3} V)",
+            threshold, vmin, vmax
+        );
+        let mut last_high: Option<bool> = None;
+        for (t, v) in &real_samples {
+            let high = *v > threshold;
+            if last_high != Some(high) {
+                transitions.push((*t, high));
+                last_high = Some(high);
             }
         }
     }
@@ -5279,6 +5321,51 @@ mod tests {
         std::fs::remove_file(&vcd_tmp).unwrap();
     }
 
+    /// Real-valued VCD without an explicit threshold: auto-threshold must pick
+    /// the midpoint of the observed 0.0 V .. 3.3 V swing and recover the clock.
+    #[test]
+    fn test_parse_vcd_real_auto_threshold() {
+        let vcd = generate_vcd_real(25_000_000.0, 20);
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_real_auto_threshold_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk_analog"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
+    /// A `$comment` block containing the literal substring `$end` before the
+    /// real `$end` terminator must not corrupt the signal dictionary. The old
+    /// heuristic `ends_with("$end")` terminated early and swallowed the following
+    /// `$var` declaration, causing "VCD has no scalar or selectable logic net".
+    #[test]
+    fn test_parse_vcd_comment_with_embedded_end_token() {
+        let mut vcd = String::new();
+        vcd.push_str("$date today $end\n");
+        vcd.push_str("$version tri test $end\n");
+        vcd.push_str("$timescale 100 ps $end\n");
+        vcd.push_str("$comment\n");
+        vcd.push_str("This comment mentions the $end token but is not finished yet.\n");
+        vcd.push_str("Another line with $end embedded in the text.\n");
+        vcd.push_str("$end\n");
+        vcd.push_str("$scope module top $end\n");
+        vcd.push_str("$var wire 1 ! cclk $end\n");
+        vcd.push_str("$upscope $end\n");
+        vcd.push_str("$enddefinitions $end\n");
+        vcd.push_str("$dumpvars\n");
+        vcd.push_str("0!\n");
+        vcd.push_str("$end\n");
+        vcd.push_str(&generate_vcd_clock(25_000_000.0, 20));
+        let vcd_tmp = std::env::temp_dir().join(format!("tri_test_vcd_comment_embedded_end_{}.vcd", std::process::id()));
+        std::fs::write(&vcd_tmp, vcd).unwrap();
+        let (period_ns, low_ns, high_ns) = parse_vcd_to_raw_ns(&vcd_tmp, Some("cclk"), 0, None).unwrap();
+        assert_eq!(period_ns, 40, "period {} should be 40 ns", period_ns);
+        assert_eq!(low_ns, 20, "low {} should be 20 ns", low_ns);
+        assert_eq!(high_ns, 20, "high {} should be 20 ns", high_ns);
+        std::fs::remove_file(&vcd_tmp).unwrap();
+    }
+
     /// VCD with a multi-line $var declaration (size and identifier on one line,
     /// name on the next). The parser must accumulate tokens until `$end`.
     #[test]
@@ -5731,6 +5818,44 @@ mod tests {
                         i, half_ns, prev, if i > 0 { vccints[i - 1] } else { *vccint }, *vccint, temp, corner
                     );
                     prev = half_ns;
+                }
+            }
+        }
+    }
+
+    /// The PVT-aware half-period bound is monotone with the process-corner
+    /// ordering ff ≤ tt ≤ ss: moving to a worse corner never shrinks the bound.
+    #[test]
+    fn test_pvt_half_ns_monotone_in_process_corner() {
+        let temps = [PVT_TEMP_MIN_C, -20_i64, 0_i64, 25_i64, PVT_TEMP_MAX_C];
+        let vccints = [PVT_VCCINT_MIN_MV, 950_u64, 1000_u64, 1050_u64, PVT_VCCINT_MAX_MV];
+        let corner_pairs = [
+            (ProcessCorner::Ff, ProcessCorner::Tt),
+            (ProcessCorner::Tt, ProcessCorner::Ss),
+            (ProcessCorner::Ff, ProcessCorner::Ss),
+        ];
+        for temp in temps {
+            for vccint in vccints {
+                for (c1, c2) in &corner_pairs {
+                    let ctx1 = PvtContext {
+                        temp_c: temp,
+                        vccint_mv: vccint,
+                        vccaux_mv: 2700,
+                        process_corner: c1.clone(),
+                    };
+                    let ctx2 = PvtContext {
+                        temp_c: temp,
+                        vccint_mv: vccint,
+                        vccaux_mv: 2700,
+                        process_corner: c2.clone(),
+                    };
+                    let half1 = n25q128_min_sck_half_ns_pvt(&ctx1);
+                    let half2 = n25q128_min_sck_half_ns_pvt(&ctx2);
+                    assert!(
+                        half1 <= half2,
+                        "PVT half-period bound not monotone in process corner: {} ns (ff) > {} ns ({:?}) at temp={}, vccint={}",
+                        half1, half2, c2, temp, vccint
+                    );
                 }
             }
         }

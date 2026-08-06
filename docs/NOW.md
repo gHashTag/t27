@@ -1649,19 +1649,37 @@ Expected 25,664 elements, 821,248-bit packed vector (~0.783 MiBit), still under
 
 ---
 
-## Wave Loop 420 — physical capture, relay gate, or instrument-import depth (Issue #1361)
+## Wave Loop 420 — Variant C fallback: VCD exact-terminator + auto-threshold, PVT corner monotonicity (Closes #1361)
 
-- Branch: `wave-loop-420` (to create after W419 merge)
+- Branch: `wave-loop-420`
 - Issue: #1361
-- PR: to open after work
-- Report: `docs/reports/WAVE_LOOP_420_REPORT.md` (to create)
-- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-05.md` (to create)
-- Cooperation W421: `docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-05.md` (to create)
+- PR: #1362 (merge blocked by base-branch policy; requires review/approval)
+- Report: `docs/reports/WAVE_LOOP_420_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W420_2026-07-06.md`
+- Cooperation W421: `docs/reports/FPGA_LOOP_COOPERATION_W421_2026-07-06.md`
 
-### Candidate variants
-- Variant A: capture real CCLK for `OSCFSEL=6/7` once P12 is wired and the analyzer / DLC10 cable is available.
-- Variant B: implement a real `--relay-port` backend once a relay board or USB power switch is available.
-- Variant C: further instrument-import depth (VCD auto-threshold, CSV samplerate auto-detection), PVT envelope refinement with real curves if available, or one safe gen-verilog #1245 sub-fix.
+### What landed (Variant C — bench still blocked)
+- `cli/tri/src/fpga.rs`
+  - Added `vcd_line_ends_with_token` helper and applied exact `$end` token terminator to VCD `$date`/`$version`/`$comment` sections (the W419 report claimed this, but the merged diff did not include it).
+  - Added real-valued VCD auto-threshold: computes `50% (vmin + vmax)` when `--vcd-threshold-v` is omitted.
+  - Added regression tests `test_parse_vcd_comment_with_embedded_end_token` and `test_parse_vcd_real_auto_threshold`.
+  - Added `test_pvt_half_ns_monotone_in_process_corner`.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `pvt_half_ns_monotone_in_process_corner`.
+- `fpga/HARDWARE_SSOT.md`
+  - Added §3.6.17 documenting W420 VCD/CSV/PVT improvements.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired, DLC10 cable missing.
+- Real relay cold-POR gate — no relay board / USB power switch available.
+
+### Verification
+- `cargo test -p tri vcd`: **PASS** (13 tests).
+- `cargo test -p tri csv`: **PASS** (11 tests).
+- `cargo test -p tri pvt`: **PASS** (10 tests).
+- `cargo test -p tri fpga::tests`: **PASS** (48 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test`: parse/typecheck/GF16/gen-Zig/gen-Rust/gen-Verilog/seal/C/fixed-point PASS; gen-Verilog yosys smoke has 16 pre-existing failures from weak point #1245.
 
 ---
 
