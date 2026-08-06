@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 433)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 434)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -22,7 +22,7 @@ hardware proof backend, plus ternary compute projects **TernaryCore** and
 **BitNet-RISCV-Multicore** — validate t27's direction while raising the bar for
 differentiation.
 
-This note documents the competitive landscape as input for Wave Loops 421–433
+This note documents the competitive landscape as input for Wave Loops 421–434
 and subsequent waves. W429 added raw-ns quantified OSCFSEL theorems and a
 machine-readable `--json` path for `tri fpga measured-to-lean`, reinforcing the
 physical boot-evidence loop. W430 added live XADC readout via `tri fpga
@@ -34,13 +34,18 @@ a computable `Bool` envelope check with a proven `Decidable` equivalence, and
 emitting a closed-vocabulary `recommendation` field in the `measured-to-lean --json`
 summary. W432 extended the formal boot-evidence line with per-process-corner
 (`ff`/`tt`/`ss`) raw-ns OSCFSEL theorems, quantifying the PVT-aware safety claim
-over all documented Artix-7 CCLK variants and all process corners. **W433
-composes the W431 XADC envelope bound with the W432 per-process-corner theorem,
+over all documented Artix-7 CCLK variants and all process corners. W433
+composed the W431 XADC envelope bound with the W432 per-process-corner theorem,
 adding `xadc_envelope_justifies_cclk_variant_raw_ns_pvt` and its transaction
 variant — a single theorem that says any live in-envelope XADC operating point
-justifies the nominal raw-ns CCLK capture for any OSCFSEL. The physical bench and
-the master-merge debt remain blocked, so the 7 residual `gen-verilog` yosys
-smoke failures are documented but not cleared.**
+justifies the nominal raw-ns CCLK capture for any OSCFSEL. **W434 applies that
+bridge to a real captured silicon operating point (temp≈41 °C, VCCINT≈1.00 V,
+VCCAUX≈1.81 V, ss corner) from `tri fpga read-xadc`, generating both a
+machine-checkable `measured-to-lean` theorem and a dedicated
+`xadc_live_w434_justifies_cclk_variant_raw_ns_pvt` theorem in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean`. The physical bench and the
+master-merge debt remain blocked, so the 7 residual `gen-verilog` yosys smoke
+failures are documented but not cleared.**
 
 ---
 
