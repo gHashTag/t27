@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:64397b0d196893ac8f1b4530ac47e59d8f4a8c1b93ea42ba6d22e63f26e39ab3",
   "module": "TriFilesystem",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:a3fda1b27268b6f153abc92a5337cb06dc0a9b216e71812d9559b30ed8d70b91",
   "spec_path": "specs/tri/io/filesystem.t27"
 }

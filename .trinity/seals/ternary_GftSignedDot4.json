@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:3574dfc7f86a6515918460b2ede72242f24f68013a28638786a4d003cb0dbc7d",
+  "gen_hash_rust": "sha256:707dacdcb8d322e2c85fff2a062743d0006c71734399f3110cda2ae74b4796a8",
+  "gen_hash_verilog": "sha256:36aaccea883d3fd649c7c9511ae3816c476d6ebc93c286173727445b4bb4f9a5",
+  "gen_hash_zig": "sha256:6eda4387dc137b41c49144684d32d78ebe98b51dbe68655ac2948af8f2af16ab",
+  "module": "GftSignedDot4",
+  "ring": 12,
+  "sealed_at": "2026-08-06T15:25:18Z",
+  "spec_hash": "sha256:94e2a13e596666351f72b8c494d7dead8f3e1ff1fff835ace2049a7191b5b1b5",
+  "spec_path": "specs/ternary/gft_signed_dot4.t27"
+}

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:23c0a57c1589923a73f36dfed6c657cc54229d4ae47d8dbb712524c7446117da",
   "module": "sandbox.orphan_detection",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:16Z",
+  "sealed_at": "2026-08-06T15:25:17Z",
   "spec_hash": "sha256:3076c6f6ada328638763f370697f192fea2be5b311c3dab795e995d798a7b91e",
   "spec_path": "specs/sandbox/orphan_detection.t27"
 }

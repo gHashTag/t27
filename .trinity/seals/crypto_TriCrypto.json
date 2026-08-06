@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:bb66c4bd7db62f3931c0d3ff82ce44729cb0688106d4928e857f9a600077733f",
   "module": "TriCrypto",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:6b5d36b7cfc6f68858a34b7d78bfe043b0e9693f8ba3cf4ef4229781f2db521b",
   "spec_path": "specs/tri/crypto/crypto.t27"
 }

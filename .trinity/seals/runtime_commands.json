@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5b172bb04c6bae3015bc10308a3e2e8e64ad86f14c128a579d7fd042369a52c7",
   "module": "commands",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:16Z",
+  "sealed_at": "2026-08-06T15:25:17Z",
   "spec_hash": "sha256:12dccaef1d7f63586257e69d4df35e9b6214d5ab6625191abc8034daafb5613e",
   "spec_path": "compiler/runtime/commands.t27"
 }

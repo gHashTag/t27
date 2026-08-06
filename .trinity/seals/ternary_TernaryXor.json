@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5f370102c3f5441024b042535ae8b832700452963666e62b039f49e30a6697e9",
   "module": "TernaryXor",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:17Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:55c11f1e34587b8020b7c8af7cad2c1768eda245bc988fc1ea54c698c9e21292",
   "spec_path": "specs/ternary/ternary_xor.t27"
 }

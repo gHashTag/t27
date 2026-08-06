@@ -7599,9 +7599,11 @@ impl VerilogCodegen {
                 self.gen_verilog_expr(&stmt.children[0]);
                 self.write_line(") begin");
                 self.indent();
-                for s in &stmt.children[1].children {
-                    self.gen_verilog_stmt(s);
-                }
+                // Recurse so a `return` NESTED inside this then-block (e.g.
+                // `if(inner){return 0} return X`) is also lowered as an early
+                // return (if/else), not two sequential assigns where the last
+                // wins -- the latter silently discards the guarded value.
+                self.gen_verilog_fn_body(&stmt.children[1].children);
                 self.dedent();
                 self.write_indent();
                 self.write_line("end else begin");
@@ -29130,6 +29132,38 @@ mod tests_w458 {
         assert!(
             !v.contains("// synthesis translate_on"),
             "generated Verilog must not contain // synthesis translate_on:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn nested_return_lowers_as_early_exit() {
+        // A `return` nested inside an if-block must lower as a real early exit
+        // (if/else), not two sequential function-name assigns where the last
+        // write wins and silently discards the guarded value. Regression guard
+        // for the GF-T negative-zero cancellation bug: `sadd(-1.0,+1.0)` was
+        // returning the fall-through magnitude instead of 0.
+        let src = r#"module M {
+            pub fn f(x: i32, y: i32) -> i32 {
+                if (x >= y) {
+                    var r : i32 = x - y;
+                    if (r == 0) { return 0; }
+                    return (1 << 16) | r;
+                }
+                return 99;
+            }
+            test t { assert_eq(f(5, 5), 0); }
+        }"#;
+        let v = Compiler::compile_verilog(src).expect("compile should succeed");
+        // Collapse whitespace so the structural check is layout-independent.
+        let flat: String = v.split_whitespace().collect::<Vec<_>>().join(" ");
+        // Fixed: the cancellation assign sits in a branch whose sibling `else`
+        // carries the fall-through — `f = 0; end else begin`. The buggy lowering
+        // instead emitted `f = 0; end` immediately followed by an unconditional
+        // `f = (65536 | r);`, so the else wrapper is the discriminator.
+        assert!(
+            flat.contains("f = 0; end else begin"),
+            "nested return did not lower as an early-exit if/else:\n{}",
             v
         );
     }

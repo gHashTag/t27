@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b072689204068ebf5495901e4f8e4069e38780c3f4d1752b2706e931d9802f49",
   "module": "KlDivergence",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:5cf232894b16d3f2e49d5231706441904d9dc620db66d7f1c95b6d8caf819990",
   "spec_path": "specs/ml/loss/kl_divergence.t27"
 }

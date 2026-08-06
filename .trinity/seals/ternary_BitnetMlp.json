@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2b10889a1a57c4e8f7f06091f4982136008122e6d6f0cf1661f63c4fa20034fa",
   "module": "BitnetMlp",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:17Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:ef76b7df5174a89b3ec92308edbdf4bf64bccb43c8588f13d7329a31c1178f58",
   "spec_path": "specs/ternary/bitnet_mlp.t27"
 }

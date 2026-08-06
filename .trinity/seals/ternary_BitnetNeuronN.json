@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a85080e6b3f98d396549653b6465b0028d0869912cb2ad1810f69f8a9feb445a",
   "module": "BitnetNeuronN",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:17Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:a883bca4707ec255fb097d7afbcbaf9d6a2198a9aefac9c29ed1e4c9bc2b8b24",
   "spec_path": "specs/ternary/bitnet_neuron_nchunk.t27"
 }

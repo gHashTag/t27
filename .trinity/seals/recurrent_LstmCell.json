@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4ef4da428eb8cb661e9c82b4719ccdb90fc5e4814e29ee701d785e2fe65a6686",
   "module": "LstmCell",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:2b97b9758290cb2c035ad4d058a26f4c081f428c20230cd076c72129f5d17b6c",
   "spec_path": "specs/ml/recurrent/lstm_single.t27"
 }

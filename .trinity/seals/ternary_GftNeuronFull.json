@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:d4f8390f0ec28d79a82074eabcb71a11edc0d626c999144c6b902885d58d6fce",
+  "gen_hash_rust": "sha256:e9776fd96caa5c75d556d7b12c4a59491331baa2660c84230baf848144f961c2",
+  "gen_hash_verilog": "sha256:51b5475955f185ac381162e39048ed6e2f3e6fefa55ccafac1fa8c1e2301601e",
+  "gen_hash_zig": "sha256:41b6030a30eb5806d3ce6452cbe3fa2266cab4817396d00cf573e4bb6331332d",
+  "module": "GftNeuronFull",
+  "ring": 12,
+  "sealed_at": "2026-08-06T15:25:18Z",
+  "spec_hash": "sha256:28d193eb857d628c8ba1f0b9739de58eb2b5e931e42843f04f21c3aded0aa243",
+  "spec_path": "specs/ternary/gft_neuron_full.t27"
+}

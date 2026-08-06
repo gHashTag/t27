@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:68e6cd80032bdc278cb75a83057d76551565e59d6a3e26aee00d2219c7bae787",
   "module": "HIR_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:a01fd77f5b67719785f929e4631a189fbdbc932bf81bc3d131345ee1cf6744cc",
   "spec_path": "specs/fpga/testbench/hir_tb.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:bcb2be20aab2240b75397b6edca8b76267e9edfa71beabe95886d03aa55217a4",
   "module": "TriRegexAdvanced",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:19Z",
   "spec_hash": "sha256:e8cdd8c7cc567ec42e6d72b5264bcabc59a1460a07e8957c36cdcf6f14edf837",
   "spec_path": "specs/tri/search/regex_advanced.t27"
 }

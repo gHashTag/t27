@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c1233821582fd861300832cb770b0ccffd6cf25f1aefbcac464ac1b8adbf3744",
   "module": "PackedTrit",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:17Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:01abf020304a8dc0ce0df51ec4596f8d0e743cfce6785505b8414b7aca0c65b3",
   "spec_path": "specs/ternary/packed_trit.t27"
 }

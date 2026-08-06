@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:940d9201db3f392722685709d54dd7ce18b09136235fcb20ff26484ab703df56",
   "module": "triformat-tf3",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:fd487ae8a72c2bb8db20ec41e9d56b0ca480f27c86d9a5b85ee5fe04e31479b9",
   "spec_path": "specs/numeric/tf3.t27"
 }

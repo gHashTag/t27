@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d4320a009b4a1028567ba1195f03988621fe46c2762b31553f7f5aede81ba6af",
   "module": "TriMergeSort",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:3d3f312ccb3cbfaf519387106ed9dd1453c09e42747b98e8f9efb8492fb14bd2",
   "spec_path": "specs/tri/sort/merge_sort.t27"
 }

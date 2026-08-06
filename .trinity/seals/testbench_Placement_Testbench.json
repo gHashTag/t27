@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3e2dcfefb525387e1f075477b9a74eed13d6ebd91960592993d94b75706124ec",
   "module": "Placement_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:f1e9aedeba6e513fe9ed235d0501d552b46aa6c3e0c1cb7271888ce20d8f0c76",
   "spec_path": "specs/fpga/testbench/placement_tb.t27"
 }

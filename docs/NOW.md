@@ -1,3 +1,91 @@
+# NOW — feat(spec): 3-layer GF-T MLP (4→3→2→1) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): 3-layer BitNet×GF-T MLP — deep inference on the layer3 brick (Refs #1764)
+
+- Branch: `feat/gft-mlp3`
+
+### Что легло
+- `specs/ternary/gft_mlp3.t27` (`GftMlp3`): a spec-first **3-layer BitNet×GF-T MLP (4→3→2→1)**. Four shared GF-T16 activations → layer 1 (3 neurons) → 3 hidden trits, re-embedded {N→−1.0, Z→0, P→+1.0} → layer 2 (2 neurons) → 2 trits, re-embedded → layer 3 (1 output neuron) → output trit. Every neuron is `sign(Σ w_i·a_i)` in signed GF-T (RNE, zero-aware). Builds directly on last cycle's `gft_layer3` (the M→N brick) + `gft_mlp2`'s inter-layer re-embed — this is the first genuinely **deep** (3-layer) spec-first GF-T net.
+- Verification: **bit-exact to the ideal oracle over 400 vectors** (`tests/gft_mlp3_vectors.txt`), iverilog `$fscanf` in `bootstrap/tests/gft_mlp3.rs`. Same **doubly-grounded** oracle as layer3 — vectors emitted only where the faithful integer GF-T model AND an independent exact-float64 layer-by-layer sign composition agree (0/400 disagreements). Two in-spec `test`s (`all_pos`, `cancel_out`) cross-checked against the Python oracle.
+- No compiler change (`on_comb`, 24 ports: 20 trit weights + 4 acts). Fresh seal `.trinity/seals/ternary_GftMlp3.json` (`seal --verify` MATCH). New integration test 400/400.
+
+---
+
+# NOW — feat(spec): GF-T BitNet layer of 3 neurons (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): BitNet×GF-T layer of 3 neurons — M inputs → N packed trits (Refs #1764)
+
+- Branch: `feat/gft-layer3`
+
+### Что легло
+- `specs/ternary/gft_layer3.t27` (`GftLayer3`): a spec-first **BitNet×GF-T layer of 3 neurons**. Four shared real-valued GF-T16 activations (a0..a3) feed three neurons, each with its own ternary weight vector {N=0→−1, Z=1→0, P=2→+1}; every neuron is `sign(Σ w_i·a_i)` in signed GF-T (RNE, zero-aware) → a trit, and the three trits are packed low→high 2 bits each (`result = n0 | n1<<2 | n2<<4`). This is one full BitNet layer (M→N); it composes with `gft_mlp2`'s inter-layer re-embed. The natural next layer above the single `gft_neuron_full`.
+- Verification: **bit-exact to the ideal oracle over 400 vectors** (`tests/gft_layer3_vectors.txt`), checked in `bootstrap/tests/gft_layer3.rs` via iverilog `$fscanf`. The oracle is **doubly-grounded**: each vector is generated only where a faithful integer transcription of the GF-T arithmetic AND an independent exact-float64 sign of the true dot product agree (0/400 disagreements at generation → non-circular). Two representative in-spec `test`s (`lanes`, `all_zero`) additionally cross-checked against the Python oracle.
+- No compiler change (uses `on_comb`, 16 ports). Fresh seal `.trinity/seals/ternary_GftLayer3.json` (`seal --verify` MATCH). Full unit suite green; new integration test passes 400/400.
+
+---
+
+# NOW — fix(codegen): gen-verilog nested early-return lowering (2026-08-06)
+
+Last updated: 2026-08-06
+
+## fix(codegen): lower a `return` nested inside an `if` block as a real early exit (Refs #1697)
+
+- Branch: `fix/gen-verilog-nested-early-return`
+
+### Что легло
+- **Root-cause compiler fix** for the negative-zero cancellation class found last cycle. `gen_verilog_fn_body`'s guarded-return rewrite (`if(cond){…return} <rest>` → `if(cond){…} else {<rest>}`) previously only fired at the TOP level of a function body: a `return` nested inside the then-block (`if(outer){ …; if(inner){return A} return B }`) fell through to two sequential Verilog function-name assigns, and last-write-wins silently discarded the guarded value `A`. Fix: emit the then-block via a recursive `gen_verilog_fn_body` call so the nested `if(inner){return A} return B` is itself lowered as `if(inner) A else B`.
+- Verified on the `sadd` cancellation repro (`/tmp/nr.t27`): `f(5,5)` now `= 0` (was `65538`-class fall-through), `f(7,5) = 65538`, `f(3,5) = 99` — all correct under `icarus-simulate`.
+- Internal regression test `nested_return_lowers_as_early_exit` (asserts the emitted Verilog wraps the fall-through in `… end else begin …`, not a sequential second assign).
+- **Seal impact:** 0/33 ternary specs change; a small minority of the full corpus (~2%, all latent-bug specs) now emit corrected Verilog with stale-but-non-blocking seals (seal-staleness only warns) — a documented follow-up reseal, not a merge blocker. Full suite: **1536 passed, 0 failed**.
+
+---
+
+## feat(spec): end-to-end 2-layer BitNet×GF-T MLP + signed-add cancellation fix (Refs #1764)
+
+- Branch: `feat/gft-mlp2`
+
+### Что легло
+- `specs/ternary/gft_mlp2.t27` (`GftMlp2`) + seal + test + vectors: a spec-first **2-layer BitNet×GF-T MLP** — GF-T16 activations (a1,a2) → layer 1 (2 neurons, trit weights) → 2 hidden trits → re-embedded as GF-T {N→-1,Z→0,P→+1} → layer 2 (1 neuron) → output trit. End-to-end multi-layer inference, bit-exact to the ideal oracle composition over 3000 vectors.
+- **Correctness fix (latent bug in 4 merged signed specs):** `sadd(-1.0, +1.0)` returned `0x10000` (a wrong NEGATIVE ZERO) instead of `0` on exact cancellation when the larger operand is negative. Root cause: gen-verilog does not lower a `return` NESTED inside an `if` block as an early return, so `if (ma>=mb){ ...; if(r==0) return 0; return (sa<<16)|r; }` fell through to `(sa<<16)|0` when r==0. Restructured `sadd` to a single TOP-LEVEL `if (r==0) return 0` guard in `gft_signed_mac`, `gft_signed_dot4`, `gft_bitnet_neuron`, `gft_neuron_full`, `gft_mlp2`; re-verified all (signed_mac now with cancellation-heavy vectors that catch the bug). The MLP was the first design to hit it (inter-layer ±1.0 activations cancel exactly).
+No compiler change (uses `on_comb`); 1535 unit tests pass. gen-verilog nested-early-return is a compiler limitation to fix separately.
+
+---
+
+# NOW — feat: complete BitNet×GF-T neuron (MAC + activation) + synth fix (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): full GF-T neuron (weighted sum + sign activation) + synthesizable signed_mac (Refs #1764)
+
+- Branch: `feat/gft-neuron-activation`
+
+### Что легло
+- `specs/ternary/gft_neuron_full.t27` (`GftNeuronFull`) + seal + test + vectors: **a COMPLETE BitNet×GF-T neuron** — ternary weights {-1,0,+1} × real-valued GF-T16 activations summed in signed GF-T (RNE), then a **sign activation quantizes the sum to a TRIT output {N,Z,P}**. So it is **layer-composable** (trit in the weights, trit out), the full inference unit = weighted sum + nonlinearity. Bit-exact to the ideal oracle over 3000 vectors; **yosys synth_xilinx → 9542 LUT (synthesizes to Artix-7)**.
+- `specs/ternary/gft_signed_mac.t27` (fix): the merged signed MAC still had a `while`-loop normalization (iverilog-correct but NOT yosys-synthesizable). Rewrote it flat (12 conditional shifts), re-verified oracle-exact (300 vectors) and **now synthesizes (yosys 0 errors)**. Debt from cycle 14 closed.
+No compiler change (uses `on_comb`, on master); 1535 unit tests pass. The GF-T inference stack is now a complete, synthesizable neuron.
+
+---
+
+# NOW — feat: BitNet×GF-T neuron + signed GF-T dot4 (synthesizable) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): BitNet×GF-T inference neuron + signed GF-T 4-term MAC (Refs #1764)
+
+- Branch: `feat/gft-bitnet-neuron-signed-dot4`
+
+### Что легло
+- `specs/ternary/gft_bitnet_neuron.t27` (`GftBitnetNeuron`) + seal + test + vectors: **the BitNet×GF-T inference primitive** — a neuron with TERNARY weights {-1,0,+1} and REAL-VALUED GF-T16 activations. Each trit weight selects +a / 0 / -a of its GF-T activation; the four signed contributions are summed in signed GF-T (RNE, zero-aware). Fuses the two project threads (BitNet ternary + GF-T format). Bit-exact to the ideal oracle over 3000 vectors; **yosys synth_xilinx → 9763 LUT + 1320 CARRY4 (synthesizes to Artix-7)**.
+- `specs/ternary/gft_signed_dot4.t27` (`GftSignedDot4`) + seal + test + vectors: a signed GF-T16 4-term MAC (real-valued matmul tile with negatives + cancellation), bit-exact to the oracle balanced tree over 3000 vectors.
+- **Synthesis finding:** a bounded `while` loop inside a Verilog function is NOT yosys-synthesizable ("Function can only be called with constant arguments"). The signed subtract's left-normalization was rewritten as a FLAT unrolled sequence (12 conditional shifts, ≥ the ~9 max) — functionally identical (re-verified 3000 vectors), now synthesizable. Bitstream/place-and-route (nextpnr) remains owner-gated (not installed locally).
+No compiler change (uses `on_comb`, on master); 1535 unit tests pass.
+
+---
+
 # NOW — chore: reseal specs after the codegen repair #1790 (2026-08-06)
 
 Last updated: 2026-08-06

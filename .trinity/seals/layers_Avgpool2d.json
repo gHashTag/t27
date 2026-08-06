@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2154a177905db493b384f7cf7ee03cf09f312c08414aa052af82f4af359a4493",
   "module": "Avgpool2d",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:7ae9a57dabd5df99284e1aa0b8d46a8c2987e287dde796b1ec59913895fb4a8f",
   "spec_path": "specs/ml/layers/avgpool2d_layer.t27"
 }

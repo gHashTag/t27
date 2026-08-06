@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8f7638c5693908f4b92e3b945e049d6e0becf9165d8bd0c2bfb1f8bbac162000",
   "module": "Memory_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:2d603f5515afaf26e741ea96ddc89c131a83ab75694988fd7bd7e795c6933176",
   "spec_path": "specs/fpga/testbench/memory_tb.t27"
 }

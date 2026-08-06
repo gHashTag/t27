@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3a091dffe08d7b573186bddd1ffe136281d6f025c21e1b416c27e72949332703",
   "module": "TriSpecParser",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:5bb8cead0f512228a91fc385bd5d660ab111eb1c47c1206476f780835ebdecec",
   "spec_path": "specs/tri/pipeline/spec_parser.t27"
 }

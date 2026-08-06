@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1651d72ffa28e8657c527d144c187e3fde5ce6f3dd2d0699c99e33971a61d091",
   "module": "Dropout",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:3d62664b21a7e9bd7b6d63879764780b5c5af3cf661f04eee7b90a8adbaa5d1d",
   "spec_path": "specs/ml/layers/dropout_layer.t27"
 }

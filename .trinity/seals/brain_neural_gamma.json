@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d81a2551539f9f3fd11b57f9b1532d6be081b4c433c368b755ba610eb0385d6a",
   "module": "neural_gamma",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:16Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:17b752d50b7ce33978766df2fd79795e20ab8af9c998c1d5a00b63d6a2a17bb7",
   "spec_path": "specs/brain/neural_gamma.t27"
 }

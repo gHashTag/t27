@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1ea2f4d9b1323d6734fccd13d58b7550d37a7fb9a535896ed09564a02628f559",
   "module": "gf16_bfloat16_nmse",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:16Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:1d810343f5e26d852c7ebd931bba310d28129b26915bf4a6ec71c066d1199e1c",
   "spec_path": "specs/benchmarks/gf16_bfloat16_nmse.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c4347933c723230bd82c01dcc3cbc2de7f093b6bb4be248469b757040b86f279",
   "module": "SelfAttention",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:20563b5638a432017af358e732d4c4b864b29c17d2d521cfe2a807d49d0387a9",
   "spec_path": "specs/ml/recurrent/self_attention.t27"
 }

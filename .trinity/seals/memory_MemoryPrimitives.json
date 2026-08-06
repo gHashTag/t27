@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e7603e593ef82880f7b5e040f882f0a8aa563f4a9bb84432f6fa8dff6cc6ed19",
   "module": "MemoryPrimitives",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:17Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:0cf723b0c54a06a9851f0f635f2191829a0c100860d1c12896afa5e4bb856b8a",
   "spec_path": "specs/memory/memory_primitives.t27"
 }

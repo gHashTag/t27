@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:65f777a3df323462a06d26205582e661dad140839c341366882346073d57d30e",
   "module": "CloudOrchestrator",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:17c60a99b292d30a67a6c772d5960a3524bca0ffc13f40fb84b9fc7e2c7eae3c",
   "spec_path": "specs/tri/pipeline/cloud_orchestrator.t27"
 }

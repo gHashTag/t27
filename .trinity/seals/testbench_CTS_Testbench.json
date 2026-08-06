@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d094d3376ab84479481e2c4ca8a2bb6ae40c98adbd1c9e689c46cf896234d0e7",
   "module": "CTS_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:56f823f5a276ae2ec4740de0058cc1ec3071884ff89ed433dd20c4714c99997e",
   "spec_path": "specs/fpga/testbench/cts_tb.t27"
 }

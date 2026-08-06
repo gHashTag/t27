@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:395ab28ee11caf1042919e2597fcc231305ec321a54ce31c44d75ec47cd33657",
   "module": "TriWriter",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:1cc396e757d83efa5e3b66b65cd7b238e77a5b39e8d5f277e8deceb643f566ad",
   "spec_path": "specs/tri/io/writer.t27"
 }

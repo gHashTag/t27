@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7698c660f17ad0fe3bd67a6982c5fbc9ec745436c2fa41f7b6994ed2df548064",
   "module": "TriBase32",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:088cbb8893f0019cef2ff3626aef421d06417126099cd17051ad591cff0d9c0d",
   "spec_path": "specs/tri/crypto/base32.t27"
 }

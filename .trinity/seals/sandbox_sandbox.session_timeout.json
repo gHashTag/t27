@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:cb75918380b7c7d9c6acd85eaf6c0f01fe0cd0a0ae5b923cd2ac444a679d13c7",
   "module": "sandbox.session_timeout",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:16Z",
+  "sealed_at": "2026-08-06T15:25:17Z",
   "spec_hash": "sha256:7fe03e3d8f098653484085d3fda151da0344f8b33845d45a46b20c56dd6f283e",
   "spec_path": "specs/sandbox/session_timeout.t27"
 }

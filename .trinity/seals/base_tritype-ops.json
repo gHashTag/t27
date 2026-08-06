@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f3eb867585862545d4c3419b19f92302bea6c88efb68e41b2cc87e630e8d58e7",
   "module": "tritype-ops",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:16Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:0f04243af98395a8acc9fcd92aa75ff507130b56b1047c142963b38931d74463",
   "spec_path": "specs/base/ops.t27"
 }
