@@ -1,3 +1,16 @@
+# NOW — test: in-spec array-literal coverage for neuronN (#1749 was wrong syntax) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## test: neuronN in-spec array-literal test blocks (Closes #1757)
+
+- Branch: `test/neuron-array-literal-blocks`
+
+### Что легло
+- Investigated #1749 ("array-literal args materialize wrong") — **not a compiler bug, operator error**: T27 array-literal syntax is `[N]Type{e0, e1, ...}` (e.g. `[4]u64{1,2,3,4}`), NOT `[1,2,3,4]` (which parses the values as the dimension string → all-zero packing). Closed #1749; reverted the speculative `fn_param_types` gen-verilog change (fixed a non-bug). Capitalized: added 5 full-neuron array-literal test blocks to `specs/ternary/bitnet_neuron_nchunk.t27` (all-P×P→P, all-P×N→N, all-Z→Z, 2-chunk→P, 0-chunk→Z) with the correct syntax — `neuronN` is now verified **in-spec** via icarus-simulate (11/11), not only by the Rust cross-check. Reseal MATCH; no compiler change.
+
+---
+
 # NOW — feat: 2-layer spec-first BitNet inference (dot/quantize/repack/dot) (2026-08-06)
 
 Last updated: 2026-08-06
