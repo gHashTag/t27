@@ -1,3 +1,17 @@
+# NOW — feat: GF-T16 matmul-row layer + master codegen repair progress (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): GF-T16 2-neuron layer (matmul row) + master repair (3/7 fixed, issue #1789) (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Что легло
+- `specs/ternary/gft_layer2.t27` (`GftLayer2`) + seal + `bootstrap/tests/gft_layer2.rs`: a spec-first **GF-T16 matmul ROW = 2 neurons over a shared activation** (1x2 activation x 2x2 weights -> 2 GF-T16 outputs packed into a 32-bit result). Full GF-T inference-layer primitive in real-valued GF-T precision. Verified: typecheck 0 err; in-spec test (packed 2.0|2.0<<16 = 1375752704); **iverilog cross-check vs two silicon-proven gft_dot2 packed = ALL_PASS 2000, bit-exact**. Uses `on_comb`, no compiler change; 1506 unit tests pass.
+- **Master codegen repair (option 1 -- partial, owner-scale):** master (`493a7a029`) is red (7 internal tests + yosys broken repo-wide -> nothing merges) from `#1783` batch-merge regressions. **Fixed & verified 3/7** in a scratch worktree: (1) tests-section `// synthesis translate_off` -> `` `ifndef SIMULATION `` (unbalances the `` `endif ``, breaks yosys repo-wide -- one-line fix), (2) `pragma ram_style`/`rom_style` now emitted as `(* ram_style=... *)` on array vars (`node.extra_pragma` was unused). **Remaining 4 localized** (keyword-escape in `emit_local`; array-param->module-array binding merge-mangle, W458/W459). All SEAL-AFFECTING -> needs a reseal sweep. Did NOT push the codegen change to master's core compiler (deep merge-mangle + reseal = owner decision). Filed **issue #1789** with full diagnosis + verified patch (`scratchpad/master_codegen_fixes.patch`).
+
+---
+
 # NOW — feat: GF-T16 dot8 (attention-tile MAC) + master codegen diagnosis (2026-08-06)
 
 Last updated: 2026-08-06
