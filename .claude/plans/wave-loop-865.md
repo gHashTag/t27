@@ -1,8 +1,8 @@
 # Wave Loop 865 Plan
 
-**Issue:** #1674  
+**Issue:** #1678  
 **Branch:** `wave-loop-865` (from `wave-loop-864` HEAD)  
-**Previous branch PR:** #1673 (`wave-loop-864`)  
+**Previous branch PR:** #1677 (`wave-loop-864`)  
 **Variant A:** module-scope `[549][2]^6 Pt` non-power-of-two outer-dimension array-of-struct variable from call with indexed signed writes.
 
 ## Constants
@@ -43,7 +43,7 @@ BITS     = 35,136 * 32 = 1,124,352 (~1.072 MiBit)
    - Update `.trinity/experience.md`, `docs/NOW.md`,
      `.trinity/current-issue.md`, skill trackers, and persistent memory.
 6. **Land**
-   - Commit with `Closes #1674`.
+   - Commit with `Closes #1678`.
    - Push branch `wave-loop-865`.
    - Open PR to `master`.
 

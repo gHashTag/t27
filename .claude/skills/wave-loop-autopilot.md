@@ -108,8 +108,8 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 861 | #1666 | wave-loop-861 | 541 | 270 | 34,624 | 1,107,968 | 1.056 | closed | #1667 |
 | 862 | #1668 | wave-loop-862 | 543 | 271 | 34,752 | 1,112,064 | 1.060 | closed | #1669 |
 | 863 | #1670 | wave-loop-863 | 545 | 272 | 34,880 | 1,116,160 | 1.064 | closed | #1671 |
-| 864 | #1672 | wave-loop-864 | 547 | 273 | 35,008 | 1,120,256 | 1.068 | closed | #1673 |
-| **865** | **#1674** | **wave-loop-865** | **549** | **274** | **35,136** | **1,124,352** | **1.072** | **READY** | **TBD** |
+| 864 | #1672 | wave-loop-864 | 547 | 273 | 35,008 | 1,120,256 | 1.068 | closed | #1677 |
+| **865** | **#1678** | **wave-loop-865** | **549** | **274** | **35,136** | **1,124,352** | **1.072** | **READY** | **TBD** |
 
 ### Run-list notes
 - Issue numbers follow the observed pattern (issue = previous issue + 2).
@@ -198,7 +198,7 @@ criteria, generator copy-hazard checklist, and open backlog.
 ## Current status
 
 - **Latest completed wave:** 864
-- **Latest issue/PR:** #1672 / #1673
+- **Latest issue/PR:** #1672 / #1677
 - **Current wave in progress:** 865
 - **Next wave queued:** 866
 - **Ladder depth:** W774–W864 = 91 waves
