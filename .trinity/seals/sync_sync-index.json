@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5e50f4cee638e5ddc1ec2838b9f95d4ad7a5c93f2298db7009e3798c91ca76cc",
   "module": "sync-index",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:16Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:ce88e96540e925752640868cee20c7e9ad63d0044bae71b0a3ab175474ca2df8",
   "spec_path": "specs/sync/index.t27"
 }

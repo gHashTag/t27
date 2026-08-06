@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d870de6f0a3ac5937ef1a1ddabec6536804bb2f619e92c499611e906c27e76c2",
   "module": "TriVersion",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:18088d7e682e849ca9b7fe9827bc5d7927ab4f0a2332833c1999f4fec193caff",
   "spec_path": "specs/tri/utils/version.t27"
 }

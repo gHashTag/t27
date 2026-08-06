@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:576b2e1e1f7953dd1d231f03cf4edc042d2a00b604b42de6b6690d21e346d4b7",
   "module": "TriEither",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:19Z",
   "spec_hash": "sha256:e67d13adcf989dad50feda8d7c5a53a0fa8f96486804feb26b22a582ebb7582d",
   "spec_path": "specs/tri/collections/either.t27"
 }

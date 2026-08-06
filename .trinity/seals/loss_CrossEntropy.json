@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d4b75477a845ffb140fc6c7b543e99994e398d2cc1f200425c069c08f171a317",
   "module": "CrossEntropy",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:60f5f9fd2a85ea4dbfd20c2e42356184ec9e8d78ed586cafc3ec3fecf801ec44",
   "spec_path": "specs/ml/loss/cross_entropy_loss.t27"
 }

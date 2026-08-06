@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d6db4cf9bdcbf9fa44a0b06a411839c479ab1de86d59b085377a54f8cc50ba9f",
   "module": "BootROM_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:824b57fc33a864a5185e313d43e48b5fbeed0a99a796651014f7f9de5c9a11c4",
   "spec_path": "specs/fpga/testbench/bootrom_tb.t27"
 }

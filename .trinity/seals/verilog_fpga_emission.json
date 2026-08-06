@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4247b221082a6f9a0fcde19c6fd763341dcd77f1ba80579a2bdf06bd712f0f4b",
   "module": "fpga_emission",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:17Z",
+  "sealed_at": "2026-08-06T15:25:17Z",
   "spec_hash": "sha256:12009ea0e096921a249e0b661d30c42f03f8331d49595da078637b6a657d8029",
   "spec_path": "compiler/codegen/verilog/fpga_emission.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7b50d9a7c9318456cc53590373c32f168e156500a062db45d103969551edd543",
   "module": "Seq2seq",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:18Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:8e663bc28d1cce0a1eb38bc92ed95500f478f35c6a97cf1a0e07b062e284673e",
   "spec_path": "specs/ml/recurrent/seq2seq.t27"
 }

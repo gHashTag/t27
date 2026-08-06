@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f6ad087fa0f68af5172eb44d5d8dfb256080320d463e779635758bbc917eb77c",
   "module": "[]const u8",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:19Z",
   "spec_hash": "sha256:e06a3c5d8fab1187ce325d6393b9448f2bf6c4ae8ec61e556af241166b851975",
   "spec_path": "specs/tri/search/match.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:aa1a85d090bfb79ad4b1804840ce81c533f388e534f7da2f34f79bc30db2da3a",
   "module": "TernaryRippleAdder",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:17Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:a03b620c1848281acec4fde91e253fa9381ab96636cc11dae51aa83e5dc683ad",
   "spec_path": "specs/ternary/ternary_ripple_adder.t27"
 }

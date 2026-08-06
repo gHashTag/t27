@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9b3f8e25689887acfa11b3046c1c790ba4e5136005a75291109229a60517cf7b",
   "module": "TriKmp",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:19Z",
   "spec_hash": "sha256:fa851daf9a4c4b0e8cfb4a215dc741378e0756711cb98986e2f2c8000266a4e8",
   "spec_path": "specs/tri/search/knuth_morris_pratt.t27"
 }

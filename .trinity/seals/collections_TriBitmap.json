@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5e60252c49838ad8a2d9910613148d593676250789bccbbd3e4f22209aee7034",
   "module": "TriBitmap",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:19Z",
   "spec_hash": "sha256:afd5d67ecd9d8c1810b896e0d522f3ef6fbbad00717a26b19edbf7d3b766e31d",
   "spec_path": "specs/tri/collections/bitmap.t27"
 }

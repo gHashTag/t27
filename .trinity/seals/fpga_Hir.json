@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d30c7a610a1fa8a8c33cedac75bb00724b8ec81ad2d4b0a2e5196808107c6769",
   "module": "Hir",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:16Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:0a8c8fb8b35a2791fbab26a8a95f310c75edeff390902cda5972dabee26abcaa",
   "spec_path": "specs/fpga/hir.t27"
 }

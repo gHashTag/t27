@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:ba76130ca19741e7e88d76709c0eec318a900cc169a12b10a276f3cc0cad6452",
+  "gen_hash_rust": "sha256:f75916011ad8053b1370103f3bfe054248581a465d5337ef6e7205987187a6a6",
+  "gen_hash_verilog": "sha256:4bb64e4c2f7bf1676d0df7edc19b20a73e65b799e90aafc5082c8345c00badb0",
+  "gen_hash_zig": "sha256:2e8bc5cb34cce12c70fe4d47b472cfa62db433594731c99669c79077d143c520",
+  "module": "GftLayer3",
+  "ring": 12,
+  "sealed_at": "2026-08-06T15:25:18Z",
+  "spec_hash": "sha256:6905e7734c36fc9d8ff2dff9518822b957c91ede5996f6379b2243ef2b6d588d",
+  "spec_path": "specs/ternary/gft_layer3.t27"
+}

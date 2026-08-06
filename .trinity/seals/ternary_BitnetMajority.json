@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:778de2692ae686c5728c60f5d71a70d6546de5d350417164ed2780281c1fa32a",
   "module": "BitnetMajority",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:17Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:2eb1e03a4339dec4215b765fe572b95ad02d53bbb971e1d326260b49945620a3",
   "spec_path": "specs/ternary/bitnet_majority.t27"
 }

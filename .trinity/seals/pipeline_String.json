@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e3b555dbe0361c428c476ebd371951fec613eefa805937da272e74284cc5ca96",
   "module": "String",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:80b4e2cfda9e06a964846f8f622c9d752c54eb88d4a7d0cb44bd8f287d3d9c41",
   "spec_path": "specs/tri/pipeline/workflow.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9b4ed6b5b6022f7c7bfbbd7d5e18f13663d78b142d7f8e9ead82a36968ecd235",
   "module": "FormulaDiscovery",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:16Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:5195f89bfc0b1f3ed434ef6371ba940a629ba01eee7a3746f6f14ec0cde9a141",
   "spec_path": "specs/physics/formula_discovery.t27"
 }

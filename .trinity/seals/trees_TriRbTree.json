@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b6ccf53266f1d6d36b4de1b915e749b5718a3c4f0c23553184275376a11c8f25",
   "module": "TriRbTree",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:6e7314f664d45e80ed132829c617b1485c95fd263f8dbda7244c058800cecbfe",
   "spec_path": "specs/tri/trees/red_black_tree.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:aff1d546b1386dcfa7ff370d481636c1817382fbf87efd50bac2f21ce6db9c14",
   "module": "GftMulRne",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:17Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:d16bedfa83646e9e9df60e17c51928fabe4240cb5ca15ac682369f4dcc9fd9a6",
   "spec_path": "specs/ternary/gft_mul_rne.t27"
 }

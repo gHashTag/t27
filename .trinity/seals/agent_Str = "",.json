@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:60c5d2ea8e9a5dfcb888e8775a31928d272a9678dfe20226679c0205821659d2",
   "module": "Str = \"\",",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:19Z",
   "spec_hash": "sha256:9f1f6887196edd853ff7bb52ec90f7724e3dd5398d6596cb9f36a260efd84627",
   "spec_path": "specs/tri/agent/agent_run.t27"
 }

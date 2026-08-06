@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:badf0ca0438c284c8242f3fe59249b09746ba80b7c246828f4a5890b4d6f728f",
   "module": "tri_net_api",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:16Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:4fa7ccadd44d000694a91d69bfeaef6080397ad16540b682430c2f813303db56",
   "spec_path": "specs/api/tri_net_api.t27"
 }

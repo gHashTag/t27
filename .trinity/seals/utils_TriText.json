@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:350e0bfc23adb453c279dcd834600ac24a3497313f59c3d21acf7394dd0d5adf",
   "module": "TriText",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:06b46cd587689d5c28c0b3546cac9ec68aebee940d55610087634c759ef2401c",
   "spec_path": "specs/tri/utils/text.t27"
 }

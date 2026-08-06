@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:6c219a7ff1497bce762a6dda2dc89340efe09d59ca9470513fa24808fd23a201",
   "module": "TriBTree",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:421fe9ec4300007ac244ce16b0b57ef39b3401e494e08082defe73bb797997bc",
   "spec_path": "specs/tri/trees/b_tree.t27"
 }

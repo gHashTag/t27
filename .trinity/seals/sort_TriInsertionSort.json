@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:aea4985b61825d98182c43646b9cc989af42dad61a76e078b4a431b2c4f2d762",
   "module": "TriInsertionSort",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:19Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:634ede05a35cbcb717679f041f06b2f1dcc762090d29ade3e798650637f9bbe8",
   "spec_path": "specs/tri/sort/insertion_sort.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:cd371cffeb09a87c3fb7bb60d04d3515c1e8d1de9385071fc5a002e92f65f4a9",
   "module": "CombBitnetLayer",
   "ring": 12,
-  "sealed_at": "2026-08-06T14:40:17Z",
+  "sealed_at": "2026-08-06T15:25:18Z",
   "spec_hash": "sha256:105570e1b9856293381a0dd3a7365177b880aaf561e8659f5d50e240a593b5be",
   "spec_path": "specs/ternary/comb_bitnet_layer.t27"
 }
