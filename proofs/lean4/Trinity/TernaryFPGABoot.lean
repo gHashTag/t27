@@ -578,6 +578,11 @@ def PVT_VCCINT_MIN_MV : Nat := 900
 /-- Operating-envelope upper bound for VCCINT in millivolts. -/
 def PVT_VCCINT_MAX_MV : Nat := 1100
 
+/-- Shared worst-case PVT context used for every PVT and OSCFSEL worst-case theorem.
+    Defined early so the monotonicity envelope proofs can refer to it. -/
+def OSCFSEL_WORST_CASE_PVT_CONTEXT : PvtContext :=
+  { temp_c := (85 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := ProcessCorner.ss }
+
 /-- Conservative temperature derating in nanoseconds. The N25Q128_3V datasheet
     does not publish a closed-form curve, so we use a linear upper envelope:
     0.02 ns per degree Celsius above the minimum temperature. At the industrial
@@ -692,6 +697,29 @@ lemma ProcessCorner.ff_worse_than_tt : ProcessCorner.ff.worse_than ProcessCorner
 lemma ProcessCorner.tt_worse_than_ss : ProcessCorner.tt.worse_than ProcessCorner.ss := by
   simp [worse_than, n25q128_pvt_process_derating_ns]
 
+/-- Decidable equality for process corners (exposed for automation that cannot
+    see the auto-derived instance). -/
+def ProcessCorner.eq_decidable (c1 c2 : ProcessCorner) : Decidable (c1 = c2) :=
+  inferInstance
+
+/-- Decidable corner ordering. This lets future automation compare two contexts
+    without leaving a `Prop` goal. -/
+def ProcessCorner.worse_than_decidable (c1 c2 : ProcessCorner) :
+  Decidable (c1.worse_than c2) := by
+  cases c1 <;> cases c2 <;> simp [worse_than] <;> infer_instance
+
+/-- Total severity rank: ff=0, tt=1, ss=2. Useful for `if c1 < c2` style scripts. -/
+def ProcessCorner.severity (c : ProcessCorner) : Nat :=
+  match c with
+  | ProcessCorner.ff => 0
+  | ProcessCorner.tt => 1
+  | ProcessCorner.ss => 2
+
+/-- The severity rank agrees with the `worse_than` order. -/
+lemma ProcessCorner.worse_than_iff_severity_le (c1 c2 : ProcessCorner) :
+  c1.worse_than c2 ↔ c1.severity ≤ c2.severity := by
+  cases c1 <;> cases c2 <;> simp [worse_than, severity, n25q128_pvt_process_derating_ns]
+
 /-- The PVT-aware SCK low bound is at least the nominal N25Q128 bound. This is
     the only fact the implication proof needs; real PVT data must preserve it. -/
 lemma pvt_low_ns_at_least_nominal (ctx : PvtContext) :
@@ -757,6 +785,196 @@ lemma pvt_half_ns_antitone_in_vccint (t : Int) (v1 v2 : Nat) (c : ProcessCorner)
         n25q128_pvt_process_derating_ns, PVT_VCCINT_MAX_MV]
   omega
 
+/-- The PVT-aware SCK half-period bound is monotone with the process-corner
+    ordering: a worse corner (larger derating) never yields a smaller bound. -/
+lemma pvt_half_ns_monotone_in_process_corner (t : Int) (v : Nat) (c1 c2 : ProcessCorner) :
+  c1.worse_than c2
+  → n25q128_min_sck_half_ns_pvt ⟨t, v, 2700, c1⟩
+    ≤ n25q128_min_sck_half_ns_pvt ⟨t, v, 2700, c2⟩ := by
+  intro h
+  simp [n25q128_min_sck_half_ns_pvt, n25q128_min_sck_low_ns_pvt,
+        n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+        n25q128_pvt_process_derating_ns, ProcessCorner.worse_than] at h ⊢
+  cases c1 <;> cases c2 <;> omega
+
+/-- The PVT-aware SCK half-period bound is monotone in the combined ordering:
+    higher temperature, lower VCCINT, and a worse process corner all increase
+    (or keep) the bound. This is the shape property used by worst-case
+    operating-point search. -/
+lemma pvt_half_ns_monotone_combined
+  (t1 t2 : Int) (v1 v2 : Nat) (c1 c2 : ProcessCorner) :
+  (PVT_TEMP_MIN_C ≤ t1) → (t1 ≤ t2)
+  → (v2 ≤ v1) → (v1 ≤ PVT_VCCINT_MAX_MV)
+  → c1.worse_than c2
+  → n25q128_min_sck_half_ns_pvt ⟨t1, v1, 2700, c1⟩
+    ≤ n25q128_min_sck_half_ns_pvt ⟨t2, v2, 2700, c2⟩ := by
+  intro ht_min ht_le hv_le hv_max hc
+  simp [n25q128_min_sck_half_ns_pvt, n25q128_min_sck_low_ns_pvt,
+        n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+        n25q128_pvt_process_derating_ns, ProcessCorner.worse_than, PVT_TEMP_MIN_C, PVT_VCCINT_MAX_MV] at ht_min ht_le hv_le hv_max hc ⊢
+  cases c1 <;> cases c2 <;> omega
+
+/-- The PVT-aware SCK low bound is monotone in the combined ordering: higher
+    temperature, lower VCCINT, and a worse process corner all increase (or keep)
+    the bound. This mirrors `pvt_half_ns_monotone_combined` and is used when the
+    low and high limits need separate treatment. -/
+lemma pvt_low_ns_monotone_combined
+  (t1 t2 : Int) (v1 v2 : Nat) (c1 c2 : ProcessCorner) :
+  (PVT_TEMP_MIN_C ≤ t1) → (t1 ≤ t2)
+  → (v2 ≤ v1) → (v1 ≤ PVT_VCCINT_MAX_MV)
+  → c1.worse_than c2
+  → n25q128_min_sck_low_ns_pvt ⟨t1, v1, 2700, c1⟩
+    ≤ n25q128_min_sck_low_ns_pvt ⟨t2, v2, 2700, c2⟩ := by
+  intro ht_min ht_le hv_le hv_max hc
+  simp [n25q128_min_sck_low_ns_pvt,
+        n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+        n25q128_pvt_process_derating_ns, ProcessCorner.worse_than, PVT_TEMP_MIN_C, PVT_VCCINT_MAX_MV]
+    at ht_min ht_le hv_le hv_max hc ⊢
+  cases c1 <;> cases c2 <;> omega
+
+/-- The documented worst-case operating point (max temperature, min VCCINT,
+    slow-slow process corner) is the upper envelope of the PVT-aware SCK
+    half-period bound over the entire operating rectangle. This justifies using
+    `OSCFSEL_WORST_CASE_PVT_CONTEXT` as a single conservative context for all
+    worst-case validation. -/
+theorem pvt_half_ns_worst_case_is_upper_envelope (ctx : PvtContext) :
+  (PVT_TEMP_MIN_C ≤ ctx.temp_c) → (ctx.temp_c ≤ PVT_TEMP_MAX_C)
+  → (PVT_VCCINT_MIN_MV ≤ ctx.vccint_mv) → (ctx.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+  → n25q128_min_sck_half_ns_pvt ctx ≤ n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+  intro ht_min ht_max hv_min hv_max
+  have h_eq :
+    n25q128_min_sck_half_ns_pvt ctx
+    = n25q128_min_sck_half_ns_pvt ⟨ctx.temp_c, ctx.vccint_mv, 2700, ctx.process_corner⟩ := by
+    simp [n25q128_min_sck_half_ns_pvt, n25q128_min_sck_low_ns_pvt,
+          n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+          n25q128_pvt_process_derating_ns]
+  have h3 : ctx.process_corner.worse_than ProcessCorner.ss := by
+    cases ctx.process_corner <;> simp [ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+  rw [h_eq]
+  have h_le :
+    n25q128_min_sck_half_ns_pvt ⟨ctx.temp_c, ctx.vccint_mv, 2700, ctx.process_corner⟩
+    ≤ n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+    have h_wc : OSCFSEL_WORST_CASE_PVT_CONTEXT = ⟨(85 : Int), 900, 2700, ProcessCorner.ss⟩ := by
+      unfold OSCFSEL_WORST_CASE_PVT_CONTEXT
+      rfl
+    rw [h_wc]
+    apply pvt_half_ns_monotone_combined
+      (ctx.temp_c) (PVT_TEMP_MAX_C) (ctx.vccint_mv) (PVT_VCCINT_MIN_MV) (ctx.process_corner) (ProcessCorner.ss)
+    · exact ht_min
+    · exact ht_max
+    · exact hv_min
+    · exact hv_max
+    · exact h3
+  exact h_le
+
+/-- The documented worst-case operating point is also the upper envelope of the
+    PVT-aware SCK low bound. This mirrors `pvt_half_ns_worst_case_is_upper_envelope`. -/
+theorem pvt_low_ns_worst_case_is_upper_envelope (ctx : PvtContext) :
+  (PVT_TEMP_MIN_C ≤ ctx.temp_c) → (ctx.temp_c ≤ PVT_TEMP_MAX_C)
+  → (PVT_VCCINT_MIN_MV ≤ ctx.vccint_mv) → (ctx.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+  → n25q128_min_sck_low_ns_pvt ctx ≤ n25q128_min_sck_low_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+  intro ht_min ht_max hv_min hv_max
+  have h_eq :
+    n25q128_min_sck_low_ns_pvt ctx
+    = n25q128_min_sck_low_ns_pvt ⟨ctx.temp_c, ctx.vccint_mv, 2700, ctx.process_corner⟩ := by
+    simp [n25q128_min_sck_low_ns_pvt,
+          n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+          n25q128_pvt_process_derating_ns]
+  have h3 : ctx.process_corner.worse_than ProcessCorner.ss := by
+    cases ctx.process_corner <;> simp [ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+  rw [h_eq]
+  have h_wc : OSCFSEL_WORST_CASE_PVT_CONTEXT = ⟨PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, 2700, ProcessCorner.ss⟩ := by
+    rfl
+  rw [h_wc]
+  apply pvt_low_ns_monotone_combined
+    (ctx.temp_c) (PVT_TEMP_MAX_C) (ctx.vccint_mv) (PVT_VCCINT_MIN_MV) (ctx.process_corner) (ProcessCorner.ss)
+  · exact ht_min
+  · exact ht_max
+  · exact hv_min
+  · exact hv_max
+  · exact h3
+
+/-- The PVT-aware SCK high bound is monotone in the combined ordering: higher
+    temperature, lower VCCINT, and a worse process corner all increase (or keep)
+    the bound. The low and high bounds are symmetric in the current placeholder
+    envelope, so the proof is identical to the low-bound version. -/
+lemma pvt_high_ns_monotone_combined
+  (t1 t2 : Int) (v1 v2 : Nat) (c1 c2 : ProcessCorner) :
+  (PVT_TEMP_MIN_C ≤ t1) → (t1 ≤ t2)
+  → (v2 ≤ v1) → (v1 ≤ PVT_VCCINT_MAX_MV)
+  → c1.worse_than c2
+  → n25q128_min_sck_high_ns_pvt ⟨t1, v1, 2700, c1⟩
+    ≤ n25q128_min_sck_high_ns_pvt ⟨t2, v2, 2700, c2⟩ := by
+  intro ht_min ht_le hv_le hv_max hc
+  simp [n25q128_min_sck_high_ns_pvt,
+        n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+        n25q128_pvt_process_derating_ns, ProcessCorner.worse_than, PVT_TEMP_MIN_C, PVT_VCCINT_MAX_MV]
+    at ht_min ht_le hv_le hv_max hc ⊢
+  cases c1 <;> cases c2 <;> omega
+
+/-- Every process corner is no better (no smaller derating) than the slow-slow
+    corner. This is the corner-ordering fact needed by the worst-case bound. -/
+lemma ProcessCorner.any_worse_than_ss (c : ProcessCorner) : c.worse_than ProcessCorner.ss := by
+  cases c <;> simp [worse_than, n25q128_pvt_process_derating_ns]
+
+/-- Worst-case operating-point search: across the entire documented operating
+    envelope, the PVT-aware half-period bound is maximized at the worst corner
+    (maximum temperature, minimum VCCINT, slow-slow process corner). This lets
+    a validation tool enumerate a finite grid and prove that any context inside
+    the envelope is no worse than the corner it finds. -/
+lemma pvt_half_ns_worst_case_bound (ctx : PvtContext) :
+  (PVT_TEMP_MIN_C ≤ ctx.temp_c) → (ctx.temp_c ≤ PVT_TEMP_MAX_C)
+  → (PVT_VCCINT_MIN_MV ≤ ctx.vccint_mv) → (ctx.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+  → n25q128_min_sck_half_ns_pvt ctx
+    ≤ n25q128_min_sck_half_ns_pvt ⟨PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, 2700, ProcessCorner.ss⟩ := by
+  intro ht_min ht_max hv_min hv_max
+  apply pvt_half_ns_monotone_combined ctx.temp_c PVT_TEMP_MAX_C ctx.vccint_mv PVT_VCCINT_MIN_MV ctx.process_corner ProcessCorner.ss
+  · exact ht_min
+  · exact ht_max
+  · exact hv_min
+  · exact hv_max
+  · exact ProcessCorner.any_worse_than_ss ctx.process_corner
+
+/-- Finite-grid operating-rectangle check: every grid point in a 5×5×3
+    temperature / VCCINT / process-corner grid is bounded by the worst-case
+    corner (max temperature, min VCCINT, slow-slow process corner). This is the
+    computational counterpart of the Rust `test_pvt_half_ns_worst_case_bound`
+    grid search. -/
+theorem pvt_half_ns_operating_rectangle_grid_bounded
+  (temp_c : Int) (vccint_mv : Nat) (corner : ProcessCorner) :
+  (temp_c = -40 ∨ temp_c = -20 ∨ temp_c = 0 ∨ temp_c = 25 ∨ temp_c = 85)
+  → (vccint_mv = 900 ∨ vccint_mv = 950 ∨ vccint_mv = 1000 ∨ vccint_mv = 1050 ∨ vccint_mv = 1100)
+  → (corner = ProcessCorner.ff ∨ corner = ProcessCorner.tt ∨ corner = ProcessCorner.ss)
+  → n25q128_min_sck_half_ns_pvt ⟨temp_c, vccint_mv, 2700, corner⟩
+    ≤ n25q128_min_sck_half_ns_pvt ⟨PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, 2700, ProcessCorner.ss⟩ := by
+  intro ht hv hc
+  rcases ht with (rfl | rfl | rfl | rfl | rfl)
+  all_goals
+    rcases hv with (rfl | rfl | rfl | rfl | rfl)
+    all_goals
+      rcases hc with (rfl | rfl | rfl)
+      all_goals
+        apply pvt_half_ns_worst_case_bound
+        all_goals norm_num [PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- Low-bound version of the finite-grid operating-rectangle check. -/
+theorem pvt_low_ns_operating_rectangle_grid_bounded
+  (temp_c : Int) (vccint_mv : Nat) (corner : ProcessCorner) :
+  (temp_c = -40 ∨ temp_c = -20 ∨ temp_c = 0 ∨ temp_c = 25 ∨ temp_c = 85)
+  → (vccint_mv = 900 ∨ vccint_mv = 950 ∨ vccint_mv = 1000 ∨ vccint_mv = 1050 ∨ vccint_mv = 1100)
+  → (corner = ProcessCorner.ff ∨ corner = ProcessCorner.tt ∨ corner = ProcessCorner.ss)
+  → n25q128_min_sck_low_ns_pvt ⟨temp_c, vccint_mv, 2700, corner⟩
+    ≤ n25q128_min_sck_low_ns_pvt ⟨PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, 2700, ProcessCorner.ss⟩ := by
+  intro ht hv hc
+  rcases ht with (rfl | rfl | rfl | rfl | rfl)
+  all_goals
+    rcases hv with (rfl | rfl | rfl | rfl | rfl)
+    all_goals
+      rcases hc with (rfl | rfl | rfl)
+      all_goals
+        apply pvt_low_ns_worst_case_is_upper_envelope
+        all_goals norm_num [PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
 /-- If the PVT-aware predicate holds, the nominal predicate holds (for contexts
     inside the operating envelope). -/
 theorem measured_cclk_with_pvt_implies_measured_cclk_satisfies_flash_spec
@@ -807,6 +1025,27 @@ theorem measured_25mhz_50duty_pvt_worstcase_satisfies_flash_spec :
 theorem measured_2_5mhz_50duty_satisfies_flash_spec :
   measured_cclk_satisfies_flash_spec 2_500_000 50 = true := by
   decide
+
+-- ============================================================================
+-- OSCFSEL 0..7 PVT half-period envelope theorems (W427)
+-- ============================================================================
+
+/-- The nominal CCLK half-period for a documented OSCFSEL selection is at least
+    the PVT-aware minimum half-period at the worst-case operating corner. This
+    is the key safety fact behind the Rust `pvt_envelope_margin_ns` field: it
+    lets the CLI assert non-negative margin for every variant without re-running
+    the operating-rectangle proof at each call. -/
+theorem cclk_variant_within_pvt_envelope (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_period_ns oscfsel / 2 ≥ n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+  interval_cases oscfsel <;> decide
+
+/-- Corollary: every documented OSCFSEL variant (0..7) has non-negative PVT
+    envelope margin in nanoseconds at the worst-case corner. -/
+theorem cclk_variant_pvt_envelope_margin_nonneg (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_period_ns oscfsel / 2 - n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT ≥ 0 := by
+  have h_env : cclk_period_ns oscfsel / 2 ≥ n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT :=
+    cclk_variant_within_pvt_envelope oscfsel h
+  omega
 
 /-- Concrete example: a measured 25 MHz CCLK with 50% duty cycle satisfies the
     flash timing predicate. This is the nominal rate for OSCFSEL=6. -/
@@ -953,10 +1192,6 @@ theorem pvt_low_ns_wc_ge_old_placeholder :
 -- OSCFSEL 0..7 measured-CCLK theorem library (W415)
 -- ============================================================================
 
-/-- Shared worst-case PVT context used for every OSCFSEL worst-case theorem. -/
-def OSCFSEL_WORST_CASE_PVT_CONTEXT : PvtContext :=
-  { temp_c := (85 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := ProcessCorner.ss }
-
 /-- Nominal flash-spec theorem for OSCFSEL=0 (2.5 MHz). -/
 theorem oscfsel_0_nominal_measured_satisfies_flash_spec :
   measured_cclk_satisfies_flash_spec (cclk_nominal_hz 0) 50 = true := by
@@ -1089,6 +1324,236 @@ theorem oscfsel_7_measured_transaction_ok (bits : Nat) :
   transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz 7) 50 bits) = true := by
   apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
   · exact oscfsel_7_nominal_measured_satisfies_flash_spec
+
+-- ============================================================================
+-- Unified OSCFSEL 0..7 theorems (W428)
+-- ============================================================================
+
+/-- Every documented OSCFSEL selection (0..7) has a nominal CCLK half-period that
+    dominates the worst-case PVT-aware minimum half-period. This is the
+    quantified form of the eight per-variant envelope theorems. -/
+theorem all_oscfsel_cclk_within_pvt_envelope (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_period_ns oscfsel / 2 ≥ n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT :=
+  cclk_variant_within_pvt_envelope oscfsel h
+
+/-- Every documented OSCFSEL selection satisfies the worst-case PVT-aware
+    measured-CCLK flash predicate at 50% duty cycle. Downstream tooling can
+    reference this single theorem instead of eight concrete instances. -/
+theorem cclk_variant_worstcase_pvt_measured_satisfies_flash_spec
+  (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  measured_cclk_with_pvt_satisfies_flash_spec (cclk_nominal_hz oscfsel) 50
+    OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  interval_cases oscfsel <;> decide
+
+/-- Every documented OSCFSEL selection produces a flash-spec-compliant SPI read
+    transaction at its nominal CCLK rate and 50% duty cycle. This is the
+    end-to-end link from a configuration bitstream choice to a timing-safe
+    transaction. -/
+theorem cclk_variant_implies_transaction_ok (oscfsel : Nat) (h : oscfsel ≤ 7) (bits : Nat) :
+  transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz oscfsel) 50 bits) = true := by
+  apply measured_cclk_satisfies_flash_spec_implies_transaction_ok
+  interval_cases oscfsel <;> decide
+
+/-- Every documented OSCFSEL selection also satisfies the worst-case PVT-aware
+    flash predicate end-to-end: the nominal CCLK rate and 50% duty cycle produce
+    a flash-spec-compliant transaction under the worst-case operating corner. -/
+theorem cclk_variant_worstcase_pvt_implies_transaction_ok
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (bits : Nat) :
+  transaction_satisfies_flash_spec (measured_boot_transaction (cclk_nominal_hz oscfsel) 50 bits) = true := by
+  apply measured_cclk_with_pvt_implies_transaction_ok _ _ _ OSCFSEL_WORST_CASE_PVT_CONTEXT
+  · -- -40 °C ≤ 85 °C
+    norm_num [PVT_TEMP_MIN_C, OSCFSEL_WORST_CASE_PVT_CONTEXT]
+  · -- 900 mV ≤ 1100 mV
+    norm_num [PVT_VCCINT_MAX_MV, OSCFSEL_WORST_CASE_PVT_CONTEXT]
+  · exact cclk_variant_worstcase_pvt_measured_satisfies_flash_spec oscfsel h
+
+/-- For any documented OSCFSEL selection, a raw capture whose period equals the
+    nominal CCLK period and whose low/high times split the period exactly
+    satisfies the worst-case PVT-aware raw-ns flash predicate. `high_ns` is
+    computed as `period_ns - low_ns` so the consistency precondition holds even
+    when the period is odd (e.g. OSCFSEL 2 and 5). This is the raw-ns
+    counterpart of `cclk_variant_worstcase_pvt_measured_satisfies_flash_spec`. -/
+theorem cclk_variant_raw_ns_worstcase_pvt_satisfies_flash_spec
+  (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  interval_cases oscfsel <;> decide
+
+/-- For any documented OSCFSEL selection, the ideal raw-ns capture described in
+    `cclk_variant_raw_ns_worstcase_pvt_satisfies_flash_spec` produces a
+    flash-spec-compliant SPI read transaction under the worst-case PVT corner. -/
+theorem cclk_variant_raw_ns_worstcase_pvt_implies_transaction_ok
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (bits : Nat) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits)
+    = true := by
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok _ _ _ _ OSCFSEL_WORST_CASE_PVT_CONTEXT
+  · norm_num [PVT_TEMP_MIN_C, OSCFSEL_WORST_CASE_PVT_CONTEXT]
+  · norm_num [PVT_VCCINT_MAX_MV, OSCFSEL_WORST_CASE_PVT_CONTEXT]
+  · exact cclk_variant_raw_ns_worstcase_pvt_satisfies_flash_spec oscfsel h
+
+-- ============================================================================
+-- Live XADC operating-point / PVT-envelope bridge (W430)
+-- ============================================================================
+
+/-- Live XADC operating point read from the FPGA via `tri fpga read-xadc`.
+    Temperature is in °C and rail voltages are in millivolts. The process corner
+    is not measured by the XADC and is supplied externally (default `ss` for
+    worst-case reasoning). Mirrors the Rust `XadcContext` in `cli/tri/src/fpga.rs`. -/
+structure XadcOperatingPoint where
+  temp_c : Int
+  vccint_mv : Nat
+  vccaux_mv : Nat
+  process_corner : ProcessCorner
+  deriving Repr, DecidableEq, Inhabited
+
+/-- Convert a live XADC readout to the `PvtContext` used by the PVT envelope. -/
+def xadc_operating_point_to_pvt (pt : XadcOperatingPoint) : PvtContext :=
+  { temp_c := pt.temp_c, vccint_mv := pt.vccint_mv, vccaux_mv := pt.vccaux_mv,
+    process_corner := pt.process_corner }
+
+/-- A measured XADC operating point lies inside the documented N25Q128_3V
+    operating rectangle (temperature and VCCINT envelope). -/
+def xadc_operating_point_within_envelope (pt : XadcOperatingPoint) : Prop :=
+  (PVT_TEMP_MIN_C ≤ pt.temp_c)
+  ∧ (pt.temp_c ≤ PVT_TEMP_MAX_C)
+  ∧ (PVT_VCCINT_MIN_MV ≤ pt.vccint_mv)
+  ∧ (pt.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+
+/-- If a measured operating point is inside the envelope, its PVT half-period
+    bound is no larger (i.e., no slower) than the global worst-case bound. This
+    justifies using the conservative worst-case `OSCFSEL_WORST_CASE_PVT_CONTEXT`
+    in proof goals even when the bench records a live, in-envelope measurement.
+    The process-corner hypothesis records that the measured corner is at least
+    as slow as `ss`; the XADC cannot measure process, so it is supplied by the
+    caller. -/
+theorem xadc_operating_point_envelope_implies_worst_case_bound
+  (pt : XadcOperatingPoint) :
+  xadc_operating_point_within_envelope pt
+  → pt.process_corner.worse_than ProcessCorner.ss
+  → n25q128_min_sck_half_ns_pvt (xadc_operating_point_to_pvt pt)
+    ≤ n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+  intro h_env h_corner
+  simp [xadc_operating_point_within_envelope, xadc_operating_point_to_pvt,
+        n25q128_min_sck_half_ns_pvt, n25q128_min_sck_low_ns_pvt,
+        OSCFSEL_WORST_CASE_PVT_CONTEXT] at h_env ⊢
+  rcases h_env with ⟨h_temp_min, h_temp_max, h_volt_min, h_volt_max⟩
+  apply Nat.add_le_add
+  · apply Nat.add_le_add
+    · apply Nat.add_le_add
+      · rfl
+      · apply n25q128_pvt_temp_derating_ns_monotone
+        · exact h_temp_min
+        · exact h_temp_max
+    · apply n25q128_pvt_voltage_derating_ns_antitone
+      · exact h_volt_min
+      · exact h_volt_max
+  · apply n25q128_pvt_process_derating_ns_monotone
+    exact h_corner
+
+/-- Example: a live XADC readout at the documented worst-case operating point
+    is inside the envelope and produces the worst-case PVT bound. -/
+theorem xadc_worstcase_operating_point_within_envelope :
+  xadc_operating_point_within_envelope
+    { temp_c := (85 : Int), vccint_mv := 900, vccaux_mv := 2700,
+      process_corner := ProcessCorner.ss } := by
+  simp [xadc_operating_point_within_envelope, PVT_TEMP_MIN_C, PVT_TEMP_MAX_C,
+        PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- Example: a representative live XADC readout (≈43 °C, ≈1.00 V VCCINT,
+    ≈1.81 V VCCAUX) is inside the documented operating envelope. -/
+theorem xadc_live_operating_point_example_within_envelope :
+  xadc_operating_point_within_envelope
+    { temp_c := (43 : Int), vccint_mv := 1000, vccaux_mv := 1806,
+      process_corner := ProcessCorner.ss } := by
+  simp [xadc_operating_point_within_envelope, PVT_TEMP_MIN_C, PVT_TEMP_MAX_C,
+        PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- Decidable version of the XADC envelope predicate. Concrete JSON operating
+    points can be checked by evaluating this function. -/
+def xadc_operating_point_within_envelope_dec (pt : XadcOperatingPoint) : Bool :=
+  decide (PVT_TEMP_MIN_C ≤ pt.temp_c)
+  && (decide (pt.temp_c ≤ PVT_TEMP_MAX_C)
+    && (decide (PVT_VCCINT_MIN_MV ≤ pt.vccint_mv)
+      && decide (pt.vccint_mv ≤ PVT_VCCINT_MAX_MV)))
+
+/-- The Boolean envelope check is equivalent to the propositional one. -/
+theorem xadc_operating_point_within_envelope_dec_eq (pt : XadcOperatingPoint) :
+  xadc_operating_point_within_envelope_dec pt = true
+  ↔ xadc_operating_point_within_envelope pt := by
+  simp [xadc_operating_point_within_envelope_dec, xadc_operating_point_within_envelope,
+        Bool.and_eq_true]
+
+/-- Computable combined check: a documented OSCFSEL selection and a measured XADC
+    operating point are both within their allowed ranges. This is the gate used by
+    dashboard tooling to decide whether a live readout justifies a given CCLK
+    variant without unfolding the full PVT proof. -/
+def cclk_variant_and_xadc_envelope_check (oscfsel : Nat) (pt : XadcOperatingPoint) : Bool :=
+  decide (oscfsel ≤ 7) && xadc_operating_point_within_envelope_dec pt
+
+/-- The combined check is equivalent to the conjunction of `oscfsel ≤ 7` and the
+    XADC operating-point envelope predicate. -/
+theorem cclk_variant_and_xadc_envelope_check_eq (oscfsel : Nat) (pt : XadcOperatingPoint) :
+  cclk_variant_and_xadc_envelope_check oscfsel pt = true
+  ↔ (oscfsel ≤ 7) ∧ xadc_operating_point_within_envelope pt := by
+  simp [cclk_variant_and_xadc_envelope_check, xadc_operating_point_within_envelope_dec_eq,
+        Bool.and_eq_true]
+
+/-- If a measured operating point is inside the envelope, then any raw-ns capture
+    that satisfies the PVT-aware flash predicate under the global worst-case
+    context also satisfies it under the measured point's context. This is the
+    key bridge that lets the existing OSCFSEL worst-case theorems cover real,
+    in-envelope XADC measurements. -/
+theorem xadc_envelope_implies_raw_ns_satisfies_any_in_envelope
+  (pt : XadcOperatingPoint) (period_ns low_ns high_ns : Nat) :
+  xadc_operating_point_within_envelope pt
+  → pt.process_corner.worse_than ProcessCorner.ss
+  → measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+      OSCFSEL_WORST_CASE_PVT_CONTEXT = true
+  → measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+      (xadc_operating_point_to_pvt pt) = true := by
+  intro h_env h_corner h_wc
+  simp [measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec,
+        measured_cclk_with_pvt_satisfies_flash_spec,
+        xadc_operating_point_to_pvt] at h_wc ⊢
+  rcases h_wc with ⟨h_consistent, h_freq_pos, h_freq_max, h_duty, h_low_wc, h_high_wc⟩
+  refine ⟨h_consistent, h_freq_pos, h_freq_max, h_duty, ?_, ?_⟩
+  · have h_bound : n25q128_min_sck_low_ns_pvt (xadc_operating_point_to_pvt pt)
+        ≤ n25q128_min_sck_low_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+      have h_half := xadc_operating_point_envelope_implies_worst_case_bound pt h_env h_corner
+      simp [n25q128_min_sck_half_ns_pvt] at h_half ⊢
+      exact h_half
+    apply Nat.le_trans h_bound h_low_wc
+  · have h_bound : n25q128_min_sck_high_ns_pvt (xadc_operating_point_to_pvt pt)
+        ≤ n25q128_min_sck_high_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+      have h_half := xadc_operating_point_envelope_implies_worst_case_bound pt h_env h_corner
+      simp [n25q128_min_sck_half_ns_pvt] at h_half ⊢
+      exact h_half
+    apply Nat.le_trans h_bound h_high_wc
+
+/-- If a measured operating point is inside the envelope, then a raw-ns capture
+    that is safe under the global worst-case PVT context produces a flash-spec
+    compliant SPI transaction. This closes the JSON XADC → raw-ns → proof loop. -/
+theorem xadc_envelope_justifies_worstcase_transaction_proof
+  (pt : XadcOperatingPoint) (period_ns low_ns high_ns bits : Nat) :
+  xadc_operating_point_within_envelope pt
+  → pt.process_corner.worse_than ProcessCorner.ss
+  → measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+      OSCFSEL_WORST_CASE_PVT_CONTEXT = true
+  → transaction_satisfies_flash_spec
+      (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits) = true := by
+  intro h_env h_corner h_wc
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok period_ns low_ns high_ns bits
+    OSCFSEL_WORST_CASE_PVT_CONTEXT
+  · norm_num [PVT_TEMP_MIN_C, OSCFSEL_WORST_CASE_PVT_CONTEXT]
+  · norm_num [PVT_VCCINT_MAX_MV, OSCFSEL_WORST_CASE_PVT_CONTEXT]
+  · exact h_wc
 
 end BitstreamConfig
 
@@ -1301,6 +1766,362 @@ theorem boot_success_and_h2_disjoint (s : StatRegister) :
   rcases h with ⟨⟨h_done_t, _, _, _, _⟩, ⟨h_done_f, _, _, _⟩⟩
   rw [h_done_t] at h_done_f
   contradiction
+
+namespace BitstreamConfig
+
+-- ============================================================================
+-- Per-process-corner raw-ns OSCFSEL theorems (W432)
+-- ============================================================================
+
+/-- For every documented OSCFSEL selection (0..7) and every process corner
+    (`ff`, `tt`, `ss`), the ideal raw-ns CCLK capture whose period equals the
+    nominal CCLK period and whose low/high times split the period exactly
+    satisfies the PVT-aware raw-ns flash predicate. Temperature and VCCINT are
+    fixed at the worst-case envelope corner (+85 °C, 900 mV) so the quantifier is
+    over the process corner only. This is the raw-ns counterpart of the
+    `cclk_variant_worstcase_pvt_measured_satisfies_flash_spec` quantified theorem. -/
+theorem cclk_variant_raw_ns_per_process_corner_pvt_satisfies_flash_spec
+  (oscfsel : Nat) (corner : ProcessCorner) (h : oscfsel ≤ 7) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    { temp_c := (85 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := corner } = true := by
+  interval_cases oscfsel <;> cases corner <;> decide
+
+/-- End-to-end link: for every documented OSCFSEL selection and every process
+    corner, the ideal raw-ns capture produces a flash-spec-compliant SPI read
+    transaction. -/
+theorem cclk_variant_raw_ns_per_process_corner_pvt_implies_transaction_ok
+  (oscfsel : Nat) (corner : ProcessCorner) (h : oscfsel ≤ 7) (bits : Nat) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits)
+    = true := by
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok _ _ _ _
+    { temp_c := (85 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := corner }
+  · norm_num [PVT_TEMP_MIN_C]
+  · norm_num [PVT_VCCINT_MAX_MV]
+  · exact cclk_variant_raw_ns_per_process_corner_pvt_satisfies_flash_spec oscfsel corner h
+
+/-- For every documented OSCFSEL selection (0..7) and any live XADC operating
+    point inside the documented envelope whose process corner is at least as
+    slow as `ss`, the ideal raw-ns CCLK capture at the nominal OSCFSEL period
+    satisfies the PVT-aware raw-ns flash predicate under the measured operating
+    point. This composes the W431 XADC envelope bound with the W432
+    per-process-corner theorem, closing the live-readout → OSCFSEL safety loop. -/
+theorem xadc_envelope_justifies_cclk_variant_raw_ns_pvt
+  (oscfsel : Nat) (pt : XadcOperatingPoint) (h : oscfsel ≤ 7)
+  (h_env : xadc_operating_point_within_envelope pt)
+  (h_corner : pt.process_corner.worse_than ProcessCorner.ss) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (xadc_operating_point_to_pvt pt) = true := by
+  intro period_ns low_ns high_ns
+  apply xadc_envelope_implies_raw_ns_satisfies_any_in_envelope pt period_ns low_ns high_ns
+    h_env h_corner
+  exact cclk_variant_raw_ns_per_process_corner_pvt_satisfies_flash_spec oscfsel ProcessCorner.ss h
+
+/-- End-to-end transaction link: for every documented OSCFSEL selection and any
+    live in-envelope XADC operating point with a corner at least as slow as `ss`,
+    the ideal raw-ns CCLK capture produces a flash-spec-compliant SPI read
+    transaction under the measured PVT context. -/
+theorem xadc_envelope_justifies_cclk_variant_transaction_ok
+  (oscfsel : Nat) (pt : XadcOperatingPoint) (bits : Nat) (h : oscfsel ≤ 7)
+  (h_env : xadc_operating_point_within_envelope pt)
+  (h_corner : pt.process_corner.worse_than ProcessCorner.ss) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits)
+    = true := by
+  intro period_ns low_ns high_ns
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok period_ns low_ns high_ns bits
+    (xadc_operating_point_to_pvt pt)
+  · simp [xadc_operating_point_within_envelope] at h_env
+    rcases h_env with ⟨h_temp_min, _, _, _⟩
+    exact h_temp_min
+  · simp [xadc_operating_point_within_envelope] at h_env
+    rcases h_env with ⟨_, _, _, h_volt_max⟩
+    exact h_volt_max
+  · exact xadc_envelope_justifies_cclk_variant_raw_ns_pvt oscfsel pt h h_env h_corner
+
+-- ============================================================================
+-- Computable combined OSCFSEL + XADC envelope check (W435)
+-- ============================================================================
+
+/-- If the combined OSCFSEL + XADC envelope check holds and the measured process
+    corner is at least as slow as `ss`, then the ideal raw-ns CCLK capture at the
+    nominal OSCFSEL period satisfies the PVT-aware flash predicate. This links the
+    computable dashboard gate directly to the formal safety theorem. -/
+theorem cclk_variant_and_xadc_envelope_check_implies_raw_ns_ok
+  (oscfsel : Nat) (pt : XadcOperatingPoint) (h_check : cclk_variant_and_xadc_envelope_check oscfsel pt)
+  (h_corner : pt.process_corner.worse_than ProcessCorner.ss) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (xadc_operating_point_to_pvt pt) = true := by
+  have h : (oscfsel ≤ 7) ∧ xadc_operating_point_within_envelope pt :=
+    (cclk_variant_and_xadc_envelope_check_eq oscfsel pt).mp h_check
+  exact xadc_envelope_justifies_cclk_variant_raw_ns_pvt oscfsel pt h.left h.right h_corner
+
+/-- If the combined OSCFSEL + XADC envelope check holds, the ideal raw-ns CCLK
+    capture produces a flash-spec-compliant SPI read transaction. -/
+theorem cclk_variant_and_xadc_envelope_check_implies_transaction_ok
+  (oscfsel : Nat) (pt : XadcOperatingPoint) (bits : Nat)
+  (h_check : cclk_variant_and_xadc_envelope_check oscfsel pt)
+  (h_corner : pt.process_corner.worse_than ProcessCorner.ss) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits)
+    = true := by
+  intro period_ns low_ns high_ns
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok period_ns low_ns high_ns bits
+    (xadc_operating_point_to_pvt pt)
+  · have h := (cclk_variant_and_xadc_envelope_check_eq oscfsel pt).mp h_check
+    simp [xadc_operating_point_within_envelope] at h
+    rcases h.right with ⟨h_temp_min, _, _, _⟩
+    exact h_temp_min
+  · have h := (cclk_variant_and_xadc_envelope_check_eq oscfsel pt).mp h_check
+    simp [xadc_operating_point_within_envelope] at h
+    rcases h.right with ⟨_, _, _, h_volt_max⟩
+    exact h_volt_max
+  · exact cclk_variant_and_xadc_envelope_check_implies_raw_ns_ok oscfsel pt h_check h_corner
+
+/-- Concrete example: a representative live XADC readout (≈43 °C, ≈1.00 V VCCINT,
+    ≈1.81 V VCCAUX, slow-slow corner) satisfies the PVT-aware raw-ns flash
+    predicate for the OSCFSEL=6 nominal CCLK period under the measured PVT
+    context. -/
+theorem xadc_live_example_oscfsel_6_raw_ns_pvt :
+  let period_ns := cclk_period_ns 6
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  let pt : XadcOperatingPoint :=
+    { temp_c := (43 : Int), vccint_mv := 1000, vccaux_mv := 1806,
+      process_corner := ProcessCorner.ss }
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (xadc_operating_point_to_pvt pt) = true := by
+  decide
+
+-- ============================================================================
+-- Live XADC operating point applied to OSCFSEL variants (W434)
+-- ============================================================================
+
+/-- The live XADC operating point captured in Wave Loop 434, rounded to the
+    integers used by the PVT envelope: 41 °C, 1000 mV VCCINT, 1807 mV VCCAUX,
+    slow-slow process corner. This point is inside the documented operating
+    envelope (`xadc_live_w434_operating_point_within_envelope`). -/
+def XADC_LIVE_W434_OPERATING_POINT : XadcOperatingPoint :=
+  { temp_c := (41 : Int), vccint_mv := 1000, vccaux_mv := 1807,
+    process_corner := ProcessCorner.ss }
+
+/-- The W434 live XADC point is inside the documented operating envelope. -/
+theorem xadc_live_w434_operating_point_within_envelope :
+  xadc_operating_point_within_envelope XADC_LIVE_W434_OPERATING_POINT := by
+  simp [xadc_operating_point_within_envelope, XADC_LIVE_W434_OPERATING_POINT,
+        PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- For the W434 live XADC operating point and any documented OSCFSEL
+    selection, the ideal raw-ns CCLK capture satisfies the PVT-aware flash
+    predicate. This is a direct application of the W431/W432 formal bridge
+    (`xadc_envelope_justifies_cclk_variant_raw_ns_pvt`) to real captured silicon
+    data. -/
+theorem xadc_live_w434_justifies_cclk_variant_raw_ns_pvt
+  (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  intro period_ns low_ns high_ns
+  apply xadc_envelope_justifies_cclk_variant_raw_ns_pvt oscfsel XADC_LIVE_W434_OPERATING_POINT h
+  · exact xadc_live_w434_operating_point_within_envelope
+  · -- slow-slow corner is no better than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+-- ============================================================================
+-- Synthetic OSCFSEL 0..7 theorem matrix under the W434 live XADC point (W435)
+-- ============================================================================
+
+/-- Quantified theorem: for every documented OSCFSEL selection (0..7), the ideal
+    raw-ns CCLK capture at the nominal OSCFSEL period satisfies the PVT-aware
+    flash predicate under the W434 live XADC operating point. This is the synthetic
+    coverage matrix that closes the live-readout → all-CCLK-variants loop without
+    requiring a physical logic-analyzer capture of every variant. -/
+theorem xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec
+  (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  exact xadc_live_w434_justifies_cclk_variant_raw_ns_pvt oscfsel h
+
+/-- Concrete theorems for each documented OSCFSEL selection under the W434 live
+    XADC point. Each one is `decide`-cheap because it reuses the quantified bridge
+    theorem above. -/
+theorem xadc_live_w434_oscfsel_0_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 0) (cclk_period_ns 0 / 2) (cclk_period_ns 0 - cclk_period_ns 0 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 0
+  decide
+
+theorem xadc_live_w434_oscfsel_1_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 1) (cclk_period_ns 1 / 2) (cclk_period_ns 1 - cclk_period_ns 1 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 1
+  decide
+
+theorem xadc_live_w434_oscfsel_2_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 2) (cclk_period_ns 2 / 2) (cclk_period_ns 2 - cclk_period_ns 2 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 2
+  decide
+
+theorem xadc_live_w434_oscfsel_3_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 3) (cclk_period_ns 3 / 2) (cclk_period_ns 3 - cclk_period_ns 3 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 3
+  decide
+
+theorem xadc_live_w434_oscfsel_4_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 4) (cclk_period_ns 4 / 2) (cclk_period_ns 4 - cclk_period_ns 4 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 4
+  decide
+
+theorem xadc_live_w434_oscfsel_5_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 5) (cclk_period_ns 5 / 2) (cclk_period_ns 5 - cclk_period_ns 5 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 5
+  decide
+
+theorem xadc_live_w434_oscfsel_6_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 6) (cclk_period_ns 6 / 2) (cclk_period_ns 6 - cclk_period_ns 6 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 6
+  decide
+
+theorem xadc_live_w434_oscfsel_7_raw_ns_pvt_satisfies_flash_spec :
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec
+    (cclk_period_ns 7) (cclk_period_ns 7 / 2) (cclk_period_ns 7 - cclk_period_ns 7 / 2)
+    (xadc_operating_point_to_pvt XADC_LIVE_W434_OPERATING_POINT) = true := by
+  apply xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec 7
+  decide
+
+/-- End-to-end transaction theorems for each OSCFSEL variant under the W434 live
+    XADC point. -/
+theorem xadc_live_w434_oscfsel_0_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 0) (cclk_period_ns 0 / 2) (cclk_period_ns 0 - cclk_period_ns 0 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 0 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_1_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 1) (cclk_period_ns 1 / 2) (cclk_period_ns 1 - cclk_period_ns 1 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 1 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_2_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 2) (cclk_period_ns 2 / 2) (cclk_period_ns 2 - cclk_period_ns 2 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 2 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_3_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 3) (cclk_period_ns 3 / 2) (cclk_period_ns 3 - cclk_period_ns 3 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 3 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_4_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 4) (cclk_period_ns 4 / 2) (cclk_period_ns 4 - cclk_period_ns 4 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 4 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_5_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 5) (cclk_period_ns 5 / 2) (cclk_period_ns 5 - cclk_period_ns 5 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 5 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_6_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 6) (cclk_period_ns 6 / 2) (cclk_period_ns 6 - cclk_period_ns 6 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 6 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+theorem xadc_live_w434_oscfsel_7_transaction_ok (bits : Nat) :
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt
+      (cclk_period_ns 7) (cclk_period_ns 7 / 2) (cclk_period_ns 7 - cclk_period_ns 7 / 2) bits)
+    = true := by
+  apply cclk_variant_and_xadc_envelope_check_implies_transaction_ok 7 XADC_LIVE_W434_OPERATING_POINT bits
+  · decide
+  · -- slow-slow corner is no worse than itself
+    simp [XADC_LIVE_W434_OPERATING_POINT, ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+
+/-- Example: the combined OSCFSEL + XADC envelope check evaluates to `true` for
+    the W434 live point and OSCFSEL=6, matching the dashboard gate. -/
+theorem xadc_live_w434_oscfsel_6_combined_check_true :
+  cclk_variant_and_xadc_envelope_check 6 XADC_LIVE_W434_OPERATING_POINT = true := by
+  decide
+
+/-- Quantified combined-check theorem: the dashboard gate holds for every
+    documented OSCFSEL selection under the W434 live XADC operating point.
+    This is the computable counterpart to `xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec`
+    and closes the live-readout → all-CCLK-variants loop in a single `∀` statement. -/
+theorem xadc_live_w434_all_oscfsel_combined_check_true (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  cclk_variant_and_xadc_envelope_check oscfsel XADC_LIVE_W434_OPERATING_POINT = true := by
+  rw [cclk_variant_and_xadc_envelope_check_eq]
+  exact ⟨h, xadc_live_w434_operating_point_within_envelope⟩
+
+end BitstreamConfig
 
 end StatRegister
 

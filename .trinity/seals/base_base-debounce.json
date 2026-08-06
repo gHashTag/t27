@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:49644ade15dc6ca14b0d4cfe3547ce4535aa19c294cbf9e2d8ca830756c589e4",
-  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:33e4abd8a3f0f752be48dad24a6c66b10eb69e1f8d45fd889fb6f706aa31b234",
-  "gen_hash_zig": "sha256:d69f8b516e543e56df2fbd4ad6a90b98b7518a4c9716d18fee47f53d4c929610",
+  "gen_hash_c": "sha256:bed85181b2e8e5c4bafecffabb9c879b560438e74834e5cf8752b1074899a2b0",
+  "gen_hash_rust": "sha256:8f96ca8b6ccc2e59162a3eabda9cf5afc5f95a986bc2698542a1e8d3aa55c3ec",
+  "gen_hash_verilog": "sha256:e4d9e15a2d9224379efb719427bdf7a8d01f4c5f649f885c524b96e75f60035c",
+  "gen_hash_zig": "sha256:36602e24aa813c281d50210b4de288ad707cd72a01fd2a2c547e587d4e06fd3e",
   "module": "base-debounce",
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:5327811d6750849976773faf4abbe18bd6c06f3a49799ffc4ca850c88581abb9",
-  "spec_path": "specs/base/debounce.t27"
+  "spec_path": "/Users/playra/t27/specs/base/debounce.t27"
 }

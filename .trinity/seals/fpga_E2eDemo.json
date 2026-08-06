@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-18T16:36:15Z",
   "spec_hash": "sha256:69729efabc127aefce11e671dcb1abc5029ecd942d0670615a9ab41e73b76fb3",
-  "spec_path": "specs/fpga/e2e_demo.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/e2e_demo.t27"
 }

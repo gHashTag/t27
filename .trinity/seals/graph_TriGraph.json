@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:d7eea013b128cbb6076731880a874e83933d710d4c9574118eca81b04b10fe82",
-  "gen_hash_rust": "sha256:d1c43985908e6e78c979e7db11bd372719fb27bda3b544422a59c93d6929fe0b",
-  "gen_hash_verilog": "sha256:ed582bd6b525b2716dce1a906b2af8bc68f496220e85630770cb2310540680b0",
-  "gen_hash_zig": "sha256:b9c741288f8f6ce5781ddecf4551dd9039776b0825a02b81a92166ba82383ac0",
+  "gen_hash_c": "sha256:8019091e403805ca07f8f9dea927d03593251491b7dcc25f16cfafd56fad19eb",
+  "gen_hash_rust": "sha256:8c26013bb7080d4cdacf580babcfd2caa6fdd608ea4aa160a81c53f99b417e94",
+  "gen_hash_verilog": "sha256:02c9943a9e03acdb856004ba3c1cb0654ef031f970c1052712a48a64dcdf5e66",
+  "gen_hash_zig": "sha256:22949c2aa1a22d0e35f1b0b89f2b1b9720152d1b216d47cf38ef619e8dc62f91",
   "module": "TriGraph",
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:8f72ef2f6711c80cfc323ea331747896aa0fb996af8ed2d8585a65fc45619d82",
-  "spec_path": "specs/tri/graph/graph.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/graph/graph.t27"
 }

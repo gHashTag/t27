@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:f07180e5dbd5e9cd375c6711c3e58a8250327ade0df9f3ba888d49712fb423df",
-  "spec_path": "specs/ml/rl/dqn_target_network.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/rl/dqn_target_network.t27"
 }

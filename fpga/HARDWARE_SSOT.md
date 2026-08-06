@@ -878,6 +878,202 @@ package-root module, not for a file nested inside the `Trinity` module path.
 When adding a theorem to the main tree, use the non-standalone snippet and paste
 it into an existing `Trinity` module.
 
+#### 3.6.17 VCD `$comment` exact terminator, real-net auto-threshold, and PVT corner monotonicity (W420)
+
+While the bench remained blocked, W420 hardened the instrument-import pipeline:
+
+- **VCD `$comment` exact-token terminator.** The parser no longer terminates a
+  `$date`, `$version`, or `$comment` section when the line merely contains the
+  substring `$end`. Only a bare `$end` token closes the section. This prevents
+  vendor comments such as `Note: the $end token marks section boundaries` from
+  corrupting the signal dictionary.
+
+- **Real-valued VCD auto-threshold.** For analog VCD exports (e.g. from an
+  oscilloscope or a real-valued logic-analyzer channel), `--vcd-threshold-v` is
+  now optional. When omitted, `tri fpga measured-to-lean` computes the threshold
+  as `50% (vmin + vmax)` over the observed voltage swing and prints it:
+
+  ```bash
+  tri fpga measured-to-lean --vcd cclk_analog.vcd --vcd-signal cclk_analog \
+    --raw-ns --standalone --out MeasuredAnalog.lean
+  # [measured-to-lean] VCD real-valued signal auto-threshold: 1.650 V (swing 0.000 V .. 3.300 V)
+  ```
+
+  Supply `--vcd-threshold-v` explicitly when the observed swing includes noise
+  floors or overshoots that would move the 50% point away from the true logic
+  threshold.
+
+- **PVT corner monotonicity.** The placeholder envelope now has a Lean 4 proof
+  (`pvt_half_ns_monotone_in_process_corner`) plus a Rust operating-rectangle test
+  verifying that the half-period bound respects the `ff ≤ tt ≤ ss` ordering:
+  a worse process corner never yields a smaller (less conservative) bound.
+
+#### 3.6.18 VCD `$timescale` exact terminator and combined PVT monotonicity (W421)
+
+W421 continued the Variant C fallback while the physical bench remained
+unreachable (`openFPGALoader --detect` reports 0 devices; the board is not
+powered/connected).
+
+- **VCD `$timescale` exact-token terminator.** The `$timescale` section now uses
+  the same exact-token terminator as `$date`, `$version`, and `$comment`. A
+  multi-line `$timescale` block that mentions `$end` in an inline comment is no
+  longer terminated early, and the parser correctly reads units such as `1 us`
+  or `1 ps`.
+
+- **Real-valued VCD with non-default timescale.** The auto-threshold path was
+  regression-tested with `$timescale 1 us $end`, confirming that the midpoint
+  threshold and the measured period are both computed in the declared unit.
+
+- **Combined PVT monotonicity.** Added the Lean 4 lemma
+  `pvt_half_ns_monotone_combined` and a matching Rust test: raising temperature,
+  lowering VCCINT, and moving to a worse process corner all increase (or keep)
+  the half-period bound. This is the shape property a worst-case operating-point
+  search relies on.
+
+#### 3.6.19 Live XC7A200T SRAM boot and XADC context (W422)
+
+The physical bench, previously reported as unreachable in W421, is now powered
+and responding. W422 captured the first live evidence on the XC7A200T board
+using `openFPGALoader` with a Digilent HS2 cable:
+
+```bash
+openFPGALoader -c digilent_hs2 --detect
+# index 0:
+#     idcode 0x3636093
+#     manufacturer xilinx
+#     family artix a7 200t
+#     model  xc7a200
+#     irlength 6
+
+openFPGALoader -c digilent_hs2 -m fpga/verilog/ternary_mac_demo_top_200t.bit
+# Load SRAM: 100%
+# ir: 1 isc_done 1 isc_ena 0 init 1 done 1
+
+openFPGALoader -c digilent_hs2 --read-register STAT
+# Register raw value: 0x401079fc
+# Done            0x1
+# EOS             0x1
+# INIT Complete   0x1
+# CRC Error       No CRC error
+# ID Error        No ID error
+# BUS Width       x1
+
+openFPGALoader -c digilent_hs2 --read-xadc
+# temp: 45.6583 °C
+# vccint: 1.00049 V
+# vccaux: 1.80688 V
+```
+
+The captured boot log is committed as
+`build/fpga/boot-log-archive/boot-log-20260706-130006-w422-sram-load.json`.
+It records the operating context (temperature, VCCINT, VCCAUX) measured
+immediately after the SRAM load and the decoded STAT register.
+
+**Blockers still active:**
+
+- **P12 CCLK probe:** pin P12 (CFGCLK / CCLK_0) is still not wired to a
+  logic-analyzer channel, so a real CCLK frequency/duty capture is not yet
+  possible. The synthetic fixture (`tri fpga measure-cclk --synth`) remains the
+  validated CI path.
+- **DLC10 cable:** the on-board Xilinx DLC10 / Platform Cable USB II is not
+  connected to the host, so the in-repo `dlc10` driver cannot be used. The
+  Digilent HS2 cable plus `openFPGALoader` is the working path for this board.
+- **SPI flash boot:** W422 only exercised volatile SRAM load. Non-volatile flash
+  boot and the OSCFSEL=6/7 cold-POR sweep are deferred to W423.
+
+The live STAT capture (`0x401079FC`, DONE=1) confirms that the canonical
+`ternary_mac_demo_top_200t.bit` configures the Artix-7 200T correctly when loaded
+through JTAG/SRAM. The XADC readings give a real operating point inside the
+envelope used by the PVT-aware flash-timing model (≈46 °C, ≈1.00 V VCCINT,
+≈1.81 V VCCAUX, tt corner).
+
+#### 3.6.20 Instrument-import depth: CSV time units, VCD slope filter, and PVT worst-case theorem (W423)
+
+W423 stayed on the Variant B/C path: the bench is reachable via JTAG/SRAM, but a
+real CCLK probe on P12 is still unavailable, and the relay cold-POR gate is still
+not wired. Work therefore focused on making the `tri fpga measured-to-lean`
+import pipeline accept a wider range of instrument exports and tolerate noisy
+analog captures.
+
+- **CSV time-column units.** The analog-CSV parser now detects unit suffixes in
+the header and normalizes the time column to seconds before measuring frequency
+and duty:
+
+  | Header pattern | Unit | Example |
+  |----------------|------|---------|
+  | `time_ms`, `milliseconds` | milliseconds | `time_ms,voltage` |
+  | `time_us`, `microseconds`, `µs` | microseconds | `time_us,voltage` |
+  | `time_ns`, `nanoseconds` | nanoseconds | `time_ns,voltage` |
+  | `Sample`, `index`, `point` | sample number | `Sample,cclk_v` |
+
+  Sample-number columns require `--csv-samplerate <Hz>`. A leading metadata row
+  such as `samplerate,100000000` (PulseView export) is no longer accepted as the
+  column header.
+
+- **VCD real-net slope filter.** Two new flags on `tri fpga measured-to-lean`
+filter spurious transitions on real-valued VCD signals:
+
+  - `--vcd-slope-min-v <V>` drops a crossing whose voltage step is smaller than
+    the given value (useful for rejecting low-amplitude noise).
+  - `--vcd-slope-min-s <s>` drops a crossing that is closer than the given
+    number of seconds to the previous accepted crossing (useful for rejecting
+    narrow glitches).
+
+  The threshold crossing itself is now associated with the timestamp of the new
+  VCD sample, not with a linear interpolation between samples, because VCD value
+  changes are events at exact simulation times.
+
+- **VCD robustness.** Unknown `$timescale` units emit a warning and default to
+1 ns instead of aborting. `$dumpoff`/`$dumpon` directives may appear on lines
+that do not carry a `#` timestamp; the parser keeps the last known time and
+ignores any value changes while dumping is suspended.
+
+- **PVT worst-case theorem.** `tri fpga measured-to-lean --pvt-worstcase`
+generates a theorem that uses the worst-case operating point (85 °C, 900 mV,
+ss corner) without requiring a `--pvt-context` JSON file.
+
+- **Verification.** 10 new regression tests were added to `cli/tri/src/fpga.rs`;
+`cargo test -p tri fpga::tests` reports 60 PASS. The full repo sweep remains
+576 PASS with the same 7 pre-existing gen-verilog yosys smoke failures from
+weak point #1245.
+
+#### 3.6.21 Live XADC → PVT context pipeline (W436)
+
+W436 extends the live-readout path into cold-POR boot logs and the CCLK sweep
+report. The board still cannot be flashed (DLC10 cable not available), but the
+tooling now records *how* the operating point was obtained so a future physical
+run can be replayed and audited.
+
+- **`tri fpga read-xadc --to-pvt-context <ctx.json>`** writes a rounded
+  `PvtContext` from the live XADC readout. The exported file can be fed back
+  into `tri fpga measured-to-lean --pvt-context` and into `tri fpga cold-por`
+  / `tri fpga cclk-sweep`.
+
+- **`tri fpga cold-por` / `tri fpga cclk-sweep`** now accept `--process-corner`
+  (`ff`/`tt`/`ss`, default `ss`) and `--to-pvt-context`. When `--xadc` is set,
+  the live XADC readout is converted to a `PvtContext` using the supplied corner
+  and embedded in the boot log; `--to-pvt-context` persists the same rounded
+  context to a file.
+
+- **Closed-vocabulary `operating_point` source labels.** Every boot log and every
+  sweep-report variant now contains an `operating_point` object with:
+  - `source`: `xadc`, `pvt_context_file`, `worstcase`, or `not_read`;
+  - `temp_c`, `vccint_mv`, `vccaux_mv`, `process_corner`.
+
+- **`tri fpga measured-to-lean --pvt-context-source <label>`** overrides the
+  `source` field emitted in the `--json` summary and in the generated theorem
+  comment, so a theorem derived from a `--to-pvt-context` export can still be
+  tagged `xadc`.
+
+- **Formal coverage.** `TernaryFPGABoot.lean` adds
+  `xadc_live_w434_all_oscfsel_combined_check_true`: for every documented OSCFSEL
+  selection (0..7), the computable `cclk_variant_and_xadc_envelope_check` gate
+  evaluates to `true` under the W434 live XADC operating point.
+
+- **Verification.** `cargo test -p tri` reports 117 PASS; `lake build
+  Trinity.TernaryFPGABoot` succeeds. The 7 residual `gen-verilog` yosys smoke
+  failures remain the documented baseline.
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)
@@ -1064,3 +1260,176 @@ tri fpga bit-config build/fpga/cclk_variants/..._oscfselNN.bit
 
 and confirm that `OSCFSEL` matches the requested value and `CRC_ERROR` remains 0
 after loading into SRAM.
+
+### 9.6 Read live XADC operating point (W430)
+
+The XADC hard macro in the Artix-7 reports die temperature and the VCCINT /
+VCCAUX rail voltages. `tri` exposes this through a standalone subcommand and
+as an opt-in flag on the boot/cold-POR/CCLK-sweep paths so the boot log can
+record the real operating point used by the PVT envelope.
+
+- `tri fpga read-xadc --cable digilent_hs2`  
+  Read the live XADC values and print them as JSON. Falls back to the
+  `--pvt-context` file values if the board is not reachable.
+
+- `tri fpga boot-log ... --xadc`  
+  Embed a live XADC readout in the STAT boot log (`xadc.source == "xadc"`).
+
+- `tri fpga cold-por ... --xadc`  
+  Embed a live XADC readout in the cold-POR boot log. MOCK mode still keeps
+  the `"not_read"` placeholder unless a real board is detected.
+
+- `tri fpga cclk-sweep ... --xadc`  
+  Read XADC after each cold-POR STAT capture and store the operating point in
+  the sweep log.
+
+Example JSON output:
+
+```json
+{
+  "source": "xadc",
+  "temp_c": 45.6,
+  "max_temp_c": 85.0,
+  "min_temp_c": -40.0,
+  "vccint_v": 1.000,
+  "max_vccint_v": 1.050,
+  "min_vccint_v": 0.950,
+  "vccaux_v": 1.806,
+  "max_vccaux_v": 1.890,
+  "min_vccaux_v": 1.710
+}
+```
+
+The operating point is combined with the documented worst-case process corner
+(`ss`) in the formal PVT envelope; see
+`xadc_operating_point_envelope_implies_worst_case_bound` in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+
+#### 9.6.1 XADC → PVT context bridge for `measured-to-lean` (W431)
+
+Wave Loop 431 closes the loop between a live XADC readout and the PVT-aware
+`measured-to-lean` pipeline. The `tri fpga read-xadc` JSON values (°C and V) are
+converted to the integer `PvtContext` used by the formal model: temperature in °C
+rounded to the nearest integer, VCCINT/VCCAUX in millivolts, and a process corner
+(`ff` / `tt` / `ss`). This context can be supplied directly to the proof
+generator:
+
+```bash
+tri fpga read-xadc --cable digilent_hs2 > build/fpga/xadc.json
+tri fpga measured-to-lean --csv build/fpga/cclk_oscfsel06.csv --raw-ns --validate \
+    --pvt-context build/fpga/xadc.json --standalone --out build/fpga/CclkOscfsel06.lean \
+    --json > build/fpga/CclkOscfsel06_summary.json
+```
+
+The `--json` summary emitted by `tri fpga measured-to-lean` now includes:
+
+| Field | Meaning |
+|-------|---------|
+| `flash_min_half_period_ns` | PVT-derated N25Q128_3V minimum SCK low/high time |
+| `margin_ns` | measured `min(sck_low_ns, sck_high_ns)` minus `flash_min_half_period_ns` |
+| `recommendation` | closed vocabulary: `needs_pvt_context`, `in_spec`, `out_of_spec` |
+
+When the XADC operating point lies inside the documented envelope
+(`-40 °C..+85 °C`, `900 mV..1100 mV`), the conservative worst-case `ss` bound
+still applies. The Lean 4 theorem
+`xadc_envelope_implies_raw_ns_satisfies_any_in_envelope` proves that any
+in-envelope operating point justifies the same transaction-safety conclusion as
+the global worst-case context, so a real XADC measurement can be used without
+weakening the formal claim.
+
+**W431 blocker:** P12 is still not wired to a logic-analyzer channel, so a live
+CCLK frequency/duty capture remains impossible. The XADC → PVT bridge is validated
+with unit tests and synthetic fixtures; the first real end-to-end run requires
+the P12 wiring from Variant A/B.
+
+#### 9.6.2 Live XADC validation + synthetic CCLK proof-of-pipeline (W434)
+
+Wave Loop 434 executes Variant B: the board is reachable over JTAG and a live
+XADC readout succeeds, but P12 / the relay gate are still blocked, so a real
+CCLK capture is not possible. The wave therefore validates the live XADC → PVT
+context conversion and generates a `measured-to-lean` theorem using the real
+silicon operating point and a synthetic CCLK fixture.
+
+Live capture example (2026-07-01):
+
+```bash
+tri fpga read-xadc --cable digilent_hs2
+```
+
+Representative output (rounded):
+
+```json
+{
+  "source": "xadc",
+  "temp_c": 41.44,
+  "vccint_v": 1.00049,
+  "vccaux_v": 1.80688
+}
+```
+
+Rounded `PvtContext` (temp in °C, voltages in mV, process corner supplied by
+caller because the XADC cannot measure process):
+
+```json
+{
+  "temp_c": 41,
+  "vccint_mv": 1000,
+  "vccaux_mv": 1807,
+  "process_corner": "ss"
+}
+```
+
+Validate the rounded point inside the documented envelope and inspect the
+derated bound:
+
+```bash
+tri fpga pvt-envelope --pvt-context xadc_pvt.json --json
+```
+
+Generate a Lean 4 theorem from the live XADC context and a synthetic raw-ns
+CCLK fixture that matches the OSCFSEL=6 nominal period (40 ns / 20 ns / 20 ns):
+
+```bash
+cat > synth_oscfsel_06.json <<'EOF'
+{
+  "period_ns": 40,
+  "sck_low_ns": 20,
+  "sck_high_ns": 20,
+  "source": "synth"
+}
+EOF
+tri fpga measured-to-lean --raw-ns --file synth_oscfsel_06.json \
+    --pvt-context xadc_pvt.json --validate --standalone \
+    --name xadc_live_w434 --out CclkOscfsel06LiveXadc.lean --json
+```
+
+The formal library adds `XADC_LIVE_W434_OPERATING_POINT`,
+`xadc_live_w434_operating_point_within_envelope`, and
+`xadc_live_w434_justifies_cclk_variant_raw_ns_pvt` in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean`. These theorems apply the W431/W432
+quantified bridge to the real captured operating point, producing a
+machine-checked claim that OSCFSEL=0..7 are safe under the live silicon
+conditions.
+
+**W435 hardening:** `tri fpga read-xadc` can now export the rounded `PvtContext`
+directly, and `measured-to-lean --json` includes the source operating point:
+
+```bash
+tri fpga read-xadc --cable digilent_hs2 --process-corner ss \
+    --to-pvt-context xadc_pvt.json
+tri fpga pvt-envelope --pvt-context xadc_pvt.json --json
+tri fpga measured-to-lean --raw-ns --file synth_oscfsel_06.json \
+    --pvt-context xadc_pvt.json --validate --standalone \
+    --name xadc_live_w434 --out CclkOscfsel06LiveXadc.lean --json
+```
+
+Wave Loop 435 also adds the synthetic OSCFSEL 0..7 theorem matrix
+(`xadc_live_w434_all_oscfsel_raw_ns_pvt_satisfies_flash_spec`) and the computable
+gate `cclk_variant_and_xadc_envelope_check` in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean`. The matrix proves each documented
+CCLK variant is safe under the live W434 XADC point without requiring a physical
+capture of every variant.
+
+**W434/W435 blocker:** P12 is still unwired and no relay gate exists, so the
+synthetic CCLK fixture substitutes for a real capture. Once P12 is wired, the same
+`--pvt-context xadc_pvt.json` pipeline can consume a real CSV/VCD CCLK trace.
