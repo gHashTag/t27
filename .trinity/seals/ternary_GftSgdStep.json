@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:5515d0ea89d404f1f3b4cf2a3cddff4696c15054a9805cdfd22714c42884e36b",
+  "gen_hash_rust": "sha256:5385f7872c428856cf7dd8404a3624ddbbb556fcea1829963ec4f6ea31e70b2a",
+  "gen_hash_verilog": "sha256:688a6551ea442bf503fcc1d7baa3a7532f2474d774b0b59142cc0d5cf9dd20fc",
+  "gen_hash_zig": "sha256:395ba1306710fa36de41e2e57910c0c0dd262040d49f69c5bb9719b99e85d576",
+  "module": "GftSgdStep",
+  "ring": 12,
+  "sealed_at": "2026-08-06T17:05:04Z",
+  "spec_hash": "sha256:21db83ed35b6b0627dc77997430eaf7739126aeff07ea0120b917421eda29108",
+  "spec_path": "specs/ternary/gft_sgd_step.t27"
+}

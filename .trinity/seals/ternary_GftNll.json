@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4bef3df4b957ee8318850b0b83458701ac68e4935bdda7c57e4df4174cf529c7",
+  "gen_hash_rust": "sha256:bfd7eddf7132aa036fab731cf279f7eacbad0ecbc60e95296207167b2f1fecc4",
+  "gen_hash_verilog": "sha256:98fb953a267e09ad50d80f7c087d0125decca93a2e67508220f6baa123e25f33",
+  "gen_hash_zig": "sha256:847e7b618dd89cbbf71a89a21e59a042fc09d644ce92f5e5196dad7563a92c25",
+  "module": "GftNll",
+  "ring": 12,
+  "sealed_at": "2026-08-06T16:54:52Z",
+  "spec_hash": "sha256:17e2121ad5a409fe247a3829ab0c46936fd4e374eb6cccc220a6c45311ca419c",
+  "spec_path": "specs/ternary/gft_nll.t27"
+}

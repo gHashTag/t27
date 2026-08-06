@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4622b231fae99d22258e7f918ffba79d6536a3f9cfc84be4893be06683ed046f",
+  "gen_hash_rust": "sha256:3ad0d2798dd31b1f2237ccf4d8e9bb58f98568f6aca15d8a70154eda53e089c9",
+  "gen_hash_verilog": "sha256:01824789d4eb57b9bea30b6e740dd785429487973e21aea9bd7d8f974d4ae908",
+  "gen_hash_zig": "sha256:86ba88aa4c6d45064d01d183a682f5a75bf59c7e1c6831fc09a0fe6f9ce4582d",
+  "module": "GftExp2",
+  "ring": 12,
+  "sealed_at": "2026-08-06T16:24:43Z",
+  "spec_hash": "sha256:52849a662623d3213c2b5f2c397c84a8f75045b867bb210ca9f322a4527d30f4",
+  "spec_path": "specs/ternary/gft_exp2.t27"
+}
