@@ -1,3 +1,16 @@
+# NOW — feat: spec-first ternary XOR (a 2-layer net does what one neuron cannot) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat: spec-first ternary XOR (Closes #1769)
+
+- Branch: `feat/spec-first-ternary-xor`
+
+### Что легло
+- `specs/ternary/ternary_xor.t27`: `ternary_xor(a,b)` — the canonical not-linearly-separable function. A single linear neuron cannot compute XOR; this is a genuine 2-layer network with biases (h1=sign(a+b-1) AND-like, h2=sign(a+b+1) OR-like, out=sign(h2-h1-1)). The bias is the neuron's threshold offset — what a trained net learns with the weights. On binary inputs {N,P} the output is exact XOR. Verified: typecheck 0 err; icarus-simulate 4/4; seal MATCH; new `tests/ternary_xor.rs` drives all 9 combos vs an independent 2-layer reference + asserts the 4 binary cases equal true XOR = ALL_PASS 9. A recognizable ML result (perceptron→MLP) from the spec-first ternary stack. Also refined **#1764**: the direct gen-verilog interface is fixed `(clk,rst_n,en,ready)` with no data ports → Phase 2 must go through the HIR path.
+
+---
+
 # NOW — feat: weighted_vote — weights define the function (toward trained model) (2026-08-06)
 
 Last updated: 2026-08-06
