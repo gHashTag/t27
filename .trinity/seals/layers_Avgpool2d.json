@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:7ae9a57dabd5df99284e1aa0b8d46a8c2987e287dde796b1ec59913895fb4a8f",
-  "spec_path": "specs/ml/layers/avgpool2d_layer.t27"
+  "spec_path": "/Users/playra/t27/specs/ml/layers/avgpool2d_layer.t27"
 }

@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:689d3e8dfffa09bc98609a75404dcfcb83cecbc18087b05b8a5a94e0bfe77ae0",
-  "spec_path": "specs/tri/trees/fenwick_tree.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/trees/fenwick_tree.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:089021fed5f2b08341c31ddeebb25b067f9a3f25c46192b5f9e47732a808400f",
-  "gen_hash_rust": "sha256:cec248f857feae6ecbc026f2ae5704767de33ba68eda01aafa539cdbc80273ff",
-  "gen_hash_verilog": "sha256:ff8affa8e97b34f5dea00124f85b3c3eb598442b901619c391c856fdc539c756",
-  "gen_hash_zig": "sha256:e194badc3cd36997fc81beae45ee7894e2237d8f7c3fdcf33eddb6635649e56c",
+  "gen_hash_c": "sha256:24876ebc14b13ddb7bfc99d392a7ad0a39d47f585dfcfb08ce853ca04f934810",
+  "gen_hash_rust": "sha256:eacbb4e3024f795621ada0d424ce166374f64a8292139a88085dc09c48607b2d",
+  "gen_hash_verilog": "sha256:33ed01717c82d7e61275630f8eb6f97c89fa4d60f21e2444c9d44d1361180868",
+  "gen_hash_zig": "sha256:962400c732109508997dd82bb357a46311448f9c21748f16a783600569d07f83",
   "module": "TriOption",
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:f4c734a4a68e2c20c6ff6824ee431d2ea1912898dc36072c2ee1229fbe79a688",
-  "spec_path": "specs/tri/collections/option.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/collections/option.t27"
 }

@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:806c4431f9e62681a9b3ac524ea78e56805d2b3aedd65d7ecb63ed6a952dc051",
   "gen_hash_rust": "sha256:36ad3d2afd297d74cda065fbeda4ba221a1b787a3a9eb5e272ba2722a5f8b94b",
-  "gen_hash_verilog": "sha256:a57097a6facd92b01f80b62670eac77f8e631b572684153e5b5665c31bde3d8c",
+  "gen_hash_verilog": "sha256:fdd21302e22076b34ffd5713851f129ee19c97a3a2f856f522e142fc4f03e0f9",
   "gen_hash_zig": "sha256:4c3457a5566be651fd18e9c9d78132546c7bddd38ff9c483628efc97c66f365e",
   "module": "ZeroDSP_BPSK",
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:c03511cef14c6a38652f65fdc0852cfc638dec039a96c9dc4cb6f04f49643228",
-  "spec_path": "specs/fpga/bpsk.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/bpsk.t27"
 }

@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:346a15f33a83f1587b8c61955907f492ac291d4c687970a47a655ceb52d9be35",
-  "spec_path": "specs/tri/collections/lru_cache.t27"
+  "spec_path": "/Users/playra/t27/specs/tri/collections/lru_cache.t27"
 }
