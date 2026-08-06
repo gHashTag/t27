@@ -1579,6 +1579,47 @@ grepping for stale wave numbers and outer dimensions after each copy, keep the
 `make_grid(32768)` period-identity check, and use `assert_eq` on changed elements
 because `assert_ne` is not emitted by the Icarus simulation path.
 
+## Worked example — Wave Loop 799
+
+Wave Loop 799 continued the module-scope packed-array-of-struct ladder with no
+compiler changes, branching from `wave-loop-798` HEAD because earlier wave PRs
+remained open awaiting review:
+
+- Generated `scripts/gen_w799.py` from `scripts/gen_w798.py` with `OUTER = 417`
+  and `MID_IDX = 208`.
+- Fixed both the generator destination path and the module header f-string from
+  stale `w798` / `415` references to `w799_bench_module_417x2p6_aos_var_call_write`
+  before regenerating.
+- Produced `specs/scratch/w799_bench_module_417x2p6_aos_var_call_write.t27`
+  (26,688 elements, 854,016-bit packed vector, ~0.814 MiBit).
+- Added integration test `accepts_w799_bench_module_417x2p6_aos_var_call_write`
+  after the existing W798 tests in `bootstrap/tests/icarus_lowerable.rs`.
+- Ran `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles, PASSED),
+  `icarus-cocotb` (reference-model OK), and `t27c seal --save`.
+- No changes to `bootstrap/src/compiler.rs`, `bootstrap/stage0/FROZEN_HASH`, or
+  `scripts/cocotb_ref_model.py` for the witness itself.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo clippy -p t27c` green (780 warnings, 0 errors),
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p flash-spi` 2/0,
+  `cargo test -p t27c --test bitnet_pipeline` 20/0,
+  `cargo test -p t27c --test bitnet_top` 17/0,
+  `cargo test -p t27c --test icarus_lowerable` 259/0,
+  `cargo test -p t27c --test verilog_const_array` 2/0.
+- Refreshed weak-point audit and 2025–2026 ternary/MVL literature scan.
+- Wrote `docs/reports/FPGA_LOOP_CLOSEOUT_W799_2026-07-24.md` and
+  `.claude/plans/wave-loop-800.md` with three cooperation variants.
+
+Key learning: the mechanical ladder is now 27 waves deep (W774–W799) with zero
+compiler changes, confirming the packed-vector AoS lowering is robust up to at
+least `[417][2]^6 Pt` (26,688 elements, ~0.814 MiBit). The generator copy hazard
+continues to be the only manual failure mode, and it now spans two distinct text
+locations (destination path + module header f-string). A single parameterized
+wave-prefix variable in the generator template would eliminate both. Continue
+grepping for stale wave numbers and outer dimensions after each copy, keep the
+`make_grid(32768)` period-identity check, and use `assert_eq` on changed elements
+because `assert_ne` is not emitted by the Icarus simulation path.
+
 ---
 
 *φ² + φ⁻² = 3 | TRINITY*
