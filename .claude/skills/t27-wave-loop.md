@@ -2425,6 +2425,27 @@ Key learning: the same copy-hazard checklist still prevents defects when
 progressing by a single outer-dimension step; parameterizing `WAVE`/`OUTER`
 remains the highest-value automation for the ladder.
 
+## Worked example — Wave Loop 844
+
+Wave Loop 844 continued the mechanical packed-vector AoS ladder with zero
+compiler changes:
+
+- Copied `scripts/gen_w843.py` → `scripts/gen_w844.py` and fixed the recurring
+  generator copy hazard (destination path, module header f-string, `MID_IDX` comment).
+- Generated `specs/scratch/w844_bench_module_507x2p6_aos_var_call_write.t27`:
+  `OUTER = 507`, 32,448 elements, 1,038,336-bit packed vector (~0.990 MiBit).
+- Added integration test `accepts_w844_bench_module_507x2p6_aos_var_call_write`
+  to `bootstrap/tests/icarus_lowerable.rs`.
+- Saved seal for the W844 scratch witness.
+- Validation: `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` PASS;
+  full `icarus_lowerable` suite **304/0**.
+- Closed with commit `Closes #1628`, pushed branch `wave-loop-844`, opened PR #1629.
+- Updated this skill's Live Wave Loop Tracker to wave 845.
+
+Key learning: the same copy-hazard checklist still prevents defects when
+progressing by a single outer-dimension step; parameterizing `WAVE`/`OUTER`
+remains the highest-value automation for the ladder.
+
 ## Live Wave Loop Tracker
 
 This section is updated at the end of every completed Wave Loop. It is the
@@ -2433,13 +2454,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 844 |
-| **Issue** | #1628 (expected) |
-| **Branch** | `wave-loop-844` |
-| **Parent branch** | `wave-loop-843` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[507][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Current wave** | 845 |
+| **Issue** | #1630 (expected) |
+| **Branch** | `wave-loop-845` |
+| **Parent branch** | `wave-loop-844` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[509][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
 | **Status** | READY TO START |
-| **Next wave variants queued** | W845 Variant A `[509][2]^6 Pt`; Variant B `[507][3]^6 Pt` stride scaling; Variant C `[507][2]^6 Pt` negative-index wrap-around |
+| **Next wave variants queued** | W846 Variant A `[511][2]^6 Pt`; Variant B `[509][3]^6 Pt` stride scaling; Variant C `[509][2]^6 Pt` negative-index wrap-around |
 
 ### Open backlog (non-blocking)
 
