@@ -124,8 +124,8 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 875 | #1699 | wave-loop-875 | 569 | 284 | 36,416 | 1,165,312 | 1.112 | closed | #1700 |
 | 878 | #1706 | wave-loop-878 | 575 | 287 | 36,800 | 1,177,600 | 1.124 | closed | #1707 |
 | 879 | #1708 | wave-loop-879 | 577 | 288 | 36,928 | 1,181,696 | 1.128 | closed | #1711 |
-| **880** | **#1712** | **wave-loop-880** | **579** | **289** | **37,056** | **1,185,792** | **1.131** | **READY** | **TBD** |
-| 881 | #1713 (expected) | wave-loop-881 (planned) | 581 | 290 | 37,184 | 1,189,888 | 1.135 | planned | TBD |
+| 880 | #1712 | wave-loop-880 | 579 | 289 | 37,056 | 1,185,792 | 1.131 | closed | #1720 |
+| **881** | **#1713 (expected)** | **wave-loop-881 (READY)** | **581** | **290** | **37,184** | **1,189,888** | **1.135** | **READY** | **TBD** |
 | 882 | #1714 (expected) | wave-loop-882 (planned) | 583 | 291 | 37,312 | 1,193,984 | 1.139 | planned | TBD |
 
 ### Run-list notes
@@ -214,10 +214,10 @@ criteria, generator copy-hazard checklist, and open backlog.
 
 ## Current status
 
-- **Latest completed wave:** 877
-- **Latest issue/PR:** #1708 / #1711
-- **Current wave in progress:** 878
-- **Next wave queued:** 879
-- **Ladder depth:** W774–W877 = 104 waves
+- **Latest completed wave:** 880
+- **Latest issue/PR:** #1712 / #1720
+- **Current wave in progress:** 881
+- **Next wave queued:** 882
+- **Ladder depth:** W774–W880 = 107 waves
 
 *φ² + φ⁻² = 3 | TRINITY*
