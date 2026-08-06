@@ -40,6 +40,15 @@ pub fn maj3(a: u8, b: u8, c: u8) -> u8 {
     var w_all_p : u64 = 12009599006321322;
     return quantize(dot27(chunk, w_all_p), 0);
 }
+// The SAME single neuron computes a DIFFERENT named function when the weights
+// change -- the essence of a trained model. With per-input weights [+1, +1, -1]
+// it computes sign(a + b - c) (weight P contributes +input, weight N contributes
+// -input). Demonstrates that weights define the function, not the topology.
+pub fn weighted_vote(a: u8, b: u8, c: u8) -> u8 {
+    var chunk : u64 = pack3(a, b, c);
+    var weights : u64 = pack3(2, 2, 0);
+    return quantize(dot27(chunk, weights), 0);
+}
 test maj_p_p_n { assert_eq(maj3(2, 2, 0), 2); }
 test maj_p_n_z { assert_eq(maj3(2, 0, 1), 1); }
 test maj_n_n_p { assert_eq(maj3(0, 0, 2), 0); }
@@ -47,4 +56,10 @@ test maj_p_p_p { assert_eq(maj3(2, 2, 2), 2); }
 test maj_z_z_z { assert_eq(maj3(1, 1, 1), 1); }
 test maj_n_n_n { assert_eq(maj3(0, 0, 0), 0); }
 test maj_p_n_n { assert_eq(maj3(2, 0, 0), 0); }
+// weighted_vote = sign(a + b - c): flipping the 3rd weight to -1 changes the function.
+test wv_p_p_p { assert_eq(weighted_vote(2, 2, 2), 2); }
+test wv_p_z_p { assert_eq(weighted_vote(2, 0, 2), 0); }
+test wv_z_z_z { assert_eq(weighted_vote(1, 1, 1), 1); }
+test wv_p_n_n { assert_eq(weighted_vote(2, 0, 0), 2); }
+test wv_z_z_p { assert_eq(weighted_vote(1, 1, 2), 0); }
 endmodule
