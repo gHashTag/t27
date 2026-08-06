@@ -3,7 +3,7 @@
 **Date:** 2026-07-24
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
 **Branch:** `wave-loop-794` (to be created from `wave-loop-793` HEAD because earlier wave PRs remain open)
-**Issue:** TBD (next available GitHub issue after W793 PR #1516 is opened)
+**Issue:** #1517
 **Cooperation variant:** A
 
 ## Goal
