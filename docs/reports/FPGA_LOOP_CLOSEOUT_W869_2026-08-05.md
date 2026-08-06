@@ -1,38 +1,38 @@
-# Wave Loop 868 — Closeout Report
+# Wave Loop 869 — Closeout Report
 
 **Date:** 2026-08-05  
-**Issue:** [#1684](https://github.com/gHashTag/t27/issues/1684)  
-**Branch:** `wave-loop-868`  
-**Parent:** `wave-loop-867` HEAD (earlier waves' PRs remain open)  
-**PR:** [#1685](https://github.com/gHashTag/t27/pull/1685)  
+**Issue:** [#1686](https://github.com/gHashTag/t27/issues/1686)  
+**Branch:** `wave-loop-869`  
+**Parent:** `wave-loop-868` HEAD (earlier waves' PRs remain open)  
+**PR:** [#1687](https://github.com/gHashTag/t27/pull/1687)  
 **Author:** Trinity Agent (Claude Code t27)
 
 ---
 
 ## 1. What we built
 
-Wave Loop 868 continues the module-scope packed array-of-struct ladder, selecting
-Variant A from the W868 plan:
+Wave Loop 869 continues the module-scope packed array-of-struct ladder, selecting
+Variant A from the W869 plan:
 
 ```text
-module-scope [555][2]^6 Pt variable from call with indexed signed writes
+module-scope [557][2]^6 Pt variable from call with indexed signed writes
 ```
 
 - `Pt { x : i16, y : i16 }` → 32 bits/element.
-- Outer dimension `555` is odd and non-power-of-two, preserving the boundary-stress
+- Outer dimension `557` is odd and non-power-of-two, preserving the boundary-stress
   cadence established by W837+.
 - Inner shape `[2]^6` = 64 elements/row.
-- Total elements: `555 × 64 = 35,520`.
-- Packed vector width: `35,520 × 32 = 1,136,640 bits` ≈ **1.084 MiBit**.
+- Total elements: `557 × 64 = 35,648`.
+- Packed vector width: `35,648 × 32 = 1,140,736 bits` ≈ **1.088 MiBit**.
 
 Artifacts produced:
 
 | Artifact | Path | Notes |
 |----------|------|-------|
-| Generator | `scripts/gen_w868.py` | Copied from `gen_w867.py`; copy hazard fixed before first run (`w868`, `OUTER = 555`, `MID_IDX = 277`). |
-| Spec | `specs/scratch/w868_bench_module_555x2p6_aos_var_call_write.t27` | 105,511 lines, ~2.43 MB. |
-| Seal | `.trinity/seals/scratch_w868_bench_module_555x2p6_aos_var_call_write.json` | Saved by `t27c seal --save`. |
-| Test | `bootstrap/tests/icarus_lowerable.rs` | `accepts_w868_bench_module_555x2p6_aos_var_call_write`. |
+| Generator | `scripts/gen_w869.py` | Copied from `gen_w868.py`; copy hazard fixed before first run (`w869`, `OUTER = 557`, `MID_IDX = 278`). |
+| Spec | `specs/scratch/w869_bench_module_557x2p6_aos_var_call_write.t27` | 105,891 lines, ~2.44 MB. |
+| Seal | `.trinity/seals/scratch_w869_bench_module_557x2p6_aos_var_call_write.json` | Saved by `t27c seal --save`. |
+| Test | `bootstrap/tests/icarus_lowerable.rs` | `accepts_w869_bench_module_557x2p6_aos_var_call_write`. |
 
 ---
 
@@ -40,7 +40,7 @@ Artifacts produced:
 
 ### 2.1 Icarus Verilog packed-vector behavior at 1+ MiBit
 
-The practical landscape remains as observed in W837–W867:
+The practical landscape remains as observed in W837–W868:
 
 - **Issue #1171** (2024): Icarus can exhaust memory when a constant-expression bug
   produces a vector in the exa-bit range. Maintainer *caryr* notes that the standard
@@ -55,11 +55,11 @@ The practical landscape remains as observed in W837–W867:
 - Historical Icarus 0.8 had a ~256 K-entry allocator assertion for huge packed vectors;
   modern versions do not hit it at this scale.
 
-**Interpretation:** W868's 1.084-MiBit vector is still comfortably below both the
+**Interpretation:** W869's 1.088-MiBit vector is still comfortably below both the
 historical allocator assertion zone and the standard's 2^16-bit *suggestion* when read
 as a per-dimension limit. In practice, Icarus accepts the vector because it is a single
 large packed object, not a multi-dimensional packed parameter or an expression-width
-edge case. No new limit appeared between W867 and W868.
+edge case. No new limit appeared between W868 and W869.
 
 ### 2.2 Vitis HLS `compact=bit` analog
 
@@ -74,7 +74,7 @@ reference frame:
 - `compact=bit` is disallowed for AXI4 interfaces; those use `compact=none` (padded to
   alignment).
 
-**Interpretation for t27:** our generated internal vector (`1,136,640 bits`) is far wider
+**Interpretation for t27:** our generated internal vector (`1,140,736 bits`) is far wider
 than a Vitis interface port limit, but it is not an external port — it is an internal
 module variable. The relevant comparison is the *internal* representation fidelity, not
 an IO pin limit. t27c and Icarus are effectively doing internally what Vitis HLS does
@@ -107,7 +107,7 @@ Siracusa et al. (IEEE TC 2021, DOI:10.1109/tc.2021.3111761) and the precursor IC
 - **Bandwidth ceilings** distinguish random access, gather-scatter, and peak configured
   AXI bandwidth.
 
-**Interpretation:** W868 is still on the "soft" side of the memory wall. The kernel
+**Interpretation:** W869 is still on the "soft" side of the memory wall. The kernel
 performs the same arithmetic per element; only the vector width grows. Until a tool
 limit appears, the ladder measures how large `Q` can become before lowering, simulation,
 or sealing breaks.
@@ -118,13 +118,13 @@ or sealing breaks.
 
 | Gate | Command / Test | Result |
 |------|----------------|--------|
-| Parse | `t27c parse specs/scratch/w868_bench_module_555x2p6_aos_var_call_write.t27` | PASS |
+| Parse | `t27c parse specs/scratch/w869_bench_module_557x2p6_aos_var_call_write.t27` | PASS |
 | Lowerable | `t27c icarus-lowerable ...` | `lowerable` |
 | Simulate | `t27c icarus-simulate ...` | `PASSED` (17 cycles) |
 | Cocotb | `t27c icarus-cocotb ...` | `reference-model OK` |
 | Seal | `t27c seal --save ...` | seal saved |
-| Targeted test | `cargo test --release --test icarus_lowerable -- accepts_w868_bench_module_555x2p6_aos_var_call_write` | 1/0 |
-| Full suite | `cargo test --release --test icarus_lowerable` | **328/0** |
+| Targeted test | `cargo test --release --test icarus_lowerable -- accepts_w869_bench_module_557x2p6_aos_var_call_write` | 1/0 |
+| Full suite | `cargo test --release --test icarus_lowerable` | **329/0** |
 | FROZEN_HASH | `cat bootstrap/stage0/FROZEN_HASH` | unchanged |
 
 No compiler source changes, no reference-model changes, no FROZEN_HASH change.
@@ -147,13 +147,13 @@ No compiler source changes, no reference-model changes, no FROZEN_HASH change.
 
 ---
 
-## 5. Cooperation variants for Wave Loop 869
+## 5. Cooperation variants for Wave Loop 870
 
 | Variant | Shape | Outer | Inner | Elements | Bits | MiBit | Purpose |
 |---------|-------|-------|-------|----------|------|-------|---------|
-| **A (recommended)** | `[557][2]^6 Pt` | 557 | `[2]^6` | 35,648 | 1,140,736 | ~1.088 | Continue mechanical `outer += 2` ladder. |
-| **B** | `[555][3]^6 Pt` | 555 | `[3]^6` | 53,280 | 1,704,960 | ~1.626 | Grow second inner dimension, stress stride scaling (~1.6 MiBit). |
-| **C** | `[555][2]^6 Pt` (neg-index writes) | 555 | `[2]^6` | 35,520 | 1,136,640 | ~1.084 | Negative-index / wrap-around writes. |
+| **A (recommended)** | `[559][2]^6 Pt` | 559 | `[2]^6` | 35,776 | 1,144,832 | ~1.092 | Continue mechanical `outer += 2` ladder. |
+| **B** | `[557][3]^6 Pt` | 557 | `[3]^6` | 53,376 | 1,708,032 | ~1.630 | Grow second inner dimension, stress stride scaling (~1.6 MiBit). |
+| **C** | `[557][2]^6 Pt` (neg-index writes) | 557 | `[2]^6` | 35,648 | 1,140,736 | ~1.088 | Negative-index / wrap-around writes. |
 
 Variant A is recommended. It preserves the established mechanical cadence and keeps
 the next rung well under the 4-MiBit soft cliff while continuing the non-power-of-two
@@ -163,8 +163,8 @@ outer-dimension stress pattern.
 
 ## 6. Next steps
 
-1. Land W868 commit (`Closes #1684`) and open PR to `master`.
-2. Create W869 issue and branch `wave-loop-869` from `wave-loop-868` HEAD.
-3. Implement selected W869 variant per the standing charter.
+1. Land W869 commit (`Closes #1686`) and open PR to `master`.
+2. Create W870 issue and branch `wave-loop-870` from `wave-loop-869` HEAD.
+3. Implement selected W870 variant per the standing charter.
 
 *φ² + φ⁻² = 3 | TRINITY*
