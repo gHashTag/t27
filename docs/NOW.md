@@ -1,3 +1,20 @@
+# NOW — feat: land the spec-first hardware stack (ports + GF-T MAC ladder) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(gen-verilog): data ports + BitNet & GF-T spec-first hardware onto master (Refs #1764)
+
+- Branch: `feat/land-spec-first-hardware`
+
+### Что легло
+The spec-first hardware work (11 improvement cycles), now that master is unblocked. Compiler: **opt-in data ports** — `on_clock` var state exposed as `output reg`, `on_clock`/`on_comb` params become `input` data ports, `on_comb` return drives an `output wire result`. Seal-neutral (gated on `on_clock`/`on_comb` fn names → existing specs byte-identical). Specs, each iverilog/yosys/oracle cross-checked:
+- **BitNet path (synthesizes to Artix-7):** `comb_ternary_dot` (dot27→~317 LUT), `comb_bitnet_neuron` (quantize(dot27)→~319 LUT, a full neuron), `comb_bitnet_layer` (4 neurons→288 LUT const / ~1287 general), `stream_ternary_mac` (streaming MAC→32 FDCE), `clocked_counter` (8 FDCE). `docs/SYNTH_REPORT.md`.
+- **GF-T path (bit-exact to the AX7203 silicon):** `gft_dot2` (silicon MAC), `gft_dot4`/`gft_dot8` (matmul/attention tiles), `gft_layer2` (matmul row) — all bit-exact to the silicon reduction tree (2000 vectors each).
+- **GF-T RNE path (bit-exact to the IDEAL oracle, MORE ACCURATE than silicon):** `gft_mul_rne` + `gft_add_rne` + `gft_dot2_rne` — round-to-nearest-even, matching `gft16_ref.py` (300 vectors each); the silicon truncates ~1 ULP low.
+Verified: 1535 unit tests pass; all 12 spec tests green on master's compiler; FROZEN_HASH resealed; new-spec seals regenerated. Supersedes the stale-base PR #1786.
+
+---
+
 # NOW — fix: repair all 7 gen-verilog regressions from batch merge #1783 (2026-08-06)
 
 Last updated: 2026-08-06
