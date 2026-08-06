@@ -18,13 +18,13 @@ merge) remain open awaiting review, so W778 will be branched from
 `wave-loop-777` HEAD to avoid blocking the sequence.
 
 ## Acceptance criteria
-- [ ] Generator `scripts/gen_w809.py` with `OUTER = 437`, `MID_IDX = 218`; copy hazard fixed before first run.
-- [ ] Witness `specs/scratch/w809_bench_module_437x2p6_aos_var_call_write.t27` generated and parsed.
+- [ ] Generator `scripts/gen_w810.py` with `OUTER = 439`, `MID_IDX = 219`; copy hazard fixed before first run.
+- [ ] Witness `specs/scratch/w810_bench_module_439x2p6_aos_var_call_write.t27` generated and parsed.
 - [ ] `t27c icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, and `seal --save` all PASS.
-- [ ] Integration test `accepts_w809_bench_module_437x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
+- [ ] Integration test `accepts_w810_bench_module_439x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
 - [ ] `bootstrap/stage0/FROZEN_HASH` unchanged.
 - [ ] Closeout report, next-wave plan, docs, skill tracker, and persistent memory updated.
-- [ ] Commit with `Closes #1547`, push branch, open PR to `master`.
+- [ ] Commit with `Closes #1549`, push branch, open PR to `master`.
 
 1. [ ] `specs/scratch/w778_bench_module_375x2p6_aos_var_call_write.t27` is generated and parses.
 2. [ ] The witness is Icarus-lowerable and simulates correctly (17 cycles, PASSED).
