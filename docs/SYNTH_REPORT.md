@@ -21,6 +21,8 @@ the evidence, in actual Xilinx primitives.
 |---|---|---|---:|---:|---:|---:|
 | combinational dot product | `comb_ternary_dot.t27` | comb | 317 | 0 | 2 | 142 |
 | **combinational BitNet neuron** | `comb_bitnet_neuron.t27` | comb | 319 | 0 | 2 | 141 |
+| **BitNet layer, 4 neurons (trained/const weights)** | `comb_bitnet_layer.t27` | comb | 288 | 0 | 0 | ~140 |
+| BitNet layer, 4 neurons (general/programmable weights) | *(measured, not committed)* | comb | 1287 | 0 | 8 | ~430 |
 | clocked counter | `clocked_counter.t27` | seq | 0 | 8 | 2 | 0 |
 | **streaming ternary MAC** | `stream_ternary_mac.t27` | seq | 346 | 32 | 10 | 143 |
 
@@ -30,17 +32,20 @@ the evidence, in actual Xilinx primitives.
 ## Reading the numbers
 
 - **A full BitNet neuron over one 27-trit chunk costs ~319 LUTs** (`quantize(dot27(a,b))`): a ternary dot-product adder-tree plus a sign activation, purely combinational (0 FFs), one LUT delay.
+- **A 4-neuron layer scales linearly**: with general (programmable) weights it is **1287 LUTs ≈ 4 × 319** — the per-neuron cost is additive, as expected. With **trained constant weights baked in** the synthesizer const-folds the dot products and the same layer drops to **288 LUTs** (cheaper than a single general neuron). Baking trained weights in is a real area win for inference.
 - **The streaming MAC adds a 32-bit accumulator** (32 FDCE + a wider carry chain) so it can sum dot products across cycles — the on-hardware inference primitive.
 - The clocked counter is the minimal sequential proof: 8 FDCE + a CARRY4, 0 LUTs.
 
 ## Headroom on the AX7203 (XC7A200T)
 
 The target part has **~133,800 6-input LUTs and ~267,600 flip-flops**. A single
-combinational neuron (~319 LUTs) uses **~0.24 %** of the LUTs. That leaves room
-for **hundreds** of neurons instantiated in parallel, or a small time-multiplexed
-MAC engine streaming an entire layer through one accumulator — the fabric is
-nowhere near the constraint. The gap to a running on-hardware layer is
-place-and-route (nextpnr-xilinx) + a bitstream, not logic capacity.
+combinational neuron (~319 LUTs) uses **~0.24 %** of the LUTs; a **general
+4-neuron layer (1287 LUTs) is ~1 %** — so roughly **~100 such layers** fit
+in parallel, or many more when weights are constant and const-fold. Equivalently,
+a small time-multiplexed MAC engine can stream an entire network through one
+accumulator using a few hundred LUTs. The fabric is nowhere near the constraint:
+the gap to a running on-hardware layer is place-and-route (nextpnr-xilinx) + a
+bitstream, not logic capacity.
 
 ## Reproduce
 

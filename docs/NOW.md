@@ -1,6 +1,17 @@
-# NOW — docs: Artix-7 synthesis report for the spec-first ternary stack (2026-08-06)
+# NOW — feat: spec-first BitNet LAYER (4 neurons) synthesizes to Artix-7 (2026-08-06)
 
 Last updated: 2026-08-06
+
+## feat(spec): combinational BitNet layer — 4 neurons in one synthesizable module (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Что легло
+- `specs/ternary/comb_bitnet_layer.t27` (`CombBitnetLayer`) + seal + `bootstrap/tests/comb_bitnet_layer.rs`: **a full BitNet LAYER = 4 neurons over a shared 27-trit activation**, each `quantize(dot27(w_i, a))` with its own trained weight vector (const), trits packed 2 bits each into the `result` output. The next architectural level above the single neuron. Verified: typecheck 0 err; 3 hand-computed in-spec tests pass (packed responses 146/24/85 to the all-P/all-N/all-Z activations); **yosys synth_xilinx → 288 LUT, 0 FF** (const weights const-fold); iverilog matches the packed outputs = ALL_PASS. No compiler change (uses `on_comb` with a packed return).
+- `docs/SYNTH_REPORT.md` updated: layer scaling is **linear** — a general (programmable-weight) 4-neuron layer measures **1287 LUT ≈ 4 × 319** (the single-neuron cost), while the **trained/const-weight layer folds to 288 LUT**. Headroom: a general 4-neuron layer is ~1 % of the XC7A200T, so ~100 layers fit in parallel; the gap to a running network is place-and-route + bitstream, not logic capacity.
+- Seal-neutral; 1506 unit tests + the spec suite pass. On branch `feat/streaming-ternary-mac-verified` (PR #1786).
+
+---
 
 ## docs(synth): measured FPGA cost of the spec-first ternary hardware designs (Refs #1764)
 
