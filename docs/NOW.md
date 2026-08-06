@@ -1,6 +1,6 @@
-# NOW — feat: parameterized N-chunk spec-first BitNet neuron over packed arrays (2026-08-05)
+# NOW — feat: parameterized N-chunk spec-first BitNet neuron over packed arrays (2026-08-06)
 
-Last updated: 2026-08-05
+Last updated: 2026-08-06
 
 ## feat: spec-first neuronN over [8]u64 packed arrays + loop (Closes #1750)
 
