@@ -825,6 +825,10 @@ enum Commands {
         /// Skip long-running phases (parse/typecheck/gen are still run).
         #[arg(long, default_value_t = false)]
         fast: bool,
+
+        /// Write the machine-readable suite summary to this path.
+        #[arg(long = "json")]
+        json_out: Option<PathBuf>,
     },
 
     /// Validate conformance/*.json files (JSON + vector keys)
@@ -8491,6 +8495,7 @@ async fn main() -> anyhow::Result<()> {
             icarus_lowerable,
             cocotb,
             fast,
+            json_out,
         } => suite::run_comprehensive(
             &repo_root,
             suite::SuiteOptions {
@@ -8498,6 +8503,7 @@ async fn main() -> anyhow::Result<()> {
                 icarus_lowerable,
                 cocotb,
                 fast,
+                json_out,
             },
         )?,
         Commands::ValidateConformance { repo_root } => {
@@ -8770,6 +8776,7 @@ fn main() -> anyhow::Result<()> {
             icarus_lowerable,
             cocotb,
             fast,
+            json_out,
         } => suite::run_comprehensive(
             &repo_root,
             suite::SuiteOptions {
@@ -8777,6 +8784,7 @@ fn main() -> anyhow::Result<()> {
                 icarus_lowerable,
                 cocotb,
                 fast,
+                json_out,
             },
         )?,
         Commands::ValidateConformance { repo_root } => {

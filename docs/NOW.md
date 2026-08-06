@@ -1,3 +1,16 @@
+# NOW — fix: restore compilation after the w420-w459 batch merge (2026-08-06)
+
+Last updated: 2026-08-06
+
+## fix(compiler): repair declarations dropped by batch merge #1783 (Closes #1787)
+
+- Branch: `fix/repair-verilog-codegen-merge`
+
+### Что легло
+- `master` did not compile at all: PR #1783 (`batch-merge-wave-loops-w420-w459`) resolved its conflicts by keeping the wave-loop **call sites** while dropping the **declarations** they depend on. The failure was masked — `build.rs` panics on the stale `FROZEN_HASH` seal before rustc runs, so the seal error hid 27 real compile errors. Restored from their originating commits (recovered, not hand-reconstructed): six `VerilogCodegen` fields (`local_arrays`, `array_param_bindings`, `array_param_indices`, `array_param_errors`, `current_fn_name_original`, `let_tmp_counter`) plus their initializers in all three constructors; the methods `type_is_float`, `gen_verilog_let_destructuring`, `tuple_element_widths`, `is_simple_tuple_type`; the `let type_array = Self::parse_array_type(..)` binding at both consumer sites (adapted to master's newer multi-dimensional `Option<(Vec<usize>, String)>` API by folding the dims); and the `base`/`idx` bindings with the W383 function-local-array flattening block. In `suite.rs`/`main.rs`: the lost `json_out` plumbing (`SuiteOptions` field + `--json` CLI arg, from WL440), the `HashSet` import, and `fast` -> `opts.fast`. Also fixed two silent behaviour losses: `let (a, b) = expr` was routed to a `StmtAssign`+`ExprArrayLiteral` shape only the Verilog backend reads (Rust emitted `vec![s, d] = dm(a, b);`), now back through `parse_local_decl` whose `extra_field` shape all four backends lower; and `parse_type_annotation` joined tuple elements with `,` instead of the canonical `, `. FROZEN_HASH resealed (M5). Result: **master compiles again, 1528/1535 unit tests pass**, from a state where nothing built. Seven tests remain red — Verilog lowering features (w457 `ram_style`, w458/w459 array params, keyword escaping) lost by the same merge; left for their authors rather than reconstructed by inference, since guessed RTL semantics would be worse than a visible failure. Tracked in #1787.
+
+---
+
 # NOW — ci(trust): OpenSSF Scorecard, SBOM, Sigstore-signed releases (2026-08-06)
 
 Last updated: 2026-08-06

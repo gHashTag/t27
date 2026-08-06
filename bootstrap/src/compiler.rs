@@ -1600,7 +1600,9 @@ impl Parser {
                 let elem = self.parse_type_annotation();
                 ty.push_str(&elem);
                 if self.current.kind == TokenKind::Comma {
-                    ty.push(',');
+                    // Canonical spelling is `(T1, T2)` with a space: the rest of
+                    // the codebase and every backend test matches on that form.
+                    ty.push_str(", ");
                     self.advance();
                 } else if self.current.kind != TokenKind::RParen {
                     // Not a clean tuple-type element (e.g. named-field syntax);
@@ -1925,13 +1927,12 @@ impl Parser {
     fn parse_body_stmt(&mut self) -> Result<Node, String> {
         // const / var declaration
         if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
-            // `let` is lexed as KwConst. Detect destructuring form `let (a, b, c) = expr;`
-            // where the next token after let/const is '('.
-            if self.current.kind == TokenKind::KwConst
-                && self.peek.kind == TokenKind::LParen
-            {
-                return self.parse_let_destructuring();
-            }
+            // `let (a, b) = expr` is handled by parse_local_decl, which stores the
+            // comma-joined pattern in extra_field -- the shape every backend
+            // (Zig/C/Verilog/Rust) already lowers. The batch merge of w420-w459
+            // routed it to parse_let_destructuring instead, which emits a
+            // StmtAssign+ExprArrayLiteral form only the Verilog backend reads,
+            // silently breaking tuple destructuring in the other three.
             return self.parse_local_decl();
         }
 
@@ -4114,6 +4115,14 @@ pub struct VerilogCodegen {
     // W586: true while emitting the left-hand side of an assignment. Signed packed
     // slice expressions must not be wrapped with `$signed(...)` in lvalue position.
     in_lvalue: bool,
+    // Restored from Wave Loop 455/458 (batch merge w420-w459 kept the call
+    // sites but dropped these declarations, leaving master uncompilable).
+    current_fn_name_original: String,
+    let_tmp_counter: u32,
+    local_arrays: std::collections::HashSet<String>,
+    array_param_bindings: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+    array_param_indices: std::collections::HashMap<String, std::collections::HashSet<usize>>,
+    array_param_errors: std::collections::HashMap<String, String>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -4153,6 +4162,113 @@ impl VerilogCodegen {
             call_array_tmp_materialized: std::collections::HashSet::new(),
             use_call_array_temps: false,
             in_lvalue: false,
+            current_fn_name_original: String::new(),
+            let_tmp_counter: 0,
+            local_arrays: std::collections::HashSet::new(),
+            array_param_bindings: std::collections::HashMap::new(),
+            array_param_indices: std::collections::HashMap::new(),
+            array_param_errors: std::collections::HashMap::new(),
+        }
+    }
+
+    // Restored from Wave Loop 455 (same botched merge).
+    fn is_simple_tuple_type(ty: &str) -> bool {
+        ty.starts_with('(')
+            && ty.ends_with(')')
+            && !ty.contains(':')
+            && !ty.is_empty()
+    }
+
+    // Restored from Wave Loop 455 (same botched merge).
+    fn tuple_element_widths(ty: &str) -> Vec<u32> {
+        if Self::is_simple_tuple_type(ty) {
+            let inner = &ty[1..ty.len() - 1];
+            if inner.is_empty() {
+                return Vec::new();
+            }
+            inner
+                .split(',')
+                .map(|t| Self::type_to_width(t.trim()))
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    // Restored from Wave Loop 458 (batch merge w420-w459 dropped the definition
+    // while keeping its call sites).
+    fn type_is_float(ty: &str) -> bool {
+        matches!(ty, "f32" | "f64")
+    }
+
+    // Restored from Wave Loop 455 (same botched merge).
+    fn gen_verilog_let_destructuring(
+        &mut self,
+        lhs_tuple: &Node,
+        rhs: &Node,
+    ) {
+        // W379: infer binding count and per-binding width from the LHS pattern.
+        // W380: when a binding has no explicit type, try to infer its width from
+        // the callee's tuple return type so mixed-width tuples lower correctly.
+        let mut callee_return_type: Option<String> = None;
+        if rhs.kind == NodeKind::ExprCall && !rhs.name.is_empty() {
+            callee_return_type = self.fn_return_types.get(&rhs.name).cloned();
+        }
+        let tuple_widths: Vec<u32> = if let Some(ref rt) = callee_return_type {
+            Self::tuple_element_widths(rt)
+        } else {
+            Vec::new()
+        };
+
+        let bindings: Vec<(String, u32)> = lhs_tuple
+            .children
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                let name = Self::verilog_safe_identifier(&c.name,
+                );
+                let width = if !c.extra_type.is_empty() {
+                    Self::type_to_width(&c.extra_type)
+                } else if let Some(w) = tuple_widths.get(i).copied() {
+                    w
+                } else {
+                    32u32
+                };
+                (name, width)
+            })
+            .collect();
+        let tmp = Self::verilog_safe_identifier(
+            &format!("_let_tmp_{}", self.let_tmp_counter),
+        );
+        self.let_tmp_counter += 1;
+        let total_width: u32 = bindings.iter().map(|(_, w)| w).sum();
+
+        // Declare the packed temporary and evaluate the RHS call into it.
+        self.write_indent();
+        self.write_line(&format!(
+            "reg [{}:0] {}; // packed temporary for let destructuring",
+            total_width.saturating_sub(1),
+            tmp
+        ));
+        self.write_indent();
+        self.write(&format!("{} = ", tmp));
+        self.gen_verilog_expr(rhs);
+        self.write_line(";");
+
+        // Declare scalar regs and assign slices for each binding.
+        let mut cursor = total_width;
+        for (name, width) in bindings.iter() {
+            let high = cursor.saturating_sub(1);
+            let low = cursor.saturating_sub(*width);
+            self.write_indent();
+            self.write_line(&format!(
+                "reg [{}:0] {};",
+                width.saturating_sub(1),
+                name
+            ));
+            self.write_indent();
+            self.write_line(&format!("{} = {}[{}:{}];", name, tmp, high, low));
+            cursor = low;
         }
     }
 
@@ -5387,6 +5503,12 @@ impl VerilogCodegen {
             call_array_tmp_materialized: std::collections::HashSet::new(),
             use_call_array_temps: false,
             in_lvalue: false,
+            current_fn_name_original: String::new(),
+            let_tmp_counter: 0,
+            local_arrays: std::collections::HashSet::new(),
+            array_param_bindings: std::collections::HashMap::new(),
+            array_param_indices: std::collections::HashMap::new(),
+            array_param_errors: std::collections::HashMap::new(),
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -5549,6 +5671,12 @@ impl VerilogCodegen {
                     call_array_tmp_materialized: std::collections::HashSet::new(),
                     use_call_array_temps: false,
                     in_lvalue: false,
+                    current_fn_name_original: String::new(),
+                    let_tmp_counter: 0,
+                    local_arrays: std::collections::HashSet::new(),
+                    array_param_bindings: std::collections::HashMap::new(),
+                    array_param_indices: std::collections::HashMap::new(),
+                    array_param_errors: std::collections::HashMap::new(),
                 };
                 tmp.emit_packed_array_literal_concat_level(
                     sub, dims, depth + 1, elem_w, elem_type,
@@ -6494,7 +6622,10 @@ impl VerilogCodegen {
         }
 
         // Determine if this is an array constant (LUT)
-        let is_array = !node.extra_size.is_empty();
+        // W382/W383: array type may come from the type annotation (e.g. "[4]u16")
+        // in addition to the legacy extra_size path. Restored from Wave Loop 455.
+        let type_array = Self::parse_array_type(&node.extra_type);
+        let is_array = !node.extra_size.is_empty() || type_array.is_some();
 
         if is_array {
             // W383: array-constant lowering. If the type annotation is an array
@@ -6504,7 +6635,10 @@ impl VerilogCodegen {
             let has_array_literal = !node.children.is_empty()
                 && node.children[0].kind == NodeKind::ExprArrayLiteral;
 
-            if let Some((array_size, elem_type)) = type_array {
+            if let Some((array_dims, elem_type)) = type_array {
+                // master's parse_array_type returns every dimension; a flat Verilog
+                // memory needs the total element count, so fold the dims.
+                let array_size: usize = array_dims.iter().product();
                 let elem_width = Self::type_to_width(&elem_type);
                 let elem_signed = Self::type_is_signed(&elem_type);
                 let elem_signed_str = if elem_signed { "signed " } else { "" };
@@ -6864,10 +6998,16 @@ impl VerilogCodegen {
         // W382: array type may come from the type annotation (e.g. "[4]u16") in
         // addition to the legacy extra_size path used by array literals.
         let type_array = Self::parse_array_type(&node.extra_type);
+        // W382/W383: array type may come from the type annotation (e.g. "[4]u16")
+        // in addition to the legacy extra_size path. Restored from Wave Loop 455.
+        let type_array = Self::parse_array_type(&node.extra_type);
         let is_array = !node.extra_size.is_empty() || type_array.is_some();
         let safe_name = Self::verilog_safe_identifier(&node.name);
 
-        if let Some((array_size, elem_type)) = type_array {
+        if let Some((array_dims, elem_type)) = type_array {
+            // master's parse_array_type returns every dimension; a flat Verilog
+            // memory needs the total element count, so fold the dims.
+            let array_size: usize = array_dims.iter().product();
             // W382: emit a true synthesizable Verilog memory so that indexing
             // expressions like mem[i] resolve to memory access, not bit-select.
             let elem_width = Self::type_to_width(&elem_type);
@@ -8593,7 +8733,23 @@ impl VerilogCodegen {
                     if self.try_emit_primitive_array_access(node) {
                         return;
                     }
-                    self.gen_verilog_expr(&node.children[0]);
+                    let base = &node.children[0];
+                    let idx = &node.children[1];
+                    // W383: function-local arrays are emitted as per-element regs
+                    // (tmp_0, tmp_1, ...). If the index is a numeric literal, rewrite
+                    // the access to the flattened reg name so it synthesizes inside a
+                    // Verilog function. Restored from Wave Loop 458.
+                    if base.kind == NodeKind::ExprIdentifier {
+                        let safe_base = Self::verilog_safe_identifier(&base.name);
+                        if self.local_arrays.contains(&safe_base) {
+                            if let Ok(idx_val) = idx.value.parse::<usize>() {
+                                let flat_name = format!("{}_{}", base.name, idx_val);
+                                self.write(&Self::verilog_safe_identifier(&flat_name));
+                                return;
+                            }
+                        }
+                    }
+                    self.gen_verilog_expr(base);
                     self.write("[");
                     self.gen_verilog_expr(idx);
                     self.write("]");
