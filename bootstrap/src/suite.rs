@@ -4,13 +4,14 @@
 use anyhow::Context;
 use chrono::Local;
 use serde_json;
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use walkdir::WalkDir;
 
 /// Options for the comprehensive repository suite.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct SuiteOptions {
     /// Run Icarus Verilog simulation on lowerable specs.
     pub icarus_simulate: bool,
@@ -20,6 +21,8 @@ pub struct SuiteOptions {
     pub cocotb: bool,
     /// Skip long-running phases where possible.
     pub fast: bool,
+    /// Write the machine-readable suite summary to this path (Wave Loop 440).
+    pub json_out: Option<PathBuf>,
 }
 
 fn t27c_exe() -> anyhow::Result<PathBuf> {
@@ -1046,14 +1049,14 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     summary.baseline_failures = baseline.len();
     push_phase("gen-verilog-yosys-smoke", p3bp, p3bf, p3b_skipped);
 
-    if fast {
+    if opts.fast {
         println!("[suite] --fast mode: skipping the standalone lake-package build phase");
     }
 
     println!("--- Phase 3c: FPGA Board-Less Smoke Gate ---");
     let mut p3c_fail = 0usize;
     let mut p3c_skipped = 0usize;
-    let validate_lean_standalone = !fast;
+    let validate_lean_standalone = !opts.fast;
     let fpga_result = match cmd_fpga_smoke_gate(&repo, validate_lean_standalone) {
         Ok(r) => {
             if r.skipped {
@@ -1234,7 +1237,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     );
     println!();
 
-    if let Some(path) = json_out {
+    if let Some(path) = opts.json_out.as_ref() {
         let json = serde_json::to_string_pretty(&summary)
             .with_context(|| format!("serializing suite summary for {}", path.display()))?;
         fs::write(path, json)
