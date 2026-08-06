@@ -11,6 +11,19 @@ Last updated: 2026-08-06
 
 ---
 
+# NOW — feat: 3-layer spec-first BitNet inference (deepens mlp2) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat: spec-first 3-layer BitNet inference mlp3 (Closes #1759)
+
+- Branch: `feat/spec-first-bitnet-mlp3`
+
+### Что легло
+- `specs/ternary/bitnet_mlp3.t27`: `mlp3` deepens mlp2 (#1756) to three layers — L1 (3 neurons over input) → pack3 → h1 → L2 (3 single-chunk neurons) → pack3 → h2 → L3 (2 single-chunk neurons) → 2 packed output trits. Verified: typecheck 0 err; icarus-simulate 4/4 scalar test blocks; seal 3 backends MATCH; new `tests/bitnet_mlp3.rs` cross-checks mlp3 vs a fully independent 3-layer reference over 5 direct-packed cases + a propagation case (all-P, thr=2 → +1 survives all 3 layers → 10) = ALL_PASS. Spec-first ternary inference now scales in depth. No compiler change, no reseal of others.
+
+---
+
 # NOW — test: in-spec array-literal coverage for neuronN (#1749 was wrong syntax) (2026-08-06)
 
 Last updated: 2026-08-06
