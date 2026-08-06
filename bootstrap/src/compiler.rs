@@ -3816,6 +3816,10 @@ pub struct VerilogCodegen {
     // assignment (`<=`) instead of a blocking one, so a clocked `fn on_clock`
     // body lowers to correct sequential logic inside an `always @(posedge clk)`.
     clocked_nonblocking: bool,
+    // Scalar module-level `var`s exposed as `output reg` data ports (only in a
+    // clocked module -- one with an `on_clock` fn). Their body `reg` declaration
+    // is suppressed because the ANSI port header already declares them.
+    exposed_output_vars: std::collections::HashSet<String>,
     // Width of the parameters of the function currently being lowered, keyed by
     // parameter name. Populated in `gen_verilog_fn`. Used by `ExprCast` lowering
     // to skip a redundant truncation mask when the operand is a parameter that is
@@ -3887,6 +3891,7 @@ impl VerilogCodegen {
             current_fn_return_type: String::new(),
             hoist_fn_locals: false,
             clocked_nonblocking: false,
+            exposed_output_vars: std::collections::HashSet::new(),
             param_widths: std::collections::HashMap::new(),
             struct_decls: std::collections::HashMap::new(),
             local_types: std::collections::HashMap::new(),
@@ -5073,6 +5078,7 @@ impl VerilogCodegen {
             current_fn_return_type: String::new(),
             hoist_fn_locals: false,
             clocked_nonblocking: false,
+            exposed_output_vars: std::collections::HashSet::new(),
             param_widths: self.param_widths.clone(),
             struct_decls: self.struct_decls.clone(),
             local_types: self.local_types.clone(),
@@ -5235,6 +5241,7 @@ impl VerilogCodegen {
                     current_fn_return_type: String::new(),
                     hoist_fn_locals: false,
                     clocked_nonblocking: false,
+                    exposed_output_vars: std::collections::HashSet::new(),
                     param_widths: self.param_widths.clone(),
                     struct_decls: self.struct_decls.clone(),
                     local_types: self.local_types.clone(),
@@ -5616,6 +5623,29 @@ impl VerilogCodegen {
 
         // Emit top-level module
         let mod_name = self.module_name.clone();
+        // #1764: in a clocked module (an `on_clock` fn is present) the registered
+        // scalar `var`s ARE the module's observable state. Expose each as an
+        // `output reg` data port so the design synthesizes to real flip-flops
+        // instead of being dead-code-eliminated (yosys DCEs a port-less design to
+        // zero cells). Gated on `on_clock`, so non-clocked specs -- and every
+        // existing spec -- keep the byte-identical `(clk,rst_n,en,ready)` header.
+        let has_on_clock = functions.iter().any(|f| f.name == "on_clock");
+        self.exposed_output_vars.clear();
+        let mut exposed_ports: Vec<(String, usize, bool)> = Vec::new();
+        if has_on_clock {
+            for c in &consts {
+                let is_scalar = Self::parse_array_type(&c.extra_type).is_none()
+                    && !Self::is_primitive_array_type(&c.extra_type)
+                    && !self.struct_decls.contains_key(&c.extra_type);
+                if c.extra_mutable && is_scalar {
+                    let w = Self::type_to_width(&c.extra_type) as usize;
+                    let signed = Self::type_is_signed(&c.extra_type);
+                    exposed_ports.push((c.name.clone(), w, signed));
+                    self.exposed_output_vars.insert(c.name.clone());
+                }
+            }
+        }
+
         self.write_line(&format!("module {} (", mod_name));
         self.indent();
         self.write_indent();
@@ -5625,7 +5655,22 @@ impl VerilogCodegen {
         self.write_indent();
         self.write_line("input  wire        en,");
         self.write_indent();
-        self.write_line("output wire        ready");
+        if exposed_ports.is_empty() {
+            self.write_line("output wire        ready");
+        } else {
+            self.write_line("output wire        ready,");
+            for (i, (name, w, signed)) in exposed_ports.iter().enumerate() {
+                let range = Self::range_decl(*w as u32);
+                let signed_str = if *signed { "signed " } else { "" };
+                let comma = if i + 1 < exposed_ports.len() { "," } else { "" };
+                self.write_indent();
+                if range.is_empty() {
+                    self.write_line(&format!("output reg {}{}{}", signed_str, name, comma));
+                } else {
+                    self.write_line(&format!("output reg {}{} {}{}", signed_str, range, name, comma));
+                }
+            }
+        }
         self.dedent();
         self.write_line(");");
         self.write_line("");
@@ -6397,8 +6442,14 @@ impl VerilogCodegen {
                 self.write_line("end");
             }
         } else {
-            self.write(&format!("reg {}{}{};", signed_str, range_str, node.name));
-            self.write_line("");
+            // An exposed output-reg var is already declared in the ANSI port
+            // header; emit only its power-on initializer here.
+            if self.exposed_output_vars.contains(&node.name) {
+                self.write_line(&format!("// {} exposed as output reg port", node.name));
+            } else {
+                self.write(&format!("reg {}{}{};", signed_str, range_str, node.name));
+                self.write_line("");
+            }
             if !node.children.is_empty() {
                 self.write_indent();
                 self.write_line("initial begin");

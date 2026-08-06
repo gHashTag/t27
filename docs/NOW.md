@@ -1,17 +1,21 @@
-# NOW — feat: spec-first clocked construct — `fn on_clock` registers module state (2026-08-06)
+# NOW — feat: spec-first clocked construct — first design that synthesizes to REAL hardware (2026-08-06)
 
 Last updated: 2026-08-06
 
-## feat(gen-verilog): clocked `on_clock` process — the first sequential spec-first design (Refs #1764)
+## feat(gen-verilog): clocked `on_clock` + observable output ports — first synthesizable spec-first design (Refs #1764)
 
 - Branch: `feat/spec-first-clocked-onclock`
+
+### Yosys finding that motivated the output-port work
+Ran `yosys synth_xilinx` (Artix-7, the AX7203 family) on the whole spec-first ternary stack for the first time — it was NEVER synthesized before, only iverilog-simulated. **Every design synthesized to ZERO logic cells.** Root cause: the fixed module interface `(clk,rst_n,en,ready)` has **no data ports**, so all compute (dot27, mlp3, adders, the counter register) drives nothing observable → yosys dead-code-eliminates it entirely. The stack was "verified" only because iverilog testbenches reach *inside* the module to call the Verilog functions hierarchically (`dut.dot27(...)`). As synthesizable modules they produced nothing. **Data ports are THE on-hardware gate — now proven by yosys DCE, not asserted.**
 
 ### Что легло
 - `bootstrap/src/compiler.rs`: the **first increment of #1764** — the spec-first path was combinational-only (`gen-verilog` emitted no `always @(posedge clk)`, module-level `var` state was never registered). A function named **`on_clock`** is now the opt-in clocked process: module emission partitions functions into `on_clock` (clocked) vs the rest (combinational, unchanged), and lowers `on_clock` to `always @(posedge clk or negedge rst_n)` — on `!rst_n` every scalar module-level `var` takes its declared init value, and while `en` is asserted the body runs with **nonblocking (`<=`)** assignments (new `clocked_nonblocking` flag routes `StmtAssign` to `<=`; new `gen_verilog_clocked_fn`). This is the registered-state building block a **streamed ternary MAC** needs to accumulate across cycles — the Phase-2 MVP gate.
 - `specs/ternary/clocked_counter.t27` (`ClockedCounter`, `var count` + `fn on_clock`) + `.trinity/seals/ternary_ClockedCounter.json`: minimal proof spec.
-- `bootstrap/tests/clocked_counter.rs`: asserts the generated Verilog contains the edge-triggered always block + nonblocking update, then drives a real clock in iverilog — `count` held at 0 under reset, +1/cycle when `en=1`, **frozen** when `en=0`, resumes on `en=1`, and returns to 0 on async reset = ALL_PASS.
-- **Seal-neutral (proven):** specs without an `on_clock` fn are byte-identical — `seal --verify` MATCH on all 10 existing ternary/bitnet specs (verilog/rust/c/zig). FROZEN_HASH resealed (M5). Verified: build clean; 1506 unit tests pass; the 12-file ternary/bitnet/verilog spec suite green; new clocked sim ALL_PASS. Software backends (`gen`/`gen-c`/`gen-rust`) treat `on_clock` as a plain fn — clocked semantics are a hardware concept, so this is intentional for the minimal slice.
-- Next increment toward #1764: data-input ports so a streamed value can be accumulated into the registered `var` each cycle (wrap the bit-exact `dot27` in a clocked pipeline stage).
+- `bootstrap/src/compiler.rs` (output ports): in a clocked module (an `on_clock` fn present) each scalar module `var` is now exposed as an **`output reg` data port** (new `exposed_output_vars` set; ANSI port header carries it; the body `reg` decl is suppressed). So `count` is observable → the design SYNTHESIZES to real flip-flops instead of vanishing. Gated on `on_clock` → non-clocked and all existing specs keep the byte-identical `(clk,rst_n,en,ready)` header. (298 `specs/scratch/` specs use `pub var`, so `pub` was NOT a safe opt-in — gating on `on_clock` is.)
+- `bootstrap/tests/clocked_counter.rs`: asserts the edge-triggered always block + nonblocking update + the `output reg [7:0] count` port; when **yosys** is present, runs `synth_xilinx` and asserts real flip-flops (FDCE/FDRE) are produced; then drives a real clock in iverilog — `count` held at 0 under reset, +1/cycle when `en=1`, **frozen** when `en=0`, resumes, returns to 0 on async reset = ALL_PASS. **Measured synth: `ClockedCounter` → 8 FDCE + 2 CARRY4 on Artix-7 — the first spec-first design that maps to non-zero real hardware.**
+- **Seal-neutral (proven):** specs without an `on_clock` fn are byte-identical — `seal --verify` MATCH on all 10 existing ternary/bitnet specs (verilog/rust/c/zig). FROZEN_HASH resealed (M5). Verified: build clean; 1506 unit tests pass; the 12-file ternary/bitnet/verilog spec suite green; clocked sim ALL_PASS + yosys synth green. Software backends (`gen`/`gen-c`/`gen-rust`) treat `on_clock` as a plain fn — clocked semantics are a hardware concept, intentional for the minimal slice.
+- Next increment toward #1764: data-**input** ports so a streamed value can be accumulated into the registered `var` each cycle (wrap the bit-exact `dot27` in a clocked pipeline stage) — turning the free-running counter into a streaming ternary MAC.
 
 ---
 
