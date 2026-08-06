@@ -1,9 +1,16 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
 **Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-01 (Wave Loop 429)  
+**Last updated:** 2026-07-01 (Wave Loop 430)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
+
+**W430 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W430 is
+hardware-constrained and focuses on the live XADC readout path (`tri fpga
+read-xadc`) and the formal PVT-envelope bridge. The remaining 7 residual yosys
+smoke failures (tuple-return / `let` destructuring / ROM arrays / CORDIC) stay
+tracked here and will be re-evaluated once the `trinity-rust-rings` branch is
+rebased or merged to `master`.
 
 ---
 

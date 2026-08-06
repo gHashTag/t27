@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-01 (refreshed for Wave Loop 429)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 430)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -22,10 +22,14 @@ hardware proof backend, plus ternary compute projects **TernaryCore** and
 **BitNet-RISCV-Multicore** — validate t27's direction while raising the bar for
 differentiation.
 
-This note documents the competitive landscape as input for Wave Loops 421–429
+This note documents the competitive landscape as input for Wave Loops 421–430
 and subsequent waves. W429 added raw-ns quantified OSCFSEL theorems and a
 machine-readable `--json` path for `tri fpga measured-to-lean`, reinforcing the
-physical boot-evidence loop.
+physical boot-evidence loop. **W430 adds live XADC readout via `tri fpga
+read-xadc` and a formal bridge (`xadc_operating_point_envelope_implies_worst_case_bound`)
+that justifies replacing a measured in-envelope operating point with the
+conservative worst-case PVT context in proof goals — a step none of the listed
+competitors currently exposes in their boot-evidence workflow.**
 
 ---
 

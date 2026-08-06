@@ -1223,3 +1223,47 @@ tri fpga bit-config build/fpga/cclk_variants/..._oscfselNN.bit
 
 and confirm that `OSCFSEL` matches the requested value and `CRC_ERROR` remains 0
 after loading into SRAM.
+
+### 9.6 Read live XADC operating point (W430)
+
+The XADC hard macro in the Artix-7 reports die temperature and the VCCINT /
+VCCAUX rail voltages. `tri` exposes this through a standalone subcommand and
+as an opt-in flag on the boot/cold-POR/CCLK-sweep paths so the boot log can
+record the real operating point used by the PVT envelope.
+
+- `tri fpga read-xadc --cable digilent_hs2`  
+  Read the live XADC values and print them as JSON. Falls back to the
+  `--pvt-context` file values if the board is not reachable.
+
+- `tri fpga boot-log ... --xadc`  
+  Embed a live XADC readout in the STAT boot log (`xadc.source == "xadc"`).
+
+- `tri fpga cold-por ... --xadc`  
+  Embed a live XADC readout in the cold-POR boot log. MOCK mode still keeps
+  the `"not_read"` placeholder unless a real board is detected.
+
+- `tri fpga cclk-sweep ... --xadc`  
+  Read XADC after each cold-POR STAT capture and store the operating point in
+  the sweep log.
+
+Example JSON output:
+
+```json
+{
+  "source": "xadc",
+  "temp_c": 45.6,
+  "max_temp_c": 85.0,
+  "min_temp_c": -40.0,
+  "vccint_v": 1.000,
+  "max_vccint_v": 1.050,
+  "min_vccint_v": 0.950,
+  "vccaux_v": 1.806,
+  "max_vccaux_v": 1.890,
+  "min_vccaux_v": 1.710
+}
+```
+
+The operating point is combined with the documented worst-case process corner
+(`ss`) in the formal PVT envelope; see
+`xadc_operating_point_envelope_implies_worst_case_bound` in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean`.

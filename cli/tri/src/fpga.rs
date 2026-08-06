@@ -84,6 +84,14 @@ pub enum FpgaCmd {
         #[arg(long, default_value_t = 1)]
         repeat: u32,
     },
+    /// Read the FPGA XADC sensors (temperature, VCCINT, VCCAUX) via
+    /// openFPGALoader and print a JSON object. The board must be powered and
+    /// connected through a supported cable such as `digilent_hs2`.
+    ReadXadc {
+        /// openFPGALoader cable profile (default: digilent_hs2).
+        #[arg(long, default_value = "digilent_hs2")]
+        cable: String,
+    },
     /// Synthesize the GF16 4x4 matrix design through the openXC7 toolchain.
     /// Output is written to `<build_dir>/gf16_matmul4x4_top.bit`.
     SynthGf16 {
@@ -217,6 +225,11 @@ pub enum FpgaCmd {
         /// JSON boot-log directory (default: <repo>/build/fpga).
         #[arg(long)]
         log_dir: Option<PathBuf>,
+        /// Read live XADC temperature/voltage values from the board after the
+        /// STAT capture and include them in the boot log. Requires the board to be
+        /// connected via the specified cable.
+        #[arg(long)]
+        xadc: bool,
     },
     /// Deterministic cold-POR boot experiment with optional relay control.
     /// With `--relay-port MOCK` the command writes a deterministic, clearly
@@ -243,6 +256,14 @@ pub enum FpgaCmd {
         /// JSON boot-log directory (default: <repo>/build/fpga).
         #[arg(long)]
         log_dir: Option<PathBuf>,
+        /// Read live XADC values from the board (MOCK mode: only if a real board
+        /// is detected; otherwise the mock log keeps the "not_read" placeholder).
+        #[arg(long)]
+        xadc: bool,
+        /// openFPGALoader cable profile for XADC readout when --xadc is set
+        /// (default: digilent_hs2).
+        #[arg(long, default_value = "digilent_hs2")]
+        cable: String,
     },
     /// Board-less smoke gate for the FPGA path. Runs `tri fpga bit-config`
     /// on the GF16 demo bitstream and, if yosys is available, a synthesis
@@ -374,6 +395,10 @@ pub enum FpgaCmd {
         /// power-cycles.
         #[arg(long)]
         single: Option<u8>,
+        /// Read live XADC values from the board after each STAT capture and
+        /// include them in every sweep log entry. Requires a connected board.
+        #[arg(long)]
+        xadc: bool,
     },
     /// Read all `build/fpga/boot-log-*.json` files and produce a sweep report
     /// identifying the first working CCLK variant.
@@ -731,6 +756,11 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             bridge,
             freq,
         } => round_trip_verify(bit, cable, part, bridge.as_ref(), *freq),
+        FpgaCmd::ReadXadc { cable } => {
+            let ctx = read_xadc_via_openfpgaloader(cable)?;
+            println!("{}", serde_json::to_string_pretty(&ctx.to_json("xadc"))?);
+            Ok(())
+        }
         FpgaCmd::BootLog {
             bit,
             cable,
@@ -741,6 +771,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             wait_seconds,
             pvt_context,
             log_dir,
+            xadc,
         } => boot_log(
             bit,
             cable,
@@ -751,6 +782,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *wait_seconds,
             pvt_context.as_ref(),
             log_dir.as_ref(),
+            *xadc,
         ),
         FpgaCmd::SmokeGate {
             bit,
@@ -791,6 +823,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             wait_seconds,
             pvt_context,
             single,
+            xadc,
         } => {
             let results = cclk_sweep(
                 bit,
@@ -807,6 +840,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
                 *wait_seconds,
                 pvt_context.as_ref(),
                 *single,
+                *xadc,
             )?;
             if !results.iter().any(|r| r.done) {
                 bail!("CCLK sweep did not find a working variant");
@@ -929,6 +963,8 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             wait_seconds,
             pvt_context,
             log_dir,
+            xadc,
+            cable,
         } => cold_por(
             bit,
             relay_port,
@@ -936,6 +972,8 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *wait_seconds,
             pvt_context.as_ref(),
             log_dir.as_ref(),
+            *xadc,
+            cable,
         ),
     }
 }
@@ -2073,11 +2111,29 @@ fn cclk_sweep(
     wait_seconds: u32,
     pvt_context: Option<&PathBuf>,
     single: Option<u8>,
+    read_xadc: bool,
 ) -> Result<Vec<SweepResult>> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
     let pvt_ctx = load_optional_pvt_context(pvt_context)?;
+
+    // Produce the XADC JSON value for each sweep log entry. When `read_xadc`
+    // is set we read the live operating point from the board; otherwise we
+    // fall back to the supplied PVT context file, if any. Dry runs never touch
+    // hardware.
+    let sweep_xadc = || -> serde_json::Value {
+        if dry_run || !read_xadc {
+            return xadc_context_json("not_read", pvt_ctx.as_ref());
+        }
+        match read_xadc_via_openfpgaloader(cable) {
+            Ok(ctx) => ctx.to_json("xadc"),
+            Err(e) => {
+                eprintln!("[cclk-sweep] live XADC read failed: {e}");
+                xadc_context_json("not_read", pvt_ctx.as_ref())
+            }
+        }
+    };
 
     let values: Vec<u8> = if let Some(v) = single {
         if v > 0x3F {
@@ -2190,7 +2246,7 @@ fn cclk_sweep(
                 conclusion: conclusion.to_string(),
                 samples,
                 pvt_context: pvt_json,
-                xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
+                xadc: sweep_xadc(),
                 pvt_envelope_margin_ns: pvt_envelope_margin_ns(cclk_nominal_hz(*oscfsel)),
                 recommendation: recommendation_from_conclusion(
                     conclusion,
@@ -2242,7 +2298,7 @@ fn cclk_sweep(
                 conclusion: conclusion.to_string(),
                 samples: Vec::new(),
                 pvt_context: pvt_json,
-                xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
+                xadc: sweep_xadc(),
                 pvt_envelope_margin_ns: pvt_envelope_margin_ns(cclk_nominal_hz(*oscfsel)),
                 recommendation: recommendation_from_conclusion(
                     conclusion,
@@ -2329,7 +2385,7 @@ fn cclk_sweep(
                         })
                         .collect(),
                     pvt_context: pvt_json,
-                    xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
+                    xadc: sweep_xadc(),
                     pvt_envelope_margin_ns: pvt_envelope_margin_ns(cclk_nominal_hz(*oscfsel)),
                     recommendation: recommendation_from_conclusion(
                         &conclusion,
@@ -2365,7 +2421,7 @@ fn cclk_sweep(
                     conclusion: conclusion.to_string(),
                     samples: Vec::new(),
                     pvt_context: pvt_json,
-                    xadc: xadc_context_json("not_read", pvt_ctx.as_ref()),
+                    xadc: sweep_xadc(),
                     pvt_envelope_margin_ns: pvt_envelope_margin_ns(cclk_nominal_hz(*oscfsel)),
                     recommendation: recommendation_from_conclusion(
                         conclusion,
@@ -2609,6 +2665,89 @@ fn xadc_context_json(source: &str, ctx: Option<&PvtContext>) -> serde_json::Valu
         "vccint_mv": vccint_mv,
         "vccaux_mv": vccaux_mv,
     })
+}
+
+/// XADC operating-point context read from the FPGA via openFPGALoader's
+/// `--read-xadc`. Temperatures are in °C and rail voltages in volts. The raw
+/// ADC count map is preserved for traceability.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct XadcContext {
+    temp_c: f64,
+    max_temp_c: f64,
+    min_temp_c: f64,
+    vccint_v: f64,
+    max_vccint_v: f64,
+    min_vccint_v: f64,
+    vccaux_v: f64,
+    max_vccaux_v: f64,
+    min_vccaux_v: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    raw: Option<serde_json::Value>,
+}
+
+impl XadcContext {
+    /// Serialize as a JSON object with the given source label.
+    fn to_json(&self, source: &str) -> serde_json::Value {
+        let mut value = serde_json::to_value(self).unwrap_or(serde_json::Value::Null);
+        if let Some(obj) = value.as_object_mut() {
+            obj.insert("source".to_string(), serde_json::Value::String(source.to_string()));
+        }
+        value
+    }
+}
+
+/// Remove trailing commas that appear immediately before a closing brace or
+/// bracket. openFPGALoader's `--read-xadc` output is JSON-like but includes
+/// trailing commas that `serde_json` rejects; normalizing makes it parseable.
+fn normalize_trailing_commas(json: &str) -> String {
+    // Remove a comma that is followed only by whitespace and a closing `}` or `]`.
+    let re = regex::Regex::new(r",\s*([}\]])").unwrap();
+    re.replace_all(json, "$1").into_owned()
+}
+
+/// Parse the JSON-like object emitted by `openFPGALoader --read-xadc`.
+fn parse_xadc_output(text: &str) -> Result<XadcContext> {
+    let start = text
+        .find('{')
+        .context("no JSON object start found in openFPGALoader --read-xadc output")?;
+    let end = text
+        .rfind('}')
+        .context("no JSON object end found in openFPGALoader --read-xadc output")?;
+    let raw_json = &text[start..=end];
+    let cleaned = normalize_trailing_commas(raw_json);
+    let mut raw: serde_json::Value = serde_json::from_str(&cleaned)
+        .with_context(|| format!("parse XADC JSON object:\n{}", cleaned))?;
+    let obj = raw
+        .as_object_mut()
+        .context("openFPGALoader --read-xadc JSON is not an object")?;
+
+    let f64_field = |obj: &mut serde_json::Map<String, serde_json::Value>, key: &str| {
+        obj.get(key)
+            .and_then(|v| v.as_f64())
+            .with_context(|| format!("missing or non-numeric '{}' in XADC output", key))
+    };
+
+    let raw_counts = obj.remove("raw");
+
+    Ok(XadcContext {
+        temp_c: f64_field(obj, "temp")?,
+        max_temp_c: f64_field(obj, "maxtemp")?,
+        min_temp_c: f64_field(obj, "mintemp")?,
+        vccint_v: f64_field(obj, "vccint")?,
+        max_vccint_v: f64_field(obj, "maxvccint")?,
+        min_vccint_v: f64_field(obj, "minvccint")?,
+        vccaux_v: f64_field(obj, "vccaux")?,
+        max_vccaux_v: f64_field(obj, "maxvccaux")?,
+        min_vccaux_v: f64_field(obj, "minvccaux")?,
+        raw: raw_counts,
+    })
+}
+
+/// Read the XADC operating point from the attached FPGA via openFPGALoader.
+fn read_xadc_via_openfpgaloader(cable: &str) -> Result<XadcContext> {
+    let (_status, output) = run_openfpgaloader(cable, &["--read-xadc"], true)?;
+    let text = output.unwrap_or_default();
+    parse_xadc_output(&text)
 }
 
 fn write_sweep_log(log: &SweepLog, log_dir: &PathBuf) -> Result<()> {
@@ -4977,6 +5116,7 @@ fn boot_log(
     wait_seconds: u32,
     pvt_context: Option<&PathBuf>,
     log_dir: Option<&PathBuf>,
+    read_xadc: bool,
 ) -> Result<()> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
@@ -5056,7 +5196,7 @@ fn boot_log(
     let pvt_json = pvt_ctx
         .as_ref()
         .map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
-    let log_entry = serde_json::json!({
+    let mut log_entry = serde_json::json!({
         "timestamp": start_time.to_rfc3339(),
         "bitstream": bit.to_string_lossy().to_string(),
         "cable": cable,
@@ -5076,10 +5216,25 @@ fn boot_log(
             "diagnosis": b.diagnose(),
         })).collect::<Vec<_>>(),
         "pvt_context": pvt_json,
-        "xadc": xadc_context_json("not_read", pvt_ctx.as_ref()),
-        "pvt_envelope_margin_ns": Option::<i64>::None,
-        "recommendation": recommendation_from_conclusion(conclusion, None, None),
     });
+
+    let xadc_json = if read_xadc {
+        match read_xadc_via_openfpgaloader(cable) {
+            Ok(ctx) => ctx.to_json("xadc"),
+            Err(e) => {
+                eprintln!("[boot-log] XADC read failed: {e}");
+                xadc_context_json("not_read", pvt_ctx.as_ref())
+            }
+        }
+    } else {
+        xadc_context_json("not_read", pvt_ctx.as_ref())
+    };
+    if let Some(obj) = log_entry.as_object_mut() {
+        obj.insert("xadc".to_string(), xadc_json);
+        obj.insert("pvt_envelope_margin_ns".to_string(), serde_json::json!(Option::<i64>::None));
+        obj.insert("recommendation".to_string(), recommendation_from_conclusion(conclusion, None, None));
+    }
+
     let log_path = boot_log_dir.join(format!(
         "boot-log-{}.json",
         start_time.format("%Y%m%d-%H%M%S")
@@ -5132,6 +5287,8 @@ fn cold_por(
     wait_seconds: u32,
     pvt_context: Option<&PathBuf>,
     log_dir: Option<&PathBuf>,
+    read_xadc: bool,
+    cable: &str,
 ) -> Result<()> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
@@ -5186,7 +5343,7 @@ fn cold_por(
     let pvt_json = pvt_ctx
         .as_ref()
         .map(|c| serde_json::to_value(c).unwrap_or(serde_json::Value::Null));
-    let log_entry = serde_json::json!({
+    let mut log_entry = serde_json::json!({
         "timestamp": start_time.to_rfc3339(),
         "bitstream": bit.to_string_lossy().to_string(),
         "relay_port": relay_port,
@@ -5195,10 +5352,23 @@ fn cold_por(
         "conclusion": conclusion,
         "samples": samples,
         "pvt_context": pvt_json,
-        "xadc": xadc_context_json("not_read", pvt_ctx.as_ref()),
-        "pvt_envelope_margin_ns": Option::<i64>::None,
-        "recommendation": recommendation_from_conclusion(conclusion, None, None),
     });
+    let xadc_json = if read_xadc && cable_detected(cable) {
+        match read_xadc_via_openfpgaloader(cable) {
+            Ok(ctx) => ctx.to_json("xadc"),
+            Err(e) => {
+                eprintln!("[cold-por] XADC read failed: {e}");
+                xadc_context_json("not_read", pvt_ctx.as_ref())
+            }
+        }
+    } else {
+        xadc_context_json("not_read", pvt_ctx.as_ref())
+    };
+    if let Some(obj) = log_entry.as_object_mut() {
+        obj.insert("xadc".to_string(), xadc_json);
+        obj.insert("pvt_envelope_margin_ns".to_string(), serde_json::json!(Option::<i64>::None));
+        obj.insert("recommendation".to_string(), recommendation_from_conclusion(conclusion, None, None));
+    }
     let log_path = boot_log_dir.join(format!(
         "boot-log-cold-por-mock-{}.json",
         start_time.format("%Y%m%d-%H%M%S")
@@ -5309,6 +5479,7 @@ fn smoke_gate(
                 wait_seconds,
                 None,
                 None,
+                false,
             )
             .with_context(|| "flash-boot CCLK sweep failed")?;
             if !results.iter().any(|r| r.done) {
@@ -5384,6 +5555,7 @@ fn smoke_gate(
             0,
             None,
             None,
+            false,
         )?;
         let dry_report = dry_log_dir.join("sweep-report-smoke-gate-dry-run.md");
         sweep_report(Some(&dry_log_dir), Some(&dry_report), false)?;
@@ -7970,7 +8142,7 @@ mod tests {
         let log_dir =
             std::env::temp_dir().join(format!("tri_cold_por_mock_{}", std::process::id()));
         std::fs::create_dir_all(&log_dir).unwrap();
-        let out = cold_por(&bit, "MOCK", 3, 0, None, Some(&log_dir));
+        let out = cold_por(&bit, "MOCK", 3, 0, None, Some(&log_dir), false, "digilent_hs2");
         if bit.is_file() {
             out.unwrap();
             let entries: Vec<_> = std::fs::read_dir(&log_dir)
@@ -8091,5 +8263,70 @@ mod tests {
             status.success(),
             "temporary lake package consuming standalone measured-to-lean output should build"
         );
+    }
+
+    #[test]
+    fn test_normalize_trailing_commas_removes_trailing_commas() {
+        let raw = r#"{"a": 1, "b": [2, 3,],}"#;
+        let cleaned = normalize_trailing_commas(raw);
+        assert_eq!(cleaned, r#"{"a": 1, "b": [2, 3]}"#);
+    }
+
+    #[test]
+    fn test_parse_xadc_output_roundtrip() {
+        let raw = r#"{
+            "temp": 42.5,
+            "maxtemp": 85.0,
+            "mintemp": -40.0,
+            "vccint": 1.000,
+            "maxvccint": 1.050,
+            "minvccint": 0.950,
+            "vccaux": 1.800,
+            "maxvccaux": 1.890,
+            "minvccaux": 1.710,
+            "raw": {"temp": 12345, "vccint": 6789}
+        }"#;
+        let ctx = parse_xadc_output(raw).unwrap();
+        assert!((ctx.temp_c - 42.5).abs() < 1e-9);
+        assert!((ctx.max_temp_c - 85.0).abs() < 1e-9);
+        assert!((ctx.min_temp_c - (-40.0)).abs() < 1e-9);
+        assert!((ctx.vccint_v - 1.0).abs() < 1e-9);
+        assert!((ctx.vccaux_v - 1.8).abs() < 1e-9);
+        assert_eq!(ctx.raw.as_ref().unwrap()["temp"], 12345);
+        let json = ctx.to_json("xadc");
+        assert_eq!(json["source"], "xadc");
+        assert_eq!(json["temp_c"], 42.5);
+    }
+
+    #[test]
+    fn test_parse_xadc_output_tolerates_trailing_commas() {
+        let raw = r#"{
+            "temp": 42.5,
+            "maxtemp": 85.0,
+            "mintemp": -40.0,
+            "vccint": 1.000,
+            "maxvccint": 1.050,
+            "minvccint": 0.950,
+            "vccaux": 1.800,
+            "maxvccaux": 1.890,
+            "minvccaux": 1.710,
+        }"#;
+        let ctx = parse_xadc_output(raw).unwrap();
+        assert!((ctx.temp_c - 42.5).abs() < 1e-9);
+        assert!(ctx.raw.is_none());
+    }
+
+    #[test]
+    fn test_xadc_context_json_from_pvt_context() {
+        let pvt = PvtContext {
+            temp_c: 35,
+            vccint_mv: 1000,
+            vccaux_mv: 1800,
+            process_corner: ProcessCorner::Ss,
+        };
+        let json = xadc_context_json("not_read", Some(&pvt));
+        assert_eq!(json["source"], "not_read");
+        assert_eq!(json["temp_c"], 35);
+        assert_eq!(json["vccint_mv"], 1000);
     }
 }
