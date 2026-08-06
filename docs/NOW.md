@@ -1683,6 +1683,43 @@ Expected 25,664 elements, 821,248-bit packed vector (~0.783 MiBit), still under
 
 ---
 
+## Wave Loop 421 — Variant C fallback: VCD `$timescale` exact terminator, combined PVT monotonicity, competitor snapshot (Closes #1363)
+
+- Branch: `wave-loop-421`
+- Issue: #1363
+- PR: to open after work
+- Report: `docs/reports/WAVE_LOOP_421_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W421_2026-07-06.md`
+- Cooperation W422: `docs/reports/FPGA_LOOP_COOPERATION_W422_2026-07-06.md`
+- Competitor note: `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+
+### What landed (Variant C — bench still blocked)
+- `cli/tri/src/fpga.rs`
+  - Applied `vcd_line_ends_with_token` exact `$end` token terminator to VCD `$timescale` sections.
+  - Added regression test `test_parse_vcd_timescale_with_embedded_end_token` for multi-line `$timescale` blocks with embedded `$end` substrings.
+  - Added regression test `test_parse_vcd_real_auto_threshold_us_timescale` for real-valued nets with `$timescale 1 us $end`.
+  - Added `test_pvt_half_ns_monotone_combined` verifying the combined ordering (temp ↑, VCCINT ↓, corner worse).
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `pvt_half_ns_monotone_combined` lemma.
+- `fpga/HARDWARE_SSOT.md`
+  - Added §3.6.18 documenting W421 VCD/PVT improvements.
+- `docs/reports/T27_VS_FORMAL_HDL_2026.md`
+  - Published competitor comparison covering Sparkle/Verilean, Clash, Chisel/FIRRTL/CIRCT, Bluespec, Coq Kami/Silver Oak, ACL2, Knox/HARDENS.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — `openFPGALoader --detect` reports 0 devices; board not powered/connected.
+- Real relay cold-POR gate — no relay board / USB power switch available.
+- Safe gen-verilog #1245 sub-fix deferred; remaining tracked gaps (RAM style inference, tuple-return syntax) are not narrow regression-free sub-fixes.
+
+### Verification
+- `cargo test -p tri vcd`: **PASS** (15 tests).
+- `cargo test -p tri pvt`: **PASS** (11 tests).
+- `cargo test -p tri fpga::tests`: **PASS** (51 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test`: parse/typecheck/GF16/gen-Zig/gen-Rust/gen-Verilog/seal/C/fixed-point PASS; gen-Verilog yosys smoke has 16 pre-existing failures from weak point #1245, no new failures.
+
+---
+
 ## Wave Loop 418 — Variant C fallback: PVT regression, instrument import, and standalone Lean integration (Closes #1353)
 
 - Branch: `wave-loop-418`
