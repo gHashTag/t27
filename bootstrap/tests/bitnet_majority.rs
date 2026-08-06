@@ -48,12 +48,21 @@ module tb;
   function integer dec(input [7:0] t); begin dec=(t==0)?-1:(t==2)?1:0; end endfunction
   initial begin
     fails=0; n=0;
+    // maj3 = sign(a + b + c)
     for (a=0;a<3;a=a+1) for (b=0;b<3;b=b+1) for (c=0;c<3;c=c+1) begin
       va=dec(a); vb=dec(b); vc=dec(c); s=va+vb+vc;
       exp = (s>0)?8'd2:(s<0)?8'd0:8'd1;
       got = dut.maj3(a[7:0], b[7:0], c[7:0]);
       n=n+1;
-      if (got!==exp) begin fails=fails+1; $display("FAIL a=%0d b=%0d c=%0d got=%0d exp=%0d",a,b,c,got,exp); end
+      if (got!==exp) begin fails=fails+1; $display("FAIL maj3 a=%0d b=%0d c=%0d got=%0d exp=%0d",a,b,c,got,exp); end
+    end
+    // weighted_vote = sign(a + b - c) (weights [+1,+1,-1])
+    for (a=0;a<3;a=a+1) for (b=0;b<3;b=b+1) for (c=0;c<3;c=c+1) begin
+      va=dec(a); vb=dec(b); vc=dec(c); s=va+vb-vc;
+      exp = (s>0)?8'd2:(s<0)?8'd0:8'd1;
+      got = dut.weighted_vote(a[7:0], b[7:0], c[7:0]);
+      n=n+1;
+      if (got!==exp) begin fails=fails+1; $display("FAIL wv a=%0d b=%0d c=%0d got=%0d exp=%0d",a,b,c,got,exp); end
     end
     if (fails==0) $display("ALL_PASS %0d", n); else $display("FAILED %0d/%0d", fails, n);
     $finish;
@@ -63,7 +72,7 @@ endmodule
 "#;
 
 #[test]
-fn spec_first_maj3_matches_ternary_majority_exhaustive() {
+fn spec_first_named_functions_exhaustive() {
     if !tool_available("iverilog") || !tool_available("vvp") {
         eprintln!("SKIP: iverilog/vvp not on PATH; skipping ternary majority check");
         return;
@@ -103,8 +112,8 @@ fn spec_first_maj3_matches_ternary_majority_exhaustive() {
     let _ = fs::remove_dir_all(&dir);
 
     assert!(
-        stdout.contains("ALL_PASS 27"),
-        "maj3 did not match ternary majority on all 27 inputs:\n{}",
+        stdout.contains("ALL_PASS 54"),
+        "maj3 did not match ternary majority on all 27+27 inputs:\n{}",
         stdout
     );
     assert!(!stdout.contains("FAIL"), "maj3 mismatch:\n{}", stdout);

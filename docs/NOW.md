@@ -1,3 +1,16 @@
+# NOW — feat: weighted_vote — weights define the function (toward trained model) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat: weighted_vote named function (Closes #1767)
+
+- Branch: `feat/spec-first-weighted-vote`
+
+### Что легло
+- Added `weighted_vote(a,b,c)` to `specs/ternary/bitnet_majority.t27`: the SAME single BitNet neuron as `maj3`, but per-input weights `[+1,+1,-1]` make it compute `sign(a+b-c)` instead of `sign(a+b+c)`. Demonstrates the essence of a trained model — **weights define the function, not the topology** (weight P → +input, N → -input). Verified: typecheck 0 err; icarus-simulate 12/12 test blocks (7 maj3 + 5 wv); seal MATCH; `tests/bitnet_majority.rs` now exhaustively checks all 27+27=54 combinations of both functions vs independent references = ALL_PASS 54. No compiler change. Also (this iteration) filed **#1764** with a decomposed plan for the Phase-2 clocked construct — the spec-first path is combinational-only.
+
+---
+
 # NOW — feat: spec-first ternary majority gate (named function, exhaustive) (2026-08-06)
 
 Last updated: 2026-08-06
