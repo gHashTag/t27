@@ -1,6 +1,17 @@
-# NOW — feat: `on_comb` combinational data ports — the whole ternary stack now synthesizes (2026-08-06)
+# NOW — feat: spec-first combinational BitNet NEURON synthesizes to Artix-7 (2026-08-06)
 
 Last updated: 2026-08-06
+
+## feat(spec): combinational BitNet neuron = MAC + activation in one synthesizable module (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Что легло
+- `specs/ternary/comb_bitnet_neuron.t27` (`CombBitnetNeuron`) + seal + `bootstrap/tests/comb_bitnet_neuron.rs`: **a full BitNet neuron over one 27-trit chunk in a single combinational module** — `on_comb(a, b) = quantize(dot27(a, b))` (bit-exact ternary dot product #1743 → sign activation → trit). Verified: typecheck 0 err; 4 in-spec tests pass; **yosys synth_xilinx → ~163 LUT6 + 67 LUT4 + 2 CARRY4, NO flip-flops** (pure combinational Artix-7 neuron); iverilog checks `result == quantize(dot27(a,b))` on known vectors (P/P→P, 0/P→N, Z/Z→Z, 0/0→P) = ALL_PASS. No compiler change — uses the existing `on_comb` data interface.
+- **The neuron datapath is now proven end-to-end in hardware:** combinational neuron (`comb_bitnet_neuron`, dot+sign) + streaming accumulator (`stream_ternary_mac`, multi-chunk MAC) compose into a multi-chunk neuron. Seal-neutral: all ternary-spec Verilog byte-identical.
+- NOTE / follow-up: a SINGLE-module *streaming* neuron (accumulate across cycles AND expose a registered `y=quantize(acc)` trit output) is blocked by a real soundness bug in `dead_store_elim` — it eliminates a write to a module-level `var` that is never read *in the body* even when that var is an exposed output port (observable). The correct fix (only dead-store-eliminate LOCALs, never module vars/output ports) is **not seal-neutral** — it changes ~27/40 sampled scratch specs + 2 ternary specs that were sealed relying on the unsound elimination, so it needs a deliberate repo-wide reseal sweep (owner decision), not an autonomous change. Filed as a known issue.
+
+---
 
 ## feat(gen-verilog): `on_comb` combinational data interface — combinational specs become real hardware (Refs #1764)
 
