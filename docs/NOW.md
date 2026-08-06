@@ -541,7 +541,7 @@ Last updated: 2026-07-31
 
 # NOW — conformance instance-пакеты + Lean φ-скелет (2026-07-29)
 
-Last updated: 2026-07-29
+Last updated: 2026-08-01
 
 ## conformance: параметрические instance-пакеты (structural) + Lean-скелет φ-правила (Closes #1558)
 

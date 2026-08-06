@@ -19,10 +19,10 @@ merge) remain open awaiting review, so W778 will be branched from
 
 ## Acceptance criteria
 
-- [ ] Generator `scripts/gen_w824.py` with `OUTER = 467`, `MID_IDX = 233`; copy hazard fixed before first run.
-- [ ] Witness `specs/scratch/w824_bench_module_467x2p6_aos_var_call_write.t27` generated and parsed.
+- [ ] Generator `scripts/gen_w825.py` with `OUTER = 469`, `MID_IDX = 234`; copy hazard fixed before first run.
+- [ ] Witness `specs/scratch/w825_bench_module_469x2p6_aos_var_call_write.t27` generated and parsed.
 - [ ] `t27c icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, and `seal --save` all PASS.
-- [ ] Integration test `accepts_w824_bench_module_467x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
+- [ ] Integration test `accepts_w825_bench_module_469x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
 - [ ] `bootstrap/stage0/FROZEN_HASH` unchanged.
 - [ ] Closeout report, next-wave plan, docs, skill tracker, autopilot skill, and persistent memory updated.
 - [ ] Commit with `Closes #<issue>`, push branch, open PR to `master`.
