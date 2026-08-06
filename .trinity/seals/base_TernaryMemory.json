@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:38c31185220e54a32561f2b9fc403b345c3b7f4ffe04df604fb765050f0ccd66",
   "gen_hash_rust": "sha256:1403ee2ec88654bdc20a8d5dc650f4e8049ff015aa401572dd8ef2072e9b9a2e",
-  "gen_hash_verilog": "sha256:c22bc56f4f5ae9c57ba4b4cbf2526630b65b2871c076b29153d0300e1f89fc4b",
+  "gen_hash_verilog": "sha256:a6d5cece63f18c2baa7ef26a86ab3bb455b03590b5dc91768b663e28c6d54ff0",
   "gen_hash_zig": "sha256:3008ec6c368f916b82a6e0f59c4d1568997ce82cb83daf8ada9b448919f23626",
   "module": "TernaryMemory",
   "ring": 12,
-  "sealed_at": "2026-07-16T13:46:56Z",
+  "sealed_at": "2026-08-06T14:05:56Z",
   "spec_hash": "sha256:937bd385e715c44fb216c71ed30d20a6242ef4c9c206791301fcedde996cc4a3",
-  "spec_path": "/Users/playra/t27/specs/base/ternary_memory.t27"
+  "spec_path": "specs/base/ternary_memory.t27"
 }

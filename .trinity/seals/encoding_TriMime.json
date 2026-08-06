@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2b1d6a9a1f0fd6f4f297703c866c10b2b5fe3526d07e9fa0399bf68574bbb341",
   "module": "TriMime",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:c273019708b1d133a70c19e70461253c641fc756ab623112a7071d6bf030be87",
-  "spec_path": "/Users/playra/t27/specs/tri/encoding/mime.t27"
+  "spec_path": "specs/tri/encoding/mime.t27"
 }

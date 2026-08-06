@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:96f055ee91174abd9e4d1e66425f75fcccf2d91d0d32859ad0560bf6d1988dec",
   "module": "TriVariant",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:1280493ead77ca373c85b07e35b10a460fb7ad6f387b0820d9925ac38d4f1167",
-  "spec_path": "/Users/playra/t27/specs/tri/collections/variant.t27"
+  "spec_path": "specs/tri/collections/variant.t27"
 }

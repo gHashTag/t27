@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:4e88a7f2b7e471ed74b8a944af2b4b5f4c92c9ca987638cb655dbc29f23d4f35",
   "gen_hash_rust": "sha256:f3e3313e0477be26637e624d6ec044ae969b47ba9c5d065512d453707270b443",
-  "gen_hash_verilog": "sha256:e17f86c18f385b0cb61256204493ef4fad9aacc37046381a4e75d4dc906b8bee",
+  "gen_hash_verilog": "sha256:63e7c90b46b5833b42a9ba1470821bb5b9463782e6a207d9bfd1466606af7579",
   "gen_hash_zig": "sha256:72ccdd0802e559db40ab796bb105984390c3d0ea0764650d3b59ddd101e2b6a2",
   "module": "igla-race-ternary-inference",
   "ring": 12,
-  "sealed_at": "2026-07-18T16:36:16Z",
+  "sealed_at": "2026-08-06T14:05:54Z",
   "spec_hash": "sha256:1fae751e4535dd8d16a4b972890cb87bfcb71856faef7d4b4e7b9c92776affba",
-  "spec_path": "/Users/playra/t27/specs/igla/race/ternary_inference.t27"
+  "spec_path": "specs/igla/race/ternary_inference.t27"
 }

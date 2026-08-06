@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5e17fed1f69c33639c099bf3f6dcb2b08b9a1681da9f68acecc43638b31b9bed",
   "module": "chimera",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:54Z",
   "spec_hash": "sha256:be9b8ff89812a560d4a2cec43336f2e2a5cc3798a9a20f77a5331ca7a2fd4122",
-  "spec_path": "/Users/playra/t27/specs/physics/chimera_best_gamma.t27"
+  "spec_path": "specs/physics/chimera_best_gamma.t27"
 }

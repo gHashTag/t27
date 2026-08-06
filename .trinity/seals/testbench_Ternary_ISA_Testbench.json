@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:e96e0809fe61ba0f27dab9358ec9db69bb69ac1a4120f900ee0d58a897ea288a",
   "gen_hash_rust": "sha256:819f83b5abcc45d9d079fdd0807d320cdacfa218151d367ec7a1060b93d89e98",
-  "gen_hash_verilog": "sha256:d71498ae66521b36f8da746e4871aaf71e904939a00d738af7b9744914241d53",
+  "gen_hash_verilog": "sha256:7075faf664aa78cf6399baf4898889eabc55d24caa8c591eef878d77aaf9265f",
   "gen_hash_zig": "sha256:aea3474b97ee5ae03b5cec23be77ab61ef8751bb3a131af1cfcc298ed4d9c16b",
   "module": "Ternary_ISA_Testbench",
   "ring": 12,
-  "sealed_at": "2026-07-16T13:46:56Z",
+  "sealed_at": "2026-08-06T14:05:53Z",
   "spec_hash": "sha256:50d838b5e5138ffeb2875b3a6c831f34ba6a2953a3086db6752b1a6b490213ba",
   "spec_path": "specs/fpga/testbench/ternary_isa_tb.t27"
 }

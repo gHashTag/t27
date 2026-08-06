@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:070ebf3552a815a4a85d3bfa83ea675b031eb2c66fb0b96217c33e3c9f7eb6c1",
   "gen_hash_rust": "sha256:d40d2bf81b3890de5f4e201a6cd598912d3ca07523b0f6f61bbdc0b2ea5c775d",
-  "gen_hash_verilog": "sha256:c70ca1ac4fbb87a7005a602891defb4ae9876a8dadac1a5f74443e50fa6ca0d5",
+  "gen_hash_verilog": "sha256:3f1b20aebcb71324d3c7e86509e1c64bc4bc86b576fb7ef2ffe37102026fd736",
   "gen_hash_zig": "sha256:21b2219172948c6acffd03ca6a1611a7dbb2d89a7e061b2bad30801f4744851d",
   "module": "bench_nn",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:54Z",
   "spec_hash": "sha256:8d0a1a6a927212b7e43624f939df9091d8649294bb1be9b9b5cb22dfe7898aa5",
-  "spec_path": "/Users/playra/t27/specs/benchmarks/bench_nn.t27"
+  "spec_path": "specs/benchmarks/bench_nn.t27"
 }

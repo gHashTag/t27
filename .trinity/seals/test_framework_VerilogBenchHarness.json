@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:675312759fa85c3d70ad549f94c76813fae345bbe19a15ab02945b2e5889f32e",
-  "gen_hash_rust": "sha256:dffa405f138b457202729a77a81fa32ced11d6ad72740a9f68f54be562236938",
-  "gen_hash_verilog": "sha256:c4c7774f49b73d3ef80d2ace181404f5dbd5a815f5a827d64622236f8a5af60a",
-  "gen_hash_zig": "sha256:fbca5ad781ab6596310e1801cd9f7f472788a4aa2fb4a9c6187e653bd992f761",
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
   "module": "VerilogBenchHarness",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:54Z",
   "spec_hash": "sha256:18acfa0f40b4fba714cc89fe34c6620dc85647b34384ff13aff2e84ff23ad36e",
-  "spec_path": "/Users/playra/t27/specs/test_framework/verilog_bench_harness.t27"
+  "spec_path": "specs/test_framework/verilog_bench_harness.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:b026666613a7e0ee468c3d38c4aaa9bbcb6c86971f40e8e94ffc9442237c1e58",
-  "gen_hash_rust": "sha256:ae87e76c795f09939a0323178291a20c3de8945fc3319c56c6304cfb7244e1b8",
-  "gen_hash_verilog": "sha256:3a99b6998b99640965a85fb862c1c0372434235824dbaa2fd899352cbbdde560",
-  "gen_hash_zig": "sha256:c8d36753d7117d0dbd16fbb69c20266739e560fb491859e79e9404599e92ace7",
+  "gen_hash_c": "sha256:51be376e1d92d91e17af1fa0950f11e4484e82a0d43703d5d58ab62da6d4b7ed",
+  "gen_hash_rust": "sha256:686aeed7083bd1699895836b5c972023ad2a517d5b105b680d129aad98c8a00e",
+  "gen_hash_verilog": "sha256:f55216261f6f882d77f9ad5af2dd703fafeb4d1263bf0ce06392251ce256a742",
+  "gen_hash_zig": "sha256:03d41f580d5c5fca6b225b0d5f3bb5bfdf022357062ac9c1376dfb2b6ae81ab7",
   "module": "Assembler",
   "ring": 12,
-  "sealed_at": "2026-07-16T13:46:56Z",
+  "sealed_at": "2026-08-06T14:05:53Z",
   "spec_hash": "sha256:554e42402228649a53d22c401e9fdcd96a1d5e1bed47cda8e4c1be30de2c0d00",
-  "spec_path": "/Users/playra/t27/specs/fpga/assembler.t27"
+  "spec_path": "specs/fpga/assembler.t27"
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:444c869cca107e42089e456269321d5fc03d24a5a22877c2df6bac009ed03b98",
-  "gen_hash_rust": "sha256:bd598360b30fb27a8c995ea6b9c382a19252e51277a72b2a98f0ea25af51b1e4",
-  "gen_hash_verilog": "sha256:ec17840079b395fe8d97996bf1f3e88664337b41b5b1704519a3c6828f66ee58",
-  "gen_hash_zig": "sha256:866082703e2442051291c374a9809366e94f898c984ce5d7a95c0b9643ad5f64",
+  "gen_hash_c": "sha256:5f7c8292bc7cec1914d9b49c89dbcee8318f76ccc18f37057a2d1ca61e4172de",
+  "gen_hash_rust": "sha256:bf10bff6b70febfc09b779884a29de3c32cdd1f3c3cf3c3ce8056e73190f5b3f",
+  "gen_hash_verilog": "sha256:dc0dc6379f939d85efaa9120106c53e56293c8ed80c8a4e6fcb8d36e92784614",
+  "gen_hash_zig": "sha256:c159abd61f03ec1c16996ecb7ad58ae63fcfb252df59a5c0ae623074ffa7bbad",
   "module": "QMTech_A100T_Integration",
   "ring": 12,
-  "sealed_at": "2026-07-16T13:46:56Z",
+  "sealed_at": "2026-08-06T14:05:53Z",
   "spec_hash": "sha256:ead219244963a5bead3e5e04b7c6f49f0f99f62581bd7495eca42e3602380469",
   "spec_path": "specs/fpga/boards/qmtech_a100t_integration.t27"
 }

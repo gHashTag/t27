@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:8cfc643262e2944d274844e668b03eef3fff0baa5429200ee2992f1d9b4a5e2c",
-  "gen_hash_rust": "sha256:86ec43273a8c618e61abbb4dd2e902f14604a0d78bcd9970deefb5fc891f5a09",
-  "gen_hash_verilog": "sha256:0c4783f1f630b24311381be7f5fa99a15d1baff9823b3254f4a97b432190104d",
-  "gen_hash_zig": "sha256:4aed3ef71c8d904fdfe41a0942772d45a963280adf48c8e8b791d9986ec57a45",
+  "gen_hash_c": "sha256:b7fdd97a6fe767add7d1e75266fad411bdb93e635d359accfb66b194af68697c",
+  "gen_hash_rust": "sha256:b72884a3b24eb4235710fc77347cb862d453d18909da99b35963a5b44346c798",
+  "gen_hash_verilog": "sha256:5ffbb4329c59f8edd51518057be08ae96eb24b86cad015d0ff7a34c1d0f8ee9c",
+  "gen_hash_zig": "sha256:e6285bf536008e1b9fa93b336d9d5d0eca54c19cbb9cd270950147d2c2dbff2e",
   "module": "queen-task-analysis",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:56Z",
   "spec_hash": "sha256:5755f819b57e64354992f86357f6b047ac61dd4d6c67afcfad005d4e28fdfbf2",
-  "spec_path": "/Users/playra/t27/specs/queen/task_analysis.t27"
+  "spec_path": "specs/queen/task_analysis.t27"
 }

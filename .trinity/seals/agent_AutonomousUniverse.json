@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0e9b6d85c9a2e8d3c507250825ba4a95b4b13a832482d8bceabac8d7c60b1621",
   "module": "AutonomousUniverse",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:bfbbc8dbd82391b975ea357722e3f95ffabb551f4ae40985354b4bcd0afac17b",
-  "spec_path": "/Users/playra/t27/specs/tri/agent/autonomous_universe.t27"
+  "spec_path": "specs/tri/agent/autonomous_universe.t27"
 }

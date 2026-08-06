@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:2cff2c1239b369d0ed7b414225860501c5cbdd0299d3fdb527be239451f37605",
   "gen_hash_rust": "sha256:0b4cf991ffc7cb445585f760a3011c1920a5615f0e46e29bfc79a524014fcd1b",
-  "gen_hash_verilog": "sha256:b0535037e312319aa7a1c18d6af8829cb65702063f94cf72f16046e87ef5d41e",
+  "gen_hash_verilog": "sha256:e1a8e4a20d9396a0f9ca0eec687de26100a9fa789b710bdd51de7f89a5e845fe",
   "gen_hash_zig": "sha256:9dbab42eb51e428d21fc95a1aa016f5299556e24a5f0c34581889601f7478719",
   "module": "TriZipper",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:20Z",
   "spec_hash": "sha256:767f91d7c7ff22bcf8464595a5e3a9d32d24af8157cb882dfa4958e61aec6e0f",
-  "spec_path": "/Users/playra/t27/specs/tri/io/zip.t27"
+  "spec_path": "specs/tri/io/zip.t27"
 }

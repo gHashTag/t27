@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3c5a64b3269c26088ff1c17d9614a2606af4974515b0e38a145cee33f8b42f6d",
-  "gen_hash_rust": "sha256:ec48f779cd7f2f714e86768963de1209044684f2d4206047e73a83ab35d9daa2",
-  "gen_hash_verilog": "sha256:9817e12a1a175cfeebf4050f96e26f4d09f4a7df6c5c749a8c21d080524bbed4",
+  "gen_hash_rust": "sha256:5568abf379247e1dd6c0d33e900104d448848469cdb6f16d6b134916182089ae",
+  "gen_hash_verilog": "sha256:7aaf24568305043bf1e2dc211313b7dc9363482f7d58162414e3591cb3702e39",
   "gen_hash_zig": "sha256:21b0b635cdfed74b0424c19d221cb20efecd1d7bcb9f4d68876ba1a32c20e204",
   "module": "forward_pass",
   "ring": 12,
-  "sealed_at": "2026-07-16T13:46:56Z",
+  "sealed_at": "2026-08-06T14:05:55Z",
   "spec_hash": "sha256:1920e6c067ad95834cf0ebfa8f91c0002ea24ce3d6254f9161b26878ce280dc4",
-  "spec_path": "/Users/playra/t27/specs/neural/forward_pass.t27"
+  "spec_path": "specs/neural/forward_pass.t27"
 }

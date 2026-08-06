@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4df9d93b6693f1a7dc906fc9a2e97e179dd2399a65813736dbb96992c8c555c6",
   "module": "TriHelp",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:6d2f2414d3208371ca2bbfd8f77458795ff94b3ec7222ddee67d3089a7718538",
-  "spec_path": "/Users/playra/t27/specs/tri/utils/help.t27"
+  "spec_path": "specs/tri/utils/help.t27"
 }

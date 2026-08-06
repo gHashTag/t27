@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9eaeb66737368315ea694a017dc2d20be336c5ae09fa2dd5f7e0ff4d8fe494de",
   "module": "TriLru",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:00755caba914623ad212f422ad2225f2de28144d0bb190788580e14ee87959ab",
-  "spec_path": "/Users/playra/t27/specs/tri/collections/lru.t27"
+  "spec_path": "specs/tri/collections/lru.t27"
 }

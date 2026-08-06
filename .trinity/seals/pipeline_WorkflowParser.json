@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:940957826e1bb6d6ccd322926f4ed07bd69eadcc06f70d2594f66c10de96cd67",
   "module": "WorkflowParser",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:20Z",
   "spec_hash": "sha256:c71dc9505fcf56e8aea69b4265d736e540fc598db301974f3c88e4f9830ce53c",
-  "spec_path": "/Users/playra/t27/specs/tri/pipeline/workflow_parser.t27"
+  "spec_path": "specs/tri/pipeline/workflow_parser.t27"
 }

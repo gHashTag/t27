@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:134e2cabfddb9d86cf3081d08cc39cebf38287bc4c121f9cd06b755d509edece",
   "module": "TriBase64",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:20Z",
   "spec_hash": "sha256:570efb578996b026b3572669478b17ce90e70aee9b0f304f2fce1a5f241ad84e",
-  "spec_path": "/Users/playra/t27/specs/tri/crypto/base64.t27"
+  "spec_path": "specs/tri/crypto/base64.t27"
 }

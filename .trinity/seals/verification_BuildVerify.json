@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:090bd12f8a878ddc036a5e16355ea53b4e85f8ead7d7fc53da78dd2feaa67184",
   "gen_hash_rust": "sha256:0a7493ba7717849dd1e9d77b2244a1639d315d7ac4553875ab03e6fd9865a58c",
-  "gen_hash_verilog": "sha256:89ad45b328143b730de8f1fc3aa7d4f34dfde32f890961f8665c15af9a7c3033",
+  "gen_hash_verilog": "sha256:149fe262785190488dd10e33f3fde7aeac044ed11d94fc19c30b73f544497ff5",
   "gen_hash_zig": "sha256:4d185c13864f4c4bbc0ba19ae46bb092e3f5c141677197f539d9f09d964bed23",
   "module": "BuildVerify",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:53Z",
   "spec_hash": "sha256:0e7e84a8a4ecec39d3893764fe7374abf2f961d12f9def0d3f607fc4e3a7a296",
-  "spec_path": "/Users/playra/t27/specs/fpga/verification/build_verify.t27"
+  "spec_path": "specs/fpga/verification/build_verify.t27"
 }

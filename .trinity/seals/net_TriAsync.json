@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:9e57643cef1045cbfabf6ab4111fe18792bd6fa0bfeca2902ba6c90bad116e07",
   "gen_hash_rust": "sha256:515208dce4624977a8733491f03d885f83aa8438de48f0cbdb464bd962c1d6cd",
-  "gen_hash_verilog": "sha256:dedf1c6c0c8b74894ba9f384a0de501c5cb5ab2769a6118f5db7779a64779c34",
+  "gen_hash_verilog": "sha256:2aec5caf760aa89f480c8c03e2f8b02356e33f3ba802de58750a5ba92e115ca7",
   "gen_hash_zig": "sha256:240ea8513f733f4aedbce045fa8c9c749e059ebef11cd8d5231d11124429639c",
   "module": "TriAsync",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:20Z",
   "spec_hash": "sha256:179cd63eb41991497c2b1624ff8750a9c3665a7771e43ac90c432595217c41f7",
-  "spec_path": "/Users/playra/t27/specs/tri/net/async.t27"
+  "spec_path": "specs/tri/net/async.t27"
 }

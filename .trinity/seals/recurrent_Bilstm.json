@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:fda250691cabfedf9fab759d1729db2a27f6d4e4bf99188a0cb06459e39a9aa5",
   "gen_hash_rust": "sha256:4c9dfeac72cd996bc08a0bbcd8ffcd6b53dd0fd5d6f8171dc9e528c4ef5e0086",
-  "gen_hash_verilog": "sha256:82c2ac601855f446580477ceb07676b133d7864562d48e291f6084bd8bec8816",
+  "gen_hash_verilog": "sha256:5282db0fe60e50ef96c89c2bbabf0a7d86adb780af26429d84d1735f30804580",
   "gen_hash_zig": "sha256:ffb79e613dbb8d3e5925cb2c80811cb4a786e42830216bb31a4ffd24633e8bb4",
   "module": "Bilstm",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:52Z",
   "spec_hash": "sha256:d2e4055108ee38da5e3e5cf5c999c6381ebd57c1d6c1ee7ada868b15cccb77d4",
-  "spec_path": "/Users/playra/t27/specs/ml/recurrent/bilstm.t27"
+  "spec_path": "specs/ml/recurrent/bilstm.t27"
 }

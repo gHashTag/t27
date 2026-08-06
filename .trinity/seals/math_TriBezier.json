@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3945a5a99366a49cde2856fce7242e8db82dcc0f17af4b37b2fbd04f2ad83a63",
   "module": "TriBezier",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:4f0ae1c180bc369bd06c7f4535ef6a201c37798184ff864bfef6ef436ee95562",
-  "spec_path": "/Users/playra/t27/specs/tri/math/bezier.t27"
+  "spec_path": "specs/tri/math/bezier.t27"
 }

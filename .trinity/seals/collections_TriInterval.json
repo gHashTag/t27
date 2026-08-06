@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7f16ea81fd836d49b3f6a860c272e76cc531f650b488c5f7b4ab91f31156f820",
   "module": "TriInterval",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:b259aff814f1812bbee828b05567a71fdd57c7be838d4a85bd092b7b7c5a9e40",
-  "spec_path": "/Users/playra/t27/specs/tri/collections/interval.t27"
+  "spec_path": "specs/tri/collections/interval.t27"
 }

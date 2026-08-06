@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:c685be41dfbd4d853eef86d68ebfc65846debabe40cfb03365c36284e9673143",
   "gen_hash_rust": "sha256:4fd06710c8751b6e6be482eac6c999902db280ac62b6f6e37209841159078f44",
-  "gen_hash_verilog": "sha256:6f75394ac87ded38de392f44cfd8d800d3c1496c582090298678a33c62dd5d23",
+  "gen_hash_verilog": "sha256:5a127b21767741eb3a26932aaf1c80fed6a61fe21b29d9cbd45bba9e44028115",
   "gen_hash_zig": "sha256:d56ab1055a377f6a354f87c1d230e88afd14f7826cdf99130048be001dee878b",
   "module": "w561_negative_struct_return_enum_field",
   "ring": 12,
-  "sealed_at": "2026-07-17T07:12:33Z",
+  "sealed_at": "2026-08-06T13:57:49Z",
   "spec_hash": "sha256:d828a43f423439b298d9f682e0faab760c90050c677453bf9ba5ee2c0e95f035",
   "spec_path": "specs/scratch/w561_negative_struct_return_enum_field.t27"
 }

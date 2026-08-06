@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:4eff0b42598698bb31979ddbd273399326206d16bee88f277df731c930a7d803",
   "gen_hash_rust": "sha256:fee4a85d94fc956616304e3db69d41b59fd859883de1db33f7f4b134ec22f177",
-  "gen_hash_verilog": "sha256:b563c2a7a773cbdb4c16127c2dd15a345af61c9fcf89fea94d886354d843d967",
+  "gen_hash_verilog": "sha256:f1ebbda1901351e289ef30f5d3507eb4b70655c902e747f8fb14228abb18a4a3",
   "gen_hash_zig": "sha256:4a5ca4dd99f19be62e8269b9918616e62607d9b7694a2a2863147bcf3a9242ef",
   "module": "TriResult",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:979b29b19e25610e1bdaac20f03ff6c2f302cf6809ccdbdd6b6f900b91031202",
-  "spec_path": "/Users/playra/t27/specs/tri/collections/result.t27"
+  "spec_path": "specs/tri/collections/result.t27"
 }

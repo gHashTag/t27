@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:09d752d91384b2a81daf17d399d06ce5be4cd4d3bde37bd52673747b195f7f24",
   "module": "FacultyBoard",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:9e12c1f5268143af7f4026346e22ae9fcd63218aefbebbfe503316e9e295c32e",
-  "spec_path": "/Users/playra/t27/specs/tri/agent/faculty_board.t27"
+  "spec_path": "specs/tri/agent/faculty_board.t27"
 }

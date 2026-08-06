@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5a08a48ffef7a47b5bfa4316a5545df8d93a82538a019f7315292bbdd277f209",
   "module": "w370_const_order",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T13:56:48Z",
   "spec_hash": "sha256:d566d5926f061567ead1d158cb5a62df9592d6e1c430c816a776818fcb8718b5",
-  "spec_path": "/Users/playra/t27/specs/scratch/w370_const_order.t27"
+  "spec_path": "specs/scratch/w370_const_order.t27"
 }

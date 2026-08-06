@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:db68a59b1e2f0d0100e99859e244a932626ec9ea5c79212b3740c7b96ad188b0",
   "gen_hash_rust": "sha256:735c79809998ec133df0b11e75261b92bee80d7169ba0aab7162312bcf038a30",
-  "gen_hash_verilog": "sha256:2a4cd34cfde02f5c4674e21f9d02149de07e0616b225c026bf975683ea47037a",
+  "gen_hash_verilog": "sha256:c9d4f8977256d4dc022b7b1a1407e51a08cd21204443db73e9df5290595964da",
   "gen_hash_zig": "sha256:812bae173fb96bb82529e92118644ab8e510cd0afd92c4317620fe43aaad61c7",
   "module": "[]const u8",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:50Z",
+  "sealed_at": "2026-08-06T13:55:21Z",
   "spec_hash": "sha256:b6220c8bb651c7ab2373923d7d65eb5456949660c08698988c6744446d2c40ab",
-  "spec_path": "/Users/playra/t27/specs/tri/utils/args.t27"
+  "spec_path": "specs/tri/utils/args.t27"
 }

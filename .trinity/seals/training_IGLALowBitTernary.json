@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:55497169953150ad7cf99dbe32542f26ef1adc16339cec31ae8605822e00d447",
   "gen_hash_rust": "sha256:1eef5cd73660a512fa1294659fabff711e0ac8390a811b1619abd896e778e647",
-  "gen_hash_verilog": "sha256:fa55bdb837b87096bb859d145ba4afc565e0a2e369cef5e8fd36f4c065f21d5c",
+  "gen_hash_verilog": "sha256:c9aeab52e1080da88b157b1b27c321e88f3ae6cef810a696e4776878971ec3af",
   "gen_hash_zig": "sha256:c29ec20025bc913404b83f0e0af9dee63be4f8e3b953d3a344519d25ff8138fd",
   "module": "IGLALowBitTernary",
   "ring": 12,
-  "sealed_at": "2026-07-16T13:46:56Z",
+  "sealed_at": "2026-08-06T14:05:54Z",
   "spec_hash": "sha256:71a93868a8177593f4fdae670dce0714895a9ecaadd2d4a09e2c7d84c415e962",
-  "spec_path": "/Users/playra/t27/specs/igla/training/low_bit_ternary.t27"
+  "spec_path": "specs/igla/training/low_bit_ternary.t27"
 }

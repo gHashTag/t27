@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:40de463667a49ebf24b05c5f46c7242661ee4e16a809d423a030e6a5ba4043fe",
-  "gen_hash_rust": "sha256:1d12fd6ecce639962f38e26b43ad73cd8753c00cdad4d7996819c23c4c3aaf2f",
-  "gen_hash_verilog": "sha256:d2dc1bfb287b9c77fafde3ecd90abd003028441126c1fb3d1f22635c0db1a3e4",
-  "gen_hash_zig": "sha256:cb5d47fb26a4b1dc2530d8666e472a54781876982914b37157c524e0a2a193c9",
+  "gen_hash_c": "sha256:abddbe3fd452e35fa5fc01a9eec1897eeb1d5e912eabb9fbad28c0689a8338de",
+  "gen_hash_rust": "sha256:7a3eeea6badcce6982eb328c43e4793ab6ccd4193d1ea3dfc6f35427877af599",
+  "gen_hash_verilog": "sha256:f63a63eccc5c881c4bbad0ef8bf8a2b00a6a4fde23cc2f31f1ec1e643e4d6dc1",
+  "gen_hash_zig": "sha256:316e65035ea82c9167c03d9223958ac0f93d9b4bc74b125bf1997d324bda25e7",
   "module": "w534_negative_host_only_helper",
   "ring": 12,
-  "sealed_at": "2026-07-14T17:00:10Z",
+  "sealed_at": "2026-08-06T14:05:38Z",
   "spec_hash": "sha256:4decca5b808b3f31b35f09686abdedfe7ee6fcecef46fb64d7ab6df15b57ff65",
-  "spec_path": "/Users/playra/t27/specs/scratch/w534_negative_host_only_helper.t27"
+  "spec_path": "specs/scratch/w534_negative_host_only_helper.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:529a123624beb08202cc3ec2e64fc3428461373dd554b9ba9a318357f0ed1c92",
   "module": "base-ring-32",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:56Z",
   "spec_hash": "sha256:6bcf3942f1f175d1c3708484d4cb216a6e6ba7492a6ebf7e6320887c7d13a42b",
-  "spec_path": "/Users/playra/t27/specs/base/ring_32.t27"
+  "spec_path": "specs/base/ring_32.t27"
 }

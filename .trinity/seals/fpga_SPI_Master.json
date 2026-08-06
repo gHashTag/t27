@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:af5d3d6f6158866d60621a606a30b3503ef6321c162f2a36af5c84f3455a2fd1",
-  "gen_hash_rust": "sha256:a0483b5d4a92ff524abb0840a6afe7a8f9fa49351c89a6538ac77bcdbc24f591",
-  "gen_hash_verilog": "sha256:67dd4d9d39ccc34d8dc825dd20db023abb6c345b0c2f1d3111a57563b3fcc020",
+  "gen_hash_rust": "sha256:9be04017ff9b839f094b81c12b8eeac4e1351bd19a1a66d606b1bfc830690550",
+  "gen_hash_verilog": "sha256:11be1881e64a6b7d22228d089dfae6a242af897a9eaf5b02985a28b115634124",
   "gen_hash_zig": "sha256:202640be133993c89497da72c42a41c6cdc0ee79e24c07394d8d32df8f5f2c61",
   "module": "SPI_Master",
   "ring": 12,
-  "sealed_at": "2026-07-18T16:36:15Z",
+  "sealed_at": "2026-08-06T14:05:53Z",
   "spec_hash": "sha256:ff4be233953f854d3a992da31e1751d9ef9a530891514866f365130f313ea5e9",
-  "spec_path": "/Users/playra/t27/specs/fpga/spi.t27"
+  "spec_path": "specs/fpga/spi.t27"
 }

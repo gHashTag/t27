@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:eaa8911f587da1cca4622ca2d3f1c8e67e8eb19bca9a94fdbda6f94d9c0865ec",
   "gen_hash_rust": "sha256:d072c142fb6b2b1000495611bdb9302cd7e74dff7f5d60b84da96c99c266c4b3",
-  "gen_hash_verilog": "sha256:3cc7220a60d384060c5eee9b754a41c8f44c4000ca0488dd4f8fcf31bb1736e9",
+  "gen_hash_verilog": "sha256:f4157687e06f150cdfec54b517e18852c491b4f8c8d576e60197ba32da9f001e",
   "gen_hash_zig": "sha256:cf4f3b5b63971acc2ed6f616f5d4a8861c391bf8be33f25aa7e0c905d31f1007",
   "module": "DFT",
   "ring": 12,
-  "sealed_at": "2026-07-18T16:36:15Z",
+  "sealed_at": "2026-08-06T14:05:53Z",
   "spec_hash": "sha256:52bfcb88b32809c2a79b368329ea005cbc3863734ec277278c15459c967acc4e",
-  "spec_path": "/Users/playra/t27/specs/fpga/dft.t27"
+  "spec_path": "specs/fpga/dft.t27"
 }

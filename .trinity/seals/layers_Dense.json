@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:1204f01f6159ff8d5e485dc70b2ea552fb9c977dc8cc58dedbb89935c3908bee",
   "gen_hash_rust": "sha256:001235a622f53a40cdd5ad9fc59017281f3d078b701d2eaac62b95fb7a0fb41f",
-  "gen_hash_verilog": "sha256:13e7358e85d2f062fcbbb687dc90da5b70d8711e288632461d430b7f524f6b24",
+  "gen_hash_verilog": "sha256:b64d1db3a8c74ffae9c47f1e3717264a966c8e6822c0a6347da46ba6f43f0b14",
   "gen_hash_zig": "sha256:c97838ad65b36130f23a55fadabfd6ac7706aaa088a625a88a68cf5a9f710c48",
   "module": "Dense",
   "ring": 12,
-  "sealed_at": "2026-07-14T16:05:49Z",
+  "sealed_at": "2026-08-06T14:05:52Z",
   "spec_hash": "sha256:a3ba5541115a575b99fce7ab3b7cfb3742d11f6273c93a0050b05275a23033fc",
-  "spec_path": "/Users/playra/t27/specs/ml/layers/dense_layer.t27"
+  "spec_path": "specs/ml/layers/dense_layer.t27"
 }
