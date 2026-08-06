@@ -613,7 +613,7 @@ Last updated: 2026-07-29
 - `cargo test -p t27c --test verilog_const_array`: 2/0.
 - `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W789: PASS.
 
-### Remaining weak points
+### Cooperation variants for Wave Loop 872
 
 - `bootstrap/tests/verilog_array_literal_expr.rs` regression (pre-existing, deeper
   compiler lowering issue, tracked for separate issue).
