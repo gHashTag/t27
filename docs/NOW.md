@@ -1,6 +1,18 @@
-# NOW — feat: spec-first STREAMING ternary MAC — the on-hardware inference primitive (2026-08-06)
+# NOW — feat: `on_comb` combinational data ports — the whole ternary stack now synthesizes (2026-08-06)
 
 Last updated: 2026-08-06
+
+## feat(gen-verilog): `on_comb` combinational data interface — combinational specs become real hardware (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Что легло
+- `bootstrap/src/compiler.rs`: **`on_comb` is the combinational counterpart of `on_clock`.** Its params become input data ports and its return is a continuously-driven `output wire result` (`assign result = on_comb(...)`). This closes the last synthesizability gap: the previous output-port work only covered clocked (`on_clock`) designs, so the whole COMBINATIONAL half of the stack (dot27, adders, MLPs) still synthesized to **zero cells** (a bare `fn` result never reaches a port → yosys DCE). Now a combinational spec is real hardware. Only present when `on_comb` is defined → every existing spec byte-identical.
+- `specs/ternary/comb_ternary_dot.t27` (`CombTernaryDot`) + seal + `bootstrap/tests/comb_ternary_dot.rs`: `on_comb(a, b)` = the bit-exact 27-trit dot product (#1743 primitives). Verified: in-spec dot27 tests pass; **yosys synth_xilinx → ~162 LUT6 + 66 LUT4 + 44 LUT5 + 2 CARRY4, NO flip-flops (pure combinational Artix-7 fabric)**; iverilog checks `result == dot27(a,b)` on known vectors (+27/+27/-27/0) = ALL_PASS.
+- **Together with the clocked path (`on_clock`), the spec-first ternary stack now synthesizes to real FPGA hardware in BOTH modes** — combinational (`on_comb` → LUT trees) and sequential (`on_clock` → FDCE registers + streaming MAC). Seal-neutral: `seal --verify` MATCH on all existing ternary specs; FROZEN_HASH resealed; 1506 unit tests + the spec suite pass.
+- NOTE: PR #1782's branch was force-pushed into a non-compiling state (see its comments); this + the prior 3 increments live self-consistently on `feat/streaming-ternary-mac-verified` (compiler.rs sha == FROZEN_HASH). Needs a manual rebase onto master (take master's compiler.rs + re-apply the additive edits; a plain merge silently mis-merges that file).
+
+---
 
 ## feat(gen-verilog): `on_clock` params → streaming input data ports + a streaming ternary MAC (Refs #1764)
 

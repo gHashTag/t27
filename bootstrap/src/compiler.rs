@@ -5645,18 +5645,29 @@ impl VerilogCodegen {
                 }
             }
         }
-        // #1764: the parameters of `on_clock` become streaming INPUT data ports,
-        // so a clocked spec can accumulate a value fed in each cycle
-        // (`fn on_clock(x: i16) { acc = acc + x }` -> `input signed [15:0] x`).
-        // Only present when `on_clock` takes params -> existing specs unchanged.
+        // #1764: the parameters of `on_clock` (streaming) or `on_comb`
+        // (combinational) become INPUT data ports, so a spec can consume data fed
+        // in on real ports (`fn on_clock(x: i16) {...}` -> `input signed [15:0] x`).
+        // Only present when such a fn takes params -> existing specs unchanged.
         let mut input_ports: Vec<(String, u32, bool)> = Vec::new();
-        if let Some(oc) = functions.iter().find(|f| f.name == "on_clock") {
+        if let Some(oc) = functions.iter().find(|f| f.name == "on_clock" || f.name == "on_comb") {
             for (pname, ptype) in &oc.params {
                 let w = Self::type_to_width(ptype);
                 let signed = Self::type_is_signed(ptype);
                 input_ports.push((pname.clone(), w, signed));
             }
         }
+        // `on_comb` is the combinational counterpart of `on_clock`: its return is a
+        // continuously-driven `output wire result` (`assign result = on_comb(...)`),
+        // so a purely combinational spec (dot27, an adder, a whole MLP) synthesizes
+        // to real LUTs instead of being dead-code-eliminated. Only when defined.
+        let comb_result: Option<(u32, bool, Vec<String>)> =
+            functions.iter().find(|f| f.name == "on_comb").map(|f| {
+                let w = Self::type_to_width(&f.extra_return_type);
+                let signed = Self::type_is_signed(&f.extra_return_type);
+                let params: Vec<String> = f.params.iter().map(|(p, _)| p.clone()).collect();
+                (w, signed, params)
+            });
 
         self.write_line(&format!("module {} (", mod_name));
         self.indent();
@@ -5677,19 +5688,32 @@ impl VerilogCodegen {
             }
         }
         self.write_indent();
-        if exposed_ports.is_empty() {
+        let n_extra_out = exposed_ports.len() + if comb_result.is_some() { 1 } else { 0 };
+        if n_extra_out == 0 {
             self.write_line("output wire        ready");
         } else {
             self.write_line("output wire        ready,");
-            for (i, (name, w, signed)) in exposed_ports.iter().enumerate() {
+            let mut emitted = 0;
+            for (name, w, signed) in &exposed_ports {
                 let range = Self::range_decl(*w as u32);
                 let signed_str = if *signed { "signed " } else { "" };
-                let comma = if i + 1 < exposed_ports.len() { "," } else { "" };
+                emitted += 1;
+                let comma = if emitted < n_extra_out { "," } else { "" };
                 self.write_indent();
                 if range.is_empty() {
                     self.write_line(&format!("output reg {}{}{}", signed_str, name, comma));
                 } else {
                     self.write_line(&format!("output reg {}{} {}{}", signed_str, range, name, comma));
+                }
+            }
+            if let Some((w, signed, _)) = &comb_result {
+                let range = Self::range_decl(*w);
+                let signed_str = if *signed { "signed " } else { "" };
+                self.write_indent();
+                if range.is_empty() {
+                    self.write_line(&format!("output wire {}result", signed_str));
+                } else {
+                    self.write_line(&format!("output wire {}{} result", signed_str, range));
                 }
             }
         }
@@ -5824,6 +5848,13 @@ impl VerilogCodegen {
         // Clocked process: register module `var` state on the rising clock edge.
         for f in &clocked {
             self.gen_verilog_clocked_fn(f, &consts);
+        }
+        // `on_comb`: continuously drive the `result` output port from the
+        // combinational function of the input data ports.
+        if let Some((_, _, params)) = &comb_result {
+            self.write_line("");
+            self.write_indent();
+            self.write_line(&format!("assign result = on_comb({});", params.join(", ")));
         }
 
         // Section: Tests → assertions (SystemVerilog-style)
