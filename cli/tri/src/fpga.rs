@@ -91,6 +91,17 @@ pub enum FpgaCmd {
         /// openFPGALoader cable profile (default: digilent_hs2).
         #[arg(long, default_value = "digilent_hs2")]
         cable: String,
+        /// Process corner to use when converting the live XADC readout to the
+        /// integer `PvtContext` used by the PVT envelope. The XADC does not
+        /// measure process corner, so it must be supplied externally. Default
+        /// `ss` (slow-slow) for worst-case reasoning.
+        #[arg(long, default_value = "ss", value_parser = clap::builder::PossibleValuesParser::new(["ff", "tt", "ss"]))]
+        process_corner: String,
+        /// Optional output path for the rounded `PvtContext` JSON derived from
+        /// the live XADC readout. When set, the file is written in addition to
+        /// the full XADC JSON printed on stdout.
+        #[arg(long)]
+        to_pvt_context: Option<PathBuf>,
     },
     /// Synthesize the GF16 4x4 matrix design through the openXC7 toolchain.
     /// Output is written to `<build_dir>/gf16_matmul4x4_top.bit`.
@@ -756,8 +767,22 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             bridge,
             freq,
         } => round_trip_verify(bit, cable, part, bridge.as_ref(), *freq),
-        FpgaCmd::ReadXadc { cable } => {
+        FpgaCmd::ReadXadc {
+            cable,
+            process_corner,
+            to_pvt_context,
+        } => {
+            let corner = parse_process_corner(process_corner)?;
             let ctx = read_xadc_via_openfpgaloader(cable)?;
+            if let Some(path) = to_pvt_context {
+                let pvt = ctx.to_pvt_context(corner)?;
+                std::fs::write(path, serde_json::to_string_pretty(&pvt)?)
+                    .with_context(|| format!("write PVT context {}", path.display()))?;
+                println!(
+                    "[read-xadc] wrote rounded PVT context to {}",
+                    path.display()
+                );
+            }
             println!("{}", serde_json::to_string_pretty(&ctx.to_json("xadc"))?);
             Ok(())
         }
@@ -2549,6 +2574,20 @@ enum ProcessCorner {
     Ss,
 }
 
+/// Parse a process-corner string supplied on the CLI.
+/// Accepts lower-case or upper-case `ff`, `tt`, and `ss`.
+fn parse_process_corner(s: &str) -> Result<ProcessCorner> {
+    match s.to_ascii_lowercase().as_str() {
+        "ff" => Ok(ProcessCorner::Ff),
+        "tt" => Ok(ProcessCorner::Tt),
+        "ss" => Ok(ProcessCorner::Ss),
+        _ => Err(anyhow::anyhow!(
+            "unknown process corner '{}'; expected ff, tt, or ss",
+            s
+        )),
+    }
+}
+
 /// PVT context used for N25Q128_3V timing derating.
 /// Mirrors `PvtContext` in `proofs/lean4/Trinity/TernaryFPGABoot.lean`.
 #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -3559,6 +3598,7 @@ fn build_measured_to_lean_summary(
     raw_ns: bool,
     margin: bool,
     pvt_ctx: &Option<PvtContext>,
+    pvt_source: &str,
     text: &str,
 ) -> Result<serde_json::Value> {
     let (source, theorem_base, predicate, period_ns, low_ns, high_ns) = if raw_ns {
@@ -3634,11 +3674,20 @@ fn build_measured_to_lean_summary(
         "out_of_spec"
     };
 
+    let operating_point = pvt_ctx.as_ref().map(|ctx| {
+        let mut value = serde_json::to_value(ctx).unwrap_or(serde_json::Value::Null);
+        if let Some(obj) = value.as_object_mut() {
+            obj.insert("source".to_string(), serde_json::Value::String(pvt_source.to_string()));
+        }
+        value
+    });
+
     Ok(serde_json::json!({
         "source": source,
         "theorem_base": theorem_base,
         "predicate": predicate,
         "pvt_context": pvt_ctx.as_ref().map(|ctx| serde_json::to_value(ctx).unwrap_or(serde_json::Value::Null)),
+        "operating_point": operating_point.unwrap_or(serde_json::Value::Null),
         "raw_ns": raw_ns,
         "margin": margin,
         "flash_min_half_period_ns": flash_min_half_period_ns,
@@ -3676,6 +3725,7 @@ fn measured_to_lean(
         Some(path) => Some(parse_pvt_context(path)?),
         None => None,
     };
+    let mut pvt_source = if pvt_context.is_some() { "pvt_context_file" } else { "" };
     if pvt_worstcase {
         pvt_ctx = Some(PvtContext {
             temp_c: PVT_TEMP_MAX_C,
@@ -3683,6 +3733,7 @@ fn measured_to_lean(
             vccaux_mv: 2700,
             process_corner: ProcessCorner::Ss,
         });
+        pvt_source = "worstcase";
     }
     if json && out.is_none() {
         bail!("--json requires --out so the generated Lean snippet has a destination");
@@ -3998,7 +4049,7 @@ fn measured_to_lean(
     }
 
     // Build machine-readable summary metadata (used by `--json`).
-    let summary = build_measured_to_lean_summary(name, raw_ns, margin, &pvt_ctx, &text)?;
+    let summary = build_measured_to_lean_summary(name, raw_ns, margin, &pvt_ctx, pvt_source, &text)?;
 
     if json {
         if let Some(path) = out {
@@ -6495,7 +6546,7 @@ mod tests {
         );
         let json = serde_json::to_string(&m).unwrap();
         let summary =
-            build_measured_to_lean_summary("measured_cclk", false, false, &None, &json).unwrap();
+            build_measured_to_lean_summary("measured_cclk", false, false, &None, "", &json).unwrap();
         assert_eq!(
             summary["source"].as_str().unwrap(),
             "synthetic (10000000 Hz samplerate)"
@@ -6529,7 +6580,7 @@ mod tests {
         };
         let json = serde_json::to_string(&m).unwrap();
         let summary =
-            build_measured_to_lean_summary("measured_cclk", true, false, &None, &json).unwrap();
+            build_measured_to_lean_summary("measured_cclk", true, false, &None, "", &json).unwrap();
         assert_eq!(summary["source"].as_str().unwrap(), "live");
         assert_eq!(
             summary["theorem_base"].as_str().unwrap(),
@@ -6560,7 +6611,7 @@ mod tests {
             process_corner: ProcessCorner::Ss,
         };
         let summary =
-            build_measured_to_lean_summary("measured_cclk", false, true, &Some(ctx), &json)
+            build_measured_to_lean_summary("measured_cclk", false, true, &Some(ctx), "worstcase", &json)
                 .unwrap();
         assert_eq!(
             summary["predicate"].as_str().unwrap(),
@@ -6570,6 +6621,12 @@ mod tests {
         let ctx_out = summary["pvt_context"].as_object().unwrap();
         assert_eq!(ctx_out["temp_c"].as_i64().unwrap(), 85);
         assert_eq!(ctx_out["process_corner"].as_str().unwrap(), "ss");
+        let op = summary["operating_point"].as_object().unwrap();
+        assert_eq!(op["source"].as_str().unwrap(), "worstcase");
+        assert_eq!(op["temp_c"].as_i64().unwrap(), 85);
+        assert_eq!(op["vccint_mv"].as_u64().unwrap(), 900);
+        assert_eq!(op["vccaux_mv"].as_u64().unwrap(), 1800);
+        assert_eq!(op["process_corner"].as_str().unwrap(), "ss");
         assert_eq!(summary["flash_min_half_period_ns"].as_i64().unwrap(), 13);
         assert_eq!(summary["margin_ns"].as_i64().unwrap(), 7);
         assert_eq!(summary["recommendation"].as_str().unwrap(), "in_spec");

@@ -499,7 +499,27 @@ W434 (same matrix as W432/W433). They will be addressed only in a dedicated futu
 merge/rebase wave, or once the FPGA boot-evidence line is no longer the primary
 wave focus.
 
-## Open work after W388 / W427 / W429 / W432 / W433 / W434
+## W435 triage (2026-07-01)
+
+Wave Loop 435 selected **Variant B** of the W435 cooperation plan (harden the live
+XADC → PVT context → `measured-to-lean` pipeline). The wave did not touch the
+gen-verilog backend, so the 7 residual yosys smoke failures remain **unchanged and
+re-confirmed as the baseline**. No new narrow defect was introduced.
+
+**Defect status matrix after W435:**
+
+| Defect | Status | Notes |
+|--------|--------|-------|
+| 1 — const order | FIXED (W370) | stable |
+| 2 / 2b / 2c — width padding + keyword escape | FIXED (W371–W374) | stable |
+| 3 — early-return if-else chaining | FIXED (W375) | stable |
+| 3b — named tuple `::` namespaces | FIXED (W380) | stable |
+| 4 — `as` / bitwise width | VERIFIED FIXED (W376) | stable |
+| 5 — struct-field reg mapping | FIXED (W377) | stable |
+| 6 — `let` destructuring | PARTIALLY FIXED (W378–W381) | stable; residual cases in 7 failures |
+| 7 residual yosys smoke failures (#1245) | **BASELINE** | tuple-return / `let` destructuring / ROM arrays / CORDIC; deferred to master-merge |
+
+## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.
