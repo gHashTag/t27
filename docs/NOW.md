@@ -1,3 +1,19 @@
+# NOW — feat: BitNet×GF-T neuron + signed GF-T dot4 (synthesizable) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): BitNet×GF-T inference neuron + signed GF-T 4-term MAC (Refs #1764)
+
+- Branch: `feat/gft-bitnet-neuron-signed-dot4`
+
+### Что легло
+- `specs/ternary/gft_bitnet_neuron.t27` (`GftBitnetNeuron`) + seal + test + vectors: **the BitNet×GF-T inference primitive** — a neuron with TERNARY weights {-1,0,+1} and REAL-VALUED GF-T16 activations. Each trit weight selects +a / 0 / -a of its GF-T activation; the four signed contributions are summed in signed GF-T (RNE, zero-aware). Fuses the two project threads (BitNet ternary + GF-T format). Bit-exact to the ideal oracle over 3000 vectors; **yosys synth_xilinx → 9763 LUT + 1320 CARRY4 (synthesizes to Artix-7)**.
+- `specs/ternary/gft_signed_dot4.t27` (`GftSignedDot4`) + seal + test + vectors: a signed GF-T16 4-term MAC (real-valued matmul tile with negatives + cancellation), bit-exact to the oracle balanced tree over 3000 vectors.
+- **Synthesis finding:** a bounded `while` loop inside a Verilog function is NOT yosys-synthesizable ("Function can only be called with constant arguments"). The signed subtract's left-normalization was rewritten as a FLAT unrolled sequence (12 conditional shifts, ≥ the ~9 max) — functionally identical (re-verified 3000 vectors), now synthesizable. Bitstream/place-and-route (nextpnr) remains owner-gated (not installed locally).
+No compiler change (uses `on_comb`, on master); 1535 unit tests pass.
+
+---
+
 # NOW — chore: reseal specs after the codegen repair #1790 (2026-08-06)
 
 Last updated: 2026-08-06
