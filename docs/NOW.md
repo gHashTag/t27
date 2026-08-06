@@ -1,3 +1,19 @@
+# NOW — docs(metrics): сводка ключевых метрик 83 числовых форматов (2026-08-06)
+
+Last updated: 2026-08-06
+
+## docs(metrics): сводка ключевых метрик 83 числовых форматов (SSOT-derived) (Closes #1225)
+
+- Branch: `docs/metrics-83-compendium`
+
+### Что легло
+- `docs/metrics/NUMERIC_FORMATS_83_METRICS.md` — compendium of key metrics across all 83 numeric formats in the catalog.
+- `docs/metrics/numeric_formats_83_metrics.csv` — machine-readable table derived from SSOT (`specs/numeric/formats_catalog.t27`).
+- `docs/metrics/build_metrics.py` — generator from SSOT; SSOT itself is not touched.
+- Honesty: catalog = **83** formats (not 84; divergence from arXiv:2606.09686 is logged as erratum); HW tiry: decode-HW 4/83, compute-HW 2/83 (E/C), SW-bitexact 62/83.
+
+---
+
 # NOW — ring-105: ecosystem .tri rewrite (7 repos -> t27 SSOT) (2026-08-06)
 
 Last updated: 2026-08-06
