@@ -578,6 +578,11 @@ def PVT_VCCINT_MIN_MV : Nat := 900
 /-- Operating-envelope upper bound for VCCINT in millivolts. -/
 def PVT_VCCINT_MAX_MV : Nat := 1100
 
+/-- Shared worst-case PVT context used for every PVT and OSCFSEL worst-case theorem.
+    Defined early so the monotonicity envelope proofs can refer to it. -/
+def OSCFSEL_WORST_CASE_PVT_CONTEXT : PvtContext :=
+  { temp_c := (85 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := ProcessCorner.ss }
+
 /-- Conservative temperature derating in nanoseconds. The N25Q128_3V datasheet
     does not publish a closed-form curve, so we use a linear upper envelope:
     0.02 ns per degree Celsius above the minimum temperature. At the industrial
@@ -827,6 +832,68 @@ lemma pvt_low_ns_monotone_combined
     at ht_min ht_le hv_le hv_max hc ⊢
   cases c1 <;> cases c2 <;> omega
 
+/-- The documented worst-case operating point (max temperature, min VCCINT,
+    slow-slow process corner) is the upper envelope of the PVT-aware SCK
+    half-period bound over the entire operating rectangle. This justifies using
+    `OSCFSEL_WORST_CASE_PVT_CONTEXT` as a single conservative context for all
+    worst-case validation. -/
+theorem pvt_half_ns_worst_case_is_upper_envelope (ctx : PvtContext) :
+  (PVT_TEMP_MIN_C ≤ ctx.temp_c) → (ctx.temp_c ≤ PVT_TEMP_MAX_C)
+  → (PVT_VCCINT_MIN_MV ≤ ctx.vccint_mv) → (ctx.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+  → n25q128_min_sck_half_ns_pvt ctx ≤ n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+  intro ht_min ht_max hv_min hv_max
+  have h_eq :
+    n25q128_min_sck_half_ns_pvt ctx
+    = n25q128_min_sck_half_ns_pvt ⟨ctx.temp_c, ctx.vccint_mv, 2700, ctx.process_corner⟩ := by
+    simp [n25q128_min_sck_half_ns_pvt, n25q128_min_sck_low_ns_pvt,
+          n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+          n25q128_pvt_process_derating_ns]
+  have h3 : ctx.process_corner.worse_than ProcessCorner.ss := by
+    cases ctx.process_corner <;> simp [ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+  rw [h_eq]
+  have h_le :
+    n25q128_min_sck_half_ns_pvt ⟨ctx.temp_c, ctx.vccint_mv, 2700, ctx.process_corner⟩
+    ≤ n25q128_min_sck_half_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+    have h_wc : OSCFSEL_WORST_CASE_PVT_CONTEXT = ⟨(85 : Int), 900, 2700, ProcessCorner.ss⟩ := by
+      unfold OSCFSEL_WORST_CASE_PVT_CONTEXT
+      rfl
+    rw [h_wc]
+    apply pvt_half_ns_monotone_combined
+      (ctx.temp_c) (PVT_TEMP_MAX_C) (ctx.vccint_mv) (PVT_VCCINT_MIN_MV) (ctx.process_corner) (ProcessCorner.ss)
+    · exact ht_min
+    · exact ht_max
+    · exact hv_min
+    · exact hv_max
+    · exact h3
+  exact h_le
+
+/-- The documented worst-case operating point is also the upper envelope of the
+    PVT-aware SCK low bound. This mirrors `pvt_half_ns_worst_case_is_upper_envelope`. -/
+theorem pvt_low_ns_worst_case_is_upper_envelope (ctx : PvtContext) :
+  (PVT_TEMP_MIN_C ≤ ctx.temp_c) → (ctx.temp_c ≤ PVT_TEMP_MAX_C)
+  → (PVT_VCCINT_MIN_MV ≤ ctx.vccint_mv) → (ctx.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+  → n25q128_min_sck_low_ns_pvt ctx ≤ n25q128_min_sck_low_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+  intro ht_min ht_max hv_min hv_max
+  have h_eq :
+    n25q128_min_sck_low_ns_pvt ctx
+    = n25q128_min_sck_low_ns_pvt ⟨ctx.temp_c, ctx.vccint_mv, 2700, ctx.process_corner⟩ := by
+    simp [n25q128_min_sck_low_ns_pvt,
+          n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+          n25q128_pvt_process_derating_ns]
+  have h3 : ctx.process_corner.worse_than ProcessCorner.ss := by
+    cases ctx.process_corner <;> simp [ProcessCorner.worse_than, n25q128_pvt_process_derating_ns]
+  rw [h_eq]
+  have h_wc : OSCFSEL_WORST_CASE_PVT_CONTEXT = ⟨PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, 2700, ProcessCorner.ss⟩ := by
+    rfl
+  rw [h_wc]
+  apply pvt_low_ns_monotone_combined
+    (ctx.temp_c) (PVT_TEMP_MAX_C) (ctx.vccint_mv) (PVT_VCCINT_MIN_MV) (ctx.process_corner) (ProcessCorner.ss)
+  · exact ht_min
+  · exact ht_max
+  · exact hv_min
+  · exact hv_max
+  · exact h3
+
 /-- The PVT-aware SCK high bound is monotone in the combined ordering: higher
     temperature, lower VCCINT, and a worse process corner all increase (or keep)
     the bound. The low and high bounds are symmetric in the current placeholder
@@ -1063,10 +1130,6 @@ theorem pvt_low_ns_wc_ge_old_placeholder :
 -- ============================================================================
 -- OSCFSEL 0..7 measured-CCLK theorem library (W415)
 -- ============================================================================
-
-/-- Shared worst-case PVT context used for every OSCFSEL worst-case theorem. -/
-def OSCFSEL_WORST_CASE_PVT_CONTEXT : PvtContext :=
-  { temp_c := (85 : Int), vccint_mv := 900, vccaux_mv := 2700, process_corner := ProcessCorner.ss }
 
 /-- Nominal flash-spec theorem for OSCFSEL=0 (2.5 MHz). -/
 theorem oscfsel_0_nominal_measured_satisfies_flash_spec :

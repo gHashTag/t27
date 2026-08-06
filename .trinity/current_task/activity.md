@@ -3800,3 +3800,11 @@
 - **Commit:** docs(tri): correct W425 issue reference to #1374
 - **Files:** .trinity/current_task/activity.md,docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md
 
+## 2026-07-05T07:22:12Z — wave-loop-425
+- **Commit:** docs(tri): correct W425 issue reference to #1374
+- **Files:** .claude/plans/wave-loop-420.md,.claude/plans/wave-loop-421.md,.trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/experience.md,.trinity/seals/account_Account.json,.trinity/seals/account_AccountAuth.json,.trinity/seals/account_AccountRepo.json,.trinity/seals/activation_Elu.json,.trinity/seals/activation_Gelu.json,.trinity/seals/activation_GeluApprox.json,.trinity/seals/activation_LeakyRelu.json,.trinity/seals/activation_Relu.json,.trinity/seals/activation_Sigmoid.json,.trinity/seals/activation_SiluSwish.json,.trinity/seals/activation_SiluSwishVbt.json,.trinity/seals/activation_Softmax.json,.trinity/seals/activation_Tanh.json
+
+## 2026-07-05T07:37:43Z — wave-loop-425
+- **Commit:** merge W424 into W425
+- **Files:** .trinity/current-issue.md,.trinity/current_task/.commit_count,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W425_2026-07-05.md,docs/reports/FPGA_LOOP_COOPERATION_W426_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W425_2026-07-05.md,docs/reports/WAVE_LOOP_425_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
