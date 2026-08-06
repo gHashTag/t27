@@ -119,10 +119,11 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 872 | #1691 | wave-loop-872 | 563 | 281 | 36,032 | 1,153,024 | 1.100 | closed | #1693 |
 | 873 | #1694 | wave-loop-873 | 565 | 282 | 36,160 | 1,157,120 | 1.104 | closed | #1695 |
 | 874 | #1696 | wave-loop-874 | 567 | 283 | 36,288 | 1,161,216 | 1.108 | closed | #1698 |
-| 876 | #1701 | wave-loop-876 | 571 | 285 | 36,544 | 1,169,408 | 1.116 | closed | TBD |
-| 877 | #1702 | wave-loop-877 | 573 | 286 | 36,672 | 1,173,504 | 1.120 | READY | - |
+| 876 | #1701 | wave-loop-876 | 571 | 285 | 36,544 | 1,169,408 | 1.116 | closed | #1704 |
+| 877 | #1703 | wave-loop-877 | 573 | 286 | 36,672 | 1,173,504 | 1.120 | closed | #1705 |
 | 875 | #1699 | wave-loop-875 | 569 | 284 | 36,416 | 1,165,312 | 1.112 | closed | #1700 |
-| **876** | **#1701** | **wave-loop-876** | **571** | **285** | **36,544** | **1,169,408** | **1.116** | **READY** | **TBD** |
+| **878** | **#1706** | **wave-loop-878** | **575** | **287** | **36,800** | **1,177,600** | **1.124** | **READY** | **TBD** |
+| 879 | #1707 (expected) | wave-loop-879 (planned) | 577 | 288 | 36,928 | 1,181,696 | 1.128 | planned | TBD |
 
 ### Run-list notes
 - Issue numbers follow the observed pattern (issue = previous issue + 2).
@@ -210,10 +211,10 @@ criteria, generator copy-hazard checklist, and open backlog.
 
 ## Current status
 
-- **Latest completed wave:** 876
-- **Latest issue/PR:** #1701 / TBD / #1700
-- **Current wave in progress:** 877
-- **Next wave queued:** 878
-- **Ladder depth:** W774–W876 = 103 waves
+- **Latest completed wave:** 877
+- **Latest issue/PR:** #1703 / #1705
+- **Current wave in progress:** 878
+- **Next wave queued:** 879
+- **Ladder depth:** W774–W877 = 104 waves
 
 *φ² + φ⁻² = 3 | TRINITY*

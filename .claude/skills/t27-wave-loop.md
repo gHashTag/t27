@@ -57,6 +57,42 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
+## Worked example — Wave Loop 877
+
+Wave Loop 877 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:
+
+- Selected Variant A: module-scope `[573][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w877.py` from `gen_w876.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment).
+- Produced `specs/scratch/w877_bench_module_573x2p6_aos_var_call_write.t27`
+  (36,672 elements, 1,173,504-bit packed vector).
+- Added integration test `accepts_w877_bench_module_573x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates all PASS:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save`.
+  - Full `cargo test --release --test icarus_lowerable`: 337/0.
+- Research background: Icarus Verilog has no 1-MiBit hard cap (LRM minimum is
+  65,536 bits; Icarus warns near 1 Gbit; upstream commit `128c621` fixed a
+  bound-normalization path; Icarus V13.0 released 2026-03-02 improves packed/unpacked
+  array handling and memory management). Vitis HLS UG1399 `compact=bit` is the
+  commercial analog for packing structs into wide vectors. Vericert v2.0.0
+  released 2026-01-29; the 2024 PLDI paper on verified hyperblock scheduling
+  (DOI 10.1145/3656455) and 2026 follow-ons Graphiti (ASPLOS) and Let It Flow
+  (PLDI) provide the verified-HLS context. FPGA Roofline (Siracusa et al.,
+  IEEE TC 2021) frames the ladder as a memory-quanta `Q` probe; 2026 FPGA LLM
+  work reports BRAM/URAM bandwidths in the TB/s range versus HBM ~460 GB/s.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W877_2026-08-05.md` and
+  next-wave plan `.claude/plans/wave-loop-878.md` with variants A/B/C.
+- Closed with commit `Closes #1703`, pushed branch `wave-loop-877`, opened PR #1705.
+- Updated this skill's Live Wave Loop Tracker to wave 878.
+
+Key learning: the 1-MiBit neighborhood remains a soft boundary for t27c and
+Icarus at 1.120 MiBit. The generator copy-hazard checklist must run before the
+first generator invocation; a stale outer-dimension number in the destination
+path required a post-generation fix in W877, reinforcing the checklist value.
+
 ## Worked example — Wave Loop 876
 
 Wave Loop 876 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:
@@ -84,8 +120,7 @@ Wave Loop 876 continued the mechanical packed-vector AoS ladder past the 1-MiBit
   (Siracusa et al., IEEE TC 2021) frames the ladder as a memory-quanta `Q` probe.
 - Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W876_2026-08-05.md` and
   next-wave plan `.claude/plans/wave-loop-877.md` with variants A/B/C.
-- Closed with commit `Closes #1701`, pushed branch `wave-loop-876`, opened PR
-  (GitHub-assigned).
+- Closed with commit `Closes #1701`, pushed branch `wave-loop-876`, opened PR #1704.
 - Updated this skill's Live Wave Loop Tracker to wave 877.
 
 Key learning: the 1-MiBit neighborhood remains a soft boundary for t27c and
@@ -3429,13 +3464,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 877 |
-| **Issue** | #1702 (expected) |
-| **Branch** | `wave-loop-877` |
-| **Parent branch** | `wave-loop-876` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[573][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes
+| **Current wave** | 878 |
+| **Issue** | #1706 |
+| **Branch** | `wave-loop-878` |
+| **Parent branch** | `wave-loop-877` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[575][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes
 | **Status** | READY TO START
-| **Next wave variants queued** | W878 Variant A `[575][2]^6 Pt`; Variant B `[573][3]^6 Pt` stride scaling; Variant C `[573][2]^6 Pt` negative-index wrap-around
+| **Next wave variants queued** | W879 Variant A `[577][2]^6 Pt`; Variant B `[575][3]^6 Pt` stride scaling; Variant C `[575][2]^6 Pt` negative-index wrap-around
 
 ### Open backlog (non-blocking)
 
