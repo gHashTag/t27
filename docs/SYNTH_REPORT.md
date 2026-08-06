@@ -25,6 +25,9 @@ the evidence, in actual Xilinx primitives.
 | BitNet layer, 4 neurons (general/programmable weights) | *(measured, not committed)* | comb | 1287 | 0 | 8 | ~430 |
 | clocked counter | `clocked_counter.t27` | seq | 0 | 8 | 2 | 0 |
 | **streaming ternary MAC** | `stream_ternary_mac.t27` | seq | 346 | 32 | 10 | 143 |
+| **GF-T16 MAC (a1·b1+a2·b2)** — bit-exact to silicon | `gft_dot2.t27` | comb | 501 | 0 | 123 | 0 |
+
+The GF-T16 MAC is the spec-first realization of the arithmetic **verified on real silicon** (AX7203, `gft_dot2` 3/3) — bit-exact to the hand-written RTL over 2000 random inputs. Its higher CARRY4 count is because `gen-verilog` lowers `*` to a shift-add multiplier rather than inferring a DSP48; a DSP-mapping pass would shrink it substantially.
 
 - **comb** = purely combinational (no flip-flops); **seq** = sequential (registered state).
 - LUT = sum of LUT1..LUT6; FF = FDCE/FDRE; the MUXF7/8 columns are the wide muxes the dot-product reduction maps to.

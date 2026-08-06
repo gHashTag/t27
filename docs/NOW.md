@@ -1,3 +1,18 @@
+# NOW — feat: spec-first GF-T16 MAC — bit-exact to the silicon-proven RTL (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): spec-first GF-T16 dot product (MAC) matches silicon (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Что легло
+- `specs/ternary/gft_dot2.t27` (`GftDot2`) + seal + `bootstrap/tests/gft_dot2.rs`: **a SPEC-FIRST GF-T16 2-term MAC** (`y = a1*b1 + a2*b2`) in the ternary-native GoldenFloat format that was just proven bit-exact ON SILICON (AX7203, `gft_dot2` 3/3). GF-T mul (significand product + balanced-ternary exponent add + renorm) and GF-T same-sign add (align + add + renorm), composed via `on_comb` into the MAC. The hand-written `trinity-fpga/build/gft_dot2/*.v` documented that `t27c gen-verilog` COULD NOT emit this (interleaved `reg` decls -> illegal Verilog) — **that backend bug is the one #1741 fixed**, so this is the first spec-first GF-T MAC. Verified: typecheck 0 err; in-spec tests pass; **iverilog cross-check vs the embedded silicon-proven reference RTL (gft_dot2/gft_mul/gft_add) = ALL_PASS 2000 random inputs, bit-exact**; yosys synth_xilinx -> 501 LUT + 123 CARRY4, 0 FF (combinational; high carry because `*` lowers to a shift-add multiplier, not a DSP48 — a DSP pass would shrink it).
+- `docs/SYNTH_REPORT.md` updated with the GF-T MAC row. Seal-neutral; 1506 unit tests pass.
+- **Significance:** the spec-first t27 compiler now generates the GF-T MAC that is bit-exact to what runs on real silicon — GF-T (the format that beats tekum16) is now on the spec-first path, usable for the ternary NN work. Uses `on_comb`, no compiler change.
+
+---
+
 # NOW — feat: spec-first BitNet LAYER (4 neurons) synthesizes to Artix-7 (2026-08-06)
 
 Last updated: 2026-08-06
