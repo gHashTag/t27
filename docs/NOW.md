@@ -1,3 +1,16 @@
+# NOW — docs: canonical index of the spec-first ternary compute stack (2026-08-06)
+
+Last updated: 2026-08-06
+
+## docs: BITNET_STACK.md index (Closes #1778)
+
+- Branch: `docs/bitnet-stack-index`
+
+### Что легло
+- `docs/BITNET_STACK.md` — canonical index of the spec-first ternary compute stack after ~25 PRs: the full table (11 specs / 12 functions: quantize, dot27, neuron4, neuronN, layer2, mlp2, mlp3, maj3, weighted_vote, ternary_xor, full_adder, add2 → what each computes → verification → PR); the two-way verification methodology (in-spec test blocks + Rust cross-check vs independent reference); the unblocking backend fixes (#1741, #1748); an honest "where we are" (combinational track comprehensive, on-hardware MVP needs Phase 2); the decomposed frontier plans (#1764 clocked / #1773 imports / #1726 engine); and the competitor landscape (Ternary-NanoCore, TerEffic, bitnet.cpp, bitSMM — none spec-first). Docs-only.
+
+---
+
 # NOW — feat: spec-first 2-bit ternary ripple-carry adder (multi-bit datapath) (2026-08-06)
 
 Last updated: 2026-08-06
