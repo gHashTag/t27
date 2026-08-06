@@ -1,3 +1,16 @@
+# NOW — docs: spec-first ternary NN cookbook skill (2026-08-06)
+
+Last updated: 2026-08-06
+
+## docs: spec-first-ternary-nn skill (Closes #1761)
+
+- Branch: `docs/spec-first-nn-skill`
+
+### Что легло
+- New `.claude/skills/spec-first-ternary-nn.md` capturing the spec-first BitNet stack know-how (built #1738→#1759): trit encoding + uniform-chunk constants; ternary sign-multiply (never `*` — unsigned `__mul_noop`); dot27/quantize/pack3 idioms; N-chunk `neuronN` vs single-chunk `neuron1`; gotchas (`[N]Type{...}` array-literal syntax, local-array-vs-array-param mismatch, #1741/#1748 backend fixes); two-way verification (in-spec `test` blocks + Rust cross-check vs an independent reference); ship discipline; and the phase roadmap to an on-hardware MVP. Docs-only.
+
+---
+
 # NOW — test: in-spec array-literal coverage for neuronN (#1749 was wrong syntax) (2026-08-06)
 
 Last updated: 2026-08-06
