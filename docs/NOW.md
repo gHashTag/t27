@@ -1,3 +1,16 @@
+# NOW — feat: parameterized N-chunk spec-first BitNet neuron over packed arrays (2026-08-05)
+
+Last updated: 2026-08-05
+
+## feat: spec-first neuronN over [8]u64 packed arrays + loop (Closes #1750)
+
+- Branch: `feat/spec-first-neuron-nchunk`
+
+### Что легло
+- `specs/ternary/bitnet_neuron_nchunk.t27`: `neuronN(acts: [8]u64, weights: [8]u64, nchunks, threshold)` loops `dot27` over the first `nchunks` chunk pairs then quantizes. The direct payoff of both gen-verilog fixes composing: `acts[c]` → part-select `acts[c*64 +: 64]` (#1748) and the loop + its locals lower cleanly (#1741). Prior neuron (#1747) used separate scalar params; this is fully parameterized. Verified: typecheck 0 err; icarus-simulate 6/6 scalar test blocks; seal 3 backends MATCH; new `tests/bitnet_neuron_nchunk.rs` checks neuronN over uniform chunks packed directly into 512-bit vectors across several nchunks/threshold settings (allP×8→P, allP×N×4→N, allN×8→P, allZ→Z, 1-chunk-band→Z, 0-chunks→Z) = ALL_PASS. Filed #1749: array-literal test-block args with 0/Z elements materialize wrong in the sim harness (neuronN itself is correct — proven by direct-packed check). No compiler change, no reseal.
+
+---
+
 # NOW — fix: gen-verilog array-param element index -> part-select (#1745) (2026-08-05)
 
 Last updated: 2026-08-05
