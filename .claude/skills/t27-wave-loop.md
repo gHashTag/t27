@@ -214,6 +214,40 @@ compiler changes. The generator copy hazard remains the only source of
 first-attempt failures; parameterizing the wave prefix is the clear next tooling
 investment to make the flow fully mechanical.
 
+## Worked example — Wave Loop 790
+
+Wave Loop 790 continued the module-scope packed-array-of-struct ladder with no
+compiler changes:
+
+- Copied `scripts/gen_w789.py` to `scripts/gen_w790.py` and updated `OUTER = 399`,
+  `MID_IDX = 199`, and the module prefix to `w790_bench_module_399x2p6_aos_var_call_write`.
+  The generator header still hardcodes the wave prefix inside an f-string
+  (`module w789_bench_module_{OUTER}x2p6...`), so a manual fix and regeneration
+  were required after the first attempt produced the wrong module name.
+- Generated `specs/scratch/w790_bench_module_399x2p6_aos_var_call_write.t27`
+  (25,536 elements, 817,152-bit packed vector, ~0.779 MiBit).
+- Added integration test `accepts_w790_bench_module_399x2p6_aos_var_call_write` in
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Sealed the witness with `t27c seal --save`; `FROZEN_HASH` unchanged.
+- Updated literature scan with 2024–2026 ternary/MVL research: IEEE Access T-gate
+  MVL FPGA (2025), arXiv threshold-logic MVL (2024), ternary LLM accelerators
+  TeLLMe/TerEffic (2025), Trinity B002 zero-DSP ternary inference (2026), and a
+  2026 IEEJ decenary analog MVL family paper.
+- Weak-point audit (2026-07-24) found no new actionable items; W783 fix for
+  `bootstrap/tests/verilog_const_array.rs:166` remains green. Deeper
+  `verilog_array_literal_expr` regression and FPGA E2E CI red remain pre-existing.
+  30-day traceability by commit subject dropped to 0.0% because closing references
+  are placed in commit bodies.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 250/0,
+  direct `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save`
+  W790 all PASS.
+
+Key learning: the mechanical ladder is now 17 waves deep (W774–W790) with zero
+compiler changes. The generator copy hazard remains the only manual failure mode;
+parameterizing the wave prefix would make the wave factory fully mechanical.
+
 ## Worked example — Wave Loop 785
 
 Wave Loop 785 continued the module-scope packed-array-of-struct ladder with no
