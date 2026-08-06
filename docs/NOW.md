@@ -1,3 +1,18 @@
+# NOW — feat(spec): GF-T BitNet layer of 3 neurons (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): BitNet×GF-T layer of 3 neurons — M inputs → N packed trits (Refs #1764)
+
+- Branch: `feat/gft-layer3`
+
+### Что легло
+- `specs/ternary/gft_layer3.t27` (`GftLayer3`): a spec-first **BitNet×GF-T layer of 3 neurons**. Four shared real-valued GF-T16 activations (a0..a3) feed three neurons, each with its own ternary weight vector {N=0→−1, Z=1→0, P=2→+1}; every neuron is `sign(Σ w_i·a_i)` in signed GF-T (RNE, zero-aware) → a trit, and the three trits are packed low→high 2 bits each (`result = n0 | n1<<2 | n2<<4`). This is one full BitNet layer (M→N); it composes with `gft_mlp2`'s inter-layer re-embed. The natural next layer above the single `gft_neuron_full`.
+- Verification: **bit-exact to the ideal oracle over 400 vectors** (`tests/gft_layer3_vectors.txt`), checked in `bootstrap/tests/gft_layer3.rs` via iverilog `$fscanf`. The oracle is **doubly-grounded**: each vector is generated only where a faithful integer transcription of the GF-T arithmetic AND an independent exact-float64 sign of the true dot product agree (0/400 disagreements at generation → non-circular). Two representative in-spec `test`s (`lanes`, `all_zero`) additionally cross-checked against the Python oracle.
+- No compiler change (uses `on_comb`, 16 ports). Fresh seal `.trinity/seals/ternary_GftLayer3.json` (`seal --verify` MATCH). Full unit suite green; new integration test passes 400/400.
+
+---
+
 # NOW — fix(codegen): gen-verilog nested early-return lowering (2026-08-06)
 
 Last updated: 2026-08-06
