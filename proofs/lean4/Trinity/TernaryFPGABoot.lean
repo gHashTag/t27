@@ -1367,6 +1367,37 @@ theorem cclk_variant_worstcase_pvt_implies_transaction_ok
     norm_num [PVT_VCCINT_MAX_MV, OSCFSEL_WORST_CASE_PVT_CONTEXT]
   · exact cclk_variant_worstcase_pvt_measured_satisfies_flash_spec oscfsel h
 
+/-- For any documented OSCFSEL selection, a raw capture whose period equals the
+    nominal CCLK period and whose low/high times split the period exactly
+    satisfies the worst-case PVT-aware raw-ns flash predicate. `high_ns` is
+    computed as `period_ns - low_ns` so the consistency precondition holds even
+    when the period is odd (e.g. OSCFSEL 2 and 5). This is the raw-ns
+    counterpart of `cclk_variant_worstcase_pvt_measured_satisfies_flash_spec`. -/
+theorem cclk_variant_raw_ns_worstcase_pvt_satisfies_flash_spec
+  (oscfsel : Nat) (h : oscfsel ≤ 7) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+    OSCFSEL_WORST_CASE_PVT_CONTEXT = true := by
+  interval_cases oscfsel <;> decide
+
+/-- For any documented OSCFSEL selection, the ideal raw-ns capture described in
+    `cclk_variant_raw_ns_worstcase_pvt_satisfies_flash_spec` produces a
+    flash-spec-compliant SPI read transaction under the worst-case PVT corner. -/
+theorem cclk_variant_raw_ns_worstcase_pvt_implies_transaction_ok
+  (oscfsel : Nat) (h : oscfsel ≤ 7) (bits : Nat) :
+  let period_ns := cclk_period_ns oscfsel
+  let low_ns := period_ns / 2
+  let high_ns := period_ns - low_ns
+  transaction_satisfies_flash_spec
+    (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits)
+    = true := by
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok _ _ _ _ OSCFSEL_WORST_CASE_PVT_CONTEXT
+  · norm_num [PVT_TEMP_MIN_C, OSCFSEL_WORST_CASE_PVT_CONTEXT]
+  · norm_num [PVT_VCCINT_MAX_MV, OSCFSEL_WORST_CASE_PVT_CONTEXT]
+  · exact cclk_variant_raw_ns_worstcase_pvt_satisfies_flash_spec oscfsel h
+
 end BitstreamConfig
 
 -- ============================================================================

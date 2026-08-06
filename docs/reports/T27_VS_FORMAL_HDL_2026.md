@@ -1,6 +1,6 @@
 # t27 vs Formal-HDL Competition — 2026 Snapshot
 
-**Date:** 2026-07-05 (refreshed for Wave Loop 428)  
+**Date:** 2026-07-01 (refreshed for Wave Loop 429)  
 **Scope:** high-assurance hardware design languages and toolchains that combine
 synthesis with machine-checkable correctness.  
 **Anchor:** φ² + φ⁻² = 3 | TRINITY
@@ -22,8 +22,10 @@ hardware proof backend, plus ternary compute projects **TernaryCore** and
 **BitNet-RISCV-Multicore** — validate t27's direction while raising the bar for
 differentiation.
 
-This note documents the competitive landscape as input for Wave Loops 421–428
-and subsequent waves.
+This note documents the competitive landscape as input for Wave Loops 421–429
+and subsequent waves. W429 added raw-ns quantified OSCFSEL theorems and a
+machine-readable `--json` path for `tri fpga measured-to-lean`, reinforcing the
+physical boot-evidence loop.
 
 ---
 
@@ -229,14 +231,16 @@ parts of t27's thesis and may become relevant:
    CktFormalizer and Aria-HDL show that **Lean 4 as a hardware proof backend** is
    becoming a crowded space; the differentiator is the sealed spec-to-bitstream
    loop plus physical evidence.
-2. **Expand the physical boot-evidence story.** Wave Loops 423–428 hardened the
+2. **Expand the physical boot-evidence story.** Wave Loops 423–429 hardened the
    VCD/CSV import path, added PVT-worst-case and finite-grid theorems, proved
    per-OSCFSEL PVT envelope coverage (W427), added unified quantified OSCFSEL
    theorems (W428), embedded PVT context and machine-readable `recommendation`
    objects in `tri fpga` JSON, added `pvt_envelope_margin_ns`, introduced
-   `tri fpga sweep-report --json`, and added `tri fpga pvt-envelope --json`.
-   Next: relay automation, real PVT corner captures, and Lean theorems per
-   captured corner.
+   `tri fpga sweep-report --json`, added `tri fpga pvt-envelope --json`, and in
+   W429 added raw-ns quantified OSCFSEL theorems plus a machine-readable
+   `--json` summary to `tri fpga measured-to-lean` so the bench-to-proof bridge
+   can be consumed by downstream automation. Next: relay automation, real PVT
+   corner captures, and Lean theorems per captured corner.
 3. **Grow the ternary IP catalog.** Sparkle's broad IP list is its headline
    advantage; the RV32 divider proof in PR #65 shows it can do deep IP-level
    correctness. Signals like TernaryCore and BitNet-RISCV-Multicore confirm that
