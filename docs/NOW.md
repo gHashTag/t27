@@ -1,3 +1,18 @@
+# NOW — feat(spec): capstone GF-T classifier (MLP→logits→argmax→class) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): end-to-end GF-T classifier — the whole stack in one module (Refs #1764)
+
+- Branch: `feat/gft-classifier4`
+
+### Что легло
+- `specs/ternary/gft_classifier4.t27` (`GftClassifier4`): the **capstone** — four GF-T16 activations → hidden layer (2 BitNet neurons, sign→trit) → re-embed {N→−1.0, Z→0, P→+1.0} → output layer of **4 LOGIT-neurons** (raw signed GF-T sum, **no** activation → a real-valued GF-T logit per class) → **argmax** over the 4 logits → predicted class index {0,1,2,3}. This fuses `gft_mlp3` (deep BitNet×GF-T inference) with `gft_argmax4` (the classification head) into one module: **activations → MLP → GF-T logits → class**.
+- Verification: **bit-exact to the ideal oracle over 400 vectors** (`tests/gft_classifier4_vectors.txt`), iverilog `$fscanf` in `bootstrap/tests/gft_classifier4.rs`. Doubly-grounded oracle (integer HW model AND exact-float64 logit-sum + argmax; the re-embedded hidden acts are exact ±1.0/0 so the output sums are exact in float64 → non-circular; 0/400 disagreements). Two in-spec `test`s (`hand`, `all_zero`) cross-checked against the Python oracle.
+- No compiler change (`on_comb`, 20 ports: 16 trit weights + 4 acts). Fresh seal `.trinity/seals/ternary_GftClassifier4.json` (`seal --verify` MATCH). New integration test 400/400.
+
+---
+
 # NOW — feat(spec): 3-layer GF-T MLP (4→3→2→1) (2026-08-06)
 
 Last updated: 2026-08-06
