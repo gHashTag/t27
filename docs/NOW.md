@@ -1,3 +1,16 @@
+# NOW — feat: spec-first ternary majority gate (named function, exhaustive) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat: spec-first ternary majority gate maj3 (Closes #1765)
+
+- Branch: `feat/spec-first-ternary-majority`
+
+### Что легло
+- `specs/ternary/bitnet_majority.t27`: `maj3(a,b,c)` = ternary majority of three trits = sign of (a+b+c), realized as a single BitNet neuron (pack3 → dot27 with an all-+1 weight → quantize at 0). First recognizable *named* function computed by the spec-first stack (not random vectors). Verified: typecheck 0 err; icarus-simulate 7/7 test blocks; seal 3 backends MATCH; new `tests/bitnet_majority.rs` drives **all 27 input combinations** vs an independent sign-of-sum reference = ALL_PASS 27 (exhaustive). No compiler change. **Also filed #1764:** the spec-first `.t27` path is combinational-only — clocked/streaming (Phase 2) needs a compiler clocked-process construct or the hand-written engine; `debug-hir` shows `always_blocks: []`, the AST→HIR lowering never populates them.
+
+---
+
 # NOW — docs: spec-first ternary NN cookbook skill (2026-08-06)
 
 Last updated: 2026-08-06

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e4dc8212def1f46f304cd4bd9cf79c950ec968bcf3e83f3fccf102b08a4da47e",
+  "gen_hash_rust": "sha256:1f782bfcbe261f136574f21436c4d53d1a76a8f3b662bf1962792b7f794a2e27",
+  "gen_hash_verilog": "sha256:5610ca9b5b29790e41365faf16a8f328cca27dac28a03cff7c2d91554376c865",
+  "gen_hash_zig": "sha256:180ce22e06c20bd475e2540002f22432216410f8ba4a141a479d115221ce8652",
+  "module": "BitnetMajority",
+  "ring": 12,
+  "sealed_at": "2026-08-06T09:50:06Z",
+  "spec_hash": "sha256:d855d0a5a89f42c122bb836c092d5105130d587c614961cd96e58b369f48cfdd",
+  "spec_path": "specs/ternary/bitnet_majority.t27"
+}
