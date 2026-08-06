@@ -62,14 +62,14 @@ Keep the W849 outer dimension but replace signed positive writes with a mix of n
 
 ## Close-out checklist
 
-- [ ] `scripts/gen_w850.py` created and copy-hazard-free
-- [ ] Spec generated and gates pass (parse/lowerable/simulate/cocotb/seal)
-- [ ] Integration test added to `bootstrap/tests/icarus_lowerable.rs`
-- [ ] Full `icarus_lowerable` suite green (expected 310/0)
-- [ ] `FROZEN_HASH` unchanged
-- [ ] Closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W850_YYYY-MM-DD.md`
-- [ ] Next-wave plan `.claude/plans/wave-loop-851.md` with variants A/B/C
-- [ ] State files updated: `.trinity/current-issue.md`, `.trinity/experience.md`, `docs/NOW.md`
-- [ ] Skill trackers updated
-- [ ] Persistent memory `wave-loop-850.md` + `MEMORY.md` index
-- [ ] Commit with `Closes #1640`, push branch `wave-loop-850`, open PR #1641
+- [x] `scripts/gen_w850.py` created and copy-hazard-free
+- [x] Spec generated and gates pass (parse/lowerable/simulate/cocotb/seal)
+- [x] Integration test added to `bootstrap/tests/icarus_lowerable.rs`
+- [x] Full `icarus_lowerable` suite green (expected 310/0)
+- [x] `FROZEN_HASH` unchanged
+- [x] Closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W850_YYYY-MM-DD.md`
+- [x] Next-wave plan `.claude/plans/wave-loop-851.md` with variants A/B/C
+- [x] State files updated: `.trinity/current-issue.md`, `.trinity/experience.md`, `docs/NOW.md`
+- [x] Skill trackers updated
+- [x] Persistent memory `wave-loop-850.md` + `MEMORY.md` index
+- [x] Commit with `Closes #1640`, push branch `wave-loop-850`, open PR #1641
