@@ -1,6 +1,18 @@
-# NOW — feat: 2-layer GF-T MLP + fix negative-zero cancellation bug (2026-08-06)
+# NOW — fix(codegen): gen-verilog nested early-return lowering (2026-08-06)
 
 Last updated: 2026-08-06
+
+## fix(codegen): lower a `return` nested inside an `if` block as a real early exit (Refs #1697)
+
+- Branch: `fix/gen-verilog-nested-early-return`
+
+### Что легло
+- **Root-cause compiler fix** for the negative-zero cancellation class found last cycle. `gen_verilog_fn_body`'s guarded-return rewrite (`if(cond){…return} <rest>` → `if(cond){…} else {<rest>}`) previously only fired at the TOP level of a function body: a `return` nested inside the then-block (`if(outer){ …; if(inner){return A} return B }`) fell through to two sequential Verilog function-name assigns, and last-write-wins silently discarded the guarded value `A`. Fix: emit the then-block via a recursive `gen_verilog_fn_body` call so the nested `if(inner){return A} return B` is itself lowered as `if(inner) A else B`.
+- Verified on the `sadd` cancellation repro (`/tmp/nr.t27`): `f(5,5)` now `= 0` (was `65538`-class fall-through), `f(7,5) = 65538`, `f(3,5) = 99` — all correct under `icarus-simulate`.
+- Internal regression test `nested_return_lowers_as_early_exit` (asserts the emitted Verilog wraps the fall-through in `… end else begin …`, not a sequential second assign).
+- **Seal impact:** 0/33 ternary specs change; a small minority of the full corpus (~2%, all latent-bug specs) now emit corrected Verilog with stale-but-non-blocking seals (seal-staleness only warns) — a documented follow-up reseal, not a merge blocker. Full suite: **1536 passed, 0 failed**.
+
+---
 
 ## feat(spec): end-to-end 2-layer BitNet×GF-T MLP + signed-add cancellation fix (Refs #1764)
 
