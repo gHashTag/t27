@@ -1,7 +1,7 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-01 (Wave Loop 430)  
+**Branch:** `wave-loop-431`  
+**Last updated:** 2026-07-01 (Wave Loop 431)  
 
 This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
 
@@ -410,10 +410,31 @@ No new narrow gen-verilog defect surfaced, and none of the existing 7 failures i
 safe to address as a side task while the wave is closing out the formal
 boot-evidence line. The 7-failure count remains the documented baseline.
 
-**Recommended resolution path for W430/W431:** once the FPGA boot-evidence line
-lands, schedule a dedicated merge/rebase wave whose sole purpose is to bring in
-the `master` fix set (`701d79b3b`) and clear these 7 failures. Until then,
-continue to accept the count and keep the failure matrix in this document current.
+### Triage decision for W430
+
+**Still deferred.** W430 landed live XADC readout and the formal PVT-envelope
+bridge (`xadc_operating_point_envelope_implies_worst_case_bound`). The start-of-wave
+probe on `wave-loop-430` confirmed the same 7 yosys smoke failures. No new narrow
+gen-verilog defect appeared, and the hardware-constrained wave could not safely
+absorb the broad master fix set.
+
+### Triage decision for W431
+
+**Still deferred.** W431 executed Variant C (formal/tooling fallback) because P12
+and the relay gate remain blocked. Work focused on the XADC → PVT context
+conversion, the `--json` summary hardening for `tri fpga measured-to-lean`, and
+further Lean 4 computable envelope lemmas. The start-of-wave probe on
+`wave-loop-431` confirmed the same 7 yosys smoke failures.
+
+No new narrow gen-verilog defect surfaced. The failing specs still require the
+full W380–W381 tuple-return / `let` destructuring / ROM-array / CORDIC fix set that
+lives on `master` (`701d79b3b`). The wave-loop strategy of one narrow,
+regression-free sub-fix per wave is not applicable.
+
+**Recommended resolution path for W432:** schedule a dedicated merge/rebase wave
+whose sole purpose is to bring in the `master` fix set (`701d79b3b`) and clear
+these 7 failures. Until then, continue to accept the count and keep the failure
+matrix in this document current.
 
 ## Open work after W388 / W427 / W429
 

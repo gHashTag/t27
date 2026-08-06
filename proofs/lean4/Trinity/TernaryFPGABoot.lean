@@ -1466,6 +1466,80 @@ theorem xadc_worstcase_operating_point_within_envelope :
   simp [xadc_operating_point_within_envelope, PVT_TEMP_MIN_C, PVT_TEMP_MAX_C,
         PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
 
+/-- Example: a representative live XADC readout (≈43 °C, ≈1.00 V VCCINT,
+    ≈1.81 V VCCAUX) is inside the documented operating envelope. -/
+theorem xadc_live_operating_point_example_within_envelope :
+  xadc_operating_point_within_envelope
+    { temp_c := (43 : Int), vccint_mv := 1000, vccaux_mv := 1806,
+      process_corner := ProcessCorner.ss } := by
+  simp [xadc_operating_point_within_envelope, PVT_TEMP_MIN_C, PVT_TEMP_MAX_C,
+        PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV]
+
+/-- Decidable version of the XADC envelope predicate. Concrete JSON operating
+    points can be checked by evaluating this function. -/
+def xadc_operating_point_within_envelope_dec (pt : XadcOperatingPoint) : Bool :=
+  decide (PVT_TEMP_MIN_C ≤ pt.temp_c)
+  && (decide (pt.temp_c ≤ PVT_TEMP_MAX_C)
+    && (decide (PVT_VCCINT_MIN_MV ≤ pt.vccint_mv)
+      && decide (pt.vccint_mv ≤ PVT_VCCINT_MAX_MV)))
+
+/-- The Boolean envelope check is equivalent to the propositional one. -/
+theorem xadc_operating_point_within_envelope_dec_eq (pt : XadcOperatingPoint) :
+  xadc_operating_point_within_envelope_dec pt = true
+  ↔ xadc_operating_point_within_envelope pt := by
+  simp [xadc_operating_point_within_envelope_dec, xadc_operating_point_within_envelope,
+        Bool.and_eq_true]
+
+/-- If a measured operating point is inside the envelope, then any raw-ns capture
+    that satisfies the PVT-aware flash predicate under the global worst-case
+    context also satisfies it under the measured point's context. This is the
+    key bridge that lets the existing OSCFSEL worst-case theorems cover real,
+    in-envelope XADC measurements. -/
+theorem xadc_envelope_implies_raw_ns_satisfies_any_in_envelope
+  (pt : XadcOperatingPoint) (period_ns low_ns high_ns : Nat) :
+  xadc_operating_point_within_envelope pt
+  → pt.process_corner.worse_than ProcessCorner.ss
+  → measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+      OSCFSEL_WORST_CASE_PVT_CONTEXT = true
+  → measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+      (xadc_operating_point_to_pvt pt) = true := by
+  intro h_env h_corner h_wc
+  simp [measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec,
+        measured_cclk_with_pvt_satisfies_flash_spec,
+        xadc_operating_point_to_pvt] at h_wc ⊢
+  rcases h_wc with ⟨h_consistent, h_freq_pos, h_freq_max, h_duty, h_low_wc, h_high_wc⟩
+  refine ⟨h_consistent, h_freq_pos, h_freq_max, h_duty, ?_, ?_⟩
+  · have h_bound : n25q128_min_sck_low_ns_pvt (xadc_operating_point_to_pvt pt)
+        ≤ n25q128_min_sck_low_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+      have h_half := xadc_operating_point_envelope_implies_worst_case_bound pt h_env h_corner
+      simp [n25q128_min_sck_half_ns_pvt] at h_half ⊢
+      exact h_half
+    apply Nat.le_trans h_bound h_low_wc
+  · have h_bound : n25q128_min_sck_high_ns_pvt (xadc_operating_point_to_pvt pt)
+        ≤ n25q128_min_sck_high_ns_pvt OSCFSEL_WORST_CASE_PVT_CONTEXT := by
+      have h_half := xadc_operating_point_envelope_implies_worst_case_bound pt h_env h_corner
+      simp [n25q128_min_sck_half_ns_pvt] at h_half ⊢
+      exact h_half
+    apply Nat.le_trans h_bound h_high_wc
+
+/-- If a measured operating point is inside the envelope, then a raw-ns capture
+    that is safe under the global worst-case PVT context produces a flash-spec
+    compliant SPI transaction. This closes the JSON XADC → raw-ns → proof loop. -/
+theorem xadc_envelope_justifies_worstcase_transaction_proof
+  (pt : XadcOperatingPoint) (period_ns low_ns high_ns bits : Nat) :
+  xadc_operating_point_within_envelope pt
+  → pt.process_corner.worse_than ProcessCorner.ss
+  → measured_cclk_from_raw_ns_with_pvt_satisfies_flash_spec period_ns low_ns high_ns
+      OSCFSEL_WORST_CASE_PVT_CONTEXT = true
+  → transaction_satisfies_flash_spec
+      (measured_boot_transaction_from_raw_ns_with_pvt period_ns low_ns high_ns bits) = true := by
+  intro h_env h_corner h_wc
+  apply measured_cclk_from_raw_ns_with_pvt_implies_transaction_ok period_ns low_ns high_ns bits
+    OSCFSEL_WORST_CASE_PVT_CONTEXT
+  · norm_num [PVT_TEMP_MIN_C, OSCFSEL_WORST_CASE_PVT_CONTEXT]
+  · norm_num [PVT_VCCINT_MAX_MV, OSCFSEL_WORST_CASE_PVT_CONTEXT]
+  · exact h_wc
+
 end BitstreamConfig
 
 -- ============================================================================
