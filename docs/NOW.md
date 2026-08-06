@@ -1,3 +1,16 @@
+# NOW — test: guard nested-if/else reg-decl hoist in gen-verilog (2026-08-06)
+
+Last updated: 2026-08-06
+
+## test: gen-verilog nested-if/else reg-decl hoist regression (Refs #1697)
+
+- Branch: `claude/youthful-dewdney-e29e8e`
+
+### Что легло
+- The #1741 emitter fix (hoist function-local `reg` decls to the `begin : <fn>_body` top) is in master, but its regression test `tests/verilog_decl_hoist.rs` only covered the `while`-loop shape. Added `nested_if_else_locals_lower_and_elaborate`, reproducing GF-T's `gft_mul_offset_full_p`: a second same-block local declared after a leading statement (`carry; carry = ...; sum;`) plus a local inside an `else` branch (`result`). Asserts all locals are hoisted before the first statement, none re-declared mid-block, and the output elaborates under `iverilog -g2012`. Verified it fails against the pre-#1741 emitter (interleaved `reg [31:0] sum;` -> iverilog exit 2) and passes on master. Test-only; no compiler change, no reseal. PR #1751.
+
+---
+
 # NOW — fix: gen-verilog array-param element index -> part-select (#1745) (2026-08-05)
 
 Last updated: 2026-08-05
