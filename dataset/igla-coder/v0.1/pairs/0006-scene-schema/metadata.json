@@ -1,0 +1,16 @@
+{
+  "pair_id": "0006-scene-schema",
+  "spec_path_in_t27": "specs/scenes/scene_schema.tri",
+  "spec_local_path": "pairs/0006-scene-schema/spec.tri",
+  "spec_sha256": "88029f3274e76ae9112fe05dd672904f761d8e686c273e06719e8f6ffe1712d1",
+  "spec_bytes": 3843,
+  "gen_path_in_t27": null,
+  "gen_sha256": null,
+  "target_lang": "TypeScript",
+  "ring_id": "ring-105-005",
+  "license": "Apache-2.0-anonymised",
+  "decontam_status": "Skipped",
+  "codegen_status": "codegen_deferred_wave3",
+  "l3_ascii_pass": true,
+  "l3_non_ascii_bytes": 0
+}

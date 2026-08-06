@@ -1,0 +1,151 @@
+spec trios_git_orchestrator
+
+-- Ring 105-003: Trios git bridge state machine
+-- Target path in t27 repo: specs/git/orchestrator.tri
+-- Source repo: gHashTag/trios (Zig)
+-- Codegen target: Zig -> gen/git/orchestrator.zig
+-- Law compliance: L1 (Closes trios#new-4), L3, L4, L7 (no new *.sh; tri subcommands only)
+
+pub const REPO_REF_MAX_LEN u32 = 128
+
+pub type GitState = enum(u8) {
+  Closed = 0,
+  Opened = 1,
+  Fetched = 2,
+  Validated = 3,
+  Merged = 4,
+  Pushed = 5,
+  Errored = 6
+}
+
+pub type MergeStrategy = enum(u8) {
+  FastForwardOnly = 0,
+  ThreeWay = 1,       -- not permitted this pilot; validate rejects
+  Rebase = 2          -- not permitted this pilot; validate rejects
+}
+
+pub type OrchestrationError = enum(u8) {
+  None = 0,
+  FetchFailed = 1,
+  ValidateRejected = 2,
+  MergeConflict = 3,
+  PushRejected = 4,
+  InvalidTransition = 5
+}
+
+pub type RepoRef = struct {
+  origin_url: str,
+  branch: str,
+  head_sha_hex40: str
+}
+
+pub type Orchestrator = struct {
+  state: GitState,
+  repo: RepoRef,
+  strategy: MergeStrategy,
+  last_error: OrchestrationError
+}
+
+-- Core functions (mandatory 3)
+pub fn orch_step(o Orchestrator, next_intent GitState) -> Orchestrator
+pub fn orch_can_transition(from GitState, to GitState) -> bool
+pub fn orch_fast_forward_only(o Orchestrator) -> bool
+
+-- Invariants (mandatory 3)
+
+invariant fast_forward_only_strategy {
+  given o Orchestrator
+  -- pilot restricts to FastForwardOnly
+  assert o.strategy == MergeStrategy.FastForwardOnly
+}
+
+invariant errored_state_is_terminal {
+  given o Orchestrator
+  given target GitState
+  -- once Errored, no transition to non-Errored non-Closed
+  let can = orch_can_transition(o.state, target)
+  assert (o.state != GitState.Errored) or (target == GitState.Errored) or (target == GitState.Closed) or (can == false)
+}
+
+invariant no_push_without_validate {
+  given o Orchestrator
+  -- reach Pushed only via Merged; reach Merged only via Validated
+  assert (o.state != GitState.Pushed) or (o.last_error == OrchestrationError.None)
+}
+
+-- Tests (mandatory 8)
+
+test happy_path_closed_to_pushed {
+  let mut o = orch_new("https://github.com/example/repo", "main")
+  o = orch_step(o, GitState.Opened)
+  o = orch_step(o, GitState.Fetched)
+  o = orch_step(o, GitState.Validated)
+  o = orch_step(o, GitState.Merged)
+  o = orch_step(o, GitState.Pushed)
+  assert o.state == GitState.Pushed
+  assert o.last_error == OrchestrationError.None
+}
+
+test cannot_push_from_opened {
+  let o = orch_new("https://github.com/example/repo", "main")
+  let o2 = orch_step(o, GitState.Opened)
+  let o3 = orch_step(o2, GitState.Pushed)  -- illegal
+  assert o3.state == GitState.Errored
+  assert o3.last_error == OrchestrationError.InvalidTransition
+}
+
+test cannot_merge_without_validate {
+  let mut o = orch_new("https://github.com/example/repo", "main")
+  o = orch_step(o, GitState.Opened)
+  o = orch_step(o, GitState.Fetched)
+  o = orch_step(o, GitState.Merged)  -- skipped Validated
+  assert o.state == GitState.Errored
+}
+
+test three_way_strategy_rejected {
+  let mut o = orch_new("https://github.com/example/repo", "main")
+  o.strategy = MergeStrategy.ThreeWay
+  assert orch_fast_forward_only(o) == false
+}
+
+test errored_stays_errored_on_push {
+  let mut o = orch_new("https://github.com/example/repo", "main")
+  o.state = GitState.Errored
+  o = orch_step(o, GitState.Pushed)
+  assert o.state == GitState.Errored
+}
+
+test errored_can_transition_to_closed {
+  let mut o = orch_new("https://github.com/example/repo", "main")
+  o.state = GitState.Errored
+  o = orch_step(o, GitState.Closed)
+  assert o.state == GitState.Closed
+}
+
+test opened_to_fetched_ok {
+  let mut o = orch_new("https://github.com/example/repo", "main")
+  o = orch_step(o, GitState.Opened)
+  o = orch_step(o, GitState.Fetched)
+  assert o.state == GitState.Fetched
+}
+
+test repo_ref_url_ascii_only {
+  let o = orch_new("https://github.com/example/repo", "main")
+  assert forall b in o.repo.origin_url : b >= 0x20 and b <= 0x7E
+}
+
+-- Benchmarks (mandatory 2)
+
+bench orch_step_throughput {
+  measure nanoseconds to orch_step(o, GitState.Fetched)
+  target 500_000_000
+  warmup 3
+  runs 100
+}
+
+bench orch_can_transition_lookup {
+  measure nanoseconds to orch_can_transition(GitState.Validated, GitState.Merged)
+  target 1_000_000_000
+  warmup 3
+  runs 100
+}

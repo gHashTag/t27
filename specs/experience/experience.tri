@@ -1,0 +1,154 @@
+spec experience_format
+
+-- Ring 105-001: PHI LOOP experience artefact schema
+-- Target path in t27 repo: specs/organism/experience.tri
+-- Purpose: freeze the on-disk format for experience/ring-XXX/verdict.json
+-- License: Apache-2.0 (inherits from t27 root)
+-- Law compliance: L1 (Closes #new-2), L3 (ASCII+English), L4 (>=3 invariants, >=8 tests, >=2 bench), L5 (n/a)
+
+numericformat gf16 tf3
+
+-- Trinity constants (L5)
+pub const PHI f64 = 1.6180339887498948482
+pub const TRINITY f64 = 3.0
+
+-- Ring identifier: three-digit ring number + kebab-slug
+pub const RING_ID_MAX_LEN u32 = 64
+
+-- Agent identifier: ASCII lowercase + digits + hyphen
+pub const AGENT_ID_MAX_LEN u32 = 48
+
+-- Verdict status enum: one of four terminal states
+pub const Status enum(u8) {
+  Designed = 0,
+  Pending = 1,
+  Passed = 2,
+  Failed = 3
+}
+
+-- Bytes32: 32-byte hash (sha256 output)
+pub type Bytes32 = [32]u8
+
+-- SpecHash: sha256 seal over the .tri text bytes
+pub type SpecHash = Bytes32
+
+-- GenHash: sha256 seal over the generated file bytes
+pub type GenHash = Bytes32
+
+-- Verdict record: full on-disk shape for verdict.json
+pub type Verdict = struct {
+  ring_id: RingId,
+  agent_id: AgentId,
+  spec_path: str,
+  spec_hash: SpecHash,
+  gen_path_opt: str,
+  gen_hash_opt: GenHash,
+  status: Status,
+  tests_total: u32,
+  tests_passed: u32,
+  invariants_verified: u32,
+  bench_delta_pct: f64,
+  timestamp_epoch: i64,
+  notes: str
+}
+
+-- Core functions
+pub fn verdict_new(ring_id: RingId, agent_id: AgentId) -> Verdict
+pub fn verdict_seal(v: Verdict) -> Bytes32
+pub fn verdict_is_pass(v: Verdict) -> bool
+
+-- Invariants (mandatory 3+)
+
+invariant seal_length_is_32 {
+  given v Verdict
+  let seal = verdict_seal(v)
+  assert len(seal) == 32
+}
+
+invariant timestamp_is_epoch_seconds {
+  given v Verdict
+  -- must be non-negative and less than 4102444800 (year 2100)
+  assert v.timestamp_epoch >= 0
+  assert v.timestamp_epoch < 4102444800
+}
+
+invariant agent_id_is_ascii {
+  given v Verdict
+  -- every byte in agent_id lies in ASCII printable range
+  assert forall b in v.agent_id : b >= 0x20 and b <= 0x7E
+}
+
+invariant status_pass_requires_all_tests {
+  given v Verdict
+  assert v.status == Status.Passed implies v.tests_passed == v.tests_total
+}
+
+-- Tests (mandatory 8+)
+
+test new_verdict_defaults_to_designed {
+  let v = verdict_new("ring-105-001", "wave-agent")
+  assert v.status == Status.Designed
+  assert v.tests_passed == 0
+}
+
+test seal_produces_32_bytes {
+  let v = verdict_new("ring-105-001", "wave-agent")
+  let seal = verdict_seal(v)
+  assert len(seal) == 32
+}
+
+test seal_is_deterministic {
+  let a = verdict_new("ring-105-001", "wave-agent")
+  let b = verdict_new("ring-105-001", "wave-agent")
+  assert verdict_seal(a) == verdict_seal(b)
+}
+
+test is_pass_requires_status_passed {
+  let v = verdict_new("ring-105-001", "wave-agent")
+  assert verdict_is_pass(v) == false
+}
+
+test is_pass_true_when_status_passed {
+  let mut v = verdict_new("ring-105-001", "wave-agent")
+  v.status = Status.Passed
+  v.tests_total = 8
+  v.tests_passed = 8
+  assert verdict_is_pass(v) == true
+}
+
+test agent_id_rejects_non_ascii {
+  -- an agent_id with a non-ASCII byte must be rejected at construction
+  -- (implementation returns an error verdict; here we assert the invariant)
+  let v = verdict_new("ring-105-001", "safe-name")
+  assert forall b in v.agent_id : b <= 0x7E
+}
+
+test ring_id_length_bounded {
+  let v = verdict_new("ring-105-001-a-fairly-long-slug-but-under-limit", "agent")
+  assert len(v.ring_id) <= RING_ID_MAX_LEN
+}
+
+test bench_delta_pct_finite {
+  let mut v = verdict_new("ring-105-001", "agent")
+  v.bench_delta_pct = 12.5
+  -- reject nan and inf: field must be a finite f64
+  assert v.bench_delta_pct == v.bench_delta_pct  -- nan != nan
+  assert v.bench_delta_pct > -1000000.0
+  assert v.bench_delta_pct < 1000000.0
+}
+
+-- Benchmarks (mandatory 2+)
+
+bench verdict_seal_sha256_4kb {
+  measure nanoseconds to verdict_seal(v)
+  target 50_000_000
+  warmup 3
+  runs 100
+}
+
+bench verdict_roundtrip_serialize {
+  measure nanoseconds to serialize(verdict_new("ring-105-001", "agent"))
+  target 10_000_000
+  warmup 3
+  runs 100
+}

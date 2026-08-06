@@ -1,0 +1,143 @@
+spec mcp_tool_registry
+
+-- Ring 105-004: MCP tool registry (proposes ONE canonical surface across trios-mcp, trios-mcp-rag, trios)
+-- Target path in t27 repo: specs/mcp/tool_registry.tri
+-- Source repo: gHashTag/trios-mcp (Rust)
+-- Codegen target: Rust -> gen/mcp/tool_registry.rs
+-- HONEST GAP: compiler/codegen/rust/codegen.t27 does not exist yet on master; this pilot
+--             ships a STUB skeleton for that backend as part of ring-105-004, but the full
+--             Rust codegen is Wave-2 responsibility.
+-- Law compliance: L1 (Closes trios-mcp#new-5), L3, L4, L7
+
+pub const TOOL_ID_MAX_LEN u32 = 64
+pub const SCHEMA_JSON_MAX_LEN u32 = 65536
+
+pub type Bytes32 = [32]u8
+pub type ToolId = str  -- ASCII lowercase + digits + underscore
+
+pub type ToolDescriptor = struct {
+  id: ToolId,
+  version_major: u16,
+  version_minor: u16,
+  schema_json_sha256: Bytes32,
+  schema_json_len: u32
+}
+
+pub type RegistryError = enum(u8) {
+  None = 0,
+  DuplicateId = 1,
+  IdNotFound = 2,
+  IdTooLong = 3,
+  IdNotAscii = 4,
+  SchemaTooLarge = 5
+}
+
+pub type InvocationRecord = struct {
+  tool_id: ToolId,
+  request_sha256: Bytes32,
+  timestamp_epoch: i64
+}
+
+pub type ToolRegistry = struct {
+  size: u32,
+  last_error: RegistryError
+}
+
+-- Core functions (mandatory 3)
+pub fn registry_register(r ToolRegistry, d ToolDescriptor) -> ToolRegistry
+pub fn registry_describe(r ToolRegistry, id ToolId) -> ToolDescriptor
+pub fn registry_lookup(r ToolRegistry, id ToolId) -> bool
+
+-- Invariants (mandatory 3)
+
+invariant tool_id_ascii_only {
+  given d ToolDescriptor
+  assert forall b in d.id : b >= 0x30 and b <= 0x7A  -- '0'..'z' subset (further checks in fn)
+}
+
+invariant tool_id_length_bounded {
+  given d ToolDescriptor
+  assert len(d.id) <= TOOL_ID_MAX_LEN
+}
+
+invariant schema_sha256_length_is_32 {
+  given d ToolDescriptor
+  assert len(d.schema_json_sha256) == 32
+}
+
+-- Tests (mandatory 8)
+
+test register_new_tool_succeeds {
+  let r0 = registry_new()
+  let d = descriptor_new("search_web", 1, 0, sha256_of("{}"), 2)
+  let r1 = registry_register(r0, d)
+  assert r1.last_error == RegistryError.None
+  assert r1.size == 1
+}
+
+test register_duplicate_id_rejected {
+  let mut r = registry_new()
+  let d = descriptor_new("search_web", 1, 0, sha256_of("{}"), 2)
+  r = registry_register(r, d)
+  r = registry_register(r, d)  -- second time -> DuplicateId
+  assert r.last_error == RegistryError.DuplicateId
+}
+
+test lookup_missing_returns_false {
+  let r = registry_new()
+  assert registry_lookup(r, "not_registered") == false
+}
+
+test lookup_after_register_returns_true {
+  let mut r = registry_new()
+  let d = descriptor_new("call_x", 2, 3, sha256_of("{}"), 2)
+  r = registry_register(r, d)
+  assert registry_lookup(r, "call_x") == true
+}
+
+test describe_returns_matching_descriptor {
+  let mut r = registry_new()
+  let d = descriptor_new("call_x", 2, 3, sha256_of("{}"), 2)
+  r = registry_register(r, d)
+  let back = registry_describe(r, "call_x")
+  assert back.version_major == 2
+  assert back.version_minor == 3
+}
+
+test tool_id_non_ascii_rejected {
+  let mut r = registry_new()
+  let d = descriptor_new("bad\xE2id", 1, 0, sha256_of("{}"), 2)
+  r = registry_register(r, d)
+  assert r.last_error == RegistryError.IdNotAscii
+}
+
+test tool_id_over_max_rejected {
+  let mut r = registry_new()
+  let long_id = str_repeat("a", 128)  -- > 64
+  let d = descriptor_new(long_id, 1, 0, sha256_of("{}"), 2)
+  r = registry_register(r, d)
+  assert r.last_error == RegistryError.IdTooLong
+}
+
+test schema_over_max_rejected {
+  let mut r = registry_new()
+  let d = descriptor_new("call_x", 1, 0, sha256_of("{}"), SCHEMA_JSON_MAX_LEN + 1)
+  r = registry_register(r, d)
+  assert r.last_error == RegistryError.SchemaTooLarge
+}
+
+-- Benchmarks (mandatory 2)
+
+bench register_1k_tools {
+  measure nanoseconds to registry_register(r, d)
+  target 200_000_000
+  warmup 3
+  runs 100
+}
+
+bench lookup_10k_hits {
+  measure nanoseconds to registry_lookup(r, "call_x")
+  target 1_000_000_000
+  warmup 3
+  runs 100
+}

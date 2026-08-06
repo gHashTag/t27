@@ -1,0 +1,16 @@
+{
+  "pair_id": "0002-mozg-state-machine",
+  "spec_path_in_t27": "specs/organism/mozg.tri",
+  "spec_local_path": "pairs/0002-mozg-state-machine/spec.tri",
+  "spec_sha256": "ace8235ead1fded0cdd3a2bad33fefcfddfa4547bff66bfd5c6c11d62f392dc6",
+  "spec_bytes": 3473,
+  "gen_path_in_t27": null,
+  "gen_sha256": null,
+  "target_lang": "Zig",
+  "ring_id": "ring-105-002",
+  "license": "Apache-2.0",
+  "decontam_status": "Skipped",
+  "codegen_status": "codegen_pending_train_box",
+  "l3_ascii_pass": true,
+  "l3_non_ascii_bytes": 0
+}
