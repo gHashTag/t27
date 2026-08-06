@@ -67,9 +67,10 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 820 | #1568 | wave-loop-820 | 459 | 229 | 29,376 | 940,032 | 0.897 | closed | #1569 |
 | 821 | #1570 | wave-loop-821 | 461 | 230 | 29,504 | 944,128 | 0.900 | closed | #1571 |
 | 822 | #1572 | wave-loop-822 | 463 | 231 | 29,632 | 948,224 | 0.904 | closed | #1573 |
-| **823** | **#1574** | **wave-loop-823** | **465** | **232** | **29,760** | **952,320** | **0.908** | **READY** | **TBD** |
-| 824 | TBD | wave-loop-824 | 467 | 233 | 29,888 | 956,416 | 0.912 | planned | TBD |
+| 823 | #1585 | wave-loop-823 | 465 | 232 | 29,760 | 952,320 | 0.908 | closed | #1586 |
+| **824** | **TBD** | **wave-loop-824** | **467** | **233** | **29,888** | **956,416** | **0.912** | **READY** | **TBD** |
 | 825 | TBD | wave-loop-825 | 469 | 234 | 30,016 | 960,512 | 0.916 | planned | TBD |
+| 826 | TBD | wave-loop-826 | 471 | 235 | 30,144 | 964,608 | 0.920 | planned | TBD |
 
 ### Run-list notes
 - Issue numbers follow the observed pattern (issue = previous issue + 2; PR = issue + 1).
@@ -107,7 +108,7 @@ criteria, generator copy-hazard checklist, and open backlog.
 
 ### Validation matrix
 13. `cargo build --release -p t27c` — green.
-14. `cargo clippy -p t27c` — expect 780 warnings, 0 errors.
+14. `cargo clippy -p t27c` — expect ~626 warnings, 0 errors.
 15. `cargo test -p t27c --bin t27c` — expect 1494/0/2.
 16. `cargo test -p tri` — expect 78/0.
 17. `cargo test -p flash-spi` — expect 2/0.
@@ -148,7 +149,7 @@ criteria, generator copy-hazard checklist, and open backlog.
       config block and the copy hazard disappears.
 - [ ] Address pre-existing `verilog_array_literal_expr` regression in a dedicated ring.
 - [ ] Unblock FPGA E2E CI (`sby` missing + Yosys static-cast error in generated `uart.v`).
-- [ ] Cleanup sprint for 780 release warnings / 780 clippy warnings.
+- [ ] Cleanup sprint for ~626 release warnings / ~780 clippy warnings.
 - [ ] Improve 30-day commit traceability (currently ~15–20% of subjects carry `Closes #N`).
 - [ ] Vivado-in-Docker CI gap (private image not yet published).
 
@@ -156,10 +157,10 @@ criteria, generator copy-hazard checklist, and open backlog.
 
 ## Current status
 
-- **Latest completed wave:** 822
-- **Latest issue/PR:** #1572 / #1573
-- **Current wave in progress:** 823
-- **Next wave queued:** 824
-- **Ladder depth:** W774–W822 = 49 waves
+- **Latest completed wave:** 823
+- **Latest issue/PR:** #1585 / #1586
+- **Current wave in progress:** 824
+- **Next wave queued:** 825
+- **Ladder depth:** W774–W823 = 50 waves
 
 *φ² + φ⁻² = 3 | TRINITY*
