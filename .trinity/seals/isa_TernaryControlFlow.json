@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-16T13:46:55Z",
   "spec_hash": "sha256:8062834e4f6b4192d8fbcbb7b7ec89d975853b2a1ba1f1ae508c2717f472da15",
-  "spec_path": "specs/isa/ternary_control_flow.t27"
+  "spec_path": "/Users/playra/t27/specs/isa/ternary_control_flow.t27"
 }

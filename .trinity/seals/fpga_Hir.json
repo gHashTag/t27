@@ -7,5 +7,5 @@
   "ring": 12,
   "sealed_at": "2026-07-16T13:46:56Z",
   "spec_hash": "sha256:0a8c8fb8b35a2791fbab26a8a95f310c75edeff390902cda5972dabee26abcaa",
-  "spec_path": "specs/fpga/hir.t27"
+  "spec_path": "/Users/playra/t27/specs/fpga/hir.t27"
 }

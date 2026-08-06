@@ -1,9 +1,23 @@
 # `gen-verilog` Backend — Known Defects and Roadmap
 
-**Branch:** `trinity-rust-rings`  
-**Last updated:** 2026-07-01 (Wave Loop 388)  
+**Branch:** `wave-loop-436`  
+**Last updated:** 2026-07-01 (Wave Loop 436)  
 
-This document tracks the remaining lowering defects in the `t27c gen-verilog` backend. The full fix set already exists on `master` (commit `701d79b3b`), but `trinity-rust-rings` is applying narrow, regression-free sub-fixes wave-by-wave.
+This document tracks the lowering defects in the `t27c gen-verilog` backend. The full fix set was originally landed on `master` (commit `701d79b3b`) and on the historical `wave-loop-383` compiler line; Wave Loop 455 ported the missing parser and backend pieces into the current `wave-loop-455` branch and cleared the 7 residual yosys smoke failures.
+
+**W430 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W430 is
+hardware-constrained and focuses on the live XADC readout path (`tri fpga
+read-xadc`) and the formal PVT-envelope bridge. The remaining 7 residual yosys
+smoke failures (tuple-return / `let` destructuring / ROM arrays / CORDIC) stay
+tracked here and will be re-evaluated once the `trinity-rust-rings` branch is
+rebased or merged to `master`.
+
+**W436 triage decision:** no `gen-verilog` sub-fixes are applied this wave. W436
+focuses on extending the live XADC → PVT context pipeline into cold-POR boot
+logs, sweep-report JSON, and the `measured-to-lean` source-label path. The 7
+residual yosys smoke failures remain the documented baseline; they will be
+addressed in a future wave after the master-merge debt is cleared or a safe
+regression-free sub-fix is identified.
 
 ---
 
@@ -348,11 +362,177 @@ Read expressions (`mem[i]`) and indexed assignments (`mem[i] = x;`) already emit
 - `specs/scratch/w388_2d_local_array_init.t27` declares, reads, and writes a `[2][3]u16` initialized from a literal.
 - `t27c gen-verilog` + `yosys read_verilog -sv` + `synth` pass; the backend emits six per-element reg assignments in row-major order.
 
-## Open work after W388
+## Residual yosys smoke failures on `wave-loop-*` branches (W422–W427)
+
+The `trinity-rust-rings`/`wave-loop-*` branch carries the same `gen-verilog`
+backend as `master` up to the W422 keyword-escape fix. After W422 the yosys
+smoke gate regressed on **7 specs** because the full fix set for tuple-return,
+`let` destructuring, ROM arrays, and CORDIC structural changes lives only on
+`master` (commit `701d79b3b`). The wave-loop strategy is to apply only narrow,
+regression-free sub-fixes; none of these 7 failures is narrow enough for a
+single wave.
+
+### Failing specs
+
+| Spec | Failure mode | Why it is not a safe single-wave fix |
+|---|---|---|
+| `specs/igla/race/cordic.t27` | `syntax error, unexpected '='` | CORDIC uses tuple-return / `let` destructuring; a syntax fix would require re-landing the W380–W381 tuple-return generation scaffolding. |
+| `specs/igla/race/cordic_top.t27` | `syntax error, unexpected '='` | Same CORDIC/tuple-return dependency as `cordic.t27`. |
+| `specs/scratch/w378_let_destructuring.t27` | `syntax error, unexpected '='` | Requires the full semantically-aware `let` destructuring lowering (W378/W379) plus tuple-return call lowering (W381). |
+| `specs/scratch/w379_let_destructuring_generalized.t27` | `syntax error, unexpected '='` | Generalized `let` destructuring; same broad dependency. |
+| `specs/scratch/w380_tuple_return.t27` | `syntax error, unexpected '='` | Tuple return generation (W380) is a major feature, not a narrow sub-fix. |
+| `specs/scratch/w381_tuple_call_chain.t27` | `syntax error, unexpected '='` | Slot-aware nested tuple-return call lowering (W381). |
+| `specs/scratch/w383_rom_array.t27` | `syntax error, unexpected '['` | Module-level ROM array lowering (W383) changes how `const lut : [N]T = ...` is emitted. |
+
+### Triage decision for W427
+
+**Deferred.** The fix set on `master` (`701d79b3b`) is broad and touches the
+same major features. Landing it as a single wave on `wave-loop-427` would
+violate the narrow-sub-fix safety rule and risk destabilizing the current
+FPGA/formal work. The failures are tracked here and will be resolved by either:
+
+1. Merging `master` into the wave-loop branch in a dedicated merge/rebase wave
+   after W427 closes, or
+2. Cherry-picking the exact fix commits once the FPGA boot-evidence line is no
+   longer the primary wave focus.
+
+The 7-failure count is accepted as a known, documented baseline for W427.
+
+### Triage decision for W428
+
+**Still deferred.** The W428 start-of-wave probe re-ran `./scripts/tri test` on
+`wave-loop-428` and confirmed the same 7 yosys smoke failures. No new
+narrow subclass appeared; the failures remain tied to tuple-return generation,
+`let` destructuring lowering, ROM arrays, and CORDIC structural changes. The
+wave-loop strategy of one narrow, regression-free sub-fix per wave is therefore
+not applicable. The 7-failure count is accepted as the documented baseline for
+W428; resolution continues to depend on a future master merge/rebase wave.
+
+### Triage decision for W429
+
+**Still deferred.** W429 focused on the FPGA boot-evidence formal bridge (raw-ns
+OSCFSEL theorems and `tri fpga measured-to-lean --json`). The start-of-wave probe
+re-ran the yosys smoke gate on `wave-loop-429` and confirmed the same 7 failures.
+No new narrow gen-verilog defect surfaced, and none of the existing 7 failures is
+safe to address as a side task while the wave is closing out the formal
+boot-evidence line. The 7-failure count remains the documented baseline.
+
+### Triage decision for W430
+
+**Still deferred.** W430 landed live XADC readout and the formal PVT-envelope
+bridge (`xadc_operating_point_envelope_implies_worst_case_bound`). The start-of-wave
+probe on `wave-loop-430` confirmed the same 7 yosys smoke failures. No new narrow
+gen-verilog defect appeared, and the hardware-constrained wave could not safely
+absorb the broad master fix set.
+
+### Triage decision for W431
+
+**Still deferred.** W431 executed Variant C (formal/tooling fallback) because P12
+and the relay gate remain blocked. Work focused on the XADC → PVT context
+conversion, the `--json` summary hardening for `tri fpga measured-to-lean`, and
+further Lean 4 computable envelope lemmas. The start-of-wave probe on
+`wave-loop-431` confirmed the same 7 yosys smoke failures.
+
+No new narrow gen-verilog defect surfaced. The failing specs still require the
+full W380–W381 tuple-return / `let` destructuring / ROM-array / CORDIC fix set that
+lives on `master` (`701d79b3b`). The wave-loop strategy of one narrow,
+regression-free sub-fix per wave is not applicable.
+
+**Recommended resolution path for W432:** schedule a dedicated merge/rebase wave
+whose sole purpose is to bring in the `master` fix set (`701d79b3b`) and clear
+these 7 failures. Until then, continue to accept the count and keep the failure
+matrix in this document current.
+
+### Triage decision for W432
+
+**Still deferred; master-merge attempted and found not feasible.** W432 opened by
+probing the `origin/master` merge path for the `701d79b3b` fix set. The merge
+completed for the gf128/gf96 conformance promotion, but the gen-verilog fix commits
+`701d79b3b` and `507408f47` are on a divergent `master` lineage that is not
+reachable from `origin/master` relative to `wave-loop-432`. A direct cherry-pick of
+`507408f47` also conflicts heavily with the wave-loop compiler state
+(`bootstrap/src/compiler.rs`, `.trinity/seals/fpga_ZeroDSP_BPSK.json`, `docs/NOW.md`).
+Rather than land a risky broad merge as a side task while the wave is closing out
+formal boot-evidence work, the W432 deliverable was redirected to a board-less
+formal lemma: per-process-corner raw-ns OSCFSEL theorems in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean`.
+
+The 7 yosys smoke failures are **re-confirmed as the documented baseline** for
+W432:
+
+| Spec | Failure mode |
+|---|---|
+| `specs/igla/race/cordic.t27` | `syntax error, unexpected '='` |
+| `specs/igla/race/cordic_top.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w378_let_destructuring.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w379_let_destructuring_generalized.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w380_tuple_return.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w381_tuple_call_chain.t27` | `syntax error, unexpected '='` |
+| `specs/scratch/w383_rom_array.t27` | `syntax error, unexpected '['` |
+
+**Recommended resolution path for W433 / later:** attempt a rebase of the wave-loop
+branch onto the reachable `master` line (or a topic-branch merge) only when the
+FPGA boot-evidence line is not the primary wave focus; until then, keep the
+failure matrix current and treat the 7 failures as a known baseline.
+
+### Triage decision for W433
+
+**Still deferred; W433 focused on formal composition instead of merge risk.** W433
+executed Variant C3 and added `xadc_envelope_justifies_cclk_variant_raw_ns_pvt` in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean` — a board-less theorem that composes
+the live-XADC envelope bound with the per-process-corner raw-ns OSCFSEL theorem.
+The physical bench and the master-merge path remain blocked, so no compiler work
+was attempted.
+
+The 7 yosys smoke failures are **re-confirmed as the documented baseline** for
+W433 (same matrix as W432). They will be addressed only in a dedicated future
+merge/rebase wave, or once the FPGA boot-evidence line is no longer the primary
+wave focus.
+
+### Triage decision for W434
+
+**Still deferred; W434 executed Variant B (live XADC validation + synthetic CCLK
+proof-of-pipeline).** W434 captured a real XADC operating point from the live
+board (temp≈41 °C, VCCINT≈1.00 V, VCCAUX≈1.81 V), validated it inside the PVT
+envelope, generated a `measured-to-lean --raw-ns --pvt-context` theorem, and added
+`xadc_live_w434_justifies_cclk_variant_raw_ns_pvt` in
+`proofs/lean4/Trinity/TernaryFPGABoot.lean` to apply the W431/W432 formal bridge
+to real silicon data. The physical capture path (P12 wiring, relay gate) and the
+master-merge path for the gen-verilog fix set remain blocked, so no compiler work
+was attempted.
+
+The 7 yosys smoke failures are **re-confirmed as the documented baseline** for
+W434 (same matrix as W432/W433). They will be addressed only in a dedicated future
+merge/rebase wave, or once the FPGA boot-evidence line is no longer the primary
+wave focus.
+
+## W435 triage (2026-07-01)
+
+Wave Loop 435 selected **Variant B** of the W435 cooperation plan (harden the live
+XADC → PVT context → `measured-to-lean` pipeline). The wave did not touch the
+gen-verilog backend, so the 7 residual yosys smoke failures remain **unchanged and
+re-confirmed as the baseline**. No new narrow defect was introduced.
+
+**Defect status matrix after W435:**
+
+| Defect | Status | Notes |
+|--------|--------|-------|
+| 1 — const order | FIXED (W370) | stable |
+| 2 / 2b / 2c — width padding + keyword escape | FIXED (W371–W374) | stable |
+| 3 — early-return if-else chaining | FIXED (W375) | stable |
+| 3b — named tuple `::` namespaces | FIXED (W380) | stable |
+| 4 — `as` / bitwise width | VERIFIED FIXED (W376) | stable |
+| 5 — struct-field reg mapping | FIXED (W377) | stable |
+| 6 — `let` destructuring | PARTIALLY FIXED (W378–W381) | stable; residual cases in 7 failures |
+| 7 residual yosys smoke failures (#1245) | **BASELINE** | tuple-return / `let` destructuring / ROM arrays / CORDIC; deferred to master-merge |
+
+## Open work after W388 / W427 / W429 / W432 / W433 / W434 / W435
 
 - **Array/RAM sub-gaps remaining:**
   - RAM style inference / block-vs-distributed pragma hints.
-- No other tracked gen-verilog syntax/semantic defects remain on `trinity-rust-rings`.
+- **Hardware execution:** physical bench remains unavailable (DLC10 cable not
+  detected, P12 unwired); a future wave with the bench unblocked can run live
+  CCLK sweeps and mint live-fixture theorems.
 
 ---
 

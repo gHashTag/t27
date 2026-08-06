@@ -1,0 +1,49 @@
+{
+  "bit_config": {
+    "assertions": [
+      "ASSERTION OK: idcode"
+    ],
+    "bitstream": "<TMP>/tri_smoke_gate_fast_bitstream.bit",
+    "status": "ok"
+  },
+  "dry_run_sweep": {
+    "report_md": "<TMP>/tri_smoke_gate_fast_sweep.md",
+    "source": "synthetic",
+    "status": "ok",
+    "variant_count": 8
+  },
+  "passed": true,
+  "schema_version": "1.0",
+  "theorem_matrix": {
+    "replay": false,
+    "source": "synthetic",
+    "status": "ok",
+    "variant_count": 1,
+    "variants": [
+      {
+        "corner": "ff",
+        "envelope_check": "ok",
+        "fixtures": {
+          "lean": "<TMP>/tri_smoke_gate_fast_theorem.lean",
+          "pvt": "<TMP>/tri_smoke_gate_fast_pvt.json",
+          "raw_ns": "<TMP>/tri_smoke_gate_fast_raw_ns.json",
+          "summary": "<TMP>/tri_smoke_gate_fast_summary.json"
+        },
+        "oscfsel": 0,
+        "period_ns": 400,
+        "sck_high_ns": 200,
+        "sck_low_ns": 200,
+        "status": "ok"
+      }
+    ]
+  },
+  "validate_lean_standalone": null,
+  "verify_lean": {
+    "status": "ok"
+  },
+  "yosys_synthesis": {
+    "files": [],
+    "status": "ok",
+    "top": "ternary_mac_demo_top"
+  }
+}
