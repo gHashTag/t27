@@ -101,11 +101,12 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 854 | #1648 | wave-loop-854 | 527 | 263 | 33,728 | 1,079,296 | 1.030 | closed | #1649 |
 | 855 | #1650 | wave-loop-855 | 529 | 264 | 33,856 | 1,083,392 | 1.034 | closed | #1651 |
 | 856 | #1652 | wave-loop-856 | 531 | 265 | 33,984 | 1,087,488 | 1.038 | closed | #1653 |
-| **857** | **#1654** | **wave-loop-857** | **533** | **266** | **34,112** | **1,091,584** | **1.042** | **READY** | **TBD** |
-| 857 | #1654 | wave-loop-857 | 533 | 266 | 34,112 | 1,091,584 | 1.042 | planned | TBD |
+| 857 | #1654 | wave-loop-857 | 533 | 266 | 34,112 | 1,091,584 | 1.042 | closed | #1657 |
+| **858** | **#1656** | **wave-loop-858** | **535** | **267** | **34,240** | **1,095,680** | **1.045** | **in progress** | **TBD** |
 
 ### Run-list notes
-- Issue numbers follow the observed pattern (issue = previous issue + 2; PR = issue + 1).
+- Issue numbers follow the observed pattern (issue = previous issue + 2).
+- PR numbers are GitHub-assigned and may not equal issue + 1; use the actual PR URL.
 - If a PR is already open for an earlier wave, branch from that wave's HEAD instead
   of waiting for merge, to keep the ladder moving.
 - Stop condition: outer dimension reaches a target TBD by maintainers, or a
@@ -189,10 +190,10 @@ criteria, generator copy-hazard checklist, and open backlog.
 
 ## Current status
 
-- **Latest completed wave:** 856
-- **Latest issue/PR:** #1652 / #1653
-- **Current wave in progress:** 857
-- **Next wave queued:** 858
-- **Ladder depth:** W774–W856 = 83 waves
+- **Latest completed wave:** 857
+- **Latest issue/PR:** #1654 / #1657
+- **Current wave in progress:** 858
+- **Next wave queued:** 859
+- **Ladder depth:** W774–W857 = 84 waves
 
 *φ² + φ⁻² = 3 | TRINITY*
