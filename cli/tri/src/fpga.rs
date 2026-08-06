@@ -633,6 +633,9 @@ pub enum FpgaCmd {
         /// If omitted, prints the operating envelope bounds and example contexts.
         #[arg(long)]
         pvt_context: Option<PathBuf>,
+        /// Emit machine-readable JSON instead of human-readable prose.
+        #[arg(long)]
+        json: bool,
     },
     /// Build the QMTech XC7A100T-FGG676 proxy bitstream via a Docker
     /// container running Xilinx Vivado. Clones our `openFPGALoader` fork
@@ -902,7 +905,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             *raw_ns,
             *validate,
         ),
-        FpgaCmd::PvtEnvelope { pvt_context } => pvt_envelope(pvt_context.as_ref()),
+        FpgaCmd::PvtEnvelope { pvt_context, json } => pvt_envelope(pvt_context.as_ref(), *json),
         FpgaCmd::ColdPor {
             bit,
             relay_port,
@@ -3100,8 +3103,9 @@ fn recommendation_from_conclusion(
     })
 }
 
-/// Print the PVT-aware SCK low/high bound for a user-supplied context.
-fn pvt_envelope(pvt_context: Option<&PathBuf>) -> Result<()> {
+/// Build a machine-readable PVT envelope report. This is the single source of
+/// truth for both the human-readable and JSON output modes of `pvt-envelope`.
+fn build_pvt_envelope_report(pvt_context: Option<&PathBuf>) -> Result<serde_json::Value> {
     const NOMINAL_HALF_NS: u64 = 6;
 
     if let Some(path) = pvt_context {
@@ -3109,35 +3113,29 @@ fn pvt_envelope(pvt_context: Option<&PathBuf>) -> Result<()> {
         let half_ns = n25q128_min_sck_half_ns_pvt(&ctx);
         let margin_ns = half_ns.saturating_sub(NOMINAL_HALF_NS);
         let corner_str = format!("{:?}", ctx.process_corner).to_lowercase();
-
-        println!("PVT-aware N25Q128_3V SCK timing envelope");
-        println!(
-            "  context: temp = {} °C, vccint = {} mV, vccaux = {} mV, process corner = {}",
-            ctx.temp_c, ctx.vccint_mv, ctx.vccaux_mv, corner_str
-        );
-        println!("  min SCK low / high = {} ns", half_ns);
-        println!("  margin over nominal {} ns = {} ns", NOMINAL_HALF_NS, margin_ns);
-
-        let temp_ok = ctx.temp_c >= PVT_TEMP_MIN_C && ctx.temp_c <= PVT_TEMP_MAX_C;
-        let vccint_ok = ctx.vccint_mv >= PVT_VCCINT_MIN_MV && ctx.vccint_mv <= PVT_VCCINT_MAX_MV;
-        if !temp_ok || !vccint_ok {
-            eprintln!(
-                "  WARNING: context is outside the documented operating envelope (temp {}..{} °C, vccint {}..{} mV).",
-                PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV
-            );
-        }
-        return Ok(());
+        return Ok(serde_json::json!({
+            "pvt_context": {
+                "temp_c": ctx.temp_c,
+                "vccint_mv": ctx.vccint_mv,
+                "vccaux_mv": ctx.vccaux_mv,
+                "process_corner": corner_str,
+            },
+            "nominal_min_sck_half_ns": NOMINAL_HALF_NS,
+            "min_sck_half_ns": half_ns,
+            "margin_ns": margin_ns,
+            "operating_envelope": {
+                "temp_c_min": PVT_TEMP_MIN_C,
+                "temp_c_max": PVT_TEMP_MAX_C,
+                "vccint_mv_min": PVT_VCCINT_MIN_MV,
+                "vccint_mv_max": PVT_VCCINT_MAX_MV,
+            },
+            "warnings": Vec::<String>::new(),
+        }));
     }
-
-    println!("N25Q128_3V SCK timing envelope");
-    println!(
-        "  operating envelope: temp = {}..{} °C, vccint = {}..{} mV",
-        PVT_TEMP_MIN_C, PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, PVT_VCCINT_MAX_MV
-    );
-    println!("  nominal min SCK low / high = {} ns", NOMINAL_HALF_NS);
 
     let example_ctxs = [
         (
+            "best-case",
             "best-case (ff corner, 1100 mV, -40 °C)",
             PvtContext {
                 temp_c: PVT_TEMP_MIN_C,
@@ -3147,6 +3145,7 @@ fn pvt_envelope(pvt_context: Option<&PathBuf>) -> Result<()> {
             },
         ),
         (
+            "typical",
             "typical (tt corner, 1000 mV, 25 °C)",
             PvtContext {
                 temp_c: 25,
@@ -3156,6 +3155,7 @@ fn pvt_envelope(pvt_context: Option<&PathBuf>) -> Result<()> {
             },
         ),
         (
+            "worst-case",
             "worst-case (ss corner, 900 mV, +85 °C)",
             PvtContext {
                 temp_c: PVT_TEMP_MAX_C,
@@ -3166,14 +3166,92 @@ fn pvt_envelope(pvt_context: Option<&PathBuf>) -> Result<()> {
         ),
     ];
 
-    for (label, ctx) in example_ctxs {
-        let half_ns = n25q128_min_sck_half_ns_pvt(&ctx);
+    let examples: Vec<serde_json::Value> = example_ctxs
+        .iter()
+        .map(|(label, human_label, ctx)| {
+            let half_ns = n25q128_min_sck_half_ns_pvt(ctx);
+            serde_json::json!({
+                "label": label,
+                "human_label": human_label,
+                "pvt_context": {
+                    "temp_c": ctx.temp_c,
+                    "vccint_mv": ctx.vccint_mv,
+                    "vccaux_mv": ctx.vccaux_mv,
+                    "process_corner": format!("{:?}", ctx.process_corner).to_lowercase(),
+                },
+                "min_sck_half_ns": half_ns,
+                "margin_ns": half_ns.saturating_sub(NOMINAL_HALF_NS),
+            })
+        })
+        .collect();
+
+    Ok(serde_json::json!({
+        "pvt_context": null,
+        "nominal_min_sck_half_ns": NOMINAL_HALF_NS,
+        "operating_envelope": {
+            "temp_c_min": PVT_TEMP_MIN_C,
+            "temp_c_max": PVT_TEMP_MAX_C,
+            "vccint_mv_min": PVT_VCCINT_MIN_MV,
+            "vccint_mv_max": PVT_VCCINT_MAX_MV,
+        },
+        "examples": examples,
+        "warnings": Vec::<String>::new(),
+    }))
+}
+
+/// Print the PVT-aware SCK low/high bound for a user-supplied context.
+fn pvt_envelope(pvt_context: Option<&PathBuf>, json: bool) -> Result<()> {
+    let report = build_pvt_envelope_report(pvt_context)?;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+        return Ok(());
+    }
+
+    if let Some(ctx) = report["pvt_context"].as_object() {
+        println!("PVT-aware N25Q128_3V SCK timing envelope");
         println!(
-            "  {}: min SCK low / high = {} ns (margin {} ns)",
-            label,
-            half_ns,
-            half_ns.saturating_sub(NOMINAL_HALF_NS)
+            "  context: temp = {} °C, vccint = {} mV, vccaux = {} mV, process corner = {}",
+            ctx["temp_c"].as_i64().unwrap_or(0),
+            ctx["vccint_mv"].as_u64().unwrap_or(0),
+            ctx["vccaux_mv"].as_u64().unwrap_or(0),
+            ctx["process_corner"].as_str().unwrap_or("?")
         );
+        println!(
+            "  min SCK low / high = {} ns",
+            report["min_sck_half_ns"].as_u64().unwrap_or(0)
+        );
+        println!(
+            "  margin over nominal {} ns = {} ns",
+            report["nominal_min_sck_half_ns"].as_u64().unwrap_or(6),
+            report["margin_ns"].as_u64().unwrap_or(0)
+        );
+        return Ok(());
+    }
+
+    println!("N25Q128_3V SCK timing envelope");
+    if let Some(env) = report["operating_envelope"].as_object() {
+        println!(
+            "  operating envelope: temp = {}..{} °C, vccint = {}..{} mV",
+            env["temp_c_min"].as_i64().unwrap_or(-40),
+            env["temp_c_max"].as_i64().unwrap_or(85),
+            env["vccint_mv_min"].as_u64().unwrap_or(900),
+            env["vccint_mv_max"].as_u64().unwrap_or(1100)
+        );
+    }
+    println!(
+        "  nominal min SCK low / high = {} ns",
+        report["nominal_min_sck_half_ns"].as_u64().unwrap_or(6)
+    );
+    if let Some(examples) = report["examples"].as_array() {
+        for ex in examples {
+            println!(
+                "  {}: min SCK low / high = {} ns (margin {} ns)",
+                ex["human_label"].as_str().unwrap_or(""),
+                ex["min_sck_half_ns"].as_u64().unwrap_or(0),
+                ex["margin_ns"].as_u64().unwrap_or(0)
+            );
+        }
     }
     println!("\nUse --pvt-context <ctx.json> to compute the bound for a specific context.");
     Ok(())
@@ -6596,7 +6674,7 @@ mod tests {
             "worstcase",
             &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
         );
-        let out = pvt_envelope(Some(&pvt));
+        let out = pvt_envelope(Some(&pvt), false);
         assert!(out.is_ok(), "pvt_envelope should accept a valid worst-case context");
         // Worst-case bound is 6 + 2.5 (temp) + 1.0 (voltage) + 4 (ss) = 13 ns
         // (integer arithmetic: temp derating = (125*2)/100 = 2; voltage = (200*5)/1000 = 1).
@@ -6610,8 +6688,50 @@ mod tests {
     fn test_pvt_envelope_no_context_prints_examples() {
         // Without a context file the command prints the operating envelope and
         // best/typical/worst example bounds. It should not error.
-        let out = pvt_envelope(None);
+        let out = pvt_envelope(None, false);
         assert!(out.is_ok());
+    }
+
+    #[test]
+    fn test_pvt_envelope_json_report_with_context() {
+        let pvt = write_pvt_context_json(
+            "worstcase",
+            &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
+        );
+        let report = build_pvt_envelope_report(Some(&pvt)).unwrap();
+        assert_eq!(report["pvt_context"]["temp_c"], 85);
+        assert_eq!(report["pvt_context"]["vccint_mv"], 900);
+        assert_eq!(report["pvt_context"]["process_corner"], "ss");
+        assert_eq!(report["min_sck_half_ns"], 13);
+        assert_eq!(report["margin_ns"], 7);
+        assert_eq!(report["warnings"].as_array().unwrap().len(), 0);
+        std::fs::remove_file(&pvt).unwrap();
+    }
+
+    #[test]
+    fn test_pvt_envelope_json_report_no_context() {
+        let report = build_pvt_envelope_report(None).unwrap();
+        assert!(report["pvt_context"].is_null());
+        assert_eq!(report["nominal_min_sck_half_ns"], 6);
+        let examples = report["examples"].as_array().unwrap();
+        assert_eq!(examples.len(), 3);
+        assert_eq!(examples[2]["label"], "worst-case");
+        assert_eq!(examples[2]["min_sck_half_ns"], 13);
+    }
+
+    #[test]
+    fn test_pvt_envelope_json_report_has_operating_envelope() {
+        let pvt = write_pvt_context_json(
+            "worstcase",
+            &serde_json::json!({"temp_c":85,"vccint_mv":900,"vccaux_mv":2700,"process_corner":"ss"}),
+        );
+        let report = build_pvt_envelope_report(Some(&pvt)).unwrap();
+        let env = report["operating_envelope"].as_object().unwrap();
+        assert_eq!(env["temp_c_min"], -40);
+        assert_eq!(env["temp_c_max"], 85);
+        assert_eq!(env["vccint_mv_min"], 900);
+        assert_eq!(env["vccint_mv_max"], 1100);
+        std::fs::remove_file(&pvt).unwrap();
     }
 
     /// The PVT-aware half-period bound is monotone non-decreasing in temperature

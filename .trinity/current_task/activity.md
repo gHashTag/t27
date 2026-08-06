@@ -3828,3 +3828,11 @@
 - **Commit:** docs(w427): set up current issue for Wave Loop 427 (#1379)
 - **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W428_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W427_2026-07-05.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/W427_WEAK_POINTS_AND_COMPETITORS.md,docs/reports/WAVE_LOOP_427_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
 
+## 2026-07-05T08:12:47Z — wave-loop-428
+- **Commit:** feat(igla): Wave Loop 427 — per-OSCFSEL PVT envelope theorems, tri fpga sweep-report --json, competitor refresh (Variant C)
+- **Files:** .trinity/current-issue.md
+
+## 2026-07-05T09:02:33Z — wave-loop-428
+- **Commit:** docs(issue): set current issue to Wave Loop 428 (#1383)
+- **Files:** .trinity/current-issue.md,.trinity/experience.md,cli/tri/src/fpga.rs,docs/NOW.md,docs/reports/FPGA_LOOP_COOPERATION_W429_2026-07-05.md,docs/reports/FPGA_LOOP_EVIDENCE_W428_2026-07-05.md,docs/reports/GEN_VERILOG_DEFECTS_REPRO.md,docs/reports/T27_VS_FORMAL_HDL_2026.md,docs/reports/WAVE_LOOP_428_REPORT.md,proofs/lean4/Trinity/TernaryFPGABoot.lean
+
