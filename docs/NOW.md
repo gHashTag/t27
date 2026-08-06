@@ -1593,6 +1593,54 @@ Expected 25,664 elements, 821,248-bit packed vector (~0.783 MiBit), still under
 - Remaining selfconsistent (4): gf128, gf256, gf512, gf1024.
   gf256 stays open (bitexact:false, open bias R&D) -- do NOT promote.
 
+## Wave Loop 422 — Live XC7A200T SRAM boot + gen-verilog keyword escape + PVT worst-case bound (Closes #1365)
+
+- Branch: `wave-loop-422`
+- Issue: #1365
+- PR: to open after work
+- Report: `docs/reports/WAVE_LOOP_422_REPORT.md`
+- Evidence: `docs/reports/FPGA_LOOP_EVIDENCE_W422_2026-07-06.md`
+- Cooperation W423: `docs/reports/FPGA_LOOP_COOPERATION_W423_2026-07-06.md`
+
+### What landed (Variant A-lite + Variant C fallback)
+- `bootstrap/src/compiler.rs`
+  - Added Verilog-2001 keyword escape (`\\name `) for colliding user identifiers.
+  - Applied escaping to function/task names, parameters, local/module vars/consts,
+    loop variables, identifiers, calls, enum values, and field-access bases.
+  - Added regression tests `test_verilog_keyword_parameter_escaped` and
+    `test_verilog_keyword_local_and_module_escaped`.
+  - The gen-verilog yosys smoke failure count dropped from **16 to 7**;
+    remaining failures are pre-existing weak point #1245 defects unrelated to
+    keyword collision.
+- `proofs/lean4/Trinity/TernaryFPGABoot.lean`
+  - Added `pvt_low_ns_monotone_combined` and `pvt_high_ns_monotone_combined`.
+  - Added `ProcessCorner.any_worse_than_ss` helper.
+  - Added `pvt_half_ns_worst_case_bound` — the half-period bound is maximized at
+    (max temp, min VCCINT, ss corner).
+- `cli/tri/src/fpga.rs`
+  - Added `test_pvt_half_ns_worst_case_bound`, mirroring the Lean lemma with a
+    numeric grid-search regression.
+- `fpga/HARDWARE_SSOT.md`
+  - Added §3.6.19 documenting the first live XC7A200T board response since W404:
+    SRAM load succeeded, STAT `0x401079FC`, XADC context captured.
+
+### Not done (blocked on hardware)
+- Real P12 CCLK capture for `OSCFSEL=6/7` — P12 unwired.
+- Cold-POR SPI flash boot for OSCFSEL 6/7 — deferred to W423.
+- DLC10 cable still missing; Digilent HS2 + openFPGALoader is the working path.
+
+### Verification
+- `cargo test -p tri fpga::tests`: **PASS** (52 tests).
+- `cargo test -p t27c --bin t27c`: **PASS** (1493 tests).
+- `lake build Trinity.TernaryFPGABoot`: **PASS** (2967 jobs).
+- `./scripts/tri test` / `t27c suite --repo-root .`: **576 passed**, 0 seal
+  mismatches, 7 pre-existing gen-verilog yosys smoke failures, 0 FPGA smoke
+  failures.
+
+---
+
+# NOW — Wave Loop 421 close-out / Wave Loop 422 setup (2026-07-06)
+
 ## SW-conformance — gf48 promoted to strict SW-bitexact (70/5/8) (Closes #1358)
 
 - gf48 (GoldenFloat48: S1 E18 M29, BIAS=131071) promoted from

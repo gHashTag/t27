@@ -930,6 +930,63 @@ powered/connected).
   the half-period bound. This is the shape property a worst-case operating-point
   search relies on.
 
+#### 3.6.19 Live XC7A200T SRAM boot and XADC context (W422)
+
+The physical bench, previously reported as unreachable in W421, is now powered
+and responding. W422 captured the first live evidence on the XC7A200T board
+using `openFPGALoader` with a Digilent HS2 cable:
+
+```bash
+openFPGALoader -c digilent_hs2 --detect
+# index 0:
+#     idcode 0x3636093
+#     manufacturer xilinx
+#     family artix a7 200t
+#     model  xc7a200
+#     irlength 6
+
+openFPGALoader -c digilent_hs2 -m fpga/verilog/ternary_mac_demo_top_200t.bit
+# Load SRAM: 100%
+# ir: 1 isc_done 1 isc_ena 0 init 1 done 1
+
+openFPGALoader -c digilent_hs2 --read-register STAT
+# Register raw value: 0x401079fc
+# Done            0x1
+# EOS             0x1
+# INIT Complete   0x1
+# CRC Error       No CRC error
+# ID Error        No ID error
+# BUS Width       x1
+
+openFPGALoader -c digilent_hs2 --read-xadc
+# temp: 45.6583 °C
+# vccint: 1.00049 V
+# vccaux: 1.80688 V
+```
+
+The captured boot log is committed as
+`build/fpga/boot-log-archive/boot-log-20260706-130006-w422-sram-load.json`.
+It records the operating context (temperature, VCCINT, VCCAUX) measured
+immediately after the SRAM load and the decoded STAT register.
+
+**Blockers still active:**
+
+- **P12 CCLK probe:** pin P12 (CFGCLK / CCLK_0) is still not wired to a
+  logic-analyzer channel, so a real CCLK frequency/duty capture is not yet
+  possible. The synthetic fixture (`tri fpga measure-cclk --synth`) remains the
+  validated CI path.
+- **DLC10 cable:** the on-board Xilinx DLC10 / Platform Cable USB II is not
+  connected to the host, so the in-repo `dlc10` driver cannot be used. The
+  Digilent HS2 cable plus `openFPGALoader` is the working path for this board.
+- **SPI flash boot:** W422 only exercised volatile SRAM load. Non-volatile flash
+  boot and the OSCFSEL=6/7 cold-POR sweep are deferred to W423.
+
+The live STAT capture (`0x401079FC`, DONE=1) confirms that the canonical
+`ternary_mac_demo_top_200t.bit` configures the Artix-7 200T correctly when loaded
+through JTAG/SRAM. The XADC readings give a real operating point inside the
+envelope used by the PVT-aware flash-timing model (≈46 °C, ≈1.00 V VCCINT,
+≈1.81 V VCCAUX, tt corner).
+
 ---
 
 ## 4. Synthesis toolchain (how to get a `.bit`)

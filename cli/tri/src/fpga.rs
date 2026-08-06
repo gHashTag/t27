@@ -6017,6 +6017,43 @@ mod tests {
         );
     }
 
+    /// The PVT-aware half-period bound is maximized at the worst-case operating
+    /// point (max temperature, min VCCINT, ss corner). This mirrors the Lean 4
+    /// `pvt_half_ns_worst_case_bound` lemma and is the regression fact a finite
+    /// grid-search validation relies on.
+    #[test]
+    fn test_pvt_half_ns_worst_case_bound() {
+        let worst = PvtContext {
+            temp_c: PVT_TEMP_MAX_C,
+            vccint_mv: PVT_VCCINT_MIN_MV,
+            vccaux_mv: 2700,
+            process_corner: ProcessCorner::Ss,
+        };
+        let worst_bound = n25q128_min_sck_half_ns_pvt(&worst);
+
+        let temps = [PVT_TEMP_MIN_C, -20_i64, 0_i64, 25_i64, PVT_TEMP_MAX_C];
+        let vccints = [PVT_VCCINT_MIN_MV, 950_u64, 1000_u64, 1050_u64, PVT_VCCINT_MAX_MV];
+        let corners = [ProcessCorner::Ff, ProcessCorner::Tt, ProcessCorner::Ss];
+        for temp in temps {
+            for vccint in vccints {
+                for corner in &corners {
+                    let ctx = PvtContext {
+                        temp_c: temp,
+                        vccint_mv: vccint,
+                        vccaux_mv: 2700,
+                        process_corner: corner.clone(),
+                    };
+                    let bound = n25q128_min_sck_half_ns_pvt(&ctx);
+                    assert!(
+                        bound <= worst_bound,
+                        "PVT half-period bound {} ns exceeds worst-case {} ns at temp={} °C, vccint={} mV, corner={:?}",
+                        bound, worst_bound, temp, vccint, corner
+                    );
+                }
+            }
+        }
+    }
+
     /// Regression: the PVT-aware minimum SCK half-period bound must be at least
     /// the nominal 6 ns across the entire operating rectangle. This mirrors the
     /// Lean 4 `pvt_half_ns_at_least_nominal` lemma and catches accidental

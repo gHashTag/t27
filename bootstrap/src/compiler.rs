@@ -3906,6 +3906,42 @@ impl VerilogCodegen {
             .replace(|c: char| !c.is_alphanumeric() && c != '_', "_")
     }
 
+    /// Verilog-2001 reserved keywords. If a user identifier collides with one,
+    /// escape it with the \\identifier<space> form so it is treated as an
+    /// ordinary identifier and not parsed as a keyword.
+    fn verilog_keywords() -> &'static [&'static str] {
+        &[
+            "always", "and", "assign", "automatic", "begin", "buf", "bufif0", "bufif1",
+            "case", "casex", "casez", "cell", "cmos", "config", "deassign", "default",
+            "defparam", "design", "disable", "edge", "else", "end", "endcase", "endconfig",
+            "endfunction", "endgenerate", "endmodule", "endprimitive", "endspecify",
+            "endtable", "endtask", "event", "for", "force", "forever", "fork", "function",
+            "generate", "genvar", "highz0", "highz1", "if", "ifnone", "incdir", "include",
+            "initial", "inout", "input", "instance", "integer", "join", "large", "liblist",
+            "library", "localparam", "macromodule", "medium", "module", "nand", "negedge",
+            "nmos", "nor", "noshowcancelled", "not", "notif0", "notif1", "or", "output",
+            "parameter", "pmos", "posedge", "primitive", "pull0", "pull1", "pulldown",
+            "pullup", "pulsestyle_onevent", "pulsestyle_ondetect", "rcmos", "real", "realtime",
+            "reg", "release", "repeat", "rnmos", "rpmos", "rtran", "rtranif0", "rtranif1",
+            "scalared", "showcancelled", "signed", "small", "specify", "specparam", "strong0",
+            "strong1", "supply0", "supply1", "table", "task", "time", "tran", "tranif0",
+            "tranif1", "tri", "tri0", "tri1", "triand", "trior", "trireg", "unsigned", "use",
+            "vectored", "wait", "wand", "weak0", "weak1", "while", "wire", "wor", "xnor", "xor",
+        ]
+    }
+
+    /// Escape identifiers that collide with Verilog keywords. Returns the
+    /// escaped form \\name<space> when the name is a keyword, otherwise the
+    /// original name. The trailing space is part of the escaped identifier
+    /// syntax and must be preserved wherever the identifier is emitted.
+    fn verilog_safe_identifier(name: &str) -> String {
+        if Self::verilog_keywords().contains(&name) {
+            format!("\\{} ", name)
+        } else {
+            name.to_string()
+        }
+    }
+
     fn write(&mut self, s: &str) {
         self.output.push_str(s);
     }
@@ -6082,7 +6118,10 @@ impl VerilogCodegen {
                     if !range.is_empty() {
                         self.write(&format!("{} ", range));
                     }
-                    self.write(&format!("{} = ", node.name));
+                    self.write(&format!(
+                        "{} = ",
+                        Self::verilog_safe_identifier(&node.name)
+                    ));
                     if is_unsupported_aggregate {
                         // R-CA-1 fix: emit a synthesizable scalar zero in place
                         // of the unsupported aggregate initializer.
@@ -6124,7 +6163,10 @@ impl VerilogCodegen {
                 self.write(&format!("{} ", range));
             }
 
-            self.write(&format!("{} = ", node.name));
+            self.write(&format!(
+                "{} = ",
+                Self::verilog_safe_identifier(&node.name)
+            ));
             if !node.children.is_empty() {
                 let child = &node.children[0];
                 // R-CA-1 (Wave 28): aggregate literals (ExprArrayLiteral /
@@ -6347,13 +6389,17 @@ impl VerilogCodegen {
             format!("{} ", range)
         };
         let is_array = !node.extra_size.is_empty();
+        let safe_name = Self::verilog_safe_identifier(&node.name);
 
         if is_array {
             self.write_line(&format!("// var: {} [{}]", node.name, node.extra_size));
             let array_size: usize = node.extra_size.parse().unwrap_or(1);
             for i in 0..array_size {
                 self.write_indent();
-                self.write_line(&format!("reg {}{}{}_{};", signed_str, range_str, node.name, i));
+                self.write_line(&format!(
+                    "reg {}{}{}_{};",
+                    signed_str, range_str, safe_name, i
+                ));
             }
             if !node.children.is_empty() {
                 self.write_indent();
@@ -6364,7 +6410,7 @@ impl VerilogCodegen {
                     for (i, elem) in child.children.iter().enumerate() {
                         if i < array_size {
                             self.write_indent();
-                            self.write(&format!("{}_{} = ", node.name, i));
+                            self.write(&format!("{}_{} = ", safe_name, i));
                             self.gen_verilog_expr(elem);
                             self.write_line(";");
                         }
@@ -6380,14 +6426,17 @@ impl VerilogCodegen {
                 self.write_line("end");
             }
         } else {
-            self.write(&format!("reg {}{}{};", signed_str, range_str, node.name));
+            self.write(&format!(
+                "reg {}{}{};",
+                signed_str, range_str, safe_name
+            ));
             self.write_line("");
             if !node.children.is_empty() {
                 self.write_indent();
                 self.write_line("initial begin");
                 self.indent();
                 self.write_indent();
-                self.write(&format!("{} = ", node.name));
+                self.write(&format!("{} = ", safe_name));
                 self.gen_verilog_expr(&node.children[0]);
                 self.write_line(";");
                 self.dedent();
@@ -6518,17 +6567,19 @@ impl VerilogCodegen {
             format!("{} ", range)
         };
 
+        let fn_name = Self::verilog_safe_identifier(&node.name);
+
         // void functions → task; others → function
         if node.extra_return_type == "void" {
             self.write_indent();
-            self.write_line(&format!("task {};", node.name));
+            self.write_line(&format!("task {};", fn_name));
         } else {
             self.write_indent();
             self.write_line(&format!(
                 "function {}{}{}; // -> {}",
                 signed_str,
                 range_str,
-                node.name,
+                fn_name,
                 if node.extra_return_type.is_empty() {
                     "auto"
                 } else {
@@ -6551,7 +6602,8 @@ impl VerilogCodegen {
             } else {
                 format!("{} ", pr)
             };
-            self.write_line(&format!("input {}{}{};", ps_str, pr_str, pname));
+            let safe_pname = Self::verilog_safe_identifier(pname);
+            self.write_line(&format!("input {}{}{};", ps_str, pr_str, safe_pname));
         }
         // Verilog requires a function to have at least one input port. A
         // zero-argument function reads module state and returns a value; give it
@@ -7522,11 +7574,12 @@ impl VerilogCodegen {
         let body_idx = node.children.len().saturating_sub(1);
 
         // Use capture variable name if available, else default to __i
-        let iter_var = if !node.params.is_empty() {
+        let iter_var_raw = if !node.params.is_empty() {
             node.params[0].0.clone()
         } else {
             "__i".to_string()
         };
+        let iter_var = Self::verilog_safe_identifier(&iter_var_raw);
 
         // Try to extract the range/iterable from children[0]
         // For range-based: for (iter_var = 0; iter_var < upper; iter_var = iter_var + 1)
@@ -7556,7 +7609,7 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_for_range_stmt(&mut self, node: &Node) {
-        let var = &node.name;
+        let var = Self::verilog_safe_identifier(&node.name);
         self.write_indent();
         if node.children.len() >= 2 {
             self.write(&format!("for ({var} = "));
@@ -7606,9 +7659,9 @@ impl VerilogCodegen {
                     self.write(val);
                 }
             }
-            NodeKind::ExprIdentifier => self.write(&node.name),
+            NodeKind::ExprIdentifier => self.write(&Self::verilog_safe_identifier(&node.name)),
             NodeKind::ExprEnumValue => {
-                self.write(&node.name);
+                self.write(&Self::verilog_safe_identifier(&node.name));
             }
             NodeKind::ExprCall => {
                 // W557: inside test/bench blocks, reference a pre-declared temporary
@@ -7802,13 +7855,15 @@ impl VerilogCodegen {
 
                     if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
                         let base_name = match child.children[0].kind {
-                            NodeKind::ExprIdentifier => child.children[0].name.clone(),
+                            NodeKind::ExprIdentifier => {
+                                Self::verilog_safe_identifier(&child.children[0].name)
+                            }
                             _ => String::new(),
                         };
                         let flat_name = format!("{}_{}", base_name, node.name);
                         self.write(&flat_name);
                     } else if child.kind == NodeKind::ExprIdentifier {
-                        self.write(&child.name);
+                        self.write(&Self::verilog_safe_identifier(&child.name));
                         self.write("_");
                         self.write(&node.name);
                     } else {
@@ -7817,7 +7872,7 @@ impl VerilogCodegen {
                         self.write(&node.name);
                     }
                 } else {
-                    self.write(&node.name);
+                    self.write(&Self::verilog_safe_identifier(&node.name));
                 }
             }
             NodeKind::ExprIndex => {
@@ -23804,6 +23859,74 @@ mod tests_hir_pipeline_parity {
         assert!(
             v.contains("function signed [15:0] signedcast;"),
             "i16 return should declare a signed 16-bit function, got:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn test_verilog_keyword_parameter_escaped() {
+        // Regression for gen-verilog weak point #1245: a function parameter whose
+        // name is a Verilog keyword (`task`) must be emitted as the escaped
+        // identifier `\\task ` so Yosys/iverilog accept the module.
+        let src = r#"module KeywordParamTest {
+    pub fn evaluate_task_at_k(task: u32, k: u32) -> bool {
+        return task == k
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(
+            v.contains("input [31:0] \\task "),
+            "parameter named `task` must be escaped as `\\\\task `, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("input [31:0] task;"),
+            "parameter named `task` must NOT be emitted as bare keyword, got:\n{}",
+            v
+        );
+        // The function body references the parameter; the reference must also
+        // use the escaped form so it resolves to the escaped declaration.
+        assert!(
+            v.contains("\\task  == k"),
+            "reference to escaped parameter must use `\\\\task `, got:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn test_verilog_keyword_local_and_module_escaped() {
+        // Extension of the keyword-escape fix: local variables and module-level
+        // consts/vars that collide with Verilog keywords must be escaped in both
+        // declaration and reference sites so the emitted Verilog is
+        // internally consistent.
+        let src = r#"module KeywordLocalTest {
+    pub const wire : u16 = 1
+    pub var reg : u32 = 2
+
+    pub fn use_module_level() -> u32 {
+        var task : u32 = 3
+        return wire as u32 + reg + task
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(
+            v.contains("[15:0] \\wire ") || v.contains("localparam \\wire ") || v.contains("parameter \\wire "),
+            "module-level const `wire` must be escaped, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("reg [31:0] \\reg "),
+            "module-level var `reg` must be escaped, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("reg [31:0] \\task "),
+            "local variable `task` must be escaped, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("\\wire ") && v.contains("\\reg ") && v.contains("\\task "),
+            "all references to escaped identifiers must use escaped form, got:\n{}",
             v
         );
     }

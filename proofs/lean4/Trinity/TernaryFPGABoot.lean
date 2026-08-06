@@ -786,6 +786,65 @@ lemma pvt_half_ns_monotone_combined
         n25q128_pvt_process_derating_ns, ProcessCorner.worse_than, PVT_TEMP_MIN_C, PVT_VCCINT_MAX_MV] at ht_min ht_le hv_le hv_max hc ⊢
   cases c1 <;> cases c2 <;> omega
 
+/-- The PVT-aware SCK low bound is monotone in the combined ordering: higher
+    temperature, lower VCCINT, and a worse process corner all increase (or keep)
+    the bound. This mirrors `pvt_half_ns_monotone_combined` and is used when the
+    low and high limits need separate treatment. -/
+lemma pvt_low_ns_monotone_combined
+  (t1 t2 : Int) (v1 v2 : Nat) (c1 c2 : ProcessCorner) :
+  (PVT_TEMP_MIN_C ≤ t1) → (t1 ≤ t2)
+  → (v2 ≤ v1) → (v1 ≤ PVT_VCCINT_MAX_MV)
+  → c1.worse_than c2
+  → n25q128_min_sck_low_ns_pvt ⟨t1, v1, 2700, c1⟩
+    ≤ n25q128_min_sck_low_ns_pvt ⟨t2, v2, 2700, c2⟩ := by
+  intro ht_min ht_le hv_le hv_max hc
+  simp [n25q128_min_sck_low_ns_pvt,
+        n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+        n25q128_pvt_process_derating_ns, ProcessCorner.worse_than, PVT_TEMP_MIN_C, PVT_VCCINT_MAX_MV]
+    at ht_min ht_le hv_le hv_max hc ⊢
+  cases c1 <;> cases c2 <;> omega
+
+/-- The PVT-aware SCK high bound is monotone in the combined ordering: higher
+    temperature, lower VCCINT, and a worse process corner all increase (or keep)
+    the bound. The low and high bounds are symmetric in the current placeholder
+    envelope, so the proof is identical to the low-bound version. -/
+lemma pvt_high_ns_monotone_combined
+  (t1 t2 : Int) (v1 v2 : Nat) (c1 c2 : ProcessCorner) :
+  (PVT_TEMP_MIN_C ≤ t1) → (t1 ≤ t2)
+  → (v2 ≤ v1) → (v1 ≤ PVT_VCCINT_MAX_MV)
+  → c1.worse_than c2
+  → n25q128_min_sck_high_ns_pvt ⟨t1, v1, 2700, c1⟩
+    ≤ n25q128_min_sck_high_ns_pvt ⟨t2, v2, 2700, c2⟩ := by
+  intro ht_min ht_le hv_le hv_max hc
+  simp [n25q128_min_sck_high_ns_pvt,
+        n25q128_pvt_temp_derating_ns, n25q128_pvt_voltage_derating_ns,
+        n25q128_pvt_process_derating_ns, ProcessCorner.worse_than, PVT_TEMP_MIN_C, PVT_VCCINT_MAX_MV]
+    at ht_min ht_le hv_le hv_max hc ⊢
+  cases c1 <;> cases c2 <;> omega
+
+/-- Every process corner is no better (no smaller derating) than the slow-slow
+    corner. This is the corner-ordering fact needed by the worst-case bound. -/
+lemma ProcessCorner.any_worse_than_ss (c : ProcessCorner) : c.worse_than ProcessCorner.ss := by
+  cases c <;> simp [worse_than, n25q128_pvt_process_derating_ns]
+
+/-- Worst-case operating-point search: across the entire documented operating
+    envelope, the PVT-aware half-period bound is maximized at the worst corner
+    (maximum temperature, minimum VCCINT, slow-slow process corner). This lets
+    a validation tool enumerate a finite grid and prove that any context inside
+    the envelope is no worse than the corner it finds. -/
+lemma pvt_half_ns_worst_case_bound (ctx : PvtContext) :
+  (PVT_TEMP_MIN_C ≤ ctx.temp_c) → (ctx.temp_c ≤ PVT_TEMP_MAX_C)
+  → (PVT_VCCINT_MIN_MV ≤ ctx.vccint_mv) → (ctx.vccint_mv ≤ PVT_VCCINT_MAX_MV)
+  → n25q128_min_sck_half_ns_pvt ctx
+    ≤ n25q128_min_sck_half_ns_pvt ⟨PVT_TEMP_MAX_C, PVT_VCCINT_MIN_MV, 2700, ProcessCorner.ss⟩ := by
+  intro ht_min ht_max hv_min hv_max
+  apply pvt_half_ns_monotone_combined ctx.temp_c PVT_TEMP_MAX_C ctx.vccint_mv PVT_VCCINT_MIN_MV ctx.process_corner ProcessCorner.ss
+  · exact ht_min
+  · exact ht_max
+  · exact hv_min
+  · exact hv_max
+  · exact ProcessCorner.any_worse_than_ss ctx.process_corner
+
 /-- If the PVT-aware predicate holds, the nominal predicate holds (for contexts
     inside the operating envelope). -/
 theorem measured_cclk_with_pvt_implies_measured_cclk_satisfies_flash_spec

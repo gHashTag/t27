@@ -1,7 +1,7 @@
 {
   "gen_hash_c": "sha256:afc549a789b96a327dc3a187df8e15cc42d796fa6d67ab07c22dd36876afe830",
   "gen_hash_rust": "sha256:1d96b9471a4664a8b7ad8d17ffc052a67df20f14a524dc80942b92a67bf42288",
-  "gen_hash_verilog": "sha256:def0b77354c03953c9591f0f0bd57bd77bd5bf1bb6b67a6f25df7eb4f464828a",
+  "gen_hash_verilog": "sha256:f51b6354a60f5875f3cfe581b9dd835bf014eb8d05d9ad056883e724f6e36573",
   "gen_hash_zig": "sha256:4d372151eeb242167037e43c676aaa7f8e425d69810c4ebaf57709c75b084365",
   "module": "w372_local_keyword",
   "ring": 12,
