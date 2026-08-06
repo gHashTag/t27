@@ -566,7 +566,7 @@ Last updated: 2026-07-29
 
 # NOW — Wave Loop 773 close-out / Wave Loop 774 setup (2026-07-24)
 
-Last updated: 2026-07-24
+Last updated: 2026-07-29
 
 ## Wave Loop 789 — module-scope `[397][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1507)
 
