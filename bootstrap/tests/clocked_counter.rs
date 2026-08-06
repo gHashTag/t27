@@ -103,6 +103,40 @@ fn spec_first_on_clock_registers_state() {
         "clocked var was not updated with a nonblocking assignment:\n{}",
         verilog
     );
+    // The registered state must be exposed as a data output port -- otherwise a
+    // synthesizer dead-code-eliminates the whole design to zero cells (nothing
+    // observable drives an output). This is the difference between a simulation
+    // artifact and real hardware.
+    assert!(
+        verilog.contains("output reg [7:0] count"),
+        "clocked var `count` was not exposed as an output data port:\n{}",
+        verilog
+    );
+
+    // If yosys is available, prove the design synthesizes to REAL Artix-7
+    // hardware -- the 8-bit register must map to flip-flops, not vanish.
+    if tool_available("yosys") {
+        let dir = scratch_dir("synth");
+        fs::create_dir_all(&dir).expect("create synth dir");
+        fs::write(dir.join("cc.v"), &gen.stdout).expect("write cc.v");
+        let synth = Command::new("yosys")
+            .arg("-p")
+            .arg(format!(
+                "read_verilog -sv {}; synth_xilinx -top ClockedCounter; stat",
+                dir.join("cc.v").to_str().unwrap()
+            ))
+            .output()
+            .expect("invoke yosys");
+        let s = String::from_utf8_lossy(&synth.stdout).into_owned()
+            + &String::from_utf8_lossy(&synth.stderr);
+        let _ = fs::remove_dir_all(&dir);
+        assert!(synth.status.success(), "yosys synth_xilinx failed:\n{}", s);
+        assert!(
+            s.contains("FDCE") || s.contains("FDRE") || s.contains("FDPE") || s.contains("FDSE"),
+            "synth produced no flip-flops -- the register was optimized away:\n{}",
+            s
+        );
+    }
 
     if !tool_available("iverilog") || !tool_available("vvp") {
         eprintln!("SKIP: iverilog/vvp not on PATH; skipping clocked simulation");

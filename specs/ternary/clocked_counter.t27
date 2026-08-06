@@ -12,6 +12,13 @@ module ClockedCounter;
 // en-gating (freeze) and per-cycle advance. It is the building block a streamed
 // ternary MAC needs to accumulate across cycles (the Phase-2 MVP gate).
 //
+// Because an `on_clock` fn is present, each scalar module `var` (here `count`)
+// is exposed as an `output reg` data port — so the registered state is
+// observable and the design SYNTHESIZES to real flip-flops (yosys synth_xilinx:
+// 8 FDCE + 2 CARRY4). Without an output port a synthesizer dead-code-eliminates
+// the whole design to zero cells. This is the first spec-first design that maps
+// to non-zero real hardware.
+//
 // Specs without an `on_clock` fn are unaffected — their generated Verilog is
 // byte-identical to before this feature.
 
