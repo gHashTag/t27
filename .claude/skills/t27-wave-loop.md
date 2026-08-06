@@ -57,6 +57,31 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
+## Worked example — Wave Loop 861
+
+Wave Loop 861 continued the mechanical packed-vector ladder in the 1-MiBit
+range:
+
+- Selected Variant A: module-scope `[541][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w861.py` from `gen_w860.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment).
+- Produced `specs/scratch/w861_bench_module_541x2p6_aos_var_call_write.t27`
+  (34,624 elements, 1,107,968-bit packed vector).
+- Added integration test `accepts_w861_bench_module_541x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates all PASS:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save`.
+  - Full `cargo test --release --test icarus_lowerable`: 321/0.
+- Research background: Icarus Verilog has no 1-MiBit hard cap (LRM minimum is
+  65,536 bits; Icarus warns near 1 Gbit; upstream commit `128c621` fixed a
+  bound-normalization path that could accidentally create billion-bit vectors;
+  historical Icarus 0.8 had a ~256 K-entry allocator assertion for huge packed
+  vectors but modern versions do not hit it.
+- Proposed W862 variants: `[543][2]^6 Pt` (recommended), `[541][3]^6 Pt`,
+  `[541][2]^6 Pt` with negative-index writes.
+
 ## Worked example — Wave Loop 860
 
 Wave Loop 860 continued the mechanical packed-vector ladder in the 1-MiBit
@@ -2871,13 +2896,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 861 |
-| **Issue** | #1666 (expected) |
-| **Branch** | `wave-loop-861` |
-| **Parent branch** | `wave-loop-860` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[541][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
+| **Current wave** | 862 |
+| **Issue** | #1668 (expected) |
+| **Branch** | `wave-loop-862` |
+| **Parent branch** | `wave-loop-861` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[543][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes |
 | **Status** | READY TO START |
-| **Next wave variants queued** | W862 Variant A `[543][2]^6 Pt`; Variant B `[541][3]^6 Pt` stride scaling; Variant C `[541][2]^6 Pt` negative-index wrap-around |
+| **Next wave variants queued** | W863 Variant A `[545][2]^6 Pt`; Variant B `[543][3]^6 Pt` stride scaling; Variant C `[543][2]^6 Pt` negative-index wrap-around |
 
 ### Open backlog (non-blocking)
 

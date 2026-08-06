@@ -19,13 +19,13 @@ merge) remain open awaiting review, so W778 will be branched from
 
 ## Acceptance criteria
 
-- [ ] Generator `scripts/gen_w861.py` with `OUTER = 541`, `MID_IDX = 270`; copy hazard fixed before first run.
-- [ ] Witness `specs/scratch/w861_bench_module_541x2p6_aos_var_call_write.t27` generated and parsed.
+- [ ] Generator `scripts/gen_w862.py` with `OUTER = 543`, `MID_IDX = 271`; copy hazard fixed before first run.
+- [ ] Witness `specs/scratch/w862_bench_module_543x2p6_aos_var_call_write.t27` generated and parsed.
 - [ ] `t27c icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, and `seal --save` all PASS.
-- [ ] Integration test `accepts_w861_bench_module_541x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
+- [ ] Integration test `accepts_w862_bench_module_543x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
 - [ ] `bootstrap/stage0/FROZEN_HASH` unchanged.
 - [ ] Closeout report, next-wave plan, skills, and persistent memory updated.
-- [ ] Commit with `Closes #1666`, push branch, open PR to `master`.
+- [ ] Commit with `Closes #1668`, push branch, open PR to `master`.
 
 1. [ ] `specs/scratch/w778_bench_module_375x2p6_aos_var_call_write.t27` is generated and parses.
 2. [ ] The witness is Icarus-lowerable and simulates correctly (17 cycles, PASSED).
