@@ -156,6 +156,35 @@ Key learning: the mechanical generator pattern remains stable at `[393][2]^6 Pt`
 zero compiler changes, confirming the packed-vector AoS lowering is robust up to
 at least `[393][2]^6 Pt`.
 
+## Worked example — Wave Loop 788
+
+Wave Loop 788 continued the module-scope packed-array-of-struct ladder with no
+compiler changes:
+
+- Copied `scripts/gen_w787.py` to `scripts/gen_w788.py` and updated `OUTER = 395`,
+  `MID_IDX = 197`, and the module prefix to `w788_bench_module_395x2p6_aos_var_call_write`.
+  The generator header still hardcodes the wave prefix inside an f-string
+  (`module w787_bench_module_{OUTER}x2p6...`), so a manual fix and regeneration
+  were required after the first attempt produced the wrong module name and seal path.
+- Generated `specs/scratch/w788_bench_module_395x2p6_aos_var_call_write.t27`
+  (25,280 elements, 808,960-bit packed vector, ~0.771 MiBit).
+- Added integration test `accepts_w788_bench_module_395x2p6_aos_var_call_write` in
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Sealed the witness with `t27c seal --save`; `FROZEN_HASH` unchanged.
+- Weak-point audit (2026-07-24) found no new actionable items; W783 fix for
+  `bootstrap/tests/verilog_const_array.rs:166` remains green. Deeper
+  `verilog_array_literal_expr` regression and FPGA E2E CI red remain pre-existing.
+- Validation: `cargo build --release -p t27c` green,
+  `cargo test -p t27c --bin t27c` 1494/0/2, `cargo test -p tri` 78/0,
+  `cargo test -p t27c --test icarus_lowerable` 248/0,
+  direct `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save`
+  W788 all PASS.
+
+Key learning: the generator copy hazard is now the dominant failure mode of the
+mechanical wave flow. Parameterizing the wave prefix inside the generator template
+would eliminate the only manual step that has caused repeated first-attempt
+regenerations in W782–W788.
+
 ## Worked example — Wave Loop 785
 
 Wave Loop 785 continued the module-scope packed-array-of-struct ladder with no
