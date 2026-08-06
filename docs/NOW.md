@@ -83,18 +83,91 @@ Last updated: 2026-08-06
 
 # NOW — fix: gen-rust bool negation and integer-width coercion (2026-08-06)
 
+---
+
+# NOW — feat: spec-first clocked construct — first design that synthesizes to REAL hardware (2026-08-06)
+
+---
+
+# NOW — feat: spec-first STREAMING ternary MAC — the on-hardware inference primitive (2026-08-06)
+
+---
+
+# NOW — feat: `on_comb` combinational data ports — the whole ternary stack now synthesizes (2026-08-06)
+
+---
+
+# NOW — feat: spec-first combinational BitNet NEURON synthesizes to Artix-7 (2026-08-06)
+
+---
+
+# NOW — docs: Artix-7 synthesis report for the spec-first ternary stack (2026-08-06)
+
+
+
+
+
+
 Last updated: 2026-08-06
 
-## feat(gen-verilog): clocked `on_clock` process — the first sequential spec-first design (Refs #1764)
+## docs(synth): measured FPGA cost of the spec-first ternary hardware designs (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Что легло
+- `docs/SYNTH_REPORT.md`: yosys `synth_xilinx` (Artix-7 XC7A200T) resource measurements for every spec-first hardware design. **A full combinational BitNet neuron (`quantize(dot27)`) = ~319 LUT + 2 CARRY4, 0 FF** (~0.24 % of the 200T's ~133.8k LUTs). Streaming MAC = 346 LUT + 32 FDCE + 10 CARRY4. Combinational dot = 317 LUT. Clocked counter = 8 FDCE. Headroom analysis: hundreds of parallel neurons fit; the gap to a running layer is place-and-route (nextpnr-xilinx) + bitstream, not logic capacity. Docs-only.
+
+---
+
+## feat(spec): combinational BitNet neuron = MAC + activation in one synthesizable module (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Что легло
+- `specs/ternary/comb_bitnet_neuron.t27` (`CombBitnetNeuron`) + seal + `bootstrap/tests/comb_bitnet_neuron.rs`: **a full BitNet neuron over one 27-trit chunk in a single combinational module** — `on_comb(a, b) = quantize(dot27(a, b))` (bit-exact ternary dot product #1743 → sign activation → trit). Verified: typecheck 0 err; 4 in-spec tests pass; **yosys synth_xilinx → ~163 LUT6 + 67 LUT4 + 2 CARRY4, NO flip-flops** (pure combinational Artix-7 neuron); iverilog checks `result == quantize(dot27(a,b))` on known vectors (P/P→P, 0/P→N, Z/Z→Z, 0/0→P) = ALL_PASS. No compiler change — uses the existing `on_comb` data interface.
+- **The neuron datapath is now proven end-to-end in hardware:** combinational neuron (`comb_bitnet_neuron`, dot+sign) + streaming accumulator (`stream_ternary_mac`, multi-chunk MAC) compose into a multi-chunk neuron. Seal-neutral: all ternary-spec Verilog byte-identical.
+- NOTE / follow-up: a SINGLE-module *streaming* neuron (accumulate across cycles AND expose a registered `y=quantize(acc)` trit output) is blocked by a real soundness bug in `dead_store_elim` — it eliminates a write to a module-level `var` that is never read *in the body* even when that var is an exposed output port (observable). The correct fix (only dead-store-eliminate LOCALs, never module vars/output ports) is **not seal-neutral** — it changes ~27/40 sampled scratch specs + 2 ternary specs that were sealed relying on the unsound elimination, so it needs a deliberate repo-wide reseal sweep (owner decision), not an autonomous change. Filed as a known issue.
+
+---
+
+## feat(gen-verilog): `on_comb` combinational data interface — combinational specs become real hardware (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Что легло
+- `bootstrap/src/compiler.rs`: **`on_comb` is the combinational counterpart of `on_clock`.** Its params become input data ports and its return is a continuously-driven `output wire result` (`assign result = on_comb(...)`). This closes the last synthesizability gap: the previous output-port work only covered clocked (`on_clock`) designs, so the whole COMBINATIONAL half of the stack (dot27, adders, MLPs) still synthesized to **zero cells** (a bare `fn` result never reaches a port → yosys DCE). Now a combinational spec is real hardware. Only present when `on_comb` is defined → every existing spec byte-identical.
+- `specs/ternary/comb_ternary_dot.t27` (`CombTernaryDot`) + seal + `bootstrap/tests/comb_ternary_dot.rs`: `on_comb(a, b)` = the bit-exact 27-trit dot product (#1743 primitives). Verified: in-spec dot27 tests pass; **yosys synth_xilinx → ~162 LUT6 + 66 LUT4 + 44 LUT5 + 2 CARRY4, NO flip-flops (pure combinational Artix-7 fabric)**; iverilog checks `result == dot27(a,b)` on known vectors (+27/+27/-27/0) = ALL_PASS.
+- **Together with the clocked path (`on_clock`), the spec-first ternary stack now synthesizes to real FPGA hardware in BOTH modes** — combinational (`on_comb` → LUT trees) and sequential (`on_clock` → FDCE registers + streaming MAC). Seal-neutral: `seal --verify` MATCH on all existing ternary specs; FROZEN_HASH resealed; 1506 unit tests + the spec suite pass.
+- NOTE: PR #1782's branch was force-pushed into a non-compiling state (see its comments); this + the prior 3 increments live self-consistently on `feat/streaming-ternary-mac-verified` (compiler.rs sha == FROZEN_HASH). Needs a manual rebase onto master (take master's compiler.rs + re-apply the additive edits; a plain merge silently mis-merges that file).
+
+---
+
+## feat(gen-verilog): `on_clock` params → streaming input data ports + a streaming ternary MAC (Refs #1764)
 
 - Branch: `feat/spec-first-clocked-onclock`
 
 ### Что легло
+- `bootstrap/src/compiler.rs`: the parameters of a clocked `on_clock` fn now become **streaming INPUT data ports** (`fn on_clock(x: i16) { acc = acc + x }` → `input signed [15:0] x`; the always block references the port directly). `gen_verilog_clocked_fn` now registers the param widths/types. Only present when `on_clock` takes params → nullary-`on_clock` and every existing spec stay byte-identical. Combined with last increment's output ports, a clocked spec is now a complete datapath: **input ports → compute → accumulate register → output port**.
+- `specs/ternary/stream_ternary_mac.t27` (`StreamTernaryMac`) + seal + `bootstrap/tests/stream_ternary_mac.rs`: **a streaming ternary MAC — the on-hardware BitNet inference primitive.** Each cycle consumes a packed 27-trit `(a, b)` pair on input ports and accumulates their (bit-exact `dot27`, #1743) dot product into a 32-bit `acc` output register, `en`-gated. Verified: typecheck 0 err; in-spec dot27 tests pass; **yosys `synth_xilinx` → 32 FDCE + a full LUT adder-tree (real Artix-7 fabric)**; iverilog streams 4 known trit-vector pairs and `acc` tracks the running sum of dot products (27→54→27→27) exactly, freezing on `en=0` = ALL_PASS. Also inline-verified a minimal `StreamAccumulator` (`on_clock(x:i16){acc=acc+x}` → 16 FDCE + 4 CARRY4 + 16 LUT2, streams correctly).
+- **Seal-neutral (proven):** `seal --verify` MATCH on all existing ternary specs incl. the nullary `clocked_counter` (no input ports → byte-identical). FROZEN_HASH resealed (M5); 1506 unit tests + the spec suite pass.
+- This is the **Phase-2 / on-hardware MVP core**: a real streaming ternary MAC generated entirely from a `.t27` spec that synthesizes to FPGA hardware. Next: feed a weight/activation stream + wire the quantizer to close a full neuron on-hardware.
+
+---
+
+## feat(gen-verilog): clocked `on_clock` + observable output ports — first synthesizable spec-first design (Refs #1764)
+
+- Branch: `feat/spec-first-clocked-onclock`
+
+### Yosys finding that motivated the output-port work
+Ran `yosys synth_xilinx` (Artix-7, the AX7203 family) on the whole spec-first ternary stack for the first time — it was NEVER synthesized before, only iverilog-simulated. **Every design synthesized to ZERO logic cells.** Root cause: the fixed module interface `(clk,rst_n,en,ready)` has **no data ports**, so all compute (dot27, mlp3, adders, the counter register) drives nothing observable → yosys dead-code-eliminates it entirely. The stack was "verified" only because iverilog testbenches reach *inside* the module to call the Verilog functions hierarchically (`dut.dot27(...)`). As synthesizable modules they produced nothing. **Data ports are THE on-hardware gate — now proven by yosys DCE, not asserted.**
+
+### Что легло
 - `bootstrap/src/compiler.rs`: the **first increment of #1764** — the spec-first path was combinational-only (`gen-verilog` emitted no `always @(posedge clk)`, module-level `var` state was never registered). A function named **`on_clock`** is now the opt-in clocked process: module emission partitions functions into `on_clock` (clocked) vs the rest (combinational, unchanged), and lowers `on_clock` to `always @(posedge clk or negedge rst_n)` — on `!rst_n` every scalar module-level `var` takes its declared init value, and while `en` is asserted the body runs with **nonblocking (`<=`)** assignments (new `clocked_nonblocking` flag routes `StmtAssign` to `<=`; new `gen_verilog_clocked_fn`). This is the registered-state building block a **streamed ternary MAC** needs to accumulate across cycles — the Phase-2 MVP gate.
 - `specs/ternary/clocked_counter.t27` (`ClockedCounter`, `var count` + `fn on_clock`) + `.trinity/seals/ternary_ClockedCounter.json`: minimal proof spec.
-- `bootstrap/tests/clocked_counter.rs`: asserts the generated Verilog contains the edge-triggered always block + nonblocking update, then drives a real clock in iverilog — `count` held at 0 under reset, +1/cycle when `en=1`, **frozen** when `en=0`, resumes on `en=1`, and returns to 0 on async reset = ALL_PASS.
-- **Seal-neutral (proven):** specs without an `on_clock` fn are byte-identical — `seal --verify` MATCH on all 10 existing ternary/bitnet specs (verilog/rust/c/zig). FROZEN_HASH resealed (M5). Verified: build clean; 1506 unit tests pass; the 12-file ternary/bitnet/verilog spec suite green; new clocked sim ALL_PASS. Software backends (`gen`/`gen-c`/`gen-rust`) treat `on_clock` as a plain fn — clocked semantics are a hardware concept, so this is intentional for the minimal slice.
-- Next increment toward #1764: data-input ports so a streamed value can be accumulated into the registered `var` each cycle (wrap the bit-exact `dot27` in a clocked pipeline stage).
+- `bootstrap/src/compiler.rs` (output ports): in a clocked module (an `on_clock` fn present) each scalar module `var` is now exposed as an **`output reg` data port** (new `exposed_output_vars` set; ANSI port header carries it; the body `reg` decl is suppressed). So `count` is observable → the design SYNTHESIZES to real flip-flops instead of vanishing. Gated on `on_clock` → non-clocked and all existing specs keep the byte-identical `(clk,rst_n,en,ready)` header. (298 `specs/scratch/` specs use `pub var`, so `pub` was NOT a safe opt-in — gating on `on_clock` is.)
+- `bootstrap/tests/clocked_counter.rs`: asserts the edge-triggered always block + nonblocking update + the `output reg [7:0] count` port; when **yosys** is present, runs `synth_xilinx` and asserts real flip-flops (FDCE/FDRE) are produced; then drives a real clock in iverilog — `count` held at 0 under reset, +1/cycle when `en=1`, **frozen** when `en=0`, resumes, returns to 0 on async reset = ALL_PASS. **Measured synth: `ClockedCounter` → 8 FDCE + 2 CARRY4 on Artix-7 — the first spec-first design that maps to non-zero real hardware.**
+- **Seal-neutral (proven):** specs without an `on_clock` fn are byte-identical — `seal --verify` MATCH on all 10 existing ternary/bitnet specs (verilog/rust/c/zig). FROZEN_HASH resealed (M5). Verified: build clean; 1506 unit tests pass; the 12-file ternary/bitnet/verilog spec suite green; clocked sim ALL_PASS + yosys synth green. Software backends (`gen`/`gen-c`/`gen-rust`) treat `on_clock` as a plain fn — clocked semantics are a hardware concept, intentional for the minimal slice.
+- Next increment toward #1764: data-**input** ports so a streamed value can be accumulated into the registered `var` each cycle (wrap the bit-exact `dot27` in a clocked pipeline stage) — turning the free-running counter into a streaming ternary MAC.
 
 ---
 

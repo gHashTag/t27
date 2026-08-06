@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:27383948b87cfb14a1fe5b5188e45317648d51530c9fe657090d5c6d8011b318",
   "gen_hash_rust": "sha256:ad02e62fbac89c519bd4b82b2ec3b8a5a24f76a0426f582ba831ecc965b462ac",
-  "gen_hash_verilog": "sha256:980820ea0014f837f8fb8c021390947973dec556dfb6ef925c6b6810bce0905b",
+  "gen_hash_verilog": "sha256:742baa2af5542beb3dd9bdaabf60865eb8324ed71cf707ec25ee685d7af62dd4",
   "gen_hash_zig": "sha256:b4847252ab51690dc65b288a7f7d95840a4aa31ff87ee8b9b2d0c268273c13d0",
   "module": "ClockedCounter",
   "ring": 12,
-  "sealed_at": "2026-08-06T10:43:39Z",
-  "spec_hash": "sha256:0bdf30370bf761b681d0745630e46dcab0e8f7cf7b59242041ac815a48f09d80",
+  "sealed_at": "2026-08-06T11:13:13Z",
+  "spec_hash": "sha256:12a5bb8e6d0975bfd72b3520ac83e9adaa6f52371be8ef101ef5fd39b8fcbf6f",
   "spec_path": "specs/ternary/clocked_counter.t27"
 }
