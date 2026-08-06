@@ -1,18 +1,87 @@
-# Wave Loop 882 — current
+# Wave Loop 883 — current
 
 - Issue: TBD (next available GitHub issue)
-- Branch: `wave-loop-882`
-- Variant: `[583][2]^6 Pt` module-scope AoS variable from call with indexed signed writes
-- Target: 37,312 elements × 32 bits = 1,193,984 bits (~1.139 MiBit)
-- Plan: `.claude/plans/wave-loop-882.md`
+- Branch: `wave-loop-883`
+- Variant: `[585][2]^6 Pt` module-scope AoS variable from call with indexed signed writes
+- Target: 37,440 elements × 32 bits = 1,198,080 bits (~1.143 MiBit)
+- Plan: `.claude/plans/wave-loop-883.md`
 - Status: plan ready; issue to create, branch to create
 
 ## What to do next
 
-1. Create W882 issue and branch `wave-loop-882` from `wave-loop-881` HEAD.
-2. Copy `scripts/gen_w881.py` → `scripts/gen_w882.py`, fix copy hazard (`w882`, `OUTER = 583`, `MID_IDX = 291`).
+1. Create W883 issue and branch `wave-loop-883` from `wave-loop-882` HEAD.
+2. Copy `scripts/gen_w882.py` → `scripts/gen_w883.py`, fix copy hazard (`w883`, `OUTER = 585`, `MID_IDX = 292`).
 3. Generate witness, run validation gates, add integration test.
-4. Closeout report + W883 cooperation variants + skills/memory updates.
+4. Closeout report + W884 cooperation variants + skills/memory updates.
+
+---
+
+# Wave Loop 882 — close-out / Wave Loop 883 setup (2026-08-06)
+
+Last updated: 2026-08-06
+
+## Wave Loop 882 — module-scope `[583][2]^6 Pt` packed array-of-struct from call with indexed signed writes (Closes #1812)
+
+- Branch: `wave-loop-882`
+- Parent branch: `wave-loop-881` HEAD
+- Issue: #1812
+- PR: #1813
+- Report: `docs/reports/FPGA_LOOP_CLOSEOUT_W882_2026-08-06.md`
+- Cooperation plan: `docs/reports/FPGA_LOOP_COOPERATION_W883_2026-08-06.md`
+- Plan: `.claude/plans/wave-loop-882.md`
+- Autopilot: `.claude/skills/wave-loop-autopilot.md`
+- Master plan: `.claude/skills/wave-loop-master-plan.md`
+
+### What landed
+
+- `specs/scratch/w882_bench_module_583x2p6_aos_var_call_write.t27`
+  - 37,312 elements, 1,193,984-bit packed vector (~1.139 MiBit).
+  - Module-scope `pub var dst : [583][2]^6 Pt` initialized from a function call and
+    exercised with indexed signed field writes.
+  - `assert_eq` read-back in a `bench` block (Icarus path does not emit `assert_ne`).
+- `scripts/gen_w882.py`
+  - Generator for the W882 witness; `OUTER = 583`, `MID_IDX = 291`.
+  - Copy hazard fixed: destination path, module header f-string, and `MID_IDX`
+    comment updated from stale `w881` / `581` / `290` references before the first run.
+- `bootstrap/tests/icarus_lowerable.rs`
+  - Added integration test `accepts_w882_bench_module_583x2p6_aos_var_call_write`.
+- `.trinity/seals/scratch_w882_bench_module_583x2p6_aos_var_call_write.json`
+  - Saved by `t27c seal --save`.
+
+### Not changed
+
+- `bootstrap/src/compiler.rs` — zero compiler changes for the witness.
+- `bootstrap/stage0/FROZEN_HASH` — unchanged.
+- `scripts/cocotb_ref_model.py` — unchanged.
+
+### Verification
+
+- `cargo build --release -p t27c`: OK (warnings, 0 errors).
+- `cargo test --release --test icarus_lowerable accepts_w882_bench_module_583x2p6_aos_var_call_write`: 1/0.
+- `cargo test --release --test icarus_lowerable` (full suite): 342/0.
+- `t27c parse|icarus-lowerable|icarus-simulate|icarus-cocotb|seal --save` W882: PASS.
+
+### Research / weak points
+
+- **Icarus Verilog:** at ~1.139 MiBit we remain far from any practical hard boundary.
+  Icarus V13.0 (2026-03-02) improves memory management and packed/unpacked array
+  handling. Open issue #1134 tracks unpacked arrays of packed structs; our
+  module-scope packed array-of-struct witness does not exercise that path.
+- **Vitis HLS UG1399 `compact=bit`:** commercial analog for packing structs into
+  wide vectors; relevant for internal representation fidelity, not IO pin width.
+- **Vericert / CompCert:** verified C-to-Verilog HLS framework. Vericert v2.0.0
+  released 2026-01-29; the 2024 PLDI paper *Hyperblock Scheduling for Verified
+  High-Level Synthesis* (DOI 10.1145/3656455) and 2026 follow-ons Graphiti
+  (ASPLOS) and Let It Flow (PLDI) provide the verified-HLS context.
+- **FPGA Roofline (Siracusa et al., IEEE TC 2021, DOI 10.1109/tc.2021.3111761):**
+  the ladder is a memory-quanta `Q` probe; internal vectors at this scale remain
+  comfortably inside the on-chip memory bandwidth regime.
+
+### Cooperation variants for Wave Loop 883
+
+- **A (recommended):** `[585][2]^6 Pt`, outer += 2, `MID_IDX = 292`.
+- **B:** `[583][3]^6 Pt` — grow the second inner dimension to stress stride scaling.
+- **C:** `[583][2]^6 Pt` with negative-index writes to exercise wrap-around addressing.
 
 ---
 

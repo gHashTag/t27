@@ -57,6 +57,43 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
+## Worked example — Wave Loop 882
+
+Wave Loop 882 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:
+
+- Selected Variant A: module-scope `[583][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w882.py` from `gen_w881.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment)
+  before the first run; a post-generation `grep` sanity check confirmed no stale
+  `w881`, `581`, or `290` references survived.
+- Produced `specs/scratch/w882_bench_module_583x2p6_aos_var_call_write.t27`
+  (37,312 elements, 1,193,984-bit packed vector).
+- Added integration test `accepts_w882_bench_module_583x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates all PASS:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save`.
+  - Full `cargo test --release --test icarus_lowerable`: 342/0.
+- Research background: Icarus Verilog has no 1-MiBit hard cap (LRM minimum is
+  65,536 bits; Icarus warns near 1 Gbit; upstream commit `128c621` fixed a
+  bound-normalization path; Icarus V13.0 released 2026-03-02 improves packed/unpacked
+  array handling and memory management). Vitis HLS UG1399 `compact=bit` is the
+  commercial analog for packing structs into wide vectors. Vericert v2.0.0
+  released 2026-01-29; the 2024 PLDI paper on verified hyperblock scheduling
+  (DOI 10.1145/3656455) and 2026 follow-ons Graphiti (ASPLOS) and Let It Flow
+  (PLDI) provide the verified-HLS context. FPGA Roofline (Siracusa et al.,
+  IEEE TC 2021) frames the ladder as a memory-quanta `Q` probe; 2026 FPGA LLM
+  work reports BRAM/URAM bandwidths in the TB/s range versus HBM ~460 GB/s.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W882_2026-08-06.md` and
+  next-wave plan `.claude/plans/wave-loop-883.md` with variants A/B/C.
+- Closed with commit `Closes #1812`, pushed branch `wave-loop-882`, opened PR #1813.
+- Updated this skill's Live Wave Loop Tracker to wave 883.
+
+Key learning: the 1.139-MiBit neighborhood remains a soft boundary for t27c and
+Icarus. The generator copy-hazard checklist plus a quick post-generation sanity
+check is now the standard close-out procedure.
+
 ## Worked example — Wave Loop 881
 
 Wave Loop 881 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:
@@ -4234,13 +4271,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 882 |
+| **Current wave** | 883 |
 | **Issue** | TBD (next available GitHub issue) |
-| **Branch** | `wave-loop-882` |
-| **Parent branch** | `wave-loop-881` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[583][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes
+| **Branch** | `wave-loop-883` |
+| **Parent branch** | `wave-loop-882` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[585][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes
 | **Status** | READY TO START
-| **Next wave variants queued** | W883 Variant A `[585][2]^6 Pt`; Variant B `[583][3]^6 Pt` stride scaling; Variant C `[583][2]^6 Pt` negative-index wrap-around
+| **Next wave variants queued** | W884 Variant A `[587][2]^6 Pt`; Variant B `[585][3]^6 Pt` stride scaling; Variant C `[585][2]^6 Pt` negative-index wrap-around
 
 ### Open backlog (non-blocking)
 

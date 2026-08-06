@@ -13,8 +13,9 @@ active workstream and is updated at the end of each completed loop.
 | Loop | Status | Blocker | Next action |
 |------|--------|---------|-------------|
 | GF-T PR merge queue | in_progress | GitHub Actions runners queued/minutes exhausted | Auto-merge enabled on #1801, #1802, #1803, #1808, #1809; background watcher running |
-| Wave Loop 881 | in_progress | GitHub Actions runners queued/minutes exhausted (PR #1810 auto-merge pending) | Monitor PR #1810; once merged, create W882 issue/branch and start next wave |
-| Wave Loop 882 | ready | W881 not yet merged | Prepare generator from `gen_w881.py`; create issue/branch when W881 lands |
+| Wave Loop 881 | in_progress | GitHub Actions runners queued/minutes exhausted (PR #1810 auto-merge pending) | Monitor PR #1810 for automatic merge |
+| Wave Loop 882 | in_progress | GitHub Actions runners queued/minutes exhausted (PR #1813 auto-merge pending) | Monitor PR #1813; once merged, create W883 issue/branch and start next wave |
+| Wave Loop 883 | ready | W882 not yet merged | Prepare generator from `gen_w882.py`; create issue/branch when W882 lands |
 
 ## Loop exit criteria
 
