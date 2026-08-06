@@ -1,0 +1,31 @@
+// W565 witness: multi-site whole-array AoS call deduplication.
+// The same function call returning a 1-D array of scalar structs is used at
+// three whole-array sites in one deterministic block: local initializer,
+// expected side of assert_eq, and actual side of another assert_eq. The
+// generated Verilog must share a single packed-vector temporary.
+module w565_bench_multi_site_whole_aos;
+
+pub struct Pt {
+    x : i16,
+    y : i16,
+}
+
+pub fn make_pts(a : i16, b : i16, c : i16, d : i16) -> [2]Pt {
+    return [2]Pt{ Pt{ .x = a, .y = b }, Pt{ .x = c, .y = d } };
+}
+
+test multi_site_test {
+    let t : [2]Pt = make_pts(1, 2, 3, 4);
+    assert_eq(t, make_pts(1, 2, 3, 4));
+    assert_eq(make_pts(1, 2, 3, 4),
+              [2]Pt{ Pt{ .x = 1, .y = 2 }, Pt{ .x = 3, .y = 4 } });
+}
+
+bench "multi_site_bench" {
+    let t : [2]Pt = make_pts(10, 20, 30, 40);
+    assert_eq(t, make_pts(10, 20, 30, 40));
+    assert_eq(make_pts(10, 20, 30, 40),
+              [2]Pt{ Pt{ .x = 10, .y = 20 }, Pt{ .x = 30, .y = 40 } });
+}
+
+endmodule

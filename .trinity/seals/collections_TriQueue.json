@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4b24a81522e909b21a3bacbd9d50f34892c10dbc65b0318c7d4abc7b9ec66ba7",
   "module": "TriQueue",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:12Z",
+  "sealed_at": "2026-07-14T16:05:50Z",
   "spec_hash": "sha256:3175c9ed4dcef7978d7d871df08836c40c88965cb9c45b83d6d9c53fa8a9d463",
   "spec_path": "specs/tri/collections/queue.t27"
 }

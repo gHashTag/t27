@@ -1,0 +1,9 @@
+{
+"lines": [
+"[TEST] nona_test : starting",
+"[TEST] nona_test : PASSED",
+"[BENCH] nona_bench : starting",
+"[BENCH] nona_bench : %0d cycles          6",
+"[BENCH] nona_bench : PASSED"
+]
+}

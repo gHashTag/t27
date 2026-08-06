@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b6ab0e544ca74f98f678e526a972161f78e7dc1e59e18f53238fc3bf9894f2c4",
   "module": "TriGravity",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:10Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:3fe14f0e675704ece025e11534de7629b8245942f3898cac1f00221227a8a6bf",
   "spec_path": "specs/sacred/gravity.t27"
 }

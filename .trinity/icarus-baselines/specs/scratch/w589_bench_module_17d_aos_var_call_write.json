@@ -1,0 +1,9 @@
+{
+  "lines": [
+    "[TEST] module_var_17d : starting",
+    "[TEST] module_var_17d : PASSED",
+    "[BENCH] module_bench_17d_call_write : starting",
+    "[BENCH] module_bench_17d_call_write : %0d cycles         13",
+    "[BENCH] module_bench_17d_call_write : PASSED"
+  ]
+}

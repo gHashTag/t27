@@ -1,0 +1,15 @@
+// W542 witness: scalar function-call arguments are evaluated and bound in the
+// Python reference model so the VCD cross-check covers the call result.
+module w542_scalar_call_args;
+
+pub fn add(a : u32, b : u32) -> u32 {
+    return a + b;
+}
+
+test scalar_call_args {
+    assert_eq(add(3, 4), 7);
+    assert_eq(add(0, 0), 0);
+    assert_eq(add(0xffffffff, 1), 0u32);
+}
+
+endmodule

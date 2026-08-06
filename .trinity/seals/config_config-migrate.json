@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:6884395ddb6fab13f37d41522164bfb26d3e08dab1cd4bc2e8576cb780b6b8b9",
-  "gen_hash_rust": "sha256:67574c76ecb7bfc98cb927a8b5b5c7259d7c4930361262537fc5b3caa6e89b39",
-  "gen_hash_verilog": "sha256:579d010ca9a795215be707f5a1a570246a86611653c470d99b45ca284c7a10ee",
-  "gen_hash_zig": "sha256:00668fcf4a92600bc8576a284d4ef835c7f9c0e3839a83a6b6d43e7539b33cf9",
+  "gen_hash_c": "sha256:2d7ff1431aca0f6d45c782aea77a9f6cda9ecf8effdb6434c125c63c1be78f1e",
+  "gen_hash_rust": "sha256:81f5c55b7df33038fc4288ea1362f1122ed6d20764a58c74238136d1087a4f5f",
+  "gen_hash_verilog": "sha256:d4ae9410cdb4635d6eefe5b09fbe506a8932c8f1ac205d3aab59d76494d61245",
+  "gen_hash_zig": "sha256:3d96bbab59104b2caa84f59f29b52039fb1606accfb62c6053a3aadc1dfeb04c",
   "module": "config-migrate",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:06Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:727efa1d6127c74538d09d298db43a9f02c622507541c51d0659b078dee2fb48",
   "spec_path": "specs/config/migrate.t27"
 }

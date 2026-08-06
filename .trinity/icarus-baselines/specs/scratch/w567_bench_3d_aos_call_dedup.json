@@ -1,0 +1,7 @@
+{"lines":[
+"[TEST] cube_test : starting",
+"[TEST] cube_test : PASSED",
+"[BENCH] cube_bench : starting",
+"[BENCH] cube_bench : %0d cycles          4",
+"[BENCH] cube_bench : PASSED"
+]}

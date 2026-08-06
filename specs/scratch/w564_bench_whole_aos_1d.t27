@@ -1,0 +1,27 @@
+// W564 witness: whole-array comparison for 1-D arrays of scalar structs.
+// Exercises the packed 1-D AoS probe path in bench blocks, comparing a local
+// array-of-struct variable and a function-call return against array literals.
+module w564_bench_whole_aos_1d;
+
+pub struct Pt {
+    x : i16,
+    y : i16,
+}
+
+pub fn make_pts(a : i16, b : i16, c : i16, d : i16) -> [2]Pt {
+    return [2]Pt{ Pt{ .x = a, .y = b }, Pt{ .x = c, .y = d } };
+}
+
+test whole_aos_test {
+    let tmp : [2]Pt = make_pts(1, 2, 3, 4);
+    assert_eq(tmp, [2]Pt{ Pt{ .x = 1, .y = 2 }, Pt{ .x = 3, .y = 4 } });
+    assert_eq(make_pts(5, 6, 7, 8), [2]Pt{ Pt{ .x = 5, .y = 6 }, Pt{ .x = 7, .y = 8 } });
+}
+
+bench "whole_aos_bench" {
+    let t : [2]Pt = make_pts(10, 20, 30, 40);
+    assert_eq(t, [2]Pt{ Pt{ .x = 10, .y = 20 }, Pt{ .x = 30, .y = 40 } });
+    assert_eq(make_pts(50, 60, 70, 80), [2]Pt{ Pt{ .x = 50, .y = 60 }, Pt{ .x = 70, .y = 80 } });
+}
+
+endmodule

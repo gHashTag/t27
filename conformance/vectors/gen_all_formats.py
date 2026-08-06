@@ -31,7 +31,18 @@ from fractions import Fraction
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = HERE  # write packs next to the existing ones
-CATALOG_LINES = "/tmp/catalog_lines.txt"
+# The catalog SSOT: specs/numeric/formats_catalog.t27, whose trailing
+# `// CATALOG: id=... ` comments are the canonical machine-readable rows (the same
+# lines catalog-count-gate.yml counts to enforce the 83-format invariant).
+#
+# This used to read /tmp/catalog_lines.txt, which was never in the repository, so
+# on a clean checkout the generator raised FileNotFoundError before producing
+# anything: the corpus could be read but not regenerated. Reading the committed
+# SSOT instead makes the corpus reproducible and removes the second, unversioned
+# copy of the catalog that the /tmp file amounted to.
+CATALOG_LINES = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "specs", "numeric", "formats_catalog.t27")
 
 SSOT = "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json"
 PREPRINT = "https://arxiv.org/abs/2606.05017"
@@ -103,6 +114,33 @@ SELFCONSISTENT = {
     "gf256": "gf256_conformance_v0.json",
 }
 
+# Why each wide rung was promoted out of the self-consistent tier on 2026-07-05.
+# These strings were written by hand into INDEX_all_formats.json at promotion time
+# and say considerably more than any string the generator could compose -- which
+# decoder, which cross-check, how many codes. Keeping them in the generator means a
+# regeneration preserves the reasoning instead of flattening it to a generic line.
+PROMOTION_SOURCE = {
+    "gf48": "wide-rung GoldenFloat oracle promoted to strict bitexact by an "
+            "independent second decoder (gf_wide_independent_witness.py, "
+            "dyadic-exact, abs_error=0) + golden Fraction oracle + FP64 RTL "
+            "bit-model (224255/224255)",
+    "gf96": "wide-rung GoldenFloat exact-dyadic pack promoted to strict bitexact "
+            "by an analytic zero-rounding separation-bound + two structurally "
+            "independent exact decoders (dyadic gf_wide_independent_witness.py + "
+            "Fraction oracle gf96_decode_ref.py), 15/15 abs_error=0, 201512-code "
+            "cross-check",
+    "gf128": "promoted selfconsistent->strict bitexact (dual exact path + "
+             "separation-bound; gf128 PR)",
+    "gf256": "promoted selfconsistent->strict bitexact (dual exact path + "
+             "separation-bound; bias audit resolved decode-bias=2^96-1 closed "
+             "form; gf256 promote PR)",
+    "gf512": "promoted selfconsistent->strict bitexact (dual exact path + "
+             "separation-bound; gf512 paired PR)",
+    "gf1024": "promoted selfconsistent->strict bitexact (dual exact path + "
+              "separation-bound; gf1024 paired PR)",
+}
+
+
 def f64_hex(x):
     return "0x" + struct.pack(">d", x).hex().upper()
 
@@ -114,6 +152,14 @@ def parse_catalog(path):
     kv = re.compile(r'(\w+)=("[^"]*"|\S+)')
     for line in open(path):
         line = line.strip()
+        # In the SSOT spec the rows are trailing comments: `// CATALOG: id=...`.
+        # A bare `id=...` line is still accepted so the parser keeps working on a
+        # plain catalog dump.
+        if line.startswith("//"):
+            _, sep, rest = line.partition("CATALOG:")
+            if not sep:
+                continue
+            line = rest.strip()
         if not line.startswith("id="):
             continue
         d = {}
@@ -1148,12 +1194,27 @@ def main():
             continue
 
         if cid in SELFCONSISTENT:
-            # externally-generated wide-rung pack kept verbatim; NOT regenerated,
-            # NOT promoted to bitexact (no independent second witness).
+            # Externally-generated wide-rung pack kept verbatim, never regenerated.
+            #
+            # Its tier is read from the pack rather than asserted here. These rungs
+            # were self-consistent when this branch was written, then acquired
+            # independent second witnesses on 2026-07-05 and were promoted in the
+            # pack files. A hardcoded "bitexact_selfconsistent" meant that re-running
+            # the generator silently DEMOTED all six back, reverting an honesty-rule
+            # #10 promotion that the packs themselves record.
+            #
+            # The pack is the artefact of record for its own status, so a future
+            # promotion or demotion now flows into the index by itself.
             sc_file = SELFCONSISTENT[cid]
-            index.append({"id": cid, "file": sc_file, "kind": "bitexact_selfconsistent",
-                          "source": "wide-rung GoldenFloat oracle (single decode law, "
-                                    "dyadic-exact, no independent second witness)"})
+            sc_pack = json.load(open(os.path.join(OUT, sc_file)))
+            promoted = bool(sc_pack.get("bitexact")) and bool(sc_pack.get("witnesses"))
+            default_src = ("wide-rung GoldenFloat oracle (single decode law, "
+                           "dyadic-exact), no independent second witness")
+            index.append({"id": cid, "file": sc_file,
+                          "kind": "bitexact" if promoted else "bitexact_selfconsistent",
+                          "n_vectors": len(sc_pack.get("vectors", [])),
+                          "source": (PROMOTION_SOURCE[cid] if promoted and cid in PROMOTION_SOURCE
+                                     else default_src)})
             continue
 
         # posit/takum cluster
@@ -1263,11 +1324,19 @@ def main():
                       "n_vectors": pack.get("n_vectors", 0),
                       "source": "generated by gen_all_formats.py"})
 
-    # SHA-256 for every pack file in the index
+    # SHA-256 for every pack file in the index, plus the witness count.
+    #
+    # The witness count is in the index because honesty rule #10 -- a pack is not
+    # promoted to bit-precise without an independent second witness -- is the
+    # corpus's central claim, and until now a consumer could not see which packs
+    # carry a witness record without opening all 83 pack files. The data was
+    # already in the packs; this only makes it reachable from the summary a tool
+    # actually reads.
     for entry in index:
         path = os.path.join(OUT, entry["file"])
-        h = hashlib.sha256(open(path, "rb").read()).hexdigest()
-        entry["sha256"] = h
+        blob = open(path, "rb").read()
+        entry["sha256"] = hashlib.sha256(blob).hexdigest()
+        entry["witnesses"] = len(json.loads(blob).get("witnesses", []) or [])
 
     idx = {
         "schema": "t27-conformance-index/v0.1",
@@ -1279,6 +1348,7 @@ def main():
         "bitexact_packs": sum(1 for e in index if e["kind"] == "bitexact"),
         "selfconsistent_packs": sum(1 for e in index if e["kind"] == "bitexact_selfconsistent"),
         "structural_packs": sum(1 for e in index if e["kind"] == "structural"),
+        "witnessed_packs": sum(1 for e in index if e.get("witnesses")),
         "packs": index,
     }
     with open(os.path.join(OUT, "INDEX_all_formats.json"), "w") as f:

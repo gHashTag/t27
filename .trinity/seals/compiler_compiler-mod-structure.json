@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9fa68fe2e4fc48ba87c5c9ff25153fbebe9672d69fedbc819acd6973bbbb2ef3",
   "module": "compiler-mod-structure",
   "ring": 12,
-  "sealed_at": "2026-07-04T15:43:05Z",
+  "sealed_at": "2026-07-14T16:05:49Z",
   "spec_hash": "sha256:aa68e993cc9415a7df4fda9e3366a8cb1c8de9e0f35f2b499f550f2bf45b2936",
   "spec_path": "specs/compiler/mod_structure.t27"
 }
