@@ -1,6 +1,18 @@
-# NOW — feat: spec-first clocked construct — first design that synthesizes to REAL hardware (2026-08-06)
+# NOW — feat: spec-first STREAMING ternary MAC — the on-hardware inference primitive (2026-08-06)
 
 Last updated: 2026-08-06
+
+## feat(gen-verilog): `on_clock` params → streaming input data ports + a streaming ternary MAC (Refs #1764)
+
+- Branch: `feat/spec-first-clocked-onclock`
+
+### Что легло
+- `bootstrap/src/compiler.rs`: the parameters of a clocked `on_clock` fn now become **streaming INPUT data ports** (`fn on_clock(x: i16) { acc = acc + x }` → `input signed [15:0] x`; the always block references the port directly). `gen_verilog_clocked_fn` now registers the param widths/types. Only present when `on_clock` takes params → nullary-`on_clock` and every existing spec stay byte-identical. Combined with last increment's output ports, a clocked spec is now a complete datapath: **input ports → compute → accumulate register → output port**.
+- `specs/ternary/stream_ternary_mac.t27` (`StreamTernaryMac`) + seal + `bootstrap/tests/stream_ternary_mac.rs`: **a streaming ternary MAC — the on-hardware BitNet inference primitive.** Each cycle consumes a packed 27-trit `(a, b)` pair on input ports and accumulates their (bit-exact `dot27`, #1743) dot product into a 32-bit `acc` output register, `en`-gated. Verified: typecheck 0 err; in-spec dot27 tests pass; **yosys `synth_xilinx` → 32 FDCE + a full LUT adder-tree (real Artix-7 fabric)**; iverilog streams 4 known trit-vector pairs and `acc` tracks the running sum of dot products (27→54→27→27) exactly, freezing on `en=0` = ALL_PASS. Also inline-verified a minimal `StreamAccumulator` (`on_clock(x:i16){acc=acc+x}` → 16 FDCE + 4 CARRY4 + 16 LUT2, streams correctly).
+- **Seal-neutral (proven):** `seal --verify` MATCH on all existing ternary specs incl. the nullary `clocked_counter` (no input ports → byte-identical). FROZEN_HASH resealed (M5); 1506 unit tests + the spec suite pass.
+- This is the **Phase-2 / on-hardware MVP core**: a real streaming ternary MAC generated entirely from a `.t27` spec that synthesizes to FPGA hardware. Next: feed a weight/activation stream + wire the quantizer to close a full neuron on-hardware.
+
+---
 
 ## feat(gen-verilog): clocked `on_clock` + observable output ports — first synthesizable spec-first design (Refs #1764)
 

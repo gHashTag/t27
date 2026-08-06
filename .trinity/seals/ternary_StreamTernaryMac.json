@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:f553ebdccd96b21d0ee140c3ede653ad4b13d8b3ee84af5f35743c130b7b5d63",
+  "gen_hash_rust": "sha256:0f6c4b2bb6cffb751322bc797df1701ac6c5048523dadb22282e2b550e1e395f",
+  "gen_hash_verilog": "sha256:78f79f2fcdce4d988f76acfac83119877e744dff68d45ebb8476dccfc9117b02",
+  "gen_hash_zig": "sha256:6f659088bd546472e7e3db64ea64ac431a5ab30d7800d04e564b639916e99326",
+  "module": "StreamTernaryMac",
+  "ring": 12,
+  "sealed_at": "2026-08-06T11:24:41Z",
+  "spec_hash": "sha256:f46c60b0ba669110f8cf4a169987c7c2e794b317bd6889f0e90e40cfcb158632",
+  "spec_path": "specs/ternary/stream_ternary_mac.t27"
+}

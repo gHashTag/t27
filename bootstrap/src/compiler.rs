@@ -5645,6 +5645,18 @@ impl VerilogCodegen {
                 }
             }
         }
+        // #1764: the parameters of `on_clock` become streaming INPUT data ports,
+        // so a clocked spec can accumulate a value fed in each cycle
+        // (`fn on_clock(x: i16) { acc = acc + x }` -> `input signed [15:0] x`).
+        // Only present when `on_clock` takes params -> existing specs unchanged.
+        let mut input_ports: Vec<(String, u32, bool)> = Vec::new();
+        if let Some(oc) = functions.iter().find(|f| f.name == "on_clock") {
+            for (pname, ptype) in &oc.params {
+                let w = Self::type_to_width(ptype);
+                let signed = Self::type_is_signed(ptype);
+                input_ports.push((pname.clone(), w, signed));
+            }
+        }
 
         self.write_line(&format!("module {} (", mod_name));
         self.indent();
@@ -5654,6 +5666,16 @@ impl VerilogCodegen {
         self.write_line("input  wire        rst_n,");
         self.write_indent();
         self.write_line("input  wire        en,");
+        for (name, w, signed) in &input_ports {
+            let range = Self::range_decl(*w);
+            let signed_str = if *signed { "signed " } else { "" };
+            self.write_indent();
+            if range.is_empty() {
+                self.write_line(&format!("input  wire {}{},", signed_str, name));
+            } else {
+                self.write_line(&format!("input  wire {}{} {},", signed_str, range, name));
+            }
+        }
         self.write_indent();
         if exposed_ports.is_empty() {
             self.write_line("output wire        ready");
@@ -6685,6 +6707,14 @@ impl VerilogCodegen {
         self.current_fn_name = node.name.clone();
         self.local_types.clear();
         self.param_types.clear();
+        self.param_widths.clear();
+        // `on_clock` params are streaming input data ports; register their widths
+        // and types so body references (casts, width-aware ops) resolve.
+        for (pname, ptype) in &node.params {
+            self.param_widths
+                .insert(pname.clone(), self.packed_width(ptype) as usize);
+            self.param_types.insert(pname.clone(), ptype.clone());
+        }
         // Mirror gen_verilog_fn: cache any body-local variable types.
         for stmt in &node.children {
             if stmt.kind == NodeKind::StmtLocal && !stmt.name.is_empty() {
@@ -6733,6 +6763,7 @@ impl VerilogCodegen {
         self.current_fn_name.clear();
         self.local_types.clear();
         self.param_types.clear();
+        self.param_widths.clear();
     }
 
     /// Emit a Verilog function body statement list, rewriting the
