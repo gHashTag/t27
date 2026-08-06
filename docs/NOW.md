@@ -1,3 +1,16 @@
+# NOW — fix: gen-rust bool negation and integer-width coercion (2026-08-06)
+
+Last updated: 2026-08-06
+
+## fix(gen-rust): bool negation and integer-width coercion (Closes #1775)
+
+- Branch: `claude/wonderful-jackson-a3ea48`
+
+### Что легло
+- `bootstrap/src/compiler.rs`: three gen-rust defects that `typecheck` accepted but rustc rejected, all from one root cause — `expr_to_rust` was a static fn and could not see the codegen's type tables. (1) `!x` on a Rust `bool` (a `bool` param or a `-> bool` call) became the integer zero test `(x) == 0` → E0308; `expr_to_rust` is now a `&self` method reusing the existing `expr_is_bool`, and integer operands still get `(x) == 0`. (2) `return` was not coerced to the declared return type — `return dir;` (u8) / `return (ctr >> 8) & 255;` (u64) from a `-> u32` fn → E0308. (3) binary operands were not coerced to a common width — `u16 * u8` (E0277), `u32 * u64` (E0308); shifts exempt, Rust already accepts any integer shift amount. (2)+(3) driven by a new conservative `infer_int_type` over params/locals/consts/callee return types: a cast is emitted **only** on positive evidence of a differing declared width, so literals and unknown widths are untouched and Rust's own inference still applies. Fixed in gen-rust rather than by tightening typecheck — t27 accepts mixed widths by design across all five backends. Verified: 889-spec differential vs the pre-fix compiler — 26 files change, 15 drop rustc errors (`isa/ternary_memory` 80→43, `fpga/vcd_conformance_compare` 46→42), 11 byte-identical error sets, **0 regressions**; `gen`/`gen-c`/`gen-verilog`/`gen-verilog-hir`/`typecheck` byte-identical on every changed spec; `t27c suite` summary identical to baseline; 1506 unit tests pass incl. 6 new regression tests. FROZEN_HASH resealed (M5). Unblocks the tri-net over-wire suite, whose `crypto_frame.t27` can now drop its `seen_any == false` / `dir as u32` workarounds. Also filed **#1781**: the parse phase is superlinear (~quadratic), so `t27c suite` cannot complete on the 12.4M-line `specs/scratch/` tree.
+
+---
+
 # NOW — docs: canonical index of the spec-first ternary compute stack (2026-08-06)
 
 Last updated: 2026-08-06
