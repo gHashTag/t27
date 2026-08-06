@@ -1,3 +1,20 @@
+# NOW — feat: RNE GF-T16 multiply — spec-first GF-T MORE ACCURATE than silicon (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): round-to-nearest-even GF-T16 mul, bit-exact to the ideal oracle (Refs #1764)
+
+- Branch: `feat/streaming-ternary-mac-verified`
+
+### Finding: the silicon GF-T is a TRUNCATING approximation
+Comparing the silicon-proven GF-T arithmetic (gft_mul/gft_add, what runs on the AX7203) against the ideal oracle `trinity-fpga/conformance/gft16_ref.py` over 20-50k random pairs: they DISAGREE substantially. The silicon **truncates** the mantissa (`prod >> 9`); the oracle uses exact **round-to-nearest-even**. Result: **~37% of products are 1 ULP LOW, ~12% differ by a carry** (mul mismatches 62%, add 12%). For deep NN inference this truncation is a systematic downward bias that compounds across accumulations.
+
+### Что легло
+- `specs/ternary/gft_mul_rne.t27` (`GftMulRne`) + seal + `bootstrap/tests/gft_mul_rne.rs` + `tests/gft_mul_rne_vectors.txt`: a spec-first GF-T16 multiply that **rounds the mantissa to nearest-even** (guard/round + tie-to-even + mantissa-carry-after-round), matching the ideal oracle exactly. **A spec-first GF-T that is MORE ACCURATE than the current truncating silicon RTL.** Verified: typecheck 0 err; in-spec test; **iverilog cross-check vs 300 oracle-generated normal-range vectors = ALL_PASS (bit-exact), ~half of which differ from the truncating silicon.** Edge cases (INF/overflow/subnormal) saturate like the silicon; the RNE win is on the normal range. Uses `on_comb`, no compiler change; 1506 unit tests pass.
+- Signed GF-T (deferred from last loop) was investigated: it needs an owner SEMANTICS decision -- there is no signed silicon reference, and silicon (truncating) and oracle (RNE) disagree, so "which reference for signed subtract" is a spec choice. Documented rather than guessed.
+
+---
+
 # NOW — feat: GF-T16 matmul-row layer + master codegen repair progress (2026-08-06)
 
 Last updated: 2026-08-06
