@@ -1,3 +1,23 @@
+# NOW — feat(spec): GF-T log2 primitive + cross-entropy (NLL) loss (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat(spec): GF-T log2 + NLL loss — the training-signal primitives (Refs #1764)
+
+- Branch: `feat/gft-log2-nll` (stacked on `feat/gft-recip-softmax`)
+
+Deliverable **C** of "все три параллельно" (A = merge queue, infra-blocked; B = softmax synthesizability check).
+
+### Что легло
+- `specs/ternary/gft_log2.t27` (`GftLog2`): a GF-T **log2** primitive — `log2(x)` for a positive GF-T16 → signed GF-T16. **Inverse of exp2.** `log2(x) = (o−40) + log2(1+m/512)`; the fractional part is a Q Horner quartic (coeffs `94274,−44443,21224,−5528`), the integer+fraction real value is then **normalized fixed→GF-T via a flat 31-step priority encoder** (yosys-synthesizable). Accuracy ≤0.008 abs vs true log2 (output-quantization limited). iverilog **505/505** bit-exact.
+  - **Bug found + fixed (broken-ruler class):** the log2 poly has NEGATIVE coefficients, and t27 emits `>>` as a **logical** shift on signed regs → it filled 0 for negative intermediates instead of arithmetic floor, diverging from the Python model. Fix: an explicit `asr9` helper doing floor-shift with only non-negative shifts. (exp2's poly was all-positive so it never hit this.)
+- `specs/ternary/gft_nll.t27` (`GftNll`): GF-T **cross-entropy / negative-log-likelihood** loss for a one-hot label — given the softmax probability `p` of the true class, returns the loss `−log2(p)` as a positive GF-T16 (composes `gft_log2` + sign flip). iverilog **403/403** bit-exact; `p=1→0`, `p=0.5→1.0`, `p=0.25→2.0` (exact cross-entropy).
+- Fresh seals for `GftLog2` + `GftNll` (`seal --verify` MATCH). No compiler change.
+
+**This opens the door from inference to TRAINING on GF-T:** forward `softmax → prob`, then `NLL → loss`, with the inverse pair `exp2`/`log2` both verified. The per-sample training signal is now expressible spec-first.
+
+---
+
 # NOW — feat(spec): GF-T reciprocal + full GF-T softmax (2026-08-06)
 
 Last updated: 2026-08-06
