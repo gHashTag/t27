@@ -1,3 +1,23 @@
+# NOW — fix: repair all 7 gen-verilog regressions from batch merge #1783 (2026-08-06)
+
+Last updated: 2026-08-06
+
+## fix(compiler): repair W457/W458/W459 + yosys guard, unblocking the repo (Closes #1789)
+
+- Branch: `fix/codegen-w458-w459`
+
+### Что легло
+Master was RED (7 internal tests + yosys broken repo-wide → `check` gate red → nothing could merge) from the `#1783` batch merge (wave-loops w420–w459) that `#1788` only partially repaired. All 7 fixed, `cargo test` now **1535 passed / 0 failed**, yosys synthesizes again:
+1. **yosys unblock (repo-wide):** the test-assertions section opened with `// synthesis translate_off` but closed with `` `endif `` → unbalanced; now emits `` `ifndef SIMULATION `` to match (fixes `no_translate_off_comments`).
+2. **`pragma ram_style/rom_style`:** `node.extra_pragma` was unused for module array `var`s; now emitted as `(* ram_style="…" *)` on the memory decl (fixes `ram_style_{block,distributed}_pragma_emitted`).
+3. **array-param → module-array binding:** `current_fn_name_original` was never assigned (only cleared) → the binding lookup used an empty key; restored the assignment in `gen_verilog_fn`, and `try_emit_primitive_array_access` now indexes a bound param as the UNPACKED module array `rom[i]` (fixes `array_param_read_emitted`, `array_param_bound_from_test_block`).
+4. **test-block call emission:** bare side-effecting calls (`set(1,v)`) and `assert_eq` in test blocks are now emitted as REAL statements / comparisons (the section is `` `ifndef SIMULATION ``-guarded, so synthesis is unaffected) — fixes `test_block_emits_real_function_call`.
+5. **keyword escaping:** a local `var` colliding with a Verilog keyword (`task`) is now escaped in its declaration + assignment in `emit_local`, matching reference sites (fixes `…keyword_local_and_module_escaped`).
+
+FROZEN_HASH resealed (M5). NOTE: spec seals are stale vs the corrected output (they encoded the broken output); a repo-wide reseal sweep is a mechanical follow-up (spec seals are non-blocking — no required gate verifies them). Unblocks PR #1786 (11 cycles of spec-first hardware work) and every other stuck PR.
+
+---
+
 # NOW — fix: restore compilation after the w420-w459 batch merge (2026-08-06)
 
 Last updated: 2026-08-06

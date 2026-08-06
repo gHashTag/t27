@@ -5822,6 +5822,26 @@ impl VerilogCodegen {
             _ => return false,
         };
 
+        // W458: a parameter bound to a module-level array is a real UNPACKED
+        // Verilog array (`reg [W] rom [0:N]`), so index it as `rom[i]` -- not a
+        // packed bit-slice on the param name. (The binding lookup is keyed by the
+        // original fn name; see the current_fn_name_original restore in
+        // gen_verilog_fn.)
+        if let Some(bound) = self
+            .array_param_bindings
+            .get(&self.current_fn_name_original)
+            .and_then(|b| b.get(&base_name))
+            .cloned()
+        {
+            let mut ordered = indices.clone();
+            ordered.reverse();
+            self.write(&Self::verilog_safe_identifier(&bound));
+            for idx in &ordered {
+                self.write(&format!("[{}]", idx));
+            }
+            return true;
+        }
+
         // W545/W546/W553: primitive scalar arrays stored as packed vectors are
         // indexed by bit-slices.
         let packed_info = packed_info.as_ref();
@@ -6339,7 +6359,7 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
             self.write_indent();
-            self.write_line("// synthesis translate_off");
+            self.write_line("`ifndef SIMULATION");
             // W538: enable VCD waveform capture only in simulation mode (when
             // active test assertions are emitted).  Synthesis-mode output must
             // remain unchanged so seals stay stable.
@@ -6955,10 +6975,17 @@ impl VerilogCodegen {
                 .map(|d| format!("[0:{}]", d - 1))
                 .collect::<String>();
             self.write_indent();
+            // W457: a `pragma ram_style/rom_style` attached to this array `var`
+            // is emitted as a Verilog attribute on the memory declaration.
+            let pragma = if !node.extra_pragma.is_empty() {
+                format!("(* {} *) ", node.extra_pragma)
+            } else {
+                String::new()
+            };
             self.write_line(
                 &format!(
-                    "reg {}{}[{}:0] {}{};",
-                    signed_str, "", elem_w - 1, node.name, dims_str
+                    "{}reg {}{}[{}:0] {}{};",
+                    pragma, signed_str, "", elem_w - 1, node.name, dims_str
                 ),
             );
             if !node.children.is_empty() {
@@ -7182,6 +7209,10 @@ impl VerilogCodegen {
 
     fn gen_verilog_fn(&mut self, node: &Node) {
         self.current_fn_name = node.name.clone();
+        // W458: keyed by the original (unsanitized) fn name -- the
+        // array_param_bindings map is keyed by it. Dropped by batch merge #1783,
+        // which left the binding lookup consulting an empty key.
+        self.current_fn_name_original = node.name.clone();
         self.current_fn_return_type = node.extra_return_type.clone();
         self.param_widths.clear();
         self.local_types.clear();
@@ -7814,9 +7845,35 @@ impl VerilogCodegen {
             match node.kind {
                 NodeKind::StmtExpr => {
                     if let Some(expr) = node.children.first() {
-                        if expr.kind == NodeKind::ExprCall {
+                        if expr.kind == NodeKind::ExprCall
+                            && expr.name == "assert_eq"
+                            && expr.children.len() == 2
+                        {
+                            // W459: emit assert_eq as a REAL comparison. The whole
+                            // test section is `ifndef SIMULATION`-guarded, so it is
+                            // excluded from synthesis regardless; keeping the check
+                            // real makes the test bench meaningful.
+                            self.materialize_call_array_tmps_in_expr(node);
                             self.write_indent();
-                            self.write("// ");
+                            self.write("if (!((");
+                            self.gen_verilog_expr(&expr.children[0]);
+                            self.write(") == (");
+                            self.gen_verilog_expr(&expr.children[1]);
+                            self.write_line("))) begin");
+                            self.indent();
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "$display(\"[{}] {} : FAILED\");",
+                                block_tag, test_name
+                            ));
+                            self.dedent();
+                            self.write_indent();
+                            self.write_line("end");
+                        } else if expr.kind == NodeKind::ExprCall {
+                            // A bare side-effecting call (e.g. `set(1, v)`) is a
+                            // real statement.
+                            self.materialize_call_array_tmps_in_expr(node);
+                            self.write_indent();
                             self.gen_verilog_expr(expr);
                             self.write_line(";");
                         }
@@ -8117,14 +8174,18 @@ impl VerilogCodegen {
             } else {
                 format!("{} ", range)
             };
-            self.write(&format!("{} {}{}{};", kw, signed_str, range_str, node.name));
+            // Escape a local name that collides with a Verilog keyword (e.g.
+            // `task`) in both declaration and assignment, matching how reference
+            // sites are already escaped, so the emitted Verilog is consistent.
+            let safe = Self::verilog_safe_identifier(&node.name);
+            self.write(&format!("{} {}{}{};", kw, signed_str, range_str, safe));
             if phase != LocalEmitPhase::Init {
                 self.write_line("");
             }
         }
         if phase != LocalEmitPhase::Decl && !node.children.is_empty() {
             self.write_indent();
-            self.write(&node.name);
+            self.write(&Self::verilog_safe_identifier(&node.name));
             self.write(" = ");
             self.gen_verilog_expr(&node.children[0]);
             self.write_line(";");
