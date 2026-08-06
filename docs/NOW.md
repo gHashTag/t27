@@ -1,3 +1,16 @@
+# NOW — feat: spec-first ternary full adder (arithmetic from XOR + majority) (2026-08-06)
+
+Last updated: 2026-08-06
+
+## feat: spec-first ternary full adder (Closes #1771)
+
+- Branch: `feat/spec-first-full-adder`
+
+### Что легло
+- `specs/ternary/ternary_full_adder.t27`: `full_adder(a,b,cin)` — a binary full adder over trit-embedded bits {0→N,1→P}, built from the spec-first stack: `sum = a XOR b XOR cin` (composed from the 2-layer XOR #1769), `carry = majority(a,b,cin)` (a single neuron #1765), output packs sum[1:0]+carry[3:2]. Extends the stack from classification into **arithmetic** — a real datapath building block composed from already-verified named functions. Verified: typecheck 0 err; icarus-simulate 6/6; seal MATCH; new `tests/ternary_full_adder.rs` exhaustively drives all 2^3=8 binary inputs vs the arithmetic truth table = ALL_PASS 8. No compiler change.
+
+---
+
 # NOW — feat: spec-first ternary XOR (a 2-layer net does what one neuron cannot) (2026-08-06)
 
 Last updated: 2026-08-06
