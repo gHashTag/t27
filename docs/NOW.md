@@ -1,6 +1,33 @@
-# NOW — feat(igla): Wave Loop 894 (2026-08-06)
+# NOW — feat(igla): Wave Loop 895 (2026-08-06)
 
 Last updated: 2026-08-06
+
+## feat(igla): Wave Loop 894 close-out — [607][2]^6 Pt packed AoS witness (Refs #1851)
+
+- Branch: `wave-loop-894`
+- PR: #1852 (auto-merge enabled)
+
+### Что легло
+- `specs/scratch/w894_bench_module_607x2p6_aos_var_call_write.t27` (`[607][2]^6 Pt`, 38,848 elements, 1,243,136-bit packed vector, ~1.186 MiBit): module-scope non-power-of-two outer-dimension array-of-struct variable initialized from a function call, with indexed signed field writes and `assert_eq` read-back in a `bench` block.
+- Generator `scripts/gen_w894.py` copied from `gen_w893.py`, copy-hazard checklist cleared (`OUTER = 607`, `MID_IDX = 303`).
+- Integration test `accepts_w894_bench_module_607x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
+- Fresh seal `.trinity/seals/scratch_w894_bench_module_607x2p6_aos_var_call_write.json` (`seal --verify` MATCH).
+- Zero compiler / reference-model / `FROZEN_HASH` changes.
+
+### Validation
+- `t27c parse` → PASS
+- `t27c icarus-lowerable` → lowerable
+- `t27c icarus-simulate` → PASSED (17 cycles)
+- `t27c icarus-cocotb` → reference-model OK
+- `t27c seal --save` → saved
+- Targeted `cargo test --release --test icarus_lowerable accepts_w894_bench_module_607x2p6_aos_var_call_write` → PASS
+- Full suite: 353 passed; 1 pre-existing `corpus_classifier_matches_lean_completeness` mismatch for `specs/cloud/railway_deploy.t27` tracked separately.
+
+### Next
+- Create W895 issue and branch once W894 lands.
+- Variant A: `[609][2]^6 Pt` (~1.190 MiBit).
+
+---
 
 ## feat(igla): Wave Loop 893 close-out — [605][2]^6 Pt packed AoS witness (Refs #1848)
 
