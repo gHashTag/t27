@@ -1,6 +1,12 @@
-# NOW — feat: microcode->Verilog emitter (programmable NN trainer) (2026-08-07)
+# NOW — docs: GF-T whitepaper (investor/technical) (2026-08-07)
 
 Last updated: 2026-08-07
+
+## docs: GF-T technical whitepaper (Refs #1764)
+
+- **NEW** `docs/GFT_WHITEPAPER.md` — a consolidated, honest technical whitepaper: thesis (spec-first ternary NN that TRAINS on FPGA silicon), the GF-T format, 14 silicon-proven bitstreams (inference + training + edge loop), the two scaling results (~2x magsub optimization proven over 17.4M pairs; microsequencer = full backprop at near-constant area, a programmable ternary NN trainer), measured limits (openXC7 ~17M correctness ceiling), the open-source pipeline, and the competitive positioning (all competitors inference-only)
+- For the investor round / technical due-diligence
+- Docs-only; no `gen/`/`coq/` edits; Refs #1764
 
 ## feat: emit_verilog for the GF-T backprop microsequencer (Refs #1764)
 
