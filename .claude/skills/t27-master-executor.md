@@ -31,7 +31,9 @@ Update it at the end of every loop.
   state `BLOCKED` pending required checks.
 - **W891** — issue #1843, PR #1844 (`[601][2]^6 Pt`) — `OPEN`, auto-merge enabled; merge
   state `BLOCKED` pending required checks.
-- **W892** — issue #1845, branch TBD (`[603][2]^6 Pt`) — ready to start once W891 lands.
+- **W892** — issue #1845, PR #1847 (`[603][2]^6 Pt`) — `OPEN`, auto-merge enabled; merge
+  state `BLOCKED` pending required checks.
+- **W893** — issue #1848, branch TBD (`[605][2]^6 Pt`) — ready to start once W892 lands.
 
 ### GF-T PR queue (Refs #1764)
 The GF-T stack has largely landed on `master`. Remaining open PRs are wave-loop branches
