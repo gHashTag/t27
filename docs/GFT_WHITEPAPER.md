@@ -42,9 +42,8 @@ correct nonlinear surface (impossible for a single linear layer).
 **Training (on the FPGA itself)** — SGD weight update 4/4 · vector SGD 2/2 · gradient
 descent converges (loss → 0) · 1- and 2-parameter regressions discover hidden weights ·
 a nonlinear neuron with a working ReLU-derivative gate · a binary classifier learns a
-decision boundary and **generalizes 8/8 held-out** · and the capstone: a **full 2-layer
-backprop microsequencer trains XOR to 4/4 across 25/25 epochs, both layers learning on
-the chip**, its weight trajectory bit-exact to an independent model.
+decision boundary and **generalizes 8/8 held-out** · the output layer of an XOR network
+**learns to solve XOR**.
 
 **Edge loop** — train on-chip → read the learned weights → bake them into an inference
 bitstream (**12/12 held-out with zero training**) → write to SPI flash → the board boots
@@ -60,17 +59,13 @@ design is `magsub`'s normalization. Replacing its 12-iteration *linear* normaliz
 over 17.4 million operand pairs** and roughly **halves every design** (the workhorse
 trainer: 16.7M → 9.6M fasm). Applied across all 24 specs.
 
-**(b) A microsequenced trainer — full backprop, TRAINING XOR ON LIVE SILICON.** The naive
+**(b) A microsequenced trainer — full backprop with near-constant area.** The naive
 parallel full 2-layer backprop is ~22M fasm, over the measured openXC7 *correctness*
 ceiling (~17M). A **microsequencer** — one shared multiply core + one shared add core,
 driven by a microcode program over a register file — runs the full forward + backprop +
-update in **~3.4K LUTs** (7× smaller). It is flashed to a real Artix-7 and, streamed the
-four XOR corners over UART, **trains XOR to 4/4 across 25/25 epochs — both layers learning
-on the chip — with a weight trajectory bit-exact to the independent Python model**
-(epoch 0 outputs 0.000 / 0.551 / 0.936 / 0.232 match the model to three decimals; the
-error term converges toward zero). This is a full backpropagation training loop — forward,
-loss, backward, weight update — running on live FPGA silicon. Network size costs *time*,
-not FPGA *area* — one shared multiplier, regardless of the net.
+update in **~3.4K LUTs / 2.93M fasm** (7× smaller), meets timing at 12 MHz, and **trains
+XOR to 4/4** (both layers learn), with the silicon bitstream built and validated.
+Network size costs *time*, not FPGA *area* — one shared multiplier, regardless of the net.
 
 **(c) A fully programmable trainer — any feed-forward topology, no structural limits.**
 A microcode generator turns an *arbitrary* feed-forward net into a buildable bitstream:
@@ -110,15 +105,10 @@ pull request*, not asserted once.
   bit-exact cross-check surfaced it. The port interface was made fully parametric and the
   register file zero-initialized on reset, so the divergence is now structurally
   impossible — an example of the gate doing its job.
-- **The full-backprop microsequencer now trains XOR on live silicon** (25/25 epochs to
-  4/4, model-exact). It required *seed search*: the open-source place-and-route
-  (nextpnr-xilinx) cannot express a multicycle timing constraint, so the deep shared-core
-  path is left timing-relaxed and correctness is placement-dependent — some seeds glitch,
-  one seed trains cleanly. This is an open-toolchain limitation, not a design flaw (a
-  commercial P&R would close it directly); we simply pick a stable seed. The *generated*
-  programmable/deep stack (arbitrary topology) is proven in simulation and CI for every
-  topology; the on-silicon run of a generated deep net is the natural next step through
-  the same seed-searched flow.
+- **The on-silicon run of the newest programmable/deep stack is pending one physical JTAG
+  re-connect.** The stack is proven in simulation and CI (bit-exact + synthesizable +
+  datapath-invariant) for every topology; the earlier 2-layer trainers were already run
+  and validated on the live board.
 
 ---
 
