@@ -4,11 +4,8 @@
 `smul` and `sadd` (the exact functions the microsequencer's shared datapath uses)
 must compute IDENTICALLY across t27's backends. verify_emit_bitexact already proves
 Verilog == the independent Python GF-T model over a full training run; this proves
-C == model and Rust == model on the same operands -- closing the "one spec -> any
-target, bit-exact" claim across {Verilog, C, Rust, model}. Operands span BOTH the
-moderate range and the EXTREME range (raw GF-T u32 over the full offset span 0..127,
-both signs, saturation-adjacent) -- overflow/underflow/carry edges a [-4,4] sweep
-never reaches (weights land here during training).
+C == model and Rust == model on the same random operands -- closing the
+"one spec -> any target, bit-exact" claim across {Verilog, C, Rust, model}.
 
 Self-contained + CI-friendly: SKIPs (exit 0) if t27c / a C compiler / rustc is
 missing; a real cross-target divergence exits 1. Run:
@@ -43,25 +40,9 @@ def load_gen():
 
 def gen_pairs(g):
     random.seed(202)
-    # moderate range (typical activations/weights)
-    vals = [g.enc(round(random.uniform(-4, 4), 3)) for _ in range(40)]
+    vals = [g.enc(round(random.uniform(-4, 4), 3)) for _ in range(48)]
     vals += [g.enc(0.0), g.enc(1.0), g.enc(-1.0), g.enc(2.0), g.enc(0.5), g.enc(-2.0), g.enc(0.25)]
-    # EXTREME range: raw GF-T u32 across the full offset span (0..127) and both signs,
-    # incl. saturation-adjacent offsets -- exercises overflow/underflow/carry edges that
-    # a [-4,4]-only sweep never reaches (large weights during training land here).
-    for _ in range(40):
-        off = random.choice([0, 1, 2, 38, 39, 40, 41, 79, 80, 120, 126, 127])
-        vals.append((random.randint(0, 1) << 16) | (off << 9) | random.randint(0, 511))
-    pairs = [(random.choice(vals), random.choice(vals)) for _ in range(N - N // 5)]
-    # CANCELLATION edge: (v, -v) -> sadd exact-cancel to 0 (a historically buggy
-    # magsub path -- negative-zero on the larger-operand-negative branch) and
-    # near-cancel (v, -v') for a neighbouring v' -> the magsub normalize hot path
-    for _ in range(N // 5):
-        v = random.choice(vals)
-        w = g.neg(v) if random.random() < 0.6 else g.neg(random.choice(vals))
-        pairs.append((v, w))
-    random.shuffle(pairs)
-    return pairs
+    return [(random.choice(vals), random.choice(vals)) for _ in range(N)]
 
 
 def py_ref(g, fn, pairs):

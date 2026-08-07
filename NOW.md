@@ -1,6 +1,14 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-24
+Last updated: 2026-08-08
+
+## fix(gen-verilog-sim) -- lower plain assert(cond, "msg") in testbenches (this PR, Closes #1888)
+
+- `assert` is not a Verilog-2005 keyword and the 2-arg form is not SystemVerilog; the TB emitted it verbatim, iverilog rejected the file -- icarus-simulate unusable for specs using standard `assert()` tests
+- Both emission paths (probed assertions + W459 real-check) now lower assert to the same if-based check assert_eq gets, message %-escaped in the failure display
+- Validation: bootstrap unit suite 1537/1537 == unmodified master; tri-net GF-T specs go from iverilog-reject to full runs (add/sub/ladder PASS; tri_gft_arith surfaces a real pre-existing u64 width bug -> #1886)
+- FROZEN_HASH resealed per FROZEN.md ceremony
+- Closes #1888
 
 ## docs(TRI-NET) -- cross-line package P0/P1/P2 (this PR, Closes #696)
 

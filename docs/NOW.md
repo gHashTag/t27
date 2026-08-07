@@ -27,6 +27,9 @@ Last updated: 2026-08-08
 - Motivated by the bpseq silicon debug: a hypothesis was that the microsequencer diverges on silicon because training-grown weights push operands into a saturation range where the Python GF-T model and the RTL might disagree (the cross-target proof only used moderate [-4,4] operands). Tested it: model smul/sadd vs the C emission over 1500 EXTREME operands (full offset span 0..127, both signs, saturation-adjacent) -- **0 mismatches, ALL MATCH.** So the model is a faithful RTL reference across the WHOLE range; the bpseq silicon divergence is NOT an arithmetic/operand-range bug (it is confirmed TIMING: iverilog stable, board core == verified gen-verilog, model == RTL on all operands)
 - Turned the negative result into a real coverage improvement: `gen_pairs` now draws from BOTH the moderate range AND extreme raw GF-T u32 operands (full offset span, both signs, saturation-adjacent) -- overflow/underflow/carry edges the [-4,4] sweep never reached. Cross-target bit-exactness now proven on the full representable range
 - Tool-only; still ALL TARGETS BIT-EXACT. Refs #1764
+# NOW — feat: extend IGLA RACE cross-target to systolic PE + 2 more gen findings (2026-08-07)
+
+Last updated: 2026-08-07
 
 ## feat: IGLA RACE ternary_mac + systolic PE bit-exact across C/Rust/model (Refs #1764)
 
