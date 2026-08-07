@@ -1,6 +1,13 @@
-# NOW — feat: GF-T 2-layer ReLU XOR net (2026-08-07)
+# NOW — feat: GF-T on-chip XOR trainer (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T 2-layer XOR trainer (fixed hidden + trainable output) (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_xortrain.t27` — on-chip SGD step of a 2-layer XOR net: FIXED analytic hidden layer h0=relu(x0+x1), h1=relu(x0+x1-1) (features that make XOR linearly separable) + TRAINABLE output z=v0*h0+v1*h1 with hard-sigmoid + p-y gradient; `v_j' = v_j - eta*(p-y)*h_j`; returns (v0'<<32)|v1'
+- `test` block PASS via `icarus-simulate`; a faithful GF-T Python sim converges to 4/4 XOR by epoch 9
+- Proven on a live AX7203 via the SPLIT pattern: the trainable output layer learns on the proven `gft_logistic` bitstream (16.7M, streaming the host-computed hidden features h0,h1,label) -> XOR 4/4, v -> ~[1,-2]. As one single design (fasm 22.6M) it exceeds the measured openXC7 correctness ceiling (2nd confirmation); split big models: fixed part off-chip, trained part on a sub-ceiling bitstream
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T 2-layer ReLU network (solves XOR) — proven on AX7203 (Refs #1764)
 
