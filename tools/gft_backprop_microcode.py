@@ -156,6 +156,54 @@ def run(steps, rf):
         av = _mod(rf[a], am); bv = _mod(rf[b], bm)
         rf[d] = smul(av, bv) if op == "MUL" else (sadd(av, bv) if op == "ADD" else av)
 
+def emit_verilog(n_in, n_hid, n_out, modname):
+    """Emit a synthesizable microsequencer Verilog module for the given arch.
+    One shared GftSmul + one shared GftSadd, a register file, and a case(pc) ROM.
+    Weights init small-random; build with `synth_xilinx -nocarry` (sequencer
+    counters hit the nextpnr CARRY4-placement bug). Bigger nets = same datapath,
+    ~constant area (measured: (2,2,1) 2.93M fasm, (2,3,1) 2.92M)."""
+    import random
+    reg, steps = gen(n_in, n_hid, n_out); N = len(reg); NP = len(steps)
+    random.seed(3); initv = {}
+    for j in range(n_hid):
+        for k in range(n_in): initv[f"W{j}_{k}"] = round(random.uniform(0.5, 1.2), 3)
+    for o in range(n_out):
+        for j in range(n_hid): initv[f"v{o}_{j}"] = round(random.uniform(-1.0, 1.0), 3)
+    initv["c_-1"] = -1.0
+    pcw = max(1, NP.bit_length()); L = []
+    L.append(f"module {modname}(input clk, input rst, input start, input [31:0] x0i,"
+             f" input [31:0] x1i, input [31:0] ti, output reg [31:0] yout, output reg done);")
+    L.append(f"  reg [31:0] rf [0:{N-1}];")
+    L.append("  function [31:0] modf(input [31:0] v, input [2:0] m); reg neg0; reg [6:0] off;"
+             " reg [8:0] mant; begin neg0=v[16]; case(m)")
+    L.append("    3'd0:modf=v; 3'd1:modf=(v==0||neg0)?32'd0:v; 3'd2:modf=(v==0||neg0)?32'd0:32'd20480;")
+    L.append("    3'd3:modf=(v==0)?32'd0:(v^32'h10000);")
+    L.append("    3'd4:begin if(v==0)modf=0; else begin off=(v>>9)&7'h7f; mant=v&9'h1ff;"
+             " if(off<3+1)modf=0; else modf=(v&32'h10000)^32'h10000|(((off-3)<<9)|mant); end end")
+    L.append("    default:modf=v; endcase end endfunction")
+    L.append(f"  reg [{pcw-1}:0] pc; reg [7:0] settle; reg running; reg op; reg [7:0] ai,bi,di; reg [2:0] am,bm;")
+    L.append("  always @(*) begin op=0; ai=0; am=0; bi=0; bm=0; di=0; case(pc)")
+    for i, (o, a, amod, b, bmod, d) in enumerate(steps):
+        if o == "MOV": L.append(f"    {pcw}'d{i}: begin op=2; ai={a}; di={d}; end")
+        else: L.append(f"    {pcw}'d{i}: begin op={1 if o=='ADD' else 0}; ai={a}; am={amod}; bi={b}; bm={bmod}; di={d}; end")
+    L.append("    default: begin op=0; ai=0; bi=0; di=0; end endcase end")
+    L.append("  wire [31:0] a_val=modf(rf[ai],am), b_val=modf(rf[bi],bm); wire [31:0] mul_r, add_r;")
+    L.append("  GftSmul u_mul(.clk(clk),.rst_n(1'b1),.en(1'b1),.a(a_val),.b(b_val),.ready(),.result(mul_r));")
+    L.append("  GftSadd u_add(.clk(clk),.rst_n(1'b1),.en(1'b1),.a(a_val),.b(b_val),.ready(),.result(add_r));")
+    L.append("  localparam SETTLE=8'd40;")
+    L.append("  always @(posedge clk) begin if (rst) begin pc<=0; running<=0; done<=0; settle<=0;")
+    for name, val in initv.items(): L.append(f"    rf[{reg[name]}]<=32'd{enc(val)};")
+    L.append("  end else begin done<=0;")
+    L.append(f"    if(!running) begin if(start) begin rf[{reg['x0']}]<=x0i; rf[{reg['x1']}]<=x1i;"
+             f" rf[{reg['t0']}]<=ti; pc<=0; settle<=SETTLE; running<=1; end end")
+    L.append("    else begin if(settle==0) begin rf[di] <= (op==2)? a_val : (op? add_r : mul_r);")
+    L.append(f"      if(pc=={pcw}'d{NP-1}) begin running<=0; done<=1; yout<=rf[{reg['y0']}]; end"
+             " else begin pc<=pc+1'b1; settle<=SETTLE; end")
+    L.append("    end else settle<=settle-1; end end end")
+    L.append("endmodule")
+    return "\n".join(L)
+
+
 if __name__ == "__main__":
     for arch in [(2, 2, 1), (2, 3, 1), (2, 2, 2)]:
         reg, steps = gen(*arch)
@@ -175,3 +223,6 @@ if __name__ == "__main__":
             run(steps, rf); acc += int((dec(rf[reg["y0"]]) > 0.5)) == t
     assert acc == 4, f"XOR self-test failed: {acc}/4"
     print("self-test: generated backprop microcode trains XOR 4/4 -- OK")
+    v = emit_verilog(2, 3, 1, "bpseq231")
+    assert "module bpseq231" in v and v.count("\n") > 40
+    print("emit_verilog: (2,3,1) module generated -- OK (build with -nocarry, ~2.9M fasm)")

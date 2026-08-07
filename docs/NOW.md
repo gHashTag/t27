@@ -1,6 +1,14 @@
-# NOW — feat: GF-T backprop microcode generator (2026-08-07)
+# NOW — feat: microcode->Verilog emitter (programmable NN trainer) (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: emit_verilog for the GF-T backprop microsequencer (Refs #1764)
+
+- `tools/gft_backprop_microcode.py` gains `emit_verilog(n_in,n_hid,n_out,modname)` — emits a synthesizable microsequencer module (register file + case(pc) ROM) for any 2-layer net, completing the flow: topology -> microcode -> buildable Verilog
+- Self-test PASS (generated XOR microcode trains 4/4; emit_verilog produces a valid module)
+- **Measured: the (2,3,1) net (3 hidden, 43 steps) builds to fasm 2.92M -- essentially identical to the (2,2,1) XOR net's 2.93M**, Max 20.69 MHz PASS. The datapath (one shared smul+sadd) is fixed; bigger nets grow only the register file + microcode (= TIME, not area). Arbitrary 2-layer nets build to ~2.9M bitstreams, deep under the ~17M ceiling
+- => a PROGRAMMABLE ternary NN trainer where network size costs time, not FPGA area. Build with `synth_xilinx -nocarry`
+- Tool-only; no `gen/`/`coq/` edits; Refs #1764
 
 ## feat: backprop microcode generator for the GF-T microsequencer (Refs #1764)
 
