@@ -1,3 +1,41 @@
+> ## 2026-08-06 — Wave Loop 885 (module-scope `[589][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1830, PR #1831)
+>
+> ### What worked
+> - Variant A extended the module-scope packed AoS odd outer-dimension ladder to 589.
+>   The `[589][2]^6 Pt` witness is 1,206,272 bits (~1.151 MiBit), continues past the 1-MiBit
+>   line, and required no compiler changes.
+> - The generator copy-hazard checklist was cleared before the first run.
+> - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles), `icarus-cocotb`, and
+>   `seal --save` all passed for the W885 witness.
+> - Targeted `cargo test --release --test icarus_lowerable accepts_w885_bench_module_589x2p6_aos_var_call_write`
+>   passed.
+> - PR #1831 opened; auto-merge enabled.
+>
+> ### What changed behavior
+> - No changes to `bootstrap/src/compiler.rs`.
+> - No changes to `bootstrap/stage0/FROZEN_HASH`.
+> - Added `specs/scratch/w885_bench_module_589x2p6_aos_var_call_write.t27` (~2.5 MB /
+>   ~111,971 lines) with seal and Icarus baseline.
+> - Added integration test `accepts_w885_bench_module_589x2p6_aos_var_call_write`.
+> - Added generator script `scripts/gen_w885.py`.
+> - Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W885_2026-08-06.md` and next-wave
+>   plan `.claude/plans/wave-loop-886.md`.
+>
+> ### Validation
+> - `t27c parse` W885: PASS.
+> - `t27c icarus-lowerable` W885: PASS (`lowerable`).
+> - `t27c icarus-simulate` W885: PASS (17 cycles, PASSED).
+> - `t27c icarus-cocotb` W885: PASS (`reference-model OK`).
+> - `t27c seal --save` W885: PASS.
+> - Targeted cargo test W885: PASS.
+>
+> ### Notes / watch-outs
+> - A pre-existing `corpus_classifier_matches_lean_completeness` failure for
+>   `specs/cloud/railway_deploy.t27` (Rust lowerable `false`, Lean theorem `true`) is not
+>   introduced by W885. It reproduces on clean W882 and should be tracked separately.
+> - The full `icarus_lowerable` suite now reports 344 passed; 1 failed (the pre-existing
+>   mismatch above).
+>
 > ## 2026-08-06 — Wave Loop 884 (module-scope `[587][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1828, PR #1829)
 >
 > ### What worked
