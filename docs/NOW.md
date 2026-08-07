@@ -1,6 +1,13 @@
-# NOW — perf: GF-T log-depth magsub applied globally (2026-08-07)
+# NOW — feat: GF-T full 2-layer XOR backprop step (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T full 2-layer backprop (learnable hidden + output) (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_xorbp.t27` — full 2-layer XOR backprop step: hidden W(2x2) AND output v(2) BOTH trainable (fixed biases c=[0,-1], b=0). Forward z_j=W_j.x+c_j, h_j=relu(z_j), y=v.h; MSE backprop e=y-t, dv_j=e*h_j, dz_j=e*v_j*relu'(z_j), dW_jk=dz_j*x_k. Returns the updated weight-PAIR by `sel` (u64: 0->hidden0, 1->hidden1, 2->output)
+- `test` block PASS; a bit-faithful GF-T Python sim converges XOR 4/4 with BOTH layers learning (W->[[1,1],[1,1]], v->~[1,-2]) -- the capstone (learnable hidden layer, vs cycle 53's fixed-hidden+trained-output)
+- Size finding: a naive 3-core wrapper (one core per weight-pair, each recomputing the shared forward) is ~23.7K LUTs/core -> too big for the ~17M correctness ceiling; a shared-forward multi-frame structure (store h,e in registers, update across frames) is needed for silicon. Silicon also pending AX7203 JTAG reconnect
+- Enabled by the cycle 56-57 ~2x magsub shrink; spec-only; no `gen/`/`coq/` edits; Refs #1764
 
 ## perf: log-depth magsub across all GF-T specs (~2x smaller) (Refs #1764)
 
