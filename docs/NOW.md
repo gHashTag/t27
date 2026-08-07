@@ -1,6 +1,13 @@
-# NOW — feat: GF-T full 2-layer XOR backprop step (2026-08-07)
+# NOW — feat: GF-T backprop with power-of-2 eta (scale_q) (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T 2-layer backprop, scale_q eta optimization (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_xorbp2.t27` — the full 2-layer XOR backprop step (`gft_xorbp`) with `scale_q` applied to the weight updates: eta=0.125=2^-3 folded into an exponent-offset shift, removing the 6 eta-multipliers. In-spec test PASS; GF-T sim converges XOR 4/4 with eta=0.125
+- Size: single-core-with-sel backprop is fasm 23.7M -> 21.7M with scale_q -- STILL over the ~17M correctness ceiling (all 3 sel-branches synthesize into hardware since sel is a runtime input). Design finding: a stored-intermediates FSM is needed to fit -- run the forward ONCE (store h,e,z,dz,x in registers), then per-weight update frames reuse a single shared update datapath
+- The sequential/coordinate backprop dynamic (update one weight-pair per frame, recompute forward) converges -- verified in the GF-T sim
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T full 2-layer backprop (learnable hidden + output) (Refs #1764)
 
