@@ -70,6 +70,15 @@ no Docker, native macOS arm64.
   limitation — a commercial P&R would close the path directly — not a design flaw. A
   design's microcode step count predicts its marginality (more steps per frame = more
   chances for a glitch).
+- **The marginality is a placement property, not a localizable register bug — confirmed
+  by instrumentation.** We tried on-chip observability: widen the UART dump to expose the
+  hidden pre-activations (z0, z1) alongside the output y, so a glitching seed would reveal
+  *which* register diverges first. Adding the probe changed the design's behaviour from
+  "computes (marginally)" to "outputs all-zero" — the extra logic re-placed the shared
+  core past its (unconstrained) timing edge. This is a genuine Heisenbug: the deep path is
+  marginal enough that instrumenting it *moves* the result, which is itself the evidence
+  that the fault lives in the timing/placement of the whole path, not in one microcode
+  step. The fix is a real timing constraint (commercial P&R), not a code change.
 
 ## Reproducibility
 
