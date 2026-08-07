@@ -1,11 +1,38 @@
-# NOW — feat(igla): Wave Loop 886 (2026-08-06)
+# NOW — feat(igla): Wave Loop 887 (2026-08-06)
 
 Last updated: 2026-08-06
+
+## feat(igla): Wave Loop 886 close-out — [591][2]^6 Pt packed AoS witness (Refs #1832)
+
+- Branch: `wave-loop-886`
+- PR: #1833 (auto-merge enabled)
+
+### Что легло
+- `specs/scratch/w886_bench_module_591x2p6_aos_var_call_write.t27` (`[591][2]^6 Pt`, 37,824 elements, 1,210,368-bit packed vector, ~1.155 MiBit): module-scope non-power-of-two outer-dimension array-of-struct variable initialized from a function call, with indexed signed field writes and `assert_eq` read-back in a `bench` block.
+- Generator `scripts/gen_w886.py` copied from `gen_w885.py`, copy-hazard checklist cleared (`OUTER = 591`, `MID_IDX = 295`).
+- Integration test `accepts_w886_bench_module_591x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
+- Fresh seal `.trinity/seals/scratch_w886_bench_module_591x2p6_aos_var_call_write.json` (`seal --verify` MATCH).
+- Zero compiler / reference-model / `FROZEN_HASH` changes.
+
+### Validation
+- `t27c parse` → PASS
+- `t27c icarus-lowerable` → lowerable
+- `t27c icarus-simulate` → PASSED (17 cycles)
+- `t27c icarus-cocotb` → reference-model OK
+- `t27c seal --save` → saved
+- Targeted `cargo test --release --test icarus_lowerable accepts_w886_bench_module_591x2p6_aos_var_call_write` → PASS
+- Full suite: 345 passed; 1 pre-existing `corpus_classifier_matches_lean_completeness` mismatch for `specs/cloud/railway_deploy.t27` tracked separately.
+
+### Next
+- Create W887 issue and branch once W886 lands.
+- Variant A: `[593][2]^6 Pt` (~1.159 MiBit).
+
+---
 
 ## feat(igla): Wave Loop 885 close-out — [589][2]^6 Pt packed AoS witness (Refs #1830)
 
 - Branch: `wave-loop-885`
-- PR: #1831 (auto-merge enabled)
+- PR: #1831 (merged)
 
 ### Что легло
 - `specs/scratch/w885_bench_module_589x2p6_aos_var_call_write.t27` (`[589][2]^6 Pt`, 37,696 elements, 1,206,272-bit packed vector, ~1.151 MiBit): module-scope non-power-of-two outer-dimension array-of-struct variable initialized from a function call, with indexed signed field writes and `assert_eq` read-back in a `bench` block.
