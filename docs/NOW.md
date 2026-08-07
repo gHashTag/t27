@@ -1,6 +1,14 @@
-# NOW — feat: GF-T axpy (perceptron vector update) (2026-08-07)
+# NOW — feat: GF-T 2-layer ReLU XOR net (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T 2-layer ReLU network (solves XOR) — proven on AX7203 (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_xornet.t27` — 2-layer ReLU forward pass: `h=relu(W*x+c)`, `y=v.h+b`. A single linear model cannot separate XOR; the hidden ReLU layer makes it nonlinearly separable. Reuses smul/sadd/relu
+- `test` blocks (all 4 XOR corners) PASS via `icarus-simulate` per L4
+- Proven on a live AX7203 (`uart_xornet.v`, analytic XOR weights baked): XOR truth table 4/4 correct AND the correct nonlinear tent surface (peak 1.0 at x0+x1=1, 0 at 0/2) -- multi-layer nonlinear inference on silicon
+- fasm 9.4M, comfortably under the measured openXC7 correctness ceiling
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T axpy primitive — perceptron/SGD vector update (Refs #1764)
 
