@@ -1,6 +1,13 @@
-# NOW — feat: GF-T classifier inference (deploy) (2026-08-07)
+# NOW — feat: GF-T 3-class classifier inference (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T 3-class linear classifier inference — proven on AX7203 (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_classify3.t27` — 3-class linear classifier inference: `class = argmax_c(w_c0*x0 + w_c1*x1)` over 3 classes; reuses `smul/sadd` for logits and `category/gt` from the argmax stack
+- `test` blocks (c0/c1/c2 prototypes) PASS via `icarus-simulate` per L4
+- Proven on a live AX7203 (`uart_classify3.v`): a multiclass perceptron trained on host (3-way 2D, 99% train acc), 6 weights baked in; the board classifies **16/16 held-out points correctly across all 3 classes (100%)**
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T binary classifier inference — the deploy half (Refs #1764)
 
