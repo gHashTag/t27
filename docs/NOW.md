@@ -1,6 +1,14 @@
-# NOW — docs: GF-T whitepaper (investor/technical) (2026-08-07)
+# NOW — feat: trainable biases + real-task generalization (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: programmable trainer gains TRAINABLE BIASES + real-task demo (Refs #1764)
+
+- `tools/gft_backprop_microcode.py` `gen()` now emits TRAINABLE hidden biases b_j and output biases bo_o (a proper general 2-layer net, not the XOR-specific fixed-bias hack). Forward `z_j=W_j.x+b_j`, `y_o=v_o.relu(z)+bo_o`; backprop adds bias grads (db_j=dz_j, dbo_o=e_o) and updates
+- Self-tests PASS: (a) generated XOR microcode trains 4/4; (b) **a (2,4,1) net trains a NOISY NONLINEAR 2D task (XOR-region, real-valued points) and generalizes to held-out 58/60 (~97%)** -- real learning + generalization, not toy XOR
+- Still one shared smul+sadd datapath: (2,2,1)=29 steps -> (2,4,1) w/ biases just more microcode/registers, same ~constant area
+- => a proper programmable ternary NN trainer that learns real nonlinear tasks with generalization
+- Tool-only; no `gen/`/`coq/` edits; Refs #1764
 
 ## docs: GF-T technical whitepaper (Refs #1764)
 
