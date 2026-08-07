@@ -1,6 +1,14 @@
-# NOW — feat: GF-T backprop with power-of-2 eta (scale_q) (2026-08-07)
+# NOW — feat: GF-T fused weight-update primitive (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T madd -- fused weight update for stored-intermediates backprop (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_madd.t27` — `on_comb(w,factor,xin,k) = w - (factor*xin)*2^-k`: the single shared UPDATE datapath (one multiply + power-of-2 eta exponent-shift + subtract) for a stored-intermediates backprop, reused per weight across frames so a full 2-layer backprop fits under the ~17M correctness ceiling
+- `test` blocks (upd, nograd) PASS
+- Building block toward fully-on-chip full backprop (forward computed once + stored; this datapath updates each weight)
+- Gotcha noted: `input` is a reserved Verilog word -- cannot be a t27 param name (renamed to `xin`)
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T 2-layer backprop, scale_q eta optimization (Refs #1764)
 
