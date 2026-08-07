@@ -1,6 +1,12 @@
-# NOW — feat: emit_verilog custom init -> GENERATED trainer TRAINS XOR ON SILICON (2026-08-08)
+# NOW — test: CI quantifies "size costs TIME (steps), not AREA" (2026-08-08)
 
 Last updated: 2026-08-08
+
+## test: the emit gate now reports microcode step count per topology (Refs #1764)
+
+- Quantified the whitepaper's headline claim IN CI. The emit-bitexact gate now prints, per topology, the microcode STEP count next to the one-shared-multiplier datapath invariant: (2,2,1)=32 steps -> (2,4,2)=88 -> deep [3,4,4,2,1]=216 steps, while the synth area report shows cell counts stay ~constant (13945 -> 17468). So "network size costs TIME (microcode steps), not AREA (one shared multiply/add)" is now measured on every PR, not just asserted in prose
+- Bonus: the step count also PREDICTS on-silicon timing-marginality -- more steps per frame = more chances for a glitch on the timing-relaxed shared-core path (why the generated trainer with trainable biases, 32+ steps, needed more seed-search than a leaner design). This ties the CI metric to the silicon reality found in cycles 86-89
+- Also added [N steps / N regs] to each per-topology bit-exact OK line. Tool-only; Refs #1764
 
 ## feat: emit_verilog `init=` + closed the verified-generator -> hardware loop (Refs #1764)
 

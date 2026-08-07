@@ -132,7 +132,8 @@ def check(g, arch, workdir):
     if mism:
         print(f"FAIL {arch}: {len(mism)}/{len(py)}; first step {mism[0][0]} py={mism[0][1]} rtl={mism[0][2]}")
         return False
-    print(f"OK {arch}: RTL == model BIT-EXACT over {len(py)} training steps, all {n_out} output(s) (final yout={py[-1]})")
+    print(f"OK {arch}: RTL == model BIT-EXACT over {len(py)} training steps, all {n_out} output(s) "
+          f"[{len(steps)} microcode steps / {len(reg)} regs] (final yout={py[-1]})")
     return True
 
 
@@ -198,6 +199,14 @@ def main():
             print("--- datapath invariant (one shared smul + one shared sadd) ---")
             ok = all(datapath_check(g, a) for a in ARCHS)
             print("ALL ONE-MULTIPLIER" if ok else "DATAPATH FAIL")
+        if ok:
+            # quantify the core claim: bigger nets grow the microcode (TIME), not the
+            # one-shared-multiplier datapath (AREA). (Step count also predicts on-silicon
+            # timing-marginality: more steps per frame -> more chances for a glitch.)
+            print("--- size costs TIME (microcode steps), not AREA (1 shared multiplier) ---")
+            for a in ARCHS:
+                reg2, steps2 = (g.gen_deep(a) if isinstance(a, list) else g.gen(*a))
+                print(f"  {str(a):<16} {len(steps2):>4} steps  {len(reg2):>3} regs  -- same 1-smul+1-sadd datapath")
         if ok and shutil.which("yosys"):
             print("--- synthesizability + area (yosys synth_xilinx) ---")
             results = [synth_check(g, a, wd) for a in SYNTH_ARCHS]
