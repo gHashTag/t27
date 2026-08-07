@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## fix(gen-verilog-sim) -- test-block reg decls + 64-bit __mul_noop (this PR, Closes #1894, Closes #1886)
+
+- StmtAssign test-block bindings ('h = f(...);') now get hoisted reg declarations (width-inferred, 64-bit fallback) -- iverilog could not bind them before; unlocks 11 tri-net ring specs
+- __mul_noop widened to 64-bit in/out (128-bit acc, 64 iterations) -- u64 products no longer truncate to 32 bits; unlocks tri_gft_arith + 6 more money-layer specs
+- Remaining tri-net blockers are spec-side (Verilog reserved words 'class'/'small' as identifiers; one stale spec test) -- fixed in tri-net
+- FROZEN_HASH resealed per ceremony
+
 ## fix(gen-verilog-sim) -- lower plain assert(cond, "msg") in testbenches (this PR, Closes #1888)
 
 - `assert` is not a Verilog-2005 keyword and the 2-arg form is not SystemVerilog; the TB emitted it verbatim, iverilog rejected the file -- icarus-simulate unusable for specs using standard `assert()` tests

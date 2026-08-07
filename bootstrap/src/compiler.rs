@@ -6324,7 +6324,7 @@ impl VerilogCodegen {
 
         // Section: R-SI-1 compliant multiplication helper.
         // OpenLane R-SI-1 forbids the `*` operator in synthesizable RTL.
-        // t27c emits `__mul_noop(a, b)` instead of `a * b`; this 32-bit
+        // t27c emits `__mul_noop(a, b)` instead of `a * b`; this 64-bit
         // shift-and-add ladder is unconditionally injected so any module is
         // self-contained.
         self.write_indent();
@@ -6334,27 +6334,27 @@ impl VerilogCodegen {
         self.write_indent();
         self.write_line("// -------------------------------------------------------");
         self.write_indent();
-        self.write_line("function [31:0] __mul_noop;");
+        self.write_line("function [63:0] __mul_noop; // t27#1886: 64-bit, u64 products no longer truncate");
         self.write_indent();
-        self.write_line("    input [31:0] a;");
+        self.write_line("    input [63:0] a;");
         self.write_indent();
-        self.write_line("    input [31:0] b;");
+        self.write_line("    input [63:0] b;");
         self.write_indent();
         self.write_line("    integer i;");
         self.write_indent();
-        self.write_line("    reg [63:0] acc;");
+        self.write_line("    reg [127:0] acc;");
         self.write_indent();
         self.write_line("    begin");
         self.write_indent();
-        self.write_line("        acc = 64'd0;");
+        self.write_line("        acc = 128'd0;");
         self.write_indent();
-        self.write_line("        for (i = 0; i < 32; i = i + 1) begin");
+        self.write_line("        for (i = 0; i < 64; i = i + 1) begin");
         self.write_indent();
-        self.write_line("            if (b[i]) acc = acc + ({32'd0, a} << i);");
+        self.write_line("            if (b[i]) acc = acc + ({64'd0, a} << i);");
         self.write_indent();
         self.write_line("        end");
         self.write_indent();
-        self.write_line("        __mul_noop = acc[31:0];");
+        self.write_line("        __mul_noop = acc[63:0];");
         self.write_indent();
         self.write_line("    end");
         self.write_indent();
