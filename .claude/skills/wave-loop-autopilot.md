@@ -135,9 +135,10 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 888 | #1836 | wave-loop-888 | 595 | 297 | 38,080 | 1,218,560 | 1.162 | merged | #1837 |
 | 889 | #1838 | wave-loop-889 | 597 | 298 | 38,208 | 1,222,656 | 1.166 | open | #1840 |
 | 890 | #1841 | wave-loop-890 | 599 | 299 | 38,336 | 1,226,752 | 1.170 | open | #1842 |
-| **891** | **#1843** | **wave-loop-891 (READY)** | **601** | **300** | **38,464** | **1,230,848** | **1.174** | **READY** | **TBD** |
-| 892 | TBD | wave-loop-892 | 603 | 301 | 38,592 | 1,234,944 | 1.178 | planned | TBD |
+| 891 | #1843 | wave-loop-891 | 601 | 300 | 38,464 | 1,230,848 | 1.174 | open | #1844 |
+| **892** | **#1845** | **wave-loop-892 (READY)** | **603** | **301** | **38,592** | **1,234,944** | **1.178** | **READY** | **TBD** |
 | 893 | TBD | wave-loop-893 | 605 | 302 | 38,720 | 1,239,040 | 1.182 | planned | TBD |
+| 894 | TBD | wave-loop-894 | 607 | 303 | 38,848 | 1,243,136 | 1.186 | planned | TBD |
 
 ### Run-list notes
 - Issue numbers follow the observed pattern (issue = previous issue + 2).
