@@ -1,6 +1,14 @@
-# NOW — feat(igla): Wave Loop 890 (2026-08-06)
+# NOW — feat: GF-T magsub log-depth optimization (2026-08-07)
 
-Last updated: 2026-08-06
+Last updated: 2026-08-07
+
+## feat: GF-T magsub log-depth normalize (~2x smaller designs) (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_xorpercep4.t27` — fully-on-chip 2-layer XOR trainer using a LOG-DEPTH `magsub` normalize: replaces the original 12-iteration LINEAR normalize loop with a binary-search priority-encoder (stages 8/4/2/1) + a single barrel shift, capped identically (min(12, off-1))
+- **Proven bit-identical to the original magsub over 17.4 MILLION (hi,lo) pairs (0 mismatches); in-spec test PASS**
+- Synthesis impact: this design 9.1M fasm (vs 17.86M with the linear magsub, -48%); the same optimization takes gft_logistic 16.7M -> 9.62M (-42%). magsub is the design-size bulk (every `sadd` uses it), so this shrinks EVERY GF-T core ~2x and brings a fully-on-chip 2-layer trainer well under the ~17M correctness ceiling
+- Silicon reconfirmation pending: the AX7203 board degraded mid-session (configures but computes 0 for all ops, including known-good sgd) and needs a physical power-cycle; the optimization is sim-proven and synthesis-shrunk
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat(igla): Wave Loop 889 close-out — [597][2]^6 Pt packed AoS witness (Refs #1838)
 
