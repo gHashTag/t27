@@ -7930,6 +7930,38 @@ impl VerilogCodegen {
                             self.dedent();
                             self.write_indent();
                             self.write_line("end");
+                        } else if expr.kind == NodeKind::ExprCall
+                            && expr.name == "assert"
+                            && !expr.children.is_empty()
+                        {
+                            // Plain `assert(cond, "msg")`: `assert` is not a
+                            // Verilog-2005 keyword and the two-argument form is
+                            // not SystemVerilog either, so emitting it verbatim
+                            // made iverilog reject the whole testbench. Lower it
+                            // to the same if-based check assert_eq gets.
+                            let msg = expr
+                                .children
+                                .get(1)
+                                .map(|m| m.value.trim_matches('"').replace('%', "%%"))
+                                .unwrap_or_default();
+                            self.write_indent();
+                            self.write("if (!(");
+                            self.gen_verilog_expr(&expr.children[0]);
+                            self.write(")) begin\n");
+                            self.indent();
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "$display(\"[{}] {} : FAILED\");",
+                                block_tag, test_name
+                            ));
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "$display(\"  assert failed: {}\");",
+                                msg
+                            ));
+                            self.dedent();
+                            self.write_indent();
+                            self.write_line("end");
                         } else {
                             self.write_indent();
                             self.gen_verilog_expr(expr);
@@ -7980,6 +8012,36 @@ impl VerilogCodegen {
                             self.write_line(&format!(
                                 "$display(\"[{}] {} : FAILED\");",
                                 block_tag, test_name
+                            ));
+                            self.dedent();
+                            self.write_indent();
+                            self.write_line("end");
+                        } else if expr.kind == NodeKind::ExprCall
+                            && expr.name == "assert"
+                            && !expr.children.is_empty()
+                        {
+                            // Same lowering as in the assertions path: a verbatim
+                            // `assert(cond, "msg")` is not compilable Verilog.
+                            let msg = expr
+                                .children
+                                .get(1)
+                                .map(|m| m.value.trim_matches('"').replace('%', "%%"))
+                                .unwrap_or_default();
+                            self.materialize_call_array_tmps_in_expr(node);
+                            self.write_indent();
+                            self.write("if (!(");
+                            self.gen_verilog_expr(&expr.children[0]);
+                            self.write_line(")) begin");
+                            self.indent();
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "$display(\"[{}] {} : FAILED\");",
+                                block_tag, test_name
+                            ));
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "$display(\"  assert failed: {}\");",
+                                msg
                             ));
                             self.dedent();
                             self.write_indent();
