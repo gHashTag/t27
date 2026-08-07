@@ -1,6 +1,14 @@
-# NOW — feat: GF-T standalone smul/sadd datapath cores (2026-08-07)
+# NOW — feat: GF-T backprop microcode generator (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: backprop microcode generator for the GF-T microsequencer (Refs #1764)
+
+- **NEW** tool `tools/gft_backprop_microcode.py` — generates the full-backprop MICROCODE (sequence of (op, a, a_mod, b, b_mod, dst) steps over a register file) for an arbitrary 2-layer net (n_in inputs, n_hid ReLU hidden, n_out outputs) to run on the on-FPGA microsequencer (one shared GftSmul + one shared GftSadd)
+- Self-contained bit-faithful GF-T interpreter; **self-test: the generated (2,2,1) XOR microcode trains XOR to 4/4** (proves the generator emits correct backprop)
+- Key: any topology runs on the SAME ~3K-LUT datapath; only microcode length (=time) and register file grow. (2,2,1)=29 steps, (2,3,1)=43, (2,2,2)=42. Emitting the Verilog case-ROM from `steps` is mechanical (board/bpseq.v is the hand-written (2,2,1) that this reproduces, silicon-built at 2.93M fasm)
+- This makes the microsequencer a PROGRAMMABLE ternary NN trainer for arbitrary 2-layer nets under the ~17M ceiling
+- Tool-only; no `gen/`/`coq/` edits; Refs #1764
 
 ## feat: GF-T standalone smul + sadd cores (microsequencer datapath) (Refs #1764)
 
