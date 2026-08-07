@@ -1,6 +1,13 @@
-# NOW — feat: arbitrary-DEPTH trainer (>2 layers), proven bit-exact + synth (2026-08-07)
+# NOW — ci: datapath invariant (one shared multiplier) + area trend report (2026-08-07)
 
 Last updated: 2026-08-07
+
+## ci: guard the shared-datapath invariant + report area across topologies (Refs #1764)
+
+- The gate proved bit-exactness and synthesizability but did NOT guard the core architectural claim -- ONE shared GftSmul + ONE shared GftSadd regardless of topology. A change that accidentally parallelized the datapath would instantiate N multipliers (area EXPLOSION), yet still pass the sim + synth gates. `datapath_check` now asserts exactly 1 GftSmul + 1 GftSadd in the emitted RTL for every topology (2-layer, multi-output, and deep) -- version-independent (a text check, no toolchain). Verified it catches a 2-multiplier violation
+- The synth phase now prints a per-topology AREA REPORT (cells/FF/LUT); counts are yosys-version-specific, so it is framed as a trend to watch across PRs rather than an absolute gate. The numbers make the "depth ~ constant area" claim visible: deep [2,4,3,1] (17672 cells local) ~ 2-layer (2,4,2) (17468)
+- This is the area-regression guard done in a version-robust way: rather than a fragile absolute cell-count baseline (CI yosys != local yosys), it guards the INVARIANT that actually prevents area blowup (one multiplier), and surfaces the raw numbers for human trend review
+- => every PR touching the generator now proves bit-exactness, synthesizability, AND the one-shared-multiplier datapath invariant, with area visible. Tool+gate only; Refs #1764
 
 ## feat: lift the 2-layer restriction -> arbitrary-depth net, bit-exact + synthesizable (Refs #1764)
 
