@@ -1,6 +1,12 @@
-# NOW — docs: localized the shared-core deep path (GftSadd=54, GftSmul=44) (2026-08-08)
+# NOW — fix(gen-verilog-sim): test-block reg decls + 64-bit __mul_noop (2026-08-08)
 
 Last updated: 2026-08-08
+
+## fix(gen-verilog-sim): test-block reg declarations + 64-bit __mul_noop (Closes #1894, Closes #1886)
+
+- Named test-block bindings (`h = f(...);`) parse as StmtAssign, not StmtLocal, so `gen_verilog_probe_prelude` never declared them and iverilog could not bind the names -- 21 of tri-net's 26 lowerable ring specs failed to compile. Every plain-identifier assign target is now declared once (recursively collected, width-inferred from the value expression, 64-bit fallback) before any procedural statement
+- The injected R-SI-1 `__mul_noop` helper was `function [31:0]` with `[31:0]` inputs: every u64 multiply silently truncated, so GF-T32/64 mantissa products computed wrong in simulation while gen-rust and the silicon KATs are correct. Widened to `[63:0]` in/out with a `[127:0]` accumulator over 64 iterations; 32-bit callers unchanged
+- tri-net icarus KAT run goes 5/26 -> 23/26 locally; the last three blockers are tri-net spec-side (Verilog reserved words `class`/`packed`/`small` as identifiers, one stale test) and fixed there. Bootstrap unit suite 1537/1537. FROZEN_HASH resealed per ceremony
 
 ## docs: localized the shared-core critical depth — pipeline the normalize/round cascade, not the multiplier (Refs #1764)
 
