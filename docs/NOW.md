@@ -1,6 +1,13 @@
-# NOW — feat: GF-T 2-input on-chip trainer (2026-08-07)
+# NOW — feat: GF-T nonlinear (ReLU) on-chip trainer (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T nonlinear (ReLU) on-chip trainer — proven on AX7203 (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_train2relu.t27` — on-chip SGD step of a NONLINEAR 2-input neuron `y=relu(w0*x0+w1*x1)`: forward with `relu(z)`, error, gradient GATED by `relu'(z)` (`d=e*relu_prime(z)`, `g_i=d*x_i`), updates `w_i'=w_i-eta*g_i`, returns `(w0'<<32)|w1'`. Reuses `smul/sadd/neg/mag*` from `gft_sgd_step`
+- `test` blocks (active z>0 updates, dead z<0 no-update) PASS via `icarus-simulate` per L4
+- Proven on a live AX7203 (`uart_train2relu.v`): active-region learning converges; a dead-ReLU probe (z<0, huge t) leaves weights FROZEN (relu' gates the gradient); resuming active resumes learning — the defining nonlinear behavior on silicon
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T 2-input on-chip trainer — proven on AX7203 (Refs #1764)
 
