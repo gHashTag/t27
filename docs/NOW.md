@@ -1,6 +1,13 @@
-# NOW — docs: a slower clock is not the fix; pipelining is (2026-08-08)
+# NOW — docs: localized the shared-core deep path (GftSadd=54, GftSmul=44) (2026-08-08)
 
 Last updated: 2026-08-08
+
+## docs: localized the shared-core critical depth — pipeline the normalize/round cascade, not the multiplier (Refs #1764)
+
+- Measured where the deep combinational path actually is, so the pipeline cut lands in the right place. `GftSmul` is purely combinational (`assign result = smul(a,b)`; clk/en/ready unused → no read-before-ready bug). Yosys `ltp` puts the shared-core critical depth at `GftSadd` = 54 and `GftSmul` = 44
+- The depth is NOT the multiplier width: `magmul`'s `*` lowers to a 32-iteration shift-add, but operands are `512+mant ∈ [512,1023]` (10-bit), so yosys already prunes the dead upper iterations — hand-narrowing the loop to 10 leaves depth unchanged (44→45) and area flat. Tested this BEFORE touching the verified spec (observe-before-mutate); narrowing the multiply is a dead end
+- The real depth is the dependent normalize/round cascade: `magsub`'s 4-stage priority-shift + `<<14` fixed-point + RNE in `GftSadd`, and `magmul`'s post-product RNE carry in `GftSmul`. Concrete pipeline cut: split each cascade into TWO registered stages (~27 / ~22 deep), which both halves the path and resynchronises it (kills the placement hazard); the microsequencer then waits a fixed 2-cycle latency instead of a settle counter
+- Reinforces why neither slow-clock nor path-shortening fixes it: the ~47 ns nominal path is already ~100× under the µs settle window, so the glitch is a placement hazard invisible to static timing — only a mid-cascade register addresses it. Documented in `docs/SILICON_TRAINING_METHODOLOGY.md`. Docs only. Refs #1764
 
 ## docs: a slower clock cannot fix the seed-lottery — pipelining the shared core is the only structural fix (Refs #1764)
 

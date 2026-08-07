@@ -102,6 +102,23 @@ no Docker, native macOS arm64.
   200 MHz. This is a code/spec change, not a clock or constraint change. It is the
   prerequisite for training nets larger than XOR on this open flow (where seed-search
   runs out — a 62-step net does not stabilise in any seed).
+- **Where the depth actually is (measured, so we pipeline the right place).** `GftSmul`
+  is purely combinational (`assign result = smul(a,b)`; the `clk`/`en`/`ready` ports are
+  unused, so there is no read-before-ready bug). Yosys `ltp` (longest topological path)
+  puts the shared-core critical depth at **`GftSadd` = 54** and **`GftSmul` = 44**. The
+  depth is *not* the multiplier width: the `*` in `magmul` lowers to a 32-iteration
+  shift-add, but its operands are `512+mant ∈ [512,1023]` (10-bit), so yosys prunes the
+  dead upper iterations — hand-narrowing the loop to 10 leaves the depth unchanged (44 →
+  45) and the area flat, so **narrowing the multiply is a dead end** (tested before
+  touching the verified spec). The real depth is the *dependent normalize/round cascade*:
+  `magsub`'s 4-stage priority-shift + `<<14` fixed-point + round-to-nearest-even in
+  `GftSadd`, and `magmul`'s post-product RNE carry in `GftSmul`. So the pipeline cut is
+  concrete: split each of those cascades into **two registered stages** (~27 and ~22 deep),
+  which both halves the path *and* resynchronises it — the microsequencer then waits the
+  fixed 2-cycle latency instead of a `settle` counter. Note the ~47 ns nominal path is
+  already ~100× under the µs settle window, which is why the glitch is a *placement hazard*
+  a static-timing fix cannot see, and only a mid-cascade register (resynchronisation)
+  addresses.
 
 ## Reproducibility
 
