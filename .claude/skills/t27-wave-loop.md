@@ -57,6 +57,37 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
+## Worked example — Wave Loop 897
+
+Wave Loop 897 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:
+
+- Selected Variant A: module-scope `[613][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w897.py` from `scripts/gen_w896.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment),
+  then verified with a post-generation `grep` sanity check (`OUTER = 613`, `MID_IDX = 306`).
+- Produced `specs/scratch/w897_bench_module_613x2p6_aos_var_call_write.t27`
+  (39,232 elements, 1,255,424-bit packed vector, ~1.198 MiBit).
+- Added integration test `accepts_w897_bench_module_613x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save` — all PASS.
+  - Targeted `cargo test --release --test icarus_lowerable accepts_w897...` PASS.
+  - Full suite: 356 passed; 1 pre-existing `corpus_classifier_matches_lean_completeness`
+    mismatch for `specs/cloud/railway_deploy.t27` tracked separately.
+- Research background: same context as W888–W896 (Icarus V13, `128c621` bound-normalization
+  fix, Vitis HLS UG1399 `compact=bit`, Vericert v2.0.0, Roofline). 1.198 MiBit still comfortably
+  below Icarus practical limits.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W897_2026-08-06.md` and
+  next-wave plan `.claude/plans/wave-loop-898.md` with variants A/B/C.
+- Closed with commit `Closes #1857`, pushed branch `wave-loop-897`, opened PR #1858.
+- Updated this skill's Live Wave Loop Tracker to wave 898.
+
+Key learning: the 1.20-MiBit neighborhood remains a soft boundary for t27c and Icarus at
+1.198 MiBit. Full `icarus_lowerable` suite runtime is ~48 s and still CI-friendly at
+356 tests + 1 pre-existing failure.
+
 ## Worked example — Wave Loop 896
 
 Wave Loop 896 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:
@@ -4016,13 +4047,13 @@ variants are queued."
 
 | Field | Value |
 |-------|-------|
-| **Current wave** | 887 |
-| **Issue** | #1834 |
-| **Branch** | `wave-loop-887` |
-| **Parent branch** | `wave-loop-886` HEAD because earlier wave PRs remain open |
-| **Recommended variant** | A — module-scope `[593][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes
+| **Current wave** | 898 |
+| **Issue** | #1859 |
+| **Branch** | `wave-loop-898` |
+| **Parent branch** | `wave-loop-897` HEAD because earlier wave PRs remain open |
+| **Recommended variant** | A — module-scope `[615][2]^6 Pt` packed array-of-struct variable from call with indexed signed writes
 | **Status** | READY TO START
-| **Next wave variants queued** | W888 Variant A `[595][2]^6 Pt`; Variant B `[593][3]^6 Pt` stride scaling; Variant C `[593][2]^6 Pt` negative-index wrap-around
+| **Next wave variants queued** | W899 Variant A `[617][2]^6 Pt`; Variant B `[615][3]^6 Pt` stride scaling; Variant C `[615][2]^6 Pt` negative-index wrap-around
 
 ### Open backlog (non-blocking)
 
