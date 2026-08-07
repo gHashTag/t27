@@ -1,6 +1,12 @@
-# NOW — pipelining the shared cores does NOT fix the lottery; fault is outside the datapath (2026-08-08)
+# NOW — write/control hardening also fails; the seed-lottery is a GLOBAL effect (2026-08-08)
 
 Last updated: 2026-08-08
+
+## docs: write/control hardening does NOT fix the lottery either -> by elimination it is a GLOBAL clock/placement effect (Refs #1764)
+
+- Tested the last local hypothesis: registered the destination index `di` + the result into FFs and wrote the rf from the REGISTERED address+data (clean synchronous write); bit-exact in sim. On the AX7203 across 8 seeds: several dead-routed, and every responder still glitched (explode ~1e16 or collapse to 0), same as baseline
+- CONCLUSION OF THE ROOT-CAUSE ARC (cycles 82-100): every local register-based fix has failed -- combinational datapath endpoints (cycle 97), mid-cloud core pipeline (cycle 99), and write/control (now) were each resynchronised with FFs and none changed the lottery. A fault that survives registering EVERY local logic boundary is, by elimination, a GLOBAL effect: clock-distribution skew on the fabric IBUFDS net across a large --timing-allow-fail placement, routing, or IR-drop -- not a logic hazard any local RTL edit can reach
+- PRACTICAL ANSWER stands: seed-search (XOR trains bit-exact on a good seed). Remaining STRUCTURAL levers: a real clock tree (MMCM, buildable on this flow) which reduces skew, or commercial P&R timing closure. Added ruled-out #11. Board restored (generated capstone XOR 4/4). Docs only. Refs #1764
 
 ## docs: the decisive test — pipelining both cores (mid-cloud, bit-exact) does NOT fix the lottery; fault is outside the arithmetic datapath (Refs #1764)
 

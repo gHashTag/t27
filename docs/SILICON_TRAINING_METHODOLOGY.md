@@ -183,13 +183,24 @@ does not re-run them:
     in the register-file write / control path (`di` destination decode, `pc`/`settle`/`cen`
     counters, or the write-capture), or is a global placement effect. (Sample is four seeds;
     the base rate is ~1/8, so 0/4 is indicative, not a proof of zero improvement.)
+11. **Hardening the write / control path does NOT fix it either.** Registered the
+    destination index `di` and the result into flip-flops and wrote the register file from
+    the *registered* address+data (a clean synchronous write) — bit-exact in simulation.
+    On the AX7203 across eight seeds: several dead-routed, and every seed that responded
+    still glitched (explode to ~1e16 or collapse to zero), same as the baseline. So the
+    write-address / write-data path is not the culprit either.
 
-Live path (redirected): **the fault is outside the arithmetic cores.** Registering the
-datapath (endpoints and mid-cloud) does not help, so the next suspects are the **rf-write /
-control path** — register the destination index `di` and the write-enable, and/or harden the
-`pc`/`settle`/`cen` counters — and a **global placement** effect (clock skew / routing).
-Open experiment: an **MMCM** real divided clock. Bit-exact core prototypes in
-`scratchpad/retime/`; pipelined trainer in `scratchpad/board/bppipe/`.
+Conclusion of the root-cause arc: **every local register-based fix has failed** — the
+combinational datapath at the endpoints (7), mid-cloud (10), and the write/control path
+(11) were each resynchronised with flip-flops and none changed the lottery. A fault that
+survives registering every local logic boundary is, by elimination, a **global effect**:
+clock distribution (skew on the fabric `IBUFDS` net across a large `--timing-allow-fail`
+placement), routing, or IR-drop — not a logic hazard any local RTL edit can reach. The
+**practical answer is seed-search** (XOR trains bit-exact on a good seed); the only
+remaining *structural* levers are a **real clock tree (MMCM)**, which reduces skew and is
+buildable on this flow (item: MMCM places), or **commercial P&R** timing closure. Bit-exact
+prototypes: cores in `scratchpad/retime/`, pipelined trainer in `scratchpad/board/bppipe/`,
+write/control-hardened in `scratchpad/board/bpctrl/`.
 
 ## Reproducibility
 
