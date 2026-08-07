@@ -162,17 +162,17 @@ def run(steps, rf):
 def emit_verilog(n_in, n_hid, n_out, modname):
     """Emit a synthesizable microsequencer Verilog module for the given arch.
     One shared GftSmul + one shared GftSadd, a register file, and a case(pc) ROM.
-    Weights init small-random; build with `synth_xilinx -nocarry` (sequencer
-    counters hit the nextpnr CARRY4-placement bug). Bigger nets = same datapath,
-    ~constant area (measured: (2,2,1) 2.93M fasm, (2,3,1) 2.92M)."""
+    Fully parametric interface: one x{k}i input port per input, one t{o}i target
+    port per output, a packed yout ([32*n_out-1:0], y0 in the LSB word). Weights
+    init small-random; build with `synth_xilinx -nocarry` (sequencer counters hit
+    the nextpnr CARRY4-placement bug). Bigger nets = same datapath, ~constant area
+    (measured: (2,2,1) 2.93M fasm, (2,3,1) 2.92M)."""
     import random
-    # the emitted module hard-wires x0i/x1i/ti -> it can only carry 2 inputs and 1
-    # target. Multi-output would need t1.. ports (else t1.. read as uninitialized x
-    # in RTL vs 0 in the model -> divergence). Hidden width is free; that is the
-    # "programmable size" axis the whitepaper claims. Guard the supported shape.
-    if n_in != 2 or n_out != 1:
-        raise ValueError(f"emit_verilog wires x0i/x1i/ti: supports n_in=2, n_out=1 "
-                         f"(hidden width free); got n_in={n_in}, n_out={n_out}")
+    # Fully parametric interface: one x{k}i port per input, one t{o}i port per
+    # target, and a packed yout ([32*n_out-1:0], y0 in the LSB word). Every t{o} is
+    # driven, so no target register is read uninitialized (the old multi-output bug).
+    if n_in < 1 or n_hid < 1 or n_out < 1:
+        raise ValueError(f"emit_verilog needs n_in,n_hid,n_out >= 1; got {(n_in, n_hid, n_out)}")
     reg, steps = gen(n_in, n_hid, n_out); N = len(reg); NP = len(steps)
     random.seed(3); initv = {}
     for j in range(n_hid):
@@ -182,8 +182,10 @@ def emit_verilog(n_in, n_hid, n_out, modname):
     for j in range(n_hid): initv[f"b{j}"] = round(random.uniform(-0.5, 0.5), 3)
     for o in range(n_out): initv[f"bo{o}"] = 0.0
     pcw = max(1, NP.bit_length()); L = []
-    L.append(f"module {modname}(input clk, input rst, input start, input [31:0] x0i,"
-             f" input [31:0] x1i, input [31:0] ti, output reg [31:0] yout, output reg done);")
+    xports = ", ".join(f"input [31:0] x{k}i" for k in range(n_in))
+    tports = ", ".join(f"input [31:0] t{o}i" for o in range(n_out))
+    L.append(f"module {modname}(input clk, input rst, input start, {xports}, {tports},"
+             f" output reg [{32*n_out-1}:0] yout, output reg done);")
     L.append(f"  reg [31:0] rf [0:{N-1}];")
     L.append("  function [31:0] modf(input [31:0] v, input [2:0] m); reg neg0; reg [6:0] off;"
              " reg [8:0] mant; begin neg0=v[16]; case(m)")
@@ -206,10 +208,12 @@ def emit_verilog(n_in, n_hid, n_out, modname):
     L.append(f"    for(gi=0;gi<{N};gi=gi+1) rf[gi]<=32'd0;")  # zero scratch (match model's 0-init; no x-propagation)
     for name, val in initv.items(): L.append(f"    rf[{reg[name]}]<=32'd{enc(val)};")
     L.append("  end else begin done<=0;")
-    L.append(f"    if(!running) begin if(start) begin rf[{reg['x0']}]<=x0i; rf[{reg['x1']}]<=x1i;"
-             f" rf[{reg['t0']}]<=ti; pc<=0; settle<=SETTLE; running<=1; end end")
+    loads = " ".join(f"rf[{reg[f'x{k}']}]<=x{k}i;" for k in range(n_in)) \
+            + " " + " ".join(f"rf[{reg[f't{o}']}]<=t{o}i;" for o in range(n_out))
+    L.append(f"    if(!running) begin if(start) begin {loads} pc<=0; settle<=SETTLE; running<=1; end end")
+    ypack = "{" + ", ".join(f"rf[{reg[f'y{o}']}]" for o in range(n_out - 1, -1, -1)) + "}"
     L.append("    else begin if(settle==0) begin rf[di] <= (op==2)? a_val : (op? add_r : mul_r);")
-    L.append(f"      if(pc=={pcw}'d{NP-1}) begin running<=0; done<=1; yout<=rf[{reg['y0']}]; end"
+    L.append(f"      if(pc=={pcw}'d{NP-1}) begin running<=0; done<=1; yout<={ypack}; end"
              " else begin pc<=pc+1'b1; settle<=SETTLE; end")
     L.append("    end else settle<=settle-1; end end end")
     L.append("endmodule")
@@ -267,10 +271,41 @@ if __name__ == "__main__":
     assert "module bpseq231" in v and v.count("\n") > 40
     assert "for(gi=0;gi<" in v, "scratch registers must be zero-inited on reset"
     print("emit_verilog: (2,3,1) module generated -- OK (build with -nocarry, ~2.9M fasm)")
-    # guard: the x0i/x1i/ti port shape only supports n_in=2, n_out=1 (hidden free)
-    for bad in [(2, 3, 2), (3, 3, 1)]:
-        try:
-            emit_verilog(*bad, "nope"); raise AssertionError(f"emit_verilog{bad} should have raised")
-        except ValueError:
-            pass
-    print("emit_verilog: rejects unsupported port shapes (n_in!=2 or n_out!=1) -- OK")
+    # multi-output: (2,4,2) module emits one x/t port per input/output + packed yout
+    v2 = emit_verilog(2, 4, 2, "bpseq242")
+    assert "input [31:0] x0i, input [31:0] x1i" in v2
+    assert "input [31:0] t0i, input [31:0] t1i" in v2
+    assert "output reg [63:0] yout" in v2, "n_out=2 packs two 32-bit outputs"
+    print("emit_verilog: (2,4,2) multi-output module generated -- OK (2 x/t ports, packed yout)")
+    # multi-output LEARNING: (2,4,2) one-hot 2-class quadrant task, argmax over outputs
+    reg, steps = gen(2, 4, 2); rf = [0] * len(reg)
+    random.seed(5)
+    for j in range(4):
+        for k in range(2): rf[reg[f"W{j}_{k}"]] = enc(round(random.uniform(-1, 1), 3))
+        rf[reg[f"b{j}"]] = enc(round(random.uniform(-0.5, 0.5), 3))
+    for o in range(2):
+        for j in range(4): rf[reg[f"v{o}_{j}"]] = enc(round(random.uniform(-1, 1), 3))
+    random.seed(9)
+    def _cls(a, b): return int((a > 0) != (b > 0))
+    def _ds2(n):
+        d = []
+        while len(d) < n:
+            a = random.uniform(-1, 1); b = random.uniform(-1, 1)
+            if abs(a) < 0.15 or abs(b) < 0.15: continue
+            d.append((a, b, _cls(a, b)))
+        return d
+    tr2, te2 = _ds2(160), _ds2(60)
+    def _pred2(a, b):
+        sav = rf[:]; rf[reg["x0"]] = enc(a); rf[reg["x1"]] = enc(b)
+        rf[reg["t0"]] = 0; rf[reg["t1"]] = 0; run(steps, rf)
+        ys = [dec(rf[reg[f"y{o}"]]) for o in range(2)]
+        for i in range(len(rf)): rf[i] = sav[i]
+        return 0 if ys[0] >= ys[1] else 1
+    for _ in range(60):
+        for a, b, c in tr2:
+            rf[reg["x0"]] = enc(a); rf[reg["x1"]] = enc(b)
+            rf[reg["t0"]] = enc(1.0 if c == 0 else 0.0); rf[reg["t1"]] = enc(1.0 if c == 1 else 0.0)
+            run(steps, rf)
+    te = sum(1 for a, b, c in te2 if _pred2(a, b) == c)
+    assert te >= int(0.9 * len(te2)), f"multi-output held-out too low: {te}/{len(te2)}"
+    print(f"self-test: (2,4,2) multi-output one-hot classifier, held-out {te}/{len(te2)} (>=90%) -- OK")

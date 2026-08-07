@@ -1,6 +1,14 @@
-# NOW — ci: bit-exact emit gate makes the proof an invariant (2026-08-07)
+# NOW — feat: parametric multi-output trainer, bit-exact (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: lift n_out=1 -> fully parametric multi-output/multi-input, proven bit-exact (Refs #1764)
+
+- Removed the generator's last functional restriction. `emit_verilog` now emits a FULLY PARAMETRIC interface: one `x{k}i` port per input, one `t{o}i` port per output, and a packed `yout` ([32*n_out-1:0], y0 in the LSB word). Every target is driven -> no uninitialized-`t1` divergence (the bug the cross-check caught last cycle is now impossible)
+- **Bit-exact gate extended to compare EVERY output per step** across 8 topologies incl. multi-output (2,2,2)/(2,4,2)/(2,3,3) and multi-input (3,4,2): **RTL == model BIT-EXACT over 80 training steps, all outputs** -- the previously-diverging (2,2,2) now passes
+- Python self-test: added a (2,4,2) one-hot 2-class classifier that LEARNS (held-out 56/60, argmax over the 2 outputs) -- confirms the multi-output backprop algorithm is correct, not just self-consistent
+- Debugging note baked into the gate: an inline sequence of many `wait(done)` in one `initial` block hangs under iverilog -> the harness drives via a per-arch `task` (proven handshake)
+- => the programmable trainer now generates ANY 2-layer topology (inputs x hidden x outputs), each proven bit-exact spec->RTL. Tool+gate only; Refs #1764
 
 ## ci: emit_verilog bit-exactness is now a reproducible gate, not a one-off (Refs #1764)
 
