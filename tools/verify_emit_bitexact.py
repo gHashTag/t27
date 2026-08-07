@@ -125,23 +125,31 @@ def check(g, arch, workdir):
 
 
 def synth_check(g, arch, workdir):
-    """Prove the emitted microsequencer actually SYNTHESIZES to real Xilinx cells
-    (yosys synth_xilinx) -- bit-exact-in-sim doesn't imply synthesizable. Asserts
-    no yosys error, and a non-zero flip-flop AND LUT count (a design DCE'd to
-    nothing would 'pass' sim of an empty module but map to 0 cells)."""
+    """Prove the emitted microsequencer actually SYNTHESIZES (yosys synth_xilinx) --
+    bit-exact-in-sim doesn't imply synthesizable. Asserts no yosys error and a
+    large post-synth cell count (a design DCE'd to nothing would 'pass' sim of an
+    empty module but map to ~0 cells). Uses the version-stable `Number of cells`
+    stat line rather than parsing per-primitive names (which vary across yosys
+    versions); reports the FF/LUT breakdown when it is parseable."""
     open(os.path.join(workdir, "bpx.v"), "w").write(g.emit_verilog(*arch, "bpx"))
-    # -DSIMULATION strips the cores' `ifndef SIMULATION` self-test blocks
+    # -DSIMULATION strips the cores' `ifndef SIMULATION` self-test blocks.
     cmd = ("read_verilog -DSIMULATION bpx.v GftSmul.v GftSadd.v; hierarchy -top bpx; "
            "synth_xilinx -nocarry -flatten; stat")
     r = subprocess.run(["yosys", "-p", cmd], capture_output=True, text=True, cwd=workdir)
-    if r.returncode != 0 or re.search(r"^ERROR", r.stdout + r.stderr, re.M):
-        err = (r.stdout + r.stderr)
-        print(f"FAIL {arch}: yosys synth error\n{err[-800:]}"); return False
-    ff = sum(int(n) for n, c in re.findall(r"^\s*(\d+)\s+(FD\w+)", r.stdout, re.M))
-    lut = sum(int(n) for n, c in re.findall(r"^\s*(\d+)\s+(LUT\w+)", r.stdout, re.M))
-    if ff == 0 or lut == 0:
-        print(f"FAIL {arch}: synthesized to FF={ff} LUT={lut} (design optimized away?)"); return False
-    print(f"OK {arch}: yosys synth_xilinx -> {ff} FF + {lut} LUT (maps to real hardware)")
+    log = r.stdout + r.stderr  # some yosys builds log stat to stderr, not stdout
+    if r.returncode != 0 or re.search(r"^ERROR", log, re.M):
+        print(f"FAIL {arch}: yosys synth error\n{log[-800:]}"); return False
+    # cell total is printed as "N cells" (or "Number of cells: N" on some versions)
+    totals = [int(n) for n in re.findall(r"(\d+)\s+cells\b", log)
+              + re.findall(r"Number of cells:\s*(\d+)", log)]
+    total = max(totals) if totals else 0
+    if total < 200:
+        print(f"FAIL {arch}: synthesized to {total} cells (design optimized away?)\n{log[-1200:]}")
+        return False
+    ff = sum(int(n) for n, _ in re.findall(r"(\d+)\s+(FD\w+)", log))
+    lut = sum(int(n) for n, _ in re.findall(r"(\d+)\s+(LUT\w*)", log))
+    extra = f" ({ff} FF + {lut} LUT)" if ff and lut else ""
+    print(f"OK {arch}: yosys synth_xilinx -> {total} cells{extra} (maps to real hardware)")
     return True
 
 
