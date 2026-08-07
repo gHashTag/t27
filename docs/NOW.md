@@ -1,6 +1,13 @@
-# NOW — feat: GF-T on-chip binary classifier (2026-08-07)
+# NOW — feat: GF-T classifier inference (deploy) (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T binary classifier inference — the deploy half (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_classify.t27` — binary linear classifier INFERENCE: `class = 1 iff w0*x0+w1*x1 > 0, else 0`. The deployment half of the on-chip trainer `gft_logistic`
+- `test` blocks (pos/neg) PASS via `icarus-simulate` per L4
+- Closes the edge loop on a live AX7203: train `gft_logistic` on-chip -> read learned W* over UART -> bake W* into `uart_classify.v` -> SRAM classifies 12/12 held-out with ZERO training -> SPI-flash it (persistent, boots pre-trained)
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T on-chip binary logistic classifier — proven on AX7203 (Refs #1764)
 
