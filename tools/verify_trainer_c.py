@@ -71,40 +71,41 @@ def build_seq(n_in, n_out):
     return seq
 
 
-def check(g, arch, t27c, wd):
-    v, reg, steps, n_in, n_out = emit_and_gen(g, arch)
-    init = [(int(i), int(val)) for i, val in re.findall(r"rf\[(\d+)\]<=32'd(\d+);", v)]
+def run_model(g, reg, steps, init_pairs, n_in, n_out, seq):
+    """Run the training sequence through the Python GF-T model. init_pairs = list of
+    (reg_index, u32); seq = list of (xs_floats, ts_floats). Returns per-step output
+    tuples (yout u32 for each of n_out)."""
     rf = [0] * len(reg)
-    for i, val in init:
+    for i, val in init_pairs:
         rf[i] = val
-    seq = build_seq(n_in, n_out)
-    # python model reference
-    py = []
+    out = []
     for xs, ts in seq:
         for k in range(n_in): rf[reg[f"x{k}"]] = g.enc(xs[k])
         for o in range(n_out): rf[reg[f"t{o}"]] = g.enc(ts[o])
         g.run(steps, rf)
-        py.append(tuple(rf[reg[f"y{o}"]] & 0xFFFFFFFF for o in range(n_out)))
-    # emit the C trainer
+        out.append(tuple(rf[reg[f"y{o}"]] & 0xFFFFFFFF for o in range(n_out)))
+    return out
+
+
+def run_c(g, reg, steps, init_pairs, n_in, n_out, seq, t27c, wd):
+    """Emit the trainer as a C program (t27c gen-c primitives + microcode interpreter
+    + modf), compile, run the same sequence. Returns per-step output tuples, or None
+    on a build failure. gftmod.h is (re)written into wd."""
     hdr = subprocess.run([t27c, "gen-c", "specs/ternary/gft_smul.t27"],
                          capture_output=True, text=True, cwd=ROOT).stdout
     if "GFTSMUL_H" not in hdr:
-        skip("t27c gen-c failed")
+        return None
     open(os.path.join(wd, "gftmod.h"), "w").write(hdr)
     op = ",".join("2" if o == "MOV" else ("1" if o == "ADD" else "0") for o, *_ in steps)
     ai = ",".join(str(s[1]) for s in steps); am = ",".join(str(s[2]) for s in steps)
     bi = ",".join(str(s[3]) for s in steps); bm = ",".join(str(s[4]) for s in steps)
     di = ",".join(str(s[5]) for s in steps)
-    initc = "".join(f"rf[{i}]={val}u;" for i, val in init)
+    initc = "".join(f"rf[{i}]={val}u;" for i, val in init_pairs)
     xidx = [reg[f"x{k}"] for k in range(n_in)]; tidx = [reg[f"t{o}"] for o in range(n_out)]
     yidx = [reg[f"y{o}"] for o in range(n_out)]
-    rows = []
-    for xs, ts in seq:
-        vals = [g.enc(x) for x in xs] + [g.enc(t) for t in ts]
-        rows.append(",".join(str(x) for x in vals))
-    samples = "{" + "},{".join(rows) + "}"
-    ncol = n_in + n_out
-    # build the C main
+    rows = ["{" + ",".join(str(x) for x in ([g.enc(x) for x in xs] + [g.enc(t) for t in ts])) + "}"
+            for xs, ts in seq]
+    samples = ",".join(rows)
     main = f"""#define assert_eq(a,b) ((void)0)
 #include "gftmod.h"
 #include <stdio.h>
@@ -118,7 +119,7 @@ static void run_steps(void){{
     rf[DI[pc]] = OP[pc]==2 ? a : (OP[pc] ? sadd(a,b) : smul(a,b));
   }}
 }}
-static const uint32_t SAMP[{len(seq)}][{ncol}]={{{samples}}};
+static const uint32_t SAMP[{len(seq)}][{n_in + n_out}]={{{samples}}};
 static const int XIDX[]={{{",".join(map(str,xidx))}}}, TIDX[]={{{",".join(map(str,tidx))}}}, YIDX[]={{{",".join(map(str,yidx))}}};
 int main(void){{
   int s,k;
@@ -136,9 +137,19 @@ int main(void){{
     b = os.path.join(wd, "tbin")
     r = subprocess.run(["cc", "-O2", "-o", b, cf], cwd=wd, capture_output=True, text=True)
     if r.returncode != 0:
-        print(f"FAIL {arch}: C trainer failed to compile\n{r.stderr[-800:]}"); return False
+        return None
     out = subprocess.run([b], capture_output=True, text=True).stdout
-    cy = [tuple(map(int, ln.split())) for ln in out.strip().splitlines()]
+    return [tuple(map(int, ln.split())) for ln in out.strip().splitlines()]
+
+
+def check(g, arch, t27c, wd):
+    v, reg, steps, n_in, n_out = emit_and_gen(g, arch)
+    init = [(int(i), int(val)) for i, val in re.findall(r"rf\[(\d+)\]<=32'd(\d+);", v)]
+    seq = build_seq(n_in, n_out)
+    py = run_model(g, reg, steps, init, n_in, n_out, seq)
+    cy = run_c(g, reg, steps, init, n_in, n_out, seq, t27c, wd)
+    if cy is None:
+        print(f"FAIL {arch}: C trainer failed to build/run"); return False
     if len(cy) != len(py):
         print(f"FAIL {arch}: C produced {len(cy)} of {len(py)} steps"); return False
     mism = [(i, p, c) for i, (p, c) in enumerate(zip(py, cy)) if p != c]
