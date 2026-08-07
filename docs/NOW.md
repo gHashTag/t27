@@ -1,6 +1,12 @@
-# NOW — test: synth gate asserts ZERO transparent latches (2026-08-08)
+# NOW — docs: seed-lottery marginality is placement-level, Heisenbug-confirmed (2026-08-08)
 
 Last updated: 2026-08-08
+
+## docs: record that seed-lottery marginality is a PLACEMENT property, not a register bug (Refs #1764)
+
+- Ran the last diagnostic for the on-silicon seed-lottery: on-chip observability. Widened the UART result dump from 4B (y) to 12B `{z1, z0, y}` so a glitching seed would reveal WHICH register diverges first (hidden pre-activations vs output). The instrumented design output ALL-ZERO on every seed tried — adding the probe re-placed the shared core past its (unconstrained) timing edge
+- This is a genuine **Heisenbug**: instrumenting the deep combinational path *moves* the result, which is itself the evidence that the fault is a timing/placement property of the WHOLE path, not a localizable single-register bug. The fix remains a real multicycle timing constraint (commercial P&R) or a structural pipeline — not an RTL change
+- Documented in `docs/SILICON_TRAINING_METHODOLOGY.md` "Honest limits". Docs only. Refs #1764
 
 ## test: catch gen-verilog latch inference that reaches silicon (Refs #1764)
 
