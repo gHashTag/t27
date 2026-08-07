@@ -7,8 +7,13 @@ input count) via emit_verilog(), and proves in a simulator that the generated RT
 is BIT-EXACT to the Python GF-T model over a full training run (forward + backprop
 + weight update), comparing EVERY output's u32 per step.
 
+Then, if yosys is present, it SYNTHESIZES the emitted RTL (synth_xilinx) for a
+couple of topologies and asserts a non-zero FF+LUT mapping -- catching a change
+that stays bit-exact in sim but breaks synthesizability.
+
 Self-contained and CI-friendly: if t27c or iverilog is unavailable it prints SKIP
-and exits 0 (so it never breaks a Rust-only CI); a real mismatch exits 1. Run:
+and exits 0 (so it never breaks a Rust-only CI); the synth phase is skipped when
+yosys is absent; a real mismatch or synth failure exits 1. Run:
     python3 tools/verify_emit_bitexact.py
 """
 import os, re, sys, shutil, subprocess, tempfile, importlib.util, random
@@ -18,6 +23,7 @@ SMUL_SPEC = os.path.join(ROOT, "specs/ternary/gft_smul.t27")
 SADD_SPEC = os.path.join(ROOT, "specs/ternary/gft_sadd.t27")
 ARCHS = [(2, 2, 1), (2, 3, 1), (2, 4, 1), (2, 5, 1),  # hidden-width axis
          (2, 2, 2), (2, 4, 2), (2, 3, 3), (3, 4, 2)]   # multi-output + multi-input
+SYNTH_ARCHS = [(2, 2, 1), (2, 4, 2)]  # one single-output + one multi-output (yosys is slower)
 STEPS = 80
 
 
@@ -118,6 +124,35 @@ def check(g, arch, workdir):
     return True
 
 
+def synth_check(g, arch, workdir):
+    """Prove the emitted microsequencer actually SYNTHESIZES (yosys synth_xilinx) --
+    bit-exact-in-sim doesn't imply synthesizable. Asserts no yosys error and a
+    large post-synth cell count (a design DCE'd to nothing would 'pass' sim of an
+    empty module but map to ~0 cells). Uses the version-stable `Number of cells`
+    stat line rather than parsing per-primitive names (which vary across yosys
+    versions); reports the FF/LUT breakdown when it is parseable."""
+    open(os.path.join(workdir, "bpx.v"), "w").write(g.emit_verilog(*arch, "bpx"))
+    # -DSIMULATION strips the cores' `ifndef SIMULATION` self-test blocks.
+    cmd = ("read_verilog -DSIMULATION bpx.v GftSmul.v GftSadd.v; hierarchy -top bpx; "
+           "synth_xilinx -nocarry -flatten; stat")
+    r = subprocess.run(["yosys", "-p", cmd], capture_output=True, text=True, cwd=workdir)
+    log = r.stdout + r.stderr  # some yosys builds log stat to stderr, not stdout
+    if r.returncode != 0 or re.search(r"^ERROR", log, re.M):
+        print(f"FAIL {arch}: yosys synth error\n{log[-800:]}"); return False
+    # cell total is printed as "N cells" (or "Number of cells: N" on some versions)
+    totals = [int(n) for n in re.findall(r"(\d+)\s+cells\b", log)
+              + re.findall(r"Number of cells:\s*(\d+)", log)]
+    total = max(totals) if totals else 0
+    if total < 200:
+        print(f"FAIL {arch}: synthesized to {total} cells (design optimized away?)\n{log[-1200:]}")
+        return False
+    ff = sum(int(n) for n, _ in re.findall(r"(\d+)\s+(FD\w+)", log))
+    lut = sum(int(n) for n, _ in re.findall(r"(\d+)\s+(LUT\w*)", log))
+    extra = f" ({ff} FF + {lut} LUT)" if ff and lut else ""
+    print(f"OK {arch}: yosys synth_xilinx -> {total} cells{extra} (maps to real hardware)")
+    return True
+
+
 def main():
     if not shutil.which("iverilog") or not shutil.which("vvp"):
         skip("iverilog/vvp not on PATH")
@@ -131,7 +166,13 @@ def main():
         gen_core(t27c, SMUL_SPEC, os.path.join(wd, "GftSmul.v"))
         gen_core(t27c, SADD_SPEC, os.path.join(wd, "GftSadd.v"))
         ok = all(check(g, a, wd) for a in ARCHS)
-    print("ALL BIT-EXACT" if ok else "MISMATCH")
+        print("ALL BIT-EXACT" if ok else "MISMATCH")
+        if ok and shutil.which("yosys"):
+            print("--- synthesizability (yosys synth_xilinx) ---")
+            ok = all(synth_check(g, a, wd) for a in SYNTH_ARCHS)
+            print("ALL SYNTHESIZE" if ok else "SYNTH FAIL")
+        elif ok:
+            print("synth check skipped (yosys not on PATH)")
     sys.exit(0 if ok else 1)
 
 
