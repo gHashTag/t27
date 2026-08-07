@@ -168,13 +168,28 @@ does not re-run them:
    register. **Implication for the pipeline: it must be a *spec-level* `on_clock` where the
    compiler co-optimizes the stages (and the multiply becomes a real pipelined primitive),
    not a register hand-inserted into the codegen output.**
+10. **Pipelining the shared cores (mid-cloud registers) — the decisive silicon test —
+    does NOT fix the lottery.** Both cores were pipelined latency-1 with a register *inside*
+    the combinational cloud (`GftSmul_p2b` cut mid-RNE, `GftSadd_p2` cut mid-cascade), each
+    verified **bit-exact** to its combinational core over 40–60 k random operands (including
+    zero and exact-cancellation corners), and the integrated trainer is bit-exact in
+    simulation and reaches **fmax 32 MHz** (vs 21 baseline). Flashed on the AX7203 across
+    four seeds: **0 / 4 trained stably** — seeds 2 and 3 were near-model at ep0
+    (y = 0/0.718/0.886/−0.011 and 0/0.551/1.021/0.506) then collapsed to all-zero by ep20,
+    the characteristic training-divergence glitch; seeds 1, 4 glitched from ep0. This is the
+    same behaviour as the baseline (~1/8 seeds stable), so **registering the core datapath —
+    at the endpoints (item 7) *or* mid-cloud — does not fix the fault.** Together these say
+    the hazard is **not in the `GftSmul`/`GftSadd` combinational datapath at all** — it lives
+    in the register-file write / control path (`di` destination decode, `pc`/`settle`/`cen`
+    counters, or the write-capture), or is a global placement effect. (Sample is four seeds;
+    the base rate is ~1/8, so 0/4 is indicative, not a proof of zero improvement.)
 
-Live path: **a spec-level `on_clock` pipelined `GftSadd`/`GftSmul`** (compiler-scheduled
-stages, not a hand-dropped register), whose *mid-cloud resynchronization* is the untested
-lever against the hazard. Since the microsequencer already waits `settle` ≫ 1 cycle, a
-latency-1 pipelined core needs no sequencer change — the decisive experiment is to build
-the trainer on pipelined cores and see if the glitch dies. Open experiment: an **MMCM**
-real divided clock. Prototypes bit-exact-verified in `scratchpad/retime/`.
+Live path (redirected): **the fault is outside the arithmetic cores.** Registering the
+datapath (endpoints and mid-cloud) does not help, so the next suspects are the **rf-write /
+control path** — register the destination index `di` and the write-enable, and/or harden the
+`pc`/`settle`/`cen` counters — and a **global placement** effect (clock skew / routing).
+Open experiment: an **MMCM** real divided clock. Bit-exact core prototypes in
+`scratchpad/retime/`; pipelined trainer in `scratchpad/board/bppipe/`.
 
 ## Reproducibility
 

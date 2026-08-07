@@ -1,6 +1,13 @@
-# NOW — pipeline prototype: bit-exact but a dropped-in register won't reduce depth (2026-08-08)
+# NOW — pipelining the shared cores does NOT fix the lottery; fault is outside the datapath (2026-08-08)
 
 Last updated: 2026-08-08
+
+## docs: the decisive test — pipelining both cores (mid-cloud, bit-exact) does NOT fix the lottery; fault is outside the arithmetic datapath (Refs #1764)
+
+- Ran the decisive silicon experiment for the whole pipeline branch. Pipelined BOTH shared cores latency-1 with a register INSIDE the combinational cloud (GftSmul_p2b cut mid-RNE, GftSadd_p2 cut mid-cascade), each VERIFIED BIT-EXACT to its combinational core over 40-60k random operands (incl. zero + exact-cancellation corners); integrated trainer bit-exact in sim, fmax 32 MHz (vs 21 baseline)
+- On the AX7203, 4 seeds: 0/4 trained stably. Seeds 2,3 were near-model at ep0 (0/0.718/0.886/-0.011 and 0/0.551/1.021/0.506) then collapsed to all-zero by ep20 (the characteristic glitch); seeds 1,4 glitched from ep0 -- same as baseline (~1/8 stable)
+- CONCLUSION: registering the core datapath -- endpoints (cycle 97) OR mid-cloud (now) -- does NOT fix the fault. So the hazard is NOT in the GftSmul/GftSadd combinational datapath at all. This closes the entire "pipeline the cores" branch (cycles 94-99)
+- REDIRECT: the next suspects are the rf-write / control path (register the destination index di + write-enable; harden pc/settle/cen counters) and a global placement effect (clock skew/routing). Added ruled-out #10. Board restored to generated capstone (XOR 4/4). (Sample is 4 seeds; base rate ~1/8, so 0/4 is indicative not a zero-improvement proof.) Docs only. Refs #1764
 
 ## docs: pipeline prototype — bit-exact, but naive RTL register insertion does not reduce depth; go spec-level on_clock (Refs #1764)
 
