@@ -1,6 +1,14 @@
-# NOW — feat: GF-T fused weight-update primitive (2026-08-07)
+# NOW — feat: GF-T standalone smul/sadd datapath cores (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T standalone smul + sadd cores (microsequencer datapath) (Refs #1764)
+
+- **NEW** specs `specs/ternary/gft_smul.t27` (signed GF-T16 multiply a*b) and `specs/ternary/gft_sadd.t27` (signed GF-T16 add a+b) — the two GF-T ops exposed as standalone modules (previously only helper fns inside larger specs)
+- `test` blocks 3/3 each PASS
+- Purpose: the shared datapath cores for a MICROSEQUENCED full 2-layer backprop. Instead of instantiating many multipliers (which pushes the naive backprop to ~22M, over the ~17M ceiling), an FSM feeds operands cycle-by-cycle and reuses ONE smul + ONE sadd core + `gft_madd` (the fused update) -> tiny area. Forward computed once, intermediates in registers, updates sequenced
+- Sequencer state plan: LOAD -> [MUL(w,x) x4 for logits] -> [ADD] -> RELU -> [MUL for grads] -> [MADD x6 for updates], one op per few cycles, ~20 states
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T madd -- fused weight update for stored-intermediates backprop (Refs #1764)
 
