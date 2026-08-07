@@ -1,3 +1,41 @@
+> ## 2026-08-06 — Wave Loop 890 (module-scope `[599][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1841, PR #1842)
+>
+> ### What worked
+> - Variant A extended the module-scope packed AoS odd outer-dimension ladder to 599.
+>   The `[599][2]^6 Pt` witness is 1,226,752 bits (~1.170 MiBit), continues past the 1-MiBit
+>   line, and required no compiler changes.
+> - The generator copy-hazard checklist was cleared before the first run.
+> - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles), `icarus-cocotb`, and
+>   `seal --save` all passed for the W890 witness.
+> - Targeted `cargo test --release --test icarus_lowerable accepts_w890_bench_module_599x2p6_aos_var_call_write`
+>   passed.
+> - PR #1842 opened; auto-merge enabled.
+>
+> ### What changed behavior
+> - No changes to `bootstrap/src/compiler.rs`.
+> - No changes to `bootstrap/stage0/FROZEN_HASH`.
+> - Added `specs/scratch/w890_bench_module_599x2p6_aos_var_call_write.t27` (~2.6 MB /
+>   ~113,871 lines) with seal and Icarus baseline.
+> - Added integration test `accepts_w890_bench_module_599x2p6_aos_var_call_write`.
+> - Added generator script `scripts/gen_w890.py`.
+> - Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W890_2026-08-06.md` and next-wave
+>   plan `.claude/plans/wave-loop-891.md`.
+>
+> ### Validation
+> - `t27c parse` W890: PASS.
+> - `t27c icarus-lowerable` W890: PASS (`lowerable`).
+> - `t27c icarus-simulate` W890: PASS (17 cycles, PASSED).
+> - `t27c icarus-cocotb` W890: PASS (`reference-model OK`).
+> - `t27c seal --save` W890: PASS.
+> - Targeted cargo test W890: PASS.
+>
+> ### Notes / watch-outs
+> - A pre-existing `corpus_classifier_matches_lean_completeness` failure for
+>   `specs/cloud/railway_deploy.t27` (Rust lowerable `false`, Lean theorem `true`) is not
+>   introduced by W890. It reproduces on clean master and should be tracked separately.
+> - The full `icarus_lowerable` suite now reports 349 passed; 1 failed (the pre-existing
+>   mismatch above).
+>
 > ## 2026-08-06 — Wave Loop 889 (module-scope `[597][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1838, PR #1840)
 >
 > ### What worked
