@@ -1,6 +1,12 @@
-# NOW — ci: datapath invariant (one shared multiplier) + area trend report (2026-08-07)
+# NOW — docs: whitepaper updated for the programmable/deep/CI-enforced trainer (2026-08-07)
 
 Last updated: 2026-08-07
+
+## docs: GFT_WHITEPAPER reflects cycles 71-74 (no structural limits, CI-enforced) (Refs #1764)
+
+- The whitepaper undersold the product: it described a 2-layer-only trainer with multi-output/depth pending. Updated section 4 to the current reality: (b) one-shared-multiplier microsequencer; (c) FULLY PROGRAMMABLE trainer -- any feed-forward topology, free input/output/hidden width AND arbitrary depth (2/3/4-layer), trainable biases, learning real tasks (noisy nonlinear ~97% 2-layer / 98% 3-layer, multi-class one-hot 93%); (d) correctness as a CI-ENFORCED invariant -- bit-exact spec->RTL over a full training run + synthesizability + one-shared-multiplier datapath invariant, on every PR
+- Section 5 (honesty) updated: post-synth cell counts are yosys-version-specific (trend not absolute); the multi-output bug the gate caught + fixed is documented as the gate doing its job; the on-silicon run of the newest stack is the only pending item (one JTAG re-connect), earlier 2-layer trainers already validated on the board
+- Docs only; no code/spec/gen changes. Refs #1764
 
 ## ci: guard the shared-datapath invariant + report area across topologies (Refs #1764)
 

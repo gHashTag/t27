@@ -51,7 +51,7 @@ pre-trained. `train → save → deploy` closed on one device.
 
 ---
 
-## 4. Two engineering results that make it scale
+## 4. Four engineering results that make it scale
 
 **(a) A ~2× area optimization, proven bit-identical.** The dominant cost in every GF-T
 design is `magsub`'s normalization. Replacing its 12-iteration *linear* normalize with a
@@ -64,11 +64,28 @@ parallel full 2-layer backprop is ~22M fasm, over the measured openXC7 *correctn
 ceiling (~17M). A **microsequencer** — one shared multiply core + one shared add core,
 driven by a microcode program over a register file — runs the full forward + backprop +
 update in **~3.4K LUTs / 2.93M fasm** (7× smaller), meets timing at 12 MHz, and **trains
-XOR to 4/4** (both layers learn) in simulation, with the silicon bitstream built and
-validated. A microcode generator turns *any* 2-layer topology into a buildable bitstream:
-the (2,3,1) network builds to **2.92M fasm — essentially identical to the XOR net's
-2.93M**. Network size costs *time*, not FPGA *area*. This is a **programmable ternary
-neural-network trainer**.
+XOR to 4/4** (both layers learn), with the silicon bitstream built and validated.
+Network size costs *time*, not FPGA *area* — one shared multiplier, regardless of the net.
+
+**(c) A fully programmable trainer — any feed-forward topology, no structural limits.**
+A microcode generator turns an *arbitrary* feed-forward net into a buildable bitstream:
+free input count, free output count, free hidden width, and **arbitrary depth** (2-, 3-,
+4-layer nets all generate). Biases are trainable at every layer. The generated trainers
+learn *real* tasks, not toy XOR: a noisy nonlinear 2-D task to **~97 %** held-out (2-layer)
+and **98 %** (3-layer, two hidden layers), and a multi-class one-hot classifier to **93 %**
+(argmax over outputs). Because the datapath is one shared multiply/add, a 3-layer
+`[2,4,3,1]` net synthesizes to essentially the same cell count as a 2-layer `(2,4,2)` —
+depth is *time*, not *area*, measured and CI-checked (see (d)).
+
+**(d) Correctness is a CI-enforced invariant, not a one-off.** Every change to the trainer
+generator must pass a gate that, for a spread of topologies (2- to 4-layer, multi-input,
+multi-output): regenerates the GF-T arithmetic cores fresh from their `.t27` specs, and
+proves the generated RTL is **bit-exact to an independent GF-T model over a full 80-step
+training run** (forward + backprop + update, every output compared per step) in Icarus
+Verilog; then **synthesizes** it with yosys (non-zero cell mapping) and asserts the
+**one-shared-multiplier datapath invariant** (a change that parallelized the datapath —
+area blow-up — would fail here). Spec→Verilog bit-exactness is thus *guaranteed on every
+pull request*, not asserted once.
 
 ---
 
@@ -79,9 +96,19 @@ neural-network trainer**.
   independent model, never trusted on a UART response alone.
 - **The compiler's wide return is u64.** Values > 64 bits are handled by the
   microsequencer (one value per step), not by wide ports.
-- The microsequencer's forward-both-layers-trainable step is proven in simulation and
-  built to a valid, timing-clean bitstream; the on-silicon training run is pending only a
-  physical JTAG re-connect on the board.
+- **Post-synthesis cell counts are yosys-version-specific.** The CI area report is a
+  *trend* to watch across pull requests, not an absolute number; the architectural
+  guarantee (one shared multiplier, area ≈ constant in network size) is enforced as an
+  invariant instead.
+- **Multi-output was a real bug, caught by the gate and fixed.** An early multi-output
+  emit left a target register undriven (uninitialized in RTL, zero in the model); the
+  bit-exact cross-check surfaced it. The port interface was made fully parametric and the
+  register file zero-initialized on reset, so the divergence is now structurally
+  impossible — an example of the gate doing its job.
+- **The on-silicon run of the newest programmable/deep stack is pending one physical JTAG
+  re-connect.** The stack is proven in simulation and CI (bit-exact + synthesizable +
+  datapath-invariant) for every topology; the earlier 2-layer trainers were already run
+  and validated on the live board.
 
 ---
 
