@@ -157,9 +157,24 @@ does not re-run them:
    (10-bit operands); loop 32 → 10 leaves the depth unchanged (44 → 45).
 7. **Endpoint registration** — bit-exact and raises fmax, but does not fix the lottery
    (hazard is internal to the cloud).
+8. **Automatic retiming** (`synth_xilinx -retime`) — moves only a few levels (ltp 57 → 51
+   on `GftSadd` with two output registers). Not enough to split the cloud.
+9. **Dropping a register into the *generated* combinational function** (hand RTL pipeline)
+   — bit-exact but does **not** reduce depth. Two 2-stage `GftSmul` prototypes (cut after
+   the product; cut mid-RNE after `carry`/`q`/`r`) are both verified bit-exact to the
+   combinational core over ~40 k random operands, yet ltp *rose* 44 → 49 / 50: the register
+   boundary defeats yosys's cross-function optimization of the inlined `sadd`/`magmul`/
+   `mul_noop`, and the depth (RNE normalize + accumulator) does not split at a dropped-in
+   register. **Implication for the pipeline: it must be a *spec-level* `on_clock` where the
+   compiler co-optimizes the stages (and the multiply becomes a real pipelined primitive),
+   not a register hand-inserted into the codegen output.**
 
-Live path: **pipeline the depth-54 `GftSadd` / depth-44 `GftSmul` normalize/round cascade
-into two registered stages.** Open experiment: an **MMCM** real divided clock.
+Live path: **a spec-level `on_clock` pipelined `GftSadd`/`GftSmul`** (compiler-scheduled
+stages, not a hand-dropped register), whose *mid-cloud resynchronization* is the untested
+lever against the hazard. Since the microsequencer already waits `settle` ≫ 1 cycle, a
+latency-1 pipelined core needs no sequencer change — the decisive experiment is to build
+the trainer on pipelined cores and see if the glitch dies. Open experiment: an **MMCM**
+real divided clock. Prototypes bit-exact-verified in `scratchpad/retime/`.
 
 ## Reproducibility
 
