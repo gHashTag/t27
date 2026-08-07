@@ -1,6 +1,13 @@
-# NOW — feat: GF-T on-chip XOR trainer (2026-08-07)
+# NOW — feat: GF-T fully-on-chip XOR perceptron (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T fully-on-chip 2-layer XOR (perceptron output) (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_xorpercep.t27` — fully-on-chip 2-layer XOR trainer: fixed hidden h0=relu(x0+x1), h1=relu(x0+x1-1) computed on-FPGA + trainable PERCEPTRON output (pred=z>0, g=pred-y, v_j'=v_j-eta*g*h_j; no hard-sigmoid to stay small); returns (v0'<<32)|v1'
+- `test` block PASS; GF-T Python sim converges XOR 4/4 (v->(0.25,-0.50))
+- Honest hardware note: as ONE design (fasm 19.5M) it EXCEEDS the openXC7 correctness ceiling -- silicon responds but never updates its weights. This REFINES the ceiling to ~17-18M (works <=16.7M, fails >=19.5M). The working on-chip XOR path is the split (cycle 53): fixed hidden off-chip + output trained on the 16.7M gft_logistic bitstream
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T 2-layer XOR trainer (fixed hidden + trainable output) (Refs #1764)
 
