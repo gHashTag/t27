@@ -27,50 +27,53 @@ def enc(x):
     off = min(off, 127); return (s << 16) | (off << 9) | m
 
 def gen(n_in, n_hid, n_out):
-    """Return (reg_map, steps) for the full backprop of a 2-layer net."""
+    """Return (reg_map, steps) for the full backprop of a 2-layer net with TRAINABLE
+    hidden biases b_j and output biases bo_o (a proper general 2-layer net)."""
     idx = [0]; reg = {}
     def alloc(name): reg[name] = idx[0]; idx[0] += 1; return reg[name]
     for j in range(n_hid):
         for k in range(n_in): alloc(f"W{j}_{k}")
+    for j in range(n_hid): alloc(f"b{j}")
     for o in range(n_out):
         for j in range(n_hid): alloc(f"v{o}_{j}")
+    for o in range(n_out): alloc(f"bo{o}")
     for k in range(n_in): alloc(f"x{k}")
     for o in range(n_out): alloc(f"t{o}")
     for j in range(n_hid): alloc(f"z{j}")
     for o in range(n_out): alloc(f"y{o}")
     for o in range(n_out): alloc(f"e{o}")
     for j in range(n_hid): alloc(f"dz{j}")
-    alloc("m1"); alloc("acc"); alloc("c_-1")
+    alloc("m1"); alloc("acc")
     S = []
     def MUL(a, am, b, bm, d): S.append(("MUL", reg[a], am, reg[b], bm, reg[d]))
     def ADD(a, am, b, bm, d): S.append(("ADD", reg[a], am, reg[b], bm, reg[d]))
-    def MOV(a, d):            S.append(("MOV", reg[a], 0, reg[a], 0, reg[d]))
-    # forward: z_j = sum_k W[j][k]*x[k] + c_j  (c_0=0; c_{j>=1} = -1, XOR trick)
+    # forward: z_j = W_j.x + b_j
     for j in range(n_hid):
         MUL(f"W{j}_0", 0, "x0", 0, "acc")
         for k in range(1, n_in):
             MUL(f"W{j}_{k}", 0, f"x{k}", 0, "m1"); ADD("acc", 0, "m1", 0, "acc")
-        if j >= 1: ADD("acc", 0, "c_-1", 0, f"z{j}")
-        else:      MOV("acc", f"z{j}")
-    # y_o = sum_j v[o][j]*relu(z_j) ; e_o = y_o - t_o
+        ADD("acc", 0, f"b{j}", 0, f"z{j}")
+    # y_o = v_o . relu(z) + bo_o ; e_o = y_o - t_o
     for o in range(n_out):
         MUL(f"v{o}_0", 0, "z0", 1, "acc")
         for j in range(1, n_hid):
             MUL(f"v{o}_{j}", 0, f"z{j}", 1, "m1"); ADD("acc", 0, "m1", 0, "acc")
-        MOV("acc", f"y{o}"); ADD(f"y{o}", 0, f"t{o}", 3, f"e{o}")
-    # grads: dz_j = (sum_o e_o*v[o][j]) * relu'(z_j)
+        ADD("acc", 0, f"bo{o}", 0, f"y{o}"); ADD(f"y{o}", 0, f"t{o}", 3, f"e{o}")
+    # grads: dz_j = (sum_o e_o*v_oj) * relu'(z_j)
     for j in range(n_hid):
         MUL("e0", 0, f"v0_{j}", 0, "acc")
         for o in range(1, n_out):
             MUL(f"e{o}", 0, f"v{o}_{j}", 0, "m1"); ADD("acc", 0, "m1", 0, "acc")
         MUL("acc", 0, f"z{j}", 2, f"dz{j}")
-    # updates: v[o][j] -= eta*e_o*relu(z_j) ; W[j][k] -= eta*dz_j*x_k
+    # updates: v -= eta*e*relu(z); bo -= eta*e; W -= eta*dz*x; b -= eta*dz
     for o in range(n_out):
         for j in range(n_hid):
             MUL(f"e{o}", 0, f"z{j}", 1, "m1"); ADD(f"v{o}_{j}", 0, "m1", 4, f"v{o}_{j}")
+        ADD(f"bo{o}", 0, f"e{o}", 4, f"bo{o}")
     for j in range(n_hid):
         for k in range(n_in):
             MUL(f"dz{j}", 0, f"x{k}", 0, "m1"); ADD(f"W{j}_{k}", 0, "m1", 4, f"W{j}_{k}")
+        ADD(f"b{j}", 0, f"dz{j}", 4, f"b{j}")
     return reg, S
 
 # ---- bit-faithful GF-T interpreter (self-test) ----
@@ -169,7 +172,8 @@ def emit_verilog(n_in, n_hid, n_out, modname):
         for k in range(n_in): initv[f"W{j}_{k}"] = round(random.uniform(0.5, 1.2), 3)
     for o in range(n_out):
         for j in range(n_hid): initv[f"v{o}_{j}"] = round(random.uniform(-1.0, 1.0), 3)
-    initv["c_-1"] = -1.0
+    for j in range(n_hid): initv[f"b{j}"] = round(random.uniform(-0.5, 0.5), 3)
+    for o in range(n_out): initv[f"bo{o}"] = 0.0
     pcw = max(1, NP.bit_length()); L = []
     L.append(f"module {modname}(input clk, input rst, input start, input [31:0] x0i,"
              f" input [31:0] x1i, input [31:0] ti, output reg [31:0] yout, output reg done);")
@@ -209,20 +213,48 @@ if __name__ == "__main__":
         reg, steps = gen(*arch)
         print(f"arch {arch}: {len(reg)} regs, {len(steps)} microcode steps")
     # self-test: generated (2,2,1) XOR net must train to 4/4
+    import random
     reg, steps = gen(2, 2, 1)
     rf = [0] * len(reg)
     for k, v in {"W0_0": 0.9, "W0_1": 1.1, "W1_0": 1.1, "W1_1": 0.9,
-                 "v0_0": 0.8, "v0_1": -1.7, "c_-1": -1.0}.items():
+                 "b0": 0.0, "b1": -1.0, "v0_0": 0.8, "v0_1": -1.7, "bo0": 0.0}.items():
         rf[reg[k]] = enc(v)
     corners = [(0, 0, 0), (1, 0, 1), (0, 1, 1), (1, 1, 0)]
-    acc = 0
     for _ in range(50):
         acc = 0
         for a, b, t in corners:
             rf[reg["x0"]] = enc(float(a)); rf[reg["x1"]] = enc(float(b)); rf[reg["t0"]] = enc(float(t))
             run(steps, rf); acc += int((dec(rf[reg["y0"]]) > 0.5)) == t
     assert acc == 4, f"XOR self-test failed: {acc}/4"
-    print("self-test: generated backprop microcode trains XOR 4/4 -- OK")
+    print("self-test: generated XOR microcode trains 4/4 -- OK")
+    # real-task self-test: (2,4,1) net on a NOISY nonlinear dataset, held-out generalization
+    reg, steps = gen(2, 4, 1); rf = [0] * len(reg)
+    random.seed(11)
+    for j in range(4):
+        for k in range(2): rf[reg[f"W{j}_{k}"]] = enc(round(random.uniform(-1, 1), 3))
+        rf[reg[f"b{j}"]] = enc(round(random.uniform(-0.5, 0.5), 3))
+    for j, v in enumerate([0.5, -0.5, 0.5, -0.5]): rf[reg[f"v0_{j}"]] = enc(v)
+    random.seed(7)
+    def _lab(a, b): return int((a > 0) != (b > 0))
+    def _ds(n):
+        d = []
+        while len(d) < n:
+            a = random.uniform(-1, 1); b = random.uniform(-1, 1)
+            if abs(a) < 0.15 or abs(b) < 0.15: continue
+            d.append((a, b, _lab(a, b)))
+        return d
+    tr_set, te_set = _ds(160), _ds(60)
+    def _pred(a, b):
+        sav = rf[:]; rf[reg["x0"]] = enc(a); rf[reg["x1"]] = enc(b); rf[reg["t0"]] = 0
+        run(steps, rf); y = dec(rf[reg["y0"]])
+        for i in range(len(rf)): rf[i] = sav[i]
+        return int(y > 0.5)
+    for _ in range(60):
+        for a, b, t in tr_set:
+            rf[reg["x0"]] = enc(a); rf[reg["x1"]] = enc(b); rf[reg["t0"]] = enc(float(t)); run(steps, rf)
+    te = sum(1 for a, b, t in te_set if _pred(a, b) == t)
+    assert te >= int(0.9 * len(te_set)), f"real-task held-out too low: {te}/{len(te_set)}"
+    print(f"self-test: (2,4,1) trains a noisy nonlinear task, held-out {te}/{len(te_set)} (>=90%) -- OK")
     v = emit_verilog(2, 3, 1, "bpseq231")
     assert "module bpseq231" in v and v.count("\n") > 40
     print("emit_verilog: (2,3,1) module generated -- OK (build with -nocarry, ~2.9M fasm)")
