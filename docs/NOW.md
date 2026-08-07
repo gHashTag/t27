@@ -1,6 +1,14 @@
-# NOW — feat: trainable biases + real-task generalization (2026-08-07)
+# NOW — verify: generated trainer RTL is bit-exact vs the model (2026-08-07)
 
 Last updated: 2026-08-07
+
+## verify: emit_verilog RTL == GF-T model, BIT-EXACT over a full training run (Refs #1764)
+
+- Closed a real gap in the core "spec -> Verilog, bit-exact" thesis: `emit_verilog` was only smoke-checked (`"module" in v`), never cross-checked against the Python GF-T model in a simulator. Added an iverilog harness that seeds the model from the RTL's own init lines, streams the SAME (x0,x1,t) training sequence through both, and compares `yout` u32 per step
+- **Result: RTL == model BIT-EXACT over 80 training steps (weights evolving) for hidden widths {2,3,4,5}** -- forward+backprop+update all bit-identical, not just forward
+- The cross-check EXPOSED a latent bug: multi-output emit produced garbage (`t1..` read as uninitialized `x` in RTL vs 0 in the model -- the x0i/x1i/ti port shape only carries 2 inputs + 1 target). Fixed honestly: `emit_verilog` now asserts n_in=2, n_out=1 (hidden width is the free/"programmable size" axis), and zero-inits the whole register file on reset (RTL == model structurally, no x-propagation)
+- Python self-tests still green (XOR 4/4, (2,4,1) noisy-nonlinear held-out 58/60); added guard + zero-init assertions
+- => the programmable-hidden-size trainer's generated RTL is now PROVEN bit-exact vs the model, not assumed. Tool-only; Refs #1764
 
 ## feat: programmable trainer gains TRAINABLE BIASES + real-task demo (Refs #1764)
 
