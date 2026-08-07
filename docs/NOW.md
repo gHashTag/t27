@@ -1,6 +1,13 @@
-# NOW — endpoint reg insufficient (hazard is internal); MMCM divided clock is buildable (2026-08-08)
+# NOW — pipeline prototype: bit-exact but a dropped-in register won't reduce depth (2026-08-08)
 
 Last updated: 2026-08-08
+
+## docs: pipeline prototype — bit-exact, but naive RTL register insertion does not reduce depth; go spec-level on_clock (Refs #1764)
+
+- Started Variant 1 (pipeline the shared core) with an RTL prototype, after first ruling out the cheap route: yosys automatic retiming (`synth_xilinx -retime`) moves only a few levels (ltp 57->51 on GftSadd with 2 output regs) -- not enough to split the cloud
+- Built two 2-stage GftSmul prototypes (register cut after the product; and mid-RNE after carry/q/r), each VERIFIED BIT-EXACT to the combinational core over ~40k random operands. But ltp ROSE 44 -> 49/50: dropping a register into the *generated* combinational function defeats yosys's cross-function optimization of the inlined sadd/magmul/mul_noop, and the depth (RNE normalize + accumulator) does not split at a hand-inserted register
+- IMPLICATION: the pipeline must be a SPEC-LEVEL `on_clock` where t27c co-optimizes the stages (and the multiply becomes a real pipelined primitive), NOT a register hand-dropped into codegen output. Added these as ruled-out items #8 (auto-retime) and #9 (dropped-in register) in the methodology
+- Silent-lesson reaffirmed: depth reduction is secondary -- the untested lever is mid-cloud RESYNCHRONISATION. Since the microsequencer already waits settle >> 1 cycle, a latency-1 pipelined core needs no sequencer change; the decisive next experiment is to build the trainer on pipelined cores and see if the glitch dies. Prototypes in `scratchpad/retime/`. Board untouched (generated capstone, XOR 4/4). Docs only. Refs #1764
 
 ## docs: endpoint registration does NOT fix the lottery — hazard is inside the cloud; MMCM real divided clock IS buildable (Refs #1764)
 
