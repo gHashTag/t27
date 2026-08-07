@@ -1,6 +1,14 @@
-# NOW — feat: GF-T 2-neuron hidden layer trainer (2026-08-07)
+# NOW — feat: GF-T on-chip binary classifier (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T on-chip binary logistic classifier — proven on AX7203 (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_logistic.t27` — on-chip SGD step of a binary classifier: logit `z=w0*x0+w1*x1`, `p=hard_sigmoid(z)=clamp(0.5+0.25*z,0,1)`, gradient `dL/dz=p-y`, update `w_j'=w_j-eta*(p-y)*x_j`; returns `(w0'<<32)|w1'`
+- Uses a division-free **hard-sigmoid** (a runtime reciprocal maps to a `$div`/CARRY4 the open P&R flow cannot place); only `smul/sadd/compares`
+- `test` blocks (learn, partial-confidence) PASS via `icarus-simulate` per L4
+- Proven on a live AX7203 (`uart_logistic.v`): streaming labeled 2D points for a hidden boundary (class1 iff x0+x1>0), the board learns the weights on-chip and classifies **8/8 held-out points correctly (100% generalization)** — classification, not just regression
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T 2-neuron hidden layer on-chip trainer — proven on AX7203 (Refs #1764)
 
