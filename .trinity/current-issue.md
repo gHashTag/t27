@@ -1,65 +1,52 @@
-# Wave Loop 778 — Issue #1492
+# Wave Loop 885 — Issue TBD
 
-**Branch:** `wave-loop-778`
-**Parent branch:** `wave-loop-777` HEAD (`995d94f0c`)
-**Date:** 2026-07-24
-**Issue:** #1492
-**PR:** #1493 (to open)
+**Branch:** `wave-loop-885` (to be created from `wave-loop-884` HEAD)
+**Parent branch:** `wave-loop-884` HEAD
+**Date:** 2026-08-06
+**Issue:** TBD (create after W884 issue #1828 / PR #1829 lands)
+**PR:** TBD (to open)
 **Cooperation variant:** A (recommended)
-**Status:** implementation pending, plan ready
 
 ## Goal
-Select one of three W460 cooperation variants and close the wave with a green
-suite, updated seals, and the standard close-out artifacts (report, evidence,
-next-wave cooperation plan).
 
-Close Wave Loop 778 by validating a module-scope `[375][2]^6 Pt` packed
-array-of-struct variable initialized from a function call, with indexed signed
-field writes and `assert_eq` read-back in a `bench` block. W774 PR #1484,
-W775 PR #1486, W776 PR #1488, W777 PR #1491, and PR #1489 (README/W774-W776
-merge) remain open awaiting review, so W778 will be branched from
-`wave-loop-777` HEAD to avoid blocking the sequence.
+Select one of three W885 cooperation variants and close the wave with a green targeted
+test, updated seals, and the standard close-out artifacts (report, evidence, next-wave
+plan).
+
+Close Wave Loop 885 by validating a module-scope `[589][2]^6 Pt` packed array-of-struct
+variable initialized from a function call, with indexed signed field writes and `assert_eq`
+read-back in a `bench` block. Earlier wave PRs (#1810 W881, #1813 W882, #1815 W883,
+#1829 W884) remain open awaiting review, so W885 will be branched from `wave-loop-884`
+HEAD to avoid blocking the sequence.
 
 ## Acceptance criteria
 
-- [ ] Generator `scripts/gen_w881.py` with `OUTER = 581`, `MID_IDX = 290`; copy hazard fixed before first run.
-- [ ] Witness `specs/scratch/w881_bench_module_581x2p6_aos_var_call_write.t27` generated and parsed.
+- [ ] Generator `scripts/gen_w885.py` with `OUTER = 589`, `MID_IDX = 294`; copy hazard fixed before first run.
+- [ ] Witness `specs/scratch/w885_bench_module_589x2p6_aos_var_call_write.t27` generated and parsed.
 - [ ] `t27c icarus-lowerable`, `icarus-simulate`, `icarus-cocotb`, and `seal --save` all PASS.
-- [ ] Integration test `accepts_w881_bench_module_581x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
-- [ ] Full `cargo test --release --test icarus_lowerable` passes at **341/0**.
+- [ ] Integration test `accepts_w885_bench_module_589x2p6_aos_var_call_write` added to `bootstrap/tests/icarus_lowerable.rs`.
+- [ ] Full `cargo test --release --test icarus_lowerable` passes at **345/0** (targeted test green; pre-existing classifier failure tracked separately).
 - [ ] `bootstrap/stage0/FROZEN_HASH` unchanged.
 - [ ] Closeout report, next-wave plan, skills, and persistent memory updated.
-- [ ] Commit with `Closes #1713`, push branch, open PR to `master`.
-
-1. [ ] `specs/scratch/w778_bench_module_375x2p6_aos_var_call_write.t27` is generated and parses.
-2. [ ] The witness is Icarus-lowerable and simulates correctly (17 cycles, PASSED).
-3. [ ] The cocotb reference model matches the t27 semantics.
-4. [ ] `t27c seal --save` succeeds and FROZEN_HASH remains unchanged.
-5. [ ] All cargo suites remain green.
-6. [ ] Integration test `accepts_w778_bench_module_375x2p6_aos_var_call_write` is added.
-7. [ ] Closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W778_2026-07-24.md` is written.
-8. [ ] Learning is saved to `.trinity/experience.md`, memory, `.claude/skills/t27-wave-loop.md`, and `.trinity/current-issue.md`.
-9. [ ] `.claude/plans/wave-loop-779.md` with three cooperation variants is created.
-10. [ ] PR #1493 reviewed and merged to `master` (or stacked after earlier waves land).
+- [ ] Commit with `Closes #<W885-issue>`, push branch, open PR to `master`.
 
 ## Notes
 
-- Shape: `[375][2]^6 Pt` where `Pt = pub struct Pt { x : i16, y : i16 }`.
-- Total elements: `375 x 64 = 24,000`.
-- Packed vector width: `24,000 x 32 = 768,000` bits (~0.733 MiBit).
-- `MID_IDX = 187`; frame-condition element `[187][1][0][0][0][0][0]` is element
-  `187*64 + 32 = 12,000`.
-- Generator script: `scripts/gen_w778.py` (copy from `scripts/gen_w777.py`, set
-  `OUTER = 375` and `MID_IDX = 187`, fix module prefix).
-- Use `assert_eq` checks on changed elements (Icarus simulation path does not
-  emit `assert_ne`).
+- Shape: `[589][2]^6 Pt` where `Pt = pub struct Pt { x : i16, y : i16 }`.
+- Total elements: `589 x 64 = 37,696`.
+- Packed vector width: `589 x 32 = 1,206,272` bits (~1.151 MiBit).
+- `MID_IDX = 294`; frame-condition element `[294][1][0][0][0][0][0]` is element
+  `294*64 + 32 = 18,848`.
+- Generator script: `scripts/gen_w885.py` (copy from `scripts/gen_w884.py`, set
+  `OUTER = 589` and `MID_IDX = 294`, fix module prefix).
+- Use `assert_eq` checks on changed elements (Icarus simulation path does not emit `assert_ne`).
 - Include `make_grid(32768)` period-identity check because `32768 == 0 (mod 32768)`.
-- Zero compiler / reference-model / FROZEN_HASH changes expected for the witness.
+- Zero compiler / reference-model / `FROZEN_HASH` changes expected for the witness.
 
 ---
 
-- **Variant A (recommended):** continue the odd outer-dimension ladder with `[377][2]^6 Pt`.
-- **Variant B:** keep width at ~0.733 MiBit but move the packed var to bench/function scope.
+- **Variant A (recommended):** continue the odd outer-dimension ladder with `[589][2]^6 Pt`.
+- **Variant B:** keep width at ~1.151 MiBit but move the packed var to bench/function scope.
 - **Variant C:** add `if`-guarded indexed signed field writes at the current width.
 
 ---
