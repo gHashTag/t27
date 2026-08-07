@@ -224,7 +224,7 @@ def run(steps, rf):
         av = _mod(rf[a], am); bv = _mod(rf[b], bm)
         rf[d] = smul(av, bv) if op == "MUL" else (sadd(av, bv) if op == "ADD" else av)
 
-def emit_verilog(n_in, n_hid, n_out, modname, clk_div=1):
+def emit_verilog(n_in, n_hid, n_out, modname, clk_div=1, init=None):
     """Emit a synthesizable microsequencer Verilog module for the given arch.
     One shared GftSmul + one shared GftSadd, a register file, and a case(pc) ROM.
     Fully parametric interface: one x{k}i input port per input, one t{o}i target
@@ -246,6 +246,8 @@ def emit_verilog(n_in, n_hid, n_out, modname, clk_div=1):
         for j in range(n_hid): initv[f"v{o}_{j}"] = round(random.uniform(-1.0, 1.0), 3)
     for j in range(n_hid): initv[f"b{j}"] = round(random.uniform(-0.5, 0.5), 3)
     for o in range(n_out): initv[f"bo{o}"] = 0.0
+    if init is not None:            # caller-supplied weights (e.g. an XOR near-solution)
+        initv.update(init)
     return _emit_module(reg, steps, initv, n_in, n_out, modname, clk_div)
 
 

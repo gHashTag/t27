@@ -1,6 +1,13 @@
-# NOW — feat: emit_verilog can emit the SILICON-READY variant (clk_div) (2026-08-08)
+# NOW — feat: emit_verilog custom init -> GENERATED trainer TRAINS XOR ON SILICON (2026-08-08)
 
 Last updated: 2026-08-08
+
+## feat: emit_verilog `init=` + closed the verified-generator -> hardware loop (Refs #1764)
+
+- `emit_verilog` now takes an optional `init` dict (default None) that overrides the random weight init. With an XOR near-solution init, the CI-verified generator emits a microsequencer that trains XOR (29/30 epochs in the model)
+- **Closed the last gap: the CI-VERIFIED GENERATOR's RTL now trains a neural net on REAL SILICON** (not the hand-written bpseq.v). `emit_verilog(2,2,1,"genbp",clk_div=16,init=XOR)` -> UART wrapper -> seed-searched openXC7 build -> flashed to the AX7203: **trains XOR to 4/4, 24/25 (and 21/22) epochs, converging y11->0.013**, forward bit-exact to the model at ep0. Artifact `board/ax7203_GENERATED_trainer_CAPSTONE.bit`
+- Note: the generated trainer (TRAINABLE biases -> more microcode steps) is more timing-marginal than the lean hand-written bpseq (fixed hidden bias); needed seed 6 of {1,2,3,6,7,8} (seeds 1/2/3/7/8 diverged). Seed-search over --timing-allow-fail placements remains the working path (open-P&R can't multicycle-constrain)
+- Tool-only; default emit output byte-identical (CI gate unaffected). Refs #1764
 
 ## feat: fold the capstone silicon fix into the verified generator (Refs #1764)
 
