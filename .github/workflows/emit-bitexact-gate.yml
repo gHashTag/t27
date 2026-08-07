@@ -1,0 +1,44 @@
+name: Emit Bit-Exact Gate (CI-02)
+
+# Turns the one-off proof into an invariant: the programmable trainer's GENERATED
+# microsequencer RTL must stay bit-exact to the Python GF-T model over a full
+# training run (forward + backprop + weight update). Regenerates the GF-T cores
+# fresh from their .t27 specs (per L2 GENERATION, gen/ is never hand-committed),
+# emits the microsequencer for several hidden widths, and cross-checks yout u32
+# per step in Icarus Verilog. Any future change that breaks spec->RTL equivalence
+# fails here instead of silently miscomputing on silicon.
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "tools/gft_backprop_microcode.py"
+      - "tools/verify_emit_bitexact.py"
+      - "specs/ternary/gft_smul.t27"
+      - "specs/ternary/gft_sadd.t27"
+      - ".github/workflows/emit-bitexact-gate.yml"
+  workflow_dispatch:
+
+jobs:
+  emit-bitexact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog
+
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      - name: Prove generated RTL == GF-T model (bit-exact)
+        run: python3 tools/verify_emit_bitexact.py
