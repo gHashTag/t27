@@ -1,6 +1,12 @@
-# NOW — test: CI quantifies "size costs TIME (steps), not AREA" (2026-08-08)
+# NOW — docs: workshop-grade silicon-training methodology write-up (2026-08-08)
 
 Last updated: 2026-08-08
+
+## docs: reproducible methodology paper for on-chip training (Refs #1764)
+
+- New `docs/SILICON_TRAINING_METHODOLOGY.md`: a workshop-grade write-up of the full result -- a NN training loop written as a .t27 spec, compiled by t27c, verified bit-exact across FOUR targets (Verilog/C/Rust/model), and trained on a real Artix-7 through a fully open toolchain (yosys->nextpnr-xilinx->prjxray, native macOS arm64, no Vivado/Docker)
+- Covers: the pipeline end-to-end (spec -> generator -> CI verification -> openXC7 bitstream -> flash -> train); measured results (full backprop trains XOR 4/4 on silicon, model-exact; the CI-verified generator's RTL does the same; size=time not area, CI-quantified); honest limits (openXC7 ~17M correctness ceiling; nextpnr can't express multicycle so the deep path is placement-dependent -> seed-search, an open-toolchain limitation a commercial P&R would close); and one-script reproducibility (board/build_trainer.py)
+- Docs only. Refs #1764
 
 ## test: the emit gate now reports microcode step count per topology (Refs #1764)
 
