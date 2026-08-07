@@ -1,6 +1,13 @@
-# NOW — feat: differential fuzzer for the trainer (random topologies + edge inputs) (2026-08-07)
+# NOW — feat: cross-target bit-exact for IGLA RACE ternary MAC + gen-backend findings (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: apply the multi-target harness to IGLA RACE ternary_mac -- bridge + findings (Refs #1764)
+
+- Applied the GF-T trainer's multi-target discipline to IGLA RACE. `tools/verify_igla_race.py` emits `ternary_mul`/`ternary_mac` (the multiplier-free R-SI-1 MAC primitives, {-1,0,+1} weights) from `specs/igla/race/ternary_mac.t27` to C and Rust via t27c and cross-checks against an independent reference over 800 vectors incl. edges (a=-128 sign-flip wrap, invalid codes>2 decode to 0, i32-accumulator edges): **C == Rust == reference BIT-EXACT** -- the RACE ternary MAC core is now multi-target-verified, closing the "RACE specs sealed/simulated but not cross-checked" gap. Verified the guard catches a corrupted sign-flip (161 mismatches)
+- **FINDING (gen-backend gaps on this IGLA spec):** the FULL spec does NOT emit compilable C or Rust -- gen-c chokes on slice `.len()` (in `ternary_dot`) and emits test functions twice (redefinition); gen-rust emits `serde::Serialize/Deserialize` derives (serde not available) + a non-Copy struct moved twice. The tool reports this as a NOTE and verifies the core arithmetic by extracting decode/mul/mac (which don't use slices). So RACE's "spec -> any target" is only true for the arithmetic core, not the whole spec
+- **FINDING (provenance):** `.trinity/seals/math_math-igla-primitives.json` exists but its source `specs/math/igla_primitives.t27` is ABSENT from the tree (imported by `coder/arch.t27`, `coder/training.t27`) -- a live seal over a missing spec
+- Wired into emit-bitexact-gate (SKIPs if cc/rustc/t27c absent). Realizes the IGLA<->GF-T-trainer bridge from the prior research cycle. Tool+CI only; Refs #1764
 
 ## feat: fuzz C-trainer == GF-T model over random topologies with edge values (Refs #1764)
 

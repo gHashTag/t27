@@ -19,6 +19,8 @@ on:
       - "tools/verify_multitarget.py"
       - "tools/verify_trainer_c.py"
       - "tools/fuzz_trainer.py"
+      - "tools/verify_igla_race.py"
+      - "specs/igla/race/ternary_mac.t27"
       - "specs/ternary/gft_smul.t27"
       - "specs/ternary/gft_sadd.t27"
       - ".github/workflows/emit-bitexact-gate.yml"
@@ -56,3 +58,6 @@ jobs:
 
       - name: Differential-fuzz the trainer (random topologies, edge inputs)
         run: python3 tools/fuzz_trainer.py 40
+
+      - name: Cross-check IGLA RACE ternary MAC (C + Rust == model)
+        run: python3 tools/verify_igla_race.py
