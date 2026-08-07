@@ -132,10 +132,11 @@ criteria, generator copy-hazard checklist, and open backlog.
 | 885 | #1830 | wave-loop-885 | 589 | 294 | 37,696 | 1,206,272 | 1.151 | merged | #1831 |
 | 886 | #1832 | wave-loop-886 | 591 | 295 | 37,824 | 1,210,368 | 1.155 | merged | #1833 |
 | 887 | #1834 | wave-loop-887 | 593 | 296 | 37,952 | 1,214,464 | 1.159 | merged | #1835 |
-| 888 | #1836 | wave-loop-888 | 595 | 297 | 38,080 | 1,218,560 | 1.162 | open | #1837 |
-| **889** | **#1838** | **wave-loop-889 (READY)** | **597** | **298** | **38,208** | **1,222,656** | **1.166** | **READY** | **TBD** |
-| 890 | TBD | wave-loop-890 | 599 | 299 | 38,336 | 1,226,752 | 1.170 | planned | TBD |
+| 888 | #1836 | wave-loop-888 | 595 | 297 | 38,080 | 1,218,560 | 1.162 | merged | #1837 |
+| 889 | #1838 | wave-loop-889 | 597 | 298 | 38,208 | 1,222,656 | 1.166 | open | #1840 |
+| **890** | **#1841** | **wave-loop-890 (READY)** | **599** | **299** | **38,336** | **1,226,752** | **1.170** | **READY** | **TBD** |
 | 891 | TBD | wave-loop-891 | 601 | 300 | 38,464 | 1,230,848 | 1.174 | planned | TBD |
+| 892 | TBD | wave-loop-892 | 603 | 301 | 38,592 | 1,234,944 | 1.178 | planned | TBD |
 
 ### Run-list notes
 - Issue numbers follow the observed pattern (issue = previous issue + 2).

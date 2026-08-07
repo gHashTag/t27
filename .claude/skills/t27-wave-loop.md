@@ -57,6 +57,40 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
+## Worked example — Wave Loop 889
+
+Wave Loop 889 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:
+
+- Selected Variant A: module-scope `[597][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w889.py` from `scripts/gen_w888.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment),
+  then verified with a post-generation `grep` sanity check (`OUTER = 597`, `MID_IDX = 298`).
+- Produced `specs/scratch/w889_bench_module_597x2p6_aos_var_call_write.t27`
+  (38,208 elements, 1,222,656-bit packed vector, ~1.166 MiBit).
+- Added integration test `accepts_w889_bench_module_597x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save` — all PASS.
+  - Targeted `cargo test --release --test icarus_lowerable accepts_w889...` PASS.
+  - Full suite: 348 passed; 1 pre-existing `corpus_classifier_matches_lean_completeness`
+    mismatch for `specs/cloud/railway_deploy.t27` tracked separately.
+- Research background: same context as W888 (Icarus V13, `128c621` bound-normalization fix,
+  Vitis HLS UG1399 `compact=bit`, Vericert v2.0.0, Roofline). 1.166 MiBit still comfortably
+  below Icarus practical limits.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W889_2026-08-06.md` and
+  next-wave plan `.claude/plans/wave-loop-890.md` with variants A/B/C.
+- Closed with commit `Closes #1838`, pushed branch `wave-loop-889`, opened PR #1840.
+  Rebased onto latest master after W888 and GF-T PR #1839 landed; `git rebase --skip` dropped
+  the duplicate close-out commit cleanly.
+- Updated this skill's Live Wave Loop Tracker to wave 890.
+
+Key learning: the 1.17-MiBit neighborhood remains a soft boundary for t27c and Icarus at
+1.166 MiBit. If the previous-wave close-out commit conflicts with master because the same
+squashed content already landed, skipping that redundant commit lets the implementation apply
+cleanly and preserves a clean linear branch.
+
 ## Worked example — Wave Loop 888
 
 Wave Loop 888 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:
