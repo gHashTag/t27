@@ -16,6 +16,7 @@ import os, re, sys, shutil, subprocess, tempfile, random
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPEC = "specs/igla/race/ternary_mac.t27"
+SYS_SPEC = "specs/igla/race/systolic_ternary.t27"
 N = 800
 
 
@@ -32,6 +33,7 @@ def find_t27c():
 
 
 def i8(x): return ((x + 128) & 0xFF) - 128
+def i16(x): return ((x + (1 << 15)) & 0xFFFF) - (1 << 15)
 def i32(x): return ((x + (1 << 31)) & 0xFFFFFFFF) - (1 << 31)
 
 
@@ -166,6 +168,70 @@ def run_rust(t27c, vecs, wd):
     return [tuple(map(int, ln.split())) for ln in out.strip().splitlines()]
 
 
+def ref_pe(a, code, psum):
+    """systolic_ternary_pe: psum_out = psum_in + ternary_mul(a, w), i16 accumulator."""
+    return i16(i16(psum) + ref_mul(a, code))
+
+
+def gen_pe_vectors():
+    r = random.Random(4242)
+    A = [-128, -1, 0, 1, 127]; C = [0, 1, 2, 3]; PS = [0, 32767, -32768, 12345]
+    v = [(a, c, p) for a in A for c in C for p in PS]
+    while len(v) < N:
+        v.append((r.randint(-128, 127), r.choice([0, 1, 2, 3]), r.randint(-32768, 32767)))
+    return v[:N]
+
+
+def run_pe_c(t27c, vecs, wd):
+    # imported `ternary_mul` is NOT emitted into systolic's output -> supply the
+    # primitive from ternary_mac's core, then add systolic's tuple + PE definition
+    core = _core_c(t27c)
+    sysc = subprocess.run([t27c, "gen-c", SYS_SPEC], capture_output=True, text=True, cwd=ROOT).stdout
+    tup = re.search(r"typedef struct\s*\{[^}]*\}\s*t27_tuple_int8_t_int16_t\s*;", sysc)
+    pe = _extract_def(sysc, "t27_tuple_int8_t_int16_t systolic_ternary_pe(int8_t a_in, TernaryWeight w, int16_t psum_in)")
+    if core is None or not tup or pe is None:
+        return None
+    A = ",".join(str(a) for a, _, _ in vecs); C = ",".join(str(c) for _, c, _ in vecs)
+    PS = ",".join(str(p) for _, _, p in vecs)
+    src = (core + "\n" + tup.group(0) + "\n" + pe +
+           f'\nint main(){{int8_t A[]={{{A}}}; uint8_t C[]={{{C}}}; int16_t PS[]={{{PS}}}; int n={len(vecs)};'
+           f'for(int i=0;i<n;i++){{TernaryWeight w; w.code=C[i];'
+           f'printf("%d\\n",(int)systolic_ternary_pe(A[i],w,PS[i]).f1);}}return 0;}}')
+    open(os.path.join(wd, "pe.c"), "w").write(src)
+    if subprocess.run(["cc", "-O2", "-o", os.path.join(wd, "peb"), os.path.join(wd, "pe.c")],
+                      cwd=wd, capture_output=True, text=True).returncode != 0:
+        return None
+    out = subprocess.run([os.path.join(wd, "peb")], capture_output=True, text=True).stdout
+    return [int(x) for x in out.split()]
+
+
+def run_pe_rust(t27c, vecs, wd):
+    core = _core_rust(t27c)
+    sysr = subprocess.run([t27c, "gen-rust", SYS_SPEC], capture_output=True, text=True, cwd=ROOT).stdout
+    m = re.search(r"pub fn systolic_ternary_pe\b", sysr)
+    if core is None or not m:
+        return None
+    pe = _brace_block(sysr, m.start())
+    if pe is None:
+        return None
+    # gen-rust FINDING: emits `psum_in(i16) + prod(i8)` with no cast -> Rust rejects
+    # the mixed-width add (C auto-promotes). Documented one-token workaround so the
+    # ARITHMETIC can be cross-checked; the gap itself is reported in main().
+    pe = pe.replace("psum_in + prod", "psum_in + prod as i16")
+    A = ",".join(str(a) for a, _, _ in vecs); C = ",".join(str(c) for _, c, _ in vecs)
+    PS = ",".join(str(p) for _, _, p in vecs)
+    src = (core + "\n" + pe +
+           f'\nfn main(){{let a:[i8;{len(vecs)}]=[{A}]; let c:[u8;{len(vecs)}]=[{C}]; '
+           f'let ps:[i16;{len(vecs)}]=[{PS}]; for i in 0..a.len(){{let w=TernaryWeight{{code:c[i]}}; '
+           f'println!("{{}}", systolic_ternary_pe(a[i],w,ps[i]).1 as i32);}}}}\n')
+    rs = os.path.join(wd, "pe.rs"); open(rs, "w").write(src)
+    if subprocess.run(["rustc", "-A", "warnings", "-O", "-o", os.path.join(wd, "perb"), rs],
+                      cwd=wd, capture_output=True, text=True).returncode != 0:
+        return None
+    out = subprocess.run([os.path.join(wd, "perb")], capture_output=True, text=True).stdout
+    return [int(x) for x in out.split()]
+
+
 def main():
     t27c = find_t27c()
     if not t27c:
@@ -198,7 +264,27 @@ def main():
                 ok = False
             else:
                 print(f"OK ternary_mul/mac: {tgt} == reference BIT-EXACT over {len(ref)} vectors (edges incl.)")
-    print("IGLA RACE ternary MAC BIT-EXACT ACROSS TARGETS (C + Rust + model)" if ok else "IGLA RACE CROSS-TARGET MISMATCH")
+        # systolic PE: extends the check up the datapath (ternary_mac -> systolic PE)
+        if os.path.exists(os.path.join(ROOT, SYS_SPEC)):
+            print("NOTE systolic_ternary imports ternary_mul but the import is NOT emitted "
+                  "into its C/Rust output (dangling call) -- primitive supplied from "
+                  "ternary_mac's core (concrete #1773 in the C/Rust backends). Also: gen-rust "
+                  "emits a mixed-width `i16 + i8` add with no cast (Rust rejects it; C promotes) "
+                  "-- worked around with a documented `as i16` to cross-check the arithmetic")
+            pv = gen_pe_vectors()
+            pref = [ref_pe(a, c, p) for a, c, p in pv]
+            for tgt, runner in (("C", run_pe_c), ("Rust", run_pe_rust)):
+                got = runner(t27c, pv, wd)
+                if got is None:
+                    print(f"FAIL: systolic PE {tgt} failed to build/run"); ok = False; continue
+                mism = [(i, r, g) for i, (r, g) in enumerate(zip(pref, got)) if r != g]
+                if len(got) != len(pref) or mism:
+                    i, r, g = (mism[0] if mism else (0, "?", "?"))
+                    print(f"FAIL: systolic PE {tgt} != ref ({len(mism)}/{len(pref)}); first vec {pv[i]} ref={r} {tgt}={g}")
+                    ok = False
+                else:
+                    print(f"OK systolic_ternary_pe: {tgt} == reference BIT-EXACT over {len(pref)} vectors (i16 psum, edges)")
+    print("IGLA RACE ternary MAC + systolic PE BIT-EXACT ACROSS TARGETS (C + Rust + model)" if ok else "IGLA RACE CROSS-TARGET MISMATCH")
     sys.exit(0 if ok else 1)
 
 

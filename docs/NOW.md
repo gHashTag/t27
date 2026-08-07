@@ -1,6 +1,13 @@
-# NOW — feat: cross-target bit-exact for IGLA RACE ternary MAC + gen-backend findings (2026-08-07)
+# NOW — feat: extend IGLA RACE cross-target to systolic PE + 2 more gen findings (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: IGLA RACE ternary_mac + systolic PE bit-exact across C/Rust/model (Refs #1764)
+
+- Extended the IGLA RACE bridge up the datapath: `verify_igla_race.py` now also cross-checks `systolic_ternary_pe` (the weight-stationary PE: `psum_out = psum_in + ternary_mul(a,w)`, i16 accumulator) across C + Rust + an independent reference over 800 vectors incl. edges (a=-128, invalid codes, i16 psum saturation): **C == Rust == reference BIT-EXACT**. Both ternary_mac and the systolic PE now multi-target-verified
+- **FINDING (#1773 made concrete in C/Rust):** `systolic_ternary.t27` `use igla::race::ternary_mac` and calls `ternary_mul`, but the import is NOT emitted into its gen-c/gen-rust output -- the call is a dangling reference to an undefined symbol. The primitive must be supplied from ternary_mac's own output. So imported user functions don't survive the C/Rust backends
+- **FINDING (gen-rust mixed-width add):** gen-rust emits `psum_in(i16) + prod(i8)` with no cast -- Rust rejects the mixed-width add (C auto-promotes). Worked around with a documented `as i16` to cross-check the arithmetic; the emitter itself needs the widening cast
+- (Adds to last cycle's findings: full-spec gen-c/rust don't compile; seal over missing `specs/math/igla_primitives.t27`.) Wired the systolic spec into the gate trigger. Tool+CI only; Refs #1764
 
 ## feat: apply the multi-target harness to IGLA RACE ternary_mac -- bridge + findings (Refs #1764)
 

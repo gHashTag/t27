@@ -21,6 +21,7 @@ on:
       - "tools/fuzz_trainer.py"
       - "tools/verify_igla_race.py"
       - "specs/igla/race/ternary_mac.t27"
+      - "specs/igla/race/systolic_ternary.t27"
       - "specs/ternary/gft_smul.t27"
       - "specs/ternary/gft_sadd.t27"
       - ".github/workflows/emit-bitexact-gate.yml"
