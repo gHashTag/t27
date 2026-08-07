@@ -14,19 +14,19 @@ Update it at the end of every loop.
 ## Current status (2026-08-06)
 
 ### Wave Loop ladder
-- **W881** — issue #1722, PR #1810 (`[581][2]^6 Pt`) — `OPEN`, auto-merge enabled; blocked
-  by required status checks.
-- **W882** — issue #1812, PR #1813 (`[583][2]^6 Pt`) — `OPEN`, auto-merge enabled; blocked
-  by required status checks.
-- **W883** — issue #1814, PR #1815 (`[585][2]^6 Pt`) — `OPEN`, auto-merge enabled; blocked
-  by required status checks.
+- **W881** — issue #1722, PR #1810 (`[581][2]^6 Pt`) — `OPEN`, auto-merge enabled; merge
+  state `DIRTY` (needs conflict resolution against current `master`).
+- **W882** — issue #1812, PR #1813 (`[583][2]^6 Pt`) — `OPEN`, auto-merge enabled; merge
+  state `DIRTY`.
+- **W883** — issue #1814, PR #1815 (`[585][2]^6 Pt`) — `OPEN`, auto-merge enabled; merge
+  state `DIRTY`.
 - **W884** — issue #1828, PR #1829 (`[587][2]^6 Pt`) — `MERGED`.
 - **W885** — issue #1830, PR #1831 (`[589][2]^6 Pt`) — `MERGED`.
-- **W886** — issue #1832, PR #1833 (`[591][2]^6 Pt`) — `OPEN`, auto-merge enabled; checks
-  in progress.
-- **W887** — issue #1834, PR #1835 (`[593][2]^6 Pt`) — `OPEN`, auto-merge enabled; checks
-  in progress.
-- **W888** — issue #1836, branch TBD (`[595][2]^6 Pt`) — ready to start once W887 lands.
+- **W886** — issue #1832, PR #1833 (`[591][2]^6 Pt`) — `MERGED`.
+- **W887** — issue #1834, PR #1835 (`[593][2]^6 Pt`) — `MERGED`.
+- **W888** — issue #1836, PR #1837 (`[595][2]^6 Pt`) — `OPEN`, auto-merge enabled; merge
+  state `BLOCKED` pending required checks.
+- **W889** — issue #1838, branch TBD (`[597][2]^6 Pt`) — ready to start once W888 lands.
 
 ### GF-T PR queue (Refs #1764)
 The GF-T stack has largely landed on `master`. Remaining open PRs are wave-loop branches
