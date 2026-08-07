@@ -1,6 +1,15 @@
-# NOW — feat: GF-T magsub log-depth optimization (2026-08-07)
+# NOW — perf: GF-T log-depth magsub applied globally (2026-08-07)
 
 Last updated: 2026-08-07
+
+## perf: log-depth magsub across all GF-T specs (~2x smaller) (Refs #1764)
+
+- Applied the proven LOG-DEPTH `magsub` normalize (binary-search priority-encoder 8/4/2/1 + single barrel shift, replacing the 12-iteration linear loop) to ALL 24 GF-T specs that used the old linear magsub
+- Every spec re-verified: all in-spec tests PASS after the swap (bit-identical; the magsub logic was proven identical over 17.4M (hi,lo) pairs)
+- Impact: magsub is the design-size bulk (every `sadd` uses it), so this shrinks EVERY GF-T core ~2x (measured: logistic 16.7M->9.62M, xorpercep 17.86M->9.1M). Brings trainers well under the ~17M openXC7 correctness ceiling
+- Specs touched: sgd_step, train1/2/2relu, hidden2, logistic, classify/classify3/classifier4, axpy, xornet, xortrain, xorpercep/xorpercep3, mlp2/3, layer3/4, neuron_full, bitnet_neuron, signed_dot4/mac, softmax4, softmax_grad4
+- Silicon reconfirmation pending an AX7203 power-cycle (board degraded mid-session)
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T magsub log-depth normalize (~2x smaller designs) (Refs #1764)
 
