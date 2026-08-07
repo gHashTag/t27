@@ -57,6 +57,37 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
+## Worked example — Wave Loop 896
+
+Wave Loop 896 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:
+
+- Selected Variant A: module-scope `[611][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w896.py` from `scripts/gen_w895.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment),
+  then verified with a post-generation `grep` sanity check (`OUTER = 611`, `MID_IDX = 305`).
+- Produced `specs/scratch/w896_bench_module_611x2p6_aos_var_call_write.t27`
+  (39,104 elements, 1,251,328-bit packed vector, ~1.194 MiBit).
+- Added integration test `accepts_w896_bench_module_611x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save` — all PASS.
+  - Targeted `cargo test --release --test icarus_lowerable accepts_w896...` PASS.
+  - Full suite: 355 passed; 1 pre-existing `corpus_classifier_matches_lean_completeness`
+    mismatch for `specs/cloud/railway_deploy.t27` tracked separately.
+- Research background: same context as W888–W895 (Icarus V13, `128c621` bound-normalization
+  fix, Vitis HLS UG1399 `compact=bit`, Vericert v2.0.0, Roofline). 1.194 MiBit still comfortably
+  below Icarus practical limits.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W896_2026-08-06.md` and
+  next-wave plan `.claude/plans/wave-loop-897.md` with variants A/B/C.
+- Closed with commit `Closes #1855`, pushed branch `wave-loop-896`, opened PR #1856.
+- Updated this skill's Live Wave Loop Tracker to wave 897.
+
+Key learning: the 1.19-MiBit neighborhood remains a soft boundary for t27c and Icarus at
+1.194 MiBit. Full `icarus_lowerable` suite runtime is ~34 s and still CI-friendly at
+355 tests + 1 pre-existing failure.
+
 ## Worked example — Wave Loop 895
 
 Wave Loop 895 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:
