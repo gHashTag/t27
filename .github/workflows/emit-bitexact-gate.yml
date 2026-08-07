@@ -18,6 +18,7 @@ on:
       - "tools/verify_emit_bitexact.py"
       - "tools/verify_multitarget.py"
       - "tools/verify_trainer_c.py"
+      - "tools/fuzz_trainer.py"
       - "specs/ternary/gft_smul.t27"
       - "specs/ternary/gft_sadd.t27"
       - ".github/workflows/emit-bitexact-gate.yml"
@@ -52,3 +53,6 @@ jobs:
 
       - name: Prove the WHOLE trainer bit-exact in C (== model == Verilog)
         run: python3 tools/verify_trainer_c.py
+
+      - name: Differential-fuzz the trainer (random topologies, edge inputs)
+        run: python3 tools/fuzz_trainer.py 40

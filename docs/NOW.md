@@ -1,6 +1,13 @@
-# NOW — feat: WHOLE trainer bit-exact in C (== model == Verilog) (2026-08-07)
+# NOW — feat: differential fuzzer for the trainer (random topologies + edge inputs) (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: fuzz C-trainer == GF-T model over random topologies with edge values (Refs #1764)
+
+- The whole-trainer cross-target proof (verify_trainer_c) checked a few CHOSEN nets on a fixed 80-step sequence. `tools/fuzz_trainer.py` widens it to a RANDOMIZED space: random topology (1-3 inputs, 1-3 hidden layers of width 1-5, 1-3 outputs) x random training inputs with EDGE VALUES injected (offset-saturation-large 1e5, tiny 1e-9, exact 0/+-1/+-2/+-0.5), cross-checking the C trainer against the Python GF-T model per step
+- **Local deep run: 250 random topologies x 16 steps = 4000 step-comparisons, edge values injected -- NO divergence.** CI runs a 40-topology fuzz (~24s). A single mismatch prints a reproducible counterexample (sizes, init, seq)
+- Refactored verify_trainer_c into reusable `run_model` / `run_c` (one shared C emission, no drift between the gate and the fuzzer). Verified the fuzzer catches a real divergence (corrupted relu' modf)
+- => cross-target bit-exactness of the whole trainer is now proven over a fuzzed space, not just chosen examples -- hardening the "one spec -> any target" claim against rare arithmetic edge cases (saturation, cancellation, underflow). Tool+CI only; Refs #1764
 
 ## feat: the entire training loop is bit-exact across C and Verilog, not just primitives (Refs #1764)
 
