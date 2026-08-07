@@ -4,9 +4,11 @@ name: Emit Bit-Exact Gate (CI-02)
 # microsequencer RTL must stay bit-exact to the Python GF-T model over a full
 # training run (forward + backprop + weight update). Regenerates the GF-T cores
 # fresh from their .t27 specs (per L2 GENERATION, gen/ is never hand-committed),
-# emits the microsequencer for several hidden widths, and cross-checks yout u32
-# per step in Icarus Verilog. Any future change that breaks spec->RTL equivalence
-# fails here instead of silently miscomputing on silicon.
+# emits the microsequencer for several topologies, and cross-checks every output
+# per step in Icarus Verilog. It ALSO synthesizes the emitted RTL with yosys
+# (synth_xilinx) and asserts a non-zero FF+LUT mapping, so a change that stays
+# bit-exact in sim but breaks synthesizability also fails here -- instead of
+# silently miscomputing (or failing to build a bitstream) on silicon.
 
 on:
   pull_request:
@@ -32,13 +34,13 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Icarus Verilog
+      - name: Install Icarus Verilog + Yosys
         run: |
           sudo apt-get update
-          sudo apt-get install -y iverilog
+          sudo apt-get install -y iverilog yosys
 
       - name: Build t27c
         run: cargo build --release -p t27c
 
-      - name: Prove generated RTL == GF-T model (bit-exact)
+      - name: Prove generated RTL == GF-T model (bit-exact) + synthesizes
         run: python3 tools/verify_emit_bitexact.py

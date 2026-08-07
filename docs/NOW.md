@@ -1,6 +1,13 @@
-# NOW — feat: parametric multi-output trainer, bit-exact (2026-08-07)
+# NOW — ci: emit gate now also proves SYNTHESIZABILITY (2026-08-07)
 
 Last updated: 2026-08-07
+
+## ci: emit-bitexact gate adds a yosys synth_xilinx check (Refs #1764)
+
+- The gate proved semantic equivalence (iverilog bit-exact) but not that the emitted RTL SYNTHESIZES -- a change can stay bit-exact in sim yet break synthesizability (non-synth construct) and only fail when a bitstream is attempted on silicon
+- `verify_emit_bitexact.py` now runs `yosys synth_xilinx -nocarry -flatten` on the emitted microsequencer for one single-output (2,2,1) and one multi-output (2,4,2) topology, asserting no yosys error AND a non-zero FF+LUT mapping (a design DCE'd to nothing would 'pass' an empty-module sim but map to 0 cells). Measured: (2,2,1) -> 3273 FF + 7752 LUT, (2,4,2) -> 6453 FF + 10161 LUT
+- CI-friendly: synth phase runs only if yosys is on PATH (skipped cleanly otherwise); workflow `emit-bitexact-gate.yml` now installs yosys alongside iverilog. Full gate ~24s local
+- => every PR touching the trainer generator now proves BOTH spec->RTL bit-exactness AND synthesizability to real Xilinx cells -- the last uncovered layer of the pipeline. Tool+CI only; Refs #1764
 
 ## feat: lift n_out=1 -> fully parametric multi-output/multi-input, proven bit-exact (Refs #1764)
 
