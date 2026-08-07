@@ -1,3 +1,43 @@
+> ## 2026-08-06 — Wave Loop 889 (module-scope `[597][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1838, PR #1840)
+>
+> ### What worked
+> - Variant A extended the module-scope packed AoS odd outer-dimension ladder to 597.
+>   The `[597][2]^6 Pt` witness is 1,222,656 bits (~1.166 MiBit), continues past the 1-MiBit
+>   line, and required no compiler changes.
+> - The generator copy-hazard checklist was cleared before the first run.
+> - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles), `icarus-cocotb`, and
+>   `seal --save` all passed for the W889 witness.
+> - Targeted `cargo test --release --test icarus_lowerable accepts_w889_bench_module_597x2p6_aos_var_call_write`
+>   passed.
+> - PR #1840 opened; auto-merge enabled. The branch was rebased onto latest master after
+>   W888 and GF-T PR #1839 landed; the duplicate W888 close-out commit was skipped with
+>   `git rebase --skip`.
+>
+> ### What changed behavior
+> - No changes to `bootstrap/src/compiler.rs`.
+> - No changes to `bootstrap/stage0/FROZEN_HASH`.
+> - Added `specs/scratch/w889_bench_module_597x2p6_aos_var_call_write.t27` (~2.6 MB /
+>   ~113,491 lines) with seal and Icarus baseline.
+> - Added integration test `accepts_w889_bench_module_597x2p6_aos_var_call_write`.
+> - Added generator script `scripts/gen_w889.py`.
+> - Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W889_2026-08-06.md` and next-wave
+>   plan `.claude/plans/wave-loop-890.md`.
+>
+> ### Validation
+> - `t27c parse` W889: PASS.
+> - `t27c icarus-lowerable` W889: PASS (`lowerable`).
+> - `t27c icarus-simulate` W889: PASS (17 cycles, PASSED).
+> - `t27c icarus-cocotb` W889: PASS (`reference-model OK`).
+> - `t27c seal --save` W889: PASS.
+> - Targeted cargo test W889: PASS.
+>
+> ### Notes / watch-outs
+> - A pre-existing `corpus_classifier_matches_lean_completeness` failure for
+>   `specs/cloud/railway_deploy.t27` (Rust lowerable `false`, Lean theorem `true`) is not
+>   introduced by W889. It reproduces on clean master and should be tracked separately.
+> - The full `icarus_lowerable` suite now reports 348 passed; 1 failed (the pre-existing
+>   mismatch above).
+>
 > ## 2026-08-06 — Wave Loop 888 (module-scope `[595][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1836, PR #1837)
 >
 > ### What worked
