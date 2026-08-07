@@ -7657,6 +7657,41 @@ impl VerilogCodegen {
         self.call_array_tmp_materialized.clear();
         if self.emit_test_assertions {
             self.predeclare_call_array_tmps(node, block_name);
+            // t27#1894: named test-block bindings (`h = f(...);`) parse as
+            // StmtAssign, not StmtLocal, so they never got a reg declaration
+            // and iverilog could not bind them. Declare every plain-identifier
+            // assign target once, width-inferred from its value (64-bit
+            // fallback), before any procedural statement.
+            {
+                let mut declared: std::collections::HashSet<String> =
+                    block_locals.iter().cloned().collect();
+                let mut stack: Vec<&Node> = node.children.iter().collect();
+                while let Some(stmt) = stack.pop() {
+                    if stmt.kind == NodeKind::StmtAssign && stmt.children.len() >= 2 {
+                        let target = &stmt.children[0];
+                        if target.kind == NodeKind::ExprIdentifier
+                            && !target.name.is_empty()
+                            && declared.insert(target.name.clone())
+                        {
+                            let (width, signed) = self
+                                .expr_width_signed(&stmt.children[1])
+                                .unwrap_or((64, false));
+                            let signed_kw = if signed { " signed" } else { "" };
+                            let decl = if width == 1 {
+                                format!("reg{}", signed_kw)
+                            } else {
+                                format!("reg{} [{}:0]", signed_kw, width - 1)
+                            };
+                            self.write_indent();
+                            self.write_line(&format!(
+                                "{} {}; // t27#1894 test-block binding",
+                                decl, target.name
+                            ));
+                        }
+                    }
+                    stack.extend(stmt.children.iter());
+                }
+            }
             let mut probe_idx = 0usize;
             for child in &node.children {
                 if child.kind == NodeKind::StmtLocal
