@@ -1,6 +1,13 @@
-# NOW — verify: generated trainer RTL is bit-exact vs the model (2026-08-07)
+# NOW — ci: bit-exact emit gate makes the proof an invariant (2026-08-07)
 
 Last updated: 2026-08-07
+
+## ci: emit_verilog bit-exactness is now a reproducible gate, not a one-off (Refs #1764)
+
+- Last cycle PROVED the generated trainer RTL bit-exact vs the model once, by hand. This cycle makes it an INVARIANT: `tools/verify_emit_bitexact.py` regenerates the GF-T cores FRESH from their .t27 specs (via t27c, per L2 GENERATION -- no hand-committed gen/), emits the microsequencer for hidden widths {2,3,4,5}, and cross-checks `yout` u32 per step in Icarus Verilog over an 80-step training run
+- Self-contained + CI-friendly: SKIPs cleanly (exit 0) when iverilog or t27c is absent (never breaks Rust-only CI); a real spec->RTL divergence exits 1
+- New workflow `.github/workflows/emit-bitexact-gate.yml` (CI-02): builds t27c, installs iverilog, runs the gate on any PR touching the trainer generator or the GF-T core specs -- runs on THIS PR (self-validating)
+- => "spec->Verilog bit-exact" for the programmable trainer is now enforced on every relevant PR; a future regression fails in CI instead of silently miscomputing on silicon. Tool+CI only; Refs #1764
 
 ## verify: emit_verilog RTL == GF-T model, BIT-EXACT over a full training run (Refs #1764)
 
