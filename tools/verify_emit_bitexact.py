@@ -2,10 +2,11 @@
 """Bit-exact gate for the programmable trainer's generated RTL.
 
 Regenerates the GF-T arithmetic cores from their .t27 specs (via t27c), emits the
-microsequencer for several topologies (varying hidden width, output count, and
-input count) via emit_verilog(), and proves in a simulator that the generated RTL
-is BIT-EXACT to the Python GF-T model over a full training run (forward + backprop
-+ weight update), comparing EVERY output's u32 per step.
+microsequencer for several topologies (varying hidden width, output count, input
+count, and DEPTH -- 2- to 4-layer nets via emit_verilog / emit_verilog_deep), and
+proves in a simulator that the generated RTL is BIT-EXACT to the Python GF-T model
+over a full training run (forward + backprop + weight update), comparing EVERY
+output's u32 per step.
 
 Then, if yosys is present, it SYNTHESIZES the emitted RTL (synth_xilinx) for a
 couple of topologies and asserts a non-zero FF+LUT mapping -- catching a change
@@ -22,8 +23,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SMUL_SPEC = os.path.join(ROOT, "specs/ternary/gft_smul.t27")
 SADD_SPEC = os.path.join(ROOT, "specs/ternary/gft_sadd.t27")
 ARCHS = [(2, 2, 1), (2, 3, 1), (2, 4, 1), (2, 5, 1),  # hidden-width axis
-         (2, 2, 2), (2, 4, 2), (2, 3, 3), (3, 4, 2)]   # multi-output + multi-input
-SYNTH_ARCHS = [(2, 2, 1), (2, 4, 2)]  # one single-output + one multi-output (yosys is slower)
+         (2, 2, 2), (2, 4, 2), (2, 3, 3), (3, 4, 2),   # multi-output + multi-input
+         [2, 4, 3, 1], [2, 5, 3, 2], [3, 4, 4, 2, 1]]  # DEEP (lists): 3- and 4-layer
+SYNTH_ARCHS = [(2, 2, 1), (2, 4, 2), [2, 4, 3, 1]]  # single / multi-out / deep (yosys is slower)
 STEPS = 80
 
 
@@ -54,10 +56,17 @@ def gen_core(t27c, spec, out):
     open(out, "w").write(v.stdout)
 
 
+def _emit_and_gen(g, arch, modname="bpx"):
+    """Resolve arch -> (verilog, reg, steps, n_in, n_out). A 3-tuple is the 2-layer
+    path (gen/emit_verilog); a list [n_in,...,n_out] is the deep path."""
+    if isinstance(arch, list):
+        return g.emit_verilog_deep(arch, modname), *g.gen_deep(arch), arch[0], arch[-1]
+    v = g.emit_verilog(*arch, modname); reg, steps = g.gen(*arch)
+    return v, reg, steps, arch[0], arch[2]
+
+
 def check(g, arch, workdir):
-    n_in, n_hid, n_out = arch
-    v = g.emit_verilog(*arch, "bpx")
-    reg, steps = g.gen(*arch)
+    v, reg, steps, n_in, n_out = _emit_and_gen(g, arch)
     rf = [0] * len(reg)
     for idx, val in re.findall(r"rf\[(\d+)\]<=32'd(\d+);", v):
         rf[int(idx)] = int(val)
@@ -131,7 +140,7 @@ def synth_check(g, arch, workdir):
     empty module but map to ~0 cells). Uses the version-stable `Number of cells`
     stat line rather than parsing per-primitive names (which vary across yosys
     versions); reports the FF/LUT breakdown when it is parseable."""
-    open(os.path.join(workdir, "bpx.v"), "w").write(g.emit_verilog(*arch, "bpx"))
+    open(os.path.join(workdir, "bpx.v"), "w").write(_emit_and_gen(g, arch)[0])
     # -DSIMULATION strips the cores' `ifndef SIMULATION` self-test blocks.
     cmd = ("read_verilog -DSIMULATION bpx.v GftSmul.v GftSadd.v; hierarchy -top bpx; "
            "synth_xilinx -nocarry -flatten; stat")

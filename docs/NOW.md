@@ -1,6 +1,14 @@
-# NOW — ci: emit gate now also proves SYNTHESIZABILITY (2026-08-07)
+# NOW — feat: arbitrary-DEPTH trainer (>2 layers), proven bit-exact + synth (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: lift the 2-layer restriction -> arbitrary-depth net, bit-exact + synthesizable (Refs #1764)
+
+- Removed the generator's last STRUCTURAL restriction (exactly 2 layers). New `gen_deep(sizes)` + `emit_verilog_deep(sizes)` produce full backprop for an L-layer net of ANY depth (`sizes=[n_in,h1,...,n_out]`): hidden layers ReLU, linear output, deltas propagated back-to-front through every hidden layer. Naming stays emit-compatible (x{k}/t{o}/y{o})
+- Refactored the shared Verilog emitter into `_emit_module` so the 2-layer (`emit_verilog`) and deep (`emit_verilog_deep`) paths do not duplicate; `emit_verilog` output unchanged; `gen_deep([n_in,n_hid,n_out])` matches `gen()` step-for-step (26 regs/47 steps for [2,3,1])
+- **Same tiny datapath (one smul + one sadd): depth costs microcode STEPS (time), not FPGA area** -- [2,4,3,1] synthesizes to 17672 cells, comparable to the 2-layer (2,4,2)'s 17468
+- Proven: self-test [2,4,3,1] (3-layer, 2 hidden) LEARNS the noisy nonlinear task (held-out 59/60); bit-exact gate extended with deep archs [2,4,3,1], [2,5,3,2] (deep+multi-out), [3,4,4,2,1] (**4-layer, 3 hidden**) -- all RTL == model bit-exact over 80 steps, and [2,4,3,1] added to the synth gate
+- => the generator now emits ANY feed-forward topology (arbitrary inputs x hidden-layers x outputs), each proven bit-exact spec->RTL AND synthesizable in CI. No structural restrictions remain. Tool+gate only; Refs #1764
 
 ## ci: emit-bitexact gate adds a yosys synth_xilinx check (Refs #1764)
 
