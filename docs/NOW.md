@@ -1,6 +1,14 @@
-# NOW — feat: GF-T on-chip trainer primitive (2026-08-07)
+# NOW — feat: GF-T 2-input on-chip trainer (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T 2-input on-chip trainer — proven on AX7203 (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_train2.t27` — `on_comb(w0,w1,x0,x1,t,eta) -> u64` runs one full on-chip SGD step of a 2-input linear neuron `y=w0*x0+w1*x1`: forward → error `e=y-t` → grads `g_i=e*x_i` → updates `w_i'=w_i-eta*g_i`, returning both updated weights packed `(w0'<<32)|w1'` (reuses `smul/sadd/neg/mag*` from `gft_sgd_step`)
+- `test` block PASS via `icarus-simulate` per L4
+- On-device training: with both weights in registers the whole forward+backward+update runs on-chip; host streams only `(x0,x1,t)`
+- Proven on a live AX7203 (`uart_train2.v`): streaming a hidden 2-weight function `w*=(1.0,0.5)`, the board discovers BOTH — w0 0.25→1.03, w1 0.25→0.48
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T on-chip trainer primitive — proven on AX7203 (Refs #1764)
 
