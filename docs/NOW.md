@@ -1,6 +1,13 @@
-# NOW — feat: GF-T nonlinear (ReLU) on-chip trainer (2026-08-07)
+# NOW — feat: GF-T 2-neuron hidden layer trainer (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T 2-neuron hidden layer on-chip trainer — proven on AX7203 (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_hidden2.t27` — on-chip SGD step of a 2-neuron hidden layer `y=relu(w0*x0)+relu(w1*x1)` (fixed unit output weights): two INDEPENDENT nonlinear units, each with its own relu gate; per-neuron gated grad `dw_j=e*relu'(z_j)*x_j`; updates `w_j'=w_j-eta*dw_j`; returns `(w0'<<32)|w1'`. Reuses `smul/sadd/neg/relu/relu_prime/mag*`
+- `test` blocks (both active, one-dead) PASS via `icarus-simulate` per L4
+- Proven on a live AX7203 (`uart_hidden2.v`): the two units gate INDEPENDENTLY — killing one neuron's activation (its input <0) freezes only that neuron's weight while the other keeps learning (MOVED vs FROZEN across 3 phases)
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T nonlinear (ReLU) on-chip trainer — proven on AX7203 (Refs #1764)
 
