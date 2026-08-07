@@ -14,26 +14,27 @@ Update it at the end of every loop.
 ## Current status (2026-08-06)
 
 ### Wave Loop ladder
-- **W881** — issue #1722, PR #1810 (`[581][2]^6 Pt`) — `MERGEABLE`, `BLOCKED` by required
-  status checks, auto-merge enabled.
-- **W882** — issue #1812, PR #1813 (`[583][2]^6 Pt`) — `MERGEABLE`, `BLOCKED` by required
-  status checks, auto-merge enabled.
-- **W883** — issue #1814, PR #1815 (`[585][2]^6 Pt`) — `MERGEABLE`, `BLOCKED` by required
-  status checks, auto-merge enabled.
-- **W884** — issue #1828, PR #1829 (`[587][2]^6 Pt`) — `CONFLICTING`; branch rebuilt from
-  `master` to resolve merge conflicts with the concurrently-landed GF-T stack.
-- **W885** — issue TBD, branch TBD (`[589][2]^6 Pt`) — ready, waiting for W884 to land.
+- **W881** — issue #1722, PR #1810 (`[581][2]^6 Pt`) — `OPEN`, auto-merge enabled; blocked
+  by required status checks.
+- **W882** — issue #1812, PR #1813 (`[583][2]^6 Pt`) — `OPEN`, auto-merge enabled; blocked
+  by required status checks.
+- **W883** — issue #1814, PR #1815 (`[585][2]^6 Pt`) — `OPEN`, auto-merge enabled; blocked
+  by required status checks.
+- **W884** — issue #1828, PR #1829 (`[587][2]^6 Pt`) — `MERGED`.
+- **W885** — issue #1830, PR #1831 (`[589][2]^6 Pt`) — `MERGED`.
+- **W886** — issue #1832, PR #1833 (`[591][2]^6 Pt`) — `OPEN`, auto-merge enabled; checks
+  in progress.
+- **W887** — issue #1834, branch TBD (`[593][2]^6 Pt`) — ready to start once W886 lands.
 
 ### GF-T PR queue (Refs #1764)
-The GF-T stack has largely landed on `master` since the last update. Remaining open PRs
-were wave-loop branches blocked on checks.
+The GF-T stack has largely landed on `master`. Remaining open PRs are wave-loop branches
+blocked on GitHub Actions runners.
 
 ### Known blockers
 - GitHub Actions required checks are `expected` across the queue; auto-merge is the
   current mitigation.
 - Pre-existing `corpus_classifier_matches_lean_completeness` failure for
-  `specs/cloud/railway_deploy.t27` reproduces on `wave-loop-882` and may affect CI once
-  runners are available. It is not introduced by any Wave Loop PR.
+  `specs/cloud/railway_deploy.t27` is not introduced by any Wave Loop PR.
 
 ## Procedure
 
