@@ -1,3 +1,32 @@
+# NOW — feat: emit_verilog can emit the SILICON-READY variant (clk_div) (2026-08-08)
+
+Last updated: 2026-08-08
+
+## feat: fold the capstone silicon fix into the verified generator (Refs #1764)
+
+- The capstone (full backprop trains XOR on live AX7203) ran on a HAND-WRITTEN board wrapper, not the CI-verified generator. This closes that gap: `emit_verilog` / `emit_verilog_deep` now take `clk_div` (default 1 = unchanged). clk_div>1 emits the SILICON-READY variant -- the exact fix that trains on silicon: register file forced to flip-flops (`ram_style=registers`, since distributed LUTRAM can't do the parallel weight init) + a /N clock-enable so the deep shared-core path gets ~clk_div x SETTLE cycles to settle (the open-source P&R can't express a multicycle constraint)
+- **clk_div only changes TIMING, not values** -- verified bit-exact to the model in iverilog (clk_div=4, 12 training steps, RTL == model); the default clk_div=1 output is byte-identical to before, so the existing bit-exact/synth/datapath CI gate is unaffected (still ALL SYNTHESIZE). Self-test asserts clk_div=16 emits ram_style + the /N clock-enable and that clk_div=1 does not
+- => the CI-verified generator now emits the same RTL that trains a neural net on real silicon: `emit_verilog(2,2,1,"m",clk_div=16)` -> flash via the seed-searched openXC7 flow -> trains XOR 4/4 on the AX7203. Unifies the verification and silicon threads. Tool-only; Refs #1764
+
+## docs: the capstone (backprop trains XOR on silicon) lands in the whitepaper (Refs #1764)
+
+- The full 2-layer backprop microsequencer now TRAINS XOR to 4/4 on a live Artix-7 (25/25 epochs, both layers learning on-chip, weight trajectory bit-exact to the independent Python model -- ep0 0.000/0.551/0.936/0.232 == model). Updated the whitepaper to state this as fact:
+  - S3 Training: added the capstone (full backprop microsequencer trains XOR on the chip, model-exact)
+  - S4(b): "trains XOR to 4/4 ... with the silicon bitstream built and validated" -> now "flashed to a real Artix-7 and trains XOR to 4/4 across 25/25 epochs, both layers learning on-chip, bit-exact to the model" -- a full forward+loss+backward+update loop on live silicon
+  - S5 honesty: the "pending one physical JTAG re-connect" item is RESOLVED; replaced with the honest seed-search caveat (nextpnr-xilinx can't express a multicycle constraint, so the deep shared-core path is placement-dependent -- an open-toolchain limitation, pick a stable seed; a commercial P&R would close it directly)
+- Docs only. Refs #1764
+
+## test: verify_multitarget covers exact/near cancellation (a, -a) (Refs #1764)
+
+- Added a targeted edge to the cross-target proof: `gen_pairs` now injects ~20% CANCELLATION pairs `(v, neg(v))` -> `sadd` exact-cancels to 0, plus near-cancellation `(v, neg(v'))`. This is the historically buggy magsub path (cycle 17 found a negative-zero bug when the larger operand is negative and the result is exactly 0) and the magsub-normalize hot path
+- Result: model `smul`/`sadd` == the C and Rust emissions BIT-EXACT on the cancellation edge too -- the fix holds across all backends. Combined with last cycle's extreme-operand coverage, the cross-target proof now spans moderate + extreme + cancellation operands
+- Context: this closes out the operand-space hardening motivated by (but orthogonal to) the bpseq silicon debug, which is confirmed a TIMING issue (nextpnr-xilinx XDC supports only create_clock -- no multicycle/generated-clock -- so bpseq needs a pipelined core or a real divided clock; documented). Tool-only. Refs #1764
+
+## test: verify_multitarget covers the full GF-T range, not just [-4,4] (Refs #1764)
+
+- Motivated by the bpseq silicon debug: a hypothesis was that the microsequencer diverges on silicon because training-grown weights push operands into a saturation range where the Python GF-T model and the RTL might disagree (the cross-target proof only used moderate [-4,4] operands). Tested it: model smul/sadd vs the C emission over 1500 EXTREME operands (full offset span 0..127, both signs, saturation-adjacent) -- **0 mismatches, ALL MATCH.** So the model is a faithful RTL reference across the WHOLE range; the bpseq silicon divergence is NOT an arithmetic/operand-range bug (it is confirmed TIMING: iverilog stable, board core == verified gen-verilog, model == RTL on all operands)
+- Turned the negative result into a real coverage improvement: `gen_pairs` now draws from BOTH the moderate range AND extreme raw GF-T u32 operands (full offset span, both signs, saturation-adjacent) -- overflow/underflow/carry edges the [-4,4] sweep never reached. Cross-target bit-exactness now proven on the full representable range
+- Tool-only; still ALL TARGETS BIT-EXACT. Refs #1764
 # NOW — feat: extend IGLA RACE cross-target to systolic PE + 2 more gen findings (2026-08-07)
 
 Last updated: 2026-08-07
