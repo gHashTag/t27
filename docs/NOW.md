@@ -1,6 +1,12 @@
-# NOW — docs: workshop-grade silicon-training methodology write-up (2026-08-08)
+# NOW — test: synth gate asserts ZERO transparent latches (2026-08-08)
 
 Last updated: 2026-08-08
+
+## test: catch gen-verilog latch inference that reaches silicon (Refs #1764)
+
+- Motivated by a root-cause hunt for the on-silicon seed-lottery marginality. Finding: the gen-verilog GF-T cores (GftSmul/GftSadd) infer dozens of latches during yosys `proc` (function locals conditionally assigned), but `synth_xilinx` optimizes them ALL away -> the final netlist has 0 latch cells. So latches are NOT the marginality cause here (nor were setup or hold -- all three hypotheses killed board-independently). But a latch that SURVIVED synthesis would be a level-sensitive / placement-sensitive silicon-reliability hazard that iverilog verification never catches
+- Added a permanent guard: the synth phase now asserts **0 transparent latch cells** in the synthesized netlist (LD*/`*LATCH*`), and reports "0 latches" per topology. Passes today; catches a future gen-verilog regression that leaves a real latch on silicon
+- Tool-only; still ALL SYNTHESIZE. Refs #1764
 
 ## docs: reproducible methodology paper for on-chip training (Refs #1764)
 

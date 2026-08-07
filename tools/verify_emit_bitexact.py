@@ -176,7 +176,17 @@ def synth_check(g, arch, workdir):
         return False
     ff = sum(int(n) for n, _ in re.findall(r"(\d+)\s+(FD\w+)", log))
     lut = sum(int(n) for n, _ in re.findall(r"(\d+)\s+(LUT\w*)", log))
-    extra = f" ({ff} FF + {lut} LUT)" if ff and lut else ""
+    # ZERO transparent latches: gen-verilog function locals can infer latches
+    # (yosys warns), and synth_xilinx normally optimizes them back to combinational
+    # (0 in the final netlist). A latch that SURVIVES to silicon is level-sensitive /
+    # placement-sensitive -- a real reliability hazard that iverilog verification never
+    # catches. Assert the synthesized netlist has none.
+    latch = sum(int(n) for n, _ in re.findall(r"(\d+)\s+(LD\w*|\S*LATCH\w*)", log))
+    if latch:
+        print(f"FAIL {arch}: {latch} transparent latch cells in the synthesized netlist "
+              f"(silicon-reliability hazard; make the gen-verilog function locals fully assigned)")
+        return False
+    extra = f" ({ff} FF + {lut} LUT, 0 latches)" if ff and lut else ""
     print(f"OK {arch}: yosys synth_xilinx -> {total} cells{extra} (maps to real hardware)")
     return {"arch": str(arch), "cells": total, "ff": ff, "lut": lut}
 
