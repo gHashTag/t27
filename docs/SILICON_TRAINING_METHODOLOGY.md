@@ -78,7 +78,30 @@ no Docker, native macOS arm64.
   core past its (unconstrained) timing edge. This is a genuine Heisenbug: the deep path is
   marginal enough that instrumenting it *moves* the result, which is itself the evidence
   that the fault lives in the timing/placement of the whole path, not in one microcode
-  step. The fix is a real timing constraint (commercial P&R), not a code change.
+  step.
+- **A slower clock is NOT the fix — on two independent grounds.** The intuitive remedy
+  ("just run the deep path at a slower clock so it settles") fails twice on this flow.
+  *(a) It is not buildable.* A fabric-counter divided clock needs a clock buffer, and
+  nextpnr-xilinx cannot place one driven from fabric: both `BUFG` and `BUFR` fed by a
+  divider bit fail with *"Unable to find legal placement"* (a 7-series clock buffer input
+  comes from a clock-capable pin or the CMT, not general routing). Only an MMCM/PLL could
+  synthesize a real divided clock. *(b) Even if it built, it would not help.* A divided
+  clock with the same microcode `settle` count delivers the **same real settle window**
+  (~µs) as the working `/N` clock-enable — no new mechanism. And more settle does not cure
+  the glitch: the on-silicon behaviour is **non-monotonic in settle** (a `/128` enable
+  glitched *worse* than `/64`), so the fault is a placement **hazard**, not a shortage of
+  settle time. Note too that `create_clock` on the differential `clk_p` port does **not**
+  propagate through the `IBUFDS`; the internal clock net defaults to a loose 12 MHz target
+  and always "passes", so `--timing-allow-fail` was effectively a no-op — the path was
+  never actually being closed, just loosely met. Constraining the internal net tighter
+  reports the true fmax (~21 MHz) but does not change the silicon hazard.
+- **Therefore the one viable structural fix is to PIPELINE the shared core** — register
+  the intermediate stages of `GftSmul`/`GftSadd` (a spec-level `on_clock` pipelined
+  multiply/add) so every microcode step reads a clean, registered value and the deep
+  combinational hazard is broken, letting nextpnr close each short stage at the real
+  200 MHz. This is a code/spec change, not a clock or constraint change. It is the
+  prerequisite for training nets larger than XOR on this open flow (where seed-search
+  runs out — a 62-step net does not stabilise in any seed).
 
 ## Reproducibility
 

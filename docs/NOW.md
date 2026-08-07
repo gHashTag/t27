@@ -1,6 +1,13 @@
-# NOW — docs: seed-lottery marginality is placement-level, Heisenbug-confirmed (2026-08-08)
+# NOW — docs: a slower clock is not the fix; pipelining is (2026-08-08)
 
 Last updated: 2026-08-08
+
+## docs: a slower clock cannot fix the seed-lottery — pipelining the shared core is the only structural fix (Refs #1764)
+
+- Investigated the "just run the deep path on a slower clock" remedy and ruled it out on TWO independent grounds. (a) NOT buildable on openXC7: a fabric-counter divided clock needs a clock buffer, and nextpnr-xilinx cannot place one driven from fabric — both `BUFG` and `BUFR` fed by a divider bit fail with "Unable to find legal placement" (7-series clock-buffer inputs come from clock-capable pins / the CMT, not general routing). Only an MMCM/PLL could make a real divided clock
+- (b) Even if buildable, it would not help: a divided clock with the same microcode `settle` gives the SAME real settle window (~µs) as the working `/N` clock-enable, and more settle does not cure the glitch — silicon behaviour is non-monotonic in settle (`/128` glitched worse than `/64`, cycle 93). The fault is a placement HAZARD, not a settle shortage
+- Also re-confirmed: `create_clock` on the differential `clk_p` port does not propagate through `IBUFDS`; the internal clock net defaults to a loose 12 MHz target and always "passes", so `--timing-allow-fail` was effectively a no-op. Constraining `[get_nets clk]` tighter reports the true fmax (~21 MHz) but does not change the silicon hazard
+- CONCLUSION (re-prioritises the roadmap): the one viable structural fix is to PIPELINE the shared `GftSmul`/`GftSadd` (a spec-level `on_clock` pipelined multiply/add) so each microcode step reads a registered value and the deep combinational hazard is broken. This is the prerequisite for on-silicon training beyond XOR (seed-search runs out at 62 steps). Documented in `docs/SILICON_TRAINING_METHODOLOGY.md` "Honest limits". Docs only. Refs #1764
 
 ## docs: record that seed-lottery marginality is a PLACEMENT property, not a register bug (Refs #1764)
 
