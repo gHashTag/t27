@@ -2,9 +2,10 @@
 """Bit-exact gate for the programmable trainer's generated RTL.
 
 Regenerates the GF-T arithmetic cores from their .t27 specs (via t27c), emits the
-microsequencer for several hidden widths via emit_verilog(), and proves in a
-simulator that the generated RTL is BIT-EXACT to the Python GF-T model over a full
-training run (forward + backprop + weight update), comparing yout u32 per step.
+microsequencer for several topologies (varying hidden width, output count, and
+input count) via emit_verilog(), and proves in a simulator that the generated RTL
+is BIT-EXACT to the Python GF-T model over a full training run (forward + backprop
++ weight update), comparing EVERY output's u32 per step.
 
 Self-contained and CI-friendly: if t27c or iverilog is unavailable it prints SKIP
 and exits 0 (so it never breaks a Rust-only CI); a real mismatch exits 1. Run:
@@ -15,7 +16,8 @@ import os, re, sys, shutil, subprocess, tempfile, importlib.util, random
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SMUL_SPEC = os.path.join(ROOT, "specs/ternary/gft_smul.t27")
 SADD_SPEC = os.path.join(ROOT, "specs/ternary/gft_sadd.t27")
-ARCHS = [(2, 2, 1), (2, 3, 1), (2, 4, 1), (2, 5, 1)]  # hidden width is the free axis
+ARCHS = [(2, 2, 1), (2, 3, 1), (2, 4, 1), (2, 5, 1),  # hidden-width axis
+         (2, 2, 2), (2, 4, 2), (2, 3, 3), (3, 4, 2)]   # multi-output + multi-input
 STEPS = 80
 
 
@@ -47,33 +49,56 @@ def gen_core(t27c, spec, out):
 
 
 def check(g, arch, workdir):
+    n_in, n_hid, n_out = arch
     v = g.emit_verilog(*arch, "bpx")
     reg, steps = g.gen(*arch)
     rf = [0] * len(reg)
     for idx, val in re.findall(r"rf\[(\d+)\]<=32'd(\d+);", v):
         rf[int(idx)] = int(val)
+    # deterministic stream: n_in inputs + n_out targets per step (values arbitrary;
+    # bit-exactness is independent of target semantics, we just need identical drive)
     random.seed(101)
     seq = []
     for _ in range(STEPS):
-        a = round(random.uniform(-1, 1), 3); b = round(random.uniform(-1, 1), 3)
-        t = float(int((a > 0) != (b > 0)))
-        seq.append((a, b, t))
+        xs = [round(random.uniform(-1, 1), 3) for _ in range(n_in)]
+        cls = int((xs[0] > 0) != (xs[-1] > 0))
+        ts = [1.0 if o == cls % n_out else 0.0 for o in range(n_out)]
+        seq.append((xs, ts))
     py = []
-    for (a, b, t) in seq:
-        rf[reg["x0"]] = g.enc(a); rf[reg["x1"]] = g.enc(b); rf[reg["t0"]] = g.enc(t)
-        g.run(steps, rf); py.append(rf[reg["y0"]] & 0xFFFFFFFF)
+    for (xs, ts) in seq:
+        for k in range(n_in): rf[reg[f"x{k}"]] = g.enc(xs[k])
+        for o in range(n_out): rf[reg[f"t{o}"]] = g.enc(ts[o])
+        g.run(steps, rf)
+        py.append(tuple(rf[reg[f"y{o}"]] & 0xFFFFFFFF for o in range(n_out)))
+    xdecl = " ".join(f"reg [31:0] x{k}=0;" for k in range(n_in))
+    tdecl = " ".join(f"reg [31:0] t{o}=0;" for o in range(n_out))
+    ports = ",".join([".clk(clk)", ".rst(rst)", ".start(start)"]
+                     + [f".x{k}i(x{k})" for k in range(n_in)]
+                     + [f".t{o}i(t{o})" for o in range(n_out)]
+                     + [".yout(y)", ".done(done)"])
+    # a per-arch task carries the proven start/wait(done) handshake (an inline
+    # sequence of many wait(done)'s in one initial block hangs under iverilog)
+    tparams = ", ".join([f"input [31:0] px{k}" for k in range(n_in)]
+                        + [f"input [31:0] pt{o}" for o in range(n_out)])
+    tassign = " ".join(f"x{k}=px{k};" for k in range(n_in)) \
+              + " " + " ".join(f"t{o}=pt{o};" for o in range(n_out))
+    fmt = "Y" + " %0d" * n_out
+    args = ",".join(f"y[{32*o} +: 32]" for o in range(n_out))
     tb = [v, "`timescale 1ns/1ps", "module tb;",
           "  reg clk=0; always #2.5 clk=~clk;",
-          "  reg rst=1,start=0; reg [31:0] x0=0,x1=0,t=0; wire [31:0] y; wire done;",
-          "  bpx dut(.clk(clk),.rst(rst),.start(start),.x0i(x0),.x1i(x1),.ti(t),.yout(y),.done(done));",
-          "  task step(input [31:0] a,input [31:0] b,input [31:0] tt); begin",
-          "    x0=a;x1=b;t=tt;@(posedge clk);start=1;@(posedge clk);start=0;wait(done);@(posedge clk);$display(\"Y %0d\",y);",
+          f"  reg rst=1,start=0; {xdecl} {tdecl} wire [{32*n_out-1}:0] y; wire done;",
+          f"  bpx dut({ports});",
+          f"  task step({tparams}); begin",
+          f"    {tassign} @(posedge clk); start=1; @(posedge clk); start=0;"
+          f" wait(done); @(posedge clk); $display(\"{fmt}\",{args});",
           "  end endtask",
           "  initial begin rst=1; repeat(6)@(posedge clk); rst=0; @(posedge clk);"]
-    for (a, b, t) in seq:
-        tb.append(f"    step(32'd{g.enc(a)},32'd{g.enc(b)},32'd{g.enc(t)});")
+    for (xs, ts) in seq:
+        vals = ",".join([f"32'd{g.enc(xs[k])}" for k in range(n_in)]
+                        + [f"32'd{g.enc(ts[o])}" for o in range(n_out)])
+        tb.append(f"    step({vals});")
     tb += ["    $display(\"END\"); $finish; end",
-           "  initial begin #40000000 $display(\"TIMEOUT\"); $finish; end", "endmodule"]
+           "  initial begin #60000000 $display(\"TIMEOUT\"); $finish; end", "endmodule"]
     tbf = os.path.join(workdir, "tb.v"); open(tbf, "w").write("\n".join(tb))
     vvp = os.path.join(workdir, "tb.vvp")
     r = subprocess.run(["iverilog", "-o", vvp, tbf,
@@ -82,14 +107,14 @@ def check(g, arch, workdir):
     if r.returncode != 0:
         print(f"FAIL {arch}: iverilog compile error\n{r.stderr}"); return False
     out = subprocess.run(["vvp", vvp], capture_output=True, text=True).stdout
-    rtl = [int(x) for x in re.findall(r"^Y (\d+)$", out, re.M)]
+    rtl = [tuple(map(int, m.split())) for m in re.findall(r"^Y ([\d ]+)$", out, re.M)]
     if len(rtl) != len(py):
         print(f"FAIL {arch}: step count RTL={len(rtl)} PY={len(py)}"); return False
     mism = [(i, p, r_) for i, (p, r_) in enumerate(zip(py, rtl)) if p != r_]
     if mism:
         print(f"FAIL {arch}: {len(mism)}/{len(py)}; first step {mism[0][0]} py={mism[0][1]} rtl={mism[0][2]}")
         return False
-    print(f"OK {arch}: RTL == model BIT-EXACT over {len(py)} training steps (final yout={py[-1]})")
+    print(f"OK {arch}: RTL == model BIT-EXACT over {len(py)} training steps, all {n_out} output(s) (final yout={py[-1]})")
     return True
 
 
