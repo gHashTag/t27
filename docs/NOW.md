@@ -1,6 +1,15 @@
-# NOW — feat(igla): Wave Loop 889 (2026-08-06)
+# NOW — feat: GF-T trainer size optimizations (2026-08-07)
 
-Last updated: 2026-08-06
+Last updated: 2026-08-07
+
+## feat: GF-T trainer compression (scale_q + signmul) (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_xorpercep3.t27` — fully-on-chip 2-layer XOR trainer with two reusable size optimizations, both numerically identical to `gft_xorpercep` (in-spec test PASS):
+  - `scale_q(x,k)` = x*2^-k via exponent-offset shift, replacing `smul(eta,.)` for power-of-2 eta (removes multipliers)
+  - `signmul(g,h)` = sign/zero mux, valid because the perceptron error g is exactly {-1,0,+1}, replacing `smul(g,.)`
+- Shrinks the design 19.5M -> 17.86M fasm (6 magmuls -> 2). Honest note: still > the ~17M correctness ceiling -- the bulk is `magsub` (normalize loop in every `sadd`), not the magmuls, so multiplier optimizations do not clear the ceiling; a full 2-layer train step is irreducibly ~17.9M. Working on-chip path stays the split (cycle 53)
+- The scale_q/signmul techniques are reusable for any GF-T trainer near the budget
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat(igla): Wave Loop 888 close-out — [595][2]^6 Pt packed AoS witness (Refs #1836)
 
