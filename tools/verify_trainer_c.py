@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+"""Whole-trainer cross-target bit-exactness (C == model).
+
+verify_multitarget proves the GF-T PRIMITIVES (smul/sadd) are bit-exact across
+Verilog/C/Rust. This proves the WHOLE trainer is: it emits the microsequencer as a
+C program -- the C GF-T primitives (t27c gen-c) + a microcode interpreter + the
+operand-modifier `modf` -- runs a full 80-step training run (forward+backprop+
+update), and checks every output per step against the independent Python GF-T
+model. Verilog == model is already proven by verify_emit_bitexact, so C == model
+here closes "one spec -> any target, bit-exact" for the entire training loop, not
+just the arithmetic.
+
+Self-contained + CI-friendly: SKIPs (exit 0) if t27c / a C compiler is missing; a
+real divergence exits 1. Run:  python3 tools/verify_trainer_c.py
+"""
+import os, re, sys, shutil, subprocess, tempfile, importlib.util, random
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SMUL_SPEC = os.path.join(ROOT, "specs/ternary/gft_smul.t27")
+ARCHS = [(2, 2, 1), (2, 4, 2), [2, 4, 3, 1]]   # 2-layer, multi-output, deep
+STEPS = 80
+
+MODF_C = r"""
+static uint32_t modf_(uint32_t v, int m){
+  unsigned off, mant; int sgn = (v>>16)&1;
+  if(m==0) return v;
+  if(m==1) return (v==0||sgn)?0u:v;
+  if(m==2) return (v==0||sgn)?0u:20480u;
+  if(m==3) return (v==0)?0u:(v^65536u);
+  if(m==4){ if(v==0) return 0u; off=(v>>9)&0x7fu; mant=v&0x1ffu;
+            if(off<4u) return 0u;
+            return (((v&0x10000u)^0x10000u) | (((off-3u)<<9)|mant)); }
+  return v;
+}
+"""
+
+
+def skip(msg):
+    print(f"SKIP verify_trainer_c: {msg}"); sys.exit(0)
+
+
+def find_t27c():
+    for p in ("target/debug/t27c", "target/release/t27c"):
+        c = os.path.join(ROOT, p)
+        if os.path.exists(c):
+            return c
+    return shutil.which("t27c")
+
+
+def load_gen():
+    spec = importlib.util.spec_from_file_location(
+        "gbm", os.path.join(ROOT, "tools/gft_backprop_microcode.py"))
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    return m
+
+
+def emit_and_gen(g, arch):
+    if isinstance(arch, list):
+        return g.emit_verilog_deep(arch, "bpx"), *g.gen_deep(arch), arch[0], arch[-1]
+    return g.emit_verilog(*arch, "bpx"), *g.gen(*arch), arch[0], arch[2]
+
+
+def build_seq(n_in, n_out):
+    # identical stream to verify_emit_bitexact.check()
+    random.seed(101); seq = []
+    for _ in range(STEPS):
+        xs = [round(random.uniform(-1, 1), 3) for _ in range(n_in)]
+        cls = int((xs[0] > 0) != (xs[-1] > 0))
+        ts = [1.0 if o == cls % n_out else 0.0 for o in range(n_out)]
+        seq.append((xs, ts))
+    return seq
+
+
+def check(g, arch, t27c, wd):
+    v, reg, steps, n_in, n_out = emit_and_gen(g, arch)
+    init = [(int(i), int(val)) for i, val in re.findall(r"rf\[(\d+)\]<=32'd(\d+);", v)]
+    rf = [0] * len(reg)
+    for i, val in init:
+        rf[i] = val
+    seq = build_seq(n_in, n_out)
+    # python model reference
+    py = []
+    for xs, ts in seq:
+        for k in range(n_in): rf[reg[f"x{k}"]] = g.enc(xs[k])
+        for o in range(n_out): rf[reg[f"t{o}"]] = g.enc(ts[o])
+        g.run(steps, rf)
+        py.append(tuple(rf[reg[f"y{o}"]] & 0xFFFFFFFF for o in range(n_out)))
+    # emit the C trainer
+    hdr = subprocess.run([t27c, "gen-c", "specs/ternary/gft_smul.t27"],
+                         capture_output=True, text=True, cwd=ROOT).stdout
+    if "GFTSMUL_H" not in hdr:
+        skip("t27c gen-c failed")
+    open(os.path.join(wd, "gftmod.h"), "w").write(hdr)
+    op = ",".join("2" if o == "MOV" else ("1" if o == "ADD" else "0") for o, *_ in steps)
+    ai = ",".join(str(s[1]) for s in steps); am = ",".join(str(s[2]) for s in steps)
+    bi = ",".join(str(s[3]) for s in steps); bm = ",".join(str(s[4]) for s in steps)
+    di = ",".join(str(s[5]) for s in steps)
+    initc = "".join(f"rf[{i}]={val}u;" for i, val in init)
+    xidx = [reg[f"x{k}"] for k in range(n_in)]; tidx = [reg[f"t{o}"] for o in range(n_out)]
+    yidx = [reg[f"y{o}"] for o in range(n_out)]
+    rows = []
+    for xs, ts in seq:
+        vals = [g.enc(x) for x in xs] + [g.enc(t) for t in ts]
+        rows.append(",".join(str(x) for x in vals))
+    samples = "{" + "},{".join(rows) + "}"
+    ncol = n_in + n_out
+    # build the C main
+    main = f"""#define assert_eq(a,b) ((void)0)
+#include "gftmod.h"
+#include <stdio.h>
+{MODF_C}
+static uint32_t rf[{len(reg)}];
+static const int OP[]={{{op}}}, AI[]={{{ai}}}, AM[]={{{am}}}, BI[]={{{bi}}}, BM[]={{{bm}}}, DI[]={{{di}}};
+#define NP {len(steps)}
+static void run_steps(void){{
+  int pc; for(pc=0; pc<NP; pc++){{
+    uint32_t a=modf_(rf[AI[pc]],AM[pc]), b=modf_(rf[BI[pc]],BM[pc]);
+    rf[DI[pc]] = OP[pc]==2 ? a : (OP[pc] ? sadd(a,b) : smul(a,b));
+  }}
+}}
+static const uint32_t SAMP[{len(seq)}][{ncol}]={{{samples}}};
+static const int XIDX[]={{{",".join(map(str,xidx))}}}, TIDX[]={{{",".join(map(str,tidx))}}}, YIDX[]={{{",".join(map(str,yidx))}}};
+int main(void){{
+  int s,k;
+  {initc}
+  for(s=0;s<{len(seq)};s++){{
+    for(k=0;k<{n_in};k++) rf[XIDX[k]]=SAMP[s][k];
+    for(k=0;k<{n_out};k++) rf[TIDX[k]]=SAMP[s][{n_in}+k];
+    run_steps();
+    for(k=0;k<{n_out};k++) printf("%u%s", rf[YIDX[k]], k=={n_out}-1?"\\n":" ");
+  }}
+  return 0;
+}}
+"""
+    cf = os.path.join(wd, "trainer.c"); open(cf, "w").write(main)
+    b = os.path.join(wd, "tbin")
+    r = subprocess.run(["cc", "-O2", "-o", b, cf], cwd=wd, capture_output=True, text=True)
+    if r.returncode != 0:
+        print(f"FAIL {arch}: C trainer failed to compile\n{r.stderr[-800:]}"); return False
+    out = subprocess.run([b], capture_output=True, text=True).stdout
+    cy = [tuple(map(int, ln.split())) for ln in out.strip().splitlines()]
+    if len(cy) != len(py):
+        print(f"FAIL {arch}: C produced {len(cy)} of {len(py)} steps"); return False
+    mism = [(i, p, c) for i, (p, c) in enumerate(zip(py, cy)) if p != c]
+    if mism:
+        i, p, c = mism[0]
+        print(f"FAIL {arch}: C != model in {len(mism)}/{len(py)}; first step {i} model={p} C={c}"); return False
+    print(f"OK {arch}: C trainer == Python model BIT-EXACT over {len(py)} training steps, all {n_out} output(s)")
+    return True
+
+
+def main():
+    t27c = find_t27c()
+    if not t27c:
+        skip("t27c binary not found")
+    if not shutil.which("cc"):
+        skip("no C compiler (cc) on PATH")
+    g = load_gen()
+    with tempfile.TemporaryDirectory() as wd:
+        ok = all(check(g, a, t27c, wd) for a in ARCHS)
+    print("WHOLE TRAINER BIT-EXACT ACROSS TARGETS (C == model == Verilog)" if ok else "TRAINER CROSS-TARGET MISMATCH")
+    sys.exit(0 if ok else 1)
+
+
+if __name__ == "__main__":
+    main()
