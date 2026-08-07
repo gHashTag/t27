@@ -1,6 +1,13 @@
-# NOW — feat: GF-T 3-class classifier inference (2026-08-07)
+# NOW — feat: GF-T axpy (perceptron vector update) (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T axpy primitive — perceptron/SGD vector update (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_axpy.t27` — one-class weight-vector update `w' = w +/- eta*x` over 2 features: sign=1 boost (w+eta*x), sign=0 suppress (w-eta*x); returns `(w0'<<32)|w1'`. Reuses `smul/sadd/neg`
+- `test` blocks (boost/supp) PASS via `icarus-simulate` per L4
+- Building block for multi-class perceptron training. NOTE (honest): a full on-chip 3-class perceptron wrapper (uart_percep3.v = GftClassify3 + 2x GftAxpy + register routing) placed on the AX7203 (fasm 22.9M) but EXCEEDS the openXC7 correctness envelope: a faithful GF-T-arith Python sim converges to 100% and iverilog learns correctly, but the silicon bitstream miscomputes (pred=2 where iverilog gives pred=0). The axpy spec itself is verified; on-chip multi-class training needs the model split into smaller separately-verified passes
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## feat: GF-T 3-class linear classifier inference — proven on AX7203 (Refs #1764)
 
