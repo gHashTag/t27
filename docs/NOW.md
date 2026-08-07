@@ -1,6 +1,14 @@
-# NOW — demo: GF-T learns (end-to-end on-device training demo) (2026-08-07)
+# NOW — feat: GF-T on-chip trainer primitive (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T on-chip trainer primitive — proven on AX7203 (Refs #1764)
+
+- **NEW** spec `specs/ternary/gft_train1.t27` — `on_comb(w,x,t,eta)` runs one full SGD step of a 1-weight linear neuron combinationally: forward `y=w*x` → error `e=y-t` → gradient `g=e*x` → update `w'=w-eta*g` (reuses the verified `smul/sadd/neg/mag*` helpers from `gft_sgd_step`)
+- `test` block (learn/optimum/ascend) 3/3 PASS via `icarus-simulate` per L4
+- This is the on-device training primitive: with the weight held in a register the whole forward+backward+update runs on-chip; the host streams only `(x,t)` data
+- Proven on a live AX7203 (`uart_train1.v`): streaming `(x, t=1.5*x)` with varying x, the board's weight converges 0.25 → ~1.42 toward the hidden `w*=1.5`
+- Spec-only; no `gen/`/`coq/` edits; no new `*.sh`; Refs #1764
 
 ## demo: GF-T learns — end-to-end training proof (Refs #1764)
 
