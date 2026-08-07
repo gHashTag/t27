@@ -57,6 +57,45 @@ Phase complete: [phase name]
 → Phase [next phase number]: [next phase name]
 ```
 
+## Worked example — Wave Loop 884
+
+Wave Loop 884 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:
+
+- Selected Variant A: module-scope `[587][2]^6 Pt` non-power-of-two outer-dimension
+  array-of-struct variable from call with indexed signed writes.
+- Generated `scripts/gen_w884.py` from `scripts/gen_w883.py` and fixed the three known
+  copy-hazard locations (destination path, module header f-string, `MID_IDX` comment),
+  then verified with a post-generation `grep` sanity check.
+- Produced `specs/scratch/w884_bench_module_587x2p6_aos_var_call_write.t27`
+  (37,568 elements, 1,202,176-bit packed vector, ~1.147 MiBit).
+- Added integration test `accepts_w884_bench_module_587x2p6_aos_var_call_write` to
+  `bootstrap/tests/icarus_lowerable.rs`.
+- Validation gates:
+  - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles),
+    `icarus-cocotb` (reference-model OK), `seal --save` — all PASS.
+  - Targeted `cargo test --release --test icarus_lowerable accepts_w884...` PASS.
+  - Full suite: 343 passed; 1 pre-existing `corpus_classifier_matches_lean_completeness`
+    mismatch for `specs/cloud/railway_deploy.t27` tracked separately.
+- Research background: Icarus Verilog has no 1-MiBit hard cap (LRM minimum is 65,536 bits;
+  Icarus warns near 1 Gbit; upstream commit `128c621` fixed a bound-normalization path;
+  Icarus V13.0 released 2026-03-02 improves packed/unpacked array handling and memory
+  management). Vitis HLS UG1399 `compact=bit` is the commercial analog for packing structs
+  into wide vectors. Vericert v2.0.0 released 2026-01-29; 2024 PLDI verified hyperblock
+  scheduling (DOI 10.1145/3656455) and 2026 follow-ons Graphiti (ASPLOS) and Let It Flow
+  (PLDI) provide the verified-HLS context. FPGA Roofline (Siracusa et al., IEEE TC 2021)
+  frames the ladder as a memory-quanta `Q` probe; 2026 FPGA LLM work reports BRAM/URAM
+  bandwidths in the TB/s range versus HBM ~460 GB/s.
+- Wrote closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W884_2026-08-06.md` and
+  next-wave plan `.claude/plans/wave-loop-885.md` with variants A/B/C.
+- Closed with commit `Closes #1828`, pushed branch `wave-loop-884`, opened PR #1829.
+- Updated this skill's Live Wave Loop Tracker to wave 885.
+
+Key learning: the 1.14-MiBit neighborhood remains a soft boundary for t27c and Icarus at
+1.147 MiBit. The generator copy-hazard checklist plus a post-generation grep remains the
+standard close-out procedure. When the upstream `master` GF-T stack moves concurrently,
+rebuilding the wave branch from `master` with only the implementation commits (and
+re-applying close-out docs) resolves merge conflicts while preserving the PR.
+
 ## Worked example — Wave Loop 880
 
 Wave Loop 880 continued the mechanical packed-vector AoS ladder past the 1-MiBit line:

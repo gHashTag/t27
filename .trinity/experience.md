@@ -1,4 +1,45 @@
-## 2026-07-24 — Wave Loop 777 (module-scope `[373][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1490)
+> ## 2026-08-06 — Wave Loop 884 (module-scope `[587][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1828, PR #1829)
+>
+> ### What worked
+> - Variant A extended the module-scope packed AoS odd outer-dimension ladder to 587.
+>   The `[587][2]^6 Pt` witness is 1,202,176 bits (~1.147 MiBit), continues past the 1-MiBit
+>   line, and required no compiler changes.
+> - The generator copy-hazard checklist was cleared before the first run.
+> - `t27c parse`, `icarus-lowerable`, `icarus-simulate` (17 cycles), `icarus-cocotb`, and
+>   `seal --save` all passed for the W884 witness.
+> - Targeted `cargo test --release --test icarus_lowerable accepts_w884_bench_module_587x2p6_aos_var_call_write`
+>   passed.
+> - PR #1829 opened; auto-merge enabled. The branch was later rebuilt from `master` to resolve
+>   merge conflicts with the concurrently-landed GF-T stack.
+>
+> ### What changed behavior
+> - No changes to `bootstrap/src/compiler.rs`.
+> - No changes to `bootstrap/stage0/FROZEN_HASH`.
+> - Added `specs/scratch/w884_bench_module_587x2p6_aos_var_call_write.t27` (~2.5 MB /
+>   ~111,591 lines) with seal and Icarus baseline.
+> - Added integration test `accepts_w884_bench_module_587x2p6_aos_var_call_write`.
+> - Added generator script `scripts/gen_w884.py`.
+> - Added closeout report `docs/reports/FPGA_LOOP_CLOSEOUT_W884_2026-08-06.md` and next-wave
+>   plan `.claude/plans/wave-loop-885.md`.
+>
+> ### Validation
+> - `t27c parse` W884: PASS.
+> - `t27c icarus-lowerable` W884: PASS (`lowerable`).
+> - `t27c icarus-simulate` W884: PASS (17 cycles, PASSED).
+> - `t27c icarus-cocotb` W884: PASS (`reference-model OK`).
+> - `t27c seal --save` W884: PASS.
+> - Targeted cargo test W884: PASS.
+>
+> ### Notes / watch-outs
+> - A pre-existing `corpus_classifier_matches_lean_completeness` failure for
+>   `specs/cloud/railway_deploy.t27` (Rust lowerable `false`, Lean theorem `true`) is not
+>   introduced by W884. It reproduces on clean W882 and should be tracked separately.
+> - The upstream `master` advanced with a large GF-T stack while W881–W884 PRs were queued.
+>   W884's original branch became `CONFLICTING` with `master`; the fix was to rebuild the
+>   branch from `master` with only the wave implementation commits and re-apply the
+>   close-out docs.
+>
+> ## 2026-07-24 — Wave Loop 777 (module-scope `[373][2]^6 Pt` non-power-of-two outer-dimension AoS variable, issue #1490)
 
 ### What worked
 - Variant A extended the module-scope packed AoS odd outer-dimension ladder to 373.
