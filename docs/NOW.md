@@ -1,6 +1,14 @@
-# NOW — test: cross-target coverage adds the sadd cancellation edge (2026-08-07)
+# NOW — docs: whitepaper — full backprop TRAINS XOR ON LIVE SILICON (2026-08-08)
 
-Last updated: 2026-08-07
+Last updated: 2026-08-08
+
+## docs: the capstone (backprop trains XOR on silicon) lands in the whitepaper (Refs #1764)
+
+- The full 2-layer backprop microsequencer now TRAINS XOR to 4/4 on a live Artix-7 (25/25 epochs, both layers learning on-chip, weight trajectory bit-exact to the independent Python model -- ep0 0.000/0.551/0.936/0.232 == model). Updated the whitepaper to state this as fact:
+  - S3 Training: added the capstone (full backprop microsequencer trains XOR on the chip, model-exact)
+  - S4(b): "trains XOR to 4/4 ... with the silicon bitstream built and validated" -> now "flashed to a real Artix-7 and trains XOR to 4/4 across 25/25 epochs, both layers learning on-chip, bit-exact to the model" -- a full forward+loss+backward+update loop on live silicon
+  - S5 honesty: the "pending one physical JTAG re-connect" item is RESOLVED; replaced with the honest seed-search caveat (nextpnr-xilinx can't express a multicycle constraint, so the deep shared-core path is placement-dependent -- an open-toolchain limitation, pick a stable seed; a commercial P&R would close it directly)
+- Docs only. Refs #1764
 
 ## test: verify_multitarget covers exact/near cancellation (a, -a) (Refs #1764)
 
