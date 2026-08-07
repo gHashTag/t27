@@ -6558,3 +6558,19 @@ fn corpus_classifier_matches_lean_completeness() {
         checked
     );
 }
+
+#[test]
+fn accepts_w897_bench_module_613x2p6_aos_var_call_write() {
+    let dir = scratch_dir();
+    for name in &["w897_bench_module_613x2p6_aos_var_call_write.t27"] {
+        let p = dir.join(name);
+        assert!(p.exists(), "missing W897 witness {}", p.display());
+        let (lowerable, json) = run_icarus_lowerable(&p);
+        assert!(
+            lowerable,
+            "expected {} to be lowerable, got: {}",
+            p.display(),
+            json
+        );
+    }
+}
