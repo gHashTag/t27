@@ -1,6 +1,14 @@
-# NOW — docs: whitepaper updated for the programmable/deep/CI-enforced trainer (2026-08-07)
+# NOW — feat: cross-target bit-exactness (C + Rust + Verilog + model) (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: GF-T primitives proven bit-exact across ALL t27 backends (Refs #1764)
+
+- Strengthens the core "one spec -> any target, bit-exact" thesis from Verilog-only to FOUR targets. `tools/verify_multitarget.py` emits the GF-T primitives `smul`/`sadd` (the exact functions the trainer's shared datapath uses) via t27c gen-c and gen-rust, compiles both (cc / rustc), and cross-checks against the independent Python GF-T model over 600 random operand pairs each
+- Result: **C == model and Rust == model BIT-EXACT** for smul and sadd; combined with Verilog == model (already proven by verify_emit_bitexact), all of {Verilog, C, Rust, model} agree bit-for-bit. Wired into the emit-bitexact-gate workflow (SKIPs cleanly if cc/rustc/t27c absent)
+- (Found + handled: gen-c emits the spec's `test` blocks as `assert_eq(...)` calls undeclared in C -> stub as a no-op macro before include, since we call the functions directly)
+- This cycle was "все три" (A/G/H): **A** (flash to silicon) remains blocked on the physical JTAG re-connect; **G** (nextpnr-xilinx P&R for real Fmax) needs the xilinx nextpnr variant + chipdb (not installed; too heavy for CI) -- deferred, not faked; **H** delivered here
+- Tool+CI only; Refs #1764
 
 ## docs: GFT_WHITEPAPER reflects cycles 71-74 (no structural limits, CI-enforced) (Refs #1764)
 

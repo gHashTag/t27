@@ -16,6 +16,7 @@ on:
     paths:
       - "tools/gft_backprop_microcode.py"
       - "tools/verify_emit_bitexact.py"
+      - "tools/verify_multitarget.py"
       - "specs/ternary/gft_smul.t27"
       - "specs/ternary/gft_sadd.t27"
       - ".github/workflows/emit-bitexact-gate.yml"
@@ -44,3 +45,6 @@ jobs:
 
       - name: Prove generated RTL == GF-T model (bit-exact) + synthesizes
         run: python3 tools/verify_emit_bitexact.py
+
+      - name: Prove GF-T primitives bit-exact across C + Rust + model
+        run: python3 tools/verify_multitarget.py
