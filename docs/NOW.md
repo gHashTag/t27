@@ -1,6 +1,12 @@
-# NOW — test: cross-target verification hardened to EXTREME operands (2026-08-07)
+# NOW — test: cross-target coverage adds the sadd cancellation edge (2026-08-07)
 
 Last updated: 2026-08-07
+
+## test: verify_multitarget covers exact/near cancellation (a, -a) (Refs #1764)
+
+- Added a targeted edge to the cross-target proof: `gen_pairs` now injects ~20% CANCELLATION pairs `(v, neg(v))` -> `sadd` exact-cancels to 0, plus near-cancellation `(v, neg(v'))`. This is the historically buggy magsub path (cycle 17 found a negative-zero bug when the larger operand is negative and the result is exactly 0) and the magsub-normalize hot path
+- Result: model `smul`/`sadd` == the C and Rust emissions BIT-EXACT on the cancellation edge too -- the fix holds across all backends. Combined with last cycle's extreme-operand coverage, the cross-target proof now spans moderate + extreme + cancellation operands
+- Context: this closes out the operand-space hardening motivated by (but orthogonal to) the bpseq silicon debug, which is confirmed a TIMING issue (nextpnr-xilinx XDC supports only create_clock -- no multicycle/generated-clock -- so bpseq needs a pipelined core or a real divided clock; documented). Tool-only. Refs #1764
 
 ## test: verify_multitarget covers the full GF-T range, not just [-4,4] (Refs #1764)
 

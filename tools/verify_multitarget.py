@@ -52,7 +52,16 @@ def gen_pairs(g):
     for _ in range(40):
         off = random.choice([0, 1, 2, 38, 39, 40, 41, 79, 80, 120, 126, 127])
         vals.append((random.randint(0, 1) << 16) | (off << 9) | random.randint(0, 511))
-    return [(random.choice(vals), random.choice(vals)) for _ in range(N)]
+    pairs = [(random.choice(vals), random.choice(vals)) for _ in range(N - N // 5)]
+    # CANCELLATION edge: (v, -v) -> sadd exact-cancel to 0 (a historically buggy
+    # magsub path -- negative-zero on the larger-operand-negative branch) and
+    # near-cancel (v, -v') for a neighbouring v' -> the magsub normalize hot path
+    for _ in range(N // 5):
+        v = random.choice(vals)
+        w = g.neg(v) if random.random() < 0.6 else g.neg(random.choice(vals))
+        pairs.append((v, w))
+    random.shuffle(pairs)
+    return pairs
 
 
 def py_ref(g, fn, pairs):
