@@ -1,6 +1,13 @@
-# NOW — feat: cross-target bit-exactness (C + Rust + Verilog + model) (2026-08-07)
+# NOW — feat: WHOLE trainer bit-exact in C (== model == Verilog) (2026-08-07)
 
 Last updated: 2026-08-07
+
+## feat: the entire training loop is bit-exact across C and Verilog, not just primitives (Refs #1764)
+
+- Last cycle proved the GF-T PRIMITIVES (smul/sadd) bit-exact across targets. This extends it to the WHOLE TRAINER. `tools/verify_trainer_c.py` emits the microsequencer as a C program -- the C GF-T primitives (t27c gen-c) + a microcode interpreter + the operand-modifier `modf` -- runs a full 80-step training run (forward+backprop+update) and checks every output per step against the independent Python GF-T model
+- Result: **C trainer == model BIT-EXACT over 80 training steps** for 2-layer (2,2,1), multi-output (2,4,2), and DEEP [2,4,3,1]. Verilog == model is already proven (verify_emit_bitexact), so the entire training loop is now bit-identical across {C, Verilog, model} -- "one spec -> any target, bit-exact" holds for the whole trainer, not just the arithmetic
+- Verified the guard catches a real divergence (corrupted modf -> 9/80 mismatches). Wired into emit-bitexact-gate (SKIPs if cc/t27c absent, ~2.5s)
+- This was the recommended follow-up (option I) to last cycle's primitive-level cross-target proof. Tool+CI only; Refs #1764
 
 ## feat: GF-T primitives proven bit-exact across ALL t27 backends (Refs #1764)
 
