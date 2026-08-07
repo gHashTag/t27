@@ -166,6 +166,13 @@ def emit_verilog(n_in, n_hid, n_out, modname):
     counters hit the nextpnr CARRY4-placement bug). Bigger nets = same datapath,
     ~constant area (measured: (2,2,1) 2.93M fasm, (2,3,1) 2.92M)."""
     import random
+    # the emitted module hard-wires x0i/x1i/ti -> it can only carry 2 inputs and 1
+    # target. Multi-output would need t1.. ports (else t1.. read as uninitialized x
+    # in RTL vs 0 in the model -> divergence). Hidden width is free; that is the
+    # "programmable size" axis the whitepaper claims. Guard the supported shape.
+    if n_in != 2 or n_out != 1:
+        raise ValueError(f"emit_verilog wires x0i/x1i/ti: supports n_in=2, n_out=1 "
+                         f"(hidden width free); got n_in={n_in}, n_out={n_out}")
     reg, steps = gen(n_in, n_hid, n_out); N = len(reg); NP = len(steps)
     random.seed(3); initv = {}
     for j in range(n_hid):
@@ -185,7 +192,7 @@ def emit_verilog(n_in, n_hid, n_out, modname):
     L.append("    3'd4:begin if(v==0)modf=0; else begin off=(v>>9)&7'h7f; mant=v&9'h1ff;"
              " if(off<3+1)modf=0; else modf=(v&32'h10000)^32'h10000|(((off-3)<<9)|mant); end end")
     L.append("    default:modf=v; endcase end endfunction")
-    L.append(f"  reg [{pcw-1}:0] pc; reg [7:0] settle; reg running; reg op; reg [7:0] ai,bi,di; reg [2:0] am,bm;")
+    L.append(f"  reg [{pcw-1}:0] pc; reg [7:0] settle; reg running; reg op; reg [7:0] ai,bi,di; reg [2:0] am,bm; integer gi;")
     L.append("  always @(*) begin op=0; ai=0; am=0; bi=0; bm=0; di=0; case(pc)")
     for i, (o, a, amod, b, bmod, d) in enumerate(steps):
         if o == "MOV": L.append(f"    {pcw}'d{i}: begin op=2; ai={a}; di={d}; end")
@@ -196,6 +203,7 @@ def emit_verilog(n_in, n_hid, n_out, modname):
     L.append("  GftSadd u_add(.clk(clk),.rst_n(1'b1),.en(1'b1),.a(a_val),.b(b_val),.ready(),.result(add_r));")
     L.append("  localparam SETTLE=8'd40;")
     L.append("  always @(posedge clk) begin if (rst) begin pc<=0; running<=0; done<=0; settle<=0;")
+    L.append(f"    for(gi=0;gi<{N};gi=gi+1) rf[gi]<=32'd0;")  # zero scratch (match model's 0-init; no x-propagation)
     for name, val in initv.items(): L.append(f"    rf[{reg[name]}]<=32'd{enc(val)};")
     L.append("  end else begin done<=0;")
     L.append(f"    if(!running) begin if(start) begin rf[{reg['x0']}]<=x0i; rf[{reg['x1']}]<=x1i;"
@@ -257,4 +265,12 @@ if __name__ == "__main__":
     print(f"self-test: (2,4,1) trains a noisy nonlinear task, held-out {te}/{len(te_set)} (>=90%) -- OK")
     v = emit_verilog(2, 3, 1, "bpseq231")
     assert "module bpseq231" in v and v.count("\n") > 40
+    assert "for(gi=0;gi<" in v, "scratch registers must be zero-inited on reset"
     print("emit_verilog: (2,3,1) module generated -- OK (build with -nocarry, ~2.9M fasm)")
+    # guard: the x0i/x1i/ti port shape only supports n_in=2, n_out=1 (hidden free)
+    for bad in [(2, 3, 2), (3, 3, 1)]:
+        try:
+            emit_verilog(*bad, "nope"); raise AssertionError(f"emit_verilog{bad} should have raised")
+        except ValueError:
+            pass
+    print("emit_verilog: rejects unsupported port shapes (n_in!=2 or n_out!=1) -- OK")
