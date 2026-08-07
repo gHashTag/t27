@@ -8,9 +8,12 @@ proves in a simulator that the generated RTL is BIT-EXACT to the Python GF-T mod
 over a full training run (forward + backprop + weight update), comparing EVERY
 output's u32 per step.
 
-Then, if yosys is present, it SYNTHESIZES the emitted RTL (synth_xilinx) for a
-couple of topologies and asserts a non-zero FF+LUT mapping -- catching a change
-that stays bit-exact in sim but breaks synthesizability.
+It also asserts the DATAPATH INVARIANT -- exactly one shared GftSmul + one shared
+GftSadd per module, regardless of topology (this is what makes 'network size costs
+time, not area' true; a change that parallelized the datapath would explode area
+and still pass sim). Then, if yosys is present, it SYNTHESIZES the emitted RTL
+(synth_xilinx), asserts a non-zero cell mapping, and prints a per-topology area
+report (cells/FF/LUT) so area trends are visible across PRs.
 
 Self-contained and CI-friendly: if t27c or iverilog is unavailable it prints SKIP
 and exits 0 (so it never breaks a Rust-only CI); the synth phase is skipped when
@@ -133,6 +136,21 @@ def check(g, arch, workdir):
     return True
 
 
+def datapath_check(g, arch):
+    """Guard the core architectural invariant -- ONE shared multiply core + ONE
+    shared add core, regardless of topology. This is what makes 'network size costs
+    time, not area' true: a change that accidentally parallelized the datapath would
+    instantiate N GftSmul (area explosion) and silently pass the sim + synth gates.
+    Version-independent (a text check on the emitted RTL, no toolchain needed)."""
+    v = _emit_and_gen(g, arch)[0]
+    nmul = len(re.findall(r"\bGftSmul\s+\w+\s*\(", v))
+    nadd = len(re.findall(r"\bGftSadd\s+\w+\s*\(", v))
+    if nmul != 1 or nadd != 1:
+        print(f"FAIL {arch}: datapath has {nmul} GftSmul + {nadd} GftSadd (must be exactly 1+1)")
+        return False
+    return True
+
+
 def synth_check(g, arch, workdir):
     """Prove the emitted microsequencer actually SYNTHESIZES (yosys synth_xilinx) --
     bit-exact-in-sim doesn't imply synthesizable. Asserts no yosys error and a
@@ -159,7 +177,7 @@ def synth_check(g, arch, workdir):
     lut = sum(int(n) for n, _ in re.findall(r"(\d+)\s+(LUT\w*)", log))
     extra = f" ({ff} FF + {lut} LUT)" if ff and lut else ""
     print(f"OK {arch}: yosys synth_xilinx -> {total} cells{extra} (maps to real hardware)")
-    return True
+    return {"arch": str(arch), "cells": total, "ff": ff, "lut": lut}
 
 
 def main():
@@ -176,9 +194,18 @@ def main():
         gen_core(t27c, SADD_SPEC, os.path.join(wd, "GftSadd.v"))
         ok = all(check(g, a, wd) for a in ARCHS)
         print("ALL BIT-EXACT" if ok else "MISMATCH")
+        if ok:
+            print("--- datapath invariant (one shared smul + one shared sadd) ---")
+            ok = all(datapath_check(g, a) for a in ARCHS)
+            print("ALL ONE-MULTIPLIER" if ok else "DATAPATH FAIL")
         if ok and shutil.which("yosys"):
-            print("--- synthesizability (yosys synth_xilinx) ---")
-            ok = all(synth_check(g, a, wd) for a in SYNTH_ARCHS)
+            print("--- synthesizability + area (yosys synth_xilinx) ---")
+            results = [synth_check(g, a, wd) for a in SYNTH_ARCHS]
+            ok = all(results)
+            if ok:
+                print("area report (cell counts are yosys-version-specific; watch the trend across PRs):")
+                for r in results:
+                    print(f"  {r['arch']:<16} {r['cells']:>7} cells  {r['ff']:>6} FF  {r['lut']:>6} LUT")
             print("ALL SYNTHESIZE" if ok else "SYNTH FAIL")
         elif ok:
             print("synth check skipped (yosys not on PATH)")
