@@ -76,6 +76,71 @@ def gen(n_in, n_hid, n_out):
         ADD(f"b{j}", 0, f"dz{j}", 4, f"b{j}")
     return reg, S
 
+
+def gen_deep(sizes):
+    """Return (reg_map, steps) for the full backprop of an L-layer net of arbitrary
+    DEPTH. `sizes` = [n_in, h1, h2, ..., n_out] (>=2 entries => >=1 weight layer).
+    Hidden layers use ReLU; the output layer is linear (logits). Naming stays
+    emit-compatible: inputs x{k}, targets t{o}, outputs y{o}. A 2-layer net
+    [n_in, n_hid, n_out] is functionally identical to gen(n_in, n_hid, n_out)."""
+    assert len(sizes) >= 2, "need at least [n_in, n_out]"
+    L = len(sizes) - 1                      # number of weight layers
+    idx = [0]; reg = {}
+    def alloc(name): reg[name] = idx[0]; idx[0] += 1; return reg[name]
+    # weights W{l}_{j}_{k}: layer l unit j <- layer l-1 unit k ; biases b{l}_{j}
+    for l in range(1, L + 1):
+        for j in range(sizes[l]):
+            for k in range(sizes[l - 1]): alloc(f"W{l}_{j}_{k}")
+    for l in range(1, L + 1):
+        for j in range(sizes[l]): alloc(f"b{l}_{j}")
+    for k in range(sizes[0]): alloc(f"x{k}")
+    for o in range(sizes[L]): alloc(f"t{o}")
+    for l in range(1, L):                   # hidden pre-activations z{l}_{j}
+        for j in range(sizes[l]): alloc(f"z{l}_{j}")
+    for o in range(sizes[L]): alloc(f"y{o}")          # linear outputs (== z^L)
+    for o in range(sizes[L]): alloc(f"e{o}")          # output error = y - t = delta^L
+    for l in range(1, L):                   # hidden deltas d{l}_{j}
+        for j in range(sizes[l]): alloc(f"d{l}_{j}")
+    alloc("m1"); alloc("acc")
+    S = []
+    def MUL(a, am, b, bm, d): S.append(("MUL", reg[a], am, reg[b], bm, reg[d]))
+    def ADD(a, am, b, bm, d): S.append(("ADD", reg[a], am, reg[b], bm, reg[d]))
+    def act(l, k):                          # activation reg + read-mod of layer l unit k
+        return (f"x{k}", 0) if l == 0 else (f"z{l}_{k}", 1)   # input raw / hidden relu
+    def dst_pre(l, j):                       # where layer l's pre-activation is stored
+        return f"y{j}" if l == L else f"z{l}_{j}"
+    def delta(l, u):                         # delta reg of layer l unit u
+        return f"e{u}" if l == L else f"d{l}_{u}"
+    # forward: z^l_j = W^l_j . a^{l-1} + b^l_j
+    for l in range(1, L + 1):
+        for j in range(sizes[l]):
+            r0, m0 = act(l - 1, 0)
+            MUL(f"W{l}_{j}_0", 0, r0, m0, "acc")
+            for k in range(1, sizes[l - 1]):
+                rk, mk = act(l - 1, k)
+                MUL(f"W{l}_{j}_{k}", 0, rk, mk, "m1"); ADD("acc", 0, "m1", 0, "acc")
+            ADD("acc", 0, f"b{l}_{j}", 0, dst_pre(l, j))
+    # output error: e_o = y_o - t_o  (delta^L, linear output)
+    for o in range(sizes[L]):
+        ADD(f"y{o}", 0, f"t{o}", 3, f"e{o}")
+    # hidden deltas (back-to-front): d^l_j = relu'(z^l_j) * sum_u W^{l+1}_{u,j} * delta^{l+1}_u
+    for l in range(L - 1, 0, -1):
+        for j in range(sizes[l]):
+            MUL(f"W{l+1}_0_{j}", 0, delta(l + 1, 0), 0, "acc")
+            for u in range(1, sizes[l + 1]):
+                MUL(f"W{l+1}_{u}_{j}", 0, delta(l + 1, u), 0, "m1"); ADD("acc", 0, "m1", 0, "acc")
+            MUL("acc", 0, f"z{l}_{j}", 2, f"d{l}_{j}")
+    # updates: W^l_{j,k} -= eta*delta^l_j*a^{l-1}_k ; b^l_j -= eta*delta^l_j
+    for l in range(1, L + 1):
+        for j in range(sizes[l]):
+            dj = delta(l, j)
+            for k in range(sizes[l - 1]):
+                rk, mk = act(l - 1, k)
+                MUL(dj, 0, rk, mk, "m1"); ADD(f"W{l}_{j}_{k}", 0, "m1", 4, f"W{l}_{j}_{k}")
+            ADD(f"b{l}_{j}", 0, dj, 4, f"b{l}_{j}")
+    return reg, S
+
+
 # ---- bit-faithful GF-T interpreter (self-test) ----
 def _magmul(a16, b16):
     ao = a16 >> 9; am = a16 & 511; bo = b16 >> 9; bm = b16 & 511
@@ -181,6 +246,33 @@ def emit_verilog(n_in, n_hid, n_out, modname):
         for j in range(n_hid): initv[f"v{o}_{j}"] = round(random.uniform(-1.0, 1.0), 3)
     for j in range(n_hid): initv[f"b{j}"] = round(random.uniform(-0.5, 0.5), 3)
     for o in range(n_out): initv[f"bo{o}"] = 0.0
+    return _emit_module(reg, steps, initv, n_in, n_out, modname)
+
+
+def emit_verilog_deep(sizes, modname):
+    """Emit the microsequencer for an arbitrary-DEPTH net (see gen_deep). `sizes` =
+    [n_in, h1, ..., n_out]. Same one-smul/one-sadd datapath and parametric interface
+    as emit_verilog; depth costs microcode steps (time), not area. A 2-entry-hidden
+    2-layer `sizes` is equivalent to emit_verilog(n_in, n_hid, n_out)."""
+    import random
+    if len(sizes) < 2 or any(s < 1 for s in sizes):
+        raise ValueError(f"emit_verilog_deep needs sizes=[n_in,...,n_out] all >=1; got {sizes}")
+    L = len(sizes) - 1
+    reg, steps = gen_deep(sizes)
+    random.seed(3); initv = {}
+    for l in range(1, L + 1):
+        for j in range(sizes[l]):
+            for k in range(sizes[l - 1]): initv[f"W{l}_{j}_{k}"] = round(random.uniform(-0.8, 0.8), 3)
+    for l in range(1, L + 1):
+        for j in range(sizes[l]): initv[f"b{l}_{j}"] = round(random.uniform(-0.5, 0.5), 3)
+    return _emit_module(reg, steps, initv, sizes[0], sizes[-1], modname)
+
+
+def _emit_module(reg, steps, initv, n_in, n_out, modname):
+    """Shared Verilog emitter: one GftSmul + one GftSadd + register file + case(pc)
+    microcode ROM. Parametric ports (x{k}i / t{o}i / packed yout). Zero-inits the
+    whole rf on reset (RTL == model, no x-propagation)."""
+    N = len(reg); NP = len(steps)
     pcw = max(1, NP.bit_length()); L = []
     xports = ", ".join(f"input [31:0] x{k}i" for k in range(n_in))
     tports = ", ".join(f"input [31:0] t{o}i" for o in range(n_out))
@@ -309,3 +401,27 @@ if __name__ == "__main__":
     te = sum(1 for a, b, c in te2 if _pred2(a, b) == c)
     assert te >= int(0.9 * len(te2)), f"multi-output held-out too low: {te}/{len(te2)}"
     print(f"self-test: (2,4,2) multi-output one-hot classifier, held-out {te}/{len(te2)} (>=90%) -- OK")
+    # DEEP: a 3-layer [2,4,3,1] net (arbitrary depth, backprop through 2 hidden
+    # layers) learns the same noisy nonlinear task -- depth costs time, not area
+    reg, steps = gen_deep([2, 4, 3, 1]); rf = [0] * len(reg)
+    random.seed(3)
+    for l in range(1, 4):
+        for j in range([2, 4, 3, 1][l]):
+            for k in range([2, 4, 3, 1][l - 1]): rf[reg[f"W{l}_{j}_{k}"]] = enc(round(random.uniform(-0.8, 0.8), 3))
+            rf[reg[f"b{l}_{j}"]] = enc(round(random.uniform(-0.5, 0.5), 3))
+    random.seed(7)
+    trd, ted = _ds(160), _ds(60)
+    def _predd(a, b):
+        sav = rf[:]; rf[reg["x0"]] = enc(a); rf[reg["x1"]] = enc(b); rf[reg["t0"]] = 0
+        run(steps, rf); y = dec(rf[reg["y0"]])
+        for i in range(len(rf)): rf[i] = sav[i]
+        return int(y > 0.5)
+    for _ in range(60):
+        for a, b, t in trd:
+            rf[reg["x0"]] = enc(a); rf[reg["x1"]] = enc(b); rf[reg["t0"]] = enc(float(t)); run(steps, rf)
+    te = sum(1 for a, b, t in ted if _predd(a, b) == t)
+    assert te >= int(0.9 * len(ted)), f"deep [2,4,3,1] held-out too low: {te}/{len(ted)}"
+    print(f"self-test: deep [2,4,3,1] (3-layer, 2 hidden) learns nonlinear task, held-out {te}/{len(ted)} (>=90%) -- OK")
+    vd = emit_verilog_deep([2, 4, 3, 1], "deep431")
+    assert "module deep431" in vd and "for(gi=0;gi<" in vd
+    print("emit_verilog_deep: [2,4,3,1] module generated -- OK")
