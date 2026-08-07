@@ -119,6 +119,47 @@ no Docker, native macOS arm64.
   already ~100× under the µs settle window, which is why the glitch is a *placement hazard*
   a static-timing fix cannot see, and only a mid-cascade register (resynchronisation)
   addresses.
+- **Endpoint registration is NOT enough — the hazard is *inside* the cloud (measured on
+  silicon).** We built the discriminating cheap test first: register the shared core's
+  *endpoints* — clean flip-flop operands in (`a_reg`/`b_reg`), a registered result out
+  (`res_reg`) — without splitting the deep cloud. This is bit-exact in simulation (ep0
+  outputs 0 / 0.551 / 0.936 / 0.234 match the model) and it even *raised* fmax 21 → 29 MHz
+  by pulling the operand-modifier logic out of the core path. But on the AX7203 it did **not**
+  fix the lottery: of four seeds, two produced dead routes and two responded but glitched
+  from ep0 (weights exploding / collapsing to zero), same as the baseline. So resynchronising
+  the *boundaries* is insufficient — the fault lives in the depth-54 `GftSadd` combinational
+  cloud itself, and only splitting **that** into registered stages (the spec-level pipeline
+  above) will close it. This rules out the cheap wrapper fix and confirms the full spec
+  pipeline is required.
+- **A real divided clock IS buildable — via MMCM, not fabric (corrects the note above).**
+  While a fabric-counter clock cannot be buffered (`BUFG`/`BUFR` unplaceable from fabric),
+  an `MMCME2_BASE` **does** place on this flow: nextpnr-xilinx constrains it to a real
+  `MMCME2_ADV` bel by dedicated routing and routes its divided output as a genuine clock.
+  So the real-divided-clock route is open through the CMT. It is, however, unlikely to fix
+  the glitch — by the endpoint-registration result the fault is an internal-cloud hazard,
+  not a settle shortage, and a slower clock only adds settle — so it stays a bounded
+  experiment behind the spec pipeline, not the primary fix.
+
+### Ruled-out fixes (do not re-attempt without new evidence)
+
+Measured dead ends from the seed-lottery investigation (cycles 82–96), so future work
+does not re-run them:
+
+1. **Wider `settle` counter** — 8-bit is the ceiling; 12-/16-bit counters hang the board.
+2. **More settle time** (`/64`, `/128`, `/256` enable) — non-monotonic; `/128` glitches
+   *worse* than `/64`. Not a settle-time problem.
+3. **Tighter static-timing constraint** — the deep path is already ~47 ns, ~100× under the
+   µs settle window; nominal timing is met (fmax 21–29 MHz) and it still glitches.
+4. **Fabric-counter divided clock** — `BUFG`/`BUFR` from fabric are unplaceable on openXC7.
+5. **On-chip observability probe** (widen the dump) — a Heisenbug: the probe re-places the
+   core and changes the result.
+6. **Narrowing the multiplier** — yosys already prunes the dead `__mul_noop` iterations
+   (10-bit operands); loop 32 → 10 leaves the depth unchanged (44 → 45).
+7. **Endpoint registration** — bit-exact and raises fmax, but does not fix the lottery
+   (hazard is internal to the cloud).
+
+Live path: **pipeline the depth-54 `GftSadd` / depth-44 `GftSmul` normalize/round cascade
+into two registered stages.** Open experiment: an **MMCM** real divided clock.
 
 ## Reproducibility
 

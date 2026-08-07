@@ -1,6 +1,13 @@
-# NOW — docs: localized the shared-core deep path (GftSadd=54, GftSmul=44) (2026-08-08)
+# NOW — endpoint reg insufficient (hazard is internal); MMCM divided clock is buildable (2026-08-08)
 
 Last updated: 2026-08-08
+
+## docs: endpoint registration does NOT fix the lottery — hazard is inside the cloud; MMCM real divided clock IS buildable (Refs #1764)
+
+- Ran the discriminating cheap test ("все три", Variant 2): register the shared core's endpoints — clean FF operands in (a_reg/b_reg), FF result out (res_reg) — without splitting the deep cloud. Bit-exact in sim (ep0 = 0/0.551/0.936/0.234 matches model) and even raised fmax 21->29 MHz (pulled modf out of the core path). But on the AX7203, of 4 seeds: 2 dead routes, 2 responded but glitched from ep0 (explode/collapse), same as baseline
+- CONCLUSION: resynchronising the boundaries is insufficient — the fault lives in the depth-54 GftSadd combinational cloud itself. Only the spec-level mid-cascade pipeline (Variant 1) will close it. The cheap wrapper fix is ruled out
+- Variant 3 probe: a real divided clock IS buildable via MMCM (corrects the earlier "only MMCM could" as now confirmed) — MMCME2_BASE places on this flow (nextpnr constrains it to a real MMCME2_ADV bel by dedicated routing, routes clk_slow as a genuine clock), unlike fabric BUFG/BUFR. But by the endpoint result the fault is an internal-cloud hazard not a settle shortage, so MMCM stays a bounded experiment behind the pipeline
+- Added a consolidated "Ruled-out fixes" list to the methodology (wider settle, more settle, tighter timing, fabric divided clock, observability probe, narrowing the multiplier, endpoint registration) so future cycles don't re-run dead ends. Board restored to the generated capstone (XOR 4/4). Docs only. Refs #1764
 
 ## docs: localized the shared-core critical depth — pipeline the normalize/round cascade, not the multiplier (Refs #1764)
 
