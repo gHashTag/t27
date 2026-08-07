@@ -1,6 +1,12 @@
-# NOW — docs: whitepaper — full backprop TRAINS XOR ON LIVE SILICON (2026-08-08)
+# NOW — feat: emit_verilog can emit the SILICON-READY variant (clk_div) (2026-08-08)
 
 Last updated: 2026-08-08
+
+## feat: fold the capstone silicon fix into the verified generator (Refs #1764)
+
+- The capstone (full backprop trains XOR on live AX7203) ran on a HAND-WRITTEN board wrapper, not the CI-verified generator. This closes that gap: `emit_verilog` / `emit_verilog_deep` now take `clk_div` (default 1 = unchanged). clk_div>1 emits the SILICON-READY variant -- the exact fix that trains on silicon: register file forced to flip-flops (`ram_style=registers`, since distributed LUTRAM can't do the parallel weight init) + a /N clock-enable so the deep shared-core path gets ~clk_div x SETTLE cycles to settle (the open-source P&R can't express a multicycle constraint)
+- **clk_div only changes TIMING, not values** -- verified bit-exact to the model in iverilog (clk_div=4, 12 training steps, RTL == model); the default clk_div=1 output is byte-identical to before, so the existing bit-exact/synth/datapath CI gate is unaffected (still ALL SYNTHESIZE). Self-test asserts clk_div=16 emits ram_style + the /N clock-enable and that clk_div=1 does not
+- => the CI-verified generator now emits the same RTL that trains a neural net on real silicon: `emit_verilog(2,2,1,"m",clk_div=16)` -> flash via the seed-searched openXC7 flow -> trains XOR 4/4 on the AX7203. Unifies the verification and silicon threads. Tool-only; Refs #1764
 
 ## docs: the capstone (backprop trains XOR on silicon) lands in the whitepaper (Refs #1764)
 

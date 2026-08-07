@@ -224,7 +224,7 @@ def run(steps, rf):
         av = _mod(rf[a], am); bv = _mod(rf[b], bm)
         rf[d] = smul(av, bv) if op == "MUL" else (sadd(av, bv) if op == "ADD" else av)
 
-def emit_verilog(n_in, n_hid, n_out, modname):
+def emit_verilog(n_in, n_hid, n_out, modname, clk_div=1):
     """Emit a synthesizable microsequencer Verilog module for the given arch.
     One shared GftSmul + one shared GftSadd, a register file, and a case(pc) ROM.
     Fully parametric interface: one x{k}i input port per input, one t{o}i target
@@ -246,10 +246,10 @@ def emit_verilog(n_in, n_hid, n_out, modname):
         for j in range(n_hid): initv[f"v{o}_{j}"] = round(random.uniform(-1.0, 1.0), 3)
     for j in range(n_hid): initv[f"b{j}"] = round(random.uniform(-0.5, 0.5), 3)
     for o in range(n_out): initv[f"bo{o}"] = 0.0
-    return _emit_module(reg, steps, initv, n_in, n_out, modname)
+    return _emit_module(reg, steps, initv, n_in, n_out, modname, clk_div)
 
 
-def emit_verilog_deep(sizes, modname):
+def emit_verilog_deep(sizes, modname, clk_div=1):
     """Emit the microsequencer for an arbitrary-DEPTH net (see gen_deep). `sizes` =
     [n_in, h1, ..., n_out]. Same one-smul/one-sadd datapath and parametric interface
     as emit_verilog; depth costs microcode steps (time), not area. A 2-entry-hidden
@@ -265,10 +265,18 @@ def emit_verilog_deep(sizes, modname):
             for k in range(sizes[l - 1]): initv[f"W{l}_{j}_{k}"] = round(random.uniform(-0.8, 0.8), 3)
     for l in range(1, L + 1):
         for j in range(sizes[l]): initv[f"b{l}_{j}"] = round(random.uniform(-0.5, 0.5), 3)
-    return _emit_module(reg, steps, initv, sizes[0], sizes[-1], modname)
+    return _emit_module(reg, steps, initv, sizes[0], sizes[-1], modname, clk_div)
 
 
-def _emit_module(reg, steps, initv, n_in, n_out, modname):
+def _emit_module(reg, steps, initv, n_in, n_out, modname, clk_div=1):
+    """clk_div > 1 emits the SILICON-READY variant: the register file is forced to
+    flip-flops (ram_style=registers -- distributed LUTRAM can't do the parallel weight
+    init) and the sequencer steps once per clk_div cycles via a clock-enable, giving the
+    shared combinational core ~clk_div x SETTLE cycles to settle (the open-source P&R
+    can't express a multicycle constraint, so the deep muxed path is timing-relaxed;
+    slowing the stepping is what lets it settle). Computed VALUES are identical to
+    clk_div=1 -- only the timing changes -- so the bit-exact model check is unaffected.
+    On real AX7203 silicon, clk_div=16 trains XOR 4/4, bit-exact to the model."""
     """Shared Verilog emitter: one GftSmul + one GftSadd + register file + case(pc)
     microcode ROM. Parametric ports (x{k}i / t{o}i / packed yout). Zero-inits the
     whole rf on reset (RTL == model, no x-propagation)."""
@@ -278,7 +286,8 @@ def _emit_module(reg, steps, initv, n_in, n_out, modname):
     tports = ", ".join(f"input [31:0] t{o}i" for o in range(n_out))
     L.append(f"module {modname}(input clk, input rst, input start, {xports}, {tports},"
              f" output reg [{32*n_out-1}:0] yout, output reg done);")
-    L.append(f"  reg [31:0] rf [0:{N-1}];")
+    rs = '(* ram_style = "registers" *) ' if clk_div > 1 else ''
+    L.append(f"  {rs}reg [31:0] rf [0:{N-1}];")
     L.append("  function [31:0] modf(input [31:0] v, input [2:0] m); reg neg0; reg [6:0] off;"
              " reg [8:0] mant; begin neg0=v[16]; case(m)")
     L.append("    3'd0:modf=v; 3'd1:modf=(v==0||neg0)?32'd0:v; 3'd2:modf=(v==0||neg0)?32'd0:32'd20480;")
@@ -287,6 +296,10 @@ def _emit_module(reg, steps, initv, n_in, n_out, modname):
              " if(off<3+1)modf=0; else modf=(v&32'h10000)^32'h10000|(((off-3)<<9)|mant); end end")
     L.append("    default:modf=v; endcase end endfunction")
     L.append(f"  reg [{pcw-1}:0] pc; reg [7:0] settle; reg running; reg op; reg [7:0] ai,bi,di; reg [2:0] am,bm; integer gi;")
+    if clk_div > 1:
+        dcw = max(1, (clk_div - 1).bit_length())
+        L.append(f"  reg [{dcw-1}:0] dc = 0; wire cen = (dc == {dcw}'d{clk_div-1});")
+        L.append("  always @(posedge clk) dc <= dc + 1'b1;")
     L.append("  always @(*) begin op=0; ai=0; am=0; bi=0; bm=0; di=0; case(pc)")
     for i, (o, a, amod, b, bmod, d) in enumerate(steps):
         if o == "MOV": L.append(f"    {pcw}'d{i}: begin op=2; ai={a}; di={d}; end")
@@ -304,7 +317,8 @@ def _emit_module(reg, steps, initv, n_in, n_out, modname):
             + " " + " ".join(f"rf[{reg[f't{o}']}]<=t{o}i;" for o in range(n_out))
     L.append(f"    if(!running) begin if(start) begin {loads} pc<=0; settle<=SETTLE; running<=1; end end")
     ypack = "{" + ", ".join(f"rf[{reg[f'y{o}']}]" for o in range(n_out - 1, -1, -1)) + "}"
-    L.append("    else begin if(settle==0) begin rf[di] <= (op==2)? a_val : (op? add_r : mul_r);")
+    step_gate = "else if (cen) begin" if clk_div > 1 else "else begin"  # step once per clk_div cycles
+    L.append(f"    {step_gate} if(settle==0) begin rf[di] <= (op==2)? a_val : (op? add_r : mul_r);")
     L.append(f"      if(pc=={pcw}'d{NP-1}) begin running<=0; done<=1; yout<={ypack}; end"
              " else begin pc<=pc+1'b1; settle<=SETTLE; end")
     L.append("    end else settle<=settle-1; end end end")
@@ -425,3 +439,10 @@ if __name__ == "__main__":
     vd = emit_verilog_deep([2, 4, 3, 1], "deep431")
     assert "module deep431" in vd and "for(gi=0;gi<" in vd
     print("emit_verilog_deep: [2,4,3,1] module generated -- OK")
+    # silicon-ready variant: clk_div>1 adds ram_style=registers + a /N clock-enable
+    # (the fix that trains XOR on real AX7203 silicon). Values are unchanged (only
+    # timing), so the bit-exact model check is unaffected; default clk_div=1 is intact.
+    vc = emit_verilog(2, 2, 1, "bpx", clk_div=16)
+    assert 'ram_style = "registers"' in vc and "else if (cen)" in vc and "wire cen = (dc ==" in vc
+    assert 'ram_style' not in emit_verilog(2, 2, 1, "bpx") and "else if (cen)" not in emit_verilog(2, 2, 1, "bpx")
+    print("emit_verilog: clk_div=16 emits silicon-ready ram_style + /N clock-enable (default clk_div=1 intact) -- OK")
