@@ -19909,3 +19909,36 @@ mismatch-flagging seals into vacuous passing ones. All restored to 079ed21ab.
   regex: my first pass reported "325 files in neither dialect" when 316 of
   them simply had namespaced module names (`module depin.prove;`,
   `module github::issues {`) that the pattern did not allow.
+
+## Wave Loop 552 — L2 hardened (2026-08-09)
+
+**Delivered:** `seal --save` now refuses to write a seal whose every gen_hash
+would be "none" (exit 1, `--force` to override); `seal --verify` treats an
+all-none saved seal as FAILURE instead of MATCH; new `t27c seal-audit` reports
+the seal store, with `--strict` as a hard gate.
+
+**Why this was doable while the LANG-EN gate blocks everything else:**
+bootstrap/build.rs watches FROZEN_HASH, compiler.rs, docs/.legacy-non-english-docs
+and build.rs -- NOT main.rs. Seal logic lives in main.rs. Anything in main.rs is
+editable today; anything in compiler.rs is not.
+
+**Falsification run BEFORE enforcing:** checked whether any legitimate spec
+class is expected to seal all-none. Zero of the all-none seals had a spec that
+parses, so no carve-out was needed. Enforcing without this check could have
+broken a valid workflow.
+
+**Audit of the current store:**
+    seals total 1714 | healthy 1621 | vacuous 2 | spec file missing 91
+
+**New finding:** 91 orphaned seals reference spec paths that do not exist AND
+have no git history at that path (specs/numeric/binary16.t27,
+specs/network/d2d_conformance.t27, ...). Something wrote seals for specs that
+were never committed. Cause unknown -- W553 Variant A.
+
+**Attribution discipline that mattered:** three healthy specs failed
+verification during regression testing. Before reporting a regression I checked
+the detail: `spec_hash: MATCH` with differing gen hashes, no mention of the new
+vacuous check, and the W549 suite had already counted 1035 such failures. The
+backends evolved since those seals were recorded. Pre-existing, not mine.
+Always read the mismatch detail before claiming a regression -- and always
+check whether a prior run already recorded the same failure.
