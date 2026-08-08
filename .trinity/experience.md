@@ -20044,3 +20044,58 @@ Generalise: when you add a metric to catch overstatement, ask immediately what
 its own hollow-success case looks like. "The tool exited 0" is never the
 measurement; find the quantity that would be zero if nothing happened, and
 report THAT. For synthesis it is logic cells, not exit status.
+
+## Wave Loop 555 — 65.3% of test blocks assert nothing (2026-08-09)
+
+### The experiment that settles it
+
+    test bdd_obviously_false
+        given x = two()      // two() returns 2
+        then x == 999
+
+parses; ast-dump shows a TestBlock IS created (so it is counted); `t27c gen`
+emits `test "bdd_obviously_false" {}` -- an EMPTY body, `999` appears nowhere;
+`zig test` reports "All 2 tests passed."
+
+**A test asserting that 2 equals 999 passes.**
+
+### Scale
+
+    brace-form test blocks : 3159
+    BDD-form  test blocks  : 7623   <- discarded, always pass
+    tests that assert nothing: 9788 of 14996  (65.3%)
+
+    brace-form invariants   :  825
+    keyword-form invariants : 5163  (86.2%) <- body skipped; codegen emits
+                                              "// invariant: X verified (no statements)"
+
+### It is deliberate, and it is in the source
+
+parse_test_block:
+    } else {
+        // Keyword-style test: test name given ... when ... then ...
+        // Skip until we hit a top-level keyword or EOF or RBrace
+        self.skip_to_next_top_level();
+    }
+
+parse_invariant_block does the same. The clauses never reach the AST -- the
+TestBlock node has NO children -- so capturing them is a PARSER change, not a
+lowering. My W556 Variant A estimated a lowering and its own step 1 falsified
+that.
+
+### Two corrections to my own earlier work
+
+1. validate-vacuity (W550) counted only brace-form blocks. It was blind to
+   7,623 tests. Every vacuity figure I published understated the problem.
+2. W549 argued the multi-line forall-quantified invariants were "the genuinely
+   good half" and used that to soften the vacuity finding. They are keyword-form,
+   so they are skipped and generate a comment claiming verification. That
+   defence was wrong and is withdrawn.
+
+### Anti-patterns
+
+- Do not trust a census tool without enumerating the FORMS of the thing counted
+  and confirming the tool sees each one.
+- When documentation promises a construct, write the smallest spec that MUST
+  fail and check that it does. SOUL.md, the language RFC and TDD-CONTRACT.md all
+  specify given/when/then; nothing executes it.

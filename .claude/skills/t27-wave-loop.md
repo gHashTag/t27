@@ -3940,6 +3940,22 @@ These cost a wave each. Follow them before step 1.
     Wave 554 nearly recommended a variant as "unblocked" before grepping for
     the emitter and finding it at `compiler.rs:6887`.
 
+18. **A counting tool must be checked against the shapes it does not know.**
+    `validate-vacuity` (W550) counted only brace-form `test name {` blocks and
+    was blind to **7,623** braceless `given/when/then` tests — more than twice
+    what it did count. Every vacuity figure published from it understated the
+    problem. Before trusting a census, enumerate the *forms* of the thing being
+    counted and confirm the tool sees each one.
+
+19. **When documentation promises a construct, verify the backend emits it.**
+    `given/when/then` is specified in `SOUL.md`, `docs/rfc/tri-language-core.md`
+    and `TDD-CONTRACT.md`. The parser discards it —
+    `parse_test_block`/`parse_invariant_block` call `skip_to_next_top_level()`
+    for the keyword form — and codegen emits an empty test body, or for
+    invariants a comment reading `// invariant: X verified (no statements)`.
+    A test asserting `2 == 999` passes. Write the smallest spec that MUST fail
+    and check that it does.
+
 ### How to update this tracker
 
 After closing a wave:

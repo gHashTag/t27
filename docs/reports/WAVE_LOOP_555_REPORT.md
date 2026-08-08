@@ -151,7 +151,8 @@ for anyone deciding what to do about it.
 
 - It does **not** say the BDD specs are worthless. They express real intent
   (`given x = f()` / `then x == expected`), and that intent is recoverable —
-  the clauses are right there in the source. What is missing is the lowering.
+  the clauses are right there in the source text. What is missing is that the
+  parser never captures them (§6 Variant A).
 - It does **not** mean the brace-form tests are fine: 2,165 of those are
   `assert true`.
 - It does **not** touch the Icarus/cocotb path, which executes real generated
