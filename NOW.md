@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## typecheck: bare non-negative literals are context-polymorphic (Closes #1923)
+
+- infer_expr pinned every integer literal to I32; in u32-dominant specs every 'let x = 0; x = u32_expr;' raised a false 'cannot assign U32 to I32' -- 27 tri-net specs failed typecheck on exactly this
+- Now: bare non-negative literals infer Unknown (context-polymorphic); explicitly negative literals stay I32; promote_types resolves Unknown+Known to the KNOWN operand ('100 - value' with value: u32 is u32)
+- tri-net sweep: 27 failing specs -> 2 (both 'assign to immutable array element' singletons, tracked with #1919)
+- Unit suite 1537/1537; FROZEN_HASH resealed
+
 ## typecheck: promote call-arity mismatch from warning to hard error (Closes #1921)
 
 - The arity check existed but only warned, and nothing reads warnings (tri-net's hook greps 'Typecheck OK'; gen paths skip typecheck) -- two tri-net specs shipped wrong-arity calls for months (tri-net#323)
