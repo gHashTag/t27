@@ -145,6 +145,15 @@ in §4.1:
 |-------|--------|
 | gen-verilog succeeds | **8 / 17 (47.1 %)** |
 | yosys synthesizes it | **7 / 17 (41.2 %)** |
+| **produces any logic** | **0 / 17** — see the W554 correction below |
+
+> **Correction (W554).** "Synthesises" overstated the result, and this report
+> was the source of the overstatement. All 7 synthesising specs produce
+> **zero logic cells**: the generated module has a fixed `clk/rst_n/en/ready`
+> interface, drives only `assign ready = 1'b1;`, and emits the spec's
+> arithmetic as Verilog `function` definitions that nothing instantiates.
+> `t27c synth-gate` now reports logic-cell counts and flags such designs as
+> HOLLOW, so this cannot be misread again.
 
 **The gap is the finding.** `ternary_inference.t27` generates Verilog and then
 fails synthesis:

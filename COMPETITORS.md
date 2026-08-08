@@ -233,8 +233,21 @@ a search of the literature for single-cell MAC costs on comparable parts turns
 up no directly comparable measurement. Comparing one cell to a whole
 accelerator is a category error in either direction, and this document will not
 make it. The number that would be comparable -- a ternary GEMM array with
-measured throughput -- does not exist here yet:
-`systolic_ternary.t27` and `ternary_gemm.t27` have never been synthesised.
+measured throughput -- does not exist here, and Wave 554 established why it is
+further away than "not synthesised yet" suggested.
+
+`ternary_gemm.t27` and `systolic_ternary.t27` **do** pass yosys. They produce
+**zero logic cells**. The generated module carries a fixed `clk / rst_n / en /
+ready` interface, drives only `assign ready = 1'b1;`, and emits the spec's
+arithmetic as Verilog `function` definitions that nothing instantiates -- so
+synthesis optimises all of it away. Measured on `specs/igla/race`: **7 specs
+synthesise, 0 produce logic.**
+
+The consequence for this section is worth stating plainly: **the ternary MAC
+that works, that theorems T1-T3 prove, and that is inside the bitstream, is
+hand-written Verilog** (`fpga/verilog/ternary_mac_synth.v`, 59 LUT / 32 FF).
+The `.t27` spec of the same name generates no hardware. For the IGLA RACE line
+specifically, the spec-to-RTL claim in section 3 is not yet demonstrated.
 
 ### 4.3 What we do not claim (IGLA)
 

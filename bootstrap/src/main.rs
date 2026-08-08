@@ -4884,6 +4884,7 @@ fn run_synth_gate(
     println!("{:<48} {:>10} {:>10}", "spec", "gen", "synth");
 
     let (mut gen_ok, mut synth_ok, mut total) = (0usize, 0usize, 0usize);
+    let (mut hollow, mut with_logic) = (0usize, 0usize);
     let mut failures: Vec<(String, String)> = Vec::new();
 
     for spec in &specs {
@@ -4924,14 +4925,34 @@ fn run_synth_gate(
             arch
         );
         let out = std::process::Command::new(yosys)
-            .arg("-q")
             .arg("-p")
             .arg(&script)
             .output();
         match out {
             Ok(o) if o.status.success() => {
                 synth_ok += 1;
-                println!("{:<48} {:>10} {:>10}", short, "ok", "ok");
+                // "Synthesized" is not the same as "produced hardware". A spec
+                // whose functions are emitted but never instantiated yields a
+                // netlist of $print cells and I/O buffers that yosys reports as
+                // 0 logic cells. Counting that as a success is exactly the kind
+                // of overstatement this gate exists to prevent.
+                let text = String::from_utf8_lossy(&o.stdout);
+                let lcs = text
+                    .lines()
+                    .rev()
+                    .find_map(|l| {
+                        let t = l.trim();
+                        t.strip_prefix("Estimated number of LCs:")
+                            .and_then(|n| n.trim().parse::<u64>().ok())
+                    })
+                    .unwrap_or(0);
+                if lcs == 0 {
+                    hollow += 1;
+                    println!("{:<48} {:>10} {:>10}  {}", short, "ok", "ok", "HOLLOW (0 logic cells)");
+                } else {
+                    with_logic += 1;
+                    println!("{:<48} {:>10} {:>10}  {} LC", short, "ok", "ok", lcs);
+                }
             }
             Ok(o) => {
                 let err = String::from_utf8_lossy(&o.stderr);
@@ -4960,6 +4981,18 @@ fn run_synth_gate(
         synth_ok,
         100.0 * rate
     );
+    println!(
+        "  of those synthesized: {} produced logic, {} are HOLLOW (0 logic cells)",
+        with_logic, hollow
+    );
+    if hollow > 0 {
+        println!(
+            "\nA HOLLOW result means yosys accepted the Verilog and emitted a netlist with\n\
+             ZERO logic cells -- typically the spec's functions are emitted as Verilog\n\
+             `function` definitions that nothing instantiates, so synthesis optimises them\n\
+             away. Such a spec produces no hardware; do not count it as silicon-ready."
+        );
+    }
 
     if !failures.is_empty() {
         println!("\nFailures ({}):", failures.len());
