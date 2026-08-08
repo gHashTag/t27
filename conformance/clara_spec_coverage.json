@@ -1,68 +1,3502 @@
 {
-  "license": "Apache-2.0 — http://www.apache.org/licenses/LICENSE-2.0",
-  "date": "2026-04-05",
   "compiler": "t27c (Rust bootstrap)",
-  "total_specs": 36,
-  "passed": 36,
-  "failed": 0,
-  "note": "All 36 specs PASS parse/gen/seal with t27c release binary. top_tb.t27 previously failed on older compiler.",
+  "date": "2026-08-09",
+  "generated_by": "t27c clara-coverage",
+  "license": "Apache-2.0 — http://www.apache.org/licenses/LICENSE-2.0",
+  "note": "Regenerated across the full specs/ corpus. Every row is a real subprocess run of the named t27c phase; no row is asserted. Supersedes schema_version 1, which covered 36 of the then-current specs and recorded a passing result for 'bash scripts/clara/demo.sh' -- a path absent from this repository, so that row was not reproducible by anyone. A FAIL here is a real measurement, not a defect claim: see the seal column, where every spec fails because .trinity/seals/ was last written in April 2026 and has not been re-baselined since. Run 't27c seal-audit' for that figure alone.",
+  "reproduce": "t27c clara-coverage --repo-root .",
+  "schema_version": 2,
   "specs": [
-    {"path": "specs/ar/asp_solver.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/ar/composition.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/ar/datalog_engine.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/ar/explainability.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/ar/proof_trace.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/ar/restraint.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/ar/ternary_logic.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/base/ops.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/base/types.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/compiler/parser.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/fpga/bridge.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/fpga/mac.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/fpga/spi.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/fpga/testbench/mac_tb.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/fpga/testbench/top_tb.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/fpga/testbench/uart_tb.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/fpga/top_level.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/fpga/uart.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/isa/registers.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/math/constants.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/math/sacred_physics.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/nn/attention.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/nn/hslm.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/numeric/gf12.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/numeric/gf16.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/numeric/gf20.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/numeric/gf24.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/numeric/gf32.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/numeric/gf4.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/numeric/gf8.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/numeric/goldenfloat_family.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/numeric/phi_ratio.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/numeric/tf3.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/queen/lotus.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/vsa/vsa_core.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/vsa/ops.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"}
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/account/auth.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/account/repo.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/account/schema.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/api/c_api_contract.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/api/sdk_contract.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/api/tri_net_api.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ar/asp_solver.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ar/coa_planning.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ar/composition.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ar/datalog_engine.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ar/explainability.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ar/proof_trace.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ar/restraint.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ar/ternary_logic.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/auth/config.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/automation/wrapup-auto.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/base/debounce.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/base/ops.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/base/ring_32.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/base/seed.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/base/ternary_add.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/base/ternary_encoding.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/base/ternary_memory.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/base/types.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/benchmarks/bench_main.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/benchmarks/bench_nn.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/benchmarks/gf16_bfloat16_nmse.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/benchmarks/ternary_vs_binary.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/boards/arty_a7.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/boards/xc7a100t_full.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/boards/xc7a100t_minimal.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/brain/brain.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/brain/bus.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/brain/cognitive_loop.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/brain/neural_gamma.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/brain/phi_timing.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/brain/unified_state.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/bus/pubsub.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/bus/schema.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/cloud/railway_deploy.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/compiler/diagnostics.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/compiler/lexer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/compiler/linker.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/compiler/meta_compile.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/compiler/mod_structure.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/compiler/optimizer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/compiler/parser.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/compiler/pipeline.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/compiler/stdlib.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/compiler/typechecker.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/config/load.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/config/migrate.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/config/paths.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/config/schema.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/conformance/e2e_scenarios.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/demos/jones_topology_decision_gate.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/demos/jones_topology_filter.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/demos/simple_test.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/depin/prove.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/enrichment/audio_overview.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/enrichment/youtube_transcript.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/file/operations.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/file/schema.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/file/watcher.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/apb_bridge.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/assembler.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/axi4.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/boards/arty_a7_integration.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/boards/qmtech_a100t_integration.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/bootrom.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/bridge.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/clock_domain.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/crossopt.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/cts.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/dft.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/e2e_demo.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/fifo.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/formal.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/gf16_accel.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/hir.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/hw_types.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/linker.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/mac.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/memory.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/partition.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/placement.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/power.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/power_analysis.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/router.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/simulator.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/spi.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/stdlib.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/ternary_isa.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/apb_bridge_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/assembler_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/axi4_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/bootrom_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/bridge_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/clock_domain_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/cts_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/dft_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/fifo_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/formal_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/gf16_accel_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/hir_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/integration_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/linker_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/mac_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/memory_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/partition_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/placement_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/power_analysis_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/power_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/router_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/simulator_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/spi_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/stdlib_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/ternary_isa_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/timing_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/top_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/uart_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/vcd_conformance_compare_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench/vcd_trace_tb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/testbench.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/timing.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/top_level.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/uart.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/vcd_conformance_compare.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/vcd_trace.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/fpga/verification/build_verify.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/git/diff.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/git/operations.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/git/schema.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/git/status.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/github/auth.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/github/comments.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/github/issues.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/github/prs.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/github/tests/e2e_full_flow.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/graph/knowledge_graph.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/hslm/forward_pass.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/interop/gf_cross_language.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/registers.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_arithmetic.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_bitwise.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_control_flow.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_deque.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_encoding.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_gates.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_graph.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_hash.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_memory.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_pattern_matching.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_search.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_set.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_shift.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_sorting.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/isa/ternary_tree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/jit/jit.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/lsp/client.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/lsp/language.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/lsp/protocol.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/lsp/schema.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/lsp/server.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/math/constants.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/math/e8_lie_algebra.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/math/gf_competitive.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/math/pellis_precision_verify.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/math/phi_split_optimality.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/math/phi_universal_attractor.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/math/property_test_template.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/math/radix_economy.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/math/sacred_physics.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/math/zamolodchikov_e8.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/memory/formula_embed.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/memory/memory_primitives.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/memory/notebooklm.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/memory/semantic_search.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/activation/elu_activation.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/activation/gelu_activation.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/activation/gelu_approx_activation.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/activation/leaky_relu_activation.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/activation/relu_activation.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/activation/sigmoid_activation.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/activation/silu_swish_activation.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/activation/silu_swish_vbt_activation.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/activation/softmax.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/activation/tanh_activation.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/layers/avgpool2d_layer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/layers/batchnorm_layer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/layers/conv2d_layer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/layers/dense_layer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/layers/dropout_layer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/layers/embedding_layer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/layers/flatten_layer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/layers/layernorm_layer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/layers/maxpool2d_layer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/layers/residual_connection.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/loss/binary_crossentropy_loss.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/loss/contrastive_loss.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/loss/cross_entropy_loss.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/loss/huber_loss.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/loss/kl_divergence.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/loss/mse_loss.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/optimizer/adagrad.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/optimizer/adam.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/optimizer/adamw.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/optimizer/lamb.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/optimizer/lr_scheduler.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/optimizer/rmsprop.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/optimizer/sgd.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/optimizer/sgd_momentum.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/pathway/mlp.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/recurrent/attention_mechanism.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/recurrent/bilstm.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/recurrent/gru_cell.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/recurrent/lstm_cell.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/recurrent/lstm_single.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/recurrent/rnn_cell.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/recurrent/self_attention.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/recurrent/seq2seq.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/rl/advantage_estimator.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/rl/dqn.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/rl/dqn_target_network.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/rl/ppo_actor.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/rl/ppo_clip_loss.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/rl/ppo_critic.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/rl/sac_actor.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/rl/sac_critic.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/transformer/encoder_block.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/transformer/feed_forward.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/transformer/feed_forward_network.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/transformer/mha_block.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/transformer/multi_head_attention.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/transformer/multi_head_attn.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/transformer/norm.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/transformer/positional_enc.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ml/transformer/positional_encoding.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/neural/forward_pass.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/nn/attention.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/nn/hslm.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/nn/phi_rope.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/nn/sacred_attention.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/bigint.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/formats.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/gf12.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/gf16.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/gf20.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/gf24.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/gf32.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/gf4.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/gf8.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/gf_competitive.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/goldenfloat_family.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/pellis_verify.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/phi_ratio.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/tf3.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/numeric/trinity_numeric_surface.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/chimera_best_gamma.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/e8_lqg_bridge.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/formula_discovery.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/formula_registry.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/gamma-conflict.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/gamma_conjecture.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/gi1_analysis.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/hslm_benchmark.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/lqg_cs_bridge.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/lqg_entropy.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/p2_brain_physics.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/pellis-formulas.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/quantum.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/sacred_verification.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/su2_chern_simons.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/physics/zamolodchikov_4d_conjecture.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/pins/emitter_xdc.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/pins/ir.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/pins/parser.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/pipeline/benchmarks.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/pipeline/e2e_test.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/pipeline/experience_save.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/portable/relay_observer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/provider/adapters.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/provider/schema.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/provider/stream.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/provider/transform.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/queen/brain_summaries.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/queen/lotus.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/queen/task_analysis.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/runtime/execute.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/runtime/instance.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/runtime/process.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sacred/cosmology.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sacred/dark_matter.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sacred/gravity.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sacred/monopoles.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sacred/quantum.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sacred/quantum_gravity.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sacred/sacred_constants.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sacred/sacred_governance.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sacred/sacred_identity.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sacred/superconductivity.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sandbox/health.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sandbox/https_enforce.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sandbox/modules.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sandbox/orphan_detection.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sandbox/session_timeout.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/server/agent-runner.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/server/api.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/server/http.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/server/mdns.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/server/project.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/server/provider.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/server/router.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/server/routes.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/server/session.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/server/sse.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/server/vm.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/shell/environment.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/shell/process.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/shell/schema.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/storage/kv.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/storage/lock.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/storage/migrate.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/storage/schema.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sync/index.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/sync/schema.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ternary/bigint.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ternary/hybrid_arithmetic.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ternary/hybrid_bigint.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/ternary/packed_trit.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/test_framework/core.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/test_framework/graph_drift_detection.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/test_framework/property_test_template.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/test_framework/runner.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/test_framework/verilog_bench_harness.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tools/registry.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tools/schema.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tools/tri_to_t27_converter.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/agent/agent_run.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/agent/agents.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/agent/autonomous_lifecycle.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/agent/autonomous_universe.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/agent/eternal_monitor.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/agent/experience_hooks.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/agent/faculty_board.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/agent/governance_agent.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/agent/handoff.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/agent/memory.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/agent/swarm_agents.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/array.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/bitmap.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/bitset.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/bitvector.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/btree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/circular_buffer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/context.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/deque.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/either.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/interval.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/linked_list.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/list.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/lockfree_stack.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/lru.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/lru_cache.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/map.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/maybe.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/namespace.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/option.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/priority_queue.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/queue.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/result.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/ring_buffer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/set.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/skip_list.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/stack.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/state.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/tuple.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/collections/variant.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/crypto/base32.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/crypto/base64.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/crypto/crypto.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/crypto/ecc.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/crypto/hex.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/crypto/hmac.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/crypto/reed_solomon.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/crypto/rsa.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/crypto/sha256.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/encoding/bson.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/encoding/csv.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/encoding/html.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/encoding/json.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/encoding/markup.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/encoding/mime.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/encoding/msgpack.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/encoding/xml.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/graph/bellman_ford.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/graph/dijkstra.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/graph/disjoint_set.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/graph/graph.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/graph/graph_bfs.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/graph/graph_dfs.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/graph/prims_mst.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/graph/topological_sort.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/io/compress.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/io/filesystem.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/io/fs.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/io/io.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/io/reader.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/io/writer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/io/zip.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/math/bezier.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/math/constants.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/math/math.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/math/matrix.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/math/measurement.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/math/polynomial.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/math/probability.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/math/statistics.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/net/async.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/net/async_stream.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/net/channel.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/net/cloud.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/net/http.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/net/net.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/net/url.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/pipeline/batch_runner.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/pipeline/builder.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/pipeline/cloud_orchestrator.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/pipeline/codegen.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/pipeline/pipeline.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/pipeline/pipeline_parallel.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/pipeline/spec_parser.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/pipeline/spec_writer.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/pipeline/workflow.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/pipeline/workflow_executor.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/pipeline/workflow_parser.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/search/aho_corasick.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/search/bloom_filter.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/search/boyer_moore.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/search/knuth_morris_pratt.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/search/match.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/search/pattern.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/search/rabin_karp.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/search/regex.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/search/regex_advanced.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/search/search.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/sort/counting_sort.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/sort/heap_sort.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/sort/insertion_sort.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/sort/merge_sort.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/sort/quick_sort.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/sort/radix_sort.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/sort/selection_sort.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/sort/shell_sort.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/sort/sort.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/sort/tim_sort.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/avl_tree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/b_tree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/fenwick_tree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/kd_tree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/octree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/quadtree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/red_black_tree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/rtree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/segment_tree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/splay_tree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/suffix_array.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/tree.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/trees/trie.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/args.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/arrow_time.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/bytes.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/color.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/colors.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/config.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/error.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/exit_codes.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/help.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/logger.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/logging.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/random.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/string.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/template.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/terminal.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/text.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/time.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/utf8.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/tri/utils/version.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/vm/jit_semantics.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/vsa/jones_polynomial.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/vsa/ops.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/vsa/packed_vsa.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/vsa/sdk.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/vsa/sequence_hdc.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/vsa/similarity_search.t27",
+      "seal": "FAIL"
+    },
+    {
+      "gen_verilog": "PASS",
+      "gen_zig": "PASS",
+      "parse": "PASS",
+      "path": "specs/vsa/vsa_core.t27",
+      "seal": "FAIL"
+    }
   ],
   "summary": {
-    "parse": {"pass": 36, "fail": 0},
-    "gen_zig": {"pass": 36, "fail": 0},
-    "gen_verilog": {"pass": 36, "fail": 0},
-    "seal": {"pass": 36, "fail": 0}
+    "gen_verilog": {
+      "fail": 0,
+      "pass": 496
+    },
+    "gen_zig": {
+      "fail": 0,
+      "pass": 496
+    },
+    "parse": {
+      "fail": 0,
+      "pass": 496
+    },
+    "seal": {
+      "fail": 496,
+      "pass": 0
+    }
   },
-  "test_suite": {
-    "command": "t27c suite --repo-root .",
-    "result": "ALL TESTS PASSED",
-    "parse": "43 passed, 0 failed",
-    "gen_zig": "43 passed, 0 failed",
-    "gen_verilog": "33 passed, 0 failed",
-    "gen_c": "33 passed, 0 failed",
-    "seal_verify": "33 passed, 0 failed",
-    "fixed_point": "0 divergences",
-    "total_failures": 0
-  },
-  "demo_pipeline": {
-    "command": "bash scripts/clara/demo.sh",
-    "result": "20/20 passed, 0 failed, 0 skipped"
-  }
+  "total_specs": 496
 }

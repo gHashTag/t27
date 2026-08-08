@@ -225,13 +225,19 @@ alone**. Counts are from a measured run on 2026-08-09 (see Section 5).
    its platform?" to one command with an exit code. This is the piece we
    believe is **novel** relative to Section 2 — and the claim most worth
    attacking.
-5. **Design-property proofs and seal integrity** -- **546 `Qed`** across
-   **41** Coq files (`coq/`, `trios-coq/`), seal-based integrity
-   (`.trinity/seals/`, **730** seals), and the `clara-bridge/` worked example
-   for DARPA CLARA-style compositional assurance
+5. **Design-property proofs** -- **546 `Qed`** across **41** Coq files
+   (`coq/`, `trios-coq/`), and the `clara-bridge/` worked example for DARPA
+   CLARA-style compositional assurance
    (see [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md)).
    *Not claimed:* refinement between `.t27` and emitted RTL — that is what
    Kami provides and we do not.
+   *Withdrawn 2026-08-09:* **seal-based integrity.** `.trinity/seals/` holds
+   730 seal files, but **0 of 496 verify** — they were last written in April
+   2026 and never re-baselined, so they record output no current build
+   produces. The pre-commit gate checks that a seal *file exists*, never that
+   its hashes match, so the drift was invisible. Presence is not integrity;
+   until the corpus is re-baselined this repo claims only the former.
+   Measure it: `t27c seal-audit`.
 
 Claims 1-5, with the exclusions attached, define the positioning. The phrase
 "open high-assurance ternary AI silicon substrate" is retained only with

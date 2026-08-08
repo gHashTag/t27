@@ -580,6 +580,162 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Report how many saved seals still verify against current output.
+///
+/// `.trinity/seals/` holds 730 records and the pre-commit gate checks that a
+/// seal *file exists* for each staged spec -- never that its hashes still
+/// match. Presence and integrity are different properties, and only the first
+/// was being enforced, so a seal could drift arbitrarily far without any gate
+/// noticing. This command measures the second one.
+///
+/// Exit is non-zero only with `--strict`, so it can be run for information
+/// without blocking a tree that is knowingly mid-rebaseline.
+pub fn seal_audit(repo_root: &Path, strict: bool) -> anyhow::Result<()> {
+    let repo = fs::canonicalize(repo_root)?;
+    let specs = collect_t27(&repo.join("specs"))?;
+    let seal_files = fs::read_dir(repo.join(".trinity/seals"))
+        .map(|d| d.filter_map(|e| e.ok()).count())
+        .unwrap_or(0);
+
+    println!("=== Seal Audit ===");
+    println!("phi^2 + 1/phi^2 = 3 | TRINITY");
+
+    let mut ok = 0usize;
+    let mut stale = 0usize;
+    for file in &specs {
+        let rel = rel_arg(&repo, file)?;
+        if cmd_seal_verify(&repo, &rel).is_ok() {
+            ok += 1;
+        } else {
+            stale += 1;
+        }
+    }
+
+    let n = specs.len();
+    println!();
+    println!(
+        "Seals on disk: {}. Specs: {}. Verifying: {}, stale: {}.",
+        seal_files, n, ok, stale
+    );
+    if stale == 0 {
+        println!("ALL SEALS VERIFY");
+        return Ok(());
+    }
+    println!(
+        "{} of {} specs have a seal that no longer matches current output.",
+        stale, n
+    );
+    println!("Re-baseline with: t27c seal <spec> --save  (per spec)");
+    if strict {
+        anyhow::bail!("SEAL VERIFICATION FAILED");
+    }
+    Ok(())
+}
+
+/// Per-spec result of one CLARA coverage phase.
+fn phase_str(ok: bool) -> &'static str {
+    if ok {
+        "PASS"
+    } else {
+        "FAIL"
+    }
+}
+
+/// Regenerate `conformance/clara_spec_coverage.json` across the **whole** spec
+/// corpus.
+///
+/// The previous file was hand-produced on 2026-04-05, covered 36 specs against
+/// a corpus that has since grown to ~500, and recorded a `demo_pipeline` result
+/// for `bash scripts/clara/demo.sh` — a path that does not exist in this
+/// repository, so that row could not be reproduced by anyone. This command
+/// replaces the hand-maintained artefact with a regenerable one and records
+/// only phases it actually ran.
+///
+/// Phases mirror the reproducible chain claimed in `CLARA_TRACEABILITY.md`:
+/// `.t27` -> `t27c` -> `gen/*` -> `.trinity/seals/`.
+pub fn clara_coverage(repo_root: &Path, output: Option<PathBuf>) -> anyhow::Result<()> {
+    let repo = fs::canonicalize(repo_root)?;
+    let specs = collect_t27(&repo.join("specs"))?;
+
+    println!("=== CLARA Spec Coverage ===");
+    println!("phi^2 + 1/phi^2 = 3 | TRINITY");
+    println!("specs: {}", specs.len());
+
+    let mut rows: Vec<serde_json::Value> = Vec::with_capacity(specs.len());
+    let (mut p_ok, mut z_ok, mut v_ok, mut s_ok) = (0usize, 0usize, 0usize, 0usize);
+
+    for file in &specs {
+        let rel = rel_arg(&repo, file)?;
+        // Parse gates the rest: if a spec does not parse, the downstream
+        // phases would report failures that say nothing new.
+        let parse = cmd_parse(&repo, &rel).is_ok();
+        let (zig, verilog, seal) = if parse {
+            (
+                cmd_gen(&repo, &rel, "gen").is_ok(),
+                cmd_gen(&repo, &rel, "gen-verilog").is_ok(),
+                cmd_seal_verify(&repo, &rel).is_ok(),
+            )
+        } else {
+            (false, false, false)
+        };
+
+        p_ok += parse as usize;
+        z_ok += zig as usize;
+        v_ok += verilog as usize;
+        s_ok += seal as usize;
+
+        rows.push(serde_json::json!({
+            "path": rel,
+            "parse": phase_str(parse),
+            "gen_zig": phase_str(zig),
+            "gen_verilog": phase_str(verilog),
+            "seal": phase_str(seal),
+        }));
+    }
+
+    let n = specs.len();
+    let doc = serde_json::json!({
+        "license": "Apache-2.0 — http://www.apache.org/licenses/LICENSE-2.0",
+        "schema_version": 2,
+        "generated_by": "t27c clara-coverage",
+        "date": Local::now().format("%Y-%m-%d").to_string(),
+        "compiler": "t27c (Rust bootstrap)",
+        "total_specs": n,
+        "note": "Regenerated across the full specs/ corpus. Every row is a real \
+                 subprocess run of the named t27c phase; no row is asserted. \
+                 Supersedes schema_version 1, which covered 36 of the then-current \
+                 specs and recorded a passing result for 'bash scripts/clara/demo.sh' \
+                 -- a path absent from this repository, so that row was not \
+                 reproducible by anyone. A FAIL here is a real measurement, not a \
+                 defect claim: see the seal column, where every spec fails because \
+                 .trinity/seals/ was last written in April 2026 and has not been \
+                 re-baselined since. Run 't27c seal-audit' for that figure alone.",
+        "specs": rows,
+        "summary": {
+            "parse":       {"pass": p_ok, "fail": n - p_ok},
+            "gen_zig":     {"pass": z_ok, "fail": n - z_ok},
+            "gen_verilog": {"pass": v_ok, "fail": n - v_ok},
+            "seal":        {"pass": s_ok, "fail": n - s_ok},
+        },
+        "reproduce": "t27c clara-coverage --repo-root .",
+    });
+
+    let out = output.unwrap_or_else(|| repo.join("conformance/clara_spec_coverage.json"));
+    let text = format!("{}\n", serde_json::to_string_pretty(&doc)?);
+    if out == Path::new("-") {
+        print!("{text}");
+    } else {
+        fs::write(&out, &text).with_context(|| format!("write {}", out.display()))?;
+        println!("wrote {}", out.display());
+    }
+
+    println!(
+        "parse {}/{}  gen_zig {}/{}  gen_verilog {}/{}  seal {}/{}",
+        p_ok, n, z_ok, n, v_ok, n, s_ok, n
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 mod conformance_classify_tests {
     use super::*;
@@ -670,5 +826,26 @@ mod conformance_classify_tests {
         let v = json!({"results": [1, 2, 3], "comparison": {"a": 1}});
         assert_eq!(payload_len(&v, VECTOR_KEYS), 0);
         assert_eq!(payload_len(&v, REPORT_KEYS), 3);
+    }
+}
+
+#[cfg(test)]
+mod clara_coverage_tests {
+    use super::*;
+
+    #[test]
+    fn phase_str_maps_both_outcomes() {
+        assert_eq!(phase_str(true), "PASS");
+        assert_eq!(phase_str(false), "FAIL");
+    }
+
+    // A phase result must never be blank: the superseded schema-v1 file carried
+    // rows whose provenance could not be reproduced, and an empty cell reads as
+    // "not run" when it actually means "we lost track".
+    #[test]
+    fn phase_str_is_never_empty() {
+        for b in [true, false] {
+            assert!(!phase_str(b).is_empty());
+        }
     }
 }

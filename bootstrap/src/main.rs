@@ -758,6 +758,24 @@ enum Commands {
         repo_root: PathBuf,
     },
 
+    /// Report how many saved seals still verify against current output
+    SealAudit {
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+        /// Exit non-zero if any seal is stale
+        #[arg(long)]
+        strict: bool,
+    },
+
+    /// Regenerate conformance/clara_spec_coverage.json over the full specs/ corpus
+    ClaraCoverage {
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+        /// Write here instead of conformance/clara_spec_coverage.json ("-" for stdout)
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+
     /// Require docs/NOW.md "Last updated" calendar date to match today (local timezone)
     CheckNow {
         #[arg(long, default_value = ".")]
@@ -1253,9 +1271,10 @@ enum Commands {
 
 #[cfg(feature = "server")]
 use axum::{
-    extract::State,
+    extract::{Request, State},
     http::StatusCode,
-    response::{IntoResponse, Json},
+    middleware::{self, Next},
+    response::{IntoResponse, Json, Response},
     routing::{get, post, delete, any},
     Router,
 };
@@ -1271,6 +1290,8 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio::net::TcpListener;
 #[cfg(feature = "server")]
 use std::sync::Arc;
+#[cfg(feature = "server")]
+use std::sync::atomic::{AtomicU32, Ordering};
 
 #[cfg(feature = "server")]
 #[derive(Clone, Serialize, Deserialize)]
@@ -1288,6 +1309,43 @@ pub struct Session {
 pub struct AppState {
     pub tx: broadcast::Sender<serde_json::Value>,
     pub sessions: Arc<RwLock<Vec<Session>>>,
+    pub bench_active: Arc<AtomicU32>,
+}
+
+#[cfg(feature = "server")]
+async fn auth_middleware(request: Request, next: Next) -> Response {
+    let api_key = env::var("T27_API_KEY").ok();
+    match api_key {
+        None => {
+            eprintln!("WARNING: T27_API_KEY not set. All requests allowed. Set this env var in production!");
+            next.run(request).await
+        }
+        Some(key) => {
+            let auth_header = request.headers()
+                .get("Authorization")
+                .and_then(|v| v.to_str().ok());
+            match auth_header {
+                Some(h) if h.strip_prefix("Bearer ") == Some(key.as_str()) => {
+                    next.run(request).await
+                }
+                _ => (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
+            }
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+fn validate_repo_root(root: &str) -> Result<(), String> {
+    if root.contains("..") {
+        return Err("path must not contain '..'".to_string());
+    }
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let cwd_str = cwd.to_string_lossy();
+    let allowed: &[&str] = &[cwd_str.as_ref(), "/app", "."];
+    if !allowed.iter().any(|prefix| root == *prefix || root.starts_with(&format!("{}/", prefix))) {
+        return Err(format!("path must be under allowed prefix: {}", cwd_str));
+    }
+    Ok(())
 }
 
 #[cfg(feature = "server")]
@@ -2409,7 +2467,19 @@ async fn explain_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
 }
 
 #[cfg(feature = "server")]
-async fn bench_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
+async fn bench_handler(State(state): State<AppState>, Json(req): Json<CompileRequest>) -> impl IntoResponse {
+    let prev = state.bench_active.fetch_add(1, Ordering::Relaxed);
+    if prev >= 10 {
+        state.bench_active.fetch_sub(1, Ordering::Relaxed);
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some("too many concurrent bench requests".to_string()),
+            }),
+        );
+    }
     let lex_time = {
         let start = std::time::Instant::now();
         let mut lexer = compiler::Lexer::new(&req.source);
@@ -2421,6 +2491,7 @@ async fn bench_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
         let _ = compiler::Compiler::parse_ast(&req.source);
         start.elapsed()
     };
+    state.bench_active.fetch_sub(1, Ordering::Relaxed);
     let resp = serde_json::json!({
         "lex_us": lex_time.as_micros(),
         "parse_us": parse_time.as_micros(),
@@ -2469,6 +2540,12 @@ async fn eval_handler(Json(req): Json<serde_json::Value>) -> impl IntoResponse {
 #[cfg(feature = "server")]
 async fn graph_handler(Json(req): Json<serde_json::Value>) -> impl IntoResponse {
     let root = req.get("repo_root").and_then(|v| v.as_str()).unwrap_or(".");
+    if let Err(e) = validate_repo_root(root) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse { success: false, output: None, error: Some(e) }),
+        );
+    }
     let root_path = Path::new(root);
     let files: Vec<PathBuf> = walkdir::WalkDir::new(root_path)
         .into_iter()
@@ -2770,40 +2847,10 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
     let state = AppState {
         tx,
         sessions: Arc::new(RwLock::new(Vec::new())),
+        bench_active: Arc::new(AtomicU32::new(0)),
     };
 
-    let app = Router::new()
-        .route("/health", get(health_handler))
-        .route("/global/health", get(health_handler))
-        .route("/global/config", get(global_config_handler))
-        .route("/global/event", get(global_event_handler))
-        .route("/global/sync-event", get(global_event_handler))
-        .route("/project", get(project_list_handler))
-        .route("/project/current", get(project_current_handler))
-        .route("/project/:id", axum::routing::patch(project_patch_handler))
-        .route("/provider", get(provider_list_handler))
-        .route("/provider/auth", get(provider_auth_handler).post(provider_auth_handler))
-        .route("/auth/:id", get(auth_id_handler).post(auth_id_handler).put(auth_id_handler))
-        .route("/config", get(config_get_handler))
-        .route("/config/providers", get(config_providers_handler))
-        .route("/path", get(path_handler))
-        // Session routes (both singular and plural for compatibility)
-        .route("/session", get(session_list_handler).post(session_create_handler))
-        .route("/sessions", get(session_list_handler).post(session_create_handler))
-        .route("/session/status", get(session_status_handler))
-        .route("/session/:id", get(session_id_handler).delete(session_delete_handler))
-        .route("/sessions/:id", get(session_id_handler).delete(session_delete_handler))
-        .route("/sessions/:id/token", post(session_create_sandbox_token_handler))
-        .route("/session/:id/message", get(session_message_list_handler).post(session_message_post_handler))
-        .route("/session/:id/prompt_async", post(prompt_async_handler))
-        .route("/session/:id/todo", get(session_todo_handler))
-        .route("/agent", get(agent_list_handler))
-        .route("/vcs", get(vcs_handler))
-        .route("/command", get(generic_list_handler))
-        .route("/permission", get(generic_list_handler))
-        .route("/question", get(generic_list_handler))
-        .route("/mcp", get(generic_list_handler))
-        .route("/instance", get(instance_handler))
+    let compiler_routes = Router::new()
         .route("/compile", post(compile_handler))
         .route("/parse", post(parse_handler))
         .route("/gen", post(gen_handler))
@@ -2825,6 +2872,41 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .route("/deadcode", post(deadcode_handler))
         .route("/metrics", post(metrics_handler))
         .route("/coverage", post(coverage_handler))
+        .layer(middleware::from_fn(auth_middleware))
+        .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024));
+
+    let app = Router::new()
+        .route("/health", get(health_handler))
+        .route("/global/health", get(health_handler))
+        .route("/global/config", get(global_config_handler))
+        .route("/global/event", get(global_event_handler))
+        .route("/global/sync-event", get(global_event_handler))
+        .route("/project", get(project_list_handler))
+        .route("/project/current", get(project_current_handler))
+        .route("/project/:id", axum::routing::patch(project_patch_handler))
+        .route("/provider", get(provider_list_handler))
+        .route("/provider/auth", get(provider_auth_handler).post(provider_auth_handler))
+        .route("/auth/:id", get(auth_id_handler).post(auth_id_handler).put(auth_id_handler))
+        .route("/config", get(config_get_handler))
+        .route("/config/providers", get(config_providers_handler))
+        .route("/path", get(path_handler))
+        .route("/session", get(session_list_handler).post(session_create_handler))
+        .route("/sessions", get(session_list_handler).post(session_create_handler))
+        .route("/session/status", get(session_status_handler))
+        .route("/session/:id", get(session_id_handler).delete(session_delete_handler))
+        .route("/sessions/:id", get(session_id_handler).delete(session_delete_handler))
+        .route("/sessions/:id/token", post(session_create_sandbox_token_handler))
+        .route("/session/:id/message", get(session_message_list_handler).post(session_message_post_handler))
+        .route("/session/:id/prompt_async", post(prompt_async_handler))
+        .route("/session/:id/todo", get(session_todo_handler))
+        .route("/agent", get(agent_list_handler))
+        .route("/vcs", get(vcs_handler))
+        .route("/command", get(generic_list_handler))
+        .route("/permission", get(generic_list_handler))
+        .route("/question", get(generic_list_handler))
+        .route("/mcp", get(generic_list_handler))
+        .route("/instance", get(instance_handler))
+        .merge(compiler_routes)
         .route("/sandbox", any(proxy::sandbox_proxy_handler))
         .route("/sandbox/*path", any(proxy::sandbox_proxy_handler))
         .fallback_service(
@@ -3510,7 +3592,7 @@ fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
 fn sha256_hex(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
-    format!("{:x}", hasher.finalize())
+    format!("{:064x}", hasher.finalize())
 }
 
 fn run_conformance(input_path: &str) -> anyhow::Result<()> {
@@ -8159,6 +8241,10 @@ async fn main() -> anyhow::Result<()> {
             suite::validate_conformance(&repo_root)?
         }
         Commands::ValidateGenHeaders { repo_root } => suite::validate_gen_headers(&repo_root)?,
+        Commands::ClaraCoverage { repo_root, output } => {
+            suite::clara_coverage(&repo_root, output)?
+        }
+        Commands::SealAudit { repo_root, strict } => suite::seal_audit(&repo_root, strict)?,
         Commands::CheckNow { repo_root } => suite::check_now_sync(&repo_root)?,
         Commands::Optimize { input, opt_level } => run_optimize(&input, opt_level)?,
         Commands::Typecheck { input, json } => run_typecheck(&input, json)?,
@@ -8251,12 +8337,12 @@ async fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_sensitivity(&repo_root, &id, &param, min, max, n)?;
          }
-         Commands::TernaryEncode { value } => {
-            use crate::ternary::encode_trits;
-            let encoded = encode_trits(value);
-            println!("Encoded {} as ternary: {:?}", value, encoded);
-        }
-        Commands::TernaryDecode { trits } => {
+          Commands::TernaryEncode { value } => {
+             use crate::ternary::encode_trits;
+             let encoded = encode_trits(value as i64);
+             println!("Encoded {} as ternary: {:?}", value, encoded);
+         }
+         Commands::TernaryDecode { trits } => {
             use crate::ternary::{parse_trits, decode_trits};
             match parse_trits(&trits) {
                 Some(encoding) => {
@@ -8408,6 +8494,10 @@ fn main() -> anyhow::Result<()> {
             suite::validate_conformance(&repo_root)?
         }
         Commands::ValidateGenHeaders { repo_root } => suite::validate_gen_headers(&repo_root)?,
+        Commands::ClaraCoverage { repo_root, output } => {
+            suite::clara_coverage(&repo_root, output)?
+        }
+        Commands::SealAudit { repo_root, strict } => suite::seal_audit(&repo_root, strict)?,
         Commands::CheckNow { repo_root } => suite::check_now_sync(&repo_root)?,
         Commands::Optimize { input, opt_level } => run_optimize(&input, opt_level)?,
         Commands::Typecheck { input, json } => run_typecheck(&input, json)?,
@@ -8501,7 +8591,7 @@ fn main() -> anyhow::Result<()> {
          }
         Commands::TernaryEncode { value } => {
             use crate::ternary::encode_trits;
-            let encoded = encode_trits(value);
+            let encoded = encode_trits(value as i64);
             println!("Encoded {} as ternary: {:?}", value, encoded);
         }
         Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,

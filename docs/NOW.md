@@ -2,6 +2,44 @@
 
 Last updated: 2026-08-09
 
+## clara-coverage + seal-audit -- the seals never verified, and no gate could tell
+
+- **WHERE**: `bootstrap/src/suite.rs` (2 new commands + 2 tests),
+  `bootstrap/src/main.rs` (registration), regenerated
+  `conformance/clara_spec_coverage.json`, `CLARA_TRACEABILITY.md`,
+  `COMPETITORS.md`, `README.md`.
+- **The CLARA coverage evidence was unreproducible.** The old file was dated
+  **2026-04-05**, covered **36** specs against a corpus of **496**, and recorded
+  `"command": "bash scripts/clara/demo.sh"` → `"20/20 passed"`. **That path does
+  not exist anywhere in this repository.** It was a passing result nobody could
+  re-run. Replaced by `t27c clara-coverage`, which runs every phase as a real
+  subprocess over all 496 specs and writes schema-v2. No shell (L7-clean).
+- **Result: `parse 496/496, gen_zig 496/496, gen_verilog 496/496, seal 0/496`.**
+- **The seal finding.** `.trinity/seals/` holds **730 files and not one
+  verifies.** Seals were last written April 2026 — 480 of them on **2026-04-14**,
+  the same day as `fcf80027 "replace all Unicode with ASCII in 160 .t27 files"`,
+  which changed the very specs being sealed. Nothing has been re-baselined
+  since, across the R12-R14 codegen fixes. `specs/numeric/gf16.t27` is
+  **git-clean** and still fails on `spec_hash`, so this is not an artefact of
+  the dirty worktree.
+- **Why no gate caught it**: pre-commit Gate 2/4 tests `[[ ! -f "$seal_file" ]]`
+  — *file existence*. It never verifies a hash. Presence is not integrity.
+  There are also two seal-naming schemes: the gate derives `basename` →
+  `gf16.json`, while `seal --verify` reads a path-derived
+  `numeric_triformat-gf16.json`. Those coincide only on a case-insensitive
+  filesystem, so the gate is additionally fragile on Linux CI.
+- **New**: `t27c seal-audit [--strict]` reports the verify rate in one command.
+  Non-blocking by default so a knowingly-mid-rebaseline tree still commits.
+- **Not done, deliberately**: no re-seal. `seal --save` across 496 specs would
+  rewrite 730 provenance records and canonicalise whatever the current codegen
+  emits, with no independent oracle that it is right. That is a decision for a
+  human, not a side effect of an audit.
+- **Consequence recorded**: `COMPETITORS.md` claim 5 **withdraws** seal-based
+  integrity; `README.md` splits Seal presence (GREEN) from Seal integrity (RED);
+  `CLARA_TRACEABILITY.md` downgrades the pipeline row to `partial` and its
+  reproduction block now shows the failing command instead of hiding it.
+  `./scripts/tri test` exits non-zero for this reason and the README says so.
+
 ## conformance-classify -- the corpus was never hollow; the validator was blind
 
 - **WHERE**: `bootstrap/src/suite.rs` (`validate_conformance` + 2 helpers + 12
