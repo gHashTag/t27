@@ -1,6 +1,12 @@
-# NOW — CI gates 3-input scaling + a free-Vivado cloud runbook (2026-08-08)
+# NOW — CI now gates all four scaling axes (inputs/depth/width/outputs) (2026-08-08)
 
 Last updated: 2026-08-08
+
+## test: gate a 3-class argmax classifier learns -- closes the scaling axes (Refs #1764)
+
+- Added a 3-CLASS argmax classifier (2,8,3) learning angular sectors (one-hot targets, argmax over 3 outputs), held-out 55/60 (92%), deterministic, ~4.5s in CI
+- The CI learning gate now proves generalization across ALL FOUR scaling axes: inputs (3-input majority), depth (deep [2,4,3,1] / [2,5,3,1]), width (varied hidden), and OUTPUTS (2-class argmax + now 3-class argmax) -- every one held-out >=90%, enforced per PR
+- Cements the thesis: the spec-verified method learns and generalizes across dimensions; the only limit was the open silicon flow's placement marginality (works via met-timing + seed-search; Vivado for determinism/scale). Board on generated capstone (XOR 4/4). Refs #1764
 
 ## test+docs: gate 3-input scaling learns + a cloud runbook for free Vivado closure (Refs #1764)
 

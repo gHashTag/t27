@@ -487,6 +487,40 @@ if __name__ == "__main__":
     te = sum(1 for a, b, c, t in te3 if _pred3(a, b, c) == t)
     assert te >= int(0.9 * len(te3)), f"3-input (3,5,1) held-out too low: {te}/{len(te3)}"
     print(f"self-test: 3-input (3,5,1) learns a noisy 3-feature task, held-out {te}/{len(te3)} (>=90%) -- OK")
+    # output-dimension scaling: a 3-CLASS argmax classifier (2,8,3) on angular sectors,
+    # one-hot targets + argmax over three outputs -- proves scaling along outputs, not just
+    # the 2-class case. Closes the scaling axes: inputs / depth / width / outputs.
+    import math as _math
+    reg, steps = gen(2, 8, 3); rf = [0] * len(reg)
+    random.seed(3)
+    for j in range(8):
+        for k in range(2): rf[reg[f"W{j}_{k}"]] = enc(round(random.uniform(-0.8, 0.8), 3))
+        rf[reg[f"b{j}"]] = enc(round(random.uniform(-0.5, 0.5), 3))
+    for o in range(3):
+        for j in range(8): rf[reg[f"v{o}_{j}"]] = enc(round(random.uniform(-0.8, 0.8), 3))
+    def _sector(a, b): return int(((_math.atan2(b, a) + _math.pi) / (2 * _math.pi)) * 3) % 3
+    def _ds3c(n, seed):
+        random.seed(seed); d = []
+        while len(d) < n:
+            a, b = random.uniform(-1, 1), random.uniform(-1, 1)
+            if a * a + b * b < 0.1: continue
+            d.append((a, b, _sector(a, b)))
+        return d
+    tr3c, te3c = _ds3c(240, 7), _ds3c(60, 99)
+    def _pred3c(a, b):
+        sav = rf[:]; rf[reg["x0"]] = enc(a); rf[reg["x1"]] = enc(b)
+        for o in range(3): rf[reg[f"t{o}"]] = 0
+        run(steps, rf); ys = [dec(rf[reg[f"y{o}"]]) for o in range(3)]
+        for i in range(len(rf)): rf[i] = sav[i]
+        return max(range(3), key=lambda o: ys[o])
+    for _ in range(80):
+        for a, b, c in tr3c:
+            rf[reg["x0"]] = enc(a); rf[reg["x1"]] = enc(b)
+            for o in range(3): rf[reg[f"t{o}"]] = enc(1.0 if o == c else 0.0)
+            run(steps, rf)
+    te = sum(1 for a, b, c in te3c if _pred3c(a, b) == c)
+    assert te >= int(0.9 * len(te3c)), f"3-class (2,8,3) argmax held-out too low: {te}/{len(te3c)}"
+    print(f"self-test: 3-class (2,8,3) argmax classifier learns angular sectors, held-out {te}/{len(te3c)} (>=90%) -- OK")
     vd = emit_verilog_deep([2, 4, 3, 1], "deep431")
     assert "module deep431" in vd and "for(gi=0;gi<" in vd
     print("emit_verilog_deep: [2,4,3,1] module generated -- OK")
