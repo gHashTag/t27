@@ -676,6 +676,12 @@ enum Commands {
         /// Verify current hashes match previously saved seals
         #[arg(long)]
         verify: bool,
+
+        /// Seal even when the spec produces no generated output for any
+        /// backend. Such a seal certifies nothing and verifies green, so this
+        /// is refused by default.
+        #[arg(long)]
+        force: bool,
     },
     /// Encode integer to ternary
     TernaryEncode {
@@ -1307,6 +1313,18 @@ enum Commands {
         /// Path to the yosys binary
         #[arg(long, default_value = "yosys")]
         yosys: String,
+    },
+
+    /// Audit .trinity/seals: find seals whose spec no longer generates
+    #[command(name = "seal-audit")]
+    SealAudit {
+        /// Seals directory (default: .trinity/seals)
+        #[arg(long, default_value = ".trinity/seals")]
+        seals_dir: String,
+
+        /// Fail with exit 1 if any vacuous seal is found
+        #[arg(long)]
+        strict: bool,
     },
 
     /// Report vacuous tests (`assert true`) and tautological invariants in .t27 specs
@@ -4030,8 +4048,22 @@ fn seal_file_path(module: &str, input_path: &str) -> std::path::PathBuf {
     Path::new(".trinity").join("seals").join(name)
 }
 
-fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
+fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::Result<()> {
     let hashes = compute_seal_hashes(input_path)?;
+
+    // A seal whose every backend hash is "none" records that NOTHING was
+    // generated. It then verifies green, because none matches none -- turning
+    // the integrity gate from a mismatch alarm into a rubber stamp. Wave 551
+    // found 30 seals degraded exactly this way, including by its own reseals.
+    let is_vacuous = |z: &str, v: &str, c: &str, r: &str| {
+        z == "none" && v == "none" && c == "none" && r == "none"
+    };
+    let current_vacuous = is_vacuous(
+        &hashes.gen_hash_zig,
+        &hashes.gen_hash_verilog,
+        &hashes.gen_hash_c,
+        &hashes.gen_hash_rust,
+    );
 
     if verify {
         // --verify: load saved seal and compare
@@ -4067,6 +4099,25 @@ fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
             }
         }
 
+        // A saved seal with no generated output for any backend cannot
+        // certify anything, so matching it is not evidence of integrity.
+        let saved_str = |k: &str| {
+            saved_json.get(k).and_then(|v| v.as_str()).unwrap_or("missing").to_string()
+        };
+        if is_vacuous(
+            &saved_str("gen_hash_zig"),
+            &saved_str("gen_hash_verilog"),
+            &saved_str("gen_hash_c"),
+            &saved_str("gen_hash_rust"),
+        ) {
+            println!(
+                "\nVERIFICATION FAILED -- the saved seal is vacuous: every gen_hash is \"none\",\n\
+                 so it records that no backend ever generated output for this spec.\n\
+                 Matching it proves nothing. Fix the spec so it generates, then reseal."
+            );
+            std::process::exit(1);
+        }
+
         if all_match {
             println!("\nall hashes MATCH");
         } else {
@@ -4074,6 +4125,17 @@ fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
             std::process::exit(1);
         }
     } else if save {
+        if current_vacuous && !force {
+            anyhow::bail!(
+                "refusing to seal {}: no backend produced output, so every gen_hash\n\
+                 would be \"none\". Such a seal verifies green while certifying nothing,\n\
+                 and it OVERWRITES any real hashes already recorded.\n\
+                 Check that the spec parses (`t27c parse {}`) and fix it first.\n\
+                 Pass --force only if you intend to record an empty seal.",
+                input_path,
+                input_path
+            );
+        }
         // --save: compute hashes and write to .trinity/seals/<module>.json
         let seals_dir = Path::new(".trinity").join("seals");
         fs::create_dir_all(&seals_dir)?;
@@ -4985,6 +5047,102 @@ fn scan_vacuity(src: &str) -> VacuityCounts {
         i += 1;
     }
     c
+}
+
+/// Audit the seal store.
+///
+/// A seal whose every `gen_hash_*` is "none" records that no backend produced
+/// output. Such a seal VERIFIES GREEN (none matches none) while certifying
+/// nothing -- it converts the integrity gate from a mismatch alarm into a
+/// rubber stamp. Wave 551 found 30 seals degraded that way, and the wave-loop
+/// that found them had caused all 30 itself by resealing unparseable specs.
+///
+/// This also reports seals whose spec file has gone missing, and seals whose
+/// spec no longer generates any backend output (the live version of the same
+/// problem).
+fn run_seal_audit(repo_root: &Path, seals_dir: &str, strict: bool) -> anyhow::Result<()> {
+    let dir = repo_root.join(seals_dir);
+    if !dir.is_dir() {
+        anyhow::bail!("not a directory: {}", dir.display());
+    }
+
+    let mut total = 0usize;
+    let mut vacuous: Vec<String> = Vec::new();
+    let mut missing_spec: Vec<String> = Vec::new();
+    let mut healthy = 0usize;
+
+    let mut entries: Vec<PathBuf> = fs::read_dir(&dir)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("json"))
+        .collect();
+    entries.sort();
+
+    for path in &entries {
+        total += 1;
+        let txt = match fs::read_to_string(path) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        let v: serde_json::Value = match serde_json::from_str(&txt) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let get = |k: &str| v.get(k).and_then(|x| x.as_str()).unwrap_or("missing");
+        let gens = [
+            get("gen_hash_zig"),
+            get("gen_hash_verilog"),
+            get("gen_hash_c"),
+            get("gen_hash_rust"),
+        ];
+        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let spec_path = get("spec_path");
+
+        if gens.iter().all(|g| *g == "none") {
+            vacuous.push(format!("{}  ({})", name, spec_path));
+            continue;
+        }
+        if spec_path != "missing" && !repo_root.join(spec_path).exists() {
+            missing_spec.push(format!("{}  ({})", name, spec_path));
+            continue;
+        }
+        healthy += 1;
+    }
+
+    println!("=== Seal audit: {} ===", dir.display());
+    println!("  seals total          : {}", total);
+    println!("  healthy              : {}", healthy);
+    println!("  VACUOUS (all 'none') : {}", vacuous.len());
+    println!("  spec file missing    : {}", missing_spec.len());
+
+    if !vacuous.is_empty() {
+        println!("\nVacuous seals -- every gen_hash is \"none\", so they verify green");
+        println!("while recording that nothing was ever generated:");
+        for v in vacuous.iter().take(40) {
+            println!("  {}", v);
+        }
+        if vacuous.len() > 40 {
+            println!("  ... and {} more", vacuous.len() - 40);
+        }
+    }
+    if !missing_spec.is_empty() {
+        println!("\nSeals whose spec file no longer exists:");
+        for m in missing_spec.iter().take(20) {
+            println!("  {}", m);
+        }
+        if missing_spec.len() > 20 {
+            println!("  ... and {} more", missing_spec.len() - 20);
+        }
+    }
+
+    if strict && (!vacuous.is_empty() || !missing_spec.is_empty()) {
+        anyhow::bail!(
+            "seal audit failed: {} vacuous, {} orphaned",
+            vacuous.len(),
+            missing_spec.len()
+        );
+    }
+    Ok(())
 }
 
 fn run_validate_vacuity(
@@ -9040,7 +9198,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
-        Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
+        Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }
@@ -9143,6 +9301,10 @@ async fn main() -> anyhow::Result<()> {
          Commands::SynthGate { specs_dir, arch, min_pass_rate, yosys } => {
              let repo_root = std::env::current_dir()?;
              run_synth_gate(&repo_root, &specs_dir, &arch, min_pass_rate, &yosys)?;
+         }
+         Commands::SealAudit { seals_dir, strict } => {
+             let repo_root = std::env::current_dir()?;
+             run_seal_audit(&repo_root, &seals_dir, strict)?;
          }
          Commands::ValidateVacuity { specs_dir, max_ratio, top } => {
              let repo_root = std::env::current_dir()?;
@@ -9334,7 +9496,7 @@ fn main() -> anyhow::Result<()> {
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
-        Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
+        Commands::Seal { input, save, verify, force } => run_seal(&input, save, verify, force)?,
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }
@@ -9439,6 +9601,10 @@ fn main() -> anyhow::Result<()> {
          Commands::SynthGate { specs_dir, arch, min_pass_rate, yosys } => {
              let repo_root = std::env::current_dir()?;
              run_synth_gate(&repo_root, &specs_dir, &arch, min_pass_rate, &yosys)?;
+         }
+         Commands::SealAudit { seals_dir, strict } => {
+             let repo_root = std::env::current_dir()?;
+             run_seal_audit(&repo_root, &seals_dir, strict)?;
          }
          Commands::ValidateVacuity { specs_dir, max_ratio, top } => {
              let repo_root = std::env::current_dir()?;
