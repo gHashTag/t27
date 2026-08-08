@@ -2,6 +2,11 @@
 
 Last updated: 2026-08-08
 
+## test(gen-verilog): tuple contract expects width-cast operands (Refs #1948)
+
+- Follow-up to the tuple width-cast (#1973): the phase40 contract test's exact-string expectation updated to `{32'((a-b)), 32'((a+b))}`
+- Unit suite back to the single pre-existing red
+
 ## gen-verilog: tuple literal elements and destructure regs width-cast (Refs #1948)
 
 - A tuple return `(1, true)` packed each element via gen_verilog_expr -- a bare literal is unsized and iverilog rejected it in the concatenation ("operand has indefinite width"). Elements are width-cast to their declared tuple-element type now
