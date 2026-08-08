@@ -5233,6 +5233,12 @@ fn run_validate_vacuity(
 
     let mut rows: Vec<(String, VacuityCounts)> = Vec::new();
     let mut total = VacuityCounts::default();
+    // `.tri` is documented in SOUL.md as "TRI high-level specifications", but it
+    // is a DIFFERENT language (`spec X`, `--` comments, `pub const NAME u32 = 1`)
+    // and no tool in this repository parses it. Counting them with the .t27
+    // scanner would produce nonsense, and silently skipping them is how they
+    // stayed invisible to every census. Report them instead.
+    let mut tri_skipped: Vec<String> = Vec::new();
 
     for entry in walkdir::WalkDir::new(&root)
         .into_iter()
@@ -5240,7 +5246,14 @@ fn run_validate_vacuity(
         .filter(|e| e.file_type().is_file())
     {
         let p = entry.path();
-        if p.extension().and_then(|s| s.to_str()) != Some("t27") {
+        let ext = p.extension().and_then(|s| s.to_str());
+        if ext == Some("tri") {
+            tri_skipped.push(
+                p.strip_prefix(repo_root).unwrap_or(p).display().to_string(),
+            );
+            continue;
+        }
+        if ext != Some("t27") {
             continue;
         }
         let src = match fs::read_to_string(p) {
@@ -5302,6 +5315,21 @@ fn run_validate_vacuity(
         total.inv_vacuous,
         inv_pct
     );
+
+    if !tri_skipped.is_empty() {
+        println!(
+            "\n  NOT ANALYSED: {} `.tri` file(s). SOUL.md documents .tri as a spec\n\
+             \x20 format, but it is a different language and no tool here parses it,\n\
+             \x20 so these are outside every count above:",
+            tri_skipped.len()
+        );
+        for t in tri_skipped.iter().take(10) {
+            println!("      {}", t);
+        }
+        if tri_skipped.len() > 10 {
+            println!("      ... and {} more", tri_skipped.len() - 10);
+        }
+    }
 
     let dead = total.tests_vacuous + total.tests_bdd;
     let all_blocks = total.tests_total + total.tests_bdd;
