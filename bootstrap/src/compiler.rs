@@ -8686,6 +8686,20 @@ impl VerilogCodegen {
         self.with_call_array_temps_enabled(|this| {
             for child in &node.children {
                 this.gen_verilog_test_stmt(child, &node.name, "TEST");
+                // W560: a call-return temp is CSE'd by call TEXT, but a test
+                // block mutates its bindings between statements
+                // (`st = on_ack(st);` repeated). Caching the temp across a
+                // reassignment reused a STALE value, so the state never
+                // advanced. After any statement that rebinds a variable,
+                // invalidate the materialized set so the next use re-assigns the
+                // temp from the current values. Nested-call temps inside a
+                // single (non-mutating) statement are unaffected — they still
+                // materialize once, in dependency order.
+                if matches!(child.kind, NodeKind::StmtAssign)
+                    || (child.kind == NodeKind::StmtLocal && !child.name.is_empty())
+                {
+                    this.call_array_tmp_materialized.clear();
+                }
             }
         });
         for name in block_locals {
