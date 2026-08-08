@@ -9565,6 +9565,11 @@ impl CCodegen {
         let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
         if has_tests {
             self.write_line("#include <assert.h>");
+            // t27's two-argument assert(cond, "msg") is not C's assert; lower it
+            // to a self-contained macro (message kept for readability, unused).
+            self.write_line(
+                "#define t27_assert(c, m) do { if (!(c)) { __builtin_trap(); } } while (0)",
+            );
         }
         self.write_line("");
 
@@ -9950,8 +9955,55 @@ impl CCodegen {
         self.write_line(&format!("void {}(void) {{", fn_name));
         self.indent();
 
+        // Test-block bindings ('b0 = f(...);') parse as StmtAssign, not
+        // StmtLocal -- the same defect fixed for Verilog (#1894) and Zig.
+        // Declare the FIRST assignment to each plain identifier (uint64_t holds
+        // every t27 scalar); a tuple target binds the struct return once via
+        // GNU __auto_type (gcc and clang) and peels .f0/.f1/...
+        let mut bound: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut tuple_ctr = 0u32;
         for stmt in &node.children {
-            self.gen_c_stmt(stmt);
+            let fresh = stmt.kind == NodeKind::StmtAssign
+                && stmt.children.len() >= 2
+                && stmt.children[0].kind == NodeKind::ExprIdentifier
+                && !stmt.children[0].name.is_empty()
+                && bound.insert(stmt.children[0].name.clone());
+            let tuple = stmt.kind == NodeKind::StmtAssign
+                && stmt.children.len() >= 2
+                && stmt.children[0].kind == NodeKind::ExprTuple
+                && stmt.children[0]
+                    .children
+                    .iter()
+                    .all(|e| e.kind == NodeKind::ExprIdentifier && !e.name.is_empty());
+            if fresh {
+                self.write_indent();
+                self.write(&format!("uint64_t {} = ", stmt.children[0].name));
+                self.gen_c_expr(&stmt.children[1]);
+                self.write(";");
+                self.write_line("");
+                self.write_indent();
+                self.write(&format!("(void){};", stmt.children[0].name));
+                self.write_line("");
+            } else if tuple {
+                tuple_ctr += 1;
+                let tmp = format!("__t27_tup{}", tuple_ctr);
+                self.write_indent();
+                self.write(&format!("__auto_type {} = ", tmp));
+                self.gen_c_expr(&stmt.children[1]);
+                self.write(";");
+                self.write_line("");
+                for (fi, e) in stmt.children[0].children.iter().enumerate() {
+                    bound.insert(e.name.clone());
+                    self.write_indent();
+                    self.write(&format!("__auto_type {} = {}.f{};", e.name, tmp, fi));
+                    self.write_line("");
+                    self.write_indent();
+                    self.write(&format!("(void){};", e.name));
+                    self.write_line("");
+                }
+            } else {
+                self.gen_c_stmt(stmt);
+            }
         }
 
         if node.children.is_empty() {
@@ -10310,6 +10362,21 @@ impl CCodegen {
             };
             return format!("{}*", c_inner);
         }
+        // Rust-style array types: [T; N] → T* (pointer in param position).
+        if ty.starts_with('[') && ty.contains(';') {
+            if let Some(bracket_end) = ty.rfind(']') {
+                let inner = &ty[1..bracket_end];
+                if let Some(semi) = inner.find(';') {
+                    let elem = inner[..semi].trim();
+                    let c_elem = if Self::is_primitive(elem) {
+                        Self::type_to_c(elem).to_string()
+                    } else {
+                        elem.to_string()
+                    };
+                    return format!("{}*", c_elem);
+                }
+            }
+        }
         // Array types: [SIZE]Type → Type* (pointer in param position)
         if ty.starts_with('[') {
             if let Some(bracket_end) = ty.find(']') {
@@ -10366,7 +10433,21 @@ impl CCodegen {
             }
             NodeKind::ExprCall => {
                 let fname = &node.name;
-                if fname == "@compileAssert" {
+                if fname == "assert" && node.children.len() == 2 {
+                    // t27 assert(cond, "msg"): C's assert macro takes ONE argument
+                    // and the message literal must be re-quoted (the parser stores
+                    // string contents unquoted).
+                    self.write("t27_assert(");
+                    self.gen_c_expr(&node.children[0]);
+                    let msg = node.children[1]
+                        .value
+                        .trim_matches('"')
+                        .replace('\\', "\\\\")
+                        .replace('"', "\\\"");
+                    self.write(", \"");
+                    self.write(&msg);
+                    self.write("\")");
+                } else if fname == "@compileAssert" {
                     self.write("_Static_assert(");
                     if !node.children.is_empty() {
                         self.gen_c_expr(&node.children[0]);

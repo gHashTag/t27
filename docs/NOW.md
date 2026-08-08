@@ -1,6 +1,14 @@
-# NOW — fix(gen-zig): campaign complete, 68/68 valid (2026-08-08)
+# NOW — fix(gen-c): params, test bindings, assert macro (2026-08-08)
 
 Last updated: 2026-08-08
+
+## fix(gen-c): [T;N] params, test-block bindings, t27_assert macro (Refs #1919)
+
+- Rust-style `[T; N]` parameter types now lower to `T*` (previously emitted a bare `* name` -- no base type)
+- Test-block bindings are declared on first assignment (`uint64_t b0 = ...;` -- the C twin of #1894); tuple targets bind the struct return once via GNU `__auto_type` and peel `.f0/.f1`
+- Two-argument `assert(cond, "msg")` lowers to a self-contained `t27_assert` macro with the message RE-QUOTED (bare unquoted words previously hit C's one-arg assert and leaked non-ASCII into identifiers)
+- tri-net gcc -fsyntax-only sweep: 64/68 -> 8/68 invalid; the eight distinct long-tails are enumerated in #1919
+- Unit suite 1537/1537; other backends untouched; FROZEN_HASH resealed
 
 ## fix(gen-zig): array-literal text lowering, CSE hoist, undefined init, shadow-aware dead-local scan (Closes #1910)
 
