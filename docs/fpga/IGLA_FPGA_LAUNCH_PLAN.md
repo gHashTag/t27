@@ -22,7 +22,7 @@
 | `openFPGALoader` | present | programming works — **once a cable exists** |
 | `openocd` | present | alternate programming path |
 | `docker` | present, no containers running | openXC7 P&R path available |
-| `nextpnr-xilinx` | **absent** locally; present in the `regymm/openxc7` image | P&R only via Docker — and see G1 for the memory ceiling |
+| `nextpnr-xilinx` | absent locally; present in the `regymm/openxc7` image | P&R via Docker — **working, G1 done** |
 | `vivado` | **absent** | no local Vivado flow |
 
 ### 1.2 Hardware
@@ -119,9 +119,9 @@ Reproduce:
 cd fpga/verilog && iverilog -g2005 -o /tmp/tb_v2.vvp tb_ternary_mac_demo_v2.v ternary_mac_demo_core.v ternary_mac_synth.v && vvp /tmp/tb_v2.vvp
 ```
 
-**Not yet done:** v2 has no bitstream. Synthesis is verified both locally and
-inside the openXC7 container; place-and-route is blocked on the chipdb, which
-cannot be generated within this host's Docker memory ceiling — see gate **G1**.
+**Done in W553:** v2 has a bitstream — `ternary_mac_demo_top_v2_200t.bit`,
+placed and routed with 0 errors at **150.63 MHz** against an 80 MHz constraint.
+See gate **G1**.
 
 ---
 
@@ -138,93 +138,88 @@ command ran; it is done when the pass criterion is observed.
 - **Why it matters:** the on-board signature in G3 is only meaningful because
   simulation already fixed what the correct signature *is*.
 
-### G1 — Bitstream for v2 *(status: BLOCKED on host memory)*
+### G1 — Bitstream for v2 *(status: **DONE**, Wave 553)*
 
 The `regymm/openxc7` image (11.3 GB) has been pulled and **verified to
 synthesize this design**: 188 cells, 115 LUT, 60 FF, 1 STARTUPE2, under
 yosys 0.62 inside the container.
 
-**Step 1 is blocked on host memory, and that is the whole story.**
-`bbaexport.py` is **OOM-killed** — `EXIT=137`, SIGKILL — every time:
+**Solved in W553 by running the memory-heavy step natively instead of in
+Docker.** The measurement settles the diagnosis:
 
 | | |
 |---|---|
+| `bbaexport` peak memory | **7,064,369,664 B (7.06 GB)** |
+| Docker Desktop allocation | 3.83 GiB |
 | Host RAM | 8 GB |
-| Allocated to Docker Desktop | **3.828 GiB** |
-| Chipdb export peak (per `OPENXC7_FGG676_STATUS.md`) | ~3.5 GiB **for the smaller XC7A100T, measured natively** |
-| This target | XC7A200T — a larger die — under `linux/amd64` emulation on aarch64 |
 
-The 200T needs more than the 100T, and emulation adds overhead on top, so the
-export cannot fit in 3.83 GiB.
+7.06 GB against a 3.83 GiB ceiling — the OOM was not a misconfiguration, and no
+Docker tuning short of ~7.5 GiB would have fixed it. Natively it completes.
 
-Three notes recorded so the next run does not repeat this wave's detours:
-
-- **The failure is silent unless you look at the exit code.** `bbaexport.py`
-  prints nothing when killed; piping it through `tail` hides even that. Two
-  attempts this wave were misread — first as a missing prjxray database, then
-  as an unset `XRAY_DATABASE_DIR`. Both diagnoses were wrong. **Check `$?`;
-  137 means OOM.**
-- **The prjxray database is not at `/prjxray/database/`** (that holds only
-  `settings.sh`). It ships at
-  `/nextpnr-xilinx/xilinx/external/prjxray-db/artix7/`, which is already the
-  script's default — `--xray` does not need to be passed.
-- **`xc7a200tfbg676-1` is present** there, the part `HARDWARE_SSOT.md`
-  establishes as pinout-correct for the FGG676 board.
-
-**Ways past it**, cheapest first:
-
-1. Raise Docker Desktop's memory limit toward 6–7 GiB (Settings → Resources).
-   Tight on an 8 GB host but may fit.
-2. Build the chipdb **natively** — no emulation overhead and no Docker
-   ceiling. `OPENXC7_FGG676_STATUS.md` documents this path and reports the
-   100T export completing in 71 s at 2.1 GiB peak.
-3. Run the export on a machine with more RAM and commit the resulting
-   `.bin` — the chipdb is device-specific, not host-specific, so it is a
-   one-time artifact that can be produced anywhere.
+**The flow that works** (artifacts land in `build/fpga/openxc7/`, gitignored):
 
 ```bash
-# Step 1 -- chipdb (one-time). BLOCKED at 3.83 GiB Docker memory: see above.
-# Defaults already point at the bundled prjxray-db; do not pass --xray.
-# ALWAYS check the exit code -- 137 means the OOM killer took it.
-mkdir -p build/fpga/chipdb
-docker run --rm -v "$PWD/build/fpga/chipdb:/out" regymm/openxc7 bash -c '
-  source /prjxray/env/bin/activate
-  cd /nextpnr-xilinx
-  python3 xilinx/python/bbaexport.py --device xc7a200tfbg676-1 --bba /out/xc7a200tfbg676.bba
-  echo "bbaexport exit=$?"
-  bbasm --le /out/xc7a200tfbg676.bba /out/xc7a200tfbg676.bin
-'
+# 0. one-time: extract prjxray-db + nextpnr metadata + python from the image
+cid=$(docker create regymm/openxc7)
+docker cp "$cid:/nextpnr-xilinx/xilinx/python"                              build/fpga/openxc7/
+docker cp "$cid:/nextpnr-xilinx/xilinx/constids.inc"                        build/fpga/openxc7/
+docker cp "$cid:/nextpnr-xilinx/xilinx/external/prjxray-db/artix7"          build/fpga/openxc7/prjxray-db/
+docker cp "$cid:/nextpnr-xilinx/xilinx/external/nextpnr-xilinx-meta/artix7" build/fpga/openxc7/meta/
+docker rm "$cid"
 
-# Step 2 -- synthesis (verified working this wave)
-docker run --rm -v "$PWD:/work" -w /work regymm/openxc7 bash -c '
-  /yosys/yosys -p "read_verilog fpga/verilog/ternary_mac_demo_top_v2.v \
-            fpga/verilog/ternary_mac_demo_core.v fpga/verilog/ternary_mac_synth.v; \
-            synth_xilinx -abc9 -nocarry -arch xc7 -top ternary_mac_demo_top_v2; \
-            write_json build/synth-gate/v2_openxc7.json"
-'
+# 1. chipdb -- NATIVELY, this is the step that needs 7 GB
+cd build/fpga/openxc7
+python3 python/bbaexport.py --xray prjxray-db/artix7 --metadata meta/artix7 \
+        --constids constids.inc --device xc7a200tfbg676-1 --bba xc7a200tfbg676.bba
+# 981 MB .bba
 
-# Step 3 -- place, route, bitstream
-docker run --rm -v "$PWD:/work" -w /work regymm/openxc7 bash -c '
+# 2. assemble -- Docker is fine, this step is small
+docker run --rm -v "$PWD:/out" regymm/openxc7 \
+  bbasm --le /out/xc7a200tfbg676.bba /out/xc7a200tfbg676.bin      # 332 MB
+
+# 3. synth + P&R + bitstream -- Docker
+docker run --rm -v "$REPO:/work" -w /work regymm/openxc7 bash -c '
   source /prjxray/env/bin/activate
-  export XRAY_DATABASE_DIR=/nextpnr-xilinx/xilinx/external/prjxray-db
-  /nextpnr-xilinx/nextpnr-xilinx --chipdb build/fpga/chipdb/xc7a200tfbg676.bin \
-            --json build/synth-gate/v2_openxc7.json \
-            --xdc fpga/verilog/ternary_mac_demo_top_v2.xdc \
-            --write build/fpga/v2_routed.json --fasm build/fpga/v2.fasm
-  fasm2frames --part xc7a200tfbg676-1 build/fpga/v2.fasm > build/fpga/v2.frames
-  xc7frames2bit --part_name xc7a200tfbg676-1 --frm_file build/fpga/v2.frames \
-            --bit_file fpga/verilog/ternary_mac_demo_top_v2_200t.bit
-'
+  /yosys/yosys -q -p "read_verilog fpga/verilog/ternary_mac_demo_top_v2.v \
+        fpga/verilog/ternary_mac_demo_core.v fpga/verilog/ternary_mac_synth.v; \
+        synth_xilinx -abc9 -nocarry -arch xc7 -top ternary_mac_demo_top_v2; \
+        write_json build/synth-gate/v2_openxc7.json"
+  /nextpnr-xilinx/nextpnr-xilinx --chipdb build/fpga/openxc7/xc7a200tfbg676.bin \
+        --json build/synth-gate/v2_openxc7.json \
+        --xdc fpga/verilog/ternary_mac_demo_top_v2.xdc \
+        --write build/fpga/v2_routed.json --fasm build/fpga/v2.fasm
+  python3 /prjxray/utils/fasm2frames.py \
+        --db-root /nextpnr-xilinx/xilinx/external/prjxray-db/artix7 \
+        --part xc7a200tfbg676-1 build/fpga/v2.fasm > build/fpga/v2.frames
+  xc7frames2bit --part_name xc7a200tfbg676-1 \
+        --part_file /nextpnr-xilinx/xilinx/external/prjxray-db/artix7/xc7a200tfbg676-1/part.yaml \
+        --frm_file build/fpga/v2.frames \
+        --output_file fpga/verilog/ternary_mac_demo_top_v2_200t.bit'
 ```
 
-- **Pass:** `ternary_mac_demo_top_v2_200t.bit` exists, non-zero, and
-  `nextpnr` reports routing completed with no unrouted nets.
-- **Note:** `-abc9` is mandatory. `trinity-fpga` measured a 70 % → 19 %
-  silicon-correctness regression when it was dropped. `-nocarry` always.
-- **Risk:** the `fbg676` chipdb is pinout-correct for the `fgg676` board — the
-  SSOT establishes they share a die and pinout. This design LOCs only R23/T23
-  (ordinary user IOBs), so it avoids the dedicated-config-pin crash documented
-  in `OPENXC7_FGG676_STATUS.md`.
+**Result — measured, Wave 553:**
+
+| | |
+|---|---|
+| Bitstream | `fpga/verilog/ternary_mac_demo_top_v2_200t.bit`, 9,730,764 B |
+| Header | part `xc7a200tfbg676-1`, generator `xc7frames2bit` |
+| nextpnr | 0 errors |
+| **Max frequency `cfgmclk`** | **150.63 MHz (PASS at 80.00 MHz)** — 1.88× margin |
+| SLICE_LUTX | 120 / 269,200 (0 %) |
+| SLICE_FFX | 60 / 269,200 (0 %) |
+
+Until now every frequency figure attached to IGLA RACE was a projection from a
+model. This one is from place-and-route.
+
+**Two gotchas, recorded:**
+
+- `bbaexport.py` prints nothing when the OOM killer takes it. **Check `$?`;
+  137 means OOM.** Piping through `tail` hides it, which cost W549 two
+  misdiagnoses.
+- nextpnr-xilinx's XDC reader supports only `get_ports`/`get_nets`. The
+  original `create_clock … [get_pins startup/CFGMCLK]` errored with *"targets
+  other than 'get_ports' or 'get_nets' are not supported"*; re-addressed to
+  `[get_nets cfgmclk]`, which Vivado also accepts.
 
 ### G2 — Cable and board detected *(status: BLOCKED on hardware)*
 
@@ -328,14 +323,16 @@ What this plan does **not** claim:
 ## 6. Critical path, shortest first
 
 ```
-G0 (done) ──► G1 bitstream ──► G3 signature ──► G4 persistent boot
-                                  ▲
-                   G2 attach board and cable
+G0 (done) ──► G1 bitstream (done) ──► G3 signature ──► G4 persistent boot
+                                          ▲
+                       G2 attach board and cable   <-- THE ONLY REMAINING BLOCKER
 ```
 
-The two independent unblocks are **install nextpnr-xilinx (or pull the Docker
-image)** and **plug in the board**. Neither depends on the other; both are
-required before any hardware claim can be made.
+Everything that can be done without hardware is done. `t27c fpga-flash
+--dry-run` passes every pre-flight check against the new bitstream and reports
+BLOCKED for exactly one reason: `openFPGALoader --scan-usb` finds no
+programmer. **Connect the QMTech Wukong V1 and its Digilent HS2 cable and G2/G3
+can run immediately.**
 
 ---
 
