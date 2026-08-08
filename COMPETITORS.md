@@ -207,10 +207,34 @@ direction**. Claiming otherwise would be a category error.
 
 **The honest comparison:** FINN and hls4ml take a trained network and produce
 a working FPGA accelerator today. IGLA RACE has one hand-written ternary MAC
-cell that, as of Wave 549, has **never been observed running on a board** --
-see [`docs/fpga/IGLA_FPGA_LAUNCH_PLAN.md`](docs/fpga/IGLA_FPGA_LAUNCH_PLAN.md).
-Any framing of IGLA RACE as an alternative to FINN is unsupportable until
-gate G3 in that plan is passed.
+cell. Any framing of IGLA RACE as an alternative to FINN remains unsupportable
+until gate G3 in
+[`docs/fpga/IGLA_FPGA_LAUNCH_PLAN.md`](docs/fpga/IGLA_FPGA_LAUNCH_PLAN.md) is
+passed -- that is, until it is observed running on a board.
+
+**What Wave 553 did add.** The MAC now has a routed implementation for the
+target part, so two numbers are measured rather than projected:
+
+| | |
+|---|---|
+| Place-and-route | 0 errors, `xc7a200tfbg676-1` |
+| **Max frequency** | **150.63 MHz** (constraint 80 MHz) |
+| Resources | 120 SLICE_LUTX, 60 SLICE_FFX, **0 DSP48** |
+
+Read with theorems T1 and T2 (`fpga/formal/README.md`), this licenses exactly
+one competitive claim, and it is a narrow one: *for a single 8-bit x ternary
+multiply-accumulate cell, the multiplier-free implementation is exact and costs
+zero DSP48 blocks where the equivalent `*`-based design costs one.*
+
+**What it does not license, and why.** It cannot be compared to FINN's or
+hls4ml's published figures. Those report **network-level** accelerator
+resources -- throughput, total LUT/BRAM/DSP for a whole quantised model -- and
+a search of the literature for single-cell MAC costs on comparable parts turns
+up no directly comparable measurement. Comparing one cell to a whole
+accelerator is a category error in either direction, and this document will not
+make it. The number that would be comparable -- a ternary GEMM array with
+measured throughput -- does not exist here yet:
+`systolic_ternary.t27` and `ternary_gemm.t27` have never been synthesised.
 
 ### 4.3 What we do not claim (IGLA)
 
