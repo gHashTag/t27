@@ -2,6 +2,12 @@
 
 Last updated: 2026-08-08
 
+## gen-verilog: tuple-LITERAL destructure lowered -- last icarus compile-error class (Refs #1948)
+
+- `let (a, b, c) = (4, 3, 1)` (destructure of a tuple LITERAL, not a call) was unhandled: tuple_local_elem_types returned None, so the local emitted a nameless `reg [31:0] ;` and `= {1, 3, 4}`. It infers the element types now (default u32) and width-casts the literal elements into the packed temp
+- tri-net corpus: icarus 98 -> 99 (swarm_coordinator). Every spec in the corpus now COMPILES under Icarus (0 compile-error specs); the remaining 8 out of the gate are runtime divergences only
+- FROZEN_HASH resealed
+
 ## gen-verilog: test-block for-loops emitted; loop-variant calls not CSE-hoisted; tail expressions (Refs #1948)
 
 - `for i in ..` / `while` in a test block was dropped as `// (stmt: StmtForRange)`, silently voiding loop bodies that accumulate assertions. Loops emit now (loop var declared `integer`)
