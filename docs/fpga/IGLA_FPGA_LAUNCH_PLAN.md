@@ -145,29 +145,54 @@ The `regymm/openxc7` image (11.3 GB) has been pulled and **verified to
 synthesize this design**: 188 cells, 115 LUT, 60 FF, 1 STARTUPE2, under
 yosys 0.62 inside the container.
 
-Two facts that cost this wave an hour and are recorded so they cost the next
-one nothing:
+**Step 1 is blocked on host memory, and that is the whole story.**
+`bbaexport.py` is **OOM-killed** — `EXIT=137`, SIGKILL — every time:
 
-- **The prjxray database is not at `/prjxray/database/`.** That directory
-  holds only `settings.sh`. The real database is at
-  `/nextpnr-xilinx/xilinx/external/prjxray-db/`, and `bbaexport.py` fails
-  silently — no message, no output file — when `XRAY_DATABASE_DIR` is unset.
-- **`xc7a200tfbg676-1` is present** in that database, which is the part
-  `HARDWARE_SSOT.md` establishes as pinout-correct for the FGG676 board.
-- The image is `linux/amd64`; on Apple Silicon every step runs under
-  emulation, so the "~12 min" chipdb figure from
-  `OPENXC7_FGG676_STATUS.md` (measured natively) does not apply.
+| | |
+|---|---|
+| Host RAM | 8 GB |
+| Allocated to Docker Desktop | **3.828 GiB** |
+| Chipdb export peak (per `OPENXC7_FGG676_STATUS.md`) | ~3.5 GiB **for the smaller XC7A100T, measured natively** |
+| This target | XC7A200T — a larger die — under `linux/amd64` emulation on aarch64 |
+
+The 200T needs more than the 100T, and emulation adds overhead on top, so the
+export cannot fit in 3.83 GiB.
+
+Three notes recorded so the next run does not repeat this wave's detours:
+
+- **The failure is silent unless you look at the exit code.** `bbaexport.py`
+  prints nothing when killed; piping it through `tail` hides even that. Two
+  attempts this wave were misread — first as a missing prjxray database, then
+  as an unset `XRAY_DATABASE_DIR`. Both diagnoses were wrong. **Check `$?`;
+  137 means OOM.**
+- **The prjxray database is not at `/prjxray/database/`** (that holds only
+  `settings.sh`). It ships at
+  `/nextpnr-xilinx/xilinx/external/prjxray-db/artix7/`, which is already the
+  script's default — `--xray` does not need to be passed.
+- **`xc7a200tfbg676-1` is present** there, the part `HARDWARE_SSOT.md`
+  establishes as pinout-correct for the FGG676 board.
+
+**Ways past it**, cheapest first:
+
+1. Raise Docker Desktop's memory limit toward 6–7 GiB (Settings → Resources).
+   Tight on an 8 GB host but may fit.
+2. Build the chipdb **natively** — no emulation overhead and no Docker
+   ceiling. `OPENXC7_FGG676_STATUS.md` documents this path and reports the
+   100T export completing in 71 s at 2.1 GiB peak.
+3. Run the export on a machine with more RAM and commit the resulting
+   `.bin` — the chipdb is device-specific, not host-specific, so it is a
+   one-time artifact that can be produced anywhere.
 
 ```bash
-# Step 1 -- chipdb (one-time, slow; the emulation-tax step)
+# Step 1 -- chipdb (one-time). BLOCKED at 3.83 GiB Docker memory: see above.
+# Defaults already point at the bundled prjxray-db; do not pass --xray.
+# ALWAYS check the exit code -- 137 means the OOM killer took it.
 mkdir -p build/fpga/chipdb
 docker run --rm -v "$PWD/build/fpga/chipdb:/out" regymm/openxc7 bash -c '
   source /prjxray/env/bin/activate
-  export PYTHONPATH=/prjxray
-  export XRAY_DATABASE_DIR=/nextpnr-xilinx/xilinx/external/prjxray-db
-  export XRAY_DATABASE=artix7
   cd /nextpnr-xilinx
   python3 xilinx/python/bbaexport.py --device xc7a200tfbg676-1 --bba /out/xc7a200tfbg676.bba
+  echo "bbaexport exit=$?"
   bbasm --le /out/xc7a200tfbg676.bba /out/xc7a200tfbg676.bin
 '
 
