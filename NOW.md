@@ -2,6 +2,13 @@
 
 Last updated: 2026-08-08
 
+## gen-zig: skip dead base-types import; asserts panic, not compileError (Refs #1928)
+
+- `use base::types` emitted an @import of a never-shipped types.zig even with zero references -- every generated file failed `zig test` with FileNotFound before a single test ran; the import is now emitted only when the module body references it
+- Test asserts emitted `@compileError`, which fires whenever a runtime-condition branch is ANALYZED; now `@panic(msg)` -- the honest runtime failure
+- tri-net `zig test` sweep: 4/69 -> 37/69 pass; the remaining 32 are REAL findings (t27 saturation idiom needs +%, genuine runtime test failures, two emission tails) tracked in #1928
+- Unit suite 1537/1537; FROZEN_HASH resealed
+
 ## parser: .N tuple index reaches the AST; gen-c long-tail batch (Refs #1919)
 
 - The parser consumed the dot of `expr.0` and silently DROPPED the numeric index -- `two().0` parsed as `two()` (wrong value, no diagnostic). Number-after-Dot now builds ExprFieldAccess; Rust emits `.0`, Zig `.@"0"`, C `.fN` (Verilog TB emission of .N remains a documented long-tail alongside its unsized-concat defect)

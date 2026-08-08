@@ -3292,15 +3292,33 @@ impl Codegen {
             self.write_line("");
         }
 
-        // Emit @import for UseDecl nodes first
+        // Emit @import for UseDecl nodes first -- but only when the module body
+        // actually references `<name>.something`. `use base::types` is semantic
+        // noise for the Zig backend, and an import of a file that is never
+        // shipped alongside the gen (types.zig) made every generated file fail
+        // `zig test` with FileNotFound before a single test ran.
+        fn module_referenced(nodes: &[Node], module: &str) -> bool {
+            nodes.iter().any(|n| {
+                (n.kind == NodeKind::ExprFieldAccess
+                    && n.children
+                        .first()
+                        .is_some_and(|b| b.kind == NodeKind::ExprIdentifier && b.name == module))
+                    || (n.kind == NodeKind::ExprCall && n.name.starts_with(&format!("{}.", module)))
+                    || module_referenced(&n.children, module)
+            })
+        }
         let mut has_imports = false;
         for decl in &ast.children {
             if decl.kind == NodeKind::UseDecl {
-                self.write_line(&format!(
-                    "const {} = @import(\"{}.zig\");",
-                    decl.name, decl.name
-                ));
-                has_imports = true;
+                if module_referenced(&ast.children, &decl.name) {
+                    self.write_line(&format!(
+                        "const {} = @import(\"{}.zig\");",
+                        decl.name, decl.name
+                    ));
+                    has_imports = true;
+                } else {
+                    self.write_line(&format!("// use {}: no references in this module", decl.name));
+                }
             }
         }
         if has_imports {
@@ -4032,9 +4050,19 @@ impl Codegen {
             NodeKind::ExprCall => {
                 if node.name == "@compileAssert" || node.name == "assert" {
                     if !node.children.is_empty() {
+                        // @compileError fires whenever the branch is ANALYZED,
+                        // so a runtime-condition assert made every generated
+                        // file fail `zig test` at compile time. @panic is the
+                        // honest runtime failure and still dies at comptime
+                        // when the condition folds to false.
+                        let msg = node
+                            .children
+                            .get(1)
+                            .map(|m| m.value.trim_matches('"').replace('\\', "").replace('"', ""))
+                            .unwrap_or_else(|| "assertion failed".to_string());
                         self.write("if (!(");
                         self.gen_expr(&node.children[0]);
-                        self.write(")) @compileError(\"assertion failed\")");
+                        self.write(&format!(")) @panic(\"{}\")", msg));
                     }
                 } else if node.name == "gf16_encode_f32" {
                     self.write("gf16_encode_f32(");
