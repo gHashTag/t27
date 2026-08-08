@@ -973,6 +973,55 @@ the contract, exactly like `dma_burst_length_is_max` and
 
 ---
 
+### Proposition 22 — why no top-level gate can close this, and where the fix belongs
+
+`MEASURED`. Three successive narrowings landed against one property, each real
+and each insufficient. The fourth attempt produced the diagnosis instead:
+
+1. `busy` made a state register rather than a decode of `current_layer` (Prop. 21a)
+2. the interlock made symmetric in both directions (Prop. 21b)
+3. the gate extended across `layer_valid`, `mac_valid_q` and `act_trit_valid`
+
+**22a. The trace.** With `-show` on the top-level signals:
+
+```
+t   reg_ctrl  start  inference_active  dma_busy  dma_local_we  layer_valid  mac_valid_q
+14        47      1                 1         0             0            0            0
+15         2      0                 0         0             0            0            0
+16         2      0                 0         1             0            0            0
+17         2      0                 0         1             0            1            0
+18         2      0                 0         1             0            1            1
+19         2      0                 0         1             1            0            1   <== OVERLAP
+```
+
+At t15 the host clears `reg_ctrl[0]`; `inference_active` falls and the DMA gate
+opens. At **t17 `layer_valid` rises again** — the sequencer restarted work of
+its own accord.
+
+**22b. The diagnosis.** `multilayer_sequencer` runs its own state machine and
+**does not stop when the host clears the start bit.** `inference_active` tracks
+a host request, not the engine's state. So the DMA gate opens while the
+sequencer is mid-traversal, and the sequencer then re-raises `layer_start`.
+
+**Quiescence is a property of the sequencer, and `bitnet_engine_top` cannot
+observe it.** Gating harder at the top can only narrow the window — which is
+exactly what three attempts did, each by a little.
+
+**22c. Where the fix belongs.** `multilayer_sequencer` needs an `idle` output
+(`state == IDLE`), and the interlock should key off that. That is a module
+interface change, and it is deliberately **not** made here as a fourth
+narrowing. Three partial fixes in a row is the signal to stop patching the
+observer and change what is observable.
+
+**22d. The general shape.** A supervisor that can be *asked* to stop is not the
+same as one that *has* stopped. Any interlock built on the request rather than
+the acknowledgement inherits the gap — the same request/acknowledge distinction
+that Prop. 18c found in the prefetch handshake, one level up. **When a gate
+keeps almost-working, suspect that the signal it reads answers a different
+question than the one being asked.**
+
+---
+
 ## 2. Related work — verified citations
 
 Titles fetched from each source's own metadata on 2026-08-09; none is quoted

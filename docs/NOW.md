@@ -2,6 +2,33 @@
 
 Last updated: 2026-08-09
 
+## dma-interlock-diagnosed -- no top-level gate can close it
+
+- **WHERE**: `bootstrap/src/bitnet_top.rs`, `docs/FORMAL_FOUNDATIONS.md`
+  (Prop 22), `README.md`.
+- **Variant A from #1990.** A fourth narrowing was attempted and produced the
+  **diagnosis** instead of a fix, which is the better outcome.
+- **The trace**: at t15 the host clears `reg_ctrl[0]`, `inference_active` falls
+  and the DMA gate opens; at **t17 `layer_valid` rises again** -- the sequencer
+  restarted work of its own accord; t19 overlaps.
+- **Diagnosis**: `multilayer_sequencer` runs its own state machine and **does
+  not stop when the host clears the start bit**. `inference_active` tracks a
+  host *request*, not the engine's *state*. **Quiescence is a property of the
+  sequencer and this module cannot observe it** -- so gating harder at the top
+  can only narrow the window, which is exactly what three attempts did.
+- **Where the fix belongs**: `multilayer_sequencer` needs an `idle` output
+  (`state == IDLE`) and the interlock should key off that. A module interface
+  change, deliberately **not** made as a fourth narrowing. **Three partial fixes
+  in a row is the signal to stop patching the observer and change what is
+  observable.**
+- **General shape**: a supervisor that can be *asked* to stop is not one that
+  *has* stopped -- the same request/acknowledge distinction as the prefetch
+  handshake in Prop 18c, one level up. **When a gate keeps almost-working,
+  suspect the signal it reads answers a different question.**
+- The pipeline-wide gate is kept: it is a genuine narrowing even though it does
+  not close the property.
+- Suite **1204 passed, 0 failed**. Seals 496/496.
+
 ## busy-is-a-state -- interlock narrowed twice, still open
 
 - **WHERE**: `bootstrap/src/bitnet_top.rs`, `bootstrap/tests/bitnet_top.rs`,
